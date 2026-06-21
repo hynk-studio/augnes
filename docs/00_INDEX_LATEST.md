@@ -1118,6 +1118,27 @@ repo-local 색인이다.
   schema/migration/dependency. Browser-backed validation uses the best
   available method and may record the local `/tmp` disabled bridge skeleton
   report if present.
+- Manual note single-claim temp-to-product disabled bridge skeleton contract tests:
+  `lib/research-candidate-review/manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-test-cases.v0.1.json`,
+  `fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests.sample.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1`,
+  and `npm run contracts:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-contract-tests-v0-1`
+  add a deterministic fixture-only contract-test suite for the disabled bridge
+  skeleton. This is a contract-test suite for the disabled bridge skeleton; it
+  does not implement product write, does not enable an adapter, does not
+  allocate product IDs, does not open DB, and does not execute SQL. It adds no
+  route or UI write action and adds no schema/migration/dependency. Product
+  write remains blocked. The report status is
+  `disabled_bridge_skeleton_contract_tests_passed`, the recommendation status
+  is `ready_for_disabled_bridge_dry_run_transaction_plan`, and the next
+  recommended slice is
+  `single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan`, not
+  product write. The runner writes only `/tmp` report artifacts and keeps no
+  product DB write, no product ID allocation, no proof/evidence write, no
+  Perspective/canonical graph write, no work item, no provider/retrieval/source
+  fetch, no external handoff, no browser persistence, and no local runtime
+  requirement.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

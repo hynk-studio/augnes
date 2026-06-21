@@ -1,0 +1,1000 @@
+{
+  "suite_kind": "manual_note_single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests",
+  "suite_version": "manual_note_single_claim_temp_to_product_disabled_bridge_skeleton_contract_tests.v0.1",
+  "minimum_case_count": 45,
+  "expected_total_cases": 70,
+  "positive_fixture_chain": {
+    "disabled_bridge_skeleton_fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton.sample.v0.1.json",
+    "source_bridge_design_fixture_path": "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-bridge-design.sample.v0.1.json",
+    "expected_status": "pass",
+    "expected_contract_suite_status": "disabled_bridge_skeleton_contract_tests_passed",
+    "expected_recommendation_status": "ready_for_disabled_bridge_dry_run_transaction_plan",
+    "expected_next_recommended_slice": "single_claim_temp_to_product_disabled_bridge_dry_run_transaction_plan"
+  },
+  "tested_boundaries": {
+    "no_product_db_write": true,
+    "no_product_id_allocation": true,
+    "no_db_open": true,
+    "no_sql_execution": true,
+    "no_product_write_route": true,
+    "no_ui_write_action": true,
+    "no_adapter_enablement": true,
+    "no_schema_migration_dependency_change": true,
+    "no_proof_evidence_write": true,
+    "no_perspective_or_canonical_graph_write": true,
+    "no_work_item_creation": true,
+    "no_source_fetch": true,
+    "no_provider_or_openai_call": true,
+    "no_retrieval_or_rag": true,
+    "no_external_handoff": true,
+    "no_browser_persistence": true,
+    "no_local_runtime_requirement": true,
+    "optional_report_no_fallback": true,
+    "next_slice_is_disabled_bridge_dry_run_transaction_plan": true
+  },
+  "test_cases": [
+    {
+      "case_id": "positive_committed_disabled_skeleton_fixture_passes",
+      "case_kind": "positive_disabled_skeleton_fixture",
+      "mutation_kind": "none",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_runner_fixture_mode_report_passes",
+      "case_kind": "positive_runner_report",
+      "mutation_kind": "runner_fixture_mode",
+      "target_fixture": "runner_fixture_mode_report",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_helper_built_skeleton_from_committed_bridge_design_passes",
+      "case_kind": "positive_helper_built_skeleton",
+      "mutation_kind": "helper_build_from_committed_bridge_design",
+      "target_fixture": "helper_built_skeleton_from_bridge_design",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_optional_upstream_report_pass_ready_nested_design_passes",
+      "case_kind": "positive_optional_report",
+      "mutation_kind": "optional_report_pass_ready_nested_design",
+      "target_fixture": "optional_bridge_design_report",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_local_copy_packet_boundary_flags_false",
+      "case_kind": "positive_local_copy_packet",
+      "mutation_kind": "none",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_source_bridge_evidence_summary_clean_and_stable",
+      "case_kind": "positive_source_evidence_summary",
+      "mutation_kind": "none",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_next_recommended_slice_is_contract_tests_not_product_write",
+      "case_kind": "positive_next_slice_boundary",
+      "mutation_kind": "none",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "negative_source_bridge_recommendation_status_missing",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "unset_recommendation_status",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_recommendation_status_missing"],
+      "mutated_fixture_patch": {
+        "unset": [{ "path": ["recommendation_status"] }]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_recommendation_status_blocked",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "blocked_recommendation_status",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_recommendation_status_not_ready"],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["recommendation_status"],
+            "value": "blocked_before_disabled_bridge_skeleton"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_recommendation_status_wrong_ready_string",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "wrong_ready_recommendation_status",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_recommendation_status_not_ready"],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["recommendation_status"],
+            "value": "ready_for_product_write"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_bridge_design_status_missing",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "unset_bridge_design_status",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_bridge_design_status_missing"],
+      "mutated_fixture_patch": {
+        "unset": [{ "path": ["bridge_design_status"] }]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_bridge_design_status_wrong",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "wrong_bridge_design_status",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_bridge_design_status_invalid"],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["bridge_design_status"],
+            "value": "product_bridge_enabled"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_next_recommended_slice_missing",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "unset_next_recommended_slice",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_next_recommended_slice_missing"],
+      "mutated_fixture_patch": {
+        "unset": [{ "path": ["next_recommended_slice"] }]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_next_recommended_slice_wrong",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "wrong_next_recommended_slice",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_next_recommended_slice_invalid"],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["next_recommended_slice"],
+            "value": "single_claim_temp_to_product_product_write"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_input_missing_selected_temp_claim_record_id",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "missing_selected_temp_claim_record_id",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_input_contract_selected_temp_claim_record_id_missing"
+      ],
+      "mutated_fixture_patch": {
+        "unset": [{ "path": ["bridge_input_contract", "selected_temp_claim_record_id"] }]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_input_missing_source_operation_id",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "missing_source_operation_id",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_input_contract_source_operation_id_missing"
+      ],
+      "mutated_fixture_patch": {
+        "unset": [{ "path": ["bridge_input_contract", "source_operation_id"] }]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_input_missing_source_temp_intent_id",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "missing_source_temp_intent_id",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_input_contract_source_temp_intent_id_missing"
+      ],
+      "mutated_fixture_patch": {
+        "unset": [{ "path": ["bridge_input_contract", "source_temp_intent_id"] }]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_input_missing_temp_idempotency_key",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "missing_temp_idempotency_key",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_input_contract_temp_idempotency_key_missing"
+      ],
+      "mutated_fixture_patch": {
+        "unset": [{ "path": ["bridge_input_contract", "temp_idempotency_key"] }]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_input_missing_gate_design_fingerprint",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "missing_gate_design_fingerprint",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_input_contract_gate_design_fingerprint_missing"
+      ],
+      "mutated_fixture_patch": {
+        "unset": [{ "path": ["bridge_input_contract", "gate_design_fingerprint"] }]
+      }
+    },
+    {
+      "case_id": "negative_source_bridge_input_missing_result_contract_evidence_fingerprint",
+      "case_kind": "upstream_readiness_failure",
+      "mutation_kind": "missing_result_contract_evidence_fingerprint",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_input_contract_result_contract_evidence_fingerprint_missing"
+      ],
+      "mutated_fixture_patch": {
+        "unset": [
+          {
+            "path": [
+              "bridge_input_contract",
+              "result_contract_evidence_fingerprint"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_optional_report_fail_ready_nested_must_not_fallback",
+      "case_kind": "optional_report_failure",
+      "mutation_kind": "optional_report_final_status_fail",
+      "target_fixture": "optional_bridge_design_report",
+      "expected_status": "fail",
+      "expected_failure_codes": ["optional_bridge_design_report_not_passed"],
+      "mutated_fixture_patch": {
+        "set": [
+          { "path": ["final_status"], "value": "fail" },
+          {
+            "path": [
+              "temp_to_product_bridge_design",
+              "bridge_input_contract",
+              "source_operation_id"
+            ],
+            "value": "optional-report-source-operation-id"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_optional_report_warn_ready_nested_fails",
+      "case_kind": "optional_report_failure",
+      "mutation_kind": "optional_report_final_status_warn",
+      "target_fixture": "optional_bridge_design_report",
+      "expected_status": "fail",
+      "expected_failure_codes": ["optional_bridge_design_report_not_passed"],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["final_status"], "value": "warn" }]
+      }
+    },
+    {
+      "case_id": "negative_optional_report_final_status_missing",
+      "case_kind": "optional_report_failure",
+      "mutation_kind": "optional_report_final_status_missing",
+      "target_fixture": "optional_bridge_design_report",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_bridge_design_report_final_status_missing"
+      ],
+      "mutated_fixture_patch": {
+        "unset": [{ "path": ["final_status"] }]
+      }
+    },
+    {
+      "case_id": "negative_optional_report_malformed",
+      "case_kind": "optional_report_failure",
+      "mutation_kind": "optional_report_malformed",
+      "target_fixture": "optional_bridge_design_report",
+      "expected_status": "fail",
+      "expected_failure_codes": ["optional_bridge_design_report_malformed"],
+      "mutated_fixture_patch": {
+        "replace": [{ "path": [], "value": "malformed optional report" }]
+      }
+    },
+    {
+      "case_id": "negative_optional_report_missing_temp_to_product_bridge_design",
+      "case_kind": "optional_report_failure",
+      "mutation_kind": "optional_report_missing_nested_design",
+      "target_fixture": "optional_bridge_design_report",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_bridge_design_missing_temp_to_product_bridge_design"
+      ],
+      "mutated_fixture_patch": {
+        "unset": [{ "path": ["temp_to_product_bridge_design"] }]
+      }
+    },
+    {
+      "case_id": "negative_optional_report_present_without_fallback_to_committed_fixture",
+      "case_kind": "optional_report_failure",
+      "mutation_kind": "optional_report_failed_no_fallback",
+      "target_fixture": "optional_bridge_design_report",
+      "expected_status": "fail",
+      "expected_failure_codes": ["optional_bridge_design_report_not_passed"],
+      "mutated_fixture_patch": {
+        "set": [
+          { "path": ["final_status"], "value": "fail" },
+          {
+            "path": [
+              "temp_to_product_bridge_design",
+              "next_recommended_slice"
+            ],
+            "value": "optional_report_nested_design_was_used_not_fallback"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_product_db_write_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_product_db_write",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_product_db_write_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "product_db_write"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_product_id_allocation_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_product_id_allocation",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_product_id_allocation_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "product_id_allocation"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_sql_execution_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_sql_execution",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_sql_execution_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "sql_execution"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_db_open_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_db_open",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_db_open_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "db_open"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_schema_or_migration_change_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_schema_or_migration_change",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_schema_or_migration_change_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "schema_or_migration_change"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_proof_evidence_write_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_proof_evidence_write",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_proof_evidence_write_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "proof_evidence_write"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_perspective_or_canonical_graph_write_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_perspective_or_canonical_graph_write",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_perspective_or_canonical_graph_write_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "perspective_or_canonical_graph_write"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_work_item_creation_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_work_item_creation",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_work_item_creation_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "work_item_creation"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_source_fetch_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_source_fetch",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_source_fetch_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "source_fetch"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_provider_or_openai_call_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_provider_or_openai_call",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_provider_or_openai_call_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "provider_or_openai_call"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_retrieval_or_rag_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_retrieval_or_rag",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_retrieval_or_rag_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "retrieval_or_rag"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_external_handoff_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_external_handoff",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_external_handoff_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "external_handoff"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_adapter_enabled_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_adapter_enabled",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_adapter_enabled_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "adapter_enabled"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_route_added_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_route_added",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_route_added_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "route_added"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_ui_write_action_added_true",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surface_ui_write_action_added",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_forbidden_surface_ui_write_action_added_not_false"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces", "ui_write_action_added"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_surfaces_missing",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surfaces_missing",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_explicit_forbidden_surfaces_missing"
+      ],
+      "mutated_fixture_patch": {
+        "unset": [{ "path": ["explicit_forbidden_surfaces"] }]
+      }
+    },
+    {
+      "case_id": "negative_source_forbidden_surfaces_empty",
+      "case_kind": "source_forbidden_surface_contamination",
+      "mutation_kind": "source_forbidden_surfaces_empty",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_bridge_explicit_forbidden_surfaces_empty"
+      ],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["explicit_forbidden_surfaces"], "value": {} }]
+      }
+    },
+    {
+      "case_id": "negative_source_product_claim_id_present",
+      "case_kind": "source_product_id_contamination",
+      "mutation_kind": "source_future_product_claim_id_present",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_product_id_present"],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["future_product_claim_draft", "product_claim_id"], "value": "product-claim:bad-source" }]
+      }
+    },
+    {
+      "case_id": "negative_source_proof_and_evidence_ids_present",
+      "case_kind": "source_product_id_contamination",
+      "mutation_kind": "source_future_proof_evidence_ids_present",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_product_id_present"],
+      "mutated_fixture_patch": {
+        "set": [
+          { "path": ["future_product_claim_draft", "proof_id"], "value": "proof:bad-source" },
+          { "path": ["future_product_claim_draft", "evidence_id"], "value": "evidence:bad-source" }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_source_perspective_and_work_item_ids_present",
+      "case_kind": "source_product_id_contamination",
+      "mutation_kind": "source_future_perspective_work_item_ids_present",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_product_id_present"],
+      "mutated_fixture_patch": {
+        "set": [
+          { "path": ["future_product_claim_draft", "perspective_id"], "value": "perspective:bad-source" },
+          { "path": ["future_product_claim_draft", "work_item_id"], "value": "work-item:bad-source" }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_source_product_idempotency_record_id_present",
+      "case_kind": "source_product_id_contamination",
+      "mutation_kind": "source_product_idempotency_record_id_present",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_product_id_present"],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": [
+              "future_product_idempotency_design",
+              "product_idempotency_record_id"
+            ],
+            "value": "product-idempotency:bad-source"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_source_product_rollback_record_id_present",
+      "case_kind": "source_product_id_contamination",
+      "mutation_kind": "source_product_rollback_record_id_present",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_product_id_present"],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": [
+              "future_product_rollback_design",
+              "product_rollback_record_id"
+            ],
+            "value": "product-rollback:bad-source"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_source_product_audit_record_id_present",
+      "case_kind": "source_product_id_contamination",
+      "mutation_kind": "source_product_audit_record_id_present",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_product_id_present"],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": [
+              "future_product_audit_design",
+              "product_audit_record_id"
+            ],
+            "value": "product-audit:bad-source"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_source_nested_canonical_product_id_anywhere_present",
+      "case_kind": "source_product_id_contamination",
+      "mutation_kind": "source_nested_product_id_anywhere",
+      "target_fixture": "source_bridge_design",
+      "expected_status": "fail",
+      "expected_failure_codes": ["source_bridge_product_id_present"],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["source_evidence", "nested_contract_probe", "canonical_claim_id"],
+            "value": "canonical-claim:bad-source"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_bridge_adapter_enabled_true",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "bridge_adapter_enabled_true",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": ["bridge_adapter_enabled"],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["bridge_adapter_enabled"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_disabled_adapter_boundary_adapter_enabled_true",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "disabled_adapter_boundary_adapter_enabled_true",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": ["disabled_adapter_boundary_adapter_enabled"],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["disabled_adapter_boundary", "adapter_enabled"],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_disabled_adapter_boundary_invocation_allowed_true",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "disabled_adapter_boundary_invocation_allowed_true",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "disabled_adapter_boundary_adapter_invocation_allowed_now"
+      ],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": [
+              "disabled_adapter_boundary",
+              "adapter_invocation_allowed_now"
+            ],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_bridge_execution_allowed_now_true",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "bridge_execution_allowed_now_true",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": ["bridge_execution_allowed_now"],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["bridge_execution_allowed_now"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_product_write_allowed_now_true",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "product_write_allowed_now_true",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": ["product_write_allowed_now"],
+      "mutated_fixture_patch": {
+        "set": [{ "path": ["product_write_allowed_now"], "value": true }]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_product_db_write_and_id_allocation_true",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "product_db_write_and_id_allocation_true",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": ["product_db_write", "product_id_allocation"],
+      "mutated_fixture_patch": {
+        "set": [
+          { "path": ["product_db_write"], "value": true },
+          { "path": ["product_id_allocation"], "value": true }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_future_product_claim_id_present",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "future_product_claim_id_present",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_product_write_intent_product_claim_id_present"
+      ],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["future_product_write_intent", "product_claim_id"],
+            "value": "product-claim:bad-output"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_future_product_statement_counts_nonzero",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "future_product_statement_counts_nonzero",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_product_write_intent_product_write_statement_count_nonzero",
+        "future_product_write_intent_sql_statement_count_nonzero"
+      ],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": [
+              "future_product_write_intent",
+              "product_write_statement_count"
+            ],
+            "value": 1
+          },
+          {
+            "path": ["future_product_write_intent", "sql_statement_count"],
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_future_product_db_route_ui_flags_true",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "future_product_db_route_ui_flags_true",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_product_write_intent_db_opened",
+        "future_product_write_intent_route_added",
+        "future_product_write_intent_ui_action_added"
+      ],
+      "mutated_fixture_patch": {
+        "set": [
+          { "path": ["future_product_write_intent", "db_opened"], "value": true },
+          { "path": ["future_product_write_intent", "route_added"], "value": true },
+          { "path": ["future_product_write_intent", "ui_action_added"], "value": true }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_future_product_execution_status_wrong",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "future_product_execution_status_wrong",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "future_product_write_intent_execution_status_invalid"
+      ],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["future_product_write_intent", "execution_status"],
+            "value": "executed_product_write"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_placeholder_product_record_ids_present",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "placeholder_product_record_ids_present",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "placeholder_record_mapping_product_idempotency_record_id_present",
+        "placeholder_record_mapping_product_rollback_record_id_present",
+        "placeholder_record_mapping_product_audit_record_id_present"
+      ],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": [
+              "placeholder_record_mapping",
+              "product_idempotency_record_id"
+            ],
+            "value": "product-idempotency:bad-output"
+          },
+          {
+            "path": [
+              "placeholder_record_mapping",
+              "product_rollback_record_id"
+            ],
+            "value": "product-rollback:bad-output"
+          },
+          {
+            "path": [
+              "placeholder_record_mapping",
+              "product_audit_record_id"
+            ],
+            "value": "product-audit:bad-output"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "negative_skeleton_placeholder_write_flags_true",
+      "case_kind": "skeleton_output_boundary_failure",
+      "mutation_kind": "placeholder_write_flags_true",
+      "target_fixture": "committed_skeleton_fixture",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "placeholder_record_mapping_idempotency_write_executed_now",
+        "placeholder_record_mapping_rollback_write_executed_now",
+        "placeholder_record_mapping_audit_write_executed_now"
+      ],
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": [
+              "placeholder_record_mapping",
+              "idempotency_write_executed_now"
+            ],
+            "value": true
+          },
+          {
+            "path": [
+              "placeholder_record_mapping",
+              "rollback_write_executed_now"
+            ],
+            "value": true
+          },
+          {
+            "path": [
+              "placeholder_record_mapping",
+              "audit_write_executed_now"
+            ],
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "positive_static_no_app_api_route_for_contract_tests",
+      "case_kind": "static_repo_boundary",
+      "mutation_kind": "static_no_app_api_route",
+      "target_fixture": "static_repo_boundary",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_static_no_components_ui_for_contract_tests",
+      "case_kind": "static_repo_boundary",
+      "mutation_kind": "static_no_components_ui",
+      "target_fixture": "static_repo_boundary",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_static_no_schema_migration_db_sql_changes",
+      "case_kind": "static_repo_boundary",
+      "mutation_kind": "static_no_schema_migration_db_sql",
+      "target_fixture": "static_repo_boundary",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_static_no_dependency_additions",
+      "case_kind": "static_repo_boundary",
+      "mutation_kind": "static_no_dependency_additions",
+      "target_fixture": "static_repo_boundary",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_static_no_executable_sql_strings",
+      "case_kind": "static_repo_boundary",
+      "mutation_kind": "static_no_executable_sql_strings",
+      "target_fixture": "static_repo_boundary",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_static_no_forbidden_imports",
+      "case_kind": "static_repo_boundary",
+      "mutation_kind": "static_no_forbidden_imports",
+      "target_fixture": "static_repo_boundary",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_static_no_network_provider_retrieval_source_external_calls",
+      "case_kind": "static_repo_boundary",
+      "mutation_kind": "static_no_network_provider_retrieval_source_external_calls",
+      "target_fixture": "static_repo_boundary",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    },
+    {
+      "case_id": "positive_static_no_browser_persistence_or_app_server_startup",
+      "case_kind": "static_repo_boundary",
+      "mutation_kind": "static_no_browser_persistence_or_app_server_startup",
+      "target_fixture": "static_repo_boundary",
+      "expected_status": "pass",
+      "expected_failure_codes": []
+    }
+  ]
+}
