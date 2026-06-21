@@ -959,8 +959,14 @@ function assertNoRouteUiSchemaDependencyExpansion() {
       ) ||
         line.includes(
           '"report:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1"',
+      ) ||
+        line.includes(
+          '"smoke:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1"',
+      ) ||
+        line.includes(
+          '"contracts:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1"',
       ),
-      `package.json must only add disabled bridge skeleton, contract-test, dry-run, authority bundle, disabled adapter skeleton, disabled adapter contract-test, disabled adapter dry-run invocation harness, or no-op report scripts, not dependencies: ${line}`,
+      `package.json must only add disabled bridge skeleton, contract-test, dry-run, authority bundle, disabled adapter skeleton, disabled adapter contract-test, disabled adapter dry-run invocation harness, no-op report, or preflight envelope contract-test scripts, not dependencies: ${line}`,
     );
   }
 }

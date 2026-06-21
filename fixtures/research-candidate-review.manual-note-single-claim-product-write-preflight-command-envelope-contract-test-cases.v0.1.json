@@ -1,0 +1,2578 @@
+{
+  "fixture_kind": "manual_note_single_claim_product_write_preflight_command_envelope_contract_test_cases",
+  "fixture_version": "manual_note_single_claim_product_write_preflight_command_envelope_contract_tests.v0.1",
+  "test_case_count": 122,
+  "required_case_groups": [
+    "positive",
+    "top_level_boundary",
+    "command_input",
+    "product_claim_draft_preview",
+    "storage_previews",
+    "source_evidence",
+    "optional_traceability",
+    "static_boundary"
+  ],
+  "exactness_contract": {
+    "actual_status_equals_expected_status": true,
+    "expected_failure_codes_must_be_present": true,
+    "unexpected_failure_codes_forbidden_by_default": true
+  },
+  "test_cases": [
+    {
+      "case_id": "positive_committed_684_fixture_passes",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "committed #684 preflight command envelope fixture passes",
+      "expected_status": "pass",
+      "expected_failure_codes": [],
+      "allowed_unexpected_failure_codes": []
+    },
+    {
+      "case_id": "positive_fixture_mode_runner_output_passes",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "fixture-mode runner output is represented by the committed fixture",
+      "expected_status": "pass",
+      "expected_failure_codes": [],
+      "allowed_unexpected_failure_codes": []
+    },
+    {
+      "case_id": "positive_optional_684_matching_report_passes",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "optional #684 report with matching payload passes",
+      "expected_status": "pass",
+      "expected_failure_codes": [],
+      "allowed_unexpected_failure_codes": []
+    },
+    {
+      "case_id": "positive_stale_optional_upstream_ignored_in_fixture_mode",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "stale optional upstream reports are ignored in fixture mode",
+      "expected_status": "pass",
+      "expected_failure_codes": [],
+      "allowed_unexpected_failure_codes": []
+    },
+    {
+      "case_id": "positive_non_fixture_static_boundary_uses_committed_delta",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "non-fixture static boundary uses a non-empty committed delta",
+      "expected_status": "pass",
+      "expected_failure_codes": [],
+      "allowed_unexpected_failure_codes": []
+    },
+    {
+      "case_id": "positive_next_slice_is_stopline_not_implementation",
+      "case_group": "positive",
+      "mutation_kind": "none",
+      "mutation_summary": "contract suite advances to the stopline, not implementation",
+      "expected_status": "pass",
+      "expected_failure_codes": [],
+      "allowed_unexpected_failure_codes": []
+    },
+    {
+      "case_id": "preflight_status_not_ready_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "preflight_status_not_ready_blocks mutates preflight_command_envelope_status",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_command_envelope_status_not_ready"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "preflight_command_envelope_status"
+      ],
+      "mutation_value": "blocked"
+    },
+    {
+      "case_id": "recommendation_wrong_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "recommendation_wrong_blocks mutates recommendation_status",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "recommendation_status_not_ready"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "recommendation_status"
+      ],
+      "mutation_value": "ready_for_product_write_implementation"
+    },
+    {
+      "case_id": "next_slice_product_write_implementation_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "next_slice_product_write_implementation_blocks mutates next_recommended_slice",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "next_recommended_slice_invalid",
+        "product_write_implementation_recommended"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "next_recommended_slice"
+      ],
+      "mutation_value": "single_claim_product_write_implementation"
+    },
+    {
+      "case_id": "command_envelope_created_now_false_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_envelope_created_now_false_blocks mutates command_envelope_created_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_created_now_not_true"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_created_now"
+      ],
+      "mutation_value": false
+    },
+    {
+      "case_id": "command_envelope_persisted_now_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_envelope_persisted_now_true_blocks mutates command_envelope_persisted_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_command_envelope_persisted_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_persisted_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "command_envelope_executable_now_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_envelope_executable_now_true_blocks mutates command_envelope_executable_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_command_envelope_executable_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_executable_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "product_write_allowed_now_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "product_write_allowed_now_true_blocks mutates product_write_allowed_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_write_allowed_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_write_allowed_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "product_write_authority_granted_now_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "product_write_authority_granted_now_true_blocks mutates product_write_authority_granted_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_write_authority_granted_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_write_authority_granted_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "product_write_implementation_allowed_now_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "product_write_implementation_allowed_now_true_blocks mutates product_write_implementation_allowed_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_write_implementation_allowed_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_write_implementation_allowed_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "product_claim_id_non_null_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "product_claim_id_non_null_blocks mutates product_claim_id",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_claim_id"
+      ],
+      "mutation_value": "blocked-non-null"
+    },
+    {
+      "case_id": "command_envelope_id_non_null_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_envelope_id_non_null_blocks mutates command_envelope_id",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_id"
+      ],
+      "mutation_value": "blocked-non-null"
+    },
+    {
+      "case_id": "product_id_allocation_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "product_id_allocation_true_blocks mutates product_id_allocation",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_id_allocation_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_id_allocation"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "product_db_write_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "product_db_write_true_blocks mutates product_db_write",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_product_db_write_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_db_write"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "db_open_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "db_open_true_blocks mutates db_open",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_db_open_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "db_open"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "sql_execution_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "sql_execution_true_blocks mutates sql_execution",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_sql_execution_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "sql_execution"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "transaction_execution_now_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "transaction_execution_now_true_blocks mutates transaction_execution_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_transaction_execution_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "transaction_execution_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "adapter_runtime_invocation_now_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "adapter_runtime_invocation_now_true_blocks mutates adapter_runtime_invocation_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_adapter_runtime_invocation_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "adapter_runtime_invocation_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "route_added_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "route_added_true_blocks mutates route_added",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_route_added_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "route_added"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "ui_write_action_added_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "ui_write_action_added_true_blocks mutates ui_write_action_added",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "preflight_ui_write_action_added_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "ui_write_action_added"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "nested_transaction_execution_now_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "nested_transaction_execution_now_true_blocks mutates preflight_command_envelope.transaction_execution_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "nested_preflight_transaction_execution_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "preflight_command_envelope",
+        "transaction_execution_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "nested_command_envelope_id_non_null_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "nested_command_envelope_id_non_null_blocks mutates preflight_command_envelope.command_envelope_id",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "nested_preflight_command_envelope_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "preflight_command_envelope",
+        "command_envelope_id"
+      ],
+      "mutation_value": "blocked-non-null"
+    },
+    {
+      "case_id": "explicit_forbidden_surface_transaction_commit_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface transaction_commit true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_transaction_commit_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "transaction_commit"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_transaction_rollback_execution_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface transaction_rollback_execution true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_transaction_rollback_execution_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "transaction_rollback_execution"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_enabled_adapter_transition_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface enabled_adapter_transition true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_enabled_adapter_transition_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "enabled_adapter_transition"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_schema_or_migration_change_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface schema_or_migration_change true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_schema_or_migration_change_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "schema_or_migration_change"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_proof_evidence_write_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface proof_evidence_write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_proof_evidence_write_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "proof_evidence_write"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_perspective_or_canonical_graph_write_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface perspective_or_canonical_graph_write true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_perspective_or_canonical_graph_write_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "perspective_or_canonical_graph_write"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_work_item_creation_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface work_item_creation true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_work_item_creation_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "work_item_creation"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_source_fetch_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface source_fetch true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_source_fetch_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "source_fetch"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_provider_or_openai_call_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface provider_or_openai_call true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_provider_or_openai_call_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "provider_or_openai_call"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_retrieval_or_rag_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface retrieval_or_rag true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_retrieval_or_rag_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "retrieval_or_rag"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_external_handoff_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface external_handoff true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_external_handoff_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "external_handoff"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_browser_persistence_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface browser_persistence true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_browser_persistence_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "browser_persistence"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_product_write_implementation_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface product_write_implementation true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_product_write_implementation_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "product_write_implementation"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_product_write_adapter_enabled_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface product_write_adapter_enabled true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_product_write_adapter_enabled_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "product_write_adapter_enabled"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "explicit_forbidden_surface_command_envelope_persistence_true_blocks",
+      "case_group": "top_level_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "explicit forbidden surface command_envelope_persistence true blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "explicit_forbidden_surface_command_envelope_persistence_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "explicit_forbidden_surfaces",
+        "command_envelope_persistence"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "command_input_raw_manual_note_text_included_true_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_raw_manual_note_text_included_true_blocks mutates command_envelope_input.raw_manual_note_text_included",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_raw_manual_note_text_included_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "raw_manual_note_text_included"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "command_input_product_claim_id_non_null_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_product_claim_id_non_null_blocks mutates command_envelope_input.product_claim_id",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "product_claim_id"
+      ],
+      "mutation_value": "blocked-non-null"
+    },
+    {
+      "case_id": "command_input_db_path_non_null_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_db_path_non_null_blocks mutates command_envelope_input.db_path",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_db_path_not_null"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "db_path"
+      ],
+      "mutation_value": "/tmp/not-used.db"
+    },
+    {
+      "case_id": "command_input_sql_text_non_null_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_sql_text_non_null_blocks mutates command_envelope_input.sql_text",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_sql_text_not_null"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "sql_text"
+      ],
+      "mutation_value": "select 1"
+    },
+    {
+      "case_id": "command_input_route_request_non_null_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_route_request_non_null_blocks mutates command_envelope_input.route_request",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_route_request_not_null"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "route_request"
+      ],
+      "mutation_value": {
+        "requested": true
+      }
+    },
+    {
+      "case_id": "command_input_ui_action_request_non_null_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_ui_action_request_non_null_blocks mutates command_envelope_input.ui_action_request",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_ui_action_request_not_null"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "ui_action_request"
+      ],
+      "mutation_value": {
+        "requested": true
+      }
+    },
+    {
+      "case_id": "command_input_operator_decision_required_false_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_operator_decision_required_false_blocks mutates command_envelope_input.operator_decision_required",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_operator_decision_required_not_true"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "operator_decision_required"
+      ],
+      "mutation_value": false
+    },
+    {
+      "case_id": "command_input_operator_decision_satisfied_now_true_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_operator_decision_satisfied_now_true_blocks mutates command_envelope_input.operator_decision_satisfied_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_operator_decision_satisfied_now"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "operator_decision_satisfied_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "command_input_operator_decision_reference_non_null_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_operator_decision_reference_non_null_blocks mutates command_envelope_input.operator_decision_reference",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_operator_decision_reference_not_null"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "operator_decision_reference"
+      ],
+      "mutation_value": "operator-review-not-accepted"
+    },
+    {
+      "case_id": "command_input_noop_fingerprint_missing_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_noop_fingerprint_missing_blocks mutates command_envelope_input.noop_invocation_report_fingerprint",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_noop_invocation_report_fingerprint_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "noop_invocation_report_fingerprint"
+      ],
+      "mutation_value": ""
+    },
+    {
+      "case_id": "command_input_dry_run_fingerprint_missing_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_dry_run_fingerprint_missing_blocks mutates command_envelope_input.dry_run_invocation_harness_fingerprint",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_dry_run_invocation_harness_fingerprint_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "dry_run_invocation_harness_fingerprint"
+      ],
+      "mutation_value": ""
+    },
+    {
+      "case_id": "command_input_authority_fingerprint_missing_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_authority_fingerprint_missing_blocks mutates command_envelope_input.authority_contract_bundle_fingerprint",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_authority_contract_bundle_fingerprint_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "authority_contract_bundle_fingerprint"
+      ],
+      "mutation_value": ""
+    },
+    {
+      "case_id": "command_input_selected_temp_claim_identity_missing_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_selected_temp_claim_identity_missing_blocks mutates command_envelope_input.selected_temp_claim_record_id",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_selected_temp_claim_record_id_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "selected_temp_claim_record_id"
+      ],
+      "mutation_value": ""
+    },
+    {
+      "case_id": "command_input_source_operation_identity_missing_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_source_operation_identity_missing_blocks mutates command_envelope_input.source_operation_id",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_source_operation_id_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "source_operation_id"
+      ],
+      "mutation_value": ""
+    },
+    {
+      "case_id": "command_input_temp_idempotency_key_missing_blocks",
+      "case_group": "command_input",
+      "mutation_kind": "set_path",
+      "mutation_summary": "command_input_temp_idempotency_key_missing_blocks mutates command_envelope_input.temp_idempotency_key",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "command_envelope_input_temp_idempotency_key_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "command_envelope_input",
+        "temp_idempotency_key"
+      ],
+      "mutation_value": ""
+    },
+    {
+      "case_id": "draft_product_claim_id_non_null_blocks",
+      "case_group": "product_claim_draft_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "draft_product_claim_id_non_null_blocks mutates product_claim_draft_preview.product_claim_id",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_claim_draft_preview_product_claim_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_claim_draft_preview",
+        "product_claim_id"
+      ],
+      "mutation_value": "blocked-non-null"
+    },
+    {
+      "case_id": "draft_schema_satisfied_now_true_blocks",
+      "case_group": "product_claim_draft_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "draft_schema_satisfied_now_true_blocks mutates product_claim_draft_preview.schema_satisfied_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_claim_draft_preview_schema_satisfied_now"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_claim_draft_preview",
+        "schema_satisfied_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "draft_raw_manual_note_text_included_true_blocks",
+      "case_group": "product_claim_draft_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "draft_raw_manual_note_text_included_true_blocks mutates product_claim_draft_preview.raw_manual_note_text_included",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_claim_draft_preview_raw_manual_note_text_included"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_claim_draft_preview",
+        "raw_manual_note_text_included"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "draft_write_operation_count_positive_blocks",
+      "case_group": "product_claim_draft_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "draft_write_operation_count_positive_blocks mutates product_claim_draft_preview.write_operation_count_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_claim_draft_preview_write_operation_count_now_not_zero"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_claim_draft_preview",
+        "write_operation_count_now"
+      ],
+      "mutation_value": 1
+    },
+    {
+      "case_id": "draft_db_write_count_positive_blocks",
+      "case_group": "product_claim_draft_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "draft_db_write_count_positive_blocks mutates product_claim_draft_preview.db_write_count_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_claim_draft_preview_db_write_count_now_not_zero"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_claim_draft_preview",
+        "db_write_count_now"
+      ],
+      "mutation_value": 1
+    },
+    {
+      "case_id": "draft_sql_statement_count_positive_blocks",
+      "case_group": "product_claim_draft_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "draft_sql_statement_count_positive_blocks mutates product_claim_draft_preview.sql_statement_count_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "product_claim_draft_preview_sql_statement_count_now_not_zero"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_claim_draft_preview",
+        "sql_statement_count_now"
+      ],
+      "mutation_value": 1
+    },
+    {
+      "case_id": "draft_related_ids_non_null_anywhere_blocks",
+      "case_group": "product_claim_draft_preview",
+      "mutation_kind": "set_path",
+      "mutation_summary": "draft_related_ids_non_null_anywhere_blocks mutates product_claim_draft_preview.nullability_preview.proof_id",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "non_null_product_or_related_id_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "product_claim_draft_preview",
+        "nullability_preview",
+        "proof_id"
+      ],
+      "mutation_value": "blocked-non-null"
+    },
+    {
+      "case_id": "idempotency_preview_execution_and_write_flags_true_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "idempotency preview persisted/executed/durable/DB/SQL/transaction/product/proof/Perspective/work flags true block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "idempotency_preview_preview_persisted_now_not_false",
+        "idempotency_preview_preview_executed_now_not_false",
+        "idempotency_preview_durable_write_now_not_false",
+        "idempotency_preview_db_open_now_not_false",
+        "idempotency_preview_sql_execution_now_not_false",
+        "idempotency_preview_transaction_execution_now_not_false",
+        "idempotency_preview_product_id_allocation_now_not_false",
+        "idempotency_preview_product_db_write_now_not_false",
+        "idempotency_preview_proof_evidence_write_now_not_false",
+        "idempotency_preview_perspective_or_canonical_graph_write_now_not_false",
+        "idempotency_preview_work_item_creation_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "idempotency_preview",
+            "preview_persisted_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "preview_executed_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "durable_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "db_open_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "sql_execution_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "transaction_execution_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "product_id_allocation_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "product_db_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "proof_evidence_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "perspective_or_canonical_graph_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "work_item_creation_now"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "case_id": "idempotency_preview_record_ids_non_null_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "idempotency preview product/proof/evidence/Perspective/work record IDs non-null block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "idempotency_preview_product_claim_id_not_null",
+        "idempotency_preview_product_idempotency_record_id_not_null",
+        "idempotency_preview_product_rollback_record_id_not_null",
+        "idempotency_preview_product_audit_record_id_not_null",
+        "idempotency_preview_product_observability_record_id_not_null",
+        "idempotency_preview_proof_id_not_null",
+        "idempotency_preview_evidence_id_not_null",
+        "idempotency_preview_perspective_id_not_null",
+        "idempotency_preview_work_item_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "idempotency_preview",
+            "product_claim_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "product_idempotency_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "product_rollback_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "product_audit_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "product_observability_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "proof_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "evidence_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "perspective_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "work_item_id"
+          ],
+          "value": "blocked-non-null"
+        }
+      ]
+    },
+    {
+      "case_id": "idempotency_preview_storage_contract_flags_invalid_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "idempotency preview storage contract required false and satisfied true block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "idempotency_preview_storage_contract_not_required",
+        "idempotency_preview_storage_contract_satisfied_now"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "idempotency_preview",
+            "storage_contract_required"
+          ],
+          "value": false
+        },
+        {
+          "path": [
+            "idempotency_preview",
+            "storage_contract_satisfied_now"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "case_id": "rollback_preview_execution_and_write_flags_true_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "rollback preview persisted/executed/durable/DB/SQL/transaction/product/proof/Perspective/work flags true block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "rollback_preview_preview_persisted_now_not_false",
+        "rollback_preview_preview_executed_now_not_false",
+        "rollback_preview_durable_write_now_not_false",
+        "rollback_preview_db_open_now_not_false",
+        "rollback_preview_sql_execution_now_not_false",
+        "rollback_preview_transaction_execution_now_not_false",
+        "rollback_preview_product_id_allocation_now_not_false",
+        "rollback_preview_product_db_write_now_not_false",
+        "rollback_preview_proof_evidence_write_now_not_false",
+        "rollback_preview_perspective_or_canonical_graph_write_now_not_false",
+        "rollback_preview_work_item_creation_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "rollback_preview",
+            "preview_persisted_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "preview_executed_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "durable_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "db_open_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "sql_execution_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "transaction_execution_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "product_id_allocation_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "product_db_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "proof_evidence_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "perspective_or_canonical_graph_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "work_item_creation_now"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "case_id": "rollback_preview_record_ids_non_null_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "rollback preview product/proof/evidence/Perspective/work record IDs non-null block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "rollback_preview_product_claim_id_not_null",
+        "rollback_preview_product_idempotency_record_id_not_null",
+        "rollback_preview_product_rollback_record_id_not_null",
+        "rollback_preview_product_audit_record_id_not_null",
+        "rollback_preview_product_observability_record_id_not_null",
+        "rollback_preview_proof_id_not_null",
+        "rollback_preview_evidence_id_not_null",
+        "rollback_preview_perspective_id_not_null",
+        "rollback_preview_work_item_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "rollback_preview",
+            "product_claim_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "product_idempotency_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "product_rollback_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "product_audit_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "product_observability_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "proof_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "evidence_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "perspective_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "work_item_id"
+          ],
+          "value": "blocked-non-null"
+        }
+      ]
+    },
+    {
+      "case_id": "rollback_preview_storage_contract_flags_invalid_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "rollback preview storage contract required false and satisfied true block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "rollback_preview_storage_contract_not_required",
+        "rollback_preview_storage_contract_satisfied_now"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "rollback_preview",
+            "storage_contract_required"
+          ],
+          "value": false
+        },
+        {
+          "path": [
+            "rollback_preview",
+            "storage_contract_satisfied_now"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "case_id": "audit_preview_execution_and_write_flags_true_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "audit preview persisted/executed/durable/DB/SQL/transaction/product/proof/Perspective/work flags true block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "audit_preview_preview_persisted_now_not_false",
+        "audit_preview_preview_executed_now_not_false",
+        "audit_preview_durable_write_now_not_false",
+        "audit_preview_db_open_now_not_false",
+        "audit_preview_sql_execution_now_not_false",
+        "audit_preview_transaction_execution_now_not_false",
+        "audit_preview_product_id_allocation_now_not_false",
+        "audit_preview_product_db_write_now_not_false",
+        "audit_preview_proof_evidence_write_now_not_false",
+        "audit_preview_perspective_or_canonical_graph_write_now_not_false",
+        "audit_preview_work_item_creation_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "audit_preview",
+            "preview_persisted_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "audit_preview",
+            "preview_executed_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "audit_preview",
+            "durable_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "audit_preview",
+            "db_open_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "audit_preview",
+            "sql_execution_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "audit_preview",
+            "transaction_execution_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "audit_preview",
+            "product_id_allocation_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "audit_preview",
+            "product_db_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "audit_preview",
+            "proof_evidence_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "audit_preview",
+            "perspective_or_canonical_graph_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "audit_preview",
+            "work_item_creation_now"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "case_id": "audit_preview_record_ids_non_null_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "audit preview product/proof/evidence/Perspective/work record IDs non-null block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "audit_preview_product_claim_id_not_null",
+        "audit_preview_product_idempotency_record_id_not_null",
+        "audit_preview_product_rollback_record_id_not_null",
+        "audit_preview_product_audit_record_id_not_null",
+        "audit_preview_product_observability_record_id_not_null",
+        "audit_preview_proof_id_not_null",
+        "audit_preview_evidence_id_not_null",
+        "audit_preview_perspective_id_not_null",
+        "audit_preview_work_item_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "audit_preview",
+            "product_claim_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "audit_preview",
+            "product_idempotency_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "audit_preview",
+            "product_rollback_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "audit_preview",
+            "product_audit_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "audit_preview",
+            "product_observability_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "audit_preview",
+            "proof_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "audit_preview",
+            "evidence_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "audit_preview",
+            "perspective_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "audit_preview",
+            "work_item_id"
+          ],
+          "value": "blocked-non-null"
+        }
+      ]
+    },
+    {
+      "case_id": "audit_preview_storage_contract_flags_invalid_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "audit preview storage contract required false and satisfied true block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "audit_preview_storage_contract_not_required",
+        "audit_preview_storage_contract_satisfied_now"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "audit_preview",
+            "storage_contract_required"
+          ],
+          "value": false
+        },
+        {
+          "path": [
+            "audit_preview",
+            "storage_contract_satisfied_now"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "case_id": "observability_preview_execution_and_write_flags_true_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "observability preview persisted/executed/durable/DB/SQL/transaction/product/proof/Perspective/work flags true block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "observability_preview_preview_persisted_now_not_false",
+        "observability_preview_preview_executed_now_not_false",
+        "observability_preview_durable_write_now_not_false",
+        "observability_preview_db_open_now_not_false",
+        "observability_preview_sql_execution_now_not_false",
+        "observability_preview_transaction_execution_now_not_false",
+        "observability_preview_product_id_allocation_now_not_false",
+        "observability_preview_product_db_write_now_not_false",
+        "observability_preview_proof_evidence_write_now_not_false",
+        "observability_preview_perspective_or_canonical_graph_write_now_not_false",
+        "observability_preview_work_item_creation_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "observability_preview",
+            "preview_persisted_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "observability_preview",
+            "preview_executed_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "observability_preview",
+            "durable_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "observability_preview",
+            "db_open_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "observability_preview",
+            "sql_execution_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "observability_preview",
+            "transaction_execution_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "observability_preview",
+            "product_id_allocation_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "observability_preview",
+            "product_db_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "observability_preview",
+            "proof_evidence_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "observability_preview",
+            "perspective_or_canonical_graph_write_now"
+          ],
+          "value": true
+        },
+        {
+          "path": [
+            "observability_preview",
+            "work_item_creation_now"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "case_id": "observability_preview_record_ids_non_null_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "observability preview product/proof/evidence/Perspective/work record IDs non-null block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "observability_preview_product_claim_id_not_null",
+        "observability_preview_product_idempotency_record_id_not_null",
+        "observability_preview_product_rollback_record_id_not_null",
+        "observability_preview_product_audit_record_id_not_null",
+        "observability_preview_product_observability_record_id_not_null",
+        "observability_preview_proof_id_not_null",
+        "observability_preview_evidence_id_not_null",
+        "observability_preview_perspective_id_not_null",
+        "observability_preview_work_item_id_not_null",
+        "non_null_product_or_related_id_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "observability_preview",
+            "product_claim_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "observability_preview",
+            "product_idempotency_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "observability_preview",
+            "product_rollback_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "observability_preview",
+            "product_audit_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "observability_preview",
+            "product_observability_record_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "observability_preview",
+            "proof_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "observability_preview",
+            "evidence_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "observability_preview",
+            "perspective_id"
+          ],
+          "value": "blocked-non-null"
+        },
+        {
+          "path": [
+            "observability_preview",
+            "work_item_id"
+          ],
+          "value": "blocked-non-null"
+        }
+      ]
+    },
+    {
+      "case_id": "observability_preview_storage_contract_flags_invalid_block",
+      "case_group": "storage_previews",
+      "mutation_kind": "set_paths",
+      "mutation_summary": "observability preview storage contract required false and satisfied true block",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "observability_preview_storage_contract_not_required",
+        "observability_preview_storage_contract_satisfied_now"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_entries": [
+        {
+          "path": [
+            "observability_preview",
+            "storage_contract_required"
+          ],
+          "value": false
+        },
+        {
+          "path": [
+            "observability_preview",
+            "storage_contract_satisfied_now"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "case_id": "source_noop_final_status_fail_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_noop_final_status_fail_blocks mutates source_evidence.noop_invocation_report.final_status",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_final_status_not_passed"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "noop_invocation_report",
+        "final_status"
+      ],
+      "mutation_value": "fail"
+    },
+    {
+      "case_id": "source_noop_status_wrong_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_noop_status_wrong_blocks mutates source_evidence.noop_invocation_report.noop_invocation_report_status",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_status_not_ready"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "noop_invocation_report",
+        "noop_invocation_report_status"
+      ],
+      "mutation_value": "blocked"
+    },
+    {
+      "case_id": "source_noop_recommendation_wrong_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_noop_recommendation_wrong_blocks mutates source_evidence.noop_invocation_report.recommendation_status",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_recommendation_not_ready"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "noop_invocation_report",
+        "recommendation_status"
+      ],
+      "mutation_value": "wrong"
+    },
+    {
+      "case_id": "source_noop_next_slice_wrong_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_noop_next_slice_wrong_blocks mutates source_evidence.noop_invocation_report.next_recommended_slice",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_next_slice_invalid"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "noop_invocation_report",
+        "next_recommended_slice"
+      ],
+      "mutation_value": "wrong"
+    },
+    {
+      "case_id": "source_noop_validation_false_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_noop_validation_false_blocks mutates source_evidence.noop_invocation_report.validation_passed",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_validation_not_passed"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "noop_invocation_report",
+        "validation_passed"
+      ],
+      "mutation_value": false
+    },
+    {
+      "case_id": "source_operator_decision_required_false_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_operator_decision_required_false_blocks mutates source_evidence.operator_review_packet.operator_decision_required_before_product_write",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_operator_decision_requirement_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "operator_review_packet",
+        "operator_decision_required_before_product_write"
+      ],
+      "mutation_value": false
+    },
+    {
+      "case_id": "source_operator_decision_satisfied_true_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_operator_decision_satisfied_true_blocks mutates source_evidence.operator_review_packet.operator_decision_satisfied_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_operator_decision_satisfied_now"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "operator_review_packet",
+        "operator_decision_satisfied_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "source_operator_may_approve_product_write_true_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_operator_may_approve_product_write_true_blocks mutates source_evidence.operator_review_packet.operator_may_approve_product_write_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_operator_may_approve_product_write_now"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "operator_review_packet",
+        "operator_may_approve_product_write_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "source_no_write_closeout_product_db_write_true_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_no_write_closeout_product_db_write_true_blocks mutates source_evidence.no_write_closeout.product_db_write_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_no_write_closeout_product_db_write_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "no_write_closeout",
+        "product_db_write_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "source_no_write_closeout_db_open_true_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_no_write_closeout_db_open_true_blocks mutates source_evidence.no_write_closeout.db_open_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_no_write_closeout_db_open_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "no_write_closeout",
+        "db_open_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "source_no_write_closeout_sql_execution_true_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_no_write_closeout_sql_execution_true_blocks mutates source_evidence.no_write_closeout.sql_execution_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_no_write_closeout_sql_execution_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "no_write_closeout",
+        "sql_execution_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "source_no_write_closeout_transaction_execution_true_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_no_write_closeout_transaction_execution_true_blocks mutates source_evidence.no_write_closeout.transaction_execution_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_no_write_closeout_transaction_execution_now_not_false"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "no_write_closeout",
+        "transaction_execution_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "source_invocation_result_not_rejected_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_invocation_result_not_rejected_blocks mutates source_evidence.invocation_closeout_summary.dry_run_invocation_result_status",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_invocation_result_status_invalid"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "invocation_closeout_summary",
+        "dry_run_invocation_result_status"
+      ],
+      "mutation_value": "executed"
+    },
+    {
+      "case_id": "source_invocation_failed_probe_count_positive_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_invocation_failed_probe_count_positive_blocks mutates source_evidence.invocation_closeout_summary.failed_probe_count",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_invocation_failed_probe_count_not_zero"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "invocation_closeout_summary",
+        "failed_probe_count"
+      ],
+      "mutation_value": 1
+    },
+    {
+      "case_id": "source_noop_preflight_preview_executable_true_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_noop_preflight_preview_executable_true_blocks mutates source_evidence.noop_preflight_command_envelope_preview.executable_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_preview_executable_now"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "noop_preflight_command_envelope_preview",
+        "executable_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "source_noop_preflight_preview_persisted_true_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_noop_preflight_preview_persisted_true_blocks mutates source_evidence.noop_preflight_command_envelope_preview.persisted_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_preview_persisted_now"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "noop_preflight_command_envelope_preview",
+        "persisted_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "source_noop_preflight_preview_product_write_allowed_true_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_noop_preflight_preview_product_write_allowed_true_blocks mutates source_evidence.noop_preflight_command_envelope_preview.product_write_allowed_now",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_noop_preview_product_write_allowed_now"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "noop_preflight_command_envelope_preview",
+        "product_write_allowed_now"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "source_disabled_adapter_skeleton_adapter_enabled_true_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_disabled_adapter_skeleton_adapter_enabled_true_blocks mutates source_evidence.disabled_adapter_skeleton.adapter_enabled",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_disabled_adapter_skeleton_enabled"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "disabled_adapter_skeleton",
+        "adapter_enabled"
+      ],
+      "mutation_value": true
+    },
+    {
+      "case_id": "source_authority_granted_now_count_positive_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_authority_granted_now_count_positive_blocks mutates source_evidence.authority_contract_bundle.authority_gap_summary.authority_granted_now_count",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_authority_granted_now_count_not_zero"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "authority_contract_bundle",
+        "authority_gap_summary",
+        "authority_granted_now_count"
+      ],
+      "mutation_value": 1
+    },
+    {
+      "case_id": "source_authority_implementation_allowed_now_count_positive_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_authority_implementation_allowed_now_count_positive_blocks mutates source_evidence.authority_contract_bundle.authority_gap_summary.implementation_allowed_now_count",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_implementation_allowed_now_count_not_zero"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "authority_contract_bundle",
+        "authority_gap_summary",
+        "implementation_allowed_now_count"
+      ],
+      "mutation_value": 1
+    },
+    {
+      "case_id": "source_product_write_gate_design_status_not_design_only_blocks",
+      "case_group": "source_evidence",
+      "mutation_kind": "set_path",
+      "mutation_summary": "source_product_write_gate_design_status_not_design_only_blocks mutates source_evidence.product_write_gate_design.gate_design_status",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "source_evidence_product_write_gate_design_status_not_ready"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "source_evidence",
+        "product_write_gate_design",
+        "gate_design_status"
+      ],
+      "mutation_value": "product_write_allowed"
+    },
+    {
+      "case_id": "optional_684_report_final_status_fail_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional #684 report final_status fail blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_preflight_command_envelope_report_not_passed"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_preflight_command_envelope_report_not_passed"
+    },
+    {
+      "case_id": "optional_684_report_pass_missing_payload_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional #684 pass report missing preflight command envelope payload blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_preflight_command_envelope_report_missing_payload"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_preflight_command_envelope_report_missing_payload"
+    },
+    {
+      "case_id": "optional_684_report_pass_payload_fingerprint_mismatch_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional #684 pass report payload fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_preflight_command_envelope_traceability_mismatch"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_preflight_command_envelope_traceability_mismatch"
+    },
+    {
+      "case_id": "optional_upstream_dry_run_fingerprint_mismatch_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional upstream dry-run fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_dry_run_invocation_harness_traceability_mismatch"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_dry_run_invocation_harness_traceability_mismatch"
+    },
+    {
+      "case_id": "optional_upstream_contract_tests_suite_fingerprint_mismatch_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional upstream disabled adapter contract-test suite fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_disabled_adapter_contract_tests_traceability_mismatch"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_disabled_adapter_contract_tests_traceability_mismatch"
+    },
+    {
+      "case_id": "optional_upstream_contract_tests_total_cases_mismatch_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional upstream disabled adapter contract-test total cases mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_disabled_adapter_contract_tests_traceability_mismatch"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_disabled_adapter_contract_tests_traceability_mismatch"
+    },
+    {
+      "case_id": "optional_upstream_skeleton_fingerprint_mismatch_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional upstream disabled adapter skeleton fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_disabled_adapter_skeleton_traceability_mismatch"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_disabled_adapter_skeleton_traceability_mismatch"
+    },
+    {
+      "case_id": "optional_upstream_skeleton_adapter_enabled_true_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional upstream disabled adapter skeleton enabled blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_disabled_adapter_skeleton_traceability_mismatch"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_disabled_adapter_skeleton_traceability_mismatch"
+    },
+    {
+      "case_id": "optional_upstream_authority_fingerprint_mismatch_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional upstream authority bundle fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_authority_contract_bundle_traceability_mismatch"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_authority_contract_bundle_traceability_mismatch"
+    },
+    {
+      "case_id": "optional_upstream_authority_granted_now_count_positive_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional upstream authority granted count blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_authority_contract_bundle_traceability_mismatch"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_authority_contract_bundle_traceability_mismatch"
+    },
+    {
+      "case_id": "optional_upstream_gate_design_fingerprint_mismatch_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional upstream product write gate design fingerprint mismatch blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_product_write_gate_design_traceability_mismatch"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_product_write_gate_design_traceability_mismatch"
+    },
+    {
+      "case_id": "optional_upstream_gate_design_product_write_allowed_blocks",
+      "case_group": "optional_traceability",
+      "mutation_kind": "source_validation_code",
+      "mutation_summary": "optional upstream product write gate status product_write_allowed blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "optional_product_write_gate_design_traceability_mismatch"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_value": "optional_product_write_gate_design_traceability_mismatch"
+    },
+    {
+      "case_id": "static_boundary_empty_changed_file_delta_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "empty changed-file delta blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_changed_file_delta_empty",
+        "static_boundary_expected_files_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_changed_files_inspected"
+      ],
+      "mutation_value": []
+    },
+    {
+      "case_id": "static_boundary_missing_expected_files_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "missing expected files blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_expected_files_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_changed_files_inspected"
+      ],
+      "mutation_value": [
+        "package.json"
+      ]
+    },
+    {
+      "case_id": "static_boundary_package_addition_outside_allowlist_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "package addition outside allowlist blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_package_addition_outside_allowlist",
+        "static_boundary_expected_package_script_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_package_added_lines_inspected"
+      ],
+      "mutation_value": [
+        "+    \"product-write-implementation\": \"node scripts/run-product-write.mjs\","
+      ]
+    },
+    {
+      "case_id": "static_boundary_missing_expected_package_scripts_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "missing expected package scripts blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_expected_package_script_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_package_added_lines_inspected"
+      ],
+      "mutation_value": [
+        "+    \"smoke:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1\": \"node scripts/smoke-research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1.mjs\","
+      ]
+    },
+    {
+      "case_id": "static_boundary_app_api_route_path_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "app/api/product-write/route.ts in changed-file delta blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_app_api_route_changed",
+        "static_boundary_expected_files_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_changed_files_inspected"
+      ],
+      "mutation_value": [
+        "app/api/product-write/route.ts"
+      ]
+    },
+    {
+      "case_id": "static_boundary_components_ui_path_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "components/ProductWriteButton.tsx in changed-file delta blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_ui_changed",
+        "static_boundary_expected_files_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_changed_files_inspected"
+      ],
+      "mutation_value": [
+        "components/ProductWriteButton.tsx"
+      ]
+    },
+    {
+      "case_id": "static_boundary_app_router_page_ui_path_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "app/product-write/page.tsx in changed-file delta blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_ui_changed",
+        "static_boundary_expected_files_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_changed_files_inspected"
+      ],
+      "mutation_value": [
+        "app/product-write/page.tsx"
+      ]
+    },
+    {
+      "case_id": "static_boundary_schema_migration_db_sql_path_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "db/product-write.sql in changed-file delta blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_schema_db_sql_changed",
+        "static_boundary_expected_files_missing"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_changed_files_inspected"
+      ],
+      "mutation_value": [
+        "db/product-write.sql"
+      ]
+    },
+    {
+      "case_id": "static_boundary_executable_sql_string_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "static_boundary_executable_sql_string_blocks probe text blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_executable_sql_string_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_probe_text"
+      ],
+      "mutation_value": "INSERT INTO product_claims"
+    },
+    {
+      "case_id": "static_boundary_forbidden_import_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "static_boundary_forbidden_import_blocks probe text blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_forbidden_import_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_probe_text"
+      ],
+      "mutation_value": "import { db } from \"./lib/db/client\""
+    },
+    {
+      "case_id": "static_boundary_network_external_call_pattern_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "static_boundary_network_external_call_pattern_blocks probe text blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_network_or_external_call_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_probe_text"
+      ],
+      "mutation_value": "fetch(\"https://example.com\")"
+    },
+    {
+      "case_id": "static_boundary_browser_persistence_pattern_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "static_boundary_browser_persistence_pattern_blocks probe text blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_browser_persistence_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_probe_text"
+      ],
+      "mutation_value": "localStorage"
+    },
+    {
+      "case_id": "static_boundary_app_server_startup_pattern_blocks",
+      "case_group": "static_boundary",
+      "mutation_kind": "set_path",
+      "mutation_summary": "static_boundary_app_server_startup_pattern_blocks probe text blocks",
+      "expected_status": "fail",
+      "expected_failure_codes": [
+        "static_boundary_app_server_startup_present"
+      ],
+      "allowed_unexpected_failure_codes": [],
+      "mutation_path": [
+        "static_boundary_evidence",
+        "static_boundary_probe_text"
+      ],
+      "mutation_value": "npm run dev"
+    }
+  ]
+}

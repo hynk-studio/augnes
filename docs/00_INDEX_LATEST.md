@@ -1326,6 +1326,29 @@ repo-local 색인이다.
   broader roadmap should return to PerspectiveGeometryDigest and Agent
   Perspective Substrate work before any durable Perspective promotion or
   product write implementation.
+- Manual note single-claim product write preflight command envelope contract
+  tests:
+  `lib/research-candidate-review/manual-note-single-claim-product-write-preflight-command-envelope-contract-tests.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-product-write-preflight-command-envelope-contract-test-cases.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1`,
+  and
+  `npm run contracts:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1`
+  add deterministic fixture-only contract-test coverage for the #684 preflight
+  command envelope. The suite validates the helper, runner, committed fixture,
+  optional upstream report traceability handling, no-write boundary, no-ID
+  boundary, static boundary, and next-slice discipline. It does not implement
+  product write, does not persist a command envelope, does not allocate product
+  IDs, does not open DB, does not execute SQL, does not execute a transaction,
+  does not enable an adapter, and adds no route, UI action,
+  schema/migration, or dependency. Product write remains blocked. The contract
+  suite status is
+  `product_write_preflight_command_envelope_contract_tests_passed`, the
+  recommendation status is `ready_for_product_write_preflight_stopline`, and
+  the next recommended slice is
+  `single_claim_product_write_preflight_stopline`, not product write
+  implementation. After the stopline, return to PerspectiveGeometryDigest and
+  Agent Perspective Substrate work before any durable Perspective promotion or
+  product write implementation.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,
