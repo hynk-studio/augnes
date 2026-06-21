@@ -1049,6 +1049,22 @@ repo-local 색인이다.
   fetch, no external handoff, and no repo schema/migration/dependency.
   Browser-backed validation uses the best available method and may record the
   local `/tmp` result-review report if present.
+- Manual note temp DB single-claim result contract tests:
+  `lib/research-candidate-review/manual-note-temp-db-single-claim-result-contract-tests.ts`,
+  `fixtures/research-candidate-review.manual-note-temp-db-single-claim-result-contract-test-cases.v0.1.json`,
+  `npm run smoke:research-candidate-temp-db-single-claim-result-contract-tests-v0-1`,
+  and `npm run contracts:research-candidate-temp-db-single-claim-result-contract-tests-v0-1`
+  add fixture-only result contract tests for the temp DB single-claim result
+  review. The suite covers a positive needs_attention baseline, an optional
+  live all-pass report case, and a negative mutation matrix for row counts,
+  path containment, product IDs, raw note evidence, product DB boundary,
+  browser external/forbidden requests, and review status semantics. The
+  `/tmp` contract-test report runner does not open DB, does not execute SQL,
+  and adds no product DB write, no actual promotion, no proof/evidence write,
+  no Perspective/canonical graph write, no work item, no provider/retrieval/source
+  fetch, no external handoff, and no repo schema/migration/dependency.
+  Browser-backed validation uses the best available method and may record the
+  local `/tmp` result contract-test report if present.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,

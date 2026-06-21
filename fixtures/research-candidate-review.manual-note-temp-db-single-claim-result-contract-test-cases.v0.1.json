@@ -1,0 +1,709 @@
+{
+  "suite_kind": "manual_note_temp_db_single_claim_result_contract_tests",
+  "suite_version": "manual_note_temp_db_single_claim_result_contract_tests.v0.1",
+  "positive_fixture_chain": {
+    "result_review_fixture_path": "fixtures/research-candidate-review.manual-note-temp-db-single-claim-result-review.sample.v0.1.json",
+    "temp_db_harness_fixture_path": "fixtures/research-candidate-review.manual-note-temp-db-single-claim-write-prototype-harness.sample.v0.1.json",
+    "expected_status": "pass",
+    "expected_review_status": "temp_result_review_needs_attention",
+    "expected_recommendation_status": "ready_for_temp_result_contract_tests"
+  },
+  "test_cases": [
+    {
+      "case_id": "positive_committed_fixture_needs_attention",
+      "case_kind": "positive_review_fixture",
+      "mutation_kind": "none",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "pass",
+      "expected_review_status": "temp_result_review_needs_attention",
+      "expected_failure_codes": [],
+      "description": "Committed result review fixture passes with warning-only optional evidence.",
+      "mutated_fixture_patch": {
+        "set": [],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "positive_live_reports_all_pass_when_available",
+      "case_kind": "positive_review_fixture",
+      "mutation_kind": "optional_live_report",
+      "target_fixture": "optional_result_review_report",
+      "expected_status": "pass",
+      "expected_review_status": "temp_result_review_passed",
+      "expected_failure_codes": [],
+      "optional": true,
+      "skip_when_optional_reports_missing": true,
+      "description": "Optional live result review report may pass when /tmp harness and browser evidence are present.",
+      "mutated_fixture_patch": {
+        "set": [],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "warning_missing_browser_report",
+      "case_kind": "warning_review_fixture",
+      "mutation_kind": "missing_optional_browser_report",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "pass",
+      "expected_review_status": "temp_result_review_needs_attention",
+      "expected_failure_codes": [],
+      "description": "Missing optional browser report remains warning-only while core fixture evidence is valid.",
+      "mutated_fixture_patch": {
+        "set": [],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "warning_missing_tmp_harness_report",
+      "case_kind": "warning_review_fixture",
+      "mutation_kind": "missing_optional_tmp_harness_report",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "pass",
+      "expected_review_status": "temp_result_review_needs_attention",
+      "expected_failure_codes": [],
+      "description": "Missing optional /tmp harness report remains warning-only while committed fixture evidence is valid.",
+      "mutated_fixture_patch": {
+        "set": [],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_harness_result_not_passed",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "harness_result_status",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["harness_result_not_passed"],
+      "description": "Result review blocks when the source harness did not pass.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["source_harness", "result_status"],
+            "value": "temp_db_write_failed"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_row_count_zero_claim",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "row_count_zero",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": [
+        "row_count_mismatch",
+        "expected_row_counts_not_matched"
+      ],
+      "description": "Result review blocks when the temp claim row count is zero.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["temp_record_summary", "temp_claim_records"],
+            "value": 0
+          },
+          {
+            "path": ["temp_record_summary", "exactly_one_each"],
+            "value": false
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_row_count_two_claims",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "row_count_two",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["row_count_mismatch"],
+      "description": "Result review blocks when more than one temp claim row is reported.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["temp_record_summary", "temp_claim_records"],
+            "value": 2
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_idempotency_row_missing",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "idempotency_row_missing",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["row_count_mismatch"],
+      "description": "Result review blocks when the temp idempotency row is missing.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["temp_record_summary", "temp_idempotency_records"],
+            "value": 0
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_rollback_row_missing",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "rollback_row_missing",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["row_count_mismatch"],
+      "description": "Result review blocks when the temp rollback row is missing.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["temp_record_summary", "temp_rollback_records"],
+            "value": 0
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_audit_row_missing",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "audit_row_missing",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["row_count_mismatch"],
+      "description": "Result review blocks when the temp review audit row is missing.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["temp_record_summary", "temp_review_audit_records"],
+            "value": 0
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_product_table_statement_count_nonzero",
+      "case_kind": "negative_harness_report",
+      "mutation_kind": "product_table_statement_count",
+      "target_fixture": "temp_db_harness_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["product_table_statement_present"],
+      "description": "Contract test blocks when harness SQL evidence reports a product-table statement.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["harness_result", "executed_sql_summary", "product_table_statement_count"],
+            "value": 1
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_product_db_path_used_true",
+      "case_kind": "negative_harness_report",
+      "mutation_kind": "product_db_path_used",
+      "target_fixture": "temp_db_harness_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["product_db_path_used"],
+      "description": "Contract test blocks when harness evidence says a product DB path was used.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["harness_result", "temp_db_artifact", "product_db_path_used"],
+            "value": true
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_product_db_untouched_false",
+      "case_kind": "negative_harness_report",
+      "mutation_kind": "product_db_touched",
+      "target_fixture": "temp_db_harness_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["product_db_touched"],
+      "description": "Contract test blocks when product DB untouched evidence flips false.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["harness_result", "verification", "product_db_untouched"],
+            "value": false
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_product_claim_id_present",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "product_claim_id",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["product_id_present"],
+      "description": "Result review blocks when a product claim ID appears.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["inserted_claim_summary", "product_claim_id"],
+            "value": "product-claim:bad"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_canonical_claim_id_present",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "canonical_claim_id",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["product_id_present"],
+      "description": "Result review blocks when a canonical claim ID appears.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["inserted_claim_summary", "canonical_claim_id"],
+            "value": "canonical-claim:bad"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_proof_id_present",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "proof_id",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["product_id_present"],
+      "description": "Result review blocks when a proof ID appears.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["inserted_claim_summary", "proof_id"],
+            "value": "proof:bad"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_evidence_id_present",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "evidence_id",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["product_id_present"],
+      "description": "Result review blocks when an evidence ID appears.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["inserted_claim_summary", "evidence_id"],
+            "value": "evidence:bad"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_perspective_id_present",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "perspective_id",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["product_id_present"],
+      "description": "Result review blocks when a Perspective ID appears.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["inserted_claim_summary", "perspective_id"],
+            "value": "perspective:bad"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_work_item_id_present",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "work_item_id",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["product_id_present"],
+      "description": "Result review blocks when a work item ID appears.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["inserted_claim_summary", "work_item_id"],
+            "value": "work-item:bad"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_raw_manual_note_flag_true",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "raw_manual_note_flag",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["raw_manual_note_present"],
+      "description": "Result review blocks when raw manual note inclusion flips true.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["inserted_claim_summary", "raw_manual_note_text_included"],
+            "value": true
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_raw_manual_note_text_present",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "raw_manual_note_text",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["raw_manual_note_present"],
+      "description": "Result review blocks when intentional negative raw note text appears.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["intentional_negative_raw_note_probe"],
+            "value": "RAW_MANUAL_NOTE_TEXT_FOR_NEGATIVE_CONTRACT_TEST"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_temp_db_path_outside_harness",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "temp_db_path_outside",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["temp_db_path_outside_harness"],
+      "description": "Result review blocks when temp DB path is outside the harness artifact directory.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["source_harness", "temp_db_path"],
+            "value": "/tmp/evil.sqlite"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_temp_db_under_tmp_false",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "temp_db_under_tmp_false",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["temp_db_under_tmp_false"],
+      "description": "Result review blocks when temp DB under-/tmp evidence flips false.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["source_harness", "temp_db_under_tmp"],
+            "value": false
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_boundary_product_db_write_true",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "boundary_product_db_write",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["boundary_flag_enabled"],
+      "description": "Result review blocks when product DB write boundary flips true.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["product_write_boundary", "product_db_write"],
+            "value": true
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_boundary_actual_promotion_true",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "boundary_actual_promotion",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["boundary_flag_enabled"],
+      "description": "Result review blocks when actual promotion boundary flips true.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["product_write_boundary", "actual_promotion_performed"],
+            "value": true
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_boundary_perspective_write_true",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "boundary_perspective_write",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["boundary_flag_enabled"],
+      "description": "Result review blocks when Perspective/canonical write boundary flips true.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["product_write_boundary", "perspective_or_canonical_writes"],
+            "value": true
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_boundary_provider_calls_true",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "boundary_provider_calls",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["boundary_flag_enabled"],
+      "description": "Result review blocks when provider/OpenAI boundary flips true.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["product_write_boundary", "provider_or_openai_calls"],
+            "value": true
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_boundary_source_fetching_true",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "boundary_source_fetching",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["boundary_flag_enabled"],
+      "description": "Result review blocks when source fetching boundary flips true.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["product_write_boundary", "source_fetching"],
+            "value": true
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_browser_external_requests_nonzero",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "browser_external_request",
+      "target_fixture": "browser_validation_report",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["browser_external_request_present"],
+      "description": "Result contract blocks when browser-observed external request count is nonzero.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["external_request_count"],
+            "value": 1
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_browser_forbidden_requests_nonzero",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "browser_forbidden_request",
+      "target_fixture": "browser_validation_report",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["browser_forbidden_request_present"],
+      "description": "Result contract blocks when browser-observed forbidden request count is nonzero.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["forbidden_request_count"],
+            "value": 1
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_review_status_passed_with_warn_evidence",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "warn_status_mismatch",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_needs_attention",
+      "expected_failure_codes": ["review_status_mismatch"],
+      "description": "Warn evidence must not be reported as a passed review.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["review_status"],
+            "value": "temp_result_review_passed"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_review_status_needs_attention_with_block_evidence",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "block_status_mismatch",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["review_status_mismatch"],
+      "description": "Block evidence must force the blocked review status.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["evidence_check_results", 1, "status"],
+            "value": "block"
+          },
+          {
+            "path": ["review_status"],
+            "value": "temp_result_review_needs_attention"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "negative_recommendation_ready_with_blocked_review",
+      "case_kind": "negative_result_review",
+      "mutation_kind": "blocked_recommendation_mismatch",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["recommendation_status_mismatch"],
+      "description": "A blocked review cannot recommend ready status for more temp work.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["evidence_check_results", 0, "status"],
+            "value": "block"
+          },
+          {
+            "path": ["review_status"],
+            "value": "temp_result_review_blocked"
+          },
+          {
+            "path": ["next_stage_recommendation", "recommendation_status"],
+            "value": "ready_for_temp_result_contract_tests"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    },
+    {
+      "case_id": "fixture_drift_review_fingerprint_mismatch",
+      "case_kind": "fixture_drift",
+      "mutation_kind": "review_fingerprint_mismatch",
+      "target_fixture": "result_review_fixture",
+      "expected_status": "fail",
+      "expected_review_status": "temp_result_review_blocked",
+      "expected_failure_codes": ["fixture_drift_detected"],
+      "description": "Committed result review fixture content changes must update the fingerprint.",
+      "mutated_fixture_patch": {
+        "set": [
+          {
+            "path": ["source_harness", "sqlite_method"],
+            "value": "fixture-drift-method"
+          }
+        ],
+        "unset": [],
+        "replace": []
+      }
+    }
+  ],
+  "preserved_boundaries": {
+    "fixture_only": true,
+    "product_db_write": false,
+    "actual_promotion_performed": false,
+    "proof_or_evidence_writes": false,
+    "perspective_or_canonical_writes": false,
+    "canonical_graph_write": false,
+    "work_item_creation": false,
+    "provider_or_openai_calls": false,
+    "retrieval_or_rag": false,
+    "source_fetching": false,
+    "external_handoff_sent": false,
+    "durable_product_persistence": false,
+    "browser_persistence": false
+  }
+}
