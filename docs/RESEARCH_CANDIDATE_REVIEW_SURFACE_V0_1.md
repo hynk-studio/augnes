@@ -566,6 +566,32 @@ behavior, no MCP/App tool widening, and no product write. Product-write remains
 parked by the #686 stopline. Next recommended slice:
 `candidate_to_codex_handoff_draft_geometry_substrate_v0_1`.
 
+## Candidate-to-Codex handoff draft Geometry/Substrate v0.1 Pointer
+
+`types/candidate-to-codex-handoff-draft.ts` and
+`lib/research-candidate-review/candidate-to-codex-handoff-draft.ts` now derive
+a deterministic Candidate-to-Codex handoff draft from the #691 upgraded AI
+Context Packet fixture. The generated fixture is
+`fixtures/research-candidate-review.candidate-to-codex-handoff-draft.geometry-substrate.sample.v0.1.json`.
+It is guarded by
+`npm run smoke:research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1`.
+
+The draft preserves GeometryDigest, Agent Substrate, folded audit,
+static/base packet lineage, and manual-note packet/receipt lineage as advisory
+context. It is copyable preview text only and non-authoritative: not source of
+truth, not proof/evidence, not durable Perspective state, not execution
+authority, not retrieval output, not GitHub automation, not external handoff
+sending, and not product write authority.
+
+This adds no Codex execution, no branch/PR/GitHub automation, no external
+handoff sending, no provider/OpenAI call, no source fetch, no retrieval
+execution, no DB/SQL/transaction, no proof/evidence write, no work mutation or
+work item creation, no durable Perspective promotion, no route/UI behavior, no
+agent routing/execution, and no product write. Product-write remains parked by
+the #686 stopline. Next recommended slice:
+`candidate_to_codex_handoff_draft_review_v0_1`.
+No branch/PR/GitHub automation is allowed from this draft.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

@@ -510,6 +510,7 @@
     "codex:record-evidence": "npm --prefix apps/augnes_apps run codex:record-evidence",
     "codex:bind-session": "npm --prefix apps/augnes_apps run codex:bind-session",
     "codex:handoff-check": "npm --prefix apps/augnes_apps run codex:handoff-check",
+    "smoke:research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1": "node scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -41,12 +41,25 @@ const formationReceiptSmokePath =
   "scripts/smoke-research-candidate-review-formation-receipt-v0-1.mjs";
 const smokePath =
   "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs";
+const candidateToCodexHandoffDraftTypePath =
+  "types/candidate-to-codex-handoff-draft.ts";
+const candidateToCodexHandoffDraftBuilderPath =
+  "lib/research-candidate-review/candidate-to-codex-handoff-draft.ts";
+const candidateToCodexHandoffDraftFixturePath =
+  "fixtures/research-candidate-review.candidate-to-codex-handoff-draft.geometry-substrate.sample.v0.1.json";
+const candidateToCodexHandoffDraftSmokePath =
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs";
 
 const packageScriptName =
   "smoke:research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1";
 const packageScriptValue = `node ${smokePath}`;
+const downstreamCandidateToCodexHandoffDraftPackageScriptNames = [
+  "smoke:research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1",
+];
 const nextRecommendedSlice =
   "candidate_to_codex_handoff_draft_geometry_substrate_v0_1";
+const downstreamCandidateToCodexHandoffDraftNextRecommendedSlice =
+  "candidate_to_codex_handoff_draft_review_v0_1";
 const foldedAuditPanelAnchorId = "agent-perspective-substrate-folded-audit-panel";
 const requiredForbiddenActions = [
   "do not treat packet as source of truth",
@@ -82,6 +95,24 @@ const expectedChangedFiles = [
   formationReceiptSmokePath,
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const downstreamCandidateToCodexHandoffDraftChangedFiles = [
+  candidateToCodexHandoffDraftTypePath,
+  candidateToCodexHandoffDraftBuilderPath,
+  candidateToCodexHandoffDraftFixturePath,
+  candidateToCodexHandoffDraftSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  geometryDigestSmokePath,
+  basePacketSmokePath,
+  formationReceiptSmokePath,
+];
 
 for (const filePath of [
   packetTypePath,
@@ -106,6 +137,10 @@ for (const filePath of [
   substrateSmokePath,
   geometryDigestSmokePath,
   formationReceiptSmokePath,
+  candidateToCodexHandoffDraftTypePath,
+  candidateToCodexHandoffDraftBuilderPath,
+  candidateToCodexHandoffDraftFixturePath,
+  candidateToCodexHandoffDraftSmokePath,
 ]) {
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
@@ -489,8 +524,8 @@ function assertPackageScript() {
     .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
   assert.deepEqual(
     packageAddedLines.map(extractScriptName).filter(Boolean),
-    [packageScriptName],
-    "package additions must only include geometry/substrate upgrade smoke script",
+    downstreamCandidateToCodexHandoffDraftPackageScriptNames,
+    "package additions must only include the downstream Candidate-to-Codex handoff draft smoke script",
   );
   assert.doesNotMatch(
     packageAddedLines.join("\n"),
@@ -501,7 +536,14 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const usesDownstreamCandidateToCodexHandoffDraftDelta =
+    downstreamCandidateToCodexHandoffDraftChangedFiles.every((filePath) =>
+      changedFiles.includes(filePath),
+    );
+  const expectedFilesForDelta = usesDownstreamCandidateToCodexHandoffDraftDelta
+    ? downstreamCandidateToCodexHandoffDraftChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of expectedFilesForDelta) {
     assert.ok(changedFiles.includes(expectedFile), `missing changed file ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
@@ -580,6 +622,13 @@ function assertDocsPointers() {
     "Manual-note AI Context Packet",
     "manual-note Formation Receipt",
     nextRecommendedSlice,
+    "Candidate-to-Codex handoff draft Geometry/Substrate v0.1",
+    candidateToCodexHandoffDraftTypePath,
+    candidateToCodexHandoffDraftBuilderPath,
+    candidateToCodexHandoffDraftFixturePath,
+    candidateToCodexHandoffDraftSmokePath,
+    downstreamCandidateToCodexHandoffDraftPackageScriptNames[0],
+    downstreamCandidateToCodexHandoffDraftNextRecommendedSlice,
   ]) {
     assert.ok(indexDoc.includes(requiredText), `index must include ${requiredText}`);
   }
@@ -610,6 +659,14 @@ function assertAdjacentSmokePointers() {
     assert.match(source, new RegExp(packageScriptName), `${label} smoke package pointer`);
     assert.match(source, new RegExp(nextRecommendedSlice), `${label} smoke next pointer`);
   }
+  assert.match(
+    readFileSync(smokePath, "utf8"),
+    new RegExp(downstreamCandidateToCodexHandoffDraftPackageScriptNames[0]),
+  );
+  assert.match(
+    readFileSync(smokePath, "utf8"),
+    new RegExp(downstreamCandidateToCodexHandoffDraftNextRecommendedSlice),
+  );
 }
 
 async function importBuilderModule() {

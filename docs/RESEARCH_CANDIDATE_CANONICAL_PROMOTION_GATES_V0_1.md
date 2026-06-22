@@ -300,6 +300,23 @@ durable Perspective promotion, no MCP/App tool widening, and no product write.
 Product-write remains parked by the #686 stopline. Next recommended slice:
 `candidate_to_codex_handoff_draft_geometry_substrate_v0_1`.
 
+Candidate-to-Codex handoff draft Geometry/Substrate v0.1 preserves canonical
+promotion gates. It consumes the #691 upgraded AI Context Packet only as
+advisory input and emits copyable preview text plus structured fixture data for
+a future handoff draft review slice. It preserves GeometryDigest, Agent
+Substrate, folded audit, static/base packet lineage, and manual-note
+packet/receipt lineage while remaining non-authoritative: not source of truth,
+not proof/evidence, not durable Perspective state, not execution authority,
+not retrieval output, not GitHub automation, not external handoff sending, and
+not product write authority. It adds no Codex execution, no branch/PR/GitHub
+automation, no external handoff sending, no provider/OpenAI call, no source
+fetch, no retrieval execution, no DB/SQL/transaction, no proof/evidence
+write, no work mutation or work item creation, no durable Perspective
+promotion, no route/UI behavior, no agent routing/execution, and no product
+write. Product-write remains parked by the #686 stopline. Next recommended
+slice: `candidate_to_codex_handoff_draft_review_v0_1`.
+No branch/PR/GitHub automation is allowed from this draft.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
