@@ -72,8 +72,8 @@ const allowedPackageScriptNames = [
   "contracts:research-candidate-single-claim-product-write-disabled-adapter-contract-tests-v0-1",
 ];
 const downstreamAllowedPackageScriptNames = [
-  "smoke:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
-  "contracts:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
+  "smoke:research-candidate-single-claim-product-write-preflight-stopline-v0-1",
+  "stopline:research-candidate-single-claim-product-write-preflight-stopline-v0-1",
 ];
 const expectedChangedFiles = [
   "docs/00_INDEX_LATEST.md",

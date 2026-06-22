@@ -73,8 +73,8 @@ const allowedPackageScriptNames = [
   "envelope:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1",
 ];
 const downstreamAllowedPackageScriptNames = [
-  "smoke:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
-  "contracts:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
+  "smoke:research-candidate-single-claim-product-write-preflight-stopline-v0-1",
+  "stopline:research-candidate-single-claim-product-write-preflight-stopline-v0-1",
 ];
 const expectedChangedFiles = [
   docsIndexPath,
