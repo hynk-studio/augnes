@@ -1600,6 +1600,27 @@ repo-local 색인이다.
   no route/UI behavior, no DB/SQL/transaction behavior, and no
   product write. Product-write remains parked by the #686 stopline. The next
   recommended slice is `agent_perspective_substrate_docs_type_fixture_v0_1`.
+- Agent Perspective Substrate v0.1:
+  `docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md`,
+  `types/agent-perspective-substrate.ts`,
+  `fixtures/agent-perspective-substrate.sample.v0.1.json`, and
+  `npm run smoke:agent-perspective-substrate-v0-1` define the M10
+  docs/type/fixture/smoke substrate slice. It is an AI-native folded advisory
+  layer that consumes #687 PerspectiveGeometryDigest only as advisory input,
+  along with Research Candidate Review, Candidate Constellation Overlay, AI
+  Context Packet, and Formation Receipt fixture references. It is advisory-only,
+  non-SSOT, non-authoritative, and not source of truth, proof/evidence,
+  durable Perspective state, execution authority, agent routing, or
+  product-write authority. Surfaced warnings, suggestions, blockers, and
+  handoff improvements require `source_refs` or an explicit source coverage
+  boundary note, `why_now`, epistemic/review status, and
+  `authority_boundary_notes`. This slice adds no runtime route/UI behavior, no
+  DB/SQL/transaction behavior, no provider/OpenAI call, no source fetch, no
+  retrieval execution or indexing implementation,
+  no proof/evidence/work/Perspective durable write, no agent execution/routing,
+  no MCP/App tool widening, and no product write. Product-write remains parked
+  by #686. The next recommended slice is
+  `agent_perspective_substrate_preview_builder_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

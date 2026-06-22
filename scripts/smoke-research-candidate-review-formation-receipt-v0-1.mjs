@@ -646,6 +646,11 @@ function assertDocsPointers() {
     "fixtures/research-candidate-review.perspective-geometry-digest.sample.v0.1.json",
     "fixtures/research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1.json",
     "agent_perspective_substrate_docs_type_fixture_v0_1",
+    "Agent Perspective Substrate v0.1",
+    "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+    "types/agent-perspective-substrate.ts",
+    "fixtures/agent-perspective-substrate.sample.v0.1.json",
+    "agent_perspective_substrate_preview_builder_v0_1",
   ]) {
     assert.ok(surfaceDoc.includes(requiredText), `surface doc must include ${requiredText}`);
   }
@@ -672,6 +677,8 @@ function assertGatePointer() {
     /PerspectiveGeometryDigest Builder v0\.1 preserves canonical promotion\s+gates/i,
     /layout\s+coordinates as truth are explicitly forbidden/i,
     /agent_perspective_substrate_docs_type_fixture_v0_1/i,
+    /Agent Perspective Substrate v0\.1 preserves canonical promotion\s+gates/i,
+    /agent_perspective_substrate_preview_builder_v0_1/i,
   ]) {
     assert.match(gateDoc, regex, `gate doc must include ${regex}`);
   }
