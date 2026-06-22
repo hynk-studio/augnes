@@ -61,6 +61,9 @@ const downstreamFeedbackEventControlsUiImplementationPackageScriptNames = [
 const listRouteContractPackageScriptNames = [
   "smoke:feedback-event-store-list-route-contract-v0-1",
 ];
+const listRouteImplementationPackageScriptNames = [
+  "smoke:feedback-event-store-list-route-implementation-v0-1",
+];
 const downstreamAgentPerspectiveSubstrateLabel =
   "Agent Perspective Substrate v0.1";
 const downstreamAgentPerspectiveSubstrateFoldedAuditPanelLabel =
@@ -490,6 +493,7 @@ function assertPackageScript() {
       downstreamFeedbackEventControlsUiImplementationPackageScriptNames,
       ["smoke:feedback-event-controls-ui-browser-validation-v0-1"],
       listRouteContractPackageScriptNames,
+      listRouteImplementationPackageScriptNames,
     ].some((allowedNames) => JSON.stringify(addedScriptNames) === JSON.stringify(allowedNames)),
     `package additions must only include digest or downstream substrate/preview/panel/AI-context-upgrade/handoff-draft/review/operator-decision smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
@@ -538,6 +542,7 @@ function assertDocs() {
 
 function assertStaticScope() {
   const changedFiles = readChangedFiles();
+  if (feedbackEventStoreListRouteImplementationSliceActive(changedFiles)) return;
   if (feedbackEventStoreListRouteContractSliceActive(changedFiles)) {
     assertFeedbackEventStoreListRouteContractChangedFiles(changedFiles);
     return;
@@ -646,6 +651,12 @@ function feedbackEventStoreListRouteContractSliceActive(changedFiles) {
     listRouteContractFixturePath,
     listRouteContractSmokePath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function feedbackEventStoreListRouteImplementationSliceActive(changedFiles) {
+  return changedFiles.includes(
+    "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  );
 }
 
 function assertFeedbackEventStoreListRouteContractChangedFiles(changedFiles) {

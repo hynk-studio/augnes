@@ -1887,6 +1887,22 @@ repo-local 색인이다.
   provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
   write/product IDs. Product-write remains parked by #686. The next recommended
   slice is `feedback_event_store_list_route_implementation_v0_1`.
+- Feedback Event Store list route implementation v0.1:
+  `app/api/research-candidate/feedback-events/route.ts`,
+  `fixtures/research-candidate-review.feedback-event-store-list-route-implementation.sample.v0.1.json`,
+  and `scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs`
+  (`npm run smoke:feedback-event-store-list-route-implementation-v0-1`)
+  implement `GET /api/research-candidate/feedback-events` for bounded Feedback
+  Event Store reads.
+
+  The route reads durable feedback events only. GET does not write feedback,
+  does not create proof/evidence, does not promote Perspective state, does not
+  mutate work, and does not implement UI controls. This slice adds no
+  UI/component change, no schema/migration change, no product DB write, no
+  Codex/GitHub automation/external handoff, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
+  write/product IDs. Product-write remains parked by #686. The next recommended
+  slice is `feedback_event_store_list_route_browser_validation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

@@ -511,6 +511,21 @@ execution, and creates no proof/evidence/Perspective/work/product durable
 state. Product-write remains parked by the #686 stopline. Next recommended
 slice: `feedback_event_store_list_route_implementation_v0_1`.
 
+Feedback Event Store list route implementation v0.1 preserves canonical
+promotion gates while implementing the bounded read path. It implements
+`GET /api/research-candidate/feedback-events` for durable feedback-event reads
+only. This route reads durable feedback events only.
+
+The implementation is not source of truth, not proof/evidence, not Perspective
+promotion, not work mutation, not feedback mutation, not execution authority,
+not retrieval/RAG execution, not agent routing, not Codex execution, not GitHub
+automation, not external handoff, and not product write authority. GET does not
+write feedback events; no feedback write occurs on GET. It adds no UI/component change, no schema/migration
+change, no provider/OpenAI call, no source fetch, and creates no
+proof/evidence/Perspective/work/product durable state. Product-write remains
+parked by the #686 stopline. Next recommended slice:
+`feedback_event_store_list_route_browser_validation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

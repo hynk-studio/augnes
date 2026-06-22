@@ -16,9 +16,13 @@ const writeRouteBrowserValidationFixturePath =
   "fixtures/research-candidate-review.feedback-event-write-route-browser-validation.sample.v0.1.json";
 const contractFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1.json";
+const implementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-route-implementation.sample.v0.1.json";
 const routeFilePath = "app/api/research-candidate/feedback-events/route.ts";
 const smokePath =
   "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs";
+const implementationSmokePath =
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
 const uiBrowserValidationSmokePath =
   "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs";
 const uiImplementationSmokePath =
@@ -60,6 +64,10 @@ const gateDocPath =
 const packageScriptName =
   "smoke:feedback-event-store-list-route-contract-v0-1";
 const packageScriptValue = `node ${smokePath}`;
+const implementationPackageScriptName =
+  "smoke:feedback-event-store-list-route-implementation-v0-1";
+const implementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
 const routePath = "/api/research-candidate/feedback-events";
 const routeMethod = "GET";
 const contractVersion = "feedback_event_store_list_route_contract.v0.1";
@@ -69,6 +77,10 @@ const recommendationStatus =
   "ready_for_feedback_event_store_list_route_implementation_v0_1";
 const nextRecommendedSlice =
   "feedback_event_store_list_route_implementation_v0_1";
+const implementationRecommendationStatus =
+  "ready_for_feedback_event_store_list_route_browser_validation_v0_1";
+const implementationNextRecommendedSlice =
+  "feedback_event_store_list_route_browser_validation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 
 const requiredAcknowledgements = [
@@ -114,6 +126,35 @@ const requiredChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  uiBrowserValidationSmokePath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  writeRouteBrowserValidationSmokePath,
+  writeRouteImplementationSmokePath,
+  writeRouteContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackEventStoreMinimalSmokePath,
+  operatorDecisionSmokePath,
+  handoffDraftReviewSmokePath,
+  handoffDraftSmokePath,
+  aiContextGeometrySubstrateSmokePath,
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  geometryDigestSmokePath,
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
+
+const implementationChangedFiles = [
+  routeFilePath,
+  implementationFixturePath,
+  implementationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
   uiBrowserValidationSmokePath,
   uiImplementationSmokePath,
   uiContractSmokePath,
@@ -194,6 +235,7 @@ assertStaticBoundary();
 assertNoForbiddenImplementationPatterns();
 assertDocsPointers();
 assertUiBrowserValidationDownstreamPointer();
+assertListRouteImplementationDownstreamPointer();
 assert.deepEqual(
   rebuiltContract,
   contractFixture,
@@ -314,6 +356,12 @@ function assertTypeAndBuilderContracts() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  if (downstreamListRouteImplementationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[implementationPackageScriptName],
+      implementationPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -327,10 +375,13 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
+  const expectedAddedScriptNames = downstreamListRouteImplementationSliceActive()
+    ? [implementationPackageScriptName]
+    : [packageScriptName];
   assert.deepEqual(
     addedScriptNames,
-    [packageScriptName],
-    "package additions must only include the list route contract smoke script",
+    expectedAddedScriptNames,
+    "package additions must only include the active list-route smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
@@ -338,15 +389,28 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const requiredFile of requiredChangedFiles) {
+  const expectedFiles = downstreamListRouteImplementationSliceActive()
+    ? implementationChangedFiles
+    : requiredChangedFiles;
+  for (const requiredFile of expectedFiles) {
     assert.ok(changedFiles.includes(requiredFile), `changed files must include ${requiredFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      requiredChangedFiles.includes(changedFile),
+      expectedFiles.includes(changedFile),
       `unexpected changed file in list route contract slice: ${changedFile}`,
     );
-    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
+    if (downstreamListRouteImplementationSliceActive()) {
+      if (changedFile.startsWith("app/api/")) {
+        assert.equal(
+          changedFile,
+          routeFilePath,
+          "only the existing feedback-events route may change downstream",
+        );
+      }
+    } else {
+      assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
+    }
     assert.doesNotMatch(changedFile, /^components\//, "must not change components");
     assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
     assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
@@ -367,6 +431,14 @@ function assertStaticBoundary() {
 function assertRouteNotImplemented() {
   assert.ok(existsSync(routeFilePath), "existing POST route file must remain present");
   assert.match(routeSource, /export\s+async\s+function\s+POST\b/);
+  if (downstreamListRouteImplementationSliceActive()) {
+    assert.match(routeSource, /export\s+async\s+function\s+GET\b/);
+    assert.match(
+      routeSource,
+      /export\s+function\s+handleFeedbackEventStoreListRouteRequest\b/,
+    );
+    return;
+  }
   assert.doesNotMatch(routeSource, /export\s+async\s+function\s+GET\b/);
   assert.doesNotMatch(routeSource, /export\s+function\s+GET\b/);
 }
@@ -456,6 +528,42 @@ function assertUiBrowserValidationDownstreamPointer() {
   assert.equal(
     uiBrowserValidationFixture.next_recommended_slice,
     "feedback_event_store_list_route_contract_v0_1",
+  );
+}
+
+function assertListRouteImplementationDownstreamPointer() {
+  if (!downstreamListRouteImplementationSliceActive()) return;
+  for (const requiredText of [
+    implementationPackageScriptName,
+    implementationNextRecommendedSlice,
+    implementationFixturePath,
+    implementationSmokePath,
+    implementationRecommendationStatus,
+    "handleFeedbackEventStoreListRouteRequest",
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#703 list route contract smoke must allow implementation text: ${requiredText}`,
+    );
+  }
+  const implementationFixture = readJson(implementationFixturePath);
+  assert.equal(implementationFixture.route_method, "GET");
+  assert.equal(implementationFixture.route_implemented_now, true);
+  assert.equal(
+    implementationFixture.recommendation_status,
+    implementationRecommendationStatus,
+  );
+  assert.equal(
+    implementationFixture.next_recommended_slice,
+    implementationNextRecommendedSlice,
+  );
+}
+
+function downstreamListRouteImplementationSliceActive() {
+  return (
+    existsSync(implementationFixturePath) &&
+    packageJson.scripts?.[implementationPackageScriptName] ===
+      implementationPackageScriptValue
   );
 }
 

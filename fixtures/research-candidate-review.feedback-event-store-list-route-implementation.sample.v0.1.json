@@ -1,0 +1,1119 @@
+{
+  "fixture_kind": "feedback_event_store_list_route_implementation_fixture",
+  "fixture_version": "feedback_event_store_list_route_implementation.v0.1",
+  "route_path": "/api/research-candidate/feedback-events",
+  "route_method": "GET",
+  "route_implemented_now": true,
+  "source_list_route_contract_ref": "feedback_event_store_list_route_contract.v0.1:fixtures/research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1.json",
+  "source_list_route_contract_fingerprint": "fnv1a32:b358e0b3",
+  "source_feedback_event_store_ref": "feedback_event_store.v0.1:fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json",
+  "source_feedback_event_store_version": "feedback_event_store.v0.1",
+  "source_feedback_event_controls_ui_browser_validation_ref": "feedback_event_controls_ui_browser_validation.v0.1:fixtures/research-candidate-review.feedback-event-controls-ui-browser-validation.sample.v0.1.json",
+  "source_feedback_event_controls_ui_browser_validation_route_path": "/api/research-candidate/feedback-events",
+  "get_reads_feedback_events_only": true,
+  "get_writes_feedback_events_now": false,
+  "production_db_used_in_smoke_now": false,
+  "temp_db_used_in_smoke_now": true,
+  "proof_evidence_write_available": false,
+  "perspective_promotion_available": false,
+  "work_mutation_available": false,
+  "provider_openai_available": false,
+  "source_fetch_available": false,
+  "retrieval_rag_available": false,
+  "codex_github_available": false,
+  "product_write_available": false,
+  "product_write_lane_parked_by_686": true,
+  "responses": {
+    "valid_list_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": true,
+      "events": [
+        {
+          "authority_boundary": {
+            "codex_execution_authority": false,
+            "durable_feedback_event": true,
+            "execution_authority": false,
+            "external_handoff_authority": false,
+            "github_automation_authority": false,
+            "perspective_promotion": false,
+            "product_id_allocation_authority": false,
+            "product_write_authority": false,
+            "proof_or_evidence_record": false,
+            "provider_openai_authority": false,
+            "retrieval_rag_authority": false,
+            "source_fetch_authority": false,
+            "work_mutation": false
+          },
+          "created_at": "2026-06-22T00:03:00.000Z",
+          "event_id": "feedback_event:fnv1a32:49187a0d",
+          "event_type": "invalidate_preview",
+          "event_version": "feedback_event_store.v0.1",
+          "idempotency_key": "feedback_event_store_idempotency:fnv1a32:ef23d69e",
+          "operator_note": "Invalidated for future review-control exploration only; product-write lane remains parked by #686.",
+          "reason": "operator_decision_preview_superseded_for_review_controls",
+          "source_ref_ids": [
+            "fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json"
+          ],
+          "target_fingerprint": "fnv1a32:70a575e2",
+          "target_id": "candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
+          "target_kind": "candidate_to_codex_handoff_operator_decision_preview"
+        },
+        {
+          "authority_boundary": {
+            "codex_execution_authority": false,
+            "durable_feedback_event": true,
+            "execution_authority": false,
+            "external_handoff_authority": false,
+            "github_automation_authority": false,
+            "perspective_promotion": false,
+            "product_id_allocation_authority": false,
+            "product_write_authority": false,
+            "proof_or_evidence_record": false,
+            "provider_openai_authority": false,
+            "retrieval_rag_authority": false,
+            "source_fetch_authority": false,
+            "work_mutation": false
+          },
+          "correction_text": "Clarify that the review remains non-executing and does not satisfy the human operator decision.",
+          "created_at": "2026-06-22T00:02:00.000Z",
+          "event_id": "feedback_event:fnv1a32:1542ea21",
+          "event_type": "correct_preview",
+          "event_version": "feedback_event_store.v0.1",
+          "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+          "operator_note": "Correction is feedback only; product-write lane remains parked by #686.",
+          "reason": "boundary_wording_correction",
+          "source_ref_ids": [
+            "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json"
+          ],
+          "target_fingerprint": "fnv1a32:d9d0275e",
+          "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+          "target_kind": "candidate_to_codex_handoff_draft_review"
+        },
+        {
+          "authority_boundary": {
+            "codex_execution_authority": false,
+            "durable_feedback_event": true,
+            "execution_authority": false,
+            "external_handoff_authority": false,
+            "github_automation_authority": false,
+            "perspective_promotion": false,
+            "product_id_allocation_authority": false,
+            "product_write_authority": false,
+            "proof_or_evidence_record": false,
+            "provider_openai_authority": false,
+            "retrieval_rag_authority": false,
+            "source_fetch_authority": false,
+            "work_mutation": false
+          },
+          "created_at": "2026-06-22T00:01:00.000Z",
+          "event_id": "feedback_event:fnv1a32:71954683",
+          "event_type": "pin_preview",
+          "event_version": "feedback_event_store.v0.1",
+          "idempotency_key": "feedback_event_store_idempotency:fnv1a32:2fe5daf9",
+          "operator_note": "Pinned source coverage for later human review; product-write lane remains parked by #686.",
+          "reason": "keep_source_coverage_visible",
+          "source_ref_ids": [
+            "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+            "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage"
+          ],
+          "target_id": "folded_section:source_coverage",
+          "target_kind": "agent_perspective_substrate_folded_section"
+        },
+        {
+          "authority_boundary": {
+            "codex_execution_authority": false,
+            "durable_feedback_event": true,
+            "execution_authority": false,
+            "external_handoff_authority": false,
+            "github_automation_authority": false,
+            "perspective_promotion": false,
+            "product_id_allocation_authority": false,
+            "product_write_authority": false,
+            "proof_or_evidence_record": false,
+            "provider_openai_authority": false,
+            "retrieval_rag_authority": false,
+            "source_fetch_authority": false,
+            "work_mutation": false
+          },
+          "created_at": "2026-06-22T00:00:00.000Z",
+          "event_id": "feedback_event:fnv1a32:3cbcddb7",
+          "event_type": "dismiss_preview",
+          "event_version": "feedback_event_store.v0.1",
+          "idempotency_key": "feedback_event_store_idempotency:fnv1a32:bab48f23",
+          "operator_note": "Dismissed after review; product-write lane remains parked by #686.",
+          "reason": "preview_card_already_reviewed",
+          "source_ref_ids": [
+            "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#surfacing_cards"
+          ],
+          "target_id": "substrate_card:reviewed_non_authoritative_context",
+          "target_kind": "agent_perspective_substrate_surfacing_card"
+        }
+      ],
+      "count": 4,
+      "next_cursor": null,
+      "validation": {
+        "passed": true,
+        "failure_codes": []
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": true,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": true,
+        "sql_execution_now": true,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": null,
+      "route_implemented_now": true,
+      "runtime_read_executed_now": true,
+      "db_open_now": true,
+      "sql_execution_now": true
+    },
+    "filtered_by_event_type_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": true,
+      "events": [
+        {
+          "authority_boundary": {
+            "codex_execution_authority": false,
+            "durable_feedback_event": true,
+            "execution_authority": false,
+            "external_handoff_authority": false,
+            "github_automation_authority": false,
+            "perspective_promotion": false,
+            "product_id_allocation_authority": false,
+            "product_write_authority": false,
+            "proof_or_evidence_record": false,
+            "provider_openai_authority": false,
+            "retrieval_rag_authority": false,
+            "source_fetch_authority": false,
+            "work_mutation": false
+          },
+          "created_at": "2026-06-22T00:01:00.000Z",
+          "event_id": "feedback_event:fnv1a32:71954683",
+          "event_type": "pin_preview",
+          "event_version": "feedback_event_store.v0.1",
+          "idempotency_key": "feedback_event_store_idempotency:fnv1a32:2fe5daf9",
+          "operator_note": "Pinned source coverage for later human review; product-write lane remains parked by #686.",
+          "reason": "keep_source_coverage_visible",
+          "source_ref_ids": [
+            "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+            "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage"
+          ],
+          "target_id": "folded_section:source_coverage",
+          "target_kind": "agent_perspective_substrate_folded_section"
+        }
+      ],
+      "count": 1,
+      "next_cursor": null,
+      "validation": {
+        "passed": true,
+        "failure_codes": []
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": true,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": true,
+        "sql_execution_now": true,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": null,
+      "route_implemented_now": true,
+      "runtime_read_executed_now": true,
+      "db_open_now": true,
+      "sql_execution_now": true
+    },
+    "filtered_by_target_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": true,
+      "events": [
+        {
+          "authority_boundary": {
+            "codex_execution_authority": false,
+            "durable_feedback_event": true,
+            "execution_authority": false,
+            "external_handoff_authority": false,
+            "github_automation_authority": false,
+            "perspective_promotion": false,
+            "product_id_allocation_authority": false,
+            "product_write_authority": false,
+            "proof_or_evidence_record": false,
+            "provider_openai_authority": false,
+            "retrieval_rag_authority": false,
+            "source_fetch_authority": false,
+            "work_mutation": false
+          },
+          "created_at": "2026-06-22T00:01:00.000Z",
+          "event_id": "feedback_event:fnv1a32:71954683",
+          "event_type": "pin_preview",
+          "event_version": "feedback_event_store.v0.1",
+          "idempotency_key": "feedback_event_store_idempotency:fnv1a32:2fe5daf9",
+          "operator_note": "Pinned source coverage for later human review; product-write lane remains parked by #686.",
+          "reason": "keep_source_coverage_visible",
+          "source_ref_ids": [
+            "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+            "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage"
+          ],
+          "target_id": "folded_section:source_coverage",
+          "target_kind": "agent_perspective_substrate_folded_section"
+        }
+      ],
+      "count": 1,
+      "next_cursor": null,
+      "validation": {
+        "passed": true,
+        "failure_codes": []
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": true,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": true,
+        "sql_execution_now": true,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": null,
+      "route_implemented_now": true,
+      "runtime_read_executed_now": true,
+      "db_open_now": true,
+      "sql_execution_now": true
+    },
+    "created_window_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": true,
+      "events": [
+        {
+          "authority_boundary": {
+            "codex_execution_authority": false,
+            "durable_feedback_event": true,
+            "execution_authority": false,
+            "external_handoff_authority": false,
+            "github_automation_authority": false,
+            "perspective_promotion": false,
+            "product_id_allocation_authority": false,
+            "product_write_authority": false,
+            "proof_or_evidence_record": false,
+            "provider_openai_authority": false,
+            "retrieval_rag_authority": false,
+            "source_fetch_authority": false,
+            "work_mutation": false
+          },
+          "created_at": "2026-06-22T00:03:00.000Z",
+          "event_id": "feedback_event:fnv1a32:49187a0d",
+          "event_type": "invalidate_preview",
+          "event_version": "feedback_event_store.v0.1",
+          "idempotency_key": "feedback_event_store_idempotency:fnv1a32:ef23d69e",
+          "operator_note": "Invalidated for future review-control exploration only; product-write lane remains parked by #686.",
+          "reason": "operator_decision_preview_superseded_for_review_controls",
+          "source_ref_ids": [
+            "fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json"
+          ],
+          "target_fingerprint": "fnv1a32:70a575e2",
+          "target_id": "candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
+          "target_kind": "candidate_to_codex_handoff_operator_decision_preview"
+        },
+        {
+          "authority_boundary": {
+            "codex_execution_authority": false,
+            "durable_feedback_event": true,
+            "execution_authority": false,
+            "external_handoff_authority": false,
+            "github_automation_authority": false,
+            "perspective_promotion": false,
+            "product_id_allocation_authority": false,
+            "product_write_authority": false,
+            "proof_or_evidence_record": false,
+            "provider_openai_authority": false,
+            "retrieval_rag_authority": false,
+            "source_fetch_authority": false,
+            "work_mutation": false
+          },
+          "correction_text": "Clarify that the review remains non-executing and does not satisfy the human operator decision.",
+          "created_at": "2026-06-22T00:02:00.000Z",
+          "event_id": "feedback_event:fnv1a32:1542ea21",
+          "event_type": "correct_preview",
+          "event_version": "feedback_event_store.v0.1",
+          "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+          "operator_note": "Correction is feedback only; product-write lane remains parked by #686.",
+          "reason": "boundary_wording_correction",
+          "source_ref_ids": [
+            "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json"
+          ],
+          "target_fingerprint": "fnv1a32:d9d0275e",
+          "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+          "target_kind": "candidate_to_codex_handoff_draft_review"
+        },
+        {
+          "authority_boundary": {
+            "codex_execution_authority": false,
+            "durable_feedback_event": true,
+            "execution_authority": false,
+            "external_handoff_authority": false,
+            "github_automation_authority": false,
+            "perspective_promotion": false,
+            "product_id_allocation_authority": false,
+            "product_write_authority": false,
+            "proof_or_evidence_record": false,
+            "provider_openai_authority": false,
+            "retrieval_rag_authority": false,
+            "source_fetch_authority": false,
+            "work_mutation": false
+          },
+          "created_at": "2026-06-22T00:01:00.000Z",
+          "event_id": "feedback_event:fnv1a32:71954683",
+          "event_type": "pin_preview",
+          "event_version": "feedback_event_store.v0.1",
+          "idempotency_key": "feedback_event_store_idempotency:fnv1a32:2fe5daf9",
+          "operator_note": "Pinned source coverage for later human review; product-write lane remains parked by #686.",
+          "reason": "keep_source_coverage_visible",
+          "source_ref_ids": [
+            "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+            "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage"
+          ],
+          "target_id": "folded_section:source_coverage",
+          "target_kind": "agent_perspective_substrate_folded_section"
+        }
+      ],
+      "count": 3,
+      "next_cursor": null,
+      "validation": {
+        "passed": true,
+        "failure_codes": []
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": true,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": true,
+        "sql_execution_now": true,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": null,
+      "route_implemented_now": true,
+      "runtime_read_executed_now": true,
+      "db_open_now": true,
+      "sql_execution_now": true
+    },
+    "missing_ack_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "missing_authority_acknowledgement"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "missing_authority_acknowledgement",
+        "message": "The list request is missing one or more required authority acknowledgements.",
+        "retryable": true,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "invalid_request_version_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "invalid_request_version"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "invalid_request_version",
+        "message": "The request_version must be feedback_event_store_list_route_request.v0.1.",
+        "retryable": true,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "invalid_event_type_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "invalid_event_type"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "invalid_event_type",
+        "message": "The event_type filter is not allowed by Feedback Event Store v0.1.",
+        "retryable": true,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "invalid_target_kind_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "invalid_target_kind"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "invalid_target_kind",
+        "message": "The target_kind filter is not allowed by Feedback Event Store v0.1.",
+        "retryable": true,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "invalid_limit_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "invalid_limit"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "invalid_limit",
+        "message": "The limit filter must be an integer from 1 through 100.",
+        "retryable": true,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "invalid_cursor_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "invalid_cursor"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "invalid_cursor",
+        "message": "Cursor pagination is not implemented for Feedback Event Store list route v0.1.",
+        "retryable": true,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "raw_sql_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "raw_sql_filter_forbidden"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "raw_sql_filter_forbidden",
+        "message": "Raw SQL, where clauses, source-fetch, retrieval/RAG, provider/OpenAI, product-write, proof/evidence, Perspective-promotion, and work-mutation query filters are forbidden.",
+        "retryable": false,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "forbidden_authority_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "forbidden_authority_requested"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "forbidden_authority_requested",
+        "message": "The list request asks for authority outside durable feedback event read authority.",
+        "retryable": false,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "product_write_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "product_write_authority_requested"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "product_write_authority_requested",
+        "message": "The list request asks for product-write authority, which remains parked by #686.",
+        "retryable": false,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "retrieval_rag_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "retrieval_rag_execution_requested"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "retrieval_rag_execution_requested",
+        "message": "The list request asks for retrieval/RAG execution, which is forbidden.",
+        "retryable": false,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "provider_openai_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "provider_openai_call_requested"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "provider_openai_call_requested",
+        "message": "The list request asks for provider/OpenAI calls, which are forbidden.",
+        "retryable": false,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "source_fetch_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "source_fetch_requested"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "source_fetch_requested",
+        "message": "The list request asks for source fetch, which is forbidden.",
+        "retryable": false,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    },
+    "codex_github_refusal_response": {
+      "response_version": "feedback_event_store_list_route_response.v0.1",
+      "accepted": false,
+      "events": [],
+      "count": 0,
+      "next_cursor": null,
+      "validation": {
+        "passed": false,
+        "failure_codes": [
+          "codex_or_github_automation_requested"
+        ]
+      },
+      "authority_boundary": {
+        "contract_only": false,
+        "route_implemented_now": true,
+        "durable_feedback_event_read_now": false,
+        "durable_feedback_event_written_now": false,
+        "runtime_read_executed_now": false,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false,
+        "server_action_available_now": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "product_write_lane_parked_by_686": true
+      },
+      "refusal": {
+        "refusal_code": "codex_or_github_automation_requested",
+        "message": "The list request asks for Codex or GitHub automation, which is forbidden.",
+        "retryable": false,
+        "authority_boundary_notes": [
+          "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+          "Product-write lane remains parked by #686."
+        ]
+      },
+      "route_implemented_now": true,
+      "runtime_read_executed_now": false,
+      "db_open_now": false,
+      "sql_execution_now": false
+    }
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "recommendation_status": "ready_for_feedback_event_store_list_route_browser_validation_v0_1",
+  "next_recommended_slice": "feedback_event_store_list_route_browser_validation_v0_1"
+}

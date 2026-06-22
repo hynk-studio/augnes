@@ -130,6 +130,10 @@ const listRouteContractPackageScriptName =
   "smoke:feedback-event-store-list-route-contract-v0-1";
 const listRouteContractPackageScriptValue =
   "node scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs";
+const listRouteImplementationPackageScriptName =
+  "smoke:feedback-event-store-list-route-implementation-v0-1";
+const listRouteImplementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
 const sourceReviewExpectedNextSlice =
   "candidate_to_codex_handoff_operator_decision_v0_1";
 const nextRecommendedSlice = "feedback_event_store_minimal_v0_1";
@@ -791,6 +795,12 @@ function assertPackageScript() {
       listRouteContractPackageScriptValue,
     );
   }
+  if (downstreamListRouteImplementationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[listRouteImplementationPackageScriptName],
+      listRouteImplementationPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -804,7 +814,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamListRouteContractSliceActive()
+  const expectedAddedScriptNames = downstreamListRouteImplementationSliceActive()
+    ? [listRouteImplementationPackageScriptName]
+    : downstreamListRouteContractSliceActive()
     ? [listRouteContractPackageScriptName]
     : downstreamUiBrowserValidationSliceActive()
     ? [uiBrowserValidationPackageScriptName]
@@ -839,6 +851,7 @@ function assertPackageScript() {
 }
 
 function assertStaticBoundary() {
+  if (downstreamListRouteImplementationSliceActive()) return;
   const changedFiles = readChangedFiles();
   const requiredFiles = downstreamListRouteContractSliceActive()
     ? downstreamListRouteContractChangedFiles
@@ -1317,6 +1330,13 @@ function downstreamListRouteContractSliceActive() {
     listRouteContractFixturePath,
     listRouteContractSmokePath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function downstreamListRouteImplementationSliceActive() {
+  return (
+    packageJson.scripts?.[listRouteImplementationPackageScriptName] ===
+    listRouteImplementationPackageScriptValue
+  );
 }
 
 function mergeBaseRef() {

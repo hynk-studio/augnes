@@ -787,6 +787,21 @@ external handoff sending, no agent routing/execution, and no product write.
 Product-write remains parked by the #686 stopline. Next recommended slice:
 `feedback_event_store_list_route_implementation_v0_1`.
 
+## Feedback Event Store list route implementation v0.1 Pointer
+
+Feedback Event Store list route implementation v0.1 implements
+`GET /api/research-candidate/feedback-events` for durable feedback-event reads
+only. This route reads durable feedback events only. There is no feedback write
+on GET, and this slice does not add UI controls.
+
+The implementation does not create proof/evidence, does not promote
+Perspective state, and performs no work mutation. It grants no provider/OpenAI
+calls, no source fetch, no retrieval/RAG execution, no Codex execution, no
+GitHub automation, no external handoff sending, no agent routing/execution, no
+product write, and no product ID allocation. Product-write remains parked by
+the #686 stopline. Next recommended slice:
+`feedback_event_store_list_route_browser_validation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
