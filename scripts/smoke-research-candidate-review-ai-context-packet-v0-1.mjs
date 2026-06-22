@@ -737,6 +737,11 @@ function assertDocsPointers() {
     "types/agent-perspective-substrate.ts",
     "fixtures/agent-perspective-substrate.sample.v0.1.json",
     "agent_perspective_substrate_preview_builder_v0_1",
+    "Agent Perspective Substrate Preview Builder v0.1",
+    "types/agent-perspective-substrate-preview.ts",
+    "lib/research-candidate-review/agent-perspective-substrate-preview.ts",
+    "fixtures/agent-perspective-substrate-preview.sample.v0.1.json",
+    "cockpit_agent_perspective_substrate_folded_audit_panel_v0_1",
     "read-only",
     "handoff packet",
   ]) {
@@ -769,6 +774,8 @@ function assertGatePointer() {
     /agent_perspective_substrate_docs_type_fixture_v0_1/i,
     /Agent Perspective Substrate v0\.1 preserves canonical promotion\s+gates/i,
     /agent_perspective_substrate_preview_builder_v0_1/i,
+    /Agent Perspective Substrate Preview Builder v0\.1 preserves canonical\s+promotion gates/i,
+    /cockpit_agent_perspective_substrate_folded_audit_panel_v0_1/i,
   ]) {
     assert.match(gateDoc, regex, `gate doc must include ${regex}`);
   }

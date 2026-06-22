@@ -249,6 +249,23 @@ promotion, no agent execution/routing, no MCP/App tool widening, and no product
 write. Product-write remains parked by the #686 stopline. Next recommended
 slice: `agent_perspective_substrate_preview_builder_v0_1`.
 
+Agent Perspective Substrate Preview Builder v0.1 preserves canonical
+promotion gates. The #688 substrate fixture can now be folded into an advisory
+preview artifact with folded-by-default sections, surfacing cards, rule groups,
+source coverage preview, diagnostics, and an advisory-only authority boundary.
+Every preview card must carry `source_refs` or an explicit source coverage
+boundary note, `epistemic_status`, `review_status`, `why_now`, and
+`authority_boundary_notes`. The preview remains non-authoritative: not source
+of truth, proof/evidence, durable Perspective state, execution authority,
+retrieval execution, agent routing, or product write authority. It adds no
+runtime route/UI yet, no API route, no UI/component change, no
+DB/SQL/transaction, no provider/OpenAI call, no source fetch, no retrieval
+execution or indexing implementation, no proof/evidence write, no work
+mutation or work item creation, no durable Perspective promotion, no agent
+execution/routing, no MCP/App tool widening, and no product write.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`cockpit_agent_perspective_substrate_folded_audit_panel_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

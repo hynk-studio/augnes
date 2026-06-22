@@ -20,9 +20,14 @@ const smokePath = "scripts/smoke-agent-perspective-substrate-v0-1.mjs";
 
 const packageScriptName = "smoke:agent-perspective-substrate-v0-1";
 const packageScriptValue = `node ${smokePath}`;
+const downstreamAgentPerspectiveSubstratePreviewPackageScriptNames = [
+  "smoke:agent-perspective-substrate-preview-builder-v0-1",
+];
 const substrateVersion = "agent_perspective_substrate.v0.1";
 const nextRecommendedSlice =
   "agent_perspective_substrate_preview_builder_v0_1";
+const downstreamNextRecommendedSlice =
+  "cockpit_agent_perspective_substrate_folded_audit_panel_v0_1";
 const sourceCoverageBoundaryPattern = /source coverage boundary note/i;
 
 const requiredTypeExports = [
@@ -82,6 +87,21 @@ const expectedChangedFiles = [
   indexPath,
   surfaceDocPath,
   gateDocPath,
+  digestSmokePath,
+  aiContextSmokePath,
+  formationReceiptSmokePath,
+];
+const downstreamAgentPerspectiveSubstratePreviewChangedFiles = [
+  "types/agent-perspective-substrate-preview.ts",
+  "lib/research-candidate-review/agent-perspective-substrate-preview.ts",
+  "fixtures/agent-perspective-substrate-preview.sample.v0.1.json",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  packagePath,
+  indexPath,
+  docsPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
   digestSmokePath,
   aiContextSmokePath,
   formationReceiptSmokePath,
@@ -455,10 +475,13 @@ function assertPackageScript() {
   ])
     .split("\n")
     .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
-  assert.deepEqual(
-    packageAddedLines.map(extractScriptName).filter(Boolean),
-    [packageScriptName],
-    "package additions must only include substrate smoke script",
+  const addedScriptNames = packageAddedLines.map(extractScriptName).filter(Boolean);
+  assert.ok(
+    [
+      [packageScriptName],
+      downstreamAgentPerspectiveSubstratePreviewPackageScriptNames,
+    ].some((scriptNames) => JSON.stringify(addedScriptNames) === JSON.stringify(scriptNames)),
+    `package additions must only include substrate or downstream preview-builder smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
   assert.doesNotMatch(
     packageAddedLines.join("\n"),
@@ -469,7 +492,14 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const usesDownstreamPreviewDelta =
+    downstreamAgentPerspectiveSubstratePreviewChangedFiles.every((filePath) =>
+      changedFiles.includes(filePath),
+    );
+  const expectedFilesForDelta = usesDownstreamPreviewDelta
+    ? downstreamAgentPerspectiveSubstratePreviewChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of expectedFilesForDelta) {
     assert.ok(changedFiles.includes(expectedFile), `missing changed file ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
@@ -546,6 +576,12 @@ function assertAdjacentPointers() {
     fixturePath,
     packageScriptName,
     nextRecommendedSlice,
+    "Agent Perspective Substrate Preview Builder v0.1",
+    "types/agent-perspective-substrate-preview.ts",
+    "lib/research-candidate-review/agent-perspective-substrate-preview.ts",
+    "fixtures/agent-perspective-substrate-preview.sample.v0.1.json",
+    "smoke:agent-perspective-substrate-preview-builder-v0-1",
+    downstreamNextRecommendedSlice,
     "source_refs",
     "why_now",
   ]) {

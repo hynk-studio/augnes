@@ -1621,6 +1621,25 @@ repo-local 색인이다.
   no MCP/App tool widening, and no product write. Product-write remains parked
   by #686. The next recommended slice is
   `agent_perspective_substrate_preview_builder_v0_1`.
+- Agent Perspective Substrate Preview Builder v0.1:
+  `types/agent-perspective-substrate-preview.ts`,
+  `lib/research-candidate-review/agent-perspective-substrate-preview.ts`,
+  `fixtures/agent-perspective-substrate-preview.sample.v0.1.json`, and
+  `scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs`
+  (`npm run smoke:agent-perspective-substrate-preview-builder-v0-1`) define the
+  M11 folded-by-default advisory audit preview. The builder consumes the #688
+  Agent Perspective Substrate fixture as advisory input and produces folded
+  sections, surfacing cards, rule groups, source coverage preview,
+  diagnostics, and an advisory-only authority boundary. Every surfacing card
+  preserves `source_refs` or an explicit source coverage boundary note,
+  `epistemic_status`, `review_status`, `why_now`, and
+  `authority_boundary_notes`. This slice adds no runtime route/UI yet, no
+  API route, no UI/component change, no DB/SQL/transaction behavior, no
+  provider/OpenAI call, no source fetch, no retrieval execution or indexing
+  implementation, no proof/evidence/work/Perspective durable write, no agent
+  execution/routing, no MCP/App tool widening, and no product write.
+  Product-write remains parked by #686. The next recommended slice is
+  `cockpit_agent_perspective_substrate_folded_audit_panel_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

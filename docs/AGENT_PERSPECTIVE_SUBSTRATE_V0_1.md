@@ -133,6 +133,30 @@ command envelope, allocate product IDs, open DB, execute SQL, execute
 transactions, enable adapters, add route/UI behavior, or create product write
 authority.
 
+## Preview Builder v0.1
+
+Agent Perspective Substrate Preview Builder v0.1 consumes the substrate
+fixture as advisory input and folds surfaced candidates into an audit preview.
+It writes:
+
+- `types/agent-perspective-substrate-preview.ts`
+- `lib/research-candidate-review/agent-perspective-substrate-preview.ts`
+- `fixtures/agent-perspective-substrate-preview.sample.v0.1.json`
+- `scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs`
+
+The preview is folded-by-default, non-authoritative, advisory-only, and not
+source of truth. It preserves direct `source_refs` or explicit source coverage
+boundary notes, `epistemic_status`, `review_status`, `why_now`, and
+`authority_boundary_notes` on every surfacing card.
+
+This builder adds no route/UI yet, no runtime API behavior, no DB/SQL/
+transaction behavior, no provider/OpenAI call, no source fetch, no retrieval
+execution, no agent routing/execution, no proof/evidence/work/Perspective
+durable write, and no product write authority.
+
+The next recommended slice after the preview builder is
+`cockpit_agent_perspective_substrate_folded_audit_panel_v0_1`.
+
 ## Next Recommended Slice
 
 `agent_perspective_substrate_preview_builder_v0_1`
