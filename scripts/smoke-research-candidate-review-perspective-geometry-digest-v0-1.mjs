@@ -26,12 +26,17 @@ const packageScriptName =
 const downstreamAgentPerspectiveSubstratePackageScriptNames = [
   "smoke:agent-perspective-substrate-v0-1",
 ];
+const downstreamAgentPerspectiveSubstratePreviewPackageScriptNames = [
+  "smoke:agent-perspective-substrate-preview-builder-v0-1",
+];
 const downstreamAgentPerspectiveSubstrateLabel =
   "Agent Perspective Substrate v0.1";
 const nextRecommendedSlice =
   "agent_perspective_substrate_docs_type_fixture_v0_1";
 const downstreamNextRecommendedSlice =
   "agent_perspective_substrate_preview_builder_v0_1";
+const downstreamPreviewNextRecommendedSlice =
+  "cockpit_agent_perspective_substrate_folded_audit_panel_v0_1";
 const digestVersion = "perspective_geometry_digest.v0.1";
 const digestMode = "research_candidate_overlay_digest";
 const requiredDiagnosticFields = [
@@ -74,6 +79,21 @@ const downstreamAgentPerspectiveSubstrateChangedFiles = [
   indexPath,
   surfaceDocPath,
   gateDocPath,
+  smokePath,
+  "scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-formation-receipt-v0-1.mjs",
+];
+const downstreamAgentPerspectiveSubstratePreviewChangedFiles = [
+  "types/agent-perspective-substrate-preview.ts",
+  "lib/research-candidate-review/agent-perspective-substrate-preview.ts",
+  "fixtures/agent-perspective-substrate-preview.sample.v0.1.json",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  packagePath,
+  indexPath,
+  surfaceDocPath,
+  gateDocPath,
+  "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
   smokePath,
   "scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs",
   "scripts/smoke-research-candidate-review-formation-receipt-v0-1.mjs",
@@ -260,8 +280,9 @@ function assertPackageScript() {
     [
       [packageScriptName],
       downstreamAgentPerspectiveSubstratePackageScriptNames,
+      downstreamAgentPerspectiveSubstratePreviewPackageScriptNames,
     ].some((allowedNames) => JSON.stringify(addedScriptNames) === JSON.stringify(allowedNames)),
-    `package additions must only include digest or downstream substrate smoke scripts: ${JSON.stringify(addedScriptNames)}`,
+    `package additions must only include digest or downstream substrate/preview smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
 }
 
@@ -273,6 +294,8 @@ function assertDocs() {
     assert.match(doc, new RegExp(nextRecommendedSlice));
     assert.match(doc, new RegExp(escapeRegExp(downstreamAgentPerspectiveSubstrateLabel)));
     assert.match(doc, new RegExp(downstreamNextRecommendedSlice));
+    assert.match(doc, /Agent Perspective Substrate Preview Builder v0\.1/);
+    assert.match(doc, new RegExp(downstreamPreviewNextRecommendedSlice));
   }
   assert.match(indexDoc, new RegExp(escapeRegExp(digestFixturePath)));
   assert.match(indexDoc, new RegExp(escapeRegExp(manualDigestFixturePath)));
@@ -285,8 +308,14 @@ function assertStaticScope() {
     downstreamAgentPerspectiveSubstrateChangedFiles.every((filePath) =>
       changedFiles.includes(filePath),
     );
+  const usesDownstreamPreviewDelta =
+    downstreamAgentPerspectiveSubstratePreviewChangedFiles.every((filePath) =>
+      changedFiles.includes(filePath),
+    );
   const expectedFilesForDelta = usesDownstreamSubstrateDelta
     ? downstreamAgentPerspectiveSubstrateChangedFiles
+    : usesDownstreamPreviewDelta
+      ? downstreamAgentPerspectiveSubstratePreviewChangedFiles
     : expectedChangedFiles;
   for (const expectedFile of expectedFilesForDelta) {
     assert.ok(changedFiles.includes(expectedFile), `missing changed file ${expectedFile}`);

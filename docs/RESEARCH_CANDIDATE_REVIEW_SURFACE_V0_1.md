@@ -488,6 +488,30 @@ execution/routing, no MCP/App tool widening, and no product write.
 Product-write remains parked by the #686 stopline. Next recommended slice:
 `agent_perspective_substrate_preview_builder_v0_1`.
 
+## Agent Perspective Substrate Preview Builder v0.1 Pointer
+
+`types/agent-perspective-substrate-preview.ts`,
+`lib/research-candidate-review/agent-perspective-substrate-preview.ts`, and
+`fixtures/agent-perspective-substrate-preview.sample.v0.1.json` define the
+M11 pure type/builder/fixture/smoke preview builder. It consumes the #688 Agent
+Perspective Substrate fixture as advisory input and folds surfacing candidates
+into folded-by-default audit sections, preview cards, rule groups, source
+coverage preview, diagnostics, and an advisory-only authority boundary.
+
+Every preview card preserves `source_refs` or an explicit source coverage
+boundary note, `epistemic_status`, `review_status`, `why_now`, and
+`authority_boundary_notes`. The preview remains a folded advisory projection:
+not source of truth, proof/evidence, durable Perspective state, execution
+authority, retrieval execution, agent routing, or product write authority.
+
+This adds no runtime route/UI yet, no API route, no UI/component change, no
+DB/SQL/transaction, no provider/OpenAI call, no source fetch, no retrieval
+execution or indexing implementation, no proof/evidence write, no work
+mutation or work item creation, no durable Perspective promotion, no agent
+execution/routing, no MCP/App tool widening, and no product write.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`cockpit_agent_perspective_substrate_folded_audit_panel_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
