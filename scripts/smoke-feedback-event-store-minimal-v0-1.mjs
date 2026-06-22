@@ -46,6 +46,10 @@ const routeImplementationFixturePath =
   "fixtures/research-candidate-review.feedback-event-write-route-implementation.sample.v0.1.json";
 const routeImplementationSmokePath =
   "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs";
+const browserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-write-route-browser-validation.sample.v0.1.json";
+const browserValidationSmokePath =
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs";
 
 const packageScriptName = "smoke:feedback-event-store-minimal-v0-1";
 const packageScriptValue = `node ${smokePath}`;
@@ -59,6 +63,10 @@ const routeImplementationPackageScriptName =
   "smoke:feedback-event-write-route-implementation-v0-1";
 const routeImplementationPackageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs";
+const browserValidationPackageScriptName =
+  "smoke:feedback-event-write-route-browser-validation-v0-1";
+const browserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs";
 const previousSlice = "feedback_event_store_minimal_v0_1";
 const nextRecommendedSlice =
   "feedback_event_store_review_controls_preview_v0_1";
@@ -74,6 +82,10 @@ const routeImplementationNextRecommendedSlice =
   "feedback_event_write_route_browser_validation_v0_1";
 const routeImplementationRecommendationStatus =
   "ready_for_feedback_event_write_route_browser_validation_v0_1";
+const browserValidationNextRecommendedSlice =
+  "feedback_event_controls_ui_contract_v0_1";
+const browserValidationRecommendationStatus =
+  "ready_for_feedback_event_controls_ui_contract_v0_1";
 const requiredEventTypes = [
   "dismiss_preview",
   "pin_preview",
@@ -197,6 +209,32 @@ const downstreamRouteImplementationAllowedChangedFiles = [
   "scripts/smoke-research-candidate-review-types-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const downstreamBrowserValidationRequiredChangedFiles = [
+  browserValidationFixturePath,
+  browserValidationSmokePath,
+  routeImplementationSmokePath,
+  routeContractSmokePath,
+  reviewControlsSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
+];
+const downstreamBrowserValidationAllowedChangedFiles = [
+  ...downstreamBrowserValidationRequiredChangedFiles,
+  operatorDecisionSmokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
 
 for (const filePath of [
   typePath,
@@ -239,6 +277,7 @@ assertPreviousSmokePointer();
 assertReviewControlsDownstreamPointer();
 assertRouteContractDownstreamPointer();
 assertRouteImplementationDownstreamPointer();
+assertBrowserValidationDownstreamPointer();
 
 const helper = await importHelperModule();
 const fixtureInputs = buildFixtureInputs();
@@ -364,6 +403,12 @@ function assertPackageScript() {
       routeImplementationPackageScriptValue,
     );
   }
+  if (downstreamBrowserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[browserValidationPackageScriptName],
+      browserValidationPackageScriptValue,
+    );
+  }
   if (downstreamRouteContractSliceActive()) {
     assert.equal(
       packageJson.scripts[routeContractPackageScriptName],
@@ -391,6 +436,8 @@ function assertPackageScript() {
     .sort();
   const expectedAddedScriptNames = downstreamRouteImplementationSliceActive()
     ? [routeImplementationPackageScriptName]
+    : downstreamBrowserValidationSliceActive()
+    ? [browserValidationPackageScriptName]
     : downstreamRouteContractSliceActive()
     ? [routeContractPackageScriptName]
     : downstreamReviewControlsSliceActive()
@@ -417,6 +464,8 @@ function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
   const requiredFiles = downstreamRouteImplementationSliceActive()
     ? downstreamRouteImplementationRequiredChangedFiles
+    : downstreamBrowserValidationSliceActive()
+    ? downstreamBrowserValidationRequiredChangedFiles
     : downstreamRouteContractSliceActive()
     ? downstreamRouteContractRequiredChangedFiles
     : downstreamReviewControlsSliceActive()
@@ -424,6 +473,8 @@ function assertStaticBoundary() {
     : expectedChangedFiles;
   const allowedFiles = downstreamRouteImplementationSliceActive()
     ? downstreamRouteImplementationAllowedChangedFiles
+    : downstreamBrowserValidationSliceActive()
+    ? downstreamBrowserValidationAllowedChangedFiles
     : downstreamRouteContractSliceActive()
     ? downstreamRouteContractAllowedChangedFiles
     : downstreamReviewControlsSliceActive()
@@ -569,7 +620,8 @@ function assertSchemaAddition() {
   if (
     downstreamReviewControlsSliceActive() ||
     downstreamRouteContractSliceActive() ||
-    downstreamRouteImplementationSliceActive()
+    downstreamRouteImplementationSliceActive() ||
+    downstreamBrowserValidationSliceActive()
   ) {
     assert.equal(
       addedSchemaLines.trim(),
@@ -672,6 +724,27 @@ function assertRouteImplementationDownstreamPointer() {
     assert.ok(
       smokeSource.includes(requiredText),
       `#695 feedback event store smoke must allow downstream route implementation text: ${requiredText}`,
+    );
+  }
+  assert.equal(
+    fixture.next_recommended_slice,
+    nextRecommendedSlice,
+    "#695 feedback event fixture output must remain unchanged",
+  );
+}
+
+function assertBrowserValidationDownstreamPointer() {
+  if (!downstreamBrowserValidationSliceActive()) return;
+  for (const requiredText of [
+    browserValidationPackageScriptName,
+    browserValidationNextRecommendedSlice,
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    browserValidationRecommendationStatus,
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#695 feedback event store smoke must allow downstream browser validation text: ${requiredText}`,
     );
   }
   assert.equal(
@@ -1028,6 +1101,13 @@ function downstreamRouteContractSliceActive() {
 function downstreamRouteImplementationSliceActive() {
   const changedFiles = readChangedFiles();
   return downstreamRouteImplementationRequiredChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function downstreamBrowserValidationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return [browserValidationFixturePath, browserValidationSmokePath].every((filePath) =>
     changedFiles.includes(filePath),
   );
 }

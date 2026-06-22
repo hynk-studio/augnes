@@ -394,9 +394,11 @@ function assertNoForbiddenImplementationPatterns() {
     parserSource,
     inputFixture,
     outputFixtureText,
-    extractAround(surfaceDoc, "Manual Parser Preview Pointer", 2200),
+    stripAllowedBoundaryVocabulary(
+      extractAround(surfaceDoc, "Manual Parser Preview Pointer", 2200),
+    ),
     stripAllowedBoundaryVocabulary(extractSection(gateDoc, "## Static Audit Scope")),
-    extractAround(index, parserPath, 2600),
+    stripAllowedBoundaryVocabulary(extractAround(index, parserPath, 2600)),
     manualParserSmoke,
   ].join("\n\n");
   assert.doesNotMatch(
@@ -694,7 +696,17 @@ function extractAround(source, marker, length) {
 function stripAllowedBoundaryVocabulary(source) {
   const boundaryExecutionPhrase = ["retrieval", "/", "R", "AG execution"].join("");
   const boundaryOutputPhrase = ["retrieval", "/", "R", "AG output"].join("");
+  const wrappedBoundaryExecutionRegex = new RegExp(
+    ["retrieval", "/", "R", "AG", "\\s+execution"].join(""),
+    "g",
+  );
+  const wrappedBoundaryOutputRegex = new RegExp(
+    ["retrieval", "/", "R", "AG", "\\s+output"].join(""),
+    "g",
+  );
   return source
+    .replace(wrappedBoundaryExecutionRegex, "retrieval execution")
+    .replace(wrappedBoundaryOutputRegex, "retrieval output")
     .replaceAll(boundaryExecutionPhrase, "retrieval execution")
     .replaceAll(boundaryOutputPhrase, "retrieval output");
 }

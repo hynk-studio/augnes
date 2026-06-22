@@ -424,6 +424,24 @@ and no product write or product IDs. Product-write remains parked by the #686
 stopline. Next recommended slice:
 `feedback_event_write_route_browser_validation_v0_1`.
 
+Feedback Event write route browser validation v0.1 preserves canonical
+promotion gates while validating only the #698 Feedback Event write route
+behavior. It invokes the exported route handler with a temp DB under `/tmp` and
+observes insert, duplicate idempotency, required refusal, authority-boundary
+refusal, and capability/status flag refusal behavior for durable feedback events
+only.
+
+The validation is not source of truth, not proof/evidence, not Perspective
+promotion, not work mutation, not execution authority, not retrieval/RAG
+execution, not agent routing, not Codex execution, not GitHub automation, not
+external handoff, and not product write authority. The slice starts no app
+server, uses no browser UI, uses no production DB path, adds no UI/component
+change, adds no route behavior, changes no schema/migrations, performs no
+provider/OpenAI call, performs no source fetch, performs no retrieval/RAG
+execution, and creates no proof/evidence/Perspective/work/product durable state.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`feedback_event_controls_ui_contract_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

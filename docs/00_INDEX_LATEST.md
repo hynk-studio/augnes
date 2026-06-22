@@ -1803,6 +1803,25 @@ repo-local 색인이다.
   execution, and no product write/product IDs. Product-write remains parked by
   #686. The next recommended slice is
   `feedback_event_write_route_browser_validation_v0_1`.
+- Feedback Event write route browser validation v0.1:
+  `fixtures/research-candidate-review.feedback-event-write-route-browser-validation.sample.v0.1.json`
+  and `scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs`
+  (`npm run smoke:feedback-event-write-route-browser-validation-v0-1`) validate
+  the #698 `POST /api/research-candidate/feedback-events` implementation
+  through route handler temp-DB validation. The smoke uses a temp DB under
+  `/tmp`, observes valid insert and duplicate idempotency behavior, and checks
+  required refusal paths for missing acknowledgements, forbidden authority
+  requests, canonical authority-boundary flags, and capability/status flags.
+
+  This browser-validation slice starts no app server and uses no browser UI:
+  `app_server_started_now: false`, `browser_ui_used_now: false`, and
+  `production_db_used_now: false` because route handler temp-DB validation is
+  sufficient before UI integration. It adds no UI/component change, no new API
+  route, no production DB write, no proof/evidence/Perspective promotion/work
+  mutation, no Codex/GitHub automation/external handoff, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
+  write/product IDs. Product-write remains parked by #686. The next recommended
+  slice is `feedback_event_controls_ui_contract_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
