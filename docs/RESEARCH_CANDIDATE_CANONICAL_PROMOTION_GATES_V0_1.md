@@ -526,6 +526,23 @@ proof/evidence/Perspective/work/product durable state. Product-write remains
 parked by the #686 stopline. Next recommended slice:
 `feedback_event_store_list_route_browser_validation_v0_1`.
 
+Feedback Event Store list route browser validation v0.1 preserves canonical
+promotion gates while validating the bounded read path. It validates
+`GET /api/research-candidate/feedback-events` through route handler temp-DB
+validation only and reads durable feedback events only.
+
+The validation is not source of truth, not proof/evidence, not Perspective
+promotion, not work mutation, not feedback mutation, not execution authority,
+not retrieval/RAG execution, not agent routing, not Codex execution, not GitHub
+automation, not external handoff, and not product write authority. GET does not
+write feedback events; no feedback write occurs. It uses no browser UI, starts
+no app server, uses no production DB read/write path, and adds no UI/component
+change, no app/api route change, no route handler change, no schema/migration
+change, no provider/OpenAI call, no source fetch, and creates no
+proof/evidence/Perspective/work/product durable state. Product-write remains
+parked by the #686 stopline. Next recommended slice:
+`feedback_event_store_list_ui_contract_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

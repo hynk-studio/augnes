@@ -18,11 +18,15 @@ const contractFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1.json";
 const implementationFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-route-implementation.sample.v0.1.json";
+const browserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-route-browser-validation.sample.v0.1.json";
 const routeFilePath = "app/api/research-candidate/feedback-events/route.ts";
 const smokePath =
   "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs";
 const implementationSmokePath =
   "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
+const browserValidationSmokePath =
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
 const uiBrowserValidationSmokePath =
   "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs";
 const uiImplementationSmokePath =
@@ -68,6 +72,10 @@ const implementationPackageScriptName =
   "smoke:feedback-event-store-list-route-implementation-v0-1";
 const implementationPackageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
+const browserValidationPackageScriptName =
+  "smoke:feedback-event-store-list-route-browser-validation-v0-1";
+const browserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
 const routePath = "/api/research-candidate/feedback-events";
 const routeMethod = "GET";
 const contractVersion = "feedback_event_store_list_route_contract.v0.1";
@@ -81,6 +89,10 @@ const implementationRecommendationStatus =
   "ready_for_feedback_event_store_list_route_browser_validation_v0_1";
 const implementationNextRecommendedSlice =
   "feedback_event_store_list_route_browser_validation_v0_1";
+const browserValidationRecommendationStatus =
+  "ready_for_feedback_event_store_list_ui_contract_v0_1";
+const browserValidationNextRecommendedSlice =
+  "feedback_event_store_list_ui_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 
 const requiredAcknowledgements = [
@@ -173,6 +185,33 @@ const implementationChangedFiles = [
   geometryDigestSmokePath,
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const browserValidationChangedFiles = [
+  browserValidationSmokePath,
+  browserValidationFixturePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  implementationSmokePath,
+  smokePath,
+  uiBrowserValidationSmokePath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  writeRouteImplementationSmokePath,
+  writeRouteBrowserValidationSmokePath,
+  writeRouteContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackEventStoreMinimalSmokePath,
+  operatorDecisionSmokePath,
+  handoffDraftReviewSmokePath,
+  handoffDraftSmokePath,
+  aiContextGeometrySubstrateSmokePath,
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
 
 for (const filePath of [
   typePath,
@@ -211,6 +250,9 @@ const substrateDoc = readFileSync(substrateDocPath, "utf8");
 const surfaceDoc = readFileSync(surfaceDocPath, "utf8");
 const gateDoc = readFileSync(gateDocPath, "utf8");
 const uiBrowserValidationSmoke = readFileSync(uiBrowserValidationSmokePath, "utf8");
+const browserValidationSmoke = existsSync(browserValidationSmokePath)
+  ? readFileSync(browserValidationSmokePath, "utf8")
+  : "";
 
 assertTypeAndBuilderContracts();
 assertRouteNotImplemented();
@@ -236,6 +278,7 @@ assertNoForbiddenImplementationPatterns();
 assertDocsPointers();
 assertUiBrowserValidationDownstreamPointer();
 assertListRouteImplementationDownstreamPointer();
+assertBrowserValidationDownstreamPointer();
 assert.deepEqual(
   rebuiltContract,
   contractFixture,
@@ -362,6 +405,12 @@ function assertPackageScript() {
       implementationPackageScriptValue,
     );
   }
+  if (browserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[browserValidationPackageScriptName],
+      browserValidationPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -375,7 +424,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamListRouteImplementationSliceActive()
+  const expectedAddedScriptNames = browserValidationSliceActive()
+    ? [browserValidationPackageScriptName]
+    : downstreamListRouteImplementationSliceActive()
     ? [implementationPackageScriptName]
     : [packageScriptName];
   assert.deepEqual(
@@ -389,7 +440,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const expectedFiles = downstreamListRouteImplementationSliceActive()
+  const expectedFiles = browserValidationSliceActive()
+    ? browserValidationChangedFiles
+    : downstreamListRouteImplementationSliceActive()
     ? implementationChangedFiles
     : requiredChangedFiles;
   for (const requiredFile of expectedFiles) {
@@ -431,7 +484,7 @@ function assertStaticBoundary() {
 function assertRouteNotImplemented() {
   assert.ok(existsSync(routeFilePath), "existing POST route file must remain present");
   assert.match(routeSource, /export\s+async\s+function\s+POST\b/);
-  if (downstreamListRouteImplementationSliceActive()) {
+  if (downstreamListRouteImplementationSliceActive() || browserValidationSliceActive()) {
     assert.match(routeSource, /export\s+async\s+function\s+GET\b/);
     assert.match(
       routeSource,
@@ -560,10 +613,60 @@ function assertListRouteImplementationDownstreamPointer() {
 }
 
 function downstreamListRouteImplementationSliceActive() {
-  return (
-    existsSync(implementationFixturePath) &&
-    packageJson.scripts?.[implementationPackageScriptName] ===
-      implementationPackageScriptValue
+  const changedFiles = readChangedFiles();
+  return implementationChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function assertBrowserValidationDownstreamPointer() {
+  if (!browserValidationSliceActive()) return;
+  for (const requiredText of [
+    browserValidationPackageScriptName,
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    browserValidationRecommendationStatus,
+    browserValidationNextRecommendedSlice,
+    "handleFeedbackEventStoreListRouteRequest",
+  ]) {
+    assert.ok(
+      browserValidationSmoke.includes(requiredText),
+      `#703 list route contract smoke must allow browser validation text: ${requiredText}`,
+    );
+  }
+  const browserValidationFixture = readJson(browserValidationFixturePath);
+  assert.equal(
+    browserValidationFixture.validation_kind,
+    "feedback_event_store_list_route_browser_validation",
+  );
+  assert.equal(browserValidationFixture.route_path, routePath);
+  assert.equal(browserValidationFixture.route_method, routeMethod);
+  assert.equal(browserValidationFixture.production_db_used_now, false);
+  assert.equal(browserValidationFixture.temp_db_used_now, true);
+  assert.equal(browserValidationFixture.runtime_read_executed_now, true);
+  assert.equal(browserValidationFixture.runtime_write_executed_now, false);
+  assert.equal(browserValidationFixture.no_feedback_write_observed, true);
+  assert.equal(browserValidationFixture.no_forbidden_authority_granted, true);
+  assert.equal(
+    browserValidationFixture.recommendation_status,
+    browserValidationRecommendationStatus,
+  );
+  assert.equal(
+    browserValidationFixture.next_recommended_slice,
+    browserValidationNextRecommendedSlice,
+  );
+  const implementationFixture = readJson(implementationFixturePath);
+  assert.equal(
+    implementationFixture.next_recommended_slice,
+    implementationNextRecommendedSlice,
+    "#704 list route implementation fixture output must remain unchanged",
+  );
+}
+
+function browserValidationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return browserValidationChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
   );
 }
 

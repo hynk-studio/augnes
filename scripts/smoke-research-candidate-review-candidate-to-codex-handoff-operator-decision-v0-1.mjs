@@ -134,6 +134,10 @@ const listRouteImplementationPackageScriptName =
   "smoke:feedback-event-store-list-route-implementation-v0-1";
 const listRouteImplementationPackageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
+const listRouteBrowserValidationPackageScriptName =
+  "smoke:feedback-event-store-list-route-browser-validation-v0-1";
+const listRouteBrowserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
 const sourceReviewExpectedNextSlice =
   "candidate_to_codex_handoff_operator_decision_v0_1";
 const nextRecommendedSlice = "feedback_event_store_minimal_v0_1";
@@ -801,6 +805,12 @@ function assertPackageScript() {
       listRouteImplementationPackageScriptValue,
     );
   }
+  if (downstreamListRouteBrowserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[listRouteBrowserValidationPackageScriptName],
+      listRouteBrowserValidationPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -814,7 +824,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamListRouteImplementationSliceActive()
+  const expectedAddedScriptNames = downstreamListRouteBrowserValidationSliceActive()
+    ? [listRouteBrowserValidationPackageScriptName]
+    : downstreamListRouteImplementationSliceActive()
     ? [listRouteImplementationPackageScriptName]
     : downstreamListRouteContractSliceActive()
     ? [listRouteContractPackageScriptName]
@@ -851,6 +863,7 @@ function assertPackageScript() {
 }
 
 function assertStaticBoundary() {
+  if (downstreamListRouteBrowserValidationSliceActive()) return;
   if (downstreamListRouteImplementationSliceActive()) return;
   const changedFiles = readChangedFiles();
   const requiredFiles = downstreamListRouteContractSliceActive()
@@ -1336,6 +1349,13 @@ function downstreamListRouteImplementationSliceActive() {
   return (
     packageJson.scripts?.[listRouteImplementationPackageScriptName] ===
     listRouteImplementationPackageScriptValue
+  );
+}
+
+function downstreamListRouteBrowserValidationSliceActive() {
+  return (
+    packageJson.scripts?.[listRouteBrowserValidationPackageScriptName] ===
+    listRouteBrowserValidationPackageScriptValue
   );
 }
 

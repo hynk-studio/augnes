@@ -10,11 +10,11 @@ const Database = require("better-sqlite3");
 
 const routeFilePath = "app/api/research-candidate/feedback-events/route.ts";
 const smokePath =
-  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
 const fixturePath =
-  "fixtures/research-candidate-review.feedback-event-store-list-route-implementation.sample.v0.1.json";
-const browserValidationFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-route-browser-validation.sample.v0.1.json";
+const listRouteImplementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-route-implementation.sample.v0.1.json";
 const listRouteContractFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1.json";
 const feedbackStoreFixturePath =
@@ -39,8 +39,6 @@ const reviewControlsSmokePath =
   "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs";
 const feedbackEventStoreMinimalSmokePath =
   "scripts/smoke-feedback-event-store-minimal-v0-1.mjs";
-const browserValidationSmokePath =
-  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
@@ -49,21 +47,17 @@ const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
 
 const packageScriptName =
-  "smoke:feedback-event-store-list-route-implementation-v0-1";
-const packageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
-const browserValidationPackageScriptName =
   "smoke:feedback-event-store-list-route-browser-validation-v0-1";
-const browserValidationPackageScriptValue =
+const packageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
 const routePath = "/api/research-candidate/feedback-events";
 const routeMethod = "GET";
 const requestVersion = "feedback_event_store_list_route_request.v0.1";
 const responseVersion = "feedback_event_store_list_route_response.v0.1";
 const recommendationStatus =
-  "ready_for_feedback_event_store_list_route_browser_validation_v0_1";
+  "ready_for_feedback_event_store_list_ui_contract_v0_1";
 const nextRecommendedSlice =
-  "feedback_event_store_list_route_browser_validation_v0_1";
+  "feedback_event_store_list_ui_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 
 const requiredAcknowledgements = [
@@ -99,7 +93,6 @@ const requiredRefusalCodes = [
 ];
 
 const expectedChangedFiles = [
-  routeFilePath,
   smokePath,
   fixturePath,
   packagePath,
@@ -107,34 +100,7 @@ const expectedChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
-  listRouteContractSmokePath,
-  uiBrowserValidationSmokePath,
-  uiImplementationSmokePath,
-  uiContractSmokePath,
-  writeRouteImplementationSmokePath,
-  writeRouteBrowserValidationSmokePath,
-  writeRouteContractSmokePath,
-  reviewControlsSmokePath,
-  feedbackEventStoreMinimalSmokePath,
-  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs",
-  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
-  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
-  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
-  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
-  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
-  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
-  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
-  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
-];
-const browserValidationChangedFiles = [
-  browserValidationSmokePath,
-  browserValidationFixturePath,
-  packagePath,
-  indexPath,
-  substrateDocPath,
-  surfaceDocPath,
-  gateDocPath,
-  smokePath,
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
   listRouteContractSmokePath,
   uiBrowserValidationSmokePath,
   uiImplementationSmokePath,
@@ -156,6 +122,7 @@ const browserValidationChangedFiles = [
 
 for (const filePath of [
   routeFilePath,
+  listRouteImplementationFixturePath,
   listRouteContractFixturePath,
   feedbackStoreFixturePath,
   uiBrowserValidationFixturePath,
@@ -173,15 +140,13 @@ if (!writeFixture) {
 
 const routeSource = readFile(routeFilePath);
 const smokeSource = readFile(smokePath);
-const browserValidationSmokeSource = existsSync(browserValidationSmokePath)
-  ? readFile(browserValidationSmokePath)
-  : "";
 const listRouteContractSmokeSource = readFile(listRouteContractSmokePath);
 const packageJson = readJson(packagePath);
 const indexDoc = readFile(indexPath);
 const substrateDoc = readFile(substrateDocPath);
 const surfaceDoc = readFile(surfaceDocPath);
 const gateDoc = readFile(gateDocPath);
+const listRouteImplementationFixture = readJson(listRouteImplementationFixturePath);
 const listRouteContractFixture = readJson(listRouteContractFixturePath);
 const feedbackStoreFixture = readJson(feedbackStoreFixturePath);
 const uiBrowserValidationFixture = readJson(uiBrowserValidationFixturePath);
@@ -207,42 +172,41 @@ if (!writeFixture) {
   assertNoForbiddenPatterns();
   assertDocsPointers();
   assertListRouteContractDownstreamPointer();
-  assertBrowserValidationDownstreamPointer();
 }
 
-const rebuiltFixture = buildImplementationFixture();
-const rebuiltFixtureAgain = buildImplementationFixture();
+const rebuiltFixture = buildValidationFixture();
+const rebuiltFixtureAgain = buildValidationFixture();
 
 if (writeFixture) {
   writeFileSync(fixturePath, `${JSON.stringify(rebuiltFixture, null, 2)}\n`);
   process.exit(0);
 }
 
-const implementationFixture = readJson(fixturePath);
+const validationFixture = readJson(fixturePath);
 
 assert.deepEqual(
   rebuiltFixture,
-  implementationFixture,
-  "rebuilt list route implementation fixture must match committed fixture",
+  validationFixture,
+  "rebuilt list route browser validation fixture must match committed fixture",
 );
 assert.deepEqual(
   rebuiltFixture.responses.valid_list_response,
   rebuiltFixtureAgain.responses.valid_list_response,
-  "list route implementation valid response must be stable",
+  "list route browser validation valid response must be stable",
 );
-assertImplementationFixture(implementationFixture);
+assertValidationFixture(validationFixture);
 assertRouteBehavior();
 
 console.log(
   JSON.stringify(
     {
-      smoke: "feedback-event-store-list-route-implementation-v0-1",
+      smoke: "feedback-event-store-list-route-browser-validation-v0-1",
       final_status: "pass",
-      route_path: implementationFixture.route_path,
-      route_method: implementationFixture.route_method,
-      valid_list_count: implementationFixture.responses.valid_list_response.count,
+      route_path: validationFixture.route_path,
+      route_method: validationFixture.route_method,
+      valid_list_count: validationFixture.responses.valid_list_response.count,
       refusal_codes_checked: requiredRefusalCodes,
-      next_recommended_slice: implementationFixture.next_recommended_slice,
+      next_recommended_slice: validationFixture.next_recommended_slice,
       checked_get_writes_no_feedback: true,
       checked_product_write_lane_parked: true,
     },
@@ -251,7 +215,7 @@ console.log(
   ),
 );
 
-function buildImplementationFixture() {
+function buildValidationFixture() {
   const responses = withTempDb((db) => {
     seedFixtureEvents(db);
     const validListResponse = handleFeedbackEventStoreListRouteRequest({
@@ -272,10 +236,18 @@ function buildImplementationFixture() {
     });
     const createdWindowResponse = handleFeedbackEventStoreListRouteRequest({
       url: buildListUrl({
-        created_after: "2026-06-22T00:01:00.000Z",
-        created_before: "2026-06-22T00:03:00.000Z",
+        created_after: "2026-06-22T00:00:30.000Z",
+        created_before: "2026-06-22T00:02:30.000Z",
         limit: "10",
       }),
+      db,
+    });
+    const limitTwoResponse = handleFeedbackEventStoreListRouteRequest({
+      url: buildListUrl({ limit: "2" }),
+      db,
+    });
+    const includeEventJsonFalseResponse = handleFeedbackEventStoreListRouteRequest({
+      url: buildListUrl({ include_event_json: "false", limit: "4" }),
       db,
     });
 
@@ -284,6 +256,8 @@ function buildImplementationFixture() {
       filtered_by_event_type_response: filteredByEventTypeResponse,
       filtered_by_target_response: filteredByTargetResponse,
       created_window_response: createdWindowResponse,
+      limit_two_response: limitTwoResponse,
+      include_event_json_false_response: includeEventJsonFalseResponse,
       missing_ack_refusal_response: handleFeedbackEventStoreListRouteRequest({
         url: buildListUrl({}, { omitAcknowledgements: true }),
         db,
@@ -300,21 +274,36 @@ function buildImplementationFixture() {
         url: buildListUrl({ target_kind: "proof_evidence_record" }),
         db,
       }),
-      invalid_limit_refusal_response: handleFeedbackEventStoreListRouteRequest({
+      invalid_limit_gt_max_refusal_response: handleFeedbackEventStoreListRouteRequest({
         url: buildListUrl({ limit: "101" }),
+        db,
+      }),
+      invalid_limit_zero_refusal_response: handleFeedbackEventStoreListRouteRequest({
+        url: buildListUrl({ limit: "0" }),
         db,
       }),
       invalid_cursor_refusal_response: handleFeedbackEventStoreListRouteRequest({
         url: buildListUrl({ cursor: "raw-created-at:feedback-event-id" }),
         db,
       }),
-      raw_sql_refusal_response: handleFeedbackEventStoreListRouteRequest({
+      where_refusal_response: handleFeedbackEventStoreListRouteRequest({
         url: buildListUrl({ where: "1 = 1" }),
+        db,
+      }),
+      raw_sql_refusal_response: handleFeedbackEventStoreListRouteRequest({
+        url: buildListUrl({ raw_sql: "SELECT * FROM proof_evidence" }),
         db,
       }),
       forbidden_authority_refusal_response: handleFeedbackEventStoreListRouteRequest({
         url: buildListUrl({
-          authority_boundary: JSON.stringify({ proof_or_evidence_record: true }),
+          authority_boundary: JSON.stringify({
+            proof_or_evidence_record: true,
+            perspective_promotion: true,
+            work_mutation: true,
+            db_write_available: true,
+            route_action_available: true,
+            agent_execution_authority: true,
+          }),
         }),
         db,
       }),
@@ -355,31 +344,37 @@ function buildImplementationFixture() {
   });
 
   return {
-    fixture_kind: "feedback_event_store_list_route_implementation_fixture",
-    fixture_version: "feedback_event_store_list_route_implementation.v0.1",
+    validation_kind: "feedback_event_store_list_route_browser_validation",
+    validation_version: "feedback_event_store_list_route_browser_validation.v0.1",
     route_path: routePath,
     route_method: routeMethod,
-    route_implemented_now: true,
-    source_list_route_contract_ref: `${listRouteContractFixture.contract_version}:${listRouteContractFixturePath}`,
-    source_list_route_contract_fingerprint: listRouteContractFixture.contract_fingerprint,
-    source_feedback_event_store_ref: `${feedbackStoreFixture.fixture_version}:${feedbackStoreFixturePath}`,
-    source_feedback_event_store_version: feedbackStoreFixture.fixture_version,
-    source_feedback_event_controls_ui_browser_validation_ref: `${uiBrowserValidationFixture.validation_version}:${uiBrowserValidationFixturePath}`,
-    source_feedback_event_controls_ui_browser_validation_route_path:
-      uiBrowserValidationFixture.route_path,
-    get_reads_feedback_events_only: true,
-    get_writes_feedback_events_now: false,
-    production_db_used_in_smoke_now: false,
-    temp_db_used_in_smoke_now: true,
-    proof_evidence_write_available: false,
-    perspective_promotion_available: false,
-    work_mutation_available: false,
-    provider_openai_available: false,
-    source_fetch_available: false,
-    retrieval_rag_available: false,
-    codex_github_available: false,
-    product_write_available: false,
+    route_implemented_source_ref: routeFilePath,
+    source_list_route_implementation_fixture_ref:
+      `${listRouteImplementationFixture.fixture_version}:${listRouteImplementationFixturePath}`,
+    source_list_route_contract_fixture_ref:
+      `${listRouteContractFixture.contract_version}:${listRouteContractFixturePath}`,
+    source_feedback_event_store_fixture_ref:
+      `${feedbackStoreFixture.fixture_version}:${feedbackStoreFixturePath}`,
+    app_server_started_now: false,
+    browser_ui_used_now: false,
+    production_db_used_now: false,
+    temp_db_used_now: true,
+    runtime_read_executed_now: true,
+    runtime_write_executed_now: false,
+    valid_list_observed: true,
+    event_type_filter_observed: true,
+    target_filter_observed: true,
+    created_window_filter_observed: true,
+    limit_observed: true,
+    deterministic_order_observed: true,
+    include_event_json_false_observed: true,
+    required_refusals_observed: true,
+    authority_boundary_refusals_observed: true,
+    raw_sql_filter_refusal_observed: true,
+    no_feedback_write_observed: true,
+    no_forbidden_authority_granted: true,
     product_write_lane_parked_by_686: true,
+    reason: "route handler temp-DB validation is sufficient before list UI contract",
     responses,
     validation: {
       passed: true,
@@ -394,6 +389,7 @@ function assertRouteBehavior() {
   withTempDb((db) => {
     seedFixtureEvents(db);
     assert.equal(countRows(db), feedbackStoreFixture.events.length);
+    assert.deepEqual(listUserTables(db), [feedbackEventStoreTableName]);
     const validResponse = handleFeedbackEventStoreListRouteRequest({
       url: buildListUrl({ limit: "4" }),
       db,
@@ -443,23 +439,77 @@ function assertRouteBehavior() {
     assert.equal(filteredByTarget.accepted, true);
     assert.equal(filteredByTarget.count, 1);
     assert.equal(filteredByTarget.events[0].target_id, "folded_section:source_coverage");
-    assert.equal(countRows(db), feedbackStoreFixture.events.length);
-  });
 
-  for (const [urlParams, expectedCode, options] of [
+    const createdWindowResponse = handleFeedbackEventStoreListRouteRequest({
+      url: buildListUrl({
+        created_after: "2026-06-22T00:00:30.000Z",
+        created_before: "2026-06-22T00:02:30.000Z",
+      }),
+      db,
+    });
+    assert.equal(createdWindowResponse.accepted, true);
+    assert.equal(createdWindowResponse.count, 2);
+    assert.deepEqual(
+      createdWindowResponse.events.map((event) => event.created_at),
+      ["2026-06-22T00:02:00.000Z", "2026-06-22T00:01:00.000Z"],
+    );
+
+    const limitTwoResponse = handleFeedbackEventStoreListRouteRequest({
+      url: buildListUrl({ limit: "2" }),
+      db,
+    });
+    assert.equal(limitTwoResponse.accepted, true);
+    assert.equal(limitTwoResponse.count, 2);
+    assert.equal(limitTwoResponse.events.length, 2);
+
+    const includeEventJsonFalseResponse = handleFeedbackEventStoreListRouteRequest({
+      url: buildListUrl({ include_event_json: "false" }),
+      db,
+    });
+    assert.equal(includeEventJsonFalseResponse.accepted, true);
+    assert.equal(includeEventJsonFalseResponse.count, feedbackStoreFixture.events.length);
+    assert.deepEqual(includeEventJsonFalseResponse.events, []);
+
+    for (const [urlParams, expectedCode, options] of refusalCases()) {
+      assertRefusalBeforeDbOpenAndRowCountStable(db, urlParams, expectedCode, options);
+    }
+
+    assert.equal(countRows(db), feedbackStoreFixture.events.length);
+    assert.deepEqual(listUserTables(db), [feedbackEventStoreTableName]);
+  });
+}
+
+function refusalCases() {
+  return [
     [{}, "missing_authority_acknowledgement", { omitAcknowledgements: true }],
     [{ request_version: "wrong.version" }, "invalid_request_version"],
     [{ event_type: "downgrade_preview" }, "invalid_event_type"],
     [{ target_kind: "proof_evidence_record" }, "invalid_target_kind"],
+    [{ limit: "101" }, "invalid_limit"],
     [{ limit: "0" }, "invalid_limit"],
     [{ cursor: "not-implemented" }, "invalid_cursor"],
     [{ raw_sql: "SELECT * FROM proof_evidence" }, "raw_sql_filter_forbidden"],
+    [{ where: "1 = 1" }, "raw_sql_filter_forbidden"],
     [
-      { authority_boundary: JSON.stringify({ perspective_promotion: true }) },
+      {
+        authority_boundary: JSON.stringify({
+          proof_or_evidence_record: true,
+          perspective_promotion: true,
+          work_mutation: true,
+          db_write_available: true,
+          route_action_available: true,
+          agent_execution_authority: true,
+        }),
+      },
       "forbidden_authority_requested",
     ],
     [
-      { authority_boundary: JSON.stringify({ product_id_allocation_authority: true }) },
+      {
+        authority_boundary: JSON.stringify({
+          product_write_authority: true,
+          product_id_allocation_authority: true,
+        }),
+      },
       "product_write_authority_requested",
     ],
     [
@@ -475,15 +525,24 @@ function assertRouteBehavior() {
       "source_fetch_requested",
     ],
     [
-      { authority_boundary: JSON.stringify({ codex_execution_available: true }) },
+      {
+        authority_boundary: JSON.stringify({
+          codex_execution_available: true,
+          github_automation_available: true,
+        }),
+      },
       "codex_or_github_automation_requested",
     ],
-  ]) {
-    assertRefusalBeforeDbOpen(urlParams, expectedCode, options);
-  }
+  ];
 }
 
-function assertRefusalBeforeDbOpen(urlParams, expectedCode, options = {}) {
+function assertRefusalBeforeDbOpenAndRowCountStable(
+  db,
+  urlParams,
+  expectedCode,
+  options = {},
+) {
+  const beforeCount = countRows(db);
   let dbOpened = false;
   const response = handleFeedbackEventStoreListRouteRequest({
     url: buildListUrl(urlParams, options),
@@ -503,20 +562,53 @@ function assertRefusalBeforeDbOpen(urlParams, expectedCode, options = {}) {
   assert.equal(response.sql_execution_now, false);
   assert.equal(response.authority_boundary.durable_feedback_event_read_now, false);
   assert.equal(response.authority_boundary.durable_feedback_event_written_now, false);
+  assert.equal(countRows(db), beforeCount, `${expectedCode} must not change row count`);
 }
 
-function assertImplementationFixture(value) {
-  assert.equal(value.fixture_kind, "feedback_event_store_list_route_implementation_fixture");
-  assert.equal(value.fixture_version, "feedback_event_store_list_route_implementation.v0.1");
+function assertValidationFixture(value) {
+  assert.equal(value.validation_kind, "feedback_event_store_list_route_browser_validation");
+  assert.equal(
+    value.validation_version,
+    "feedback_event_store_list_route_browser_validation.v0.1",
+  );
   assert.equal(value.route_path, routePath);
   assert.equal(value.route_method, routeMethod);
-  assert.equal(value.route_implemented_now, true);
-  assert.equal(value.source_list_route_contract_fingerprint, listRouteContractFixture.contract_fingerprint);
-  assert.equal(value.get_reads_feedback_events_only, true);
-  assert.equal(value.get_writes_feedback_events_now, false);
-  assert.equal(value.production_db_used_in_smoke_now, false);
-  assert.equal(value.temp_db_used_in_smoke_now, true);
+  assert.equal(value.route_implemented_source_ref, routeFilePath);
+  assert.equal(
+    value.source_list_route_implementation_fixture_ref,
+    `${listRouteImplementationFixture.fixture_version}:${listRouteImplementationFixturePath}`,
+  );
+  assert.equal(
+    value.source_list_route_contract_fixture_ref,
+    `${listRouteContractFixture.contract_version}:${listRouteContractFixturePath}`,
+  );
+  assert.equal(
+    value.source_feedback_event_store_fixture_ref,
+    `${feedbackStoreFixture.fixture_version}:${feedbackStoreFixturePath}`,
+  );
+  assert.equal(value.app_server_started_now, false);
+  assert.equal(value.browser_ui_used_now, false);
+  assert.equal(value.production_db_used_now, false);
+  assert.equal(value.temp_db_used_now, true);
+  assert.equal(value.runtime_read_executed_now, true);
+  assert.equal(value.runtime_write_executed_now, false);
+  assert.equal(value.valid_list_observed, true);
+  assert.equal(value.event_type_filter_observed, true);
+  assert.equal(value.target_filter_observed, true);
+  assert.equal(value.created_window_filter_observed, true);
+  assert.equal(value.limit_observed, true);
+  assert.equal(value.deterministic_order_observed, true);
+  assert.equal(value.include_event_json_false_observed, true);
+  assert.equal(value.required_refusals_observed, true);
+  assert.equal(value.authority_boundary_refusals_observed, true);
+  assert.equal(value.raw_sql_filter_refusal_observed, true);
+  assert.equal(value.no_feedback_write_observed, true);
+  assert.equal(value.no_forbidden_authority_granted, true);
   assert.equal(value.product_write_lane_parked_by_686, true);
+  assert.equal(
+    value.reason,
+    "route handler temp-DB validation is sufficient before list UI contract",
+  );
   assert.equal(value.recommendation_status, recommendationStatus);
   assert.equal(value.next_recommended_slice, nextRecommendedSlice);
   assert.equal(value.validation.passed, true);
@@ -544,6 +636,24 @@ function assertImplementationFixture(value) {
     value.responses.filtered_by_target_response.events[0].target_id,
     "folded_section:source_coverage",
   );
+  assert.equal(value.responses.created_window_response.count, 2);
+  assert.equal(value.responses.limit_two_response.count, 2);
+  assert.equal(value.responses.limit_two_response.events.length, 2);
+  assert.equal(
+    value.responses.include_event_json_false_response.count,
+    feedbackStoreFixture.events.length,
+  );
+  assert.deepEqual(value.responses.include_event_json_false_response.events, []);
+
+  const observedRefusalCodes = Object.values(value.responses)
+    .filter((response) => response?.refusal?.refusal_code)
+    .map((response) => response.refusal.refusal_code);
+  for (const expectedCode of requiredRefusalCodes) {
+    assert.ok(
+      observedRefusalCodes.includes(expectedCode),
+      `validation fixture must observe ${expectedCode}`,
+    );
+  }
 
   for (const [responseName, response] of Object.entries(value.responses)) {
     if (responseName.endsWith("_refusal_response")) {
@@ -598,7 +708,9 @@ function assertListAuthorityBoundary(boundary, { readNow, dbOpenNow, sqlExecutio
 function assertRouteSource() {
   assert.match(routeSource, /export\s+async\s+function\s+POST\b/);
   assert.match(routeSource, /export\s+async\s+function\s+GET\b/);
+  assert.match(routeSource, /export\s+function\s+handleFeedbackEventWriteRouteRequest\b/);
   assert.match(routeSource, /export\s+function\s+handleFeedbackEventStoreListRouteRequest\b/);
+  assert.match(routeSource, /\binsertFeedbackEvent\b/);
   assert.match(routeSource, /\blistFeedbackEvents\b/);
   assert.match(routeSource, /\bopenDatabase\b/);
   const getSource = routeSource.match(/export\s+async\s+function\s+GET[\s\S]*?\n}/)?.[0] ?? "";
@@ -620,12 +732,6 @@ function assertRouteSource() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
-  if (browserValidationSliceActive()) {
-    assert.equal(
-      packageJson.scripts[browserValidationPackageScriptName],
-      browserValidationPackageScriptValue,
-    );
-  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -641,10 +747,8 @@ function assertPackageScript() {
     .sort();
   assert.deepEqual(
     addedScriptNames,
-    browserValidationSliceActive()
-      ? [browserValidationPackageScriptName]
-      : [packageScriptName],
-    "package additions must only include the active list route smoke script",
+    [packageScriptName],
+    "package additions must only include the list route browser validation smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
@@ -652,16 +756,13 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const activeExpectedChangedFiles = browserValidationSliceActive()
-    ? browserValidationChangedFiles
-    : expectedChangedFiles;
-  for (const requiredFile of activeExpectedChangedFiles) {
+  for (const requiredFile of expectedChangedFiles) {
     assert.ok(changedFiles.includes(requiredFile), `changed files must include ${requiredFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      activeExpectedChangedFiles.includes(changedFile),
-      `unexpected changed file in list route implementation slice: ${changedFile}`,
+      expectedChangedFiles.includes(changedFile),
+      `unexpected changed file in list route browser validation slice: ${changedFile}`,
     );
     if (changedFile.startsWith("app/api/")) {
       assert.equal(
@@ -681,7 +782,6 @@ function assertNoForbiddenPatterns() {
   const scannedSources = [
     [routeFilePath, stripAllowedBoundaryText(routeSource)],
     [smokePath, stripAllowedBoundaryText(smokeSource)],
-    [browserValidationSmokePath, stripAllowedBoundaryText(browserValidationSmokeSource)],
   ];
   for (const [filePath, source] of scannedSources) {
     assert.doesNotMatch(source, /from\s+["'][^"']*openai["']/i);
@@ -707,7 +807,7 @@ function assertNoForbiddenPatterns() {
 
 function assertDocsPointers() {
   for (const requiredText of [
-    "Feedback Event Store list route implementation v0.1",
+    "Feedback Event Store list route browser validation v0.1",
     routeFilePath,
     fixturePath,
     smokePath,
@@ -725,7 +825,7 @@ function assertDocsPointers() {
     assert.ok(indexDoc.includes(requiredText), `index must include ${requiredText}`);
   }
   for (const doc of [substrateDoc, surfaceDoc, gateDoc]) {
-    assert.match(doc, /Feedback Event Store list route implementation/i);
+    assert.match(doc, /Feedback Event Store list route browser validation/i);
     assert.match(doc, /GET \/api\/research-candidate\/feedback-events/i);
     assert.match(doc, /read(?:s)? durable feedback events only/i);
     assert.match(doc, /does not write feedback|no feedback write/i);
@@ -757,55 +857,14 @@ function assertListRouteContractDownstreamPointer() {
     );
   }
   assert.equal(
+    listRouteImplementationFixture.next_recommended_slice,
+    "feedback_event_store_list_route_browser_validation_v0_1",
+    "#704 list route implementation fixture output must remain unchanged",
+  );
+  assert.equal(
     listRouteContractFixture.next_recommended_slice,
     "feedback_event_store_list_route_implementation_v0_1",
     "#703 list route contract fixture output must remain unchanged",
-  );
-}
-
-function assertBrowserValidationDownstreamPointer() {
-  if (!browserValidationSliceActive()) return;
-  for (const requiredText of [
-    browserValidationPackageScriptName,
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    "feedback_event_store_list_route_browser_validation",
-    "ready_for_feedback_event_store_list_ui_contract_v0_1",
-    "feedback_event_store_list_ui_contract_v0_1",
-    "handleFeedbackEventStoreListRouteRequest",
-  ]) {
-    assert.ok(
-      browserValidationSmokeSource.includes(requiredText),
-      `#704 list route implementation smoke must allow browser validation text: ${requiredText}`,
-    );
-  }
-  const browserValidationFixture = readJson(browserValidationFixturePath);
-  assert.equal(
-    browserValidationFixture.validation_kind,
-    "feedback_event_store_list_route_browser_validation",
-  );
-  assert.equal(browserValidationFixture.route_path, routePath);
-  assert.equal(browserValidationFixture.route_method, routeMethod);
-  assert.equal(browserValidationFixture.production_db_used_now, false);
-  assert.equal(browserValidationFixture.temp_db_used_now, true);
-  assert.equal(browserValidationFixture.runtime_read_executed_now, true);
-  assert.equal(browserValidationFixture.runtime_write_executed_now, false);
-  assert.equal(browserValidationFixture.no_feedback_write_observed, true);
-  assert.equal(browserValidationFixture.no_forbidden_authority_granted, true);
-  assert.equal(
-    browserValidationFixture.recommendation_status,
-    "ready_for_feedback_event_store_list_ui_contract_v0_1",
-  );
-  assert.equal(
-    browserValidationFixture.next_recommended_slice,
-    "feedback_event_store_list_ui_contract_v0_1",
-  );
-}
-
-function browserValidationSliceActive() {
-  const changedFiles = readChangedFiles();
-  return browserValidationChangedFiles.every((filePath) =>
-    changedFiles.includes(filePath),
   );
 }
 
@@ -827,7 +886,7 @@ function buildListUrl(params = {}, options = {}) {
 }
 
 function withTempDb(callback) {
-  const tempDir = join(tmpdir(), "augnes-feedback-event-store-list-route-implementation-v0-1");
+  const tempDir = join(tmpdir(), "augnes-feedback-event-store-list-route-browser-validation-v0-1");
   const tempDbPath = join(tempDir, "feedback-event-list-route.sqlite");
   assert.ok(tempDbPath.startsWith(tmpdir()), "temp DB must be under /tmp");
   rmSync(tempDir, { recursive: true, force: true });
@@ -854,6 +913,15 @@ function countRows(db) {
     .prepare(`SELECT COUNT(*) AS count FROM ${feedbackEventStoreTableName}`)
     .get();
   return row.count;
+}
+
+function listUserTables(db) {
+  return db
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    )
+    .all()
+    .map((row) => row.name);
 }
 
 function unwrapModule(moduleValue) {
