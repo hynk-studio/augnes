@@ -43,11 +43,24 @@ const productWriteStoplineSmokePath =
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs";
 const smokePath =
   "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs";
+const downstreamCandidateToCodexHandoffDraftReviewTypePath =
+  "types/candidate-to-codex-handoff-draft-review.ts";
+const downstreamCandidateToCodexHandoffDraftReviewBuilderPath =
+  "lib/research-candidate-review/candidate-to-codex-handoff-draft-review.ts";
+const downstreamCandidateToCodexHandoffDraftReviewFixturePath =
+  "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json";
+const downstreamCandidateToCodexHandoffDraftReviewSmokePath =
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs";
 
 const packageScriptName =
   "smoke:research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1";
 const packageScriptValue = `node ${smokePath}`;
+const downstreamCandidateToCodexHandoffDraftReviewPackageScriptNames = [
+  "smoke:research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1",
+];
 const nextRecommendedSlice = "candidate_to_codex_handoff_draft_review_v0_1";
+const downstreamCandidateToCodexHandoffDraftReviewNextRecommendedSlice =
+  "candidate_to_codex_handoff_operator_decision_v0_1";
 const sourcePacketNextSlice =
   "candidate_to_codex_handoff_draft_geometry_substrate_v0_1";
 const foldedAuditPanelAnchorId = "agent-perspective-substrate-folded-audit-panel";
@@ -69,6 +82,25 @@ const expectedChangedFiles = [
   basePacketSmokePath,
   formationReceiptSmokePath,
   productWriteStoplineSmokePath,
+];
+const downstreamCandidateToCodexHandoffDraftReviewChangedFiles = [
+  downstreamCandidateToCodexHandoffDraftReviewTypePath,
+  downstreamCandidateToCodexHandoffDraftReviewBuilderPath,
+  downstreamCandidateToCodexHandoffDraftReviewFixturePath,
+  downstreamCandidateToCodexHandoffDraftReviewSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
+  sourcePacketSmokePath,
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  geometryDigestSmokePath,
+  basePacketSmokePath,
+  formationReceiptSmokePath,
 ];
 
 for (const filePath of [
@@ -403,21 +435,30 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  assert.deepEqual(
-    addedScriptNames,
-    [packageScriptName],
-    "package additions must only include the Candidate-to-Codex handoff draft smoke script",
+  assert.ok(
+    [
+      [packageScriptName],
+      downstreamCandidateToCodexHandoffDraftReviewPackageScriptNames,
+    ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
+    "package additions must only include the Candidate-to-Codex handoff draft smoke script or downstream review smoke script",
   );
 }
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const downstreamReviewSliceActive =
+    downstreamCandidateToCodexHandoffDraftReviewChangedFiles.every((filePath) =>
+      changedFiles.includes(filePath),
+    );
+  const allowedChangedFiles = downstreamReviewSliceActive
+    ? downstreamCandidateToCodexHandoffDraftReviewChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of allowedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedChangedFiles.includes(changedFile),
+      allowedChangedFiles.includes(changedFile),
       `unexpected changed file in handoff draft slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
@@ -499,7 +540,7 @@ function assertDocsPointers() {
     "no Codex execution",
     "no branch/PR/GitHub automation",
     "no external handoff sending",
-    "no provider/OpenAI/source-fetch/retrieval execution",
+    "no provider/OpenAI/source-fetch/retrieval/RAG execution",
     "no DB/proof/evidence/work/Perspective durable write",
     "no product write",
     "retrieval/RAG/source fetching",
@@ -522,6 +563,16 @@ function assertDocsPointers() {
 }
 
 function assertAdjacentSmokePointers() {
+  assert.match(
+    smokeSource,
+    new RegExp(downstreamCandidateToCodexHandoffDraftReviewPackageScriptNames[0]),
+    "#692 handoff draft smoke must allow downstream review package script",
+  );
+  assert.match(
+    smokeSource,
+    new RegExp(downstreamCandidateToCodexHandoffDraftReviewNextRecommendedSlice),
+    "#692 handoff draft smoke must allow downstream review next pointer",
+  );
   for (const [label, source] of [
     ["#691 AI Context Packet geometry/substrate upgrade", sourcePacketSmoke],
     ["#690 folded audit panel", foldedAuditPanelSmoke],
@@ -596,6 +647,10 @@ function readJson(filePath) {
 
 function extractScriptName(line) {
   return line.replace(/^\+\s*/, "").trim().match(/^"([^"]+)"/)?.[1] ?? null;
+}
+
+function arraysEqual(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function stripForbiddenPatternDefinitions(source) {

@@ -1694,8 +1694,28 @@ repo-local 색인이다.
 
   The draft is not execution approval and not source of truth. It grants no
   Codex execution, no branch/PR/GitHub automation, no external handoff sending,
-  no provider/OpenAI/source-fetch/retrieval execution, no DB/proof/evidence/work/Perspective durable write, no route/UI behavior, no agent routing or execution, and no product write. Product-write remains parked by #686. The next recommended slice is
+  no provider/OpenAI/source-fetch/retrieval/RAG execution, no DB/proof/evidence/work/Perspective durable write, no route/UI behavior, no agent routing or execution, and no product write. Product-write remains parked by #686. The next recommended slice is
   `candidate_to_codex_handoff_draft_review_v0_1`.
+- Candidate-to-Codex handoff draft review v0.1:
+  `types/candidate-to-codex-handoff-draft-review.ts`,
+  `lib/research-candidate-review/candidate-to-codex-handoff-draft-review.ts`,
+  `fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json`,
+  and
+  `scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs`
+  (`npm run smoke:research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1`)
+  add a deterministic, fixture-backed, preview-only and review-only artifact
+  that consumes #692 handoff draft as advisory preview input. It reviews
+  prompt completeness, manual lineage, unresolved tensions, source refs,
+  authority boundary, expected checks, and stop conditions before any human
+  operator handoff decision.
+
+  The review artifact is not execution approval and not source of truth. It
+  grants no Codex execution, no branch/PR/GitHub automation, no external
+  handoff sending, no provider/OpenAI/source-fetch/retrieval/RAG execution, no
+  DB/proof/evidence/work/Perspective durable write, no route/UI behavior, no
+  agent routing or execution, and no product write. Product-write remains
+  parked by #686. The next recommended slice is
+  `candidate_to_codex_handoff_operator_decision_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

@@ -41,6 +41,14 @@ const candidateToCodexHandoffDraftFixturePath =
   "fixtures/research-candidate-review.candidate-to-codex-handoff-draft.geometry-substrate.sample.v0.1.json";
 const candidateToCodexHandoffDraftSmokePath =
   "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs";
+const candidateToCodexHandoffDraftReviewTypePath =
+  "types/candidate-to-codex-handoff-draft-review.ts";
+const candidateToCodexHandoffDraftReviewBuilderPath =
+  "lib/research-candidate-review/candidate-to-codex-handoff-draft-review.ts";
+const candidateToCodexHandoffDraftReviewFixturePath =
+  "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json";
+const candidateToCodexHandoffDraftReviewSmokePath =
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs";
 
 const packageScriptName =
   "smoke:agent-perspective-substrate-folded-audit-panel-v0-1";
@@ -51,6 +59,9 @@ const downstreamAIContextPacketGeometrySubstrateUpgradePackageScriptNames = [
 const downstreamCandidateToCodexHandoffDraftPackageScriptNames = [
   "smoke:research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1",
 ];
+const downstreamCandidateToCodexHandoffDraftReviewPackageScriptNames = [
+  "smoke:research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1",
+];
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -58,6 +69,8 @@ const downstreamAIContextPacketGeometrySubstrateUpgradeNextRecommendedSlice =
   "candidate_to_codex_handoff_draft_geometry_substrate_v0_1";
 const downstreamCandidateToCodexHandoffDraftNextRecommendedSlice =
   "candidate_to_codex_handoff_draft_review_v0_1";
+const downstreamCandidateToCodexHandoffDraftReviewNextRecommendedSlice =
+  "candidate_to_codex_handoff_operator_decision_v0_1";
 const requiredSectionKinds = [
   "blockers",
   "warnings",
@@ -112,6 +125,25 @@ const downstreamCandidateToCodexHandoffDraftChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  aiContextPacketGeometrySubstrateUpgradeSmokePath,
+  smokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  digestSmokePath,
+  aiContextSmokePath,
+  formationReceiptSmokePath,
+];
+const downstreamCandidateToCodexHandoffDraftReviewChangedFiles = [
+  candidateToCodexHandoffDraftReviewTypePath,
+  candidateToCodexHandoffDraftReviewBuilderPath,
+  candidateToCodexHandoffDraftReviewFixturePath,
+  candidateToCodexHandoffDraftReviewSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  candidateToCodexHandoffDraftSmokePath,
   aiContextPacketGeometrySubstrateUpgradeSmokePath,
   smokePath,
   previewBuilderSmokePath,
@@ -284,10 +316,16 @@ function assertPackageScript() {
   ])
     .split("\n")
     .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
-  assert.deepEqual(
-    packageAddedLines.map(extractScriptName).filter(Boolean),
-    downstreamCandidateToCodexHandoffDraftPackageScriptNames,
-    "package additions must only include the downstream Candidate-to-Codex handoff draft smoke script",
+  const addedScriptNames = packageAddedLines
+    .map(extractScriptName)
+    .filter(Boolean)
+    .sort();
+  assert.ok(
+    [
+      downstreamCandidateToCodexHandoffDraftPackageScriptNames,
+      downstreamCandidateToCodexHandoffDraftReviewPackageScriptNames,
+    ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
+    "package additions must only include the downstream Candidate-to-Codex handoff draft or review smoke script",
   );
   assert.doesNotMatch(
     packageAddedLines.join("\n"),
@@ -306,9 +344,15 @@ function assertStaticBoundary() {
     downstreamCandidateToCodexHandoffDraftChangedFiles.every((filePath) =>
       changedFiles.includes(filePath),
     );
-  const expectedFilesForDelta = usesDownstreamAIContextUpgradeDelta
-    ? downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles
-    : usesDownstreamCandidateToCodexHandoffDraftDelta
+  const usesDownstreamCandidateToCodexHandoffDraftReviewDelta =
+    downstreamCandidateToCodexHandoffDraftReviewChangedFiles.every((filePath) =>
+      changedFiles.includes(filePath),
+    );
+  const expectedFilesForDelta = usesDownstreamCandidateToCodexHandoffDraftReviewDelta
+    ? downstreamCandidateToCodexHandoffDraftReviewChangedFiles
+    : usesDownstreamAIContextUpgradeDelta
+      ? downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles
+      : usesDownstreamCandidateToCodexHandoffDraftDelta
       ? downstreamCandidateToCodexHandoffDraftChangedFiles
     : expectedChangedFiles;
   for (const expectedFile of expectedFilesForDelta) {
@@ -459,6 +503,14 @@ function assertAdjacentSmokePointers() {
     readFileSync(smokePath, "utf8"),
     new RegExp(downstreamCandidateToCodexHandoffDraftNextRecommendedSlice),
   );
+  assert.match(
+    readFileSync(smokePath, "utf8"),
+    new RegExp(downstreamCandidateToCodexHandoffDraftReviewPackageScriptNames[0]),
+  );
+  assert.match(
+    readFileSync(smokePath, "utf8"),
+    new RegExp(downstreamCandidateToCodexHandoffDraftReviewNextRecommendedSlice),
+  );
 }
 
 function readChangedFiles() {
@@ -496,6 +548,10 @@ function extractAround(source, needle, radius) {
 
 function extractScriptName(line) {
   return line.replace(/^\+\s*/, "").trim().match(/^"([^"]+)"/)?.[1] ?? null;
+}
+
+function arraysEqual(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function escapeRegExp(value) {

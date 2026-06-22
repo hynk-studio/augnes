@@ -317,6 +317,24 @@ write. Product-write remains parked by the #686 stopline. Next recommended
 slice: `candidate_to_codex_handoff_draft_review_v0_1`.
 No branch/PR/GitHub automation is allowed from this draft.
 
+Candidate-to-Codex handoff draft review v0.1 preserves canonical promotion
+gates before any human may use the #692 draft as a Codex task. It consumes the
+#692 handoff draft fixture only as advisory input and remains review-only and
+copyable-preview-only. The review preserves GeometryDigest, Agent Substrate,
+Folded Audit, static/base packet lineage, manual-note packet/receipt lineage,
+source refs, unresolved tensions, and the product-write stopline.
+
+The review artifact is still not source of truth, proof/evidence, durable
+state, execution authority, retrieval execution, agent routing, Codex
+execution, GitHub automation, external handoff, or product write authority. It
+adds no Codex execution, no branch/PR/GitHub automation, no external handoff
+sending, no provider/OpenAI call, no source fetch, no retrieval execution,
+no DB/SQL/transaction, no proof/evidence write, no work mutation or work item
+creation, no durable Perspective promotion, no route/UI behavior, no agent
+routing/execution, and no product write. Product-write remains parked by the
+#686 stopline. Next recommended slice:
+`candidate_to_codex_handoff_operator_decision_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
