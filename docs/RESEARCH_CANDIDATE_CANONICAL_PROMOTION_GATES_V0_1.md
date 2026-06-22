@@ -370,6 +370,24 @@ agent routing/execution, and no product write or product IDs. Product-write
 remains parked by the #686 stopline. Next recommended slice:
 `feedback_event_store_review_controls_preview_v0_1`.
 
+Feedback Event Store review controls preview v0.1 preserves canonical
+promotion gates while mapping review surfaces and surfacing cards to feedback
+event previews only. It defines disabled, preview-only controls for dismiss,
+pin, correct, and invalidate feedback intent, but it does not write feedback
+events yet and does not add runtime persistence.
+
+The review controls preview is not source of truth, not proof/evidence, not
+Perspective promotion, not work mutation, not execution authority, not
+retrieval/RAG execution, not agent routing, not Codex execution, not GitHub
+automation, not external handoff, and not product write authority. The slice
+adds no route/server action/DB write, no proof/evidence record, no durable
+Perspective promotion, no work mutation or work item creation, no Codex
+execution, no branch/PR/GitHub automation, no external handoff sending, no
+provider/OpenAI call, no source fetch, no retrieval/RAG execution, no agent
+routing/execution, and no product write or product IDs. Product-write remains
+parked by the #686 stopline. Next recommended slice:
+`feedback_event_write_route_contract_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

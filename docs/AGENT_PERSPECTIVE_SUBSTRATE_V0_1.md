@@ -279,6 +279,20 @@ Product-write remains parked by the #686 stopline. The next recommended slice
 after Feedback Event Store minimal v0.1 is
 `feedback_event_store_review_controls_preview_v0_1`.
 
+## Feedback Event Store Review Controls Preview v0.1
+
+Feedback Event Store review controls preview v0.1 maps substrate and feedback
+targets to feedback event previews only. It can show disabled control previews
+for `dismiss_preview`, `pin_preview`, `correct_preview`, and
+`invalidate_preview`, but the controls do not persist feedback in this slice.
+
+The review controls preview remains non-authoritative and preview-only. No feedback is persisted from controls, and there is still no route/server action/DB write. It grants no Codex execution, no GitHub automation, no
+external handoff sending, no provider/OpenAI call, no source fetch, no
+retrieval/RAG execution, no agent routing/execution, and no product write.
+Product-write remains parked by the #686 stopline. The next recommended slice
+after the review controls preview is
+`feedback_event_write_route_contract_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_store_review_controls_preview_v0_1`
+`feedback_event_write_route_contract_v0_1`

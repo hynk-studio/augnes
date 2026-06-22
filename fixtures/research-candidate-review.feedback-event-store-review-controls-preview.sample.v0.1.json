@@ -1,0 +1,264 @@
+{
+  "preview_kind": "feedback_event_store_review_controls_preview",
+  "preview_version": "feedback_event_store_review_controls_preview.v0.1",
+  "scope": "project:augnes",
+  "as_of": "fixture:research-candidate-review.feedback-event-store-review-controls-preview.sample.v0.1",
+  "source_feedback_event_store_ref": "feedback_event_store.v0.1:fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json",
+  "source_feedback_event_store_fixture_path": "fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json",
+  "preview_fingerprint": "fnv1a32:df13080d",
+  "fingerprint_algorithm": "fnv1a32_canonical_json",
+  "source_surfaces": {
+    "feedback_event_store_minimal": {
+      "fixture_path": "fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json",
+      "fixture_version": "feedback_event_store.v0.1",
+      "event_count": 4,
+      "product_write_stopline_ref": "pr:686",
+      "next_recommended_slice": "feedback_event_store_review_controls_preview_v0_1"
+    },
+    "agent_perspective_substrate_preview": {
+      "fixture_path": "fixtures/agent-perspective-substrate-preview.sample.v0.1.json",
+      "preview_version": "agent_perspective_substrate_preview.v0.1",
+      "fingerprint": "fnv1a32:3f2fb0db",
+      "folded_section_count": 8,
+      "surfacing_card_count": 6,
+      "source_coverage_ref": "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage"
+    },
+    "candidate_to_codex_handoff_draft_review": {
+      "fixture_path": "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json",
+      "review_kind": "candidate_to_codex_handoff_draft_review",
+      "review_version": "candidate_to_codex_handoff_draft_review.v0.1",
+      "review_fingerprint": "fnv1a32:d9d0275e",
+      "review_status": "candidate_to_codex_handoff_draft_review_passed"
+    },
+    "candidate_to_codex_handoff_operator_decision_preview": {
+      "fixture_path": "fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json",
+      "decision_preview_kind": "candidate_to_codex_handoff_operator_decision_preview",
+      "decision_preview_version": "candidate_to_codex_handoff_operator_decision.v0.1",
+      "decision_preview_fingerprint": "fnv1a32:70a575e2",
+      "operator_decision_required": true,
+      "operator_decision_satisfied_now": false
+    }
+  },
+  "controls": [
+    {
+      "control_id": "feedback_review_control:dismiss_preview:4bde4b95",
+      "control_kind": "dismiss_preview",
+      "label": "Dismiss preview",
+      "target": {
+        "target_kind": "agent_perspective_substrate_surfacing_card",
+        "target_id": "substrate_card:reviewed_non_authoritative_context",
+        "source_ref_ids": [
+          "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#surfacing_cards"
+        ],
+        "source_ref_resolution_status": "resolved_repo_local",
+        "source_ref_resolution_notes": [
+          "Repo-local source ref is expected to resolve in smoke validation: fixtures/agent-perspective-substrate-preview.sample.v0.1.json#surfacing_cards."
+        ]
+      },
+      "enabled_now": false,
+      "preview_only": true,
+      "would_create_event_type": "dismiss_preview",
+      "would_create_event_preview_id": "feedback_event_review_control_preview:fnv1a32:730f8f57",
+      "requires_operator_action": true,
+      "writes_now": false,
+      "route_available_now": false,
+      "server_action_available_now": false,
+      "db_write_available_now": false,
+      "durable_feedback_persisted_now": false,
+      "authority_boundary_notes": [
+        "Review control preview only; no route, server action, DB write, durable feedback persistence, execution, or product-write authority exists now."
+      ]
+    },
+    {
+      "control_id": "feedback_review_control:pin_preview:99a6e641",
+      "control_kind": "pin_preview",
+      "label": "Pin preview",
+      "target": {
+        "target_kind": "agent_perspective_substrate_folded_section",
+        "target_id": "folded_section:source_coverage",
+        "source_ref_ids": [
+          "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+          "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage"
+        ],
+        "source_ref_resolution_status": "resolved_repo_local",
+        "source_ref_resolution_notes": [
+          "Repo-local source ref is expected to resolve in smoke validation: components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel.",
+          "Repo-local source ref is expected to resolve in smoke validation: fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage."
+        ]
+      },
+      "enabled_now": false,
+      "preview_only": true,
+      "would_create_event_type": "pin_preview",
+      "would_create_event_preview_id": "feedback_event_review_control_preview:fnv1a32:fc0d6f26",
+      "requires_operator_action": true,
+      "writes_now": false,
+      "route_available_now": false,
+      "server_action_available_now": false,
+      "db_write_available_now": false,
+      "durable_feedback_persisted_now": false,
+      "authority_boundary_notes": [
+        "Review control preview only; no route, server action, DB write, durable feedback persistence, execution, or product-write authority exists now."
+      ]
+    },
+    {
+      "control_id": "feedback_review_control:correct_preview:0cfcbd5f",
+      "control_kind": "correct_preview",
+      "label": "Correct preview",
+      "target": {
+        "target_kind": "candidate_to_codex_handoff_draft_review",
+        "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+        "target_fingerprint": "fnv1a32:d9d0275e",
+        "source_ref_ids": [
+          "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json"
+        ],
+        "source_ref_resolution_status": "resolved_repo_local",
+        "source_ref_resolution_notes": [
+          "Repo-local source ref is expected to resolve in smoke validation: fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json."
+        ]
+      },
+      "enabled_now": false,
+      "preview_only": true,
+      "would_create_event_type": "correct_preview",
+      "would_create_event_preview_id": "feedback_event_review_control_preview:fnv1a32:d7bb6883",
+      "requires_operator_action": true,
+      "writes_now": false,
+      "route_available_now": false,
+      "server_action_available_now": false,
+      "db_write_available_now": false,
+      "durable_feedback_persisted_now": false,
+      "authority_boundary_notes": [
+        "Review control preview only; no route, server action, DB write, durable feedback persistence, execution, or product-write authority exists now."
+      ]
+    },
+    {
+      "control_id": "feedback_review_control:invalidate_preview:8069a1fb",
+      "control_kind": "invalidate_preview",
+      "label": "Invalidate preview",
+      "target": {
+        "target_kind": "candidate_to_codex_handoff_operator_decision_preview",
+        "target_id": "candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
+        "target_fingerprint": "fnv1a32:70a575e2",
+        "source_ref_ids": [
+          "fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json"
+        ],
+        "source_ref_resolution_status": "resolved_repo_local",
+        "source_ref_resolution_notes": [
+          "Repo-local source ref is expected to resolve in smoke validation: fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json."
+        ]
+      },
+      "enabled_now": false,
+      "preview_only": true,
+      "would_create_event_type": "invalidate_preview",
+      "would_create_event_preview_id": "feedback_event_review_control_preview:fnv1a32:cdaea932",
+      "requires_operator_action": true,
+      "writes_now": false,
+      "route_available_now": false,
+      "server_action_available_now": false,
+      "db_write_available_now": false,
+      "durable_feedback_persisted_now": false,
+      "authority_boundary_notes": [
+        "Review control preview only; no route, server action, DB write, durable feedback persistence, execution, or product-write authority exists now."
+      ]
+    }
+  ],
+  "event_previews": [
+    {
+      "event_preview_id": "feedback_event_review_control_preview:fnv1a32:730f8f57",
+      "event_type": "dismiss_preview",
+      "target_kind": "agent_perspective_substrate_surfacing_card",
+      "target_id": "substrate_card:reviewed_non_authoritative_context",
+      "source_ref_ids": [
+        "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#surfacing_cards"
+      ],
+      "operator_note_placeholder": "Future operator note required before any durable feedback event write.",
+      "reason_placeholder": "preview_card_already_reviewed",
+      "idempotency_key_preview": "feedback_event_store_idempotency:fnv1a32:bab48f23",
+      "event_id_preview": "feedback_event:fnv1a32:3cbcddb7",
+      "valid_feedback_event_shape_now": true,
+      "inserted_now": false,
+      "persisted_now": false,
+      "db_write_now": false
+    },
+    {
+      "event_preview_id": "feedback_event_review_control_preview:fnv1a32:fc0d6f26",
+      "event_type": "pin_preview",
+      "target_kind": "agent_perspective_substrate_folded_section",
+      "target_id": "folded_section:source_coverage",
+      "source_ref_ids": [
+        "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+        "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage"
+      ],
+      "operator_note_placeholder": "Future operator note required before any durable feedback event write.",
+      "reason_placeholder": "keep_source_coverage_visible",
+      "idempotency_key_preview": "feedback_event_store_idempotency:fnv1a32:2fe5daf9",
+      "event_id_preview": "feedback_event:fnv1a32:71954683",
+      "valid_feedback_event_shape_now": true,
+      "inserted_now": false,
+      "persisted_now": false,
+      "db_write_now": false
+    },
+    {
+      "event_preview_id": "feedback_event_review_control_preview:fnv1a32:d7bb6883",
+      "event_type": "correct_preview",
+      "target_kind": "candidate_to_codex_handoff_draft_review",
+      "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+      "target_fingerprint": "fnv1a32:d9d0275e",
+      "source_ref_ids": [
+        "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json"
+      ],
+      "operator_note_placeholder": "Future operator note required before any durable feedback event write.",
+      "correction_text_placeholder": "Future correction text required before a correct_preview write.",
+      "reason_placeholder": "boundary_wording_correction",
+      "idempotency_key_preview": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+      "event_id_preview": "feedback_event:fnv1a32:1542ea21",
+      "valid_feedback_event_shape_now": true,
+      "inserted_now": false,
+      "persisted_now": false,
+      "db_write_now": false
+    },
+    {
+      "event_preview_id": "feedback_event_review_control_preview:fnv1a32:cdaea932",
+      "event_type": "invalidate_preview",
+      "target_kind": "candidate_to_codex_handoff_operator_decision_preview",
+      "target_id": "candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
+      "target_fingerprint": "fnv1a32:70a575e2",
+      "source_ref_ids": [
+        "fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json"
+      ],
+      "operator_note_placeholder": "Future operator note required before any durable feedback event write.",
+      "reason_placeholder": "operator_decision_preview_superseded_for_review_controls",
+      "idempotency_key_preview": "feedback_event_store_idempotency:fnv1a32:ef23d69e",
+      "event_id_preview": "feedback_event:fnv1a32:49187a0d",
+      "valid_feedback_event_shape_now": true,
+      "inserted_now": false,
+      "persisted_now": false,
+      "db_write_now": false
+    }
+  ],
+  "authority_boundary": {
+    "preview_only": true,
+    "durable_feedback_event_written_now": false,
+    "route_available_now": false,
+    "server_action_available_now": false,
+    "db_write_available_now": false,
+    "proof_or_evidence_record": false,
+    "perspective_promotion": false,
+    "work_mutation": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "recommendation_status": "ready_for_feedback_event_write_route_contract_v0_1",
+  "next_recommended_slice": "feedback_event_write_route_contract_v0_1"
+}

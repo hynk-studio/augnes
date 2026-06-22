@@ -1751,6 +1751,24 @@ repo-local 색인이다.
   provider/OpenAI/source-fetch/retrieval/RAG execution, no proof/evidence/Perspective promotion/work mutation, and no product write/product IDs.
   Product-write remains parked by #686. The next recommended slice is
   `feedback_event_store_review_controls_preview_v0_1`.
+- Feedback Event Store review controls preview v0.1:
+  `types/feedback-event-store-review-controls-preview.ts`,
+  `lib/research-candidate-review/feedback-event-store-review-controls-preview.ts`,
+  `fixtures/research-candidate-review.feedback-event-store-review-controls-preview.sample.v0.1.json`,
+  and `scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs`
+  (`npm run smoke:feedback-event-store-review-controls-preview-v0-1`) add a
+  deterministic, fixture-backed review controls preview for Feedback Event
+  Store minimal v0.1. The preview maps existing review surfaces and surfacing
+  cards to preview-only controls for `dismiss_preview`, `pin_preview`,
+  `correct_preview`, and `invalidate_preview`.
+
+  Review controls preview is non-persisting: it shows which feedback event
+  shape would be produced by future operator action, but it adds no route/server action/DB write yet and persists no feedback from controls.
+  It adds no proof/evidence/Perspective promotion/work mutation, no
+  Codex/GitHub automation/external handoff, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
+  write/product IDs. Product-write remains parked by #686. The next
+  recommended slice is `feedback_event_write_route_contract_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
