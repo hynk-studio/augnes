@@ -1,12 +1,19 @@
 "use client";
 
+import { FeedbackEventControls } from "@/components/feedback-event-controls";
 import agentPerspectiveSubstratePreviewFixture from "@/fixtures/agent-perspective-substrate-preview.sample.v0.1.json";
+import feedbackEventControlsUiContractFixture from "@/fixtures/research-candidate-review.feedback-event-controls-ui-contract.sample.v0.1.json";
 import type {
   AgentPerspectiveRulePreviewGroup,
   AgentPerspectiveSubstratePreview,
   AgentPerspectiveSubstratePreviewSection,
   AgentPerspectiveSurfacingPreviewCard,
 } from "@/types/agent-perspective-substrate-preview";
+import type {
+  FeedbackEventControlUiBinding,
+  FeedbackEventControlUiRequestPreview,
+  FeedbackEventControlsUiContract,
+} from "@/types/feedback-event-controls-ui-contract";
 import { useMemo, useState } from "react";
 
 type AgentPerspectiveSubstrateFoldedAuditPanelProps = {
@@ -14,10 +21,21 @@ type AgentPerspectiveSubstrateFoldedAuditPanelProps = {
   fixturePath?: string;
 };
 
+type FeedbackControlsForSurface = {
+  bindings: FeedbackEventControlUiBinding[];
+  requestPreviews: FeedbackEventControlUiRequestPreview[];
+  enabledControlKinds: FeedbackEventControlUiBinding["control_kind"][];
+};
+
 const DEFAULT_FIXTURE_PATH =
   "fixtures/agent-perspective-substrate-preview.sample.v0.1.json";
 const FORWARD_NEXT_RECOMMENDED_SLICE =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
+const FEEDBACK_EVENT_ROUTE_PATH = "/api/research-candidate/feedback-events";
+const FEEDBACK_EVENT_ROUTE_METHOD = "POST";
+const FEEDBACK_EVENT_REQUEST_VERSION = "feedback_event_write_route_request.v0.1";
+const FEEDBACK_EVENT_CONTROLS_UI_CONTRACT =
+  feedbackEventControlsUiContractFixture as FeedbackEventControlsUiContract;
 const REQUIRED_SECTION_KINDS = [
   "blockers",
   "warnings",
@@ -70,13 +88,13 @@ export function AgentPerspectiveSubstrateFoldedAuditPanel({
           </p>
           <p>
             It creates no proof/evidence, performs no work mutation, promotes
-            no Perspective state, executes no retrieval, routes or executes no agents, and grants no product write authority. Product-write lane remains parked by #686.
+            no Perspective state, executes no retrieval/RAG, routes or executes no agents, and grants no product write authority. Feedback controls write durable feedback events only through <code>/api/research-candidate/feedback-events</code>. Product-write lane remains parked by #686.
           </p>
         </div>
         <div className="perspective-constellation-shell-status">
           <span className="status-pill">folded-by-default</span>
           <span className="status-pill">static fixture</span>
-          <span className="status-pill">preview-only</span>
+          <span className="status-pill">feedback events only</span>
         </div>
       </div>
 
@@ -97,11 +115,13 @@ export function AgentPerspectiveSubstrateFoldedAuditPanel({
 
       <div className="perspective-workbench-status-row">
         <span>local React state only for section toggles</span>
-        <span>no persistence</span>
-        <span>no route/API call</span>
-        <span>no DB/SQL/transaction</span>
+        <span>local pending/success/error state for feedback controls</span>
+        <span>no browser persistence</span>
+        <span>feedback route only</span>
+        <span>no direct DB/SQL in UI</span>
+        <span>feedback route writes durable feedback events only</span>
         <span>no provider/OpenAI call</span>
-        <span>no durable feedback persistence</span>
+        <span>durable feedback event only</span>
       </div>
 
       <div className="tab-stat-row" aria-label="Agent substrate preview diagnostics">
@@ -184,7 +204,11 @@ export function AgentPerspectiveSubstrateFoldedAuditPanel({
                 <div id={`${section.section_id}-cards`} className="compact-list">
                   {cards.length > 0 ? (
                     cards.map((card) => (
-                      <SurfacingCard key={card.card_id} card={card} />
+                      <SurfacingCard
+                        key={card.card_id}
+                        card={card}
+                        feedbackControls={getDismissFeedbackControlsForCard(card)}
+                      />
                     ))
                   ) : (
                     <p>No surfacing cards are represented in this folded section.</p>
@@ -251,6 +275,12 @@ export function AgentPerspectiveSubstrateFoldedAuditPanel({
           title="source_coverage_warnings"
           values={preview.source_coverage_preview.source_coverage_warnings}
         />
+        <FeedbackEventControls
+          bindings={getFeedbackControlsForKinds(["pin_preview"]).bindings}
+          requestPreviews={getFeedbackControlsForKinds(["pin_preview"]).requestPreviews}
+          enabledControlKinds={["pin_preview"]}
+          disabledReason="Only source coverage pin feedback is enabled here; other controls remain contract-only."
+        />
       </section>
 
       <section className="perspective-inspector-section">
@@ -286,9 +316,10 @@ export function AgentPerspectiveSubstrateFoldedAuditPanel({
           Forward preview note: <code>{FORWARD_NEXT_RECOMMENDED_SLICE}</code>.
         </p>
         <p>
-          The forward slice is advisory planning only from this panel; no route,
-          no API, no feedback persistence, no agent execution, and no product
-          write are available here.
+          The forward slice is advisory planning only from this panel. Feedback
+          controls may call the feedback event route only; no proof/evidence,
+          Perspective promotion, work mutation, agent execution, retrieval/RAG,
+          provider/OpenAI call, source fetch, or product write are available here.
         </p>
       </section>
     </section>
@@ -324,7 +355,13 @@ function SectionCounts({
   );
 }
 
-function SurfacingCard({ card }: { card: AgentPerspectiveSurfacingPreviewCard }) {
+function SurfacingCard({
+  card,
+  feedbackControls,
+}: {
+  card: AgentPerspectiveSurfacingPreviewCard;
+  feedbackControls: FeedbackControlsForSurface;
+}) {
   return (
     <article className="cockpit-surface-card">
       <div className="meta-row">
@@ -369,6 +406,12 @@ function SurfacingCard({ card }: { card: AgentPerspectiveSurfacingPreviewCard })
         title="authority_boundary_notes"
         values={card.authority_boundary_notes}
       />
+      <FeedbackEventControls
+        bindings={feedbackControls.bindings}
+        requestPreviews={feedbackControls.requestPreviews}
+        enabledControlKinds={feedbackControls.enabledControlKinds}
+        disabledReason="Only substrate surfacing card dismiss feedback is enabled here; other controls remain contract-only."
+      />
       <div className="button-row" aria-label={`${card.card_id} preview labels`}>
         {card.suggested_user_actions.map((action) => (
           <button
@@ -376,13 +419,16 @@ function SurfacingCard({ card }: { card: AgentPerspectiveSurfacingPreviewCard })
             type="button"
             className="secondary-button"
             disabled
-            title="preview-only. No durable action in this slice."
+            title="Suggested action label only; preview-only. Feedback controls above may write durable feedback events only."
           >
             {formatPreviewAction(action)} - preview-only
           </button>
         ))}
       </div>
-      <p>No durable action in this slice.</p>
+      <p>
+        Suggested action labels above remain preview-only. Feedback controls may
+        write durable feedback events only.
+      </p>
     </article>
   );
 }
@@ -458,4 +504,92 @@ function groupCardsBySection(
 
 function formatPreviewAction(action: string): string {
   return action.replace(/_/g, " ");
+}
+
+function getFeedbackControlsForKinds(
+  controlKinds: FeedbackEventControlUiBinding["control_kind"][],
+): FeedbackControlsForSurface {
+  const bindings = FEEDBACK_EVENT_CONTROLS_UI_CONTRACT.control_bindings.filter(
+    (binding) => controlKinds.includes(binding.control_kind),
+  );
+  return {
+    bindings,
+    requestPreviews: FEEDBACK_EVENT_CONTROLS_UI_CONTRACT.request_previews.filter(
+      (requestPreview) =>
+        bindings.some(
+          (binding) => binding.request_preview_id === requestPreview.request_preview_id,
+        ),
+    ),
+    enabledControlKinds: controlKinds,
+  };
+}
+
+function getDismissFeedbackControlsForCard(
+  card: AgentPerspectiveSurfacingPreviewCard,
+): FeedbackControlsForSurface {
+  const sourceRefIds =
+    card.source_refs.length > 0
+      ? card.source_refs.map((sourceRef) => sourceRef.source_ref_id)
+      : [`${DEFAULT_FIXTURE_PATH}#${card.card_id}`];
+  const sourceCoverageReason =
+    card.source_refs.length > 0
+      ? `source refs preserved from visible card ${card.card_id}`
+      : `explicit source coverage boundary for visible card ${card.card_id}: ${
+          card.source_coverage_boundary_note ?? "no card source refs present"
+        }`;
+  const bindingId = `feedback_event_controls_ui_binding:dismiss_preview:${card.card_id}`;
+  const requestPreviewId = `feedback_event_controls_ui_request_preview:dismiss_preview:${card.card_id}`;
+  const binding = {
+    binding_id: bindingId,
+    control_kind: "dismiss_preview",
+    target_kind: "agent_perspective_substrate_surfacing_card",
+    target_id: card.card_id,
+    source_control_id: `feedback_review_control:dismiss_preview:${card.card_id}`,
+    label: "Dismiss card",
+    render_location_preview: `agent_perspective_substrate_folded_audit_panel.surfacing_card.${card.card_id}`,
+    route_path: FEEDBACK_EVENT_ROUTE_PATH,
+    route_method: FEEDBACK_EVENT_ROUTE_METHOD,
+    request_preview_id: requestPreviewId,
+    disabled_now: true,
+    preview_only_now: true,
+    ui_component_added_now: false,
+    browser_request_sent_now: false,
+    feedback_event_persisted_now: false,
+    requires_operator_click: true,
+    requires_authority_acknowledgements: true,
+    authority_boundary_notes: [
+      `Card-specific dismiss feedback target_id is ${card.card_id}.`,
+      sourceCoverageReason,
+      "Durable feedback event only; not proof/evidence, not Perspective promotion, not work mutation, not retrieval/RAG, not product write.",
+      "Product-write lane remains parked by #686.",
+    ],
+  } satisfies FeedbackEventControlUiBinding;
+  const requestPreview = {
+    request_preview_id: requestPreviewId,
+    request_version: FEEDBACK_EVENT_REQUEST_VERSION,
+    event_type: "dismiss_preview",
+    target_kind: "agent_perspective_substrate_surfacing_card",
+    target_id: card.card_id,
+    source_ref_ids: sourceRefIds,
+    operator_note_placeholder:
+      `Dismiss feedback for visible surfacing card ${card.card_id}; ` +
+      "durable feedback event only, not proof/evidence, not Perspective promotion, " +
+      "not work mutation, not retrieval/RAG, not product write.",
+    reason_placeholder:
+      `visible_card_dismiss_feedback:${card.card_id}; ${sourceCoverageReason}`,
+    client_request_id_preview: `feedback_event_controls_ui_implementation:dismiss_preview:${card.card_id}`,
+    authority_acknowledgements:
+      FEEDBACK_EVENT_CONTROLS_UI_CONTRACT.authority_acknowledgement_policy
+        .required_acknowledgements,
+    request_valid_for_route_contract: true,
+    request_sent_now: false,
+    route_response_observed_now: false,
+    feedback_event_written_now: false,
+  } satisfies FeedbackEventControlUiRequestPreview;
+
+  return {
+    bindings: [binding],
+    requestPreviews: [requestPreview],
+    enabledControlKinds: ["dismiss_preview"],
+  };
 }

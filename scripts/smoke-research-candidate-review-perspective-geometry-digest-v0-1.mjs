@@ -47,6 +47,9 @@ const downstreamCandidateToCodexHandoffOperatorDecisionPackageScriptNames = [
 const routeContractPackageScriptNames = [
   "smoke:feedback-event-write-route-contract-v0-1",
 ];
+const downstreamFeedbackEventControlsUiImplementationPackageScriptNames = [
+  "smoke:feedback-event-controls-ui-implementation-v0-1",
+];
 const downstreamAgentPerspectiveSubstrateLabel =
   "Agent Perspective Substrate v0.1";
 const downstreamAgentPerspectiveSubstrateFoldedAuditPanelLabel =
@@ -253,6 +256,32 @@ const downstreamCandidateToCodexHandoffOperatorDecisionChangedFiles = [
   smokePath,
   "scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs",
 ];
+const downstreamFeedbackEventControlsUiImplementationChangedFiles = [
+  "components/feedback-event-controls.tsx",
+  "components/agent-perspective-substrate-folded-audit-panel.tsx",
+  "fixtures/research-candidate-review.feedback-event-controls-ui-implementation.sample.v0.1.json",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  smokePath,
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+  packagePath,
+  indexPath,
+  surfaceDocPath,
+  gateDocPath,
+  "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+];
 
 for (const filePath of [
   typePath,
@@ -447,6 +476,7 @@ function assertPackageScript() {
       ["smoke:feedback-event-write-route-implementation-v0-1"],
       ["smoke:feedback-event-write-route-browser-validation-v0-1"],
       ["smoke:feedback-event-controls-ui-contract-v0-1"],
+      downstreamFeedbackEventControlsUiImplementationPackageScriptNames,
     ].some((allowedNames) => JSON.stringify(addedScriptNames) === JSON.stringify(allowedNames)),
     `package additions must only include digest or downstream substrate/preview/panel/AI-context-upgrade/handoff-draft/review/operator-decision smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
@@ -495,6 +525,10 @@ function assertDocs() {
 
 function assertStaticScope() {
   const changedFiles = readChangedFiles();
+  if (feedbackEventControlsUiImplementationSliceActive(changedFiles)) {
+    assertFeedbackEventControlsUiImplementationChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackEventControlsUiContractSliceActive(changedFiles)) {
     assertFeedbackEventControlsUiContractChangedFiles(changedFiles);
     return;
@@ -576,6 +610,38 @@ function assertStaticScope() {
       !allowedDownstreamPanelComponentFiles.has(changedFile)
     ) {
       assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    }
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(schema|migration|db|sql)\b/i, "must not change schema/db/sql paths");
+  }
+}
+
+function feedbackEventControlsUiImplementationSliceActive(changedFiles) {
+  return downstreamFeedbackEventControlsUiImplementationChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function assertFeedbackEventControlsUiImplementationChangedFiles(changedFiles) {
+  for (const expectedFile of downstreamFeedbackEventControlsUiImplementationChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `missing changed file ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      downstreamFeedbackEventControlsUiImplementationChangedFiles.includes(changedFile),
+      `unexpected changed file in downstream UI implementation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    if (changedFile.startsWith("components/")) {
+      assert.ok(
+        [
+          "components/feedback-event-controls.tsx",
+          "components/agent-perspective-substrate-folded-audit-panel.tsx",
+        ].includes(changedFile),
+        `downstream UI implementation may only change allowed component files: ${changedFile}`,
+      );
     }
     assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
     assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");

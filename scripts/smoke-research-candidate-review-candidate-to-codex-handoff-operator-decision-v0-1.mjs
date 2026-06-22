@@ -53,6 +53,13 @@ const uiContractFixturePath =
   "fixtures/research-candidate-review.feedback-event-controls-ui-contract.sample.v0.1.json";
 const uiContractSmokePath =
   "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs";
+const uiImplementationComponentPath = "components/feedback-event-controls.tsx";
+const foldedAuditPanelComponentPath =
+  "components/agent-perspective-substrate-folded-audit-panel.tsx";
+const uiImplementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-controls-ui-implementation.sample.v0.1.json";
+const uiImplementationSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
@@ -99,6 +106,10 @@ const browserValidationPackageScriptValue =
 const uiContractPackageScriptName = "smoke:feedback-event-controls-ui-contract-v0-1";
 const uiContractPackageScriptValue =
   "node scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs";
+const uiImplementationPackageScriptName =
+  "smoke:feedback-event-controls-ui-implementation-v0-1";
+const uiImplementationPackageScriptValue =
+  "node scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
 const sourceReviewExpectedNextSlice =
   "candidate_to_codex_handoff_operator_decision_v0_1";
 const nextRecommendedSlice = "feedback_event_store_minimal_v0_1";
@@ -122,6 +133,10 @@ const uiContractNextRecommendedSlice =
   "feedback_event_controls_ui_implementation_v0_1";
 const uiContractRecommendationStatus =
   "ready_for_feedback_event_controls_ui_implementation_v0_1";
+const uiImplementationNextRecommendedSlice =
+  "feedback_event_controls_ui_browser_validation_v0_1";
+const uiImplementationRecommendationStatus =
+  "ready_for_feedback_event_controls_ui_browser_validation_v0_1";
 const requiredDecisionOptions = [
   "approve_for_manual_codex_copy_paste_later",
   "request_handoff_revision",
@@ -317,6 +332,35 @@ const downstreamUiContractAllowedChangedFiles = [
   geometryDigestSmokePath,
   productWriteStoplineSmokePath,
 ];
+const downstreamUiImplementationRequiredChangedFiles = [
+  uiImplementationComponentPath,
+  foldedAuditPanelComponentPath,
+  uiImplementationFixturePath,
+  uiImplementationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  uiContractSmokePath,
+  browserValidationSmokePath,
+  routeImplementationSmokePath,
+  routeContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackSmokePath,
+  smokePath,
+];
+const downstreamUiImplementationAllowedChangedFiles = [
+  ...downstreamUiImplementationRequiredChangedFiles,
+  sourceReviewSmokePath,
+  sourceDraftSmokePath,
+  sourcePacketSmokePath,
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  geometryDigestSmokePath,
+  productWriteStoplineSmokePath,
+];
 
 for (const filePath of [
   typePath,
@@ -383,6 +427,7 @@ assertRouteContractDownstreamPointer();
 assertRouteImplementationDownstreamPointer();
 assertBrowserValidationDownstreamPointer();
 assertUiContractDownstreamPointer();
+assertUiImplementationDownstreamPointer();
 assertAdjacentSmokePointers();
 
 const builderModule = await importBuilderModule();
@@ -642,6 +687,12 @@ function assertPackageScript() {
       uiContractPackageScriptValue,
     );
   }
+  if (downstreamUiImplementationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[uiImplementationPackageScriptName],
+      uiImplementationPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -655,7 +706,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamUiContractSliceActive()
+  const expectedAddedScriptNames = downstreamUiImplementationSliceActive()
+    ? [uiImplementationPackageScriptName]
+    : downstreamUiContractSliceActive()
     ? [uiContractPackageScriptName]
     : downstreamRouteImplementationSliceActive()
     ? [routeImplementationPackageScriptName]
@@ -685,7 +738,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const requiredFiles = downstreamUiContractSliceActive()
+  const requiredFiles = downstreamUiImplementationSliceActive()
+    ? downstreamUiImplementationRequiredChangedFiles
+    : downstreamUiContractSliceActive()
     ? downstreamUiContractRequiredChangedFiles
     : downstreamRouteImplementationSliceActive()
     ? downstreamRouteImplementationRequiredChangedFiles
@@ -696,7 +751,9 @@ function assertStaticBoundary() {
     : downstreamReviewControlsSliceActive()
     ? downstreamReviewControlsRequiredChangedFiles
     : expectedChangedFiles;
-  const allowedFiles = downstreamUiContractSliceActive()
+  const allowedFiles = downstreamUiImplementationSliceActive()
+    ? downstreamUiImplementationAllowedChangedFiles
+    : downstreamUiContractSliceActive()
     ? downstreamUiContractAllowedChangedFiles
     : downstreamRouteImplementationSliceActive()
     ? downstreamRouteImplementationAllowedChangedFiles
@@ -721,13 +778,21 @@ function assertStaticBoundary() {
     ) {
       assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
     }
-    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    if (
+      downstreamUiImplementationSliceActive() &&
+      [uiImplementationComponentPath, foldedAuditPanelComponentPath].includes(changedFile)
+    ) {
+      // Downstream UI implementation is allowed to touch these two component files.
+    } else {
+      assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    }
     if (
       !downstreamReviewControlsSliceActive() &&
       !downstreamRouteContractSliceActive() &&
       !downstreamRouteImplementationSliceActive() &&
       !downstreamBrowserValidationSliceActive() &&
       !downstreamUiContractSliceActive() &&
+      !downstreamUiImplementationSliceActive() &&
       changedFile !== feedbackSchemaPath
     ) {
       assert.doesNotMatch(changedFile, /^lib\/db(?:\.ts|\/)/, "must not change lib/db files");
@@ -739,7 +804,8 @@ function assertStaticBoundary() {
       downstreamRouteContractSliceActive() ||
       downstreamRouteImplementationSliceActive() ||
       downstreamBrowserValidationSliceActive() ||
-      downstreamUiContractSliceActive()
+      downstreamUiContractSliceActive() ||
+      downstreamUiImplementationSliceActive()
     ) {
       assert.doesNotMatch(changedFile, /^lib\/db(?:\.ts|\/)/, "must not change lib/db files");
       assert.doesNotMatch(changedFile, /schema\.sql$/, "must not change schema.sql");
@@ -823,6 +889,23 @@ function assertUiContractDownstreamPointer() {
         feedbackSmokeSource.includes(requiredText) ||
         indexDoc.includes(requiredText),
       `operator decision smoke must allow downstream UI contract pointer: ${requiredText}`,
+    );
+  }
+  assert.equal(decisionFixture.next_recommended_slice, nextRecommendedSlice);
+}
+
+function assertUiImplementationDownstreamPointer() {
+  if (!downstreamUiImplementationSliceActive()) return;
+  for (const requiredText of [
+    uiImplementationPackageScriptName,
+    uiImplementationNextRecommendedSlice,
+    uiImplementationFixturePath,
+    uiImplementationSmokePath,
+    uiImplementationRecommendationStatus,
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#694 operator decision smoke must allow downstream UI implementation text: ${requiredText}`,
     );
   }
   assert.equal(decisionFixture.next_recommended_slice, nextRecommendedSlice);
@@ -1079,6 +1162,13 @@ function downstreamBrowserValidationSliceActive() {
 function downstreamUiContractSliceActive() {
   const changedFiles = readChangedFiles();
   return [uiContractFixturePath, uiContractSmokePath].every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function downstreamUiImplementationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamUiImplementationRequiredChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
 }

@@ -1,0 +1,191 @@
+{
+  "implementation_kind": "feedback_event_controls_ui_implementation",
+  "implementation_version": "feedback_event_controls_ui_implementation.v0.1",
+  "source_ui_contract_ref": "feedback_event_controls_ui_contract.v0.1:fixtures/research-candidate-review.feedback-event-controls-ui-contract.sample.v0.1.json",
+  "source_ui_contract_fingerprint": "fnv1a32:b6d63cbe",
+  "source_review_controls_preview_ref": "feedback_event_store_review_controls_preview.v0.1:fixtures/research-candidate-review.feedback-event-store-review-controls-preview.sample.v0.1.json",
+  "source_substrate_preview_ref": "fixtures/agent-perspective-substrate-preview.sample.v0.1.json",
+  "enabled_controls": [
+    {
+      "control_kind": "dismiss_preview",
+      "target_kind": "agent_perspective_substrate_surfacing_card",
+      "target_scope": "card_specific_visible_surfacing_cards",
+      "enabled_card_dismiss_control_count": 6,
+      "route_path": "/api/research-candidate/feedback-events",
+      "route_method": "POST"
+    },
+    {
+      "control_kind": "pin_preview",
+      "target_kind": "agent_perspective_substrate_folded_section",
+      "target_id": "folded_section:source_coverage",
+      "source_control_id": "feedback_review_control:pin_preview:99a6e641",
+      "request_preview_id": "feedback_event_controls_ui_request_preview:pin_preview:73ecdc6d",
+      "event_type": "pin_preview",
+      "source_ref_ids": [
+        "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+        "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage"
+      ],
+      "route_path": "/api/research-candidate/feedback-events",
+      "route_method": "POST"
+    }
+  ],
+  "enabled_card_dismiss_controls": [
+    {
+      "control_kind": "dismiss_preview",
+      "card_id": "aps_preview_card_aps_surface_grounded_claim_boundary_blocker",
+      "target_kind": "agent_perspective_substrate_surfacing_card",
+      "target_id": "aps_preview_card_aps_surface_grounded_claim_boundary_blocker",
+      "event_type": "dismiss_preview",
+      "source_ref_ids": [
+        "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#aps_preview_card_aps_surface_grounded_claim_boundary_blocker"
+      ],
+      "source_ref_resolution_status": "resolved_repo_local_fixture_fragment_with_explicit_boundary_reason",
+      "source_ref_resolution_reason": "explicit source coverage boundary for visible card aps_preview_card_aps_surface_grounded_claim_boundary_blocker: Explicit source coverage boundary note: candidate intentionally has no source refs.",
+      "route_path": "/api/research-candidate/feedback-events",
+      "route_method": "POST"
+    },
+    {
+      "control_kind": "dismiss_preview",
+      "card_id": "aps_preview_card_aps_surface_handoff_improvement_suggestion",
+      "target_kind": "agent_perspective_substrate_surfacing_card",
+      "target_id": "aps_preview_card_aps_surface_handoff_improvement_suggestion",
+      "event_type": "dismiss_preview",
+      "source_ref_ids": [
+        "fixture:research-candidate-review.ai-context-packet.sample.v0.1"
+      ],
+      "source_ref_resolution_status": "card_source_refs_preserved_with_explicit_boundary_reason",
+      "source_ref_resolution_reason": "source refs preserved from visible card aps_preview_card_aps_surface_handoff_improvement_suggestion; durable feedback event only",
+      "route_path": "/api/research-candidate/feedback-events",
+      "route_method": "POST"
+    },
+    {
+      "control_kind": "dismiss_preview",
+      "card_id": "aps_preview_card_aps_surface_product_write_stopline_reminder",
+      "target_kind": "agent_perspective_substrate_surfacing_card",
+      "target_id": "aps_preview_card_aps_surface_product_write_stopline_reminder",
+      "event_type": "dismiss_preview",
+      "source_ref_ids": [
+        "fixture:product-write-preflight-stopline.686"
+      ],
+      "source_ref_resolution_status": "card_source_refs_preserved_with_explicit_boundary_reason",
+      "source_ref_resolution_reason": "source refs preserved from visible card aps_preview_card_aps_surface_product_write_stopline_reminder; durable feedback event only",
+      "route_path": "/api/research-candidate/feedback-events",
+      "route_method": "POST"
+    },
+    {
+      "control_kind": "dismiss_preview",
+      "card_id": "aps_preview_card_aps_surface_retrieval_hint_gap_review",
+      "target_kind": "agent_perspective_substrate_surfacing_card",
+      "target_id": "aps_preview_card_aps_surface_retrieval_hint_gap_review",
+      "event_type": "dismiss_preview",
+      "source_ref_ids": [
+        "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1"
+      ],
+      "source_ref_resolution_status": "card_source_refs_preserved_with_explicit_boundary_reason",
+      "source_ref_resolution_reason": "source refs preserved from visible card aps_preview_card_aps_surface_retrieval_hint_gap_review; durable feedback event only",
+      "route_path": "/api/research-candidate/feedback-events",
+      "route_method": "POST"
+    },
+    {
+      "control_kind": "dismiss_preview",
+      "card_id": "aps_preview_card_aps_surface_stale_context_notice",
+      "target_kind": "agent_perspective_substrate_surfacing_card",
+      "target_id": "aps_preview_card_aps_surface_stale_context_notice",
+      "event_type": "dismiss_preview",
+      "source_ref_ids": [
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+      ],
+      "source_ref_resolution_status": "card_source_refs_preserved_with_explicit_boundary_reason",
+      "source_ref_resolution_reason": "source refs preserved from visible card aps_preview_card_aps_surface_stale_context_notice; durable feedback event only",
+      "route_path": "/api/research-candidate/feedback-events",
+      "route_method": "POST"
+    },
+    {
+      "control_kind": "dismiss_preview",
+      "card_id": "aps_preview_card_aps_surface_unresolved_tension_warning",
+      "target_kind": "agent_perspective_substrate_surfacing_card",
+      "target_id": "aps_preview_card_aps_surface_unresolved_tension_warning",
+      "event_type": "dismiss_preview",
+      "source_ref_ids": [
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+      ],
+      "source_ref_resolution_status": "card_source_refs_preserved_with_explicit_boundary_reason",
+      "source_ref_resolution_reason": "source refs preserved from visible card aps_preview_card_aps_surface_unresolved_tension_warning; durable feedback event only",
+      "route_path": "/api/research-candidate/feedback-events",
+      "route_method": "POST"
+    }
+  ],
+  "enabled_section_pin_controls": [
+    {
+      "control_kind": "pin_preview",
+      "target_kind": "agent_perspective_substrate_folded_section",
+      "target_id": "folded_section:source_coverage",
+      "source_control_id": "feedback_review_control:pin_preview:99a6e641",
+      "request_preview_id": "feedback_event_controls_ui_request_preview:pin_preview:73ecdc6d",
+      "event_type": "pin_preview",
+      "source_ref_ids": [
+        "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+        "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage"
+      ],
+      "route_path": "/api/research-candidate/feedback-events",
+      "route_method": "POST"
+    }
+  ],
+  "disabled_controls": [
+    {
+      "control_kind": "correct_preview",
+      "target_kind": "candidate_to_codex_handoff_draft_review",
+      "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+      "source_control_id": "feedback_review_control:correct_preview:0cfcbd5f",
+      "request_preview_id": "feedback_event_controls_ui_request_preview:correct_preview:5fd6b638",
+      "event_type": "correct_preview",
+      "source_ref_ids": [
+        "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json"
+      ],
+      "route_path": "/api/research-candidate/feedback-events",
+      "route_method": "POST",
+      "disabled_reason": "Not tied to a stable visible folded audit panel surface in this v0.1 implementation."
+    },
+    {
+      "control_kind": "invalidate_preview",
+      "target_kind": "candidate_to_codex_handoff_operator_decision_preview",
+      "target_id": "candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
+      "source_control_id": "feedback_review_control:invalidate_preview:8069a1fb",
+      "request_preview_id": "feedback_event_controls_ui_request_preview:invalidate_preview:76d202b1",
+      "event_type": "invalidate_preview",
+      "source_ref_ids": [
+        "fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json"
+      ],
+      "route_path": "/api/research-candidate/feedback-events",
+      "route_method": "POST",
+      "disabled_reason": "Not tied to a stable visible folded audit panel surface in this v0.1 implementation."
+    }
+  ],
+  "browser_request_available_now": true,
+  "feedback_event_route_path": "/api/research-candidate/feedback-events",
+  "feedback_event_route_method": "POST",
+  "browser_persistence_used_now": false,
+  "production_db_used_in_smoke_now": false,
+  "app_server_started_in_smoke_now": false,
+  "proof_evidence_write_available": false,
+  "perspective_promotion_available": false,
+  "work_mutation_available": false,
+  "provider_openai_available": false,
+  "source_fetch_available": false,
+  "retrieval_rag_available": false,
+  "codex_github_available": false,
+  "product_write_available": false,
+  "product_write_lane_parked_by_686": true,
+  "validation": {
+    "static_source_validation_only": true,
+    "route_handler_invoked_now": false,
+    "browser_request_executed_in_smoke_now": false,
+    "component_files_checked": [
+      "components/feedback-event-controls.tsx",
+      "components/agent-perspective-substrate-folded-audit-panel.tsx"
+    ],
+    "enabled_controls_limited_to_substrate_dismiss_and_source_coverage_pin": true
+  },
+  "recommendation_status": "ready_for_feedback_event_controls_ui_browser_validation_v0_1",
+  "next_recommended_slice": "feedback_event_controls_ui_browser_validation_v0_1"
+}
