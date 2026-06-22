@@ -1,0 +1,96 @@
+{
+  "validation_kind": "feedback_event_store_list_ui_browser_validation",
+  "validation_version": "feedback_event_store_list_ui_browser_validation.v0.1",
+  "source_list_ui_implementation_ref": "feedback_event_store_list_ui_implementation.v0.1:fixtures/research-candidate-review.feedback-event-store-list-ui-implementation.sample.v0.1.json",
+  "source_list_ui_implementation_fingerprint": "fnv1a32:12fc27cb",
+  "component_refs": [
+    "components/feedback-event-store-list-panel.tsx",
+    "components/agent-perspective-substrate-folded-audit-panel.tsx"
+  ],
+  "validated_panel": {
+    "panel_id": "feedback-event-store-list-panel",
+    "route_path": "/api/research-candidate/feedback-events",
+    "route_method": "GET",
+    "request_version": "feedback_event_store_list_route_request.v0.1",
+    "rendered_in_folded_audit_panel": true,
+    "receives_contract": "FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT",
+    "default_filter": {
+      "limit": 50,
+      "target_kind_default_scoped": false,
+      "target_id_default_scoped": false
+    },
+    "allowed_filters": [
+      "event_type",
+      "target_kind",
+      "target_id",
+      "created_after",
+      "created_before",
+      "limit"
+    ],
+    "include_event_json_default": true,
+    "required_authority_acknowledgements": [
+      "read_feedback_events_only",
+      "not_proof_or_evidence",
+      "not_perspective_promotion",
+      "not_work_mutation",
+      "not_execution_authority",
+      "not_codex_execution",
+      "not_github_automation",
+      "not_external_handoff",
+      "not_provider_openai_call",
+      "not_source_fetch",
+      "not_retrieval_rag_execution",
+      "not_product_write",
+      "product_write_lane_parked_by_686"
+    ],
+    "local_react_state_only": true,
+    "loading_state_displayed": true,
+    "empty_state_displayed": true,
+    "success_state_displayed": true,
+    "refusal_state_displayed": true,
+    "validation_failure_state_displayed": true,
+    "duplicate_feedback_indication_displayed_without_mutation": true
+  },
+  "display_policy": {
+    "labels_feedback_as_operator_input_only": true,
+    "labels_not_proof_or_evidence": true,
+    "labels_not_perspective_state": true,
+    "labels_not_work_status": true,
+    "labels_not_retrieval_rag_result": true,
+    "labels_not_product_write": true
+  },
+  "validation_mode": {
+    "static_source_validation_only": true,
+    "app_server_started_now": false,
+    "browser_ui_used_now": false,
+    "safe_mock_harness_used_now": false
+  },
+  "authority_boundary": {
+    "browser_validation_added_now": true,
+    "route_changed_now": false,
+    "feedback_events_written_now": false,
+    "browser_request_executed_in_smoke_now": false,
+    "production_db_used_in_smoke_now": false,
+    "proof_or_evidence_record": false,
+    "perspective_promotion": false,
+    "work_mutation": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "recommendation_status": "ready_for_feedback_event_aggregation_read_model_contract_v0_1",
+  "next_recommended_slice": "feedback_event_aggregation_read_model_contract_v0_1",
+  "validation_fingerprint": "fnv1a32:0050dad1",
+  "fingerprint_algorithm": "fnv1a32_canonical_json"
+}

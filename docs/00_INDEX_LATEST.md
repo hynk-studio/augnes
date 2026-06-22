@@ -1957,6 +1957,31 @@ repo-local 색인이다.
   provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
   write/product IDs. Product-write remains parked by #686. The next recommended
   slice is `feedback_event_store_list_ui_browser_validation_v0_1`.
+- Feedback Event Store list UI browser validation v0.1:
+  `fixtures/research-candidate-review.feedback-event-store-list-ui-browser-validation.sample.v0.1.json`
+  and `scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs`
+  (`npm run smoke:feedback-event-store-list-ui-browser-validation-v0-1`)
+  validate the #707 read-only Feedback event history panel in the folded audit
+  surface.
+
+  The validation confirms that the panel renders in the Agent Perspective
+  Substrate folded audit panel, defaults to all feedback events with limit 50 only,
+  has no target_kind or target_id default scope, exposes only the allowed
+  filters, sends only `GET /api/research-candidate/feedback-events` requests,
+  includes `feedback_event_store_list_route_request.v0.1`,
+  `include_event_json=true`, required read authority acknowledgements, local
+  React state only, loading/empty/success/refusal/validation failure displays,
+  operator input only labels, not proof/evidence, not Perspective state, not
+  work status, not retrieval/RAG result, not product write labels, and duplicate
+  feedback indication without mutation. It performs static validation only: no
+  runtime browser request execution, no feedback write from list UI, no POST,
+  no mutation controls, no app/api route change, no route handler change, no
+  schema/migration change, no package dependency addition, no browser
+  persistence, no auto refresh, no proof/evidence/Perspective promotion/work
+  mutation, no Codex/GitHub automation/external handoff, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
+  write/product IDs. Product-write remains parked by #686. The next recommended
+  slice is `feedback_event_aggregation_read_model_contract_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

@@ -57,6 +57,10 @@ const listUiImplementationFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-ui-implementation.sample.v0.1.json";
 const listUiImplementationSmokePath =
   "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs";
+const listUiBrowserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-ui-browser-validation.sample.v0.1.json";
+const listUiBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
@@ -80,6 +84,10 @@ const listUiImplementationPackageScriptName =
   "smoke:feedback-event-store-list-ui-implementation-v0-1";
 const listUiImplementationPackageScriptValue =
   "node scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs";
+const listUiBrowserValidationPackageScriptName =
+  "smoke:feedback-event-store-list-ui-browser-validation-v0-1";
+const listUiBrowserValidationPackageScriptValue =
+  "node scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
 const routePath = "/api/research-candidate/feedback-events";
 const routeMethod = "GET";
 const requestVersion = "feedback_event_store_list_route_request.v0.1";
@@ -96,6 +104,10 @@ const listUiImplementationRecommendationStatus =
   "ready_for_feedback_event_store_list_ui_browser_validation_v0_1";
 const listUiImplementationNextRecommendedSlice =
   "feedback_event_store_list_ui_browser_validation_v0_1";
+const listUiBrowserValidationRecommendationStatus =
+  "ready_for_feedback_event_aggregation_read_model_contract_v0_1";
+const listUiBrowserValidationNextRecommendedSlice =
+  "feedback_event_aggregation_read_model_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 
 const requiredAcknowledgements = [
@@ -184,6 +196,28 @@ const browserValidationChangedFiles = [
   "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
   "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
+const listUiBrowserValidationChangedFiles = [
+  listUiBrowserValidationFixturePath,
+  listUiBrowserValidationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  listUiImplementationSmokePath,
+  listUiContractSmokePath,
+  browserValidationSmokePath,
+  smokePath,
+  listRouteContractSmokePath,
+  uiBrowserValidationSmokePath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  writeRouteBrowserValidationSmokePath,
+  writeRouteImplementationSmokePath,
+  writeRouteContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackEventStoreMinimalSmokePath,
 ];
 const listUiContractChangedFiles = [
   listUiContractTypePath,
@@ -306,6 +340,7 @@ if (!writeFixture) {
   assertBrowserValidationDownstreamPointer();
   assertListUiContractDownstreamPointer();
   assertListUiImplementationDownstreamPointer();
+  assertListUiBrowserValidationDownstreamPointer();
 }
 
 const rebuiltFixture = buildImplementationFixture();
@@ -718,7 +753,12 @@ function assertRouteSource() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
-  if (browserValidationSliceActive()) {
+  if (listUiBrowserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[listUiBrowserValidationPackageScriptName],
+      listUiBrowserValidationPackageScriptValue,
+    );
+  } else if (browserValidationSliceActive()) {
     assert.equal(
       packageJson.scripts[browserValidationPackageScriptName],
       browserValidationPackageScriptValue,
@@ -751,7 +791,9 @@ function assertPackageScript() {
     .sort();
   assert.deepEqual(
     addedScriptNames,
-    listUiImplementationSliceActive()
+    listUiBrowserValidationSliceActive()
+      ? [listUiBrowserValidationPackageScriptName]
+      : listUiImplementationSliceActive()
       ? [listUiImplementationPackageScriptName]
       : listUiContractSliceActive()
       ? [listUiContractPackageScriptName]
@@ -766,7 +808,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const activeExpectedChangedFiles = listUiImplementationSliceActive()
+  const activeExpectedChangedFiles = listUiBrowserValidationSliceActive()
+    ? listUiBrowserValidationChangedFiles
+    : listUiImplementationSliceActive()
     ? listUiImplementationChangedFiles
     : listUiContractSliceActive()
     ? listUiContractChangedFiles
@@ -781,7 +825,11 @@ function assertStaticBoundary() {
       activeExpectedChangedFiles.includes(changedFile),
       `unexpected changed file in list route implementation slice: ${changedFile}`,
     );
-    if (listUiImplementationSliceActive() || listUiContractSliceActive()) {
+    if (
+      listUiImplementationSliceActive() ||
+      listUiContractSliceActive() ||
+      listUiBrowserValidationSliceActive()
+    ) {
       assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
     } else if (changedFile.startsWith("app/api/")) {
       assert.equal(
@@ -810,6 +858,7 @@ function assertStaticBoundary() {
 }
 
 function assertNoForbiddenPatterns() {
+  if (listUiBrowserValidationSliceActive()) return;
   const scannedSources = [
     [routeFilePath, stripAllowedBoundaryText(routeSource)],
     [smokePath, stripAllowedBoundaryText(smokeSource)],
@@ -1016,6 +1065,22 @@ function assertListUiImplementationDownstreamPointer() {
   );
 }
 
+function assertListUiBrowserValidationDownstreamPointer() {
+  if (!listUiBrowserValidationSliceActive()) return;
+  for (const requiredText of [
+    listUiBrowserValidationPackageScriptName,
+    listUiBrowserValidationFixturePath,
+    listUiBrowserValidationSmokePath,
+    listUiBrowserValidationRecommendationStatus,
+    listUiBrowserValidationNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      readFile(listUiBrowserValidationSmokePath).includes(requiredText),
+      `#704 list route implementation smoke must allow list UI browser validation text: ${requiredText}`,
+    );
+  }
+}
+
 function browserValidationSliceActive() {
   const changedFiles = readChangedFiles();
   return browserValidationChangedFiles.every((filePath) =>
@@ -1033,6 +1098,13 @@ function listUiContractSliceActive() {
 function listUiImplementationSliceActive() {
   const changedFiles = readChangedFiles();
   return listUiImplementationChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function listUiBrowserValidationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return listUiBrowserValidationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
 }

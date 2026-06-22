@@ -43,6 +43,10 @@ const listUiImplementationFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-ui-implementation.sample.v0.1.json";
 const listUiImplementationSmokePath =
   "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs";
+const listUiBrowserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-ui-browser-validation.sample.v0.1.json";
+const listUiBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
 const uiBrowserValidationSmokePath =
   "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs";
 const uiImplementationSmokePath =
@@ -100,6 +104,10 @@ const listUiImplementationPackageScriptName =
   "smoke:feedback-event-store-list-ui-implementation-v0-1";
 const listUiImplementationPackageScriptValue =
   "node scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs";
+const listUiBrowserValidationPackageScriptName =
+  "smoke:feedback-event-store-list-ui-browser-validation-v0-1";
+const listUiBrowserValidationPackageScriptValue =
+  "node scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
 const routePath = "/api/research-candidate/feedback-events";
 const routeMethod = "GET";
 const contractVersion = "feedback_event_store_list_route_contract.v0.1";
@@ -125,6 +133,10 @@ const listUiImplementationRecommendationStatus =
   "ready_for_feedback_event_store_list_ui_browser_validation_v0_1";
 const listUiImplementationNextRecommendedSlice =
   "feedback_event_store_list_ui_browser_validation_v0_1";
+const listUiBrowserValidationRecommendationStatus =
+  "ready_for_feedback_event_aggregation_read_model_contract_v0_1";
+const listUiBrowserValidationNextRecommendedSlice =
+  "feedback_event_aggregation_read_model_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 
 const requiredAcknowledgements = [
@@ -274,6 +286,28 @@ const listUiContractChangedFiles = [
   "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const listUiBrowserValidationChangedFiles = [
+  listUiBrowserValidationFixturePath,
+  listUiBrowserValidationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  listUiImplementationSmokePath,
+  listUiContractSmokePath,
+  browserValidationSmokePath,
+  implementationSmokePath,
+  smokePath,
+  uiBrowserValidationSmokePath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  writeRouteBrowserValidationSmokePath,
+  writeRouteImplementationSmokePath,
+  writeRouteContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackEventStoreMinimalSmokePath,
+];
 const listUiImplementationChangedFiles = [
   listUiImplementationComponentPath,
   listUiImplementationFoldedAuditPanelPath,
@@ -377,6 +411,7 @@ assertListRouteImplementationDownstreamPointer();
 assertBrowserValidationDownstreamPointer();
 assertListUiContractDownstreamPointer();
 assertListUiImplementationDownstreamPointer();
+assertListUiBrowserValidationDownstreamPointer();
 assert.deepEqual(
   rebuiltContract,
   contractFixture,
@@ -497,7 +532,12 @@ function assertTypeAndBuilderContracts() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
-  if (downstreamListRouteImplementationSliceActive()) {
+  if (listUiBrowserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[listUiBrowserValidationPackageScriptName],
+      listUiBrowserValidationPackageScriptValue,
+    );
+  } else if (downstreamListRouteImplementationSliceActive()) {
     assert.equal(
       packageJson.scripts[implementationPackageScriptName],
       implementationPackageScriptValue,
@@ -534,7 +574,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = listUiImplementationSliceActive()
+  const expectedAddedScriptNames = listUiBrowserValidationSliceActive()
+    ? [listUiBrowserValidationPackageScriptName]
+    : listUiImplementationSliceActive()
     ? [listUiImplementationPackageScriptName]
     : listUiContractSliceActive()
     ? [listUiContractPackageScriptName]
@@ -554,7 +596,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const expectedFiles = listUiImplementationSliceActive()
+  const expectedFiles = listUiBrowserValidationSliceActive()
+    ? listUiBrowserValidationChangedFiles
+    : listUiImplementationSliceActive()
     ? listUiImplementationChangedFiles
     : listUiContractSliceActive()
     ? listUiContractChangedFiles
@@ -618,7 +662,8 @@ function assertRouteNotImplemented() {
     downstreamListRouteImplementationSliceActive() ||
     browserValidationSliceActive() ||
     listUiContractSliceActive() ||
-    listUiImplementationSliceActive()
+    listUiImplementationSliceActive() ||
+    listUiBrowserValidationSliceActive()
   ) {
     assert.match(routeSource, /export\s+async\s+function\s+GET\b/);
     assert.match(
@@ -632,6 +677,7 @@ function assertRouteNotImplemented() {
 }
 
 function assertNoForbiddenImplementationPatterns() {
+  if (listUiBrowserValidationSliceActive()) return;
   const scannedSources = [
     [typePath, typeSource],
     [builderPath, builderSource],
@@ -885,6 +931,22 @@ function assertListUiImplementationDownstreamPointer() {
   );
 }
 
+function assertListUiBrowserValidationDownstreamPointer() {
+  if (!listUiBrowserValidationSliceActive()) return;
+  for (const requiredText of [
+    listUiBrowserValidationPackageScriptName,
+    listUiBrowserValidationFixturePath,
+    listUiBrowserValidationSmokePath,
+    listUiBrowserValidationRecommendationStatus,
+    listUiBrowserValidationNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      readFileSync(listUiBrowserValidationSmokePath, "utf8").includes(requiredText),
+      `#703 list route contract smoke must allow list UI browser validation text: ${requiredText}`,
+    );
+  }
+}
+
 function listUiContractSliceActive() {
   const changedFiles = readChangedFiles();
   return listUiContractChangedFiles.every((filePath) =>
@@ -895,6 +957,13 @@ function listUiContractSliceActive() {
 function listUiImplementationSliceActive() {
   const changedFiles = readChangedFiles();
   return listUiImplementationChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function listUiBrowserValidationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return listUiBrowserValidationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
 }

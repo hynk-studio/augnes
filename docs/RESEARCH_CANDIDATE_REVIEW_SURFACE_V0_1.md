@@ -857,6 +857,34 @@ state, and allocates no product IDs. Product-write remains parked by the #686
 stopline. Next recommended slice:
 `feedback_event_store_list_ui_browser_validation_v0_1`.
 
+## Feedback Event Store list UI browser validation v0.1 Pointer
+
+Feedback Event Store list UI browser validation v0.1 validates the #707
+read-only Feedback event history panel in the folded audit surface. It confirms
+the panel renders with `FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT`, defaults to all
+feedback events with limit 50 only, has no target_kind or target_id default
+scope, exposes only allowed filters, uses `GET
+/api/research-candidate/feedback-events`, includes
+`feedback_event_store_list_route_request.v0.1`, includes
+`include_event_json=true`, and includes required read authority
+acknowledgements.
+
+The validation confirms local React state only, loading/empty/success/refusal
+and validation failure display paths, operator input only labels, not
+proof/evidence, not Perspective state, not work status, not retrieval/RAG
+result, not product write labels, and duplicate feedback indication without
+mutation. No feedback write from list UI is available. It performs static
+validation only and does not execute a runtime browser request.
+
+No POST, delete/edit/update/retry/write controls, app/api route change, route
+handler change, server action, schema/migration change, package dependency
+addition, browser persistence, auto refresh, proof/evidence write, Perspective
+promotion, work mutation, provider/OpenAI call, source fetch, retrieval/RAG
+execution, Codex/GitHub automation, external handoff, agent routing, product
+write, product DB write, or product ID allocation is added. Product-write
+remains parked by the #686 stopline. Next recommended slice:
+`feedback_event_aggregation_read_model_contract_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
