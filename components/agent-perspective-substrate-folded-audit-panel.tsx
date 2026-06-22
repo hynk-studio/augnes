@@ -1,8 +1,10 @@
 "use client";
 
 import { FeedbackEventControls } from "@/components/feedback-event-controls";
+import { FeedbackEventStoreListPanel } from "@/components/feedback-event-store-list-panel";
 import agentPerspectiveSubstratePreviewFixture from "@/fixtures/agent-perspective-substrate-preview.sample.v0.1.json";
 import feedbackEventControlsUiContractFixture from "@/fixtures/research-candidate-review.feedback-event-controls-ui-contract.sample.v0.1.json";
+import feedbackEventStoreListUiContractFixture from "@/fixtures/research-candidate-review.feedback-event-store-list-ui-contract.sample.v0.1.json";
 import type {
   AgentPerspectiveRulePreviewGroup,
   AgentPerspectiveSubstratePreview,
@@ -14,6 +16,7 @@ import type {
   FeedbackEventControlUiRequestPreview,
   FeedbackEventControlsUiContract,
 } from "@/types/feedback-event-controls-ui-contract";
+import type { FeedbackEventStoreListUiContract } from "@/types/feedback-event-store-list-ui-contract";
 import { useMemo, useState } from "react";
 
 type AgentPerspectiveSubstrateFoldedAuditPanelProps = {
@@ -36,6 +39,8 @@ const FEEDBACK_EVENT_ROUTE_METHOD = "POST";
 const FEEDBACK_EVENT_REQUEST_VERSION = "feedback_event_write_route_request.v0.1";
 const FEEDBACK_EVENT_CONTROLS_UI_CONTRACT =
   feedbackEventControlsUiContractFixture as FeedbackEventControlsUiContract;
+const FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT =
+  feedbackEventStoreListUiContractFixture as unknown as FeedbackEventStoreListUiContract;
 const REQUIRED_SECTION_KINDS = [
   "blockers",
   "warnings",
@@ -282,6 +287,15 @@ export function AgentPerspectiveSubstrateFoldedAuditPanel({
           disabledReason="Only source coverage pin feedback is enabled here; other controls remain contract-only."
         />
       </section>
+
+      <FeedbackEventStoreListPanel
+        contract={FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT}
+        initialFilter={{
+          target_kind: "agent_perspective_substrate_folded_section",
+          target_id: "folded_section:source_coverage",
+          limit: 50,
+        }}
+      />
 
       <section className="perspective-inspector-section">
         <h3>Diagnostics</h3>

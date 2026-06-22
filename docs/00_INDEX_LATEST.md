@@ -1939,6 +1939,24 @@ repo-local 색인이다.
   browser persistence, no proof/evidence/Perspective promotion/work mutation,
   no Codex/GitHub automation/external handoff, no provider/OpenAI/source-fetch/retrieval/RAG execution, and no product write/product IDs. Product-write remains parked by #686. The next recommended slice is
   `feedback_event_store_list_ui_implementation_v0_1`.
+- Feedback Event Store list UI implementation v0.1:
+  `components/feedback-event-store-list-panel.tsx`,
+  `components/agent-perspective-substrate-folded-audit-panel.tsx`,
+  `fixtures/research-candidate-review.feedback-event-store-list-ui-implementation.sample.v0.1.json`,
+  and `scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs`
+  (`npm run smoke:feedback-event-store-list-ui-implementation-v0-1`) implement
+  a read-only feedback event history panel in the folded audit surface.
+
+  The panel can issue a GET-only browser request to feedback event list route
+  `GET /api/research-candidate/feedback-events` with the list UI contract
+  acknowledgements and allowed filters. It adds no feedback write from list UI,
+  no app/api route change, no route handler change, no server action, no
+  schema/migration change, no package dependency addition, no browser
+  persistence, no auto refresh, no proof/evidence/Perspective promotion/work
+  mutation, no Codex/GitHub automation/external handoff, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
+  write/product IDs. Product-write remains parked by #686. The next recommended
+  slice is `feedback_event_store_list_ui_browser_validation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

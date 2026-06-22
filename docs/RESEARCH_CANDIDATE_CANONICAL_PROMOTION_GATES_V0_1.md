@@ -559,6 +559,23 @@ source fetch, and creates no proof/evidence/Perspective/work/product durable
 state. Product-write remains parked by the #686 stopline. Next recommended
 slice: `feedback_event_store_list_ui_implementation_v0_1`.
 
+Feedback Event Store list UI implementation v0.1 preserves canonical promotion
+gates while adding a read-only feedback event history panel. It reads durable
+feedback events only through `GET /api/research-candidate/feedback-events` and
+labels feedback as operator input only, not proof/evidence, not Perspective
+state, not work status, not retrieval result, and not product write.
+
+The list UI implementation is not source of truth, not proof/evidence, not
+Perspective promotion, not work mutation, not feedback mutation, not execution
+authority, not retrieval/RAG execution, not agent routing, not Codex execution,
+not GitHub automation, not external handoff, and not product write authority.
+No feedback write from list UI is available. It changes no app/api route, route
+handler, server action, schema, migration, package dependency, or browser
+persistence, performs no provider/OpenAI call or source fetch, and creates no
+proof/evidence/Perspective/work/product durable state. Product-write remains
+parked by the #686 stopline. Next recommended slice:
+`feedback_event_store_list_ui_browser_validation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

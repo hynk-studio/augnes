@@ -1,0 +1,108 @@
+{
+  "implementation_kind": "feedback_event_store_list_ui_implementation",
+  "implementation_version": "feedback_event_store_list_ui_implementation.v0.1",
+  "source_list_ui_contract_ref": "feedback_event_store_list_ui_contract.v0.1:fixtures/research-candidate-review.feedback-event-store-list-ui-contract.sample.v0.1.json",
+  "source_list_ui_contract_fingerprint": "fnv1a32:3f1d798f",
+  "source_list_route_browser_validation_ref": "feedback_event_store_list_route_browser_validation.v0.1:fixtures/research-candidate-review.feedback-event-store-list-route-browser-validation.sample.v0.1.json",
+  "source_list_route_implementation_ref": "feedback_event_store_list_route_implementation.v0.1:fixtures/research-candidate-review.feedback-event-store-list-route-implementation.sample.v0.1.json",
+  "source_feedback_event_store_ref": "feedback_event_store.v0.1:fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json",
+  "component_refs": [
+    "components/feedback-event-store-list-panel.tsx",
+    "components/agent-perspective-substrate-folded-audit-panel.tsx"
+  ],
+  "enabled_panel": {
+    "panel_id": "feedback-event-store-list-panel",
+    "route_path": "/api/research-candidate/feedback-events",
+    "route_method": "GET",
+    "request_version": "feedback_event_store_list_route_request.v0.1",
+    "browser_request_available_now": true,
+    "feedback_events_read_available_now": true,
+    "feedback_events_written_now": false,
+    "auto_refresh_allowed_now": false,
+    "browser_persistence_allowed": false
+  },
+  "allowed_filters": [
+    "event_type",
+    "target_kind",
+    "target_id",
+    "created_after",
+    "created_before",
+    "limit"
+  ],
+  "disabled_or_forbidden_filters": [
+    "raw SQL",
+    "raw where clause",
+    "source fetch query",
+    "retrieval/RAG query",
+    "provider query",
+    "product write query",
+    "proof/evidence query",
+    "Perspective promotion query",
+    "work mutation query"
+  ],
+  "state_policy": {
+    "local_component_state_only": true,
+    "browser_persistence_allowed": false,
+    "loading_state_available": true,
+    "empty_state_available": true,
+    "refusal_state_available": true,
+    "duplicate_state_display_available": true,
+    "auto_refresh_allowed_now": false
+  },
+  "display_policy": {
+    "event_fields_displayed": [
+      "event_type",
+      "target_kind",
+      "target_id",
+      "created_at",
+      "reason",
+      "operator_note",
+      "source_ref_ids",
+      "authority_boundary"
+    ],
+    "labels_feedback_as_operator_input_only": true,
+    "labels_not_proof_or_evidence": true,
+    "labels_not_perspective_state": true,
+    "labels_not_work_status": true,
+    "labels_not_retrieval_rag_result": true,
+    "labels_not_product_write": true,
+    "shows_refusal_code": true,
+    "shows_validation_failure_codes": true,
+    "shows_product_write_lane_parked": true
+  },
+  "authority_boundary": {
+    "ui_implemented_now": true,
+    "components_changed_now": true,
+    "route_changed_now": false,
+    "browser_request_available_now": true,
+    "browser_request_executed_in_smoke_now": false,
+    "feedback_events_read_available_now": true,
+    "feedback_events_written_now": false,
+    "production_db_used_in_smoke_now": false,
+    "proof_or_evidence_record": false,
+    "perspective_promotion": false,
+    "work_mutation": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": [],
+    "static_source_validation_only": true,
+    "app_server_started_now": false,
+    "browser_request_executed_now": false,
+    "production_db_used_now": false
+  },
+  "recommendation_status": "ready_for_feedback_event_store_list_ui_browser_validation_v0_1",
+  "next_recommended_slice": "feedback_event_store_list_ui_browser_validation_v0_1",
+  "implementation_fingerprint": "fnv1a32:12fc27cb",
+  "fingerprint_algorithm": "fnv1a32_canonical_json"
+}

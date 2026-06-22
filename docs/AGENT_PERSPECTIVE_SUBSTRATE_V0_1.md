@@ -453,6 +453,23 @@ handoff, product write, or product ID allocation. Product-write remains parked
 by the #686 stopline. The next recommended slice after the list UI contract is
 `feedback_event_store_list_ui_implementation_v0_1`.
 
+## Feedback Event Store List UI Implementation v0.1
+
+Feedback Event Store list UI implementation v0.1 adds a read-only feedback event history panel
+to the folded audit surface. The panel uses the existing
+`GET /api/research-candidate/feedback-events` route only and displays durable
+feedback events as operator input only.
+
+No feedback write from list UI is available. The panel does not mutate
+substrate snapshots, create proof/evidence, promote Perspective state, change
+work status, execute retrieval/RAG, call providers/OpenAI, fetch sources,
+automate Codex/GitHub, send external handoffs, route agents, write products, or
+allocate product IDs. It adds no app/api route, route handler, server action,
+schema, migration, package dependency, browser persistence, or auto refresh.
+Product-write remains parked by the #686 stopline. The next recommended slice
+after the list UI implementation is
+`feedback_event_store_list_ui_browser_validation_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_store_list_ui_implementation_v0_1`
+`feedback_event_store_list_ui_browser_validation_v0_1`

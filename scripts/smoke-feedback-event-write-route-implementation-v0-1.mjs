@@ -81,6 +81,12 @@ const listUiContractFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-ui-contract.sample.v0.1.json";
 const listUiContractSmokePath =
   "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs";
+const listUiImplementationComponentPath =
+  "components/feedback-event-store-list-panel.tsx";
+const listUiImplementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-ui-implementation.sample.v0.1.json";
+const listUiImplementationSmokePath =
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs";
 const packageScriptName = "smoke:feedback-event-write-route-implementation-v0-1";
 const packageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs";
@@ -115,6 +121,10 @@ const listUiContractPackageScriptName =
   "smoke:feedback-event-store-list-ui-contract-v0-1";
 const listUiContractPackageScriptValue =
   "node scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs";
+const listUiImplementationPackageScriptName =
+  "smoke:feedback-event-store-list-ui-implementation-v0-1";
+const listUiImplementationPackageScriptValue =
+  "node scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs";
 const recommendationStatus =
   "ready_for_feedback_event_write_route_browser_validation_v0_1";
 const nextRecommendedSlice = "feedback_event_write_route_browser_validation_v0_1";
@@ -150,6 +160,10 @@ const listUiContractRecommendationStatus =
   "ready_for_feedback_event_store_list_ui_implementation_v0_1";
 const listUiContractNextRecommendedSlice =
   "feedback_event_store_list_ui_implementation_v0_1";
+const listUiImplementationRecommendationStatus =
+  "ready_for_feedback_event_store_list_ui_browser_validation_v0_1";
+const listUiImplementationNextRecommendedSlice =
+  "feedback_event_store_list_ui_browser_validation_v0_1";
 const routeMethod = "POST";
 const routeUrl = "/api/research-candidate/feedback-events";
 const authorityBoundaryRefusalCases = [
@@ -532,6 +546,37 @@ const downstreamListUiContractChangedFiles = [
   "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const downstreamListUiImplementationChangedFiles = [
+  listUiImplementationComponentPath,
+  foldedAuditPanelComponentPath,
+  listUiImplementationFixturePath,
+  listUiImplementationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  listUiContractSmokePath,
+  listRouteBrowserValidationSmokePath,
+  listRouteImplementationSmokePath,
+  uiImplementationSmokePath,
+  uiBrowserValidationSmokePath,
+  uiContractSmokePath,
+  listRouteContractSmokePath,
+  feedbackStoreSmokePath,
+  reviewControlsSmokePath,
+  browserValidationSmokePath,
+  contractSmokePath,
+  smokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
 
 const feedbackStoreModule = unwrapModule(
   await import("../lib/research-candidate-review/feedback-event-store.ts"),
@@ -587,6 +632,7 @@ assertListRouteContractDownstreamPointer();
 assertListRouteImplementationDownstreamPointer();
 assertListRouteBrowserValidationDownstreamPointer();
 assertListUiContractDownstreamPointer();
+assertListUiImplementationDownstreamPointer();
 
 const rebuiltFixture = buildImplementationFixture();
 assert.deepEqual(
@@ -622,7 +668,8 @@ function assertRouteSource() {
   if (
     downstreamListRouteImplementationSliceActive() ||
     downstreamListRouteBrowserValidationSliceActive() ||
-    downstreamListUiContractSliceActive()
+    downstreamListUiContractSliceActive() ||
+    downstreamListUiImplementationSliceActive()
   ) {
     assert.match(routeSource, /export\s+async\s+function\s+GET\b/);
     assert.match(routeSource, /handleFeedbackEventStoreListRouteRequest/);
@@ -697,6 +744,12 @@ function assertPackageScript() {
       listUiContractPackageScriptValue,
     );
   }
+  if (downstreamListUiImplementationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[listUiImplementationPackageScriptName],
+      listUiImplementationPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -710,7 +763,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamListUiContractSliceActive()
+  const expectedAddedScriptNames = downstreamListUiImplementationSliceActive()
+    ? [listUiImplementationPackageScriptName]
+    : downstreamListUiContractSliceActive()
     ? [listUiContractPackageScriptName]
     : downstreamListRouteBrowserValidationSliceActive()
     ? [listRouteBrowserValidationPackageScriptName]
@@ -738,7 +793,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const requiredFiles = downstreamListUiContractSliceActive()
+  const requiredFiles = downstreamListUiImplementationSliceActive()
+    ? downstreamListUiImplementationChangedFiles
+    : downstreamListUiContractSliceActive()
     ? downstreamListUiContractChangedFiles
     : downstreamListRouteBrowserValidationSliceActive()
     ? downstreamListRouteBrowserValidationChangedFiles
@@ -767,7 +824,9 @@ function assertStaticBoundary() {
         feedbackStoreSmokePath,
       ]
     : requiredChangedFiles;
-  const allowedFiles = downstreamListUiContractSliceActive()
+  const allowedFiles = downstreamListUiImplementationSliceActive()
+    ? downstreamListUiImplementationChangedFiles
+    : downstreamListUiContractSliceActive()
     ? downstreamListUiContractChangedFiles
     : downstreamListRouteBrowserValidationSliceActive()
     ? downstreamListRouteBrowserValidationChangedFiles
@@ -793,7 +852,14 @@ function assertStaticBoundary() {
     if (changedFile !== routePath) {
       assert.doesNotMatch(changedFile, /^app\/api\//, "must add only the feedback route");
     }
-    if (!downstreamUiImplementationSliceActive()) {
+    if (downstreamListUiImplementationSliceActive()) {
+      if (changedFile.startsWith("components/")) {
+        assert.ok(
+          [listUiImplementationComponentPath, foldedAuditPanelComponentPath].includes(changedFile),
+          `downstream list UI implementation may only change allowed component files: ${changedFile}`,
+        );
+      }
+    } else if (!downstreamUiImplementationSliceActive()) {
       assert.doesNotMatch(changedFile, /^components\//, "must not change components");
     } else if (changedFile.startsWith("components/")) {
       assert.ok(
@@ -1106,6 +1172,37 @@ function assertListUiContractDownstreamPointer() {
   assert.equal(
     listUiContractFixture.next_recommended_slice,
     listUiContractNextRecommendedSlice,
+  );
+  assert.equal(
+    fixture.next_recommended_slice,
+    nextRecommendedSlice,
+    "#698 route implementation fixture output must remain unchanged",
+  );
+}
+
+function assertListUiImplementationDownstreamPointer() {
+  if (!downstreamListUiImplementationSliceActive()) return;
+  const listUiImplementationFixture = readJson(listUiImplementationFixturePath);
+  assert.equal(
+    listUiImplementationFixture.implementation_kind,
+    "feedback_event_store_list_ui_implementation",
+  );
+  assert.equal(listUiImplementationFixture.enabled_panel.route_method, "GET");
+  assert.equal(
+    listUiImplementationFixture.enabled_panel.feedback_events_written_now,
+    false,
+  );
+  assert.equal(
+    listUiImplementationFixture.authority_boundary.route_changed_now,
+    false,
+  );
+  assert.equal(
+    listUiImplementationFixture.recommendation_status,
+    listUiImplementationRecommendationStatus,
+  );
+  assert.equal(
+    listUiImplementationFixture.next_recommended_slice,
+    listUiImplementationNextRecommendedSlice,
   );
   assert.equal(
     fixture.next_recommended_slice,
@@ -1553,6 +1650,13 @@ function downstreamListRouteBrowserValidationSliceActive() {
 function downstreamListUiContractSliceActive() {
   const changedFiles = readChangedFiles();
   return downstreamListUiContractChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function downstreamListUiImplementationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamListUiImplementationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
 }
