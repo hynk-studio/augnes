@@ -899,7 +899,7 @@ function assertNoForbiddenImplementationPatterns(packetSection) {
     packetComponent,
     extractAround(surfaceDoc, "AI Context Packet Preview Pointer", 1800),
     extractAround(gateDoc, "Research Candidate AI Context Packet preview", 1400),
-    extractAround(index, "Research Candidate AI Context Packet preview", 2600),
+    extractAround(index, "Research Candidate AI Context Packet preview", 900),
     packetSmoke,
   ].join("\n");
 

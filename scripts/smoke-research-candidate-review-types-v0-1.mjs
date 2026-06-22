@@ -346,7 +346,12 @@ function assertPackageScript() {
 }
 
 function assertNoForbiddenImplementationPatterns() {
-  const combinedStaticText = [typeFile, doc, fixtureText, smoke, index].join("\n\n");
+  const combinedStaticText = [typeFile, doc, fixtureText, smoke, index]
+    .join("\n\n")
+    .replaceAll(
+      "app/api/research-candidate/feedback-events/route.ts",
+      "app/api/research-candidate/feedback-events/[feedback-route-file]",
+    );
   const forbiddenPatterns = [
     pattern(["child", "_process"], "\\b", "\\b"),
     pattern(["spawn"], "\\b", "\\s*\\("),

@@ -1787,6 +1787,22 @@ repo-local 색인이다.
   execution, and no product write/product IDs. Product-write remains parked by
   #686. The next recommended slice is
   `feedback_event_write_route_implementation_v0_1`.
+- Feedback Event write route implementation v0.1:
+  `app/api/research-candidate/feedback-events/route.ts`,
+  `fixtures/research-candidate-review.feedback-event-write-route-implementation.sample.v0.1.json`,
+  and `scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs`
+  (`npm run smoke:feedback-event-write-route-implementation-v0-1`) implement
+  `POST /api/research-candidate/feedback-events` for Feedback Event Store
+  v0.1 feedback events only. The route validates the #697 request contract,
+  required authority acknowledgements, idempotency, refusal cases, and feedback
+  event shape before writing through the feedback event store helper.
+
+  The route implemented for feedback events only adds no UI/component change,
+  no proof/evidence/Perspective promotion/work mutation, no Codex/GitHub
+  automation/external handoff, no provider/OpenAI/source-fetch/retrieval/RAG
+  execution, and no product write/product IDs. Product-write remains parked by
+  #686. The next recommended slice is
+  `feedback_event_write_route_browser_validation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
