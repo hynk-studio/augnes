@@ -63,6 +63,10 @@ const allowedPackageScriptNames = [
   "smoke:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
   "contracts:research-candidate-single-claim-product-write-preflight-command-envelope-contract-tests-v0-1",
 ];
+const downstreamAllowedPackageScriptNames = [
+  "smoke:research-candidate-single-claim-product-write-preflight-stopline-v0-1",
+  "stopline:research-candidate-single-claim-product-write-preflight-stopline-v0-1",
+];
 const expectedChangedFiles = [
   docsIndexPath,
   casesFixturePath,
@@ -184,6 +188,10 @@ const preflightEnvelopeFixture = readJson(preflightEnvelopeFixturePath);
 const packageJson = readJson(packagePath);
 const docsIndex = readFileSync(docsIndexPath, "utf8").replace(/\s+/g, " ");
 const browserValidator = readFileSync(browserValidatorPath, "utf8");
+const branchPackageAddedScriptNames = readBranchPackageAddedScriptNames();
+const downstreamStoplinePackageOnly =
+  JSON.stringify(branchPackageAddedScriptNames) ===
+  JSON.stringify(downstreamAllowedPackageScriptNames);
 
 assertCommittedCaseFixture(casesFixture);
 assertPackageScripts();
@@ -337,7 +345,9 @@ removeOptionalReports();
 const liveRun = runRunner({ label: "non-fixture live static boundary", env: {}, expectPass: true });
 assertReport(liveRun.report, "live report");
 assertContractSuite(liveRun.contractTests, "live contract artifact");
-assertStaticMetadata(liveRun.report, "live report", { expectFallback: false });
+assertStaticMetadata(liveRun.report, "live report", {
+  expectFallback: downstreamStoplinePackageOnly,
+});
 assertNoProductIds(liveRun.report);
 assertNoProductIds(liveRun.contractTests);
 assertNoWriteBoundary(liveRun.contractTests);
@@ -473,10 +483,13 @@ function assertStaticMetadata(report, label, { expectFallback }) {
       `${label} expected changed file missing: ${expectedFile}`,
     );
   }
-  assert.deepEqual(
-    report.static_boundary_package_added_lines_inspected.map(extractScriptName),
-    allowedPackageScriptNames,
-    `${label} package additions must be limited to contract-test scripts`,
+  const addedScriptNames =
+    report.static_boundary_package_added_lines_inspected.map(extractScriptName);
+  assert.ok(
+    [allowedPackageScriptNames, downstreamAllowedPackageScriptNames].some(
+      (allowedNames) => JSON.stringify(addedScriptNames) === JSON.stringify(allowedNames),
+    ),
+    `${label} package additions must be limited to contract-test or downstream stopline scripts`,
   );
   assert.equal(
     report.static_boundary_used_fallback_allowlist,
@@ -882,6 +895,21 @@ function assertNoImplementationRecommendation(value) {
 
 function extractScriptName(line) {
   return line.replace(/^\+\s*/, "").trim().match(/^"([^"]+)"/)?.[1] ?? null;
+}
+
+function readBranchPackageAddedScriptNames() {
+  const mergeBase = spawnSync("git", ["merge-base", "origin/main", "HEAD"], {
+    encoding: "utf8",
+  }).stdout.trim();
+  const diffArgs = mergeBase
+    ? ["diff", "--unified=0", mergeBase, "--", packagePath]
+    : ["diff", "--unified=0", "--", packagePath];
+  const diff = spawnSync("git", diffArgs, { encoding: "utf8" }).stdout;
+  return diff
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"))
+    .map(extractScriptName)
+    .filter(Boolean);
 }
 
 function executableSqlPattern() {

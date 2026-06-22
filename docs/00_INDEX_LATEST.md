@@ -1349,6 +1349,28 @@ repo-local 색인이다.
   implementation. After the stopline, return to PerspectiveGeometryDigest and
   Agent Perspective Substrate work before any durable Perspective promotion or
   product write implementation.
+- Manual note single-claim product write preflight stopline:
+  `lib/research-candidate-review/manual-note-single-claim-product-write-preflight-stopline.ts`,
+  `fixtures/research-candidate-review.manual-note-single-claim-product-write-preflight-stopline.sample.v0.1.json`,
+  `npm run smoke:research-candidate-single-claim-product-write-preflight-stopline-v0-1`,
+  and
+  `npm run stopline:research-candidate-single-claim-product-write-preflight-stopline-v0-1`
+  add a deterministic stopline artifact for the #684/#685 preflight command
+  envelope chain. The stopline parks the product-write preparation lane,
+  preserves the evidence trail, and does not implement product write, persist a
+  command envelope, allocate product IDs, open DB, execute SQL, execute a
+  transaction, enable an adapter, add route/UI behavior, add
+  schema/migration/dependency, or add provider/retrieval/external/browser
+  behavior. Product write remains blocked. The stopline status is
+  `product_write_preflight_stopline_reached`, the recommendation status is
+  `ready_for_perspective_geometry_digest`, the next recommended slice is
+  PerspectiveGeometryDigest Builder v0.1
+  (`perspective_geometry_digest_builder_v0_1`), and the secondary next
+  recommended slice is
+  `agent_perspective_substrate_docs_type_fixture_v0_1`. Any future product
+  write implementation requires explicit reentry conditions and operator
+  decision after PerspectiveGeometryDigest, Agent Perspective Substrate
+  boundary work, and durable promotion review.
 - Manual note preview draft gate explanations lane:
   the promotion readiness preflight gate results now include structured
   operator-facing explanation metadata for every lifecycle, storage, authority,
