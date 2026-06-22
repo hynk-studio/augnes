@@ -820,6 +820,25 @@ handoff sending, no agent routing/execution, no product write, and no product
 ID allocation. Product-write remains parked by the #686 stopline. Next
 recommended slice: `feedback_event_store_list_ui_contract_v0_1`.
 
+## Feedback Event Store list UI contract v0.1 Pointer
+
+Feedback Event Store list UI contract v0.1 is non-executing and non-reading.
+It defines request previews only for a future list panel that may call
+`GET /api/research-candidate/feedback-events` after a separate implementation
+slice. The contract records filter rules, display policy, state policy, error
+display policy, and authority acknowledgement policy without implementing a UI
+component.
+
+No UI component changes yet. No browser request is sent. No feedback event read happens now.
+No feedback event write happens now, and no production DB path is
+opened. The slice changes no app/api route, route handler, server action,
+schema, migration, package dependency, component, browser persistence,
+proof/evidence write, Perspective promotion, work mutation, provider/OpenAI
+call, source fetch, retrieval/RAG execution, Codex/GitHub automation, external
+handoff sending, agent routing/execution, product write, or product ID
+allocation. Product-write remains parked by the #686 stopline. Next
+recommended slice: `feedback_event_store_list_ui_implementation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

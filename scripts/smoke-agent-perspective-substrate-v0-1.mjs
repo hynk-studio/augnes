@@ -50,6 +50,9 @@ const listRouteImplementationPackageScriptNames = [
 const listRouteBrowserValidationPackageScriptNames = [
   "smoke:feedback-event-store-list-route-browser-validation-v0-1",
 ];
+const listUiContractPackageScriptNames = [
+  "smoke:feedback-event-store-list-ui-contract-v0-1",
+];
 const listRouteContractTypePath =
   "types/feedback-event-store-list-route-contract.ts";
 const listRouteContractBuilderPath =
@@ -664,6 +667,7 @@ function assertPackageScript() {
       listRouteContractPackageScriptNames,
       listRouteImplementationPackageScriptNames,
       listRouteBrowserValidationPackageScriptNames,
+      listUiContractPackageScriptNames,
     ].some((scriptNames) => JSON.stringify(addedScriptNames) === JSON.stringify(scriptNames)),
     `package additions must only include substrate or downstream preview/panel/AI-context-upgrade/handoff-draft/review/operator-decision smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
