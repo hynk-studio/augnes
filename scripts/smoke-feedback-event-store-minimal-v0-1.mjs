@@ -64,6 +64,10 @@ const uiImplementationFixturePath =
   "fixtures/research-candidate-review.feedback-event-controls-ui-implementation.sample.v0.1.json";
 const uiImplementationSmokePath =
   "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
+const uiBrowserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-controls-ui-browser-validation.sample.v0.1.json";
+const uiBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs";
 
 const packageScriptName = "smoke:feedback-event-store-minimal-v0-1";
 const packageScriptValue = `node ${smokePath}`;
@@ -88,6 +92,10 @@ const uiImplementationPackageScriptName =
   "smoke:feedback-event-controls-ui-implementation-v0-1";
 const uiImplementationPackageScriptValue =
   "node scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
+const uiBrowserValidationPackageScriptName =
+  "smoke:feedback-event-controls-ui-browser-validation-v0-1";
+const uiBrowserValidationPackageScriptValue =
+  "node scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs";
 const previousSlice = "feedback_event_store_minimal_v0_1";
 const nextRecommendedSlice =
   "feedback_event_store_review_controls_preview_v0_1";
@@ -115,6 +123,10 @@ const uiImplementationNextRecommendedSlice =
   "feedback_event_controls_ui_browser_validation_v0_1";
 const uiImplementationRecommendationStatus =
   "ready_for_feedback_event_controls_ui_browser_validation_v0_1";
+const uiBrowserValidationNextRecommendedSlice =
+  "feedback_event_store_list_route_contract_v0_1";
+const uiBrowserValidationRecommendationStatus =
+  "ready_for_feedback_event_store_list_route_contract_v0_1";
 const requiredEventTypes = [
   "dismiss_preview",
   "pin_preview",
@@ -321,6 +333,31 @@ const downstreamUiImplementationAllowedChangedFiles = [
   "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const downstreamUiBrowserValidationChangedFiles = [
+  uiBrowserValidationSmokePath,
+  uiBrowserValidationFixturePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  browserValidationSmokePath,
+  routeImplementationSmokePath,
+  routeContractSmokePath,
+  reviewControlsSmokePath,
+  smokePath,
+  operatorDecisionSmokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
 
 for (const filePath of [
   typePath,
@@ -485,6 +522,12 @@ function assertTypeAndHelperContracts() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  if (downstreamUiBrowserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[uiBrowserValidationPackageScriptName],
+      uiBrowserValidationPackageScriptValue,
+    );
+  }
   if (downstreamRouteImplementationSliceActive()) {
     assert.equal(
       packageJson.scripts[routeImplementationPackageScriptName],
@@ -534,7 +577,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamUiImplementationSliceActive()
+  const expectedAddedScriptNames = downstreamUiBrowserValidationSliceActive()
+    ? [uiBrowserValidationPackageScriptName]
+    : downstreamUiImplementationSliceActive()
     ? [uiImplementationPackageScriptName]
     : downstreamUiContractSliceActive()
     ? [uiContractPackageScriptName]
@@ -566,7 +611,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const requiredFiles = downstreamUiImplementationSliceActive()
+  const requiredFiles = downstreamUiBrowserValidationSliceActive()
+    ? downstreamUiBrowserValidationChangedFiles
+    : downstreamUiImplementationSliceActive()
     ? downstreamUiImplementationRequiredChangedFiles
     : downstreamUiContractSliceActive()
     ? downstreamUiContractRequiredChangedFiles
@@ -579,7 +626,9 @@ function assertStaticBoundary() {
     : downstreamReviewControlsSliceActive()
     ? downstreamReviewControlsRequiredChangedFiles
     : expectedChangedFiles;
-  const allowedFiles = downstreamUiImplementationSliceActive()
+  const allowedFiles = downstreamUiBrowserValidationSliceActive()
+    ? downstreamUiBrowserValidationChangedFiles
+    : downstreamUiImplementationSliceActive()
     ? downstreamUiImplementationAllowedChangedFiles
     : downstreamUiContractSliceActive()
     ? downstreamUiContractAllowedChangedFiles
@@ -742,7 +791,8 @@ function assertSchemaAddition() {
     downstreamRouteImplementationSliceActive() ||
     downstreamBrowserValidationSliceActive() ||
     downstreamUiContractSliceActive() ||
-    downstreamUiImplementationSliceActive()
+    downstreamUiImplementationSliceActive() ||
+    downstreamUiBrowserValidationSliceActive()
   ) {
     assert.equal(
       addedSchemaLines.trim(),
@@ -1285,6 +1335,13 @@ function downstreamUiContractSliceActive() {
 function downstreamUiImplementationSliceActive() {
   const changedFiles = readChangedFiles();
   return downstreamUiImplementationRequiredChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function downstreamUiBrowserValidationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamUiBrowserValidationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
 }

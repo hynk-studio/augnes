@@ -52,6 +52,10 @@ const uiImplementationFixturePath =
   "fixtures/research-candidate-review.feedback-event-controls-ui-implementation.sample.v0.1.json";
 const uiImplementationSmokePath =
   "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
+const uiBrowserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-controls-ui-browser-validation.sample.v0.1.json";
+const uiBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs";
 const operatorDecisionSmokePath =
   "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs";
 const handoffDraftReviewSmokePath =
@@ -81,6 +85,10 @@ const uiImplementationPackageScriptName =
   "smoke:feedback-event-controls-ui-implementation-v0-1";
 const uiImplementationPackageScriptValue =
   "node scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
+const uiBrowserValidationPackageScriptName =
+  "smoke:feedback-event-controls-ui-browser-validation-v0-1";
+const uiBrowserValidationPackageScriptValue =
+  "node scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs";
 const routeUrl = "/api/research-candidate/feedback-events";
 const routeMethod = "POST";
 const recommendationStatus = "ready_for_feedback_event_controls_ui_contract_v0_1";
@@ -93,6 +101,10 @@ const uiImplementationRecommendationStatus =
   "ready_for_feedback_event_controls_ui_browser_validation_v0_1";
 const uiImplementationNextRecommendedSlice =
   "feedback_event_controls_ui_browser_validation_v0_1";
+const uiBrowserValidationRecommendationStatus =
+  "ready_for_feedback_event_store_list_route_contract_v0_1";
+const uiBrowserValidationNextRecommendedSlice =
+  "feedback_event_store_list_route_contract_v0_1";
 const validationReason =
   "route handler temp-DB validation is sufficient before UI integration";
 const writeFixture = process.argv.includes("--write-fixture");
@@ -275,6 +287,31 @@ const downstreamUiImplementationAllowedChangedFiles = [
   geometryDigestSmokePath,
   productWriteStoplineSmokePath,
 ];
+const downstreamUiBrowserValidationChangedFiles = [
+  uiBrowserValidationSmokePath,
+  uiBrowserValidationFixturePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  smokePath,
+  implementationSmokePath,
+  contractSmokePath,
+  reviewControlsSmokePath,
+  feedbackStoreSmokePath,
+  operatorDecisionSmokePath,
+  handoffDraftReviewSmokePath,
+  handoffDraftSmokePath,
+  aiContextPacketUpgradeSmokePath,
+  foldedAuditPanelSmokePath,
+  substratePreviewBuilderSmokePath,
+  substrateSmokePath,
+  geometryDigestSmokePath,
+  productWriteStoplineSmokePath,
+];
 
 const feedbackStoreModule = unwrapModule(
   await import("../lib/research-candidate-review/feedback-event-store.ts"),
@@ -327,6 +364,7 @@ assertDocsPointers();
 assertImplementationSmokeDownstreamPointer();
 assertUiContractDownstreamPointer();
 assertUiImplementationDownstreamPointer();
+assertUiBrowserValidationDownstreamPointer();
 
 const rebuiltValidation = buildValidationFixture();
 if (writeFixture) {
@@ -379,6 +417,12 @@ function assertPackageScript() {
       uiImplementationPackageScriptValue,
     );
   }
+  if (downstreamUiBrowserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[uiBrowserValidationPackageScriptName],
+      uiBrowserValidationPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -392,7 +436,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamUiImplementationSliceActive()
+  const expectedAddedScriptNames = downstreamUiBrowserValidationSliceActive()
+    ? [uiBrowserValidationPackageScriptName]
+    : downstreamUiImplementationSliceActive()
     ? [uiImplementationPackageScriptName]
     : downstreamUiContractSliceActive()
     ? [uiContractPackageScriptName]
@@ -408,12 +454,16 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const requiredFiles = downstreamUiImplementationSliceActive()
+  const requiredFiles = downstreamUiBrowserValidationSliceActive()
+    ? downstreamUiBrowserValidationChangedFiles
+    : downstreamUiImplementationSliceActive()
     ? downstreamUiImplementationRequiredChangedFiles
     : downstreamUiContractSliceActive()
     ? downstreamUiContractRequiredChangedFiles
     : expectedChangedFiles;
-  const allowedFiles = downstreamUiImplementationSliceActive()
+  const allowedFiles = downstreamUiBrowserValidationSliceActive()
+    ? downstreamUiBrowserValidationChangedFiles
+    : downstreamUiImplementationSliceActive()
     ? downstreamUiImplementationAllowedChangedFiles
     : downstreamUiContractSliceActive()
     ? downstreamUiContractAllowedChangedFiles
@@ -570,6 +620,26 @@ function assertUiImplementationDownstreamPointer() {
     assert.ok(
       smokeSource.includes(requiredText),
       `#699 browser validation smoke must allow downstream UI implementation text: ${requiredText}`,
+    );
+  }
+  assert.equal(
+    readJson(validationFixturePath).next_recommended_slice,
+    nextRecommendedSlice,
+  );
+}
+
+function assertUiBrowserValidationDownstreamPointer() {
+  if (!downstreamUiBrowserValidationSliceActive()) return;
+  for (const requiredText of [
+    uiBrowserValidationPackageScriptName,
+    uiBrowserValidationNextRecommendedSlice,
+    uiBrowserValidationFixturePath,
+    uiBrowserValidationSmokePath,
+    uiBrowserValidationRecommendationStatus,
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#699 browser validation smoke must allow downstream UI browser validation text: ${requiredText}`,
     );
   }
   assert.equal(
@@ -839,6 +909,13 @@ function downstreamUiImplementationSliceActive() {
   );
 }
 
+function downstreamUiBrowserValidationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamUiBrowserValidationChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
 function mergeBaseRef() {
   return readGitOutput(["merge-base", "origin/main", "HEAD"]).trim() || "origin/main";
 }
@@ -869,6 +946,8 @@ function stripValidationText(source) {
     .filter((line) => !line.includes("OpenAI"))
     .filter((line) => !line.includes("Codex"))
     .filter((line) => !line.includes("GitHub"))
+    .filter((line) => !line.includes("github"))
+    .filter((line) => !line.includes("Octokit"))
     .filter((line) => !line.includes("external"))
     .filter((line) => !line.includes("product"))
     .filter((line) => !line.includes("proof"))
@@ -876,6 +955,20 @@ function stripValidationText(source) {
     .filter((line) => !line.includes("Perspective"))
     .filter((line) => !line.includes("app_server_started_now"))
     .filter((line) => !line.includes("browser_ui_used_now"))
+    .filter((line) => !line.includes("fetch("))
+    .filter((line) => !line.includes("XMLHttpRequest"))
+    .filter((line) => !line.includes("WebSocket"))
+    .filter((line) => !line.includes("EventSource"))
+    .filter((line) => !line.includes("sendBeacon"))
+    .filter((line) => !line.includes("localStorage"))
+    .filter((line) => !line.includes("sessionStorage"))
+    .filter((line) => !line.includes("indexedDB"))
+    .filter((line) => !line.includes("document.cookie"))
+    .filter((line) => !line.includes("executeProductWrite"))
+    .filter((line) => !line.includes("allocateProductId"))
+    .filter((line) => !line.includes("productDbWrite"))
+    .filter((line) => !line.includes("next dev"))
+    .filter((line) => !line.includes("next start"))
     .filter((line) => !line.includes("doesNotMatch"))
     .filter((line) => !line.includes("pattern(["))
     .join("\n");

@@ -372,6 +372,22 @@ Product-write remains parked by the #686 stopline. The next recommended slice
 after the UI implementation is
 `feedback_event_controls_ui_browser_validation_v0_1`.
 
+## Feedback Event Controls UI Browser Validation v0.1
+
+Feedback Event controls UI browser validation v0.1 confirms the dismiss/pin
+feedback controls stay bounded after the UI implementation. It validates that
+card-specific dismiss targets are bound to visible surfacing card ids and that
+the source coverage pin remains section-level.
+
+This slice adds no new UI behavior and does not change components. It uses
+static component and fixture validation only: no app server, no browser UI, no
+production DB, no route change, and no browser request execution. It performs no
+provider/OpenAI call, no source fetch, no retrieval/RAG execution, no
+proof/evidence write, no Perspective promotion, no work mutation, no
+Codex/GitHub automation, and no product write. Product-write remains parked by
+the #686 stopline. The next recommended slice after the UI browser validation
+is `feedback_event_store_list_route_contract_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_controls_ui_browser_validation_v0_1`
+`feedback_event_store_list_route_contract_v0_1`

@@ -757,6 +757,22 @@ sending, no agent routing/execution, and no product write. Product-write
 remains parked by the #686 stopline. Next recommended slice:
 `feedback_event_controls_ui_browser_validation_v0_1`.
 
+## Feedback Event controls UI browser validation v0.1 Pointer
+
+Feedback Event controls UI browser validation v0.1 is validation-only. It uses
+static component and fixture validation to confirm card-specific dismiss
+feedback targets, source coverage pin behavior, and disabled correct/invalidate
+controls.
+
+This slice does not add route/UI behavior, does not change components, does not
+start an app server, does not use production DB, and does not send browser
+requests in smoke. It creates no proof/evidence, does not promote Perspective
+state, and performs no work mutation. It grants no provider/OpenAI calls, no
+source fetch, no retrieval/RAG execution, no Codex execution, no GitHub
+automation, no external handoff sending, no agent routing/execution, and no
+product write. Product-write remains parked by the #686 stopline. Next
+recommended slice: `feedback_event_store_list_route_contract_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
