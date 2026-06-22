@@ -740,6 +740,23 @@ mutation, no agent routing/execution, and no product write. Product-write
 remains parked by the #686 stopline. Next recommended slice:
 `feedback_event_controls_ui_implementation_v0_1`.
 
+## Feedback Event controls UI implementation v0.1 Pointer
+
+Feedback Event controls UI implementation v0.1 is bounded to feedback events
+only. It enables `dismiss_preview` for Agent Perspective Substrate surfacing
+cards and `pin_preview` for the source coverage folded section in the folded
+audit panel.
+
+The controls send browser requests only to
+`POST /api/research-candidate/feedback-events` and write durable feedback events only. `correct_preview` and `invalidate_preview` remain disabled. This
+slice adds no new routes, does not change schema/migrations, does not create
+proof/evidence, does not promote Perspective state, and performs no work
+mutation. It grants no provider/OpenAI calls, no source fetch, no retrieval/RAG
+execution, no Codex execution, no GitHub automation, no external handoff
+sending, no agent routing/execution, and no product write. Product-write
+remains parked by the #686 stopline. Next recommended slice:
+`feedback_event_controls_ui_browser_validation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

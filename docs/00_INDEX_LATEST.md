@@ -1839,6 +1839,22 @@ repo-local 색인이다.
   execution, and no product write/product IDs. Product-write remains parked by
   #686. The next recommended slice is
   `feedback_event_controls_ui_implementation_v0_1`.
+- Feedback Event controls UI implementation v0.1:
+  `components/feedback-event-controls.tsx`,
+  `components/agent-perspective-substrate-folded-audit-panel.tsx`,
+  `fixtures/research-candidate-review.feedback-event-controls-ui-implementation.sample.v0.1.json`,
+  and `scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs`
+  (`npm run smoke:feedback-event-controls-ui-implementation-v0-1`) enables only dismiss/pin controls in folded audit panel surfaces. `dismiss_preview` is
+  available for Agent Perspective Substrate surfacing cards, `pin_preview` is
+  available for the source coverage folded section, and correct/invalidate remain disabled for later stable surfaces.
+
+  The implementation writes durable feedback event only through existing route `POST /api/research-candidate/feedback-events`. This slice adds no new API
+  route, no schema/migration change, no browser persistence, no
+  proof/evidence/Perspective promotion/work mutation, no Codex/GitHub
+  automation/external handoff, no provider/OpenAI/source-fetch/retrieval/RAG
+  execution, and no product write/product IDs. Product-write remains parked by
+  #686. The next recommended slice is
+  `feedback_event_controls_ui_browser_validation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

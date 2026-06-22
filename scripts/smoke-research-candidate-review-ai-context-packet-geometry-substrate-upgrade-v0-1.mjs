@@ -72,6 +72,13 @@ const routeContractFixturePath =
   "fixtures/research-candidate-review.feedback-event-write-route-contract.sample.v0.1.json";
 const routeContractSmokePath =
   "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs";
+const uiImplementationComponentPath = "components/feedback-event-controls.tsx";
+const foldedAuditPanelComponentPath =
+  "components/agent-perspective-substrate-folded-audit-panel.tsx";
+const uiImplementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-controls-ui-implementation.sample.v0.1.json";
+const uiImplementationSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
 
 const packageScriptName =
   "smoke:research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1";
@@ -87,6 +94,9 @@ const downstreamCandidateToCodexHandoffOperatorDecisionPackageScriptNames = [
 ];
 const routeContractPackageScriptNames = [
   "smoke:feedback-event-write-route-contract-v0-1",
+];
+const uiImplementationPackageScriptNames = [
+  "smoke:feedback-event-controls-ui-implementation-v0-1",
 ];
 const nextRecommendedSlice =
   "candidate_to_codex_handoff_draft_geometry_substrate_v0_1";
@@ -638,6 +648,7 @@ function assertPackageScript() {
       ["smoke:feedback-event-write-route-implementation-v0-1"],
       ["smoke:feedback-event-write-route-browser-validation-v0-1"],
       ["smoke:feedback-event-controls-ui-contract-v0-1"],
+      uiImplementationPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include the downstream Candidate-to-Codex handoff draft/review/operator decision smoke script",
   );
@@ -650,6 +661,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (feedbackEventControlsUiImplementationSliceActive(changedFiles)) {
+    assertFeedbackEventControlsUiImplementationChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackEventControlsUiContractSliceActive(changedFiles)) {
     assertFeedbackEventControlsUiContractChangedFiles(changedFiles);
     return;
@@ -708,6 +723,72 @@ function assertStaticBoundary() {
       "must not change schema/db/sql paths",
     );
   }
+}
+
+function feedbackEventControlsUiImplementationSliceActive(changedFiles) {
+  return feedbackEventControlsUiImplementationRequiredChangedFiles().every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function assertFeedbackEventControlsUiImplementationChangedFiles(changedFiles) {
+  const requiredChangedFiles = feedbackEventControlsUiImplementationRequiredChangedFiles();
+  for (const expectedFile of requiredChangedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include downstream UI implementation file: ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      requiredChangedFiles.includes(changedFile),
+      `unexpected changed file in downstream UI implementation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    if (changedFile.startsWith("components/")) {
+      assert.ok(
+        [uiImplementationComponentPath, foldedAuditPanelComponentPath].includes(changedFile),
+        `downstream UI implementation may only change allowed component files: ${changedFile}`,
+      );
+    }
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)(schema|migration|db|sql)\b/i,
+      "must not change schema/db/sql paths",
+    );
+  }
+}
+
+function feedbackEventControlsUiImplementationRequiredChangedFiles() {
+  return [
+    uiImplementationComponentPath,
+    foldedAuditPanelComponentPath,
+    uiImplementationFixturePath,
+    uiImplementationSmokePath,
+    "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+    routeContractSmokePath,
+    "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+    candidateToCodexHandoffOperatorDecisionSmokePath,
+    candidateToCodexHandoffDraftReviewSmokePath,
+    candidateToCodexHandoffDraftSmokePath,
+    foldedAuditPanelSmokePath,
+    previewBuilderSmokePath,
+    substrateSmokePath,
+    geometryDigestSmokePath,
+    "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+  ];
 }
 
 function feedbackEventControlsUiContractSliceActive(changedFiles) {

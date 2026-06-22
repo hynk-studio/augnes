@@ -41,6 +41,13 @@ const uiContractFixturePath =
   "fixtures/research-candidate-review.feedback-event-controls-ui-contract.sample.v0.1.json";
 const uiContractSmokePath =
   "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs";
+const uiImplementationComponentPath = "components/feedback-event-controls.tsx";
+const foldedAuditPanelComponentPath =
+  "components/agent-perspective-substrate-folded-audit-panel.tsx";
+const uiImplementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-controls-ui-implementation.sample.v0.1.json";
+const uiImplementationSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
 const packageScriptName = "smoke:feedback-event-write-route-implementation-v0-1";
 const packageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs";
@@ -51,6 +58,10 @@ const browserValidationPackageScriptValue =
 const uiContractPackageScriptName = "smoke:feedback-event-controls-ui-contract-v0-1";
 const uiContractPackageScriptValue =
   "node scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs";
+const uiImplementationPackageScriptName =
+  "smoke:feedback-event-controls-ui-implementation-v0-1";
+const uiImplementationPackageScriptValue =
+  "node scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
 const recommendationStatus =
   "ready_for_feedback_event_write_route_browser_validation_v0_1";
 const nextRecommendedSlice = "feedback_event_write_route_browser_validation_v0_1";
@@ -62,6 +73,10 @@ const uiContractRecommendationStatus =
   "ready_for_feedback_event_controls_ui_implementation_v0_1";
 const uiContractNextRecommendedSlice =
   "feedback_event_controls_ui_implementation_v0_1";
+const uiImplementationRecommendationStatus =
+  "ready_for_feedback_event_controls_ui_browser_validation_v0_1";
+const uiImplementationNextRecommendedSlice =
+  "feedback_event_controls_ui_browser_validation_v0_1";
 const routeMethod = "POST";
 const routeUrl = "/api/research-candidate/feedback-events";
 const authorityBoundaryRefusalCases = [
@@ -277,6 +292,35 @@ const downstreamUiContractAllowedChangedFiles = [
   "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const downstreamUiImplementationRequiredChangedFiles = [
+  uiImplementationComponentPath,
+  foldedAuditPanelComponentPath,
+  uiImplementationFixturePath,
+  uiImplementationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  uiContractSmokePath,
+  browserValidationSmokePath,
+  smokePath,
+];
+const downstreamUiImplementationAllowedChangedFiles = [
+  ...downstreamUiImplementationRequiredChangedFiles,
+  contractSmokePath,
+  reviewControlsSmokePath,
+  feedbackStoreSmokePath,
+  operatorDecisionSmokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
 
 const feedbackStoreModule = unwrapModule(
   await import("../lib/research-candidate-review/feedback-event-store.ts"),
@@ -326,6 +370,7 @@ assertDocsPointers();
 assertContractSmokeDownstreamPointer();
 assertBrowserValidationDownstreamPointer();
 assertUiContractDownstreamPointer();
+assertUiImplementationDownstreamPointer();
 
 const rebuiltFixture = buildImplementationFixture();
 assert.deepEqual(
@@ -387,6 +432,12 @@ function assertPackageScript() {
       uiContractPackageScriptValue,
     );
   }
+  if (downstreamUiImplementationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[uiImplementationPackageScriptName],
+      uiImplementationPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -400,7 +451,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamUiContractSliceActive()
+  const expectedAddedScriptNames = downstreamUiImplementationSliceActive()
+    ? [uiImplementationPackageScriptName]
+    : downstreamUiContractSliceActive()
     ? [uiContractPackageScriptName]
     : downstreamBrowserValidationSliceActive()
     ? [browserValidationPackageScriptName]
@@ -416,7 +469,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const requiredFiles = downstreamUiContractSliceActive()
+  const requiredFiles = downstreamUiImplementationSliceActive()
+    ? downstreamUiImplementationRequiredChangedFiles
+    : downstreamUiContractSliceActive()
     ? downstreamUiContractRequiredChangedFiles
     : downstreamBrowserValidationSliceActive()
     ? [
@@ -433,7 +488,9 @@ function assertStaticBoundary() {
         feedbackStoreSmokePath,
       ]
     : requiredChangedFiles;
-  const allowedFiles = downstreamUiContractSliceActive()
+  const allowedFiles = downstreamUiImplementationSliceActive()
+    ? downstreamUiImplementationAllowedChangedFiles
+    : downstreamUiContractSliceActive()
     ? downstreamUiContractAllowedChangedFiles
     : allowedChangedFiles;
   for (const requiredFile of requiredFiles) {
@@ -447,7 +504,14 @@ function assertStaticBoundary() {
     if (changedFile !== routePath) {
       assert.doesNotMatch(changedFile, /^app\/api\//, "must add only the feedback route");
     }
-    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    if (!downstreamUiImplementationSliceActive()) {
+      assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    } else if (changedFile.startsWith("components/")) {
+      assert.ok(
+        [uiImplementationComponentPath, foldedAuditPanelComponentPath].includes(changedFile),
+        `downstream UI implementation may only change allowed component files: ${changedFile}`,
+      );
+    }
     assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
     assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
     if (
@@ -588,6 +652,27 @@ function assertUiContractDownstreamPointer() {
     assert.ok(
       smokeSource.includes(requiredText),
       `#698 implementation smoke must allow downstream UI contract text: ${requiredText}`,
+    );
+  }
+  assert.equal(
+    fixture.next_recommended_slice,
+    nextRecommendedSlice,
+    "#698 route implementation fixture output must remain unchanged",
+  );
+}
+
+function assertUiImplementationDownstreamPointer() {
+  if (!downstreamUiImplementationSliceActive()) return;
+  for (const requiredText of [
+    uiImplementationPackageScriptName,
+    uiImplementationNextRecommendedSlice,
+    uiImplementationFixturePath,
+    uiImplementationSmokePath,
+    uiImplementationRecommendationStatus,
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#698 implementation smoke must allow downstream UI implementation text: ${requiredText}`,
     );
   }
   assert.equal(
@@ -994,6 +1079,13 @@ function downstreamBrowserValidationSliceActive() {
 function downstreamUiContractSliceActive() {
   const changedFiles = readChangedFiles();
   return [uiContractFixturePath, uiContractSmokePath].every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function downstreamUiImplementationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamUiImplementationRequiredChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
 }

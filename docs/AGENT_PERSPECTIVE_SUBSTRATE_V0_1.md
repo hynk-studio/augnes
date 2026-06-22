@@ -355,6 +355,23 @@ routing/execution, and no product write. Product-write remains parked by the
 #686 stopline. The next recommended slice after the UI contract is
 `feedback_event_controls_ui_implementation_v0_1`.
 
+## Feedback Event Controls UI Implementation v0.1
+
+Feedback Event controls UI implementation v0.1 lets the folded audit panel
+render feedback controls for dismiss/pin only. `dismiss_preview` is available
+for Agent Perspective Substrate surfacing cards, and `pin_preview` is available
+for the source coverage folded section.
+
+These controls write durable feedback events only through
+`POST /api/research-candidate/feedback-events`. `correct_preview` and
+`invalidate_preview` remain disabled in this slice. The controls do not mutate
+substrate snapshots, proof/evidence, work, Perspective state, agents, handoffs,
+or product write. They perform no provider/OpenAI call, no source fetch, no
+retrieval/RAG execution, no Codex/GitHub automation, and no product write.
+Product-write remains parked by the #686 stopline. The next recommended slice
+after the UI implementation is
+`feedback_event_controls_ui_browser_validation_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_controls_ui_implementation_v0_1`
+`feedback_event_controls_ui_browser_validation_v0_1`
