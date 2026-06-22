@@ -44,6 +44,9 @@ const downstreamCandidateToCodexHandoffDraftReviewPackageScriptNames = [
 const downstreamCandidateToCodexHandoffOperatorDecisionPackageScriptNames = [
   "smoke:research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1",
 ];
+const routeContractPackageScriptNames = [
+  "smoke:feedback-event-write-route-contract-v0-1",
+];
 const downstreamAgentPerspectiveSubstrateLabel =
   "Agent Perspective Substrate v0.1";
 const downstreamAgentPerspectiveSubstrateFoldedAuditPanelLabel =
@@ -72,6 +75,8 @@ const downstreamCandidateToCodexHandoffDraftReviewNextRecommendedSlice =
   "candidate_to_codex_handoff_operator_decision_v0_1";
 const downstreamCandidateToCodexHandoffOperatorDecisionNextRecommendedSlice =
   "feedback_event_store_minimal_v0_1";
+const routeContractNextRecommendedSlice =
+  "feedback_event_write_route_implementation_v0_1";
 const digestVersion = "perspective_geometry_digest.v0.1";
 const digestMode = "research_candidate_overlay_digest";
 const requiredDiagnosticFields = [
@@ -184,6 +189,31 @@ const downstreamCandidateToCodexHandoffDraftChangedFiles = [
   smokePath,
   "scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs",
   "scripts/smoke-research-candidate-review-formation-receipt-v0-1.mjs",
+];
+const downstreamRouteContractRequiredChangedFiles = [
+  "types/feedback-event-write-route-contract.ts",
+  "lib/research-candidate-review/feedback-event-write-route-contract.ts",
+  "fixtures/research-candidate-review.feedback-event-write-route-contract.sample.v0.1.json",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  packagePath,
+  indexPath,
+  surfaceDocPath,
+  gateDocPath,
+  "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  smokePath,
+];
+const downstreamRouteContractAllowedChangedFiles = [
+  ...downstreamRouteContractRequiredChangedFiles,
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
 const downstreamCandidateToCodexHandoffDraftReviewChangedFiles = [
   "types/candidate-to-codex-handoff-draft-review.ts",
@@ -413,6 +443,7 @@ function assertPackageScript() {
       downstreamCandidateToCodexHandoffOperatorDecisionPackageScriptNames,
       ["smoke:feedback-event-store-minimal-v0-1"],
       ["smoke:feedback-event-store-review-controls-preview-v0-1"],
+      routeContractPackageScriptNames,
     ].some((allowedNames) => JSON.stringify(addedScriptNames) === JSON.stringify(allowedNames)),
     `package additions must only include digest or downstream substrate/preview/panel/AI-context-upgrade/handoff-draft/review/operator-decision smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
@@ -461,6 +492,10 @@ function assertDocs() {
 
 function assertStaticScope() {
   const changedFiles = readChangedFiles();
+  if (feedbackEventWriteRouteContractSliceActive(changedFiles)) {
+    assertFeedbackEventWriteRouteContractChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackEventStoreReviewControlsSliceActive(changedFiles)) {
     assertFeedbackEventStoreReviewControlsChangedFiles(changedFiles);
     return;
@@ -544,6 +579,33 @@ function feedbackEventStoreReviewControlsSliceActive(changedFiles) {
   return feedbackEventStoreReviewControlsRequiredChangedFiles().every((filePath) =>
     changedFiles.includes(filePath),
   );
+}
+
+function feedbackEventWriteRouteContractSliceActive(changedFiles) {
+  return downstreamRouteContractRequiredChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function assertFeedbackEventWriteRouteContractChangedFiles(changedFiles) {
+  for (const expectedFile of downstreamRouteContractRequiredChangedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include downstream route contract file: ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      downstreamRouteContractAllowedChangedFiles.includes(changedFile),
+      `unexpected changed file in downstream route contract slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(schema|migration|db|sql)\b/i, "must not change schema/db/sql paths");
+  }
 }
 
 function assertFeedbackEventStoreReviewControlsChangedFiles(changedFiles) {

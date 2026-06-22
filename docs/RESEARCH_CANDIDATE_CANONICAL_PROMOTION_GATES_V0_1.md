@@ -388,6 +388,25 @@ routing/execution, and no product write or product IDs. Product-write remains
 parked by the #686 stopline. Next recommended slice:
 `feedback_event_write_route_contract_v0_1`.
 
+Feedback Event write route contract v0.1 preserves canonical promotion gates
+before any feedback write route implementation. It documents future
+`POST /api/research-candidate/feedback-events` behavior as contract-only
+fixture data, including request, response, refusal, idempotency, and authority
+boundary expectations.
+
+The route contract is not source of truth, not proof/evidence, not
+Perspective promotion, not work mutation, not execution authority, not
+retrieval/RAG execution, not agent routing, not Codex execution, not GitHub
+automation, not external handoff, and not product write authority. The slice
+adds no app/api route, no route handler, no server action, no DB open/write,
+no SQL execution, no schema/migration change, no proof/evidence record, no
+durable Perspective promotion, no work mutation or work item creation, no
+Codex execution, no branch/PR/GitHub automation, no external handoff sending,
+no provider/OpenAI call, no source fetch, no retrieval/RAG execution, no agent
+routing/execution, and no product write or product IDs. Product-write remains
+parked by the #686 stopline. Next recommended slice:
+`feedback_event_write_route_implementation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

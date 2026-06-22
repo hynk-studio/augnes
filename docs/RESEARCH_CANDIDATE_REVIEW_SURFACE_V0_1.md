@@ -672,6 +672,24 @@ no external handoff sending, no agent routing/execution, and no product
 write. Product-write remains parked by the #686 stopline. Next recommended
 slice: `feedback_event_write_route_contract_v0_1`.
 
+## Feedback Event write route contract v0.1 Pointer
+
+Feedback Event write route contract v0.1 is contract-only and documents a future
+`POST /api/research-candidate/feedback-events` write path before
+implementation. It generates
+`fixtures/research-candidate-review.feedback-event-write-route-contract.sample.v0.1.json`
+and is guarded by
+`npm run smoke:feedback-event-write-route-contract-v0-1`.
+
+The route contract documents the future write path but does not implement it.
+No route/API/server action exists yet, no feedback event is persisted from the
+contract, no DB write occurs yet, and no SQL execution occurs. It grants no
+provider/OpenAI calls, no source fetch, no retrieval/RAG execution, no Codex
+execution, no GitHub automation, no external handoff sending, no
+proof/evidence/work/Perspective durable write, no agent routing/execution, and
+no product write. Product-write remains parked by the #686 stopline. Next
+recommended slice: `feedback_event_write_route_implementation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

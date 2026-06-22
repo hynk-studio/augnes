@@ -31,12 +31,26 @@ const previewBuilderSmokePath =
   "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs";
 const substrateSmokePath = "scripts/smoke-agent-perspective-substrate-v0-1.mjs";
 const smokePath = "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs";
+const routeContractTypePath = "types/feedback-event-write-route-contract.ts";
+const routeContractBuilderPath =
+  "lib/research-candidate-review/feedback-event-write-route-contract.ts";
+const routeContractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-write-route-contract.sample.v0.1.json";
+const routeContractSmokePath =
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs";
 
 const packageScriptName =
   "smoke:feedback-event-store-review-controls-preview-v0-1";
 const packageScriptValue = `node ${smokePath}`;
+const routeContractPackageScriptName =
+  "smoke:feedback-event-write-route-contract-v0-1";
+const routeContractPackageScriptValue = `node ${routeContractSmokePath}`;
 const recommendationStatus = "ready_for_feedback_event_write_route_contract_v0_1";
 const nextRecommendedSlice = "feedback_event_write_route_contract_v0_1";
+const routeContractRecommendationStatus =
+  "ready_for_feedback_event_write_route_implementation_v0_1";
+const routeContractNextRecommendedSlice =
+  "feedback_event_write_route_implementation_v0_1";
 const requiredControlKinds = [
   "dismiss_preview",
   "pin_preview",
@@ -66,6 +80,31 @@ const requiredChangedFiles = [
 ];
 const allowedChangedFiles = [
   ...requiredChangedFiles,
+  operatorDecisionSmokePath,
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
+const downstreamRouteContractRequiredChangedFiles = [
+  routeContractTypePath,
+  routeContractBuilderPath,
+  routeContractFixturePath,
+  routeContractSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
+];
+const downstreamRouteContractAllowedChangedFiles = [
+  ...downstreamRouteContractRequiredChangedFiles,
+  minimalSmokePath,
   operatorDecisionSmokePath,
   foldedAuditPanelSmokePath,
   previewBuilderSmokePath,
@@ -116,6 +155,7 @@ assertStaticBoundary();
 assertNoForbiddenImplementationPatterns();
 assertDocsPointers();
 assertMinimalSmokeDownstreamPointer();
+assertRouteContractDownstreamPointer();
 
 const builderModule = await importBuilderModule();
 const rebuiltPreview = builderModule.buildFeedbackEventStoreReviewControlsPreview(
@@ -231,6 +271,12 @@ function assertTypeAndBuilderContracts() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  if (downstreamRouteContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[routeContractPackageScriptName],
+      routeContractPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -244,10 +290,13 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
+  const expectedAddedScriptNames = downstreamRouteContractSliceActive()
+    ? [routeContractPackageScriptName]
+    : [packageScriptName];
   assert.deepEqual(
     addedScriptNames,
-    [packageScriptName],
-    "package additions must only include the review controls preview smoke script",
+    expectedAddedScriptNames,
+    "package additions must only include the active review controls or route contract smoke script",
   );
   assert.doesNotMatch(
     packageAddedLines.join("\n"),
@@ -263,12 +312,18 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of requiredChangedFiles) {
+  const requiredFiles = downstreamRouteContractSliceActive()
+    ? downstreamRouteContractRequiredChangedFiles
+    : requiredChangedFiles;
+  const allowedFiles = downstreamRouteContractSliceActive()
+    ? downstreamRouteContractAllowedChangedFiles
+    : allowedChangedFiles;
+  for (const expectedFile of requiredFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      allowedChangedFiles.includes(changedFile),
+      allowedFiles.includes(changedFile),
       `unexpected changed file in review controls preview slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
@@ -402,6 +457,29 @@ function assertMinimalSmokeDownstreamPointer() {
     sourceFeedbackFixture.next_recommended_slice,
     "feedback_event_store_review_controls_preview_v0_1",
     "#695 feedback event fixture output must remain unchanged",
+  );
+}
+
+function assertRouteContractDownstreamPointer() {
+  if (!downstreamRouteContractSliceActive()) return;
+  for (const requiredText of [
+    routeContractPackageScriptName,
+    routeContractNextRecommendedSlice,
+    routeContractTypePath,
+    routeContractBuilderPath,
+    routeContractFixturePath,
+    routeContractSmokePath,
+    routeContractRecommendationStatus,
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#696 review controls smoke must allow downstream route contract text: ${requiredText}`,
+    );
+  }
+  assert.equal(
+    previewFixture.next_recommended_slice,
+    nextRecommendedSlice,
+    "#696 review controls fixture output must remain unchanged",
   );
 }
 
@@ -614,6 +692,13 @@ function readChangedFiles() {
     .map((line) => line.trim())
     .filter(Boolean)
     .sort();
+}
+
+function downstreamRouteContractSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamRouteContractRequiredChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
 }
 
 function mergeBaseRef() {

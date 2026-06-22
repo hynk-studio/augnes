@@ -293,6 +293,21 @@ Product-write remains parked by the #686 stopline. The next recommended slice
 after the review controls preview is
 `feedback_event_write_route_contract_v0_1`.
 
+## Feedback Event Write Route Contract v0.1
+
+Feedback Event write route contract v0.1 documents future
+`POST /api/research-candidate/feedback-events` behavior as contract-only
+fixture data. It is non-executing and adds no route implementation.
+
+The contract adds no app/api route, no route handler, no server action, no DB
+open, no DB write, no SQL execution, no schema/migration change, and no
+UI/component change. It grants no Codex execution, no GitHub automation, no external
+handoff sending, no provider/OpenAI call, no source fetch, no retrieval/RAG
+execution, no proof/evidence/work/Perspective durable write, no agent
+routing/execution, and no product write. Product-write remains parked by the
+#686 stopline. The next recommended slice after the route contract is
+`feedback_event_write_route_implementation_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_write_route_contract_v0_1`
+`feedback_event_write_route_implementation_v0_1`
