@@ -72,6 +72,14 @@ const listRouteBrowserValidationFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-route-browser-validation.sample.v0.1.json";
 const listRouteBrowserValidationSmokePath =
   "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
+const listUiContractTypePath =
+  "types/feedback-event-store-list-ui-contract.ts";
+const listUiContractBuilderPath =
+  "lib/research-candidate-review/feedback-event-store-list-ui-contract.ts";
+const listUiContractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-ui-contract.sample.v0.1.json";
+const listUiContractSmokePath =
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs";
 const operatorDecisionSmokePath =
   "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs";
 const handoffDraftReviewSmokePath =
@@ -117,6 +125,10 @@ const listRouteBrowserValidationPackageScriptName =
   "smoke:feedback-event-store-list-route-browser-validation-v0-1";
 const listRouteBrowserValidationPackageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
+const listUiContractPackageScriptName =
+  "smoke:feedback-event-store-list-ui-contract-v0-1";
+const listUiContractPackageScriptValue =
+  "node scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs";
 const routeUrl = "/api/research-candidate/feedback-events";
 const routeMethod = "POST";
 const recommendationStatus = "ready_for_feedback_event_controls_ui_contract_v0_1";
@@ -145,6 +157,10 @@ const listRouteBrowserValidationRecommendationStatus =
   "ready_for_feedback_event_store_list_ui_contract_v0_1";
 const listRouteBrowserValidationNextRecommendedSlice =
   "feedback_event_store_list_ui_contract_v0_1";
+const listUiContractRecommendationStatus =
+  "ready_for_feedback_event_store_list_ui_implementation_v0_1";
+const listUiContractNextRecommendedSlice =
+  "feedback_event_store_list_ui_implementation_v0_1";
 const validationReason =
   "route handler temp-DB validation is sufficient before UI integration";
 const writeFixture = process.argv.includes("--write-fixture");
@@ -435,6 +451,36 @@ const downstreamListRouteBrowserValidationChangedFiles = [
   substrateSmokePath,
   productWriteStoplineSmokePath,
 ];
+const downstreamListUiContractChangedFiles = [
+  listUiContractTypePath,
+  listUiContractBuilderPath,
+  listUiContractFixturePath,
+  listUiContractSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  listRouteBrowserValidationSmokePath,
+  listRouteImplementationSmokePath,
+  listRouteContractSmokePath,
+  uiBrowserValidationSmokePath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  smokePath,
+  implementationSmokePath,
+  contractSmokePath,
+  reviewControlsSmokePath,
+  feedbackStoreSmokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
 
 const feedbackStoreModule = unwrapModule(
   await import("../lib/research-candidate-review/feedback-event-store.ts"),
@@ -491,6 +537,7 @@ assertUiBrowserValidationDownstreamPointer();
 assertListRouteContractDownstreamPointer();
 assertListRouteImplementationDownstreamPointer();
 assertListRouteBrowserValidationDownstreamPointer();
+assertListUiContractDownstreamPointer();
 
 const rebuiltValidation = buildValidationFixture();
 if (writeFixture) {
@@ -528,7 +575,8 @@ function assertRouteShape() {
   assert.match(routeSource, /handleFeedbackEventWriteRouteRequest/);
   if (
     downstreamListRouteImplementationSliceActive() ||
-    downstreamListRouteBrowserValidationSliceActive()
+    downstreamListRouteBrowserValidationSliceActive() ||
+    downstreamListUiContractSliceActive()
   ) {
     assert.match(routeSource, /export\s+async\s+function\s+GET\b/);
     assert.match(routeSource, /handleFeedbackEventStoreListRouteRequest/);
@@ -579,6 +627,12 @@ function assertPackageScript() {
       listRouteBrowserValidationPackageScriptValue,
     );
   }
+  if (downstreamListUiContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[listUiContractPackageScriptName],
+      listUiContractPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -592,7 +646,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamListRouteBrowserValidationSliceActive()
+  const expectedAddedScriptNames = downstreamListUiContractSliceActive()
+    ? [listUiContractPackageScriptName]
+    : downstreamListRouteBrowserValidationSliceActive()
     ? [listRouteBrowserValidationPackageScriptName]
     : downstreamListRouteImplementationSliceActive()
     ? [listRouteImplementationPackageScriptName]
@@ -616,7 +672,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const requiredFiles = downstreamListRouteBrowserValidationSliceActive()
+  const requiredFiles = downstreamListUiContractSliceActive()
+    ? downstreamListUiContractChangedFiles
+    : downstreamListRouteBrowserValidationSliceActive()
     ? downstreamListRouteBrowserValidationChangedFiles
     : downstreamListRouteImplementationSliceActive()
     ? downstreamListRouteImplementationChangedFiles
@@ -629,7 +687,9 @@ function assertStaticBoundary() {
     : downstreamUiContractSliceActive()
     ? downstreamUiContractRequiredChangedFiles
     : expectedChangedFiles;
-  const allowedFiles = downstreamListRouteBrowserValidationSliceActive()
+  const allowedFiles = downstreamListUiContractSliceActive()
+    ? downstreamListUiContractChangedFiles
+    : downstreamListRouteBrowserValidationSliceActive()
     ? downstreamListRouteBrowserValidationChangedFiles
     : downstreamListRouteImplementationSliceActive()
     ? downstreamListRouteImplementationChangedFiles
@@ -926,6 +986,28 @@ function assertListRouteBrowserValidationDownstreamPointer() {
   );
 }
 
+function assertListUiContractDownstreamPointer() {
+  if (!downstreamListUiContractSliceActive()) return;
+  const listUiContractFixture = readJson(listUiContractFixturePath);
+  assert.equal(
+    listUiContractFixture.contract_kind,
+    "feedback_event_store_list_ui_contract",
+  );
+  assert.equal(listUiContractFixture.route_method, "GET");
+  assert.equal(listUiContractFixture.ui_implemented_now, false);
+  assert.equal(listUiContractFixture.browser_request_executed_now, false);
+  assert.equal(listUiContractFixture.feedback_events_read_now, false);
+  assert.equal(
+    listUiContractFixture.recommendation_status,
+    listUiContractRecommendationStatus,
+  );
+  assert.equal(
+    listUiContractFixture.next_recommended_slice,
+    listUiContractNextRecommendedSlice,
+  );
+  assert.equal(readJson(validationFixturePath).next_recommended_slice, nextRecommendedSlice);
+}
+
 function buildValidationFixture() {
   let observations;
   withTempDb((db) => {
@@ -1215,6 +1297,13 @@ function downstreamListRouteBrowserValidationSliceActive() {
   );
 }
 
+function downstreamListUiContractSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamListUiContractChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
 function mergeBaseRef() {
   return readGitOutput(["merge-base", "origin/main", "HEAD"]).trim() || "origin/main";
 }
@@ -1268,6 +1357,9 @@ function stripValidationText(source) {
     .filter((line) => !line.includes("productDbWrite"))
     .filter((line) => !line.includes("next dev"))
     .filter((line) => !line.includes("next start"))
+    .filter((line) => !line.includes("gh-pr-command"))
+    .filter((line) => !line.includes("gh\\s+pr"))
+    .filter((line) => !line.includes("gh pr"))
     .filter((line) => !line.includes("doesNotMatch"))
     .filter((line) => !line.includes("pattern(["))
     .join("\n");

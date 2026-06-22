@@ -543,6 +543,22 @@ proof/evidence/Perspective/work/product durable state. Product-write remains
 parked by the #686 stopline. Next recommended slice:
 `feedback_event_store_list_ui_contract_v0_1`.
 
+Feedback Event Store list UI contract v0.1 preserves canonical promotion gates
+while defining request previews only for a future list panel. It is
+non-executing and non-reading: no UI component is implemented, no browser
+request is sent. No feedback event read happens now. No feedback event write
+happens now, no production DB path is opened, and no SQL executes.
+
+The list UI contract is not source of truth, not proof/evidence, not
+Perspective promotion, not work mutation, not feedback mutation, not execution
+authority, not retrieval/RAG execution, not agent routing, not Codex execution,
+not GitHub automation, not external handoff, and not product write authority.
+It changes no app/api route, route handler, server action, schema, migration,
+package dependency, component, browser persistence, provider/OpenAI call, or
+source fetch, and creates no proof/evidence/Perspective/work/product durable
+state. Product-write remains parked by the #686 stopline. Next recommended
+slice: `feedback_event_store_list_ui_implementation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

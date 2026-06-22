@@ -87,6 +87,7 @@ const downstreamAllowedPackageScriptNames = [
   "smoke:feedback-event-store-list-route-contract-v0-1",
   "smoke:feedback-event-store-list-route-implementation-v0-1",
   "smoke:feedback-event-store-list-route-browser-validation-v0-1",
+  "smoke:feedback-event-store-list-ui-contract-v0-1",
 ];
 const expectedChangedFiles = [
   docsIndexPath,

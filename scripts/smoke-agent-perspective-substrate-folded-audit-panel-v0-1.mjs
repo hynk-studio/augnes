@@ -98,6 +98,9 @@ const listRouteImplementationPackageScriptNames = [
 const listRouteBrowserValidationPackageScriptNames = [
   "smoke:feedback-event-store-list-route-browser-validation-v0-1",
 ];
+const listUiContractPackageScriptNames = [
+  "smoke:feedback-event-store-list-ui-contract-v0-1",
+];
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -399,6 +402,7 @@ function assertPackageScript() {
       listRouteContractPackageScriptNames,
       listRouteImplementationPackageScriptNames,
       listRouteBrowserValidationPackageScriptNames,
+      listUiContractPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include the downstream Candidate-to-Codex handoff draft/review/operator decision smoke script",
   );

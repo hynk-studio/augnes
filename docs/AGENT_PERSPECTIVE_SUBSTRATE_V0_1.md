@@ -436,6 +436,23 @@ and no product write. Product-write remains parked by the #686 stopline. The
 next recommended slice after the list route browser validation is
 `feedback_event_store_list_ui_contract_v0_1`.
 
+## Feedback Event Store List UI Contract v0.1
+
+Feedback Event Store list UI contract v0.1 maps future list panel requests for
+`GET /api/research-candidate/feedback-events`. It defines deterministic
+request previews, filter rules, display policy, state policy, error display
+policy, and authority acknowledgement policy for a future UI list panel.
+
+No UI component is implemented yet. No browser request is sent. No feedback event read happens now.
+No feedback event write happens now, and no production
+DB path is opened. The slice changes no app/api route, route handler, server
+action, schema, migration, package dependency, component, browser persistence,
+provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence
+state, Perspective promotion, work mutation, Codex/GitHub automation, external
+handoff, product write, or product ID allocation. Product-write remains parked
+by the #686 stopline. The next recommended slice after the list UI contract is
+`feedback_event_store_list_ui_implementation_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_store_list_ui_contract_v0_1`
+`feedback_event_store_list_ui_implementation_v0_1`

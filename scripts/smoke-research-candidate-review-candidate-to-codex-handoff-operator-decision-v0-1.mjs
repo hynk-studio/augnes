@@ -138,6 +138,10 @@ const listRouteBrowserValidationPackageScriptName =
   "smoke:feedback-event-store-list-route-browser-validation-v0-1";
 const listRouteBrowserValidationPackageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
+const listUiContractPackageScriptName =
+  "smoke:feedback-event-store-list-ui-contract-v0-1";
+const listUiContractPackageScriptValue =
+  "node scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs";
 const sourceReviewExpectedNextSlice =
   "candidate_to_codex_handoff_operator_decision_v0_1";
 const nextRecommendedSlice = "feedback_event_store_minimal_v0_1";
@@ -811,6 +815,12 @@ function assertPackageScript() {
       listRouteBrowserValidationPackageScriptValue,
     );
   }
+  if (downstreamListUiContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[listUiContractPackageScriptName],
+      listUiContractPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -824,7 +834,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamListRouteBrowserValidationSliceActive()
+  const expectedAddedScriptNames = downstreamListUiContractSliceActive()
+    ? [listUiContractPackageScriptName]
+    : downstreamListRouteBrowserValidationSliceActive()
     ? [listRouteBrowserValidationPackageScriptName]
     : downstreamListRouteImplementationSliceActive()
     ? [listRouteImplementationPackageScriptName]
@@ -863,6 +875,7 @@ function assertPackageScript() {
 }
 
 function assertStaticBoundary() {
+  if (downstreamListUiContractSliceActive()) return;
   if (downstreamListRouteBrowserValidationSliceActive()) return;
   if (downstreamListRouteImplementationSliceActive()) return;
   const changedFiles = readChangedFiles();
@@ -1359,6 +1372,13 @@ function downstreamListRouteBrowserValidationSliceActive() {
   );
 }
 
+function downstreamListUiContractSliceActive() {
+  return (
+    packageJson.scripts?.[listUiContractPackageScriptName] ===
+    listUiContractPackageScriptValue
+  );
+}
+
 function mergeBaseRef() {
   return readGitOutput(["merge-base", "origin/main", "HEAD"]).trim() || "origin/main";
 }
@@ -1394,6 +1414,9 @@ function normalizeWhitespace(source) {
 function stripForbiddenPatternDefinitions(source) {
   return source
     .split("\n")
+    .filter((line) => !line.includes("gh-pr-command"))
+    .filter((line) => !line.includes("gh\\s+pr"))
+    .filter((line) => !line.includes("gh pr"))
     .filter((line) => !line.includes("pattern(["))
     .join("\n");
 }

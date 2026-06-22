@@ -1921,6 +1921,24 @@ repo-local 색인이다.
   execution, and no product write/product IDs. Product-write remains parked by
   #686. The next recommended slice is
   `feedback_event_store_list_ui_contract_v0_1`.
+- Feedback Event Store list UI contract v0.1:
+  `types/feedback-event-store-list-ui-contract.ts`,
+  `lib/research-candidate-review/feedback-event-store-list-ui-contract.ts`,
+  `fixtures/research-candidate-review.feedback-event-store-list-ui-contract.sample.v0.1.json`,
+  and `scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs`
+  (`npm run smoke:feedback-event-store-list-ui-contract-v0-1`) define the
+  fixture-backed contract for a future Feedback Event Store list panel.
+
+  This slice is UI contract only. It defines future GET request previews for
+  `GET /api/research-candidate/feedback-events`, display policy, local state
+  policy, error display policy, and authority acknowledgements before any UI
+  list panel implementation. It has no component change yet, no browser request
+  yet, no feedback event read/write now, no production DB open/read/write, no
+  app/api route change, no route handler change, no server action, no SQL
+  execution, no schema/migration change, no package dependency addition, no
+  browser persistence, no proof/evidence/Perspective promotion/work mutation,
+  no Codex/GitHub automation/external handoff, no provider/OpenAI/source-fetch/retrieval/RAG execution, and no product write/product IDs. Product-write remains parked by #686. The next recommended slice is
+  `feedback_event_store_list_ui_implementation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

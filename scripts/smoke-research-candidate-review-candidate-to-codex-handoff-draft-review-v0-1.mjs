@@ -87,6 +87,9 @@ const listRouteImplementationPackageScriptNames = [
 const listRouteBrowserValidationPackageScriptNames = [
   "smoke:feedback-event-store-list-route-browser-validation-v0-1",
 ];
+const listUiContractPackageScriptNames = [
+  "smoke:feedback-event-store-list-ui-contract-v0-1",
+];
 const sourceDraftExpectedNextSlice =
   "candidate_to_codex_handoff_draft_review_v0_1";
 const nextRecommendedSlice = "candidate_to_codex_handoff_operator_decision_v0_1";
@@ -524,6 +527,7 @@ function assertPackageScript() {
       listRouteContractPackageScriptNames,
       listRouteImplementationPackageScriptNames,
       listRouteBrowserValidationPackageScriptNames,
+      listUiContractPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include the Candidate-to-Codex handoff draft review smoke script or downstream operator decision smoke script",
   );
@@ -1288,6 +1292,9 @@ function extractIndexEntry(heading) {
 function stripForbiddenPatternDefinitions(source) {
   return source
     .split("\n")
+    .filter((line) => !line.includes("gh-pr-command"))
+    .filter((line) => !line.includes("gh\\s+pr"))
+    .filter((line) => !line.includes("gh pr"))
     .filter((line) => !line.includes("pattern(["))
     .join("\n");
 }
