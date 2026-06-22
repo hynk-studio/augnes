@@ -1,0 +1,325 @@
+{
+  "decision_preview_kind": "candidate_to_codex_handoff_operator_decision_preview",
+  "decision_preview_version": "candidate_to_codex_handoff_operator_decision.v0.1",
+  "scope": "project:augnes",
+  "as_of": "fixture:research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1",
+  "source_handoff_draft_review_ref": "candidate_to_codex_handoff_draft_review.v0.1:fnv1a32:d9d0275e",
+  "source_handoff_draft_review_fingerprint": "fnv1a32:d9d0275e",
+  "decision_preview_fingerprint": "fnv1a32:70a575e2",
+  "fingerprint_algorithm": "fnv1a32_canonical_json",
+  "operator_decision_required": true,
+  "operator_decision_satisfied_now": false,
+  "operator_decision_status": "operator_decision_required_before_any_codex_or_github_execution",
+  "operator_decision": null,
+  "operator_note": null,
+  "decision_options": [
+    {
+      "option_id": "approve_for_manual_codex_copy_paste_later",
+      "label": "Approve for manual Codex copy/paste later",
+      "meaning": "A human may later choose to manually copy a reviewed handoff into Codex outside this preview; this preview itself grants no execution authority.",
+      "execution_authority_granted_now": false,
+      "github_authority_granted_now": false,
+      "branch_or_pr_authority_granted_now": false,
+      "durable_write_authority_granted_now": false,
+      "product_write_authority_granted_now": false
+    },
+    {
+      "option_id": "request_handoff_revision",
+      "label": "Request handoff revision",
+      "meaning": "A human may ask for a revised handoff preview before any execution discussion.",
+      "execution_authority_granted_now": false,
+      "github_authority_granted_now": false,
+      "branch_or_pr_authority_granted_now": false,
+      "durable_write_authority_granted_now": false,
+      "product_write_authority_granted_now": false
+    },
+    {
+      "option_id": "defer_handoff",
+      "label": "Defer handoff",
+      "meaning": "A human may defer the handoff decision without granting execution or durable write authority.",
+      "execution_authority_granted_now": false,
+      "github_authority_granted_now": false,
+      "branch_or_pr_authority_granted_now": false,
+      "durable_write_authority_granted_now": false,
+      "product_write_authority_granted_now": false
+    },
+    {
+      "option_id": "reject_handoff",
+      "label": "Reject handoff",
+      "meaning": "A human may reject the handoff path without mutating work, state, proof, evidence, Perspective, or product data.",
+      "execution_authority_granted_now": false,
+      "github_authority_granted_now": false,
+      "branch_or_pr_authority_granted_now": false,
+      "durable_write_authority_granted_now": false,
+      "product_write_authority_granted_now": false
+    },
+    {
+      "option_id": "archive_preview",
+      "label": "Archive preview",
+      "meaning": "A human may treat this preview as informational archive material only; no external handoff is sent.",
+      "execution_authority_granted_now": false,
+      "github_authority_granted_now": false,
+      "branch_or_pr_authority_granted_now": false,
+      "durable_write_authority_granted_now": false,
+      "product_write_authority_granted_now": false
+    }
+  ],
+  "required_acknowledgements": [
+    {
+      "acknowledgement_id": "packet_is_not_source_of_truth",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "codex_execution_not_authorized_by_preview",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "github_automation_not_authorized_by_preview",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "branch_pr_creation_not_authorized_by_preview",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "external_handoff_not_sent_by_preview",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "no_provider_openai_call",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "no_source_fetch",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "no_retrieval_rag_execution",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "no_db_sql_transaction",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "no_proof_evidence_work_perspective_write",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "no_product_write_or_product_id_allocation",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "manual_lineage_preserved",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    },
+    {
+      "acknowledgement_id": "unresolved_tensions_preserved",
+      "required": true,
+      "satisfied_now": false,
+      "authority_boundary_notes": [
+        "Acknowledgement is required before any future execution discussion and is not satisfied by this preview."
+      ]
+    }
+  ],
+  "reviewed_readiness_summary": {
+    "review_status": "candidate_to_codex_handoff_draft_review_passed",
+    "recommendation_status": "ready_for_human_operator_handoff_decision",
+    "source_handoff_draft_fingerprint": "fnv1a32:e0fed350",
+    "prompt_review_passed": true,
+    "structured_handoff_review_passed": true,
+    "lineage_review_passed": true,
+    "manual_lineage_review_passed": true,
+    "unresolved_tension_review_passed": true,
+    "source_ref_review_passed": true,
+    "boundary_review_passed": true,
+    "expected_checks_review_passed": true,
+    "stop_conditions_review_passed": true,
+    "product_write_stopline_preserved": true,
+    "review_finding_count": 10,
+    "checklist_pass_count": 16
+  },
+  "execution_blockers": [
+    "operator_decision_missing",
+    "required_acknowledgements_unsatisfied",
+    "codex_execution_not_authorized",
+    "github_automation_not_authorized",
+    "branch_pr_creation_not_authorized",
+    "external_handoff_not_authorized",
+    "source_of_truth_authority_not_granted",
+    "proof_evidence_write_not_authorized",
+    "work_mutation_not_authorized",
+    "perspective_promotion_not_authorized",
+    "provider_openai_call_not_authorized",
+    "source_fetch_not_authorized",
+    "retrieval_rag_execution_not_authorized",
+    "db_sql_transaction_not_authorized",
+    "product_write_not_authorized",
+    "product_id_allocation_not_authorized"
+  ],
+  "source_refs_summary": {
+    "source_ref_count": 9,
+    "source_refs": [
+      "candidate_to_codex_handoff_draft.geometry_substrate.v0.1:fnv1a32:e0fed350",
+      "fixture:product-write-preflight-stopline.686",
+      "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+      "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+      "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+      "fnv1a32:d9d0275e",
+      "fnv1a32:e0fed350",
+      "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+      "source_ref_manual_notes_001"
+    ],
+    "source_ref_review_passed": true,
+    "source_ref_authority_granted": false
+  },
+  "manual_lineage_summary": {
+    "manual_lineage_preserved": true,
+    "manual_ai_context_packet_base_ref": "research_candidate_ai_context_packet.v0.1:manual_parser_output_overlay:fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json",
+    "manual_research_candidate_review_refs": [
+      "fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json",
+      "fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json"
+    ],
+    "manual_formation_receipt_refs": [
+      "research_candidate_formation_receipt.v0.1:manual_parser_output_packet:fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json"
+    ],
+    "manual_lineage_authority_granted": false
+  },
+  "unresolved_tension_summary": {
+    "unresolved_tension_count": 1,
+    "unresolved_tension_review_passed": true,
+    "unresolved_tensions_preserved": true,
+    "unresolved_tensions_not_smoothed_away": true
+  },
+  "stop_condition_summary": {
+    "stop_conditions_count": 15,
+    "stop_conditions_review_passed": true,
+    "stop_conditions_authority": false
+  },
+  "expected_checks_summary": {
+    "expected_checks_count": 5,
+    "expected_checks_review_passed": true,
+    "expected_checks_authorize_execution_now": false
+  },
+  "authority_boundary": {
+    "preview_only": true,
+    "review_only": true,
+    "operator_decision_recorded_now": false,
+    "operator_decision_satisfied_now": false,
+    "can_execute_codex": false,
+    "can_create_branch": false,
+    "can_open_pr": false,
+    "can_call_github": false,
+    "can_send_external_handoff": false,
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_create_work_item": false,
+    "can_execute_agents": false,
+    "can_route_agents": false,
+    "can_call_external_services": false,
+    "can_call_providers_or_openai": false,
+    "can_run_retrieval_or_rag": false,
+    "can_fetch_sources": false,
+    "can_promote_perspective": false,
+    "can_allocate_product_ids": false,
+    "can_execute_product_write": false,
+    "can_open_db": false,
+    "can_execute_sql": false,
+    "can_execute_transaction": false,
+    "can_add_route_or_ui": false,
+    "durable_write_authority": false,
+    "merge_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "lineage": {
+    "source_handoff_draft_review_ref": "candidate_to_codex_handoff_draft_review.v0.1:fnv1a32:d9d0275e",
+    "source_handoff_draft_review_fingerprint": "fnv1a32:d9d0275e",
+    "source_handoff_draft_ref": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1:fnv1a32:e0fed350",
+    "source_handoff_draft_fingerprint": "fnv1a32:e0fed350",
+    "source_ai_context_packet_ref": "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+    "source_ai_context_packet_fingerprint": "fnv1a32:a5c0c33e",
+    "ai_context_packet_base_refs": [
+      "research_candidate_ai_context_packet.v0.1:manual_parser_output_overlay:fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json",
+      "research_candidate_ai_context_packet.v0.1:research_candidate_review_overlay:fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json"
+    ],
+    "manual_ai_context_packet_base_ref": "research_candidate_ai_context_packet.v0.1:manual_parser_output_overlay:fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json",
+    "research_candidate_review_refs": [
+      "fixtures/research-candidate-review.sample.v0.1.json",
+      "fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json"
+    ],
+    "manual_research_candidate_review_refs": [
+      "fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json",
+      "fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json"
+    ],
+    "perspective_geometry_digest_refs": [
+      "perspective_geometry_digest.v0.1:fnv1a32:e1f80cf5",
+      "perspective_geometry_digest.v0.1:fnv1a32:ff21c7dd"
+    ],
+    "agent_perspective_substrate_ref": "agent_perspective_substrate.v0.1:project:augnes:fixture:agent-perspective-substrate.v0.1",
+    "agent_perspective_substrate_preview_ref": "agent_perspective_substrate_preview.v0.1:fnv1a32:3f2fb0db",
+    "cockpit_folded_audit_panel_ref": "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+    "formation_receipt_refs": [
+      "research_candidate_formation_receipt.v0.1:research_candidate_review_packet:fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json"
+    ],
+    "manual_formation_receipt_refs": [
+      "research_candidate_formation_receipt.v0.1:manual_parser_output_packet:fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json"
+    ],
+    "product_write_stopline_ref": "pr:686:manual_note_single_claim_product_write_preflight_stopline"
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "recommendation_status": "ready_for_feedback_event_store_minimal_v0_1",
+  "next_recommended_slice": "feedback_event_store_minimal_v0_1"
+}

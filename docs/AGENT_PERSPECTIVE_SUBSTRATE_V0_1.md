@@ -245,6 +245,23 @@ routing/execution, and no product write. Product-write remains parked by the
 #686 stopline. The next recommended slice after the review is
 `candidate_to_codex_handoff_operator_decision_v0_1`.
 
+## Candidate-to-Codex Handoff Operator Decision Preview v0.1
+
+Candidate-to-Codex handoff operator decision preview v0.1 can consume the
+#693 handoff draft review as advisory input. The operator decision required
+state is explicit, but the decision is not satisfied or recorded by this
+preview.
+
+The operator decision preview remains non-authoritative and preview-only. It
+preserves manual lineage, source refs, unresolved tensions, and the
+product-write stopline while granting no Codex execution, no
+branch/PR/GitHub automation, no external handoff sending, no provider/OpenAI
+call, no source fetch, no retrieval/RAG execution, no DB/SQL/transaction
+behavior, no proof/evidence/work/Perspective durable write, no agent
+routing/execution, and no product write. Product-write remains parked by the
+#686 stopline. The next recommended slice after the preview is
+`feedback_event_store_minimal_v0_1`.
+
 ## Next Recommended Slice
 
-`candidate_to_codex_handoff_operator_decision_v0_1`
+`feedback_event_store_minimal_v0_1`

@@ -290,13 +290,14 @@ compiler with #687 GeometryDigest, #688 Agent Perspective Substrate, #689
 substrate preview, and #690 folded audit panel lineage as advisory input. The
 upgraded packet remains non-authoritative and target-agent-safe: not source of
 truth, proof/evidence, durable Perspective state, execution authority,
-retrieval execution, agent routing, Codex execution, external handoff, product
-write authority, or DB write authority. Manual-note AI Context Packet and
-manual-note Formation Receipt fixtures are included directly in upgraded packet
-lineage while remaining preview-only and non-authoritative. It adds no route/UI behavior, no
-DB/SQL/transaction, no provider/OpenAI call, no source fetch, no retrieval
-execution, no Codex execution, no GitHub automation, no external handoff sending, no proof/evidence write, no work mutation or work item creation, no
-durable Perspective promotion, no MCP/App tool widening, and no product write.
+retrieval/RAG execution, agent routing, Codex execution, external handoff,
+product write authority, or DB write authority. Manual-note AI Context Packet
+and manual-note Formation Receipt fixtures are included directly in upgraded
+packet lineage while remaining preview-only and non-authoritative. It adds no
+route/UI behavior, no DB/SQL/transaction, no provider/OpenAI call, no source
+fetch, no retrieval/RAG execution, no Codex execution, no GitHub automation, no
+external handoff sending, no proof/evidence write, no work mutation or work
+item creation, no durable Perspective promotion, no MCP/App tool widening, and no product write.
 Product-write remains parked by the #686 stopline. Next recommended slice:
 `candidate_to_codex_handoff_draft_geometry_substrate_v0_1`.
 
@@ -307,10 +308,10 @@ a future handoff draft review slice. It preserves GeometryDigest, Agent
 Substrate, folded audit, static/base packet lineage, and manual-note
 packet/receipt lineage while remaining non-authoritative: not source of truth,
 not proof/evidence, not durable Perspective state, not execution authority,
-not retrieval output, not GitHub automation, not external handoff sending, and
-not product write authority. It adds no Codex execution, no branch/PR/GitHub
-automation, no external handoff sending, no provider/OpenAI call, no source
-fetch, no retrieval execution, no DB/SQL/transaction, no proof/evidence
+not retrieval/RAG output, not GitHub automation, not external handoff sending,
+and not product write authority. It adds no Codex execution, no
+branch/PR/GitHub automation, no external handoff sending, no provider/OpenAI
+call, no source fetch, no retrieval/RAG execution, no DB/SQL/transaction, no proof/evidence
 write, no work mutation or work item creation, no durable Perspective
 promotion, no route/UI behavior, no agent routing/execution, and no product
 write. Product-write remains parked by the #686 stopline. Next recommended
@@ -325,15 +326,32 @@ Folded Audit, static/base packet lineage, manual-note packet/receipt lineage,
 source refs, unresolved tensions, and the product-write stopline.
 
 The review artifact is still not source of truth, proof/evidence, durable
-state, execution authority, retrieval execution, agent routing, Codex
+state, execution authority, retrieval/RAG execution, agent routing, Codex
 execution, GitHub automation, external handoff, or product write authority. It
 adds no Codex execution, no branch/PR/GitHub automation, no external handoff
-sending, no provider/OpenAI call, no source fetch, no retrieval execution,
+sending, no provider/OpenAI call, no source fetch, no retrieval/RAG execution,
 no DB/SQL/transaction, no proof/evidence write, no work mutation or work item
 creation, no durable Perspective promotion, no route/UI behavior, no agent
 routing/execution, and no product write. Product-write remains parked by the
 #686 stopline. Next recommended slice:
 `candidate_to_codex_handoff_operator_decision_v0_1`.
+
+Candidate-to-Codex handoff operator decision preview v0.1 preserves canonical
+promotion gates before any future execution discussion. It consumes the #693
+handoff draft review fixture only as advisory input and keeps the operator
+decision required but not satisfied. The preview preserves manual lineage,
+source refs, unresolved tensions, and the product-write stopline.
+
+The operator decision preview is still not source of truth, proof/evidence,
+durable state, execution authority, retrieval/RAG execution, agent routing,
+Codex execution, GitHub automation, external handoff, or product write
+authority. It adds no Codex execution, no branch/PR/GitHub automation, no
+external handoff sending, no provider/OpenAI call, no source fetch, no
+retrieval/RAG execution, no DB/SQL/transaction, no proof/evidence write, no
+work mutation or work item creation, no durable Perspective promotion, no
+route/UI behavior, no agent routing/execution, and no product write.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`feedback_event_store_minimal_v0_1`.
 
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
