@@ -4,6 +4,19 @@
 // proof/evidence, not perspective promotion authority, not durable memory, and
 // not retrieval/RAG.
 
+import type {
+  PerspectiveClusterDigest,
+  PerspectiveContradictionPair,
+  PerspectiveGeometryDiagnostics,
+  PerspectiveGeometryNodeRef,
+  PerspectiveRetrievalExpansionRecommendation,
+} from "@/types/perspective-geometry-digest";
+import type {
+  AgentPerspectiveSourceCoveragePreview,
+  AgentPerspectiveSubstratePreviewSection,
+  AgentPerspectiveSurfacingPreviewCard,
+} from "@/types/agent-perspective-substrate-preview";
+
 export type ResearchCandidateAIContextPacketVersion =
   "research_candidate_ai_context_packet.v0.1";
 
@@ -31,6 +44,104 @@ export interface ResearchCandidateAIContextPacketAuthority {
   sends_handoff: false;
   calls_provider: false;
   performs_retrieval: false;
+}
+
+export type ResearchCandidateAIContextPacketTargetAgent =
+  | "chatgpt_design"
+  | "codex_implementation"
+  | "codex_review"
+  | "mcp_runtime"
+  | "cockpit_ui";
+
+export type ResearchCandidateAIContextPacketGeometrySubstrateMode =
+  "geometry_substrate_advisory_preview";
+
+export interface ResearchCandidateAIContextPacketGeometryContext {
+  geometry_digest_refs: string[];
+  dominant_clusters: PerspectiveClusterDigest[];
+  underrepresented_clusters: PerspectiveClusterDigest[];
+  bridge_nodes: PerspectiveGeometryNodeRef[];
+  contradiction_pairs: PerspectiveContradictionPair[];
+  recommended_retrieval_expansion: PerspectiveRetrievalExpansionRecommendation[];
+  diagnostics: PerspectiveGeometryDiagnostics;
+  layout_coordinates_consumed: false;
+  raw_layout_coordinates_exported: false;
+  geometry_digest_is_authority: false;
+}
+
+export interface ResearchCandidateAIContextPacketAgentSubstrateContext {
+  substrate_ref: string;
+  substrate_preview_ref: string;
+  surfaced_blockers: AgentPerspectiveSurfacingPreviewCard[];
+  surfaced_warnings: AgentPerspectiveSurfacingPreviewCard[];
+  surfaced_notices: AgentPerspectiveSurfacingPreviewCard[];
+  retrieval_hints: AgentPerspectiveSurfacingPreviewCard[];
+  handoff_improvements: AgentPerspectiveSurfacingPreviewCard[];
+  stale_context_notices: AgentPerspectiveSurfacingPreviewCard[];
+  product_write_stopline_reminders: AgentPerspectiveSurfacingPreviewCard[];
+  source_coverage_preview: AgentPerspectiveSourceCoveragePreview;
+  substrate_is_authority: false;
+  preview_is_authority: false;
+}
+
+export interface ResearchCandidateAIContextPacketFoldedAuditContext {
+  folded_panel_available: true;
+  folded_panel_anchor_id: "agent-perspective-substrate-folded-audit-panel";
+  folded_sections: AgentPerspectiveSubstratePreviewSection[];
+  surfacing_card_count: number;
+  blocker_card_count: number;
+  warning_card_count: number;
+  source_ref_coverage_ratio: number;
+  local_ui_state_only: true;
+  durable_feedback_persistence_available: false;
+  route_or_api_available: false;
+}
+
+export interface ResearchCandidateAIContextPacketTargetAgentContext {
+  target_agent: ResearchCandidateAIContextPacketTargetAgent;
+  mode: ResearchCandidateAIContextPacketGeometrySubstrateMode;
+  token_budget: number;
+  allowed_uses: string[];
+  forbidden_actions: string[];
+  stop_conditions: string[];
+  expected_checks: string[];
+  expected_files?: string[];
+}
+
+export interface ResearchCandidateAIContextPacketGeometrySubstrateAuthorityBoundary
+  extends ResearchCandidateAIContextPacketAuthority {
+  proof_or_evidence_record: false;
+  durable_perspective_state: false;
+  retrieval_executed_now: false;
+  provider_called_now: false;
+  source_fetch_executed_now: false;
+  external_handoff_sent_now: false;
+  codex_execution_authorized_now: false;
+  agent_execution_authorized_now: false;
+  product_write_authorized_now: false;
+  product_write_available: false;
+  db_write_available: false;
+  route_or_ui_mutation_available: false;
+}
+
+export interface ResearchCandidateAIContextPacketGeometrySubstrateLineage {
+  research_candidate_review_refs: string[];
+  ai_context_packet_base_ref: string;
+  ai_context_packet_base_refs: string[];
+  manual_ai_context_packet_base_ref: string | null;
+  manual_research_candidate_review_refs: string[];
+  perspective_geometry_digest_refs: string[];
+  agent_perspective_substrate_ref: string;
+  agent_perspective_substrate_preview_ref: string;
+  cockpit_folded_audit_panel_ref: string;
+  formation_receipt_refs: string[];
+  manual_formation_receipt_refs: string[];
+  product_write_stopline_ref: string;
+}
+
+export interface ResearchCandidateAIContextPacketGeometrySubstrateValidationResult {
+  passed: boolean;
+  failure_codes: string[];
 }
 
 export interface ResearchCandidateAIContextPacketSourceOverlayRef {
@@ -153,5 +264,39 @@ export interface ResearchCandidateAIContextPacket {
   authority: ResearchCandidateAIContextPacketAuthority;
 }
 
+export interface ResearchCandidateAIContextPacketGeometrySubstrateUpgrade
+  extends ResearchCandidateAIContextPacket {
+  packet_upgrade_version: "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1";
+  packet_fingerprint: string;
+  fingerprint_algorithm: "fnv1a32_canonical_json";
+  geometry_context: ResearchCandidateAIContextPacketGeometryContext;
+  agent_substrate_context: ResearchCandidateAIContextPacketAgentSubstrateContext;
+  folded_audit_context: ResearchCandidateAIContextPacketFoldedAuditContext;
+  target_agent_context: ResearchCandidateAIContextPacketTargetAgentContext;
+  authority_boundary: ResearchCandidateAIContextPacketGeometrySubstrateAuthorityBoundary;
+  lineage: ResearchCandidateAIContextPacketGeometrySubstrateLineage;
+  validation: ResearchCandidateAIContextPacketGeometrySubstrateValidationResult;
+  next_recommended_slice: "candidate_to_codex_handoff_draft_geometry_substrate_v0_1";
+}
+
+export interface ResearchCandidateAIContextPacketGeometrySubstrateUpgradeInput {
+  baseAiContextPacket: ResearchCandidateAIContextPacket;
+  manualBaseAiContextPacket?: ResearchCandidateAIContextPacket;
+  perspectiveGeometryDigest: unknown;
+  manualPerspectiveGeometryDigest?: unknown;
+  agentPerspectiveSubstrate: unknown;
+  agentPerspectiveSubstratePreview: unknown;
+  formationReceiptPreview?: unknown;
+  manualFormationReceiptPreview?: unknown;
+  target_agent?: ResearchCandidateAIContextPacketTargetAgent;
+  mode?: ResearchCandidateAIContextPacketGeometrySubstrateMode;
+  token_budget?: number;
+  as_of?: string;
+  scope?: string;
+}
+
 export type ResearchCandidateAIContextPacketFixture =
   ResearchCandidateAIContextPacket;
+
+export type ResearchCandidateAIContextPacketGeometrySubstrateUpgradeFixture =
+  ResearchCandidateAIContextPacketGeometrySubstrateUpgrade;

@@ -39,6 +39,10 @@ const cockpitSmokePath =
 const typeSmokePath = "scripts/smoke-research-candidate-review-types-v0-1.mjs";
 const gateSmokePath =
   "scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs";
+const downstreamGeometrySubstrateUpgradePackageScriptName =
+  "smoke:research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1";
+const downstreamGeometrySubstrateUpgradeNextRecommendedSlice =
+  "candidate_to_codex_handoff_draft_geometry_substrate_v0_1";
 
 for (const filePath of [
   receiptTypePath,
@@ -658,6 +662,9 @@ function assertDocsPointers() {
     "cockpit_agent_perspective_substrate_folded_audit_panel_v0_1",
     "Cockpit Agent Perspective Substrate folded audit panel v0.1",
     "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1",
+    "AI Context Packet compiler GeometryDigest/Substrate upgrade v0.1",
+    downstreamGeometrySubstrateUpgradePackageScriptName,
+    downstreamGeometrySubstrateUpgradeNextRecommendedSlice,
   ]) {
     assert.ok(surfaceDoc.includes(requiredText), `surface doc must include ${requiredText}`);
   }
@@ -690,6 +697,8 @@ function assertGatePointer() {
     /cockpit_agent_perspective_substrate_folded_audit_panel_v0_1/i,
     /Cockpit Agent Perspective Substrate folded audit panel v0\.1 preserves\s+canonical promotion gates/i,
     /ai_context_packet_compiler_geometry_substrate_upgrade_v0_1/i,
+    /AI Context Packet compiler GeometryDigest\/Substrate upgrade v0\.1/i,
+    /candidate_to_codex_handoff_draft_geometry_substrate_v0_1/i,
   ]) {
     assert.match(gateDoc, regex, `gate doc must include ${regex}`);
   }

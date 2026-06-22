@@ -26,13 +26,25 @@ const productWriteStoplineSmokePath =
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs";
 const smokePath =
   "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs";
+const aiContextPacketTypePath = "types/research-candidate-ai-context-packet.ts";
+const aiContextPacketBuilderPath =
+  "lib/research-candidate-review/ai-context-packet.ts";
+const aiContextPacketGeometrySubstrateUpgradeFixturePath =
+  "fixtures/research-candidate-review.ai-context-packet.geometry-substrate-upgrade.sample.v0.1.json";
+const aiContextPacketGeometrySubstrateUpgradeSmokePath =
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs";
 
 const packageScriptName =
   "smoke:agent-perspective-substrate-folded-audit-panel-v0-1";
 const packageScriptValue = `node ${smokePath}`;
+const downstreamAIContextPacketGeometrySubstrateUpgradePackageScriptNames = [
+  "smoke:research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1",
+];
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
+const downstreamAIContextPacketGeometrySubstrateUpgradeNextRecommendedSlice =
+  "candidate_to_codex_handoff_draft_geometry_substrate_v0_1";
 const requiredSectionKinds = [
   "blockers",
   "warnings",
@@ -59,6 +71,24 @@ const expectedChangedFiles = [
   formationReceiptSmokePath,
   productWriteStoplineSmokePath,
 ];
+const downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles = [
+  aiContextPacketTypePath,
+  aiContextPacketBuilderPath,
+  aiContextPacketGeometrySubstrateUpgradeFixturePath,
+  aiContextPacketGeometrySubstrateUpgradeSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  aiContextSmokePath,
+  smokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  digestSmokePath,
+  formationReceiptSmokePath,
+  productWriteStoplineSmokePath,
+];
 
 for (const filePath of [
   componentPath,
@@ -75,6 +105,8 @@ for (const filePath of [
   aiContextSmokePath,
   formationReceiptSmokePath,
   productWriteStoplineSmokePath,
+  aiContextPacketTypePath,
+  aiContextPacketBuilderPath,
 ]) {
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
@@ -219,8 +251,8 @@ function assertPackageScript() {
     .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
   assert.deepEqual(
     packageAddedLines.map(extractScriptName).filter(Boolean),
-    [packageScriptName],
-    "package additions must only include the folded audit panel smoke script",
+    downstreamAIContextPacketGeometrySubstrateUpgradePackageScriptNames,
+    "package additions must only include the downstream AI context packet geometry/substrate upgrade smoke script",
   );
   assert.doesNotMatch(
     packageAddedLines.join("\n"),
@@ -231,7 +263,14 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const usesDownstreamAIContextUpgradeDelta =
+    downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles.every((filePath) =>
+      changedFiles.includes(filePath),
+    );
+  const expectedFilesForDelta = usesDownstreamAIContextUpgradeDelta
+    ? downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of expectedFilesForDelta) {
     assert.ok(changedFiles.includes(expectedFile), `missing changed file ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
@@ -246,6 +285,9 @@ function assertStaticBoundary() {
       /(^|\/)(schema|migration|db|sql)\b/i,
       "must not change schema/db/sql paths",
     );
+    if (usesDownstreamAIContextUpgradeDelta) {
+      assert.doesNotMatch(changedFile, /^components\//, "downstream AI context upgrade must not change components");
+    }
   }
 }
 
@@ -337,6 +379,11 @@ function assertDocsPointers() {
     assert.match(doc, /static advisory input|static fixture/i);
     assert.match(doc, /no durable feedback persistence|no feedback persistence/i);
     assert.match(doc, new RegExp(nextRecommendedSlice));
+    assert.match(doc, /AI Context Packet compiler GeometryDigest\/Substrate upgrade v0\.1/);
+    assert.match(
+      doc,
+      new RegExp(downstreamAIContextPacketGeometrySubstrateUpgradeNextRecommendedSlice),
+    );
   }
 }
 
@@ -353,6 +400,14 @@ function assertAdjacentSmokePointers() {
   assert.match(formationReceiptSmoke, /Cockpit Agent Perspective Substrate folded audit panel v0\.1/);
   assert.match(productWriteStoplineSmoke, new RegExp(packageScriptName));
   assert.match(productWriteStoplineSmoke, /product_write_preflight_stopline_reached/);
+  assert.match(
+    readFileSync(smokePath, "utf8"),
+    new RegExp(downstreamAIContextPacketGeometrySubstrateUpgradePackageScriptNames[0]),
+  );
+  assert.match(
+    readFileSync(smokePath, "utf8"),
+    new RegExp(downstreamAIContextPacketGeometrySubstrateUpgradeNextRecommendedSlice),
+  );
 }
 
 function readChangedFiles() {
