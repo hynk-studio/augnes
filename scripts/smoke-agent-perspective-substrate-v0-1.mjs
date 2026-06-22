@@ -53,6 +53,9 @@ const listRouteBrowserValidationPackageScriptNames = [
 const listUiContractPackageScriptNames = [
   "smoke:feedback-event-store-list-ui-contract-v0-1",
 ];
+const listUiImplementationPackageScriptNames = [
+  "smoke:feedback-event-store-list-ui-implementation-v0-1",
+];
 const listRouteContractTypePath =
   "types/feedback-event-store-list-route-contract.ts";
 const listRouteContractBuilderPath =
@@ -61,6 +64,14 @@ const listRouteContractFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1.json";
 const listRouteContractSmokePath =
   "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs";
+const listUiImplementationComponentPath =
+  "components/feedback-event-store-list-panel.tsx";
+const foldedAuditPanelComponentPath =
+  "components/agent-perspective-substrate-folded-audit-panel.tsx";
+const listUiImplementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-ui-implementation.sample.v0.1.json";
+const listUiImplementationSmokePath =
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs";
 const substrateVersion = "agent_perspective_substrate.v0.1";
 const nextRecommendedSlice =
   "agent_perspective_substrate_preview_builder_v0_1";
@@ -168,6 +179,37 @@ const downstreamAgentPerspectiveSubstrateFoldedAuditPanelChangedFiles = [
   digestSmokePath,
   aiContextSmokePath,
   formationReceiptSmokePath,
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
+const downstreamListUiImplementationChangedFiles = [
+  listUiImplementationComponentPath,
+  foldedAuditPanelComponentPath,
+  listUiImplementationFixturePath,
+  listUiImplementationSmokePath,
+  packagePath,
+  indexPath,
+  docsPath,
+  surfaceDocPath,
+  gateDocPath,
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  listRouteContractSmokePath,
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  smokePath,
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
 const downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles = [
@@ -668,6 +710,7 @@ function assertPackageScript() {
       listRouteImplementationPackageScriptNames,
       listRouteBrowserValidationPackageScriptNames,
       listUiContractPackageScriptNames,
+      listUiImplementationPackageScriptNames,
     ].some((scriptNames) => JSON.stringify(addedScriptNames) === JSON.stringify(scriptNames)),
     `package additions must only include substrate or downstream preview/panel/AI-context-upgrade/handoff-draft/review/operator-decision smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
@@ -680,6 +723,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (feedbackEventStoreListUiImplementationSliceActive(changedFiles)) {
+    assertFeedbackEventStoreListUiImplementationChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackEventStoreListRouteBrowserValidationSliceActive(changedFiles)) return;
   if (feedbackEventStoreListRouteImplementationSliceActive(changedFiles)) return;
   if (feedbackEventStoreListRouteContractSliceActive(changedFiles)) {
@@ -769,6 +816,41 @@ function assertStaticBoundary() {
       !allowedDownstreamPanelComponentFiles.has(changedFile)
     ) {
       assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    }
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)(schema|migration|db|sql)\b/i,
+      "must not change schema/db/sql paths",
+    );
+  }
+}
+
+function feedbackEventStoreListUiImplementationSliceActive(changedFiles) {
+  return downstreamListUiImplementationChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function assertFeedbackEventStoreListUiImplementationChangedFiles(changedFiles) {
+  for (const expectedFile of downstreamListUiImplementationChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `missing changed file ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      downstreamListUiImplementationChangedFiles.includes(changedFile),
+      `unexpected changed file in downstream list UI implementation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    if (changedFile.startsWith("components/")) {
+      assert.ok(
+        [listUiImplementationComponentPath, foldedAuditPanelComponentPath].includes(
+          changedFile,
+        ),
+        `downstream list UI implementation may only change allowed component files: ${changedFile}`,
+      );
     }
     assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
     assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");

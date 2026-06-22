@@ -839,6 +839,24 @@ handoff sending, agent routing/execution, product write, or product ID
 allocation. Product-write remains parked by the #686 stopline. Next
 recommended slice: `feedback_event_store_list_ui_implementation_v0_1`.
 
+## Feedback Event Store list UI implementation v0.1 Pointer
+
+Feedback Event Store list UI implementation v0.1 adds a read-only feedback event history panel
+to the folded audit surface. It can load durable feedback
+events with `GET /api/research-candidate/feedback-events` and displays them as
+operator input only, not proof/evidence, not Perspective state, not work
+status, not retrieval/RAG result, and not product write.
+
+No feedback write from list UI is available. The panel changes no app/api
+route, route handler, server action, schema, migration, package dependency, or
+browser persistence. It creates no proof/evidence, performs no Perspective
+promotion, makes no work mutation, executes no provider/OpenAI call, performs
+no source fetch, executes no retrieval/RAG, triggers no Codex/GitHub
+automation, sends no external handoff, routes no agents, writes no product
+state, and allocates no product IDs. Product-write remains parked by the #686
+stopline. Next recommended slice:
+`feedback_event_store_list_ui_browser_validation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
