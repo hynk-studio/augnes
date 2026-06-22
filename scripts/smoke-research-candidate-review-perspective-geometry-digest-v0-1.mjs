@@ -29,14 +29,21 @@ const downstreamAgentPerspectiveSubstratePackageScriptNames = [
 const downstreamAgentPerspectiveSubstratePreviewPackageScriptNames = [
   "smoke:agent-perspective-substrate-preview-builder-v0-1",
 ];
+const downstreamAgentPerspectiveSubstrateFoldedAuditPanelPackageScriptNames = [
+  "smoke:agent-perspective-substrate-folded-audit-panel-v0-1",
+];
 const downstreamAgentPerspectiveSubstrateLabel =
   "Agent Perspective Substrate v0.1";
+const downstreamAgentPerspectiveSubstrateFoldedAuditPanelLabel =
+  "Cockpit Agent Perspective Substrate folded audit panel v0.1";
 const nextRecommendedSlice =
   "agent_perspective_substrate_docs_type_fixture_v0_1";
 const downstreamNextRecommendedSlice =
   "agent_perspective_substrate_preview_builder_v0_1";
 const downstreamPreviewNextRecommendedSlice =
   "cockpit_agent_perspective_substrate_folded_audit_panel_v0_1";
+const downstreamFoldedAuditPanelNextRecommendedSlice =
+  "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
 const digestVersion = "perspective_geometry_digest.v0.1";
 const digestMode = "research_candidate_overlay_digest";
 const requiredDiagnosticFields = [
@@ -97,6 +104,22 @@ const downstreamAgentPerspectiveSubstratePreviewChangedFiles = [
   smokePath,
   "scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs",
   "scripts/smoke-research-candidate-review-formation-receipt-v0-1.mjs",
+];
+const downstreamAgentPerspectiveSubstrateFoldedAuditPanelChangedFiles = [
+  "components/agent-perspective-substrate-folded-audit-panel.tsx",
+  "components/augnes-cockpit.tsx",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  packagePath,
+  indexPath,
+  surfaceDocPath,
+  gateDocPath,
+  "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  smokePath,
+  "scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-formation-receipt-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
 
 for (const filePath of [
@@ -281,8 +304,9 @@ function assertPackageScript() {
       [packageScriptName],
       downstreamAgentPerspectiveSubstratePackageScriptNames,
       downstreamAgentPerspectiveSubstratePreviewPackageScriptNames,
+      downstreamAgentPerspectiveSubstrateFoldedAuditPanelPackageScriptNames,
     ].some((allowedNames) => JSON.stringify(addedScriptNames) === JSON.stringify(allowedNames)),
-    `package additions must only include digest or downstream substrate/preview smoke scripts: ${JSON.stringify(addedScriptNames)}`,
+    `package additions must only include digest or downstream substrate/preview/panel smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
 }
 
@@ -296,6 +320,8 @@ function assertDocs() {
     assert.match(doc, new RegExp(downstreamNextRecommendedSlice));
     assert.match(doc, /Agent Perspective Substrate Preview Builder v0\.1/);
     assert.match(doc, new RegExp(downstreamPreviewNextRecommendedSlice));
+    assert.match(doc, /Cockpit Agent Perspective Substrate folded audit panel v0\.1/);
+    assert.match(doc, new RegExp(downstreamFoldedAuditPanelNextRecommendedSlice));
   }
   assert.match(indexDoc, new RegExp(escapeRegExp(digestFixturePath)));
   assert.match(indexDoc, new RegExp(escapeRegExp(manualDigestFixturePath)));
@@ -312,17 +338,32 @@ function assertStaticScope() {
     downstreamAgentPerspectiveSubstratePreviewChangedFiles.every((filePath) =>
       changedFiles.includes(filePath),
     );
+  const usesDownstreamPanelDelta =
+    downstreamAgentPerspectiveSubstrateFoldedAuditPanelChangedFiles.every((filePath) =>
+      changedFiles.includes(filePath),
+    );
   const expectedFilesForDelta = usesDownstreamSubstrateDelta
     ? downstreamAgentPerspectiveSubstrateChangedFiles
     : usesDownstreamPreviewDelta
       ? downstreamAgentPerspectiveSubstratePreviewChangedFiles
+    : usesDownstreamPanelDelta
+      ? downstreamAgentPerspectiveSubstrateFoldedAuditPanelChangedFiles
     : expectedChangedFiles;
+  const allowedDownstreamPanelComponentFiles = new Set([
+    "components/agent-perspective-substrate-folded-audit-panel.tsx",
+    "components/augnes-cockpit.tsx",
+  ]);
   for (const expectedFile of expectedFilesForDelta) {
     assert.ok(changedFiles.includes(expectedFile), `missing changed file ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
-    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    if (
+      !usesDownstreamPanelDelta ||
+      !allowedDownstreamPanelComponentFiles.has(changedFile)
+    ) {
+      assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    }
     assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
     assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
     assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");

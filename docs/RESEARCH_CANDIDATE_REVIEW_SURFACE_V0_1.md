@@ -512,6 +512,29 @@ execution/routing, no MCP/App tool widening, and no product write.
 Product-write remains parked by the #686 stopline. Next recommended slice:
 `cockpit_agent_perspective_substrate_folded_audit_panel_v0_1`.
 
+## Cockpit Agent Perspective Substrate folded audit panel v0.1 Pointer
+
+`components/agent-perspective-substrate-folded-audit-panel.tsx` displays the
+#689 Agent Perspective Substrate Preview fixture in Cockpit as a folded audit
+panel. The panel consumes static advisory input only, keeps folded state local
+to the component, and renders source coverage, surfacing cards, rule groups,
+diagnostics, and authority boundaries with no durable feedback persistence and
+no feedback persistence.
+
+Every card continues to require `source_refs` or a source coverage boundary
+note, `epistemic_status`, `review_status`, `why_now`, and
+`authority_boundary_notes`. The panel remains preview UI only: not source of
+truth, proof/evidence, durable Perspective state, execution authority,
+retrieval execution, agent routing, product write, or feedback persistence.
+
+This adds no API route, no server action, no DB/SQL/transaction, no
+provider/OpenAI call, no source fetch, no retrieval execution or indexing
+implementation, no proof/evidence write, no work mutation or work item
+creation, no durable Perspective promotion, no agent execution/routing, no
+MCP/App tool widening, and no product write. Product-write remains parked by
+the #686 stopline. Next recommended slice:
+`ai_context_packet_compiler_geometry_substrate_upgrade_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

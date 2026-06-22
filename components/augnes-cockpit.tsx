@@ -10,6 +10,7 @@ import researchCandidateReviewParserOutputFixture from "@/fixtures/research-cand
 import researchCandidateReviewFixture from "@/fixtures/research-candidate-review.sample.v0.1.json";
 import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import type { ManualResearchNoteParserResult } from "@/lib/research-candidate-review/manual-note-parser";
+import { AgentPerspectiveSubstrateFoldedAuditPanel } from "@/components/agent-perspective-substrate-folded-audit-panel";
 import { ResearchCandidateAIContextPacketPreview } from "@/components/research-candidate-ai-context-packet-preview";
 import { ResearchCandidateConstellationOverlayPreview } from "@/components/research-candidate-constellation-overlay-preview";
 import { ResearchCandidateFormationReceiptPreview } from "@/components/research-candidate-formation-receipt-preview";
@@ -6595,6 +6596,9 @@ function PerspectiveTab({
         <a href="#research-candidate-formation-receipt-preview">
           Formation receipt
         </a>
+        <a href="#agent-perspective-substrate-folded-audit-panel">
+          Substrate folded audit
+        </a>
       </nav>
 
       {/* Research Candidate Review Cockpit Preview Start */}
@@ -8039,6 +8043,8 @@ function PerspectiveTab({
         </div>
       </section>
       {/* Research Candidate Formation Receipt Cockpit Preview End */}
+
+      <AgentPerspectiveSubstrateFoldedAuditPanel />
 
       <section
         className="perspective-section perspective-constellation-workspace-shell perspective-primary-workbench"
