@@ -491,6 +491,7 @@ function assertPackageScript() {
       routeContractPackageScriptNames,
       ["smoke:feedback-event-write-route-implementation-v0-1"],
       ["smoke:feedback-event-write-route-browser-validation-v0-1"],
+      ["smoke:feedback-event-controls-ui-contract-v0-1"],
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include the Candidate-to-Codex handoff draft review smoke script or downstream operator decision smoke script",
   );
@@ -508,6 +509,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (feedbackEventControlsUiContractSliceActive(changedFiles)) {
+    assertFeedbackEventControlsUiContractChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackEventWriteRouteImplementationSliceActive(changedFiles)) {
     assertFeedbackEventWriteRouteImplementationChangedFiles(changedFiles);
     return;
@@ -549,6 +554,69 @@ function assertStaticBoundary() {
     assert.doesNotMatch(changedFile, /schema\.sql$/, "must not change schema.sql");
     assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
   }
+}
+
+function feedbackEventControlsUiContractSliceActive(changedFiles) {
+  return feedbackEventControlsUiContractRequiredChangedFiles().every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function assertFeedbackEventControlsUiContractChangedFiles(changedFiles) {
+  const requiredChangedFiles = feedbackEventControlsUiContractRequiredChangedFiles();
+  const allowedChangedFiles = feedbackEventControlsUiContractAllowedChangedFiles();
+  for (const expectedFile of requiredChangedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include downstream UI contract file: ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      allowedChangedFiles.includes(changedFile),
+      `unexpected changed file in downstream UI contract slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(schema|migration|db|sql)\b/i, "must not change schema/db/sql paths");
+  }
+}
+
+function feedbackEventControlsUiContractRequiredChangedFiles() {
+  return [
+    "types/feedback-event-controls-ui-contract.ts",
+    "lib/research-candidate-review/feedback-event-controls-ui-contract.ts",
+    "fixtures/research-candidate-review.feedback-event-controls-ui-contract.sample.v0.1.json",
+    "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+    routeContractSmokePath,
+    "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+    downstreamCandidateToCodexHandoffOperatorDecisionSmokePath,
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
+    "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+    "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+    "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+    smokePath,
+  ];
+}
+
+function feedbackEventControlsUiContractAllowedChangedFiles() {
+  return [
+    ...feedbackEventControlsUiContractRequiredChangedFiles(),
+    sourceDraftSmokePath,
+    sourcePacketSmokePath,
+    foldedAuditPanelSmokePath,
+    previewBuilderSmokePath,
+    substrateSmokePath,
+    geometryDigestSmokePath,
+    "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+  ];
 }
 
 function feedbackEventStoreSliceActive(changedFiles) {

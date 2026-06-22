@@ -339,6 +339,22 @@ no agent routing/execution, and no product write. Product-write remains parked
 by the #686 stopline. The next recommended slice after route validation is
 `feedback_event_controls_ui_contract_v0_1`.
 
+## Feedback Event Controls UI Contract v0.1
+
+Feedback Event controls UI contract v0.1 maps preview controls to future route
+requests as request previews only. It defines how future UI controls may
+construct safe `POST /api/research-candidate/feedback-events` requests for
+`dismiss_preview`, `pin_preview`, `correct_preview`, and `invalidate_preview`.
+
+No UI control is implemented yet. No browser request is sent, No feedback is
+persisted from the contract, and no component, route, server action, DB open, DB
+write, or SQL execution is added in this slice. It grants no provider/OpenAI
+call, no source fetch, no retrieval/RAG execution, no Codex/GitHub automation,
+no proof/evidence, no Perspective promotion, no work mutation, no agent
+routing/execution, and no product write. Product-write remains parked by the
+#686 stopline. The next recommended slice after the UI contract is
+`feedback_event_controls_ui_implementation_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_controls_ui_contract_v0_1`
+`feedback_event_controls_ui_implementation_v0_1`

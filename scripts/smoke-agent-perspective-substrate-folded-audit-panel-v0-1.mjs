@@ -362,6 +362,7 @@ function assertPackageScript() {
       ["smoke:feedback-event-write-route-contract-v0-1"],
       ["smoke:feedback-event-write-route-implementation-v0-1"],
       ["smoke:feedback-event-write-route-browser-validation-v0-1"],
+      ["smoke:feedback-event-controls-ui-contract-v0-1"],
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include the downstream Candidate-to-Codex handoff draft/review/operator decision smoke script",
   );
@@ -374,6 +375,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (feedbackEventControlsUiContractSliceActive(changedFiles)) {
+    assertFeedbackEventControlsUiContractChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackEventWriteRouteBrowserValidationSliceActive(changedFiles)) {
     assertFeedbackEventWriteRouteBrowserValidationChangedFiles(changedFiles);
     return;
@@ -438,6 +443,58 @@ function assertStaticBoundary() {
       assert.doesNotMatch(changedFile, /^components\//, "downstream AI context upgrade must not change components");
     }
   }
+}
+
+function feedbackEventControlsUiContractSliceActive(changedFiles) {
+  return feedbackEventControlsUiContractChangedFiles().every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function assertFeedbackEventControlsUiContractChangedFiles(changedFiles) {
+  const allowedChangedFiles = feedbackEventControlsUiContractChangedFiles();
+  for (const expectedFile of allowedChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      allowedChangedFiles.includes(changedFile),
+      `unexpected changed file in downstream UI contract slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+  }
+}
+
+function feedbackEventControlsUiContractChangedFiles() {
+  return [
+    "types/feedback-event-controls-ui-contract.ts",
+    "lib/research-candidate-review/feedback-event-controls-ui-contract.ts",
+    "fixtures/research-candidate-review.feedback-event-controls-ui-contract.sample.v0.1.json",
+    "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+    smokePath,
+    "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+    "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+    "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
+    "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+    "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+    "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  ];
 }
 
 function feedbackEventStoreSliceActive(changedFiles) {
