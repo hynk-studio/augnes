@@ -445,6 +445,7 @@ function assertPackageScript() {
       ["smoke:feedback-event-store-review-controls-preview-v0-1"],
       routeContractPackageScriptNames,
       ["smoke:feedback-event-write-route-implementation-v0-1"],
+      ["smoke:feedback-event-write-route-browser-validation-v0-1"],
     ].some((allowedNames) => JSON.stringify(addedScriptNames) === JSON.stringify(allowedNames)),
     `package additions must only include digest or downstream substrate/preview/panel/AI-context-upgrade/handoff-draft/review/operator-decision smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
@@ -493,6 +494,10 @@ function assertDocs() {
 
 function assertStaticScope() {
   const changedFiles = readChangedFiles();
+  if (feedbackEventWriteRouteBrowserValidationSliceActive(changedFiles)) {
+    assertFeedbackEventWriteRouteBrowserValidationChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackEventWriteRouteImplementationSliceActive(changedFiles)) {
     assertFeedbackEventWriteRouteImplementationChangedFiles(changedFiles);
     return;
@@ -590,6 +595,59 @@ function feedbackEventWriteRouteImplementationSliceActive(changedFiles) {
   return feedbackEventWriteRouteImplementationRequiredChangedFiles().every((filePath) =>
     changedFiles.includes(filePath),
   );
+}
+
+function feedbackEventWriteRouteBrowserValidationSliceActive(changedFiles) {
+  return feedbackEventWriteRouteBrowserValidationChangedFiles().every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function assertFeedbackEventWriteRouteBrowserValidationChangedFiles(changedFiles) {
+  const allowedChangedFiles = feedbackEventWriteRouteBrowserValidationChangedFiles();
+  for (const expectedFile of allowedChangedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include downstream browser validation file: ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      allowedChangedFiles.includes(changedFile),
+      `unexpected changed file in downstream browser validation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+  }
+}
+
+function feedbackEventWriteRouteBrowserValidationChangedFiles() {
+  return [
+    "fixtures/research-candidate-review.feedback-event-write-route-browser-validation.sample.v0.1.json",
+    "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+    "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+    "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+    "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs",
+    "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
+    "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+    "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+    "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  ];
 }
 
 function assertFeedbackEventWriteRouteImplementationChangedFiles(changedFiles) {

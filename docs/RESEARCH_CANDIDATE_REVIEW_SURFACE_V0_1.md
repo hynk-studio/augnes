@@ -707,6 +707,24 @@ routing/execution, and no product write. Product-write remains parked by the
 #686 stopline. Next recommended slice:
 `feedback_event_write_route_browser_validation_v0_1`.
 
+## Feedback Event write route browser validation v0.1 Pointer
+
+Feedback Event write route browser validation v0.1 validates the #698 route
+through temp-DB route handler invocation only. It observes insert, duplicate
+idempotency, missing-acknowledgement refusal, forbidden authority-boundary
+refusals, and capability/status flag refusals against a temporary DB
+under `/tmp`.
+
+No UI controls are activated yet, no app server is started, no browser UI is
+used, and no production DB path is used in smoke. The validation does not add
+routes, does not change schema/migrations, does not create proof/evidence, does
+not promote Perspective state, and performs no work mutation. It grants no
+provider/OpenAI calls, no source fetch, no retrieval/RAG execution, no Codex
+execution, no GitHub automation, no external handoff sending, no agent
+routing/execution, and no product write. Product-write remains parked by the
+#686 stopline. Next recommended slice:
+`feedback_event_controls_ui_contract_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

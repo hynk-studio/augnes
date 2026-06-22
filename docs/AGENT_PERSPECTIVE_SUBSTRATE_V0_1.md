@@ -325,6 +325,20 @@ write. Product-write remains parked by the #686 stopline. The next recommended
 slice after the route implementation is
 `feedback_event_write_route_browser_validation_v0_1`.
 
+Feedback Event write route browser validation v0.1 validates the #698 write
+route behavior before UI integration. It invokes the exported route handler with
+a temp DB under `/tmp` and observes valid insert, duplicate idempotency, and
+required refusal behavior for durable feedback events only.
+
+The validation starts no app server and uses no browser UI because route handler
+temp-DB validation is sufficient before UI integration. It uses no production DB
+path, activates no UI controls, adds no route behavior, and still validates no
+proof/evidence, no Perspective promotion, no work mutation, no provider/OpenAI
+call, no source fetch, no retrieval/RAG execution, no Codex/GitHub automation,
+no agent routing/execution, and no product write. Product-write remains parked
+by the #686 stopline. The next recommended slice after route validation is
+`feedback_event_controls_ui_contract_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_write_route_browser_validation_v0_1`
+`feedback_event_controls_ui_contract_v0_1`

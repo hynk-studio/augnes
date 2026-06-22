@@ -1,0 +1,726 @@
+{
+  "validation_kind": "feedback_event_write_route_browser_validation",
+  "validation_version": "feedback_event_write_route_browser_validation.v0.1",
+  "route_path": "/api/research-candidate/feedback-events",
+  "route_method": "POST",
+  "route_implemented_source_ref": "app/api/research-candidate/feedback-events/route.ts",
+  "source_implementation_fixture_ref": "fixtures/research-candidate-review.feedback-event-write-route-implementation.sample.v0.1.json",
+  "source_implementation_fixture_version": "feedback_event_write_route_implementation.v0.1",
+  "source_contract_fixture_ref": "fixtures/research-candidate-review.feedback-event-write-route-contract.sample.v0.1.json",
+  "source_contract_fingerprint": "fnv1a32:14aca673",
+  "source_feedback_event_store_fixture_ref": "fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json",
+  "source_feedback_event_store_version": "feedback_event_store.v0.1",
+  "source_review_controls_preview_fixture_ref": "fixtures/research-candidate-review.feedback-event-store-review-controls-preview.sample.v0.1.json",
+  "source_review_controls_preview_fingerprint": "fnv1a32:df13080d",
+  "app_server_started_now": false,
+  "browser_ui_used_now": false,
+  "reason": "route handler temp-DB validation is sufficient before UI integration",
+  "production_db_used_now": false,
+  "temp_db_used_now": true,
+  "valid_insert_observed": true,
+  "duplicate_idempotency_observed": true,
+  "required_refusals_observed": true,
+  "authority_boundary_refusals_observed": true,
+  "capability_flag_refusals_observed": true,
+  "no_forbidden_authority_granted": true,
+  "product_write_lane_parked_by_686": true,
+  "observations": {
+    "valid_insert_response": {
+      "response_version": "feedback_event_write_route_response.v0.1",
+      "accepted": true,
+      "inserted": true,
+      "duplicate": false,
+      "event_id": "feedback_event:fnv1a32:1a02da14",
+      "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+      "event": {
+        "event_id": "feedback_event:fnv1a32:1a02da14",
+        "event_version": "feedback_event_store.v0.1",
+        "event_type": "correct_preview",
+        "target_kind": "candidate_to_codex_handoff_draft_review",
+        "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+        "source_ref_ids": [
+          "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json"
+        ],
+        "created_at": "1970-01-01T00:00:00.000Z",
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "target_fingerprint": "fnv1a32:d9d0275e",
+        "operator_note": "Future human operator note supplied by the write route caller.",
+        "correction_text": "Future human correction text supplied by the write route caller.",
+        "reason": "boundary_wording_correction"
+      },
+      "validation": {
+        "passed": true,
+        "failure_codes": []
+      },
+      "authority_boundary": {
+        "durable_feedback_event": true,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      },
+      "refusal": null,
+      "route_implemented_now": true,
+      "runtime_write_executed_now": true,
+      "db_open_now": true,
+      "sql_execution_now": true
+    },
+    "duplicate_response": {
+      "response_version": "feedback_event_write_route_response.v0.1",
+      "accepted": true,
+      "inserted": false,
+      "duplicate": true,
+      "event_id": "feedback_event:fnv1a32:1a02da14",
+      "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+      "event": {
+        "authority_boundary": {
+          "codex_execution_authority": false,
+          "durable_feedback_event": true,
+          "execution_authority": false,
+          "external_handoff_authority": false,
+          "github_automation_authority": false,
+          "perspective_promotion": false,
+          "product_id_allocation_authority": false,
+          "product_write_authority": false,
+          "proof_or_evidence_record": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "work_mutation": false
+        },
+        "correction_text": "Future human correction text supplied by the write route caller.",
+        "created_at": "1970-01-01T00:00:00.000Z",
+        "event_id": "feedback_event:fnv1a32:1a02da14",
+        "event_type": "correct_preview",
+        "event_version": "feedback_event_store.v0.1",
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "operator_note": "Future human operator note supplied by the write route caller.",
+        "reason": "boundary_wording_correction",
+        "source_ref_ids": [
+          "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json"
+        ],
+        "target_fingerprint": "fnv1a32:d9d0275e",
+        "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+        "target_kind": "candidate_to_codex_handoff_draft_review"
+      },
+      "validation": {
+        "passed": true,
+        "failure_codes": []
+      },
+      "authority_boundary": {
+        "durable_feedback_event": true,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      },
+      "refusal": null,
+      "route_implemented_now": true,
+      "runtime_write_executed_now": true,
+      "db_open_now": true,
+      "sql_execution_now": true
+    },
+    "refusal_results": {
+      "missing_acknowledgement_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "missing_authority_acknowledgement"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "missing_authority_acknowledgement",
+          "message": "The request is missing one or more required authority acknowledgements.",
+          "retryable": true,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "retrieval_rag_action_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "retrieval_rag_execution_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "retrieval_rag_execution_requested",
+          "message": "The request asks for retrieval/RAG execution, which is forbidden.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "retrieval_rag_authority_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "retrieval_rag_execution_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "retrieval_rag_execution_requested",
+          "message": "The request asks for retrieval/RAG execution, which is forbidden.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "retrieval_rag_capability_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "retrieval_rag_execution_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "retrieval_rag_execution_requested",
+          "message": "The request asks for retrieval/RAG execution, which is forbidden.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "provider_openai_authority_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "provider_openai_call_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "provider_openai_call_requested",
+          "message": "The request asks for provider/OpenAI calls, which are forbidden.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "provider_openai_capability_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "provider_openai_call_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "provider_openai_call_requested",
+          "message": "The request asks for provider/OpenAI calls, which are forbidden.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "source_fetch_authority_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "source_fetch_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "source_fetch_requested",
+          "message": "The request asks for source fetch, which is forbidden.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "source_fetch_capability_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "source_fetch_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "source_fetch_requested",
+          "message": "The request asks for source fetch, which is forbidden.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "codex_github_authority_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "codex_or_github_automation_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "codex_or_github_automation_requested",
+          "message": "The request asks for Codex or GitHub automation, which is forbidden.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "codex_github_capability_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "codex_or_github_automation_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "codex_or_github_automation_requested",
+          "message": "The request asks for Codex or GitHub automation, which is forbidden.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "product_write_capability_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "product_write_authority_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "product_write_authority_requested",
+          "message": "The request asks for product-write authority, which remains parked by #686.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "product_id_authority_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "product_write_authority_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "product_write_authority_requested",
+          "message": "The request asks for product-write authority, which remains parked by #686.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      },
+      "general_forbidden_capability_refusal": {
+        "response_version": "feedback_event_write_route_response.v0.1",
+        "accepted": false,
+        "inserted": false,
+        "duplicate": false,
+        "event_id": null,
+        "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+        "event": null,
+        "validation": {
+          "passed": false,
+          "failure_codes": [
+            "forbidden_authority_requested"
+          ]
+        },
+        "authority_boundary": {
+          "durable_feedback_event": true,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "external_handoff_authority": false,
+          "provider_openai_authority": false,
+          "retrieval_rag_authority": false,
+          "source_fetch_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "refusal": {
+          "refusal_code": "forbidden_authority_requested",
+          "message": "The request asks for authority outside durable feedback event write authority.",
+          "retryable": false,
+          "authority_boundary_notes": [
+            "Feedback Event write route implementation persists durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, or product-ID authority.",
+            "Product-write lane remains parked by #686."
+          ]
+        },
+        "route_implemented_now": true,
+        "runtime_write_executed_now": false,
+        "db_open_now": false,
+        "sql_execution_now": false
+      }
+    },
+    "row_count_after_duplicate": 1,
+    "table_names_after_validation": [
+      "research_candidate_feedback_events"
+    ]
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "recommendation_status": "ready_for_feedback_event_controls_ui_contract_v0_1",
+  "next_recommended_slice": "feedback_event_controls_ui_contract_v0_1"
+}
