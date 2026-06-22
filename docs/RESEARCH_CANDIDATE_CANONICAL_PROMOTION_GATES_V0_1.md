@@ -222,6 +222,18 @@ demo refs. Target perspective anchors are read-only and non-authoritative. The
 overlay adds no graph DB, layout algorithm, runtime/API/DB/provider/retrieval,
 or promotion behavior.
 
+The PerspectiveGeometryDigest Builder v0.1 preserves canonical promotion
+gates. Candidate Constellation Overlay can now be summarized into
+PerspectiveGeometryDigest for AI-usable derived structure, but layout
+coordinates as truth are explicitly forbidden. The digest is derived/advisory
+only; it is not source of truth, proof, evidence, durable Perspective state,
+retrieval result, or agent execution authority. It adds no provider/OpenAI
+call, no source fetch, no retrieval or indexing execution, no route/UI
+behavior, no DB/SQL/transaction, no proof/evidence write, no work item
+creation, no durable Perspective promotion, and no product write. Product-write
+remains parked by the #686 stopline. Next recommended slice:
+`agent_perspective_substrate_docs_type_fixture_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
