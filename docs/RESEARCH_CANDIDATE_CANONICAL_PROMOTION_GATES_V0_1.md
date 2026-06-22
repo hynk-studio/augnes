@@ -234,6 +234,21 @@ creation, no durable Perspective promotion, and no product write. Product-write
 remains parked by the #686 stopline. Next recommended slice:
 `agent_perspective_substrate_docs_type_fixture_v0_1`.
 
+Agent Perspective Substrate v0.1 preserves canonical promotion gates.
+PerspectiveGeometryDigest can now feed Agent Perspective Substrate as advisory
+input. The substrate remains a folded advisory layer; it is not source of
+truth, proof, evidence, durable Perspective state, execution authority, agent
+routing, retrieval result, or product write authority. Surfaced warnings,
+suggestions, blockers, and handoff improvements must carry `source_refs` or an
+explicit source coverage boundary note, `why_now`, epistemic/review status, and
+`authority_boundary_notes`. The substrate adds no runtime route/UI behavior, no
+DB/SQL/transaction, no provider/OpenAI call, no source fetch, no retrieval
+execution or indexing implementation, no proof/evidence write, no work
+mutation or work item creation, no durable Perspective
+promotion, no agent execution/routing, no MCP/App tool widening, and no product
+write. Product-write remains parked by the #686 stopline. Next recommended
+slice: `agent_perspective_substrate_preview_builder_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

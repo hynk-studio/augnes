@@ -69,6 +69,7 @@ const allowedPackageScriptNames = [
 ];
 const downstreamAllowedPackageScriptNames = [
   "smoke:research-candidate-review-perspective-geometry-digest-v0-1",
+  "smoke:agent-perspective-substrate-v0-1",
 ];
 const expectedChangedFiles = [
   docsIndexPath,
@@ -425,7 +426,7 @@ function assertPackageScripts() {
       [allowedPackageScriptNames, downstreamAllowedPackageScriptNames].some((scriptNames) =>
         scriptNames.some((scriptName) => line.includes(`"${scriptName}"`)),
       ),
-      `package addition must only be stopline or downstream digest smoke scripts: ${line}`,
+      `package addition must only be stopline or downstream roadmap smoke scripts: ${line}`,
     );
   }
 }

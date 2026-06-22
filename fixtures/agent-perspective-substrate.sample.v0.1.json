@@ -1,0 +1,809 @@
+{
+  "runtime": "augnes",
+  "substrate_version": "agent_perspective_substrate.v0.1",
+  "scope": "project:augnes",
+  "as_of": "fixture:agent-perspective-substrate.v0.1",
+  "source_snapshot_ref": {
+    "snapshot_version": "agent_perspective_substrate_source_snapshot.v0.1",
+    "scope": "project:augnes",
+    "as_of": "fixture:agent-perspective-substrate-source-snapshot.v0.1",
+    "source_refs": [
+      {
+        "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+      },
+      {
+        "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1"
+      },
+      {
+        "source_ref_id": "fixture:research-candidate-review.constellation-overlay.sample.v0.1"
+      },
+      {
+        "source_ref_id": "fixture:research-candidate-review.ai-context-packet.sample.v0.1"
+      },
+      {
+        "source_ref_id": "fixture:research-candidate-review.formation-receipt.sample.v0.1"
+      },
+      {
+        "source_ref_id": "fixture:product-write-preflight-stopline.686"
+      }
+    ]
+  },
+  "source_inputs": {
+    "perspective_geometry_digest_refs": [
+      "fixtures/research-candidate-review.perspective-geometry-digest.sample.v0.1.json",
+      "fixtures/research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1.json"
+    ],
+    "research_candidate_review_refs": [
+      "fixtures/research-candidate-review.sample.v0.1.json"
+    ],
+    "constellation_overlay_refs": [
+      "fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json",
+      "fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json"
+    ],
+    "ai_context_packet_refs": [
+      "fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json",
+      "fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json"
+    ],
+    "formation_receipt_refs": [
+      "fixtures/research-candidate-review.formation-receipt.sample.v0.1.json",
+      "fixtures/research-candidate-review.manual-note-formation-receipt.sample.v0.1.json"
+    ]
+  },
+  "nodes": [
+    {
+      "substrate_node_id": "aps_node_geometry_cluster_review_structure",
+      "node_kind": "geometry_cluster",
+      "label": "Review structure cluster",
+      "summary": "Folded advisory cluster derived from the PerspectiveGeometryDigest dominant cluster and source coverage diagnostics.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+        }
+      ],
+      "epistemic_status": "derived_advisory",
+      "review_status": "candidate_preview",
+      "derived_from": [
+        "perspective_geometry_digest.dominant_clusters"
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory substrate node only; not source of truth or durable Perspective state."
+      ]
+    },
+    {
+      "substrate_node_id": "aps_node_bridge_manual_note_to_handoff",
+      "node_kind": "bridge_node",
+      "label": "Manual note to handoff bridge",
+      "summary": "Bridge candidate connecting manual parser geometry, AI context packet constraints, and Formation Receipt preview coverage.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1"
+        },
+        {
+          "source_ref_id": "fixture:research-candidate-review.manual-note-ai-context-packet.sample.v0.1"
+        }
+      ],
+      "epistemic_status": "derived_advisory",
+      "review_status": "candidate_preview",
+      "derived_from": [
+        "perspective_geometry_digest.bridge_nodes",
+        "ai_context_packet.guardrails"
+      ],
+      "authority_boundary_notes": [
+        "Bridge is a folded advisory relation, not graph truth or routing authority."
+      ]
+    },
+    {
+      "substrate_node_id": "aps_node_unresolved_tension_preservation",
+      "node_kind": "unresolved_tension",
+      "label": "Unresolved tension preservation",
+      "summary": "Tension should stay visible in future handoff or capsule previews until an explicit review resolves it.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.constellation-overlay.sample.v0.1"
+        }
+      ],
+      "epistemic_status": "candidate_tension",
+      "review_status": "unresolved",
+      "derived_from": [
+        "constellation_overlay.edges.tension_relates_to_claim",
+        "perspective_geometry_digest.contradiction_pairs"
+      ],
+      "authority_boundary_notes": [
+        "Warning only; cannot resolve or reject the tension."
+      ]
+    },
+    {
+      "substrate_node_id": "aps_node_knowledge_gap_source_coverage",
+      "node_kind": "knowledge_gap",
+      "label": "Source coverage gap",
+      "summary": "A grounded claim-like surface lacks enough source coverage for promotion and must remain advisory.",
+      "source_refs": [],
+      "epistemic_status": "insufficient_source_coverage",
+      "review_status": "blocked_preview",
+      "derived_from": [
+        "perspective_geometry_digest.diagnostics.source_ref_coverage_ratio"
+      ],
+      "authority_boundary_notes": [
+        "Explicit source coverage boundary note: source refs are intentionally absent for this blocker preview.",
+        "Blocks grounded-claim promotion only as advisory policy; no state is changed."
+      ]
+    },
+    {
+      "substrate_node_id": "aps_node_perspective_delta_candidate",
+      "node_kind": "perspective_delta",
+      "label": "Perspective delta candidate",
+      "summary": "Candidate delta remains review-only because evidence/proof and durable promotion contracts are not satisfied.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.formation-receipt.sample.v0.1"
+        }
+      ],
+      "epistemic_status": "candidate_delta",
+      "review_status": "promotion_blocked",
+      "derived_from": [
+        "formation_receipt.contributions",
+        "canonical_promotion_gates"
+      ],
+      "authority_boundary_notes": [
+        "No proof/evidence creation or durable Perspective promotion authority."
+      ]
+    },
+    {
+      "substrate_node_id": "aps_node_handoff_constraint_forbidden_actions",
+      "node_kind": "handoff_constraint",
+      "label": "Forbidden action handoff constraint",
+      "summary": "Future handoff packets should preserve forbidden-action boundaries around DB, provider, retrieval, agent, and product-write behavior.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.ai-context-packet.sample.v0.1"
+        }
+      ],
+      "epistemic_status": "boundary_constraint",
+      "review_status": "active_preview",
+      "derived_from": [
+        "ai_context_packet.guardrails",
+        "formation_receipt.boundaries"
+      ],
+      "authority_boundary_notes": [
+        "Constraint may improve future preview text but cannot execute or route work."
+      ]
+    },
+    {
+      "substrate_node_id": "aps_node_stale_context_high_gravity",
+      "node_kind": "stale_context",
+      "label": "Stale high-gravity context",
+      "summary": "A high-weight context item should be surfaced with caution if reused without new source coverage.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+        }
+      ],
+      "epistemic_status": "stale_risk_advisory",
+      "review_status": "notice_preview",
+      "derived_from": [
+        "perspective_geometry_digest.diagnostics.manual_gravity_distribution"
+      ],
+      "authority_boundary_notes": [
+        "Stale-context detection is advisory and cannot invalidate durable state."
+      ]
+    },
+    {
+      "substrate_node_id": "aps_node_retrieval_hint_gap_review",
+      "node_kind": "retrieval_hint",
+      "label": "Retrieval hint for gap review",
+      "summary": "A future retrieval system may inspect source coverage gaps, but this fixture only records a non-executing hint.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1"
+        }
+      ],
+      "epistemic_status": "advisory_hint",
+      "review_status": "preview_only",
+      "derived_from": [
+        "perspective_geometry_digest.recommended_retrieval_expansion"
+      ],
+      "authority_boundary_notes": [
+        "Retrieval hint only; retrieval_executed_now is false and no retrieval authority is granted."
+      ]
+    },
+    {
+      "substrate_node_id": "aps_node_product_write_stopline_686",
+      "node_kind": "product_write_stopline",
+      "label": "Product write stopline",
+      "summary": "Product-write preparation remains parked by #686 and must not be reopened by substrate previews.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:product-write-preflight-stopline.686"
+        }
+      ],
+      "epistemic_status": "boundary_fact",
+      "review_status": "active_stopline",
+      "derived_from": [
+        "product_write_preflight_stopline"
+      ],
+      "authority_boundary_notes": [
+        "Product-write lane is parked; no product write authority, product ID allocation, DB, SQL, route, UI, or adapter enablement."
+      ]
+    },
+    {
+      "substrate_node_id": "aps_node_source_ref_fixture_bundle",
+      "node_kind": "source_ref",
+      "label": "Fixture source bundle",
+      "summary": "Public-safe fixture references anchoring the advisory substrate snapshot.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+        },
+        {
+          "source_ref_id": "fixture:research-candidate-review.formation-receipt.sample.v0.1"
+        }
+      ],
+      "epistemic_status": "fixture_reference",
+      "review_status": "source_snapshot",
+      "derived_from": [
+        "source_snapshot_ref"
+      ],
+      "authority_boundary_notes": [
+        "Source reference node only; not evidence creation."
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "substrate_edge_id": "aps_edge_geometry_derived_from_source_bundle",
+      "edge_kind": "derived_from",
+      "source_node_id": "aps_node_geometry_cluster_review_structure",
+      "target_node_id": "aps_node_source_ref_fixture_bundle",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Derived relation only; no canonical graph write."
+      ]
+    },
+    {
+      "substrate_edge_id": "aps_edge_tension_warns_handoff",
+      "edge_kind": "warns_about",
+      "source_node_id": "aps_node_unresolved_tension_preservation",
+      "target_node_id": "aps_node_handoff_constraint_forbidden_actions",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.constellation-overlay.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Warning relation only; no state commit or reject."
+      ]
+    },
+    {
+      "substrate_edge_id": "aps_edge_bridge_connects_geometry",
+      "edge_kind": "connects_to",
+      "source_node_id": "aps_node_bridge_manual_note_to_handoff",
+      "target_node_id": "aps_node_geometry_cluster_review_structure",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Connection is advisory only and does not route agents."
+      ]
+    },
+    {
+      "substrate_edge_id": "aps_edge_gap_qualifies_delta",
+      "edge_kind": "qualifies",
+      "source_node_id": "aps_node_knowledge_gap_source_coverage",
+      "target_node_id": "aps_node_perspective_delta_candidate",
+      "source_refs": [],
+      "authority_boundary_notes": [
+        "Explicit source coverage boundary note: qualifier intentionally represents missing coverage."
+      ]
+    },
+    {
+      "substrate_edge_id": "aps_edge_tension_preserves_delta",
+      "edge_kind": "preserves_tension",
+      "source_node_id": "aps_node_unresolved_tension_preservation",
+      "target_node_id": "aps_node_perspective_delta_candidate",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Preserves tension for preview selection only."
+      ]
+    },
+    {
+      "substrate_edge_id": "aps_edge_gap_blocks_promotion",
+      "edge_kind": "blocks_promotion",
+      "source_node_id": "aps_node_knowledge_gap_source_coverage",
+      "target_node_id": "aps_node_perspective_delta_candidate",
+      "source_refs": [],
+      "authority_boundary_notes": [
+        "Explicit source coverage boundary note: blocker is advisory and no durable state changes."
+      ]
+    },
+    {
+      "substrate_edge_id": "aps_edge_handoff_suggests_improvement",
+      "edge_kind": "suggests_handoff_improvement",
+      "source_node_id": "aps_node_handoff_constraint_forbidden_actions",
+      "target_node_id": "aps_node_bridge_manual_note_to_handoff",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.ai-context-packet.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Suggestion only; no external handoff is executed."
+      ]
+    },
+    {
+      "substrate_edge_id": "aps_edge_stopline_references_delta",
+      "edge_kind": "references_stopline",
+      "source_node_id": "aps_node_product_write_stopline_686",
+      "target_node_id": "aps_node_perspective_delta_candidate",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:product-write-preflight-stopline.686"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Stopline reminder only; product write remains blocked."
+      ]
+    },
+    {
+      "substrate_edge_id": "aps_edge_retrieval_hint_connects_gap",
+      "edge_kind": "connects_to",
+      "source_node_id": "aps_node_retrieval_hint_gap_review",
+      "target_node_id": "aps_node_knowledge_gap_source_coverage",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Retrieval hint is non-executing and advisory."
+      ]
+    }
+  ],
+  "rules_fired": [
+    {
+      "rule_fire_id": "aps_rule_source_refs_missing_blocks_grounded_claim",
+      "rule_name": "source_refs_missing_blocks_grounded_claim",
+      "severity": "blocker",
+      "source_node_ids": [
+        "aps_node_knowledge_gap_source_coverage"
+      ],
+      "message": "Grounded-claim-like surfacing is blocked when source refs are missing.",
+      "why_now": "The substrate fixture includes a source coverage gap node to make source discipline explicit before preview builder work.",
+      "source_refs": [],
+      "authority_boundary_notes": [
+        "Explicit source coverage boundary note: this rule fire intentionally represents missing source refs.",
+        "Advisory blocker only; no state is committed or rejected."
+      ]
+    },
+    {
+      "rule_fire_id": "aps_rule_evidence_missing_blocks_perspective_delta_promotion",
+      "rule_name": "evidence_missing_blocks_perspective_delta_promotion",
+      "severity": "blocker",
+      "source_node_ids": [
+        "aps_node_perspective_delta_candidate"
+      ],
+      "message": "Perspective delta promotion is blocked until proof/evidence and durable promotion contracts exist.",
+      "why_now": "M10 defines advisory substrate shape before durable Perspective promotion authority exists.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.formation-receipt.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "No proof/evidence creation and no durable Perspective promotion."
+      ]
+    },
+    {
+      "rule_fire_id": "aps_rule_unresolved_tension_missing_from_handoff_warns",
+      "rule_name": "unresolved_tension_missing_from_handoff_warns",
+      "severity": "warning",
+      "source_node_ids": [
+        "aps_node_unresolved_tension_preservation",
+        "aps_node_handoff_constraint_forbidden_actions"
+      ],
+      "message": "Future handoff previews should preserve unresolved tensions.",
+      "why_now": "The geometry digest exposes contradiction pairs that should remain visible to AI context selection.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Warning only; no handoff is sent."
+      ]
+    },
+    {
+      "rule_fire_id": "aps_rule_local_constraint_globalized_warns_scope_overreach",
+      "rule_name": "local_constraint_globalized_warns_scope_overreach",
+      "severity": "warning",
+      "source_node_ids": [
+        "aps_node_handoff_constraint_forbidden_actions"
+      ],
+      "message": "Local constraints should not be globalized beyond their source scope.",
+      "why_now": "The substrate folds multiple preview sources and must retain scope boundaries.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.ai-context-packet.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Scope warning only; no canonical labels are changed."
+      ]
+    },
+    {
+      "rule_fire_id": "aps_rule_forbidden_action_missing_from_handoff_warns",
+      "rule_name": "forbidden_action_missing_from_handoff_warns",
+      "severity": "warning",
+      "source_node_ids": [
+        "aps_node_handoff_constraint_forbidden_actions"
+      ],
+      "message": "Future handoff previews should preserve forbidden action boundaries.",
+      "why_now": "The next preview builder may prepare context capsules and must carry no-execution boundaries forward.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.ai-context-packet.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "No external handoff or agent routing authority."
+      ]
+    },
+    {
+      "rule_fire_id": "aps_rule_repeated_dismissed_warning_without_new_source_downgrades",
+      "rule_name": "repeated_dismissed_warning_without_new_source_downgrades",
+      "severity": "notice",
+      "source_node_ids": [
+        "aps_node_stale_context_high_gravity"
+      ],
+      "message": "Repeated warnings without new source coverage should downgrade surfacing priority.",
+      "why_now": "The substrate needs deterministic preview rules for stale or noisy warning reuse.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Preview ranking hint only; no user preference or durable dismissal state is written."
+      ]
+    },
+    {
+      "rule_fire_id": "aps_rule_stale_high_gravity_node_warns_context_distortion",
+      "rule_name": "stale_high_gravity_node_warns_context_distortion",
+      "severity": "notice",
+      "source_node_ids": [
+        "aps_node_stale_context_high_gravity"
+      ],
+      "message": "High-gravity stale context can distort future AI context selection.",
+      "why_now": "The geometry digest carries cluster weights that may over-amplify old context if reused blindly.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Stale-context notice only; cannot invalidate state."
+      ]
+    },
+    {
+      "rule_fire_id": "aps_rule_retrieval_hint_without_execution_only",
+      "rule_name": "retrieval_hint_without_execution_only",
+      "severity": "info",
+      "source_node_ids": [
+        "aps_node_retrieval_hint_gap_review"
+      ],
+      "message": "Retrieval hints may be recorded only as non-executing advisory suggestions.",
+      "why_now": "The geometry digest includes recommended retrieval expansion hints, but this slice must not execute retrieval.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Retrieval execution authority is false."
+      ]
+    },
+    {
+      "rule_fire_id": "aps_rule_coordinates_as_truth_forbidden",
+      "rule_name": "coordinates_as_truth_forbidden",
+      "severity": "blocker",
+      "source_node_ids": [
+        "aps_node_geometry_cluster_review_structure"
+      ],
+      "message": "Layout coordinates must not be treated as truth.",
+      "why_now": "The substrate consumes PerspectiveGeometryDigest instead of raw constellation layout coordinates.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Coordinates-as-truth is forbidden; digest is advisory."
+      ]
+    },
+    {
+      "rule_fire_id": "aps_rule_product_write_lane_parked",
+      "rule_name": "product_write_lane_parked",
+      "severity": "blocker",
+      "source_node_ids": [
+        "aps_node_product_write_stopline_686"
+      ],
+      "message": "Product-write lane remains parked by the #686 stopline.",
+      "why_now": "Substrate preview work must not drift into product write implementation.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:product-write-preflight-stopline.686"
+        }
+      ],
+      "authority_boundary_notes": [
+        "No product write, ID allocation, DB, SQL, route, UI, adapter enablement, or command persistence."
+      ]
+    }
+  ],
+  "surfacing_candidates": [
+    {
+      "surfacing_candidate_id": "aps_surface_unresolved_tension_warning",
+      "substrate_node_ids": [
+        "aps_node_unresolved_tension_preservation"
+      ],
+      "substrate_edge_ids": [
+        "aps_edge_tension_preserves_delta"
+      ],
+      "rule_fire_ids": [
+        "aps_rule_unresolved_tension_missing_from_handoff_warns"
+      ],
+      "surface_type": "unresolved_tension_warning",
+      "title": "Preserve unresolved tension",
+      "message": "Keep the unresolved tension visible in future handoff and capsule previews.",
+      "severity": "warning",
+      "confidence": 0.82,
+      "impact": "high",
+      "epistemic_status": "candidate_tension",
+      "review_status": "unresolved_preview",
+      "why_now": "The geometry digest contradiction pair is advisory but important for future AI context selection.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+        }
+      ],
+      "suggested_user_actions": [
+        "inspect",
+        "pin_preview"
+      ],
+      "may_interrupt_user": false,
+      "authority_boundary_notes": [
+        "Preview warning only; no state change or handoff execution."
+      ],
+      "execution_authority": false,
+      "durable_write_authority": false
+    },
+    {
+      "surfacing_candidate_id": "aps_surface_grounded_claim_boundary_blocker",
+      "substrate_node_ids": [
+        "aps_node_knowledge_gap_source_coverage"
+      ],
+      "substrate_edge_ids": [
+        "aps_edge_gap_blocks_promotion"
+      ],
+      "rule_fire_ids": [
+        "aps_rule_source_refs_missing_blocks_grounded_claim"
+      ],
+      "surface_type": "grounded_claim_boundary_blocker",
+      "title": "Source refs required before grounded claim surfacing",
+      "message": "A grounded claim-like surface must stay blocked when source refs are missing.",
+      "severity": "blocker",
+      "confidence": 0.9,
+      "impact": "critical",
+      "epistemic_status": "insufficient_source_coverage",
+      "review_status": "blocked_preview",
+      "why_now": "The M10 substrate fixture records source discipline before preview builder work.",
+      "source_refs": [],
+      "suggested_user_actions": [
+        "inspect",
+        "exclude_from_capsule_preview"
+      ],
+      "may_interrupt_user": false,
+      "authority_boundary_notes": [
+        "Explicit source coverage boundary note: candidate intentionally has no source refs.",
+        "Advisory blocker only; no durable write authority."
+      ],
+      "execution_authority": false,
+      "durable_write_authority": false
+    },
+    {
+      "surfacing_candidate_id": "aps_surface_handoff_improvement_suggestion",
+      "substrate_node_ids": [
+        "aps_node_handoff_constraint_forbidden_actions",
+        "aps_node_bridge_manual_note_to_handoff"
+      ],
+      "substrate_edge_ids": [
+        "aps_edge_handoff_suggests_improvement"
+      ],
+      "rule_fire_ids": [
+        "aps_rule_forbidden_action_missing_from_handoff_warns"
+      ],
+      "surface_type": "handoff_improvement_suggestion",
+      "title": "Carry forbidden-action boundaries into handoff previews",
+      "message": "Future handoff previews should include no-DB, no-provider, no-retrieval, no-agent, and no-product-write boundaries.",
+      "severity": "notice",
+      "confidence": 0.78,
+      "impact": "medium",
+      "epistemic_status": "boundary_constraint",
+      "review_status": "active_preview",
+      "why_now": "The next preview builder may prepare capsule/handoff context without execution authority.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.ai-context-packet.sample.v0.1"
+        }
+      ],
+      "suggested_user_actions": [
+        "add_to_capsule_preview",
+        "inspect"
+      ],
+      "may_interrupt_user": false,
+      "authority_boundary_notes": [
+        "Suggestion only; no external handoff is executed."
+      ],
+      "execution_authority": false,
+      "durable_write_authority": false
+    },
+    {
+      "surfacing_candidate_id": "aps_surface_stale_context_notice",
+      "substrate_node_ids": [
+        "aps_node_stale_context_high_gravity"
+      ],
+      "substrate_edge_ids": [],
+      "rule_fire_ids": [
+        "aps_rule_stale_high_gravity_node_warns_context_distortion",
+        "aps_rule_repeated_dismissed_warning_without_new_source_downgrades"
+      ],
+      "surface_type": "stale_context_notice",
+      "title": "Watch stale high-gravity context",
+      "message": "High-gravity context should be downgraded if reused without new source coverage.",
+      "severity": "notice",
+      "confidence": 0.69,
+      "impact": "medium",
+      "epistemic_status": "stale_risk_advisory",
+      "review_status": "notice_preview",
+      "why_now": "The geometry digest weights can bias future AI context selection if stale context is not flagged.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+        }
+      ],
+      "suggested_user_actions": [
+        "downgrade_preview",
+        "inspect"
+      ],
+      "may_interrupt_user": false,
+      "authority_boundary_notes": [
+        "Notice only; cannot invalidate durable belief state."
+      ],
+      "execution_authority": false,
+      "durable_write_authority": false
+    },
+    {
+      "surfacing_candidate_id": "aps_surface_retrieval_hint_gap_review",
+      "substrate_node_ids": [
+        "aps_node_retrieval_hint_gap_review",
+        "aps_node_knowledge_gap_source_coverage"
+      ],
+      "substrate_edge_ids": [
+        "aps_edge_retrieval_hint_connects_gap"
+      ],
+      "rule_fire_ids": [
+        "aps_rule_retrieval_hint_without_execution_only"
+      ],
+      "surface_type": "retrieval_hint",
+      "title": "Non-executing retrieval hint",
+      "message": "Record a retrieval hint for later review without executing retrieval now.",
+      "severity": "info",
+      "confidence": 0.74,
+      "impact": "low",
+      "epistemic_status": "advisory_hint",
+      "review_status": "preview_only",
+      "why_now": "PerspectiveGeometryDigest includes advisory retrieval expansion hints that should remain non-executing in M10.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1"
+        }
+      ],
+      "suggested_user_actions": [
+        "pin_preview",
+        "dismiss_preview"
+      ],
+      "may_interrupt_user": false,
+      "authority_boundary_notes": [
+        "Retrieval hint only; retrieval_executed_now is false.",
+        "No provider/OpenAI, source fetch, retrieval/RAG, indexing, or agent execution."
+      ],
+      "execution_authority": false,
+      "durable_write_authority": false,
+      "retrieval_executed_now": false
+    },
+    {
+      "surfacing_candidate_id": "aps_surface_product_write_stopline_reminder",
+      "substrate_node_ids": [
+        "aps_node_product_write_stopline_686"
+      ],
+      "substrate_edge_ids": [
+        "aps_edge_stopline_references_delta"
+      ],
+      "rule_fire_ids": [
+        "aps_rule_product_write_lane_parked"
+      ],
+      "surface_type": "product_write_stopline_reminder",
+      "title": "Product write remains parked",
+      "message": "The substrate preview path must not reopen product write, product IDs, DB/SQL/transaction, adapter, route, or UI work.",
+      "severity": "blocker",
+      "confidence": 1,
+      "impact": "critical",
+      "epistemic_status": "boundary_fact",
+      "review_status": "active_stopline",
+      "why_now": "#686 parked product-write preparation before #687 and this M10 slice.",
+      "source_refs": [
+        {
+          "source_ref_id": "fixture:product-write-preflight-stopline.686"
+        }
+      ],
+      "suggested_user_actions": [
+        "inspect",
+        "pin_preview"
+      ],
+      "may_interrupt_user": false,
+      "authority_boundary_notes": [
+        "Stopline reminder only; no product write authority."
+      ],
+      "execution_authority": false,
+      "durable_write_authority": false
+    }
+  ],
+  "authority_boundaries": {
+    "derived_view_only": true,
+    "source_of_truth": false,
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_create_work_item": false,
+    "can_execute_agents": false,
+    "can_route_agents": false,
+    "can_call_external_services": false,
+    "can_call_providers_or_openai": false,
+    "can_run_retrieval_or_rag": false,
+    "can_fetch_sources": false,
+    "can_promote_perspective": false,
+    "can_allocate_product_ids": false,
+    "can_execute_product_write": false,
+    "can_open_db": false,
+    "can_execute_sql": false,
+    "can_execute_transaction": false,
+    "advisory_only": true
+  },
+  "diagnostics": {
+    "graph_density": 0.1,
+    "unresolved_high_impact_tension_count": 1,
+    "stale_belief_count": 1,
+    "source_ref_coverage_ratio": 0.8,
+    "invalidated_belief_reuse_count": 0,
+    "surfacing_candidate_count": 6,
+    "blocker_count": 3,
+    "warning_count": 2,
+    "source_refs_missing_count": 1,
+    "product_write_stopline_respected": true,
+    "geometry_digest_consumed_as_advisory": true
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "next_recommended_slice": "agent_perspective_substrate_preview_builder_v0_1"
+}

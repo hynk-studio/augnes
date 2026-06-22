@@ -463,6 +463,31 @@ stopline. Next recommended slice:
 It is guarded by
 `smoke:research-candidate-review-perspective-geometry-digest-v0-1`.
 
+## Agent Perspective Substrate v0.1 Pointer
+
+`docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md`,
+`types/agent-perspective-substrate.ts`, and
+`fixtures/agent-perspective-substrate.sample.v0.1.json` define the M10
+docs/type/fixture/smoke substrate slice. PerspectiveGeometryDigest can now feed
+Agent Perspective Substrate as advisory input.
+
+The substrate remains a folded advisory layer. It is not source of truth,
+proof, evidence, durable Perspective state, execution authority, agent routing,
+retrieval result, or product write authority. It may prepare warning,
+comparison, compression, stale-context, handoff, capsule, and retrieval-hint
+previews only as non-executing advisory material.
+
+Every surfaced warning, suggestion, blocker, or handoff improvement must carry
+`source_refs` or an explicit source coverage boundary note, `why_now`,
+epistemic/review status, and `authority_boundary_notes`.
+
+This adds no runtime route/UI behavior, no DB/SQL/transaction, no
+provider/OpenAI call, no source fetch, no retrieval execution or indexing implementation, no proof/evidence write, no work
+mutation or work item creation, no durable Perspective promotion, no agent
+execution/routing, no MCP/App tool widening, and no product write.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`agent_perspective_substrate_preview_builder_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
