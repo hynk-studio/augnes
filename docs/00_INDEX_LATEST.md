@@ -1982,6 +1982,24 @@ repo-local 색인이다.
   provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
   write/product IDs. Product-write remains parked by #686. The next recommended
   slice is `feedback_event_aggregation_read_model_contract_v0_1`.
+- Feedback Event aggregation read model contract v0.1:
+  `types/feedback-event-aggregation-read-model-contract.ts`,
+  `fixtures/research-candidate-review.feedback-event-aggregation-read-model-contract.sample.v0.1.json`,
+  and `scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs`
+  (`npm run smoke:feedback-event-aggregation-read-model-contract-v0-1`)
+  define read-model-only aggregation over durable feedback events.
+
+  This is a contract/fixture/smoke/docs slice only. It adds no runtime implementation,
+  no DB query, no browser request, no feedback write/mutation,
+  no app/api route change, no route handler change, no server action, no
+  schema/migration change, no package dependency addition, no browser
+  persistence, no proof/evidence/Perspective promotion/work mutation, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, no salience authority,
+  and no product write/product IDs. The aggregation views are advisory/read-only
+  and not proof/evidence, not Perspective state, not work status, not promotion
+  authority, not retrieval/RAG result, and not product write. product-write remains parked by #686.
+  The next recommended slice is
+  `feedback_event_aggregation_read_model_implementation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

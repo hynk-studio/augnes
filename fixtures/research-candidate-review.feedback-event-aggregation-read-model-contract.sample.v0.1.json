@@ -1,0 +1,733 @@
+{
+  "contract_kind": "feedback_event_aggregation_read_model_contract",
+  "contract_version": "feedback_event_aggregation_read_model_contract.v0.1",
+  "source_feedback_event_store_ref": "feedback_event_store.v0.1:fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json",
+  "source_list_route_ref": "feedback_event_store_list_route_contract.v0.1:fixtures/research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1.json",
+  "source_list_ui_browser_validation_ref": "feedback_event_store_list_ui_browser_validation.v0.1:fixtures/research-candidate-review.feedback-event-store-list-ui-browser-validation.sample.v0.1.json",
+  "aggregation_inputs": {
+    "durable_feedback_events_only": true,
+    "source_route_path": "/api/research-candidate/feedback-events",
+    "source_route_method": "GET",
+    "source_request_version": "feedback_event_store_list_route_request.v0.1",
+    "allowed_event_types": [
+      "dismiss_preview",
+      "pin_preview",
+      "correct_preview",
+      "invalidate_preview"
+    ],
+    "allowed_target_kinds": [
+      "agent_perspective_substrate_surfacing_card",
+      "agent_perspective_substrate_folded_section",
+      "candidate_to_codex_handoff_draft",
+      "candidate_to_codex_handoff_draft_review",
+      "candidate_to_codex_handoff_operator_decision_preview",
+      "research_candidate_review_object",
+      "research_candidate_ai_context_packet",
+      "perspective_geometry_digest"
+    ],
+    "no_runtime_read_now": true,
+    "no_db_query_now": true,
+    "fixture_backed_only": true
+  },
+  "aggregation_dimensions": [
+    "event_type",
+    "target_kind",
+    "target_id",
+    "created_at_day",
+    "source_ref_id",
+    "duplicate_group",
+    "idempotency_key_pattern",
+    "operator_note_presence",
+    "reason_presence"
+  ],
+  "read_model_views": [
+    {
+      "view_id": "feedback_event_counts_by_event_type",
+      "view_version": "feedback_event_counts_by_event_type.v0.1",
+      "input_event_selector": {
+        "durable_feedback_events_only": true,
+        "fixture_backed_only": true,
+        "no_runtime_read_now": true,
+        "source_route_path": "/api/research-candidate/feedback-events",
+        "source_route_method": "GET"
+      },
+      "grouping_keys": [
+        "event_type"
+      ],
+      "output_fields": [
+        "event_type",
+        "event_count",
+        "latest_created_at"
+      ],
+      "sort_policy": {
+        "order_by": [
+          "event_type ASC"
+        ],
+        "deterministic": true
+      },
+      "limit_policy": {
+        "default_limit": 50,
+        "max_limit": 100,
+        "runtime_override_now": false
+      },
+      "sample_grouped_outputs": [
+        {
+          "event_type": "correct_preview",
+          "event_count": 1,
+          "latest_created_at": "2026-06-22T00:02:00.000Z"
+        },
+        {
+          "event_type": "dismiss_preview",
+          "event_count": 1,
+          "latest_created_at": "2026-06-22T00:00:00.000Z"
+        },
+        {
+          "event_type": "invalidate_preview",
+          "event_count": 1,
+          "latest_created_at": "2026-06-22T00:03:00.000Z"
+        },
+        {
+          "event_type": "pin_preview",
+          "event_count": 1,
+          "latest_created_at": "2026-06-22T00:01:00.000Z"
+        }
+      ],
+      "authority_boundary": {
+        "read_model_only": true,
+        "not_source_of_truth": true,
+        "not_proof_or_evidence": true,
+        "not_perspective_state": true,
+        "not_work_status": true,
+        "not_promotion_decision": true,
+        "not_retrieval_rag_result": true,
+        "not_product_write": true
+      }
+    },
+    {
+      "view_id": "feedback_event_counts_by_target_kind",
+      "view_version": "feedback_event_counts_by_target_kind.v0.1",
+      "input_event_selector": {
+        "durable_feedback_events_only": true,
+        "fixture_backed_only": true,
+        "no_runtime_read_now": true,
+        "source_route_path": "/api/research-candidate/feedback-events",
+        "source_route_method": "GET"
+      },
+      "grouping_keys": [
+        "target_kind"
+      ],
+      "output_fields": [
+        "target_kind",
+        "event_count",
+        "latest_created_at"
+      ],
+      "sort_policy": {
+        "order_by": [
+          "event_count DESC",
+          "target_kind ASC"
+        ],
+        "deterministic": true
+      },
+      "limit_policy": {
+        "default_limit": 50,
+        "max_limit": 100,
+        "runtime_override_now": false
+      },
+      "sample_grouped_outputs": [
+        {
+          "target_kind": "agent_perspective_substrate_folded_section",
+          "event_count": 1,
+          "latest_created_at": "2026-06-22T00:01:00.000Z"
+        },
+        {
+          "target_kind": "agent_perspective_substrate_surfacing_card",
+          "event_count": 1,
+          "latest_created_at": "2026-06-22T00:00:00.000Z"
+        },
+        {
+          "target_kind": "candidate_to_codex_handoff_draft_review",
+          "event_count": 1,
+          "latest_created_at": "2026-06-22T00:02:00.000Z"
+        },
+        {
+          "target_kind": "candidate_to_codex_handoff_operator_decision_preview",
+          "event_count": 1,
+          "latest_created_at": "2026-06-22T00:03:00.000Z"
+        }
+      ],
+      "authority_boundary": {
+        "read_model_only": true,
+        "not_source_of_truth": true,
+        "not_proof_or_evidence": true,
+        "not_perspective_state": true,
+        "not_work_status": true,
+        "not_promotion_decision": true,
+        "not_retrieval_rag_result": true,
+        "not_product_write": true
+      }
+    },
+    {
+      "view_id": "feedback_event_counts_by_target",
+      "view_version": "feedback_event_counts_by_target.v0.1",
+      "input_event_selector": {
+        "durable_feedback_events_only": true,
+        "fixture_backed_only": true,
+        "no_runtime_read_now": true,
+        "source_route_path": "/api/research-candidate/feedback-events",
+        "source_route_method": "GET"
+      },
+      "grouping_keys": [
+        "target_kind",
+        "target_id"
+      ],
+      "output_fields": [
+        "target_kind",
+        "target_id",
+        "event_count",
+        "event_types",
+        "latest_created_at"
+      ],
+      "sort_policy": {
+        "order_by": [
+          "event_count DESC",
+          "target_kind ASC",
+          "target_id ASC"
+        ],
+        "deterministic": true
+      },
+      "limit_policy": {
+        "default_limit": 50,
+        "max_limit": 100,
+        "runtime_override_now": false
+      },
+      "sample_grouped_outputs": [
+        {
+          "target_kind": "agent_perspective_substrate_folded_section",
+          "target_id": "folded_section:source_coverage",
+          "event_count": 1,
+          "event_types": [
+            "pin_preview"
+          ],
+          "latest_created_at": "2026-06-22T00:01:00.000Z"
+        },
+        {
+          "target_kind": "agent_perspective_substrate_surfacing_card",
+          "target_id": "substrate_card:reviewed_non_authoritative_context",
+          "event_count": 1,
+          "event_types": [
+            "dismiss_preview"
+          ],
+          "latest_created_at": "2026-06-22T00:00:00.000Z"
+        },
+        {
+          "target_kind": "candidate_to_codex_handoff_draft_review",
+          "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+          "event_count": 1,
+          "event_types": [
+            "correct_preview"
+          ],
+          "latest_created_at": "2026-06-22T00:02:00.000Z"
+        },
+        {
+          "target_kind": "candidate_to_codex_handoff_operator_decision_preview",
+          "target_id": "candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
+          "event_count": 1,
+          "event_types": [
+            "invalidate_preview"
+          ],
+          "latest_created_at": "2026-06-22T00:03:00.000Z"
+        }
+      ],
+      "authority_boundary": {
+        "read_model_only": true,
+        "not_source_of_truth": true,
+        "not_proof_or_evidence": true,
+        "not_perspective_state": true,
+        "not_work_status": true,
+        "not_promotion_decision": true,
+        "not_retrieval_rag_result": true,
+        "not_product_write": true
+      }
+    },
+    {
+      "view_id": "duplicate_feedback_groups",
+      "view_version": "duplicate_feedback_groups.v0.1",
+      "input_event_selector": {
+        "durable_feedback_events_only": true,
+        "fixture_backed_only": true,
+        "no_runtime_read_now": true,
+        "source_route_path": "/api/research-candidate/feedback-events",
+        "source_route_method": "GET"
+      },
+      "grouping_keys": [
+        "event_type",
+        "target_kind",
+        "target_id",
+        "duplicate_group"
+      ],
+      "output_fields": [
+        "duplicate_group",
+        "event_type",
+        "target_kind",
+        "target_id",
+        "event_count",
+        "duplicate_detected",
+        "display_indicator_only",
+        "mutates_feedback_events"
+      ],
+      "sort_policy": {
+        "order_by": [
+          "duplicate_detected DESC",
+          "duplicate_group ASC"
+        ],
+        "deterministic": true
+      },
+      "limit_policy": {
+        "default_limit": 50,
+        "max_limit": 100,
+        "runtime_override_now": false
+      },
+      "sample_grouped_outputs": [
+        {
+          "duplicate_group": "correct_preview:candidate_to_codex_handoff_draft_review:candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+          "event_type": "correct_preview",
+          "target_kind": "candidate_to_codex_handoff_draft_review",
+          "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+          "event_count": 1,
+          "duplicate_detected": false,
+          "display_indicator_only": true,
+          "mutates_feedback_events": false
+        },
+        {
+          "duplicate_group": "dismiss_preview:agent_perspective_substrate_surfacing_card:substrate_card:reviewed_non_authoritative_context",
+          "event_type": "dismiss_preview",
+          "target_kind": "agent_perspective_substrate_surfacing_card",
+          "target_id": "substrate_card:reviewed_non_authoritative_context",
+          "event_count": 1,
+          "duplicate_detected": false,
+          "display_indicator_only": true,
+          "mutates_feedback_events": false
+        },
+        {
+          "duplicate_group": "invalidate_preview:candidate_to_codex_handoff_operator_decision_preview:candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
+          "event_type": "invalidate_preview",
+          "target_kind": "candidate_to_codex_handoff_operator_decision_preview",
+          "target_id": "candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
+          "event_count": 1,
+          "duplicate_detected": false,
+          "display_indicator_only": true,
+          "mutates_feedback_events": false
+        },
+        {
+          "duplicate_group": "pin_preview:agent_perspective_substrate_folded_section:folded_section:source_coverage",
+          "event_type": "pin_preview",
+          "target_kind": "agent_perspective_substrate_folded_section",
+          "target_id": "folded_section:source_coverage",
+          "event_count": 1,
+          "duplicate_detected": false,
+          "display_indicator_only": true,
+          "mutates_feedback_events": false
+        }
+      ],
+      "authority_boundary": {
+        "read_model_only": true,
+        "not_source_of_truth": true,
+        "not_proof_or_evidence": true,
+        "not_perspective_state": true,
+        "not_work_status": true,
+        "not_promotion_decision": true,
+        "not_retrieval_rag_result": true,
+        "not_product_write": true
+      }
+    },
+    {
+      "view_id": "recent_feedback_event_window_preview",
+      "view_version": "recent_feedback_event_window_preview.v0.1",
+      "input_event_selector": {
+        "durable_feedback_events_only": true,
+        "fixture_backed_only": true,
+        "no_runtime_read_now": true,
+        "source_route_path": "/api/research-candidate/feedback-events",
+        "source_route_method": "GET",
+        "window_kind": "static_recent_fixture_window"
+      },
+      "grouping_keys": [
+        "created_at_day"
+      ],
+      "output_fields": [
+        "event_id",
+        "event_type",
+        "target_kind",
+        "target_id",
+        "created_at",
+        "created_at_day",
+        "read_model_only"
+      ],
+      "sort_policy": {
+        "order_by": [
+          "created_at DESC",
+          "event_id DESC"
+        ],
+        "deterministic": true
+      },
+      "limit_policy": {
+        "default_limit": 50,
+        "max_limit": 100,
+        "runtime_override_now": false
+      },
+      "sample_grouped_outputs": [
+        {
+          "event_id": "feedback_event:fnv1a32:49187a0d",
+          "event_type": "invalidate_preview",
+          "target_kind": "candidate_to_codex_handoff_operator_decision_preview",
+          "target_id": "candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
+          "created_at": "2026-06-22T00:03:00.000Z",
+          "created_at_day": "2026-06-22",
+          "read_model_only": true
+        },
+        {
+          "event_id": "feedback_event:fnv1a32:1542ea21",
+          "event_type": "correct_preview",
+          "target_kind": "candidate_to_codex_handoff_draft_review",
+          "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+          "created_at": "2026-06-22T00:02:00.000Z",
+          "created_at_day": "2026-06-22",
+          "read_model_only": true
+        },
+        {
+          "event_id": "feedback_event:fnv1a32:71954683",
+          "event_type": "pin_preview",
+          "target_kind": "agent_perspective_substrate_folded_section",
+          "target_id": "folded_section:source_coverage",
+          "created_at": "2026-06-22T00:01:00.000Z",
+          "created_at_day": "2026-06-22",
+          "read_model_only": true
+        },
+        {
+          "event_id": "feedback_event:fnv1a32:3cbcddb7",
+          "event_type": "dismiss_preview",
+          "target_kind": "agent_perspective_substrate_surfacing_card",
+          "target_id": "substrate_card:reviewed_non_authoritative_context",
+          "created_at": "2026-06-22T00:00:00.000Z",
+          "created_at_day": "2026-06-22",
+          "read_model_only": true
+        }
+      ],
+      "authority_boundary": {
+        "read_model_only": true,
+        "not_source_of_truth": true,
+        "not_proof_or_evidence": true,
+        "not_perspective_state": true,
+        "not_work_status": true,
+        "not_promotion_decision": true,
+        "not_retrieval_rag_result": true,
+        "not_product_write": true
+      }
+    },
+    {
+      "view_id": "pinned_or_dismissed_target_summary",
+      "view_version": "pinned_or_dismissed_target_summary.v0.1",
+      "input_event_selector": {
+        "durable_feedback_events_only": true,
+        "fixture_backed_only": true,
+        "no_runtime_read_now": true,
+        "source_route_path": "/api/research-candidate/feedback-events",
+        "source_route_method": "GET",
+        "event_type_in": [
+          "pin_preview",
+          "dismiss_preview"
+        ]
+      },
+      "grouping_keys": [
+        "target_kind",
+        "target_id"
+      ],
+      "output_fields": [
+        "target_kind",
+        "target_id",
+        "pin_count",
+        "dismiss_count"
+      ],
+      "sort_policy": {
+        "order_by": [
+          "target_kind ASC",
+          "target_id ASC"
+        ],
+        "deterministic": true
+      },
+      "limit_policy": {
+        "default_limit": 50,
+        "max_limit": 100,
+        "runtime_override_now": false
+      },
+      "sample_grouped_outputs": [
+        {
+          "target_kind": "agent_perspective_substrate_folded_section",
+          "target_id": "folded_section:source_coverage",
+          "pin_count": 1,
+          "dismiss_count": 0
+        },
+        {
+          "target_kind": "agent_perspective_substrate_surfacing_card",
+          "target_id": "substrate_card:reviewed_non_authoritative_context",
+          "pin_count": 0,
+          "dismiss_count": 1
+        }
+      ],
+      "authority_boundary": {
+        "read_model_only": true,
+        "not_source_of_truth": true,
+        "not_proof_or_evidence": true,
+        "not_perspective_state": true,
+        "not_work_status": true,
+        "not_promotion_decision": true,
+        "not_retrieval_rag_result": true,
+        "not_product_write": true
+      }
+    },
+    {
+      "view_id": "operator_note_presence_summary",
+      "view_version": "operator_note_presence_summary.v0.1",
+      "input_event_selector": {
+        "durable_feedback_events_only": true,
+        "fixture_backed_only": true,
+        "no_runtime_read_now": true,
+        "source_route_path": "/api/research-candidate/feedback-events",
+        "source_route_method": "GET"
+      },
+      "grouping_keys": [
+        "operator_note_presence"
+      ],
+      "output_fields": [
+        "operator_note_presence",
+        "event_count"
+      ],
+      "sort_policy": {
+        "order_by": [
+          "operator_note_presence DESC"
+        ],
+        "deterministic": true
+      },
+      "limit_policy": {
+        "default_limit": 50,
+        "max_limit": 100,
+        "runtime_override_now": false
+      },
+      "sample_grouped_outputs": [
+        {
+          "operator_note_presence": true,
+          "event_count": 4
+        }
+      ],
+      "authority_boundary": {
+        "read_model_only": true,
+        "not_source_of_truth": true,
+        "not_proof_or_evidence": true,
+        "not_perspective_state": true,
+        "not_work_status": true,
+        "not_promotion_decision": true,
+        "not_retrieval_rag_result": true,
+        "not_product_write": true
+      }
+    },
+    {
+      "view_id": "source_ref_feedback_summary",
+      "view_version": "source_ref_feedback_summary.v0.1",
+      "input_event_selector": {
+        "durable_feedback_events_only": true,
+        "fixture_backed_only": true,
+        "no_runtime_read_now": true,
+        "source_route_path": "/api/research-candidate/feedback-events",
+        "source_route_method": "GET"
+      },
+      "grouping_keys": [
+        "source_ref_id"
+      ],
+      "output_fields": [
+        "source_ref_id",
+        "event_count",
+        "event_types"
+      ],
+      "sort_policy": {
+        "order_by": [
+          "event_count DESC",
+          "source_ref_id ASC"
+        ],
+        "deterministic": true
+      },
+      "limit_policy": {
+        "default_limit": 50,
+        "max_limit": 100,
+        "runtime_override_now": false
+      },
+      "sample_grouped_outputs": [
+        {
+          "source_ref_id": "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+          "event_count": 1,
+          "event_types": [
+            "pin_preview"
+          ]
+        },
+        {
+          "source_ref_id": "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage",
+          "event_count": 1,
+          "event_types": [
+            "pin_preview"
+          ]
+        },
+        {
+          "source_ref_id": "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#surfacing_cards",
+          "event_count": 1,
+          "event_types": [
+            "dismiss_preview"
+          ]
+        },
+        {
+          "source_ref_id": "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json",
+          "event_count": 1,
+          "event_types": [
+            "correct_preview"
+          ]
+        },
+        {
+          "source_ref_id": "fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json",
+          "event_count": 1,
+          "event_types": [
+            "invalidate_preview"
+          ]
+        }
+      ],
+      "authority_boundary": {
+        "read_model_only": true,
+        "not_source_of_truth": true,
+        "not_proof_or_evidence": true,
+        "not_perspective_state": true,
+        "not_work_status": true,
+        "not_promotion_decision": true,
+        "not_retrieval_rag_result": true,
+        "not_product_write": true
+      }
+    },
+    {
+      "view_id": "authority_boundary_summary",
+      "view_version": "authority_boundary_summary.v0.1",
+      "input_event_selector": {
+        "durable_feedback_events_only": true,
+        "fixture_backed_only": true,
+        "no_runtime_read_now": true,
+        "source_route_path": "/api/research-candidate/feedback-events",
+        "source_route_method": "GET"
+      },
+      "grouping_keys": [
+        "event_type"
+      ],
+      "output_fields": [
+        "event_count",
+        "forbidden_authority_flags_true_count",
+        "read_model_only",
+        "product_write_lane_parked_by_686"
+      ],
+      "sort_policy": {
+        "order_by": [
+          "event_count DESC"
+        ],
+        "deterministic": true
+      },
+      "limit_policy": {
+        "default_limit": 1,
+        "max_limit": 1,
+        "runtime_override_now": false
+      },
+      "sample_grouped_outputs": [
+        {
+          "event_count": 4,
+          "forbidden_authority_flags_true_count": 0,
+          "read_model_only": true,
+          "product_write_lane_parked_by_686": true
+        }
+      ],
+      "authority_boundary": {
+        "read_model_only": true,
+        "not_source_of_truth": true,
+        "not_proof_or_evidence": true,
+        "not_perspective_state": true,
+        "not_work_status": true,
+        "not_promotion_decision": true,
+        "not_retrieval_rag_result": true,
+        "not_product_write": true
+      }
+    }
+  ],
+  "duplicate_feedback_policy": {
+    "duplicate_detection_keys": [
+      "event_type",
+      "target_kind",
+      "target_id"
+    ],
+    "idempotency_key_duplicates_grouped_separately": true,
+    "display_read_model_indicators_only": true,
+    "delete_feedback_events": false,
+    "rewrite_feedback_events": false,
+    "suppress_feedback_events": false,
+    "mutate_feedback_events": false,
+    "decides_promotion": false,
+    "decides_proof_or_evidence": false,
+    "decides_work_status": false,
+    "decides_product_write": false
+  },
+  "trend_window_policy": {
+    "static_preview_windows_only": true,
+    "preview_windows": [
+      "created_at_day_preview",
+      "recent_feedback_event_window_preview"
+    ],
+    "no_runtime_scheduler": true,
+    "no_auto_refresh": true,
+    "no_polling": true,
+    "no_durable_window_state": true,
+    "no_salience_authority": true
+  },
+  "authority_boundary": {
+    "contract_only": true,
+    "read_model_defined_now": true,
+    "runtime_read_model_implemented_now": false,
+    "runtime_db_query_now": false,
+    "route_changed_now": false,
+    "feedback_events_read_now": false,
+    "feedback_events_written_now": false,
+    "feedback_events_mutated_now": false,
+    "browser_request_now": false,
+    "browser_persistence_now": false,
+    "proof_or_evidence_record": false,
+    "perspective_promotion": false,
+    "durable_perspective_state_write": false,
+    "promotion_decision_record": false,
+    "work_mutation": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "salience_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation_policy": {
+    "static_source_validation_only": true,
+    "fixture_backed_only": true,
+    "app_server_started_now": false,
+    "production_db_used_now": false,
+    "runtime_browser_request_now": false
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "recommendation_status": "ready_for_feedback_event_aggregation_read_model_implementation_v0_1",
+  "next_recommended_slice": "feedback_event_aggregation_read_model_implementation_v0_1",
+  "contract_fingerprint": "fnv1a32:3e123a8f",
+  "fingerprint_algorithm": "fnv1a32_canonical_json"
+}

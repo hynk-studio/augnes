@@ -43,11 +43,21 @@ const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
 const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
 const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
+const aggregationReadModelContractTypePath =
+  "types/feedback-event-aggregation-read-model-contract.ts";
+const aggregationReadModelContractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-contract.sample.v0.1.json";
+const aggregationReadModelContractSmokePath =
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 
 const packageScriptName =
   "smoke:feedback-event-store-list-ui-browser-validation-v0-1";
 const packageScriptValue =
   "node scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const aggregationReadModelContractPackageScriptName =
+  "smoke:feedback-event-aggregation-read-model-contract-v0-1";
+const aggregationReadModelContractPackageScriptValue =
+  "node scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 const routePath = "/api/research-candidate/feedback-events";
 const routeMethod = "GET";
 const requestVersion = "feedback_event_store_list_route_request.v0.1";
@@ -56,6 +66,10 @@ const recommendationStatus =
   "ready_for_feedback_event_aggregation_read_model_contract_v0_1";
 const nextRecommendedSlice =
   "feedback_event_aggregation_read_model_contract_v0_1";
+const aggregationReadModelContractRecommendationStatus =
+  "ready_for_feedback_event_aggregation_read_model_implementation_v0_1";
+const aggregationReadModelContractNextRecommendedSlice =
+  "feedback_event_aggregation_read_model_implementation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 
 const allowedFilters = [
@@ -89,6 +103,30 @@ const expectedChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  implementationSmokePath,
+  listUiContractSmokePath,
+  listRouteBrowserValidationSmokePath,
+  listRouteImplementationSmokePath,
+  listRouteContractSmokePath,
+  controlsUiBrowserValidationSmokePath,
+  controlsUiImplementationSmokePath,
+  controlsUiContractSmokePath,
+  writeRouteBrowserValidationSmokePath,
+  writeRouteImplementationSmokePath,
+  writeRouteContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackEventStoreMinimalSmokePath,
+];
+const aggregationReadModelContractExpectedChangedFiles = [
+  aggregationReadModelContractTypePath,
+  aggregationReadModelContractFixturePath,
+  aggregationReadModelContractSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
   implementationSmokePath,
   listUiContractSmokePath,
   listRouteBrowserValidationSmokePath,
@@ -147,6 +185,7 @@ assertStateAndDisplayPaths();
 assertNoForbiddenRuntimePatterns();
 assertDocsPointers();
 assertImplementationSmokeDownstreamPointer();
+assertAggregationReadModelContractDownstreamPointer();
 assert.deepEqual(
   validationFixture,
   rebuiltFixture,
@@ -256,6 +295,12 @@ function buildValidationFixture() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  if (aggregationReadModelContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[aggregationReadModelContractPackageScriptName],
+      aggregationReadModelContractPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -269,6 +314,17 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
+  if (aggregationReadModelContractSliceActive()) {
+    assert.deepEqual(
+      addedScriptNames,
+      [aggregationReadModelContractPackageScriptName],
+      "package additions must only include the aggregation read model contract smoke script",
+    );
+    assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+    assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+    assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+    return;
+  }
   assert.deepEqual(
     addedScriptNames,
     [packageScriptName],
@@ -281,12 +337,15 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const activeExpectedChangedFiles = aggregationReadModelContractSliceActive()
+    ? aggregationReadModelContractExpectedChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of activeExpectedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedChangedFiles.includes(changedFile),
+      activeExpectedChangedFiles.includes(changedFile),
       `unexpected changed file in list UI browser validation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^components\//, "must not change components");
@@ -531,6 +590,26 @@ function assertImplementationSmokeDownstreamPointer() {
   );
 }
 
+function assertAggregationReadModelContractDownstreamPointer() {
+  if (!aggregationReadModelContractSliceActive()) {
+    return;
+  }
+  const validationSmokeSource = readFile(smokePath);
+  for (const requiredText of [
+    aggregationReadModelContractPackageScriptName,
+    aggregationReadModelContractTypePath,
+    aggregationReadModelContractFixturePath,
+    aggregationReadModelContractSmokePath,
+    aggregationReadModelContractRecommendationStatus,
+    aggregationReadModelContractNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      validationSmokeSource.includes(requiredText),
+      `#708 list UI browser validation smoke must allow aggregation read model contract text: ${requiredText}`,
+    );
+  }
+}
+
 function assertValidationFixture(value) {
   assert.equal(value.validation_kind, "feedback_event_store_list_ui_browser_validation");
   assert.equal(value.validation_version, validationVersion);
@@ -668,6 +747,10 @@ function readChangedFiles() {
     .map((line) => line.trim())
     .filter(Boolean)
     .sort();
+}
+
+function aggregationReadModelContractSliceActive() {
+  return readChangedFiles().includes(aggregationReadModelContractSmokePath);
 }
 
 function extractScriptName(line) {

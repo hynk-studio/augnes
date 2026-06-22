@@ -498,6 +498,25 @@ product state, and allocates no product IDs. Product-write remains parked by
 the #686 stopline. The next recommended slice is
 `feedback_event_aggregation_read_model_contract_v0_1`.
 
+## Feedback Event Aggregation Read Model Contract v0.1
+
+Feedback event aggregation read model contract v0.1 defines advisory/read-only
+aggregation views over durable feedback events. It may summarize operator
+feedback for review, but it is not proof/evidence, not Perspective state, not
+work status, not promotion authority, not salience authority, not a
+retrieval/RAG result, and not product write.
+
+This slice is contract-only and fixture-backed. It adds no runtime
+implementation, no runtime DB query, no browser request, no feedback
+write/mutation, no app/api route, route handler, server action, schema,
+migration, package dependency, browser persistence, provider/OpenAI call,
+source fetch, retrieval/RAG execution, proof/evidence write, Perspective
+promotion, durable Perspective state write, promotion decision record, work
+mutation, salience governor, product write, product DB write, or product ID
+allocation. Product-write remains parked by the #686 stopline. The next
+recommended slice is
+`feedback_event_aggregation_read_model_implementation_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_aggregation_read_model_contract_v0_1`
+`feedback_event_aggregation_read_model_implementation_v0_1`

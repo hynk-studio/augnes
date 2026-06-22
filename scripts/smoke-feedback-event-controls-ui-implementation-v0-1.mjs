@@ -52,6 +52,12 @@ const listUiBrowserValidationFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-ui-browser-validation.sample.v0.1.json";
 const listUiBrowserValidationSmokePath =
   "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const aggregationReadModelContractTypePath =
+  "types/feedback-event-aggregation-read-model-contract.ts";
+const aggregationReadModelContractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-contract.sample.v0.1.json";
+const aggregationReadModelContractSmokePath =
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 const feedbackEventsRouteFilePath = "app/api/research-candidate/feedback-events/route.ts";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -106,6 +112,10 @@ const listUiBrowserValidationPackageScriptName =
   "smoke:feedback-event-store-list-ui-browser-validation-v0-1";
 const listUiBrowserValidationPackageScriptValue =
   "node scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const aggregationReadModelContractPackageScriptName =
+  "smoke:feedback-event-aggregation-read-model-contract-v0-1";
+const aggregationReadModelContractPackageScriptValue =
+  "node scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 const feedbackRoutePath = "/api/research-candidate/feedback-events";
 const routeMethod = "POST";
 const requestVersion = "feedback_event_write_route_request.v0.1";
@@ -141,6 +151,10 @@ const listUiBrowserValidationRecommendationStatus =
   "ready_for_feedback_event_aggregation_read_model_contract_v0_1";
 const listUiBrowserValidationNextRecommendedSlice =
   "feedback_event_aggregation_read_model_contract_v0_1";
+const aggregationReadModelContractRecommendationStatus =
+  "ready_for_feedback_event_aggregation_read_model_implementation_v0_1";
+const aggregationReadModelContractNextRecommendedSlice =
+  "feedback_event_aggregation_read_model_implementation_v0_1";
 const uiContractNextRecommendedSlice =
   "feedback_event_controls_ui_implementation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
@@ -379,6 +393,30 @@ const downstreamListUiImplementationChangedFiles = [
   "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const downstreamAggregationReadModelContractChangedFiles = [
+  aggregationReadModelContractTypePath,
+  aggregationReadModelContractFixturePath,
+  aggregationReadModelContractSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  listUiBrowserValidationSmokePath,
+  listUiImplementationSmokePath,
+  listUiContractSmokePath,
+  listRouteBrowserValidationSmokePath,
+  listRouteImplementationSmokePath,
+  listRouteContractSmokePath,
+  uiBrowserValidationSmokePath,
+  smokePath,
+  uiContractSmokePath,
+  browserValidationSmokePath,
+  routeImplementationSmokePath,
+  routeContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackEventStoreSmokePath,
+];
 const allowedComponentFiles = new Set([componentPath, foldedAuditPanelPath]);
 
 for (const filePath of [
@@ -581,7 +619,12 @@ function summarizeControl(binding, requestsById) {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
-  if (listUiBrowserValidationSliceActive()) {
+  if (aggregationReadModelContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[aggregationReadModelContractPackageScriptName],
+      aggregationReadModelContractPackageScriptValue,
+    );
+  } else if (listUiBrowserValidationSliceActive()) {
     assert.equal(
       packageJson.scripts[listUiBrowserValidationPackageScriptName],
       listUiBrowserValidationPackageScriptValue,
@@ -635,7 +678,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = listUiBrowserValidationSliceActive()
+  const expectedAddedScriptNames = aggregationReadModelContractSliceActive()
+    ? [aggregationReadModelContractPackageScriptName]
+    : listUiBrowserValidationSliceActive()
     ? [listUiBrowserValidationPackageScriptName]
     : listUiImplementationSliceActive()
     ? [listUiImplementationPackageScriptName]
@@ -661,7 +706,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const expectedFiles = listUiBrowserValidationSliceActive()
+  const expectedFiles = aggregationReadModelContractSliceActive()
+    ? downstreamAggregationReadModelContractChangedFiles
+    : listUiBrowserValidationSliceActive()
     ? downstreamListUiBrowserValidationChangedFiles
     : listUiImplementationSliceActive()
     ? downstreamListUiImplementationChangedFiles
@@ -704,7 +751,8 @@ function assertStaticBoundary() {
       listRouteImplementationSliceActive() ||
       listRouteBrowserValidationSliceActive() ||
       listUiContractSliceActive() ||
-      listUiBrowserValidationSliceActive()
+      listUiBrowserValidationSliceActive() ||
+      aggregationReadModelContractSliceActive()
     ) {
       assert.doesNotMatch(changedFile, /^components\//, "must not change components");
     } else if (listUiImplementationSliceActive()) {
@@ -820,7 +868,7 @@ function assertRequestConstruction() {
 }
 
 function assertNoForbiddenRuntimePatterns() {
-  if (listUiBrowserValidationSliceActive()) return;
+  if (listUiBrowserValidationSliceActive() || aggregationReadModelContractSliceActive()) return;
   const changedSourceFiles = readChangedFiles().filter((filePath) =>
     filePath.endsWith(".mjs") || filePath.endsWith(".ts") || filePath.endsWith(".tsx"),
   );
@@ -1136,6 +1184,10 @@ function listUiBrowserValidationSliceActive() {
   return downstreamListUiBrowserValidationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
+}
+
+function aggregationReadModelContractSliceActive() {
+  return readChangedFiles().includes(aggregationReadModelContractSmokePath);
 }
 
 function assertImplementationFixture(value) {

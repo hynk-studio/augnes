@@ -58,6 +58,12 @@ const listUiBrowserValidationFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-ui-browser-validation.sample.v0.1.json";
 const listUiBrowserValidationSmokePath =
   "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const aggregationReadModelContractTypePath =
+  "types/feedback-event-aggregation-read-model-contract.ts";
+const aggregationReadModelContractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-contract.sample.v0.1.json";
+const aggregationReadModelContractSmokePath =
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 
 const packageScriptName =
   "smoke:feedback-event-store-list-ui-contract-v0-1";
@@ -71,6 +77,10 @@ const listUiBrowserValidationPackageScriptName =
   "smoke:feedback-event-store-list-ui-browser-validation-v0-1";
 const listUiBrowserValidationPackageScriptValue =
   "node scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const aggregationReadModelContractPackageScriptName =
+  "smoke:feedback-event-aggregation-read-model-contract-v0-1";
+const aggregationReadModelContractPackageScriptValue =
+  "node scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 const routePath = "/api/research-candidate/feedback-events";
 const routeMethod = "GET";
 const contractVersion = "feedback_event_store_list_ui_contract.v0.1";
@@ -91,6 +101,10 @@ const listUiBrowserValidationRecommendationStatus =
   "ready_for_feedback_event_aggregation_read_model_contract_v0_1";
 const listUiBrowserValidationNextRecommendedSlice =
   "feedback_event_aggregation_read_model_contract_v0_1";
+const aggregationReadModelContractRecommendationStatus =
+  "ready_for_feedback_event_aggregation_read_model_implementation_v0_1";
+const aggregationReadModelContractNextRecommendedSlice =
+  "feedback_event_aggregation_read_model_implementation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 
 const requiredAuthorityAcknowledgements = [
@@ -191,6 +205,30 @@ const listUiImplementationChangedFiles = [
   "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
   "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
+const aggregationReadModelContractChangedFiles = [
+  aggregationReadModelContractTypePath,
+  aggregationReadModelContractFixturePath,
+  aggregationReadModelContractSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  listUiBrowserValidationSmokePath,
+  listUiImplementationSmokePath,
+  smokePath,
+  listRouteBrowserValidationSmokePath,
+  listRouteImplementationSmokePath,
+  listRouteContractSmokePath,
+  uiBrowserValidationSmokePath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  writeRouteBrowserValidationSmokePath,
+  writeRouteImplementationSmokePath,
+  writeRouteContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackStoreMinimalSmokePath,
 ];
 
 for (const filePath of [
@@ -414,7 +452,12 @@ function assertTypeAndBuilderContracts() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
-  if (listUiBrowserValidationSliceActive()) {
+  if (aggregationReadModelContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[aggregationReadModelContractPackageScriptName],
+      aggregationReadModelContractPackageScriptValue,
+    );
+  } else if (listUiBrowserValidationSliceActive()) {
     assert.equal(
       packageJson.scripts[listUiBrowserValidationPackageScriptName],
       listUiBrowserValidationPackageScriptValue,
@@ -440,7 +483,9 @@ function assertPackageScript() {
     .sort();
   assert.deepEqual(
     addedScriptNames,
-    listUiBrowserValidationSliceActive()
+    aggregationReadModelContractSliceActive()
+      ? [aggregationReadModelContractPackageScriptName]
+      : listUiBrowserValidationSliceActive()
       ? [listUiBrowserValidationPackageScriptName]
       : listUiImplementationSliceActive()
       ? [listUiImplementationPackageScriptName]
@@ -453,7 +498,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const activeExpectedChangedFiles = listUiBrowserValidationSliceActive()
+  const activeExpectedChangedFiles = aggregationReadModelContractSliceActive()
+    ? aggregationReadModelContractChangedFiles
+    : listUiBrowserValidationSliceActive()
     ? listUiBrowserValidationChangedFiles
     : listUiImplementationSliceActive()
     ? listUiImplementationChangedFiles
@@ -497,7 +544,11 @@ function assertStaticBoundary() {
 }
 
 function assertNoForbiddenImplementationPatterns() {
-  if (listUiImplementationSliceActive() || listUiBrowserValidationSliceActive()) return;
+  if (
+    listUiImplementationSliceActive() ||
+    listUiBrowserValidationSliceActive() ||
+    aggregationReadModelContractSliceActive()
+  ) return;
   const changedSourceFiles = readChangedFiles().filter((filePath) =>
     filePath.endsWith(".mjs") || filePath.endsWith(".ts") || filePath.endsWith(".tsx"),
   );
@@ -811,6 +862,10 @@ function listUiBrowserValidationSliceActive() {
   return listUiBrowserValidationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
+}
+
+function aggregationReadModelContractSliceActive() {
+  return readChangedFiles().includes(aggregationReadModelContractSmokePath);
 }
 
 function extractScriptName(line) {

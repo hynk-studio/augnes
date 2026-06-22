@@ -68,6 +68,12 @@ const listUiBrowserValidationFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-ui-browser-validation.sample.v0.1.json";
 const listUiBrowserValidationSmokePath =
   "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const aggregationReadModelContractTypePath =
+  "types/feedback-event-aggregation-read-model-contract.ts";
+const aggregationReadModelContractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-contract.sample.v0.1.json";
+const aggregationReadModelContractSmokePath =
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 const feedbackEventsRouteFilePath = "app/api/research-candidate/feedback-events/route.ts";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -102,6 +108,10 @@ const listUiBrowserValidationPackageScriptName =
   "smoke:feedback-event-store-list-ui-browser-validation-v0-1";
 const listUiBrowserValidationPackageScriptValue =
   "node scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const aggregationReadModelContractPackageScriptName =
+  "smoke:feedback-event-aggregation-read-model-contract-v0-1";
+const aggregationReadModelContractPackageScriptValue =
+  "node scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 const implementationPackageScriptName =
   "smoke:feedback-event-controls-ui-implementation-v0-1";
 const routePath = "/api/research-candidate/feedback-events";
@@ -135,6 +145,10 @@ const listUiBrowserValidationRecommendationStatus =
   "ready_for_feedback_event_aggregation_read_model_contract_v0_1";
 const listUiBrowserValidationNextRecommendedSlice =
   "feedback_event_aggregation_read_model_contract_v0_1";
+const aggregationReadModelContractRecommendationStatus =
+  "ready_for_feedback_event_aggregation_read_model_implementation_v0_1";
+const aggregationReadModelContractNextRecommendedSlice =
+  "feedback_event_aggregation_read_model_implementation_v0_1";
 const reason =
   "static component and fixture validation is sufficient before list/read route contract";
 const writeFixture = process.argv.includes("--write-fixture");
@@ -345,6 +359,30 @@ const downstreamListUiImplementationChangedFiles = [
   "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const downstreamAggregationReadModelContractChangedFiles = [
+  aggregationReadModelContractTypePath,
+  aggregationReadModelContractFixturePath,
+  aggregationReadModelContractSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  listUiBrowserValidationSmokePath,
+  listUiImplementationSmokePath,
+  listUiContractSmokePath,
+  listRouteBrowserValidationSmokePath,
+  listRouteImplementationSmokePath,
+  listRouteContractSmokePath,
+  smokePath,
+  implementationSmokePath,
+  uiContractSmokePath,
+  writeRouteBrowserValidationSmokePath,
+  writeRouteImplementationSmokePath,
+  writeRouteContractSmokePath,
+  reviewControlsPreviewSmokePath,
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
 
 for (const filePath of [
   componentPath,
@@ -509,7 +547,12 @@ function buildValidationFixture() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
-  if (downstreamListUiBrowserValidationSliceActive()) {
+  if (downstreamAggregationReadModelContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[aggregationReadModelContractPackageScriptName],
+      aggregationReadModelContractPackageScriptValue,
+    );
+  } else if (downstreamListUiBrowserValidationSliceActive()) {
     assert.equal(
       packageJson.scripts[listUiBrowserValidationPackageScriptName],
       listUiBrowserValidationPackageScriptValue,
@@ -557,7 +600,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamListUiBrowserValidationSliceActive()
+  const expectedAddedScriptNames = downstreamAggregationReadModelContractSliceActive()
+    ? [aggregationReadModelContractPackageScriptName]
+    : downstreamListUiBrowserValidationSliceActive()
     ? [listUiBrowserValidationPackageScriptName]
     : downstreamListUiImplementationSliceActive()
     ? [listUiImplementationPackageScriptName]
@@ -581,7 +626,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const activeRequiredChangedFiles = downstreamListUiBrowserValidationSliceActive()
+  const activeRequiredChangedFiles = downstreamAggregationReadModelContractSliceActive()
+    ? downstreamAggregationReadModelContractChangedFiles
+    : downstreamListUiBrowserValidationSliceActive()
     ? downstreamListUiBrowserValidationChangedFiles
     : downstreamListUiImplementationSliceActive()
     ? downstreamListUiImplementationChangedFiles
@@ -722,7 +769,10 @@ function assertSourceRefResolvesOrHasReason(sourceRefId, control) {
 }
 
 function assertNoForbiddenRuntimePatterns() {
-  if (downstreamListUiBrowserValidationSliceActive()) return;
+  if (
+    downstreamListUiBrowserValidationSliceActive() ||
+    downstreamAggregationReadModelContractSliceActive()
+  ) return;
   const changedSourceFiles = readChangedFiles().filter((filePath) =>
     filePath.endsWith(".mjs") || filePath.endsWith(".ts") || filePath.endsWith(".tsx"),
   );
@@ -1119,6 +1169,10 @@ function downstreamListUiBrowserValidationSliceActive() {
   return downstreamListUiBrowserValidationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
+}
+
+function downstreamAggregationReadModelContractSliceActive() {
+  return readChangedFiles().includes(aggregationReadModelContractSmokePath);
 }
 
 function extractScriptName(line) {

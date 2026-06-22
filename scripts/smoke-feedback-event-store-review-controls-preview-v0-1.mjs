@@ -100,6 +100,12 @@ const listUiBrowserValidationFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-ui-browser-validation.sample.v0.1.json";
 const listUiBrowserValidationSmokePath =
   "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const aggregationReadModelContractTypePath =
+  "types/feedback-event-aggregation-read-model-contract.ts";
+const aggregationReadModelContractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-contract.sample.v0.1.json";
+const aggregationReadModelContractSmokePath =
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 
 const packageScriptName =
   "smoke:feedback-event-store-review-controls-preview-v0-1";
@@ -150,6 +156,10 @@ const listUiBrowserValidationPackageScriptName =
   "smoke:feedback-event-store-list-ui-browser-validation-v0-1";
 const listUiBrowserValidationPackageScriptValue =
   "node scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const aggregationReadModelContractPackageScriptName =
+  "smoke:feedback-event-aggregation-read-model-contract-v0-1";
+const aggregationReadModelContractPackageScriptValue =
+  "node scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 const recommendationStatus = "ready_for_feedback_event_write_route_contract_v0_1";
 const nextRecommendedSlice = "feedback_event_write_route_contract_v0_1";
 const routeContractRecommendationStatus =
@@ -200,6 +210,10 @@ const listUiBrowserValidationRecommendationStatus =
   "ready_for_feedback_event_aggregation_read_model_contract_v0_1";
 const listUiBrowserValidationNextRecommendedSlice =
   "feedback_event_aggregation_read_model_contract_v0_1";
+const aggregationReadModelContractRecommendationStatus =
+  "ready_for_feedback_event_aggregation_read_model_implementation_v0_1";
+const aggregationReadModelContractNextRecommendedSlice =
+  "feedback_event_aggregation_read_model_implementation_v0_1";
 const requiredControlKinds = [
   "dismiss_preview",
   "pin_preview",
@@ -582,6 +596,30 @@ const downstreamListUiBrowserValidationChangedFiles = [
   smokePath,
   minimalSmokePath,
 ];
+const downstreamAggregationReadModelContractChangedFiles = [
+  aggregationReadModelContractTypePath,
+  aggregationReadModelContractFixturePath,
+  aggregationReadModelContractSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  listUiBrowserValidationSmokePath,
+  listUiImplementationSmokePath,
+  listUiContractSmokePath,
+  listRouteBrowserValidationSmokePath,
+  listRouteImplementationSmokePath,
+  listRouteContractSmokePath,
+  uiBrowserValidationSmokePath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  browserValidationSmokePath,
+  routeImplementationSmokePath,
+  routeContractSmokePath,
+  smokePath,
+  minimalSmokePath,
+];
 
 for (const filePath of [
   typePath,
@@ -815,6 +853,12 @@ function assertPackageScript() {
       listUiBrowserValidationPackageScriptValue,
     );
   }
+  if (downstreamAggregationReadModelContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[aggregationReadModelContractPackageScriptName],
+      aggregationReadModelContractPackageScriptValue,
+    );
+  }
   if (downstreamRouteContractSliceActive()) {
     assert.equal(
       packageJson.scripts[routeContractPackageScriptName],
@@ -834,7 +878,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamListUiBrowserValidationSliceActive()
+  const expectedAddedScriptNames = downstreamAggregationReadModelContractSliceActive()
+    ? [aggregationReadModelContractPackageScriptName]
+    : downstreamListUiBrowserValidationSliceActive()
     ? [listUiBrowserValidationPackageScriptName]
     : downstreamListUiImplementationSliceActive()
     ? [listUiImplementationPackageScriptName]
@@ -878,7 +924,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const requiredFiles = downstreamListUiBrowserValidationSliceActive()
+  const requiredFiles = downstreamAggregationReadModelContractSliceActive()
+    ? downstreamAggregationReadModelContractChangedFiles
+    : downstreamListUiBrowserValidationSliceActive()
     ? downstreamListUiBrowserValidationChangedFiles
     : downstreamListUiImplementationSliceActive()
     ? downstreamListUiImplementationChangedFiles
@@ -903,7 +951,9 @@ function assertStaticBoundary() {
     : downstreamRouteContractSliceActive()
     ? downstreamRouteContractRequiredChangedFiles
     : requiredChangedFiles;
-  const allowedFiles = downstreamListUiBrowserValidationSliceActive()
+  const allowedFiles = downstreamAggregationReadModelContractSliceActive()
+    ? downstreamAggregationReadModelContractChangedFiles
+    : downstreamListUiBrowserValidationSliceActive()
     ? downstreamListUiBrowserValidationChangedFiles
     : downstreamListUiImplementationSliceActive()
     ? downstreamListUiImplementationChangedFiles
@@ -942,7 +992,8 @@ function assertStaticBoundary() {
         !downstreamListRouteBrowserValidationSliceActive() &&
         !downstreamListUiContractSliceActive() &&
         !downstreamListUiImplementationSliceActive() &&
-        !downstreamListUiBrowserValidationSliceActive()) ||
+        !downstreamListUiBrowserValidationSliceActive() &&
+        !downstreamAggregationReadModelContractSliceActive()) ||
       changedFile !== routeImplementationRouteFilePath
     ) {
       assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
@@ -978,6 +1029,7 @@ function assertStaticBoundary() {
 }
 
 function assertNoForbiddenImplementationPatterns() {
+  if (downstreamAggregationReadModelContractSliceActive()) return;
   assertNoDbOpenOrWriteHelpers();
   const scannedSources = [
     [typePath, typeSource],
@@ -1739,6 +1791,10 @@ function downstreamListUiBrowserValidationSliceActive() {
   return downstreamListUiBrowserValidationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
+}
+
+function downstreamAggregationReadModelContractSliceActive() {
+  return readChangedFiles().includes(aggregationReadModelContractSmokePath);
 }
 
 function mergeBaseRef() {

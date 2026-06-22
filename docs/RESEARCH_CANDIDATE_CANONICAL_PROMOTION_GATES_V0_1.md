@@ -605,6 +605,25 @@ product ID allocation is added. Product-write remains parked by the #686
 stopline. Next recommended slice:
 `feedback_event_aggregation_read_model_contract_v0_1`.
 
+Feedback event aggregation read model contract v0.1 preserves canonical
+promotion gates by defining advisory/read-only aggregation views over durable
+feedback events only. The aggregation read model is contract-only in this
+slice and remains separated from durable Perspective promotion.
+
+The aggregation read model may summarize operator feedback, but it is not
+proof/evidence, not Perspective state, not work status, not promotion authority,
+not salience authority, not retrieval/RAG result, not source fetch,
+not provider/OpenAI output, not work mutation, not product write, and not
+product ID allocation authority. It adds no runtime implementation, no runtime
+DB query, no browser request, no feedback write/mutation, no app/api route
+change, no route handler change, no server action, no schema/migration change,
+no package dependency, no browser persistence, no proof/evidence write, no
+Perspective promotion, no durable Perspective state write, no promotion
+decision record, no work mutation, no salience governor, no product write,
+no product DB write, and no product ID allocation. Product-write remains
+parked by the #686 stopline. Next recommended slice:
+`feedback_event_aggregation_read_model_implementation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
