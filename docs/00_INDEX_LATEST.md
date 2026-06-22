@@ -1871,6 +1871,22 @@ repo-local 색인이다.
   execution, and no product write/product IDs. Product-write remains parked by
   #686. The next recommended slice is
   `feedback_event_store_list_route_contract_v0_1`.
+- Feedback Event Store list route contract v0.1:
+  `types/feedback-event-store-list-route-contract.ts`,
+  `lib/research-candidate-review/feedback-event-store-list-route-contract.ts`,
+  `fixtures/research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1.json`,
+  and `scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs`
+  (`npm run smoke:feedback-event-store-list-route-contract-v0-1`) document the
+  future `GET /api/research-candidate/feedback-events` list/read route contract
+  without implementing it.
+
+  The route path is documented but not implemented. This contract adds no app/api route change yet, no GET export, no server action, no DB open/read/write yet,
+  no SQL execution, no schema/migration change, no
+  component/UI change, no browser request, no proof/evidence/Perspective
+  promotion/work mutation, no Codex/GitHub automation/external handoff, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
+  write/product IDs. Product-write remains parked by #686. The next recommended
+  slice is `feedback_event_store_list_route_implementation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

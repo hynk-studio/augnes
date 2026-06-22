@@ -388,6 +388,20 @@ Codex/GitHub automation, and no product write. Product-write remains parked by
 the #686 stopline. The next recommended slice after the UI browser validation
 is `feedback_event_store_list_route_contract_v0_1`.
 
+## Feedback Event Store List Route Contract v0.1
+
+Feedback Event Store list route contract v0.1 documents future read/list behavior for `GET /api/research-candidate/feedback-events`. It is contract-only
+fixture data and adds no route implementation.
+
+The contract adds no app/api route, no GET export, no route handler, no server
+action, no runtime DB read, no runtime DB write, no production DB open, no SQL
+execution, no schema/migration change, no UI/component change, no DB read, and no browser
+request. It performs no provider/OpenAI call, no source fetch, no retrieval/RAG
+execution, no proof/evidence write, no Perspective promotion, no work mutation,
+no Codex/GitHub automation, and no product write. Product-write remains parked
+by the #686 stopline. The next recommended slice after the list route contract
+is `feedback_event_store_list_route_implementation_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_store_list_route_contract_v0_1`
+`feedback_event_store_list_route_implementation_v0_1`
