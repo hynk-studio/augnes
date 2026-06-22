@@ -38,6 +38,13 @@ const contractSmokePath = "scripts/smoke-feedback-event-write-route-contract-v0-
 const reviewControlsSmokePath =
   "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs";
 const feedbackStoreSmokePath = "scripts/smoke-feedback-event-store-minimal-v0-1.mjs";
+const uiContractTypePath = "types/feedback-event-controls-ui-contract.ts";
+const uiContractBuilderPath =
+  "lib/research-candidate-review/feedback-event-controls-ui-contract.ts";
+const uiContractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-controls-ui-contract.sample.v0.1.json";
+const uiContractSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs";
 const operatorDecisionSmokePath =
   "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs";
 const handoffDraftReviewSmokePath =
@@ -60,10 +67,17 @@ const productWriteStoplineSmokePath =
 const packageScriptName = "smoke:feedback-event-write-route-browser-validation-v0-1";
 const packageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs";
+const uiContractPackageScriptName = "smoke:feedback-event-controls-ui-contract-v0-1";
+const uiContractPackageScriptValue =
+  "node scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs";
 const routeUrl = "/api/research-candidate/feedback-events";
 const routeMethod = "POST";
 const recommendationStatus = "ready_for_feedback_event_controls_ui_contract_v0_1";
 const nextRecommendedSlice = "feedback_event_controls_ui_contract_v0_1";
+const uiContractRecommendationStatus =
+  "ready_for_feedback_event_controls_ui_implementation_v0_1";
+const uiContractNextRecommendedSlice =
+  "feedback_event_controls_ui_implementation_v0_1";
 const validationReason =
   "route handler temp-DB validation is sufficient before UI integration";
 const writeFixture = process.argv.includes("--write-fixture");
@@ -189,6 +203,34 @@ const expectedChangedFiles = [
   manualParserSmokePath,
   productWriteStoplineSmokePath,
 ];
+const downstreamUiContractRequiredChangedFiles = [
+  uiContractTypePath,
+  uiContractBuilderPath,
+  uiContractFixturePath,
+  uiContractSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
+];
+const downstreamUiContractAllowedChangedFiles = [
+  ...downstreamUiContractRequiredChangedFiles,
+  implementationSmokePath,
+  contractSmokePath,
+  reviewControlsSmokePath,
+  feedbackStoreSmokePath,
+  operatorDecisionSmokePath,
+  handoffDraftReviewSmokePath,
+  handoffDraftSmokePath,
+  aiContextPacketUpgradeSmokePath,
+  foldedAuditPanelSmokePath,
+  substratePreviewBuilderSmokePath,
+  substrateSmokePath,
+  geometryDigestSmokePath,
+  productWriteStoplineSmokePath,
+];
 
 const feedbackStoreModule = unwrapModule(
   await import("../lib/research-candidate-review/feedback-event-store.ts"),
@@ -239,6 +281,7 @@ assertStaticBoundary();
 assertNoForbiddenImplementationPatterns();
 assertDocsPointers();
 assertImplementationSmokeDownstreamPointer();
+assertUiContractDownstreamPointer();
 
 const rebuiltValidation = buildValidationFixture();
 if (writeFixture) {
@@ -279,6 +322,12 @@ function assertRouteShape() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  if (downstreamUiContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[uiContractPackageScriptName],
+      uiContractPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -292,10 +341,13 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
+  const expectedAddedScriptNames = downstreamUiContractSliceActive()
+    ? [uiContractPackageScriptName]
+    : [packageScriptName];
   assert.deepEqual(
     addedScriptNames,
-    [packageScriptName],
-    "package additions must only include the browser validation smoke script",
+    expectedAddedScriptNames,
+    "package additions must only include the expected feedback-event smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
@@ -303,12 +355,18 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const requiredFiles = downstreamUiContractSliceActive()
+    ? downstreamUiContractRequiredChangedFiles
+    : expectedChangedFiles;
+  const allowedFiles = downstreamUiContractSliceActive()
+    ? downstreamUiContractAllowedChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of requiredFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedChangedFiles.includes(changedFile),
+      allowedFiles.includes(changedFile),
       `unexpected changed file in browser validation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
@@ -407,6 +465,26 @@ function assertImplementationSmokeDownstreamPointer() {
   assert.equal(
     implementationFixture.next_recommended_slice,
     "feedback_event_write_route_browser_validation_v0_1",
+  );
+}
+
+function assertUiContractDownstreamPointer() {
+  if (!downstreamUiContractSliceActive()) return;
+  for (const requiredText of [
+    uiContractPackageScriptName,
+    uiContractNextRecommendedSlice,
+    uiContractFixturePath,
+    uiContractSmokePath,
+    uiContractRecommendationStatus,
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#699 browser validation smoke must allow downstream UI contract text: ${requiredText}`,
+    );
+  }
+  assert.equal(
+    readJson(validationFixturePath).next_recommended_slice,
+    nextRecommendedSlice,
   );
 }
 
@@ -655,6 +733,13 @@ function readChangedFiles() {
     .map((line) => line.trim())
     .filter(Boolean)
     .sort();
+}
+
+function downstreamUiContractSliceActive() {
+  const changedFiles = readChangedFiles();
+  return [uiContractFixturePath, uiContractSmokePath].every((filePath) =>
+    changedFiles.includes(filePath),
+  );
 }
 
 function mergeBaseRef() {

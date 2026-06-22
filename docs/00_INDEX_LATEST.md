@@ -1822,6 +1822,23 @@ repo-local 색인이다.
   provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
   write/product IDs. Product-write remains parked by #686. The next recommended
   slice is `feedback_event_controls_ui_contract_v0_1`.
+- Feedback Event controls UI contract v0.1:
+  `types/feedback-event-controls-ui-contract.ts`,
+  `lib/research-candidate-review/feedback-event-controls-ui-contract.ts`,
+  `fixtures/research-candidate-review.feedback-event-controls-ui-contract.sample.v0.1.json`,
+  and `scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs`
+  (`npm run smoke:feedback-event-controls-ui-contract-v0-1`) define how future
+  UI controls will map preview-only feedback controls to
+  `POST /api/research-candidate/feedback-events` request previews.
+
+  This is a UI contract only: no component change yet, no browser request yet,
+  no feedback persisted now, no app/api route change, no server action, no DB
+  open/write, and no SQL execution. It grants no
+  proof/evidence/Perspective promotion/work mutation, no Codex/GitHub
+  automation/external handoff, no provider/OpenAI/source-fetch/retrieval/RAG
+  execution, and no product write/product IDs. Product-write remains parked by
+  #686. The next recommended slice is
+  `feedback_event_controls_ui_implementation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

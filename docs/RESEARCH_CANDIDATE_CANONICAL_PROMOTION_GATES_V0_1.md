@@ -442,6 +442,23 @@ execution, and creates no proof/evidence/Perspective/work/product durable state.
 Product-write remains parked by the #686 stopline. Next recommended slice:
 `feedback_event_controls_ui_contract_v0_1`.
 
+Feedback Event controls UI contract v0.1 preserves canonical promotion gates
+while defining request previews for future UI controls. It maps preview
+controls to future `POST /api/research-candidate/feedback-events` requests, but
+does not implement the UI controls.
+
+The controls UI contract is not source of truth, not proof/evidence, not
+Perspective promotion, not work mutation, not execution authority, not
+retrieval/RAG execution, not agent routing, not Codex execution, not GitHub
+automation, not external handoff, and not product write authority. No UI
+control is implemented, no UI component is changed, No browser request is sent,
+and No feedback is persisted now. The slice adds no route behavior, no server
+action, no DB open, no SQL execution, performs no provider/OpenAI call, performs
+no source fetch, performs no retrieval/RAG execution, and creates no
+proof/evidence/Perspective/work/product durable state. Product-write remains
+parked by the #686 stopline. Next recommended slice:
+`feedback_event_controls_ui_implementation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

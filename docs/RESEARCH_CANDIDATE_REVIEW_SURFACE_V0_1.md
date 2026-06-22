@@ -725,6 +725,21 @@ routing/execution, and no product write. Product-write remains parked by the
 #686 stopline. Next recommended slice:
 `feedback_event_controls_ui_contract_v0_1`.
 
+## Feedback Event controls UI contract v0.1 Pointer
+
+Feedback Event controls UI contract v0.1 is non-executing and non-persisting.
+It maps preview controls to future route request previews for
+`dismiss_preview`, `pin_preview`, `correct_preview`, and `invalidate_preview`.
+
+No UI control is implemented yet, no UI component changes are made, No browser request is sent, and No feedback is persisted now. The contract does not add or
+change routes, does not add server actions, does not open DB, and does not
+execute SQL. It grants no provider/OpenAI calls, no source fetch, no
+retrieval/RAG execution, no Codex execution, no GitHub automation, no external
+handoff sending, no proof/evidence creation, no Perspective promotion, no work
+mutation, no agent routing/execution, and no product write. Product-write
+remains parked by the #686 stopline. Next recommended slice:
+`feedback_event_controls_ui_implementation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
