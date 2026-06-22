@@ -1679,6 +1679,23 @@ repo-local 색인이다.
   automation, no external handoff sending, no route/UI behavior, no DB/proof/evidence/work/Perspective durable write, and no product write.
   Product-write remains parked by #686. The next recommended slice is
   `candidate_to_codex_handoff_draft_geometry_substrate_v0_1`.
+- Candidate-to-Codex handoff draft Geometry/Substrate v0.1:
+  `types/candidate-to-codex-handoff-draft.ts`,
+  `lib/research-candidate-review/candidate-to-codex-handoff-draft.ts`,
+  `fixtures/research-candidate-review.candidate-to-codex-handoff-draft.geometry-substrate.sample.v0.1.json`,
+  and
+  `scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs`
+  (`npm run smoke:research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1`)
+  add a deterministic, fixture-backed, copyable preview text only draft that
+  consumes #691 upgraded AI Context Packet as advisory input. It preserves base/static and manual-note lineage, including the upgraded packet lineage,
+  static/base packet refs, manual-note packet refs, manual-note Formation
+  Receipt refs, GeometryDigest refs, Agent Substrate refs, folded audit panel
+  refs, and the #686 product-write stopline ref.
+
+  The draft is not execution approval and not source of truth. It grants no
+  Codex execution, no branch/PR/GitHub automation, no external handoff sending,
+  no provider/OpenAI/source-fetch/retrieval execution, no DB/proof/evidence/work/Perspective durable write, no route/UI behavior, no agent routing or execution, and no product write. Product-write remains parked by #686. The next recommended slice is
+  `candidate_to_codex_handoff_draft_review_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

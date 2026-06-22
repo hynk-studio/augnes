@@ -207,6 +207,28 @@ source fetch, no retrieval execution, no agent routing/execution, no Codex execu
 The next recommended slice after the AI Context Packet compiler upgrade is
 `candidate_to_codex_handoff_draft_geometry_substrate_v0_1`.
 
+## Candidate-to-Codex Handoff Draft v0.1
+
+Candidate-to-Codex handoff draft Geometry/Substrate v0.1 consumes the #691
+upgraded AI Context Packet geometry/substrate/folded audit context as advisory
+input. It is copyable-preview-only planning text plus structured fixture data
+for a future handoff draft review slice. It preserves static/base and
+manual-note lineage from the upgraded packet, including manual-note AI Context
+Packet and manual-note Formation Receipt refs.
+
+The draft is non-authoritative: not source of truth, not proof/evidence, not
+durable Perspective state, not retrieval output, not agent execution
+authority, not merge authority, not GitHub automation authority, and not
+product-write authority. It performs no Codex execution, no branch/PR/GitHub
+automation, no external handoff sending, no retrieval execution, no
+provider/OpenAI call, no source fetch, no DB/SQL/transaction behavior, no
+proof/evidence/work/Perspective durable write, no agent routing/execution, and
+no product write. Product-write remains parked by the #686 stopline.
+No branch/PR/GitHub automation is allowed from this draft.
+
+The next recommended slice after the Candidate-to-Codex handoff draft is
+`candidate_to_codex_handoff_draft_review_v0_1`.
+
 ## Next Recommended Slice
 
-`candidate_to_codex_handoff_draft_geometry_substrate_v0_1`
+`candidate_to_codex_handoff_draft_review_v0_1`

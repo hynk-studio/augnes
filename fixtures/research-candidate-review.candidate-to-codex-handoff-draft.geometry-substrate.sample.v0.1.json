@@ -1,0 +1,610 @@
+{
+  "draft_kind": "candidate_to_codex_handoff_draft",
+  "draft_version": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1",
+  "scope": "project:augnes",
+  "as_of": "fixture:research-candidate-review.candidate-to-codex-handoff-draft.geometry-substrate.sample.v0.1",
+  "handoff_mode": "copyable_codex_prompt_preview",
+  "target": "codex_implementation",
+  "source_ai_context_packet_ref": "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+  "source_ai_context_packet_fingerprint": "fnv1a32:a5c0c33e",
+  "draft_fingerprint": "fnv1a32:e0fed350",
+  "fingerprint_algorithm": "fnv1a32_canonical_json",
+  "title": "Candidate-to-Codex handoff draft with Geometry/Substrate context v0.1",
+  "copyable_prompt": "Candidate-to-Codex handoff draft preview\nRepo: hynk-studio/augnes\nCanonical checkout: /Users/hynk/code/augnes\nDo not touch: /Users/hynk/Documents/augnes\nSource packet ref: research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e\nSource packet fingerprint: fnv1a32:a5c0c33e\nSource packet next slice: candidate_to_codex_handoff_draft_geometry_substrate_v0_1\nTask title: Add Candidate-to-Codex handoff draft review with Geometry/Substrate context v0.1\nGoal: Review this copyable draft as advisory planning context for a future bounded Candidate-to-Codex handoff review slice.\nOperator note: none\nExpected files: types/candidate-to-codex-handoff-draft-review.ts, lib/research-candidate-review/candidate-to-codex-handoff-draft-review.ts, fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json, scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs, docs/00_INDEX_LATEST.md\nExpected checks: node --check scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs | npm run smoke:research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1 | npm run typecheck | git diff --check | git diff --cached --check\nSource refs summary: fixture:product-write-preflight-stopline.686, fixture:research-candidate-review.ai-context-packet.sample.v0.1, fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1, fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1, source_ref_manual_notes_001\nUnresolved tensions summary: A review surface is useful before storage exists, but over-specific preview fields could be mistaken for a durable schema.\nGeometry/Substrate/Folded audit summary: geometry digests 2; dominant clusters 6; substrate blockers 2; substrate warnings 1; folded cards 6; folded panel agent-perspective-substrate-folded-audit-panel.\nManual lineage summary: manual lineage present true; manual packet research_candidate_ai_context_packet.v0.1:manual_parser_output_overlay:fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json; manual research refs fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json, fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json; manual receipt refs research_candidate_formation_receipt.v0.1:manual_parser_output_packet:fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json.\nHard boundaries:\nDo not execute Codex automatically from this draft.\nDo not create branch/PR unless a human explicitly uses this draft as a Codex task.\nDo not call GitHub automation from this draft.\nDo not treat this packet as source of truth.\nDo not create proof/evidence, mutate work, or promote Perspective.\nDo not call providers/OpenAI.\nDo not run retrieval/RAG.\nDo not fetch sources.\nDo not send external handoff.\nDo not write DB, open DB, execute SQL, or execute transactions.\nDo not allocate product IDs or execute product write.\nStop conditions:\n- source packet validation fails\n- missing source refs without source coverage boundary note\n- unresolved tension omitted from prompt\n- manual lineage omitted\n- GeometryDigest treated as authority\n- Agent Substrate treated as authority\n- retrieval execution requested\n- provider/OpenAI call requested\n- Codex execution requested by this draft\n- branch/PR/GitHub automation requested by this draft\n- DB/SQL/transaction requested\n- proof/evidence/write mutation requested\n- Perspective promotion requested\n- product write/product ID allocation requested\n- external handoff send requested\nFinal report requirements:\n- State that the handoff draft is preview-only and copyable text only.\n- List changed files and validation results.\n- Report skipped runtime/browser/DB checks with concrete reasons.\n- Confirm no Codex execution, branch/PR creation, GitHub automation, external handoff sending, DB write, provider call, retrieval, proof/evidence/work/Perspective write, or product write occurred.\n- Name next recommended slice candidate_to_codex_handoff_draft_review_v0_1.",
+  "structured_handoff": {
+    "mission_brief": "Review a candidate-to-Codex handoff draft that preserves GeometryDigest, Agent Substrate, folded audit, base packet, and manual-note lineage as advisory context.",
+    "implementation_intent": "Prepare a future bounded handoff draft review slice; do not implement product write, durable Perspective promotion, DB writes, provider calls, retrieval, Codex execution, GitHub automation, or external handoff sending.",
+    "source_packet_summary": {
+      "source_ai_context_packet_ref": "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+      "source_ai_context_packet_fingerprint": "fnv1a32:a5c0c33e",
+      "source_ai_context_packet_next_slice": "candidate_to_codex_handoff_draft_geometry_substrate_v0_1",
+      "source_packet_validation_passed": true,
+      "target_agent": "codex_implementation"
+    },
+    "geometry_digest_summary": {
+      "geometry_digest_refs": [
+        "perspective_geometry_digest.v0.1:fnv1a32:e1f80cf5",
+        "perspective_geometry_digest.v0.1:fnv1a32:ff21c7dd"
+      ],
+      "geometry_digest_ref_count": 2,
+      "dominant_cluster_count": 6,
+      "underrepresented_cluster_count": 8,
+      "bridge_node_count": 10,
+      "contradiction_pair_count": 2,
+      "recommended_retrieval_expansion_count": 6,
+      "layout_coordinates_consumed": false,
+      "raw_layout_coordinates_exported": false,
+      "geometry_digest_is_authority": false,
+      "authority_boundary_note": "GeometryDigest is advisory structure only; layout coordinates are not truth and are not exported as handoff authority."
+    },
+    "agent_substrate_summary": {
+      "substrate_ref": "agent_perspective_substrate.v0.1:project:augnes:fixture:agent-perspective-substrate.v0.1",
+      "substrate_preview_ref": "agent_perspective_substrate_preview.v0.1:fnv1a32:3f2fb0db",
+      "surfaced_blocker_count": 2,
+      "surfaced_warning_count": 1,
+      "surfaced_notice_count": 2,
+      "retrieval_hint_count": 1,
+      "handoff_improvement_count": 1,
+      "stale_context_notice_count": 1,
+      "product_write_stopline_reminder_count": 1,
+      "surfaced_blocker_ids": [
+        "aps_preview_card_aps_surface_grounded_claim_boundary_blocker",
+        "aps_preview_card_aps_surface_product_write_stopline_reminder"
+      ],
+      "surfaced_warning_ids": [
+        "aps_preview_card_aps_surface_unresolved_tension_warning"
+      ],
+      "source_ref_coverage_ratio": 0.8333,
+      "source_discipline_preserved": true,
+      "substrate_is_authority": false,
+      "preview_is_authority": false
+    },
+    "folded_audit_summary": {
+      "folded_panel_available": true,
+      "folded_panel_anchor_id": "agent-perspective-substrate-folded-audit-panel",
+      "folded_section_count": 8,
+      "folded_section_ids": [
+        "aps_preview_section_blockers",
+        "aps_preview_section_warnings",
+        "aps_preview_section_notices",
+        "aps_preview_section_retrieval_hints",
+        "aps_preview_section_handoff_improvements",
+        "aps_preview_section_stale_context",
+        "aps_preview_section_product_write_stopline",
+        "aps_preview_section_source_coverage"
+      ],
+      "surfacing_card_count": 6,
+      "blocker_card_count": 2,
+      "warning_card_count": 1,
+      "source_ref_coverage_ratio": 0.8333,
+      "local_ui_state_only": true,
+      "durable_feedback_persistence_available": false,
+      "route_or_api_available": false
+    },
+    "manual_lineage_summary": {
+      "manual_ai_context_packet_base_ref": "research_candidate_ai_context_packet.v0.1:manual_parser_output_overlay:fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json",
+      "manual_research_candidate_review_refs": [
+        "fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json",
+        "fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json"
+      ],
+      "manual_formation_receipt_refs": [
+        "research_candidate_formation_receipt.v0.1:manual_parser_output_packet:fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json"
+      ],
+      "manual_lineage_present": true,
+      "manual_lineage_authority": false,
+      "manual_lineage_included_in_copyable_prompt": true
+    },
+    "selected_context_cards": [
+      {
+        "card_id": "aps_preview_card_aps_surface_grounded_claim_boundary_blocker",
+        "title": "Source refs required before grounded claim surfacing",
+        "severity": "blocker",
+        "impact": "critical",
+        "epistemic_status": "insufficient_source_coverage",
+        "review_status": "blocked_preview",
+        "why_now": "The M10 substrate fixture records source discipline before preview builder work.",
+        "source_refs": [],
+        "source_coverage_boundary_note": "Explicit source coverage boundary note: candidate intentionally has no source refs.",
+        "authority_boundary_notes": [
+          "Advisory blocker only; no durable write authority.",
+          "Explicit source coverage boundary note: candidate intentionally has no source refs."
+        ],
+        "execution_authority": false,
+        "durable_write_authority": false
+      },
+      {
+        "card_id": "aps_preview_card_aps_surface_product_write_stopline_reminder",
+        "title": "Product write remains parked",
+        "severity": "blocker",
+        "impact": "critical",
+        "epistemic_status": "boundary_fact",
+        "review_status": "active_stopline",
+        "why_now": "#686 parked product-write preparation before #687 and this M10 slice.",
+        "source_refs": [
+          {
+            "source_ref_id": "fixture:product-write-preflight-stopline.686"
+          }
+        ],
+        "source_coverage_boundary_note": null,
+        "authority_boundary_notes": [
+          "Stopline reminder only; no product write authority."
+        ],
+        "execution_authority": false,
+        "durable_write_authority": false
+      },
+      {
+        "card_id": "aps_preview_card_aps_surface_unresolved_tension_warning",
+        "title": "Preserve unresolved tension",
+        "severity": "warning",
+        "impact": "high",
+        "epistemic_status": "candidate_tension",
+        "review_status": "unresolved_preview",
+        "why_now": "The geometry digest contradiction pair is advisory but important for future AI context selection.",
+        "source_refs": [
+          {
+            "source_ref_id": "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1"
+          }
+        ],
+        "source_coverage_boundary_note": null,
+        "authority_boundary_notes": [
+          "Preview warning only; no state change or handoff execution."
+        ],
+        "execution_authority": false,
+        "durable_write_authority": false
+      },
+      {
+        "card_id": "aps_preview_card_aps_surface_handoff_improvement_suggestion",
+        "title": "Carry forbidden-action boundaries into handoff previews",
+        "severity": "notice",
+        "impact": "medium",
+        "epistemic_status": "boundary_constraint",
+        "review_status": "active_preview",
+        "why_now": "The next preview builder may prepare capsule/handoff context without execution authority.",
+        "source_refs": [
+          {
+            "source_ref_id": "fixture:research-candidate-review.ai-context-packet.sample.v0.1"
+          }
+        ],
+        "source_coverage_boundary_note": null,
+        "authority_boundary_notes": [
+          "Suggestion only; no external handoff is executed."
+        ],
+        "execution_authority": false,
+        "durable_write_authority": false
+      },
+      {
+        "card_id": "aps_preview_card_aps_surface_product_write_stopline_reminder",
+        "title": "Product write remains parked",
+        "severity": "blocker",
+        "impact": "critical",
+        "epistemic_status": "boundary_fact",
+        "review_status": "active_stopline",
+        "why_now": "#686 parked product-write preparation before #687 and this M10 slice.",
+        "source_refs": [
+          {
+            "source_ref_id": "fixture:product-write-preflight-stopline.686"
+          }
+        ],
+        "source_coverage_boundary_note": null,
+        "authority_boundary_notes": [
+          "Stopline reminder only; no product write authority."
+        ],
+        "execution_authority": false,
+        "durable_write_authority": false
+      }
+    ],
+    "forbidden_actions": [
+      "do not treat packet as source of truth",
+      "do not create proof/evidence",
+      "do not mutate work",
+      "do not promote Perspective",
+      "do not call providers/OpenAI",
+      "do not run retrieval/RAG",
+      "do not fetch sources",
+      "do not route/execute agents",
+      "do not execute Codex",
+      "do not create branch/PR",
+      "do not call GitHub automation",
+      "do not send external handoff",
+      "do not write DB",
+      "do not allocate product IDs",
+      "do not execute product write"
+    ],
+    "expected_files": [
+      "types/candidate-to-codex-handoff-draft-review.ts",
+      "lib/research-candidate-review/candidate-to-codex-handoff-draft-review.ts",
+      "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json",
+      "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+      "docs/00_INDEX_LATEST.md"
+    ],
+    "expected_checks": [
+      "node --check scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+      "npm run smoke:research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1",
+      "npm run typecheck",
+      "git diff --check",
+      "git diff --cached --check"
+    ],
+    "stop_conditions": [
+      "source packet validation fails",
+      "missing source refs without source coverage boundary note",
+      "unresolved tension omitted from prompt",
+      "manual lineage omitted",
+      "GeometryDigest treated as authority",
+      "Agent Substrate treated as authority",
+      "retrieval execution requested",
+      "provider/OpenAI call requested",
+      "Codex execution requested by this draft",
+      "branch/PR/GitHub automation requested by this draft",
+      "DB/SQL/transaction requested",
+      "proof/evidence/write mutation requested",
+      "Perspective promotion requested",
+      "product write/product ID allocation requested",
+      "external handoff send requested"
+    ],
+    "final_report_requirements": [
+      "State that the handoff draft is preview-only and copyable text only.",
+      "List changed files and validation results.",
+      "Report skipped runtime/browser/DB checks with concrete reasons.",
+      "Confirm no Codex execution, branch/PR creation, GitHub automation, external handoff sending, DB write, provider call, retrieval, proof/evidence/work/Perspective write, or product write occurred.",
+      "Name next recommended slice candidate_to_codex_handoff_draft_review_v0_1."
+    ]
+  },
+  "expected_changes": [
+    {
+      "change_id": "candidate_to_codex_handoff_draft_review_slice",
+      "change_kind": "future_handoff_review_slice",
+      "description": "Future review/approval slice may validate the copyable handoff draft before any human explicitly uses it as a Codex task.",
+      "expected_files": [
+        "types/candidate-to-codex-handoff-draft-review.ts",
+        "lib/research-candidate-review/candidate-to-codex-handoff-draft-review.ts",
+        "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json",
+        "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+        "docs/00_INDEX_LATEST.md"
+      ],
+      "implementation_allowed_now": false,
+      "product_write_related": false,
+      "authority_boundary_notes": [
+        "This draft does not authorize implementation, product write, branch creation, PR creation, or GitHub automation."
+      ]
+    }
+  ],
+  "expected_checks": [
+    {
+      "check_id": "expected_check_01",
+      "command": "node --check scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+      "purpose": "Future bounded handoff review validation command.",
+      "required_for_future_review": true,
+      "executes_codex_now": false,
+      "calls_github_now": false,
+      "authority_boundary_notes": [
+        "Expected check is listed for future human-triggered review work only."
+      ]
+    },
+    {
+      "check_id": "expected_check_02",
+      "command": "npm run smoke:research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1",
+      "purpose": "Future bounded handoff review validation command.",
+      "required_for_future_review": true,
+      "executes_codex_now": false,
+      "calls_github_now": false,
+      "authority_boundary_notes": [
+        "Expected check is listed for future human-triggered review work only."
+      ]
+    },
+    {
+      "check_id": "expected_check_03",
+      "command": "npm run typecheck",
+      "purpose": "Future bounded handoff review validation command.",
+      "required_for_future_review": true,
+      "executes_codex_now": false,
+      "calls_github_now": false,
+      "authority_boundary_notes": [
+        "Expected check is listed for future human-triggered review work only."
+      ]
+    },
+    {
+      "check_id": "expected_check_04",
+      "command": "git diff --check",
+      "purpose": "Future bounded handoff review validation command.",
+      "required_for_future_review": true,
+      "executes_codex_now": false,
+      "calls_github_now": false,
+      "authority_boundary_notes": [
+        "Expected check is listed for future human-triggered review work only."
+      ]
+    },
+    {
+      "check_id": "expected_check_05",
+      "command": "git diff --cached --check",
+      "purpose": "Future bounded handoff review validation command.",
+      "required_for_future_review": true,
+      "executes_codex_now": false,
+      "calls_github_now": false,
+      "authority_boundary_notes": [
+        "Expected check is listed for future human-triggered review work only."
+      ]
+    }
+  ],
+  "stop_conditions": [
+    {
+      "stop_condition_id": "stop_condition_01",
+      "condition": "source packet validation fails",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_02",
+      "condition": "missing source refs without source coverage boundary note",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_03",
+      "condition": "unresolved tension omitted from prompt",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_04",
+      "condition": "manual lineage omitted",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_05",
+      "condition": "GeometryDigest treated as authority",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_06",
+      "condition": "Agent Substrate treated as authority",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_07",
+      "condition": "retrieval execution requested",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_08",
+      "condition": "provider/OpenAI call requested",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_09",
+      "condition": "Codex execution requested by this draft",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_10",
+      "condition": "branch/PR/GitHub automation requested by this draft",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_11",
+      "condition": "DB/SQL/transaction requested",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_12",
+      "condition": "proof/evidence/write mutation requested",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_13",
+      "condition": "Perspective promotion requested",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_14",
+      "condition": "product write/product ID allocation requested",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    },
+    {
+      "stop_condition_id": "stop_condition_15",
+      "condition": "external handoff send requested",
+      "severity": "blocker",
+      "authority_boundary_notes": [
+        "Stop condition preserves copyable-preview-only authority boundaries."
+      ]
+    }
+  ],
+  "source_refs": [
+    "fixture:product-write-preflight-stopline.686",
+    "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+    "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+    "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+    "source_ref_manual_notes_001"
+  ],
+  "unresolved_tensions": [
+    {
+      "tension_id": "tension_summary_tension_candidate_001",
+      "node_id": "node_tension_candidate_001",
+      "summary": "A review surface is useful before storage exists, but over-specific preview fields could be mistaken for a durable schema.",
+      "source_refs": [
+        "source_ref_manual_notes_001"
+      ],
+      "review_status": "needs_review",
+      "epistemic_status": "contested",
+      "authority_note": "Tension summary preserves unresolved review material; do not smooth it away."
+    }
+  ],
+  "geometry_context_summary": {
+    "geometry_digest_refs": [
+      "perspective_geometry_digest.v0.1:fnv1a32:e1f80cf5",
+      "perspective_geometry_digest.v0.1:fnv1a32:ff21c7dd"
+    ],
+    "geometry_digest_ref_count": 2,
+    "dominant_cluster_count": 6,
+    "underrepresented_cluster_count": 8,
+    "bridge_node_count": 10,
+    "contradiction_pair_count": 2,
+    "recommended_retrieval_expansion_count": 6,
+    "layout_coordinates_consumed": false,
+    "raw_layout_coordinates_exported": false,
+    "geometry_digest_is_authority": false,
+    "authority_boundary_note": "GeometryDigest is advisory structure only; layout coordinates are not truth and are not exported as handoff authority."
+  },
+  "agent_substrate_summary": {
+    "substrate_ref": "agent_perspective_substrate.v0.1:project:augnes:fixture:agent-perspective-substrate.v0.1",
+    "substrate_preview_ref": "agent_perspective_substrate_preview.v0.1:fnv1a32:3f2fb0db",
+    "surfaced_blocker_count": 2,
+    "surfaced_warning_count": 1,
+    "surfaced_notice_count": 2,
+    "retrieval_hint_count": 1,
+    "handoff_improvement_count": 1,
+    "stale_context_notice_count": 1,
+    "product_write_stopline_reminder_count": 1,
+    "surfaced_blocker_ids": [
+      "aps_preview_card_aps_surface_grounded_claim_boundary_blocker",
+      "aps_preview_card_aps_surface_product_write_stopline_reminder"
+    ],
+    "surfaced_warning_ids": [
+      "aps_preview_card_aps_surface_unresolved_tension_warning"
+    ],
+    "source_ref_coverage_ratio": 0.8333,
+    "source_discipline_preserved": true,
+    "substrate_is_authority": false,
+    "preview_is_authority": false
+  },
+  "folded_audit_summary": {
+    "folded_panel_available": true,
+    "folded_panel_anchor_id": "agent-perspective-substrate-folded-audit-panel",
+    "folded_section_count": 8,
+    "folded_section_ids": [
+      "aps_preview_section_blockers",
+      "aps_preview_section_warnings",
+      "aps_preview_section_notices",
+      "aps_preview_section_retrieval_hints",
+      "aps_preview_section_handoff_improvements",
+      "aps_preview_section_stale_context",
+      "aps_preview_section_product_write_stopline",
+      "aps_preview_section_source_coverage"
+    ],
+    "surfacing_card_count": 6,
+    "blocker_card_count": 2,
+    "warning_card_count": 1,
+    "source_ref_coverage_ratio": 0.8333,
+    "local_ui_state_only": true,
+    "durable_feedback_persistence_available": false,
+    "route_or_api_available": false
+  },
+  "manual_lineage_summary": {
+    "manual_ai_context_packet_base_ref": "research_candidate_ai_context_packet.v0.1:manual_parser_output_overlay:fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json",
+    "manual_research_candidate_review_refs": [
+      "fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json",
+      "fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json"
+    ],
+    "manual_formation_receipt_refs": [
+      "research_candidate_formation_receipt.v0.1:manual_parser_output_packet:fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json"
+    ],
+    "manual_lineage_present": true,
+    "manual_lineage_authority": false,
+    "manual_lineage_included_in_copyable_prompt": true
+  },
+  "authority_boundary": {
+    "preview_only": true,
+    "copyable_text_only": true,
+    "source_of_truth": false,
+    "can_execute_codex": false,
+    "can_create_branch": false,
+    "can_open_pr": false,
+    "can_call_github": false,
+    "can_send_external_handoff": false,
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_create_work_item": false,
+    "can_execute_agents": false,
+    "can_route_agents": false,
+    "can_call_external_services": false,
+    "can_call_providers_or_openai": false,
+    "can_run_retrieval_or_rag": false,
+    "can_fetch_sources": false,
+    "can_promote_perspective": false,
+    "can_allocate_product_ids": false,
+    "can_execute_product_write": false,
+    "can_open_db": false,
+    "can_execute_sql": false,
+    "can_execute_transaction": false,
+    "can_add_route_or_ui": false,
+    "durable_write_authority": false,
+    "merge_authority": false
+  },
+  "lineage": {
+    "upgraded_ai_context_packet_ref": "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+    "upgraded_ai_context_packet_fingerprint": "fnv1a32:a5c0c33e",
+    "ai_context_packet_base_refs": [
+      "research_candidate_ai_context_packet.v0.1:manual_parser_output_overlay:fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json",
+      "research_candidate_ai_context_packet.v0.1:research_candidate_review_overlay:fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json"
+    ],
+    "manual_ai_context_packet_base_ref": "research_candidate_ai_context_packet.v0.1:manual_parser_output_overlay:fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json",
+    "research_candidate_review_refs": [
+      "fixtures/research-candidate-review.sample.v0.1.json",
+      "fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json"
+    ],
+    "manual_research_candidate_review_refs": [
+      "fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json",
+      "fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json"
+    ],
+    "perspective_geometry_digest_refs": [
+      "perspective_geometry_digest.v0.1:fnv1a32:e1f80cf5",
+      "perspective_geometry_digest.v0.1:fnv1a32:ff21c7dd"
+    ],
+    "agent_perspective_substrate_ref": "agent_perspective_substrate.v0.1:project:augnes:fixture:agent-perspective-substrate.v0.1",
+    "agent_perspective_substrate_preview_ref": "agent_perspective_substrate_preview.v0.1:fnv1a32:3f2fb0db",
+    "cockpit_folded_audit_panel_ref": "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+    "formation_receipt_refs": [
+      "research_candidate_formation_receipt.v0.1:research_candidate_review_packet:fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json"
+    ],
+    "manual_formation_receipt_refs": [
+      "research_candidate_formation_receipt.v0.1:manual_parser_output_packet:fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json"
+    ],
+    "product_write_stopline_ref": "pr:686:manual_note_single_claim_product_write_preflight_stopline"
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "recommendation_status": "ready_for_candidate_to_codex_handoff_draft_review",
+  "next_recommended_slice": "candidate_to_codex_handoff_draft_review_v0_1"
+}

@@ -43,6 +43,10 @@ const downstreamGeometrySubstrateUpgradePackageScriptName =
   "smoke:research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1";
 const downstreamGeometrySubstrateUpgradeNextRecommendedSlice =
   "candidate_to_codex_handoff_draft_geometry_substrate_v0_1";
+const downstreamCandidateToCodexHandoffDraftPackageScriptName =
+  "smoke:research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1";
+const downstreamCandidateToCodexHandoffDraftNextRecommendedSlice =
+  "candidate_to_codex_handoff_draft_review_v0_1";
 
 for (const filePath of [
   receiptTypePath,
@@ -665,6 +669,12 @@ function assertDocsPointers() {
     "AI Context Packet compiler GeometryDigest/Substrate upgrade v0.1",
     downstreamGeometrySubstrateUpgradePackageScriptName,
     downstreamGeometrySubstrateUpgradeNextRecommendedSlice,
+    "Candidate-to-Codex handoff draft Geometry/Substrate v0.1",
+    "types/candidate-to-codex-handoff-draft.ts",
+    "lib/research-candidate-review/candidate-to-codex-handoff-draft.ts",
+    "fixtures/research-candidate-review.candidate-to-codex-handoff-draft.geometry-substrate.sample.v0.1.json",
+    downstreamCandidateToCodexHandoffDraftPackageScriptName,
+    downstreamCandidateToCodexHandoffDraftNextRecommendedSlice,
   ]) {
     assert.ok(surfaceDoc.includes(requiredText), `surface doc must include ${requiredText}`);
   }
@@ -699,6 +709,8 @@ function assertGatePointer() {
     /ai_context_packet_compiler_geometry_substrate_upgrade_v0_1/i,
     /AI Context Packet compiler GeometryDigest\/Substrate upgrade v0\.1/i,
     /candidate_to_codex_handoff_draft_geometry_substrate_v0_1/i,
+    /Candidate-to-Codex handoff draft Geometry\/Substrate v0\.1/i,
+    /candidate_to_codex_handoff_draft_review_v0_1/i,
   ]) {
     assert.match(gateDoc, regex, `gate doc must include ${regex}`);
   }
