@@ -290,11 +290,7 @@ export function AgentPerspectiveSubstrateFoldedAuditPanel({
 
       <FeedbackEventStoreListPanel
         contract={FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT}
-        initialFilter={{
-          target_kind: "agent_perspective_substrate_folded_section",
-          target_id: "folded_section:source_coverage",
-          limit: 50,
-        }}
+        initialFilter={{ limit: 50 }}
       />
 
       <section className="perspective-inspector-section">

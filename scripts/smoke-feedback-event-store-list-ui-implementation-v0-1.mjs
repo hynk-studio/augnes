@@ -323,11 +323,34 @@ function assertComponentIntegration() {
     foldedAuditPanelSource,
     /from "@\/components\/feedback-event-store-list-panel"/,
   );
-  assert.match(foldedAuditPanelSource, /FeedbackEventStoreListPanel/);
+  const foldedListPanelInvocation = extractSelfClosingJsxInvocation(
+    foldedAuditPanelSource,
+    "FeedbackEventStoreListPanel",
+  );
+  assert.ok(
+    foldedListPanelInvocation,
+    "folded audit panel must render FeedbackEventStoreListPanel",
+  );
   assert.match(foldedAuditPanelSource, /feedback-event-store-list-ui-contract/);
   assert.match(
-    foldedAuditPanelSource,
-    /target_id:\s*"folded_section:source_coverage"/,
+    foldedListPanelInvocation,
+    /contract=\{FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT\}/,
+    "folded audit list panel must receive FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT",
+  );
+  assert.match(
+    foldedListPanelInvocation,
+    /initialFilter=\{\{\s*limit:\s*50,?\s*\}\}/,
+    "folded audit list panel default filter must include limit: 50",
+  );
+  assert.doesNotMatch(
+    foldedListPanelInvocation,
+    /\btarget_kind\s*:/,
+    "folded audit list panel must not default-scope target_kind",
+  );
+  assert.doesNotMatch(
+    foldedListPanelInvocation,
+    /\btarget_id\s*:/,
+    "folded audit list panel must not default-scope target_id",
   );
   assert.match(foldedAuditPanelSource, /Product-write lane remains parked by #686/);
 }
@@ -616,6 +639,13 @@ function sourceForForbiddenPatternScan(filePath) {
 function extractScriptName(line) {
   const match = line.match(/^\+\s*"([^"]+)":\s*"/);
   return match?.[1] ?? null;
+}
+
+function extractSelfClosingJsxInvocation(source, componentName) {
+  const match = source.match(
+    new RegExp(`<${escapeRegExp(componentName)}\\b[\\s\\S]*?\\/>`),
+  );
+  return match?.[0] ?? null;
 }
 
 function createFingerprint(value) {
