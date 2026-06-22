@@ -690,6 +690,23 @@ proof/evidence/work/Perspective durable write, no agent routing/execution, and
 no product write. Product-write remains parked by the #686 stopline. Next
 recommended slice: `feedback_event_write_route_implementation_v0_1`.
 
+## Feedback Event write route implementation v0.1 Pointer
+
+Feedback Event write route implementation v0.1 implements
+`POST /api/research-candidate/feedback-events` for durable feedback events
+only. It persists feedback event records through the Feedback Event Store helper
+and is guarded by
+`npm run smoke:feedback-event-write-route-implementation-v0-1`.
+
+The route persists feedback event only. No UI controls are activated yet, and
+there is no UI/component change. It does not create proof/evidence, does not
+promote Perspective state, and performs no work mutation. It grants no
+provider/OpenAI calls, no source fetch, no retrieval/RAG execution, no Codex
+execution, no GitHub automation, no external handoff sending, no agent
+routing/execution, and no product write. Product-write remains parked by the
+#686 stopline. Next recommended slice:
+`feedback_event_write_route_browser_validation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

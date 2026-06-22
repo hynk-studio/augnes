@@ -308,6 +308,23 @@ routing/execution, and no product write. Product-write remains parked by the
 #686 stopline. The next recommended slice after the route contract is
 `feedback_event_write_route_implementation_v0_1`.
 
+## Feedback Event Write Route Implementation v0.1
+
+Feedback Event write route implementation v0.1 implements
+`POST /api/research-candidate/feedback-events` for durable feedback events
+only. It can persist Feedback Event Store v0.1 records through the feedback
+event store helper and keeps the authority boundary attached to the written
+event.
+
+The route persists feedback events only. It does not mutate substrate
+snapshots, proof/evidence, work, Perspective state, agents, handoffs, or
+product write. It adds no UI/component change, no Codex execution, no GitHub
+automation, no external handoff sending, no provider/OpenAI call, no source
+fetch, no retrieval/RAG execution, no agent routing/execution, and no product
+write. Product-write remains parked by the #686 stopline. The next recommended
+slice after the route implementation is
+`feedback_event_write_route_browser_validation_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_write_route_implementation_v0_1`
+`feedback_event_write_route_browser_validation_v0_1`

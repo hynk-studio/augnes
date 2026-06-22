@@ -444,6 +444,7 @@ function assertPackageScript() {
       ["smoke:feedback-event-store-minimal-v0-1"],
       ["smoke:feedback-event-store-review-controls-preview-v0-1"],
       routeContractPackageScriptNames,
+      ["smoke:feedback-event-write-route-implementation-v0-1"],
     ].some((allowedNames) => JSON.stringify(addedScriptNames) === JSON.stringify(allowedNames)),
     `package additions must only include digest or downstream substrate/preview/panel/AI-context-upgrade/handoff-draft/review/operator-decision smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
@@ -492,6 +493,10 @@ function assertDocs() {
 
 function assertStaticScope() {
   const changedFiles = readChangedFiles();
+  if (feedbackEventWriteRouteImplementationSliceActive(changedFiles)) {
+    assertFeedbackEventWriteRouteImplementationChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackEventWriteRouteContractSliceActive(changedFiles)) {
     assertFeedbackEventWriteRouteContractChangedFiles(changedFiles);
     return;
@@ -579,6 +584,70 @@ function feedbackEventStoreReviewControlsSliceActive(changedFiles) {
   return feedbackEventStoreReviewControlsRequiredChangedFiles().every((filePath) =>
     changedFiles.includes(filePath),
   );
+}
+
+function feedbackEventWriteRouteImplementationSliceActive(changedFiles) {
+  return feedbackEventWriteRouteImplementationRequiredChangedFiles().every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function assertFeedbackEventWriteRouteImplementationChangedFiles(changedFiles) {
+  const requiredChangedFiles = feedbackEventWriteRouteImplementationRequiredChangedFiles();
+  const allowedChangedFiles = feedbackEventWriteRouteImplementationAllowedChangedFiles();
+  for (const expectedFile of requiredChangedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include downstream route implementation file: ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      allowedChangedFiles.includes(changedFile),
+      `unexpected changed file in downstream route implementation slice: ${changedFile}`,
+    );
+    if (changedFile !== "app/api/research-candidate/feedback-events/route.ts") {
+      assert.doesNotMatch(changedFile, /^app\/api\//, "must only add feedback route file");
+    }
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+  }
+}
+
+function feedbackEventWriteRouteImplementationRequiredChangedFiles() {
+  return [
+    "app/api/research-candidate/feedback-events/route.ts",
+    "fixtures/research-candidate-review.feedback-event-write-route-implementation.sample.v0.1.json",
+    "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+    "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+    "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+    "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
+    "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+    "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+    "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+    smokePath,
+  ];
+}
+
+function feedbackEventWriteRouteImplementationAllowedChangedFiles() {
+  return [
+    ...feedbackEventWriteRouteImplementationRequiredChangedFiles(),
+    "scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs",
+    "scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-types-v0-1.mjs",
+    "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+  ];
 }
 
 function feedbackEventWriteRouteContractSliceActive(changedFiles) {
