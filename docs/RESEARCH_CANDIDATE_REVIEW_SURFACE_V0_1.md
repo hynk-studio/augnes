@@ -802,6 +802,24 @@ product write, and no product ID allocation. Product-write remains parked by
 the #686 stopline. Next recommended slice:
 `feedback_event_store_list_route_browser_validation_v0_1`.
 
+## Feedback Event Store list route browser validation v0.1 Pointer
+
+Feedback Event Store list route browser validation v0.1 validates
+`GET /api/research-candidate/feedback-events` through route handler temp-DB
+validation only. It reads durable feedback events only, observes read/filter
+behavior, validates deterministic order and limit behavior, and confirms
+refusal boundaries before any list UI contract or list panel work.
+
+The validation uses no browser UI, starts no app server, and uses no production
+DB read/write path. GET does not write feedback, and the validation performs no
+feedback write. It adds no UI/component change, no app/api route change, no
+route handler change, no schema/migration change, no proof/evidence write, no
+Perspective promotion, no work mutation, no provider/OpenAI call, no source
+fetch, no retrieval/RAG execution, no Codex/GitHub automation, no external
+handoff sending, no agent routing/execution, no product write, and no product
+ID allocation. Product-write remains parked by the #686 stopline. Next
+recommended slice: `feedback_event_store_list_ui_contract_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

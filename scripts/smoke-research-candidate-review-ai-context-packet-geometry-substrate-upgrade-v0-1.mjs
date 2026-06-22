@@ -112,6 +112,9 @@ const listRouteContractPackageScriptNames = [
 const listRouteImplementationPackageScriptNames = [
   "smoke:feedback-event-store-list-route-implementation-v0-1",
 ];
+const listRouteBrowserValidationPackageScriptNames = [
+  "smoke:feedback-event-store-list-route-browser-validation-v0-1",
+];
 const nextRecommendedSlice =
   "candidate_to_codex_handoff_draft_geometry_substrate_v0_1";
 const downstreamCandidateToCodexHandoffDraftNextRecommendedSlice =
@@ -666,6 +669,7 @@ function assertPackageScript() {
       ["smoke:feedback-event-controls-ui-browser-validation-v0-1"],
       listRouteContractPackageScriptNames,
       listRouteImplementationPackageScriptNames,
+      listRouteBrowserValidationPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include the downstream Candidate-to-Codex handoff draft/review/operator decision smoke script",
   );
@@ -678,6 +682,7 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (feedbackEventStoreListRouteBrowserValidationSliceActive(changedFiles)) return;
   if (feedbackEventStoreListRouteImplementationSliceActive(changedFiles)) return;
   if (feedbackEventStoreListRouteContractSliceActive(changedFiles)) {
     assertFeedbackEventStoreListRouteContractChangedFiles(changedFiles);
@@ -763,6 +768,12 @@ function feedbackEventStoreListRouteContractSliceActive(changedFiles) {
 function feedbackEventStoreListRouteImplementationSliceActive(changedFiles) {
   return changedFiles.includes(
     "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  );
+}
+
+function feedbackEventStoreListRouteBrowserValidationSliceActive(changedFiles) {
+  return changedFiles.includes(
+    "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
   );
 }
 

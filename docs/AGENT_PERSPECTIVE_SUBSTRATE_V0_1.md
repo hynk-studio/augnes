@@ -418,6 +418,24 @@ and no product write. Product-write remains parked by the #686 stopline. The
 next recommended slice after the list route implementation is
 `feedback_event_store_list_route_browser_validation_v0_1`.
 
+## Feedback Event Store List Route Browser Validation v0.1
+
+Feedback Event Store list route browser validation v0.1 validates
+`GET /api/research-candidate/feedback-events` through route handler temp-DB
+validation only. It reads durable feedback events only and confirms read,
+filter, order, limit, `include_event_json=false`, and refusal behavior before
+any list UI contract.
+
+The validation starts no app server, uses no browser UI, and uses no production
+DB read/write path. GET does not write feedback; no feedback write occurs. It
+adds no UI/component change, no app/api route change, no route handler change,
+and no schema/migration change. It performs no provider/OpenAI call, no source
+fetch, no retrieval/RAG execution, no proof/evidence write, no Perspective
+promotion, no work mutation, no Codex/GitHub automation, no external handoff,
+and no product write. Product-write remains parked by the #686 stopline. The
+next recommended slice after the list route browser validation is
+`feedback_event_store_list_ui_contract_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_store_list_route_browser_validation_v0_1`
+`feedback_event_store_list_ui_contract_v0_1`

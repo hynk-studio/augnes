@@ -85,6 +85,10 @@ const listRouteImplementationFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-route-implementation.sample.v0.1.json";
 const listRouteImplementationSmokePath =
   "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
+const listRouteBrowserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-route-browser-validation.sample.v0.1.json";
+const listRouteBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
 
 const packageScriptName = "smoke:feedback-event-store-minimal-v0-1";
 const packageScriptValue = `node ${smokePath}`;
@@ -121,6 +125,10 @@ const listRouteImplementationPackageScriptName =
   "smoke:feedback-event-store-list-route-implementation-v0-1";
 const listRouteImplementationPackageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
+const listRouteBrowserValidationPackageScriptName =
+  "smoke:feedback-event-store-list-route-browser-validation-v0-1";
+const listRouteBrowserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
 const previousSlice = "feedback_event_store_minimal_v0_1";
 const nextRecommendedSlice =
   "feedback_event_store_review_controls_preview_v0_1";
@@ -160,6 +168,10 @@ const listRouteImplementationNextRecommendedSlice =
   "feedback_event_store_list_route_browser_validation_v0_1";
 const listRouteImplementationRecommendationStatus =
   "ready_for_feedback_event_store_list_route_browser_validation_v0_1";
+const listRouteBrowserValidationNextRecommendedSlice =
+  "feedback_event_store_list_ui_contract_v0_1";
+const listRouteBrowserValidationRecommendationStatus =
+  "ready_for_feedback_event_store_list_ui_contract_v0_1";
 const requiredEventTypes = [
   "dismiss_preview",
   "pin_preview",
@@ -465,6 +477,33 @@ const downstreamListRouteImplementationChangedFiles = [
   "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const downstreamListRouteBrowserValidationChangedFiles = [
+  listRouteBrowserValidationSmokePath,
+  listRouteBrowserValidationFixturePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  listRouteImplementationSmokePath,
+  listRouteContractSmokePath,
+  uiBrowserValidationSmokePath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  browserValidationSmokePath,
+  routeImplementationSmokePath,
+  routeContractSmokePath,
+  reviewControlsSmokePath,
+  smokePath,
+  operatorDecisionSmokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
 
 for (const filePath of [
   typePath,
@@ -513,6 +552,7 @@ assertUiImplementationDownstreamPointer();
 assertUiBrowserValidationDownstreamPointer();
 assertListRouteContractDownstreamPointer();
 assertListRouteImplementationDownstreamPointer();
+assertListRouteBrowserValidationDownstreamPointer();
 
 const helper = await importHelperModule();
 const fixtureInputs = buildFixtureInputs();
@@ -650,6 +690,12 @@ function assertPackageScript() {
       listRouteImplementationPackageScriptValue,
     );
   }
+  if (downstreamListRouteBrowserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[listRouteBrowserValidationPackageScriptName],
+      listRouteBrowserValidationPackageScriptValue,
+    );
+  }
   if (downstreamRouteImplementationSliceActive()) {
     assert.equal(
       packageJson.scripts[routeImplementationPackageScriptName],
@@ -699,7 +745,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamListRouteImplementationSliceActive()
+  const expectedAddedScriptNames = downstreamListRouteBrowserValidationSliceActive()
+    ? [listRouteBrowserValidationPackageScriptName]
+    : downstreamListRouteImplementationSliceActive()
     ? [listRouteImplementationPackageScriptName]
     : downstreamListRouteContractSliceActive()
     ? [listRouteContractPackageScriptName]
@@ -737,7 +785,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const requiredFiles = downstreamListRouteImplementationSliceActive()
+  const requiredFiles = downstreamListRouteBrowserValidationSliceActive()
+    ? downstreamListRouteBrowserValidationChangedFiles
+    : downstreamListRouteImplementationSliceActive()
     ? downstreamListRouteImplementationChangedFiles
     : downstreamListRouteContractSliceActive()
     ? downstreamListRouteContractChangedFiles
@@ -756,7 +806,9 @@ function assertStaticBoundary() {
     : downstreamReviewControlsSliceActive()
     ? downstreamReviewControlsRequiredChangedFiles
     : expectedChangedFiles;
-  const allowedFiles = downstreamListRouteImplementationSliceActive()
+  const allowedFiles = downstreamListRouteBrowserValidationSliceActive()
+    ? downstreamListRouteBrowserValidationChangedFiles
+    : downstreamListRouteImplementationSliceActive()
     ? downstreamListRouteImplementationChangedFiles
     : downstreamListRouteContractSliceActive()
     ? downstreamListRouteContractChangedFiles
@@ -927,10 +979,11 @@ function assertSchemaAddition() {
     downstreamBrowserValidationSliceActive() ||
     downstreamUiContractSliceActive() ||
     downstreamUiImplementationSliceActive() ||
-    downstreamUiBrowserValidationSliceActive() ||
-    downstreamListRouteContractSliceActive() ||
-    downstreamListRouteImplementationSliceActive()
-  ) {
+	    downstreamUiBrowserValidationSliceActive() ||
+	    downstreamListRouteContractSliceActive() ||
+	    downstreamListRouteImplementationSliceActive() ||
+	    downstreamListRouteBrowserValidationSliceActive()
+	  ) {
     assert.equal(
       addedSchemaLines.trim(),
       "",
@@ -1179,6 +1232,49 @@ function assertListRouteImplementationDownstreamPointer() {
   assert.equal(
     listRouteImplementationFixture.next_recommended_slice,
     listRouteImplementationNextRecommendedSlice,
+  );
+  assert.equal(
+    fixture.next_recommended_slice,
+    nextRecommendedSlice,
+    "#695 feedback event fixture output must remain unchanged",
+  );
+}
+
+function assertListRouteBrowserValidationDownstreamPointer() {
+  if (!downstreamListRouteBrowserValidationSliceActive()) return;
+  for (const requiredText of [
+    listRouteBrowserValidationPackageScriptName,
+    listRouteBrowserValidationNextRecommendedSlice,
+    listRouteBrowserValidationFixturePath,
+    listRouteBrowserValidationSmokePath,
+    listRouteBrowserValidationRecommendationStatus,
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#695 feedback event store smoke must allow downstream list route browser validation text: ${requiredText}`,
+    );
+  }
+  const listRouteBrowserValidationFixture = readJson(
+    listRouteBrowserValidationFixturePath,
+  );
+  assert.equal(
+    listRouteBrowserValidationFixture.validation_kind,
+    "feedback_event_store_list_route_browser_validation",
+  );
+  assert.equal(listRouteBrowserValidationFixture.route_method, "GET");
+  assert.equal(listRouteBrowserValidationFixture.production_db_used_now, false);
+  assert.equal(listRouteBrowserValidationFixture.temp_db_used_now, true);
+  assert.equal(listRouteBrowserValidationFixture.runtime_read_executed_now, true);
+  assert.equal(listRouteBrowserValidationFixture.runtime_write_executed_now, false);
+  assert.equal(listRouteBrowserValidationFixture.no_feedback_write_observed, true);
+  assert.equal(listRouteBrowserValidationFixture.no_forbidden_authority_granted, true);
+  assert.equal(
+    listRouteBrowserValidationFixture.recommendation_status,
+    listRouteBrowserValidationRecommendationStatus,
+  );
+  assert.equal(
+    listRouteBrowserValidationFixture.next_recommended_slice,
+    listRouteBrowserValidationNextRecommendedSlice,
   );
   assert.equal(
     fixture.next_recommended_slice,
@@ -1576,6 +1672,13 @@ function downstreamListRouteContractSliceActive() {
 function downstreamListRouteImplementationSliceActive() {
   const changedFiles = readChangedFiles();
   return downstreamListRouteImplementationChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function downstreamListRouteBrowserValidationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamListRouteBrowserValidationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
 }
