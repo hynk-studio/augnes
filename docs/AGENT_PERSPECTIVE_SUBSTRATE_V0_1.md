@@ -262,6 +262,23 @@ routing/execution, and no product write. Product-write remains parked by the
 #686 stopline. The next recommended slice after the preview is
 `feedback_event_store_minimal_v0_1`.
 
+## Feedback Event Store Minimal v0.1
+
+Feedback Event Store minimal v0.1 can record preview feedback events such as
+`dismiss_preview`, `pin_preview`, `correct_preview`, and
+`invalidate_preview` for Research-to-Perspective preview surfaces, including
+Agent Perspective Substrate cards/sections and Candidate-to-Codex handoff
+previews.
+
+Feedback events are durable operator input only. They do not mutate substrate
+snapshots, proof/evidence, work, Perspective state, agents, handoffs, or
+product write. The slice adds no Codex execution, no GitHub automation, no
+external handoff sending, no provider/OpenAI call, no source fetch, no
+retrieval/RAG execution, no agent routing/execution, and no product write.
+Product-write remains parked by the #686 stopline. The next recommended slice
+after Feedback Event Store minimal v0.1 is
+`feedback_event_store_review_controls_preview_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_store_minimal_v0_1`
+`feedback_event_store_review_controls_preview_v0_1`

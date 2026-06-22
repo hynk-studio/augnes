@@ -1230,6 +1230,35 @@ CREATE INDEX IF NOT EXISTS idx_perspective_memory_items_validation
 CREATE INDEX IF NOT EXISTS idx_perspective_memory_items_source_candidate
   ON perspective_memory_items(source_candidate_draft_id);
 
+CREATE TABLE IF NOT EXISTS research_candidate_feedback_events (
+  event_id TEXT PRIMARY KEY,
+  event_version TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  target_kind TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  target_fingerprint TEXT,
+  source_ref_ids_json TEXT NOT NULL,
+  operator_note TEXT,
+  correction_text TEXT,
+  reason TEXT,
+  created_at TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  authority_boundary_json TEXT NOT NULL,
+  event_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_feedback_events_event_type
+  ON research_candidate_feedback_events(event_type);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_feedback_events_target
+  ON research_candidate_feedback_events(target_kind, target_id);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_feedback_events_created_at
+  ON research_candidate_feedback_events(created_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_feedback_events_idempotency
+  ON research_candidate_feedback_events(idempotency_key);
+
 CREATE TABLE IF NOT EXISTS coordination_events (
   event_id TEXT PRIMARY KEY,
   event_type TEXT NOT NULL CHECK (

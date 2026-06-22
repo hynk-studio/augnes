@@ -14,6 +14,13 @@ const sourcePacketFixturePath =
   "fixtures/research-candidate-review.ai-context-packet.geometry-substrate-upgrade.sample.v0.1.json";
 const decisionFixturePath =
   "fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json";
+const feedbackTypePath = "types/feedback-event-store.ts";
+const feedbackHelperPath =
+  "lib/research-candidate-review/feedback-event-store.ts";
+const feedbackFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json";
+const feedbackSmokePath = "scripts/smoke-feedback-event-store-minimal-v0-1.mjs";
+const feedbackSchemaPath = "lib/db/schema.sql";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
@@ -41,9 +48,13 @@ const smokePath =
 const packageScriptName =
   "smoke:research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1";
 const packageScriptValue = `node ${smokePath}`;
+const feedbackPackageScriptName = "smoke:feedback-event-store-minimal-v0-1";
+const feedbackPackageScriptValue = `node ${feedbackSmokePath}`;
 const sourceReviewExpectedNextSlice =
   "candidate_to_codex_handoff_operator_decision_v0_1";
 const nextRecommendedSlice = "feedback_event_store_minimal_v0_1";
+const feedbackNextRecommendedSlice =
+  "feedback_event_store_review_controls_preview_v0_1";
 const requiredDecisionOptions = [
   "approve_for_manual_codex_copy_paste_later",
   "request_handoff_revision",
@@ -85,23 +96,25 @@ const requiredExecutionBlockers = [
   "product_id_allocation_not_authorized",
 ];
 const expectedChangedFiles = [
-  typePath,
-  builderPath,
-  decisionFixturePath,
+  feedbackTypePath,
+  feedbackHelperPath,
+  feedbackFixturePath,
+  feedbackSmokePath,
+  feedbackSchemaPath,
   smokePath,
   packagePath,
   indexPath,
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
-  sourceReviewSmokePath,
-  sourceDraftSmokePath,
-  sourcePacketSmokePath,
-  foldedAuditPanelSmokePath,
-  previewBuilderSmokePath,
-  substrateSmokePath,
-  geometryDigestSmokePath,
-  "scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
 
 for (const filePath of [
@@ -111,6 +124,11 @@ for (const filePath of [
   sourceDraftFixturePath,
   sourcePacketFixturePath,
   decisionFixturePath,
+  feedbackTypePath,
+  feedbackHelperPath,
+  feedbackFixturePath,
+  feedbackSmokePath,
+  feedbackSchemaPath,
   packagePath,
   indexPath,
   substrateDocPath,
@@ -131,10 +149,15 @@ for (const filePath of [
 const typeSource = readFileSync(typePath, "utf8");
 const builderSource = readFileSync(builderPath, "utf8");
 const smokeSource = readFileSync(smokePath, "utf8");
+const feedbackTypeSource = readFileSync(feedbackTypePath, "utf8");
+const feedbackHelperSource = readFileSync(feedbackHelperPath, "utf8");
+const feedbackSmokeSource = readFileSync(feedbackSmokePath, "utf8");
+const feedbackSchemaSource = readFileSync(feedbackSchemaPath, "utf8");
 const sourceReviewFixture = readJson(sourceReviewFixturePath);
 const sourceDraftFixture = readJson(sourceDraftFixturePath);
 const sourcePacketFixture = readJson(sourcePacketFixturePath);
 const decisionFixture = readJson(decisionFixturePath);
+const feedbackFixture = readJson(feedbackFixturePath);
 const packageJson = readJson(packagePath);
 const indexDoc = readFileSync(indexPath, "utf8");
 const substrateDoc = readFileSync(substrateDocPath, "utf8");
@@ -154,6 +177,7 @@ assertPackageScript();
 assertStaticBoundary();
 assertNoForbiddenImplementationPatterns();
 assertDocsPointers();
+assertFeedbackEventStoreDownstreamPointer();
 assertAdjacentSmokePointers();
 
 const builderModule = await importBuilderModule();
@@ -382,6 +406,7 @@ function assertAuthorityBoundary(boundary) {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  assert.equal(packageJson.scripts[feedbackPackageScriptName], feedbackPackageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -397,8 +422,8 @@ function assertPackageScript() {
     .sort();
   assert.deepEqual(
     addedScriptNames,
-    [packageScriptName],
-    "package additions must only include the Candidate-to-Codex handoff operator decision smoke script",
+    [feedbackPackageScriptName],
+    "package additions must only include the Feedback Event Store smoke script",
   );
   assert.doesNotMatch(
     packageAddedLines.join("\n"),
@@ -424,10 +449,12 @@ function assertStaticBoundary() {
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
     assert.doesNotMatch(changedFile, /^components\//, "must not change components");
-    assert.doesNotMatch(changedFile, /^lib\/db(?:\.ts|\/)/, "must not change lib/db files");
-    assert.doesNotMatch(changedFile, /schema\.sql$/, "must not change schema.sql");
+    if (changedFile !== feedbackSchemaPath) {
+      assert.doesNotMatch(changedFile, /^lib\/db(?:\.ts|\/)/, "must not change lib/db files");
+      assert.doesNotMatch(changedFile, /schema\.sql$/, "must not change schema.sql");
+      assert.doesNotMatch(changedFile, /(^|\/)(schema|migration|sql)\b/i, "must not change schema/migration/sql paths");
+    }
     assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
-    assert.doesNotMatch(changedFile, /(^|\/)(schema|migration|sql)\b/i, "must not change schema/migration/sql paths");
   }
 }
 
@@ -436,6 +463,10 @@ function assertNoForbiddenImplementationPatterns() {
     [typePath, typeSource],
     [builderPath, builderSource],
     [smokePath, stripForbiddenPatternDefinitions(smokeSource)],
+    [feedbackTypePath, feedbackTypeSource],
+    [feedbackHelperPath, feedbackHelperSource],
+    [feedbackSchemaPath, feedbackSchemaSource],
+    [feedbackSmokePath, stripForbiddenPatternDefinitions(feedbackSmokeSource)],
   ];
   const forbiddenPatterns = [
     pattern(["from ", '"openai"']),
@@ -518,6 +549,42 @@ function assertDocsPointers() {
   assert.match(gateDoc, /no product write/i);
   assert.match(gateDoc, new RegExp(nextRecommendedSlice));
   assertGateRecentHandoffSection();
+}
+
+function assertFeedbackEventStoreDownstreamPointer() {
+  for (const requiredText of [
+    feedbackTypePath,
+    feedbackHelperPath,
+    feedbackFixturePath,
+    feedbackSmokePath,
+    feedbackSchemaPath,
+    feedbackPackageScriptName,
+    feedbackNextRecommendedSlice,
+    "feedback_event_store.v0.1",
+    "research_candidate_feedback_events",
+    "dismiss_preview",
+    "pin_preview",
+    "correct_preview",
+    "invalidate_preview",
+    "durable_feedback_event",
+    "product_write_authority",
+    "retrieval_rag_authority",
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText) ||
+        feedbackTypeSource.includes(requiredText) ||
+        feedbackHelperSource.includes(requiredText) ||
+        feedbackSmokeSource.includes(requiredText) ||
+        feedbackSchemaSource.includes(requiredText) ||
+        indexDoc.includes(requiredText),
+      `operator decision smoke downstream pointer must include ${requiredText}`,
+    );
+  }
+  assert.equal(feedbackFixture.fixture_version, "feedback_event_store.v0.1");
+  assert.equal(feedbackFixture.next_recommended_slice, feedbackNextRecommendedSlice);
+  assert.equal(feedbackFixture.product_write_stopline_ref, "pr:686");
+  assert.equal(feedbackFixture.events.length, 4);
+  assert.equal(decisionFixture.next_recommended_slice, nextRecommendedSlice);
 }
 
 function assertGateRecentHandoffSection() {

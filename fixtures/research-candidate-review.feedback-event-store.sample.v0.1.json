@@ -1,0 +1,161 @@
+{
+  "fixture_kind": "research_candidate_feedback_event_store_minimal_fixture",
+  "fixture_version": "feedback_event_store.v0.1",
+  "scope": "project:augnes",
+  "as_of": "fixture:research-candidate-review.feedback-event-store.sample.v0.1",
+  "product_write_stopline_ref": "pr:686",
+  "authority_boundary": {
+    "durable_feedback_event": true,
+    "proof_or_evidence_record": false,
+    "perspective_promotion": false,
+    "work_mutation": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false
+  },
+  "supported_event_types": [
+    "dismiss_preview",
+    "pin_preview",
+    "correct_preview",
+    "invalidate_preview"
+  ],
+  "future_docs_only_event_types": [
+    "downgrade_preview",
+    "add_to_capsule_preview",
+    "exclude_from_capsule_preview"
+  ],
+  "events": [
+    {
+      "event_id": "feedback_event:fnv1a32:3cbcddb7",
+      "event_version": "feedback_event_store.v0.1",
+      "event_type": "dismiss_preview",
+      "target_kind": "agent_perspective_substrate_surfacing_card",
+      "target_id": "substrate_card:reviewed_non_authoritative_context",
+      "source_ref_ids": [
+        "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#surfacing_cards"
+      ],
+      "created_at": "2026-06-22T00:00:00.000Z",
+      "idempotency_key": "feedback_event_store_idempotency:fnv1a32:bab48f23",
+      "authority_boundary": {
+        "durable_feedback_event": true,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      },
+      "operator_note": "Dismissed after review; product-write lane remains parked by #686.",
+      "reason": "preview_card_already_reviewed"
+    },
+    {
+      "event_id": "feedback_event:fnv1a32:71954683",
+      "event_version": "feedback_event_store.v0.1",
+      "event_type": "pin_preview",
+      "target_kind": "agent_perspective_substrate_folded_section",
+      "target_id": "folded_section:source_coverage",
+      "source_ref_ids": [
+        "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+        "fixtures/agent-perspective-substrate-preview.sample.v0.1.json#source_coverage"
+      ],
+      "created_at": "2026-06-22T00:01:00.000Z",
+      "idempotency_key": "feedback_event_store_idempotency:fnv1a32:2fe5daf9",
+      "authority_boundary": {
+        "durable_feedback_event": true,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      },
+      "operator_note": "Pinned source coverage for later human review; product-write lane remains parked by #686.",
+      "reason": "keep_source_coverage_visible"
+    },
+    {
+      "event_id": "feedback_event:fnv1a32:1542ea21",
+      "event_version": "feedback_event_store.v0.1",
+      "event_type": "correct_preview",
+      "target_kind": "candidate_to_codex_handoff_draft_review",
+      "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+      "source_ref_ids": [
+        "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json"
+      ],
+      "created_at": "2026-06-22T00:02:00.000Z",
+      "idempotency_key": "feedback_event_store_idempotency:fnv1a32:c32d5c64",
+      "authority_boundary": {
+        "durable_feedback_event": true,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      },
+      "target_fingerprint": "fnv1a32:d9d0275e",
+      "operator_note": "Correction is feedback only; product-write lane remains parked by #686.",
+      "correction_text": "Clarify that the review remains non-executing and does not satisfy the human operator decision.",
+      "reason": "boundary_wording_correction"
+    },
+    {
+      "event_id": "feedback_event:fnv1a32:49187a0d",
+      "event_version": "feedback_event_store.v0.1",
+      "event_type": "invalidate_preview",
+      "target_kind": "candidate_to_codex_handoff_operator_decision_preview",
+      "target_id": "candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
+      "source_ref_ids": [
+        "fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json"
+      ],
+      "created_at": "2026-06-22T00:03:00.000Z",
+      "idempotency_key": "feedback_event_store_idempotency:fnv1a32:ef23d69e",
+      "authority_boundary": {
+        "durable_feedback_event": true,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "work_mutation": false,
+        "execution_authority": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "external_handoff_authority": false,
+        "provider_openai_authority": false,
+        "retrieval_rag_authority": false,
+        "source_fetch_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      },
+      "target_fingerprint": "fnv1a32:70a575e2",
+      "operator_note": "Invalidated for future review-control exploration only; product-write lane remains parked by #686.",
+      "reason": "operator_decision_preview_superseded_for_review_controls"
+    }
+  ],
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "recommendation_status": "ready_for_feedback_event_store_review_controls_preview_v0_1",
+  "next_recommended_slice": "feedback_event_store_review_controls_preview_v0_1"
+}

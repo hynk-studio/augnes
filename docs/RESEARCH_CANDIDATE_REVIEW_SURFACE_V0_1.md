@@ -638,6 +638,23 @@ preserves manual lineage, source refs, unresolved tensions, and the
 product-write stopline. Next recommended slice:
 `feedback_event_store_minimal_v0_1`.
 
+## Feedback Event Store minimal v0.1 Pointer
+
+Feedback Event Store minimal v0.1 begins M15 with durable feedback events for
+Research-to-Perspective preview surfaces. It records operator feedback events
+for `dismiss_preview`, `pin_preview`, `correct_preview`, and
+`invalidate_preview` while preserving the target id, source refs, and explicit
+authority boundary for each event.
+
+Feedback events are durable, but they are not Perspective promotion
+decisions, not proof/evidence records, not work mutation, not execution
+authority, and not product-write authority. This slice adds no
+provider/OpenAI calls, no source fetch, no retrieval/RAG execution, no Codex
+execution, no GitHub automation, no external handoff sending, no agent
+routing/execution, and no product write. Product-write remains parked by the
+#686 stopline. Next recommended slice:
+`feedback_event_store_review_controls_preview_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
