@@ -13,7 +13,11 @@ const substratePreviewFixturePath =
   "fixtures/agent-perspective-substrate-preview.sample.v0.1.json";
 const implementationFixturePath =
   "fixtures/research-candidate-review.feedback-event-controls-ui-implementation.sample.v0.1.json";
+const uiBrowserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-controls-ui-browser-validation.sample.v0.1.json";
 const smokePath = "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
+const uiBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
@@ -36,6 +40,9 @@ const feedbackEventStoreSmokePath =
 const packageScriptName =
   "smoke:feedback-event-controls-ui-implementation-v0-1";
 const packageScriptValue = `node ${smokePath}`;
+const uiBrowserValidationPackageScriptName =
+  "smoke:feedback-event-controls-ui-browser-validation-v0-1";
+const uiBrowserValidationPackageScriptValue = `node ${uiBrowserValidationSmokePath}`;
 const feedbackRoutePath = "/api/research-candidate/feedback-events";
 const routeMethod = "POST";
 const requestVersion = "feedback_event_write_route_request.v0.1";
@@ -43,6 +50,10 @@ const recommendationStatus =
   "ready_for_feedback_event_controls_ui_browser_validation_v0_1";
 const nextRecommendedSlice =
   "feedback_event_controls_ui_browser_validation_v0_1";
+const uiBrowserValidationRecommendationStatus =
+  "ready_for_feedback_event_store_list_route_contract_v0_1";
+const uiBrowserValidationNextRecommendedSlice =
+  "feedback_event_store_list_route_contract_v0_1";
 const uiContractNextRecommendedSlice =
   "feedback_event_controls_ui_implementation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
@@ -74,6 +85,31 @@ const expectedChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  uiContractSmokePath,
+  browserValidationSmokePath,
+  routeImplementationSmokePath,
+  routeContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackEventStoreSmokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
+const downstreamUiBrowserValidationChangedFiles = [
+  uiBrowserValidationSmokePath,
+  uiBrowserValidationFixturePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
   uiContractSmokePath,
   browserValidationSmokePath,
   routeImplementationSmokePath,
@@ -283,6 +319,12 @@ function summarizeControl(binding, requestsById) {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  if (uiBrowserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[uiBrowserValidationPackageScriptName],
+      uiBrowserValidationPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -296,9 +338,12 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
+  const expectedAddedScriptNames = uiBrowserValidationSliceActive()
+    ? [uiBrowserValidationPackageScriptName]
+    : [packageScriptName];
   assert.deepEqual(
     addedScriptNames,
-    [packageScriptName],
+    expectedAddedScriptNames,
     "package additions must only include the UI implementation smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
@@ -307,19 +352,24 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const expectedFiles = uiBrowserValidationSliceActive()
+    ? downstreamUiBrowserValidationChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of expectedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedChangedFiles.includes(changedFile),
+      expectedFiles.includes(changedFile),
       `unexpected changed file in UI implementation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
     assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
     assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
     assert.doesNotMatch(changedFile, /(^|\/)(schema|migration)\b/i);
-    if (changedFile.startsWith("components/")) {
+    if (uiBrowserValidationSliceActive()) {
+      assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    } else if (changedFile.startsWith("components/")) {
       assert.ok(
         allowedComponentFiles.has(changedFile),
         `only allowed component files may change: ${changedFile}`,
@@ -496,6 +546,13 @@ function assertUiContractDownstreamPointer() {
   assert.equal(uiContractFixture.next_recommended_slice, uiContractNextRecommendedSlice);
 }
 
+function uiBrowserValidationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamUiBrowserValidationChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
 function assertImplementationFixture(value) {
   assert.equal(value.implementation_kind, "feedback_event_controls_ui_implementation");
   assert.equal(value.implementation_version, "feedback_event_controls_ui_implementation.v0.1");
@@ -653,9 +710,16 @@ function stripSmokeAssertionText(source) {
     .filter((line) => !line.includes("sendBeacon"))
     .filter((line) => !line.includes("OpenAI"))
     .filter((line) => !line.includes("GitHub"))
+    .filter((line) => !line.includes("github"))
+    .filter((line) => !line.includes("Octokit"))
     .filter((line) => !line.includes("Codex"))
     .filter((line) => !line.includes("retrieval"))
     .filter((line) => !line.includes("source fetch"))
     .filter((line) => !line.includes("product write"))
+    .filter((line) => !line.includes("executeProductWrite"))
+    .filter((line) => !line.includes("allocateProductId"))
+    .filter((line) => !line.includes("productDbWrite"))
+    .filter((line) => !line.includes("next dev"))
+    .filter((line) => !line.includes("next start"))
     .join("\n");
 }

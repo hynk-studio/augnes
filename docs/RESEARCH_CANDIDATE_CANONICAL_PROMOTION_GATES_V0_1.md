@@ -477,6 +477,22 @@ proof/evidence/Perspective/work/product durable state. Product-write remains
 parked by the #686 stopline. Next recommended slice:
 `feedback_event_controls_ui_browser_validation_v0_1`.
 
+Feedback Event controls UI browser validation v0.1 preserves canonical
+promotion gates while validating the existing controls UI. It validates
+card-specific dismiss targets, the section-level source coverage pin, disabled
+correct/invalidate controls, and the single feedback-event route boundary.
+
+The validation is not source of truth, not proof/evidence, not Perspective
+promotion, not work mutation, not execution authority, not retrieval/RAG
+execution, not agent routing, not Codex execution, not GitHub automation, not
+external handoff, and not product write authority. It adds no route/UI behavior,
+changes no components, starts no app server, uses no production DB, sends no
+browser requests in smoke, performs no provider/OpenAI call, performs no source
+fetch, performs no retrieval/RAG execution, and creates no
+proof/evidence/Perspective/work/product durable state. Product-write remains
+parked by the #686 stopline. Next recommended slice:
+`feedback_event_store_list_route_contract_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

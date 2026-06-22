@@ -1855,6 +1855,22 @@ repo-local 색인이다.
   execution, and no product write/product IDs. Product-write remains parked by
   #686. The next recommended slice is
   `feedback_event_controls_ui_browser_validation_v0_1`.
+- Feedback Event controls UI browser validation v0.1:
+  `fixtures/research-candidate-review.feedback-event-controls-ui-browser-validation.sample.v0.1.json`
+  and `scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs`
+  (`npm run smoke:feedback-event-controls-ui-browser-validation-v0-1`) provide
+  static component validation for the #701 feedback controls UI. The validation
+  checks card-specific dismiss target validation, source coverage pin validation,
+  and correct/invalidate disabled validation without starting the app server,
+  using production DB, or sending browser requests.
+
+  This validation slice adds no component change, no route change, no
+  schema/migration change, no browser persistence, no production DB, no
+  proof/evidence/Perspective promotion/work mutation, no Codex/GitHub
+  automation/external handoff, no provider/OpenAI/source-fetch/retrieval/RAG
+  execution, and no product write/product IDs. Product-write remains parked by
+  #686. The next recommended slice is
+  `feedback_event_store_list_route_contract_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
