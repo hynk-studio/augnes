@@ -35,13 +35,26 @@ const formationReceiptSmokePath =
   "scripts/smoke-research-candidate-review-formation-receipt-v0-1.mjs";
 const smokePath =
   "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs";
+const downstreamCandidateToCodexHandoffOperatorDecisionTypePath =
+  "types/candidate-to-codex-handoff-operator-decision.ts";
+const downstreamCandidateToCodexHandoffOperatorDecisionBuilderPath =
+  "lib/research-candidate-review/candidate-to-codex-handoff-operator-decision.ts";
+const downstreamCandidateToCodexHandoffOperatorDecisionFixturePath =
+  "fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json";
+const downstreamCandidateToCodexHandoffOperatorDecisionSmokePath =
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs";
 
 const packageScriptName =
   "smoke:research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1";
 const packageScriptValue = `node ${smokePath}`;
+const downstreamCandidateToCodexHandoffOperatorDecisionPackageScriptNames = [
+  "smoke:research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1",
+];
 const sourceDraftExpectedNextSlice =
   "candidate_to_codex_handoff_draft_review_v0_1";
 const nextRecommendedSlice = "candidate_to_codex_handoff_operator_decision_v0_1";
+const downstreamCandidateToCodexHandoffOperatorDecisionNextRecommendedSlice =
+  "feedback_event_store_minimal_v0_1";
 const expectedChangedFiles = [
   typePath,
   builderPath,
@@ -60,6 +73,25 @@ const expectedChangedFiles = [
   geometryDigestSmokePath,
   basePacketSmokePath,
   formationReceiptSmokePath,
+];
+const downstreamCandidateToCodexHandoffOperatorDecisionChangedFiles = [
+  downstreamCandidateToCodexHandoffOperatorDecisionTypePath,
+  downstreamCandidateToCodexHandoffOperatorDecisionBuilderPath,
+  downstreamCandidateToCodexHandoffOperatorDecisionFixturePath,
+  downstreamCandidateToCodexHandoffOperatorDecisionSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
+  sourceDraftSmokePath,
+  sourcePacketSmokePath,
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  geometryDigestSmokePath,
+  "scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs",
 ];
 const requiredFindingGroups = [
   "source_draft_integrity",
@@ -413,10 +445,12 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  assert.deepEqual(
-    addedScriptNames,
-    [packageScriptName],
-    "package additions must only include the Candidate-to-Codex handoff draft review smoke script",
+  assert.ok(
+    [
+      [packageScriptName],
+      downstreamCandidateToCodexHandoffOperatorDecisionPackageScriptNames,
+    ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
+    "package additions must only include the Candidate-to-Codex handoff draft review smoke script or downstream operator decision smoke script",
   );
   assert.doesNotMatch(
     packageAddedLines.join("\n"),
@@ -432,12 +466,19 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const downstreamOperatorDecisionSliceActive =
+    downstreamCandidateToCodexHandoffOperatorDecisionChangedFiles.every((filePath) =>
+      changedFiles.includes(filePath),
+    );
+  const allowedChangedFiles = downstreamOperatorDecisionSliceActive
+    ? downstreamCandidateToCodexHandoffOperatorDecisionChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of allowedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedChangedFiles.includes(changedFile),
+      allowedChangedFiles.includes(changedFile),
       `unexpected changed file in handoff draft review slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
@@ -512,22 +553,25 @@ function assertDocsPointers() {
   ]) {
     assert.ok(indexDoc.includes(requiredText), `index must include ${requiredText}`);
   }
-  assert.equal(
-    countOccurrences(
-      normalizeWhitespace(indexDoc),
-      "no provider/OpenAI/source-fetch/retrieval/RAG execution",
-    ),
-    2,
-    "index must preserve retrieval/RAG boundary text in both #692 draft and #693 review entries",
-  );
-  assert.equal(
-    countOccurrences(
-      normalizeWhitespace(indexDoc),
-      "no Codex execution, no branch/PR/GitHub automation",
-    ),
-    2,
-    "index must preserve Codex and GitHub automation boundary text in both #692 draft and #693 review entries",
-  );
+  for (const [entryName, entry] of [
+    [
+      "#692 draft index entry",
+      extractIndexEntry("Candidate-to-Codex handoff draft Geometry/Substrate v0.1"),
+    ],
+    [
+      "#693 review index entry",
+      extractIndexEntry("Candidate-to-Codex handoff draft review v0.1"),
+    ],
+  ]) {
+    assert.ok(
+      entry.includes("no provider/OpenAI/source-fetch/retrieval/RAG execution"),
+      `${entryName} must preserve retrieval/RAG boundary text`,
+    );
+    assert.ok(
+      entry.includes("no Codex execution, no branch/PR/GitHub automation"),
+      `${entryName} must preserve Codex and GitHub automation boundary text`,
+    );
+  }
   for (const doc of [substrateDoc, surfaceDoc, gateDoc]) {
     assert.match(doc, /Candidate-to-Codex handoff draft review/i);
     assert.match(doc, /#692 draft|#692 handoff draft/i);
@@ -549,6 +593,16 @@ function assertDocsPointers() {
 }
 
 function assertAdjacentSmokePointers() {
+  assert.match(
+    smokeSource,
+    new RegExp(downstreamCandidateToCodexHandoffOperatorDecisionPackageScriptNames[0]),
+    "#693 handoff draft review smoke must allow downstream operator decision package script",
+  );
+  assert.match(
+    smokeSource,
+    new RegExp(downstreamCandidateToCodexHandoffOperatorDecisionNextRecommendedSlice),
+    "#693 handoff draft review smoke must allow downstream operator decision next pointer",
+  );
   for (const [label, source] of [
     ["#692 handoff draft", sourceDraftSmoke],
     ["#691 AI Context Packet geometry/substrate upgrade", sourcePacketSmoke],
@@ -604,12 +658,11 @@ function extractScriptName(line) {
   return line.replace(/^\+\s*/, "").trim().match(/^"([^"]+)"/)?.[1] ?? null;
 }
 
-function countOccurrences(source, needle) {
-  return source.split(needle).length - 1;
-}
-
-function normalizeWhitespace(source) {
-  return source.replace(/\s+/g, " ");
+function extractIndexEntry(heading) {
+  const start = indexDoc.indexOf(`- ${heading}:`);
+  assert.notEqual(start, -1, `index entry ${heading} must exist`);
+  const end = indexDoc.indexOf("\n- ", start + 1);
+  return (end === -1 ? indexDoc.slice(start) : indexDoc.slice(start, end)).replace(/\s+/g, " ");
 }
 
 function stripForbiddenPatternDefinitions(source) {
@@ -629,4 +682,8 @@ function pattern(parts, prefix = "", suffix = "", flags = "") {
     label,
     regex: new RegExp(`${prefix}${parts.map(escapeRegExp).join("")}${suffix}`, flags),
   };
+}
+
+function arraysEqual(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }

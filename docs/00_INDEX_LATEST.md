@@ -1716,6 +1716,23 @@ repo-local 색인이다.
   agent routing or execution, and no product write. Product-write remains
   parked by #686. The next recommended slice is
   `candidate_to_codex_handoff_operator_decision_v0_1`.
+- Candidate-to-Codex handoff operator decision preview v0.1:
+  `types/candidate-to-codex-handoff-operator-decision.ts`,
+  `lib/research-candidate-review/candidate-to-codex-handoff-operator-decision.ts`,
+  `fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json`,
+  and
+  `scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs`
+  (`npm run smoke:research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1`)
+  add a deterministic, fixture-backed, preview-only and review-only artifact
+  that consumes #693 handoff draft review as advisory input. The operator decision required but not satisfied boundary is explicit, and the preview does not record or satisfy a human decision.
+
+  The operator decision preview is not execution approval and not source of
+  truth. It grants no Codex execution, no branch/PR/GitHub automation, no
+  external handoff sending, no provider/OpenAI/source-fetch/retrieval/RAG
+  execution, no DB/proof/evidence/work/Perspective durable write, no route/UI
+  behavior, no agent routing or execution, and no product write. Product-write
+  remains parked by #686. The next recommended slice is
+  `feedback_event_store_minimal_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

@@ -620,6 +620,24 @@ route/UI behavior, no agent routing/execution, and no product write.
 Product-write remains parked by the #686 stopline. Next recommended slice:
 `candidate_to_codex_handoff_operator_decision_v0_1`.
 
+## Candidate-to-Codex handoff operator decision preview v0.1 Pointer
+
+The Candidate-to-Codex handoff operator decision preview requires a human
+decision before any future execution discussion. It consumes the #693 handoff
+draft review fixture as advisory input and generates
+`fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json`.
+It is guarded by
+`npm run smoke:research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1`.
+
+The preview keeps the operator decision required but not satisfied. It still
+does not grant execution authority, Codex execution, branch/PR/GitHub
+automation, external handoff sending, provider/OpenAI calls, source fetch,
+retrieval/RAG execution, DB/SQL/transaction behavior, proof/evidence/work/
+Perspective durable writes, agent routing/execution, or product write. It
+preserves manual lineage, source refs, unresolved tensions, and the
+product-write stopline. Next recommended slice:
+`feedback_event_store_minimal_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
