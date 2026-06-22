@@ -1,0 +1,721 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+
+const componentPath = "components/feedback-event-store-list-panel.tsx";
+const foldedAuditPanelPath =
+  "components/agent-perspective-substrate-folded-audit-panel.tsx";
+const implementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-ui-implementation.sample.v0.1.json";
+const validationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-ui-browser-validation.sample.v0.1.json";
+const smokePath =
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const implementationSmokePath =
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs";
+const listUiContractSmokePath =
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs";
+const listRouteBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs";
+const listRouteImplementationSmokePath =
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
+const listRouteContractSmokePath =
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs";
+const controlsUiBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs";
+const controlsUiImplementationSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
+const controlsUiContractSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs";
+const writeRouteBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs";
+const writeRouteImplementationSmokePath =
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs";
+const writeRouteContractSmokePath =
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs";
+const reviewControlsSmokePath =
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs";
+const feedbackEventStoreMinimalSmokePath =
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs";
+const packagePath = "package.json";
+const indexPath = "docs/00_INDEX_LATEST.md";
+const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
+const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
+const gateDocPath =
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
+
+const packageScriptName =
+  "smoke:feedback-event-store-list-ui-browser-validation-v0-1";
+const packageScriptValue =
+  "node scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const routePath = "/api/research-candidate/feedback-events";
+const routeMethod = "GET";
+const requestVersion = "feedback_event_store_list_route_request.v0.1";
+const validationVersion = "feedback_event_store_list_ui_browser_validation.v0.1";
+const recommendationStatus =
+  "ready_for_feedback_event_aggregation_read_model_contract_v0_1";
+const nextRecommendedSlice =
+  "feedback_event_aggregation_read_model_contract_v0_1";
+const writeFixture = process.argv.includes("--write-fixture");
+
+const allowedFilters = [
+  "event_type",
+  "target_kind",
+  "target_id",
+  "created_after",
+  "created_before",
+  "limit",
+];
+const requiredAuthorityAcknowledgements = [
+  "read_feedback_events_only",
+  "not_proof_or_evidence",
+  "not_perspective_promotion",
+  "not_work_mutation",
+  "not_execution_authority",
+  "not_codex_execution",
+  "not_github_automation",
+  "not_external_handoff",
+  "not_provider_openai_call",
+  "not_source_fetch",
+  "not_retrieval_rag_execution",
+  "not_product_write",
+  "product_write_lane_parked_by_686",
+];
+const expectedChangedFiles = [
+  validationFixturePath,
+  smokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  implementationSmokePath,
+  listUiContractSmokePath,
+  listRouteBrowserValidationSmokePath,
+  listRouteImplementationSmokePath,
+  listRouteContractSmokePath,
+  controlsUiBrowserValidationSmokePath,
+  controlsUiImplementationSmokePath,
+  controlsUiContractSmokePath,
+  writeRouteBrowserValidationSmokePath,
+  writeRouteImplementationSmokePath,
+  writeRouteContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackEventStoreMinimalSmokePath,
+];
+
+for (const filePath of [
+  componentPath,
+  foldedAuditPanelPath,
+  implementationFixturePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  implementationSmokePath,
+]) {
+  assert.ok(existsSync(filePath), `${filePath} must exist`);
+}
+if (!writeFixture) {
+  assert.ok(existsSync(validationFixturePath), `${validationFixturePath} must exist`);
+}
+
+const componentSource = readFile(componentPath);
+const foldedAuditPanelSource = readFile(foldedAuditPanelPath);
+const implementationSmokeSource = readFile(implementationSmokePath);
+const packageJson = readJson(packagePath);
+const indexDoc = readFile(indexPath);
+const substrateDoc = readFile(substrateDocPath);
+const surfaceDoc = readFile(surfaceDocPath);
+const gateDoc = readFile(gateDocPath);
+const implementationFixture = readJson(implementationFixturePath);
+const rebuiltFixture = buildValidationFixture();
+
+if (writeFixture) {
+  writeFileSync(validationFixturePath, `${JSON.stringify(rebuiltFixture, null, 2)}\n`);
+  process.exit(0);
+}
+
+const validationFixture = readJson(validationFixturePath);
+
+assertPackageScript();
+assertStaticBoundary();
+assertComponentExistsAndIsIntegrated();
+assertFilterAndRequestContract();
+assertStateAndDisplayPaths();
+assertNoForbiddenRuntimePatterns();
+assertDocsPointers();
+assertImplementationSmokeDownstreamPointer();
+assert.deepEqual(
+  validationFixture,
+  rebuiltFixture,
+  "rebuilt list UI browser validation fixture must match committed fixture",
+);
+assertValidationFixture(validationFixture);
+
+console.log(
+  JSON.stringify(
+    {
+      smoke: "feedback-event-store-list-ui-browser-validation-v0-1",
+      final_status: "pass",
+      validation_kind: validationFixture.validation_kind,
+      panel_id: validationFixture.validated_panel.panel_id,
+      route_path: validationFixture.validated_panel.route_path,
+      route_method: validationFixture.validated_panel.route_method,
+      default_limit: validationFixture.validated_panel.default_filter.limit,
+      browser_request_executed_in_smoke_now:
+        validationFixture.authority_boundary.browser_request_executed_in_smoke_now,
+      production_db_used_in_smoke_now:
+        validationFixture.authority_boundary.production_db_used_in_smoke_now,
+      next_recommended_slice: validationFixture.next_recommended_slice,
+      checked_product_write_lane_parked: true,
+    },
+    null,
+    2,
+  ),
+);
+
+function buildValidationFixture() {
+  const fixture = {
+    validation_kind: "feedback_event_store_list_ui_browser_validation",
+    validation_version: validationVersion,
+    source_list_ui_implementation_ref: `${implementationFixture.implementation_version}:${implementationFixturePath}`,
+    source_list_ui_implementation_fingerprint:
+      implementationFixture.implementation_fingerprint,
+    component_refs: [componentPath, foldedAuditPanelPath],
+    validated_panel: {
+      panel_id: "feedback-event-store-list-panel",
+      route_path: routePath,
+      route_method: routeMethod,
+      request_version: requestVersion,
+      rendered_in_folded_audit_panel: true,
+      receives_contract: "FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT",
+      default_filter: {
+        limit: 50,
+        target_kind_default_scoped: false,
+        target_id_default_scoped: false,
+      },
+      allowed_filters: allowedFilters,
+      include_event_json_default: true,
+      required_authority_acknowledgements: requiredAuthorityAcknowledgements,
+      local_react_state_only: true,
+      loading_state_displayed: true,
+      empty_state_displayed: true,
+      success_state_displayed: true,
+      refusal_state_displayed: true,
+      validation_failure_state_displayed: true,
+      duplicate_feedback_indication_displayed_without_mutation: true,
+    },
+    display_policy: {
+      labels_feedback_as_operator_input_only: true,
+      labels_not_proof_or_evidence: true,
+      labels_not_perspective_state: true,
+      labels_not_work_status: true,
+      labels_not_retrieval_rag_result: true,
+      labels_not_product_write: true,
+    },
+    validation_mode: {
+      static_source_validation_only: true,
+      app_server_started_now: false,
+      browser_ui_used_now: false,
+      safe_mock_harness_used_now: false,
+    },
+    authority_boundary: {
+      browser_validation_added_now: true,
+      route_changed_now: false,
+      feedback_events_written_now: false,
+      browser_request_executed_in_smoke_now: false,
+      production_db_used_in_smoke_now: false,
+      proof_or_evidence_record: false,
+      perspective_promotion: false,
+      work_mutation: false,
+      execution_authority: false,
+      codex_execution_authority: false,
+      github_automation_authority: false,
+      external_handoff_authority: false,
+      provider_openai_authority: false,
+      retrieval_rag_authority: false,
+      source_fetch_authority: false,
+      product_write_authority: false,
+      product_id_allocation_authority: false,
+      product_write_lane_parked_by_686: true,
+    },
+    validation: {
+      passed: true,
+      failure_codes: [],
+    },
+    recommendation_status: recommendationStatus,
+    next_recommended_slice: nextRecommendedSlice,
+    validation_fingerprint: "",
+    fingerprint_algorithm: "fnv1a32_canonical_json",
+  };
+  fixture.validation_fingerprint = createFingerprint(fixture);
+  return fixture;
+}
+
+function assertPackageScript() {
+  assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map(extractScriptName)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [packageScriptName],
+    "package additions must only include the list UI browser validation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+}
+
+function assertStaticBoundary() {
+  const changedFiles = readChangedFiles();
+  for (const expectedFile of expectedChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedChangedFiles.includes(changedFile),
+      `unexpected changed file in list UI browser validation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(schema|migration|provider|retrieval|source-fetch)\b/i);
+    if (
+      changedFile !==
+      "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs"
+    ) {
+      assert.doesNotMatch(
+        changedFile,
+        /product.*write/i,
+        "must not change product write files",
+      );
+    }
+  }
+}
+
+function assertComponentExistsAndIsIntegrated() {
+  assert.match(componentSource, /export function FeedbackEventStoreListPanel\b/);
+  assert.match(componentSource, /Feedback event history/);
+  assert.match(componentSource, /data-feedback-event-list-panel="read-only"/);
+  assert.match(
+    foldedAuditPanelSource,
+    /from "@\/components\/feedback-event-store-list-panel"/,
+  );
+  const foldedListPanelInvocation = extractSelfClosingJsxInvocation(
+    foldedAuditPanelSource,
+    "FeedbackEventStoreListPanel",
+  );
+  assert.ok(
+    foldedListPanelInvocation,
+    "folded audit panel must render FeedbackEventStoreListPanel",
+  );
+  assert.match(foldedAuditPanelSource, /feedback-event-store-list-ui-contract/);
+  assert.match(
+    foldedListPanelInvocation,
+    /contract=\{FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT\}/,
+    "folded audit list panel must receive FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT",
+  );
+  assert.match(
+    foldedListPanelInvocation,
+    /initialFilter=\{\{\s*limit:\s*50,?\s*\}\}/,
+    "folded audit list panel default filter must include limit: 50",
+  );
+  assert.doesNotMatch(
+    foldedListPanelInvocation,
+    /\btarget_kind\s*:/,
+    "folded audit list panel must not default-scope target_kind",
+  );
+  assert.doesNotMatch(
+    foldedListPanelInvocation,
+    /\btarget_id\s*:/,
+    "folded audit list panel must not default-scope target_id",
+  );
+}
+
+function assertFilterAndRequestContract() {
+  const filterTypeBlock = extractTypeBlock(
+    componentSource,
+    "FeedbackEventStoreListPanelFilter",
+  );
+  assert.ok(filterTypeBlock, "FeedbackEventStoreListPanelFilter type must exist");
+  const filterKeys = [...filterTypeBlock.matchAll(/^\s*([a-z_]+)\??:/gm)]
+    .map((match) => match[1])
+    .sort();
+  assert.deepEqual(
+    filterKeys,
+    [...allowedFilters].sort(),
+    "list panel must expose only allowed filters",
+  );
+  for (const filterName of allowedFilters) {
+    assert.ok(componentSource.includes(filterName), `component must expose ${filterName}`);
+  }
+  assert.match(componentSource, new RegExp(escapeRegExp(routePath)));
+  assert.match(componentSource, /const routeMethod = "GET"/);
+  assert.match(componentSource, new RegExp(escapeRegExp(requestVersion)));
+  assert.equal((componentSource.match(/\bfetch\s*\(/g) ?? []).length, 1);
+  assert.ok(componentSource.includes("fetch(`${routePath}?${buildQueryParams(filter)}`"));
+  assert.match(componentSource, /method:\s*routeMethod/);
+  assert.doesNotMatch(componentSource, /\bmethod:\s*["']POST["']/);
+  assert.doesNotMatch(componentSource, /feedback_event_write_route_request/);
+  assert.match(componentSource, /params\.set\("include_event_json", "true"\)/);
+  assert.match(componentSource, /params\.set\("request_version", requestVersion\)/);
+  for (const acknowledgement of requiredAuthorityAcknowledgements) {
+    assert.ok(
+      componentSource.includes(acknowledgement),
+      `component must include ${acknowledgement}`,
+    );
+  }
+  assert.doesNotMatch(
+    componentSource,
+    /<button[\s\S]*?>\s*(Delete|Edit|Update|Retry|Write|Save)\b/i,
+    "list panel must not expose mutation controls",
+  );
+}
+
+function assertStateAndDisplayPaths() {
+  assert.match(componentSource, /useState<FeedbackEventStoreListPanelFilter>/);
+  assert.match(componentSource, /useState<LoadState>\(\{ kind: "idle" \}\)/);
+  assert.match(componentSource, /kind: "loading"/);
+  assert.match(componentSource, /kind: "success"/);
+  assert.match(componentSource, /kind: "refusal"/);
+  assert.match(componentSource, /kind: "error"/);
+  assert.match(componentSource, /Loading feedback event history/);
+  assert.match(componentSource, /No feedback events match/);
+  assert.match(componentSource, /Loaded <code>/);
+  assert.match(componentSource, /refusal_code/);
+  assert.match(componentSource, /validation failure codes/);
+  for (const requiredText of [
+    "operator input only",
+    "not proof/evidence",
+    "not Perspective state",
+    "not work status",
+    "not retrieval/RAG result",
+    "not product write",
+    "duplicate feedback indication",
+    "authority_boundary summary",
+    "source_ref_ids",
+    "event_type",
+    "target_kind",
+    "target_id",
+    "created_at",
+    "reason",
+    "operator_note",
+  ]) {
+    assert.ok(componentSource.includes(requiredText), `component must include ${requiredText}`);
+  }
+  assert.match(componentSource, /function buildDuplicateIndicators/);
+  assert.doesNotMatch(
+    extractFunctionBlock(componentSource, "buildDuplicateIndicators") ?? "",
+    /\bfetch\s*\(|\bsetLoadState\b|\bsetFilter\b|\bupdateFilter\b/,
+    "duplicate indication must be display-only and local",
+  );
+}
+
+function assertNoForbiddenRuntimePatterns() {
+  assert.doesNotMatch(componentSource, /\bsetInterval\b|\bsetTimeout\b/);
+  assert.doesNotMatch(
+    componentSource,
+    /\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|document\.cookie/,
+  );
+
+  const changedSourceFiles = readChangedFiles().filter((filePath) =>
+    (filePath.endsWith(".mjs") || filePath.endsWith(".ts") || filePath.endsWith(".tsx")) &&
+    !filePath.startsWith("scripts/smoke-"),
+  );
+  for (const filePath of changedSourceFiles) {
+    const source = stripValidationText(readFile(filePath));
+    for (const { label, regex } of [
+      { label: "POST request path", regex: /\bmethod:\s*["']POST["']/ },
+      { label: "delete/edit/update/retry controls", regex: /<(button|Button)[\s\S]*?>\s*(Delete|Edit|Update|Retry|Write|Save)\b/i },
+      { label: "server action", regex: /["']use server["']/ },
+      { label: "localStorage", regex: /\blocalStorage\b/ },
+      { label: "sessionStorage", regex: /\bsessionStorage\b/ },
+      { label: "indexedDB", regex: /\bindexedDB\b/ },
+      { label: "document.cookie", regex: /document\.cookie/ },
+      { label: "polling", regex: /\bsetInterval\b|\bsetTimeout\b/ },
+      { label: "OpenAI import", regex: /from\s+["'][^"']*openai["']/i },
+      { label: "OpenAI constructor", regex: /new\s+OpenAI\b/i },
+      { label: "source fetch call", regex: /\bfetchSource\b|\bsourceFetch\b/ },
+      { label: "retrieval execution", regex: /\brunRetrieval\b|\brunRag\b|\brunRAG\b/ },
+      { label: "embedding/vector/FTS implementation", regex: /\bembedding\b|\bvector\b|\bFTS\b|\bfull-text\b/i },
+      { label: "Codex product execution", regex: /\bcodex\s+(exec|run)\b/i },
+      { label: "GitHub automation", regex: /\bgh\s+pr\b|Octokit|api\.github\.com/i },
+      { label: "external handoff send", regex: /\bsendExternalHandoff\b/ },
+      { label: "agent execution", regex: /\bexecuteAgent\b|\brouteAgent\b/ },
+      { label: "proof write", regex: /\bcreateProof\b|\binsertProof\b/ },
+      { label: "evidence write", regex: /\bcreateEvidence\b|\binsertEvidence\b/ },
+      { label: "Perspective promotion", regex: /\bpromotePerspective\b/ },
+      { label: "Perspective durable state write", regex: /\bwritePerspective\b|\bupsertPerspective\b/ },
+      { label: "work mutation", regex: /\bcreateWork\b|\bmutateWork\b|\bupdateWork\b/ },
+      { label: "product write", regex: /\bexecuteProductWrite\b|\bproductDbWrite\b/i },
+      { label: "product ID allocation", regex: /\ballocateProductId\b/i },
+      { label: "app server startup", regex: /\bnext\s+(dev|start)\b/i },
+    ]) {
+      assert.doesNotMatch(source, regex, `${filePath} must not include ${label}`);
+    }
+  }
+}
+
+function assertDocsPointers() {
+  for (const requiredText of [
+    "Feedback Event Store list UI browser validation v0.1",
+    validationFixturePath,
+    smokePath,
+    packageScriptName,
+    "defaults to all feedback events with limit 50 only",
+    "no target_kind or target_id default scope",
+    "GET /api/research-candidate/feedback-events",
+    "include_event_json=true",
+    "operator input only",
+    "no feedback write from list UI",
+    "no proof/evidence/Perspective promotion/work mutation",
+    "no Codex/GitHub automation/external handoff",
+    "no provider/OpenAI/source-fetch/retrieval/RAG execution",
+    "no product write/product IDs",
+    nextRecommendedSlice,
+  ]) {
+    assert.ok(indexDoc.includes(requiredText), `index must include ${requiredText}`);
+  }
+  for (const doc of [substrateDoc, surfaceDoc, gateDoc]) {
+    assert.match(doc, /Feedback Event Store list UI browser validation/i);
+    assert.match(doc, /validates?/i);
+    assert.match(doc, /limit 50/i);
+    assert.match(doc, /target_kind|target_id/i);
+    assert.match(doc, /GET \/api\/research-candidate\/feedback-events/i);
+    assert.match(doc, /include_event_json=true/i);
+    assert.match(doc, /operator input only/i);
+    assert.match(doc, /no feedback write|No feedback write/i);
+    assert.match(doc, /no proof\/evidence/i);
+    assert.match(doc, /no Perspective promotion|not Perspective state/i);
+    assert.match(doc, /no work mutation|not work status/i);
+    assert.match(doc, /no provider\/OpenAI/i);
+    assert.match(doc, /no source fetch|source-fetch/i);
+    assert.match(doc, /no retrieval\/RAG execution|not retrieval\/RAG result/i);
+    assert.match(doc, /no product write/i);
+    assert.match(doc, /#686/);
+    assert.match(doc, new RegExp(nextRecommendedSlice));
+  }
+}
+
+function assertImplementationSmokeDownstreamPointer() {
+  for (const requiredText of [
+    packageScriptName,
+    validationFixturePath,
+    smokePath,
+    recommendationStatus,
+    nextRecommendedSlice,
+  ]) {
+    assert.ok(
+      implementationSmokeSource.includes(requiredText),
+      `#707 list UI implementation smoke must allow list UI browser validation text: ${requiredText}`,
+    );
+  }
+  assert.equal(
+    implementationFixture.next_recommended_slice,
+    "feedback_event_store_list_ui_browser_validation_v0_1",
+    "#707 list UI implementation fixture output must remain unchanged",
+  );
+}
+
+function assertValidationFixture(value) {
+  assert.equal(value.validation_kind, "feedback_event_store_list_ui_browser_validation");
+  assert.equal(value.validation_version, validationVersion);
+  assert.equal(
+    value.source_list_ui_implementation_ref,
+    `${implementationFixture.implementation_version}:${implementationFixturePath}`,
+  );
+  assert.equal(
+    value.source_list_ui_implementation_fingerprint,
+    implementationFixture.implementation_fingerprint,
+  );
+  assert.deepEqual(value.component_refs, [componentPath, foldedAuditPanelPath]);
+  assert.equal(value.validated_panel.panel_id, "feedback-event-store-list-panel");
+  assert.equal(value.validated_panel.route_path, routePath);
+  assert.equal(value.validated_panel.route_method, routeMethod);
+  assert.equal(value.validated_panel.request_version, requestVersion);
+  assert.equal(value.validated_panel.rendered_in_folded_audit_panel, true);
+  assert.equal(value.validated_panel.receives_contract, "FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT");
+  assert.deepEqual(value.validated_panel.default_filter, {
+    limit: 50,
+    target_kind_default_scoped: false,
+    target_id_default_scoped: false,
+  });
+  assert.deepEqual(value.validated_panel.allowed_filters, allowedFilters);
+  assert.equal(value.validated_panel.include_event_json_default, true);
+  assert.deepEqual(
+    value.validated_panel.required_authority_acknowledgements,
+    requiredAuthorityAcknowledgements,
+  );
+  assert.equal(value.validated_panel.local_react_state_only, true);
+  assert.equal(value.validated_panel.loading_state_displayed, true);
+  assert.equal(value.validated_panel.empty_state_displayed, true);
+  assert.equal(value.validated_panel.success_state_displayed, true);
+  assert.equal(value.validated_panel.refusal_state_displayed, true);
+  assert.equal(value.validated_panel.validation_failure_state_displayed, true);
+  assert.equal(
+    value.validated_panel.duplicate_feedback_indication_displayed_without_mutation,
+    true,
+  );
+  for (const [key, expected] of Object.entries({
+    labels_feedback_as_operator_input_only: true,
+    labels_not_proof_or_evidence: true,
+    labels_not_perspective_state: true,
+    labels_not_work_status: true,
+    labels_not_retrieval_rag_result: true,
+    labels_not_product_write: true,
+  })) {
+    assert.equal(value.display_policy[key], expected, `${key} must be ${expected}`);
+  }
+  assert.equal(value.validation_mode.static_source_validation_only, true);
+  assert.equal(value.validation_mode.app_server_started_now, false);
+  assert.equal(value.validation_mode.browser_ui_used_now, false);
+  assert.equal(value.validation_mode.safe_mock_harness_used_now, false);
+  for (const [key, expected] of Object.entries({
+    browser_validation_added_now: true,
+    route_changed_now: false,
+    feedback_events_written_now: false,
+    browser_request_executed_in_smoke_now: false,
+    production_db_used_in_smoke_now: false,
+    proof_or_evidence_record: false,
+    perspective_promotion: false,
+    work_mutation: false,
+    execution_authority: false,
+    codex_execution_authority: false,
+    github_automation_authority: false,
+    external_handoff_authority: false,
+    provider_openai_authority: false,
+    retrieval_rag_authority: false,
+    source_fetch_authority: false,
+    product_write_authority: false,
+    product_id_allocation_authority: false,
+    product_write_lane_parked_by_686: true,
+  })) {
+    assert.equal(value.authority_boundary[key], expected, `${key} must be ${expected}`);
+  }
+  assert.equal(value.validation.passed, true);
+  assert.deepEqual(value.validation.failure_codes, []);
+  assert.equal(value.recommendation_status, recommendationStatus);
+  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.match(value.validation_fingerprint, /^fnv1a32:[0-9a-f]{8}$/);
+}
+
+function extractTypeBlock(source, typeName) {
+  const match = source.match(
+    new RegExp(`type\\s+${escapeRegExp(typeName)}\\s*=\\s*\\{([\\s\\S]*?)\\};`),
+  );
+  return match?.[1] ?? null;
+}
+
+function extractSelfClosingJsxInvocation(source, componentName) {
+  const match = source.match(
+    new RegExp(`<${escapeRegExp(componentName)}\\b[\\s\\S]*?\\/>`),
+  );
+  return match?.[0] ?? null;
+}
+
+function extractFunctionBlock(source, functionName) {
+  const start = source.indexOf(`function ${functionName}`);
+  if (start === -1) return null;
+  const open = source.indexOf("{", start);
+  if (open === -1) return null;
+  let depth = 0;
+  for (let index = open; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") depth += 1;
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, index + 1);
+    }
+  }
+  return null;
+}
+
+function readFile(filePath) {
+  return readFileSync(filePath, "utf8");
+}
+
+function readJson(filePath) {
+  return JSON.parse(readFile(filePath));
+}
+
+function readGitOutput(args) {
+  return execFileSync("git", args, { encoding: "utf8" });
+}
+
+function mergeBaseRef() {
+  return readGitOutput(["merge-base", "HEAD", "origin/main"]).trim();
+}
+
+function readChangedFiles() {
+  return [
+    ...readGitOutput(["diff", "--name-only", mergeBaseRef(), "--"]).split("\n"),
+    ...readGitOutput(["ls-files", "--others", "--exclude-standard"]).split("\n"),
+  ]
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .sort();
+}
+
+function extractScriptName(line) {
+  const match = line.match(/^\+\s*"([^"]+)":\s*"/);
+  return match?.[1] ?? null;
+}
+
+function createFingerprint(value) {
+  const canonical = canonicalize(stripFingerprint(value));
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < canonical.length; index += 1) {
+    hash ^= canonical.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `fnv1a32:${hash.toString(16).padStart(8, "0")}`;
+}
+
+function stripFingerprint(value) {
+  if (Array.isArray(value)) return value.map(stripFingerprint);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key !== "validation_fingerprint")
+      .map(([key, nestedValue]) => [key, stripFingerprint(nestedValue)]),
+  );
+}
+
+function canonicalize(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
+  if (!value || typeof value !== "object") return JSON.stringify(value);
+  return `{${Object.keys(value)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${canonicalize(value[key])}`)
+    .join(",")}}`;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function stripValidationText(source) {
+  const assertionVocabulary =
+    /assert\.(?:doesNotMatch|match)|\bregex:\s*\/|pattern\(\[|forbiddenPatterns?|POST request path|delete\/edit\/update\/retry controls|server action|polling|OpenAI import|OpenAI constructor|source fetch call|retrieval execution|embedding\/vector\/FTS implementation|Codex product execution|GitHub automation|external handoff send|agent execution|proof write|evidence write|Perspective promotion|Perspective durable state write|work mutation|product write|product ID allocation|app server startup|gh-pr-command|codex-exec-command|codex-run-command|next-dev-command|next-start-command|localStorage|sessionStorage|indexedDB|document\.cookie|XMLHttpRequest|WebSocket|EventSource|sendBeacon|Octokit|api\\?\.github\\?\.com|gh\\s\+pr/i;
+  return source
+    .split("\n")
+    .filter((line) => !assertionVocabulary.test(line))
+    .join("\n")
+    .replace(/"[^"]*(?:POST|Delete|Edit|Update|Retry|Write|Save|localStorage|sessionStorage|indexedDB|document\.cookie|OpenAI|source fetch|source-fetch|retrieval\/RAG|retrieval|embedding|vector|FTS|full-text|Codex|GitHub|github|external handoff|agent execution|proof\/evidence|Perspective|work mutation|product write|product-write|product ID|next dev|next start|gh pr)[^"]*"/gi, '""')
+    .replace(/`[^`]*(?:POST|Delete|Edit|Update|Retry|Write|Save|localStorage|sessionStorage|indexedDB|document\.cookie|OpenAI|source fetch|source-fetch|retrieval\/RAG|retrieval|embedding|vector|FTS|full-text|Codex|GitHub|github|external handoff|agent execution|proof\/evidence|Perspective|work mutation|product write|product-write|product ID|next dev|next start|gh pr)[^`]*`/gi, "``")
+    .replace(/\/\/.*(?:POST|localStorage|sessionStorage|indexedDB|document\.cookie|OpenAI|source fetch|retrieval\/RAG|retrieval|Codex|GitHub|external handoff|proof\/evidence|Perspective|work mutation|product write|product ID).*/gi, "");
+}

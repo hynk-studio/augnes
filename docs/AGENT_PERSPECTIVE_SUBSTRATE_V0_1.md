@@ -470,6 +470,34 @@ Product-write remains parked by the #686 stopline. The next recommended slice
 after the list UI implementation is
 `feedback_event_store_list_ui_browser_validation_v0_1`.
 
+## Feedback Event Store List UI Browser Validation v0.1
+
+Feedback Event Store list UI browser validation v0.1 validates the #707
+read-only Feedback event history panel in the folded audit panel. It confirms
+the panel renders in the Agent Perspective Substrate folded audit panel,
+receives `FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT`, defaults to all feedback
+events with limit 50 only, and has no target_kind or target_id default scope.
+
+The validation confirms the allowed filters, the `GET
+/api/research-candidate/feedback-events` request shape,
+`feedback_event_store_list_route_request.v0.1`, `include_event_json=true`,
+required read authority acknowledgements, local React state only,
+loading/empty/success/refusal/validation failure displays, operator input only
+labels, not proof/evidence, not Perspective state, not work status, not
+retrieval/RAG result, not product write labels, and duplicate feedback
+indication without mutation.
+
+This is static validation only. It executes no runtime browser request and
+starts no app server. It adds no feedback write from list UI, no POST, no
+delete/edit/update/retry/write controls, no app/api route, route handler,
+server action, schema, migration, package dependency, browser persistence, or
+auto refresh. It creates no proof/evidence, performs no Perspective promotion,
+makes no work mutation, calls no provider/OpenAI, fetches no source, executes
+no retrieval/RAG, routes no agent, sends no external handoff, writes no
+product state, and allocates no product IDs. Product-write remains parked by
+the #686 stopline. The next recommended slice is
+`feedback_event_aggregation_read_model_contract_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_store_list_ui_browser_validation_v0_1`
+`feedback_event_aggregation_read_model_contract_v0_1`

@@ -576,6 +576,35 @@ proof/evidence/Perspective/work/product durable state. Product-write remains
 parked by the #686 stopline. Next recommended slice:
 `feedback_event_store_list_ui_browser_validation_v0_1`.
 
+Feedback Event Store list UI browser validation v0.1 preserves canonical
+promotion gates while validating the #707 read-only Feedback event history
+panel. It confirms the panel renders in the folded audit surface, defaults to
+all feedback events with limit 50 only, has no target_kind or target_id default
+scope, exposes only allowed filters, uses `GET
+/api/research-candidate/feedback-events`, includes
+`feedback_event_store_list_route_request.v0.1`, includes
+`include_event_json=true`, and includes required read authority
+acknowledgements.
+
+The validation confirms local React state only, loading/empty/success/refusal
+and validation failure display paths, operator input only labels, not
+proof/evidence, not Perspective state, not work status, not retrieval/RAG
+result, not product write labels, and duplicate feedback indication without
+mutation. It is not proof/evidence, not Perspective promotion, not work
+mutation, not execution authority, not source fetch, not retrieval/RAG
+execution, not Codex execution, not GitHub automation, not external handoff,
+not product write authority, and not product ID allocation authority.
+
+No runtime browser request is executed by the smoke. No feedback write from
+list UI, POST, delete/edit/update/retry/write controls, app/api route change,
+route handler change, server action, schema/migration change, package
+dependency addition, browser persistence, auto refresh, provider/OpenAI call,
+source fetch, retrieval/RAG execution, proof/evidence write, durable
+Perspective state write, work mutation, product write, product DB write, or
+product ID allocation is added. Product-write remains parked by the #686
+stopline. Next recommended slice:
+`feedback_event_aggregation_read_model_contract_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
