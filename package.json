@@ -513,6 +513,7 @@
     "smoke:research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1": "node scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
     "smoke:research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1": "node scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
     "smoke:research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1": "node scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs",
+    "smoke:feedback-event-store-minimal-v0-1": "node scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

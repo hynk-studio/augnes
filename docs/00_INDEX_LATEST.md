@@ -1733,6 +1733,24 @@ repo-local 색인이다.
   behavior, no agent routing or execution, and no product write. Product-write
   remains parked by #686. The next recommended slice is
   `feedback_event_store_minimal_v0_1`.
+- Feedback Event Store minimal v0.1:
+  `types/feedback-event-store.ts`,
+  `lib/research-candidate-review/feedback-event-store.ts`,
+  `fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json`,
+  and `scripts/smoke-feedback-event-store-minimal-v0-1.mjs`
+  (`npm run smoke:feedback-event-store-minimal-v0-1`) start M15 with a
+  minimal durable feedback event store for Research-to-Perspective preview
+  surfaces. Supported event types are `dismiss_preview`, `pin_preview`,
+  `correct_preview`, and `invalidate_preview`; future review-control events
+  such as downgrade/add-to-capsule/exclude-from-capsule remain docs-only.
+
+  Feedback events are durable operator input only. They are not
+  proof/evidence records, not Perspective promotion decisions, not work
+  mutation, not execution authority, and not product-write authority. The
+  slice adds no Codex/GitHub automation/external handoff, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, no proof/evidence/Perspective promotion/work mutation, and no product write/product IDs.
+  Product-write remains parked by #686. The next recommended slice is
+  `feedback_event_store_review_controls_preview_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
