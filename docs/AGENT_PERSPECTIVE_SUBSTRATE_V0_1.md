@@ -181,6 +181,32 @@ no product write authority. Product-write remains parked by the #686 stopline.
 The next recommended slice after the folded audit panel is
 `ai_context_packet_compiler_geometry_substrate_upgrade_v0_1`.
 
+## AI Context Packet Geometry/Substrate Upgrade v0.1
+
+AI Context Packet compiler GeometryDigest/Substrate upgrade v0.1 can now
+consume Agent Perspective Substrate preview and folded audit context as
+advisory input, alongside #687 PerspectiveGeometryDigest and the existing
+Research Candidate AI Context Packet preview. The upgraded packet remains
+non-authoritative and target-agent-safe.
+
+It carries geometry/substrate/folded-audit summaries, source coverage,
+surfacing blockers and warnings, target-agent forbidden actions, lineage, and
+an advisory authority boundary. It is not source of truth, proof/evidence,
+durable Perspective state, retrieval output, agent execution authority, Codex
+execution authority, external handoff authority, DB write authority, or product
+write authority.
+
+The upgraded packet lineage includes both static/base and manual-note context
+chains: the manual-note AI Context Packet fixture and manual-note Formation
+Receipt fixture are represented directly in lineage and verified by smoke.
+
+This AI Context Packet compiler GeometryDigest/Substrate upgrade v0.1 adds no
+route/UI behavior, no DB/SQL/transaction behavior, no provider/OpenAI call, no
+source fetch, no retrieval execution, no agent routing/execution, no Codex execution, no external handoff sending, no proof/evidence/work/Perspective durable write, and no product write.
+
+The next recommended slice after the AI Context Packet compiler upgrade is
+`candidate_to_codex_handoff_draft_geometry_substrate_v0_1`.
+
 ## Next Recommended Slice
 
-`ai_context_packet_compiler_geometry_substrate_upgrade_v0_1`
+`candidate_to_codex_handoff_draft_geometry_substrate_v0_1`

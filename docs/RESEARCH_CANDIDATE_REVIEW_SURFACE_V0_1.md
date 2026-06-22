@@ -535,6 +535,37 @@ MCP/App tool widening, and no product write. Product-write remains parked by
 the #686 stopline. Next recommended slice:
 `ai_context_packet_compiler_geometry_substrate_upgrade_v0_1`.
 
+## AI Context Packet compiler GeometryDigest/Substrate upgrade v0.1 Pointer
+
+`types/research-candidate-ai-context-packet.ts` and
+`lib/research-candidate-review/ai-context-packet.ts` now extend the existing AI
+Context Packet preview/compiler with GeometryDigest, Agent Perspective
+Substrate, Agent Perspective Substrate Preview, and folded audit panel lineage
+as advisory input. The generated fixture is
+`fixtures/research-candidate-review.ai-context-packet.geometry-substrate-upgrade.sample.v0.1.json`.
+It is guarded by
+`npm run smoke:research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1`.
+
+The upgraded AI Context Packet includes `geometry_context`,
+`agent_substrate_context`, `folded_audit_context`, `target_agent_context`,
+`authority_boundary`, `lineage`, validation, and a deterministic fingerprint.
+It preserves base packet fields and carries source refs, source coverage
+boundaries, epistemic/review status, `why_now`, authority notes, and
+target-agent forbidden actions.
+Manual-note AI Context Packet and manual-note Formation Receipt fixtures are
+now included directly in the upgraded packet lineage, preserving both the
+static/base and manual-note context chains for the next handoff draft.
+
+The packet remains preview-only and non-authoritative: not source of truth,
+proof/evidence, durable state, execution authority, retrieval execution, agent
+routing, Codex execution, external handoff, product write authority, or DB
+write authority. This adds no provider/OpenAI call, no source fetch, no
+retrieval execution, no Codex execution, no GitHub automation, no external handoff sending, no DB/SQL/transaction, no proof/evidence write, no work
+mutation or work item creation, no durable Perspective promotion, no route/UI
+behavior, no MCP/App tool widening, and no product write. Product-write remains
+parked by the #686 stopline. Next recommended slice:
+`candidate_to_codex_handoff_draft_geometry_substrate_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

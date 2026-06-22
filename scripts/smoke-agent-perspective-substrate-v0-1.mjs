@@ -26,6 +26,9 @@ const downstreamAgentPerspectiveSubstratePreviewPackageScriptNames = [
 const downstreamAgentPerspectiveSubstrateFoldedAuditPanelPackageScriptNames = [
   "smoke:agent-perspective-substrate-folded-audit-panel-v0-1",
 ];
+const downstreamAIContextPacketGeometrySubstrateUpgradePackageScriptNames = [
+  "smoke:research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1",
+];
 const substrateVersion = "agent_perspective_substrate.v0.1";
 const nextRecommendedSlice =
   "agent_perspective_substrate_preview_builder_v0_1";
@@ -33,6 +36,8 @@ const downstreamNextRecommendedSlice =
   "cockpit_agent_perspective_substrate_folded_audit_panel_v0_1";
 const downstreamFoldedAuditPanelNextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
+const downstreamAIContextPacketGeometrySubstrateUpgradeNextRecommendedSlice =
+  "candidate_to_codex_handoff_draft_geometry_substrate_v0_1";
 const sourceCoverageBoundaryPattern = /source coverage boundary note/i;
 
 const requiredTypeExports = [
@@ -120,6 +125,25 @@ const downstreamAgentPerspectiveSubstrateFoldedAuditPanelChangedFiles = [
   docsPath,
   surfaceDocPath,
   gateDocPath,
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  smokePath,
+  digestSmokePath,
+  aiContextSmokePath,
+  formationReceiptSmokePath,
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
+const downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles = [
+  "types/research-candidate-ai-context-packet.ts",
+  "lib/research-candidate-review/ai-context-packet.ts",
+  "fixtures/research-candidate-review.ai-context-packet.geometry-substrate-upgrade.sample.v0.1.json",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  packagePath,
+  indexPath,
+  docsPath,
+  surfaceDocPath,
+  gateDocPath,
+  "scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
   "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
   smokePath,
   digestSmokePath,
@@ -502,8 +526,9 @@ function assertPackageScript() {
       [packageScriptName],
       downstreamAgentPerspectiveSubstratePreviewPackageScriptNames,
       downstreamAgentPerspectiveSubstrateFoldedAuditPanelPackageScriptNames,
+      downstreamAIContextPacketGeometrySubstrateUpgradePackageScriptNames,
     ].some((scriptNames) => JSON.stringify(addedScriptNames) === JSON.stringify(scriptNames)),
-    `package additions must only include substrate or downstream preview/panel smoke scripts: ${JSON.stringify(addedScriptNames)}`,
+    `package additions must only include substrate or downstream preview/panel/AI-context-upgrade smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
   assert.doesNotMatch(
     packageAddedLines.join("\n"),
@@ -522,10 +547,16 @@ function assertStaticBoundary() {
     downstreamAgentPerspectiveSubstrateFoldedAuditPanelChangedFiles.every((filePath) =>
       changedFiles.includes(filePath),
     );
+  const usesDownstreamAIContextUpgradeDelta =
+    downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles.every((filePath) =>
+      changedFiles.includes(filePath),
+    );
   const expectedFilesForDelta = usesDownstreamPreviewDelta
     ? downstreamAgentPerspectiveSubstratePreviewChangedFiles
     : usesDownstreamPanelDelta
       ? downstreamAgentPerspectiveSubstrateFoldedAuditPanelChangedFiles
+    : usesDownstreamAIContextUpgradeDelta
+      ? downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles
     : expectedChangedFiles;
   const allowedDownstreamPanelComponentFiles = new Set([
     "components/agent-perspective-substrate-folded-audit-panel.tsx",
@@ -537,7 +568,7 @@ function assertStaticBoundary() {
   for (const changedFile of changedFiles) {
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
     if (
-      !usesDownstreamPanelDelta ||
+      (!usesDownstreamPanelDelta && !usesDownstreamAIContextUpgradeDelta) ||
       !allowedDownstreamPanelComponentFiles.has(changedFile)
     ) {
       assert.doesNotMatch(changedFile, /^components\//, "must not change components");
@@ -623,6 +654,10 @@ function assertAdjacentPointers() {
     "components/agent-perspective-substrate-folded-audit-panel.tsx",
     "smoke:agent-perspective-substrate-folded-audit-panel-v0-1",
     downstreamFoldedAuditPanelNextRecommendedSlice,
+    "AI Context Packet compiler GeometryDigest/Substrate upgrade v0.1",
+    "fixtures/research-candidate-review.ai-context-packet.geometry-substrate-upgrade.sample.v0.1.json",
+    "smoke:research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1",
+    downstreamAIContextPacketGeometrySubstrateUpgradeNextRecommendedSlice,
     "source_refs",
     "why_now",
   ]) {
@@ -633,6 +668,11 @@ function assertAdjacentPointers() {
     assert.match(source, new RegExp(nextRecommendedSlice));
     assert.match(source, /Cockpit Agent Perspective Substrate folded audit panel v0\.1/);
     assert.match(source, new RegExp(downstreamFoldedAuditPanelNextRecommendedSlice));
+    assert.match(source, /AI Context Packet compiler GeometryDigest\/Substrate upgrade v0\.1/);
+    assert.match(
+      source,
+      new RegExp(downstreamAIContextPacketGeometrySubstrateUpgradeNextRecommendedSlice),
+    );
   }
   assert.match(
     digestSmoke,

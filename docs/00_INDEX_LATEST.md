@@ -1658,6 +1658,27 @@ repo-local 색인이다.
   durable write, and no product write. Product-write remains parked by #686.
   The next recommended slice is
   `ai_context_packet_compiler_geometry_substrate_upgrade_v0_1`.
+- AI Context Packet compiler GeometryDigest/Substrate upgrade v0.1:
+  `types/research-candidate-ai-context-packet.ts`,
+  `lib/research-candidate-review/ai-context-packet.ts`,
+  `fixtures/research-candidate-review.ai-context-packet.geometry-substrate-upgrade.sample.v0.1.json`,
+  and
+  `scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs`
+  (`npm run smoke:research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1`)
+  upgrade the existing Research Candidate AI Context Packet compiler with
+  #687 PerspectiveGeometryDigest, #688 Agent Perspective Substrate, #689 Agent
+  Perspective Substrate Preview, and #690 folded audit panel lineage as
+  advisory inputs. The upgraded packet adds `geometry_context`,
+  `agent_substrate_context`, `folded_audit_context`, `target_agent_context`,
+  `authority_boundary`, `lineage`, validation, and a deterministic fingerprint
+  while preserving the base packet fields. Manual-note AI Context Packet and
+  manual-note Formation Receipt fixtures are included in the upgraded packet
+  lineage so the next handoff draft can preserve both static/base and
+  manual-note context chains. It adds no provider/OpenAI call, no
+  source fetch, no retrieval execution, no Codex execution, no GitHub
+  automation, no external handoff sending, no route/UI behavior, no DB/proof/evidence/work/Perspective durable write, and no product write.
+  Product-write remains parked by #686. The next recommended slice is
+  `candidate_to_codex_handoff_draft_geometry_substrate_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

@@ -284,6 +284,22 @@ MCP/App tool widening, and no product write. Product-write remains parked by
 the #686 stopline. Next recommended slice:
 `ai_context_packet_compiler_geometry_substrate_upgrade_v0_1`.
 
+AI Context Packet compiler GeometryDigest/Substrate upgrade v0.1 preserves
+canonical promotion gates. It upgrades the Research Candidate AI Context Packet
+compiler with #687 GeometryDigest, #688 Agent Perspective Substrate, #689
+substrate preview, and #690 folded audit panel lineage as advisory input. The
+upgraded packet remains non-authoritative and target-agent-safe: not source of
+truth, proof/evidence, durable Perspective state, execution authority,
+retrieval execution, agent routing, Codex execution, external handoff, product
+write authority, or DB write authority. Manual-note AI Context Packet and
+manual-note Formation Receipt fixtures are included directly in upgraded packet
+lineage while remaining preview-only and non-authoritative. It adds no route/UI behavior, no
+DB/SQL/transaction, no provider/OpenAI call, no source fetch, no retrieval
+execution, no Codex execution, no GitHub automation, no external handoff sending, no proof/evidence write, no work mutation or work item creation, no
+durable Perspective promotion, no MCP/App tool widening, and no product write.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`candidate_to_codex_handoff_draft_geometry_substrate_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
