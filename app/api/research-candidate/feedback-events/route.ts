@@ -3,6 +3,7 @@ import {
   buildFeedbackEventStoreEvent,
   getFeedbackEventStoreAuthorityBoundary,
   insertFeedbackEvent,
+  listFeedbackEvents,
 } from "@/lib/research-candidate-review/feedback-event-store";
 import type {
   FeedbackEventStoreAuthorityBoundary,
@@ -17,6 +18,11 @@ import type {
   FeedbackEventWriteRouteRefusal,
   FeedbackEventWriteRouteRefusalCode,
 } from "@/types/feedback-event-write-route-contract";
+import type {
+  FeedbackEventStoreListRouteAuthorityAcknowledgement,
+  FeedbackEventStoreListRouteRefusal,
+  FeedbackEventStoreListRouteRefusalCode,
+} from "@/types/feedback-event-store-list-route-contract";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -70,8 +76,81 @@ export interface FeedbackEventWriteRouteHandlerInput {
   db: FeedbackEventWriteRouteDb | (() => FeedbackEventWriteRouteDb);
 }
 
+type FeedbackEventStoreListRouteImplementationRefusalCode =
+  | FeedbackEventStoreListRouteRefusalCode
+  | "feedback_event_store_list_failed";
+
+type FeedbackEventStoreListRouteImplementationRefusal = Omit<
+  FeedbackEventStoreListRouteRefusal,
+  "refusal_code"
+> & {
+  refusal_code: FeedbackEventStoreListRouteImplementationRefusalCode;
+};
+
+export interface FeedbackEventStoreListRouteImplementationAuthorityBoundary {
+  contract_only: false;
+  route_implemented_now: true;
+  durable_feedback_event_read_now: boolean;
+  durable_feedback_event_written_now: false;
+  runtime_read_executed_now: boolean;
+  runtime_write_executed_now: false;
+  db_open_now: boolean;
+  sql_execution_now: boolean;
+  server_action_available_now: false;
+  proof_or_evidence_record: false;
+  perspective_promotion: false;
+  work_mutation: false;
+  execution_authority: false;
+  codex_execution_authority: false;
+  github_automation_authority: false;
+  external_handoff_authority: false;
+  provider_openai_authority: false;
+  retrieval_rag_authority: false;
+  source_fetch_authority: false;
+  product_write_authority: false;
+  product_id_allocation_authority: false;
+  product_write_lane_parked_by_686: true;
+}
+
+export interface FeedbackEventStoreListRouteImplementationResponse {
+  response_version: "feedback_event_store_list_route_response.v0.1";
+  accepted: boolean;
+  events: FeedbackEventStoreEvent[];
+  count: number;
+  next_cursor: string | null;
+  validation: {
+    passed: boolean;
+    failure_codes: string[];
+  };
+  authority_boundary: FeedbackEventStoreListRouteImplementationAuthorityBoundary;
+  refusal: FeedbackEventStoreListRouteImplementationRefusal | null;
+  route_implemented_now: true;
+  runtime_read_executed_now: boolean;
+  db_open_now: boolean;
+  sql_execution_now: boolean;
+}
+
+export interface FeedbackEventStoreListRouteHandlerInput {
+  url: string | URL;
+  db: FeedbackEventWriteRouteDb | (() => FeedbackEventWriteRouteDb);
+}
+
+interface PreparedFeedbackEventStoreListRequest {
+  filters: {
+    event_type?: FeedbackEventStoreEventType;
+    target_kind?: FeedbackEventStoreTargetKind;
+    target_id?: string;
+  };
+  created_after?: string;
+  created_before?: string;
+  limit: number;
+  include_event_json: boolean;
+}
+
 const requestVersion = "feedback_event_write_route_request.v0.1";
 const responseVersion = "feedback_event_write_route_response.v0.1";
+const listRequestVersion = "feedback_event_store_list_route_request.v0.1";
+const listResponseVersion = "feedback_event_store_list_route_response.v0.1";
 
 const requiredAuthorityAcknowledgements: FeedbackEventWriteRouteAuthorityAcknowledgement[] = [
   "durable_feedback_event_only",
@@ -88,6 +167,45 @@ const requiredAuthorityAcknowledgements: FeedbackEventWriteRouteAuthorityAcknowl
   "not_product_write",
   "product_write_lane_parked_by_686",
 ];
+
+const requiredListAuthorityAcknowledgements: FeedbackEventStoreListRouteAuthorityAcknowledgement[] =
+  [
+    "read_feedback_events_only",
+    "not_proof_or_evidence",
+    "not_perspective_promotion",
+    "not_work_mutation",
+    "not_execution_authority",
+    "not_codex_execution",
+    "not_github_automation",
+    "not_external_handoff",
+    "not_provider_openai_call",
+    "not_source_fetch",
+    "not_retrieval_rag_execution",
+    "not_product_write",
+    "product_write_lane_parked_by_686",
+  ];
+
+const rawSqlOrExternalQueryParamNames = new Set([
+  "sql",
+  "raw_sql",
+  "query_sql",
+  "where",
+  "raw_where",
+  "raw_where_clause",
+  "source_fetch_query",
+  "retrieval_query",
+  "rag_query",
+  "retrieval_rag_query",
+  "provider_query",
+  "openai_query",
+  "product_write_query",
+  "proof_evidence_query",
+  "perspective_promotion_query",
+  "work_mutation_query",
+]);
+
+const defaultListLimit = 50;
+const maxListLimit = 100;
 
 const allowedEventTypes: FeedbackEventStoreEventType[] = [
   "dismiss_preview",
@@ -297,6 +415,14 @@ export async function POST(request: Request) {
   return NextResponse.json(response, { status: response.accepted ? 200 : 400 });
 }
 
+export async function GET(request: Request) {
+  const response = handleFeedbackEventStoreListRouteRequest({
+    url: request.url,
+    db: () => openDatabase() as unknown as FeedbackEventWriteRouteDb,
+  });
+  return NextResponse.json(response, { status: response.accepted ? 200 : 400 });
+}
+
 export function handleFeedbackEventWriteRouteRequest({
   body,
   db,
@@ -336,6 +462,146 @@ export function handleFeedbackEventWriteRouteRequest({
       openedDb?.close?.();
     }
   }
+}
+
+export function handleFeedbackEventStoreListRouteRequest({
+  url,
+  db,
+}: FeedbackEventStoreListRouteHandlerInput): FeedbackEventStoreListRouteImplementationResponse {
+  const prepared = prepareFeedbackEventStoreList(url);
+  if ("refusal_code" in prepared) {
+    return listRefusalResponse(prepared.refusal_code);
+  }
+
+  let openedDb: FeedbackEventWriteRouteDb | null = null;
+  let ownsDb = false;
+  try {
+    openedDb = typeof db === "function" ? db() : db;
+    ownsDb = typeof db === "function";
+    const listResult = listFeedbackEvents(openedDb, prepared.filters);
+    const events = applyListRouteFiltersAndOrder(
+      listResult.events,
+      prepared,
+    );
+    return {
+      response_version: listResponseVersion,
+      accepted: true,
+      events: prepared.include_event_json ? events : [],
+      count: events.length,
+      next_cursor: null,
+      validation: {
+        passed: true,
+        failure_codes: [],
+      },
+      authority_boundary: getFeedbackEventStoreListRouteAuthorityBoundary({
+        readNow: true,
+        dbOpenNow: true,
+        sqlExecutionNow: true,
+      }),
+      refusal: null,
+      route_implemented_now: true,
+      runtime_read_executed_now: true,
+      db_open_now: true,
+      sql_execution_now: true,
+    };
+  } catch {
+    return listRefusalResponse("feedback_event_store_list_failed");
+  } finally {
+    if (ownsDb) {
+      openedDb?.close?.();
+    }
+  }
+}
+
+function prepareFeedbackEventStoreList(
+  url: string | URL,
+):
+  | PreparedFeedbackEventStoreListRequest
+  | { refusal_code: FeedbackEventStoreListRouteImplementationRefusalCode } {
+  const parsedUrl = typeof url === "string" ? new URL(url, "http://localhost") : url;
+  const searchParams = parsedUrl.searchParams;
+  if (normalizeString(searchParams.get("request_version")) !== listRequestVersion) {
+    return { refusal_code: "invalid_request_version" };
+  }
+  if (!listAuthorityAcknowledgementsComplete(searchParams)) {
+    return { refusal_code: "missing_authority_acknowledgement" };
+  }
+  if (hasRawSqlOrExternalQueryParam(searchParams)) {
+    return { refusal_code: "raw_sql_filter_forbidden" };
+  }
+  const forbiddenAuthorityRefusal = findForbiddenAuthorityRefusal(
+    searchParamsToRecord(searchParams),
+  );
+  if (forbiddenAuthorityRefusal) {
+    return {
+      refusal_code:
+        forbiddenAuthorityRefusal as FeedbackEventStoreListRouteImplementationRefusalCode,
+    };
+  }
+
+  const rawEventType = normalizeString(searchParams.get("event_type"));
+  if (
+    rawEventType &&
+    !allowedEventTypes.includes(rawEventType as FeedbackEventStoreEventType)
+  ) {
+    return { refusal_code: "invalid_event_type" };
+  }
+  const rawTargetKind = normalizeString(searchParams.get("target_kind"));
+  if (
+    rawTargetKind &&
+    !allowedTargetKinds.includes(rawTargetKind as FeedbackEventStoreTargetKind)
+  ) {
+    return { refusal_code: "invalid_target_kind" };
+  }
+  const rawLimit = normalizeString(searchParams.get("limit"));
+  const limit = rawLimit ? Number(rawLimit) : defaultListLimit;
+  if (!Number.isInteger(limit) || limit < 1 || limit > maxListLimit) {
+    return { refusal_code: "invalid_limit" };
+  }
+  if (normalizeString(searchParams.get("cursor"))) {
+    return { refusal_code: "invalid_cursor" };
+  }
+
+  const filters: PreparedFeedbackEventStoreListRequest["filters"] = {};
+  if (rawEventType) filters.event_type = rawEventType as FeedbackEventStoreEventType;
+  if (rawTargetKind) {
+    filters.target_kind = rawTargetKind as FeedbackEventStoreTargetKind;
+  }
+  const targetId = normalizeString(searchParams.get("target_id"));
+  if (targetId) filters.target_id = targetId;
+
+  return {
+    filters,
+    created_after: normalizeString(searchParams.get("created_after")) || undefined,
+    created_before: normalizeString(searchParams.get("created_before")) || undefined,
+    limit,
+    include_event_json: normalizeBooleanQueryParam(
+      searchParams.get("include_event_json"),
+      true,
+    ),
+  };
+}
+
+function applyListRouteFiltersAndOrder(
+  events: FeedbackEventStoreEvent[],
+  request: PreparedFeedbackEventStoreListRequest,
+): FeedbackEventStoreEvent[] {
+  return events
+    .filter((event) => {
+      if (request.created_after && event.created_at < request.created_after) {
+        return false;
+      }
+      if (request.created_before && event.created_at > request.created_before) {
+        return false;
+      }
+      return true;
+    })
+    .sort((left, right) => {
+      const createdAtComparison = right.created_at.localeCompare(left.created_at);
+      if (createdAtComparison !== 0) return createdAtComparison;
+      return right.event_id.localeCompare(left.event_id);
+    })
+    .slice(0, request.limit);
 }
 
 function prepareFeedbackEventWrite(
@@ -424,6 +690,28 @@ function authorityAcknowledgementsComplete(value: unknown): boolean {
   );
 }
 
+function listAuthorityAcknowledgementsComplete(searchParams: URLSearchParams): boolean {
+  const acknowledgements = new Set(
+    searchParams
+      .getAll("authority_acknowledgements")
+      .flatMap((value) => value.split(","))
+      .map((value) => normalizeString(value))
+      .filter((value) => value.length > 0),
+  );
+  return requiredListAuthorityAcknowledgements.every((acknowledgement) =>
+    acknowledgements.has(acknowledgement),
+  );
+}
+
+function hasRawSqlOrExternalQueryParam(searchParams: URLSearchParams): boolean {
+  for (const key of searchParams.keys()) {
+    if (rawSqlOrExternalQueryParamNames.has(normalizeAuthorityKey(key))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function findForbiddenAuthorityRefusal(
   value: unknown,
 ): FeedbackEventWriteRouteImplementationRefusalCode | null {
@@ -463,6 +751,43 @@ function isTrueish(value: unknown): boolean {
   }
   if (Array.isArray(value)) return value.length > 0;
   return Boolean(value && typeof value === "object" && Object.keys(value).length > 0);
+}
+
+function searchParamsToRecord(searchParams: URLSearchParams): JsonRecord {
+  const record: JsonRecord = {};
+  for (const [key, value] of searchParams.entries()) {
+    const parsedValue = parseQueryParamValue(value);
+    const existing = record[key];
+    if (existing === undefined) {
+      record[key] = parsedValue;
+    } else if (Array.isArray(existing)) {
+      existing.push(parsedValue);
+    } else {
+      record[key] = [existing, parsedValue];
+    }
+  }
+  return record;
+}
+
+function parseQueryParamValue(value: string): unknown {
+  const normalized = value.trim();
+  if (
+    (normalized.startsWith("{") && normalized.endsWith("}")) ||
+    (normalized.startsWith("[") && normalized.endsWith("]"))
+  ) {
+    try {
+      return JSON.parse(normalized) as unknown;
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
+
+function normalizeBooleanQueryParam(value: string | null, defaultValue: boolean): boolean {
+  const normalized = normalizeString(value).toLowerCase();
+  if (!normalized) return defaultValue;
+  return !["0", "false", "no", "off"].includes(normalized);
 }
 
 function refusalForValidation(
@@ -511,6 +836,132 @@ function refusalResponse(
     db_open_now: false,
     sql_execution_now: false,
   };
+}
+
+function listRefusalResponse(
+  refusalCode: FeedbackEventStoreListRouteImplementationRefusalCode,
+): FeedbackEventStoreListRouteImplementationResponse {
+  return {
+    response_version: listResponseVersion,
+    accepted: false,
+    events: [],
+    count: 0,
+    next_cursor: null,
+    validation: {
+      passed: false,
+      failure_codes: [refusalCode],
+    },
+    authority_boundary: getFeedbackEventStoreListRouteAuthorityBoundary({
+      readNow: false,
+      dbOpenNow: false,
+      sqlExecutionNow: false,
+    }),
+    refusal: listRefusalForCode(refusalCode),
+    route_implemented_now: true,
+    runtime_read_executed_now: false,
+    db_open_now: false,
+    sql_execution_now: false,
+  };
+}
+
+function getFeedbackEventStoreListRouteAuthorityBoundary({
+  readNow,
+  dbOpenNow,
+  sqlExecutionNow,
+}: {
+  readNow: boolean;
+  dbOpenNow: boolean;
+  sqlExecutionNow: boolean;
+}): FeedbackEventStoreListRouteImplementationAuthorityBoundary {
+  return {
+    contract_only: false,
+    route_implemented_now: true,
+    durable_feedback_event_read_now: readNow,
+    durable_feedback_event_written_now: false,
+    runtime_read_executed_now: readNow,
+    runtime_write_executed_now: false,
+    db_open_now: dbOpenNow,
+    sql_execution_now: sqlExecutionNow,
+    server_action_available_now: false,
+    proof_or_evidence_record: false,
+    perspective_promotion: false,
+    work_mutation: false,
+    execution_authority: false,
+    codex_execution_authority: false,
+    github_automation_authority: false,
+    external_handoff_authority: false,
+    provider_openai_authority: false,
+    retrieval_rag_authority: false,
+    source_fetch_authority: false,
+    product_write_authority: false,
+    product_id_allocation_authority: false,
+    product_write_lane_parked_by_686: true,
+  };
+}
+
+function listRefusalForCode(
+  refusalCode: FeedbackEventStoreListRouteImplementationRefusalCode,
+): FeedbackEventStoreListRouteImplementationRefusal {
+  return {
+    refusal_code: refusalCode,
+    message: messageForListRefusalCode(refusalCode),
+    retryable: retryableListRefusal(refusalCode),
+    authority_boundary_notes: [
+      "Feedback Event Store list route implementation reads durable feedback events only; it grants no proof/evidence, Perspective promotion, work mutation, execution, retrieval/RAG, source fetch, provider/OpenAI, GitHub automation, external handoff, product-write, product-ID, or feedback write authority.",
+      "Product-write lane remains parked by #686.",
+    ],
+  };
+}
+
+function messageForListRefusalCode(
+  refusalCode: FeedbackEventStoreListRouteImplementationRefusalCode,
+): string {
+  switch (refusalCode) {
+    case "route_not_implemented_in_this_slice":
+      return "The feedback event list route is implemented in this slice; this refusal is retained only for contract compatibility.";
+    case "missing_authority_acknowledgement":
+      return "The list request is missing one or more required authority acknowledgements.";
+    case "invalid_request_version":
+      return "The request_version must be feedback_event_store_list_route_request.v0.1.";
+    case "invalid_event_type":
+      return "The event_type filter is not allowed by Feedback Event Store v0.1.";
+    case "invalid_target_kind":
+      return "The target_kind filter is not allowed by Feedback Event Store v0.1.";
+    case "invalid_limit":
+      return "The limit filter must be an integer from 1 through 100.";
+    case "invalid_cursor":
+      return "Cursor pagination is not implemented for Feedback Event Store list route v0.1.";
+    case "raw_sql_filter_forbidden":
+      return "Raw SQL, where clauses, source-fetch, retrieval/RAG, provider/OpenAI, product-write, proof/evidence, Perspective-promotion, and work-mutation query filters are forbidden.";
+    case "forbidden_authority_requested":
+      return "The list request asks for authority outside durable feedback event read authority.";
+    case "product_write_authority_requested":
+      return "The list request asks for product-write authority, which remains parked by #686.";
+    case "retrieval_rag_execution_requested":
+      return "The list request asks for retrieval/RAG execution, which is forbidden.";
+    case "provider_openai_call_requested":
+      return "The list request asks for provider/OpenAI calls, which are forbidden.";
+    case "source_fetch_requested":
+      return "The list request asks for source fetch, which is forbidden.";
+    case "codex_or_github_automation_requested":
+      return "The list request asks for Codex or GitHub automation, which is forbidden.";
+    case "feedback_event_store_list_failed":
+      return "Feedback events could not be read from the Feedback Event Store.";
+  }
+}
+
+function retryableListRefusal(
+  refusalCode: FeedbackEventStoreListRouteImplementationRefusalCode,
+): boolean {
+  return [
+    "missing_authority_acknowledgement",
+    "invalid_request_version",
+    "invalid_event_type",
+    "invalid_target_kind",
+    "invalid_limit",
+    "invalid_cursor",
+    "feedback_event_store_list_failed",
+  ].includes(refusalCode);
 }
 
 function refusalForCode(

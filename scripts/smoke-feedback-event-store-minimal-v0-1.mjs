@@ -81,6 +81,10 @@ const listRouteContractFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1.json";
 const listRouteContractSmokePath =
   "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs";
+const listRouteImplementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-route-implementation.sample.v0.1.json";
+const listRouteImplementationSmokePath =
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
 
 const packageScriptName = "smoke:feedback-event-store-minimal-v0-1";
 const packageScriptValue = `node ${smokePath}`;
@@ -113,6 +117,10 @@ const listRouteContractPackageScriptName =
   "smoke:feedback-event-store-list-route-contract-v0-1";
 const listRouteContractPackageScriptValue =
   "node scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs";
+const listRouteImplementationPackageScriptName =
+  "smoke:feedback-event-store-list-route-implementation-v0-1";
+const listRouteImplementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs";
 const previousSlice = "feedback_event_store_minimal_v0_1";
 const nextRecommendedSlice =
   "feedback_event_store_review_controls_preview_v0_1";
@@ -148,6 +156,10 @@ const listRouteContractNextRecommendedSlice =
   "feedback_event_store_list_route_implementation_v0_1";
 const listRouteContractRecommendationStatus =
   "ready_for_feedback_event_store_list_route_implementation_v0_1";
+const listRouteImplementationNextRecommendedSlice =
+  "feedback_event_store_list_route_browser_validation_v0_1";
+const listRouteImplementationRecommendationStatus =
+  "ready_for_feedback_event_store_list_route_browser_validation_v0_1";
 const requiredEventTypes = [
   "dismiss_preview",
   "pin_preview",
@@ -312,6 +324,15 @@ const downstreamUiContractRequiredChangedFiles = [
   routeContractSmokePath,
   reviewControlsSmokePath,
   smokePath,
+  operatorDecisionSmokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
 const downstreamUiContractAllowedChangedFiles = [
   ...downstreamUiContractRequiredChangedFiles,
@@ -341,6 +362,15 @@ const downstreamUiImplementationRequiredChangedFiles = [
   routeContractSmokePath,
   reviewControlsSmokePath,
   smokePath,
+  operatorDecisionSmokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
 const downstreamUiImplementationAllowedChangedFiles = [
   ...downstreamUiImplementationRequiredChangedFiles,
@@ -407,6 +437,34 @@ const downstreamListRouteContractChangedFiles = [
   "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const downstreamListRouteImplementationChangedFiles = [
+  routeImplementationRouteFilePath,
+  listRouteImplementationFixturePath,
+  listRouteImplementationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  listRouteContractSmokePath,
+  uiBrowserValidationSmokePath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  browserValidationSmokePath,
+  routeImplementationSmokePath,
+  routeContractSmokePath,
+  reviewControlsSmokePath,
+  smokePath,
+  operatorDecisionSmokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
 
 for (const filePath of [
   typePath,
@@ -454,6 +512,7 @@ assertUiContractDownstreamPointer();
 assertUiImplementationDownstreamPointer();
 assertUiBrowserValidationDownstreamPointer();
 assertListRouteContractDownstreamPointer();
+assertListRouteImplementationDownstreamPointer();
 
 const helper = await importHelperModule();
 const fixtureInputs = buildFixtureInputs();
@@ -585,6 +644,12 @@ function assertPackageScript() {
       listRouteContractPackageScriptValue,
     );
   }
+  if (downstreamListRouteImplementationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[listRouteImplementationPackageScriptName],
+      listRouteImplementationPackageScriptValue,
+    );
+  }
   if (downstreamRouteImplementationSliceActive()) {
     assert.equal(
       packageJson.scripts[routeImplementationPackageScriptName],
@@ -634,7 +699,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamListRouteContractSliceActive()
+  const expectedAddedScriptNames = downstreamListRouteImplementationSliceActive()
+    ? [listRouteImplementationPackageScriptName]
+    : downstreamListRouteContractSliceActive()
     ? [listRouteContractPackageScriptName]
     : downstreamUiBrowserValidationSliceActive()
     ? [uiBrowserValidationPackageScriptName]
@@ -670,7 +737,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const requiredFiles = downstreamListRouteContractSliceActive()
+  const requiredFiles = downstreamListRouteImplementationSliceActive()
+    ? downstreamListRouteImplementationChangedFiles
+    : downstreamListRouteContractSliceActive()
     ? downstreamListRouteContractChangedFiles
     : downstreamUiBrowserValidationSliceActive()
     ? downstreamUiBrowserValidationChangedFiles
@@ -687,7 +756,9 @@ function assertStaticBoundary() {
     : downstreamReviewControlsSliceActive()
     ? downstreamReviewControlsRequiredChangedFiles
     : expectedChangedFiles;
-  const allowedFiles = downstreamListRouteContractSliceActive()
+  const allowedFiles = downstreamListRouteImplementationSliceActive()
+    ? downstreamListRouteImplementationChangedFiles
+    : downstreamListRouteContractSliceActive()
     ? downstreamListRouteContractChangedFiles
     : downstreamUiBrowserValidationSliceActive()
     ? downstreamUiBrowserValidationChangedFiles
@@ -713,7 +784,8 @@ function assertStaticBoundary() {
       `unexpected changed file in feedback event store slice: ${changedFile}`,
     );
     if (
-      !downstreamRouteImplementationSliceActive() ||
+      (!downstreamRouteImplementationSliceActive() &&
+        !downstreamListRouteImplementationSliceActive()) ||
       changedFile !== routeImplementationRouteFilePath
     ) {
       assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
@@ -856,7 +928,8 @@ function assertSchemaAddition() {
     downstreamUiContractSliceActive() ||
     downstreamUiImplementationSliceActive() ||
     downstreamUiBrowserValidationSliceActive() ||
-    downstreamListRouteContractSliceActive()
+    downstreamListRouteContractSliceActive() ||
+    downstreamListRouteImplementationSliceActive()
   ) {
     assert.equal(
       addedSchemaLines.trim(),
@@ -1072,6 +1145,40 @@ function assertListRouteContractDownstreamPointer() {
   assert.equal(
     listRouteContractFixture.next_recommended_slice,
     listRouteContractNextRecommendedSlice,
+  );
+  assert.equal(
+    fixture.next_recommended_slice,
+    nextRecommendedSlice,
+    "#695 feedback event fixture output must remain unchanged",
+  );
+}
+
+function assertListRouteImplementationDownstreamPointer() {
+  if (!downstreamListRouteImplementationSliceActive()) return;
+  for (const requiredText of [
+    listRouteImplementationPackageScriptName,
+    listRouteImplementationNextRecommendedSlice,
+    listRouteImplementationFixturePath,
+    listRouteImplementationSmokePath,
+    listRouteImplementationRecommendationStatus,
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#695 feedback event store smoke must allow downstream list route implementation text: ${requiredText}`,
+    );
+  }
+  const listRouteImplementationFixture = readJson(listRouteImplementationFixturePath);
+  assert.equal(listRouteImplementationFixture.route_method, "GET");
+  assert.equal(listRouteImplementationFixture.route_implemented_now, true);
+  assert.equal(listRouteImplementationFixture.get_reads_feedback_events_only, true);
+  assert.equal(listRouteImplementationFixture.get_writes_feedback_events_now, false);
+  assert.equal(
+    listRouteImplementationFixture.recommendation_status,
+    listRouteImplementationRecommendationStatus,
+  );
+  assert.equal(
+    listRouteImplementationFixture.next_recommended_slice,
+    listRouteImplementationNextRecommendedSlice,
   );
   assert.equal(
     fixture.next_recommended_slice,
@@ -1462,6 +1569,13 @@ function downstreamUiBrowserValidationSliceActive() {
 function downstreamListRouteContractSliceActive() {
   const changedFiles = readChangedFiles();
   return downstreamListRouteContractChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function downstreamListRouteImplementationSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamListRouteImplementationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
 }

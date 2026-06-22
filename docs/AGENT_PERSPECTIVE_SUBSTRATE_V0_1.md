@@ -402,6 +402,22 @@ no Codex/GitHub automation, and no product write. Product-write remains parked
 by the #686 stopline. The next recommended slice after the list route contract
 is `feedback_event_store_list_route_implementation_v0_1`.
 
+## Feedback Event Store List Route Implementation v0.1
+
+Feedback Event Store list route implementation v0.1 implements
+`GET /api/research-candidate/feedback-events` for bounded Feedback Event Store
+reads. The route reads durable feedback events only; no feedback write occurs
+on GET.
+
+This implementation adds no UI/component change, no new route beyond the
+existing feedback-events route module, no schema/migration change, and no
+production DB use in smoke. It performs no provider/OpenAI call, no source
+fetch, no retrieval/RAG execution, no proof/evidence write, no Perspective
+promotion, no work mutation, no Codex/GitHub automation, no external handoff,
+and no product write. Product-write remains parked by the #686 stopline. The
+next recommended slice after the list route implementation is
+`feedback_event_store_list_route_browser_validation_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_store_list_route_implementation_v0_1`
+`feedback_event_store_list_route_browser_validation_v0_1`
