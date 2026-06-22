@@ -655,6 +655,23 @@ routing/execution, and no product write. Product-write remains parked by the
 #686 stopline. Next recommended slice:
 `feedback_event_store_review_controls_preview_v0_1`.
 
+## Feedback Event Store review controls preview v0.1 Pointer
+
+Feedback Event Store review controls preview v0.1 maps existing review
+surfaces and surfacing cards to non-persisting feedback control previews for
+`dismiss_preview`, `pin_preview`, `correct_preview`, and
+`invalidate_preview`. It generates
+`fixtures/research-candidate-review.feedback-event-store-review-controls-preview.sample.v0.1.json`
+and is guarded by
+`npm run smoke:feedback-event-store-review-controls-preview-v0-1`.
+
+The review controls preview is non-persisting and maps UI/control intent to
+event previews only. It does not write feedback events yet and adds no route/server action/DB write. It grants no provider/OpenAI calls, no source
+fetch, no retrieval/RAG execution, no Codex execution, no GitHub automation,
+no external handoff sending, no agent routing/execution, and no product
+write. Product-write remains parked by the #686 stopline. Next recommended
+slice: `feedback_event_write_route_contract_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

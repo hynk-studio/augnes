@@ -1,0 +1,662 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+
+const typePath = "types/feedback-event-store-review-controls-preview.ts";
+const builderPath =
+  "lib/research-candidate-review/feedback-event-store-review-controls-preview.ts";
+const sourceFeedbackFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json";
+const substratePreviewFixturePath =
+  "fixtures/agent-perspective-substrate-preview.sample.v0.1.json";
+const handoffDraftReviewFixturePath =
+  "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json";
+const operatorDecisionFixturePath =
+  "fixtures/research-candidate-review.candidate-to-codex-handoff-operator-decision.sample.v0.1.json";
+const previewFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-review-controls-preview.sample.v0.1.json";
+const packagePath = "package.json";
+const indexPath = "docs/00_INDEX_LATEST.md";
+const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
+const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
+const gateDocPath =
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
+const minimalSmokePath = "scripts/smoke-feedback-event-store-minimal-v0-1.mjs";
+const operatorDecisionSmokePath =
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs";
+const foldedAuditPanelSmokePath =
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs";
+const previewBuilderSmokePath =
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs";
+const substrateSmokePath = "scripts/smoke-agent-perspective-substrate-v0-1.mjs";
+const smokePath = "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs";
+
+const packageScriptName =
+  "smoke:feedback-event-store-review-controls-preview-v0-1";
+const packageScriptValue = `node ${smokePath}`;
+const recommendationStatus = "ready_for_feedback_event_write_route_contract_v0_1";
+const nextRecommendedSlice = "feedback_event_write_route_contract_v0_1";
+const requiredControlKinds = [
+  "dismiss_preview",
+  "pin_preview",
+  "correct_preview",
+  "invalidate_preview",
+];
+const repoLocalSourceRefPrefixes = [
+  "fixtures/",
+  "components/",
+  "docs/",
+  "types/",
+  "lib/",
+  "scripts/",
+];
+const allowedExternalLineageSourceRefs = new Set(["pr:686"]);
+const requiredChangedFiles = [
+  typePath,
+  builderPath,
+  previewFixturePath,
+  smokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  minimalSmokePath,
+];
+const allowedChangedFiles = [
+  ...requiredChangedFiles,
+  operatorDecisionSmokePath,
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
+
+for (const filePath of [
+  typePath,
+  builderPath,
+  sourceFeedbackFixturePath,
+  substratePreviewFixturePath,
+  handoffDraftReviewFixturePath,
+  operatorDecisionFixturePath,
+  previewFixturePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  minimalSmokePath,
+]) {
+  assert.ok(existsSync(filePath), `${filePath} must exist`);
+}
+
+const typeSource = readFileSync(typePath, "utf8");
+const builderSource = readFileSync(builderPath, "utf8");
+const smokeSource = readFileSync(smokePath, "utf8");
+const sourceFeedbackFixture = readJson(sourceFeedbackFixturePath);
+const substratePreviewFixture = readJson(substratePreviewFixturePath);
+const handoffDraftReviewFixture = readJson(handoffDraftReviewFixturePath);
+const operatorDecisionFixture = readJson(operatorDecisionFixturePath);
+const previewFixture = readJson(previewFixturePath);
+const packageJson = readJson(packagePath);
+const indexDoc = readFileSync(indexPath, "utf8");
+const substrateDoc = readFileSync(substrateDocPath, "utf8");
+const surfaceDoc = readFileSync(surfaceDocPath, "utf8");
+const gateDoc = readFileSync(gateDocPath, "utf8");
+const minimalSmokeSource = readFileSync(minimalSmokePath, "utf8");
+
+assertTypeAndBuilderContracts();
+assertPackageScript();
+assertStaticBoundary();
+assertNoForbiddenImplementationPatterns();
+assertDocsPointers();
+assertMinimalSmokeDownstreamPointer();
+
+const builderModule = await importBuilderModule();
+const rebuiltPreview = builderModule.buildFeedbackEventStoreReviewControlsPreview(
+  buildPreviewInput(),
+);
+const rebuiltPreviewAgain = builderModule.buildFeedbackEventStoreReviewControlsPreview(
+  buildPreviewInput(),
+);
+
+assert.deepEqual(
+  rebuiltPreview,
+  previewFixture,
+  "rebuilt review controls preview must match committed fixture",
+);
+assert.equal(
+  rebuiltPreview.preview_fingerprint,
+  rebuiltPreviewAgain.preview_fingerprint,
+  "review controls preview fingerprint must be stable across repeated builds",
+);
+
+assertPreview(previewFixture, builderModule);
+
+console.log(
+  JSON.stringify(
+    {
+      smoke: "feedback-event-store-review-controls-preview-v0-1",
+      final_status: "pass",
+      preview_fingerprint: previewFixture.preview_fingerprint,
+      control_count: previewFixture.controls.length,
+      event_preview_count: previewFixture.event_previews.length,
+      next_recommended_slice: previewFixture.next_recommended_slice,
+      checked_no_db_open: true,
+      checked_no_feedback_persistence_from_controls: true,
+      checked_product_write_lane_parked: true,
+    },
+    null,
+    2,
+  ),
+);
+
+function assertTypeAndBuilderContracts() {
+  for (const exportName of [
+    "FeedbackEventStoreReviewControlsPreview",
+    "FeedbackEventStoreReviewControlsPreviewInput",
+    "FeedbackEventStoreReviewControl",
+    "FeedbackEventStoreReviewControlKind",
+    "FeedbackEventStoreReviewControlTarget",
+    "FeedbackEventStoreReviewControlEventPreview",
+    "FeedbackEventStoreReviewControlsAuthorityBoundary",
+    "FeedbackEventStoreReviewControlsValidationResult",
+  ]) {
+    assert.match(
+      typeSource,
+      new RegExp(`export\\s+(interface|type)\\s+${escapeRegExp(exportName)}\\b`),
+      `type file must export ${exportName}`,
+    );
+  }
+  for (const exportName of [
+    "buildFeedbackEventStoreReviewControlsPreview",
+    "validateFeedbackEventStoreReviewControlsPreview",
+    "createFeedbackEventStoreReviewControlsPreviewFingerprint",
+  ]) {
+    assert.match(
+      builderSource,
+      new RegExp(`export\\s+function\\s+${escapeRegExp(exportName)}\\b`),
+      `builder must export ${exportName}`,
+    );
+  }
+  for (const requiredText of [
+    "feedback_event_store_review_controls_preview.v0.1",
+    recommendationStatus,
+    nextRecommendedSlice,
+    "preview_only",
+    "durable_feedback_event_written_now",
+    "route_available_now",
+    "server_action_available_now",
+    "db_write_available_now",
+    "proof_or_evidence_record",
+    "perspective_promotion",
+    "work_mutation",
+    "codex_execution_authority",
+    "github_automation_authority",
+    "retrieval_rag_authority",
+    "source_fetch_authority",
+    "product_write_authority",
+    "product_id_allocation_authority",
+    "product_write_lane_parked_by_686",
+  ]) {
+    assert.ok(typeSource.includes(requiredText), `type source must include ${requiredText}`);
+    assert.ok(
+      builderSource.includes(requiredText),
+      `builder source must include ${requiredText}`,
+    );
+  }
+  for (const controlKind of requiredControlKinds) {
+    assert.ok(typeSource.includes(controlKind), `type source must include ${controlKind}`);
+    assert.ok(
+      builderSource.includes(controlKind),
+      `builder source must include ${controlKind}`,
+    );
+  }
+  assert.doesNotMatch(
+    builderSource,
+    /^import\s+(?!type\b)/m,
+    "builder must keep runtime imports out",
+  );
+  assert.doesNotMatch(
+    builderSource,
+    /\b(insertFeedbackEvent|listFeedbackEvents|feedbackEventStoreSchemaSql|feedbackEventStoreTableName)\b/,
+    "builder must not call or import DB-backed feedback store helpers",
+  );
+}
+
+function assertPackageScript() {
+  assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map(extractScriptName)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [packageScriptName],
+    "package additions must only include the review controls preview smoke script",
+  );
+  assert.doesNotMatch(
+    packageAddedLines.join("\n"),
+    /"dependencies"\s*:/,
+    "dependencies must not be added",
+  );
+  assert.doesNotMatch(
+    packageAddedLines.join("\n"),
+    /"devDependencies"\s*:/,
+    "dev dependencies must not be added",
+  );
+}
+
+function assertStaticBoundary() {
+  const changedFiles = readChangedFiles();
+  for (const expectedFile of requiredChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      allowedChangedFiles.includes(changedFile),
+      `unexpected changed file in review controls preview slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    if (
+      changedFile !==
+      "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs"
+    ) {
+      assert.doesNotMatch(
+        changedFile,
+        /product.*write/i,
+        "must not change product write files",
+      );
+    }
+  }
+}
+
+function assertNoForbiddenImplementationPatterns() {
+  assertNoDbOpenOrWriteHelpers();
+  const scannedSources = [
+    [typePath, typeSource],
+    [builderPath, builderSource],
+    [smokePath, stripSmokeAssertionText(smokeSource)],
+  ];
+  const forbiddenPatterns = [
+    pattern(["from ", '"openai"']),
+    pattern(["new ", "OpenAI"]),
+    pattern(["fetch", "("]),
+    pattern(["XMLHttpRequest"]),
+    pattern(["WebSocket"]),
+    pattern(["EventSource"]),
+    pattern(["sendBeacon"]),
+    pattern(["localStorage"]),
+    pattern(["sessionStorage"]),
+    pattern(["indexedDB"]),
+    pattern(["document", ".", "cookie"]),
+    pattern(["createServer", "("]),
+    pattern(["app", ".", "listen", "("]),
+    pattern(["next", " ", "dev"]),
+    pattern(["api", ".", "github", ".", "com"]),
+    pattern(["Octokit"]),
+    { label: "gh-pr-command", regex: /\bgh\s+pr\b/i },
+    { label: "git-push-command", regex: /\bgit\s+push\b/i },
+    { label: "codex-exec-command", regex: /\bcodex\s+exec\b/i },
+    { label: "codex-run-command", regex: /\bcodex\s+run\b/i },
+    { label: "npm-run-codex-command", regex: /\bnpm\s+run\s+codex\b/i },
+    pattern(["executeProductWrite", "("]),
+    pattern(["productDbWrite", "("]),
+  ];
+  for (const [filePath, source] of scannedSources) {
+    for (const { label, regex } of forbiddenPatterns) {
+      assert.doesNotMatch(source, regex, `${filePath} must not include ${label}`);
+    }
+  }
+}
+
+function assertNoDbOpenOrWriteHelpers() {
+  for (const [filePath, source] of [
+    [builderPath, builderSource],
+    [smokePath, stripSmokeAssertionText(smokeSource)],
+  ]) {
+    assert.doesNotMatch(
+      source,
+      /better-sqlite3|new\s+Database|\.exec\(|CREATE\s+TABLE|research_candidate_feedback_events/i,
+      `${filePath} must not open or initialize a DB in this preview smoke`,
+    );
+  }
+  assert.doesNotMatch(
+    builderSource,
+    /\b(insertFeedbackEvent|listFeedbackEvents)\s*\(/,
+    "builder must not call DB-backed insert/list helpers",
+  );
+}
+
+function assertDocsPointers() {
+  for (const requiredText of [
+    "Feedback Event Store review controls preview v0.1",
+    typePath,
+    builderPath,
+    previewFixturePath,
+    smokePath,
+    packageScriptName,
+    "dismiss_preview",
+    "pin_preview",
+    "correct_preview",
+    "invalidate_preview",
+    "preview-only controls",
+    "no route/server action/DB write yet",
+    "no proof/evidence/Perspective promotion/work mutation",
+    "no Codex/GitHub automation/external handoff",
+    "no provider/OpenAI/source-fetch/retrieval/RAG execution",
+    "no product write/product IDs",
+    nextRecommendedSlice,
+  ]) {
+    assert.ok(indexDoc.includes(requiredText), `index must include ${requiredText}`);
+  }
+  for (const doc of [substrateDoc, surfaceDoc, gateDoc]) {
+    assert.match(doc, /Feedback Event Store review controls preview v0\.1/i);
+    assert.match(doc, /event preview/i);
+    assert.match(doc, /no feedback is persisted|does not write feedback/i);
+    assert.match(doc, /no route\/server action\/DB write/i);
+    assert.match(doc, /no provider\/OpenAI/i);
+    assert.match(doc, /no source fetch|source-fetch/i);
+    assert.match(doc, /no retrieval\/RAG execution/i);
+    assert.match(doc, /no Codex execution/i);
+    assert.match(doc, /no GitHub automation|no branch\/PR\/GitHub automation/i);
+    assert.match(doc, /no product write/i);
+    assert.match(doc, /#686/);
+    assert.match(doc, new RegExp(nextRecommendedSlice));
+  }
+}
+
+function assertMinimalSmokeDownstreamPointer() {
+  for (const requiredText of [
+    packageScriptName,
+    nextRecommendedSlice,
+    typePath,
+    builderPath,
+    previewFixturePath,
+    smokePath,
+    recommendationStatus,
+  ]) {
+    assert.ok(
+      minimalSmokeSource.includes(requiredText),
+      `#695 feedback event store smoke must allow ${requiredText}`,
+    );
+  }
+  assert.equal(
+    sourceFeedbackFixture.next_recommended_slice,
+    "feedback_event_store_review_controls_preview_v0_1",
+    "#695 feedback event fixture output must remain unchanged",
+  );
+}
+
+function assertPreview(preview, builderModule) {
+  assert.equal(preview.preview_kind, "feedback_event_store_review_controls_preview");
+  assert.equal(preview.preview_version, "feedback_event_store_review_controls_preview.v0.1");
+  assert.equal(preview.source_feedback_event_store_fixture_path, sourceFeedbackFixturePath);
+  assert.equal(
+    preview.source_feedback_event_store_ref,
+    `feedback_event_store.v0.1:${sourceFeedbackFixturePath}`,
+  );
+  assert.equal(preview.fingerprint_algorithm, "fnv1a32_canonical_json");
+  assert.equal(preview.recommendation_status, recommendationStatus);
+  assert.equal(preview.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(preview.validation.passed, true);
+  assert.deepEqual(preview.validation.failure_codes, []);
+  assert.match(preview.preview_fingerprint, /^fnv1a32:[0-9a-f]{8}$/);
+  assert.equal(
+    builderModule.validateFeedbackEventStoreReviewControlsPreview(preview).passed,
+    true,
+    "committed preview must validate",
+  );
+  assert.equal(preview.controls.length, 4);
+  assert.equal(preview.event_previews.length, 4);
+  assert.deepEqual(
+    preview.controls.map((control) => control.control_kind).sort(),
+    requiredControlKinds.sort(),
+  );
+  assert.deepEqual(
+    preview.event_previews.map((eventPreview) => eventPreview.event_type).sort(),
+    requiredControlKinds.sort(),
+  );
+  assertAuthorityBoundary(preview.authority_boundary);
+  assertSourceSurfaces(preview.source_surfaces);
+  for (const control of preview.controls) {
+    assert.equal(control.enabled_now, false, `${control.control_id} must be disabled now`);
+    assert.equal(control.preview_only, true, `${control.control_id} must be preview only`);
+    assert.equal(control.writes_now, false, `${control.control_id} must not write now`);
+    assert.equal(
+      control.route_available_now,
+      false,
+      `${control.control_id} must not expose route now`,
+    );
+    assert.equal(
+      control.server_action_available_now,
+      false,
+      `${control.control_id} must not expose server action now`,
+    );
+    assert.equal(
+      control.db_write_available_now,
+      false,
+      `${control.control_id} must not expose DB write now`,
+    );
+    assert.equal(
+      control.durable_feedback_persisted_now,
+      false,
+      `${control.control_id} must not persist feedback now`,
+    );
+    assert.equal(control.requires_operator_action, true);
+    assert.equal(control.would_create_event_type, control.control_kind);
+    assertSourceRefsResolve(
+      control.target.source_ref_ids,
+      control.target.source_ref_resolution_notes,
+    );
+  }
+  for (const eventPreview of preview.event_previews) {
+    assert.equal(eventPreview.inserted_now, false);
+    assert.equal(eventPreview.persisted_now, false);
+    assert.equal(eventPreview.db_write_now, false);
+    assert.equal(eventPreview.valid_feedback_event_shape_now, true);
+    assert.match(
+      eventPreview.event_preview_id,
+      /^feedback_event_review_control_preview:fnv1a32:[0-9a-f]{8}$/,
+    );
+    assert.match(eventPreview.event_id_preview, /^feedback_event:fnv1a32:[0-9a-f]{8}$/);
+    assert.match(
+      eventPreview.idempotency_key_preview,
+      /^feedback_event_store_idempotency:fnv1a32:[0-9a-f]{8}$/,
+    );
+    assertSourceRefsResolve(eventPreview.source_ref_ids, [eventPreview.reason_placeholder]);
+  }
+  const correctPreview = preview.event_previews.find(
+    (eventPreview) => eventPreview.event_type === "correct_preview",
+  );
+  assert.ok(
+    correctPreview?.correction_text_placeholder,
+    "correct_preview event preview must include correction_text_placeholder",
+  );
+  assert.deepEqual(
+    preview.event_previews.map((eventPreview) => ({
+      event_type: eventPreview.event_type,
+      inserted_now: eventPreview.inserted_now,
+      persisted_now: eventPreview.persisted_now,
+      db_write_now: eventPreview.db_write_now,
+    })),
+    preview.event_previews.map((eventPreview) => ({
+      event_type: eventPreview.event_type,
+      inserted_now: false,
+      persisted_now: false,
+      db_write_now: false,
+    })),
+    "event previews must not be inserted into DB",
+  );
+}
+
+function assertAuthorityBoundary(boundary) {
+  assert.equal(boundary.preview_only, true);
+  assert.equal(boundary.product_write_lane_parked_by_686, true);
+  for (const forbiddenKey of [
+    "durable_feedback_event_written_now",
+    "route_available_now",
+    "server_action_available_now",
+    "db_write_available_now",
+    "proof_or_evidence_record",
+    "perspective_promotion",
+    "work_mutation",
+    "execution_authority",
+    "codex_execution_authority",
+    "github_automation_authority",
+    "external_handoff_authority",
+    "provider_openai_authority",
+    "retrieval_rag_authority",
+    "source_fetch_authority",
+    "product_write_authority",
+    "product_id_allocation_authority",
+  ]) {
+    assert.equal(boundary[forbiddenKey], false, `${forbiddenKey} must be false`);
+  }
+}
+
+function assertSourceSurfaces(sourceSurfaces) {
+  assert.equal(
+    sourceSurfaces.feedback_event_store_minimal.fixture_path,
+    sourceFeedbackFixturePath,
+  );
+  assert.equal(
+    sourceSurfaces.feedback_event_store_minimal.next_recommended_slice,
+    "feedback_event_store_review_controls_preview_v0_1",
+  );
+  assert.equal(
+    sourceSurfaces.agent_perspective_substrate_preview.fixture_path,
+    substratePreviewFixturePath,
+  );
+  assert.equal(
+    sourceSurfaces.candidate_to_codex_handoff_draft_review.fixture_path,
+    handoffDraftReviewFixturePath,
+  );
+  assert.equal(
+    sourceSurfaces.candidate_to_codex_handoff_operator_decision_preview.fixture_path,
+    operatorDecisionFixturePath,
+  );
+}
+
+function assertSourceRefsResolve(sourceRefIds, notes) {
+  assert.ok(Array.isArray(sourceRefIds), "source_ref_ids must be an array");
+  if (sourceRefIds.length === 0) {
+    assert.ok(
+      notes.some((note) => typeof note === "string" && note.trim().length > 0),
+      "empty source refs require explicit notes",
+    );
+    return;
+  }
+  for (const sourceRefId of sourceRefIds) {
+    if (repoLocalSourceRefPrefixes.some((prefix) => sourceRefId.startsWith(prefix))) {
+      const [repoLocalPath] = sourceRefId.split("#");
+      assert.ok(
+        existsSync(repoLocalPath),
+        `source_ref_id must resolve to a committed repo artifact: ${sourceRefId}`,
+      );
+      continue;
+    }
+    if (sourceRefId.startsWith("pr:")) {
+      assert.ok(
+        allowedExternalLineageSourceRefs.has(sourceRefId),
+        `external lineage source_ref_id must be allowlisted: ${sourceRefId}`,
+      );
+      continue;
+    }
+    assert.fail(`unresolved source_ref_id without allowlist: ${sourceRefId}`);
+  }
+}
+
+function buildPreviewInput() {
+  return {
+    sourceFeedbackEventStoreFixture: sourceFeedbackFixture,
+    agentPerspectiveSubstratePreview: substratePreviewFixture,
+    candidateToCodexHandoffDraftReview: handoffDraftReviewFixture,
+    candidateToCodexHandoffOperatorDecisionPreview: operatorDecisionFixture,
+    scope: "project:augnes",
+    as_of:
+      "fixture:research-candidate-review.feedback-event-store-review-controls-preview.sample.v0.1",
+  };
+}
+
+async function importBuilderModule() {
+  const transformedSource = stripTypeScriptTypes(builderSource, {
+    mode: "transform",
+  });
+  return import(
+    `data:text/javascript;charset=utf-8,${encodeURIComponent(transformedSource)}`
+  );
+}
+
+function readChangedFiles() {
+  const baseRef = mergeBaseRef();
+  return [
+    ...readGitOutput(["diff", "--name-only", baseRef, "--"]).split("\n"),
+    ...readGitOutput(["ls-files", "--others", "--exclude-standard"]).split("\n"),
+  ]
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .sort();
+}
+
+function mergeBaseRef() {
+  return readGitOutput(["merge-base", "origin/main", "HEAD"]).trim() || "origin/main";
+}
+
+function readGitOutput(args) {
+  try {
+    return execFileSync("git", args, { encoding: "utf8" });
+  } catch {
+    return "";
+  }
+}
+
+function readJson(filePath) {
+  return JSON.parse(readFileSync(filePath, "utf8"));
+}
+
+function extractScriptName(line) {
+  return line.replace(/^\+\s*/, "").trim().match(/^"([^"]+)"/)?.[1] ?? null;
+}
+
+function stripSmokeAssertionText(source) {
+  return source
+    .split("\n")
+    .filter((line) => !line.includes("pattern(["))
+    .filter((line) => !line.includes("insertFeedbackEvent"))
+    .filter((line) => !line.includes("listFeedbackEvents"))
+    .filter((line) => !line.includes("research_candidate_feedback_events"))
+    .filter((line) => !line.includes("better-sqlite3"))
+    .filter((line) => !line.includes("new Database"))
+    .filter((line) => !line.includes("CREATE TABLE"))
+    .join("\n");
+}
+
+function pattern(parts) {
+  const label = parts.join("");
+  return {
+    label,
+    regex: new RegExp(parts.map(escapeRegExp).join("\\s*"), "i"),
+  };
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

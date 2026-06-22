@@ -25,12 +25,27 @@ const gateDocPath =
 const operatorDecisionSmokePath =
   "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs";
 const smokePath = "scripts/smoke-feedback-event-store-minimal-v0-1.mjs";
+const reviewControlsTypePath =
+  "types/feedback-event-store-review-controls-preview.ts";
+const reviewControlsBuilderPath =
+  "lib/research-candidate-review/feedback-event-store-review-controls-preview.ts";
+const reviewControlsFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-review-controls-preview.sample.v0.1.json";
+const reviewControlsSmokePath =
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs";
 
 const packageScriptName = "smoke:feedback-event-store-minimal-v0-1";
 const packageScriptValue = `node ${smokePath}`;
+const reviewControlsPackageScriptName =
+  "smoke:feedback-event-store-review-controls-preview-v0-1";
+const reviewControlsPackageScriptValue = `node ${reviewControlsSmokePath}`;
 const previousSlice = "feedback_event_store_minimal_v0_1";
 const nextRecommendedSlice =
   "feedback_event_store_review_controls_preview_v0_1";
+const reviewControlsNextRecommendedSlice =
+  "feedback_event_write_route_contract_v0_1";
+const reviewControlsRecommendationStatus =
+  "ready_for_feedback_event_write_route_contract_v0_1";
 const requiredEventTypes = [
   "dismiss_preview",
   "pin_preview",
@@ -77,6 +92,30 @@ const expectedChangedFiles = [
   "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const downstreamReviewControlsRequiredChangedFiles = [
+  reviewControlsTypePath,
+  reviewControlsBuilderPath,
+  reviewControlsFixturePath,
+  reviewControlsSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
+];
+const downstreamReviewControlsAllowedChangedFiles = [
+  ...downstreamReviewControlsRequiredChangedFiles,
+  operatorDecisionSmokePath,
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
 
 for (const filePath of [
   typePath,
@@ -116,6 +155,7 @@ assertNoForbiddenImplementationPatterns();
 assertDocsPointers();
 assertSchemaAddition();
 assertPreviousSmokePointer();
+assertReviewControlsDownstreamPointer();
 
 const helper = await importHelperModule();
 const fixtureInputs = buildFixtureInputs();
@@ -235,6 +275,12 @@ function assertTypeAndHelperContracts() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  if (downstreamReviewControlsSliceActive()) {
+    assert.equal(
+      packageJson.scripts[reviewControlsPackageScriptName],
+      reviewControlsPackageScriptValue,
+    );
+  }
   const packageAddedLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -248,10 +294,13 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
+  const expectedAddedScriptNames = downstreamReviewControlsSliceActive()
+    ? [reviewControlsPackageScriptName]
+    : [packageScriptName];
   assert.deepEqual(
     addedScriptNames,
-    [packageScriptName],
-    "package additions must only include the Feedback Event Store smoke script",
+    expectedAddedScriptNames,
+    "package additions must only include the active Feedback Event Store smoke script",
   );
   assert.doesNotMatch(
     packageAddedLines.join("\n"),
@@ -267,12 +316,18 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const requiredFiles = downstreamReviewControlsSliceActive()
+    ? downstreamReviewControlsRequiredChangedFiles
+    : expectedChangedFiles;
+  const allowedFiles = downstreamReviewControlsSliceActive()
+    ? downstreamReviewControlsAllowedChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of requiredFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedChangedFiles.includes(changedFile),
+      allowedFiles.includes(changedFile),
       `unexpected changed file in feedback event store slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
@@ -399,6 +454,14 @@ function assertSchemaAddition() {
     "--",
     schemaPath,
   ]);
+  if (downstreamReviewControlsSliceActive()) {
+    assert.equal(
+      addedSchemaLines.trim(),
+      "",
+      "downstream review controls preview must not change schema.sql",
+    );
+    return;
+  }
   const addedCreateTableLines = addedSchemaLines
     .split("\n")
     .filter((line) => /^\+CREATE TABLE/i.test(line));
@@ -427,6 +490,33 @@ function assertPreviousSmokePointer() {
   assert.ok(
     operatorDecisionFixture.next_recommended_slice === previousSlice,
     "source #694 operator decision fixture output must remain unchanged",
+  );
+}
+
+function assertReviewControlsDownstreamPointer() {
+  if (!downstreamReviewControlsSliceActive()) return;
+  for (const requiredText of [
+    reviewControlsPackageScriptName,
+    reviewControlsNextRecommendedSlice,
+    reviewControlsTypePath,
+    reviewControlsBuilderPath,
+    reviewControlsFixturePath,
+    reviewControlsSmokePath,
+    reviewControlsRecommendationStatus,
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#695 feedback event store smoke must allow downstream review controls text: ${requiredText}`,
+    );
+  }
+  assert.equal(
+    fixture.next_recommended_slice,
+    nextRecommendedSlice,
+    "#695 feedback event fixture output must remain unchanged",
+  );
+  assert.ok(
+    JSON.stringify(fixture).includes("feedback_event_store_review_controls_preview_v0_1"),
+    "#695 fixture must keep the review controls next pointer",
   );
 }
 
@@ -758,6 +848,13 @@ function readChangedFiles() {
     .map((line) => line.trim())
     .filter(Boolean)
     .sort();
+}
+
+function downstreamReviewControlsSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamReviewControlsRequiredChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
 }
 
 function mergeBaseRef() {
