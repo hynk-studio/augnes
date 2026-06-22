@@ -71,6 +71,7 @@ const downstreamAllowedPackageScriptNames = [
   "smoke:research-candidate-review-perspective-geometry-digest-v0-1",
   "smoke:agent-perspective-substrate-v0-1",
   "smoke:agent-perspective-substrate-preview-builder-v0-1",
+  "smoke:agent-perspective-substrate-folded-audit-panel-v0-1",
 ];
 const expectedChangedFiles = [
   docsIndexPath,

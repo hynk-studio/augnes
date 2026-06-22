@@ -157,6 +157,30 @@ durable write, and no product write authority.
 The next recommended slice after the preview builder is
 `cockpit_agent_perspective_substrate_folded_audit_panel_v0_1`.
 
+The original downstream slice from the docs/type/fixture substrate contract was
+`agent_perspective_substrate_preview_builder_v0_1`; that preview-builder work is
+now upstream lineage for the folded audit panel.
+
+## Cockpit Folded Audit Panel v0.1
+
+Cockpit Agent Perspective Substrate folded audit panel v0.1 consumes the #689
+preview fixture as static advisory input and renders a folded audit panel in
+Cockpit/Perspective. The panel is preview UI only: folded-by-default, local
+component state only, and non-authoritative.
+
+It preserves `source_refs` or explicit source coverage boundary notes,
+`epistemic_status`, `review_status`, `why_now`, and
+`authority_boundary_notes` on surfaced cards. Suggested actions remain preview
+labels only, with no durable feedback persistence and no feedback persistence.
+
+This panel adds no route/API behavior, no server action, no DB/SQL/transaction
+behavior, no provider/OpenAI call, no source fetch, no retrieval execution, no
+agent routing/execution, no proof/evidence/work/Perspective durable write, and
+no product write authority. Product-write remains parked by the #686 stopline.
+
+The next recommended slice after the folded audit panel is
+`ai_context_packet_compiler_geometry_substrate_upgrade_v0_1`.
+
 ## Next Recommended Slice
 
-`agent_perspective_substrate_preview_builder_v0_1`
+`ai_context_packet_compiler_geometry_substrate_upgrade_v0_1`

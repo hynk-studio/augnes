@@ -1640,6 +1640,24 @@ repo-local 색인이다.
   execution/routing, no MCP/App tool widening, and no product write.
   Product-write remains parked by #686. The next recommended slice is
   `cockpit_agent_perspective_substrate_folded_audit_panel_v0_1`.
+- Cockpit Agent Perspective Substrate folded audit panel v0.1:
+  `components/agent-perspective-substrate-folded-audit-panel.tsx`,
+  `components/augnes-cockpit.tsx`, and
+  `scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs`
+  (`npm run smoke:agent-perspective-substrate-folded-audit-panel-v0-1`)
+  add a preview-only folded audit panel over the committed #689 preview
+  fixture. The panel renders folded sections, surfacing cards, rule groups,
+  source coverage preview, diagnostics, and the advisory authority boundary
+  from static fixture data. It uses local-only folded state, requires
+  `source_refs` or a source coverage boundary note, `epistemic_status`,
+  `review_status`, `why_now`, and `authority_boundary_notes`, and renders
+  suggested actions as preview labels only. This slice adds no persistence, no route/API,
+  no server action, no DB/SQL/transaction behavior, no provider or
+  OpenAI call, no source fetch, no retrieval execution, no agent execution or
+  routing, no durable feedback persistence, no proof/evidence/work/Perspective
+  durable write, and no product write. Product-write remains parked by #686.
+  The next recommended slice is
+  `ai_context_packet_compiler_geometry_substrate_upgrade_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
