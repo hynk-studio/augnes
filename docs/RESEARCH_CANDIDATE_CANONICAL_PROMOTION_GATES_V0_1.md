@@ -493,6 +493,24 @@ proof/evidence/Perspective/work/product durable state. Product-write remains
 parked by the #686 stopline. Next recommended slice:
 `feedback_event_store_list_route_contract_v0_1`.
 
+Feedback Event Store list route contract v0.1 preserves canonical promotion
+gates while documenting future read/list behavior. It is a
+contract-only fixture for `GET /api/research-candidate/feedback-events` and is
+not a route implementation.
+
+The contract is not source of truth, not proof/evidence, not Perspective
+promotion, not work mutation, not feedback mutation, not execution authority,
+not retrieval/RAG execution, not agent routing, not Codex execution, not GitHub
+automation, not external handoff, and not product write authority. It adds no
+app/api route change, no GET export, no server action, no runtime DB read, no
+runtime DB write, no DB read, no DB write, no production DB open, no SQL
+execution, no schema/migration change, no UI/component change, and no browser
+request. It performs no
+provider/OpenAI call, performs no source fetch, performs no retrieval/RAG
+execution, and creates no proof/evidence/Perspective/work/product durable
+state. Product-write remains parked by the #686 stopline. Next recommended
+slice: `feedback_event_store_list_route_implementation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

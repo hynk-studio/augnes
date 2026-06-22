@@ -1,0 +1,653 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+
+const typePath = "types/feedback-event-store-list-route-contract.ts";
+const builderPath =
+  "lib/research-candidate-review/feedback-event-store-list-route-contract.ts";
+const feedbackEventStoreFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json";
+const uiBrowserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-controls-ui-browser-validation.sample.v0.1.json";
+const uiImplementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-controls-ui-implementation.sample.v0.1.json";
+const writeRouteBrowserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-write-route-browser-validation.sample.v0.1.json";
+const contractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1.json";
+const routeFilePath = "app/api/research-candidate/feedback-events/route.ts";
+const smokePath =
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs";
+const uiBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs";
+const uiImplementationSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
+const uiContractSmokePath =
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs";
+const writeRouteBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs";
+const writeRouteImplementationSmokePath =
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs";
+const writeRouteContractSmokePath =
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs";
+const reviewControlsSmokePath =
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs";
+const feedbackEventStoreMinimalSmokePath =
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs";
+const operatorDecisionSmokePath =
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1.mjs";
+const handoffDraftReviewSmokePath =
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs";
+const handoffDraftSmokePath =
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs";
+const aiContextGeometrySubstrateSmokePath =
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs";
+const foldedAuditPanelSmokePath =
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs";
+const previewBuilderSmokePath =
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs";
+const substrateSmokePath = "scripts/smoke-agent-perspective-substrate-v0-1.mjs";
+const geometryDigestSmokePath =
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs";
+const packagePath = "package.json";
+const indexPath = "docs/00_INDEX_LATEST.md";
+const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
+const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
+const gateDocPath =
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
+
+const packageScriptName =
+  "smoke:feedback-event-store-list-route-contract-v0-1";
+const packageScriptValue = `node ${smokePath}`;
+const routePath = "/api/research-candidate/feedback-events";
+const routeMethod = "GET";
+const contractVersion = "feedback_event_store_list_route_contract.v0.1";
+const requestVersion = "feedback_event_store_list_route_request.v0.1";
+const responseVersion = "feedback_event_store_list_route_response.v0.1";
+const recommendationStatus =
+  "ready_for_feedback_event_store_list_route_implementation_v0_1";
+const nextRecommendedSlice =
+  "feedback_event_store_list_route_implementation_v0_1";
+const writeFixture = process.argv.includes("--write-fixture");
+
+const requiredAcknowledgements = [
+  "read_feedback_events_only",
+  "not_proof_or_evidence",
+  "not_perspective_promotion",
+  "not_work_mutation",
+  "not_execution_authority",
+  "not_codex_execution",
+  "not_github_automation",
+  "not_external_handoff",
+  "not_provider_openai_call",
+  "not_source_fetch",
+  "not_retrieval_rag_execution",
+  "not_product_write",
+  "product_write_lane_parked_by_686",
+];
+
+const requiredRefusalCodes = [
+  "route_not_implemented_in_this_slice",
+  "missing_authority_acknowledgement",
+  "invalid_request_version",
+  "invalid_event_type",
+  "invalid_target_kind",
+  "invalid_limit",
+  "invalid_cursor",
+  "raw_sql_filter_forbidden",
+  "forbidden_authority_requested",
+  "product_write_authority_requested",
+  "retrieval_rag_execution_requested",
+  "provider_openai_call_requested",
+  "source_fetch_requested",
+  "codex_or_github_automation_requested",
+];
+
+const requiredChangedFiles = [
+  typePath,
+  builderPath,
+  contractFixturePath,
+  smokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  uiBrowserValidationSmokePath,
+  uiImplementationSmokePath,
+  uiContractSmokePath,
+  writeRouteBrowserValidationSmokePath,
+  writeRouteImplementationSmokePath,
+  writeRouteContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackEventStoreMinimalSmokePath,
+  operatorDecisionSmokePath,
+  handoffDraftReviewSmokePath,
+  handoffDraftSmokePath,
+  aiContextGeometrySubstrateSmokePath,
+  foldedAuditPanelSmokePath,
+  previewBuilderSmokePath,
+  substrateSmokePath,
+  geometryDigestSmokePath,
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
+
+for (const filePath of [
+  typePath,
+  builderPath,
+  feedbackEventStoreFixturePath,
+  uiBrowserValidationFixturePath,
+  uiImplementationFixturePath,
+  writeRouteBrowserValidationFixturePath,
+  routeFilePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  uiBrowserValidationSmokePath,
+]) {
+  assert.ok(existsSync(filePath), `${filePath} must exist`);
+}
+if (!writeFixture) {
+  assert.ok(existsSync(contractFixturePath), `${contractFixturePath} must exist`);
+}
+
+const typeSource = readFileSync(typePath, "utf8");
+const builderSource = readFileSync(builderPath, "utf8");
+const smokeSource = readFileSync(smokePath, "utf8");
+const feedbackEventStoreFixture = readJson(feedbackEventStoreFixturePath);
+const uiBrowserValidationFixture = readJson(uiBrowserValidationFixturePath);
+const uiImplementationFixture = readJson(uiImplementationFixturePath);
+const writeRouteBrowserValidationFixture = readJson(
+  writeRouteBrowserValidationFixturePath,
+);
+const routeSource = readFileSync(routeFilePath, "utf8");
+const packageJson = readJson(packagePath);
+const indexDoc = readFileSync(indexPath, "utf8");
+const substrateDoc = readFileSync(substrateDocPath, "utf8");
+const surfaceDoc = readFileSync(surfaceDocPath, "utf8");
+const gateDoc = readFileSync(gateDocPath, "utf8");
+const uiBrowserValidationSmoke = readFileSync(uiBrowserValidationSmokePath, "utf8");
+
+assertTypeAndBuilderContracts();
+assertRouteNotImplemented();
+
+const builderModule = await importBuilderModule();
+const rebuiltContract = builderModule.buildFeedbackEventStoreListRouteContract(
+  buildContractInput(),
+);
+const rebuiltContractAgain = builderModule.buildFeedbackEventStoreListRouteContract(
+  buildContractInput(),
+);
+
+if (writeFixture) {
+  writeFileSync(contractFixturePath, `${JSON.stringify(rebuiltContract, null, 2)}\n`);
+  process.exit(0);
+}
+
+const contractFixture = readJson(contractFixturePath);
+
+assertPackageScript();
+assertStaticBoundary();
+assertNoForbiddenImplementationPatterns();
+assertDocsPointers();
+assertUiBrowserValidationDownstreamPointer();
+assert.deepEqual(
+  rebuiltContract,
+  contractFixture,
+  "rebuilt list route contract fixture must match committed fixture",
+);
+assert.equal(
+  rebuiltContract.contract_fingerprint,
+  rebuiltContractAgain.contract_fingerprint,
+  "list route contract fingerprint must be stable across repeated builds",
+);
+assertContract(contractFixture, builderModule);
+
+console.log(
+  JSON.stringify(
+    {
+      smoke: "feedback-event-store-list-route-contract-v0-1",
+      final_status: "pass",
+      contract_fingerprint: contractFixture.contract_fingerprint,
+      route_path: contractFixture.route_path,
+      route_method: contractFixture.route_method,
+      route_implemented_now: contractFixture.route_implemented_now,
+      refusal_contract_count: contractFixture.refusal_contracts.length,
+      next_recommended_slice: contractFixture.next_recommended_slice,
+      checked_no_get_route_handler: true,
+      checked_no_db_open_read_write_or_sql_execution: true,
+      checked_product_write_lane_parked: true,
+    },
+    null,
+    2,
+  ),
+);
+
+function assertTypeAndBuilderContracts() {
+  for (const exportName of [
+    "FeedbackEventStoreListRouteContract",
+    "FeedbackEventStoreListRouteContractInput",
+    "FeedbackEventStoreListRouteRequest",
+    "FeedbackEventStoreListRouteResponse",
+    "FeedbackEventStoreListRouteRefusal",
+    "FeedbackEventStoreListRouteFilterContract",
+    "FeedbackEventStoreListRoutePaginationContract",
+    "FeedbackEventStoreListRouteAuthorityBoundary",
+    "FeedbackEventStoreListRouteValidationResult",
+  ]) {
+    assert.match(
+      typeSource,
+      new RegExp(`export\\s+(interface|type)\\s+${escapeRegExp(exportName)}\\b`),
+      `type file must export ${exportName}`,
+    );
+  }
+  for (const exportName of [
+    "buildFeedbackEventStoreListRouteContract",
+    "validateFeedbackEventStoreListRouteContract",
+    "createFeedbackEventStoreListRouteContractFingerprint",
+  ]) {
+    assert.match(
+      builderSource,
+      new RegExp(`export\\s+function\\s+${escapeRegExp(exportName)}\\b`),
+      `builder must export ${exportName}`,
+    );
+  }
+  for (const requiredText of [
+    contractVersion,
+    routePath,
+    routeMethod,
+    requestVersion,
+    responseVersion,
+    "route_not_implemented_in_this_slice",
+    "allowed_filters",
+    "event_type",
+    "target_kind",
+    "target_id",
+    "created_after",
+    "created_before",
+    "limit",
+    "cursor",
+    "default_limit",
+    "max_limit",
+    "created_at DESC",
+    "event_id DESC",
+    "cursor_is_opaque_contract_value",
+    "contract_only",
+    "route_implemented_now",
+    "durable_feedback_event_read_now",
+    "durable_feedback_event_written_now",
+    "runtime_read_executed_now",
+    "runtime_write_executed_now",
+    "db_open_now",
+    "sql_execution_now",
+    "server_action_available_now",
+    "proof_or_evidence_record",
+    "perspective_promotion",
+    "work_mutation",
+    "execution_authority",
+    "codex_execution_authority",
+    "github_automation_authority",
+    "external_handoff_authority",
+    "provider_openai_authority",
+    "retrieval_rag_authority",
+    "source_fetch_authority",
+    "product_write_authority",
+    "product_id_allocation_authority",
+    recommendationStatus,
+    nextRecommendedSlice,
+  ]) {
+    assert.ok(typeSource.includes(requiredText), `type source must include ${requiredText}`);
+    assert.ok(
+      builderSource.includes(requiredText),
+      `builder source must include ${requiredText}`,
+    );
+  }
+  assert.doesNotMatch(
+    builderSource,
+    /^import\s+(?!type\b)/m,
+    "builder must keep runtime imports out",
+  );
+}
+
+function assertPackageScript() {
+  assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map(extractScriptName)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [packageScriptName],
+    "package additions must only include the list route contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+}
+
+function assertStaticBoundary() {
+  const changedFiles = readChangedFiles();
+  for (const requiredFile of requiredChangedFiles) {
+    assert.ok(changedFiles.includes(requiredFile), `changed files must include ${requiredFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      requiredChangedFiles.includes(changedFile),
+      `unexpected changed file in list route contract slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api files");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(schema|migration|db|sql)\b/i);
+    if (
+      changedFile !==
+      "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs"
+    ) {
+      assert.doesNotMatch(
+        changedFile,
+        /product.*write/i,
+        "must not change product write files",
+      );
+    }
+  }
+}
+
+function assertRouteNotImplemented() {
+  assert.ok(existsSync(routeFilePath), "existing POST route file must remain present");
+  assert.match(routeSource, /export\s+async\s+function\s+POST\b/);
+  assert.doesNotMatch(routeSource, /export\s+async\s+function\s+GET\b/);
+  assert.doesNotMatch(routeSource, /export\s+function\s+GET\b/);
+}
+
+function assertNoForbiddenImplementationPatterns() {
+  const scannedSources = [
+    [typePath, typeSource],
+    [builderPath, builderSource],
+    [smokePath, stripValidationText(smokeSource)],
+  ];
+  for (const [filePath, source] of scannedSources) {
+    assert.doesNotMatch(source, /better-sqlite3/i, `${filePath} must not import DB`);
+    assert.doesNotMatch(source, /\blistFeedbackEvents\b/, `${filePath} must not list events`);
+    assert.doesNotMatch(source, /\binsertFeedbackEvent\b/, `${filePath} must not insert events`);
+    assert.doesNotMatch(source, /from\s+["'][^"']*app\/api/i, `${filePath} must not import app/api`);
+    assert.doesNotMatch(source, /fetch\s*\(/, `${filePath} must not use fetch`);
+    assert.doesNotMatch(source, /XMLHttpRequest|WebSocket|EventSource|sendBeacon/);
+    assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|document\.cookie/);
+    assert.doesNotMatch(source, /from\s+["'][^"']*openai["']/i);
+    assert.doesNotMatch(source, /new\s+OpenAI\b/i);
+    assert.doesNotMatch(source, /Octokit|api\.github\.com/i);
+    assert.doesNotMatch(source, /\bcodex\s+(exec|run)\b/i);
+    assert.doesNotMatch(source, /\bgh\s+pr\b/i);
+    assert.doesNotMatch(source, /\bnext\s+(dev|start)\b/i);
+    assert.doesNotMatch(source, /\bcreateProof\b|\binsertProof\b/);
+    assert.doesNotMatch(source, /\bcreateEvidence\b|\binsertEvidence\b/);
+    assert.doesNotMatch(source, /\bmutateWork\b|\bupdateWork\b/);
+    assert.doesNotMatch(source, /\bpromotePerspective\b/);
+    assert.doesNotMatch(source, /\bexecuteProductWrite\b|\ballocateProductId\b/i);
+  }
+}
+
+function assertDocsPointers() {
+  for (const requiredText of [
+    "Feedback Event Store list route contract v0.1",
+    typePath,
+    builderPath,
+    contractFixturePath,
+    smokePath,
+    packageScriptName,
+    "GET /api/research-candidate/feedback-events",
+    "route path documented but not implemented",
+    "no app/api route change yet",
+    "no DB open/read/write yet",
+    "no SQL execution",
+    "no proof/evidence/Perspective promotion/work mutation",
+    "no Codex/GitHub automation/external handoff",
+    "no provider/OpenAI/source-fetch/retrieval/RAG execution",
+    "no product write/product IDs",
+    nextRecommendedSlice,
+  ]) {
+    assert.ok(indexDoc.includes(requiredText), `index must include ${requiredText}`);
+  }
+  for (const doc of [substrateDoc, surfaceDoc, gateDoc]) {
+    assert.match(doc, /Feedback Event Store list route contract/i);
+    assert.match(doc, /future read\/list behavior|future feedback event read path|future list\/read route/i);
+    assert.match(doc, /adds no route|No route implementation|no route implementation|no route/i);
+    assert.match(doc, /no DB read|no production DB read|performs no DB read/i);
+    assert.match(doc, /no DB write|no production DB write|read\/write/i);
+    assert.match(doc, /no proof\/evidence/i);
+    assert.match(doc, /no Perspective promotion|Perspective state/i);
+    assert.match(doc, /no work mutation|work mutation/i);
+    assert.match(doc, /no provider\/OpenAI/i);
+    assert.match(doc, /no source fetch|source-fetch/i);
+    assert.match(doc, /no retrieval\/RAG execution|no retrieval\/RAG/i);
+    assert.match(doc, /no product write/i);
+    assert.match(doc, /#686/);
+    assert.match(doc, new RegExp(nextRecommendedSlice));
+  }
+}
+
+function assertUiBrowserValidationDownstreamPointer() {
+  for (const requiredText of [
+    packageScriptName,
+    nextRecommendedSlice,
+    contractFixturePath,
+    smokePath,
+    recommendationStatus,
+    typePath,
+    builderPath,
+  ]) {
+    assert.ok(
+      uiBrowserValidationSmoke.includes(requiredText),
+      `#702 UI browser validation smoke must allow list route contract text: ${requiredText}`,
+    );
+  }
+  assert.equal(
+    uiBrowserValidationFixture.next_recommended_slice,
+    "feedback_event_store_list_route_contract_v0_1",
+  );
+}
+
+function assertContract(contract, builderModule) {
+  assert.equal(contract.contract_kind, "feedback_event_store_list_route_contract");
+  assert.equal(contract.contract_version, contractVersion);
+  assert.equal(contract.route_path, routePath);
+  assert.equal(contract.route_method, routeMethod);
+  assert.equal(contract.route_implemented_now, false);
+  assert.ok(contract.source_feedback_event_store_ref.includes("feedback_event_store.v0.1"));
+  assert.ok(
+    contract.source_feedback_event_controls_ui_browser_validation_ref.includes(
+      "feedback_event_controls_ui_browser_validation.v0.1",
+    ),
+  );
+  assert.equal(contract.request_contract.request_version, requestVersion);
+  assert.equal(contract.request_contract.include_event_json, true);
+  for (const acknowledgement of requiredAcknowledgements) {
+    assert.ok(
+      contract.request_contract.authority_acknowledgements.includes(acknowledgement),
+      `request contract must include ${acknowledgement}`,
+    );
+  }
+  assert.equal(contract.response_contract.response_version, responseVersion);
+  assert.equal(contract.response_contract.accepted, false);
+  assert.deepEqual(contract.response_contract.events, []);
+  assert.equal(contract.response_contract.count, 0);
+  assert.equal(contract.response_contract.next_cursor, null);
+  assert.equal(contract.response_contract.route_implemented_now, false);
+  assert.equal(contract.response_contract.runtime_read_executed_now, false);
+  assert.equal(contract.response_contract.db_open_now, false);
+  assert.equal(contract.response_contract.sql_execution_now, false);
+  assert.equal(contract.response_contract.refusal.refusal_code, "route_not_implemented_in_this_slice");
+  assert.deepEqual(
+    contract.refusal_contracts.map((refusal) => refusal.refusal_code),
+    requiredRefusalCodes,
+  );
+  for (const filterName of [
+    "event_type",
+    "target_kind",
+    "target_id",
+    "created_after",
+    "created_before",
+    "limit",
+    "cursor",
+  ]) {
+    assert.ok(contract.filter_contract.allowed_filters.includes(filterName));
+  }
+  for (const forbiddenFilterFlag of [
+    "arbitrary_sql_allowed",
+    "raw_where_clause_allowed",
+    "source_fetch_query_allowed",
+    "retrieval_rag_query_allowed",
+    "provider_query_allowed",
+    "product_write_query_allowed",
+    "proof_evidence_query_allowed",
+    "perspective_promotion_query_allowed",
+    "work_mutation_query_allowed",
+  ]) {
+    assert.equal(contract.filter_contract[forbiddenFilterFlag], false);
+  }
+  assert.equal(contract.pagination_contract.default_limit, 50);
+  assert.equal(contract.pagination_contract.max_limit, 100);
+  assert.deepEqual(contract.pagination_contract.deterministic_order, [
+    "created_at DESC",
+    "event_id DESC",
+  ]);
+  assert.equal(contract.pagination_contract.cursor_is_opaque_contract_value, true);
+  assert.equal(contract.pagination_contract.cursor_implemented_now, false);
+  assert.equal(contract.pagination_contract.exposes_raw_sql_cursor_internals, false);
+  assertAuthorityBoundary(contract.authority_boundary);
+  assertAuthorityBoundary(contract.response_contract.authority_boundary);
+  assert.equal(contract.validation.passed, true);
+  assert.deepEqual(contract.validation.failure_codes, []);
+  assert.equal(
+    builderModule.validateFeedbackEventStoreListRouteContract(contract).passed,
+    true,
+  );
+  assert.equal(contract.recommendation_status, recommendationStatus);
+  assert.equal(contract.next_recommended_slice, nextRecommendedSlice);
+}
+
+function assertAuthorityBoundary(boundary) {
+  assert.equal(boundary.contract_only, true);
+  assert.equal(boundary.product_write_lane_parked_by_686, true);
+  for (const forbiddenKey of [
+    "route_implemented_now",
+    "durable_feedback_event_read_now",
+    "durable_feedback_event_written_now",
+    "runtime_read_executed_now",
+    "runtime_write_executed_now",
+    "db_open_now",
+    "sql_execution_now",
+    "server_action_available_now",
+    "proof_or_evidence_record",
+    "perspective_promotion",
+    "work_mutation",
+    "execution_authority",
+    "codex_execution_authority",
+    "github_automation_authority",
+    "external_handoff_authority",
+    "provider_openai_authority",
+    "retrieval_rag_authority",
+    "source_fetch_authority",
+    "product_write_authority",
+    "product_id_allocation_authority",
+  ]) {
+    assert.equal(boundary[forbiddenKey], false, `${forbiddenKey} must be false`);
+  }
+}
+
+function buildContractInput() {
+  return {
+    feedbackEventStoreFixture,
+    feedbackEventControlsUiBrowserValidation: uiBrowserValidationFixture,
+    feedbackEventControlsUiImplementationFixture: uiImplementationFixture,
+    feedbackEventWriteRouteBrowserValidation: writeRouteBrowserValidationFixture,
+    scope: "project:augnes",
+    as_of:
+      "fixture:research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1",
+  };
+}
+
+async function importBuilderModule() {
+  const transformedSource = stripTypeScriptTypes(builderSource, {
+    mode: "transform",
+  });
+  return import(
+    `data:text/javascript;charset=utf-8,${encodeURIComponent(transformedSource)}`
+  );
+}
+
+function readJson(filePath) {
+  return JSON.parse(readFileSync(filePath, "utf8"));
+}
+
+function readGitOutput(args) {
+  return execFileSync("git", args, { encoding: "utf8" });
+}
+
+function mergeBaseRef() {
+  return readGitOutput(["merge-base", "HEAD", "origin/main"]).trim();
+}
+
+function readChangedFiles() {
+  return [
+    ...readGitOutput(["diff", "--name-only", mergeBaseRef(), "--"]).split("\n"),
+    ...readGitOutput(["ls-files", "--others", "--exclude-standard"]).split("\n"),
+  ]
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .sort();
+}
+
+function extractScriptName(line) {
+  const match = line.match(/^\+\s*"([^"]+)":\s*"/);
+  return match?.[1] ?? null;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function stripValidationText(source) {
+  return source
+    .split("\n")
+    .filter((line) => !line.includes("assert.doesNotMatch"))
+    .filter((line) => !line.includes("assert.match"))
+    .filter((line) => !line.includes("better-sqlite3"))
+    .filter((line) => !line.includes("listFeedbackEvents"))
+    .filter((line) => !line.includes("insertFeedbackEvent"))
+    .filter((line) => !line.includes("fetch("))
+    .filter((line) => !line.includes("XMLHttpRequest"))
+    .filter((line) => !line.includes("WebSocket"))
+    .filter((line) => !line.includes("EventSource"))
+    .filter((line) => !line.includes("sendBeacon"))
+    .filter((line) => !line.includes("localStorage"))
+    .filter((line) => !line.includes("sessionStorage"))
+    .filter((line) => !line.includes("indexedDB"))
+    .filter((line) => !line.includes("document.cookie"))
+    .filter((line) => !line.includes("OpenAI"))
+    .filter((line) => !line.includes("GitHub"))
+    .filter((line) => !line.includes("github"))
+    .filter((line) => !line.includes("Octokit"))
+    .filter((line) => !line.includes("Codex"))
+    .filter((line) => !line.includes("retrieval"))
+    .filter((line) => !line.includes("source fetch"))
+    .filter((line) => !line.includes("product write"))
+    .filter((line) => !line.includes("product-write"))
+    .filter((line) => !line.includes("executeProductWrite"))
+    .filter((line) => !line.includes("allocateProductId"))
+    .filter((line) => !line.includes("next dev"))
+    .filter((line) => !line.includes("next start"))
+    .join("\n");
+}

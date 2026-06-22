@@ -773,6 +773,20 @@ automation, no external handoff sending, no agent routing/execution, and no
 product write. Product-write remains parked by the #686 stopline. Next
 recommended slice: `feedback_event_store_list_route_contract_v0_1`.
 
+## Feedback Event Store list route contract v0.1 Pointer
+
+Feedback Event Store list route contract v0.1 documents future read/list behavior for `GET /api/research-candidate/feedback-events`.
+
+No route implementation exists yet. This contract does not add or change
+app/api routes, does not add a GET export, does not add server actions, does
+not open production DB, does no DB read, does no DB write, and does not
+execute SQL. It creates no proof/evidence, does not promote Perspective state,
+and performs no work mutation. It grants no provider/OpenAI calls, no source
+fetch, no retrieval/RAG execution, no Codex execution, no GitHub automation, no
+external handoff sending, no agent routing/execution, and no product write.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`feedback_event_store_list_route_implementation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

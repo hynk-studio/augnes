@@ -62,6 +62,14 @@ const uiImplementationFixturePath =
   "fixtures/research-candidate-review.feedback-event-controls-ui-implementation.sample.v0.1.json";
 const uiImplementationSmokePath =
   "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs";
+const listRouteContractTypePath =
+  "types/feedback-event-store-list-route-contract.ts";
+const listRouteContractBuilderPath =
+  "lib/research-candidate-review/feedback-event-store-list-route-contract.ts";
+const listRouteContractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1.json";
+const listRouteContractSmokePath =
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs";
 
 const packageScriptName =
   "smoke:agent-perspective-substrate-folded-audit-panel-v0-1";
@@ -80,6 +88,9 @@ const downstreamCandidateToCodexHandoffOperatorDecisionPackageScriptNames = [
 ];
 const downstreamFeedbackEventControlsUiImplementationPackageScriptNames = [
   "smoke:feedback-event-controls-ui-implementation-v0-1",
+];
+const listRouteContractPackageScriptNames = [
+  "smoke:feedback-event-store-list-route-contract-v0-1",
 ];
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
@@ -379,6 +390,7 @@ function assertPackageScript() {
       ["smoke:feedback-event-controls-ui-contract-v0-1"],
       downstreamFeedbackEventControlsUiImplementationPackageScriptNames,
       ["smoke:feedback-event-controls-ui-browser-validation-v0-1"],
+      listRouteContractPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include the downstream Candidate-to-Codex handoff draft/review/operator decision smoke script",
   );
@@ -391,6 +403,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (feedbackEventStoreListRouteContractSliceActive(changedFiles)) {
+    assertFeedbackEventStoreListRouteContractChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackEventControlsUiBrowserValidationSliceActive(changedFiles)) {
     assertFeedbackEventControlsUiBrowserValidationChangedFiles(changedFiles);
     return;
@@ -466,6 +482,67 @@ function assertStaticBoundary() {
     if (usesDownstreamAIContextUpgradeDelta) {
       assert.doesNotMatch(changedFile, /^components\//, "downstream AI context upgrade must not change components");
     }
+  }
+}
+
+function feedbackEventStoreListRouteContractSliceActive(changedFiles) {
+  return [
+    listRouteContractTypePath,
+    listRouteContractBuilderPath,
+    listRouteContractFixturePath,
+    listRouteContractSmokePath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertFeedbackEventStoreListRouteContractChangedFiles(changedFiles) {
+  const allowedChangedFiles = [
+    listRouteContractTypePath,
+    listRouteContractBuilderPath,
+    listRouteContractFixturePath,
+    listRouteContractSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+    candidateToCodexHandoffOperatorDecisionSmokePath,
+    candidateToCodexHandoffDraftReviewSmokePath,
+    candidateToCodexHandoffDraftSmokePath,
+    aiContextPacketGeometrySubstrateUpgradeSmokePath,
+    "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+    smokePath,
+    previewBuilderSmokePath,
+    substrateSmokePath,
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+  ];
+  for (const expectedFile of allowedChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      allowedChangedFiles.includes(changedFile),
+      `unexpected changed file in downstream list route contract slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /(^|\/)route\.(ts|tsx|js|mjs)$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /(^|\/)actions?\.(ts|tsx|js|mjs)$/, "must not change server actions");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)(schema|migration|db|sql)\b/i,
+      "must not change schema/db/sql paths",
+    );
   }
 }
 
