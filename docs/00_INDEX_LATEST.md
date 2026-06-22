@@ -1769,6 +1769,24 @@ repo-local 색인이다.
   provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
   write/product IDs. Product-write remains parked by #686. The next
   recommended slice is `feedback_event_write_route_contract_v0_1`.
+- Feedback Event write route contract v0.1:
+  `types/feedback-event-write-route-contract.ts`,
+  `lib/research-candidate-review/feedback-event-write-route-contract.ts`,
+  `fixtures/research-candidate-review.feedback-event-write-route-contract.sample.v0.1.json`,
+  and `scripts/smoke-feedback-event-write-route-contract-v0-1.mjs`
+  (`npm run smoke:feedback-event-write-route-contract-v0-1`) add a
+  deterministic, fixture-backed contract for a future feedback event write
+  route. The route path documented but not implemented is
+  `POST /api/research-candidate/feedback-events`.
+
+  The route path is contract text only: there is no app/api route yet, no
+  route handler, no server action, no DB open/write yet, no SQL execution, no
+  schema/migration change, and no UI/component change. The contract grants no
+  proof/evidence/Perspective promotion/work mutation, no Codex/GitHub
+  automation/external handoff, no provider/OpenAI/source-fetch/retrieval/RAG
+  execution, and no product write/product IDs. Product-write remains parked by
+  #686. The next recommended slice is
+  `feedback_event_write_route_implementation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

@@ -33,12 +33,22 @@ const reviewControlsFixturePath =
   "fixtures/research-candidate-review.feedback-event-store-review-controls-preview.sample.v0.1.json";
 const reviewControlsSmokePath =
   "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs";
+const routeContractTypePath = "types/feedback-event-write-route-contract.ts";
+const routeContractBuilderPath =
+  "lib/research-candidate-review/feedback-event-write-route-contract.ts";
+const routeContractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-write-route-contract.sample.v0.1.json";
+const routeContractSmokePath =
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs";
 
 const packageScriptName = "smoke:feedback-event-store-minimal-v0-1";
 const packageScriptValue = `node ${smokePath}`;
 const reviewControlsPackageScriptName =
   "smoke:feedback-event-store-review-controls-preview-v0-1";
 const reviewControlsPackageScriptValue = `node ${reviewControlsSmokePath}`;
+const routeContractPackageScriptName =
+  "smoke:feedback-event-write-route-contract-v0-1";
+const routeContractPackageScriptValue = `node ${routeContractSmokePath}`;
 const previousSlice = "feedback_event_store_minimal_v0_1";
 const nextRecommendedSlice =
   "feedback_event_store_review_controls_preview_v0_1";
@@ -46,6 +56,10 @@ const reviewControlsNextRecommendedSlice =
   "feedback_event_write_route_contract_v0_1";
 const reviewControlsRecommendationStatus =
   "ready_for_feedback_event_write_route_contract_v0_1";
+const routeContractNextRecommendedSlice =
+  "feedback_event_write_route_implementation_v0_1";
+const routeContractRecommendationStatus =
+  "ready_for_feedback_event_write_route_implementation_v0_1";
 const requiredEventTypes = [
   "dismiss_preview",
   "pin_preview",
@@ -116,6 +130,31 @@ const downstreamReviewControlsAllowedChangedFiles = [
   "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
   "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
 ];
+const downstreamRouteContractRequiredChangedFiles = [
+  routeContractTypePath,
+  routeContractBuilderPath,
+  routeContractFixturePath,
+  routeContractSmokePath,
+  reviewControlsSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
+];
+const downstreamRouteContractAllowedChangedFiles = [
+  ...downstreamRouteContractRequiredChangedFiles,
+  operatorDecisionSmokePath,
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+];
 
 for (const filePath of [
   typePath,
@@ -156,6 +195,7 @@ assertDocsPointers();
 assertSchemaAddition();
 assertPreviousSmokePointer();
 assertReviewControlsDownstreamPointer();
+assertRouteContractDownstreamPointer();
 
 const helper = await importHelperModule();
 const fixtureInputs = buildFixtureInputs();
@@ -275,6 +315,12 @@ function assertTypeAndHelperContracts() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  if (downstreamRouteContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[routeContractPackageScriptName],
+      routeContractPackageScriptValue,
+    );
+  }
   if (downstreamReviewControlsSliceActive()) {
     assert.equal(
       packageJson.scripts[reviewControlsPackageScriptName],
@@ -294,7 +340,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamReviewControlsSliceActive()
+  const expectedAddedScriptNames = downstreamRouteContractSliceActive()
+    ? [routeContractPackageScriptName]
+    : downstreamReviewControlsSliceActive()
     ? [reviewControlsPackageScriptName]
     : [packageScriptName];
   assert.deepEqual(
@@ -316,10 +364,14 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const requiredFiles = downstreamReviewControlsSliceActive()
+  const requiredFiles = downstreamRouteContractSliceActive()
+    ? downstreamRouteContractRequiredChangedFiles
+    : downstreamReviewControlsSliceActive()
     ? downstreamReviewControlsRequiredChangedFiles
     : expectedChangedFiles;
-  const allowedFiles = downstreamReviewControlsSliceActive()
+  const allowedFiles = downstreamRouteContractSliceActive()
+    ? downstreamRouteContractAllowedChangedFiles
+    : downstreamReviewControlsSliceActive()
     ? downstreamReviewControlsAllowedChangedFiles
     : expectedChangedFiles;
   for (const expectedFile of requiredFiles) {
@@ -454,11 +506,11 @@ function assertSchemaAddition() {
     "--",
     schemaPath,
   ]);
-  if (downstreamReviewControlsSliceActive()) {
+  if (downstreamReviewControlsSliceActive() || downstreamRouteContractSliceActive()) {
     assert.equal(
       addedSchemaLines.trim(),
       "",
-      "downstream review controls preview must not change schema.sql",
+      "downstream review controls preview or route contract must not change schema.sql",
     );
     return;
   }
@@ -517,6 +569,29 @@ function assertReviewControlsDownstreamPointer() {
   assert.ok(
     JSON.stringify(fixture).includes("feedback_event_store_review_controls_preview_v0_1"),
     "#695 fixture must keep the review controls next pointer",
+  );
+}
+
+function assertRouteContractDownstreamPointer() {
+  if (!downstreamRouteContractSliceActive()) return;
+  for (const requiredText of [
+    routeContractPackageScriptName,
+    routeContractNextRecommendedSlice,
+    routeContractTypePath,
+    routeContractBuilderPath,
+    routeContractFixturePath,
+    routeContractSmokePath,
+    routeContractRecommendationStatus,
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#695 feedback event store smoke must allow downstream route contract text: ${requiredText}`,
+    );
+  }
+  assert.equal(
+    fixture.next_recommended_slice,
+    nextRecommendedSlice,
+    "#695 feedback event fixture output must remain unchanged",
   );
 }
 
@@ -853,6 +928,13 @@ function readChangedFiles() {
 function downstreamReviewControlsSliceActive() {
   const changedFiles = readChangedFiles();
   return downstreamReviewControlsRequiredChangedFiles.every((filePath) =>
+    changedFiles.includes(filePath),
+  );
+}
+
+function downstreamRouteContractSliceActive() {
+  const changedFiles = readChangedFiles();
+  return downstreamRouteContractRequiredChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
 }

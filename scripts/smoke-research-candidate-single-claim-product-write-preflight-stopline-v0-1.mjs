@@ -78,6 +78,7 @@ const downstreamAllowedPackageScriptNames = [
   "smoke:research-candidate-review-candidate-to-codex-handoff-operator-decision-v0-1",
   "smoke:feedback-event-store-minimal-v0-1",
   "smoke:feedback-event-store-review-controls-preview-v0-1",
+  "smoke:feedback-event-write-route-contract-v0-1",
 ];
 const expectedChangedFiles = [
   docsIndexPath,
