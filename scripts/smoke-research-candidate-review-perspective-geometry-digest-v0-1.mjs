@@ -38,6 +38,9 @@ const downstreamAIContextPacketGeometrySubstrateUpgradePackageScriptNames = [
 const downstreamCandidateToCodexHandoffDraftPackageScriptNames = [
   "smoke:research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1",
 ];
+const downstreamCandidateToCodexHandoffDraftReviewPackageScriptNames = [
+  "smoke:research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1",
+];
 const downstreamAgentPerspectiveSubstrateLabel =
   "Agent Perspective Substrate v0.1";
 const downstreamAgentPerspectiveSubstrateFoldedAuditPanelLabel =
@@ -46,6 +49,8 @@ const downstreamAIContextPacketGeometrySubstrateUpgradeLabel =
   "AI Context Packet compiler GeometryDigest/Substrate upgrade v0.1";
 const downstreamCandidateToCodexHandoffDraftLabel =
   "Candidate-to-Codex handoff draft Geometry/Substrate v0.1";
+const downstreamCandidateToCodexHandoffDraftReviewLabel =
+  "Candidate-to-Codex handoff draft review v0.1";
 const nextRecommendedSlice =
   "agent_perspective_substrate_docs_type_fixture_v0_1";
 const downstreamNextRecommendedSlice =
@@ -58,6 +63,8 @@ const downstreamAIContextPacketGeometrySubstrateUpgradeNextRecommendedSlice =
   "candidate_to_codex_handoff_draft_geometry_substrate_v0_1";
 const downstreamCandidateToCodexHandoffDraftNextRecommendedSlice =
   "candidate_to_codex_handoff_draft_review_v0_1";
+const downstreamCandidateToCodexHandoffDraftReviewNextRecommendedSlice =
+  "candidate_to_codex_handoff_operator_decision_v0_1";
 const digestVersion = "perspective_geometry_digest.v0.1";
 const digestMode = "research_candidate_overlay_digest";
 const requiredDiagnosticFields = [
@@ -163,6 +170,25 @@ const downstreamCandidateToCodexHandoffDraftChangedFiles = [
   surfaceDocPath,
   gateDocPath,
   "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+  "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-v0-1.mjs",
+  smokePath,
+  "scripts/smoke-research-candidate-review-ai-context-packet-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-formation-receipt-v0-1.mjs",
+];
+const downstreamCandidateToCodexHandoffDraftReviewChangedFiles = [
+  "types/candidate-to-codex-handoff-draft-review.ts",
+  "lib/research-candidate-review/candidate-to-codex-handoff-draft-review.ts",
+  "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1.mjs",
+  packagePath,
+  indexPath,
+  surfaceDocPath,
+  gateDocPath,
+  "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+  "scripts/smoke-research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1.mjs",
   "scripts/smoke-research-candidate-review-ai-context-packet-geometry-substrate-upgrade-v0-1.mjs",
   "scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
   "scripts/smoke-agent-perspective-substrate-preview-builder-v0-1.mjs",
@@ -357,8 +383,9 @@ function assertPackageScript() {
       downstreamAgentPerspectiveSubstrateFoldedAuditPanelPackageScriptNames,
       downstreamAIContextPacketGeometrySubstrateUpgradePackageScriptNames,
       downstreamCandidateToCodexHandoffDraftPackageScriptNames,
+      downstreamCandidateToCodexHandoffDraftReviewPackageScriptNames,
     ].some((allowedNames) => JSON.stringify(addedScriptNames) === JSON.stringify(allowedNames)),
-    `package additions must only include digest or downstream substrate/preview/panel/AI-context-upgrade/handoff-draft smoke scripts: ${JSON.stringify(addedScriptNames)}`,
+    `package additions must only include digest or downstream substrate/preview/panel/AI-context-upgrade/handoff-draft/review smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );
 }
 
@@ -387,6 +414,11 @@ function assertDocs() {
       new RegExp(escapeRegExp(downstreamCandidateToCodexHandoffDraftLabel)),
     );
     assert.match(doc, new RegExp(downstreamCandidateToCodexHandoffDraftNextRecommendedSlice));
+    assert.match(
+      doc,
+      new RegExp(escapeRegExp(downstreamCandidateToCodexHandoffDraftReviewLabel)),
+    );
+    assert.match(doc, new RegExp(downstreamCandidateToCodexHandoffDraftReviewNextRecommendedSlice));
   }
   assert.match(indexDoc, new RegExp(escapeRegExp(digestFixturePath)));
   assert.match(indexDoc, new RegExp(escapeRegExp(manualDigestFixturePath)));
@@ -415,15 +447,21 @@ function assertStaticScope() {
     downstreamCandidateToCodexHandoffDraftChangedFiles.every((filePath) =>
       changedFiles.includes(filePath),
     );
-  const expectedFilesForDelta = usesDownstreamSubstrateDelta
-    ? downstreamAgentPerspectiveSubstrateChangedFiles
-    : usesDownstreamPreviewDelta
-      ? downstreamAgentPerspectiveSubstratePreviewChangedFiles
-    : usesDownstreamPanelDelta
-      ? downstreamAgentPerspectiveSubstrateFoldedAuditPanelChangedFiles
-    : usesDownstreamAIContextUpgradeDelta
-      ? downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles
-    : usesDownstreamCandidateToCodexHandoffDraftDelta
+  const usesDownstreamCandidateToCodexHandoffDraftReviewDelta =
+    downstreamCandidateToCodexHandoffDraftReviewChangedFiles.every((filePath) =>
+      changedFiles.includes(filePath),
+    );
+  const expectedFilesForDelta = usesDownstreamCandidateToCodexHandoffDraftReviewDelta
+    ? downstreamCandidateToCodexHandoffDraftReviewChangedFiles
+    : usesDownstreamSubstrateDelta
+      ? downstreamAgentPerspectiveSubstrateChangedFiles
+      : usesDownstreamPreviewDelta
+        ? downstreamAgentPerspectiveSubstratePreviewChangedFiles
+        : usesDownstreamPanelDelta
+          ? downstreamAgentPerspectiveSubstrateFoldedAuditPanelChangedFiles
+          : usesDownstreamAIContextUpgradeDelta
+            ? downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles
+            : usesDownstreamCandidateToCodexHandoffDraftDelta
       ? downstreamCandidateToCodexHandoffDraftChangedFiles
     : expectedChangedFiles;
   const allowedDownstreamPanelComponentFiles = new Set([

@@ -592,6 +592,34 @@ the #686 stopline. Next recommended slice:
 `candidate_to_codex_handoff_draft_review_v0_1`.
 No branch/PR/GitHub automation is allowed from this draft.
 
+## Candidate-to-Codex handoff draft review v0.1 Pointer
+
+The Candidate-to-Codex handoff draft now has a review artifact.
+`types/candidate-to-codex-handoff-draft-review.ts` and
+`lib/research-candidate-review/candidate-to-codex-handoff-draft-review.ts`
+consume the #692 handoff draft fixture as advisory input and generate
+`fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json`.
+It is guarded by
+`npm run smoke:research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1`.
+
+The review preserves GeometryDigest, Agent Substrate, Folded Audit,
+static/base packet lineage, manual-note packet/receipt lineage, source refs,
+unresolved tensions, and product-write stopline context. It checks prompt
+completeness, structured handoff completeness, manual lineage, source refs,
+expected checks, stop conditions, and authority boundary before a human
+operator handoff decision.
+
+The review artifact is review-only and copyable-preview-only. It is still not
+source of truth, proof/evidence, durable state, execution authority, retrieval
+execution, agent routing, Codex execution, GitHub automation, external
+handoff, or product write authority. This adds no branch/PR/GitHub automation,
+no external handoff sending, no provider/OpenAI call, no source fetch, no
+retrieval/RAG execution, no DB/SQL/transaction, no proof/evidence write, no
+work mutation or work item creation, no durable Perspective promotion, no
+route/UI behavior, no agent routing/execution, and no product write.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`candidate_to_codex_handoff_operator_decision_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

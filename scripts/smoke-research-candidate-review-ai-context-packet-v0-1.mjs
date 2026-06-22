@@ -41,6 +41,10 @@ const downstreamCandidateToCodexHandoffDraftPackageScriptName =
   "smoke:research-candidate-review-candidate-to-codex-handoff-draft-geometry-substrate-v0-1";
 const downstreamCandidateToCodexHandoffDraftNextRecommendedSlice =
   "candidate_to_codex_handoff_draft_review_v0_1";
+const downstreamCandidateToCodexHandoffDraftReviewPackageScriptName =
+  "smoke:research-candidate-review-candidate-to-codex-handoff-draft-review-v0-1";
+const downstreamCandidateToCodexHandoffDraftReviewNextRecommendedSlice =
+  "candidate_to_codex_handoff_operator_decision_v0_1";
 
 for (const filePath of [
   packetTypePath,
@@ -761,6 +765,12 @@ function assertDocsPointers() {
     "fixtures/research-candidate-review.candidate-to-codex-handoff-draft.geometry-substrate.sample.v0.1.json",
     downstreamCandidateToCodexHandoffDraftPackageScriptName,
     downstreamCandidateToCodexHandoffDraftNextRecommendedSlice,
+    "Candidate-to-Codex handoff draft review v0.1",
+    "types/candidate-to-codex-handoff-draft-review.ts",
+    "lib/research-candidate-review/candidate-to-codex-handoff-draft-review.ts",
+    "fixtures/research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1.json",
+    downstreamCandidateToCodexHandoffDraftReviewPackageScriptName,
+    downstreamCandidateToCodexHandoffDraftReviewNextRecommendedSlice,
     "read-only",
     "handoff packet",
   ]) {
@@ -801,6 +811,8 @@ function assertGatePointer() {
     /candidate_to_codex_handoff_draft_geometry_substrate_v0_1/i,
     /Candidate-to-Codex handoff draft Geometry\/Substrate v0\.1/i,
     /candidate_to_codex_handoff_draft_review_v0_1/i,
+    /Candidate-to-Codex handoff draft review v0\.1/i,
+    /candidate_to_codex_handoff_operator_decision_v0_1/i,
   ]) {
     assert.match(gateDoc, regex, `gate doc must include ${regex}`);
   }

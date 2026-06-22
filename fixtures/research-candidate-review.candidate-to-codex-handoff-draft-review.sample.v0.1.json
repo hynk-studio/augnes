@@ -1,0 +1,625 @@
+{
+  "review_kind": "candidate_to_codex_handoff_draft_review",
+  "review_version": "candidate_to_codex_handoff_draft_review.v0.1",
+  "scope": "project:augnes",
+  "as_of": "fixture:research-candidate-review.candidate-to-codex-handoff-draft-review.sample.v0.1",
+  "source_handoff_draft_ref": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1:fnv1a32:e0fed350",
+  "source_handoff_draft_fingerprint": "fnv1a32:e0fed350",
+  "review_fingerprint": "fnv1a32:d9d0275e",
+  "fingerprint_algorithm": "fnv1a32_canonical_json",
+  "review_status": "candidate_to_codex_handoff_draft_review_passed",
+  "recommendation_status": "ready_for_human_operator_handoff_decision",
+  "next_recommended_slice": "candidate_to_codex_handoff_operator_decision_v0_1",
+  "source_summary": {
+    "source_draft_kind": "candidate_to_codex_handoff_draft",
+    "source_draft_version": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1",
+    "source_draft_ref": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1:fnv1a32:e0fed350",
+    "source_draft_fingerprint": "fnv1a32:e0fed350",
+    "source_draft_fingerprint_present": true,
+    "source_draft_validation_passed": true,
+    "source_ai_context_packet_ref": "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+    "source_ai_context_packet_fingerprint": "fnv1a32:a5c0c33e",
+    "source_upgraded_ai_context_packet_fingerprint": "fnv1a32:a5c0c33e",
+    "source_upgraded_ai_context_packet_matches": true,
+    "source_next_recommended_slice": "candidate_to_codex_handoff_draft_review_v0_1",
+    "source_recommendation_status": "ready_for_candidate_to_codex_handoff_draft_review",
+    "copyable_prompt_present": true,
+    "structured_handoff_present": true,
+    "expected_changes_count": 1,
+    "expected_checks_count": 5,
+    "stop_conditions_count": 15,
+    "source_ref_count": 5,
+    "unresolved_tension_count": 1,
+    "manual_lineage_present": true,
+    "product_write_stopline_ref": "pr:686:manual_note_single_claim_product_write_preflight_stopline"
+  },
+  "prompt_review": {
+    "prompt_is_plain_text": true,
+    "prompt_not_markdown_fenced": true,
+    "prompt_includes_repo": true,
+    "prompt_includes_checkout": true,
+    "prompt_includes_do_not_touch_path": true,
+    "prompt_includes_source_packet_fingerprint": true,
+    "prompt_includes_task_title": true,
+    "prompt_includes_expected_files": true,
+    "prompt_includes_expected_checks": true,
+    "prompt_includes_source_refs_summary": true,
+    "prompt_includes_unresolved_tensions_summary": true,
+    "prompt_includes_geometry_substrate_folded_audit_summary": true,
+    "prompt_includes_manual_lineage_summary": true,
+    "prompt_includes_hard_boundaries": true,
+    "prompt_includes_stop_conditions": true,
+    "prompt_includes_final_report_requirements": true,
+    "prompt_forbids_codex_execution": true,
+    "prompt_forbids_branch_pr_github_automation": true,
+    "prompt_forbids_external_handoff_send": true,
+    "prompt_forbids_provider_openai_call": true,
+    "prompt_forbids_source_fetch": true,
+    "prompt_forbids_retrieval_rag_execution": true,
+    "prompt_forbids_db_sql_transaction": true,
+    "prompt_forbids_proof_evidence_work_perspective_write": true,
+    "prompt_forbids_product_write_and_product_ids": true,
+    "passed": true
+  },
+  "structured_handoff_review": {
+    "mission_brief_present": true,
+    "implementation_intent_present": true,
+    "source_packet_summary_present": true,
+    "geometry_digest_summary_present": true,
+    "agent_substrate_summary_present": true,
+    "folded_audit_summary_present": true,
+    "manual_lineage_summary_present": true,
+    "selected_context_cards_present": true,
+    "forbidden_actions_present": true,
+    "expected_files_present": true,
+    "expected_checks_present": true,
+    "stop_conditions_present": true,
+    "final_report_requirements_present": true,
+    "no_execution_authority_granted": true,
+    "passed": true
+  },
+  "lineage_review": {
+    "upgraded_ai_context_packet_ref_present": true,
+    "upgraded_ai_context_packet_fingerprint_present": true,
+    "ai_context_packet_base_refs_non_empty": true,
+    "manual_ai_context_packet_base_ref_non_null": true,
+    "research_candidate_review_refs_non_empty": true,
+    "manual_research_candidate_review_refs_non_empty": true,
+    "perspective_geometry_digest_refs_non_empty": true,
+    "agent_perspective_substrate_ref_present": true,
+    "agent_perspective_substrate_preview_ref_present": true,
+    "cockpit_folded_audit_panel_ref_present": true,
+    "formation_receipt_refs_non_empty": true,
+    "manual_formation_receipt_refs_non_empty": true,
+    "product_write_stopline_ref_present": true,
+    "product_write_stopline_ref_references_686": true,
+    "passed": true
+  },
+  "manual_lineage_review": {
+    "manual_lineage_present": true,
+    "manual_packet_ref_present": true,
+    "manual_research_candidate_refs_present": true,
+    "manual_formation_receipt_refs_present": true,
+    "manual_lineage_in_prompt": true,
+    "manual_lineage_in_structured_handoff": true,
+    "manual_lineage_authority_granted": false,
+    "passed": true
+  },
+  "boundary_review": {
+    "codex_execution_not_granted": true,
+    "github_automation_not_granted": true,
+    "branch_creation_not_granted": true,
+    "pr_creation_not_granted": true,
+    "merge_authority_not_granted": true,
+    "external_handoff_sending_not_granted": true,
+    "db_open_not_granted": true,
+    "sql_execution_not_granted": true,
+    "transaction_execution_not_granted": true,
+    "provider_openai_call_not_granted": true,
+    "source_fetch_not_granted": true,
+    "retrieval_rag_execution_not_granted": true,
+    "proof_evidence_write_not_granted": true,
+    "work_mutation_not_granted": true,
+    "perspective_promotion_not_granted": true,
+    "agent_execution_not_granted": true,
+    "agent_routing_not_granted": true,
+    "product_write_not_granted": true,
+    "product_id_allocation_not_granted": true,
+    "review_artifact_boundary_safe": true,
+    "source_draft_boundary_safe": true,
+    "passed": true
+  },
+  "stop_condition_review": {
+    "source_packet_validation_fails_present": true,
+    "missing_source_refs_without_source_coverage_boundary_note_present": true,
+    "unresolved_tension_omitted_from_prompt_present": true,
+    "manual_lineage_omitted_present": true,
+    "geometrydigest_treated_as_authority_present": true,
+    "agent_substrate_treated_as_authority_present": true,
+    "retrieval_execution_requested_present": true,
+    "provider_openai_call_requested_present": true,
+    "codex_execution_requested_by_this_draft_present": true,
+    "branch_pr_github_automation_requested_by_this_draft_present": true,
+    "db_sql_transaction_requested_present": true,
+    "proof_evidence_write_mutation_requested_present": true,
+    "perspective_promotion_requested_present": true,
+    "product_write_product_id_allocation_requested_present": true,
+    "external_handoff_send_requested_present": true,
+    "passed": true
+  },
+  "expected_change_review": {
+    "expected_changes_exist": true,
+    "expected_changes_do_not_include_product_write": true,
+    "expected_changes_do_not_include_db_sql_schema_migration": true,
+    "expected_changes_do_not_include_route_ui": true,
+    "expected_changes_point_to_future_review_or_operator_decision_slice": true,
+    "passed": true
+  },
+  "expected_check_review": {
+    "expected_checks_exist": true,
+    "expected_checks_include_node_check": true,
+    "expected_checks_include_future_review_or_operator_decision_smoke": true,
+    "expected_checks_include_typecheck": true,
+    "expected_checks_include_git_diff_check": true,
+    "expected_checks_include_git_diff_cached_check": true,
+    "expected_checks_do_not_include_codex_execution": true,
+    "expected_checks_do_not_include_github_automation": true,
+    "expected_checks_do_not_include_provider_retrieval_db_execution": true,
+    "passed": true
+  },
+  "unresolved_tension_review": {
+    "unresolved_tensions_exist": true,
+    "unresolved_tensions_included_in_copyable_prompt": true,
+    "unresolved_tensions_included_in_structured_handoff": true,
+    "unresolved_tensions_not_smoothed_away_into_recommendations": true,
+    "unresolved_tension_preserved": true,
+    "passed": true
+  },
+  "source_ref_review": {
+    "source_refs_exist": true,
+    "source_refs_included_in_copyable_prompt_or_summarized": true,
+    "no_source_refs_treated_as_proof_evidence_authority": true,
+    "source_ref_authority_granted": false,
+    "passed": true
+  },
+  "review_findings": [
+    {
+      "finding_id": "candidate_to_codex_handoff_draft_review_finding_01",
+      "finding_group": "source_draft_integrity",
+      "severity": "notice",
+      "status": "passed",
+      "message": "Source #692 Candidate-to-Codex handoff draft fingerprint, validation, and downstream review pointer are intact.",
+      "source_refs": [
+        "fixture:product-write-preflight-stopline.686",
+        "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+        "fnv1a32:e0fed350",
+        "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+        "source_ref_manual_notes_001"
+      ],
+      "authority_boundary_notes": [
+        "Finding is review-only and grants no Codex, GitHub, external handoff, provider, retrieval, DB, proof/evidence, work, Perspective, agent, or product-write authority."
+      ]
+    },
+    {
+      "finding_id": "candidate_to_codex_handoff_draft_review_finding_02",
+      "finding_group": "copyable_prompt_completeness",
+      "severity": "notice",
+      "status": "passed",
+      "message": "Copyable prompt includes repo, checkout, boundaries, lineage, unresolved tensions, source refs, expected files, and expected checks.",
+      "source_refs": [
+        "fixture:product-write-preflight-stopline.686",
+        "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+        "fnv1a32:e0fed350",
+        "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+        "source_ref_manual_notes_001"
+      ],
+      "authority_boundary_notes": [
+        "Finding is review-only and grants no Codex, GitHub, external handoff, provider, retrieval, DB, proof/evidence, work, Perspective, agent, or product-write authority."
+      ]
+    },
+    {
+      "finding_id": "candidate_to_codex_handoff_draft_review_finding_03",
+      "finding_group": "structured_handoff_completeness",
+      "severity": "notice",
+      "status": "passed",
+      "message": "Structured handoff includes mission, context summaries, manual lineage, forbidden actions, expected files/checks, stop conditions, and final report requirements.",
+      "source_refs": [
+        "fixture:product-write-preflight-stopline.686",
+        "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+        "fnv1a32:e0fed350",
+        "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+        "source_ref_manual_notes_001"
+      ],
+      "authority_boundary_notes": [
+        "Finding is review-only and grants no Codex, GitHub, external handoff, provider, retrieval, DB, proof/evidence, work, Perspective, agent, or product-write authority."
+      ]
+    },
+    {
+      "finding_id": "candidate_to_codex_handoff_draft_review_finding_04",
+      "finding_group": "manual_lineage_preservation",
+      "severity": "notice",
+      "status": "passed",
+      "message": "Static/base and manual-note packet, review, and Formation Receipt lineage are preserved without authority promotion.",
+      "source_refs": [
+        "fixture:product-write-preflight-stopline.686",
+        "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+        "fnv1a32:e0fed350",
+        "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+        "source_ref_manual_notes_001"
+      ],
+      "authority_boundary_notes": [
+        "Finding is review-only and grants no Codex, GitHub, external handoff, provider, retrieval, DB, proof/evidence, work, Perspective, agent, or product-write authority."
+      ]
+    },
+    {
+      "finding_id": "candidate_to_codex_handoff_draft_review_finding_05",
+      "finding_group": "unresolved_tension_preservation",
+      "severity": "notice",
+      "status": "passed",
+      "message": "Unresolved tensions remain explicit in the prompt and structured handoff review.",
+      "source_refs": [
+        "fixture:product-write-preflight-stopline.686",
+        "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+        "fnv1a32:e0fed350",
+        "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+        "source_ref_manual_notes_001"
+      ],
+      "authority_boundary_notes": [
+        "Finding is review-only and grants no Codex, GitHub, external handoff, provider, retrieval, DB, proof/evidence, work, Perspective, agent, or product-write authority."
+      ]
+    },
+    {
+      "finding_id": "candidate_to_codex_handoff_draft_review_finding_06",
+      "finding_group": "source_ref_discipline",
+      "severity": "notice",
+      "status": "passed",
+      "message": "Source refs remain preserved as advisory refs and are not treated as proof/evidence authority.",
+      "source_refs": [
+        "fixture:product-write-preflight-stopline.686",
+        "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+        "fnv1a32:e0fed350",
+        "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+        "source_ref_manual_notes_001"
+      ],
+      "authority_boundary_notes": [
+        "Finding is review-only and grants no Codex, GitHub, external handoff, provider, retrieval, DB, proof/evidence, work, Perspective, agent, or product-write authority."
+      ]
+    },
+    {
+      "finding_id": "candidate_to_codex_handoff_draft_review_finding_07",
+      "finding_group": "authority_boundary",
+      "severity": "notice",
+      "status": "passed",
+      "message": "Review and source draft boundaries grant no execution, write, mutation, durable state, route/UI, or external service authority.",
+      "source_refs": [
+        "fixture:product-write-preflight-stopline.686",
+        "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+        "fnv1a32:e0fed350",
+        "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+        "source_ref_manual_notes_001"
+      ],
+      "authority_boundary_notes": [
+        "Finding is review-only and grants no Codex, GitHub, external handoff, provider, retrieval, DB, proof/evidence, work, Perspective, agent, or product-write authority."
+      ]
+    },
+    {
+      "finding_id": "candidate_to_codex_handoff_draft_review_finding_08",
+      "finding_group": "no_execution",
+      "severity": "notice",
+      "status": "passed",
+      "message": "Review artifact remains non-executing and contains no Codex, branch/PR, or GitHub automation authority.",
+      "source_refs": [
+        "fixture:product-write-preflight-stopline.686",
+        "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+        "fnv1a32:e0fed350",
+        "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+        "source_ref_manual_notes_001"
+      ],
+      "authority_boundary_notes": [
+        "Finding is review-only and grants no Codex, GitHub, external handoff, provider, retrieval, DB, proof/evidence, work, Perspective, agent, or product-write authority."
+      ]
+    },
+    {
+      "finding_id": "candidate_to_codex_handoff_draft_review_finding_09",
+      "finding_group": "product_write_stopline",
+      "severity": "notice",
+      "status": "passed",
+      "message": "Product-write lane remains parked by #686.",
+      "source_refs": [
+        "fixture:product-write-preflight-stopline.686",
+        "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+        "fnv1a32:e0fed350",
+        "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+        "source_ref_manual_notes_001"
+      ],
+      "authority_boundary_notes": [
+        "Finding is review-only and grants no Codex, GitHub, external handoff, provider, retrieval, DB, proof/evidence, work, Perspective, agent, or product-write authority."
+      ]
+    },
+    {
+      "finding_id": "candidate_to_codex_handoff_draft_review_finding_10",
+      "finding_group": "next_slice_discipline",
+      "severity": "notice",
+      "status": "passed",
+      "message": "Next slice remains a human operator handoff decision, not execution approval.",
+      "source_refs": [
+        "fixture:product-write-preflight-stopline.686",
+        "fixture:research-candidate-review.ai-context-packet.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1",
+        "fixture:research-candidate-review.perspective-geometry-digest.sample.v0.1",
+        "fnv1a32:e0fed350",
+        "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+        "source_ref_manual_notes_001"
+      ],
+      "authority_boundary_notes": [
+        "Finding is review-only and grants no Codex, GitHub, external handoff, provider, retrieval, DB, proof/evidence, work, Perspective, agent, or product-write authority."
+      ]
+    }
+  ],
+  "checklist": [
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_01",
+      "label": "source draft fingerprint present",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_02",
+      "label": "source draft validation passed",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_03",
+      "label": "copyable prompt plain text",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_04",
+      "label": "copyable prompt forbids Codex execution",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_05",
+      "label": "copyable prompt forbids branch/PR/GitHub automation",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_06",
+      "label": "copyable prompt forbids external handoff send",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_07",
+      "label": "copyable prompt forbids provider/OpenAI",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_08",
+      "label": "copyable prompt forbids retrieval/RAG",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_09",
+      "label": "copyable prompt forbids DB/SQL/transaction",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_10",
+      "label": "copyable prompt forbids proof/evidence/work/Perspective write",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_11",
+      "label": "copyable prompt forbids product write/product IDs",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_12",
+      "label": "manual lineage preserved",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_13",
+      "label": "unresolved tensions preserved",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_14",
+      "label": "source refs preserved",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_15",
+      "label": "product-write stopline preserved",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    },
+    {
+      "checklist_item_id": "candidate_to_codex_handoff_draft_review_check_16",
+      "label": "next slice is operator decision, not execution",
+      "passed": true,
+      "source_refs": [
+        "fnv1a32:e0fed350"
+      ],
+      "authority_boundary_notes": [
+        "Checklist is deterministic review output only and grants no execution or durable authority."
+      ]
+    }
+  ],
+  "authority_boundary": {
+    "preview_only": true,
+    "review_only": true,
+    "copyable_text_only": true,
+    "source_of_truth": false,
+    "can_execute_codex": false,
+    "can_create_branch": false,
+    "can_open_pr": false,
+    "can_call_github": false,
+    "can_send_external_handoff": false,
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_create_work_item": false,
+    "can_execute_agents": false,
+    "can_route_agents": false,
+    "can_call_external_services": false,
+    "can_call_providers_or_openai": false,
+    "can_run_retrieval_or_rag": false,
+    "can_fetch_sources": false,
+    "can_promote_perspective": false,
+    "can_allocate_product_ids": false,
+    "can_execute_product_write": false,
+    "can_open_db": false,
+    "can_execute_sql": false,
+    "can_execute_transaction": false,
+    "can_add_route_or_ui": false,
+    "durable_write_authority": false,
+    "merge_authority": false,
+    "operator_decision_required_before_any_execution": true,
+    "operator_decision_satisfied_now": false
+  },
+  "lineage": {
+    "source_handoff_draft_ref": "candidate_to_codex_handoff_draft.geometry_substrate.v0.1:fnv1a32:e0fed350",
+    "source_handoff_draft_fingerprint": "fnv1a32:e0fed350",
+    "upgraded_ai_context_packet_ref": "research_candidate_ai_context_packet.geometry_substrate_upgrade.v0.1:fnv1a32:a5c0c33e",
+    "upgraded_ai_context_packet_fingerprint": "fnv1a32:a5c0c33e",
+    "ai_context_packet_base_refs": [
+      "research_candidate_ai_context_packet.v0.1:manual_parser_output_overlay:fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json",
+      "research_candidate_ai_context_packet.v0.1:research_candidate_review_overlay:fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json"
+    ],
+    "manual_ai_context_packet_base_ref": "research_candidate_ai_context_packet.v0.1:manual_parser_output_overlay:fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json",
+    "research_candidate_review_refs": [
+      "fixtures/research-candidate-review.sample.v0.1.json",
+      "fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json"
+    ],
+    "manual_research_candidate_review_refs": [
+      "fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json",
+      "fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json"
+    ],
+    "perspective_geometry_digest_refs": [
+      "perspective_geometry_digest.v0.1:fnv1a32:e1f80cf5",
+      "perspective_geometry_digest.v0.1:fnv1a32:ff21c7dd"
+    ],
+    "agent_perspective_substrate_ref": "agent_perspective_substrate.v0.1:project:augnes:fixture:agent-perspective-substrate.v0.1",
+    "agent_perspective_substrate_preview_ref": "agent_perspective_substrate_preview.v0.1:fnv1a32:3f2fb0db",
+    "cockpit_folded_audit_panel_ref": "components/agent-perspective-substrate-folded-audit-panel.tsx#agent-perspective-substrate-folded-audit-panel",
+    "formation_receipt_refs": [
+      "research_candidate_formation_receipt.v0.1:research_candidate_review_packet:fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json"
+    ],
+    "manual_formation_receipt_refs": [
+      "research_candidate_formation_receipt.v0.1:manual_parser_output_packet:fixtures/research-candidate-review.manual-note-ai-context-packet.sample.v0.1.json"
+    ],
+    "product_write_stopline_ref": "pr:686:manual_note_single_claim_product_write_preflight_stopline"
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  }
+}

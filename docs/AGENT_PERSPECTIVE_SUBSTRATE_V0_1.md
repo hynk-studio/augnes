@@ -229,6 +229,22 @@ No branch/PR/GitHub automation is allowed from this draft.
 The next recommended slice after the Candidate-to-Codex handoff draft is
 `candidate_to_codex_handoff_draft_review_v0_1`.
 
+## Candidate-to-Codex Handoff Draft Review v0.1
+
+Candidate-to-Codex handoff draft review v0.1 can consume the #692 draft as
+advisory input. It remains review-only and copyable-preview-only: it checks
+the draft prompt completeness, structured handoff completeness, static/base and
+manual-note lineage, unresolved tensions, source refs, expected checks, stop
+conditions, and authority boundary before a human operator decision.
+
+The review artifact is non-authoritative and grants no Codex execution, no
+branch/PR/GitHub automation, no external handoff sending, no provider/OpenAI
+call, no source fetch, no retrieval/RAG execution, no DB/SQL/transaction
+behavior, no proof/evidence/work/Perspective durable write, no agent
+routing/execution, and no product write. Product-write remains parked by the
+#686 stopline. The next recommended slice after the review is
+`candidate_to_codex_handoff_operator_decision_v0_1`.
+
 ## Next Recommended Slice
 
-`candidate_to_codex_handoff_draft_review_v0_1`
+`candidate_to_codex_handoff_operator_decision_v0_1`
