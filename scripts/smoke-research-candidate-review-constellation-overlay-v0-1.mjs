@@ -711,6 +711,12 @@ function assertDocsPointers() {
     "not layout",
     "not embeddings",
     "no runtime/API/DB/provider/retrieval/promotion behavior",
+    "PerspectiveGeometryDigest Builder v0.1",
+    "types/perspective-geometry-digest.ts",
+    "lib/research-candidate-review/perspective-geometry-digest.ts",
+    "fixtures/research-candidate-review.perspective-geometry-digest.sample.v0.1.json",
+    "fixtures/research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1.json",
+    "agent_perspective_substrate_docs_type_fixture_v0_1",
   ]) {
     assert.ok(surfaceDoc.includes(requiredText), `surface doc must include ${requiredText}`);
   }
@@ -726,9 +732,16 @@ function assertGatePointer() {
     "layout algorithm",
     "runtime/API/DB/provider/retrieval",
     "promotion behavior",
+    "PerspectiveGeometryDigest Builder v0.1",
+    "agent_perspective_substrate_docs_type_fixture_v0_1",
   ]) {
     assert.ok(gateDoc.includes(requiredText), `gate doc must include ${requiredText}`);
   }
+  assert.match(
+    gateDoc,
+    /layout\s+coordinates as truth are explicitly forbidden/i,
+    "gate doc must forbid layout coordinates as truth",
+  );
   assert.match(
     gateDoc,
     /Candidate Constellation Overlay preview preserves canonical promotion\s+gates/i,
@@ -784,11 +797,15 @@ function assertIndexPointer() {
     "no layout algorithm",
     "no embeddings",
     "no runtime/API/DB/provider/retrieval/promotion behavior",
-    "no proof/evidence write",
     "no work item creation",
   ]) {
     assert.ok(pointer.includes(requiredText), `index pointer must include ${requiredText}`);
   }
+  assert.match(
+    pointer,
+    /no\s+proof\/evidence write/i,
+    "index pointer must include no proof/evidence write",
+  );
 }
 
 function assertPackageScript() {

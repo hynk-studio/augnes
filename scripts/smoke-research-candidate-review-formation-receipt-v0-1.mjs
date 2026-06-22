@@ -640,6 +640,12 @@ function assertDocsPointers() {
     "source refs",
     "candidate nodes",
     "typed edges",
+    "PerspectiveGeometryDigest Builder v0.1",
+    "types/perspective-geometry-digest.ts",
+    "lib/research-candidate-review/perspective-geometry-digest.ts",
+    "fixtures/research-candidate-review.perspective-geometry-digest.sample.v0.1.json",
+    "fixtures/research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1.json",
+    "agent_perspective_substrate_docs_type_fixture_v0_1",
   ]) {
     assert.ok(surfaceDoc.includes(requiredText), `surface doc must include ${requiredText}`);
   }
@@ -663,6 +669,9 @@ function assertGatePointer() {
     /Receipt IDs\s+must not use raw source titles, URLs, provider IDs, raw thread\/run\/session\s+strings, arbitrary user strings, episode IDs, or demo refs/i,
     /Receipt\s+contributions are read-only and non-authoritative/i,
     /no\s+durable receipt storage, event log, runtime\/API\/DB\/provider\/retrieval, or\s+promotion behavior/i,
+    /PerspectiveGeometryDigest Builder v0\.1 preserves canonical promotion\s+gates/i,
+    /layout\s+coordinates as truth are explicitly forbidden/i,
+    /agent_perspective_substrate_docs_type_fixture_v0_1/i,
   ]) {
     assert.match(gateDoc, regex, `gate doc must include ${regex}`);
   }

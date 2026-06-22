@@ -432,6 +432,37 @@ no runtime/API/DB/provider/retrieval/promotion behavior.
 It is guarded by
 `smoke:research-candidate-review-constellation-overlay-v0-1`.
 
+## PerspectiveGeometryDigest Builder v0.1 Pointer
+
+`types/perspective-geometry-digest.ts` defines the advisory-only
+PerspectiveGeometryDigest contract.
+
+`lib/research-candidate-review/perspective-geometry-digest.ts` builds a
+deterministic read-only digest from Candidate Constellation Overlay fixture
+data.
+
+`fixtures/research-candidate-review.perspective-geometry-digest.sample.v0.1.json`
+contains the original static overlay digest.
+
+`fixtures/research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1.json`
+contains the manual parser overlay digest.
+
+Candidate Constellation Overlay can now be summarized into
+PerspectiveGeometryDigest for AI-usable structure without exposing layout
+coordinates as truth. The digest is derived/advisory only. It is not source of
+truth, proof, evidence, durable Perspective state, retrieval result, or agent
+execution authority.
+
+This adds no provider/OpenAI call, no source fetch, no retrieval or indexing
+execution, no route/UI behavior, no DB/SQL/transaction,
+no proof/evidence write, no work item creation, no durable Perspective
+promotion, and no product write. Product-write remains parked by the #686
+stopline. Next recommended slice:
+`agent_perspective_substrate_docs_type_fixture_v0_1`.
+
+It is guarded by
+`smoke:research-candidate-review-perspective-geometry-digest-v0-1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

@@ -1,0 +1,709 @@
+{
+  "version": "perspective_geometry_digest.v0.1",
+  "digest_fingerprint": "fnv1a32:ff21c7dd",
+  "fingerprint_algorithm": "fnv1a32_canonical_json",
+  "scope": "project:augnes",
+  "as_of": "fixture:research-candidate-review.manual-note-constellation-overlay.sample.v0.1",
+  "digest_mode": "research_candidate_overlay_digest",
+  "input_overlay_summary": {
+    "overlay_version": "research_candidate_constellation_overlay.v0.1",
+    "source_bundle_id": "fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json",
+    "projection_mode": "semantic_candidate_constellation_overlay",
+    "node_count": 10,
+    "edge_count": 21,
+    "source_ref_count": 1,
+    "candidate_family_counts": {
+      "claim_candidates": 1,
+      "evidence_candidates": 2,
+      "follow_up_work_candidates": 1,
+      "knowledge_gap_candidates": 1,
+      "perspective_delta_candidates": 1,
+      "research_session_preview": 1,
+      "source_reference_previews": 1,
+      "target_perspective_anchor": 1,
+      "tension_candidates": 1
+    },
+    "node_kind_counts": {
+      "claim_candidate": 1,
+      "evidence_candidate": 2,
+      "follow_up_work_candidate": 1,
+      "knowledge_gap_candidate": 1,
+      "perspective_delta_candidate": 1,
+      "research_session": 1,
+      "source_reference": 1,
+      "target_perspective_anchor": 1,
+      "tension_candidate": 1
+    },
+    "edge_kind_counts": {
+      "claim_limited_by_evidence": 1,
+      "claim_supported_by_evidence": 1,
+      "delta_preserves_tension": 1,
+      "delta_proposes_change_to_perspective": 1,
+      "delta_tracks_gap": 1,
+      "delta_uses_claim_basis": 1,
+      "delta_uses_evidence_basis": 2,
+      "derived_from_source": 6,
+      "follow_up_derived_from_session": 1,
+      "gap_relates_to_claim": 1,
+      "gap_relates_to_tension": 1,
+      "session_uses_source": 1,
+      "tension_relates_to_claim": 1,
+      "tension_relates_to_evidence": 2
+    },
+    "layout_coordinates_consumed": false,
+    "raw_layout_coordinates_exported": false,
+    "source_fixture_fingerprint": "fnv1a32:3769472f"
+  },
+  "dominant_clusters": [
+    {
+      "cluster_id": "cluster_target_perspective_research_candidate_review",
+      "cluster_label": "target perspective research.candidate_review",
+      "cluster_kind": "target_perspective_cluster",
+      "node_count": 2,
+      "edge_count": 7,
+      "source_ref_count": 1,
+      "representative_node_ids": [
+        "node_perspective_delta_candidate_001",
+        "node_target_perspective_research_candidate_review"
+      ],
+      "related_candidate_family_counts": {
+        "perspective_delta_candidates": 1,
+        "target_perspective_anchor": 1
+      },
+      "unresolved_tension_count": 0,
+      "knowledge_gap_count": 0,
+      "perspective_delta_count": 1,
+      "follow_up_work_count": 0,
+      "cluster_weight": 17,
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "interpretation_notes": [
+        "Cluster derived from semantic family target_perspective:research.candidate_review.",
+        "Weight uses node, edge, source-ref, tension, gap, delta, and follow-up counts only."
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "cluster_id": "cluster_evidence_candidates",
+      "cluster_label": "evidence_candidates (evidence_candidate)",
+      "cluster_kind": "candidate_family_cluster",
+      "node_count": 2,
+      "edge_count": 8,
+      "source_ref_count": 1,
+      "representative_node_ids": [
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002"
+      ],
+      "related_candidate_family_counts": {
+        "evidence_candidates": 2
+      },
+      "unresolved_tension_count": 0,
+      "knowledge_gap_count": 0,
+      "perspective_delta_count": 0,
+      "follow_up_work_count": 0,
+      "cluster_weight": 15,
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "interpretation_notes": [
+        "Cluster derived from semantic family evidence_candidates.",
+        "Weight uses node, edge, source-ref, tension, gap, delta, and follow-up counts only."
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "cluster_id": "cluster_tension_candidates",
+      "cluster_label": "tension_candidates (tension_candidate)",
+      "cluster_kind": "candidate_family_cluster",
+      "node_count": 1,
+      "edge_count": 6,
+      "source_ref_count": 1,
+      "representative_node_ids": [
+        "node_tension_candidate_001"
+      ],
+      "related_candidate_family_counts": {
+        "tension_candidates": 1
+      },
+      "unresolved_tension_count": 1,
+      "knowledge_gap_count": 0,
+      "perspective_delta_count": 0,
+      "follow_up_work_count": 0,
+      "cluster_weight": 14,
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "interpretation_notes": [
+        "Cluster derived from semantic family tension_candidates.",
+        "Weight uses node, edge, source-ref, tension, gap, delta, and follow-up counts only."
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    }
+  ],
+  "underrepresented_clusters": [
+    {
+      "cluster_id": "cluster_knowledge_gap_candidates",
+      "cluster_label": "knowledge_gap_candidates (knowledge_gap_candidate)",
+      "cluster_kind": "candidate_family_cluster",
+      "node_count": 1,
+      "edge_count": 4,
+      "source_ref_count": 1,
+      "representative_node_ids": [
+        "node_knowledge_gap_candidate_001"
+      ],
+      "related_candidate_family_counts": {
+        "knowledge_gap_candidates": 1
+      },
+      "unresolved_tension_count": 0,
+      "knowledge_gap_count": 1,
+      "perspective_delta_count": 0,
+      "follow_up_work_count": 0,
+      "cluster_weight": 11,
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "interpretation_notes": [
+        "Cluster derived from semantic family knowledge_gap_candidates.",
+        "Weight uses node, edge, source-ref, tension, gap, delta, and follow-up counts only."
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "cluster_id": "cluster_target_perspective_research_candidate_review",
+      "cluster_label": "target perspective research.candidate_review",
+      "cluster_kind": "target_perspective_cluster",
+      "node_count": 2,
+      "edge_count": 7,
+      "source_ref_count": 1,
+      "representative_node_ids": [
+        "node_perspective_delta_candidate_001",
+        "node_target_perspective_research_candidate_review"
+      ],
+      "related_candidate_family_counts": {
+        "perspective_delta_candidates": 1,
+        "target_perspective_anchor": 1
+      },
+      "unresolved_tension_count": 0,
+      "knowledge_gap_count": 0,
+      "perspective_delta_count": 1,
+      "follow_up_work_count": 0,
+      "cluster_weight": 17,
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "interpretation_notes": [
+        "Cluster derived from semantic family target_perspective:research.candidate_review.",
+        "Weight uses node, edge, source-ref, tension, gap, delta, and follow-up counts only."
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "cluster_id": "cluster_tension_candidates",
+      "cluster_label": "tension_candidates (tension_candidate)",
+      "cluster_kind": "candidate_family_cluster",
+      "node_count": 1,
+      "edge_count": 6,
+      "source_ref_count": 1,
+      "representative_node_ids": [
+        "node_tension_candidate_001"
+      ],
+      "related_candidate_family_counts": {
+        "tension_candidates": 1
+      },
+      "unresolved_tension_count": 1,
+      "knowledge_gap_count": 0,
+      "perspective_delta_count": 0,
+      "follow_up_work_count": 0,
+      "cluster_weight": 14,
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "interpretation_notes": [
+        "Cluster derived from semantic family tension_candidates.",
+        "Weight uses node, edge, source-ref, tension, gap, delta, and follow-up counts only."
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "cluster_id": "cluster_follow_up_work_candidates",
+      "cluster_label": "follow_up_work_candidates (follow_up_work_candidate)",
+      "cluster_kind": "candidate_family_cluster",
+      "node_count": 1,
+      "edge_count": 1,
+      "source_ref_count": 0,
+      "representative_node_ids": [
+        "node_follow_up_work_candidate_001"
+      ],
+      "related_candidate_family_counts": {
+        "follow_up_work_candidates": 1
+      },
+      "unresolved_tension_count": 0,
+      "knowledge_gap_count": 0,
+      "perspective_delta_count": 0,
+      "follow_up_work_count": 1,
+      "cluster_weight": 6,
+      "source_refs": [],
+      "interpretation_notes": [
+        "Cluster derived from semantic family follow_up_work_candidates.",
+        "Weight uses node, edge, source-ref, tension, gap, delta, and follow-up counts only."
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth.",
+        "No direct source refs are present on this derived preview item; treat it as advisory overlay structure only."
+      ]
+    }
+  ],
+  "bridge_nodes": [
+    {
+      "node_id": "node_perspective_delta_candidate_001",
+      "node_kind": "perspective_delta_candidate",
+      "label": "perspective_delta_candidate_001",
+      "bridge_reason": "connects_multiple_candidate_families",
+      "degree": 7,
+      "connected_candidate_families": [
+        "claim_candidates",
+        "evidence_candidates",
+        "knowledge_gap_candidates",
+        "source_reference_previews",
+        "target_perspective_anchor",
+        "tension_candidates"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "node_id": "node_source_ref_source_ref_manual_note_001",
+      "node_kind": "source_reference",
+      "label": "Public-safe manual note on parser preview",
+      "bridge_reason": "connects_multiple_candidate_families",
+      "degree": 7,
+      "connected_candidate_families": [
+        "claim_candidates",
+        "evidence_candidates",
+        "knowledge_gap_candidates",
+        "perspective_delta_candidates",
+        "research_session_preview",
+        "tension_candidates"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "node_id": "node_claim_candidate_001",
+      "node_kind": "claim_candidate",
+      "label": "claim_candidate_001",
+      "bridge_reason": "connects_multiple_candidate_families",
+      "degree": 6,
+      "connected_candidate_families": [
+        "evidence_candidates",
+        "knowledge_gap_candidates",
+        "perspective_delta_candidates",
+        "source_reference_previews",
+        "tension_candidates"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "node_id": "node_tension_candidate_001",
+      "node_kind": "tension_candidate",
+      "label": "tension_candidate_001",
+      "bridge_reason": "connects_multiple_candidate_families",
+      "degree": 6,
+      "connected_candidate_families": [
+        "claim_candidates",
+        "evidence_candidates",
+        "knowledge_gap_candidates",
+        "perspective_delta_candidates",
+        "source_reference_previews"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "node_id": "node_evidence_candidate_001",
+      "node_kind": "evidence_candidate",
+      "label": "evidence_candidate_001",
+      "bridge_reason": "connects_multiple_candidate_families",
+      "degree": 4,
+      "connected_candidate_families": [
+        "claim_candidates",
+        "perspective_delta_candidates",
+        "source_reference_previews",
+        "tension_candidates"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "node_id": "node_evidence_candidate_002",
+      "node_kind": "evidence_candidate",
+      "label": "evidence_candidate_002",
+      "bridge_reason": "connects_multiple_candidate_families",
+      "degree": 4,
+      "connected_candidate_families": [
+        "claim_candidates",
+        "perspective_delta_candidates",
+        "source_reference_previews",
+        "tension_candidates"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "node_id": "node_knowledge_gap_candidate_001",
+      "node_kind": "knowledge_gap_candidate",
+      "label": "knowledge_gap_candidate_001",
+      "bridge_reason": "connects_multiple_candidate_families",
+      "degree": 4,
+      "connected_candidate_families": [
+        "claim_candidates",
+        "perspective_delta_candidates",
+        "source_reference_previews",
+        "tension_candidates"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    },
+    {
+      "node_id": "node_research_session",
+      "node_kind": "research_session",
+      "label": "How should manual notes become reviewable Research Candidate Review previews?",
+      "bridge_reason": "connects_multiple_candidate_families",
+      "degree": 2,
+      "connected_candidate_families": [
+        "follow_up_work_candidates",
+        "source_reference_previews"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    }
+  ],
+  "stale_high_gravity_nodes": [],
+  "contradiction_pairs": [
+    {
+      "pair_id": "contradiction_pair_node_claim_candidate_001_node_evidence_candidate_001_node_tension_candidate_001",
+      "a": {
+        "node_id": "node_claim_candidate_001",
+        "node_kind": "claim_candidate",
+        "label": "claim_candidate_001",
+        "bridge_reason": "contradiction_pair_endpoint",
+        "degree": 6,
+        "connected_candidate_families": [],
+        "source_refs": [
+          {
+            "source_ref_id": "source_ref_manual_note_001"
+          }
+        ],
+        "authority_boundary_notes": [
+          "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+        ]
+      },
+      "b": {
+        "node_id": "node_evidence_candidate_001",
+        "node_kind": "evidence_candidate",
+        "label": "evidence_candidate_001",
+        "bridge_reason": "contradiction_pair_endpoint",
+        "degree": 4,
+        "connected_candidate_families": [],
+        "source_refs": [
+          {
+            "source_ref_id": "source_ref_manual_note_001"
+          }
+        ],
+        "authority_boundary_notes": [
+          "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+        ]
+      },
+      "reason": "unresolved_tension_relates_multiple_candidates",
+      "related_tension_node_ids": [
+        "node_tension_candidate_001"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "epistemic_status": "candidate_claim|operator_note",
+      "review_status": "needs_review|needs_review",
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth."
+      ]
+    }
+  ],
+  "diagnostics": {
+    "cluster_balance": 0.5,
+    "source_dominance": 1,
+    "manual_gravity_distribution": {
+      "cluster_claim_candidates": 10,
+      "cluster_evidence_candidates": 15,
+      "cluster_follow_up_work_candidates": 6,
+      "cluster_knowledge_gap_candidates": 11,
+      "cluster_research_session_preview": 6,
+      "cluster_source_reference_previews": 11,
+      "cluster_target_perspective_research_candidate_review": 17,
+      "cluster_tension_candidates": 14
+    },
+    "stale_high_gravity_count": 0,
+    "bridge_node_count": 8,
+    "coverage_gap_count": 1,
+    "contradiction_pair_count": 1,
+    "unresolved_tension_count": 1,
+    "underrepresented_cluster_count": 4,
+    "dominant_cluster_count": 3,
+    "coordinates_used_for_truth": false,
+    "coordinates_exported_to_ai_context": false,
+    "digest_is_authority": false,
+    "source_ref_coverage_ratio": 0.875,
+    "candidate_family_coverage": {
+      "claim_candidates": 1,
+      "evidence_candidates": 2,
+      "knowledge_gap_candidates": 1,
+      "perspective_delta_candidates": 1,
+      "research_session_preview": 1,
+      "tension_candidates": 1
+    }
+  },
+  "recommended_retrieval_expansion": [
+    {
+      "expansion_id": "retrieval_expansion_cluster_follow_up_work_candidates",
+      "reason": "underrepresented_cluster_or_source_coverage_gap",
+      "related_node_ids": [
+        "node_follow_up_work_candidate_001"
+      ],
+      "related_gap_or_tension_ids": [],
+      "suggested_query_terms": [
+        "follow_up_work_candidates",
+        "follow_up_work_candidate",
+        "cluster",
+        "derived",
+        "semantic",
+        "family",
+        "weight"
+      ],
+      "source_refs": [],
+      "retrieval_executed_now": false,
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth.",
+        "Advisory only; no retrieval was executed."
+      ]
+    },
+    {
+      "expansion_id": "retrieval_expansion_cluster_knowledge_gap_candidates",
+      "reason": "underrepresented_cluster_or_source_coverage_gap",
+      "related_node_ids": [
+        "node_knowledge_gap_candidate_001"
+      ],
+      "related_gap_or_tension_ids": [],
+      "suggested_query_terms": [
+        "knowledge_gap_candidates",
+        "knowledge_gap_candidate",
+        "cluster",
+        "derived",
+        "semantic",
+        "family",
+        "weight"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "retrieval_executed_now": false,
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth.",
+        "Advisory only; no retrieval was executed."
+      ]
+    },
+    {
+      "expansion_id": "retrieval_expansion_contradiction_pair_node_claim_candidate_001_node_evidence_candidate_001_node_tension_candidate_001",
+      "reason": "contradiction_pair_needs_human_review_context",
+      "related_node_ids": [
+        "node_claim_candidate_001",
+        "node_evidence_candidate_001"
+      ],
+      "related_gap_or_tension_ids": [
+        "node_tension_candidate_001"
+      ],
+      "suggested_query_terms": [
+        "claim_candidate_001",
+        "evidence_candidate_001",
+        "unresolved_tension_relates_multiple_candidates"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "retrieval_executed_now": false,
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth.",
+        "Advisory only; no retrieval was executed."
+      ]
+    },
+    {
+      "expansion_id": "retrieval_expansion_node_knowledge_gap_candidate_001",
+      "reason": "knowledge_gap_candidate_needs_review_context",
+      "related_node_ids": [
+        "node_knowledge_gap_candidate_001",
+        "node_claim_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_note_001",
+        "node_tension_candidate_001"
+      ],
+      "related_gap_or_tension_ids": [
+        "node_knowledge_gap_candidate_001"
+      ],
+      "suggested_query_terms": [
+        "knowledge_gap_candidate_001",
+        "parser",
+        "runtime",
+        "storage",
+        "path"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "retrieval_executed_now": false,
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth.",
+        "Advisory only; no retrieval was executed."
+      ]
+    },
+    {
+      "expansion_id": "retrieval_expansion_node_tension_candidate_001",
+      "reason": "unresolved_tension_candidate_needs_review_context",
+      "related_node_ids": [
+        "node_tension_candidate_001",
+        "node_claim_candidate_001",
+        "node_evidence_candidate_001",
+        "node_evidence_candidate_002",
+        "node_knowledge_gap_candidate_001",
+        "node_perspective_delta_candidate_001",
+        "node_source_ref_source_ref_manual_note_001"
+      ],
+      "related_gap_or_tension_ids": [
+        "node_tension_candidate_001"
+      ],
+      "suggested_query_terms": [
+        "tension_candidate_001",
+        "parser",
+        "convenience",
+        "could",
+        "mistaken",
+        "durable",
+        "research",
+        "memory"
+      ],
+      "source_refs": [
+        {
+          "source_ref_id": "source_ref_manual_note_001"
+        }
+      ],
+      "retrieval_executed_now": false,
+      "authority_boundary_notes": [
+        "Derived advisory geometry digest only; source overlay remains candidate-only and layout coordinates are not truth.",
+        "Advisory only; no retrieval was executed."
+      ]
+    }
+  ],
+  "source_refs": [
+    {
+      "source_ref_id": "source_ref_manual_note_001"
+    }
+  ],
+  "authority_boundary": {
+    "derived_view_only": true,
+    "source_of_truth": false,
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_execute_agents": false,
+    "can_call_external_services": false,
+    "can_promote_perspective": false,
+    "can_allocate_product_ids": false,
+    "can_execute_product_write": false,
+    "layout_coordinates_are_truth": false,
+    "digest_is_advisory_only": true
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": []
+  },
+  "next_recommended_slice": "agent_perspective_substrate_docs_type_fixture_v0_1"
+}

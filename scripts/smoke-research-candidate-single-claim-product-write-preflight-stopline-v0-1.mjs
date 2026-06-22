@@ -67,6 +67,9 @@ const allowedPackageScriptNames = [
   "smoke:research-candidate-single-claim-product-write-preflight-stopline-v0-1",
   "stopline:research-candidate-single-claim-product-write-preflight-stopline-v0-1",
 ];
+const downstreamAllowedPackageScriptNames = [
+  "smoke:research-candidate-review-perspective-geometry-digest-v0-1",
+];
 const expectedChangedFiles = [
   docsIndexPath,
   fixturePath,
@@ -267,10 +270,13 @@ try {
     expectPass: true,
   });
   assertReport(live.report, "live report");
+  const liveUsesDownstreamFallback =
+    live.report.static_boundary_base_mode ===
+    "committed_allowlist_fallback_after_empty_or_downstream_delta";
   assert.equal(
     live.report.static_boundary_used_fallback_allowlist,
-    false,
-    "live static boundary should use committed delta outside fixture mode",
+    liveUsesDownstreamFallback,
+    "live static boundary should use committed delta for the stopline slice or committed allowlist for downstream slices",
   );
   assert.equal(
     live.report.next_recommended_slice,
@@ -416,8 +422,10 @@ function assertPackageScripts() {
     .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
   for (const line of addedPackageLines) {
     assert.ok(
-      allowedPackageScriptNames.some((scriptName) => line.includes(`"${scriptName}"`)),
-      `package addition must only be stopline smoke/runner scripts: ${line}`,
+      [allowedPackageScriptNames, downstreamAllowedPackageScriptNames].some((scriptNames) =>
+        scriptNames.some((scriptName) => line.includes(`"${scriptName}"`)),
+      ),
+      `package addition must only be stopline or downstream digest smoke scripts: ${line}`,
     );
   }
 }

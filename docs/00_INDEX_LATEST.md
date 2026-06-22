@@ -1580,6 +1580,26 @@ repo-local 색인이다.
   overlay type contract, deterministic builder output, fixture integrity,
   Cockpit read-only wiring, docs/index pointers, and non-authority boundaries를
   정적으로 확인한다.
+- PerspectiveGeometryDigest Builder v0.1:
+  `types/perspective-geometry-digest.ts`,
+  `lib/research-candidate-review/perspective-geometry-digest.ts`,
+  `fixtures/research-candidate-review.perspective-geometry-digest.sample.v0.1.json`,
+  `fixtures/research-candidate-review.perspective-geometry-digest.manual-parser.sample.v0.1.json`,
+  and
+  `npm run smoke:research-candidate-review-perspective-geometry-digest-v0-1`
+  add a deterministic read-only digest builder for the original Candidate
+  Constellation Overlay fixture
+  (`fixtures/research-candidate-review.constellation-overlay.sample.v0.1.json`)
+  and the manual parser overlay fixture
+  (`fixtures/research-candidate-review.manual-note-constellation-overlay.sample.v0.1.json`).
+  The digest groups candidate families, bridge nodes, unresolved tensions,
+  source coverage gaps, and advisory retrieval expansion hints without treating
+  layout coordinates as truth. It is advisory-only: no source of truth, no
+  proof/evidence write, no durable Perspective state, no work item creation,
+  no provider/OpenAI call, no source fetch, no retrieval or indexing execution,
+  no route/UI behavior, no DB/SQL/transaction behavior, and no
+  product write. Product-write remains parked by the #686 stopline. The next
+  recommended slice is `agent_perspective_substrate_docs_type_fixture_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
