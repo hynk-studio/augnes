@@ -151,6 +151,8 @@ assertStaticBoundary();
 assertNoForbiddenRuntimePatterns();
 assertImplementationFixture(implementationFixture);
 assertReadModelViews(implementationFixture);
+assertImplementationViewsHonorPolicies(implementationFixture, contractFixture);
+assertSyntheticPolicyApplication();
 assertDuplicateFeedbackSummary(implementationFixture.duplicate_feedback_summary);
 assertRecentFeedbackEventWindowPreview(
   implementationFixture.recent_feedback_event_window_preview,
@@ -378,6 +380,97 @@ function assertReadModelViews(value) {
   }
 }
 
+function assertImplementationViewsHonorPolicies(implementation, contract) {
+  for (const contractView of contract.read_model_views) {
+    const implementationView = implementation.read_model_views.find(
+      (candidate) => candidate.view_id === contractView.view_id,
+    );
+    assert.ok(implementationView, `${contractView.view_id} must be implemented`);
+    assert.equal(
+      implementationView.row_count,
+      implementationView.rows.length,
+      `${contractView.view_id} row_count must match final sorted/limited rows`,
+    );
+    const limit = appliedLimit(contractView.limit_policy);
+    if (typeof limit === "number") {
+      assert.ok(
+        implementationView.row_count <= limit,
+        `${contractView.view_id} row_count must be <= applied limit`,
+      );
+    }
+    assertRowsSortedByPolicy(
+      implementationView.rows,
+      contractView.sort_policy,
+      contractView.view_id,
+    );
+  }
+}
+
+function assertRowsSortedByPolicy(rows, sortPolicy, viewId) {
+  for (let index = 1; index < rows.length; index += 1) {
+    assert.ok(
+      compareRowsBySortPolicy(sortPolicy, rows[index - 1], rows[index]) <= 0,
+      `${viewId} rows must be sorted by contract sort_policy`,
+    );
+  }
+}
+
+function assertSyntheticPolicyApplication() {
+  const syntheticContract = cloneJson(contractFixture);
+  const targetKindView = syntheticContract.read_model_views.find(
+    (view) => view.view_id === "feedback_event_counts_by_target_kind",
+  );
+  assert.ok(targetKindView, "synthetic contract must include target-kind count view");
+  targetKindView.limit_policy = {
+    ...targetKindView.limit_policy,
+    default_limit: 2,
+    max_limit: 2,
+  };
+
+  const syntheticImplementation = buildFeedbackEventAggregationReadModelImplementation({
+    feedback_events: buildSyntheticFeedbackEvents(),
+    aggregation_read_model_contract: syntheticContract,
+    source_contract_ref: "synthetic:feedback_event_aggregation_read_model_contract.v0.1",
+    source_feedback_event_store_ref: "synthetic:feedback_event_store.v0.1",
+  });
+
+  assertImplementationViewsHonorPolicies(syntheticImplementation, syntheticContract);
+
+  const targetKindImplementationView = syntheticImplementation.read_model_views.find(
+    (view) => view.view_id === "feedback_event_counts_by_target_kind",
+  );
+  assert.ok(targetKindImplementationView, "synthetic target-kind view must be implemented");
+  assert.equal(targetKindImplementationView.row_count, 2);
+  assert.deepEqual(
+    targetKindImplementationView.rows.map((row) => row.event_count),
+    [2, 2],
+    "event_count DESC must keep higher counts first",
+  );
+  assert.deepEqual(
+    targetKindImplementationView.rows.map((row) => row.target_kind),
+    [
+      "agent_perspective_substrate_folded_section",
+      "agent_perspective_substrate_surfacing_card",
+    ],
+    "secondary target_kind ASC ordering must break equal event_count ties",
+  );
+
+  const recentImplementationView = syntheticImplementation.read_model_views.find(
+    (view) => view.view_id === "recent_feedback_event_window_preview",
+  );
+  assert.ok(recentImplementationView, "synthetic recent window view must be implemented");
+  assert.deepEqual(
+    recentImplementationView.rows.map((row) => row.created_at_day),
+    ["2026-06-24", "2026-06-23", "2026-06-22"],
+    "created_at_day DESC must order the recent window preview",
+  );
+  assert.equal(
+    recentImplementationView.row_count,
+    recentImplementationView.rows.length,
+    "recent window row_count must reflect final rows",
+  );
+}
+
 function assertDuplicateFeedbackSummary(value) {
   assert.deepEqual(value.duplicate_detection_keys, [
     "event_type",
@@ -558,6 +651,135 @@ function assertContractSmokeDownstreamPointer() {
     contractNextRecommendedSlice,
     "#709 contract fixture output must remain unchanged",
   );
+}
+
+function buildSyntheticFeedbackEvents() {
+  const template = feedbackStoreFixture.events[0];
+  const syntheticRows = [
+    {
+      event_id: "feedback_event:synthetic:001",
+      event_type: "pin_preview",
+      target_kind: "agent_perspective_substrate_folded_section",
+      target_id: "synthetic:folded",
+      created_at: "2026-06-22T00:00:00.000Z",
+    },
+    {
+      event_id: "feedback_event:synthetic:002",
+      event_type: "dismiss_preview",
+      target_kind: "agent_perspective_substrate_folded_section",
+      target_id: "synthetic:folded",
+      created_at: "2026-06-23T00:00:00.000Z",
+    },
+    {
+      event_id: "feedback_event:synthetic:003",
+      event_type: "correct_preview",
+      target_kind: "agent_perspective_substrate_surfacing_card",
+      target_id: "synthetic:surfacing",
+      created_at: "2026-06-24T00:00:00.000Z",
+    },
+    {
+      event_id: "feedback_event:synthetic:004",
+      event_type: "invalidate_preview",
+      target_kind: "agent_perspective_substrate_surfacing_card",
+      target_id: "synthetic:surfacing",
+      created_at: "2026-06-23T00:01:00.000Z",
+    },
+    {
+      event_id: "feedback_event:synthetic:005",
+      event_type: "pin_preview",
+      target_kind: "candidate_to_codex_handoff_draft_review",
+      target_id: "synthetic:draft",
+      created_at: "2026-06-22T00:01:00.000Z",
+    },
+    {
+      event_id: "feedback_event:synthetic:006",
+      event_type: "dismiss_preview",
+      target_kind: "candidate_to_codex_handoff_operator_decision_preview",
+      target_id: "synthetic:operator-decision",
+      created_at: "2026-06-24T00:01:00.000Z",
+    },
+  ];
+  return syntheticRows.map((row, index) => ({
+    ...template,
+    ...row,
+    source_ref_ids: [`synthetic:source:${row.target_id}`],
+    idempotency_key: `feedback_event_store_idempotency:synthetic:${index + 1}`,
+    operator_note: index % 2 === 0 ? "synthetic fixture-backed note" : "",
+    reason: index % 2 === 0 ? "synthetic_fixture_reason" : "",
+  }));
+}
+
+function compareRowsBySortPolicy(sortPolicy, a, b) {
+  const orderBy = Array.isArray(sortPolicy.order_by) ? sortPolicy.order_by : [];
+  const clauses = orderBy
+    .map((clause) => (typeof clause === "string" ? parseSortClause(clause) : null))
+    .filter(Boolean);
+  for (const clause of clauses) {
+    const compared = compareSortValues(a[clause.field], b[clause.field]);
+    if (compared !== 0) {
+      return clause.direction === "DESC" ? -compared : compared;
+    }
+  }
+  return canonicalJson(a).localeCompare(canonicalJson(b));
+}
+
+function parseSortClause(clause) {
+  const match = clause.match(/^([A-Za-z0-9_]+)\s+(ASC|DESC)$/);
+  return match ? { field: match[1], direction: match[2] } : null;
+}
+
+function compareSortValues(a, b) {
+  if (typeof a === "number" && typeof b === "number") {
+    return a - b;
+  }
+  if (typeof a === "boolean" && typeof b === "boolean") {
+    return Number(a) - Number(b);
+  }
+  return stableSortString(a).localeCompare(stableSortString(b));
+}
+
+function stableSortString(value) {
+  if (Array.isArray(value) || (value && typeof value === "object")) {
+    return canonicalJson(value);
+  }
+  return String(value);
+}
+
+function appliedLimit(limitPolicy) {
+  const defaultLimit = numericLimit(limitPolicy.default_limit);
+  const maxLimit = numericLimit(limitPolicy.max_limit);
+  if (typeof defaultLimit === "number" && typeof maxLimit === "number") {
+    return Math.min(defaultLimit, maxLimit);
+  }
+  return defaultLimit ?? maxLimit;
+}
+
+function numericLimit(value) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.trunc(value)
+    : undefined;
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function canonicalJson(value) {
+  return JSON.stringify(sortKeys(value));
+}
+
+function sortKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map(sortKeys);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, nested]) => [key, sortKeys(nested)]),
+    );
+  }
+  return value;
 }
 
 function readFile(filePath) {

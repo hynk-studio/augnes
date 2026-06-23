@@ -151,7 +151,8 @@ export function buildFeedbackEventAggregationReadModelImplementation(
     buildImplementationView(contractView, rowsByViewId.get(contractView.view_id) ?? []),
   );
   const recentRows =
-    rowsByViewId.get("recent_feedback_event_window_preview") ?? [];
+    readModelViews.find((view) => view.view_id === "recent_feedback_event_window_preview")
+      ?.rows ?? [];
   const failureCodes = validateImplementation(contract, readModelViews, events, recentRows);
 
   const implementation: FeedbackEventAggregationReadModelImplementation = {
@@ -272,16 +273,87 @@ function buildImplementationView(
   contractView: FeedbackEventAggregationReadModelView,
   rows: JsonRecord[],
 ): FeedbackEventAggregationReadModelImplementationView {
+  const policyRows = applyContractViewPolicies(contractView, rows);
   return {
     view_id: contractView.view_id,
     view_version: contractView.view_version,
     source_contract_view_version: contractView.view_version,
     grouping_keys: contractView.grouping_keys,
     output_fields: contractView.output_fields,
-    row_count: rows.length,
-    rows,
+    row_count: policyRows.length,
+    rows: policyRows,
     authority_boundary: contractView.authority_boundary,
   };
+}
+
+function applyContractViewPolicies(
+  contractView: FeedbackEventAggregationReadModelView,
+  rows: JsonRecord[],
+): JsonRecord[] {
+  const sortedRows = [...rows].sort(compareRowsBySortPolicy(contractView.sort_policy));
+  const limit = appliedLimit(contractView.limit_policy);
+  return typeof limit === "number" ? sortedRows.slice(0, limit) : sortedRows;
+}
+
+function compareRowsBySortPolicy(sortPolicy: Record<string, unknown>) {
+  const orderBy = Array.isArray(sortPolicy.order_by) ? sortPolicy.order_by : [];
+  const clauses = orderBy
+    .map((clause) => (typeof clause === "string" ? parseSortClause(clause) : null))
+    .filter((clause): clause is { field: string; direction: "ASC" | "DESC" } =>
+      Boolean(clause),
+    );
+  return (a: JsonRecord, b: JsonRecord): number => {
+    for (const clause of clauses) {
+      const compared = compareSortValues(a[clause.field], b[clause.field]);
+      if (compared !== 0) {
+        return clause.direction === "DESC" ? -compared : compared;
+      }
+    }
+    return canonicalJson(a).localeCompare(canonicalJson(b));
+  };
+}
+
+function parseSortClause(
+  clause: string,
+): { field: string; direction: "ASC" | "DESC" } | null {
+  const match = clause.match(/^([A-Za-z0-9_]+)\s+(ASC|DESC)$/);
+  if (!match) return null;
+  return {
+    field: match[1],
+    direction: match[2] as "ASC" | "DESC",
+  };
+}
+
+function compareSortValues(a: unknown, b: unknown): number {
+  if (typeof a === "number" && typeof b === "number") {
+    return a - b;
+  }
+  if (typeof a === "boolean" && typeof b === "boolean") {
+    return Number(a) - Number(b);
+  }
+  return stableSortString(a).localeCompare(stableSortString(b));
+}
+
+function stableSortString(value: unknown): string {
+  if (Array.isArray(value) || (value && typeof value === "object")) {
+    return canonicalJson(value);
+  }
+  return String(value);
+}
+
+function appliedLimit(limitPolicy: Record<string, unknown>): number | undefined {
+  const defaultLimit = numericLimit(limitPolicy.default_limit);
+  const maxLimit = numericLimit(limitPolicy.max_limit);
+  if (typeof defaultLimit === "number" && typeof maxLimit === "number") {
+    return Math.min(defaultLimit, maxLimit);
+  }
+  return defaultLimit ?? maxLimit;
+}
+
+function numericLimit(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.trunc(value)
+    : undefined;
 }
 
 function buildDuplicateFeedbackSummary(
