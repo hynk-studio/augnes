@@ -150,6 +150,7 @@ assertNonAuthoritySummary(fixture.non_authority_summary);
 assertAuthorityBoundary(fixture.authority_boundary);
 assertValidationPolicy(fixture.validation_policy);
 assertValidation(fixture.validation);
+assertInvalidSourceRefsOverride();
 assertInvalidGeneratedCandidatePreviewOverride();
 assertDocsPointers();
 assertContractSmokeDownstreamPointer();
@@ -200,6 +201,7 @@ function assertBuilderFile() {
     "candidate_preview_family_summary",
     "generated_candidate_summary",
     "source_reference_summary",
+    "all_source_refs_have_source_refs",
     "provenance_summary",
     "review_summary",
     "privacy_summary",
@@ -209,6 +211,15 @@ function assertBuilderFile() {
     "recommendation_status",
     "next_recommended_slice",
     "implementation_fingerprint",
+    "source_ref_missing_id",
+    "source_ref_missing_input_kind",
+    "source_ref_missing_status",
+    "source_ref_missing_public_safe_ref",
+    "source_ref_missing_refs",
+    "source_ref_missing_operator_context",
+    "source_ref_not_reference_only",
+    "source_ref_not_public_safe",
+    "source_ref_private_or_unstable_public_safe_ref",
     "fnv1a32_canonical_json",
   ]) {
     assert.ok(builderSource.includes(requiredText), `${builderPath} must include ${requiredText}`);
@@ -444,6 +455,7 @@ function assertSourceReferenceSummary(summary) {
   );
   assert.equal(summary.all_source_refs_reference_only, true);
   assert.equal(summary.all_source_refs_public_safe, true);
+  assert.equal(summary.all_source_refs_have_source_refs, true);
   assert.equal(summary.all_source_refs_have_operator_context, true);
   assert.equal(summary.source_intake_bundle_ref_present, true);
   assert.equal(summary.no_source_fetch_now, true);
@@ -556,6 +568,81 @@ function assertValidation(validation) {
   assert.equal(validation.deterministic_rebuild_matches_fixture, true);
 }
 
+function assertInvalidSourceRefsOverride() {
+  const baseSourceRef =
+    contractFixture.sample_candidate_generation_preview_bundle.source_refs[0];
+  const validSourceRefs =
+    contractFixture.sample_candidate_generation_preview_bundle.source_refs;
+  const invalidSourceRefs = [
+    ...validSourceRefs,
+    { ...baseSourceRef, source_ref_id: "" },
+    { ...baseSourceRef, source_ref_id: "invalid_missing_input_kind", source_input_kind: "" },
+    { ...baseSourceRef, source_ref_id: "invalid_missing_status", source_status: "" },
+    { ...baseSourceRef, source_ref_id: "invalid_missing_public_safe_ref", public_safe_ref: "" },
+    { ...baseSourceRef, source_ref_id: "invalid_missing_refs", source_refs: [] },
+    { ...baseSourceRef, source_ref_id: "invalid_missing_operator_context", operator_context_ref: "" },
+    { ...baseSourceRef, source_ref_id: "invalid_not_reference_only", reference_only: false },
+    { ...baseSourceRef, source_ref_id: "invalid_not_public_safe", public_safe: false },
+    { ...baseSourceRef, source_ref_id: "invalid_raw_url_ref", public_safe_ref: "https://private.example.invalid/source" },
+    {
+      ...baseSourceRef,
+      source_ref_id: "invalid_unstable_ref",
+      public_safe_ref: "operator_source:token-private-thread-run-session",
+    },
+  ];
+  const invalidResult = buildOperatorSourceCandidateGenerationImplementation({
+    operator_source_candidate_generation_contract: contractFixture,
+    source_refs: invalidSourceRefs,
+    source_contract_ref: `${contractFixture.contract_version}:${contractFixturePath}`,
+  });
+  const invalidResultRepeat = buildOperatorSourceCandidateGenerationImplementation({
+    operator_source_candidate_generation_contract: contractFixture,
+    source_refs: invalidSourceRefs,
+    source_contract_ref: `${contractFixture.contract_version}:${contractFixturePath}`,
+  });
+
+  assert.deepEqual(
+    invalidResult,
+    invalidResultRepeat,
+    "invalid source_refs override result must remain deterministic",
+  );
+  assert.equal(invalidResult.validation.passed, false);
+  for (const expectedCode of [
+    "source_ref_missing_id",
+    "source_ref_missing_input_kind",
+    "source_ref_missing_status",
+    "source_ref_missing_public_safe_ref",
+    "source_ref_missing_refs",
+    "source_ref_missing_operator_context",
+    "source_ref_not_reference_only",
+    "source_ref_not_public_safe",
+    "source_ref_private_or_unstable_public_safe_ref",
+  ]) {
+    assert.ok(
+      invalidResult.validation.failure_codes.includes(expectedCode),
+      `invalid source_refs override must include ${expectedCode}`,
+    );
+  }
+  assert.equal(
+    invalidResult.source_reference_summary.all_source_refs_have_source_refs,
+    false,
+  );
+  assert.equal(invalidResult.validation.source_refs_reference_only, false);
+  assertAuthorityBoundary(invalidResult.authority_boundary);
+  assert.deepEqual(
+    invalidResult.generated_candidate_generation_preview_bundle.authority_boundary,
+    contractFixture.authority_boundary,
+  );
+  assert.deepEqual(
+    invalidResult.generated_candidate_generation_preview_bundle.validation,
+    contractFixture.validation_policy,
+  );
+  assert.equal(invalidResult.validation.source_fetch_not_implemented, true);
+  assert.equal(invalidResult.validation.provider_extraction_not_implemented, true);
+  assert.equal(invalidResult.validation.retrieval_rag_not_implemented, true);
+  assert.equal(invalidResult.validation.candidate_generation_not_runtime, true);
+}
+
 function assertInvalidGeneratedCandidatePreviewOverride() {
   const basePreview =
     contractFixture.sample_candidate_generation_preview_bundle.generated_candidate_previews[0];
@@ -616,6 +703,10 @@ function assertInvalidGeneratedCandidatePreviewOverride() {
   assert.deepEqual(
     invalidResult.generated_candidate_generation_preview_bundle.authority_boundary,
     contractFixture.authority_boundary,
+  );
+  assert.deepEqual(
+    invalidResult.generated_candidate_generation_preview_bundle.validation,
+    contractFixture.validation_policy,
   );
 }
 

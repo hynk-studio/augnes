@@ -378,6 +378,7 @@
     ],
     "all_source_refs_reference_only": true,
     "all_source_refs_public_safe": true,
+    "all_source_refs_have_source_refs": true,
     "all_source_refs_have_operator_context": true,
     "source_intake_bundle_ref_present": true,
     "no_source_fetch_now": true,
@@ -514,6 +515,6 @@
   },
   "recommendation_status": "ready_for_operator_source_candidate_generation_browser_validation_v0_1",
   "next_recommended_slice": "operator_source_candidate_generation_browser_validation_v0_1",
-  "implementation_fingerprint": "fnv1a32:9ec54eab",
+  "implementation_fingerprint": "fnv1a32:e9ee2e7d",
   "fingerprint_algorithm": "fnv1a32_canonical_json"
 }

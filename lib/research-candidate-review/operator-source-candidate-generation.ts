@@ -23,6 +23,20 @@ interface GeneratedCandidateValidation {
   failure_codes: string[];
 }
 
+interface SourceReferenceValidation {
+  all_source_refs_follow_contract: boolean;
+  all_have_ids: boolean;
+  all_have_input_kinds: boolean;
+  all_have_statuses: boolean;
+  all_have_public_safe_refs: boolean;
+  all_have_source_refs: boolean;
+  all_have_operator_context: boolean;
+  all_reference_only: boolean;
+  all_public_safe: boolean;
+  all_public_safe_refs_are_stable: boolean;
+  failure_codes: string[];
+}
+
 export interface OperatorSourceCandidateGenerationImplementationInput {
   operator_source_candidate_generation_contract:
     OperatorSourceCandidateGenerationContract;
@@ -70,6 +84,7 @@ export interface OperatorSourceReferenceSummary {
   source_ref_ids: string[];
   all_source_refs_reference_only: boolean;
   all_source_refs_public_safe: boolean;
+  all_source_refs_have_source_refs: boolean;
   all_source_refs_have_operator_context: boolean;
   source_intake_bundle_ref_present: boolean;
   no_source_fetch_now: true;
@@ -275,6 +290,8 @@ export function buildOperatorSourceCandidateGenerationImplementation(
       contract,
       generatedBundle,
     );
+  const sourceReferenceValidation =
+    validateSourceReferencesAgainstContract(generatedBundle);
   const generatedCandidateSummary = buildGeneratedCandidateSummary(
     generatedBundle.generated_candidate_previews,
     generatedCandidateValidation,
@@ -282,6 +299,7 @@ export function buildOperatorSourceCandidateGenerationImplementation(
   const sourceReferenceSummary = buildSourceReferenceSummary(
     contract,
     generatedBundle,
+    sourceReferenceValidation,
   );
   const provenanceSummary = {
     ...contract.provenance_policy,
@@ -316,9 +334,7 @@ export function buildOperatorSourceCandidateGenerationImplementation(
     contract.candidate_preview_families,
   );
   const sourceRefsReferenceOnly =
-    sourceReferenceSummary.all_source_refs_reference_only &&
-    sourceReferenceSummary.all_source_refs_public_safe &&
-    sourceReferenceSummary.all_source_refs_have_operator_context;
+    sourceReferenceValidation.all_source_refs_follow_contract;
   const sourceFetchNotImplemented =
     contract.source_input_requirements.source_fetch_now === false &&
     contract.authority_boundary.runtime_source_fetch_implemented_now === false;
@@ -345,6 +361,7 @@ export function buildOperatorSourceCandidateGenerationImplementation(
   const generatedBundleFollowsContract =
     candidateGenerationPreviewBundleFollowsContract(generatedBundle) &&
     candidatePreviewFamiliesPreserved &&
+    sourceReferenceValidation.all_source_refs_follow_contract &&
     generatedCandidateValidation.all_generated_candidates_follow_contract;
   const failureCodes = [
     generatedBundleFollowsContract ? null : "generated_bundle_contract_mismatch",
@@ -401,6 +418,7 @@ export function buildOperatorSourceCandidateGenerationImplementation(
     privacyPolicyIsPreserved ? null : "privacy_policy_not_preserved",
     nonAuthorityPolicyIsPreserved ? null : "non_authority_policy_not_preserved",
     authorityBoundaryPreserved ? null : "authority_boundary_not_preserved",
+    ...sourceReferenceValidation.failure_codes,
     ...generatedCandidateValidation.failure_codes,
   ].filter((code): code is string => Boolean(code));
 
@@ -660,21 +678,17 @@ function buildGeneratedCandidateSummary(
 function buildSourceReferenceSummary(
   contract: OperatorSourceCandidateGenerationContract,
   bundle: OperatorSourceGeneratedCandidateGenerationPreviewBundle,
+  validation: SourceReferenceValidation,
 ): OperatorSourceReferenceSummary {
   return {
     source_ref_count: bundle.source_refs.length,
-    source_ref_ids: bundle.source_refs.map((sourceRef) => sourceRef.source_ref_id),
-    all_source_refs_reference_only: bundle.source_refs.every(
-      (sourceRef) => sourceRef.reference_only === true,
+    source_ref_ids: bundle.source_refs.map((sourceRef) =>
+      String(sourceRef.source_ref_id ?? ""),
     ),
-    all_source_refs_public_safe: bundle.source_refs.every(
-      (sourceRef) => sourceRef.public_safe === true,
-    ),
-    all_source_refs_have_operator_context: bundle.source_refs.every(
-      (sourceRef) =>
-        typeof sourceRef.operator_context_ref === "string" &&
-        sourceRef.operator_context_ref.length > 0,
-    ),
+    all_source_refs_reference_only: validation.all_reference_only,
+    all_source_refs_public_safe: validation.all_public_safe,
+    all_source_refs_have_source_refs: validation.all_have_source_refs,
+    all_source_refs_have_operator_context: validation.all_have_operator_context,
     source_intake_bundle_ref_present:
       typeof bundle.source_intake_bundle_ref === "string" &&
       bundle.source_intake_bundle_ref.length > 0,
@@ -686,6 +700,70 @@ function buildSourceReferenceSummary(
   };
 }
 
+function validateSourceReferencesAgainstContract(
+  bundle: OperatorSourceGeneratedCandidateGenerationPreviewBundle,
+): SourceReferenceValidation {
+  const sourceRefs = bundle.source_refs;
+  const allHaveIds = sourceRefs.every((sourceRef) =>
+    hasText(sourceRef.source_ref_id),
+  );
+  const allHaveInputKinds = sourceRefs.every((sourceRef) =>
+    hasText(sourceRef.source_input_kind),
+  );
+  const allHaveStatuses = sourceRefs.every((sourceRef) =>
+    hasText(sourceRef.source_status),
+  );
+  const allHavePublicSafeRefs = sourceRefs.every((sourceRef) =>
+    hasText(sourceRef.public_safe_ref),
+  );
+  const allHaveSourceRefs = sourceRefs.every(
+    (sourceRef) =>
+      Array.isArray(sourceRef.source_refs) &&
+      sourceRef.source_refs.some((sourceRefValue) => hasText(sourceRefValue)),
+  );
+  const allHaveOperatorContext = sourceRefs.every((sourceRef) =>
+    hasText(sourceRef.operator_context_ref),
+  );
+  const allReferenceOnly = sourceRefs.every(
+    (sourceRef) => sourceRef.reference_only === true,
+  );
+  const allPublicSafe = sourceRefs.every(
+    (sourceRef) => sourceRef.public_safe === true,
+  );
+  const allPublicSafeRefsAreStable = sourceRefs.every(
+    (sourceRef) =>
+      !hasText(sourceRef.public_safe_ref) ||
+      publicSafeRefIsStable(sourceRef.public_safe_ref),
+  );
+  const failureCodes = [
+    allHaveIds ? null : "source_ref_missing_id",
+    allHaveInputKinds ? null : "source_ref_missing_input_kind",
+    allHaveStatuses ? null : "source_ref_missing_status",
+    allHavePublicSafeRefs ? null : "source_ref_missing_public_safe_ref",
+    allHaveSourceRefs ? null : "source_ref_missing_refs",
+    allHaveOperatorContext ? null : "source_ref_missing_operator_context",
+    allReferenceOnly ? null : "source_ref_not_reference_only",
+    allPublicSafe ? null : "source_ref_not_public_safe",
+    allPublicSafeRefsAreStable
+      ? null
+      : "source_ref_private_or_unstable_public_safe_ref",
+  ].filter((code): code is string => Boolean(code));
+
+  return {
+    all_source_refs_follow_contract: failureCodes.length === 0,
+    all_have_ids: allHaveIds,
+    all_have_input_kinds: allHaveInputKinds,
+    all_have_statuses: allHaveStatuses,
+    all_have_public_safe_refs: allHavePublicSafeRefs,
+    all_have_source_refs: allHaveSourceRefs,
+    all_have_operator_context: allHaveOperatorContext,
+    all_reference_only: allReferenceOnly,
+    all_public_safe: allPublicSafe,
+    all_public_safe_refs_are_stable: allPublicSafeRefsAreStable,
+    failure_codes: failureCodes,
+  };
+}
+
 function validateGeneratedCandidatePreviewsAgainstContract(
   contract: OperatorSourceCandidateGenerationContract,
   bundle: OperatorSourceGeneratedCandidateGenerationPreviewBundle,
@@ -694,7 +772,9 @@ function validateGeneratedCandidatePreviewsAgainstContract(
     contract.candidate_preview_families.map((family) => family.family_kind),
   );
   const bundleSourceRefIds = new Set<string>(
-    bundle.source_refs.map((sourceRef) => sourceRef.source_ref_id),
+    bundle.source_refs
+      .map((sourceRef) => sourceRef.source_ref_id)
+      .filter(hasText),
   );
   const candidatePreviews = bundle.generated_candidate_previews;
   const allKnownFamilyKinds = candidatePreviews.every((candidatePreview) =>
@@ -891,6 +971,28 @@ function sortGeneratedCandidatePreviews(
 
 function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].sort();
+}
+
+function hasText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function publicSafeRefIsStable(publicSafeRef: string): boolean {
+  const normalizedPublicSafeRef = publicSafeRef.toLowerCase();
+  return (
+    !/^https?:\/\//i.test(publicSafeRef) &&
+    ![
+      "secret",
+      "token",
+      "private",
+      "raw_oauth",
+      "thread",
+      "run",
+      "session",
+    ].some((blockedFragment) =>
+      normalizedPublicSafeRef.includes(blockedFragment),
+    )
+  );
 }
 
 function deepEqual(left: unknown, right: unknown): boolean {
