@@ -879,6 +879,27 @@ promotion decision record, no product DB write, and no product ID allocation.
 Product-write remains parked by the #686 stopline. Next recommended slice is Non-authoritative Retrieval/RAG contract v0.1.
 `non_authoritative_retrieval_rag_contract_v0_1`
 
+Non-authoritative Retrieval/RAG contract defines recall/context expansion only.
+Retrieval/RAG results are advisory and folded context, not authority.
+RAG answer is not proof/evidence/source of truth.
+Embedding similarity and retrieval scores are not promotion readiness, truth, salience authority, or evidence strength.
+The contract keeps any future index rebuildable, derived, and
+non-authoritative; a stale index cannot override current state, and vector DB
+storage is not source of truth. It allows no hidden permanent memory.
+No runtime retrieval/RAG execution is added in this slice.
+
+The contract adds no runtime index build, no index write, no source index
+write, no embedding generation, no vector DB, no FTS, no provider/OpenAI call,
+no source fetch, no crawler behavior, no runtime persistence, no durable memory
+write, no runtime DB write/query, no production DB read, no schema/migration,
+no route, no route handler, no server action, no component/UI implementation,
+no browser request, no browser persistence, no durable source record write, no
+candidate record write, no proof/evidence write, no Perspective promotion, no
+durable Perspective state write, no promotion decision record, no
+candidate/work mutation, no product DB write, and no product ID allocation.
+Product-write remains parked by the #686 stopline. Next recommended slice is Non-authoritative Retrieval/RAG implementation v0.1.
+`non_authoritative_retrieval_rag_implementation_v0_1`
+
 ## Next Recommended Slice
 
-`non_authoritative_retrieval_rag_contract_v0_1`
+`non_authoritative_retrieval_rag_implementation_v0_1`
