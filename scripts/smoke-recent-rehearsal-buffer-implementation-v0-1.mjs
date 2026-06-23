@@ -341,8 +341,21 @@ function assertGeneratedRecentRehearsalBuffer(buffer) {
   assert.ok(buffer.excluded_context_refs.length > 0);
   assert.equal(buffer.decay_state, "fresh");
   assert.equal(buffer.decay_policy_ref, "recent_rehearsal_buffer_decay_policy.v0.1");
-  assert.deepEqual(buffer.authority_boundary, fixture.authority_boundary);
-  assert.deepEqual(buffer.validation, fixture.validation_policy);
+  assert.deepEqual(buffer.authority_boundary, contractFixture.authority_boundary);
+  assert.deepEqual(buffer.validation, contractFixture.validation_policy);
+  assert.equal(buffer.authority_boundary.contract_only, true);
+  assert.equal(
+    buffer.authority_boundary.recent_rehearsal_buffer_contract_defined_now,
+    true,
+  );
+  assert.equal(
+    Object.hasOwn(buffer.authority_boundary, "implementation_added_now"),
+    false,
+  );
+  assert.equal(
+    Object.hasOwn(buffer.authority_boundary, "deterministic_builder_added_now"),
+    false,
+  );
 }
 
 function assertResumeContextSummary(value) {
@@ -400,6 +413,8 @@ function assertNonDurableSummary(value) {
 }
 
 function assertAuthorityBoundary(value) {
+  assert.equal(value.implementation_added_now, true);
+  assert.equal(value.deterministic_builder_added_now, true);
   assert.equal(value.product_write_lane_parked_by_686, true);
   assert.equal(value.product_write_authority, false);
   assert.equal(value.salience_authority, false);

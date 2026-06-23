@@ -163,8 +163,6 @@ export function buildRecentRehearsalBufferImplementation(
     recentContextRefs,
     excludedContextRefs,
     lastOpenTensionIds,
-    authorityBoundary,
-    validationPolicy,
   });
   const recentContextHasSourceRefs = recentContextRefs.every(hasSourceRefs);
   const excludedContextHasReasons = excludedContextRefs.every(hasReason);
@@ -319,8 +317,6 @@ function buildGeneratedRecentRehearsalBuffer(input: {
   recentContextRefs: RecentRehearsalContextRef[];
   excludedContextRefs: RecentRehearsalContextRef[];
   lastOpenTensionIds: string[];
-  authorityBoundary: RecentRehearsalBufferImplementationAuthorityBoundary;
-  validationPolicy: RecentRehearsalBufferImplementationValidationPolicy;
 }): RecentRehearsalBufferShape {
   const sample = input.contract.sample_recent_rehearsal_buffer;
   return {
@@ -346,8 +342,8 @@ function buildGeneratedRecentRehearsalBuffer(input: {
     excluded_context_refs: input.excludedContextRefs,
     decay_state: input.decayState,
     decay_policy_ref: "recent_rehearsal_buffer_decay_policy.v0.1",
-    authority_boundary: input.authorityBoundary as unknown as RecentRehearsalBufferShape["authority_boundary"],
-    validation: input.validationPolicy as unknown as RecentRehearsalBufferShape["validation"],
+    authority_boundary: clone(input.contract.authority_boundary),
+    validation: clone(input.contract.validation_policy),
   };
 }
 
