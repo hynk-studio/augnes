@@ -2018,6 +2018,21 @@ repo-local 색인이다.
   and no product write/product IDs. product-write remains parked by #686. The
   next recommended slice is
   `feedback_event_aggregation_read_model_browser_validation_v0_1`.
+- Feedback Event aggregation read model browser validation v0.1:
+  `fixtures/research-candidate-review.feedback-event-aggregation-read-model-browser-validation.sample.v0.1.json`
+  and `scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs`
+  (`npm run smoke:feedback-event-aggregation-read-model-browser-validation-v0-1`)
+  validates deterministic fixture-backed implementation behavior from #710.
+
+  This validation is static and fixture-backed only. It adds no runtime DB query,
+  no production DB read, no route or UI, no browser request, no feedback
+  write/mutation, no app/api route change, no route handler change, no server
+  action, no schema/migration change, no package dependency addition, no browser
+  persistence, no proof/evidence/Perspective promotion/work mutation, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, no salience authority,
+  and no product write/product IDs. product-write remains parked by #686. The
+  next recommended slice is
+  `formation_receipt_durable_event_contract_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

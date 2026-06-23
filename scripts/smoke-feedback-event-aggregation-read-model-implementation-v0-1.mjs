@@ -8,6 +8,10 @@ const fixturePath =
   "fixtures/research-candidate-review.feedback-event-aggregation-read-model-implementation.sample.v0.1.json";
 const smokePath =
   "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs";
+const browserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-browser-validation.sample.v0.1.json";
+const browserValidationSmokePath =
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs";
 const contractFixturePath =
   "fixtures/research-candidate-review.feedback-event-aggregation-read-model-contract.sample.v0.1.json";
 const contractSmokePath =
@@ -53,13 +57,23 @@ const packageScriptName =
   "smoke:feedback-event-aggregation-read-model-implementation-v0-1";
 const packageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs";
+const browserValidationPackageScriptName =
+  "smoke:feedback-event-aggregation-read-model-browser-validation-v0-1";
+const browserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs";
 const implementationKind = "feedback_event_aggregation_read_model_implementation";
 const implementationVersion =
   "feedback_event_aggregation_read_model_implementation.v0.1";
+const browserValidationVersion =
+  "feedback_event_aggregation_read_model_browser_validation.v0.1";
 const recommendationStatus =
   "ready_for_feedback_event_aggregation_read_model_browser_validation_v0_1";
 const nextRecommendedSlice =
   "feedback_event_aggregation_read_model_browser_validation_v0_1";
+const browserValidationRecommendationStatus =
+  "ready_for_formation_receipt_durable_event_contract_v0_1";
+const browserValidationNextRecommendedSlice =
+  "formation_receipt_durable_event_contract_v0_1";
 const contractNextRecommendedSlice =
   "feedback_event_aggregation_read_model_implementation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
@@ -100,6 +114,31 @@ const expectedChangedFiles = [
   writeRouteContractSmokePath,
   reviewControlsSmokePath,
   feedbackEventStoreMinimalSmokePath,
+];
+const browserValidationChangedFiles = [
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-browser-validation.sample.v0.1.json",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
+  "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
 ];
 
 for (const filePath of [
@@ -161,6 +200,7 @@ assertAuthorityBoundary(implementationFixture.authority_boundary);
 assertValidationPolicy(implementationFixture.validation_policy);
 assertDocsPointers();
 assertContractSmokeDownstreamPointer();
+assertBrowserValidationDownstreamPointer();
 assert.deepEqual(
   implementationFixture,
   rebuiltFixture,
@@ -221,13 +261,21 @@ function assertBuilderShape() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  if (browserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[browserValidationPackageScriptName],
+      browserValidationPackageScriptValue,
+    );
+  }
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
     .sort();
   assert.deepEqual(
     addedScripts,
-    [packageScriptName],
-    "package.json must add only the aggregation read model implementation smoke script",
+    browserValidationSliceActive()
+      ? [browserValidationPackageScriptName]
+      : [packageScriptName],
+    "package.json must add only the active aggregation read model smoke script",
   );
   assert.deepEqual(
     packageJson.dependencies,
@@ -248,12 +296,15 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const activeExpectedChangedFiles = browserValidationSliceActive()
+    ? browserValidationChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of activeExpectedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedChangedFiles.includes(changedFile),
+      activeExpectedChangedFiles.includes(changedFile),
       `unexpected changed file in aggregation read model implementation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
@@ -653,6 +704,23 @@ function assertContractSmokeDownstreamPointer() {
   );
 }
 
+function assertBrowserValidationDownstreamPointer() {
+  if (!browserValidationSliceActive()) return;
+  for (const requiredText of [
+    browserValidationVersion,
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    browserValidationPackageScriptName,
+    browserValidationRecommendationStatus,
+    browserValidationNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `implementation smoke must allow browser validation text: ${requiredText}`,
+    );
+  }
+}
+
 function buildSyntheticFeedbackEvents() {
   const template = feedbackStoreFixture.events[0];
   const syntheticRows = [
@@ -818,6 +886,10 @@ function uniqueSorted(values) {
 
 function mergeBaseRef() {
   return readGitOutput(["merge-base", "HEAD", "origin/main"]).trim();
+}
+
+function browserValidationSliceActive() {
+  return readChangedFiles().includes(browserValidationSmokePath);
 }
 
 function readGitOutput(args) {
