@@ -2299,6 +2299,32 @@ repo-local 색인이다.
   mutation/work mutation, and no product write/product IDs. product-write
   remains parked by #686. The next recommended slice is
   `operator_source_candidate_generation_contract_v0_1`.
+- Operator Source Candidate Generation contract v0.1:
+  `types/operator-source-candidate-generation-contract.ts`,
+  `fixtures/research-candidate-review.operator-source-candidate-generation-contract.sample.v0.1.json`,
+  and `scripts/smoke-operator-source-candidate-generation-contract-v0-1.mjs`
+  (`npm run smoke:operator-source-candidate-generation-contract-v0-1`)
+  define a contract-only candidate-generation preview policy from bounded source intake.
+
+  The contract defines candidate preview families for claim candidate previews,
+  evidence candidate previews, tension candidate previews, knowledge gap
+  candidate previews, perspective delta candidate previews, and follow-up work
+  candidate previews. It also defines generated candidate policy and
+  provenance/review/privacy/non-authority policies for keeping generated
+  candidates candidate-only, preview-only, source-ref-backed,
+  operator-context-backed, and later-review-only.
+
+  This has no runtime candidate generation, no source fetch, no crawler
+  behavior, no provider/OpenAI call, no retrieval/RAG execution, no source
+  index write, no durable source record write, no candidate record write, no
+  runtime persistence, no durable memory write, no runtime DB write/query, no
+  production DB read, no schema/migration, no route or UI, no browser request,
+  no browser persistence, no durable salience write, no recent rehearsal buffer
+  write, no formation receipt write, no feedback write/mutation, no
+  proof/evidence/Perspective promotion/candidate mutation/work mutation, and no
+  product write/product IDs. product-write remains parked by #686. The next
+  recommended slice is
+  `operator_source_candidate_generation_implementation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
