@@ -2271,6 +2271,34 @@ repo-local 색인이다.
   mutation/work mutation, and no product write/product IDs. product-write
   remains parked by #686. The next recommended slice is
   `bounded_external_source_intake_browser_validation_v0_1`.
+- Bounded External Source Intake browser validation v0.1:
+  `fixtures/research-candidate-review.bounded-external-source-intake-browser-validation.sample.v0.1.json`
+  and `scripts/smoke-bounded-external-source-intake-browser-validation-v0-1.mjs`
+  (`npm run smoke:bounded-external-source-intake-browser-validation-v0-1`)
+  validate the #722 deterministic fixture-backed implementation.
+
+  Smoke coverage validates deterministic fixture-backed implementation,
+  validates generated reference-only source intake bundle from #721 contract,
+  validates contract boundary / top-level implementation boundary separation,
+  validates invalid source_refs override rejection, validates disallowed source input rejection, and validates no source fetch / crawler / provider extraction / retrieval/RAG / source index / durable source record write.
+
+  The validation fixture keeps the generated bundle authority boundary matched
+  to the #721 contract while confirming the top-level implementation boundary
+  is separate. It validates invalid source_refs overrides for disallowed and
+  unknown source input kinds, source fetch enabled, provider extraction enabled,
+  candidate generation now, missing source refs, missing operator context,
+  non-public-safe refs, and invalid source status.
+
+  This has no runtime source fetch, no crawler behavior, no provider/OpenAI
+  call, no retrieval/RAG execution, no source index write, no durable source
+  record write, no runtime persistence, no durable memory write, no runtime DB
+  write/query, no production DB read, no schema/migration, no route or UI, no
+  browser request, no browser persistence, no durable salience write, no recent
+  rehearsal buffer write, no formation receipt write, no feedback
+  write/mutation, no proof/evidence/Perspective promotion/candidate
+  mutation/work mutation, and no product write/product IDs. product-write
+  remains parked by #686. The next recommended slice is
+  `operator_source_candidate_generation_contract_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

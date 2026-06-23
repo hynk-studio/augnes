@@ -788,6 +788,32 @@ mutation, no product write, no product DB write, and no product ID allocation.
 Product-write remains parked by the #686 stopline. The next recommended slice
 is `bounded_external_source_intake_browser_validation_v0_1`.
 
+Bounded External Source Intake browser validation v0.1 validates
+deterministic fixture-backed reference-only source intake bundles from the #722
+implementation. It confirms the generated source intake bundle keeps the #721
+contract authority boundary, keeps top-level implementation authority separate,
+and rejects invalid source_refs overrides for disallowed input kinds, unknown
+input kinds, source fetch enabled, provider extraction enabled, candidate
+generation now, missing source refs, missing operator context, non-public-safe
+refs, and invalid source status.
+
+This validation is not source fetch, not crawler behavior, not provider
+extraction, not retrieval/RAG, not proof/evidence, not Perspective state, not
+work status, not promotion authority, not salience authority, not
+candidate/work mutation, and not product write. It adds no runtime source
+fetch, no crawler behavior, no provider/OpenAI call, no provider extraction, no
+retrieval/RAG execution, no source index write, no durable source record write,
+no runtime persistence, no durable memory write, no runtime DB write/query, no
+production DB read, no schema/migration, no route, no route handler, no server
+action, no component/UI implementation, no browser request, no browser
+persistence, no durable salience write, no recent rehearsal buffer write, no
+formation receipt write, no feedback write/mutation, no proof/evidence write,
+no Perspective promotion, no durable Perspective state write, no promotion
+decision record, no candidate/work mutation, no product write, no product DB
+write, and no product ID allocation. Product-write remains parked by the #686
+stopline. The next recommended slice is Operator Source Candidate Generation
+contract v0.1: `operator_source_candidate_generation_contract_v0_1`.
+
 ## Next Recommended Slice
 
-`bounded_external_source_intake_browser_validation_v0_1`
+`operator_source_candidate_generation_contract_v0_1`
