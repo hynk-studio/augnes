@@ -1154,6 +1154,28 @@ product ID allocation. Product-write remains parked by the #686 stopline. Next
 recommended slice:
 `durable_perspective_state_trajectory_contract_v0_1`.
 
+Durable Perspective State / Trajectory remains separated from candidate preview and promotion preview.
+PerspectiveDeltaCandidate is not committed state.
+Only future human/Core promotion can create durable Perspective state changes.
+Current thesis must have lineage.
+Prior thesis must not be overwritten silently.
+Retired claims remain auditable.
+Contradicted evidence is not deleted.
+Open tensions and knowledge gaps must remain visible unless explicitly handled.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state behavior.
+
+This contract defines future durable Perspective state shape and trajectory
+grammar only. It adds no runtime state read/write, no durable Perspective delta
+apply, no PerspectiveSnapshot runtime, no trajectory runtime build, no
+proof/evidence write, no accepted evidence write, no Formation Receipt write,
+no work mutation, no runtime DB write/query, no production DB read, no
+schema/migration, no route, no route handler, no server action, no
+component/UI implementation, no browser request, no browser persistence, no
+provider/OpenAI call, no source fetch, no crawler behavior, no retrieval/RAG
+execution, no product DB write, and no product ID allocation. Product-write
+remains parked by the #686 stopline. Next recommended slice:
+`durable_perspective_state_trajectory_implementation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
