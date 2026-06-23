@@ -31,6 +31,10 @@ const browserValidationPackageScriptName =
   "smoke:formation-receipt-durable-event-browser-validation-v0-1";
 const browserValidationPackageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs";
+const recentRehearsalBufferContractPackageScriptName =
+  "smoke:recent-rehearsal-buffer-contract-v0-1";
+const recentRehearsalBufferContractPackageScriptValue =
+  "node scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs";
 const implementationKind = "formation_receipt_durable_event_implementation";
 const implementationVersion =
   "formation_receipt_durable_event_implementation.v0.1";
@@ -57,6 +61,37 @@ const expectedChangedFiles = [
   surfaceDocPath,
   gateDocPath,
   contractSmokePath,
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+
+const recentRehearsalBufferContractChangedFiles = [
+  "types/recent-rehearsal-buffer-contract.ts",
+  "fixtures/research-candidate-review.recent-rehearsal-buffer-contract.sample.v0.1.json",
+  "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
+  "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
   "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
   "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
   "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
@@ -238,6 +273,24 @@ function assertPackageScript() {
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
     .sort();
+  if (recentRehearsalBufferContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[recentRehearsalBufferContractPackageScriptName],
+      recentRehearsalBufferContractPackageScriptValue,
+    );
+    assert.deepEqual(
+      addedScripts,
+      [recentRehearsalBufferContractPackageScriptName],
+      "package.json must add only the Recent Rehearsal Buffer contract smoke script",
+    );
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+    return;
+  }
   if (browserValidationSliceActive()) {
     assert.equal(
       packageJson.scripts[browserValidationPackageScriptName],
@@ -271,6 +324,25 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (recentRehearsalBufferContractSliceActive()) {
+    for (const expectedFile of recentRehearsalBufferContractChangedFiles) {
+      assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+    }
+    for (const changedFile of changedFiles) {
+      assert.ok(
+        recentRehearsalBufferContractChangedFiles.includes(changedFile),
+        `unexpected changed file in Recent Rehearsal Buffer contract downstream slice: ${changedFile}`,
+      );
+      assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+      assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+      assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+      assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+      assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+      assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+      assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+    }
+    return;
+  }
   const activeExpectedFiles = browserValidationSliceActive()
     ? browserValidationChangedFiles
     : expectedChangedFiles;
@@ -655,6 +727,11 @@ function readChangedFiles() {
 
 function browserValidationSliceActive() {
   return readChangedFiles().includes(browserValidationSmokePath);
+}
+
+
+function recentRehearsalBufferContractSliceActive() {
+  return readChangedFiles().includes("scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs");
 }
 
 function stripValidationText(source) {

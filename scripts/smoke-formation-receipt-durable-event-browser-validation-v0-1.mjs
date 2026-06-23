@@ -22,11 +22,26 @@ const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
 const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
 const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
+const recentRehearsalTypePath = "types/recent-rehearsal-buffer-contract.ts";
+const recentRehearsalFixturePath =
+  "fixtures/research-candidate-review.recent-rehearsal-buffer-contract.sample.v0.1.json";
+const recentRehearsalSmokePath =
+  "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs";
 
 const packageScriptName =
   "smoke:formation-receipt-durable-event-browser-validation-v0-1";
 const packageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs";
+const recentRehearsalPackageScriptName =
+  "smoke:recent-rehearsal-buffer-contract-v0-1";
+const recentRehearsalPackageScriptValue =
+  "node scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs";
+const recentRehearsalContractVersion =
+  "recent_rehearsal_buffer_contract.v0.1";
+const recentRehearsalRecommendationStatus =
+  "ready_for_recent_rehearsal_buffer_implementation_v0_1";
+const recentRehearsalNextRecommendedSlice =
+  "recent_rehearsal_buffer_implementation_v0_1";
 const validationKind = "formation_receipt_durable_event_browser_validation";
 const validationVersion =
   "formation_receipt_durable_event_browser_validation.v0.1";
@@ -44,6 +59,37 @@ const expectedChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  implementationSmokePath,
+  contractSmokePath,
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+
+const recentRehearsalChangedFiles = [
+  recentRehearsalTypePath,
+  recentRehearsalFixturePath,
+  recentRehearsalSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
   implementationSmokePath,
   contractSmokePath,
   "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
@@ -124,6 +170,7 @@ assertReferenceLinks(rebuiltImplementation.reference_link_summary);
 assertAuthorityBoundary(fixture.authority_boundary);
 assertDocsPointers();
 assertImplementationSmokeDownstreamPointer();
+assertRecentRehearsalBufferContractDownstreamPointer();
 assert.deepEqual(
   fixture,
   rebuiltFixture,
@@ -328,6 +375,27 @@ function assertBuilderAndImplementationFixtureExist() {
 }
 
 function assertPackageScript() {
+  if (recentRehearsalBufferContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[recentRehearsalPackageScriptName],
+      recentRehearsalPackageScriptValue,
+    );
+    const addedScripts = Object.keys(packageJson.scripts)
+      .filter((scriptName) => !basePackageJson.scripts[scriptName])
+      .sort();
+    assert.deepEqual(
+      addedScripts,
+      [recentRehearsalPackageScriptName],
+      "package.json must add only the Recent Rehearsal Buffer contract smoke script",
+    );
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
@@ -347,6 +415,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  const activeExpectedChangedFiles = recentRehearsalBufferContractSliceActive()
+    ? recentRehearsalChangedFiles
+    : expectedChangedFiles;
   assert.ok(
     !changedFiles.includes(builderPath),
     "browser validation slice must not change the #713 builder",
@@ -355,12 +426,12 @@ function assertStaticBoundary() {
     !changedFiles.includes(implementationFixturePath),
     "browser validation slice must not change the #713 implementation fixture",
   );
-  for (const expectedFile of expectedChangedFiles) {
+  for (const expectedFile of activeExpectedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedChangedFiles.includes(changedFile),
+      activeExpectedChangedFiles.includes(changedFile),
       `unexpected changed file in Formation Receipt durable event browser validation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
@@ -594,6 +665,33 @@ function assertImplementationSmokeDownstreamPointer() {
       `#713 implementation smoke must allow browser validation pointer: ${requiredText}`,
     );
   }
+}
+
+function assertRecentRehearsalBufferContractDownstreamPointer() {
+  if (!recentRehearsalBufferContractSliceActive()) {
+    return;
+  }
+  const thisSmoke = readFile(smokePath);
+  for (const requiredText of [
+    recentRehearsalContractVersion,
+    recentRehearsalTypePath,
+    recentRehearsalFixturePath,
+    recentRehearsalSmokePath,
+    recentRehearsalPackageScriptName,
+    recentRehearsalRecommendationStatus,
+    recentRehearsalNextRecommendedSlice,
+    "recent work resume context",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      thisSmoke.includes(requiredText),
+      `#714 Formation Receipt browser validation smoke must allow Recent Rehearsal Buffer contract downstream pointer: ${requiredText}`,
+    );
+  }
+}
+
+function recentRehearsalBufferContractSliceActive() {
+  return readChangedFiles().includes(recentRehearsalSmokePath);
 }
 
 function receiptEventFollowsContractFields(event) {
