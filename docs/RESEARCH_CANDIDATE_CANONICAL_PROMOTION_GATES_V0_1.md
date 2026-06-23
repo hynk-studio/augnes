@@ -1006,6 +1006,35 @@ no promotion decision record, no product DB write, and no product ID
 allocation. Product-write remains parked by the #686 stopline. Next
 recommended slice: `non_authoritative_retrieval_rag_contract_v0_1`.
 
+Retrieval/RAG remains separated from durable Perspective promotion.
+Retrieval results preserve candidate/durable distinction.
+Search results must link back to source_refs.
+Stale index cannot override current state.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval behavior.
+
+The Non-authoritative Retrieval/RAG contract v0.1 preserves canonical
+promotion gates by defining recall/context expansion only. Retrieval result is
+recall, not authority. RAG answer is context preview, not evidence/proof.
+Embedding similarity and retrieval scores are not truth, promotion readiness,
+salience authority, or evidence strength. Any future index remains rebuildable,
+derived, and non-authoritative; vector DB storage is not source of truth, and
+hidden permanent memory is not allowed.
+
+The contract is not runtime retrieval/RAG execution, not runtime index build,
+not index write, not source index write, not embedding generation, not vector
+DB, not FTS, not source fetch, not crawler behavior, not provider/OpenAI output,
+not durable source record write, not candidate record write, not
+proof/evidence, not Perspective state, not work status, not promotion
+authority, not salience authority, not candidate/work mutation, not product
+write, and not product ID allocation authority. It adds no runtime persistence,
+no durable memory write, no runtime DB write/query, no production DB read, no
+schema/migration change, no app/api route change, no route handler change, no
+server action, no component/UI implementation, no browser request, no browser
+persistence, no Perspective promotion, no durable Perspective state write, no
+promotion decision record, no product DB write, and no product ID allocation.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`non_authoritative_retrieval_rag_implementation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

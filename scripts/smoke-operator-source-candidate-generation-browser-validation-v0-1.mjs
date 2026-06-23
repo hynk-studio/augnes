@@ -35,6 +35,22 @@ const recommendationStatus =
   "ready_for_non_authoritative_retrieval_rag_contract_v0_1";
 const nextRecommendedSlice =
   "non_authoritative_retrieval_rag_contract_v0_1";
+const nonAuthoritativeRetrievalRagContractTypePath =
+  "types/non-authoritative-retrieval-rag-contract.ts";
+const nonAuthoritativeRetrievalRagContractFixturePath =
+  "fixtures/research-candidate-review.non-authoritative-retrieval-rag-contract.sample.v0.1.json";
+const nonAuthoritativeRetrievalRagContractSmokePath =
+  "scripts/smoke-non-authoritative-retrieval-rag-contract-v0-1.mjs";
+const nonAuthoritativeRetrievalRagContractPackageScriptName =
+  "smoke:non-authoritative-retrieval-rag-contract-v0-1";
+const nonAuthoritativeRetrievalRagContractPackageScriptValue =
+  "node scripts/smoke-non-authoritative-retrieval-rag-contract-v0-1.mjs";
+const nonAuthoritativeRetrievalRagContractVersion =
+  "non_authoritative_retrieval_rag_contract.v0.1";
+const nonAuthoritativeRetrievalRagContractRecommendationStatus =
+  "ready_for_non_authoritative_retrieval_rag_implementation_v0_1";
+const nonAuthoritativeRetrievalRagContractNextRecommendedSlice =
+  "non_authoritative_retrieval_rag_implementation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -498,6 +514,10 @@ function assertBuilderFile() {
 }
 
 function assertPackageScript() {
+  if (nonAuthoritativeRetrievalRagContractSliceActive()) {
+    assertNonAuthoritativeRetrievalRagContractPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
@@ -517,6 +537,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (nonAuthoritativeRetrievalRagContractSliceActive()) {
+    assertNonAuthoritativeRetrievalRagContractChangedFiles(changedFiles);
+    return;
+  }
   for (const expectedFile of requiredChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
@@ -550,8 +574,146 @@ function assertStaticBoundary() {
   }
 }
 
+function nonAuthoritativeRetrievalRagContractSliceActive() {
+  return readChangedFiles().includes(nonAuthoritativeRetrievalRagContractSmokePath);
+}
+
+function assertNonAuthoritativeRetrievalRagContractPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts[nonAuthoritativeRetrievalRagContractPackageScriptName],
+    nonAuthoritativeRetrievalRagContractPackageScriptValue,
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    [nonAuthoritativeRetrievalRagContractPackageScriptName],
+    "package.json must add only the Non-authoritative Retrieval/RAG contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+}
+
+function assertNonAuthoritativeRetrievalRagContractChangedFiles(changedFiles) {
+  const expectedFiles = [
+    nonAuthoritativeRetrievalRagContractTypePath,
+    nonAuthoritativeRetrievalRagContractFixturePath,
+    nonAuthoritativeRetrievalRagContractSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+    implementationSmokePath,
+    contractSmokePath,
+    "scripts/smoke-bounded-external-source-intake-browser-validation-v0-1.mjs",
+    "scripts/smoke-bounded-external-source-intake-implementation-v0-1.mjs",
+    "scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
+    "scripts/smoke-salience-governor-browser-validation-v0-1.mjs",
+    "scripts/smoke-salience-governor-implementation-v0-1.mjs",
+    "scripts/smoke-salience-governor-contract-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+  ];
+  for (const unchangedPath of [
+    builderPath,
+    implementationFixturePath,
+    "lib/research-candidate-review/bounded-external-source-intake.ts",
+    "fixtures/research-candidate-review.bounded-external-source-intake-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/salience-governor.ts",
+    "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/recent-rehearsal-buffer.ts",
+    "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Non-authoritative Retrieval/RAG contract slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of [
+    nonAuthoritativeRetrievalRagContractTypePath,
+    nonAuthoritativeRetrievalRagContractFixturePath,
+    nonAuthoritativeRetrievalRagContractSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+  ]) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Non-authoritative Retrieval/RAG contract downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\/research-retrieval\//, "must not add retrieval implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/research-rag\//, "must not add RAG implementation files");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  for (const requiredText of [
+    nonAuthoritativeRetrievalRagContractVersion,
+    nonAuthoritativeRetrievalRagContractTypePath,
+    nonAuthoritativeRetrievalRagContractFixturePath,
+    nonAuthoritativeRetrievalRagContractSmokePath,
+    nonAuthoritativeRetrievalRagContractPackageScriptName,
+    nonAuthoritativeRetrievalRagContractRecommendationStatus,
+    nonAuthoritativeRetrievalRagContractNextRecommendedSlice,
+    "retrieval result is recall, not authority",
+    "RAG answer is context preview, not evidence/proof",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#726 browser validation smoke must allow Non-authoritative Retrieval/RAG downstream pointer: ${requiredText}`,
+    );
+  }
+}
+
 function assertNoForbiddenRuntimePatterns() {
   const changedSourceFiles = readChangedFiles().filter((filePath) =>
+    filePath !== "types/non-authoritative-retrieval-rag-contract.ts" &&
     (filePath.endsWith(".ts") || filePath.endsWith(".tsx") || filePath.endsWith(".mjs")) &&
     !filePath.startsWith("scripts/smoke-"),
   );
