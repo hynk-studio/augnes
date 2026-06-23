@@ -529,6 +529,7 @@
     "smoke:feedback-event-store-list-ui-browser-validation-v0-1": "node scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
     "smoke:feedback-event-aggregation-read-model-contract-v0-1": "node scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
     "smoke:feedback-event-aggregation-read-model-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+    "smoke:feedback-event-aggregation-read-model-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

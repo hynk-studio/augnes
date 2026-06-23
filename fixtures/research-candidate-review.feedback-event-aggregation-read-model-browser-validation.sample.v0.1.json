@@ -1,0 +1,62 @@
+{
+  "validation_kind": "feedback_event_aggregation_read_model_browser_validation",
+  "validation_version": "feedback_event_aggregation_read_model_browser_validation.v0.1",
+  "source_implementation_ref": "feedback_event_aggregation_read_model_implementation.v0.1:fixtures/research-candidate-review.feedback-event-aggregation-read-model-implementation.sample.v0.1.json",
+  "source_implementation_fingerprint": "fnv1a32:9caa4515",
+  "validated_builder": {
+    "builder_path": "lib/research-candidate-review/feedback-event-aggregation-read-model.ts",
+    "implementation_fixture_path": "fixtures/research-candidate-review.feedback-event-aggregation-read-model-implementation.sample.v0.1.json",
+    "deterministic_fixture_backed_only": true,
+    "runtime_db_query_now": false,
+    "production_db_used_now": false,
+    "browser_request_now": false
+  },
+  "validated_views": {
+    "all_contract_views_implemented": true,
+    "all_views_sorted_by_contract_policy": true,
+    "all_views_limited_by_contract_policy": true,
+    "recent_window_one_row_per_created_at_day": true,
+    "duplicate_groups_display_only": true,
+    "read_model_only": true
+  },
+  "authority_boundary": {
+    "browser_validation_added_now": true,
+    "implementation_changed_now": false,
+    "route_changed_now": false,
+    "component_changed_now": false,
+    "runtime_db_query_now": false,
+    "production_db_used_now": false,
+    "browser_request_now": false,
+    "feedback_events_written_now": false,
+    "feedback_events_mutated_now": false,
+    "proof_or_evidence_record": false,
+    "perspective_promotion": false,
+    "durable_perspective_state_write": false,
+    "promotion_decision_record": false,
+    "work_mutation": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "salience_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": [],
+    "implemented_view_count": 9,
+    "checked_sort_policy": true,
+    "checked_limit_policy": true,
+    "checked_deterministic_rebuild": true,
+    "checked_synthetic_uneven_rows_in_implementation_smoke": true
+  },
+  "recommendation_status": "ready_for_formation_receipt_durable_event_contract_v0_1",
+  "next_recommended_slice": "formation_receipt_durable_event_contract_v0_1",
+  "validation_fingerprint": "fnv1a32:e614610a",
+  "fingerprint_algorithm": "fnv1a32_canonical_json"
+}

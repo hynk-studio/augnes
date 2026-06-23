@@ -535,6 +535,26 @@ product DB write, or product ID allocation. Product-write remains parked by the
 #686 stopline. The next recommended slice is
 `feedback_event_aggregation_read_model_browser_validation_v0_1`.
 
+## Feedback Event Aggregation Read Model Browser Validation v0.1
+
+Feedback event aggregation read model browser validation v0.1 validates the
+advisory/read-only fixture-backed aggregation implementation from #710. It
+confirms the deterministic read model remains sorted and limited by contract
+policy, one recent-window row per `created_at_day`, duplicate groups as display
+indicators only, and read-model-only authority boundaries.
+
+This validation adds no runtime DB query, no production DB read, no browser
+request, no feedback write/mutation, no app/api route, route handler, server
+action, component/UI implementation, schema, migration, package dependency,
+browser persistence, provider/OpenAI call, source fetch, retrieval/RAG
+execution, proof/evidence write, Perspective promotion, durable Perspective
+state write, promotion decision record, work mutation, salience governor,
+product write, product DB write, or product ID allocation. It is not
+proof/evidence, not Perspective state, not work status, not promotion
+authority, not salience authority, not retrieval/RAG result, and not product
+write. Product-write remains parked by the #686 stopline. The next recommended
+slice is `formation_receipt_durable_event_contract_v0_1`.
+
 ## Next Recommended Slice
 
-`feedback_event_aggregation_read_model_browser_validation_v0_1`
+`formation_receipt_durable_event_contract_v0_1`

@@ -78,6 +78,10 @@ const aggregationReadModelImplementationFixturePath =
   "fixtures/research-candidate-review.feedback-event-aggregation-read-model-implementation.sample.v0.1.json";
 const aggregationReadModelImplementationSmokePath =
   "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs";
+const aggregationReadModelBrowserValidationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-browser-validation.sample.v0.1.json";
+const aggregationReadModelBrowserValidationSmokePath =
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
@@ -113,6 +117,10 @@ const aggregationReadModelImplementationPackageScriptName =
   "smoke:feedback-event-aggregation-read-model-implementation-v0-1";
 const aggregationReadModelImplementationPackageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs";
+const aggregationReadModelBrowserValidationPackageScriptName =
+  "smoke:feedback-event-aggregation-read-model-browser-validation-v0-1";
+const aggregationReadModelBrowserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs";
 const routePath = "/api/research-candidate/feedback-events";
 const routeMethod = "GET";
 const requestVersion = "feedback_event_store_list_route_request.v0.1";
@@ -362,6 +370,32 @@ const aggregationReadModelImplementationChangedFiles = [
   reviewControlsSmokePath,
   feedbackEventStoreMinimalSmokePath,
 ];
+const aggregationReadModelBrowserValidationChangedFiles = [
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-browser-validation.sample.v0.1.json",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
+  "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+
 
 for (const filePath of [
   routeFilePath,
@@ -834,6 +868,12 @@ function assertRouteSource() {
 }
 
 function assertPackageScript() {
+  if (aggregationReadModelBrowserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[aggregationReadModelBrowserValidationPackageScriptName],
+      aggregationReadModelBrowserValidationPackageScriptValue,
+    );
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   if (aggregationReadModelImplementationSliceActive()) {
     assert.equal(
@@ -882,6 +922,18 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
+
+  if (aggregationReadModelBrowserValidationSliceActive()) {
+    assert.deepEqual(
+      addedScriptNames,
+      [aggregationReadModelBrowserValidationPackageScriptName],
+      "package additions must only include the aggregation read model browser validation smoke script",
+    );
+    assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+    assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+    assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+    return;
+  }
   assert.deepEqual(
     addedScriptNames,
     aggregationReadModelImplementationSliceActive()
@@ -905,7 +957,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const activeExpectedChangedFiles = aggregationReadModelImplementationSliceActive()
+  const activeExpectedChangedFiles = aggregationReadModelBrowserValidationSliceActive()
+    ? aggregationReadModelBrowserValidationChangedFiles
+    : aggregationReadModelImplementationSliceActive()
     ? aggregationReadModelImplementationChangedFiles
     : aggregationReadModelContractSliceActive()
     ? aggregationReadModelContractExpectedChangedFiles
@@ -1209,6 +1263,10 @@ function listUiBrowserValidationSliceActive() {
   return listUiBrowserValidationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
+}
+
+function aggregationReadModelBrowserValidationSliceActive() {
+  return readChangedFiles().includes(aggregationReadModelBrowserValidationSmokePath);
 }
 
 function aggregationReadModelImplementationSliceActive() {
