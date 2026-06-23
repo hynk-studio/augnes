@@ -8,8 +8,12 @@ const contractFixturePath =
   "fixtures/research-candidate-review.formation-receipt-durable-event-contract.sample.v0.1.json";
 const fixturePath =
   "fixtures/research-candidate-review.formation-receipt-durable-event-implementation.sample.v0.1.json";
+const browserValidationFixturePath =
+  "fixtures/research-candidate-review.formation-receipt-durable-event-browser-validation.sample.v0.1.json";
 const smokePath =
   "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs";
+const browserValidationSmokePath =
+  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs";
 const contractSmokePath =
   "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs";
 const packagePath = "package.json";
@@ -23,6 +27,10 @@ const packageScriptName =
   "smoke:formation-receipt-durable-event-implementation-v0-1";
 const packageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs";
+const browserValidationPackageScriptName =
+  "smoke:formation-receipt-durable-event-browser-validation-v0-1";
+const browserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs";
 const implementationKind = "formation_receipt_durable_event_implementation";
 const implementationVersion =
   "formation_receipt_durable_event_implementation.v0.1";
@@ -31,6 +39,12 @@ const recommendationStatus =
   "ready_for_formation_receipt_durable_event_browser_validation_v0_1";
 const nextRecommendedSlice =
   "formation_receipt_durable_event_browser_validation_v0_1";
+const browserValidationVersion =
+  "formation_receipt_durable_event_browser_validation.v0.1";
+const browserValidationRecommendationStatus =
+  "ready_for_recent_rehearsal_buffer_contract_v0_1";
+const browserValidationNextRecommendedSlice =
+  "recent_rehearsal_buffer_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 
 const expectedChangedFiles = [
@@ -42,6 +56,34 @@ const expectedChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  contractSmokePath,
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+const browserValidationChangedFiles = [
+  browserValidationFixturePath,
+  browserValidationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
   contractSmokePath,
   "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
   "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
@@ -118,6 +160,7 @@ assertValidation(fixture.validation);
 assertInvalidOverrideSummaryConsistency();
 assertDocsPointers();
 assertContractSmokeDownstreamPointer();
+assertFormationReceiptDurableEventBrowserValidationDownstreamPointer();
 assert.deepEqual(
   fixture,
   rebuiltFixture,
@@ -195,6 +238,24 @@ function assertPackageScript() {
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
     .sort();
+  if (browserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[browserValidationPackageScriptName],
+      browserValidationPackageScriptValue,
+    );
+    assert.deepEqual(
+      addedScripts,
+      [browserValidationPackageScriptName],
+      "package.json must add only the Formation Receipt durable event browser validation smoke script",
+    );
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+    return;
+  }
   assert.deepEqual(
     addedScripts,
     [packageScriptName],
@@ -210,12 +271,25 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const activeExpectedFiles = browserValidationSliceActive()
+    ? browserValidationChangedFiles
+    : expectedChangedFiles;
+  if (browserValidationSliceActive()) {
+    assert.ok(
+      !changedFiles.includes(builderPath),
+      "browser validation slice must not change the #713 builder",
+    );
+    assert.ok(
+      !changedFiles.includes(fixturePath),
+      "browser validation slice must not change the #713 implementation fixture",
+    );
+  }
+  for (const expectedFile of activeExpectedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedChangedFiles.includes(changedFile),
+      activeExpectedFiles.includes(changedFile),
       `unexpected changed file in Formation Receipt durable event implementation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
@@ -537,6 +611,25 @@ function assertContractSmokeDownstreamPointer() {
   }
 }
 
+function assertFormationReceiptDurableEventBrowserValidationDownstreamPointer() {
+  if (!browserValidationSliceActive()) return;
+  for (const requiredText of [
+    browserValidationVersion,
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    browserValidationPackageScriptName,
+    browserValidationRecommendationStatus,
+    browserValidationNextRecommendedSlice,
+    "summary_validation_consistent_for_invalid_overrides",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      readFile(smokePath).includes(requiredText),
+      `#713 implementation smoke must allow browser validation text: ${requiredText}`,
+    );
+  }
+}
+
 function readFile(filePath) {
   return readFileSync(filePath, "utf8");
 }
@@ -558,6 +651,10 @@ function readChangedFiles() {
     .map((line) => line.trim())
     .filter(Boolean);
   return [...new Set(changed)].sort();
+}
+
+function browserValidationSliceActive() {
+  return readChangedFiles().includes(browserValidationSmokePath);
 }
 
 function stripValidationText(source) {

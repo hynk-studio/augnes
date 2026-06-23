@@ -595,6 +595,27 @@ product DB write, and no product ID allocation. Product-write remains parked by
 the #686 stopline. The next recommended slice is
 `formation_receipt_durable_event_browser_validation_v0_1`.
 
+## Formation Receipt Durable Event Browser Validation v0.1
+
+Formation Receipt durable event browser validation v0.1 validates deterministic
+fixture-backed provenance artifacts only. It validates the #713 builder output,
+the generated receipt event shape from the #712 contract, selected/excluded
+context summaries, invalid override summary/validation consistency, unresolved
+tension preservation, and reference-only handoff/decision/result links.
+
+This validation is not proof/evidence, not Perspective state, not work status,
+not promotion authority, not salience authority, not retrieval/RAG result, and
+not product write. It adds no runtime persistence, no runtime DB write/query,
+no production DB read, no schema/migration, no route, no route handler, no
+server action, no component/UI implementation, no browser request, no browser
+persistence, no feedback write/mutation, no provider/OpenAI call, no source
+fetch, no retrieval/RAG execution, no proof/evidence write, no Perspective
+promotion, no durable Perspective state write, no promotion decision record, no
+work mutation, no salience governor, no product write, no product DB write, and
+no product ID allocation. Product-write remains parked by the #686 stopline.
+The next recommended slice is Recent Rehearsal Buffer contract v0.1:
+`recent_rehearsal_buffer_contract_v0_1`.
+
 ## Next Recommended Slice
 
-`formation_receipt_durable_event_browser_validation_v0_1`
+`recent_rehearsal_buffer_contract_v0_1`
