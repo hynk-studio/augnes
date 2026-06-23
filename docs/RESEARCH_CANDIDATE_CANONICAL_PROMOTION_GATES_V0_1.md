@@ -982,6 +982,30 @@ decision record, no product DB write, and no product ID allocation.
 Product-write remains parked by the #686 stopline. Next recommended slice:
 `operator_source_candidate_generation_browser_validation_v0_1`.
 
+Operator Source Candidate Generation validation remains separated from durable Perspective promotion.
+It validates candidate previews only.
+It validates deterministic, fixture-backed candidate preview bundles from the
+#725 implementation against the #724 contract boundary and keeps generated
+candidate previews out of proof/evidence, Perspective state, work status,
+promotion basis, retrieval/RAG authority, salience authority, candidate/work
+mutation, product write, and product ID allocation authority.
+It does not implement runtime DB/browser/provider/retrieval behavior in this slice.
+
+The validation is not runtime candidate generation, not source fetch, not
+crawler behavior, not provider extraction, not provider/OpenAI output, not
+retrieval/RAG result, not source index write, not durable source record write,
+not candidate record write, not proof/evidence, not Perspective state, not
+work status, not promotion authority, not salience authority, not
+candidate/work mutation, not product write, and not product ID allocation
+authority. It adds no runtime persistence, no durable memory write, no runtime
+DB write/query, no production DB read, no schema/migration change, no app/api
+route change, no route handler change, no server action, no component/UI
+implementation, no browser request, no browser persistence, no feedback
+write/mutation, no Perspective promotion, no durable Perspective state write,
+no promotion decision record, no product DB write, and no product ID
+allocation. Product-write remains parked by the #686 stopline. Next
+recommended slice: `non_authoritative_retrieval_rag_contract_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
