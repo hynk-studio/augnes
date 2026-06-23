@@ -928,6 +928,14 @@ ID allocation. Product-write remains parked by the #686 stopline.
 Next recommended slice is Human-reviewed Durable Perspective Promotion contract v0.1.
 `human_reviewed_durable_perspective_promotion_contract_v0_1`
 
+Human-reviewed Durable Perspective Promotion contract defines the future human/Core promotion gate only.
+Agent Substrate remains advisory-only and cannot initiate promotion.
+Retrieval/RAG, salience, provider output, Codex/GitHub automation, feedback events, and context packets cannot initiate promotion.
+This slice does not implement runtime promotion, durable Perspective state writes, proof/evidence writes, Formation Receipt writes, DB writes, route/UI, or product write.
+Product-write remains parked by the #686 stopline.
+Next recommended slice is Human-reviewed Durable Perspective Promotion implementation v0.1.
+`human_reviewed_durable_perspective_promotion_implementation_v0_1`
+
 ## Next Recommended Slice
 
-`human_reviewed_durable_perspective_promotion_contract_v0_1`
+`human_reviewed_durable_perspective_promotion_implementation_v0_1`

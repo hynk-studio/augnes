@@ -1413,6 +1413,30 @@ promotion decision record, no product DB write, and no product ID allocation.
 Product-write remains parked by the #686 stopline. Next recommended slice:
 `human_reviewed_durable_perspective_promotion_contract_v0_1`.
 
+## Human-reviewed Durable Perspective Promotion Contract v0.1 Pointer
+
+Durable Perspective promotion remains separated from candidate preview.
+PerspectiveDeltaCandidate is not committed state.
+Claim candidate is not fact.
+Evidence candidate is not accepted evidence.
+Promotion requires explicit human review, source_refs, basis, unresolved tension handling, knowledge gap handling, and future promotion decision record.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion behavior.
+
+The contract defines the future human/Core promotion gate only. Retrieval
+results, RAG context previews, salience signals, provider output, feedback
+events, context packets, Codex/GitHub automation, and Agent Substrate context
+remain advisory only and cannot initiate promotion.
+
+It adds no runtime promotion, no durable Perspective state write, no durable
+Perspective delta apply, no promotion decision record write, no proof/evidence
+write, no Formation Receipt write, no work mutation, no runtime DB write/query,
+no production DB read, no schema/migration, no route, no route handler, no
+server action, no component/UI implementation, no browser request, no browser
+persistence, no provider/OpenAI call, no source fetch, no crawler behavior, no
+retrieval/RAG execution, no product DB write, and no product ID allocation.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`human_reviewed_durable_perspective_promotion_implementation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
