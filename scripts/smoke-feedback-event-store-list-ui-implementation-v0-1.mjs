@@ -37,6 +37,12 @@ const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
 const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
 const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
+const aggregationReadModelContractTypePath =
+  "types/feedback-event-aggregation-read-model-contract.ts";
+const aggregationReadModelContractFixturePath =
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-contract.sample.v0.1.json";
+const aggregationReadModelContractSmokePath =
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 
 const packageScriptName =
   "smoke:feedback-event-store-list-ui-implementation-v0-1";
@@ -46,6 +52,10 @@ const listUiBrowserValidationPackageScriptName =
   "smoke:feedback-event-store-list-ui-browser-validation-v0-1";
 const listUiBrowserValidationPackageScriptValue =
   "node scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs";
+const aggregationReadModelContractPackageScriptName =
+  "smoke:feedback-event-aggregation-read-model-contract-v0-1";
+const aggregationReadModelContractPackageScriptValue =
+  "node scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
 const routePath = "/api/research-candidate/feedback-events";
 const routeMethod = "GET";
 const requestVersion = "feedback_event_store_list_route_request.v0.1";
@@ -62,6 +72,10 @@ const listUiBrowserValidationRecommendationStatus =
   "ready_for_feedback_event_aggregation_read_model_contract_v0_1";
 const listUiBrowserValidationNextRecommendedSlice =
   "feedback_event_aggregation_read_model_contract_v0_1";
+const aggregationReadModelContractRecommendationStatus =
+  "ready_for_feedback_event_aggregation_read_model_implementation_v0_1";
+const aggregationReadModelContractNextRecommendedSlice =
+  "feedback_event_aggregation_read_model_implementation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 const requiredAuthorityAcknowledgements = [
   "read_feedback_events_only",
@@ -117,6 +131,30 @@ const listUiBrowserValidationChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  smokePath,
+  listUiContractSmokePath,
+  listRouteBrowserValidationSmokePath,
+  listRouteImplementationSmokePath,
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  controlsUiBrowserValidationSmokePath,
+  controlsUiImplementationSmokePath,
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+const aggregationReadModelContractChangedFiles = [
+  aggregationReadModelContractTypePath,
+  aggregationReadModelContractFixturePath,
+  aggregationReadModelContractSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  listUiBrowserValidationSmokePath,
   smokePath,
   listUiContractSmokePath,
   listRouteBrowserValidationSmokePath,
@@ -391,7 +429,12 @@ function assertComponentIntegration() {
 }
 
 function assertPackageScript() {
-  if (listUiBrowserValidationSliceActive()) {
+  if (aggregationReadModelContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[aggregationReadModelContractPackageScriptName],
+      aggregationReadModelContractPackageScriptValue,
+    );
+  } else if (listUiBrowserValidationSliceActive()) {
     assert.equal(
       packageJson.scripts[listUiBrowserValidationPackageScriptName],
       listUiBrowserValidationPackageScriptValue,
@@ -412,7 +455,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = listUiBrowserValidationSliceActive()
+  const expectedAddedScriptNames = aggregationReadModelContractSliceActive()
+    ? [aggregationReadModelContractPackageScriptName]
+    : listUiBrowserValidationSliceActive()
     ? [listUiBrowserValidationPackageScriptName]
     : [packageScriptName];
   assert.deepEqual(
@@ -427,7 +472,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const activeExpectedChangedFiles = listUiBrowserValidationSliceActive()
+  const activeExpectedChangedFiles = aggregationReadModelContractSliceActive()
+    ? aggregationReadModelContractChangedFiles
+    : listUiBrowserValidationSliceActive()
     ? listUiBrowserValidationChangedFiles
     : expectedChangedFiles;
   for (const expectedFile of activeExpectedChangedFiles) {
@@ -461,7 +508,7 @@ function assertStaticBoundary() {
 }
 
 function assertNoForbiddenImplementationPatterns() {
-  if (listUiBrowserValidationSliceActive()) return;
+  if (listUiBrowserValidationSliceActive() || aggregationReadModelContractSliceActive()) return;
   const scannedSources = [
     [componentPath, stripAllowedBoundaryText(componentSource)],
     [
@@ -689,6 +736,10 @@ function listUiBrowserValidationSliceActive() {
   return listUiBrowserValidationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
+}
+
+function aggregationReadModelContractSliceActive() {
+  return readChangedFiles().includes(aggregationReadModelContractSmokePath);
 }
 
 function sourceForForbiddenPatternScan(filePath) {

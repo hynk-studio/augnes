@@ -527,6 +527,7 @@
     "smoke:feedback-event-store-list-ui-contract-v0-1": "node scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
     "smoke:feedback-event-store-list-ui-implementation-v0-1": "node scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
     "smoke:feedback-event-store-list-ui-browser-validation-v0-1": "node scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+    "smoke:feedback-event-aggregation-read-model-contract-v0-1": "node scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
