@@ -11,6 +11,9 @@ import {
   writeFileSync,
 } from "node:fs";
 
+let cachedMergeBaseRef = null;
+
+
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
 
@@ -2095,7 +2098,40 @@ function formationReceiptDurableEventContractSliceActive() {
 }
 
 function mergeBaseRef() {
-  return readGitOutput(["merge-base", "origin/main", "HEAD"]).trim() || "origin/main";
+  if (cachedMergeBaseRef) {
+    return cachedMergeBaseRef;
+  }
+  for (const ref of ["origin/main", "main"]) {
+    if (!gitRefExists(ref)) {
+      continue;
+    }
+    const mergeBase = tryGitOutput(["merge-base", "HEAD", ref])?.trim();
+    if (mergeBase) {
+      cachedMergeBaseRef = mergeBase;
+      return cachedMergeBaseRef;
+    }
+  }
+  const parentRef = tryGitOutput(["rev-parse", "--verify", "HEAD^"])?.trim();
+  if (parentRef) {
+    cachedMergeBaseRef = parentRef;
+    return cachedMergeBaseRef;
+  }
+  throw new Error(
+    "Unable to determine a base ref for static changed-file validation. " +
+      "Expected origin/main, local main, or HEAD^ to resolve.",
+  );
+}
+
+function gitRefExists(ref) {
+  return tryGitOutput(["rev-parse", "--verify", ref]) !== null;
+}
+
+function tryGitOutput(args) {
+  try {
+    return execFileSync("git", args, { encoding: "utf8" });
+  } catch {
+    return null;
+  }
 }
 
 function readGitOutput(args) {
