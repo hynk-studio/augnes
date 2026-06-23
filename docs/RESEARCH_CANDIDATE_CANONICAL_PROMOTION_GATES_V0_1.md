@@ -1223,6 +1223,27 @@ retrieval/RAG execution, no product write, no product DB write, and no product
 ID allocation. Product-write remains parked by #686. Next recommended slice:
 `project_constellation_runtime_layout_contract_v0_1`.
 
+Project Constellation Runtime Layout remains separated from candidate preview, durable Perspective state, and promotion runtime.
+Candidate overlay is not durable graph.
+Coordinates are display hints, not truth.
+Evidence rays are refs, not proof/evidence records.
+Tension and knowledge gap markers remain visible and do not imply resolution or closure.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/layout behavior.
+
+This contract defines future stable Project Constellation layout grammar only.
+It adds no runtime layout execution, no seeded layout runtime, no
+force-directed layout runtime, no temporal smoothing runtime, no layout
+persistence, no graph DB, no graph mutation, no durable Perspective state
+read/write, no durable Perspective delta apply, no PerspectiveSnapshot runtime,
+no proof/evidence write, no accepted evidence write, no Formation Receipt
+write, no work mutation, no runtime DB write/query, no production DB read, no
+schema/migration, no route, no route handler, no server action, no
+component/UI implementation, no browser request, no browser persistence, no
+provider/OpenAI call, no source fetch, no crawler behavior, no retrieval/RAG
+execution, no product write, no product DB write, and no product ID allocation.
+Product-write remains parked by #686. Next recommended slice:
+`project_constellation_runtime_layout_implementation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

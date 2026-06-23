@@ -37,6 +37,22 @@ const recommendationStatus =
   "ready_for_project_constellation_runtime_layout_contract_v0_1";
 const nextRecommendedSlice =
   "project_constellation_runtime_layout_contract_v0_1";
+const projectLayoutTypePath =
+  "types/project-constellation-runtime-layout-contract.ts";
+const projectLayoutFixturePath =
+  "fixtures/research-candidate-review.project-constellation-runtime-layout-contract.sample.v0.1.json";
+const projectLayoutSmokePath =
+  "scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs";
+const projectLayoutPackageScriptName =
+  "smoke:project-constellation-runtime-layout-contract-v0-1";
+const projectLayoutPackageScriptValue =
+  "node scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs";
+const projectLayoutContractVersion =
+  "project_constellation_runtime_layout_contract.v0.1";
+const projectLayoutRecommendationStatus =
+  "ready_for_project_constellation_runtime_layout_implementation_v0_1";
+const projectLayoutNextRecommendedSlice =
+  "project_constellation_runtime_layout_implementation_v0_1";
 const implementationVersion =
   "durable_perspective_state_trajectory_implementation.v0.1";
 const previewVersion = "durable_perspective_state_trajectory_preview.v0.1";
@@ -785,6 +801,10 @@ function assertBuilderFile() {
 }
 
 function assertPackageScript() {
+  if (projectConstellationRuntimeLayoutContractSliceActive()) {
+    assertProjectConstellationRuntimeLayoutContractPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -817,6 +837,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (projectConstellationRuntimeLayoutContractSliceActive()) {
+    assertProjectConstellationRuntimeLayoutContractChangedFiles(changedFiles);
+    return;
+  }
   for (const unchangedPath of [
     contractTypePath,
     contractFixturePath,
@@ -864,6 +888,136 @@ function assertStaticBoundary() {
     assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
     assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
     assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function projectConstellationRuntimeLayoutContractSliceActive() {
+  return readChangedFiles().includes(projectLayoutSmokePath);
+}
+
+function assertProjectConstellationRuntimeLayoutContractPackageScript() {
+  assert.equal(
+    packageJson.scripts[projectLayoutPackageScriptName],
+    projectLayoutPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [projectLayoutPackageScriptName],
+    "package.json must add only the Project Constellation Runtime Layout contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertProjectConstellationRuntimeLayoutContractChangedFiles(changedFiles) {
+  const expectedProjectChangedFiles = [
+    projectLayoutTypePath,
+    projectLayoutFixturePath,
+    projectLayoutSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+    implementationSmokePath,
+    ...downstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    fixturePath,
+    contractTypePath,
+    contractFixturePath,
+    builderPath,
+    implementationFixturePath,
+    "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-browser-validation.sample.v0.1.json",
+    "lib/research-candidate-review/human-reviewed-durable-perspective-promotion.ts",
+    "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/non-authoritative-retrieval-rag.ts",
+    "fixtures/research-candidate-review.non-authoritative-retrieval-rag-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/operator-source-candidate-generation.ts",
+    "fixtures/research-candidate-review.operator-source-candidate-generation-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/bounded-external-source-intake.ts",
+    "fixtures/research-candidate-review.bounded-external-source-intake-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/salience-governor.ts",
+    "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/recent-rehearsal-buffer.ts",
+    "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Project Constellation Runtime Layout contract slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of expectedProjectChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedProjectChangedFiles.includes(changedFile),
+      `unexpected changed file in Project Constellation Runtime Layout contract slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\/research-retrieval\//, "must not add retrieval implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/research-rag\//, "must not add RAG implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*layout/i, "must not add runtime layout implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*constellation/i, "must not add runtime constellation implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*graph/i, "must not add graph DB or graph mutation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*perspective.*state/i, "must not add runtime Perspective state files");
+    assert.doesNotMatch(changedFile, /^lib\/.*perspective.*snapshot/i, "must not add runtime PerspectiveSnapshot files");
+    assert.doesNotMatch(changedFile, /^lib\/.*trajectory/i, "must not add runtime trajectory builder files");
+    assert.doesNotMatch(changedFile, /^lib\/.*promotion/i, "must not add runtime promotion implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertProjectConstellationRuntimeLayoutContractDownstreamPointer();
+}
+
+function assertProjectConstellationRuntimeLayoutContractDownstreamPointer() {
+  const sourceValidationSmoke = readFile(smokePath);
+  for (const requiredText of [
+    projectLayoutContractVersion,
+    projectLayoutTypePath,
+    projectLayoutFixturePath,
+    projectLayoutSmokePath,
+    projectLayoutPackageScriptName,
+    projectLayoutRecommendationStatus,
+    projectLayoutNextRecommendedSlice,
+    "future stable Project Constellation layout grammar",
+    "layout is interface, not truth",
+    "coordinates are display hints, not source of truth",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      sourceValidationSmoke.includes(requiredText),
+      "#735 browser validation smoke must allow Project Constellation Runtime Layout contract downstream pointer: " +
+        requiredText,
+    );
   }
 }
 
