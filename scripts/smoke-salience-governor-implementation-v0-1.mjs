@@ -1,0 +1,644 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+
+const builderPath = "lib/research-candidate-review/salience-governor.ts";
+const contractFixturePath =
+  "fixtures/research-candidate-review.salience-governor-contract.sample.v0.1.json";
+const fixturePath =
+  "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json";
+const smokePath = "scripts/smoke-salience-governor-implementation-v0-1.mjs";
+const contractSmokePath = "scripts/smoke-salience-governor-contract-v0-1.mjs";
+const packagePath = "package.json";
+const indexPath = "docs/00_INDEX_LATEST.md";
+const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
+const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
+const gateDocPath =
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
+
+const packageScriptName = "smoke:salience-governor-implementation-v0-1";
+const packageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-salience-governor-implementation-v0-1.mjs";
+const implementationKind = "salience_governor_implementation";
+const implementationVersion = "salience_governor_implementation.v0.1";
+const priorityViewVersion = "salience_governor_priority_view.v0.1";
+const recommendationStatus =
+  "ready_for_salience_governor_browser_validation_v0_1";
+const nextRecommendedSlice = "salience_governor_browser_validation_v0_1";
+const writeFixture = process.argv.includes("--write-fixture");
+let cachedMergeBaseRef = null;
+
+const expectedChangedFiles = [
+  builderPath,
+  fixturePath,
+  smokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  contractSmokePath,
+  "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+
+for (const filePath of [
+  builderPath,
+  contractFixturePath,
+  smokePath,
+  contractSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+]) {
+  assert.ok(existsSync(filePath), `${filePath} must exist`);
+}
+if (!writeFixture) {
+  assert.ok(existsSync(fixturePath), `${fixturePath} must exist`);
+}
+
+const builderSource = readFile(builderPath);
+const smokeSource = readFile(smokePath);
+const contractSmokeSource = readFile(contractSmokePath);
+const contractFixture = readJson(contractFixturePath);
+const packageJson = readJson(packagePath);
+const basePackageJson = readJsonFromGit(packagePath);
+const indexDoc = readFile(indexPath);
+const substrateDoc = readFile(substrateDocPath);
+const surfaceDoc = readFile(surfaceDocPath);
+const gateDoc = readFile(gateDocPath);
+
+const { buildSalienceGovernorImplementation } = await import(
+  "../lib/research-candidate-review/salience-governor.ts"
+);
+
+const rebuiltFixture = buildImplementationFixture();
+
+if (writeFixture) {
+  writeFileSync(fixturePath, `${JSON.stringify(rebuiltFixture, null, 2)}\n`);
+  process.exit(0);
+}
+
+const fixture = readJson(fixturePath);
+
+assertBuilderFile();
+assertPackageScript();
+assertStaticBoundary();
+assertNoForbiddenRuntimePatterns();
+assertImplementationFixture(fixture);
+assertGeneratedPriorityView(fixture.generated_salience_priority_view);
+assertSalienceComponentSummary(fixture.salience_component_summary);
+assertInhibitionComponentSummary(fixture.inhibition_component_summary);
+assertActionHintSummary(fixture.action_hint_summary);
+assertPriorityViewSummary(fixture.priority_view_summary);
+assertNonAuthoritySummary(fixture.non_authority_summary);
+assertAuthorityBoundary(fixture.authority_boundary);
+assertValidationPolicy(fixture.validation_policy);
+assertValidation(fixture.validation);
+assertDocsPointers();
+assertContractSmokeDownstreamPointer();
+assertPortableMergeBaseFallback();
+assert.deepEqual(
+  fixture,
+  rebuiltFixture,
+  "rebuilt Salience Governor implementation fixture must match committed fixture",
+);
+
+console.log(
+  JSON.stringify(
+    {
+      smoke: "salience-governor-implementation-v0-1",
+      final_status: "pass",
+      implementation_kind: fixture.implementation_kind,
+      implementation_version: fixture.implementation_version,
+      source_contract_fingerprint: fixture.source_contract_fingerprint,
+      generated_priority_view_version:
+        fixture.generated_salience_priority_view.priority_view_version,
+      candidate_preview_count:
+        fixture.priority_view_summary.candidate_preview_count,
+      all_scores_in_range: fixture.priority_view_summary.all_scores_in_range,
+      runtime_salience_scoring_implemented_now:
+        fixture.authority_boundary.runtime_salience_scoring_implemented_now,
+      durable_salience_write_implemented_now:
+        fixture.authority_boundary.durable_salience_write_implemented_now,
+      salience_score_used_as_authority_now:
+        fixture.authority_boundary.salience_score_used_as_authority_now,
+      runtime_db_write_now: fixture.authority_boundary.runtime_db_write_now,
+      runtime_db_query_now: fixture.authority_boundary.runtime_db_query_now,
+      browser_request_now: fixture.authority_boundary.browser_request_now,
+      candidate_mutation_now: fixture.authority_boundary.candidate_mutation_now,
+      work_mutation: fixture.authority_boundary.work_mutation,
+      product_write_lane_parked_by_686:
+        fixture.authority_boundary.product_write_lane_parked_by_686,
+      next_recommended_slice: fixture.next_recommended_slice,
+    },
+    null,
+    2,
+  ),
+);
+
+function buildImplementationFixture() {
+  return buildSalienceGovernorImplementation({
+    salience_governor_contract: contractFixture,
+    source_contract_ref: `${contractFixture.contract_version}:${contractFixturePath}`,
+  });
+}
+
+function assertBuilderFile() {
+  for (const requiredText of [
+    "buildSalienceGovernorImplementation",
+    implementationKind,
+    implementationVersion,
+    "source_contract_ref",
+    "source_contract_fingerprint",
+    "source_recent_rehearsal_buffer_validation_ref",
+    "generated_salience_priority_view",
+    "salience_component_summary",
+    "inhibition_component_summary",
+    "action_hint_summary",
+    "priority_view_summary",
+    "non_authority_summary",
+    "authority_boundary",
+    "validation_policy",
+    "recommendation_status",
+    "next_recommended_slice",
+    "implementation_fingerprint",
+    "fnv1a32_canonical_json",
+  ]) {
+    assert.ok(builderSource.includes(requiredText), `${builderPath} must include ${requiredText}`);
+  }
+  assert.match(
+    builderSource,
+    /export function buildSalienceGovernorImplementation\b/,
+    "builder must export buildSalienceGovernorImplementation",
+  );
+}
+
+function assertPackageScript() {
+  assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  const addedScripts = Object.keys(packageJson.scripts)
+    .filter((scriptName) => !basePackageJson.scripts[scriptName])
+    .sort();
+  assert.deepEqual(
+    addedScripts,
+    [packageScriptName],
+    "package.json must add only the Salience Governor implementation smoke script",
+  );
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertStaticBoundary() {
+  const changedFiles = readChangedFiles();
+  assert.ok(
+    !changedFiles.includes("lib/research-candidate-review/recent-rehearsal-buffer.ts"),
+    "Salience Governor implementation slice must not change the Recent Rehearsal Buffer builder",
+  );
+  assert.ok(
+    !changedFiles.includes(
+      "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+    ),
+    "Salience Governor implementation slice must not change the Recent Rehearsal Buffer implementation fixture",
+  );
+  for (const expectedFile of expectedChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedChangedFiles.includes(changedFile),
+      `unexpected changed file in Salience Governor implementation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function assertNoForbiddenRuntimePatterns() {
+  const changedSourceFiles = readChangedFiles().filter((filePath) =>
+    (filePath.endsWith(".ts") || filePath.endsWith(".tsx") || filePath.endsWith(".mjs")) &&
+    !filePath.startsWith("scripts/smoke-"),
+  );
+  for (const filePath of changedSourceFiles) {
+    const source = stripValidationText(readFile(filePath));
+    for (const { label, regex } of [
+      { label: "route handler", regex: /\bexport\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)\b/ },
+      { label: "server action", regex: /["']use server["']/ },
+      { label: "browser fetch", regex: /\bfetch\s*\(/ },
+      { label: "localStorage", regex: /\blocalStorage\b/ },
+      { label: "sessionStorage", regex: /\bsessionStorage\b/ },
+      { label: "indexedDB", regex: /\bindexedDB\b/ },
+      { label: "document.cookie", regex: /document\.cookie/ },
+      { label: "DB open", regex: /\bnew\s+Database\b|\bopenDatabase\b|better-sqlite3/i },
+      { label: "runtime SQL", regex: /\bdb\.(prepare|query|exec)\b|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b/ },
+      { label: "DB write", regex: /\bdb\.(insert|update|delete|transaction)\b|\bruntimeDbWrite\b|\bproductionDbWrite\b/i },
+      { label: "durable memory write", regex: /\b(write|insert|persist)DurableMemory\b|\bdurableMemoryWrite\b/i },
+      { label: "durable salience write", regex: /\b(write|insert|persist)DurableSalience\b|\bdurableSalienceWrite\b/i },
+      { label: "recent rehearsal buffer write", regex: /\bwriteRecentRehearsalBuffer\b|\binsertRecentRehearsalBuffer\b|\bpersistRecentRehearsalBuffer\b/i },
+      { label: "formation receipt write", regex: /\bwriteFormationReceipt\b|\binsertFormationReceipt\b|\bpersistFormationReceipt\b/i },
+      { label: "feedback write", regex: /\bwriteFeedbackEvent\b|\binsertFeedbackEvent\b|\bmutateFeedbackEvent\b/ },
+      { label: "candidate mutation", regex: /\bmutateCandidate\b|\bupdateCandidate\b|\bdeleteCandidate\b/ },
+      { label: "OpenAI import", regex: /from\s+["'][^"']*openai["']/i },
+      { label: "OpenAI constructor", regex: /new\s+OpenAI\b/i },
+      { label: "source fetch call", regex: /\bfetchSource\b|\bsourceFetch\b/ },
+      { label: "retrieval execution", regex: /\brunRetrieval\b|\brunRag\b|\brunRAG\b/ },
+      { label: "embedding/vector/FTS implementation", regex: /\bcreateEmbedding\b|\bvectorIndex\b|\bFTS5\b/i },
+      { label: "Codex product execution", regex: /\bcodex\s+(exec|run)\b/i },
+      { label: "GitHub automation", regex: /\bgh\s+pr\b|Octokit|api\.github\.com/i },
+      { label: "external handoff send", regex: /\bsendExternalHandoff\b/ },
+      { label: "agent execution", regex: /\bexecuteAgent\b|\brouteAgent\b/ },
+      { label: "proof write", regex: /\bcreateProof\b|\binsertProof\b/ },
+      { label: "evidence write", regex: /\bcreateEvidence\b|\binsertEvidence\b/ },
+      { label: "Perspective promotion", regex: /\bpromotePerspective\b/ },
+      { label: "Perspective durable state write", regex: /\bwritePerspective\b|\bupsertPerspective\b/ },
+      { label: "promotion decision", regex: /\bcreatePromotionDecision\b|\brecordPromotionDecision\b/ },
+      { label: "work mutation", regex: /\bcreateWork\b|\bmutateWork\b|\bupdateWork\b/ },
+      { label: "runtime salience scoring", regex: /\bcomputeSalienceScore\b|\brunSalienceScoring\b|\bruntimeSalienceScoring\b/i },
+      { label: "salience authority true flag", regex: /\bsalience_authority:\s*true\b/ },
+      { label: "salience score authority", regex: /\bsalience_score_used_as_authority_now:\s*true\b/ },
+      { label: "product write", regex: /\bexecuteProductWrite\b|\bproductDbWrite\b/i },
+      { label: "product ID allocation", regex: /\ballocateProductId\b/i },
+    ]) {
+      assert.doesNotMatch(source, regex, `${filePath} must not include ${label}`);
+    }
+  }
+}
+
+function assertImplementationFixture(value) {
+  assert.equal(value.implementation_kind, implementationKind);
+  assert.equal(value.implementation_version, implementationVersion);
+  assert.equal(
+    value.source_contract_ref,
+    `${contractFixture.contract_version}:${contractFixturePath}`,
+  );
+  assert.equal(value.source_contract_fingerprint, contractFixture.contract_fingerprint);
+  assert.equal(
+    value.source_recent_rehearsal_buffer_validation_ref,
+    contractFixture.source_recent_rehearsal_buffer_validation_ref,
+  );
+  assert.equal(value.recommendation_status, recommendationStatus);
+  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.match(value.implementation_fingerprint, /^fnv1a32:[0-9a-f]{8}$/);
+  assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
+}
+
+function assertGeneratedPriorityView(priorityView) {
+  for (const field of Object.keys(contractFixture.sample_salience_priority_view)) {
+    assert.ok(Object.hasOwn(priorityView, field), `generated priority view must include ${field}`);
+  }
+  assert.equal(priorityView.priority_view_version, priorityViewVersion);
+  assert.ok(Array.isArray(priorityView.source_refs) && priorityView.source_refs.length > 0);
+  assert.ok(Array.isArray(priorityView.candidate_priority_preview));
+  assert.ok(priorityView.candidate_priority_preview.length > 0);
+  assert.equal(
+    priorityView.candidate_priority_preview.length <= priorityView.top_k,
+    true,
+  );
+  assert.equal(
+    priorityView.action_hint_policy_ref,
+    contractFixture.sample_salience_priority_view.action_hint_policy_ref,
+  );
+  assert.equal(
+    priorityView.priority_view_contract_ref,
+    contractFixture.sample_salience_priority_view.priority_view_contract_ref,
+  );
+  assert.equal(
+    priorityView.non_authority_policy_ref,
+    contractFixture.sample_salience_priority_view.non_authority_policy_ref,
+  );
+  assert.deepEqual(priorityView.authority_boundary, contractFixture.authority_boundary);
+  assert.deepEqual(priorityView.validation, contractFixture.validation_policy);
+  assert.equal(
+    Object.hasOwn(priorityView.authority_boundary, "implementation_added_now"),
+    false,
+  );
+  assert.equal(
+    Object.hasOwn(priorityView.authority_boundary, "deterministic_builder_added_now"),
+    false,
+  );
+  for (const candidate of priorityView.candidate_priority_preview) {
+    assert.equal(typeof candidate.candidate_ref_id, "string");
+    assert.ok(candidate.candidate_ref_id.length > 0);
+    assert.equal(typeof candidate.salience_score_preview, "number");
+    assert.ok(candidate.salience_score_preview >= 0);
+    assert.ok(candidate.salience_score_preview <= 1);
+    assert.ok(Array.isArray(candidate.action_hint_kinds));
+    assert.ok(candidate.action_hint_kinds.length > 0);
+    assert.equal(typeof candidate.why_now, "string");
+    assert.ok(candidate.why_now.length > 0);
+    assert.ok(Array.isArray(candidate.component_refs));
+    assert.ok(Array.isArray(candidate.inhibition_refs));
+    assert.equal(candidate.display_only, true);
+    assert.equal(candidate.not_authority, true);
+  }
+}
+
+function assertSalienceComponentSummary(value) {
+  assert.equal(value.component_count, contractFixture.salience_components.length);
+  assert.deepEqual(
+    value.component_kinds,
+    contractFixture.salience_components.map((component) => component.component_kind),
+  );
+  assert.equal(value.all_components_display_only, true);
+  assert.equal(value.all_components_not_authority, true);
+  assert.equal(value.preview_weights_only, true);
+}
+
+function assertInhibitionComponentSummary(value) {
+  assert.equal(value.inhibition_count, contractFixture.inhibition_components.length);
+  assert.deepEqual(
+    value.inhibition_kinds,
+    contractFixture.inhibition_components.map((component) => component.inhibition_kind),
+  );
+  assert.equal(value.all_inhibitions_display_only, true);
+  assert.equal(value.all_inhibitions_not_authority, true);
+  assert.equal(value.suppression_is_display_hint_only, true);
+  assert.equal(value.reactivation_is_display_hint_only, true);
+}
+
+function assertActionHintSummary(value) {
+  assert.deepEqual(
+    value.allowed_hint_kinds,
+    contractFixture.action_hint_policy.allowed_hint_kinds,
+  );
+  assert.equal(value.hint_count, contractFixture.action_hint_policy.allowed_hint_kinds.length);
+  assert.equal(value.all_hints_hint_only, true);
+  assert.equal(value.all_hints_no_mutation_now, true);
+  assert.equal(value.all_hints_require_later_user_action, true);
+  assert.equal(value.all_hints_not_execution_authority, true);
+  assert.equal(value.all_hints_not_promotion_authority, true);
+  assert.equal(value.all_hints_not_product_write, true);
+}
+
+function assertPriorityViewSummary(value) {
+  assert.equal(value.top_k, contractFixture.priority_view_contract.default_top_k);
+  assert.equal(
+    value.candidate_preview_count,
+    fixture.generated_salience_priority_view.candidate_priority_preview.length,
+  );
+  assert.equal(value.score_range, "0_to_1");
+  assert.equal(value.all_scores_in_range, true);
+  assert.equal(value.priority_view_is_display_only, true);
+  assert.equal(value.priority_view_does_not_delete_or_hide_records, true);
+  assert.equal(value.salience_score_preview_allowed, true);
+  assert.equal(value.runtime_score_computation_now, false);
+  assert.equal(value.runtime_salience_scoring_implemented_now, false);
+  assert.equal(
+    fixture.generated_salience_priority_view.authority_boundary
+      .salience_score_used_as_authority_now,
+    false,
+  );
+}
+
+function assertNonAuthoritySummary(value) {
+  assert.equal(value.not_promotion_basis, true);
+  assert.equal(value.not_source_of_truth, true);
+  assert.equal(value.not_proof_or_evidence, true);
+  assert.equal(value.not_perspective_state, true);
+  assert.equal(value.not_work_status, true);
+  assert.equal(value.not_retrieval_rag_result, true);
+  assert.equal(value.not_product_write, true);
+  assert.equal(value.salience_score_not_authority, true);
+  assert.equal(value.salience_score_not_promotion_readiness, true);
+  assert.equal(value.salience_score_not_durable_approval, true);
+  assert.equal(value.salience_score_not_evidence_strength, true);
+  assert.equal(value.durable_write_requires_later_contract, true);
+}
+
+function assertAuthorityBoundary(value) {
+  assert.equal(value.implementation_added_now, true);
+  assert.equal(value.deterministic_builder_added_now, true);
+  assert.equal(value.product_write_lane_parked_by_686, true);
+  assert.equal(value.runtime_salience_scoring_implemented_now, false);
+  assert.equal(value.durable_salience_write_implemented_now, false);
+  assert.equal(value.salience_score_used_as_authority_now, false);
+  assert.equal(value.candidate_mutation_now, false);
+  assert.equal(value.work_mutation, false);
+  assert.equal(value.product_write_authority, false);
+  for (const [key, flag] of Object.entries(value)) {
+    if (
+      key === "implementation_added_now" ||
+      key === "contract_followed_now" ||
+      key === "fixture_backed_only" ||
+      key === "deterministic_builder_added_now" ||
+      key === "product_write_lane_parked_by_686"
+    ) {
+      assert.equal(flag, true, `${key} must be true`);
+    } else {
+      assert.equal(flag, false, `${key} must be false`);
+    }
+  }
+}
+
+function assertValidationPolicy(value) {
+  assert.deepEqual(value, {
+    static_source_validation_only: true,
+    fixture_backed_only: true,
+    app_server_started_now: false,
+    production_db_used_now: false,
+    runtime_browser_request_now: false,
+    runtime_db_query_now: false,
+    runtime_db_write_now: false,
+    runtime_salience_scoring_now: false,
+  });
+}
+
+function assertValidation(value) {
+  assert.equal(value.passed, true);
+  assert.deepEqual(value.failure_codes, []);
+  assert.equal(value.generated_priority_view_follows_contract, true);
+  assert.equal(value.generated_priority_view_boundary_matches_contract, true);
+  assert.equal(value.generated_priority_view_validation_matches_contract, true);
+  assert.equal(value.top_level_implementation_boundary_is_separate, true);
+  assert.equal(value.all_scores_in_range, true);
+  assert.equal(value.action_hints_are_hint_only, true);
+  assert.equal(value.action_hints_do_not_mutate_now, true);
+  assert.equal(value.salience_score_not_authority, true);
+  assert.equal(value.salience_score_not_promotion_readiness, true);
+  assert.equal(value.salience_score_not_durable_approval, true);
+  assert.equal(value.salience_score_not_evidence_strength, true);
+  assert.equal(value.non_authority_policy_preserved, true);
+  assert.equal(value.authority_boundary_preserved, true);
+  assert.equal(value.deterministic_rebuild_matches_fixture, true);
+}
+
+function assertDocsPointers() {
+  for (const requiredText of [
+    "Salience Governor implementation v0.1",
+    builderPath,
+    fixturePath,
+    smokePath,
+    packageScriptName,
+    "deterministic fixture-backed implementation",
+    "generated display/reuse priority view from #718 contract",
+    "salience component summary",
+    "inhibition component summary",
+    "action hint summary",
+    "priority view summary",
+    "no runtime salience scoring",
+    "no salience score authority",
+    "no runtime persistence",
+    "no durable salience write",
+    "no durable memory write",
+    "no runtime DB write/query",
+    "no schema/migration",
+    "no route or UI",
+    "no browser request",
+    "no proof/evidence/Perspective promotion/candidate mutation/work mutation",
+    "no provider/OpenAI/source-fetch/retrieval/RAG execution",
+    "no product write/product IDs",
+    "product-write remains parked by #686",
+    nextRecommendedSlice,
+  ]) {
+    assert.ok(indexDoc.includes(requiredText), `index doc must include ${requiredText}`);
+  }
+  for (const doc of [substrateDoc, surfaceDoc, gateDoc]) {
+    assert.match(doc, /Salience Governor implementation v0\.1/i);
+    assert.match(doc, /deterministic/i);
+    assert.match(doc, /fixture-backed/i);
+    assert.match(doc, /display\/reuse priority/i);
+    assert.match(doc, /not proof\/evidence/i);
+    assert.match(doc, /not Perspective state|durable Perspective promotion/i);
+    assert.match(doc, /not work status|work mutation/i);
+    assert.match(doc, /not promotion authority|promotion/i);
+    assert.match(doc, /not salience authority|salience score/i);
+    assert.match(doc, /retrieval\/RAG/i);
+    assert.match(doc, /product write/i);
+    assert.match(doc, /runtime DB|no runtime DB/i);
+    assert.match(doc, new RegExp(nextRecommendedSlice));
+  }
+}
+
+function assertContractSmokeDownstreamPointer() {
+  for (const requiredText of [
+    implementationVersion,
+    builderPath,
+    fixturePath,
+    smokePath,
+    packageScriptName,
+    recommendationStatus,
+    nextRecommendedSlice,
+    "generated display/reuse priority view",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      contractSmokeSource.includes(requiredText),
+      `#718 Salience Governor contract smoke must allow implementation downstream pointer: ${requiredText}`,
+    );
+  }
+}
+
+function assertPortableMergeBaseFallback() {
+  for (const requiredText of [
+    "gitRefExists",
+    "tryGitOutput",
+    "origin/main",
+    "main",
+    "HEAD^",
+    "Unable to determine a base ref for static changed-file validation",
+  ]) {
+    assert.ok(smokeSource.includes(requiredText), `smoke must include portable mergeBaseRef text: ${requiredText}`);
+  }
+}
+
+function readFile(filePath) {
+  return readFileSync(filePath, "utf8");
+}
+
+function readJson(filePath) {
+  return JSON.parse(readFile(filePath));
+}
+
+function readJsonFromGit(filePath) {
+  return JSON.parse(readGitOutput(["show", `${mergeBaseRef()}:${filePath}`]));
+}
+
+function readChangedFiles() {
+  const changed = [
+    ...readGitOutput(["diff", "--name-only", mergeBaseRef()]).split("\n"),
+    ...readGitOutput(["diff", "--cached", "--name-only"]).split("\n"),
+    ...readGitOutput(["ls-files", "--others", "--exclude-standard"]).split("\n"),
+  ]
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return [...new Set(changed)].sort();
+}
+
+function stripValidationText(source) {
+  return source
+    .replace(/\/\/.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(["'`])(?:\\.|(?!\1)[\s\S])*\1/g, "\"\"");
+}
+
+function mergeBaseRef() {
+  if (cachedMergeBaseRef) {
+    return cachedMergeBaseRef;
+  }
+  for (const ref of ["origin/main", "main"]) {
+    if (!gitRefExists(ref)) {
+      continue;
+    }
+    const mergeBase = tryGitOutput(["merge-base", "HEAD", ref])?.trim();
+    if (mergeBase) {
+      cachedMergeBaseRef = mergeBase;
+      return cachedMergeBaseRef;
+    }
+  }
+  const parentRef = tryGitOutput(["rev-parse", "--verify", "HEAD^"])?.trim();
+  if (parentRef) {
+    cachedMergeBaseRef = parentRef;
+    return cachedMergeBaseRef;
+  }
+  throw new Error(
+    "Unable to determine a base ref for static changed-file validation. " +
+      "Expected origin/main, local main, or HEAD^ to resolve.",
+  );
+}
+
+function gitRefExists(ref) {
+  return tryGitOutput(["rev-parse", "--verify", ref]) !== null;
+}
+
+function tryGitOutput(args) {
+  try {
+    return readGitOutput(args);
+  } catch {
+    return null;
+  }
+}
+
+function readGitOutput(args) {
+  return execFileSync("git", args, { encoding: "utf8" });
+}

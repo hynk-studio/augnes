@@ -1,0 +1,260 @@
+{
+  "implementation_kind": "salience_governor_implementation",
+  "implementation_version": "salience_governor_implementation.v0.1",
+  "source_contract_ref": "salience_governor_contract.v0.1:fixtures/research-candidate-review.salience-governor-contract.sample.v0.1.json",
+  "source_contract_fingerprint": "fnv1a32:a66b2eec",
+  "source_recent_rehearsal_buffer_validation_ref": "recent_rehearsal_buffer_browser_validation.v0.1:fixtures/research-candidate-review.recent-rehearsal-buffer-browser-validation.sample.v0.1.json#717",
+  "generated_salience_priority_view": {
+    "priority_view_id": "salience_governor_contract_sample_v0_1_001",
+    "priority_view_version": "salience_governor_priority_view.v0.1",
+    "generated_at": "2026-06-23T00:00:00.000Z",
+    "scope": "research_candidate_review:salience_governor_contract_sample",
+    "source_refs": [
+      {
+        "ref_id": "source_ref_recent_rehearsal_buffer_browser_validation_717",
+        "ref_kind": "recent_rehearsal_buffer_validation_ref",
+        "ref": "recent_rehearsal_buffer_browser_validation.v0.1:fixtures/research-candidate-review.recent-rehearsal-buffer-browser-validation.sample.v0.1.json#717",
+        "public_safe": true
+      }
+    ],
+    "top_k": 10,
+    "candidate_priority_preview": [
+      {
+        "candidate_ref_id": "candidate_ref_resume_context_boundary",
+        "salience_score_preview": 0.82,
+        "action_hint_kinds": [
+          "pin",
+          "inspect",
+          "keep_visible"
+        ],
+        "why_now": "Recently active context has unresolved tension and explicit operator focus.",
+        "component_refs": [
+          "source_recency",
+          "user_mark",
+          "open_tension_count",
+          "manual_gravity"
+        ],
+        "inhibition_refs": [
+          "insufficient_evidence"
+        ],
+        "display_only": true,
+        "not_authority": true
+      },
+      {
+        "candidate_ref_id": "candidate_ref_priority_hint_review",
+        "salience_score_preview": 0.46,
+        "action_hint_kinds": [
+          "watch",
+          "cool_down"
+        ],
+        "why_now": "Candidate may be useful later but has repeated unresolved noise.",
+        "component_refs": [
+          "reuse_frequency",
+          "work_relevance"
+        ],
+        "inhibition_refs": [
+          "repeated_unresolved_noise",
+          "stale_without_reactivation"
+        ],
+        "display_only": true,
+        "not_authority": true
+      }
+    ],
+    "action_hint_policy_ref": "salience_governor_action_hint_policy.v0.1",
+    "priority_view_contract_ref": "salience_governor_priority_view_contract.v0.1",
+    "non_authority_policy_ref": "salience_governor_non_authority_policy.v0.1",
+    "authority_boundary": {
+      "contract_only": true,
+      "salience_governor_contract_defined_now": true,
+      "runtime_salience_scoring_implemented_now": false,
+      "durable_salience_write_implemented_now": false,
+      "salience_score_used_as_authority_now": false,
+      "db_schema_implemented_now": false,
+      "route_changed_now": false,
+      "component_changed_now": false,
+      "browser_request_now": false,
+      "runtime_db_query_now": false,
+      "runtime_db_write_now": false,
+      "production_db_used_now": false,
+      "durable_memory_write_now": false,
+      "recent_rehearsal_buffer_written_now": false,
+      "formation_receipt_written_now": false,
+      "feedback_events_written_now": false,
+      "feedback_events_mutated_now": false,
+      "candidate_mutation_now": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state_write": false,
+      "promotion_decision_record": false,
+      "work_mutation": false,
+      "execution_authority": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "external_handoff_authority": false,
+      "provider_openai_authority": false,
+      "retrieval_rag_authority": false,
+      "source_fetch_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "product_write_lane_parked_by_686": true
+    },
+    "validation": {
+      "static_source_validation_only": true,
+      "fixture_backed_only": true,
+      "app_server_started_now": false,
+      "production_db_used_now": false,
+      "runtime_browser_request_now": false,
+      "runtime_db_query_now": false,
+      "runtime_db_write_now": false,
+      "runtime_salience_scoring_now": false
+    }
+  },
+  "salience_component_summary": {
+    "component_count": 9,
+    "component_kinds": [
+      "source_recency",
+      "user_mark",
+      "open_tension_count",
+      "evidence_strength",
+      "reuse_frequency",
+      "conflict_severity",
+      "work_relevance",
+      "promotion_readiness",
+      "manual_gravity"
+    ],
+    "all_components_display_only": true,
+    "all_components_not_authority": true,
+    "preview_weights_only": true
+  },
+  "inhibition_component_summary": {
+    "inhibition_count": 7,
+    "inhibition_kinds": [
+      "low_provenance",
+      "repeated_unresolved_noise",
+      "superseded_by_newer_candidate",
+      "user_deferred",
+      "insufficient_evidence",
+      "scope_mismatch",
+      "stale_without_reactivation"
+    ],
+    "all_inhibitions_display_only": true,
+    "all_inhibitions_not_authority": true,
+    "suppression_is_display_hint_only": true,
+    "reactivation_is_display_hint_only": true
+  },
+  "action_hint_summary": {
+    "allowed_hint_kinds": [
+      "pin",
+      "watch",
+      "defer",
+      "boost",
+      "suppress",
+      "reactivate",
+      "inspect",
+      "keep_visible",
+      "cool_down"
+    ],
+    "hint_count": 9,
+    "all_hints_hint_only": true,
+    "all_hints_no_mutation_now": true,
+    "all_hints_require_later_user_action": true,
+    "all_hints_not_execution_authority": true,
+    "all_hints_not_promotion_authority": true,
+    "all_hints_not_product_write": true
+  },
+  "priority_view_summary": {
+    "top_k": 10,
+    "candidate_preview_count": 2,
+    "score_range": "0_to_1",
+    "all_scores_in_range": true,
+    "priority_view_is_display_only": true,
+    "priority_view_does_not_delete_or_hide_records": true,
+    "salience_score_preview_allowed": true,
+    "runtime_score_computation_now": false,
+    "runtime_salience_scoring_implemented_now": false
+  },
+  "non_authority_summary": {
+    "not_promotion_basis": true,
+    "not_source_of_truth": true,
+    "not_proof_or_evidence": true,
+    "not_perspective_state": true,
+    "not_work_status": true,
+    "not_retrieval_rag_result": true,
+    "not_product_write": true,
+    "salience_score_not_authority": true,
+    "salience_score_not_promotion_readiness": true,
+    "salience_score_not_durable_approval": true,
+    "salience_score_not_evidence_strength": true,
+    "durable_write_requires_later_contract": true
+  },
+  "authority_boundary": {
+    "implementation_added_now": true,
+    "contract_followed_now": true,
+    "fixture_backed_only": true,
+    "deterministic_builder_added_now": true,
+    "runtime_salience_scoring_implemented_now": false,
+    "durable_salience_write_implemented_now": false,
+    "salience_score_used_as_authority_now": false,
+    "runtime_persistence_implemented_now": false,
+    "durable_memory_write_now": false,
+    "runtime_db_write_now": false,
+    "runtime_db_query_now": false,
+    "production_db_used_now": false,
+    "db_schema_implemented_now": false,
+    "route_changed_now": false,
+    "component_changed_now": false,
+    "browser_request_now": false,
+    "recent_rehearsal_buffer_written_now": false,
+    "formation_receipt_written_now": false,
+    "feedback_events_written_now": false,
+    "feedback_events_mutated_now": false,
+    "candidate_mutation_now": false,
+    "proof_or_evidence_record": false,
+    "perspective_promotion": false,
+    "durable_perspective_state_write": false,
+    "promotion_decision_record": false,
+    "work_mutation": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation_policy": {
+    "static_source_validation_only": true,
+    "fixture_backed_only": true,
+    "app_server_started_now": false,
+    "production_db_used_now": false,
+    "runtime_browser_request_now": false,
+    "runtime_db_query_now": false,
+    "runtime_db_write_now": false,
+    "runtime_salience_scoring_now": false
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": [],
+    "generated_priority_view_follows_contract": true,
+    "generated_priority_view_boundary_matches_contract": true,
+    "generated_priority_view_validation_matches_contract": true,
+    "top_level_implementation_boundary_is_separate": true,
+    "all_scores_in_range": true,
+    "action_hints_are_hint_only": true,
+    "action_hints_do_not_mutate_now": true,
+    "salience_score_not_authority": true,
+    "salience_score_not_promotion_readiness": true,
+    "salience_score_not_durable_approval": true,
+    "salience_score_not_evidence_strength": true,
+    "non_authority_policy_preserved": true,
+    "authority_boundary_preserved": true,
+    "deterministic_rebuild_matches_fixture": true
+  },
+  "recommendation_status": "ready_for_salience_governor_browser_validation_v0_1",
+  "next_recommended_slice": "salience_governor_browser_validation_v0_1",
+  "implementation_fingerprint": "fnv1a32:7106f014",
+  "fingerprint_algorithm": "fnv1a32_canonical_json"
+}
