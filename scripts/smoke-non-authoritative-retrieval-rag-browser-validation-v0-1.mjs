@@ -51,6 +51,22 @@ const humanPromotionContractRecommendationStatus =
   "ready_for_human_reviewed_durable_perspective_promotion_implementation_v0_1";
 const humanPromotionContractNextRecommendedSlice =
   "human_reviewed_durable_perspective_promotion_implementation_v0_1";
+const humanPromotionImplementationBuilderPath =
+  "lib/research-candidate-review/human-reviewed-durable-perspective-promotion.ts";
+const humanPromotionImplementationFixturePath =
+  "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-implementation.sample.v0.1.json";
+const humanPromotionImplementationSmokePath =
+  "scripts/smoke-human-reviewed-durable-perspective-promotion-implementation-v0-1.mjs";
+const humanPromotionImplementationPackageScriptName =
+  "smoke:human-reviewed-durable-perspective-promotion-implementation-v0-1";
+const humanPromotionImplementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-human-reviewed-durable-perspective-promotion-implementation-v0-1.mjs";
+const humanPromotionImplementationVersion =
+  "human_reviewed_durable_perspective_promotion_implementation.v0.1";
+const humanPromotionImplementationRecommendationStatus =
+  "ready_for_human_reviewed_durable_perspective_promotion_browser_validation_v0_1";
+const humanPromotionImplementationNextRecommendedSlice =
+  "human_reviewed_durable_perspective_promotion_browser_validation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -620,6 +636,10 @@ function assertBuilderFile() {
 }
 
 function assertPackageScript() {
+  if (humanPromotionImplementationSliceActive()) {
+    assertHumanPromotionImplementationPackageScript();
+    return;
+  }
   if (humanPromotionContractSliceActive()) {
     assertHumanPromotionContractPackageScript();
     return;
@@ -653,6 +673,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (humanPromotionImplementationSliceActive()) {
+    assertHumanPromotionImplementationChangedFiles(changedFiles);
+    return;
+  }
   if (humanPromotionContractSliceActive()) {
     assertHumanPromotionContractChangedFiles(changedFiles);
     return;
@@ -694,6 +718,137 @@ function assertStaticBoundary() {
     assert.doesNotMatch(changedFile, /^lib\/research-rag\//, "must not add RAG implementation files");
     assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
     assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function humanPromotionImplementationSliceActive() {
+  return readChangedFiles().includes(humanPromotionImplementationSmokePath);
+}
+
+function assertHumanPromotionImplementationPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts[humanPromotionImplementationPackageScriptName],
+    humanPromotionImplementationPackageScriptValue,
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    [humanPromotionImplementationPackageScriptName],
+    "package.json must add only the Human-reviewed Durable Perspective Promotion implementation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertHumanPromotionImplementationChangedFiles(changedFiles) {
+  const expectedFiles = [
+    humanPromotionImplementationBuilderPath,
+    humanPromotionImplementationFixturePath,
+    humanPromotionImplementationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    humanPromotionContractSmokePath,
+    smokePath,
+    implementationSmokePath,
+    contractSmokePath,
+    ...downstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    humanPromotionContractTypePath,
+    humanPromotionContractFixturePath,
+    fixturePath,
+    builderPath,
+    implementationFixturePath,
+    contractTypePath,
+    contractFixturePath,
+    "lib/research-candidate-review/operator-source-candidate-generation.ts",
+    "fixtures/research-candidate-review.operator-source-candidate-generation-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/bounded-external-source-intake.ts",
+    "fixtures/research-candidate-review.bounded-external-source-intake-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/salience-governor.ts",
+    "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/recent-rehearsal-buffer.ts",
+    "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Human-reviewed Durable Perspective Promotion implementation slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of [
+    humanPromotionImplementationBuilderPath,
+    humanPromotionImplementationFixturePath,
+    humanPromotionImplementationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    humanPromotionContractSmokePath,
+    smokePath,
+  ]) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Human-reviewed Durable Perspective Promotion implementation downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\/research-retrieval\//, "must not add retrieval implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/research-rag\//, "must not add RAG implementation files");
+    if (changedFile !== humanPromotionImplementationBuilderPath) {
+      assert.doesNotMatch(changedFile, /^lib\/.*promotion/i, "must not add runtime promotion implementation files");
+    }
+    assert.doesNotMatch(changedFile, /^lib\/.*perspective.*state/i, "must not add runtime Perspective state files");
+    assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  for (const requiredText of [
+    humanPromotionImplementationVersion,
+    humanPromotionImplementationBuilderPath,
+    humanPromotionImplementationFixturePath,
+    humanPromotionImplementationSmokePath,
+    humanPromotionImplementationPackageScriptName,
+    humanPromotionImplementationRecommendationStatus,
+    humanPromotionImplementationNextRecommendedSlice,
+    "deterministic fixture-backed implementation only",
+    "explicit human review required",
+    "source_refs required",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      readFileSync(humanPromotionImplementationSmokePath, "utf8").includes(requiredText),
+      `#729 browser validation smoke must allow Human-reviewed Durable Perspective Promotion implementation downstream pointer: ${requiredText}`,
+    );
   }
 }
 
