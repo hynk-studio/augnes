@@ -47,11 +47,21 @@ const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
 const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
 const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
+const implementationBuilderPath =
+  "lib/research-candidate-review/feedback-event-aggregation-read-model.ts";
+const implementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-implementation.sample.v0.1.json";
+const implementationSmokePath =
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs";
 
 const packageScriptName =
   "smoke:feedback-event-aggregation-read-model-contract-v0-1";
 const packageScriptValue =
   "node scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
+const implementationPackageScriptName =
+  "smoke:feedback-event-aggregation-read-model-implementation-v0-1";
+const implementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs";
 const contractKind = "feedback_event_aggregation_read_model_contract";
 const contractVersion = "feedback_event_aggregation_read_model_contract.v0.1";
 const routePath = "/api/research-candidate/feedback-events";
@@ -61,6 +71,10 @@ const recommendationStatus =
   "ready_for_feedback_event_aggregation_read_model_implementation_v0_1";
 const nextRecommendedSlice =
   "feedback_event_aggregation_read_model_implementation_v0_1";
+const implementationRecommendationStatus =
+  "ready_for_feedback_event_aggregation_read_model_browser_validation_v0_1";
+const implementationNextRecommendedSlice =
+  "feedback_event_aggregation_read_model_browser_validation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 
 const allowedEventTypes = [
@@ -110,6 +124,31 @@ const expectedChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  listUiBrowserValidationSmokePath,
+  listUiImplementationSmokePath,
+  listUiContractSmokePath,
+  listRouteBrowserValidationSmokePath,
+  listRouteImplementationSmokePath,
+  listRouteContractSmokePath,
+  controlsUiBrowserValidationSmokePath,
+  controlsUiImplementationSmokePath,
+  controlsUiContractSmokePath,
+  writeRouteBrowserValidationSmokePath,
+  writeRouteImplementationSmokePath,
+  writeRouteContractSmokePath,
+  reviewControlsSmokePath,
+  feedbackEventStoreMinimalSmokePath,
+];
+const downstreamImplementationChangedFiles = [
+  implementationBuilderPath,
+  implementationFixturePath,
+  implementationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
   listUiBrowserValidationSmokePath,
   listUiImplementationSmokePath,
   listUiContractSmokePath,
@@ -627,13 +666,22 @@ function assertTypeContract() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  if (downstreamImplementationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[implementationPackageScriptName],
+      implementationPackageScriptValue,
+    );
+  }
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
     .sort();
+  const expectedAddedScripts = downstreamImplementationSliceActive()
+    ? [implementationPackageScriptName]
+    : [packageScriptName];
   assert.deepEqual(
     addedScripts,
-    [packageScriptName],
-    "package.json must add only the aggregation read model contract smoke script",
+    expectedAddedScripts,
+    "package.json must add only the expected aggregation read model smoke script",
   );
   assert.deepEqual(
     packageJson.dependencies,
@@ -654,12 +702,15 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const requiredFiles = downstreamImplementationSliceActive()
+    ? downstreamImplementationChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of requiredFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedChangedFiles.includes(changedFile),
+      requiredFiles.includes(changedFile),
       `unexpected changed file in aggregation read model contract slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
@@ -964,6 +1015,22 @@ function assertDocsPointers() {
 }
 
 function assertListUiBrowserValidationSmokeDownstreamPointer() {
+  if (downstreamImplementationSliceActive()) {
+    for (const requiredText of [
+      implementationPackageScriptName,
+      implementationBuilderPath,
+      implementationFixturePath,
+      implementationSmokePath,
+      implementationRecommendationStatus,
+      implementationNextRecommendedSlice,
+    ]) {
+      assert.ok(
+        smokeSource.includes(requiredText),
+        `contract smoke must allow implementation pointer text: ${requiredText}`,
+      );
+    }
+    return;
+  }
   for (const requiredText of [
     packageScriptName,
     typePath,
@@ -982,6 +1049,10 @@ function assertListUiBrowserValidationSmokeDownstreamPointer() {
     "feedback_event_aggregation_read_model_contract_v0_1",
     "#708 list UI browser validation fixture output must remain unchanged",
   );
+}
+
+function downstreamImplementationSliceActive() {
+  return readChangedFiles().includes(implementationSmokePath);
 }
 
 function compareEventsAsc(a, b) {

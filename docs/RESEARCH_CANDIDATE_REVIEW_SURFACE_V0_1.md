@@ -905,6 +905,26 @@ retrieval/RAG result, and not product write. Product-write remains parked by
 the #686 stopline. Next recommended slice:
 `feedback_event_aggregation_read_model_implementation_v0_1`.
 
+## Feedback Event Aggregation Read Model Implementation v0.1 Pointer
+
+Feedback event aggregation read model implementation v0.1 is deterministic and
+fixture-backed. It implements read-model-only aggregation views over committed
+feedback event fixtures and remains separated from durable Perspective
+promotion.
+
+The implementation adds no runtime DB query, no production DB read, no browser
+request, no feedback write/mutation, no app/api route change, no route handler
+change, no server action, no component/UI implementation, no schema/migration
+change, no package dependency, no browser persistence, no provider/OpenAI call,
+no source fetch, no retrieval/RAG execution, no proof/evidence write, no
+Perspective promotion, no durable Perspective state write, no promotion decision
+record, no work mutation, no salience authority, no product write, no product
+DB write, and no product ID allocation. It is advisory/read-only and is not
+proof/evidence, not Perspective state, not work status, not promotion authority,
+not salience authority, not retrieval/RAG result, and not product write.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`feedback_event_aggregation_read_model_browser_validation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

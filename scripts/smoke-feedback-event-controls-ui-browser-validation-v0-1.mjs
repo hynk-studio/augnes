@@ -74,6 +74,12 @@ const aggregationReadModelContractFixturePath =
   "fixtures/research-candidate-review.feedback-event-aggregation-read-model-contract.sample.v0.1.json";
 const aggregationReadModelContractSmokePath =
   "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
+const aggregationReadModelImplementationBuilderPath =
+  "lib/research-candidate-review/feedback-event-aggregation-read-model.ts";
+const aggregationReadModelImplementationFixturePath =
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-implementation.sample.v0.1.json";
+const aggregationReadModelImplementationSmokePath =
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs";
 const feedbackEventsRouteFilePath = "app/api/research-candidate/feedback-events/route.ts";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -112,6 +118,35 @@ const aggregationReadModelContractPackageScriptName =
   "smoke:feedback-event-aggregation-read-model-contract-v0-1";
 const aggregationReadModelContractPackageScriptValue =
   "node scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs";
+const aggregationReadModelImplementationPackageScriptName =
+  "smoke:feedback-event-aggregation-read-model-implementation-v0-1";
+const aggregationReadModelImplementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs";
+const aggregationReadModelImplementationChangedFiles = [
+  "lib/research-candidate-review/feedback-event-aggregation-read-model.ts",
+  "fixtures/research-candidate-review.feedback-event-aggregation-read-model-implementation.sample.v0.1.json",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
+  "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
 const implementationPackageScriptName =
   "smoke:feedback-event-controls-ui-implementation-v0-1";
 const routePath = "/api/research-candidate/feedback-events";
@@ -149,6 +184,10 @@ const aggregationReadModelContractRecommendationStatus =
   "ready_for_feedback_event_aggregation_read_model_implementation_v0_1";
 const aggregationReadModelContractNextRecommendedSlice =
   "feedback_event_aggregation_read_model_implementation_v0_1";
+const aggregationReadModelImplementationRecommendationStatus =
+  "ready_for_feedback_event_aggregation_read_model_browser_validation_v0_1";
+const aggregationReadModelImplementationNextRecommendedSlice =
+  "feedback_event_aggregation_read_model_browser_validation_v0_1";
 const reason =
   "static component and fixture validation is sufficient before list/read route contract";
 const writeFixture = process.argv.includes("--write-fixture");
@@ -547,6 +586,12 @@ function buildValidationFixture() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  if (downstreamAggregationReadModelImplementationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[aggregationReadModelImplementationPackageScriptName],
+      aggregationReadModelImplementationPackageScriptValue,
+    );
+  }
   if (downstreamAggregationReadModelContractSliceActive()) {
     assert.equal(
       packageJson.scripts[aggregationReadModelContractPackageScriptName],
@@ -600,7 +645,9 @@ function assertPackageScript() {
     .map(extractScriptName)
     .filter(Boolean)
     .sort();
-  const expectedAddedScriptNames = downstreamAggregationReadModelContractSliceActive()
+  const expectedAddedScriptNames = downstreamAggregationReadModelImplementationSliceActive()
+    ? [aggregationReadModelImplementationPackageScriptName]
+    : downstreamAggregationReadModelContractSliceActive()
     ? [aggregationReadModelContractPackageScriptName]
     : downstreamListUiBrowserValidationSliceActive()
     ? [listUiBrowserValidationPackageScriptName]
@@ -626,7 +673,9 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const activeRequiredChangedFiles = downstreamAggregationReadModelContractSliceActive()
+  const activeRequiredChangedFiles = downstreamAggregationReadModelImplementationSliceActive()
+    ? aggregationReadModelImplementationChangedFiles
+    : downstreamAggregationReadModelContractSliceActive()
     ? downstreamAggregationReadModelContractChangedFiles
     : downstreamListUiBrowserValidationSliceActive()
     ? downstreamListUiBrowserValidationChangedFiles
@@ -1169,6 +1218,10 @@ function downstreamListUiBrowserValidationSliceActive() {
   return downstreamListUiBrowserValidationChangedFiles.every((filePath) =>
     changedFiles.includes(filePath),
   );
+}
+
+function downstreamAggregationReadModelImplementationSliceActive() {
+  return readChangedFiles().includes(aggregationReadModelImplementationSmokePath);
 }
 
 function downstreamAggregationReadModelContractSliceActive() {
