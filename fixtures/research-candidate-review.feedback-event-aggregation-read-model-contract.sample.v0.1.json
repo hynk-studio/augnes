@@ -355,18 +355,18 @@
         "created_at_day"
       ],
       "output_fields": [
-        "event_id",
-        "event_type",
-        "target_kind",
-        "target_id",
-        "created_at",
         "created_at_day",
+        "event_count",
+        "event_ids",
+        "event_types",
+        "target_kinds",
+        "target_ids",
+        "latest_created_at",
         "read_model_only"
       ],
       "sort_policy": {
         "order_by": [
-          "created_at DESC",
-          "event_id DESC"
+          "created_at_day DESC"
         ],
         "deterministic": true
       },
@@ -377,39 +377,33 @@
       },
       "sample_grouped_outputs": [
         {
-          "event_id": "feedback_event:fnv1a32:49187a0d",
-          "event_type": "invalidate_preview",
-          "target_kind": "candidate_to_codex_handoff_operator_decision_preview",
-          "target_id": "candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
-          "created_at": "2026-06-22T00:03:00.000Z",
           "created_at_day": "2026-06-22",
-          "read_model_only": true
-        },
-        {
-          "event_id": "feedback_event:fnv1a32:1542ea21",
-          "event_type": "correct_preview",
-          "target_kind": "candidate_to_codex_handoff_draft_review",
-          "target_id": "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
-          "created_at": "2026-06-22T00:02:00.000Z",
-          "created_at_day": "2026-06-22",
-          "read_model_only": true
-        },
-        {
-          "event_id": "feedback_event:fnv1a32:71954683",
-          "event_type": "pin_preview",
-          "target_kind": "agent_perspective_substrate_folded_section",
-          "target_id": "folded_section:source_coverage",
-          "created_at": "2026-06-22T00:01:00.000Z",
-          "created_at_day": "2026-06-22",
-          "read_model_only": true
-        },
-        {
-          "event_id": "feedback_event:fnv1a32:3cbcddb7",
-          "event_type": "dismiss_preview",
-          "target_kind": "agent_perspective_substrate_surfacing_card",
-          "target_id": "substrate_card:reviewed_non_authoritative_context",
-          "created_at": "2026-06-22T00:00:00.000Z",
-          "created_at_day": "2026-06-22",
+          "event_count": 4,
+          "event_ids": [
+            "feedback_event:fnv1a32:1542ea21",
+            "feedback_event:fnv1a32:3cbcddb7",
+            "feedback_event:fnv1a32:49187a0d",
+            "feedback_event:fnv1a32:71954683"
+          ],
+          "event_types": [
+            "correct_preview",
+            "dismiss_preview",
+            "invalidate_preview",
+            "pin_preview"
+          ],
+          "target_kinds": [
+            "agent_perspective_substrate_folded_section",
+            "agent_perspective_substrate_surfacing_card",
+            "candidate_to_codex_handoff_draft_review",
+            "candidate_to_codex_handoff_operator_decision_preview"
+          ],
+          "target_ids": [
+            "candidate_to_codex_handoff_draft_review:fnv1a32:d9d0275e",
+            "candidate_to_codex_handoff_operator_decision_preview:fnv1a32:70a575e2",
+            "folded_section:source_coverage",
+            "substrate_card:reviewed_non_authoritative_context"
+          ],
+          "latest_created_at": "2026-06-22T00:03:00.000Z",
           "read_model_only": true
         }
       ],
@@ -728,6 +722,6 @@
   },
   "recommendation_status": "ready_for_feedback_event_aggregation_read_model_implementation_v0_1",
   "next_recommended_slice": "feedback_event_aggregation_read_model_implementation_v0_1",
-  "contract_fingerprint": "fnv1a32:3e123a8f",
+  "contract_fingerprint": "fnv1a32:6d8f2c98",
   "fingerprint_algorithm": "fnv1a32_canonical_json"
 }

@@ -388,25 +388,18 @@ function buildReadModelViews(events) {
       },
       grouping_keys: ["created_at_day"],
       output_fields: [
-        "event_id",
-        "event_type",
-        "target_kind",
-        "target_id",
-        "created_at",
         "created_at_day",
+        "event_count",
+        "event_ids",
+        "event_types",
+        "target_kinds",
+        "target_ids",
+        "latest_created_at",
         "read_model_only",
       ],
-      sort_policy: { order_by: ["created_at DESC", "event_id DESC"], deterministic: true },
+      sort_policy: { order_by: ["created_at_day DESC"], deterministic: true },
       limit_policy: { default_limit: 50, max_limit: 100, runtime_override_now: false },
-      sample_grouped_outputs: [...events].sort(compareEventsDesc).map((event) => ({
-        event_id: event.event_id,
-        event_type: event.event_type,
-        target_kind: event.target_kind,
-        target_id: event.target_id,
-        created_at: event.created_at,
-        created_at_day: createdAtDay(event),
-        read_model_only: true,
-      })),
+      sample_grouped_outputs: recentFeedbackEventWindowPreviewSummary(events),
     }),
     view({
       view_id: "pinned_or_dismissed_target_summary",
@@ -551,6 +544,35 @@ function pinnedOrDismissedSummary(events) {
     rows.set(key, current);
   }
   return [...rows.values()].sort(compareObjectsByFields(["target_kind", "target_id"]));
+}
+
+function recentFeedbackEventWindowPreviewSummary(events) {
+  const rows = new Map();
+  for (const event of events) {
+    const created_at_day = createdAtDay(event);
+    const current =
+      rows.get(created_at_day) ??
+      {
+        created_at_day,
+        event_count: 0,
+        event_ids: [],
+        event_types: [],
+        target_kinds: [],
+        target_ids: [],
+        latest_created_at: null,
+        read_model_only: true,
+      };
+    current.event_count += 1;
+    current.event_ids = uniqueSorted([...current.event_ids, event.event_id]);
+    current.event_types = uniqueSorted([...current.event_types, event.event_type]);
+    current.target_kinds = uniqueSorted([...current.target_kinds, event.target_kind]);
+    current.target_ids = uniqueSorted([...current.target_ids, event.target_id]);
+    current.latest_created_at = latestDate(current.latest_created_at, event.created_at);
+    rows.set(created_at_day, current);
+  }
+  return [...rows.values()].sort((a, b) =>
+    String(b.created_at_day).localeCompare(String(a.created_at_day)),
+  );
 }
 
 function sourceRefSummary(events) {
@@ -747,10 +769,88 @@ function assertReadModelViews(value) {
     );
     assert.deepEqual(viewValue.authority_boundary, viewAuthorityBoundary());
   }
+  assertRecentFeedbackEventWindowPreviewView(value.read_model_views);
   assert.equal(value.recommendation_status, recommendationStatus);
   assert.equal(value.next_recommended_slice, nextRecommendedSlice);
   assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
   assert.match(value.contract_fingerprint, /^fnv1a32:[0-9a-f]{8}$/);
+}
+
+function assertRecentFeedbackEventWindowPreviewView(views) {
+  const viewValue = views.find(
+    (candidate) => candidate.view_id === "recent_feedback_event_window_preview",
+  );
+  assert.ok(viewValue, "recent feedback event window preview view must exist");
+  assert.deepEqual(viewValue.grouping_keys, ["created_at_day"]);
+  assert.deepEqual(viewValue.output_fields, [
+    "created_at_day",
+    "event_count",
+    "event_ids",
+    "event_types",
+    "target_kinds",
+    "target_ids",
+    "latest_created_at",
+    "read_model_only",
+  ]);
+  for (const eventLevelIdentityField of [
+    "event_id",
+    "event_type",
+    "target_kind",
+    "target_id",
+    "created_at",
+  ]) {
+    assert.ok(
+      !viewValue.output_fields.includes(eventLevelIdentityField),
+      `${eventLevelIdentityField} must not be a standalone output field for day-level preview rows`,
+    );
+  }
+
+  const expectedRows = recentFeedbackEventWindowPreviewSummary(feedbackStoreFixture.events);
+  assert.deepEqual(
+    viewValue.sample_grouped_outputs,
+    expectedRows,
+    "recent preview sample outputs must be one aggregate row per created_at_day",
+  );
+  const uniqueCreatedAtDays = uniqueSorted(feedbackStoreFixture.events.map(createdAtDay));
+  assert.equal(
+    viewValue.sample_grouped_outputs.length,
+    uniqueCreatedAtDays.length,
+    "recent preview row count must match unique created_at_day values",
+  );
+  for (const row of viewValue.sample_grouped_outputs) {
+    for (const requiredField of [
+      "created_at_day",
+      "event_count",
+      "event_ids",
+      "event_types",
+      "target_kinds",
+      "target_ids",
+      "latest_created_at",
+      "read_model_only",
+    ]) {
+      assert.ok(
+        Object.hasOwn(row, requiredField),
+        `recent preview row must include ${requiredField}`,
+      );
+    }
+    assert.equal(row.read_model_only, true);
+    assert.ok(Array.isArray(row.event_ids) && row.event_ids.length === row.event_count);
+    assert.ok(Array.isArray(row.event_types) && row.event_types.length >= 1);
+    assert.ok(Array.isArray(row.target_kinds) && row.target_kinds.length >= 1);
+    assert.ok(Array.isArray(row.target_ids) && row.target_ids.length >= 1);
+    for (const forbiddenStandaloneField of [
+      "event_id",
+      "event_type",
+      "target_kind",
+      "target_id",
+      "created_at",
+    ]) {
+      assert.ok(
+        !Object.hasOwn(row, forbiddenStandaloneField),
+        `recent preview row must not include standalone ${forbiddenStandaloneField}`,
+      );
+    }
+  }
 }
 
 function assertDuplicateFeedbackPolicy(value) {
