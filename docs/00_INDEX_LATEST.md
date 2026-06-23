@@ -2523,6 +2523,40 @@ repo-local 색인이다.
   `human_reviewed_durable_perspective_promotion_browser_validation_v0_1`.
 
   Boundary phrases: deterministic fixture-backed implementation only; validates and materializes #730 promotion contract preview bundle; explicit human review required; source_refs required; reviewer_note_ref required later; candidate/durable distinction preserved; claim candidate is not fact; evidence candidate is not accepted evidence; accepted evidence distinction required; retrieval result is not promotion authority; RAG answer is not proof/evidence; embedding similarity is not promotion readiness; salience score is not promotion authority; provider/OpenAI output cannot initiate promotion; Codex/GitHub automation cannot initiate promotion; Agent Substrate cannot initiate promotion; future promotion decision record required later; future Formation Receipt required later; future durable Perspective delta apply required later; no runtime promotion execution; no durable Perspective state write; no promotion decision record write; no proof/evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no browser request; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs.
+- Human-reviewed Durable Perspective Promotion browser validation v0.1:
+  `fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-browser-validation.sample.v0.1.json`
+  and
+  `scripts/smoke-human-reviewed-durable-perspective-promotion-browser-validation-v0-1.mjs`
+  (`npm run smoke:human-reviewed-durable-perspective-promotion-browser-validation-v0-1`)
+  validate deterministic fixture-backed implementation from #731. The smoke
+  validates #730 contract boundary and #731 top-level implementation boundary
+  separation, validates built promotion preview bundle output, validates
+  promotion decision family summary, validates source reference summary,
+  validates candidate reference summary, validates invalid promotion decision
+  override rejection, validates invalid promotion gate override rejection,
+  validates invalid authority boundary override rejection, and validates
+  invalid refs override rejection.
+
+  This validation keeps explicit human review required, source_refs required,
+  reviewer_note_ref required later, candidate/durable distinction preserved,
+  claim candidate is not fact, and evidence candidate is not accepted evidence.
+  Retrieval result is not promotion authority. RAG answer is not
+  proof/evidence. Embedding similarity is not promotion readiness. Salience
+  score is not promotion authority. Provider/OpenAI output cannot initiate
+  promotion. Codex/GitHub automation cannot initiate promotion. Agent
+  Substrate cannot initiate promotion.
+
+  Future promotion decision record required later. Future Formation Receipt
+  required later. Future durable Perspective delta apply required later. This
+  validation has no runtime promotion execution, no durable Perspective state
+  write, no promotion decision record write, no proof/evidence write, no
+  Formation Receipt write, no work mutation, no DB write/query, no
+  schema/migration, no route or UI, no browser request, no provider/OpenAI
+  call, no retrieval/RAG execution, and no product write/product IDs.
+  Product-write remains parked by #686. The next recommended slice is
+  `durable_perspective_state_trajectory_contract_v0_1`.
+
+  Boundary phrases: validates deterministic fixture-backed implementation from #731; validates #730 contract boundary and #731 top-level implementation boundary separation; validates built promotion preview bundle; validates promotion decision family summary; validates source reference summary; validates candidate reference summary; validates invalid promotion decision override rejection; validates invalid promotion gate override rejection; validates invalid authority boundary override rejection; validates invalid refs override rejection; explicit human review required; source_refs required; reviewer_note_ref required later; candidate/durable distinction preserved; claim candidate is not fact; evidence candidate is not accepted evidence; retrieval result is not promotion authority; RAG answer is not proof/evidence; embedding similarity is not promotion readiness; salience score is not promotion authority; provider/OpenAI output cannot initiate promotion; Codex/GitHub automation cannot initiate promotion; Agent Substrate cannot initiate promotion; future promotion decision record required later; future Formation Receipt required later; future durable Perspective delta apply required later; no runtime promotion execution; no durable Perspective state write; no promotion decision record write; no proof/evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no browser request; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

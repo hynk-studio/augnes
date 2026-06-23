@@ -35,6 +35,20 @@ const recommendationStatus =
   "ready_for_human_reviewed_durable_perspective_promotion_browser_validation_v0_1";
 const nextRecommendedSlice =
   "human_reviewed_durable_perspective_promotion_browser_validation_v0_1";
+const browserValidationFixturePath =
+  "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-browser-validation.sample.v0.1.json";
+const browserValidationSmokePath =
+  "scripts/smoke-human-reviewed-durable-perspective-promotion-browser-validation-v0-1.mjs";
+const browserValidationPackageScriptName =
+  "smoke:human-reviewed-durable-perspective-promotion-browser-validation-v0-1";
+const browserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-human-reviewed-durable-perspective-promotion-browser-validation-v0-1.mjs";
+const browserValidationVersion =
+  "human_reviewed_durable_perspective_promotion_browser_validation.v0.1";
+const browserValidationRecommendationStatus =
+  "ready_for_durable_perspective_state_trajectory_contract_v0_1";
+const browserValidationNextRecommendedSlice =
+  "durable_perspective_state_trajectory_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -269,6 +283,10 @@ function assertBuilderFile() {
 }
 
 function assertPackageScript() {
+  if (browserValidationSliceActive()) {
+    assertBrowserValidationPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -301,6 +319,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (browserValidationSliceActive()) {
+    assertBrowserValidationChangedFiles(changedFiles);
+    return;
+  }
   for (const unchangedPath of [
     contractTypePath,
     contractFixturePath,
@@ -346,6 +368,129 @@ function assertStaticBoundary() {
     assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
     assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
     assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function browserValidationSliceActive() {
+  return readChangedFiles().includes(browserValidationSmokePath);
+}
+
+function assertBrowserValidationPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts[browserValidationPackageScriptName],
+    browserValidationPackageScriptValue,
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    [browserValidationPackageScriptName],
+    "package.json must add only the Human-reviewed Durable Perspective Promotion browser validation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertBrowserValidationChangedFiles(changedFiles) {
+  const expectedFiles = [
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+    contractSmokePath,
+    ...downstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    contractTypePath,
+    contractFixturePath,
+    builderPath,
+    implementationFixturePath,
+    "fixtures/research-candidate-review.non-authoritative-retrieval-rag-browser-validation.sample.v0.1.json",
+    "lib/research-candidate-review/non-authoritative-retrieval-rag.ts",
+    "fixtures/research-candidate-review.non-authoritative-retrieval-rag-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/operator-source-candidate-generation.ts",
+    "fixtures/research-candidate-review.operator-source-candidate-generation-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/bounded-external-source-intake.ts",
+    "fixtures/research-candidate-review.bounded-external-source-intake-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/salience-governor.ts",
+    "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/recent-rehearsal-buffer.ts",
+    "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Human-reviewed Durable Perspective Promotion browser validation slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of [
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+  ]) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Human-reviewed Durable Perspective Promotion browser validation downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\/research-retrieval\//, "must not add retrieval implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/research-rag\//, "must not add RAG implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*promotion/i, "must not add runtime promotion implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*perspective.*state/i, "must not add runtime Perspective state files");
+    assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  for (const requiredText of [
+    browserValidationVersion,
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    browserValidationPackageScriptName,
+    browserValidationRecommendationStatus,
+    browserValidationNextRecommendedSlice,
+    "validates deterministic fixture-backed implementation from #731",
+    "explicit human review required",
+    "source_refs required",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#731 implementation smoke must allow Human-reviewed Durable Perspective Promotion browser validation downstream pointer: ${requiredText}`,
+    );
   }
 }
 
@@ -851,6 +996,26 @@ function assertDocsPointers() {
 }
 
 function assertContractSmokeDownstreamPointer() {
+  if (browserValidationSliceActive()) {
+    for (const requiredText of [
+      browserValidationVersion,
+      browserValidationFixturePath,
+      browserValidationSmokePath,
+      browserValidationPackageScriptName,
+      browserValidationRecommendationStatus,
+      browserValidationNextRecommendedSlice,
+      "validates deterministic fixture-backed implementation from #731",
+      "explicit human review required",
+      "source_refs required",
+      "product-write remains parked by #686",
+    ]) {
+      assert.ok(
+        smokeSource.includes(requiredText),
+        `#731 implementation smoke must allow browser validation downstream pointer: ${requiredText}`,
+      );
+    }
+    return;
+  }
   for (const requiredText of [
     implementationVersion,
     builderPath,

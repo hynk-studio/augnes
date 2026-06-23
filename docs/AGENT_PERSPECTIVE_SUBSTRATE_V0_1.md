@@ -945,6 +945,15 @@ Product-write remains parked by the #686 stopline.
 Next recommended slice is Human-reviewed Durable Perspective Promotion browser validation v0.1.
 `human_reviewed_durable_perspective_promotion_browser_validation_v0_1`
 
+Human-reviewed Durable Perspective Promotion browser validation validates the deterministic fixture-backed #731 implementation.
+It validates public-safe promotion preview bundles against the #730 contract.
+Agent Substrate remains advisory-only and cannot initiate promotion.
+Retrieval/RAG, salience, provider output, Codex/GitHub automation, feedback events, and context packets cannot initiate promotion.
+This slice does not implement runtime promotion, durable Perspective state writes, proof/evidence writes, Formation Receipt writes, DB writes, route/UI, or product write.
+Product-write remains parked by the #686 stopline.
+Next recommended slice is Durable Perspective State / Trajectory contract v0.1.
+`durable_perspective_state_trajectory_contract_v0_1`
+
 ## Next Recommended Slice
 
-`human_reviewed_durable_perspective_promotion_browser_validation_v0_1`
+`durable_perspective_state_trajectory_contract_v0_1`
