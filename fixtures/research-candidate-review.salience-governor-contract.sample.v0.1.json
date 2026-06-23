@@ -1,0 +1,520 @@
+{
+  "contract_kind": "salience_governor_contract",
+  "contract_version": "salience_governor_contract.v0.1",
+  "source_recent_rehearsal_buffer_validation_ref": "recent_rehearsal_buffer_browser_validation.v0.1:fixtures/research-candidate-review.recent-rehearsal-buffer-browser-validation.sample.v0.1.json#717",
+  "salience_scope": {
+    "working_set_priority_adapter": true,
+    "candidate_overload_reduction": true,
+    "display_priority_only": true,
+    "reuse_priority_only": true,
+    "contract_only_now": true,
+    "runtime_salience_scoring_implemented_now": false,
+    "durable_salience_write_implemented_now": false,
+    "db_schema_implemented_now": false,
+    "route_implemented_now": false,
+    "ui_implemented_now": false
+  },
+  "salience_inputs": {
+    "source_recent_rehearsal_buffer_ref": {
+      "ref_id": "source_ref_recent_rehearsal_buffer_browser_validation_717",
+      "ref_kind": "recent_rehearsal_buffer_validation_ref",
+      "ref": "recent_rehearsal_buffer_browser_validation.v0.1:fixtures/research-candidate-review.recent-rehearsal-buffer-browser-validation.sample.v0.1.json#717",
+      "public_safe": true
+    },
+    "candidate_refs": [
+      {
+        "ref_id": "candidate_ref_resume_context_boundary",
+        "ref_kind": "candidate_ref",
+        "ref": "research_candidate:resume_context_boundary",
+        "public_safe": true
+      },
+      {
+        "ref_id": "candidate_ref_priority_hint_review",
+        "ref_kind": "candidate_ref",
+        "ref": "research_candidate:priority_hint_review",
+        "public_safe": true
+      }
+    ],
+    "open_tension_refs": [
+      {
+        "ref_id": "open_tension_ref_salience_not_authority",
+        "ref_kind": "open_tension_ref",
+        "ref": "open_tension:salience_score_not_authority",
+        "public_safe": true
+      }
+    ],
+    "failed_check_refs": [
+      {
+        "ref_id": "failed_check_ref_runtime_scoring_not_implemented",
+        "ref_kind": "failed_check_ref",
+        "ref": "failed_check:runtime_salience_scoring_not_implemented",
+        "public_safe": true
+      }
+    ],
+    "user_decision_refs": [
+      {
+        "ref_id": "user_decision_ref_continue_to_salience_contract",
+        "ref_kind": "user_decision_ref",
+        "ref": "user_decision:continue_to_salience_governor_contract",
+        "public_safe": true
+      }
+    ],
+    "feedback_event_summary_refs": [
+      {
+        "ref_id": "feedback_event_summary_ref_candidate_overload",
+        "ref_kind": "feedback_event_summary_ref",
+        "ref": "feedback_summary:candidate_overload_reduction",
+        "public_safe": true
+      }
+    ],
+    "formation_receipt_refs": [
+      {
+        "ref_id": "formation_receipt_ref_recent_context_provenance",
+        "ref_kind": "formation_receipt_ref",
+        "ref": "formation_receipt:recent_context_provenance",
+        "public_safe": true
+      }
+    ],
+    "recent_context_refs": [
+      {
+        "ref_id": "recent_context_ref_open_tensions",
+        "ref_kind": "recent_context_ref",
+        "ref": "recent_context:open_tensions",
+        "public_safe": true
+      },
+      {
+        "ref_id": "recent_context_ref_failed_checks",
+        "ref_kind": "recent_context_ref",
+        "ref": "recent_context:failed_checks",
+        "public_safe": true
+      }
+    ],
+    "manual_pin_refs": [
+      {
+        "ref_id": "manual_pin_ref_operator_focus",
+        "ref_kind": "manual_pin_ref",
+        "ref": "manual_pin:operator_focus",
+        "public_safe": true
+      }
+    ],
+    "manual_watch_refs": [
+      {
+        "ref_id": "manual_watch_ref_possible_reactivation",
+        "ref_kind": "manual_watch_ref",
+        "ref": "manual_watch:possible_reactivation",
+        "public_safe": true
+      }
+    ],
+    "manual_defer_refs": [
+      {
+        "ref_id": "manual_defer_ref_product_write",
+        "ref_kind": "manual_defer_ref",
+        "ref": "manual_defer:product_write_parked_686",
+        "public_safe": true
+      }
+    ],
+    "suppressed_context_refs": [
+      {
+        "ref_id": "suppressed_context_ref_repeated_noise",
+        "ref_kind": "suppressed_context_ref",
+        "ref": "suppressed_context:repeated_unresolved_noise",
+        "public_safe": true
+      }
+    ]
+  },
+  "salience_components": [
+    {
+      "component_kind": "source_recency",
+      "preview_label": "Recent source context",
+      "preview_weight": 0.18,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "component_kind": "user_mark",
+      "preview_label": "Manual user mark",
+      "preview_weight": 0.14,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "component_kind": "open_tension_count",
+      "preview_label": "Open tension count",
+      "preview_weight": 0.13,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "component_kind": "evidence_strength",
+      "preview_label": "Evidence strength label",
+      "preview_weight": 0.11,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "component_kind": "reuse_frequency",
+      "preview_label": "Reuse frequency label",
+      "preview_weight": 0.1,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "component_kind": "conflict_severity",
+      "preview_label": "Conflict severity label",
+      "preview_weight": 0.1,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "component_kind": "work_relevance",
+      "preview_label": "Work relevance label",
+      "preview_weight": 0.1,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "component_kind": "promotion_readiness",
+      "preview_label": "Promotion readiness label",
+      "preview_weight": 0.08,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "component_kind": "manual_gravity",
+      "preview_label": "Manual gravity label",
+      "preview_weight": 0.06,
+      "display_only": true,
+      "not_authority": true
+    }
+  ],
+  "inhibition_components": [
+    {
+      "inhibition_kind": "low_provenance",
+      "preview_label": "Low provenance",
+      "preview_weight": 0.2,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "inhibition_kind": "repeated_unresolved_noise",
+      "preview_label": "Repeated unresolved noise",
+      "preview_weight": 0.16,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "inhibition_kind": "superseded_by_newer_candidate",
+      "preview_label": "Superseded by newer candidate",
+      "preview_weight": 0.15,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "inhibition_kind": "user_deferred",
+      "preview_label": "User deferred",
+      "preview_weight": 0.14,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "inhibition_kind": "insufficient_evidence",
+      "preview_label": "Insufficient evidence",
+      "preview_weight": 0.13,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "inhibition_kind": "scope_mismatch",
+      "preview_label": "Scope mismatch",
+      "preview_weight": 0.12,
+      "display_only": true,
+      "not_authority": true
+    },
+    {
+      "inhibition_kind": "stale_without_reactivation",
+      "preview_label": "Stale without reactivation",
+      "preview_weight": 0.1,
+      "display_only": true,
+      "not_authority": true
+    }
+  ],
+  "action_hint_policy": {
+    "allowed_hint_kinds": [
+      "pin",
+      "watch",
+      "defer",
+      "boost",
+      "suppress",
+      "reactivate",
+      "inspect",
+      "keep_visible",
+      "cool_down"
+    ],
+    "hint_policy_by_kind": {
+      "pin": {
+        "hint_kind": "pin",
+        "hint_only": true,
+        "no_mutation_now": true,
+        "requires_later_user_action": true,
+        "not_execution_authority": true,
+        "not_promotion_authority": true,
+        "not_product_write": true
+      },
+      "watch": {
+        "hint_kind": "watch",
+        "hint_only": true,
+        "no_mutation_now": true,
+        "requires_later_user_action": true,
+        "not_execution_authority": true,
+        "not_promotion_authority": true,
+        "not_product_write": true
+      },
+      "defer": {
+        "hint_kind": "defer",
+        "hint_only": true,
+        "no_mutation_now": true,
+        "requires_later_user_action": true,
+        "not_execution_authority": true,
+        "not_promotion_authority": true,
+        "not_product_write": true
+      },
+      "boost": {
+        "hint_kind": "boost",
+        "hint_only": true,
+        "no_mutation_now": true,
+        "requires_later_user_action": true,
+        "not_execution_authority": true,
+        "not_promotion_authority": true,
+        "not_product_write": true
+      },
+      "suppress": {
+        "hint_kind": "suppress",
+        "hint_only": true,
+        "no_mutation_now": true,
+        "requires_later_user_action": true,
+        "not_execution_authority": true,
+        "not_promotion_authority": true,
+        "not_product_write": true
+      },
+      "reactivate": {
+        "hint_kind": "reactivate",
+        "hint_only": true,
+        "no_mutation_now": true,
+        "requires_later_user_action": true,
+        "not_execution_authority": true,
+        "not_promotion_authority": true,
+        "not_product_write": true
+      },
+      "inspect": {
+        "hint_kind": "inspect",
+        "hint_only": true,
+        "no_mutation_now": true,
+        "requires_later_user_action": true,
+        "not_execution_authority": true,
+        "not_promotion_authority": true,
+        "not_product_write": true
+      },
+      "keep_visible": {
+        "hint_kind": "keep_visible",
+        "hint_only": true,
+        "no_mutation_now": true,
+        "requires_later_user_action": true,
+        "not_execution_authority": true,
+        "not_promotion_authority": true,
+        "not_product_write": true
+      },
+      "cool_down": {
+        "hint_kind": "cool_down",
+        "hint_only": true,
+        "no_mutation_now": true,
+        "requires_later_user_action": true,
+        "not_execution_authority": true,
+        "not_promotion_authority": true,
+        "not_product_write": true
+      }
+    }
+  },
+  "priority_view_contract": {
+    "salience_score_preview_allowed": true,
+    "score_range": "0_to_1",
+    "deterministic_fixture_only_now": true,
+    "runtime_score_computation_now": false,
+    "top_k_preview_allowed": true,
+    "default_top_k": 10,
+    "priority_view_is_display_only": true,
+    "priority_view_does_not_delete_or_hide_records": true,
+    "suppression_is_display_hint_only": true,
+    "reactivation_is_display_hint_only": true
+  },
+  "non_authority_policy": {
+    "not_promotion_basis": true,
+    "not_source_of_truth": true,
+    "not_proof_or_evidence": true,
+    "not_perspective_state": true,
+    "not_work_status": true,
+    "not_retrieval_rag_result": true,
+    "not_product_write": true,
+    "salience_score_not_authority": true,
+    "salience_score_not_promotion_readiness": true,
+    "salience_score_not_durable_approval": true,
+    "salience_score_not_evidence_strength": true,
+    "may_help_resume_work": true,
+    "may_help_display_priority": true,
+    "may_help_agent_brief_later": true,
+    "durable_write_requires_later_contract": true
+  },
+  "sample_salience_priority_view": {
+    "priority_view_id": "salience_governor_contract_sample_v0_1_001",
+    "priority_view_version": "salience_governor_priority_view.v0.1",
+    "generated_at": "2026-06-23T00:00:00.000Z",
+    "scope": "research_candidate_review:salience_governor_contract_sample",
+    "source_refs": [
+      {
+        "ref_id": "source_ref_recent_rehearsal_buffer_browser_validation_717",
+        "ref_kind": "recent_rehearsal_buffer_validation_ref",
+        "ref": "recent_rehearsal_buffer_browser_validation.v0.1:fixtures/research-candidate-review.recent-rehearsal-buffer-browser-validation.sample.v0.1.json#717",
+        "public_safe": true
+      }
+    ],
+    "top_k": 10,
+    "candidate_priority_preview": [
+      {
+        "candidate_ref_id": "candidate_ref_resume_context_boundary",
+        "salience_score_preview": 0.82,
+        "action_hint_kinds": [
+          "pin",
+          "inspect",
+          "keep_visible"
+        ],
+        "why_now": "Recently active context has unresolved tension and explicit operator focus.",
+        "component_refs": [
+          "source_recency",
+          "user_mark",
+          "open_tension_count",
+          "manual_gravity"
+        ],
+        "inhibition_refs": [
+          "insufficient_evidence"
+        ],
+        "display_only": true,
+        "not_authority": true
+      },
+      {
+        "candidate_ref_id": "candidate_ref_priority_hint_review",
+        "salience_score_preview": 0.46,
+        "action_hint_kinds": [
+          "watch",
+          "cool_down"
+        ],
+        "why_now": "Candidate may be useful later but has repeated unresolved noise.",
+        "component_refs": [
+          "reuse_frequency",
+          "work_relevance"
+        ],
+        "inhibition_refs": [
+          "repeated_unresolved_noise",
+          "stale_without_reactivation"
+        ],
+        "display_only": true,
+        "not_authority": true
+      }
+    ],
+    "action_hint_policy_ref": "salience_governor_action_hint_policy.v0.1",
+    "priority_view_contract_ref": "salience_governor_priority_view_contract.v0.1",
+    "non_authority_policy_ref": "salience_governor_non_authority_policy.v0.1",
+    "authority_boundary": {
+      "contract_only": true,
+      "salience_governor_contract_defined_now": true,
+      "runtime_salience_scoring_implemented_now": false,
+      "durable_salience_write_implemented_now": false,
+      "salience_score_used_as_authority_now": false,
+      "db_schema_implemented_now": false,
+      "route_changed_now": false,
+      "component_changed_now": false,
+      "browser_request_now": false,
+      "runtime_db_query_now": false,
+      "runtime_db_write_now": false,
+      "production_db_used_now": false,
+      "durable_memory_write_now": false,
+      "recent_rehearsal_buffer_written_now": false,
+      "formation_receipt_written_now": false,
+      "feedback_events_written_now": false,
+      "feedback_events_mutated_now": false,
+      "candidate_mutation_now": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state_write": false,
+      "promotion_decision_record": false,
+      "work_mutation": false,
+      "execution_authority": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "external_handoff_authority": false,
+      "provider_openai_authority": false,
+      "retrieval_rag_authority": false,
+      "source_fetch_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "product_write_lane_parked_by_686": true
+    },
+    "validation": {
+      "static_source_validation_only": true,
+      "fixture_backed_only": true,
+      "app_server_started_now": false,
+      "production_db_used_now": false,
+      "runtime_browser_request_now": false,
+      "runtime_db_query_now": false,
+      "runtime_db_write_now": false,
+      "runtime_salience_scoring_now": false
+    }
+  },
+  "authority_boundary": {
+    "contract_only": true,
+    "salience_governor_contract_defined_now": true,
+    "runtime_salience_scoring_implemented_now": false,
+    "durable_salience_write_implemented_now": false,
+    "salience_score_used_as_authority_now": false,
+    "db_schema_implemented_now": false,
+    "route_changed_now": false,
+    "component_changed_now": false,
+    "browser_request_now": false,
+    "runtime_db_query_now": false,
+    "runtime_db_write_now": false,
+    "production_db_used_now": false,
+    "durable_memory_write_now": false,
+    "recent_rehearsal_buffer_written_now": false,
+    "formation_receipt_written_now": false,
+    "feedback_events_written_now": false,
+    "feedback_events_mutated_now": false,
+    "candidate_mutation_now": false,
+    "proof_or_evidence_record": false,
+    "perspective_promotion": false,
+    "durable_perspective_state_write": false,
+    "promotion_decision_record": false,
+    "work_mutation": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation_policy": {
+    "static_source_validation_only": true,
+    "fixture_backed_only": true,
+    "app_server_started_now": false,
+    "production_db_used_now": false,
+    "runtime_browser_request_now": false,
+    "runtime_db_query_now": false,
+    "runtime_db_write_now": false,
+    "runtime_salience_scoring_now": false
+  },
+  "recommendation_status": "ready_for_salience_governor_implementation_v0_1",
+  "next_recommended_slice": "salience_governor_implementation_v0_1",
+  "contract_fingerprint": "fnv1a32:a66b2eec",
+  "fingerprint_algorithm": "fnv1a32_canonical_json"
+}

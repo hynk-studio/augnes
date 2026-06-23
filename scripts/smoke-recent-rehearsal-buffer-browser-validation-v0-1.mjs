@@ -21,11 +21,19 @@ const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
 const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
 const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
+const salienceTypePath = "types/salience-governor-contract.ts";
+const salienceFixturePath =
+  "fixtures/research-candidate-review.salience-governor-contract.sample.v0.1.json";
+const salienceSmokePath =
+  "scripts/smoke-salience-governor-contract-v0-1.mjs";
 
 const packageScriptName =
   "smoke:recent-rehearsal-buffer-browser-validation-v0-1";
 const packageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs";
+const saliencePackageScriptName = "smoke:salience-governor-contract-v0-1";
+const saliencePackageScriptValue =
+  "node scripts/smoke-salience-governor-contract-v0-1.mjs";
 const validationKind = "recent_rehearsal_buffer_browser_validation";
 const validationVersion = "recent_rehearsal_buffer_browser_validation.v0.1";
 const implementationKind = "recent_rehearsal_buffer_implementation";
@@ -34,6 +42,11 @@ const implementationVersion =
 const bufferVersion = "recent_rehearsal_buffer.v0.1";
 const recommendationStatus = "ready_for_salience_governor_contract_v0_1";
 const nextRecommendedSlice = "salience_governor_contract_v0_1";
+const salienceContractVersion = "salience_governor_contract.v0.1";
+const salienceRecommendationStatus =
+  "ready_for_salience_governor_implementation_v0_1";
+const salienceNextRecommendedSlice =
+  "salience_governor_implementation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -45,6 +58,40 @@ const expectedChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  implementationSmokePath,
+  contractSmokePath,
+  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+
+const salienceContractChangedFiles = [
+  salienceTypePath,
+  salienceFixturePath,
+  salienceSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
   implementationSmokePath,
   contractSmokePath,
   "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
@@ -135,6 +182,7 @@ assertInvalidOverrideSummaryConsistency();
 assertAuthorityBoundary(fixture.authority_boundary);
 assertDocsPointers();
 assertImplementationSmokeDownstreamPointer();
+assertSalienceGovernorContractDownstreamPointer();
 assertPortableMergeBaseFallback();
 assert.deepEqual(
   fixture,
@@ -332,6 +380,27 @@ function assertBuilderAndImplementationFixtureExist() {
 }
 
 function assertPackageScript() {
+  if (salienceGovernorContractSliceActive()) {
+    assert.equal(
+      packageJson.scripts[saliencePackageScriptName],
+      saliencePackageScriptValue,
+    );
+    const addedScripts = Object.keys(packageJson.scripts)
+      .filter((scriptName) => !basePackageJson.scripts[scriptName])
+      .sort();
+    assert.deepEqual(
+      addedScripts,
+      [saliencePackageScriptName],
+      "package.json must add only the Salience Governor contract smoke script",
+    );
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
@@ -351,6 +420,25 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (salienceGovernorContractSliceActive()) {
+    for (const expectedFile of salienceContractChangedFiles) {
+      assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+    }
+    for (const changedFile of changedFiles) {
+      assert.ok(
+        salienceContractChangedFiles.includes(changedFile),
+        `unexpected changed file in Salience Governor contract downstream slice: ${changedFile}`,
+      );
+      assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+      assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+      assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+      assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+      assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+      assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+      assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+    }
+    return;
+  }
   assert.ok(
     !changedFiles.includes(builderPath),
     "browser validation slice must not change the #716 builder",
@@ -717,6 +805,29 @@ function assertImplementationSmokeDownstreamPointer() {
   }
 }
 
+function assertSalienceGovernorContractDownstreamPointer() {
+  if (!salienceGovernorContractSliceActive()) {
+    return;
+  }
+  const thisSmoke = readFile(smokePath);
+  for (const requiredText of [
+    salienceContractVersion,
+    salienceTypePath,
+    salienceFixturePath,
+    salienceSmokePath,
+    saliencePackageScriptName,
+    salienceRecommendationStatus,
+    salienceNextRecommendedSlice,
+    "candidate overload reduction",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      thisSmoke.includes(requiredText),
+      `#717 Recent Rehearsal Buffer browser validation smoke must allow Salience Governor downstream pointer: ${requiredText}`,
+    );
+  }
+}
+
 function assertPortableMergeBaseFallback() {
   for (const requiredText of [
     "gitRefExists",
@@ -880,4 +991,8 @@ function tryGitOutput(args) {
 
 function readGitOutput(args) {
   return execFileSync("git", args, { encoding: "utf8" });
+}
+
+function salienceGovernorContractSliceActive() {
+  return readChangedFiles().includes(salienceSmokePath);
 }
