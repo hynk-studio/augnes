@@ -550,6 +550,7 @@
     "smoke:non-authoritative-retrieval-rag-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-non-authoritative-retrieval-rag-browser-validation-v0-1.mjs",
     "smoke:human-reviewed-durable-perspective-promotion-contract-v0-1": "node scripts/smoke-human-reviewed-durable-perspective-promotion-contract-v0-1.mjs",
     "smoke:human-reviewed-durable-perspective-promotion-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-human-reviewed-durable-perspective-promotion-implementation-v0-1.mjs",
+    "smoke:human-reviewed-durable-perspective-promotion-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-human-reviewed-durable-perspective-promotion-browser-validation-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

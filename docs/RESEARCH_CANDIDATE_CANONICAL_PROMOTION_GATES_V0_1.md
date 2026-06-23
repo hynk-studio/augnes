@@ -1134,6 +1134,26 @@ authority. Product-write remains parked by the #686 stopline. Next recommended
 slice:
 `human_reviewed_durable_perspective_promotion_browser_validation_v0_1`.
 
+Human-reviewed Durable Perspective Promotion validation remains separated from durable Perspective promotion runtime.
+It preserves candidate/durable distinction.
+PerspectiveDeltaCandidate is not committed state.
+Claim candidate is not fact.
+Evidence candidate is not accepted evidence.
+Promotion requires explicit human review, source_refs, basis, unresolved tension handling, knowledge gap handling, and future promotion decision record later.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion behavior.
+
+The validation checks the deterministic #731 promotion preview bundle against
+the #730 contract only. It adds no runtime promotion, no durable Perspective
+state write, no durable Perspective delta apply, no promotion decision record
+write, no proof/evidence write, no Formation Receipt write, no work mutation,
+no runtime DB write/query, no production DB read, no schema/migration, no route,
+no route handler, no server action, no component/UI implementation, no browser
+request, no browser persistence, no provider/OpenAI call, no source fetch, no
+crawler behavior, no retrieval/RAG execution, no product DB write, and no
+product ID allocation. Product-write remains parked by the #686 stopline. Next
+recommended slice:
+`durable_perspective_state_trajectory_contract_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
