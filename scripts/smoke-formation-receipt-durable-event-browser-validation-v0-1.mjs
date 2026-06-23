@@ -36,6 +36,10 @@ const recentRehearsalPackageScriptName =
   "smoke:recent-rehearsal-buffer-contract-v0-1";
 const recentRehearsalPackageScriptValue =
   "node scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs";
+const recentRehearsalImplementationPackageScriptName =
+  "smoke:recent-rehearsal-buffer-implementation-v0-1";
+const recentRehearsalImplementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs";
 const recentRehearsalContractVersion =
   "recent_rehearsal_buffer_contract.v0.1";
 const recentRehearsalRecommendationStatus =
@@ -89,6 +93,38 @@ const recentRehearsalChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  smokePath,
+  implementationSmokePath,
+  contractSmokePath,
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+
+const recentRehearsalImplementationChangedFiles = [
+  "lib/research-candidate-review/recent-rehearsal-buffer.ts",
+  "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+  "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
   smokePath,
   implementationSmokePath,
   contractSmokePath,
@@ -375,6 +411,27 @@ function assertBuilderAndImplementationFixtureExist() {
 }
 
 function assertPackageScript() {
+  if (recentRehearsalBufferImplementationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[recentRehearsalImplementationPackageScriptName],
+      recentRehearsalImplementationPackageScriptValue,
+    );
+    const addedScripts = Object.keys(packageJson.scripts)
+      .filter((scriptName) => !basePackageJson.scripts[scriptName])
+      .sort();
+    assert.deepEqual(
+      addedScripts,
+      [recentRehearsalImplementationPackageScriptName],
+      "package.json must add only the Recent Rehearsal Buffer implementation smoke script",
+    );
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+    return;
+  }
   if (recentRehearsalBufferContractSliceActive()) {
     assert.equal(
       packageJson.scripts[recentRehearsalPackageScriptName],
@@ -415,9 +472,12 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const activeExpectedChangedFiles = recentRehearsalBufferContractSliceActive()
-    ? recentRehearsalChangedFiles
-    : expectedChangedFiles;
+  const activeExpectedChangedFiles =
+    recentRehearsalBufferImplementationSliceActive()
+      ? recentRehearsalImplementationChangedFiles
+      : recentRehearsalBufferContractSliceActive()
+        ? recentRehearsalChangedFiles
+        : expectedChangedFiles;
   assert.ok(
     !changedFiles.includes(builderPath),
     "browser validation slice must not change the #713 builder",
@@ -692,6 +752,12 @@ function assertRecentRehearsalBufferContractDownstreamPointer() {
 
 function recentRehearsalBufferContractSliceActive() {
   return readChangedFiles().includes(recentRehearsalSmokePath);
+}
+
+function recentRehearsalBufferImplementationSliceActive() {
+  return readChangedFiles().includes(
+    "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+  );
 }
 
 function receiptEventFollowsContractFields(event) {

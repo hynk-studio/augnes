@@ -636,6 +636,27 @@ the #686 stopline.
 The next recommended slice is
 `recent_rehearsal_buffer_implementation_v0_1`.
 
+## Recent Rehearsal Buffer Implementation v0.1
+
+Recent Rehearsal Buffer implementation v0.1 is deterministic and fixture-backed.
+It generates compact non-durable resume context only from the #715 contract
+fixture, preserving recent context refs, excluded context reasons, last open
+tensions, failed-check and user-decision references, and decay state.
+
+This implementation is not proof/evidence, not Perspective state, not work
+status, not promotion authority, not salience authority, not retrieval/RAG
+result, and not product write. It adds no runtime persistence, no durable memory
+write, no runtime DB write/query, no production DB read, no schema/migration, no
+route, no route handler, no server action, no component/UI implementation, no
+browser request, no browser persistence, no formation receipt write, no feedback
+write/mutation, no provider/OpenAI call, no source fetch, no retrieval/RAG
+execution, no proof/evidence write, no Perspective promotion, no durable
+Perspective state write, no promotion decision record, no work mutation, no
+salience governor, no product write, no product DB write, and no product ID
+allocation. Product-write remains parked by the #686 stopline. The next
+recommended slice is
+`recent_rehearsal_buffer_browser_validation_v0_1`.
+
 ## Next Recommended Slice
 
-`recent_rehearsal_buffer_implementation_v0_1`
+`recent_rehearsal_buffer_browser_validation_v0_1`
