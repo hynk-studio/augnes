@@ -2557,6 +2557,37 @@ repo-local 색인이다.
   `durable_perspective_state_trajectory_contract_v0_1`.
 
   Boundary phrases: validates deterministic fixture-backed implementation from #731; validates #730 contract boundary and #731 top-level implementation boundary separation; validates built promotion preview bundle; validates promotion decision family summary; validates source reference summary; validates candidate reference summary; validates invalid promotion decision override rejection; validates invalid promotion gate override rejection; validates invalid authority boundary override rejection; validates invalid refs override rejection; explicit human review required; source_refs required; reviewer_note_ref required later; candidate/durable distinction preserved; claim candidate is not fact; evidence candidate is not accepted evidence; retrieval result is not promotion authority; RAG answer is not proof/evidence; embedding similarity is not promotion readiness; salience score is not promotion authority; provider/OpenAI output cannot initiate promotion; Codex/GitHub automation cannot initiate promotion; Agent Substrate cannot initiate promotion; future promotion decision record required later; future Formation Receipt required later; future durable Perspective delta apply required later; no runtime promotion execution; no durable Perspective state write; no promotion decision record write; no proof/evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no browser request; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs.
+- Durable Perspective State / Trajectory contract v0.1:
+  `types/durable-perspective-state-trajectory-contract.ts`,
+  `fixtures/research-candidate-review.durable-perspective-state-trajectory-contract.sample.v0.1.json`,
+  and
+  `scripts/smoke-durable-perspective-state-trajectory-contract-v0-1.mjs`
+  (`npm run smoke:durable-perspective-state-trajectory-contract-v0-1`)
+  add a contract-only, fixture-only, smoke-only specification that defines
+  future durable Perspective state shape and trajectory grammar.
+
+  Current thesis has lineage. Prior thesis is not overwritten silently. Prior
+  theses are preserved. Retired claims remain auditable. Contradicted evidence
+  is not deleted. Open tensions are preserved or explicitly resolved.
+  Knowledge gaps are preserved, explicitly deferred, or closed. Supporting
+  evidence refs and contradicting evidence refs are distinct. Candidate
+  evidence is not accepted evidence. Accepted evidence refs required for
+  accepted evidence claims. Promotion history append-only later. Retirement
+  history append-only later. PerspectiveSnapshot shape defined only.
+  PerspectiveSnapshot is derived view, not independent source of truth.
+  Salience state is display/reuse context only. Salience state is not
+  authority.
+
+  This contract has no runtime state read/write, no durable Perspective delta
+  apply, no PerspectiveSnapshot runtime, no trajectory runtime build, no
+  proof/evidence write, no accepted evidence write, no Formation Receipt
+  write, no work mutation, no DB write/query, no schema/migration, no route or
+  UI, no browser request, no provider/OpenAI call, no retrieval/RAG execution,
+  and no product write/product IDs. Product-write remains parked by #686. The
+  next recommended slice is
+  `durable_perspective_state_trajectory_implementation_v0_1`.
+
+  Boundary phrases: contract-only, fixture-only, smoke-only; defines future durable Perspective state shape and trajectory grammar; current thesis has lineage; prior thesis is not overwritten silently; prior theses are preserved; retired claims remain auditable; contradicted evidence is not deleted; open tensions are preserved or explicitly resolved; knowledge gaps are preserved, explicitly deferred, or closed; supporting evidence refs and contradicting evidence refs are distinct; candidate evidence is not accepted evidence; accepted evidence refs required for accepted evidence claims; promotion history append-only later; retirement history append-only later; PerspectiveSnapshot shape defined only; PerspectiveSnapshot is derived view, not independent source of truth; salience state is display/reuse context only; salience state is not authority; no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no trajectory runtime build; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no browser request; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

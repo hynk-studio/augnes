@@ -954,6 +954,15 @@ Product-write remains parked by the #686 stopline.
 Next recommended slice is Durable Perspective State / Trajectory contract v0.1.
 `durable_perspective_state_trajectory_contract_v0_1`
 
+Durable Perspective State / Trajectory contract defines future committed Perspective state shape and trajectory grammar only.
+Agent Substrate remains advisory-only and cannot read/write durable Perspective state.
+PerspectiveSnapshot is a future derived view, not independent source of truth.
+Salience state is display/reuse context only and not authority.
+This slice does not implement runtime state read/write, durable Perspective delta apply, proof/evidence writes, Formation Receipt writes, DB writes, route/UI, provider/OpenAI, retrieval/RAG, or product write.
+Product-write remains parked by the #686 stopline.
+Next recommended slice is Durable Perspective State / Trajectory implementation v0.1.
+`durable_perspective_state_trajectory_implementation_v0_1`
+
 ## Next Recommended Slice
 
-`durable_perspective_state_trajectory_contract_v0_1`
+`durable_perspective_state_trajectory_implementation_v0_1`

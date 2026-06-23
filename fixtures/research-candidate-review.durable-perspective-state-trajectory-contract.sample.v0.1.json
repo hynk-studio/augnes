@@ -1,0 +1,647 @@
+{
+  "contract_kind": "durable_perspective_state_trajectory_contract",
+  "contract_version": "durable_perspective_state_trajectory_contract.v0.1",
+  "source_promotion_validation_ref": "human_reviewed_durable_perspective_promotion_browser_validation.v0.1:fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-browser-validation.sample.v0.1.json#732",
+  "source_promotion_validation_fingerprint": "fnv1a32:39ba0a99",
+  "contract_scope": {
+    "durable_perspective_state_contract_only": true,
+    "runtime_state_write_now": false,
+    "runtime_state_read_now": false,
+    "durable_perspective_delta_apply_now": false,
+    "perspective_snapshot_runtime_now": false,
+    "trajectory_runtime_build_now": false,
+    "promotion_history_write_now": false,
+    "retirement_history_write_now": false,
+    "proof_evidence_write_now": false,
+    "accepted_evidence_write_now": false,
+    "formation_receipt_write_now": false,
+    "work_mutation_now": false,
+    "runtime_db_query_now": false,
+    "runtime_db_write_now": false,
+    "schema_migration_now": false,
+    "route_ui_now": false,
+    "provider_openai_call_now": false,
+    "retrieval_rag_execution_now": false,
+    "source_fetch_now": false,
+    "crawler_now": false,
+    "product_write_now": false
+  },
+  "state_fields": [
+    "perspective_id",
+    "current_thesis",
+    "prior_theses",
+    "active_claims",
+    "supporting_evidence_refs",
+    "contradicting_evidence_refs",
+    "open_tensions",
+    "knowledge_gaps",
+    "salience_state",
+    "promotion_history",
+    "retirement_history",
+    "reuse_conditions"
+  ],
+  "trajectory_event_families": [
+    {
+      "event_kind": "initial_perspective_state",
+      "lineage_required": true,
+      "source_refs_required": true,
+      "promotion_record_ref_required": true,
+      "runtime_write_now": false
+    },
+    {
+      "event_kind": "thesis_refined",
+      "prior_thesis_ref_required": true,
+      "next_thesis_ref_required": true,
+      "promotion_record_ref_required": true,
+      "retired_claim_refs_allowed": true,
+      "contradicted_evidence_refs_preserved": true,
+      "runtime_write_now": false
+    },
+    {
+      "event_kind": "claim_added",
+      "active_claim_ref_required": true,
+      "source_refs_required": true,
+      "supporting_or_contradicting_evidence_refs_required": true,
+      "runtime_write_now": false
+    },
+    {
+      "event_kind": "claim_retired",
+      "retired_claim_ref_required": true,
+      "retirement_reason_required": true,
+      "retirement_history_required": true,
+      "prior_claim_remains_auditable": true,
+      "runtime_write_now": false
+    },
+    {
+      "event_kind": "tension_preserved",
+      "open_tension_ref_required": true,
+      "tension_reason_required": true,
+      "runtime_write_now": false
+    },
+    {
+      "event_kind": "tension_resolved",
+      "prior_tension_ref_required": true,
+      "resolution_reason_required": true,
+      "promotion_record_ref_required": true,
+      "runtime_write_now": false
+    },
+    {
+      "event_kind": "knowledge_gap_deferred",
+      "knowledge_gap_ref_required": true,
+      "defer_reason_required": true,
+      "runtime_write_now": false
+    },
+    {
+      "event_kind": "knowledge_gap_closed",
+      "knowledge_gap_ref_required": true,
+      "accepted_evidence_ref_required": true,
+      "promotion_record_ref_required": true,
+      "runtime_write_now": false
+    },
+    {
+      "event_kind": "salience_reweighted",
+      "salience_state_ref_required": true,
+      "salience_is_display_context_only": true,
+      "salience_not_authority": true,
+      "runtime_write_now": false
+    },
+    {
+      "event_kind": "reuse_condition_updated",
+      "reuse_condition_ref_required": true,
+      "prior_condition_ref_required": true,
+      "runtime_write_now": false
+    }
+  ],
+  "lineage_policy": {
+    "current_thesis_has_lineage": true,
+    "prior_thesis_not_overwritten_silently": true,
+    "prior_theses_preserved": true,
+    "retired_claims_remain_auditable": true,
+    "contradicted_evidence_not_deleted": true,
+    "open_tensions_preserved_or_explicitly_resolved": true,
+    "knowledge_gaps_preserved_or_explicitly_deferred_or_closed": true,
+    "promotion_history_append_only_later": true,
+    "retirement_history_append_only_later": true,
+    "trajectory_events_source_ref_backed": true,
+    "trajectory_events_promotion_record_ref_backed_later": true
+  },
+  "evidence_policy": {
+    "supporting_evidence_refs_required_for_supported_claims": true,
+    "contradicting_evidence_refs_preserved": true,
+    "candidate_evidence_is_not_accepted_evidence": true,
+    "accepted_evidence_refs_required_for_accepted_evidence_claims": true,
+    "evidence_refs_are_refs_not_raw_body": true,
+    "proof_evidence_write_not_implemented_now": true,
+    "accepted_evidence_write_not_implemented_now": true
+  },
+  "snapshot_policy": {
+    "perspective_snapshot_shape_defined": true,
+    "perspective_snapshot_runtime_now": false,
+    "snapshot_is_derived_view": true,
+    "snapshot_not_source_of_truth_independent_of_state": true,
+    "snapshot_must_include_lineage_refs": true,
+    "snapshot_must_include_open_tensions_and_knowledge_gaps": true,
+    "snapshot_must_include_authority_boundary": true
+  },
+  "salience_policy": {
+    "salience_state_allowed_as_display_context": true,
+    "salience_state_not_truth": true,
+    "salience_state_not_promotion_authority": true,
+    "salience_state_not_evidence_strength": true,
+    "durable_salience_write_now": false
+  },
+  "sample_durable_perspective_state_preview": {
+    "preview_version": "durable_perspective_state_trajectory_preview.v0.1",
+    "operator_context_ref": "operator_context:public:durable_perspective_state_trajectory_contract",
+    "perspective_state_preview": {
+      "perspective_id": "perspective_ref:public:example_state_trajectory_contract",
+      "current_thesis": {
+        "thesis_ref": "thesis_ref:public:current_lineaged_preview",
+        "summary": "Public-safe future current thesis preview with lineage refs.",
+        "lineage_refs": [
+          "lineage_ref:public:initial_state",
+          "lineage_ref:public:thesis_refined"
+        ],
+        "promotion_record_refs": [
+          "promotion_record_ref:public:future_required"
+        ],
+        "source_refs": [
+          "source_ref:public:promotion_validation_fixture",
+          "source_ref:public:future_perspective_state_contract"
+        ],
+        "not_written_now": true
+      },
+      "prior_theses": [
+        {
+          "thesis_ref": "thesis_ref:public:prior_preserved_preview",
+          "summary": "Prior thesis preview preserved for audit.",
+          "retired_or_superseded_by_ref": "thesis_ref:public:current_lineaged_preview",
+          "lineage_refs": [
+            "lineage_ref:public:prior_state"
+          ],
+          "preserved_for_audit": true,
+          "not_deleted": true
+        }
+      ],
+      "active_claims": [
+        {
+          "claim_ref": "claim_ref:public:active_claim_preview",
+          "summary": "Durable claim preview only; no state write now.",
+          "supporting_evidence_refs": [
+            "accepted_evidence_ref:public:future_required"
+          ],
+          "contradicting_evidence_refs": [
+            "accepted_evidence_ref:public:contradiction_preserved"
+          ],
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "claim_is_durable_state_preview_only": true,
+          "not_written_now": true
+        }
+      ],
+      "supporting_evidence_refs": [
+        "accepted_evidence_ref:public:future_required"
+      ],
+      "contradicting_evidence_refs": [
+        "accepted_evidence_ref:public:contradiction_preserved"
+      ],
+      "open_tensions": [
+        {
+          "tension_ref": "tension_ref:public:open_tension_preserved",
+          "summary": "Open tension remains visible until explicitly resolved.",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "preserved": true
+        }
+      ],
+      "knowledge_gaps": [
+        {
+          "knowledge_gap_ref": "knowledge_gap_ref:public:gap_deferred_or_open",
+          "summary": "Knowledge gap remains visible until deferred or closed.",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "deferred_or_open": true
+        }
+      ],
+      "salience_state": {
+        "salience_state_ref": "salience_state_ref:public:display_context_only",
+        "display_context_only": true,
+        "not_authority": true,
+        "not_written_now": true
+      },
+      "promotion_history": [
+        {
+          "promotion_record_ref": "promotion_record_ref:public:future_required",
+          "decision_kind": "promote",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "append_only_later": true,
+          "not_written_now": true
+        }
+      ],
+      "retirement_history": [
+        {
+          "retirement_record_ref": "retirement_record_ref:public:future_auditable",
+          "retired_claim_ref": "claim_ref:public:retired_claim_auditable",
+          "reason_summary": "Public-safe future retirement reason preview.",
+          "append_only_later": true,
+          "not_written_now": true
+        }
+      ],
+      "reuse_conditions": [
+        {
+          "reuse_condition_ref": "reuse_condition_ref:public:lineaged_reuse_condition",
+          "condition_summary": "Future reuse condition preview with lineage.",
+          "lineage_refs": [
+            "lineage_ref:public:reuse_condition_updated"
+          ],
+          "not_written_now": true
+        }
+      ]
+    },
+    "trajectory_preview": {
+      "trajectory_version": "durable_perspective_trajectory_preview.v0.1",
+      "trajectory_events": [
+        {
+          "event_kind": "initial_perspective_state",
+          "event_ref": "trajectory_event_ref:public:initial_perspective_state",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "promotion_record_refs": [
+            "promotion_record_ref:public:future_required"
+          ],
+          "lineage_refs": [
+            "lineage_ref:public:initial_perspective_state"
+          ],
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "event_kind": "thesis_refined",
+          "event_ref": "trajectory_event_ref:public:thesis_refined",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "promotion_record_refs": [
+            "promotion_record_ref:public:future_required"
+          ],
+          "lineage_refs": [
+            "lineage_ref:public:thesis_refined"
+          ],
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "event_kind": "claim_added",
+          "event_ref": "trajectory_event_ref:public:claim_added",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "promotion_record_refs": [],
+          "lineage_refs": [
+            "lineage_ref:public:claim_added"
+          ],
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "event_kind": "claim_retired",
+          "event_ref": "trajectory_event_ref:public:claim_retired",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "promotion_record_refs": [],
+          "lineage_refs": [
+            "lineage_ref:public:claim_retired"
+          ],
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "event_kind": "tension_preserved",
+          "event_ref": "trajectory_event_ref:public:tension_preserved",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "promotion_record_refs": [],
+          "lineage_refs": [
+            "lineage_ref:public:tension_preserved"
+          ],
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "event_kind": "tension_resolved",
+          "event_ref": "trajectory_event_ref:public:tension_resolved",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "promotion_record_refs": [
+            "promotion_record_ref:public:future_required"
+          ],
+          "lineage_refs": [
+            "lineage_ref:public:tension_resolved"
+          ],
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "event_kind": "knowledge_gap_deferred",
+          "event_ref": "trajectory_event_ref:public:knowledge_gap_deferred",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "promotion_record_refs": [],
+          "lineage_refs": [
+            "lineage_ref:public:knowledge_gap_deferred"
+          ],
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "event_kind": "knowledge_gap_closed",
+          "event_ref": "trajectory_event_ref:public:knowledge_gap_closed",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "promotion_record_refs": [
+            "promotion_record_ref:public:future_required"
+          ],
+          "lineage_refs": [
+            "lineage_ref:public:knowledge_gap_closed"
+          ],
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "event_kind": "salience_reweighted",
+          "event_ref": "trajectory_event_ref:public:salience_reweighted",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "promotion_record_refs": [],
+          "lineage_refs": [
+            "lineage_ref:public:salience_reweighted"
+          ],
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "event_kind": "reuse_condition_updated",
+          "event_ref": "trajectory_event_ref:public:reuse_condition_updated",
+          "source_refs": [
+            "source_ref:public:promotion_validation_fixture",
+            "source_ref:public:future_perspective_state_contract"
+          ],
+          "promotion_record_refs": [],
+          "lineage_refs": [
+            "lineage_ref:public:reuse_condition_updated"
+          ],
+          "runtime_write_now": false,
+          "public_safe": true
+        }
+      ],
+      "all_events_public_safe": true,
+      "all_events_runtime_write_now_false": true,
+      "all_events_source_ref_backed": true,
+      "all_events_preserve_lineage": true
+    },
+    "perspective_snapshot_preview": {
+      "snapshot_version": "perspective_snapshot_preview.v0.1",
+      "snapshot_is_derived_view": true,
+      "snapshot_runtime_now": false,
+      "includes_lineage_refs": true,
+      "includes_current_thesis": true,
+      "includes_prior_theses": true,
+      "includes_active_claims": true,
+      "includes_supporting_and_contradicting_evidence_refs": true,
+      "includes_open_tensions": true,
+      "includes_knowledge_gaps": true,
+      "includes_authority_boundary": true
+    },
+    "authority_boundary": {
+      "contract_added_now": true,
+      "runtime_state_write_implemented_now": false,
+      "runtime_state_read_implemented_now": false,
+      "durable_perspective_state_write_now": false,
+      "durable_perspective_delta_apply_now": false,
+      "perspective_snapshot_runtime_implemented_now": false,
+      "trajectory_runtime_build_implemented_now": false,
+      "promotion_history_write_now": false,
+      "retirement_history_write_now": false,
+      "proof_or_evidence_record_write_now": false,
+      "accepted_evidence_write_now": false,
+      "formation_receipt_write_now": false,
+      "work_mutation_now": false,
+      "candidate_mutation_now": false,
+      "candidate_record_write_now": false,
+      "runtime_promotion_implemented_now": false,
+      "promotion_decision_record_implemented_now": false,
+      "promotion_decision_record_write_now": false,
+      "runtime_retrieval_rag_implemented_now": false,
+      "runtime_index_build_implemented_now": false,
+      "runtime_index_write_now": false,
+      "embedding_generation_implemented_now": false,
+      "vector_db_implemented_now": false,
+      "fts_implemented_now": false,
+      "provider_openai_call_now": false,
+      "provider_extraction_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "source_index_write_now": false,
+      "durable_source_record_write_now": false,
+      "runtime_persistence_implemented_now": false,
+      "durable_memory_write_now": false,
+      "runtime_db_write_now": false,
+      "runtime_db_query_now": false,
+      "production_db_used_now": false,
+      "db_schema_implemented_now": false,
+      "route_changed_now": false,
+      "component_changed_now": false,
+      "browser_request_now": false,
+      "durable_salience_write_now": false,
+      "recent_rehearsal_buffer_written_now": false,
+      "feedback_events_written_now": false,
+      "feedback_events_mutated_now": false,
+      "execution_authority": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "external_handoff_authority": false,
+      "provider_openai_authority": false,
+      "retrieval_rag_authority": false,
+      "source_fetch_authority": false,
+      "salience_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "product_write_lane_parked_by_686": true
+    },
+    "validation_policy": {
+      "current_thesis_has_lineage": true,
+      "prior_thesis_not_overwritten_silently": true,
+      "prior_theses_preserved": true,
+      "retired_claims_remain_auditable": true,
+      "contradicted_evidence_not_deleted": true,
+      "open_tensions_preserved_or_explicitly_resolved": true,
+      "knowledge_gaps_preserved_or_explicitly_deferred_or_closed": true,
+      "supporting_and_contradicting_evidence_refs_distinct": true,
+      "candidate_evidence_not_accepted_evidence": true,
+      "accepted_evidence_refs_required_for_accepted_evidence_claims": true,
+      "trajectory_events_source_ref_backed": true,
+      "trajectory_events_promotion_record_ref_backed_later": true,
+      "trajectory_events_runtime_write_now_false": true,
+      "promotion_history_append_only_later": true,
+      "retirement_history_append_only_later": true,
+      "perspective_snapshot_shape_defined": true,
+      "perspective_snapshot_runtime_now_false": true,
+      "snapshot_is_derived_view": true,
+      "snapshot_not_independent_source_of_truth": true,
+      "snapshot_includes_lineage_refs": true,
+      "snapshot_includes_open_tensions_and_knowledge_gaps": true,
+      "salience_state_not_authority": true,
+      "no_runtime_state_read_or_write": true,
+      "no_durable_perspective_delta_apply": true,
+      "no_proof_or_evidence_write": true,
+      "no_accepted_evidence_write": true,
+      "no_formation_receipt_write": true,
+      "no_work_mutation": true,
+      "no_runtime_db_write_or_query": true,
+      "no_schema_or_migration": true,
+      "no_route_or_ui": true,
+      "no_browser_request": true,
+      "no_provider_openai_call": true,
+      "no_retrieval_rag_execution": true,
+      "no_product_write_or_ids": true
+    }
+  },
+  "authority_boundary": {
+    "contract_added_now": true,
+    "implementation_added_now": false,
+    "runtime_state_write_implemented_now": false,
+    "runtime_state_read_implemented_now": false,
+    "durable_perspective_state_write_now": false,
+    "durable_perspective_delta_apply_now": false,
+    "perspective_snapshot_runtime_implemented_now": false,
+    "trajectory_runtime_build_implemented_now": false,
+    "promotion_history_write_now": false,
+    "retirement_history_write_now": false,
+    "proof_or_evidence_record_write_now": false,
+    "accepted_evidence_write_now": false,
+    "formation_receipt_write_now": false,
+    "work_mutation_now": false,
+    "candidate_mutation_now": false,
+    "candidate_record_write_now": false,
+    "runtime_promotion_implemented_now": false,
+    "promotion_decision_record_implemented_now": false,
+    "promotion_decision_record_write_now": false,
+    "runtime_retrieval_rag_implemented_now": false,
+    "runtime_index_build_implemented_now": false,
+    "runtime_index_write_now": false,
+    "embedding_generation_implemented_now": false,
+    "vector_db_implemented_now": false,
+    "fts_implemented_now": false,
+    "provider_openai_call_now": false,
+    "provider_extraction_now": false,
+    "source_fetch_now": false,
+    "crawler_now": false,
+    "source_index_write_now": false,
+    "durable_source_record_write_now": false,
+    "runtime_persistence_implemented_now": false,
+    "durable_memory_write_now": false,
+    "runtime_db_write_now": false,
+    "runtime_db_query_now": false,
+    "production_db_used_now": false,
+    "db_schema_implemented_now": false,
+    "route_changed_now": false,
+    "component_changed_now": false,
+    "browser_request_now": false,
+    "durable_salience_write_now": false,
+    "recent_rehearsal_buffer_written_now": false,
+    "feedback_events_written_now": false,
+    "feedback_events_mutated_now": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "salience_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation_policy": {
+    "current_thesis_has_lineage": true,
+    "prior_thesis_not_overwritten_silently": true,
+    "prior_theses_preserved": true,
+    "retired_claims_remain_auditable": true,
+    "contradicted_evidence_not_deleted": true,
+    "open_tensions_preserved_or_explicitly_resolved": true,
+    "knowledge_gaps_preserved_or_explicitly_deferred_or_closed": true,
+    "supporting_and_contradicting_evidence_refs_distinct": true,
+    "candidate_evidence_not_accepted_evidence": true,
+    "accepted_evidence_refs_required_for_accepted_evidence_claims": true,
+    "trajectory_events_source_ref_backed": true,
+    "trajectory_events_promotion_record_ref_backed_later": true,
+    "trajectory_events_runtime_write_now_false": true,
+    "promotion_history_append_only_later": true,
+    "retirement_history_append_only_later": true,
+    "perspective_snapshot_shape_defined": true,
+    "perspective_snapshot_runtime_now_false": true,
+    "snapshot_is_derived_view": true,
+    "snapshot_not_independent_source_of_truth": true,
+    "snapshot_includes_lineage_refs": true,
+    "snapshot_includes_open_tensions_and_knowledge_gaps": true,
+    "salience_state_not_authority": true,
+    "no_runtime_state_read_or_write": true,
+    "no_durable_perspective_delta_apply": true,
+    "no_proof_or_evidence_write": true,
+    "no_accepted_evidence_write": true,
+    "no_formation_receipt_write": true,
+    "no_work_mutation": true,
+    "no_runtime_db_write_or_query": true,
+    "no_schema_or_migration": true,
+    "no_route_or_ui": true,
+    "no_browser_request": true,
+    "no_provider_openai_call": true,
+    "no_retrieval_rag_execution": true,
+    "no_product_write_or_ids": true
+  },
+  "privacy_policy": {
+    "no_secrets_in_fixture": true,
+    "no_private_urls": true,
+    "no_raw_provider_thread_run_session_ids": true,
+    "no_raw_source_body": true,
+    "public_safe_perspective_refs_only": true,
+    "public_safe_thesis_refs_only": true,
+    "public_safe_claim_refs_only": true,
+    "public_safe_evidence_refs_only": true,
+    "public_safe_tension_refs_only": true,
+    "public_safe_knowledge_gap_refs_only": true,
+    "public_safe_promotion_record_refs_only": true,
+    "public_safe_retirement_record_refs_only": true,
+    "public_safe_reuse_condition_refs_only": true
+  },
+  "recommendation_status": "ready_for_durable_perspective_state_trajectory_implementation_v0_1",
+  "next_recommended_slice": "durable_perspective_state_trajectory_implementation_v0_1",
+  "contract_fingerprint": "fnv1a32:4310f6e4",
+  "fingerprint_algorithm": "fnv1a32_canonical_json"
+}
