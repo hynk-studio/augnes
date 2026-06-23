@@ -2252,6 +2252,25 @@ repo-local 색인이다.
   This has no runtime source fetch and no crawler. It adds no provider/OpenAI call, no retrieval/RAG execution, no source index write, no durable source record write, no runtime persistence, no durable memory write, no runtime DB write/query, no production DB read, no schema/migration, no route or UI, no browser request, no browser persistence, no feedback write/mutation, no proof/evidence/Perspective promotion/candidate mutation/work mutation, and no product write/product IDs. product-write remains parked by #686. The next
   recommended slice is
   `bounded_external_source_intake_implementation_v0_1`.
+- Bounded External Source Intake implementation v0.1:
+  `lib/research-candidate-review/bounded-external-source-intake.ts`,
+  `fixtures/research-candidate-review.bounded-external-source-intake-implementation.sample.v0.1.json`,
+  and `scripts/smoke-bounded-external-source-intake-implementation-v0-1.mjs`
+  (`npm run smoke:bounded-external-source-intake-implementation-v0-1`)
+  implement a deterministic fixture-backed implementation with a generated reference-only source intake bundle from #721 contract data.
+
+  The implementation emits allowed source input summary, disallowed source input summary, source reference summary, candidate generation summary, provenance summary, privacy summary, and non-authority summary. The generated bundle keeps the #721 contract authority boundary and validation policy, while implementation-added flags stay only on the top-level implementation object.
+
+  This has no runtime source fetch, no crawler behavior, no provider/OpenAI
+  call, no retrieval/RAG execution, no source index write, no durable source
+  record write, no runtime persistence, no durable memory write, no runtime DB
+  write/query, no production DB read, no schema/migration, no route or UI, no
+  browser request, no browser persistence, no durable salience write, no recent
+  rehearsal buffer write, no formation receipt write, no feedback
+  write/mutation, no proof/evidence/Perspective promotion/candidate
+  mutation/work mutation, and no product write/product IDs. product-write
+  remains parked by #686. The next recommended slice is
+  `bounded_external_source_intake_browser_validation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

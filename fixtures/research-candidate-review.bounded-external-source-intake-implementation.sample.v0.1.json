@@ -1,0 +1,420 @@
+{
+  "implementation_kind": "bounded_external_source_intake_implementation",
+  "implementation_version": "bounded_external_source_intake_implementation.v0.1",
+  "source_contract_ref": "bounded_external_source_intake_contract.v0.1:fixtures/research-candidate-review.bounded-external-source-intake-contract.sample.v0.1.json",
+  "source_contract_fingerprint": "fnv1a32:b9a366c8",
+  "source_salience_governor_validation_ref": "salience_governor_browser_validation.v0.1:fixtures/research-candidate-review.salience-governor-browser-validation.sample.v0.1.json#720",
+  "generated_source_intake_reference_bundle": {
+    "source_intake_bundle_id": "bounded_external_source_intake_contract_sample_v0_1_001",
+    "intake_version": "bounded_external_source_intake.v0.1",
+    "generated_at": "2026-06-23T00:00:00.000Z",
+    "scope": "research_candidate_review:bounded_external_source_intake_contract_sample",
+    "source_refs": [
+      {
+        "source_ref_id": "source_ref_browser_capture_reference",
+        "source_input_kind": "browser_capture_reference",
+        "source_status": "reference_only",
+        "reference_label": "Browser capture reference without browser request execution",
+        "public_safe_ref": "source:browser_capture_reference_only",
+        "source_refs": [
+          "source:browser_capture_reference_only"
+        ],
+        "operator_context_ref": "operator_context:browser_capture_reference_review",
+        "public_safe": true,
+        "accepted_as_reference_only_now": true,
+        "source_fetch_now": false,
+        "provider_extraction_now": false,
+        "candidate_generation_later_only": true
+      },
+      {
+        "source_ref_id": "source_ref_manual_bibliographic",
+        "source_input_kind": "manual_bibliographic_reference",
+        "source_status": "reference_only",
+        "reference_label": "Manual bibliographic reference",
+        "public_safe_ref": "source:manual_bibliographic_reference",
+        "source_refs": [
+          "source:manual_bibliographic_reference"
+        ],
+        "operator_context_ref": "operator_context:bibliographic_review",
+        "public_safe": true,
+        "accepted_as_reference_only_now": true,
+        "source_fetch_now": false,
+        "provider_extraction_now": false,
+        "candidate_generation_later_only": true
+      },
+      {
+        "source_ref_id": "source_ref_oauth_document_pointer",
+        "source_input_kind": "oauth_document_pointer",
+        "source_status": "oauth_pointer_only",
+        "reference_label": "OAuth document pointer without token or provider ID",
+        "public_safe_ref": "source:oauth_document_pointer_public_safe",
+        "source_refs": [
+          "source:oauth_document_pointer_public_safe"
+        ],
+        "operator_context_ref": "operator_context:oauth_pointer_review",
+        "public_safe": true,
+        "accepted_as_reference_only_now": true,
+        "source_fetch_now": false,
+        "provider_extraction_now": false,
+        "candidate_generation_later_only": true
+      },
+      {
+        "source_ref_id": "source_ref_operator_url_reference",
+        "source_input_kind": "operator_provided_url_reference",
+        "source_status": "operator_supplied",
+        "reference_label": "Operator-provided public documentation URL reference",
+        "public_safe_ref": "source:operator_public_doc_reference",
+        "source_refs": [
+          "source:operator_public_doc_reference"
+        ],
+        "operator_context_ref": "operator_context:review_question_source_reference",
+        "public_safe": true,
+        "accepted_as_reference_only_now": true,
+        "source_fetch_now": false,
+        "provider_extraction_now": false,
+        "candidate_generation_later_only": true
+      },
+      {
+        "source_ref_id": "source_ref_repo_backed_doc",
+        "source_input_kind": "repo_backed_doc_ref",
+        "source_status": "repo_backed",
+        "reference_label": "Repository-backed document reference",
+        "public_safe_ref": "source:repo_backed_doc_reference",
+        "source_refs": [
+          "source:repo_backed_doc_reference"
+        ],
+        "operator_context_ref": "operator_context:repo_doc_review",
+        "public_safe": true,
+        "accepted_as_reference_only_now": true,
+        "source_fetch_now": false,
+        "provider_extraction_now": false,
+        "candidate_generation_later_only": true
+      },
+      {
+        "source_ref_id": "source_ref_uploaded_notes_reference",
+        "source_input_kind": "uploaded_notes_reference",
+        "source_status": "reference_only",
+        "reference_label": "Uploaded notes reference without durable memory write",
+        "public_safe_ref": "source:uploaded_notes_reference_only",
+        "source_refs": [
+          "source:uploaded_notes_reference_only"
+        ],
+        "operator_context_ref": "operator_context:notes_reference_review",
+        "public_safe": true,
+        "accepted_as_reference_only_now": true,
+        "source_fetch_now": false,
+        "provider_extraction_now": false,
+        "candidate_generation_later_only": true
+      },
+      {
+        "source_ref_id": "source_ref_uploaded_pdf_metadata",
+        "source_input_kind": "uploaded_pdf_metadata",
+        "source_status": "uploaded_metadata_only",
+        "reference_label": "Uploaded PDF metadata reference without file content",
+        "public_safe_ref": "source:uploaded_pdf_metadata_only",
+        "source_refs": [
+          "source:uploaded_pdf_metadata_only"
+        ],
+        "operator_context_ref": "operator_context:uploaded_metadata_review",
+        "public_safe": true,
+        "accepted_as_reference_only_now": true,
+        "source_fetch_now": false,
+        "provider_extraction_now": false,
+        "candidate_generation_later_only": true
+      }
+    ],
+    "disallowed_source_inputs": [
+      {
+        "input_kind": "crawler_seed",
+        "disallowed_now": true,
+        "reason": "Crawler seeds are outside this reference-only contract."
+      },
+      {
+        "input_kind": "unbounded_domain_crawl",
+        "disallowed_now": true,
+        "reason": "Unbounded domain crawl is explicitly out of scope."
+      },
+      {
+        "input_kind": "automatic_web_search",
+        "disallowed_now": true,
+        "reason": "Automatic search would fetch sources at runtime."
+      },
+      {
+        "input_kind": "provider_generated_source_without_operator_ref",
+        "disallowed_now": true,
+        "reason": "Provider output without an operator source reference is not accepted."
+      },
+      {
+        "input_kind": "raw_private_url_as_canonical_id",
+        "disallowed_now": true,
+        "reason": "Raw private URLs must not become canonical IDs."
+      },
+      {
+        "input_kind": "raw_oauth_token",
+        "disallowed_now": true,
+        "reason": "OAuth tokens are secrets and never fixture content."
+      },
+      {
+        "input_kind": "raw_thread_or_run_id",
+        "disallowed_now": true,
+        "reason": "Thread or run IDs are not stable public-safe source labels."
+      },
+      {
+        "input_kind": "arbitrary_user_string_as_stable_id",
+        "disallowed_now": true,
+        "reason": "Arbitrary text is not a stable source identifier."
+      }
+    ],
+    "source_reference_policy_ref": "bounded_external_source_intake_source_reference_policy.v0.1",
+    "candidate_generation_policy_ref": "bounded_external_source_intake_candidate_generation_policy.v0.1",
+    "provenance_policy_ref": "bounded_external_source_intake_provenance_policy.v0.1",
+    "privacy_policy_ref": "bounded_external_source_intake_privacy_policy.v0.1",
+    "non_authority_policy_ref": "bounded_external_source_intake_non_authority_policy.v0.1",
+    "authority_boundary": {
+      "contract_only": true,
+      "bounded_external_source_intake_contract_defined_now": true,
+      "runtime_source_fetch_implemented_now": false,
+      "crawler_implemented_now": false,
+      "provider_extraction_implemented_now": false,
+      "retrieval_rag_implemented_now": false,
+      "source_index_write_now": false,
+      "durable_source_record_write_now": false,
+      "candidate_generation_now": false,
+      "candidate_mutation_now": false,
+      "db_schema_implemented_now": false,
+      "route_changed_now": false,
+      "component_changed_now": false,
+      "browser_request_now": false,
+      "runtime_db_query_now": false,
+      "runtime_db_write_now": false,
+      "production_db_used_now": false,
+      "durable_memory_write_now": false,
+      "durable_salience_write_now": false,
+      "recent_rehearsal_buffer_written_now": false,
+      "formation_receipt_written_now": false,
+      "feedback_events_written_now": false,
+      "feedback_events_mutated_now": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state_write": false,
+      "promotion_decision_record": false,
+      "work_mutation": false,
+      "execution_authority": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "external_handoff_authority": false,
+      "provider_openai_authority": false,
+      "retrieval_rag_authority": false,
+      "source_fetch_authority": false,
+      "salience_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "product_write_lane_parked_by_686": true
+    },
+    "validation": {
+      "static_source_validation_only": true,
+      "fixture_backed_only": true,
+      "app_server_started_now": false,
+      "production_db_used_now": false,
+      "runtime_browser_request_now": false,
+      "runtime_db_query_now": false,
+      "runtime_db_write_now": false,
+      "runtime_source_fetch_now": false,
+      "runtime_provider_call_now": false,
+      "runtime_retrieval_rag_now": false
+    }
+  },
+  "allowed_source_input_summary": {
+    "allowed_input_count": 7,
+    "allowed_input_kinds": [
+      "operator_provided_url_reference",
+      "uploaded_pdf_metadata",
+      "uploaded_notes_reference",
+      "browser_capture_reference",
+      "oauth_document_pointer",
+      "repo_backed_doc_ref",
+      "manual_bibliographic_reference"
+    ],
+    "all_inputs_reference_only_now": true,
+    "all_source_fetch_now_false": true,
+    "all_provider_extraction_now_false": true,
+    "all_candidate_generation_later_only": true,
+    "all_require_source_refs": true,
+    "all_require_operator_context": true,
+    "all_public_safe_fixture_only_now": true
+  },
+  "disallowed_source_input_summary": {
+    "disallowed_input_count": 8,
+    "disallowed_input_kinds": [
+      "crawler_seed",
+      "unbounded_domain_crawl",
+      "automatic_web_search",
+      "provider_generated_source_without_operator_ref",
+      "raw_private_url_as_canonical_id",
+      "raw_oauth_token",
+      "raw_thread_or_run_id",
+      "arbitrary_user_string_as_stable_id"
+    ],
+    "includes_crawler_seed": true,
+    "includes_unbounded_domain_crawl": true,
+    "includes_automatic_web_search": true,
+    "includes_raw_oauth_token": true,
+    "includes_raw_private_url_as_canonical_id": true,
+    "all_disallowed_now": true,
+    "all_have_reasons": true
+  },
+  "source_reference_summary": {
+    "source_ref_count": 7,
+    "source_ref_ids": [
+      "source_ref_browser_capture_reference",
+      "source_ref_manual_bibliographic",
+      "source_ref_oauth_document_pointer",
+      "source_ref_operator_url_reference",
+      "source_ref_repo_backed_doc",
+      "source_ref_uploaded_notes_reference",
+      "source_ref_uploaded_pdf_metadata"
+    ],
+    "all_public_safe": true,
+    "all_have_source_refs": true,
+    "all_have_operator_context": true,
+    "all_reference_only_now": true,
+    "all_source_fetch_now_false": true,
+    "all_provider_extraction_now_false": true,
+    "raw_url_not_canonical_id": true,
+    "raw_provider_id_not_canonical_id": true,
+    "private_identifier_not_canonical_id": true,
+    "no_fetch_now": true,
+    "no_crawl_now": true,
+    "no_provider_call_now": true,
+    "no_retrieval_rag_now": true,
+    "no_embedding_now": true,
+    "no_index_write_now": true
+  },
+  "candidate_generation_summary": {
+    "source_intake_may_prepare_candidates_later": true,
+    "candidate_generation_not_implemented_now": true,
+    "generated_candidate_is_not_proof_or_evidence": true,
+    "generated_candidate_is_not_source_of_truth": true,
+    "generated_candidate_does_not_promote_perspective": true,
+    "generated_candidate_does_not_mutate_work": true,
+    "generated_candidate_does_not_write_product": true,
+    "human_review_required_later": true
+  },
+  "provenance_summary": {
+    "source_refs_required": true,
+    "operator_context_required": true,
+    "provenance_visible_to_review_surface_later": true,
+    "unresolved_source_status_allowed": true,
+    "source_status_values": [
+      "reference_only",
+      "operator_supplied",
+      "repo_backed",
+      "uploaded_metadata_only",
+      "oauth_pointer_only",
+      "unresolved",
+      "rejected_for_now"
+    ],
+    "all_source_refs_have_valid_status": true
+  },
+  "privacy_summary": {
+    "public_safe_fixture_only_now": true,
+    "no_secrets_in_fixture": true,
+    "no_raw_oauth_tokens": true,
+    "no_private_urls_in_fixture": true,
+    "no_provider_ids_as_canonical_labels": true,
+    "no_thread_run_session_ids_as_canonical_labels": true
+  },
+  "non_authority_summary": {
+    "not_source_of_truth": true,
+    "not_proof_or_evidence": true,
+    "not_perspective_state": true,
+    "not_work_status": true,
+    "not_promotion_basis": true,
+    "not_retrieval_rag_result": true,
+    "not_salience_authority": true,
+    "not_product_write": true,
+    "source_reference_not_evidence_record": true,
+    "provider_summary_not_evidence_record": true,
+    "retrieval_result_not_authority": true
+  },
+  "authority_boundary": {
+    "implementation_added_now": true,
+    "contract_followed_now": true,
+    "fixture_backed_only": true,
+    "deterministic_builder_added_now": true,
+    "runtime_source_fetch_implemented_now": false,
+    "crawler_implemented_now": false,
+    "provider_extraction_implemented_now": false,
+    "retrieval_rag_implemented_now": false,
+    "source_index_write_now": false,
+    "durable_source_record_write_now": false,
+    "candidate_generation_now": false,
+    "candidate_mutation_now": false,
+    "runtime_persistence_implemented_now": false,
+    "durable_memory_write_now": false,
+    "runtime_db_write_now": false,
+    "runtime_db_query_now": false,
+    "production_db_used_now": false,
+    "db_schema_implemented_now": false,
+    "route_changed_now": false,
+    "component_changed_now": false,
+    "browser_request_now": false,
+    "durable_salience_write_now": false,
+    "recent_rehearsal_buffer_written_now": false,
+    "formation_receipt_written_now": false,
+    "feedback_events_written_now": false,
+    "feedback_events_mutated_now": false,
+    "proof_or_evidence_record": false,
+    "perspective_promotion": false,
+    "durable_perspective_state_write": false,
+    "promotion_decision_record": false,
+    "work_mutation": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "salience_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation_policy": {
+    "static_source_validation_only": true,
+    "fixture_backed_only": true,
+    "app_server_started_now": false,
+    "production_db_used_now": false,
+    "runtime_browser_request_now": false,
+    "runtime_db_query_now": false,
+    "runtime_db_write_now": false,
+    "runtime_source_fetch_now": false,
+    "runtime_provider_call_now": false,
+    "runtime_retrieval_rag_now": false
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": [],
+    "generated_bundle_follows_contract": true,
+    "generated_bundle_boundary_matches_contract": true,
+    "generated_bundle_validation_matches_contract": true,
+    "top_level_implementation_boundary_is_separate": true,
+    "allowed_inputs_reference_only": true,
+    "source_fetch_not_implemented": true,
+    "provider_extraction_not_implemented": true,
+    "retrieval_rag_not_implemented": true,
+    "source_index_write_not_implemented": true,
+    "durable_source_record_write_not_implemented": true,
+    "candidate_generation_not_implemented": true,
+    "source_refs_have_operator_context": true,
+    "privacy_policy_preserved": true,
+    "non_authority_policy_preserved": true,
+    "authority_boundary_preserved": true,
+    "deterministic_rebuild_matches_fixture": true
+  },
+  "recommendation_status": "ready_for_bounded_external_source_intake_browser_validation_v0_1",
+  "next_recommended_slice": "bounded_external_source_intake_browser_validation_v0_1",
+  "implementation_fingerprint": "fnv1a32:1a461f36",
+  "fingerprint_algorithm": "fnv1a32_canonical_json"
+}

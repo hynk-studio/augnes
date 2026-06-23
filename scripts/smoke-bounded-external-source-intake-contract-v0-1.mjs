@@ -11,6 +11,12 @@ const sourceValidationFixturePath =
   "fixtures/research-candidate-review.salience-governor-browser-validation.sample.v0.1.json";
 const sourceValidationSmokePath =
   "scripts/smoke-salience-governor-browser-validation-v0-1.mjs";
+const implementationBuilderPath =
+  "lib/research-candidate-review/bounded-external-source-intake.ts";
+const implementationFixturePath =
+  "fixtures/research-candidate-review.bounded-external-source-intake-implementation.sample.v0.1.json";
+const implementationSmokePath =
+  "scripts/smoke-bounded-external-source-intake-implementation-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
@@ -29,6 +35,16 @@ const recommendationStatus =
   "ready_for_bounded_external_source_intake_implementation_v0_1";
 const nextRecommendedSlice =
   "bounded_external_source_intake_implementation_v0_1";
+const implementationPackageScriptName =
+  "smoke:bounded-external-source-intake-implementation-v0-1";
+const implementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-bounded-external-source-intake-implementation-v0-1.mjs";
+const implementationVersion =
+  "bounded_external_source_intake_implementation.v0.1";
+const implementationRecommendationStatus =
+  "ready_for_bounded_external_source_intake_browser_validation_v0_1";
+const implementationNextRecommendedSlice =
+  "bounded_external_source_intake_browser_validation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -124,6 +140,7 @@ assertAuthorityBoundary(fixture.authority_boundary);
 assertValidationPolicy(fixture.validation_policy);
 assertDocsPointers();
 assertSourceValidationDownstreamPointer();
+assertImplementationDownstreamPointer();
 assertPortableMergeBaseFallback();
 assert.deepEqual(
   fixture,
@@ -551,6 +568,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (implementationSliceActive()) {
+    assertImplementationPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
@@ -570,6 +591,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (implementationSliceActive()) {
+    assertImplementationChangedFiles(changedFiles);
+    return;
+  }
   for (const unchangedPath of [
     "lib/research-candidate-review/salience-governor.ts",
     "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
@@ -889,6 +914,25 @@ function assertSourceValidationDownstreamPointer() {
   }
 }
 
+function assertImplementationDownstreamPointer() {
+  for (const requiredText of [
+    implementationVersion,
+    implementationBuilderPath,
+    implementationFixturePath,
+    implementationSmokePath,
+    implementationPackageScriptName,
+    implementationRecommendationStatus,
+    implementationNextRecommendedSlice,
+    "reference-only source intake bundles",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      smokeSource().includes(requiredText),
+      `#721 Bounded External Source Intake contract smoke must allow implementation downstream pointer: ${requiredText}`,
+    );
+  }
+}
+
 function assertPortableMergeBaseFallback() {
   for (const requiredText of [
     "gitRefExists",
@@ -964,6 +1008,107 @@ function readChangedFiles() {
     .map((line) => line.trim())
     .filter(Boolean);
   return [...new Set(changed)].sort();
+}
+
+function implementationSliceActive() {
+  return readChangedFiles().includes(implementationSmokePath);
+}
+
+function assertImplementationPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts[implementationPackageScriptName],
+    implementationPackageScriptValue,
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    [implementationPackageScriptName],
+    "package.json must add only the Bounded External Source Intake implementation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+}
+
+function assertImplementationChangedFiles(changedFiles) {
+  const expectedFiles = [
+    implementationBuilderPath,
+    implementationFixturePath,
+    implementationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+    sourceValidationSmokePath,
+    "scripts/smoke-salience-governor-implementation-v0-1.mjs",
+    "scripts/smoke-salience-governor-contract-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+  ];
+  for (const expectedFile of expectedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const unchangedPath of [
+    typePath,
+    fixturePath,
+    "lib/research-candidate-review/salience-governor.ts",
+    "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/recent-rehearsal-buffer.ts",
+    "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Bounded External Source Intake implementation slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Bounded External Source Intake implementation downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
 }
 
 function stripValidationText(source) {
