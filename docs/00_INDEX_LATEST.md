@@ -2186,6 +2186,29 @@ repo-local 색인이다.
   provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
   write/product IDs. product-write remains parked by #686. The next recommended
   slice is `salience_governor_implementation_v0_1`.
+- Salience Governor implementation v0.1:
+  `lib/research-candidate-review/salience-governor.ts`,
+  `fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json`,
+  and `scripts/smoke-salience-governor-implementation-v0-1.mjs`
+  (`npm run smoke:salience-governor-implementation-v0-1`) define a
+  deterministic fixture-backed implementation for the #718 contract.
+
+  The builder records a generated display/reuse priority view from #718 contract
+  data only and records salience component summary, inhibition component summary,
+  action hint summary, and priority view summary. It keeps the generated
+  priority view contract authority boundary separate from the top-level
+  implementation authority boundary. Action hints remain hint-only, suppression
+  and reactivation remain display hints only, and salience score previews remain
+  bounded display/reuse priority data.
+
+  This has no runtime salience scoring and no salience score authority. It adds
+  no runtime persistence, no durable salience write, no durable memory write, no
+  runtime DB write/query, no production DB read, no schema/migration, no route
+  or UI, no browser request, no browser persistence, no recent rehearsal buffer
+  write, no formation receipt write, no feedback write/mutation, no proof/evidence/Perspective promotion/candidate mutation/work mutation, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
+  write/product IDs. product-write remains parked by #686. The next recommended
+  slice is `salience_governor_browser_validation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

@@ -698,6 +698,28 @@ mutation, no product write, no product DB write, and no product ID allocation.
 Product-write remains parked by the #686 stopline. The next recommended slice is
 `salience_governor_implementation_v0_1`.
 
+Salience Governor implementation v0.1 is deterministic and fixture-backed. It
+generates display/reuse priority preview only from the #718 contract fixture and
+keeps salience component, inhibition component, action hint, and priority view
+summaries as static implementation output.
+
+This implementation is not proof/evidence, not Perspective state, not work
+status, not promotion authority, not salience authority, not retrieval/RAG
+result, and not product write. Salience score must not be treated as promotion
+readiness, durable approval, evidence strength, source of truth, work status,
+or authority. It adds no runtime salience scoring, no runtime persistence, no
+durable salience write, no durable memory write, no runtime DB write/query, no
+production DB read, no schema/migration, no route, no route handler, no server
+action, no component/UI implementation, no browser request, no browser
+persistence, no recent rehearsal buffer write, no formation receipt write, no
+feedback write/mutation, no provider/OpenAI call, no source fetch, no
+retrieval/RAG execution, no proof/evidence write, no Perspective promotion, no
+durable Perspective state write, no promotion decision record, no
+candidate/work mutation, no product write, no product DB write, and no product
+ID allocation. Product-write remains parked by the #686 stopline. The next
+recommended slice is
+`salience_governor_browser_validation_v0_1`.
+
 ## Next Recommended Slice
 
-`salience_governor_implementation_v0_1`
+`salience_governor_browser_validation_v0_1`

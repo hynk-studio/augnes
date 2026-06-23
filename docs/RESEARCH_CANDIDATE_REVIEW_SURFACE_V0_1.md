@@ -1094,6 +1094,35 @@ write. Salience score must not be treated as promotion readiness or durable
 approval. Product-write remains parked by the #686 stopline. Next recommended
 slice: `salience_governor_implementation_v0_1`.
 
+## Salience Governor Implementation v0.1 Pointer
+
+Salience Governor implementation v0.1 remains separated from durable
+Perspective promotion. It is deterministic and fixture-backed, and generates
+display/reuse priority hints only from the #718 Salience Governor contract.
+
+The implementation records a generated display/reuse priority preview, salience
+component summary, inhibition component summary, action hint summary, priority
+view summary, non-authority summary, and authority boundary. It does not make
+salience score promotion readiness, durable approval, evidence strength, source
+of truth, proof/evidence, Perspective state, work status, or product write
+authority.
+
+This implementation does not implement runtime DB/browser/provider/retrieval
+behavior in this slice. It adds no runtime salience scoring, no salience score
+authority, no runtime persistence, no durable salience write, no durable memory
+write, no runtime DB write/query, no production DB read, no schema/migration,
+no route, no route handler, no server action, no component/UI implementation,
+no browser request, no browser persistence, no recent rehearsal buffer write, no
+formation receipt write, no feedback write/mutation, no provider/OpenAI call,
+no source fetch, no retrieval/RAG execution, no proof/evidence write, no
+Perspective promotion, no durable Perspective state write, no promotion
+decision record, no candidate/work mutation, no product write, no product DB
+write, and no product ID allocation. It is not proof/evidence, not Perspective
+state, not work status, not promotion authority, not salience authority, not
+retrieval/RAG result, and not product write. Product-write remains parked by the
+#686 stopline. Next recommended slice:
+`salience_governor_browser_validation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
