@@ -542,6 +542,10 @@ function buildValidationFixture() {
 }
 
 function assertPackageScript() {
+  if (salienceGovernorBrowserValidationSliceActive()) {
+    assertSalienceGovernorBrowserValidationPackageScript();
+    return;
+  }
   if (salienceGovernorImplementationSliceActive()) {
     assertSalienceGovernorImplementationPackageScript();
     return;
@@ -708,6 +712,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (salienceGovernorBrowserValidationSliceActive()) {
+    assertSalienceGovernorBrowserValidationChangedFiles(changedFiles);
+    return;
+  }
   if (salienceGovernorImplementationSliceActive()) {
     assertSalienceGovernorImplementationChangedFiles(changedFiles);
     return;
@@ -1587,6 +1595,111 @@ function assertSalienceGovernorImplementationChangedFiles(changedFiles) {
     assert.ok(
       expectedFiles.includes(changedFile),
       `unexpected changed file in Salience Governor implementation downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function salienceGovernorBrowserValidationSliceActive() {
+  return readChangedFiles().includes("scripts/smoke-salience-governor-browser-validation-v0-1.mjs");
+}
+
+function assertSalienceGovernorBrowserValidationPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts["smoke:salience-governor-browser-validation-v0-1"],
+    "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-salience-governor-browser-validation-v0-1.mjs",
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    ["smoke:salience-governor-browser-validation-v0-1"],
+    "package.json must add only the Salience Governor browser validation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+}
+
+function assertSalienceGovernorBrowserValidationChangedFiles(changedFiles) {
+  const expectedFiles =   [
+      "fixtures/research-candidate-review.salience-governor-browser-validation.sample.v0.1.json",
+      "scripts/smoke-salience-governor-browser-validation-v0-1.mjs",
+      "package.json",
+      "docs/00_INDEX_LATEST.md",
+      "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+      "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+      "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+      "scripts/smoke-salience-governor-implementation-v0-1.mjs",
+      "scripts/smoke-salience-governor-contract-v0-1.mjs",
+      "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
+      "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+      "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+      "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+      "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+      "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+      "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+      "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+      "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+      "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+      "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+      "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+      "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+      "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+      "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+      "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+      "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+      "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+      "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+      "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+      "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+      "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+      "scripts/smoke-feedback-event-store-minimal-v0-1.mjs"
+  ];
+  for (const expectedFile of expectedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  assert.ok(
+    !changedFiles.includes("lib/research-candidate-review/salience-governor.ts"),
+    "Salience Governor browser validation slice must not change the #719 builder",
+  );
+  assert.ok(
+    !changedFiles.includes(
+      "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
+    ),
+    "Salience Governor browser validation slice must not change the #719 implementation fixture",
+  );
+  assert.ok(
+    !changedFiles.includes("lib/research-candidate-review/recent-rehearsal-buffer.ts"),
+    "Salience Governor browser validation slice must not change the Recent Rehearsal Buffer builder",
+  );
+  assert.ok(
+    !changedFiles.includes(
+      "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+    ),
+    "Salience Governor browser validation slice must not change the Recent Rehearsal Buffer implementation fixture",
+  );
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Salience Governor browser validation downstream slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
     assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");

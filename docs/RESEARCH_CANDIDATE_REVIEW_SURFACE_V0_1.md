@@ -1123,6 +1123,36 @@ retrieval/RAG result, and not product write. Product-write remains parked by the
 #686 stopline. Next recommended slice:
 `salience_governor_browser_validation_v0_1`.
 
+## Salience Governor Browser Validation v0.1 Pointer
+
+Salience Governor browser validation v0.1 remains separated from durable
+Perspective promotion. It validates deterministic fixture-backed display/reuse
+priority hints only from the #719 Salience Governor implementation.
+
+The validation checks generated priority view contract boundary, top-level
+implementation boundary separation, salience component summary, inhibition
+component summary, action hint summary, priority view summary, salience score
+preview range, and synthetic `top_k` override behavior. It does not make
+salience score promotion readiness, durable approval, evidence strength, source
+of truth, proof/evidence, Perspective state, work status, or product write
+authority.
+
+This validation does not implement runtime DB/browser/provider/retrieval
+behavior in this slice. It adds no runtime salience scoring, no salience score
+authority, no runtime persistence, no durable salience write, no durable memory
+write, no runtime DB write/query, no production DB read, no schema/migration,
+no route, no route handler, no server action, no component/UI implementation,
+no browser request, no browser persistence, no recent rehearsal buffer write, no
+formation receipt write, no feedback write/mutation, no provider/OpenAI call,
+no source fetch, no retrieval/RAG execution, no proof/evidence write, no
+Perspective promotion, no durable Perspective state write, no promotion
+decision record, no candidate/work mutation, no product write, no product DB
+write, and no product ID allocation. It is not proof/evidence, not Perspective
+state, not work status, not promotion authority, not salience authority, not
+retrieval/RAG result, and not product write. Product-write remains parked by the
+#686 stopline. Next recommended slice:
+`bounded_external_source_intake_contract_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

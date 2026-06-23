@@ -8,6 +8,10 @@ const contractFixturePath =
 const fixturePath =
   "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json";
 const smokePath = "scripts/smoke-salience-governor-implementation-v0-1.mjs";
+const browserValidationFixturePath =
+  "fixtures/research-candidate-review.salience-governor-browser-validation.sample.v0.1.json";
+const browserValidationSmokePath =
+  "scripts/smoke-salience-governor-browser-validation-v0-1.mjs";
 const contractSmokePath = "scripts/smoke-salience-governor-contract-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -25,6 +29,15 @@ const priorityViewVersion = "salience_governor_priority_view.v0.1";
 const recommendationStatus =
   "ready_for_salience_governor_browser_validation_v0_1";
 const nextRecommendedSlice = "salience_governor_browser_validation_v0_1";
+const browserValidationVersion = "salience_governor_browser_validation.v0.1";
+const browserValidationRecommendationStatus =
+  "ready_for_bounded_external_source_intake_contract_v0_1";
+const browserValidationNextRecommendedSlice =
+  "bounded_external_source_intake_contract_v0_1";
+const browserValidationPackageScriptName =
+  "smoke:salience-governor-browser-validation-v0-1";
+const browserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-salience-governor-browser-validation-v0-1.mjs";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -37,6 +50,41 @@ const expectedChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  contractSmokePath,
+  "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+
+const browserValidationChangedFiles = [
+  browserValidationFixturePath,
+  browserValidationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
   contractSmokePath,
   "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
   "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
@@ -198,6 +246,10 @@ function assertBuilderFile() {
 }
 
 function assertPackageScript() {
+  if (browserValidationSliceActive()) {
+    assertBrowserValidationPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
@@ -217,6 +269,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (browserValidationSliceActive()) {
+    assertBrowserValidationChangedFiles(changedFiles);
+    return;
+  }
   assert.ok(
     !changedFiles.includes("lib/research-candidate-review/recent-rehearsal-buffer.ts"),
     "Salience Governor implementation slice must not change the Recent Rehearsal Buffer builder",
@@ -641,4 +697,78 @@ function tryGitOutput(args) {
 
 function readGitOutput(args) {
   return execFileSync("git", args, { encoding: "utf8" });
+}
+
+function browserValidationSliceActive() {
+  return readChangedFiles().includes(browserValidationSmokePath);
+}
+
+function assertBrowserValidationPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts[browserValidationPackageScriptName],
+    browserValidationPackageScriptValue,
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    [browserValidationPackageScriptName],
+    "package.json must add only the Salience Governor browser validation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+}
+
+function assertBrowserValidationChangedFiles(changedFiles) {
+  assert.ok(
+    !changedFiles.includes(builderPath),
+    "Salience Governor browser validation slice must not change the #719 builder",
+  );
+  assert.ok(
+    !changedFiles.includes(fixturePath),
+    "Salience Governor browser validation slice must not change the #719 implementation fixture",
+  );
+  for (const expectedFile of browserValidationChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      browserValidationChangedFiles.includes(changedFile),
+      `unexpected changed file in Salience Governor browser validation downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  for (const requiredText of [
+    browserValidationVersion,
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    browserValidationPackageScriptName,
+    browserValidationRecommendationStatus,
+    browserValidationNextRecommendedSlice,
+    "synthetic top_k override",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `Salience Governor implementation smoke must allow browser validation downstream pointer: ${requiredText}`,
+    );
+  }
 }
