@@ -1383,6 +1383,36 @@ promotion decision record, no product DB write, and no product ID allocation.
 Product-write remains parked by the #686 stopline. Next recommended slice:
 `non_authoritative_retrieval_rag_browser_validation_v0_1`.
 
+## Non-authoritative Retrieval/RAG Browser Validation v0.1 Pointer
+
+Non-authoritative Retrieval/RAG validation remains separated from durable Perspective promotion.
+Retrieval results preserve candidate/durable distinction.
+Search/retrieval results must link back to source_refs or explicit public-safe gap reason.
+RAG context preview is not proof/evidence/source of truth.
+Stale index cannot override current state.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval behavior.
+
+The browser validation validates the deterministic fixture-backed #728
+implementation and recall/context preview bundles against the #727 contract.
+It validates public-safe source references, retrieval result family coverage,
+source reference summary coverage, and invalid override rejection for retrieval
+results, RAG context preview, source_refs, and authority boundary flags.
+
+It is not runtime retrieval/RAG, source fetch, provider extraction, index
+build/write, embedding generation, vector DB, FTS, proof/evidence, Perspective
+state, work status, promotion authority, salience authority, candidate/work
+mutation, or product write.
+
+It adds no provider/OpenAI call, no crawler behavior, no source index write, no
+durable source record write, no candidate record write, no runtime persistence,
+no durable memory write, no runtime DB write/query, no production DB read, no
+schema/migration, no route, no route handler, no server action, no component/UI
+implementation, no browser request, no browser persistence, no proof/evidence
+write, no Perspective promotion, no durable Perspective state write, no
+promotion decision record, no product DB write, and no product ID allocation.
+Product-write remains parked by the #686 stopline. Next recommended slice:
+`human_reviewed_durable_perspective_promotion_contract_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

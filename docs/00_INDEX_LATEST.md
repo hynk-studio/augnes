@@ -2430,6 +2430,41 @@ repo-local 색인이다.
   product write/product IDs. product-write remains parked by #686. The next
   recommended slice is
   `non_authoritative_retrieval_rag_browser_validation_v0_1`.
+- Non-authoritative Retrieval/RAG browser validation v0.1:
+  `fixtures/research-candidate-review.non-authoritative-retrieval-rag-browser-validation.sample.v0.1.json`
+  and `scripts/smoke-non-authoritative-retrieval-rag-browser-validation-v0-1.mjs`
+  (`npm run smoke:non-authoritative-retrieval-rag-browser-validation-v0-1`)
+  validates deterministic fixture-backed implementation from #728.
+
+  This validates #727 contract boundary and #728 top-level implementation
+  boundary separation. It validates built preview bundle output, validates
+  retrieval result family summary, validates source reference summary,
+  validates invalid retrieval result override rejection, validates invalid RAG
+  context preview override rejection, validates invalid source_refs override
+  rejection, and validates invalid authority boundary override
+  rejection.
+
+  Validation phrases: validates #727 contract boundary and #728 top-level implementation boundary separation; validates built preview bundle; validates retrieval result family summary; validates source reference summary; validates invalid retrieval result override rejection; validates invalid RAG context preview override rejection; validates invalid source_refs override rejection; validates invalid authority boundary override rejection.
+
+  Retrieval result is recall, not authority. RAG answer is context preview,
+  not evidence/proof. Embedding similarity is not truth, salience authority, or
+  promotion readiness. Retrieval score is not truth score, promotion score, or
+  evidence strength. The index is rebuildable, derived, and non-authoritative.
+  A stale index cannot override current state. The vector DB is not source of
+  truth, and there is no hidden permanent memory.
+
+  Boundary phrases: retrieval result is recall, not authority; RAG answer is context preview, not evidence/proof; embedding similarity is not truth, salience authority, or promotion readiness; retrieval score is not truth score, promotion score, or evidence strength; index is rebuildable, derived, and non-authoritative; stale index cannot override current state; vector DB is not source of truth; no hidden permanent memory.
+
+  This has no runtime retrieval/RAG execution, no runtime index build, no index
+  write, no source index write, no embedding generation, no vector DB, no FTS,
+  no provider/OpenAI call, no provider extraction, no source fetch, no crawler,
+  no DB write/query, no production DB read, no durable memory write, no
+  schema/migration, no route or UI, no browser request, no browser persistence,
+  no durable source record write, no candidate record write, no
+  proof/evidence/Perspective promotion/candidate mutation/work mutation, and no
+  product write/product IDs. product-write remains parked by #686. The next
+  recommended slice is
+  `human_reviewed_durable_perspective_promotion_contract_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
