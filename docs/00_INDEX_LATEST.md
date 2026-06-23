@@ -2162,6 +2162,30 @@ repo-local 색인이다.
   mutation, no provider/OpenAI/source-fetch/retrieval/RAG execution, no salience
   authority, and no product write/product IDs. product-write remains parked by
   #686. The next recommended slice is `salience_governor_contract_v0_1`.
+- Salience Governor contract v0.1:
+  `types/salience-governor-contract.ts`,
+  `fixtures/research-candidate-review.salience-governor-contract.sample.v0.1.json`,
+  and `scripts/smoke-salience-governor-contract-v0-1.mjs`
+  (`npm run smoke:salience-governor-contract-v0-1`) define a contract-only display/reuse priority adapter for
+  candidate overload reduction.
+
+  The contract defines salience components, inhibition components, and
+  hint-only pin/watch/defer/boost/suppress/reactivate/inspect/keep_visible/cool_down
+  action policy. The priority view is display-only and reuse-priority-only:
+  suppression and reactivation are display hints only, salience score previews
+  are bounded to `0_to_1`, and salience score is not promotion readiness,
+  durable approval, evidence strength, proof/evidence, Perspective state, work
+  status, retrieval/RAG result, source of truth, or product write authority.
+
+  This has no runtime salience scoring and no salience score authority. It adds
+  no runtime persistence, no durable memory write, no runtime DB write/query, no
+  production DB read, no schema/migration, no route or UI, no browser request,
+  no browser persistence, no recent rehearsal buffer write, no formation receipt
+  write, no feedback write/mutation, no candidate/work mutation, no
+  proof/evidence/Perspective promotion/work mutation, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
+  write/product IDs. product-write remains parked by #686. The next recommended
+  slice is `salience_governor_implementation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
