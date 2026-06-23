@@ -681,6 +681,26 @@ product DB write, and no product ID allocation. Product-write remains parked by
 the #686 stopline. Next recommended slice:
 `formation_receipt_durable_event_implementation_v0_1`.
 
+Formation Receipt durable event implementation v0.1 preserves canonical
+promotion gates by generating receipt-shaped provenance artifacts only from the
+#712 contract fixture. It records selected/excluded context, excluded reasons,
+unresolved tensions, source refs, candidate refs, digest refs, handoff refs,
+decision refs, and result refs as provenance and reference links only.
+
+The implementation remains separated from durable Perspective promotion. It is
+not proof/evidence, not Perspective state, not work status, not promotion
+authority, not salience authority, not retrieval/RAG result, not source fetch,
+not provider/OpenAI output, not work mutation, not product write, and not
+product ID allocation authority. It adds no runtime persistence, no runtime DB
+write/query, no production DB read, no schema/migration change, no app/api
+route change, no route handler change, no server action, no component/UI
+implementation, no browser request, no browser persistence, no feedback
+write/mutation, no proof/evidence write, no Perspective promotion, no durable
+Perspective state write, no promotion decision record, no work mutation, no
+salience governor, no product write, no product DB write, and no product ID
+allocation. Product-write remains parked by the #686 stopline. Next recommended
+slice: `formation_receipt_durable_event_browser_validation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
