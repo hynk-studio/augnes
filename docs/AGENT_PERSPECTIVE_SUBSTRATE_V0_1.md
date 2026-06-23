@@ -963,6 +963,19 @@ Product-write remains parked by the #686 stopline.
 Next recommended slice is Durable Perspective State / Trajectory implementation v0.1.
 `durable_perspective_state_trajectory_implementation_v0_1`
 
+Durable Perspective State / Trajectory implementation v0.1 is deterministic fixture-backed only.
+It materializes preview bundles from the #733 contract.
+Agent Substrate remains advisory-only and cannot read/write durable Perspective state.
+PerspectiveSnapshot remains a future derived view, not independent source of truth.
+Salience state remains display/reuse context only and not authority.
+Current thesis has lineage. Prior thesis is not overwritten silently. Retired claims remain auditable. Contradicted evidence is not deleted.
+Boundary phrases: current thesis has lineage; prior thesis is not overwritten silently; retired claims remain auditable; Contradicted evidence is not deleted.
+Boundary no-runtime phrases: no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no trajectory runtime build; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no product write; product-write remains parked by #686.
+This slice does not implement runtime state read/write, durable Perspective delta apply, PerspectiveSnapshot runtime, trajectory runtime build, proof/evidence writes, accepted evidence writes, Formation Receipt writes, DB writes, route/UI, provider/OpenAI, retrieval/RAG, or product write.
+Product-write remains parked by #686.
+Next recommended slice is Durable Perspective State / Trajectory browser validation v0.1.
+`durable_perspective_state_trajectory_browser_validation_v0_1`
+
 ## Next Recommended Slice
 
-`durable_perspective_state_trajectory_implementation_v0_1`
+`durable_perspective_state_trajectory_browser_validation_v0_1`
