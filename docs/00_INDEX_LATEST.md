@@ -2058,6 +2058,26 @@ repo-local 색인이다.
   and no product write/product IDs. product-write remains parked by #686. The
   next recommended slice is
   `formation_receipt_durable_event_implementation_v0_1`.
+- Formation Receipt durable event implementation v0.1:
+  `lib/research-candidate-review/formation-receipt-durable-event.ts`,
+  `fixtures/research-candidate-review.formation-receipt-durable-event-implementation.sample.v0.1.json`,
+  and `scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs`
+  (`npm run smoke:formation-receipt-durable-event-implementation-v0-1`)
+  add a deterministic fixture-backed implementation for the #712 Formation
+  Receipt durable event contract.
+
+  The builder uses committed fixture data only and records the generated receipt event shape from #712 contract fields. The implementation fixture includes
+  selected/excluded context summary, unresolved tension preservation, and
+  reference-only decision/handoff/result links. It keeps selected context as
+  provenance only, excluded context as audit/provenance only, unresolved
+  tensions unresolved, and linked decisions/results as references only.
+
+  This has no runtime persistence. It adds no runtime DB write/query, no
+  production DB read, no schema/migration, no route or UI, no browser request,
+  no browser persistence, no feedback write/mutation, no proof/evidence/Perspective promotion/work mutation, no provider/OpenAI/source-fetch/retrieval/RAG execution,
+  no salience authority, and no product write/product IDs. product-write remains
+  parked by #686. The next recommended slice is
+  `formation_receipt_durable_event_browser_validation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

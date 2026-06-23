@@ -37,6 +37,10 @@ const formationReceiptDurableEventContractPackageScriptName =
   "smoke:formation-receipt-durable-event-contract-v0-1";
 const formationReceiptDurableEventContractPackageScriptValue =
   "node scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs";
+const formationReceiptDurableEventImplementationPackageScriptName =
+  "smoke:formation-receipt-durable-event-implementation-v0-1";
+const formationReceiptDurableEventImplementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs";
 const validationKind = "feedback_event_aggregation_read_model_browser_validation";
 const validationVersion =
   "feedback_event_aggregation_read_model_browser_validation.v0.1";
@@ -85,6 +89,34 @@ const formationReceiptDurableEventContractChangedFiles = [
   "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
   "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+const formationReceiptDurableEventImplementationChangedFiles = [
+  "lib/research-candidate-review/formation-receipt-durable-event.ts",
+  "fixtures/research-candidate-review.formation-receipt-durable-event-implementation.sample.v0.1.json",
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
+  "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
   "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
   "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
   "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
@@ -284,15 +316,33 @@ function assertBuilderAndFixture() {
 
 function assertPackageScript() {
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  const addedScripts = Object.keys(packageJson.scripts)
+    .filter((scriptName) => !basePackageJson.scripts[scriptName])
+    .sort();
+  if (formationReceiptDurableEventImplementationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[formationReceiptDurableEventImplementationPackageScriptName],
+      formationReceiptDurableEventImplementationPackageScriptValue,
+    );
+    assert.deepEqual(
+      addedScripts,
+      [formationReceiptDurableEventImplementationPackageScriptName],
+      "package.json must add only the Formation Receipt durable event implementation smoke script",
+    );
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+    return;
+  }
   if (formationReceiptDurableEventContractSliceActive()) {
     assert.equal(
       packageJson.scripts[formationReceiptDurableEventContractPackageScriptName],
       formationReceiptDurableEventContractPackageScriptValue,
     );
   }
-  const addedScripts = Object.keys(packageJson.scripts)
-    .filter((scriptName) => !basePackageJson.scripts[scriptName])
-    .sort();
   assert.deepEqual(
     addedScripts,
     formationReceiptDurableEventContractSliceActive()
@@ -312,6 +362,26 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (formationReceiptDurableEventImplementationSliceActive()) {
+    for (const expectedFile of formationReceiptDurableEventImplementationChangedFiles) {
+      assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+    }
+    for (const changedFile of changedFiles) {
+      assert.ok(
+        formationReceiptDurableEventImplementationChangedFiles.includes(changedFile),
+        `unexpected changed file in Formation Receipt durable event implementation downstream slice: ${changedFile}`,
+      );
+      assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+      assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+      assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+      assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+      assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+      assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+      assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+    }
+    return;
+  }
+
   if (formationReceiptDurableEventContractSliceActive()) {
     for (const expectedFile of formationReceiptDurableEventContractChangedFiles) {
       assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
@@ -700,6 +770,10 @@ function readChangedFiles() {
     .map((line) => line.trim())
     .filter(Boolean);
   return [...new Set(changed)].sort();
+}
+
+function formationReceiptDurableEventImplementationSliceActive() {
+  return readChangedFiles().includes("scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs");
 }
 
 function formationReceiptDurableEventContractSliceActive() {

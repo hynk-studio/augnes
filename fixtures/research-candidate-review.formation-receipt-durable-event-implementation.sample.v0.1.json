@@ -1,0 +1,280 @@
+{
+  "implementation_kind": "formation_receipt_durable_event_implementation",
+  "implementation_version": "formation_receipt_durable_event_implementation.v0.1",
+  "source_contract_ref": "formation_receipt_durable_event_contract.v0.1:fixtures/research-candidate-review.formation-receipt-durable-event-contract.sample.v0.1.json",
+  "source_contract_fingerprint": "fnv1a32:83f874cb",
+  "source_feedback_event_aggregation_validation_ref": "feedback_event_aggregation_read_model_browser_validation.v0.1:fixtures/research-candidate-review.feedback-event-aggregation-read-model-browser-validation.sample.v0.1.json#711",
+  "generated_receipt_event": {
+    "formation_receipt_event_id": "formation_receipt_event_contract_sample_v0_1_001",
+    "event_version": "formation_receipt_durable_event.v0.1",
+    "created_at": "2026-06-23T00:00:00.000Z",
+    "scope": "research_candidate_review:formation_receipt_contract_sample",
+    "formation_intent": "Record context, candidate, digest, handoff, decision, and result references that influenced an operator-visible outcome.",
+    "selected_context_refs": [
+      {
+        "context_ref_id": "selected_context_ref_feedback_summary",
+        "context_kind": "feedback_aggregation_read_model_summary",
+        "selection_status": "selected",
+        "source_refs": [
+          "source_ref_feedback_aggregation_validation_711"
+        ],
+        "reason": "Selected as provenance for what feedback aggregation validated before Formation Receipt contract definition."
+      },
+      {
+        "context_ref_id": "selected_context_ref_geometry_digest",
+        "context_kind": "geometry_digest_reference",
+        "selection_status": "selected",
+        "source_refs": [
+          "source_ref_geometry_digest_sample"
+        ],
+        "reason": "Selected as digest provenance reference only; it is not proof or source of truth."
+      }
+    ],
+    "excluded_context_refs": [
+      {
+        "context_ref_id": "excluded_context_ref_product_write",
+        "context_kind": "product_write_candidate",
+        "selection_status": "excluded",
+        "source_refs": [
+          "source_ref_feedback_aggregation_validation_711"
+        ],
+        "reason": "Excluded because product-write remains parked by #686 and this receipt is audit/provenance only."
+      },
+      {
+        "context_ref_id": "excluded_context_ref_provider_output",
+        "context_kind": "provider_output",
+        "selection_status": "excluded",
+        "source_refs": [
+          "source_ref_feedback_aggregation_validation_711"
+        ],
+        "reason": "Excluded because this contract slice must not call providers or treat provider output as receipt input."
+      }
+    ],
+    "excluded_context_reasons": {
+      "excluded_context_ref_product_write": "Excluded because product-write remains parked by #686 and this receipt is audit/provenance only.",
+      "excluded_context_ref_provider_output": "Excluded because this contract slice must not call providers or treat provider output as receipt input."
+    },
+    "unresolved_tension_ids": [
+      "unresolved_tension_digest_reference_vs_source_of_truth",
+      "unresolved_tension_feedback_selection_vs_promotion_authority"
+    ],
+    "source_refs": [
+      {
+        "ref_id": "source_ref_ai_context_packet_sample",
+        "ref_kind": "ai_context_packet_ref",
+        "ref": "research_candidate_ai_context_packet.v0.1:fixtures/research-candidate-review.ai-context-packet.sample.v0.1.json",
+        "public_safe": true
+      },
+      {
+        "ref_id": "source_ref_feedback_aggregation_validation_711",
+        "ref_kind": "source_ref",
+        "ref": "feedback_event_aggregation_read_model_browser_validation.v0.1:fixtures/research-candidate-review.feedback-event-aggregation-read-model-browser-validation.sample.v0.1.json#711",
+        "public_safe": true
+      },
+      {
+        "ref_id": "source_ref_geometry_digest_sample",
+        "ref_kind": "geometry_digest_ref",
+        "ref": "perspective_geometry_digest.v0.1:fixtures/research-candidate-review.perspective-geometry-digest.sample.v0.1.json",
+        "public_safe": true
+      }
+    ],
+    "candidate_refs": [
+      {
+        "candidate_id": "candidate_ref_excluded_provider_output",
+        "candidate_kind": "provider_output_candidate",
+        "selection_status": "excluded",
+        "source_refs": [
+          "source_ref_feedback_aggregation_validation_711"
+        ],
+        "reason": "Excluded because this contract does not call providers or use provider output."
+      },
+      {
+        "candidate_id": "candidate_ref_selected_context_summary",
+        "candidate_kind": "context_selection_candidate",
+        "selection_status": "selected",
+        "source_refs": [
+          "source_ref_feedback_aggregation_validation_711"
+        ],
+        "reason": "Selected for provenance traceability only; it does not create proof or Perspective state."
+      }
+    ],
+    "digest_refs": [
+      {
+        "ref_id": "digest_ref_geometry_sample",
+        "ref_kind": "geometry_digest_ref",
+        "ref": "perspective_geometry_digest.v0.1:fixtures/research-candidate-review.perspective-geometry-digest.sample.v0.1.json",
+        "references_only": true
+      }
+    ],
+    "handoff_refs": [
+      {
+        "ref_id": "handoff_ref_codex_contract_only",
+        "ref_kind": "handoff_ref",
+        "ref": "codex_handoff_ref:contract_only_no_execution",
+        "references_only": true
+      }
+    ],
+    "decision_refs": [
+      {
+        "ref_id": "decision_ref_operator_contract_only",
+        "ref_kind": "decision_ref",
+        "ref": "operator_decision_ref:contract_only_selection_context",
+        "references_only": true
+      }
+    ],
+    "result_refs": [
+      {
+        "ref_id": "result_ref_related_pr_711",
+        "ref_kind": "related_pr_ref",
+        "ref": "github_pr:711",
+        "references_only": true
+      },
+      {
+        "ref_id": "result_ref_static_contract",
+        "ref_kind": "result_link_ref",
+        "ref": "result_link:formation_receipt_contract_static_fixture",
+        "references_only": true
+      }
+    ],
+    "authority_boundary": {
+      "contract_only": true,
+      "durable_event_contract_defined_now": true,
+      "durable_event_write_implemented_now": false,
+      "db_schema_implemented_now": false,
+      "route_changed_now": false,
+      "component_changed_now": false,
+      "browser_request_now": false,
+      "runtime_db_query_now": false,
+      "production_db_used_now": false,
+      "feedback_events_written_now": false,
+      "feedback_events_mutated_now": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state_write": false,
+      "promotion_decision_record": false,
+      "work_mutation": false,
+      "execution_authority": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "external_handoff_authority": false,
+      "provider_openai_authority": false,
+      "retrieval_rag_authority": false,
+      "source_fetch_authority": false,
+      "salience_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "product_write_lane_parked_by_686": true
+    },
+    "validation": {
+      "static_source_validation_only": true,
+      "fixture_backed_only": true,
+      "app_server_started_now": false,
+      "production_db_used_now": false,
+      "runtime_browser_request_now": false,
+      "runtime_db_query_now": false
+    }
+  },
+  "selected_context_summary": {
+    "selected_context_count": 2,
+    "selected_context_ref_ids": [
+      "selected_context_ref_feedback_summary",
+      "selected_context_ref_geometry_digest"
+    ],
+    "selected_context_has_source_refs": true,
+    "provenance_only": true,
+    "not_proof_or_evidence": true,
+    "not_source_of_truth": true,
+    "not_perspective_promotion": true,
+    "not_work_completion": true,
+    "not_product_write": true
+  },
+  "excluded_context_summary": {
+    "excluded_context_count": 2,
+    "excluded_context_ref_ids": [
+      "excluded_context_ref_product_write",
+      "excluded_context_ref_provider_output"
+    ],
+    "excluded_context_reasons_present": true,
+    "deletes_records": false,
+    "suppresses_future_review": false,
+    "audit_provenance_only": true
+  },
+  "unresolved_tension_summary": {
+    "unresolved_tension_count": 2,
+    "unresolved_tension_ids": [
+      "unresolved_tension_digest_reference_vs_source_of_truth",
+      "unresolved_tension_feedback_selection_vs_promotion_authority"
+    ],
+    "unresolved_tensions_preserved": true,
+    "receipt_creation_resolves_tensions": false,
+    "contract_decides_promotion": false,
+    "implementation_decides_promotion": false
+  },
+  "reference_link_summary": {
+    "digest_refs_count": 1,
+    "handoff_refs_count": 1,
+    "decision_refs_count": 1,
+    "result_refs_count": 2,
+    "references_only": true,
+    "creates_referenced_objects": false,
+    "approves_merge": false,
+    "executes_codex_or_github_automation": false,
+    "mutates_work_status": false
+  },
+  "authority_boundary": {
+    "implementation_added_now": true,
+    "contract_followed_now": true,
+    "fixture_backed_only": true,
+    "deterministic_builder_added_now": true,
+    "runtime_persistence_implemented_now": false,
+    "durable_event_written_now": false,
+    "runtime_db_write_now": false,
+    "runtime_db_query_now": false,
+    "production_db_used_now": false,
+    "db_schema_implemented_now": false,
+    "route_changed_now": false,
+    "component_changed_now": false,
+    "browser_request_now": false,
+    "feedback_events_written_now": false,
+    "feedback_events_mutated_now": false,
+    "proof_or_evidence_record": false,
+    "perspective_promotion": false,
+    "durable_perspective_state_write": false,
+    "promotion_decision_record": false,
+    "work_mutation": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "salience_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation_policy": {
+    "static_source_validation_only": true,
+    "fixture_backed_only": true,
+    "app_server_started_now": false,
+    "production_db_used_now": false,
+    "runtime_browser_request_now": false,
+    "runtime_db_query_now": false,
+    "runtime_db_write_now": false
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": [],
+    "selected_context_has_source_refs": true,
+    "excluded_context_has_reasons": true,
+    "unresolved_tensions_preserved": true,
+    "reference_links_are_reference_only": true,
+    "authority_boundary_preserved": true,
+    "deterministic_rebuild_matches_fixture": true
+  },
+  "recommendation_status": "ready_for_formation_receipt_durable_event_browser_validation_v0_1",
+  "next_recommended_slice": "formation_receipt_durable_event_browser_validation_v0_1",
+  "implementation_fingerprint": "fnv1a32:4e0263a7",
+  "fingerprint_algorithm": "fnv1a32_canonical_json"
+}
