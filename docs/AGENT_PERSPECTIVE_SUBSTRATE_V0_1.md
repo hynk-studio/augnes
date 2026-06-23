@@ -900,6 +900,20 @@ candidate/work mutation, no product DB write, and no product ID allocation.
 Product-write remains parked by the #686 stopline. Next recommended slice is Non-authoritative Retrieval/RAG implementation v0.1.
 `non_authoritative_retrieval_rag_implementation_v0_1`
 
+Non-authoritative Retrieval/RAG implementation is deterministic fixture-backed only.
+It materializes recall/context preview bundles from #727 contract.
+It is not runtime retrieval/RAG, source fetch, provider extraction, index build/write, embedding generation, vector DB, FTS, proof/evidence, Perspective state, work status, promotion authority, salience authority, candidate/work mutation, or product write.
+It performs no provider/OpenAI call, no crawler behavior, no source index write,
+no durable source record write, no candidate record write, no runtime
+persistence, no durable memory write, no runtime DB write/query, no production
+DB read, no schema/migration, no route, no route handler, no server action, no
+component/UI implementation, no browser request, no browser persistence, no
+feedback write/mutation, no Perspective promotion, no durable Perspective
+state write, no promotion decision record, no product DB write, and no product
+ID allocation. Product-write remains parked by the #686 stopline.
+Next recommended slice is Non-authoritative Retrieval/RAG browser validation v0.1.
+`non_authoritative_retrieval_rag_browser_validation_v0_1`
+
 ## Next Recommended Slice
 
-`non_authoritative_retrieval_rag_implementation_v0_1`
+`non_authoritative_retrieval_rag_browser_validation_v0_1`
