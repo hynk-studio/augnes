@@ -2404,6 +2404,32 @@ repo-local 색인이다.
   call; no source fetch; no crawler; no DB write/query; no schema/migration; no
   route or UI; no browser request; no proof/evidence/Perspective
   promotion/candidate mutation/work mutation; no product write/product IDs.
+- Non-authoritative Retrieval/RAG implementation v0.1:
+  `lib/research-candidate-review/non-authoritative-retrieval-rag.ts`,
+  `fixtures/research-candidate-review.non-authoritative-retrieval-rag-implementation.sample.v0.1.json`,
+  and `scripts/smoke-non-authoritative-retrieval-rag-implementation-v0-1.mjs`
+  (`npm run smoke:non-authoritative-retrieval-rag-implementation-v0-1`)
+  add a deterministic fixture-backed implementation only.
+
+  This validates and materializes #727 contract preview bundle output into a
+  public-safe recall/context preview fixture. The retrieval result is recall,
+  not authority. The RAG answer is context preview, not evidence/proof. The
+  embedding similarity is not truth, salience authority, or promotion
+  readiness. The retrieval score is not truth score, promotion score, or
+  evidence strength. The index is rebuildable, derived, and non-authoritative.
+  A stale index cannot override current state. The vector DB is not source of
+  truth, and there is no hidden permanent memory.
+
+  This has no runtime retrieval/RAG execution, no runtime index build, no index
+  write, no source index write, no embedding generation, no vector DB, no FTS,
+  no provider/OpenAI call, no provider extraction, no source fetch, no crawler,
+  no DB write/query, no production DB read, no durable memory write, no
+  schema/migration, no route or UI, no browser request, no browser persistence,
+  no durable source record write, no candidate record write, no
+  proof/evidence/Perspective promotion/candidate mutation/work mutation, and no
+  product write/product IDs. product-write remains parked by #686. The next
+  recommended slice is
+  `non_authoritative_retrieval_rag_browser_validation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

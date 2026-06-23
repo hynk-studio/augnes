@@ -22,6 +22,22 @@ const packageScriptName =
   "smoke:non-authoritative-retrieval-rag-contract-v0-1";
 const packageScriptValue =
   "node scripts/smoke-non-authoritative-retrieval-rag-contract-v0-1.mjs";
+const implementationBuilderPath =
+  "lib/research-candidate-review/non-authoritative-retrieval-rag.ts";
+const implementationFixturePath =
+  "fixtures/research-candidate-review.non-authoritative-retrieval-rag-implementation.sample.v0.1.json";
+const implementationSmokePath =
+  "scripts/smoke-non-authoritative-retrieval-rag-implementation-v0-1.mjs";
+const implementationPackageScriptName =
+  "smoke:non-authoritative-retrieval-rag-implementation-v0-1";
+const implementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-non-authoritative-retrieval-rag-implementation-v0-1.mjs";
+const implementationVersion =
+  "non_authoritative_retrieval_rag_implementation.v0.1";
+const implementationRecommendationStatus =
+  "ready_for_non_authoritative_retrieval_rag_browser_validation_v0_1";
+const implementationNextRecommendedSlice =
+  "non_authoritative_retrieval_rag_browser_validation_v0_1";
 const contractKind = "non_authoritative_retrieval_rag_contract";
 const contractVersion = "non_authoritative_retrieval_rag_contract.v0.1";
 const previewVersion = "non_authoritative_retrieval_rag_preview.v0.1";
@@ -600,6 +616,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (implementationSliceActive()) {
+    assertImplementationPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
@@ -619,6 +639,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (implementationSliceActive()) {
+    assertImplementationChangedFiles(changedFiles);
+    return;
+  }
   for (const expectedFile of expectedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
@@ -636,6 +660,122 @@ function assertStaticBoundary() {
     assert.doesNotMatch(changedFile, /^lib\/research-rag\//, "must not add RAG implementation files");
     assert.doesNotMatch(changedFile, /(^|\/)(provider|source-fetch|crawler)\b/i);
     assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function implementationSliceActive() {
+  return readChangedFiles().includes(implementationSmokePath);
+}
+
+function assertImplementationPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts[implementationPackageScriptName],
+    implementationPackageScriptValue,
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    [implementationPackageScriptName],
+    "package.json must add only the Non-authoritative Retrieval/RAG implementation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertImplementationChangedFiles(changedFiles) {
+  const expectedFiles = [
+    implementationBuilderPath,
+    implementationFixturePath,
+    implementationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+    ...downstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    typePath,
+    fixturePath,
+    "lib/research-candidate-review/operator-source-candidate-generation.ts",
+    "fixtures/research-candidate-review.operator-source-candidate-generation-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/bounded-external-source-intake.ts",
+    "fixtures/research-candidate-review.bounded-external-source-intake-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/salience-governor.ts",
+    "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/recent-rehearsal-buffer.ts",
+    "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Non-authoritative Retrieval/RAG implementation slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of [
+    implementationBuilderPath,
+    implementationFixturePath,
+    implementationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+  ]) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Non-authoritative Retrieval/RAG implementation downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\/research-retrieval\//, "must not add retrieval implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/research-rag\//, "must not add RAG implementation files");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  for (const requiredText of [
+    implementationVersion,
+    implementationBuilderPath,
+    implementationFixturePath,
+    implementationSmokePath,
+    implementationPackageScriptName,
+    implementationRecommendationStatus,
+    implementationNextRecommendedSlice,
+    "deterministic fixture-backed implementation only",
+    "retrieval result is recall, not authority",
+    "RAG answer is context preview, not evidence/proof",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#727 contract smoke must allow implementation downstream pointer: ${requiredText}`,
+    );
   }
 }
 
