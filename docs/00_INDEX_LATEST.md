@@ -2209,6 +2209,29 @@ repo-local 색인이다.
   provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
   write/product IDs. product-write remains parked by #686. The next recommended
   slice is `salience_governor_browser_validation_v0_1`.
+- Salience Governor browser validation v0.1:
+  `fixtures/research-candidate-review.salience-governor-browser-validation.sample.v0.1.json`
+  and `scripts/smoke-salience-governor-browser-validation-v0-1.mjs`
+  (`npm run smoke:salience-governor-browser-validation-v0-1`) validate the
+  deterministic fixture-backed implementation from #719.
+
+  Smoke coverage validates deterministic fixture-backed implementation, validates generated display/reuse priority view from #718 contract, validates generated priority view contract authority boundary, validates top-level implementation boundary separation, validates salience component summary, validates inhibition component summary, validates action hint summary, validates priority view summary, validates salience score preview as display/reuse priority only, and validates synthetic top_k override behavior.
+
+  The validation fixture validates generated display/reuse priority view from #718 contract data. It validates generated priority view contract authority
+  boundary, top-level implementation boundary separation, salience component
+  summary, inhibition component summary, action hint summary, and priority view
+  summary. It validates salience score preview as display/reuse priority only
+  and validates synthetic top_k override behavior, including deterministic
+  score-first and candidate-ref tie-break ordering.
+
+  This has no runtime salience scoring and no salience score authority. It adds
+  no runtime persistence, no durable salience write, no durable memory write, no
+  runtime DB write/query, no production DB read, no schema/migration, no route
+  or UI, no browser request, no browser persistence, no recent rehearsal buffer
+  write, no formation receipt write, no feedback write/mutation, no proof/evidence/Perspective promotion/candidate mutation/work mutation, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
+  write/product IDs. product-write remains parked by #686. The next recommended
+  slice is `bounded_external_source_intake_contract_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
