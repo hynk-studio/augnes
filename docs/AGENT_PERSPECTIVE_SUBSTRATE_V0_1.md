@@ -838,6 +838,29 @@ ID allocation. Product-write remains parked by the #686 stopline. The next
 recommended slice is
 `operator_source_candidate_generation_implementation_v0_1`.
 
+Operator Source Candidate Generation implementation is deterministic and
+fixture-backed. It generates candidate-generation preview bundles from the #724
+contract. Generated candidates remain candidate-only, preview-only,
+source-ref-backed, operator-context-backed, review-required-later, and
+non-authoritative.
+Operator Source Candidate Generation implementation is deterministic and fixture-backed.
+It generates candidate-generation preview bundles from the #724 contract.
+It is not runtime candidate generation, source fetch, crawler behavior, provider extraction, retrieval/RAG, proof/evidence, Perspective state, work status, promotion authority, salience authority, candidate/work mutation, or product write.
+
+It is not runtime candidate generation, source fetch, crawler behavior,
+provider extraction, retrieval/RAG, proof/evidence, Perspective state, work
+status, promotion authority, salience authority, candidate/work mutation, or
+product write. It adds no source index write, no durable source record write,
+no candidate record write, no runtime persistence, no durable memory write, no
+runtime DB write/query, no production DB read, no schema/migration, no route,
+no route handler, no server action, no component/UI implementation, no browser
+request, no browser persistence, no feedback write/mutation, no proof/evidence
+write, no Perspective promotion, no durable Perspective state write, no
+promotion decision record, no product DB write, and no product ID allocation.
+Product-write remains parked by the #686 stopline. The next recommended slice
+is Operator Source Candidate Generation browser validation v0.1:
+`operator_source_candidate_generation_browser_validation_v0_1`.
+
 ## Next Recommended Slice
 
-`operator_source_candidate_generation_implementation_v0_1`
+`operator_source_candidate_generation_browser_validation_v0_1`

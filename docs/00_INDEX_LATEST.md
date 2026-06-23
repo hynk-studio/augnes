@@ -2325,6 +2325,34 @@ repo-local 색인이다.
   product write/product IDs. product-write remains parked by #686. The next
   recommended slice is
   `operator_source_candidate_generation_implementation_v0_1`.
+- Operator Source Candidate Generation implementation v0.1:
+  `lib/research-candidate-review/operator-source-candidate-generation.ts`,
+  `fixtures/research-candidate-review.operator-source-candidate-generation-implementation.sample.v0.1.json`,
+  and `scripts/smoke-operator-source-candidate-generation-implementation-v0-1.mjs`
+  (`npm run smoke:operator-source-candidate-generation-implementation-v0-1`)
+  implement a deterministic fixture-backed implementation.
+
+  The generated candidate generation preview bundle from #724 contract remains
+  deterministic and fixture-backed, with a candidate preview family summary,
+  generated candidate summary, source reference summary, and
+  provenance/review/privacy/non-authority summaries. The invalid generated
+  candidate preview override rejection keeps generated candidates
+  candidate-only, preview-only,
+  source-ref-backed, operator-context-backed, review-required-later, and
+  durable_write_now false.
+  It validates invalid generated candidate preview override rejection.
+
+  This has no runtime candidate generation, no source fetch, no crawler
+  behavior, no provider/OpenAI call, no retrieval/RAG execution, no source
+  index write, no durable source record write, no candidate record write, no
+  runtime persistence, no durable memory write, no runtime DB write/query, no
+  production DB read, no schema/migration, no route or UI, no browser request,
+  no browser persistence, no durable salience write, no recent rehearsal buffer
+  write, no formation receipt write, no feedback write/mutation, no
+  proof/evidence/Perspective promotion/candidate mutation/work mutation, and no
+  product write/product IDs. product-write remains parked by #686. The next
+  recommended slice is
+  `operator_source_candidate_generation_browser_validation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
