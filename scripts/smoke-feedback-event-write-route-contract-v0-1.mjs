@@ -35,6 +35,67 @@ const stateTrajectoryBrowserValidationRecommendationStatus =
   "ready_for_project_constellation_runtime_layout_contract_v0_1";
 const stateTrajectoryBrowserValidationNextRecommendedSlice =
   "project_constellation_runtime_layout_contract_v0_1";
+const projectLayoutTypePath =
+  "types/project-constellation-runtime-layout-contract.ts";
+const projectLayoutFixturePath =
+  "fixtures/research-candidate-review.project-constellation-runtime-layout-contract.sample.v0.1.json";
+const projectLayoutSmokePath =
+  "scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs";
+const projectLayoutSourceValidationSmokePath =
+  "scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs";
+const projectLayoutPackageScriptName =
+  "smoke:project-constellation-runtime-layout-contract-v0-1";
+const projectLayoutPackageScriptValue =
+  "node scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs";
+const projectLayoutContractVersion =
+  "project_constellation_runtime_layout_contract.v0.1";
+const projectLayoutRecommendationStatus =
+  "ready_for_project_constellation_runtime_layout_implementation_v0_1";
+const projectLayoutNextRecommendedSlice =
+  "project_constellation_runtime_layout_implementation_v0_1";
+const projectLayoutContractDownstreamSmokePaths = [
+  "scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs",
+  "scripts/smoke-durable-perspective-state-trajectory-implementation-v0-1.mjs",
+  "scripts/smoke-durable-perspective-state-trajectory-contract-v0-1.mjs",
+  "scripts/smoke-human-reviewed-durable-perspective-promotion-browser-validation-v0-1.mjs",
+  "scripts/smoke-human-reviewed-durable-perspective-promotion-implementation-v0-1.mjs",
+  "scripts/smoke-human-reviewed-durable-perspective-promotion-contract-v0-1.mjs",
+  "scripts/smoke-non-authoritative-retrieval-rag-browser-validation-v0-1.mjs",
+  "scripts/smoke-non-authoritative-retrieval-rag-implementation-v0-1.mjs",
+  "scripts/smoke-non-authoritative-retrieval-rag-contract-v0-1.mjs",
+  "scripts/smoke-operator-source-candidate-generation-browser-validation-v0-1.mjs",
+  "scripts/smoke-operator-source-candidate-generation-implementation-v0-1.mjs",
+  "scripts/smoke-operator-source-candidate-generation-contract-v0-1.mjs",
+  "scripts/smoke-bounded-external-source-intake-browser-validation-v0-1.mjs",
+  "scripts/smoke-bounded-external-source-intake-implementation-v0-1.mjs",
+  "scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
+  "scripts/smoke-salience-governor-browser-validation-v0-1.mjs",
+  "scripts/smoke-salience-governor-implementation-v0-1.mjs",
+  "scripts/smoke-salience-governor-contract-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
 const stateTrajectoryImplementationDownstreamSmokePaths = [
   "scripts/smoke-human-reviewed-durable-perspective-promotion-browser-validation-v0-1.mjs",
   "scripts/smoke-human-reviewed-durable-perspective-promotion-implementation-v0-1.mjs",
@@ -1101,6 +1162,10 @@ function assertTypeAndBuilderContracts() {
 }
 
 function assertPackageScript() {
+  if (projectConstellationRuntimeLayoutContractSliceActive()) {
+    assertProjectConstellationRuntimeLayoutContractPackageScript();
+    return;
+  }
   if (durablePerspectiveStateTrajectoryBrowserValidationSliceActive()) {
     assertDurablePerspectiveStateTrajectoryBrowserValidationPackageScript();
     return;
@@ -1409,6 +1474,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (projectConstellationRuntimeLayoutContractSliceActive()) {
+    assertProjectConstellationRuntimeLayoutContractChangedFiles(changedFiles);
+    return;
+  }
   if (durablePerspectiveStateTrajectoryBrowserValidationSliceActive()) {
     assertDurablePerspectiveStateTrajectoryBrowserValidationChangedFiles(changedFiles);
     return;
@@ -1692,6 +1761,126 @@ function assertStaticBoundary() {
 }
 
 
+
+function projectConstellationRuntimeLayoutContractSliceActive() {
+  return readChangedFiles().includes(projectLayoutSmokePath);
+}
+
+function assertProjectConstellationRuntimeLayoutContractPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts[projectLayoutPackageScriptName],
+    projectLayoutPackageScriptValue,
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    [projectLayoutPackageScriptName],
+    "package.json must add only the Project Constellation Runtime Layout contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  if (typeof basePackageJson !== "undefined") {
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+  }
+}
+
+function assertProjectConstellationRuntimeLayoutContractChangedFiles(changedFiles) {
+  const expectedFiles = [
+    projectLayoutTypePath,
+    projectLayoutFixturePath,
+    projectLayoutSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    ...projectLayoutContractDownstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    "fixtures/research-candidate-review.durable-perspective-state-trajectory-browser-validation.sample.v0.1.json",
+    "types/durable-perspective-state-trajectory-contract.ts",
+    "fixtures/research-candidate-review.durable-perspective-state-trajectory-contract.sample.v0.1.json",
+    "lib/research-candidate-review/durable-perspective-state-trajectory.ts",
+    "fixtures/research-candidate-review.durable-perspective-state-trajectory-implementation.sample.v0.1.json",
+    "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-browser-validation.sample.v0.1.json",
+    "lib/research-candidate-review/human-reviewed-durable-perspective-promotion.ts",
+    "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/non-authoritative-retrieval-rag.ts",
+    "fixtures/research-candidate-review.non-authoritative-retrieval-rag-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/operator-source-candidate-generation.ts",
+    "fixtures/research-candidate-review.operator-source-candidate-generation-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/bounded-external-source-intake.ts",
+    "fixtures/research-candidate-review.bounded-external-source-intake-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/salience-governor.ts",
+    "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/recent-rehearsal-buffer.ts",
+    "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(!changedFiles.includes(unchangedPath), "Project Constellation Runtime Layout contract slice must not change " + unchangedPath);
+  }
+  for (const expectedFile of expectedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), "changed files must include " + expectedFile);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(expectedFiles.includes(changedFile), "unexpected changed file in Project Constellation Runtime Layout contract downstream slice: " + changedFile);
+    assert.ok(!changedFile.startsWith("app/api/"), "must not change app/api routes");
+    assert.ok(!changedFile.endsWith("route.ts"), "must not change route handlers");
+    assert.ok(!changedFile.startsWith("components/"), "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.ok(!changedFile.startsWith("migrations/"), "must not change migrations");
+    assert.ok(!changedFile.startsWith("lib/research-retrieval/"), "must not add retrieval implementation files");
+    assert.ok(!changedFile.startsWith("lib/research-rag/"), "must not add RAG implementation files");
+    assert.equal(new RegExp("^lib/.*layout", "i").test(changedFile), false, "must not add runtime layout implementation files");
+    assert.equal(new RegExp("^lib/.*constellation", "i").test(changedFile), false, "must not add runtime constellation implementation files");
+    assert.equal(new RegExp("^lib/.*graph", "i").test(changedFile), false, "must not add graph DB or graph mutation files");
+    assert.equal(new RegExp("^lib/.*perspective.*state", "i").test(changedFile), false, "must not add runtime Perspective state files");
+    assert.equal(new RegExp("^lib/.*perspective.*snapshot", "i").test(changedFile), false, "must not add runtime PerspectiveSnapshot files");
+    assert.equal(new RegExp("^lib/.*trajectory", "i").test(changedFile), false, "must not add runtime trajectory builder files");
+    assert.equal(new RegExp("^lib/.*promotion", "i").test(changedFile), false, "must not add runtime promotion implementation files");
+    assert.equal(new RegExp("^lib/.*(proof|evidence).*write", "i").test(changedFile), false, "must not add proof/evidence write files");
+    assert.equal(new RegExp("(^|/)(provider|openai|source-fetch|crawler)\\b", "i").test(changedFile), false, "must not change provider/OpenAI/source-fetch/crawler files");
+    assert.equal(new RegExp("product.*write", "i").test(changedFile), false, "must not change product write files");
+  }
+  assertProjectConstellationRuntimeLayoutContractDownstreamPointer();
+}
+
+function assertProjectConstellationRuntimeLayoutContractDownstreamPointer() {
+  const sourceValidationSmoke = readFileSync(projectLayoutSourceValidationSmokePath, "utf8");
+  for (const requiredText of [
+    projectLayoutContractVersion,
+    projectLayoutTypePath,
+    projectLayoutFixturePath,
+    projectLayoutSmokePath,
+    projectLayoutPackageScriptName,
+    projectLayoutRecommendationStatus,
+    projectLayoutNextRecommendedSlice,
+    "future stable Project Constellation layout grammar",
+    "layout is interface, not truth",
+    "coordinates are display hints, not source of truth",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(sourceValidationSmoke.includes(requiredText), "#735 browser validation smoke must allow Project Constellation Runtime Layout contract downstream pointer: " + requiredText);
+  }
+}
 
 function durablePerspectiveStateTrajectoryBrowserValidationSliceActive() {
   return readChangedFiles().includes(stateTrajectoryBrowserValidationSmokePath);
