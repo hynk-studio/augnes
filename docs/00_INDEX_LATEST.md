@@ -2033,6 +2033,31 @@ repo-local 색인이다.
   and no product write/product IDs. product-write remains parked by #686. The
   next recommended slice is
   `formation_receipt_durable_event_contract_v0_1`.
+- Formation Receipt durable event contract v0.1:
+  `types/formation-receipt-durable-event-contract.ts`,
+  `fixtures/research-candidate-review.formation-receipt-durable-event-contract.sample.v0.1.json`,
+  and `scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs`
+  (`npm run smoke:formation-receipt-durable-event-contract-v0-1`)
+  define a contract-only durable event shape for Formation Receipt provenance.
+
+  The contract records provenance/selection/exclusion/tension preservation for
+  selected context, excluded context with reasons, unresolved tensions, digest
+  refs, handoff refs, decision refs, result refs, source refs, and candidate
+  refs. Selected context is provenance only, not proof/evidence and not source
+  of truth. Excluded context is audit/provenance only and does not delete
+  source/candidate/feedback records or suppress future review. Decision links
+  are references only.
+
+  This is a type/fixture/static-smoke/docs slice only. It adds no runtime DB write,
+  no production DB read, no route or UI, no browser request, no browser
+  persistence, no durable event write implementation, no feedback write/mutation,
+  no app/api route change, no route handler change, no server action, no
+  component/UI implementation, no schema/migration change, no package dependency
+  addition, no proof/evidence/Perspective promotion/work mutation, no
+  provider/OpenAI/source-fetch/retrieval/RAG execution, no salience authority,
+  and no product write/product IDs. product-write remains parked by #686. The
+  next recommended slice is
+  `formation_receipt_durable_event_implementation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

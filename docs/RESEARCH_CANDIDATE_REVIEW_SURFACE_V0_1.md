@@ -944,6 +944,27 @@ authority, not salience authority, not retrieval/RAG result, and not product
 write. Product-write remains parked by the #686 stopline. Next recommended
 slice: `formation_receipt_durable_event_contract_v0_1`.
 
+## Formation Receipt Durable Event Contract v0.1 Pointer
+
+Formation Receipt durable event contract v0.1 remains separated from durable
+Perspective promotion. It records selected/excluded context, excluded reasons,
+unresolved tensions, source refs, candidate refs, digest refs, handoff refs,
+decision refs, and result refs as provenance and decision links only.
+
+This slice defines a type-only contract and deterministic fixture only. It does
+not implement runtime DB/browser/provider/retrieval behavior. It adds no
+runtime DB write, no production DB read, no route, no route handler, no server
+action, no component/UI implementation, no browser request, no browser
+persistence, no durable event write implementation, no feedback write/mutation,
+no provider/OpenAI call, no source fetch, no retrieval/RAG execution, no
+proof/evidence write, no Perspective promotion, no durable Perspective state
+write, no promotion decision record, no work mutation, no salience authority,
+no product write, no product DB write, and no product ID allocation. It is not
+proof/evidence, not Perspective state, not work status, not promotion
+authority, not salience authority, not retrieval/RAG result, and not product
+write. Product-write remains parked by the #686 stopline. Next recommended
+slice: `formation_receipt_durable_event_implementation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
