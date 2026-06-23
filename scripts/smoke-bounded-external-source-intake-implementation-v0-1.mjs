@@ -909,6 +909,7 @@ function assertBrowserValidationChangedFiles(changedFiles) {
     browserValidationRecommendationStatus,
     browserValidationNextRecommendedSlice,
     "reference-only source intake bundle",
+    "invalid source_refs override rejection",
     "product-write remains parked by #686",
   ]) {
     assert.ok(
