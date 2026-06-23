@@ -118,6 +118,10 @@ const formationReceiptDurableEventImplementationPackageScriptName =
   "smoke:formation-receipt-durable-event-implementation-v0-1";
 const formationReceiptDurableEventImplementationPackageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs";
+const formationReceiptDurableEventBrowserValidationPackageScriptName =
+  "smoke:formation-receipt-durable-event-browser-validation-v0-1";
+const formationReceiptDurableEventBrowserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs";
 const routePath = "/api/research-candidate/feedback-events";
 const routeMethod = "GET";
 const contractVersion = "feedback_event_store_list_ui_contract.v0.1";
@@ -184,6 +188,34 @@ const formationReceiptDurableEventImplementationChangedFiles = [
   "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
   "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+const formationReceiptDurableEventBrowserValidationChangedFiles = [
+  "fixtures/research-candidate-review.formation-receipt-durable-event-browser-validation.sample.v0.1.json",
+  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
+  "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
   "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
   "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
   "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
@@ -642,6 +674,21 @@ function assertPackageScript() {
     .filter(Boolean)
     .sort();
 
+  if (formationReceiptDurableEventBrowserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[formationReceiptDurableEventBrowserValidationPackageScriptName],
+      formationReceiptDurableEventBrowserValidationPackageScriptValue,
+    );
+    assert.deepEqual(
+      addedScriptNames,
+      [formationReceiptDurableEventBrowserValidationPackageScriptName],
+      "package additions must only include the Formation Receipt durable event browser validation smoke script",
+    );
+    assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+    assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+    assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+    return;
+  }
   if (formationReceiptDurableEventImplementationSliceActive()) {
     assert.equal(
       packageJson.scripts[formationReceiptDurableEventImplementationPackageScriptName],
@@ -703,6 +750,26 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (formationReceiptDurableEventBrowserValidationSliceActive()) {
+    for (const expectedFile of formationReceiptDurableEventBrowserValidationChangedFiles) {
+      assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+    }
+    for (const changedFile of changedFiles) {
+      assert.ok(
+        formationReceiptDurableEventBrowserValidationChangedFiles.includes(changedFile),
+        `unexpected changed file in Formation Receipt durable event browser validation downstream slice: ${changedFile}`,
+      );
+      assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+      assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+      assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+      assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+      assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+      assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+      assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+    }
+    return;
+  }
+
   if (formationReceiptDurableEventImplementationSliceActive()) {
     for (const expectedFile of formationReceiptDurableEventImplementationChangedFiles) {
       assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
@@ -1064,6 +1131,10 @@ function readJson(filePath) {
 
 function readGitOutput(args) {
   return execFileSync("git", args, { encoding: "utf8" });
+}
+
+function formationReceiptDurableEventBrowserValidationSliceActive() {
+  return readChangedFiles().includes("scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs");
 }
 
 function formationReceiptDurableEventImplementationSliceActive() {
