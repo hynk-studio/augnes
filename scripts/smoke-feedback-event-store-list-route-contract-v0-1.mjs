@@ -3,6 +3,9 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 
+let cachedMergeBaseRef = null;
+
+
 const typePath = "types/feedback-event-store-list-route-contract.ts";
 const builderPath =
   "lib/research-candidate-review/feedback-event-store-list-route-contract.ts";
@@ -821,6 +824,10 @@ function assertTypeAndBuilderContracts() {
 }
 
 function assertPackageScript() {
+  if (boundedExternalSourceIntakeContractSliceActive()) {
+    assertBoundedExternalSourceIntakeContractPackageScript();
+    return;
+  }
   if (salienceGovernorBrowserValidationSliceActive()) {
     assertSalienceGovernorBrowserValidationPackageScript();
     return;
@@ -1011,6 +1018,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (boundedExternalSourceIntakeContractSliceActive()) {
+    assertBoundedExternalSourceIntakeContractChangedFiles(changedFiles);
+    return;
+  }
   if (salienceGovernorBrowserValidationSliceActive()) {
     assertSalienceGovernorBrowserValidationChangedFiles(changedFiles);
     return;
@@ -1379,6 +1390,104 @@ function assertBrowserValidationDownstreamPointer() {
   );
 }
 
+function boundedExternalSourceIntakeContractSliceActive() {
+  return readChangedFiles().includes("scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs");
+}
+
+function assertBoundedExternalSourceIntakeContractPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts["smoke:bounded-external-source-intake-contract-v0-1"],
+    "node scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    ["smoke:bounded-external-source-intake-contract-v0-1"],
+    "package.json must add only the Bounded External Source Intake contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+}
+
+function assertBoundedExternalSourceIntakeContractChangedFiles(changedFiles) {
+  const expectedFiles = [
+    "types/bounded-external-source-intake-contract.ts",
+    "fixtures/research-candidate-review.bounded-external-source-intake-contract.sample.v0.1.json",
+    "scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
+    "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md",
+    "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+    "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+    "scripts/smoke-salience-governor-browser-validation-v0-1.mjs",
+    "scripts/smoke-salience-governor-implementation-v0-1.mjs",
+    "scripts/smoke-salience-governor-contract-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+  ];
+  for (const expectedFile of expectedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const unchangedPath of [
+    "lib/research-candidate-review/salience-governor.ts",
+    "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
+    "lib/research-candidate-review/recent-rehearsal-buffer.ts",
+    "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Bounded External Source Intake contract slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Bounded External Source Intake contract downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
 function browserValidationSliceActive() {
   const changedFiles = readChangedFiles();
   return browserValidationChangedFiles.every((filePath) =>
@@ -1665,7 +1774,40 @@ function formationReceiptDurableEventContractSliceActive() {
 }
 
 function mergeBaseRef() {
-  return readGitOutput(["merge-base", "HEAD", "origin/main"]).trim();
+  if (cachedMergeBaseRef) {
+    return cachedMergeBaseRef;
+  }
+  for (const ref of ["origin/main", "main"]) {
+    if (!gitRefExists(ref)) {
+      continue;
+    }
+    const mergeBase = tryGitOutput(["merge-base", "HEAD", ref])?.trim();
+    if (mergeBase) {
+      cachedMergeBaseRef = mergeBase;
+      return cachedMergeBaseRef;
+    }
+  }
+  const parentRef = tryGitOutput(["rev-parse", "--verify", "HEAD^"])?.trim();
+  if (parentRef) {
+    cachedMergeBaseRef = parentRef;
+    return cachedMergeBaseRef;
+  }
+  throw new Error(
+    "Unable to determine a base ref for static changed-file validation. " +
+      "Expected origin/main, local main, or HEAD^ to resolve.",
+  );
+}
+
+function gitRefExists(ref) {
+  return tryGitOutput(["rev-parse", "--verify", ref]) !== null;
+}
+
+function tryGitOutput(args) {
+  try {
+    return execFileSync("git", args, { encoding: "utf8" });
+  } catch {
+    return null;
+  }
 }
 
 function readChangedFiles() {

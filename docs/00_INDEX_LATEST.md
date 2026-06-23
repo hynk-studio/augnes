@@ -2232,6 +2232,26 @@ repo-local 색인이다.
   provider/OpenAI/source-fetch/retrieval/RAG execution, and no product
   write/product IDs. product-write remains parked by #686. The next recommended
   slice is `bounded_external_source_intake_contract_v0_1`.
+- Bounded External Source Intake contract v0.1:
+  `types/bounded-external-source-intake-contract.ts`,
+  `fixtures/research-candidate-review.bounded-external-source-intake-contract.sample.v0.1.json`,
+  and `scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs`
+  (`npm run smoke:bounded-external-source-intake-contract-v0-1`) define a
+  contract-only operator-provided source intake reference policy.
+
+  The contract defines allowed reference-only source input kinds for
+  operator-provided URL references, uploaded PDF metadata, uploaded notes
+  references, browser capture references, OAuth document pointers,
+  repo-backed document refs, and manual bibliographic references. It also
+  defines disallowed crawler/search/provider/raw private ID inputs, including
+  crawler seeds, unbounded domain crawls, automatic web search,
+  provider-generated sources without operator references, raw private URLs as
+  canonical IDs, raw OAuth tokens, raw thread/run IDs, and arbitrary user
+  strings as stable IDs.
+
+  This has no runtime source fetch and no crawler. It adds no provider/OpenAI call, no retrieval/RAG execution, no source index write, no durable source record write, no runtime persistence, no durable memory write, no runtime DB write/query, no production DB read, no schema/migration, no route or UI, no browser request, no browser persistence, no feedback write/mutation, no proof/evidence/Perspective promotion/candidate mutation/work mutation, and no product write/product IDs. product-write remains parked by #686. The next
+  recommended slice is
+  `bounded_external_source_intake_implementation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

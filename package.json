@@ -539,6 +539,7 @@
     "smoke:salience-governor-contract-v0-1": "node scripts/smoke-salience-governor-contract-v0-1.mjs",
     "smoke:salience-governor-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-salience-governor-implementation-v0-1.mjs",
     "smoke:salience-governor-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-salience-governor-browser-validation-v0-1.mjs",
+    "smoke:bounded-external-source-intake-contract-v0-1": "node scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
