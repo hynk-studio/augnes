@@ -1,0 +1,947 @@
+{
+  "implementation_kind": "project_constellation_runtime_layout_implementation",
+  "implementation_version": "project_constellation_runtime_layout_implementation.v0.1",
+  "source_contract_ref": "project_constellation_runtime_layout_contract.v0.1:fixtures/research-candidate-review.project-constellation-runtime-layout-contract.sample.v0.1.json",
+  "source_contract_fingerprint": "fnv1a32:cd8113f6",
+  "implemented_contract": {
+    "contract_kind": "project_constellation_runtime_layout_contract",
+    "contract_version": "project_constellation_runtime_layout_contract.v0.1",
+    "contract_fixture_path": "fixtures/research-candidate-review.project-constellation-runtime-layout-contract.sample.v0.1.json",
+    "type_contract_path": "types/project-constellation-runtime-layout-contract.ts",
+    "contract_authority_boundary_preserved": true,
+    "contract_validation_policy_preserved": true,
+    "contract_layout_principles_preserved": true,
+    "contract_stability_policy_preserved": true,
+    "contract_source_balance_policy_preserved": true,
+    "contract_candidate_overlay_policy_preserved": true,
+    "contract_snapshot_policy_preserved": true,
+    "contract_salience_policy_preserved": true,
+    "contract_node_families_preserved": true,
+    "contract_edge_families_preserved": true
+  },
+  "deterministic_builder": {
+    "builder_path": "lib/research-candidate-review/project-constellation-runtime-layout.ts",
+    "deterministic_fixture_backed_only": true,
+    "runtime_layout_execution_now": false,
+    "seeded_layout_runtime_now": false,
+    "force_directed_layout_runtime_now": false,
+    "temporal_smoothing_runtime_now": false,
+    "layout_persistence_now": false,
+    "layout_coordinate_write_now": false,
+    "graph_db_now": false,
+    "graph_mutation_now": false,
+    "ui_rendering_now": false,
+    "browser_rendering_now": false,
+    "browser_request_now": false,
+    "browser_persistence_now": false,
+    "request_animation_frame_now": false,
+    "durable_perspective_state_read_now": false,
+    "durable_perspective_state_write_now": false,
+    "durable_perspective_delta_apply_now": false,
+    "perspective_snapshot_runtime_now": false,
+    "trajectory_runtime_build_now": false,
+    "proof_evidence_write_now": false,
+    "accepted_evidence_write_now": false,
+    "formation_receipt_write_now": false,
+    "work_mutation_now": false,
+    "runtime_db_query_now": false,
+    "runtime_db_write_now": false,
+    "production_db_used_now": false,
+    "provider_openai_call_now": false,
+    "retrieval_rag_execution_now": false,
+    "source_fetch_now": false,
+    "crawler_now": false,
+    "durable_memory_write_now": false
+  },
+  "built_project_constellation_layout_preview_bundle": {
+    "preview_version": "project_constellation_runtime_layout_preview.v0.1",
+    "source_contract_ref": "project_constellation_runtime_layout_contract.v0.1:fixtures/research-candidate-review.project-constellation-runtime-layout-contract.sample.v0.1.json",
+    "operator_context_ref": "operator_context:public:project_constellation_runtime_layout_contract",
+    "layout_input_preview": {
+      "layout_scope_ref": "layout_scope_ref:public:example_constellation_scope",
+      "perspective_snapshot_ref": "perspective_snapshot_ref:public:future_derived_view",
+      "durable_perspective_state_ref": "perspective_state_ref:public:future_state_preview",
+      "candidate_overlay_ref": "candidate_overlay_ref:public:future_candidate_overlay",
+      "geometry_digest_ref": "geometry_digest_ref:public:future_digest",
+      "source_refs": [
+        "source_ref:public:durable_perspective_state_trajectory_validation",
+        "source_ref:public:project_constellation_runtime_layout_contract"
+      ],
+      "manual_anchor_refs": [
+        "manual_anchor_ref:public:display_hint_only"
+      ],
+      "salience_state_ref": "salience_state_ref:public:display_context_only",
+      "prior_layout_ref": "layout_ref:public:prior_layout_hint_optional",
+      "not_executed_now": true
+    },
+    "layout_preview": {
+      "layout_id": "layout_ref:public:project_constellation_contract_preview",
+      "layout_version": "project_constellation_layout.v0.1",
+      "nodes": [
+        {
+          "node_ref": "node_ref:public:durable_perspective",
+          "node_kind": "durable_perspective_node",
+          "label_summary": "Durable Perspective node preview",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "state_boundary": "durable",
+          "position_hint": {
+            "coordinate_system": "normalized_preview_2d",
+            "x": 0.15,
+            "y": 0.25,
+            "coordinates_are_display_hints_not_truth": true,
+            "not_source_of_truth": true
+          },
+          "runtime_write_now": false,
+          "public_safe": true,
+          "durable_state_ref": "perspective_state_ref:public:future_state_preview",
+          "candidate_only": false
+        },
+        {
+          "node_ref": "node_ref:public:candidate_overlay",
+          "node_kind": "candidate_overlay_node",
+          "label_summary": "Candidate overlay node preview",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "state_boundary": "candidate",
+          "position_hint": {
+            "coordinate_system": "normalized_preview_2d",
+            "x": 0.35,
+            "y": 0.25,
+            "coordinates_are_display_hints_not_truth": true,
+            "not_source_of_truth": true
+          },
+          "runtime_write_now": false,
+          "public_safe": true,
+          "candidate_ref": "candidate_ref:public:layout_candidate_overlay",
+          "candidate_only": true,
+          "visually_distinct_from_durable": true
+        },
+        {
+          "node_ref": "node_ref:public:claim",
+          "node_kind": "claim_node",
+          "label_summary": "Claim node preview",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "state_boundary": "durable",
+          "position_hint": {
+            "coordinate_system": "normalized_preview_2d",
+            "x": 0.55,
+            "y": 0.35,
+            "coordinates_are_display_hints_not_truth": true,
+            "not_source_of_truth": true
+          },
+          "runtime_write_now": false,
+          "public_safe": true,
+          "claim_ref": "claim_ref:public:layout_claim"
+        },
+        {
+          "node_ref": "node_ref:public:evidence_anchor",
+          "node_kind": "evidence_anchor_node",
+          "label_summary": "Evidence anchor node preview",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "state_boundary": "durable",
+          "position_hint": {
+            "coordinate_system": "normalized_preview_2d",
+            "x": 0.75,
+            "y": 0.35,
+            "coordinates_are_display_hints_not_truth": true,
+            "not_source_of_truth": true
+          },
+          "runtime_write_now": false,
+          "public_safe": true,
+          "evidence_ref": "accepted_evidence_ref:public:layout_evidence"
+        },
+        {
+          "node_ref": "node_ref:public:tension_marker",
+          "node_kind": "tension_marker_node",
+          "label_summary": "Tension marker node preview",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "state_boundary": "marker",
+          "position_hint": {
+            "coordinate_system": "normalized_preview_2d",
+            "x": 0.45,
+            "y": 0.55,
+            "coordinates_are_display_hints_not_truth": true,
+            "not_source_of_truth": true
+          },
+          "runtime_write_now": false,
+          "public_safe": true,
+          "tension_ref": "tension_ref:public:layout_tension_visible"
+        },
+        {
+          "node_ref": "node_ref:public:knowledge_gap_marker",
+          "node_kind": "knowledge_gap_marker_node",
+          "label_summary": "Knowledge gap marker node preview",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "state_boundary": "marker",
+          "position_hint": {
+            "coordinate_system": "normalized_preview_2d",
+            "x": 0.6,
+            "y": 0.65,
+            "coordinates_are_display_hints_not_truth": true,
+            "not_source_of_truth": true
+          },
+          "runtime_write_now": false,
+          "public_safe": true,
+          "knowledge_gap_ref": "knowledge_gap_ref:public:layout_gap_visible"
+        },
+        {
+          "node_ref": "node_ref:public:bridge_navigation_hint",
+          "node_kind": "bridge_node",
+          "label_summary": "Bridge navigation hint node preview",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "state_boundary": "marker",
+          "position_hint": {
+            "coordinate_system": "normalized_preview_2d",
+            "x": 0.3,
+            "y": 0.7,
+            "coordinates_are_display_hints_not_truth": true,
+            "not_source_of_truth": true
+          },
+          "runtime_write_now": false,
+          "public_safe": true,
+          "bridge_reason": "public-safe bridge reason"
+        },
+        {
+          "node_ref": "node_ref:public:stale_high_gravity",
+          "node_kind": "stale_high_gravity_node",
+          "label_summary": "Stale high-gravity node preview",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "state_boundary": "marker",
+          "position_hint": {
+            "coordinate_system": "normalized_preview_2d",
+            "x": 0.2,
+            "y": 0.5,
+            "coordinates_are_display_hints_not_truth": true,
+            "not_source_of_truth": true
+          },
+          "runtime_write_now": false,
+          "public_safe": true,
+          "stale_reason": "public-safe stale high-gravity reason"
+        },
+        {
+          "node_ref": "node_ref:public:source_reference",
+          "node_kind": "source_reference_node",
+          "label_summary": "Source reference node preview",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "state_boundary": "source",
+          "position_hint": {
+            "coordinate_system": "normalized_preview_2d",
+            "x": 0.85,
+            "y": 0.2,
+            "coordinates_are_display_hints_not_truth": true,
+            "not_source_of_truth": true
+          },
+          "runtime_write_now": false,
+          "public_safe": true,
+          "source_ref": "source_ref:public:project_constellation_runtime_layout_contract"
+        },
+        {
+          "node_ref": "node_ref:public:work_context",
+          "node_kind": "work_context_node",
+          "label_summary": "Work context node preview",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "state_boundary": "work_context",
+          "position_hint": {
+            "coordinate_system": "normalized_preview_2d",
+            "x": 0.8,
+            "y": 0.75,
+            "coordinates_are_display_hints_not_truth": true,
+            "not_source_of_truth": true
+          },
+          "runtime_write_now": false,
+          "public_safe": true,
+          "work_ref": "work_ref:public:layout_context_only"
+        }
+      ],
+      "edges": [
+        {
+          "edge_ref": "edge_ref:public:supports",
+          "edge_kind": "supports_ref",
+          "from_node_ref": "node_ref:public:evidence_anchor",
+          "to_node_ref": "node_ref:public:claim",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "relation_summary": "supports_ref display relation preview",
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "edge_ref": "edge_ref:public:contradicts",
+          "edge_kind": "contradicts_ref",
+          "from_node_ref": "node_ref:public:evidence_anchor",
+          "to_node_ref": "node_ref:public:tension_marker",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "relation_summary": "contradicts_ref display relation preview",
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "edge_ref": "edge_ref:public:qualifies",
+          "edge_kind": "qualifies_ref",
+          "from_node_ref": "node_ref:public:claim",
+          "to_node_ref": "node_ref:public:knowledge_gap_marker",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "relation_summary": "qualifies_ref display relation preview",
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "edge_ref": "edge_ref:public:source_derivation",
+          "edge_kind": "derived_from_source",
+          "from_node_ref": "node_ref:public:source_reference",
+          "to_node_ref": "node_ref:public:claim",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "relation_summary": "derived_from_source display relation preview",
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "edge_ref": "edge_ref:public:candidate_overlay",
+          "edge_kind": "candidate_overlay_link",
+          "from_node_ref": "node_ref:public:candidate_overlay",
+          "to_node_ref": "node_ref:public:durable_perspective",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "relation_summary": "candidate_overlay_link display relation preview",
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "edge_ref": "edge_ref:public:bridge_hint",
+          "edge_kind": "bridge_hint",
+          "from_node_ref": "node_ref:public:bridge_navigation_hint",
+          "to_node_ref": "node_ref:public:durable_perspective",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "relation_summary": "bridge_hint display relation preview",
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "edge_ref": "edge_ref:public:tension_line",
+          "edge_kind": "tension_line",
+          "from_node_ref": "node_ref:public:tension_marker",
+          "to_node_ref": "node_ref:public:claim",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "relation_summary": "tension_line display relation preview",
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "edge_ref": "edge_ref:public:knowledge_gap_line",
+          "edge_kind": "knowledge_gap_line",
+          "from_node_ref": "node_ref:public:knowledge_gap_marker",
+          "to_node_ref": "node_ref:public:claim",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "relation_summary": "knowledge_gap_line display relation preview",
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "edge_ref": "edge_ref:public:reuse_condition",
+          "edge_kind": "reuse_condition_link",
+          "from_node_ref": "node_ref:public:durable_perspective",
+          "to_node_ref": "node_ref:public:work_context",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "relation_summary": "reuse_condition_link display relation preview",
+          "runtime_write_now": false,
+          "public_safe": true
+        },
+        {
+          "edge_ref": "edge_ref:public:work_context",
+          "edge_kind": "work_context_link",
+          "from_node_ref": "node_ref:public:work_context",
+          "to_node_ref": "node_ref:public:durable_perspective",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "relation_summary": "work_context_link display relation preview",
+          "runtime_write_now": false,
+          "public_safe": true
+        }
+      ],
+      "clusters": [
+        {
+          "cluster_ref": "cluster_ref:public:durable_candidate_boundary",
+          "cluster_kind": "durable_candidate_boundary_preview",
+          "node_refs": [
+            "node_ref:public:durable_perspective",
+            "node_ref:public:candidate_overlay"
+          ],
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "cluster_is_display_grouping_only": true,
+          "coordinates_not_truth": true,
+          "runtime_write_now": false
+        }
+      ],
+      "markers": {
+        "stale_high_gravity_nodes": [
+          {
+            "node_ref": "node_ref:public:stale_high_gravity",
+            "stale_reason": "public-safe stale gravity display marker",
+            "marker_visible": true,
+            "not_authority": true
+          }
+        ],
+        "bridge_nodes": [
+          {
+            "node_ref": "node_ref:public:bridge_navigation_hint",
+            "bridge_reason": "public-safe bridge navigation hint",
+            "navigation_hint_only": true
+          }
+        ],
+        "tension_markers": [
+          {
+            "tension_ref": "tension_ref:public:layout_tension_visible",
+            "visible": true,
+            "resolution_not_implied_by_layout": true
+          }
+        ],
+        "knowledge_gap_markers": [
+          {
+            "knowledge_gap_ref": "knowledge_gap_ref:public:layout_gap_visible",
+            "visible": true,
+            "closure_not_implied_by_layout": true
+          }
+        ]
+      },
+      "evidence_rays": [
+        {
+          "evidence_ray_ref": "evidence_ray_ref:public:support_ref_ray",
+          "from_evidence_node_ref": "node_ref:public:evidence_anchor",
+          "to_claim_node_ref": "node_ref:public:claim",
+          "evidence_ref": "accepted_evidence_ref:public:layout_evidence",
+          "source_refs": [
+            "source_ref:public:project_constellation_runtime_layout_contract"
+          ],
+          "evidence_ray_is_ref_not_proof": true,
+          "proof_write_now": false
+        }
+      ],
+      "viewport_hints": {
+        "default_center_ref": "node_ref:public:durable_perspective",
+        "zoom_hint": "overview",
+        "viewport_hint_only": true,
+        "not_state": true
+      },
+      "source_balance_summary": {
+        "source_ref_count": 2,
+        "source_balance_required": true,
+        "source_dominance_warning_advisory_only": true,
+        "not_truth": true
+      },
+      "all_nodes_public_safe": true,
+      "all_edges_public_safe": true,
+      "all_coordinates_not_truth": true,
+      "all_runtime_write_now_false": true
+    },
+    "layout_principle_summary": {
+      "layout_is_interface_not_truth": true,
+      "coordinates_are_display_hints_not_truth": true,
+      "coordinates_not_source_of_truth": true,
+      "stable_across_refreshes_required_later": true,
+      "deterministic_seeded_layout_required_later": true,
+      "manual_anchors_are_hints_only": true,
+      "temporal_smoothing_is_display_continuity_only": true,
+      "source_balance_required": true,
+      "candidate_overlay_and_durable_graph_distinct": true,
+      "stale_high_gravity_nodes_marked": true,
+      "bridge_nodes_visible": true,
+      "tension_markers_visible": true,
+      "knowledge_gap_markers_visible": true,
+      "evidence_rays_are_refs_not_proof": true,
+      "salience_state_not_authority": true,
+      "perspective_snapshot_is_derived_view": true,
+      "agent_substrate_advisory_only": true,
+      "layout_principle_count": 17,
+      "all_layout_principles_preserved": true
+    },
+    "node_family_summary": {
+      "node_family_count": 10,
+      "node_kinds": [
+        "durable_perspective_node",
+        "candidate_overlay_node",
+        "claim_node",
+        "evidence_anchor_node",
+        "tension_marker_node",
+        "knowledge_gap_marker_node",
+        "bridge_node",
+        "stale_high_gravity_node",
+        "source_reference_node",
+        "work_context_node"
+      ],
+      "all_node_families_preserved": true,
+      "all_nodes_public_safe": true,
+      "all_nodes_coordinate_truth_forbidden": true,
+      "all_nodes_runtime_write_now_false": true
+    },
+    "edge_family_summary": {
+      "edge_family_count": 10,
+      "edge_kinds": [
+        "supports_ref",
+        "contradicts_ref",
+        "qualifies_ref",
+        "derived_from_source",
+        "candidate_overlay_link",
+        "bridge_hint",
+        "tension_line",
+        "knowledge_gap_line",
+        "reuse_condition_link",
+        "work_context_link"
+      ],
+      "all_edge_families_preserved": true,
+      "all_edges_public_safe": true,
+      "all_edges_runtime_write_now_false": true
+    },
+    "stability_summary": {
+      "deterministic_seed_required_later": true,
+      "stable_across_refreshes_required_later": true,
+      "temporal_smoothing_display_continuity_only": true,
+      "manual_anchor_hints_not_authority": true,
+      "layout_persistence_not_implemented": true,
+      "coordinate_truth_forbidden": true
+    },
+    "source_balance_summary": {
+      "source_balance_required": true,
+      "source_balance_advisory_only": true,
+      "source_balance_not_truth": true,
+      "source_balance_not_promotion_authority": true
+    },
+    "candidate_overlay_summary": {
+      "candidate_overlay_allowed_later": true,
+      "candidate_overlay_not_durable_graph": true,
+      "candidate_overlay_nodes_visually_distinct": true,
+      "candidate_overlay_edges_visually_distinct": true,
+      "candidate_overlay_runtime_merge_now_false": true,
+      "candidate_overlay_promotion_now_false": true
+    },
+    "snapshot_summary": {
+      "perspective_snapshot_input_allowed": true,
+      "perspective_snapshot_is_derived_view": true,
+      "perspective_snapshot_runtime_now_false": true,
+      "snapshot_not_independent_source_of_truth": true
+    },
+    "salience_summary": {
+      "salience_state_allowed_as_display_context": true,
+      "salience_state_not_truth": true,
+      "salience_state_not_promotion_authority": true,
+      "salience_state_not_evidence_strength": true,
+      "salience_state_not_authority": true,
+      "durable_salience_write_now_false": true
+    },
+    "reference_summary": {
+      "public_safe_refs_only": true,
+      "no_raw_private_source_body": true,
+      "no_raw_provider_thread_run_session_ids": true,
+      "no_private_urls": true,
+      "no_secrets": true,
+      "layout_ref_count": 2,
+      "node_ref_count": 10,
+      "edge_ref_count": 10,
+      "cluster_ref_count": 1,
+      "marker_ref_count": 0,
+      "source_ref_count": 2,
+      "perspective_ref_count": 2,
+      "candidate_ref_count": 1,
+      "evidence_ref_count": 1,
+      "tension_ref_count": 1,
+      "knowledge_gap_ref_count": 1,
+      "work_ref_count": 1
+    },
+    "authority_boundary": {
+      "implementation_added_now": false,
+      "browser_validation_added_now": false,
+      "runtime_layout_implemented_now": false,
+      "runtime_layout_execution_now": false,
+      "seeded_layout_runtime_now": false,
+      "force_directed_layout_runtime_now": false,
+      "temporal_smoothing_runtime_now": false,
+      "layout_persistence_now": false,
+      "layout_coordinate_write_now": false,
+      "graph_db_implemented_now": false,
+      "graph_mutation_now": false,
+      "component_changed_now": false,
+      "route_changed_now": false,
+      "browser_request_now": false,
+      "browser_persistence_now": false,
+      "durable_perspective_state_read_now": false,
+      "durable_perspective_state_write_now": false,
+      "durable_perspective_delta_apply_now": false,
+      "perspective_snapshot_runtime_implemented_now": false,
+      "trajectory_runtime_build_implemented_now": false,
+      "proof_or_evidence_record_write_now": false,
+      "accepted_evidence_write_now": false,
+      "formation_receipt_write_now": false,
+      "work_mutation_now": false,
+      "candidate_mutation_now": false,
+      "candidate_record_write_now": false,
+      "runtime_promotion_implemented_now": false,
+      "promotion_decision_record_implemented_now": false,
+      "promotion_decision_record_write_now": false,
+      "runtime_retrieval_rag_implemented_now": false,
+      "runtime_index_build_implemented_now": false,
+      "runtime_index_write_now": false,
+      "embedding_generation_implemented_now": false,
+      "vector_db_implemented_now": false,
+      "fts_implemented_now": false,
+      "provider_openai_call_now": false,
+      "provider_extraction_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "source_index_write_now": false,
+      "durable_source_record_write_now": false,
+      "runtime_persistence_implemented_now": false,
+      "durable_memory_write_now": false,
+      "runtime_db_write_now": false,
+      "runtime_db_query_now": false,
+      "production_db_used_now": false,
+      "db_schema_implemented_now": false,
+      "durable_salience_write_now": false,
+      "recent_rehearsal_buffer_written_now": false,
+      "feedback_events_written_now": false,
+      "feedback_events_mutated_now": false,
+      "execution_authority": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "external_handoff_authority": false,
+      "provider_openai_authority": false,
+      "retrieval_rag_authority": false,
+      "source_fetch_authority": false,
+      "salience_authority": false,
+      "layout_coordinate_authority": false,
+      "manual_anchor_authority": false,
+      "cluster_position_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "product_write_lane_parked_by_686": true
+    },
+    "validation_policy": {
+      "layout_is_interface_not_truth": true,
+      "coordinates_are_display_hints_not_truth": true,
+      "coordinates_not_source_of_truth": true,
+      "stable_across_refreshes_required_later": true,
+      "deterministic_seeded_layout_required_later": true,
+      "manual_anchors_are_hints_only": true,
+      "temporal_smoothing_is_display_continuity_only": true,
+      "source_balance_required": true,
+      "candidate_overlay_and_durable_graph_distinct": true,
+      "candidate_overlay_not_durable_graph": true,
+      "candidate_overlay_promotion_now_false": true,
+      "stale_high_gravity_nodes_marked": true,
+      "bridge_nodes_visible": true,
+      "tension_markers_visible": true,
+      "knowledge_gap_markers_visible": true,
+      "evidence_rays_are_refs_not_proof": true,
+      "all_nodes_have_public_safe_refs": true,
+      "all_edges_have_public_safe_refs": true,
+      "raw_coordinates_not_used_as_truth": true,
+      "source_balance_not_truth": true,
+      "source_balance_not_promotion_authority": true,
+      "salience_state_not_authority": true,
+      "manual_anchor_not_authority": true,
+      "cluster_position_not_authority": true,
+      "perspective_snapshot_is_derived_view": true,
+      "no_runtime_layout_execution": true,
+      "no_seeded_layout_runtime": true,
+      "no_force_directed_layout_runtime": true,
+      "no_temporal_smoothing_runtime": true,
+      "no_layout_persistence": true,
+      "no_graph_db": true,
+      "no_graph_mutation": true,
+      "no_runtime_state_read_or_write": true,
+      "no_durable_perspective_delta_apply": true,
+      "no_perspective_snapshot_runtime": true,
+      "no_proof_or_evidence_write": true,
+      "no_accepted_evidence_write": true,
+      "no_formation_receipt_write": true,
+      "no_work_mutation": true,
+      "no_runtime_db_write_or_query": true,
+      "no_schema_or_migration": true,
+      "no_route_or_ui": true,
+      "no_browser_request": true,
+      "no_provider_openai_call": true,
+      "no_retrieval_rag_execution": true,
+      "no_product_write_or_ids": true
+    },
+    "stability_policy": {
+      "deterministic_seed_required_later": true,
+      "stable_across_refreshes_required_later": true,
+      "temporal_smoothing_allowed_later": true,
+      "temporal_smoothing_runtime_now": false,
+      "manual_anchor_hints_allowed_later": true,
+      "manual_anchor_hints_not_authority": true,
+      "layout_persistence_now": false,
+      "coordinate_truth_forbidden": true
+    },
+    "source_balance_policy": {
+      "source_balance_required": true,
+      "source_dominance_warning_allowed": true,
+      "source_dominance_warning_advisory_only": true,
+      "source_balance_not_truth": true,
+      "source_balance_not_promotion_authority": true
+    },
+    "candidate_overlay_policy": {
+      "candidate_overlay_allowed_later": true,
+      "candidate_overlay_is_not_durable_graph": true,
+      "candidate_overlay_nodes_visually_distinct": true,
+      "candidate_overlay_edges_visually_distinct": true,
+      "candidate_overlay_runtime_merge_now": false,
+      "candidate_overlay_promotion_now": false
+    },
+    "snapshot_policy": {
+      "perspective_snapshot_input_allowed": true,
+      "perspective_snapshot_is_derived_view": true,
+      "perspective_snapshot_runtime_now": false,
+      "snapshot_not_independent_source_of_truth": true
+    },
+    "salience_policy": {
+      "salience_state_allowed_as_display_context": true,
+      "salience_state_not_truth": true,
+      "salience_state_not_promotion_authority": true,
+      "salience_state_not_evidence_strength": true,
+      "durable_salience_write_now": false
+    },
+    "validation": {
+      "passed": true,
+      "failure_codes": [],
+      "preview_bundle_follows_contract": true,
+      "preview_bundle_authority_boundary_matches_contract": true,
+      "preview_bundle_validation_policy_matches_contract": true,
+      "preview_bundle_stability_policy_matches_contract": true,
+      "preview_bundle_source_balance_policy_matches_contract": true,
+      "preview_bundle_candidate_overlay_policy_matches_contract": true,
+      "preview_bundle_snapshot_policy_matches_contract": true,
+      "preview_bundle_salience_policy_matches_contract": true,
+      "top_level_implementation_boundary_is_separate": true,
+      "layout_input_fields_preserved": true,
+      "layout_output_fields_preserved": true,
+      "layout_principles_preserved": true,
+      "node_families_preserved": true,
+      "edge_families_preserved": true,
+      "layout_is_interface_not_truth": true,
+      "coordinates_are_display_hints_not_truth": true,
+      "coordinates_not_source_of_truth": true,
+      "stable_across_refreshes_required_later": true,
+      "deterministic_seeded_layout_required_later": true,
+      "manual_anchors_are_hints_only": true,
+      "temporal_smoothing_is_display_continuity_only": true,
+      "source_balance_required": true,
+      "source_balance_not_truth_or_promotion_authority": true,
+      "candidate_overlay_and_durable_graph_distinct": true,
+      "candidate_overlay_not_durable_graph": true,
+      "candidate_overlay_promotion_now_false": true,
+      "stale_high_gravity_nodes_marked": true,
+      "bridge_nodes_visible": true,
+      "tension_markers_visible": true,
+      "knowledge_gap_markers_visible": true,
+      "evidence_rays_are_refs_not_proof": true,
+      "all_nodes_have_public_safe_refs": true,
+      "all_edges_have_public_safe_refs": true,
+      "all_coordinates_not_truth": true,
+      "all_runtime_write_now_false": true,
+      "perspective_snapshot_is_derived_view": true,
+      "perspective_snapshot_runtime_now_false": true,
+      "salience_state_not_authority": true,
+      "manual_anchor_not_authority": true,
+      "cluster_position_not_authority": true,
+      "runtime_layout_not_implemented": true,
+      "seeded_layout_runtime_not_implemented": true,
+      "force_directed_layout_runtime_not_implemented": true,
+      "temporal_smoothing_runtime_not_implemented": true,
+      "layout_persistence_not_implemented": true,
+      "graph_db_not_implemented": true,
+      "graph_mutation_now_false": true,
+      "ui_rendering_not_implemented": true,
+      "browser_request_now_false": true,
+      "runtime_state_read_write_not_implemented": true,
+      "durable_perspective_delta_apply_not_implemented": true,
+      "proof_or_evidence_write_not_implemented": true,
+      "accepted_evidence_write_not_implemented": true,
+      "formation_receipt_write_not_implemented": true,
+      "work_mutation_now_false": true,
+      "public_safe_refs_only": true,
+      "no_raw_private_source_body": true,
+      "no_raw_provider_thread_run_session_ids": true,
+      "no_private_urls": true,
+      "no_secrets": true
+    }
+  },
+  "validated_implementation": {
+    "passed": true,
+    "failure_codes": [],
+    "preview_bundle_follows_contract": true,
+    "preview_bundle_authority_boundary_matches_contract": true,
+    "preview_bundle_validation_policy_matches_contract": true,
+    "preview_bundle_stability_policy_matches_contract": true,
+    "preview_bundle_source_balance_policy_matches_contract": true,
+    "preview_bundle_candidate_overlay_policy_matches_contract": true,
+    "preview_bundle_snapshot_policy_matches_contract": true,
+    "preview_bundle_salience_policy_matches_contract": true,
+    "top_level_implementation_boundary_is_separate": true,
+    "layout_input_fields_preserved": true,
+    "layout_output_fields_preserved": true,
+    "layout_principles_preserved": true,
+    "node_families_preserved": true,
+    "edge_families_preserved": true,
+    "layout_is_interface_not_truth": true,
+    "coordinates_are_display_hints_not_truth": true,
+    "coordinates_not_source_of_truth": true,
+    "stable_across_refreshes_required_later": true,
+    "deterministic_seeded_layout_required_later": true,
+    "manual_anchors_are_hints_only": true,
+    "temporal_smoothing_is_display_continuity_only": true,
+    "source_balance_required": true,
+    "source_balance_not_truth_or_promotion_authority": true,
+    "candidate_overlay_and_durable_graph_distinct": true,
+    "candidate_overlay_not_durable_graph": true,
+    "candidate_overlay_promotion_now_false": true,
+    "stale_high_gravity_nodes_marked": true,
+    "bridge_nodes_visible": true,
+    "tension_markers_visible": true,
+    "knowledge_gap_markers_visible": true,
+    "evidence_rays_are_refs_not_proof": true,
+    "all_nodes_have_public_safe_refs": true,
+    "all_edges_have_public_safe_refs": true,
+    "all_coordinates_not_truth": true,
+    "all_runtime_write_now_false": true,
+    "perspective_snapshot_is_derived_view": true,
+    "perspective_snapshot_runtime_now_false": true,
+    "salience_state_not_authority": true,
+    "manual_anchor_not_authority": true,
+    "cluster_position_not_authority": true,
+    "runtime_layout_not_implemented": true,
+    "seeded_layout_runtime_not_implemented": true,
+    "force_directed_layout_runtime_not_implemented": true,
+    "temporal_smoothing_runtime_not_implemented": true,
+    "layout_persistence_not_implemented": true,
+    "graph_db_not_implemented": true,
+    "graph_mutation_now_false": true,
+    "ui_rendering_not_implemented": true,
+    "browser_request_now_false": true,
+    "runtime_state_read_write_not_implemented": true,
+    "durable_perspective_delta_apply_not_implemented": true,
+    "proof_or_evidence_write_not_implemented": true,
+    "accepted_evidence_write_not_implemented": true,
+    "formation_receipt_write_not_implemented": true,
+    "work_mutation_now_false": true,
+    "public_safe_refs_only": true,
+    "no_raw_private_source_body": true,
+    "no_raw_provider_thread_run_session_ids": true,
+    "no_private_urls": true,
+    "no_secrets": true,
+    "invalid_layout_preview_override_rejected": true,
+    "invalid_node_override_rejected": true,
+    "invalid_edge_override_rejected": true,
+    "invalid_authority_boundary_override_rejected": true,
+    "invalid_refs_override_rejected": true
+  },
+  "authority_boundary": {
+    "implementation_added_now": true,
+    "deterministic_builder_added_now": true,
+    "contract_changed_now": false,
+    "runtime_layout_implemented_now": false,
+    "runtime_layout_execution_now": false,
+    "seeded_layout_runtime_now": false,
+    "force_directed_layout_runtime_now": false,
+    "temporal_smoothing_runtime_now": false,
+    "layout_persistence_now": false,
+    "layout_coordinate_write_now": false,
+    "graph_db_implemented_now": false,
+    "graph_mutation_now": false,
+    "component_changed_now": false,
+    "route_changed_now": false,
+    "browser_request_now": false,
+    "browser_persistence_now": false,
+    "request_animation_frame_now": false,
+    "durable_perspective_state_read_now": false,
+    "durable_perspective_state_write_now": false,
+    "durable_perspective_delta_apply_now": false,
+    "perspective_snapshot_runtime_implemented_now": false,
+    "trajectory_runtime_build_implemented_now": false,
+    "proof_or_evidence_record_write_now": false,
+    "accepted_evidence_write_now": false,
+    "formation_receipt_write_now": false,
+    "work_mutation_now": false,
+    "candidate_mutation_now": false,
+    "candidate_record_write_now": false,
+    "runtime_promotion_implemented_now": false,
+    "promotion_decision_record_implemented_now": false,
+    "promotion_decision_record_write_now": false,
+    "runtime_retrieval_rag_implemented_now": false,
+    "runtime_index_build_implemented_now": false,
+    "runtime_index_write_now": false,
+    "embedding_generation_implemented_now": false,
+    "vector_db_implemented_now": false,
+    "fts_implemented_now": false,
+    "provider_openai_call_now": false,
+    "provider_extraction_now": false,
+    "source_fetch_now": false,
+    "crawler_now": false,
+    "source_index_write_now": false,
+    "durable_source_record_write_now": false,
+    "runtime_persistence_implemented_now": false,
+    "durable_memory_write_now": false,
+    "runtime_db_write_now": false,
+    "runtime_db_query_now": false,
+    "production_db_used_now": false,
+    "db_schema_implemented_now": false,
+    "durable_salience_write_now": false,
+    "recent_rehearsal_buffer_written_now": false,
+    "feedback_events_written_now": false,
+    "feedback_events_mutated_now": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "salience_authority": false,
+    "layout_coordinate_authority": false,
+    "manual_anchor_authority": false,
+    "cluster_position_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "recommendation_status": "ready_for_project_constellation_runtime_layout_browser_validation_v0_1",
+  "next_recommended_slice": "project_constellation_runtime_layout_browser_validation_v0_1",
+  "implementation_fingerprint": "fnv1a32:05cce7c7",
+  "fingerprint_algorithm": "fnv1a32_canonical_json"
+}
