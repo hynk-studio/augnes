@@ -2095,6 +2095,29 @@ repo-local 색인이다.
   no salience authority, and no product write/product IDs. product-write remains
   parked by #686. The next recommended slice is
   `recent_rehearsal_buffer_contract_v0_1`.
+- Recent Rehearsal Buffer contract v0.1:
+  `types/recent-rehearsal-buffer-contract.ts`,
+  `fixtures/research-candidate-review.recent-rehearsal-buffer-contract.sample.v0.1.json`,
+  and `scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs`
+  (`npm run smoke:recent-rehearsal-buffer-contract-v0-1`)
+  define the contract-only non-durable working memory adapter for recent work resume context.
+
+  The contract records compact resume inputs only: the last active research
+  question, optional active perspective/candidate context, open tensions, a
+  recent failed check, the last user decision, recent context refs with
+  source_refs, excluded context refs with reasons, and decay states fresh/warm/cool/archive.
+  It is non-durable and not a promotion basis, source of truth, proof/evidence,
+  Perspective state, work status, salience authority, retrieval/RAG result, or
+  product write.
+
+  This has no runtime persistence. It adds no durable memory write, no runtime
+  DB write/query, no production DB read, no schema/migration, no route or UI,
+  no browser request, no browser persistence, no formation receipt write, no
+  feedback write/mutation, no proof/evidence/Perspective promotion/work
+  mutation, no provider/OpenAI/source-fetch/retrieval/RAG execution, no salience
+  authority, and no product write/product IDs. product-write remains parked by
+  #686. The next recommended slice is
+  `recent_rehearsal_buffer_implementation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

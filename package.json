@@ -533,6 +533,7 @@
     "smoke:formation-receipt-durable-event-contract-v0-1": "node scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
     "smoke:formation-receipt-durable-event-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
     "smoke:formation-receipt-durable-event-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+    "smoke:recent-rehearsal-buffer-contract-v0-1": "node scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

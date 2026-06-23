@@ -616,6 +616,26 @@ no product ID allocation. Product-write remains parked by the #686 stopline.
 The next recommended slice is Recent Rehearsal Buffer contract v0.1:
 `recent_rehearsal_buffer_contract_v0_1`.
 
+## Recent Rehearsal Buffer Contract v0.1
+
+Recent Rehearsal Buffer contract v0.1 defines compact, non-durable resume context
+for recent work in Research Candidate review. It may carry the last active
+research question, active perspective/candidate context, recent failed checks,
+open tensions, last user/operator decisions, recent context refs, excluded
+context refs, and decay context, but this slice is contract-only.
+
+The buffer is not proof/evidence, not Perspective state, not work status, not
+promotion authority, not salience authority, not retrieval/RAG result, and not
+product write. It is a non-durable working memory adapter that may later help a
+human workbench or agent brief resume work, but it does not write durable
+memory, implement runtime DB query/write behavior, start browser requests, call
+providers/OpenAI, fetch sources, execute retrieval/RAG, promote Perspective
+state, mutate work, or allocate product IDs. Product-write remains parked by
+the #686 stopline.
+
+The next recommended slice is
+`recent_rehearsal_buffer_implementation_v0_1`.
+
 ## Next Recommended Slice
 
-`recent_rehearsal_buffer_contract_v0_1`
+`recent_rehearsal_buffer_implementation_v0_1`
