@@ -976,6 +976,16 @@ Product-write remains parked by #686.
 Next recommended slice is Durable Perspective State / Trajectory browser validation v0.1.
 `durable_perspective_state_trajectory_browser_validation_v0_1`
 
+Durable Perspective State / Trajectory browser validation validates the deterministic fixture-backed #734 implementation.
+It validates public-safe durable state/trajectory preview bundles against the #733 contract.
+Agent Substrate remains advisory-only and cannot read/write durable Perspective state.
+PerspectiveSnapshot remains a future derived view, not independent source of truth.
+Salience state remains display/reuse context only and not authority.
+This slice does not implement runtime state read/write, durable Perspective delta apply, PerspectiveSnapshot runtime, trajectory runtime build, proof/evidence writes, accepted evidence writes, Formation Receipt writes, DB writes, route/UI, provider/OpenAI, retrieval/RAG, or product write.
+Product-write remains parked by #686.
+Next recommended slice is Project Constellation Runtime Layout contract v0.1.
+`project_constellation_runtime_layout_contract_v0_1`
+
 ## Next Recommended Slice
 
-`durable_perspective_state_trajectory_browser_validation_v0_1`
+`project_constellation_runtime_layout_contract_v0_1`

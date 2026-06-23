@@ -45,6 +45,20 @@ const implementationRecommendationStatus =
   "ready_for_durable_perspective_state_trajectory_browser_validation_v0_1";
 const implementationNextRecommendedSlice =
   "durable_perspective_state_trajectory_browser_validation_v0_1";
+const browserValidationFixturePath =
+  "fixtures/research-candidate-review.durable-perspective-state-trajectory-browser-validation.sample.v0.1.json";
+const browserValidationSmokePath =
+  "scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs";
+const browserValidationPackageScriptName =
+  "smoke:durable-perspective-state-trajectory-browser-validation-v0-1";
+const browserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs";
+const browserValidationVersion =
+  "durable_perspective_state_trajectory_browser_validation.v0.1";
+const browserValidationRecommendationStatus =
+  "ready_for_project_constellation_runtime_layout_contract_v0_1";
+const browserValidationNextRecommendedSlice =
+  "project_constellation_runtime_layout_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -734,6 +748,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (durablePerspectiveStateTrajectoryBrowserValidationSliceActive()) {
+    assertDurablePerspectiveStateTrajectoryBrowserValidationPackageScript();
+    return;
+  }
   if (durablePerspectiveStateTrajectoryImplementationSliceActive()) {
     assertDurablePerspectiveStateTrajectoryImplementationPackageScript();
     return;
@@ -772,6 +790,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (durablePerspectiveStateTrajectoryBrowserValidationSliceActive()) {
+    assertDurablePerspectiveStateTrajectoryBrowserValidationChangedFiles(changedFiles);
+    return;
+  }
   if (durablePerspectiveStateTrajectoryImplementationSliceActive()) {
     assertDurablePerspectiveStateTrajectoryImplementationChangedFiles(changedFiles);
     return;
@@ -804,6 +826,123 @@ function assertStaticBoundary() {
     assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
     assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
     assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function durablePerspectiveStateTrajectoryBrowserValidationSliceActive() {
+  return readChangedFiles().includes(browserValidationSmokePath);
+}
+
+function assertDurablePerspectiveStateTrajectoryBrowserValidationPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts[browserValidationPackageScriptName],
+    browserValidationPackageScriptValue,
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    [browserValidationPackageScriptName],
+    "package.json must add only the Durable Perspective State / Trajectory browser validation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  if (typeof basePackageJson !== "undefined") {
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+  }
+}
+
+function assertDurablePerspectiveStateTrajectoryBrowserValidationChangedFiles(changedFiles) {
+  const expectedFiles = [
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    implementationSmokePath,
+    smokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    ...downstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    typePath,
+    fixturePath,
+    implementationBuilderPath,
+    implementationFixturePath,
+    ...protectedUnchangedPaths,
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      "Durable Perspective State / Trajectory browser validation slice must not change " + unchangedPath,
+    );
+  }
+  for (const expectedFile of [
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    implementationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ]) {
+    assert.ok(changedFiles.includes(expectedFile), "changed files must include " + expectedFile);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      "unexpected changed file in Durable Perspective State / Trajectory browser validation downstream slice: " + changedFile,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\/research-retrieval\//, "must not add retrieval implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/research-rag\//, "must not add RAG implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*perspective.*state/i, "must not add runtime Perspective state files");
+    assert.doesNotMatch(changedFile, /^lib\/.*perspective.*snapshot/i, "must not add runtime PerspectiveSnapshot files");
+    assert.doesNotMatch(changedFile, /^lib\/.*trajectory/i, "must not add runtime trajectory builder files");
+    assert.doesNotMatch(changedFile, /^lib\/.*promotion/i, "must not add runtime promotion implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  const implementationSmokeSource = readFileSync(implementationSmokePath, "utf8");
+  for (const requiredText of [
+    browserValidationVersion,
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    browserValidationPackageScriptName,
+    browserValidationRecommendationStatus,
+    browserValidationNextRecommendedSlice,
+    "validates deterministic fixture-backed implementation from #734",
+    "current thesis has lineage",
+    "PerspectiveSnapshot runtime not implemented",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      implementationSmokeSource.includes(requiredText),
+      "smoke must allow Durable Perspective State / Trajectory browser validation downstream pointer: " + requiredText,
+    );
   }
 }
 
