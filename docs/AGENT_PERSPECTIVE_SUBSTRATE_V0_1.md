@@ -555,6 +555,26 @@ authority, not salience authority, not retrieval/RAG result, and not product
 write. Product-write remains parked by the #686 stopline. The next recommended
 slice is `formation_receipt_durable_event_contract_v0_1`.
 
+## Formation Receipt Durable Event Contract v0.1
+
+Formation Receipt durable event contract v0.1 records selected/excluded context
+and unresolved tensions as audit/provenance only. It preserves source refs,
+candidate refs, digest refs, handoff refs, decision refs, result refs, excluded
+context reasons, and unresolved tensions, but it is not proof/evidence, not
+Perspective state, not work status, not promotion authority, not salience
+authority, not retrieval/RAG result, and not product write.
+
+This contract slice defines the durable event shape only. It adds no durable
+event write implementation, no runtime DB write, no production DB read, no
+route, no route handler, no server action, no component/UI implementation, no
+browser request, no browser persistence, no provider/OpenAI call, no source
+fetch, no retrieval/RAG execution, no proof/evidence write, no Perspective
+promotion, no durable Perspective state write, no promotion decision record, no
+work mutation, no salience governor, no product write, no product DB write, and
+no product ID allocation. Product-write remains parked by the #686 stopline.
+The next recommended slice is
+`formation_receipt_durable_event_implementation_v0_1`.
+
 ## Next Recommended Slice
 
-`formation_receipt_durable_event_contract_v0_1`
+`formation_receipt_durable_event_implementation_v0_1`
