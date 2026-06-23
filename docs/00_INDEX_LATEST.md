@@ -2353,6 +2353,29 @@ repo-local 색인이다.
   product write/product IDs. product-write remains parked by #686. The next
   recommended slice is
   `operator_source_candidate_generation_browser_validation_v0_1`.
+- Operator Source Candidate Generation browser validation v0.1:
+  `fixtures/research-candidate-review.operator-source-candidate-generation-browser-validation.sample.v0.1.json`
+  and `scripts/smoke-operator-source-candidate-generation-browser-validation-v0-1.mjs`
+  (`npm run smoke:operator-source-candidate-generation-browser-validation-v0-1`)
+  validate the #725 deterministic fixture-backed implementation.
+
+  Smoke coverage validates deterministic fixture-backed implementation,
+  validates generated candidate generation preview bundle from #724 contract,
+  validates candidate preview family summary, validates generated candidate summary,
+  validates source reference summary, validates invalid generated
+  candidate preview override rejection, and validates invalid source_refs
+  override rejection.
+
+  This has no runtime candidate generation, no source fetch, no crawler
+  behavior, no provider/OpenAI call, no retrieval/RAG execution, no source
+  index write, no durable source record write, no candidate record write, no
+  runtime persistence, no durable memory write, no runtime DB write/query, no
+  production DB read, no schema/migration, no route or UI, no browser request,
+  no browser persistence, no durable salience write, no recent rehearsal buffer
+  write, no formation receipt write, no feedback write/mutation, no
+  proof/evidence/Perspective promotion/candidate mutation/work mutation, and no
+  product write/product IDs. product-write remains parked by #686. The next
+  recommended slice is `non_authoritative_retrieval_rag_contract_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
