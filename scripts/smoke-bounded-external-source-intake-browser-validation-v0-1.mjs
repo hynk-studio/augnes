@@ -34,6 +34,22 @@ const recommendationStatus =
   "ready_for_operator_source_candidate_generation_contract_v0_1";
 const nextRecommendedSlice =
   "operator_source_candidate_generation_contract_v0_1";
+const operatorSourceCandidateGenerationContractTypePath =
+  "types/operator-source-candidate-generation-contract.ts";
+const operatorSourceCandidateGenerationContractFixturePath =
+  "fixtures/research-candidate-review.operator-source-candidate-generation-contract.sample.v0.1.json";
+const operatorSourceCandidateGenerationContractSmokePath =
+  "scripts/smoke-operator-source-candidate-generation-contract-v0-1.mjs";
+const operatorSourceCandidateGenerationContractPackageScriptName =
+  "smoke:operator-source-candidate-generation-contract-v0-1";
+const operatorSourceCandidateGenerationContractPackageScriptValue =
+  "node scripts/smoke-operator-source-candidate-generation-contract-v0-1.mjs";
+const operatorSourceCandidateGenerationContractVersion =
+  "operator_source_candidate_generation_contract.v0.1";
+const operatorSourceCandidateGenerationContractRecommendationStatus =
+  "ready_for_operator_source_candidate_generation_implementation_v0_1";
+const operatorSourceCandidateGenerationContractNextRecommendedSlice =
+  "operator_source_candidate_generation_implementation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -364,6 +380,10 @@ function assertBuilderFile() {
 }
 
 function assertPackageScript() {
+  if (operatorSourceCandidateGenerationContractSliceActive()) {
+    assertOperatorSourceCandidateGenerationContractPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
@@ -383,6 +403,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (operatorSourceCandidateGenerationContractSliceActive()) {
+    assertOperatorSourceCandidateGenerationContractChangedFiles(changedFiles);
+    return;
+  }
   for (const expectedFile of expectedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
@@ -818,6 +842,120 @@ function assertPortableMergeBaseFallback() {
     "Unable to determine a base ref for static changed-file validation",
   ]) {
     assert.ok(smokeSource.includes(requiredText), `smoke must include portable mergeBaseRef text: ${requiredText}`);
+  }
+}
+
+function operatorSourceCandidateGenerationContractSliceActive() {
+  return readChangedFiles().includes(
+    operatorSourceCandidateGenerationContractSmokePath,
+  );
+}
+
+function assertOperatorSourceCandidateGenerationContractPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts[operatorSourceCandidateGenerationContractPackageScriptName],
+    operatorSourceCandidateGenerationContractPackageScriptValue,
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    [operatorSourceCandidateGenerationContractPackageScriptName],
+    "package.json must add only the Operator Source Candidate Generation contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+}
+
+function assertOperatorSourceCandidateGenerationContractChangedFiles(changedFiles) {
+  const expectedFiles = [
+    operatorSourceCandidateGenerationContractTypePath,
+    operatorSourceCandidateGenerationContractFixturePath,
+    operatorSourceCandidateGenerationContractSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+    implementationSmokePath,
+    contractSmokePath,
+    "scripts/smoke-salience-governor-browser-validation-v0-1.mjs",
+    "scripts/smoke-salience-governor-implementation-v0-1.mjs",
+    "scripts/smoke-salience-governor-contract-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+    "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+    "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+    "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+  ];
+  for (const expectedFile of expectedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const unchangedPath of [builderPath, implementationFixturePath]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Operator Source Candidate Generation contract slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Operator Source Candidate Generation contract downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  for (const requiredText of [
+    operatorSourceCandidateGenerationContractVersion,
+    operatorSourceCandidateGenerationContractTypePath,
+    operatorSourceCandidateGenerationContractFixturePath,
+    operatorSourceCandidateGenerationContractSmokePath,
+    operatorSourceCandidateGenerationContractPackageScriptName,
+    operatorSourceCandidateGenerationContractRecommendationStatus,
+    operatorSourceCandidateGenerationContractNextRecommendedSlice,
+    "candidate-generation preview policy",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      smokeSource.includes(requiredText),
+      `#723 Bounded External Source Intake browser validation smoke must allow Operator Source Candidate Generation downstream pointer: ${requiredText}`,
+    );
   }
 }
 

@@ -1242,6 +1242,36 @@ ID allocation. Product-write remains parked by the #686 stopline. Next
 recommended slice:
 `operator_source_candidate_generation_contract_v0_1`.
 
+## Operator Source Candidate Generation Contract v0.1 Pointer
+
+Operator Source Candidate Generation contract v0.1 remains separated from
+durable Perspective promotion. It defines candidate preview families only for
+bounded, operator-provided, reference-only source intake bundles and does not
+implement generation in this slice.
+
+The contract keeps generated candidates candidate-only and preview-only. Claim,
+evidence, tension, knowledge gap, Perspective delta, and follow-up work
+candidate preview families require source_refs, operator context, and later
+human review. They do not become proof/evidence, source of truth, Perspective
+state, work status, promotion basis, retrieval/RAG result, salience authority,
+candidate/work mutation, or product write.
+
+This contract does not implement runtime DB/browser/provider/retrieval
+behavior in this slice. It adds no runtime candidate generation, no runtime
+source fetch, no crawler behavior, no provider/OpenAI call, no provider
+extraction, no retrieval/RAG execution, no source index write, no durable source
+record write, no candidate record write, no runtime persistence, no durable
+memory write, no runtime DB write/query, no production DB read, no
+schema/migration, no route, no route handler, no server action, no component/UI
+implementation, no browser request, no browser persistence, no durable salience
+write, no recent rehearsal buffer write, no formation receipt write, no
+feedback write/mutation, no proof/evidence write, no Perspective promotion, no
+durable Perspective state write, no promotion decision record, no
+candidate/work mutation, no product write, no product DB write, and no product
+ID allocation. Product-write remains parked by the #686 stopline. Next
+recommended slice:
+`operator_source_candidate_generation_implementation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

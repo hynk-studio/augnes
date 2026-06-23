@@ -929,6 +929,33 @@ write, and no product ID allocation. Product-write remains parked by the #686
 stopline. Next recommended slice:
 `operator_source_candidate_generation_contract_v0_1`.
 
+Operator Source Candidate Generation contract v0.1 preserves canonical
+promotion gates by defining candidate preview families only. It can describe
+later candidate previews from bounded, operator-provided, reference-only source
+intake bundles, but it remains separated from durable Perspective promotion,
+proof/evidence gates, retrieval/RAG authority, salience authority, work
+creation, candidate record writes, and product write authority.
+
+The contract is not runtime candidate generation, not source fetch, not crawler
+behavior, not provider extraction, not provider/OpenAI output, not retrieval/RAG
+result, not source index write, not durable source record write, not candidate
+record write, not proof/evidence, not Perspective state, not work status, not
+promotion authority, not salience authority, not candidate/work mutation, not
+product write, and not product ID allocation authority. It adds no runtime
+candidate generation, no runtime source fetch, no crawler, no provider/OpenAI
+call, no provider extraction, no retrieval/RAG execution, no source index
+write, no durable source record write, no candidate record write, no runtime
+persistence, no durable memory write, no runtime DB write/query, no production
+DB read, no schema/migration change, no app/api route change, no route handler
+change, no server action, no component/UI implementation, no browser request,
+no browser persistence, no durable salience write, no recent rehearsal buffer
+write, no formation receipt write, no feedback write/mutation, no
+proof/evidence write, no Perspective promotion, no durable Perspective state
+write, no promotion decision record, no candidate/work mutation, no product
+write, no product DB write, and no product ID allocation. Product-write remains
+parked by the #686 stopline. Next recommended slice:
+`operator_source_candidate_generation_implementation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.
