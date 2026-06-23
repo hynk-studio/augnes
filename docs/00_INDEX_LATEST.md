@@ -2620,6 +2620,44 @@ repo-local 색인이다.
   `durable_perspective_state_trajectory_browser_validation_v0_1`.
 
   Boundary phrases: deterministic fixture-backed implementation only; validates and materializes #733 durable state/trajectory preview bundle; current thesis has lineage; prior thesis is not overwritten silently; prior theses are preserved; retired claims remain auditable; Contradicted evidence is not deleted; open tensions are preserved or explicitly resolved; knowledge gaps are preserved, explicitly deferred, or closed; supporting evidence refs and contradicting evidence refs are distinct; candidate evidence is not accepted evidence; accepted evidence refs required for accepted evidence claims; promotion history append-only later; retirement history append-only later; PerspectiveSnapshot is derived view, not independent source of truth; PerspectiveSnapshot runtime not implemented; salience state is display/reuse context only; salience state is not authority; no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no trajectory runtime build; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no browser request; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs; product-write remains parked by #686.
+- Durable Perspective State / Trajectory browser validation v0.1:
+  `fixtures/research-candidate-review.durable-perspective-state-trajectory-browser-validation.sample.v0.1.json`
+  and
+  `scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs`
+  (`npm run smoke:durable-perspective-state-trajectory-browser-validation-v0-1`)
+  validate the deterministic fixture-backed implementation from #734. This
+  validation checks the #733 contract boundary and #734 top-level
+  implementation boundary separation, validates built durable state/trajectory
+  preview bundle output, validates state field summary, validates trajectory
+  event family summary, validates lineage summary, validates evidence summary,
+  validates snapshot summary, validates salience summary, validates reference
+  summary, validates invalid state preview override rejection, validates invalid
+  trajectory event override rejection, validates invalid snapshot override
+  rejection, validates invalid authority boundary override rejection, and
+  validates invalid refs override rejection.
+
+  Current thesis has lineage. Prior thesis is not overwritten silently. Prior
+  theses are preserved. Retired claims remain auditable. contradicted evidence
+  is not deleted. Open tensions are preserved or explicitly resolved.
+  Knowledge gaps are preserved, explicitly deferred, or closed. Supporting
+  evidence refs and contradicting evidence refs are distinct. Candidate
+  evidence is not accepted evidence. Accepted evidence refs required for
+  accepted evidence claims. Promotion history append-only later. Retirement
+  history append-only later. PerspectiveSnapshot is derived view, not
+  independent source of truth. PerspectiveSnapshot runtime not implemented.
+  Salience state is display/reuse context only. Salience state is not
+  authority.
+
+  This validation has no runtime state read/write, no durable Perspective delta
+  apply, no PerspectiveSnapshot runtime, no trajectory runtime build, no
+  proof/evidence write, no accepted evidence write, no Formation Receipt
+  write, no work mutation, no DB write/query, no schema/migration, no route or
+  UI, no browser request, no provider/OpenAI call, no retrieval/RAG execution,
+  and no product write/product IDs. Product-write remains parked by #686. The
+  next recommended slice is
+  `project_constellation_runtime_layout_contract_v0_1`.
+
+  Boundary phrases: validates deterministic fixture-backed implementation from #734; validates #733 contract boundary and #734 top-level implementation boundary separation; validates built durable state/trajectory preview bundle; validates state field summary; validates trajectory event family summary; validates lineage summary; validates evidence summary; validates snapshot summary; validates salience summary; validates reference summary; validates invalid state preview override rejection; validates invalid trajectory event override rejection; validates invalid snapshot override rejection; validates invalid authority boundary override rejection; validates invalid refs override rejection; current thesis has lineage; prior thesis is not overwritten silently; prior theses are preserved; retired claims remain auditable; contradicted evidence is not deleted; open tensions are preserved or explicitly resolved; knowledge gaps are preserved, explicitly deferred, or closed; supporting evidence refs and contradicting evidence refs are distinct; candidate evidence is not accepted evidence; accepted evidence refs required for accepted evidence claims; promotion history append-only later; retirement history append-only later; PerspectiveSnapshot is derived view, not independent source of truth; PerspectiveSnapshot runtime not implemented; salience state is display/reuse context only; salience state is not authority; no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no trajectory runtime build; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no browser request; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
