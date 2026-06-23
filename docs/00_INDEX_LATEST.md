@@ -2690,6 +2690,39 @@ repo-local 색인이다.
   `project_constellation_runtime_layout_implementation_v0_1`.
 
   Boundary phrases: Project Constellation Runtime Layout contract v0.1; contract-only, fixture-only, smoke-only; defines future stable Project Constellation layout grammar; layout is interface, not truth; coordinates are display hints, not source of truth; stable layout across refreshes required later; deterministic seeded 2D layout required later; manual anchors are display hints only; temporal smoothing is display continuity only; source balance required; candidate overlay and durable graph remain distinct; stale high-gravity nodes are marked; bridge nodes are visible; tension markers are visible; knowledge gap markers are visible; evidence rays are refs, not proof/evidence writes; PerspectiveSnapshot remains derived view; salience state is display/reuse context only; salience state is not authority; no runtime layout execution; no seeded layout runtime; no force-directed layout runtime; no temporal smoothing runtime; no layout persistence; no graph DB; no graph mutation; no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no browser request; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs; product-write remains parked by #686.
+- Project Constellation Runtime Layout implementation v0.1:
+  `lib/research-candidate-review/project-constellation-runtime-layout.ts`,
+  `fixtures/research-candidate-review.project-constellation-runtime-layout-implementation.sample.v0.1.json`,
+  and
+  `scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs`
+  (`npm run smoke:project-constellation-runtime-layout-implementation-v0-1`)
+  add a deterministic fixture-backed implementation only. It validates and
+  materializes #736 Project Constellation layout preview bundle output without
+  adding layout runtime behavior.
+
+  Layout is interface, not truth. Coordinates are display hints, not source of
+  truth. Stable layout across refreshes required later. Deterministic seeded 2D
+  layout required later. Manual anchors are display hints only. Temporal
+  smoothing is display continuity only. Source balance required and
+  advisory-only. Candidate overlay and durable graph remain distinct. Stale
+  high-gravity nodes are marked. Bridge nodes are visible. Tension markers are
+  visible. Knowledge gap markers are visible. Evidence rays are refs, not
+  proof/evidence writes. PerspectiveSnapshot remains derived view. Salience
+  state is display/reuse context only. Salience state is not authority. Layout
+  coordinates, manual anchors, and cluster positions are not authority.
+
+  This implementation has no runtime layout execution, no seeded layout
+  runtime, no force-directed layout runtime, no temporal smoothing runtime, no
+  layout persistence, no graph DB, no graph mutation, no UI rendering, no
+  browser request, no runtime state read/write, no durable Perspective delta
+  apply, no PerspectiveSnapshot runtime, no proof/evidence write, no accepted
+  evidence write, no Formation Receipt write, no work mutation, no DB
+  write/query, no schema/migration, no route or UI, no provider/OpenAI call, no
+  retrieval/RAG execution, and no product write/product IDs. Product-write
+  remains parked by #686. The next recommended slice is
+  `project_constellation_runtime_layout_browser_validation_v0_1`.
+
+  Boundary phrases: Project Constellation Runtime Layout implementation v0.1; deterministic fixture-backed implementation only; validates and materializes #736 Project Constellation layout preview bundle; layout is interface, not truth; coordinates are display hints, not source of truth; stable layout across refreshes required later; deterministic seeded 2D layout required later; manual anchors are display hints only; temporal smoothing is display continuity only; source balance required and advisory-only; candidate overlay and durable graph remain distinct; stale high-gravity nodes are marked; bridge nodes are visible; tension markers are visible; knowledge gap markers are visible; evidence rays are refs, not proof/evidence writes; PerspectiveSnapshot remains derived view; salience state is display/reuse context only; salience state is not authority; layout coordinates, manual anchors, and cluster positions are not authority; no runtime layout execution; no seeded layout runtime; no force-directed layout runtime; no temporal smoothing runtime; no layout persistence; no graph DB; no graph mutation; no UI rendering; no browser request; no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

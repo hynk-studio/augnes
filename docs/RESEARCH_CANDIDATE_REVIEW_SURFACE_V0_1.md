@@ -1567,6 +1567,15 @@ execution, no product write, no product DB write, and no product ID allocation.
 Product-write remains parked by #686. Next recommended slice:
 `project_constellation_runtime_layout_implementation_v0_1`.
 
+Project Constellation Runtime Layout implementation remains separated from runtime layout, candidate preview, durable Perspective state, and promotion runtime.
+Candidate overlay is not durable graph.
+Coordinates are display hints, not truth.
+Evidence rays are refs, not proof/evidence records.
+Tension and knowledge gap markers remain visible and do not imply resolution or closure.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/layout behavior.
+Product-write remains parked by #686. Next recommended slice:
+`project_constellation_runtime_layout_browser_validation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
