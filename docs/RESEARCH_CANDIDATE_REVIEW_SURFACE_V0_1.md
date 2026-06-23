@@ -1028,6 +1028,26 @@ not promotion authority, not salience authority, not retrieval/RAG result, and
 not product write. Product-write remains parked by the #686 stopline. Next
 recommended slice: `recent_rehearsal_buffer_implementation_v0_1`.
 
+## Recent Rehearsal Buffer Implementation v0.1 Pointer
+
+Recent Rehearsal Buffer implementation v0.1 remains separated from durable
+Perspective promotion. It records recent work resume context only by generating
+compact non-durable resume context from the #715 contract fixture.
+
+This slice does not implement runtime DB/browser/provider/retrieval behavior.
+It adds no runtime persistence, no durable memory write, no runtime DB
+write/query, no production DB read, no schema/migration, no route, no route
+handler, no server action, no component/UI implementation, no browser request,
+no browser persistence, no formation receipt write, no feedback
+write/mutation, no provider/OpenAI call, no source fetch, no retrieval/RAG
+execution, no proof/evidence write, no Perspective promotion, no durable
+Perspective state write, no promotion decision record, no work mutation, no
+salience authority, no product write, no product DB write, and no product ID
+allocation. It is not proof/evidence, not Perspective state, not work status,
+not promotion authority, not salience authority, not retrieval/RAG result, and
+not product write. Product-write remains parked by the #686 stopline. Next
+recommended slice: `recent_rehearsal_buffer_browser_validation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet

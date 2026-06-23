@@ -1,0 +1,241 @@
+{
+  "implementation_kind": "recent_rehearsal_buffer_implementation",
+  "implementation_version": "recent_rehearsal_buffer_implementation.v0.1",
+  "source_contract_ref": "recent_rehearsal_buffer_contract.v0.1:fixtures/research-candidate-review.recent-rehearsal-buffer-contract.sample.v0.1.json",
+  "source_contract_fingerprint": "fnv1a32:5f967ded",
+  "source_formation_receipt_validation_ref": "formation_receipt_durable_event_browser_validation.v0.1:fixtures/research-candidate-review.formation-receipt-durable-event-browser-validation.sample.v0.1.json#714",
+  "generated_recent_rehearsal_buffer": {
+    "recent_rehearsal_buffer_id": "recent_rehearsal_buffer_contract_sample_v0_1_001",
+    "buffer_version": "recent_rehearsal_buffer.v0.1",
+    "generated_at": "2026-06-23T00:00:00.000Z",
+    "scope": "research_candidate_review:recent_rehearsal_contract_sample",
+    "source_refs": [
+      {
+        "ref_id": "source_ref_formation_receipt_browser_validation_714",
+        "ref_kind": "formation_receipt_validation_ref",
+        "ref": "formation_receipt_durable_event_browser_validation.v0.1:fixtures/research-candidate-review.formation-receipt-durable-event-browser-validation.sample.v0.1.json#714",
+        "public_safe": true
+      }
+    ],
+    "last_active_research_question": "How should recent non-durable context help resume Research Candidate review without becoming authority?",
+    "last_active_perspective_key": "perspective_key_recent_research_candidate_review",
+    "last_candidate_review_surface_id": "research_candidate_review_surface_v0_1",
+    "last_formation_receipt_ref": {
+      "ref_id": "last_formation_receipt_ref_browser_validation_714",
+      "ref_kind": "formation_receipt_ref",
+      "ref": "formation_receipt_durable_event_browser_validation.v0.1:fixtures/research-candidate-review.formation-receipt-durable-event-browser-validation.sample.v0.1.json#714",
+      "public_safe": true
+    },
+    "last_open_tension_ids": [
+      "open_tension_recent_context_is_not_source_of_truth",
+      "open_tension_resume_context_is_not_promotion_basis"
+    ],
+    "last_failed_check": {
+      "check_id": "failed_check_recent_rehearsal_contract_boundary",
+      "check_kind": "static_boundary_check",
+      "check_status": "warning",
+      "summary": "Recent Rehearsal Buffer must remain non-durable and contract-only until a later implementation slice.",
+      "source_refs": [
+        "source_ref_formation_receipt_browser_validation_714"
+      ]
+    },
+    "last_codex_result_status": "formation_receipt_browser_validation_passed",
+    "last_user_decision": {
+      "decision_id": "user_decision_continue_to_recent_rehearsal_contract",
+      "decision_kind": "roadmap_next_slice",
+      "summary": "Continue from Formation Receipt validation to Recent Rehearsal Buffer contract v0.1.",
+      "source_refs": [
+        "source_ref_formation_receipt_browser_validation_714"
+      ]
+    },
+    "last_follow_up_work_candidate_id": "work_candidate_recent_rehearsal_buffer_implementation_v0_1",
+    "recent_context_refs": [
+      {
+        "context_ref_id": "recent_context_ref_active_research_question",
+        "context_kind": "last_active_research_question",
+        "source_refs": [
+          "source_ref_formation_receipt_browser_validation_714"
+        ],
+        "reason": "Keeps the recent research question available for resume context only."
+      },
+      {
+        "context_ref_id": "recent_context_ref_open_tensions",
+        "context_kind": "open_tension_summary",
+        "source_refs": [
+          "source_ref_formation_receipt_browser_validation_714"
+        ],
+        "reason": "Keeps unresolved tensions visible without resolving or promoting them."
+      }
+    ],
+    "excluded_context_refs": [
+      {
+        "context_ref_id": "excluded_context_ref_product_write",
+        "context_kind": "product_write_candidate",
+        "source_refs": [
+          "source_ref_formation_receipt_browser_validation_714"
+        ],
+        "reason": "Excluded because product-write remains parked by #686 and this buffer is non-durable resume context only."
+      },
+      {
+        "context_ref_id": "excluded_context_ref_provider_output",
+        "context_kind": "provider_output",
+        "source_refs": [
+          "source_ref_formation_receipt_browser_validation_714"
+        ],
+        "reason": "Excluded because this contract does not call providers or use provider output."
+      }
+    ],
+    "decay_state": "fresh",
+    "decay_policy_ref": "recent_rehearsal_buffer_decay_policy.v0.1",
+    "authority_boundary": {
+      "implementation_added_now": true,
+      "contract_followed_now": true,
+      "fixture_backed_only": true,
+      "deterministic_builder_added_now": true,
+      "runtime_buffer_implemented_now": false,
+      "runtime_persistence_implemented_now": false,
+      "durable_memory_write_implemented_now": false,
+      "runtime_db_write_now": false,
+      "runtime_db_query_now": false,
+      "production_db_used_now": false,
+      "db_schema_implemented_now": false,
+      "route_changed_now": false,
+      "component_changed_now": false,
+      "browser_request_now": false,
+      "formation_receipt_written_now": false,
+      "feedback_events_written_now": false,
+      "feedback_events_mutated_now": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state_write": false,
+      "promotion_decision_record": false,
+      "work_mutation": false,
+      "execution_authority": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "external_handoff_authority": false,
+      "provider_openai_authority": false,
+      "retrieval_rag_authority": false,
+      "source_fetch_authority": false,
+      "salience_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "product_write_lane_parked_by_686": true
+    },
+    "validation": {
+      "static_source_validation_only": true,
+      "fixture_backed_only": true,
+      "app_server_started_now": false,
+      "production_db_used_now": false,
+      "runtime_browser_request_now": false,
+      "runtime_db_query_now": false,
+      "runtime_db_write_now": false
+    }
+  },
+  "resume_context_summary": {
+    "recent_context_count": 2,
+    "recent_context_ref_ids": [
+      "recent_context_ref_active_research_question",
+      "recent_context_ref_open_tensions"
+    ],
+    "recent_context_has_source_refs": true,
+    "excluded_context_count": 2,
+    "excluded_context_ref_ids": [
+      "excluded_context_ref_product_write",
+      "excluded_context_ref_provider_output"
+    ],
+    "excluded_context_reasons_present": true,
+    "last_open_tension_count": 2,
+    "last_failed_check_present": true,
+    "last_user_decision_present": true,
+    "may_help_resume_work": true,
+    "non_durable": true,
+    "not_promotion_basis": true,
+    "not_source_of_truth": true,
+    "not_proof_or_evidence": true,
+    "not_perspective_state": true,
+    "not_work_status": true,
+    "not_product_write": true
+  },
+  "decay_summary": {
+    "decay_state": "fresh",
+    "allowed_decay_states": [
+      "fresh",
+      "warm",
+      "cool",
+      "archive"
+    ],
+    "decay_is_display_context_only": true,
+    "decay_does_not_delete_records": true,
+    "decay_does_not_mutate_work": true,
+    "decay_does_not_decide_promotion": true,
+    "pin_or_watch_not_implemented_now": true
+  },
+  "non_durable_summary": {
+    "non_durable": true,
+    "durable_write_requires_later_contract": true,
+    "runtime_persistence_implemented_now": false,
+    "durable_memory_write_implemented_now": false,
+    "not_salience_authority": true,
+    "not_retrieval_rag_result": true,
+    "not_product_write": true
+  },
+  "authority_boundary": {
+    "implementation_added_now": true,
+    "contract_followed_now": true,
+    "fixture_backed_only": true,
+    "deterministic_builder_added_now": true,
+    "runtime_buffer_implemented_now": false,
+    "runtime_persistence_implemented_now": false,
+    "durable_memory_write_implemented_now": false,
+    "runtime_db_write_now": false,
+    "runtime_db_query_now": false,
+    "production_db_used_now": false,
+    "db_schema_implemented_now": false,
+    "route_changed_now": false,
+    "component_changed_now": false,
+    "browser_request_now": false,
+    "formation_receipt_written_now": false,
+    "feedback_events_written_now": false,
+    "feedback_events_mutated_now": false,
+    "proof_or_evidence_record": false,
+    "perspective_promotion": false,
+    "durable_perspective_state_write": false,
+    "promotion_decision_record": false,
+    "work_mutation": false,
+    "execution_authority": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "external_handoff_authority": false,
+    "provider_openai_authority": false,
+    "retrieval_rag_authority": false,
+    "source_fetch_authority": false,
+    "salience_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation_policy": {
+    "static_source_validation_only": true,
+    "fixture_backed_only": true,
+    "app_server_started_now": false,
+    "production_db_used_now": false,
+    "runtime_browser_request_now": false,
+    "runtime_db_query_now": false,
+    "runtime_db_write_now": false
+  },
+  "validation": {
+    "passed": true,
+    "failure_codes": [],
+    "recent_context_has_source_refs": true,
+    "excluded_context_has_reasons": true,
+    "decay_state_allowed": true,
+    "non_durable_policy_preserved": true,
+    "authority_boundary_preserved": true,
+    "deterministic_rebuild_matches_fixture": true
+  },
+  "recommendation_status": "ready_for_recent_rehearsal_buffer_browser_validation_v0_1",
+  "next_recommended_slice": "recent_rehearsal_buffer_browser_validation_v0_1",
+  "implementation_fingerprint": "fnv1a32:1a489b16",
+  "fingerprint_algorithm": "fnv1a32_canonical_json"
+}

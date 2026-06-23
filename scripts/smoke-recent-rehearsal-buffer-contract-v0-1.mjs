@@ -16,10 +16,26 @@ const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
 const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
 const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
+const implementationBuilderPath =
+  "lib/research-candidate-review/recent-rehearsal-buffer.ts";
+const implementationFixturePath =
+  "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json";
+const implementationSmokePath =
+  "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs";
 
 const packageScriptName = "smoke:recent-rehearsal-buffer-contract-v0-1";
 const packageScriptValue =
   "node scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs";
+const implementationPackageScriptName =
+  "smoke:recent-rehearsal-buffer-implementation-v0-1";
+const implementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs";
+const implementationVersion =
+  "recent_rehearsal_buffer_implementation.v0.1";
+const implementationRecommendationStatus =
+  "ready_for_recent_rehearsal_buffer_browser_validation_v0_1";
+const implementationNextRecommendedSlice =
+  "recent_rehearsal_buffer_browser_validation_v0_1";
 const contractKind = "recent_rehearsal_buffer_contract";
 const contractVersion = "recent_rehearsal_buffer_contract.v0.1";
 const bufferVersion = "recent_rehearsal_buffer.v0.1";
@@ -39,6 +55,38 @@ const expectedChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  sourceValidationSmokePath,
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+
+const implementationChangedFiles = [
+  implementationBuilderPath,
+  implementationFixturePath,
+  implementationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  smokePath,
   sourceValidationSmokePath,
   "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
   "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
@@ -111,6 +159,7 @@ assertAuthorityBoundary(fixture.authority_boundary);
 assertValidationPolicy(fixture.validation_policy);
 assertDocsPointers();
 assertSourceValidationDownstreamPointer();
+assertImplementationDownstreamPointer();
 assert.deepEqual(
   fixture,
   rebuiltFixture,
@@ -438,6 +487,24 @@ function assertPackageScript() {
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
     .sort();
+  if (implementationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[implementationPackageScriptName],
+      implementationPackageScriptValue,
+    );
+    assert.deepEqual(
+      addedScripts,
+      [implementationPackageScriptName],
+      "package.json must add only the Recent Rehearsal Buffer implementation smoke script",
+    );
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+    return;
+  }
   assert.deepEqual(
     addedScripts,
     [packageScriptName],
@@ -453,12 +520,15 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  for (const expectedFile of expectedChangedFiles) {
+  const activeExpectedFiles = implementationSliceActive()
+    ? implementationChangedFiles
+    : expectedChangedFiles;
+  for (const expectedFile of activeExpectedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedChangedFiles.includes(changedFile),
+      activeExpectedFiles.includes(changedFile),
       `unexpected changed file in Recent Rehearsal Buffer contract slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
@@ -709,6 +779,37 @@ function assertSourceValidationDownstreamPointer() {
       `#714 Formation Receipt browser validation smoke must allow Recent Rehearsal Buffer contract downstream pointer: ${requiredText}`,
     );
   }
+}
+
+function assertImplementationDownstreamPointer() {
+  if (!implementationSliceActive()) {
+    return;
+  }
+  const implementationSmokeSource = readFile(implementationSmokePath);
+  for (const requiredText of [
+    implementationVersion,
+    implementationBuilderPath,
+    implementationFixturePath,
+    implementationSmokePath,
+    implementationPackageScriptName,
+    implementationRecommendationStatus,
+    implementationNextRecommendedSlice,
+    "invalid override summary/validation consistency",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      implementationSmokeSource.includes(requiredText),
+      `Recent Rehearsal Buffer implementation smoke must include downstream pointer text: ${requiredText}`,
+    );
+    assert.ok(
+      readFile(smokePath).includes(requiredText),
+      `#715 Recent Rehearsal Buffer contract smoke must allow implementation downstream pointer: ${requiredText}`,
+    );
+  }
+}
+
+function implementationSliceActive() {
+  return readChangedFiles().includes(implementationSmokePath);
 }
 
 function createFingerprint(value) {

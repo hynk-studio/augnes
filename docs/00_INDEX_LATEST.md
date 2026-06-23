@@ -2118,6 +2118,28 @@ repo-local 색인이다.
   authority, and no product write/product IDs. product-write remains parked by
   #686. The next recommended slice is
   `recent_rehearsal_buffer_implementation_v0_1`.
+- Recent Rehearsal Buffer implementation v0.1:
+  `lib/research-candidate-review/recent-rehearsal-buffer.ts`,
+  `fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json`,
+  and `scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs`
+  (`npm run smoke:recent-rehearsal-buffer-implementation-v0-1`)
+  add a deterministic fixture-backed implementation for the #715 Recent
+  Rehearsal Buffer contract.
+
+  The builder uses committed fixture data only and records the generated non-durable buffer shape from #715 contract fields. The implementation fixture includes
+  resume context summary, decay summary, non-durable summary, invalid override summary/validation consistency,
+  and authority-boundary validation. It keeps recent context as resume context
+  only, excluded context as reasoned audit context, decay as display context
+  only, and the buffer as non-durable.
+
+  This has no runtime persistence. It adds no durable memory write, no runtime
+  DB write/query, no production DB read, no schema/migration, no route or UI,
+  no browser request, no browser persistence, no formation receipt write, no
+  feedback write/mutation, no proof/evidence/Perspective promotion/work
+  mutation, no provider/OpenAI/source-fetch/retrieval/RAG execution, no salience
+  authority, and no product write/product IDs. product-write remains parked by
+  #686. The next recommended slice is
+  `recent_rehearsal_buffer_browser_validation_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

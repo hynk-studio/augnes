@@ -1,0 +1,618 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+
+const builderPath = "lib/research-candidate-review/recent-rehearsal-buffer.ts";
+const contractFixturePath =
+  "fixtures/research-candidate-review.recent-rehearsal-buffer-contract.sample.v0.1.json";
+const fixturePath =
+  "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json";
+const smokePath =
+  "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs";
+const contractSmokePath = "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs";
+const packagePath = "package.json";
+const indexPath = "docs/00_INDEX_LATEST.md";
+const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
+const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
+const gateDocPath =
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
+
+const packageScriptName =
+  "smoke:recent-rehearsal-buffer-implementation-v0-1";
+const packageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs";
+const implementationKind = "recent_rehearsal_buffer_implementation";
+const implementationVersion =
+  "recent_rehearsal_buffer_implementation.v0.1";
+const bufferVersion = "recent_rehearsal_buffer.v0.1";
+const recommendationStatus =
+  "ready_for_recent_rehearsal_buffer_browser_validation_v0_1";
+const nextRecommendedSlice =
+  "recent_rehearsal_buffer_browser_validation_v0_1";
+const writeFixture = process.argv.includes("--write-fixture");
+let cachedMergeBaseRef = null;
+
+const expectedChangedFiles = [
+  builderPath,
+  fixturePath,
+  smokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  contractSmokePath,
+  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+
+for (const filePath of [
+  builderPath,
+  contractFixturePath,
+  smokePath,
+  contractSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+]) {
+  assert.ok(existsSync(filePath), `${filePath} must exist`);
+}
+if (!writeFixture) {
+  assert.ok(existsSync(fixturePath), `${fixturePath} must exist`);
+}
+
+const builderSource = readFile(builderPath);
+const smokeSource = readFile(smokePath);
+const contractSmokeSource = readFile(contractSmokePath);
+const packageJson = readJson(packagePath);
+const basePackageJson = readJsonFromGit(packagePath);
+const contractFixture = readJson(contractFixturePath);
+const indexDoc = readFile(indexPath);
+const substrateDoc = readFile(substrateDocPath);
+const surfaceDoc = readFile(surfaceDocPath);
+const gateDoc = readFile(gateDocPath);
+
+const { buildRecentRehearsalBufferImplementation } = await import(
+  "../lib/research-candidate-review/recent-rehearsal-buffer.ts"
+);
+
+const rebuiltFixture = buildImplementationFixture();
+const invalidRecentContextOverride = buildInvalidRecentContextOverride();
+const invalidExcludedContextOverride = buildInvalidExcludedContextOverride();
+
+if (writeFixture) {
+  writeFileSync(fixturePath, `${JSON.stringify(rebuiltFixture, null, 2)}\n`);
+  process.exit(0);
+}
+
+const fixture = readJson(fixturePath);
+
+assertBuilderFile();
+assertPackageScript();
+assertStaticBoundary();
+assertNoForbiddenRuntimePatterns();
+assertImplementationFixture(fixture);
+assertGeneratedRecentRehearsalBuffer(fixture.generated_recent_rehearsal_buffer);
+assertResumeContextSummary(fixture.resume_context_summary);
+assertDecaySummary(fixture.decay_summary);
+assertNonDurableSummary(fixture.non_durable_summary);
+assertAuthorityBoundary(fixture.authority_boundary);
+assertValidationPolicy(fixture.validation_policy);
+assertValidation(fixture.validation);
+assertInvalidOverrideSummaryConsistency();
+assertDocsPointers();
+assertContractSmokeDownstreamPointer();
+assertPortableMergeBaseFallback();
+assert.deepEqual(
+  fixture,
+  rebuiltFixture,
+  "rebuilt Recent Rehearsal Buffer implementation fixture must match committed fixture",
+);
+
+console.log(
+  JSON.stringify(
+    {
+      smoke: "recent-rehearsal-buffer-implementation-v0-1",
+      final_status: "pass",
+      implementation_kind: fixture.implementation_kind,
+      implementation_version: fixture.implementation_version,
+      source_contract_fingerprint: fixture.source_contract_fingerprint,
+      generated_buffer_version:
+        fixture.generated_recent_rehearsal_buffer.buffer_version,
+      recent_context_count:
+        fixture.resume_context_summary.recent_context_count,
+      excluded_context_count:
+        fixture.resume_context_summary.excluded_context_count,
+      decay_state: fixture.decay_summary.decay_state,
+      durable_memory_write_implemented_now:
+        fixture.authority_boundary.durable_memory_write_implemented_now,
+      runtime_db_write_now: fixture.authority_boundary.runtime_db_write_now,
+      runtime_db_query_now: fixture.authority_boundary.runtime_db_query_now,
+      browser_request_now: fixture.authority_boundary.browser_request_now,
+      salience_authority: fixture.authority_boundary.salience_authority,
+      product_write_lane_parked_by_686:
+        fixture.authority_boundary.product_write_lane_parked_by_686,
+      next_recommended_slice: fixture.next_recommended_slice,
+    },
+    null,
+    2,
+  ),
+);
+
+function buildImplementationFixture() {
+  return buildRecentRehearsalBufferImplementation({
+    recent_rehearsal_buffer_contract: contractFixture,
+    source_contract_ref: `${contractFixture.contract_version}:${contractFixturePath}`,
+  });
+}
+
+function buildInvalidRecentContextOverride() {
+  return buildRecentRehearsalBufferImplementation({
+    recent_rehearsal_buffer_contract: contractFixture,
+    recent_context_refs: [
+      {
+        context_ref_id: "recent_context_ref_missing_source_refs",
+        context_kind: "synthetic_invalid_recent_context",
+        source_refs: [],
+        reason: "Synthetic invalid override for summary validation consistency.",
+      },
+    ],
+  });
+}
+
+function buildInvalidExcludedContextOverride() {
+  return buildRecentRehearsalBufferImplementation({
+    recent_rehearsal_buffer_contract: contractFixture,
+    excluded_context_refs: [
+      {
+        context_ref_id: "excluded_context_ref_missing_reason",
+        context_kind: "synthetic_invalid_excluded_context",
+        source_refs: ["source_ref_formation_receipt_browser_validation_714"],
+        reason: "",
+      },
+    ],
+  });
+}
+
+function assertBuilderFile() {
+  for (const requiredText of [
+    "buildRecentRehearsalBufferImplementation",
+    implementationKind,
+    implementationVersion,
+    "source_contract_ref",
+    "source_contract_fingerprint",
+    "source_formation_receipt_validation_ref",
+    "generated_recent_rehearsal_buffer",
+    "resume_context_summary",
+    "decay_summary",
+    "non_durable_summary",
+    "authority_boundary",
+    "validation_policy",
+    "recommendation_status",
+    "next_recommended_slice",
+    "implementation_fingerprint",
+    "fnv1a32_canonical_json",
+  ]) {
+    assert.ok(builderSource.includes(requiredText), `${builderPath} must include ${requiredText}`);
+  }
+  assert.match(
+    builderSource,
+    /export function buildRecentRehearsalBufferImplementation\b/,
+    "builder must export buildRecentRehearsalBufferImplementation",
+  );
+}
+
+function assertPackageScript() {
+  assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  const addedScripts = Object.keys(packageJson.scripts)
+    .filter((scriptName) => !basePackageJson.scripts[scriptName])
+    .sort();
+  assert.deepEqual(
+    addedScripts,
+    [packageScriptName],
+    "package.json must add only the Recent Rehearsal Buffer implementation smoke script",
+  );
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertStaticBoundary() {
+  const changedFiles = readChangedFiles();
+  for (const expectedFile of expectedChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedChangedFiles.includes(changedFile),
+      `unexpected changed file in Recent Rehearsal Buffer implementation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|retrieval|source-fetch)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function assertNoForbiddenRuntimePatterns() {
+  const changedSourceFiles = readChangedFiles().filter((filePath) =>
+    (filePath.endsWith(".ts") || filePath.endsWith(".tsx") || filePath.endsWith(".mjs")) &&
+    !filePath.startsWith("scripts/smoke-"),
+  );
+  for (const filePath of changedSourceFiles) {
+    const source = stripValidationText(readFile(filePath));
+    for (const { label, regex } of [
+      { label: "route handler", regex: /\bexport\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)\b/ },
+      { label: "server action", regex: /["']use server["']/ },
+      { label: "browser fetch", regex: /\bfetch\s*\(/ },
+      { label: "localStorage", regex: /\blocalStorage\b/ },
+      { label: "sessionStorage", regex: /\bsessionStorage\b/ },
+      { label: "indexedDB", regex: /\bindexedDB\b/ },
+      { label: "document.cookie", regex: /document\.cookie/ },
+      { label: "DB open", regex: /\bnew\s+Database\b|\bopenDatabase\b|better-sqlite3/i },
+      { label: "runtime SQL", regex: /\bdb\.(prepare|query|exec)\b|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b/ },
+      { label: "DB write", regex: /\bdb\.(insert|update|delete|transaction)\b|\bruntimeDbWrite\b|\bproductionDbWrite\b/i },
+      { label: "durable memory write", regex: /\b(write|insert|persist)DurableMemory\b|\bdurableMemoryWrite\b/i },
+      { label: "recent buffer runtime writer", regex: /\b(write|insert|persist)RecentRehearsal(Buffer)?\b/i },
+      { label: "formation receipt write", regex: /\bwriteFormationReceipt\b|\binsertFormationReceipt\b|\bpersistFormationReceipt\b/i },
+      { label: "feedback write", regex: /\bwriteFeedbackEvent\b|\binsertFeedbackEvent\b|\bmutateFeedbackEvent\b/ },
+      { label: "OpenAI import", regex: /from\s+["'][^"']*openai["']/i },
+      { label: "OpenAI constructor", regex: /new\s+OpenAI\b/i },
+      { label: "source fetch call", regex: /\bfetchSource\b|\bsourceFetch\b/ },
+      { label: "retrieval execution", regex: /\brunRetrieval\b|\brunRag\b|\brunRAG\b/ },
+      { label: "embedding/vector/FTS implementation", regex: /\bcreateEmbedding\b|\bvectorIndex\b|\bFTS5\b/i },
+      { label: "Codex product execution", regex: /\bcodex\s+(exec|run)\b/i },
+      { label: "GitHub automation", regex: /\bgh\s+pr\b|Octokit|api\.github\.com/i },
+      { label: "external handoff send", regex: /\bsendExternalHandoff\b/ },
+      { label: "agent execution", regex: /\bexecuteAgent\b|\brouteAgent\b/ },
+      { label: "proof write", regex: /\bcreateProof\b|\binsertProof\b/ },
+      { label: "evidence write", regex: /\bcreateEvidence\b|\binsertEvidence\b/ },
+      { label: "Perspective promotion", regex: /\bpromotePerspective\b/ },
+      { label: "Perspective durable state write", regex: /\bwritePerspective\b|\bupsertPerspective\b/ },
+      { label: "promotion decision", regex: /\bcreatePromotionDecision\b|\brecordPromotionDecision\b/ },
+      { label: "work mutation", regex: /\bcreateWork\b|\bmutateWork\b|\bupdateWork\b/ },
+      { label: "salience authority true flag", regex: /\bsalience_authority:\s*true\b/ },
+      { label: "salience score", regex: /\bsalience_score\b|\bsalienceScore\b/ },
+      { label: "product write", regex: /\bexecuteProductWrite\b|\bproductDbWrite\b/i },
+      { label: "product ID allocation", regex: /\ballocateProductId\b/i },
+    ]) {
+      assert.doesNotMatch(source, regex, `${filePath} must not include ${label}`);
+    }
+  }
+}
+
+function assertImplementationFixture(value) {
+  assert.equal(value.implementation_kind, implementationKind);
+  assert.equal(value.implementation_version, implementationVersion);
+  assert.equal(
+    value.source_contract_ref,
+    `${contractFixture.contract_version}:${contractFixturePath}`,
+  );
+  assert.equal(value.source_contract_fingerprint, contractFixture.contract_fingerprint);
+  assert.equal(
+    value.source_formation_receipt_validation_ref,
+    contractFixture.source_formation_receipt_validation_ref,
+  );
+  assert.equal(value.recommendation_status, recommendationStatus);
+  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.match(value.implementation_fingerprint, /^fnv1a32:[0-9a-f]{8}$/);
+  assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
+}
+
+function assertGeneratedRecentRehearsalBuffer(buffer) {
+  for (const field of Object.keys(contractFixture.buffer_fields)) {
+    assert.ok(Object.hasOwn(buffer, field), `generated buffer must include ${field}`);
+  }
+  assert.equal(buffer.buffer_version, bufferVersion);
+  assert.ok(Array.isArray(buffer.source_refs) && buffer.source_refs.length > 0);
+  assert.equal(typeof buffer.last_active_research_question, "string");
+  assert.ok(buffer.last_active_research_question.length > 0);
+  assert.ok(Array.isArray(buffer.last_open_tension_ids));
+  assert.ok(buffer.last_open_tension_ids.length > 0);
+  assert.ok(Array.isArray(buffer.recent_context_refs));
+  assert.ok(buffer.recent_context_refs.length > 0);
+  assert.ok(Array.isArray(buffer.excluded_context_refs));
+  assert.ok(buffer.excluded_context_refs.length > 0);
+  assert.equal(buffer.decay_state, "fresh");
+  assert.equal(buffer.decay_policy_ref, "recent_rehearsal_buffer_decay_policy.v0.1");
+  assert.deepEqual(buffer.authority_boundary, fixture.authority_boundary);
+  assert.deepEqual(buffer.validation, fixture.validation_policy);
+}
+
+function assertResumeContextSummary(value) {
+  const buffer = fixture.generated_recent_rehearsal_buffer;
+  assert.equal(value.recent_context_count, buffer.recent_context_refs.length);
+  assert.deepEqual(
+    value.recent_context_ref_ids,
+    buffer.recent_context_refs.map((ref) => ref.context_ref_id),
+  );
+  assert.equal(value.recent_context_has_source_refs, true);
+  assert.equal(value.excluded_context_count, buffer.excluded_context_refs.length);
+  assert.deepEqual(
+    value.excluded_context_ref_ids,
+    buffer.excluded_context_refs.map((ref) => ref.context_ref_id),
+  );
+  assert.equal(value.excluded_context_reasons_present, true);
+  assert.equal(value.last_open_tension_count, buffer.last_open_tension_ids.length);
+  assert.equal(value.last_failed_check_present, true);
+  assert.equal(value.last_user_decision_present, true);
+  assert.equal(value.may_help_resume_work, true);
+  assert.equal(value.non_durable, true);
+  assert.equal(value.not_promotion_basis, true);
+  assert.equal(value.not_source_of_truth, true);
+  assert.equal(value.not_proof_or_evidence, true);
+  assert.equal(value.not_perspective_state, true);
+  assert.equal(value.not_work_status, true);
+  assert.equal(value.not_product_write, true);
+  for (const ref of buffer.recent_context_refs) {
+    assert.ok(Array.isArray(ref.source_refs) && ref.source_refs.length > 0);
+  }
+  for (const ref of buffer.excluded_context_refs) {
+    assert.ok(typeof ref.reason === "string" && ref.reason.trim().length > 0);
+  }
+}
+
+function assertDecaySummary(value) {
+  assert.equal(value.decay_state, fixture.generated_recent_rehearsal_buffer.decay_state);
+  assert.deepEqual(value.allowed_decay_states, ["fresh", "warm", "cool", "archive"]);
+  assert.ok(value.allowed_decay_states.includes(value.decay_state));
+  assert.equal(value.decay_is_display_context_only, true);
+  assert.equal(value.decay_does_not_delete_records, true);
+  assert.equal(value.decay_does_not_mutate_work, true);
+  assert.equal(value.decay_does_not_decide_promotion, true);
+  assert.equal(value.pin_or_watch_not_implemented_now, true);
+}
+
+function assertNonDurableSummary(value) {
+  assert.equal(value.non_durable, true);
+  assert.equal(value.durable_write_requires_later_contract, true);
+  assert.equal(value.runtime_persistence_implemented_now, false);
+  assert.equal(value.durable_memory_write_implemented_now, false);
+  assert.equal(value.not_salience_authority, true);
+  assert.equal(value.not_retrieval_rag_result, true);
+  assert.equal(value.not_product_write, true);
+}
+
+function assertAuthorityBoundary(value) {
+  assert.equal(value.product_write_lane_parked_by_686, true);
+  assert.equal(value.product_write_authority, false);
+  assert.equal(value.salience_authority, false);
+  for (const [key, flag] of Object.entries(value)) {
+    if (
+      key === "implementation_added_now" ||
+      key === "contract_followed_now" ||
+      key === "fixture_backed_only" ||
+      key === "deterministic_builder_added_now" ||
+      key === "product_write_lane_parked_by_686"
+    ) {
+      assert.equal(flag, true, `${key} must be true`);
+    } else {
+      assert.equal(flag, false, `${key} must be false`);
+    }
+  }
+}
+
+function assertValidationPolicy(value) {
+  assert.deepEqual(value, {
+    static_source_validation_only: true,
+    fixture_backed_only: true,
+    app_server_started_now: false,
+    production_db_used_now: false,
+    runtime_browser_request_now: false,
+    runtime_db_query_now: false,
+    runtime_db_write_now: false,
+  });
+}
+
+function assertValidation(value) {
+  assert.equal(value.passed, true);
+  assert.deepEqual(value.failure_codes, []);
+  assert.equal(value.recent_context_has_source_refs, true);
+  assert.equal(value.excluded_context_has_reasons, true);
+  assert.equal(value.decay_state_allowed, true);
+  assert.equal(value.non_durable_policy_preserved, true);
+  assert.equal(value.authority_boundary_preserved, true);
+  assert.equal(value.deterministic_rebuild_matches_fixture, true);
+}
+
+function assertInvalidOverrideSummaryConsistency() {
+  assert.equal(
+    invalidRecentContextOverride.validation.recent_context_has_source_refs,
+    false,
+  );
+  assert.ok(
+    invalidRecentContextOverride.validation.failure_codes.includes(
+      "recent_context_missing_source_refs",
+    ),
+  );
+  assert.equal(
+    invalidRecentContextOverride.resume_context_summary.recent_context_has_source_refs,
+    false,
+  );
+  assert.equal(
+    invalidExcludedContextOverride.validation.excluded_context_has_reasons,
+    false,
+  );
+  assert.ok(
+    invalidExcludedContextOverride.validation.failure_codes.includes(
+      "excluded_context_missing_reason",
+    ),
+  );
+  assert.equal(
+    invalidExcludedContextOverride.resume_context_summary.excluded_context_reasons_present,
+    false,
+  );
+}
+
+function assertDocsPointers() {
+  for (const requiredText of [
+    "Recent Rehearsal Buffer implementation v0.1",
+    builderPath,
+    fixturePath,
+    smokePath,
+    packageScriptName,
+    "deterministic fixture-backed implementation",
+    "generated non-durable buffer shape from #715 contract",
+    "resume context summary",
+    "decay summary",
+    "invalid override summary/validation consistency",
+    "no runtime persistence",
+    "no durable memory write",
+    "no runtime DB write/query",
+    "no schema/migration",
+    "no route or UI",
+    "no browser request",
+    "no proof/evidence/Perspective promotion/work mutation",
+    "no provider/OpenAI/source-fetch/retrieval/RAG execution",
+    "no salience authority",
+    "no product write/product IDs",
+    "product-write remains parked by #686",
+    nextRecommendedSlice,
+  ]) {
+    assert.ok(indexDoc.includes(requiredText), `index doc must include ${requiredText}`);
+  }
+  for (const doc of [substrateDoc, surfaceDoc, gateDoc]) {
+    assert.match(doc, /Recent Rehearsal Buffer implementation v0\.1/i);
+    assert.match(doc, /deterministic/i);
+    assert.match(doc, /fixture-backed/i);
+    assert.match(doc, /compact non-durable resume context|recent work resume context/i);
+    assert.match(doc, /not proof\/evidence/i);
+    assert.match(doc, /not Perspective state|durable Perspective promotion/i);
+    assert.match(doc, /not work status|work mutation/i);
+    assert.match(doc, /not promotion authority|promotion/i);
+    assert.match(doc, /not salience authority|salience/i);
+    assert.match(doc, /retrieval\/RAG/i);
+    assert.match(doc, /product write/i);
+    assert.match(doc, /runtime DB|no runtime DB/i);
+    assert.match(doc, new RegExp(nextRecommendedSlice));
+  }
+}
+
+function assertContractSmokeDownstreamPointer() {
+  for (const requiredText of [
+    implementationVersion,
+    builderPath,
+    fixturePath,
+    smokePath,
+    packageScriptName,
+    recommendationStatus,
+    nextRecommendedSlice,
+    "invalid override summary/validation consistency",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      contractSmokeSource.includes(requiredText),
+      `#715 Recent Rehearsal Buffer contract smoke must allow implementation downstream pointer: ${requiredText}`,
+    );
+  }
+}
+
+function assertPortableMergeBaseFallback() {
+  for (const requiredText of [
+    "gitRefExists",
+    "tryGitOutput",
+    "origin/main",
+    "main",
+    "HEAD^",
+    "Unable to determine a base ref for static changed-file validation",
+  ]) {
+    assert.ok(smokeSource.includes(requiredText), `smoke must include portable mergeBaseRef text: ${requiredText}`);
+  }
+}
+
+function readFile(filePath) {
+  return readFileSync(filePath, "utf8");
+}
+
+function readJson(filePath) {
+  return JSON.parse(readFile(filePath));
+}
+
+function readJsonFromGit(filePath) {
+  return JSON.parse(readGitOutput(["show", `${mergeBaseRef()}:${filePath}`]));
+}
+
+function readChangedFiles() {
+  const changed = [
+    ...readGitOutput(["diff", "--name-only", mergeBaseRef()]).split("\n"),
+    ...readGitOutput(["diff", "--cached", "--name-only"]).split("\n"),
+    ...readGitOutput(["ls-files", "--others", "--exclude-standard"]).split("\n"),
+  ]
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return [...new Set(changed)].sort();
+}
+
+function stripValidationText(source) {
+  return source
+    .replace(/\/\/.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(["'`])(?:\\.|(?!\1)[\s\S])*\1/g, "\"\"");
+}
+
+function mergeBaseRef() {
+  if (cachedMergeBaseRef) {
+    return cachedMergeBaseRef;
+  }
+  for (const ref of ["origin/main", "main"]) {
+    if (!gitRefExists(ref)) {
+      continue;
+    }
+    const mergeBase = tryGitOutput(["merge-base", "HEAD", ref])?.trim();
+    if (mergeBase) {
+      cachedMergeBaseRef = mergeBase;
+      return cachedMergeBaseRef;
+    }
+  }
+  const parentRef = tryGitOutput(["rev-parse", "--verify", "HEAD^"])?.trim();
+  if (parentRef) {
+    cachedMergeBaseRef = parentRef;
+    return cachedMergeBaseRef;
+  }
+  throw new Error(
+    "Unable to determine a base ref for static changed-file validation. " +
+      "Expected origin/main, local main, or HEAD^ to resolve.",
+  );
+}
+
+function gitRefExists(ref) {
+  return tryGitOutput(["rev-parse", "--verify", ref]) !== null;
+}
+
+function tryGitOutput(args) {
+  try {
+    return readGitOutput(args);
+  } catch {
+    return null;
+  }
+}
+
+function readGitOutput(args) {
+  return execFileSync("git", args, { encoding: "utf8" });
+}
