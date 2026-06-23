@@ -657,6 +657,27 @@ allocation. Product-write remains parked by the #686 stopline. The next
 recommended slice is
 `recent_rehearsal_buffer_browser_validation_v0_1`.
 
+Recent Rehearsal Buffer browser validation v0.1 validates deterministic
+fixture-backed compact non-durable resume context only. It validates the #716
+builder output against the #715 contract fields, generated buffer contract
+authority boundary, top-level implementation boundary separation, resume
+context summary, decay summary, and invalid override summary/validation
+consistency.
+
+This validation is not proof/evidence, not Perspective state, not work status,
+not promotion authority, not salience authority, not retrieval/RAG result, and
+not product write. It adds no runtime persistence, no durable memory write, no
+runtime DB write/query, no production DB read, no schema/migration, no route, no
+route handler, no server action, no component/UI implementation, no browser
+request, no browser persistence, no formation receipt write, no feedback
+write/mutation, no provider/OpenAI call, no source fetch, no retrieval/RAG
+execution, no proof/evidence write, no Perspective promotion, no durable
+Perspective state write, no promotion decision record, no work mutation, no
+salience governor, no product write, no product DB write, and no product ID
+allocation. Product-write remains parked by the #686 stopline. The next
+recommended slice is Salience Governor contract v0.1:
+`salience_governor_contract_v0_1`.
+
 ## Next Recommended Slice
 
-`recent_rehearsal_buffer_browser_validation_v0_1`
+`salience_governor_contract_v0_1`

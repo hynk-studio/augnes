@@ -2140,6 +2140,28 @@ repo-local 색인이다.
   authority, and no product write/product IDs. product-write remains parked by
   #686. The next recommended slice is
   `recent_rehearsal_buffer_browser_validation_v0_1`.
+- Recent Rehearsal Buffer browser validation v0.1:
+  `fixtures/research-candidate-review.recent-rehearsal-buffer-browser-validation.sample.v0.1.json`
+  and `scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs`
+  (`npm run smoke:recent-rehearsal-buffer-browser-validation-v0-1`)
+  validate the deterministic fixture-backed implementation from #716.
+
+  The validation fixture validates generated non-durable buffer shape from #715 contract.
+  It validates generated buffer contract authority boundary.
+  It validates top-level implementation boundary separation.
+  It validates resume context summary.
+  It validates decay summary.
+  It validates invalid override summary/validation consistency. It confirms recent context
+  keeps source refs, excluded context keeps reasons, decay remains display
+  context only, and the buffer remains compact, non-durable resume context.
+
+  This has no runtime persistence. It adds no durable memory write, no runtime
+  DB write/query, no production DB read, no schema/migration, no route or UI,
+  no browser request, no browser persistence, no formation receipt write, no
+  feedback write/mutation, no proof/evidence/Perspective promotion/work
+  mutation, no provider/OpenAI/source-fetch/retrieval/RAG execution, no salience
+  authority, and no product write/product IDs. product-write remains parked by
+  #686. The next recommended slice is `salience_governor_contract_v0_1`.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

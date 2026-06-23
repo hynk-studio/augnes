@@ -22,6 +22,10 @@ const implementationFixturePath =
   "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json";
 const implementationSmokePath =
   "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs";
+const browserValidationFixturePath =
+  "fixtures/research-candidate-review.recent-rehearsal-buffer-browser-validation.sample.v0.1.json";
+const browserValidationSmokePath =
+  "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs";
 
 const packageScriptName = "smoke:recent-rehearsal-buffer-contract-v0-1";
 const packageScriptValue =
@@ -30,12 +34,22 @@ const implementationPackageScriptName =
   "smoke:recent-rehearsal-buffer-implementation-v0-1";
 const implementationPackageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs";
+const browserValidationPackageScriptName =
+  "smoke:recent-rehearsal-buffer-browser-validation-v0-1";
+const browserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs";
 const implementationVersion =
   "recent_rehearsal_buffer_implementation.v0.1";
 const implementationRecommendationStatus =
   "ready_for_recent_rehearsal_buffer_browser_validation_v0_1";
 const implementationNextRecommendedSlice =
   "recent_rehearsal_buffer_browser_validation_v0_1";
+const browserValidationVersion =
+  "recent_rehearsal_buffer_browser_validation.v0.1";
+const browserValidationRecommendationStatus =
+  "ready_for_salience_governor_contract_v0_1";
+const browserValidationNextRecommendedSlice =
+  "salience_governor_contract_v0_1";
 const contractKind = "recent_rehearsal_buffer_contract";
 const contractVersion = "recent_rehearsal_buffer_contract.v0.1";
 const bufferVersion = "recent_rehearsal_buffer.v0.1";
@@ -86,6 +100,38 @@ const implementationChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  smokePath,
+  sourceValidationSmokePath,
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+
+const browserValidationChangedFiles = [
+  browserValidationFixturePath,
+  browserValidationSmokePath,
+  packagePath,
+  indexPath,
+  substrateDocPath,
+  surfaceDocPath,
+  gateDocPath,
+  implementationSmokePath,
   smokePath,
   sourceValidationSmokePath,
   "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
@@ -160,6 +206,7 @@ assertValidationPolicy(fixture.validation_policy);
 assertDocsPointers();
 assertSourceValidationDownstreamPointer();
 assertImplementationDownstreamPointer();
+assertBrowserValidationDownstreamPointer();
 assert.deepEqual(
   fixture,
   rebuiltFixture,
@@ -483,6 +530,27 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (browserValidationSliceActive()) {
+    assert.equal(
+      packageJson.scripts[browserValidationPackageScriptName],
+      browserValidationPackageScriptValue,
+    );
+    const addedScripts = Object.keys(packageJson.scripts)
+      .filter((scriptName) => !basePackageJson.scripts[scriptName])
+      .sort();
+    assert.deepEqual(
+      addedScripts,
+      [browserValidationPackageScriptName],
+      "package.json must add only the Recent Rehearsal Buffer browser validation smoke script",
+    );
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
@@ -520,9 +588,21 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const activeExpectedFiles = implementationSliceActive()
-    ? implementationChangedFiles
-    : expectedChangedFiles;
+  const activeExpectedFiles = browserValidationSliceActive()
+    ? browserValidationChangedFiles
+    : implementationSliceActive()
+      ? implementationChangedFiles
+      : expectedChangedFiles;
+  if (browserValidationSliceActive()) {
+    assert.ok(
+      !changedFiles.includes(implementationBuilderPath),
+      "browser validation slice must not change the #716 builder",
+    );
+    assert.ok(
+      !changedFiles.includes(implementationFixturePath),
+      "browser validation slice must not change the #716 implementation fixture",
+    );
+  }
   for (const expectedFile of activeExpectedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
@@ -808,8 +888,36 @@ function assertImplementationDownstreamPointer() {
   }
 }
 
+function assertBrowserValidationDownstreamPointer() {
+  if (!browserValidationSliceActive()) {
+    return;
+  }
+  const implementationSmokeSource = readFile(implementationSmokePath);
+  for (const requiredText of [
+    browserValidationVersion,
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    browserValidationPackageScriptName,
+    browserValidationRecommendationStatus,
+    browserValidationNextRecommendedSlice,
+    "generated buffer contract authority boundary",
+    "top-level implementation boundary separation",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      implementationSmokeSource.includes(requiredText) ||
+        readFile(smokePath).includes(requiredText),
+      `Recent Rehearsal Buffer contract smoke must allow browser validation downstream pointer: ${requiredText}`,
+    );
+  }
+}
+
 function implementationSliceActive() {
   return readChangedFiles().includes(implementationSmokePath);
+}
+
+function browserValidationSliceActive() {
+  return readChangedFiles().includes(browserValidationSmokePath);
 }
 
 function createFingerprint(value) {

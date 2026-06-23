@@ -1048,6 +1048,29 @@ not promotion authority, not salience authority, not retrieval/RAG result, and
 not product write. Product-write remains parked by the #686 stopline. Next
 recommended slice: `recent_rehearsal_buffer_browser_validation_v0_1`.
 
+## Recent Rehearsal Buffer Browser Validation v0.1 Pointer
+
+Recent Rehearsal Buffer browser validation v0.1 remains separated from durable
+Perspective promotion. It validates recent work resume context only by checking
+the #716 deterministic fixture-backed implementation against the #715 contract
+fields, generated buffer contract authority boundary, top-level implementation
+boundary separation, resume context summary, decay summary, and invalid override
+summary/validation consistency.
+
+This validation does not implement runtime DB/browser/provider/retrieval
+behavior. It adds no runtime persistence, no durable memory write, no runtime DB
+write/query, no production DB read, no schema/migration, no route, no route
+handler, no server action, no component/UI implementation, no browser request,
+no browser persistence, no formation receipt write, no feedback
+write/mutation, no provider/OpenAI call, no source fetch, no retrieval/RAG
+execution, no proof/evidence write, no Perspective promotion, no durable
+Perspective state write, no promotion decision record, no work mutation, no
+salience authority, no product write, no product DB write, and no product ID
+allocation. It is not proof/evidence, not Perspective state, not work status,
+not promotion authority, not salience authority, not retrieval/RAG result, and
+not product write. Product-write remains parked by the #686 stopline. Next
+recommended slice: `salience_governor_contract_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
