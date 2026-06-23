@@ -21,7 +21,7 @@ export interface FormationReceiptDurableEventImplementationInput {
 export interface FormationReceiptSelectedContextSummary {
   selected_context_count: number;
   selected_context_ref_ids: string[];
-  selected_context_has_source_refs: true;
+  selected_context_has_source_refs: boolean;
   provenance_only: true;
   not_proof_or_evidence: true;
   not_source_of_truth: true;
@@ -33,7 +33,7 @@ export interface FormationReceiptSelectedContextSummary {
 export interface FormationReceiptExcludedContextSummary {
   excluded_context_count: number;
   excluded_context_ref_ids: string[];
-  excluded_context_reasons_present: true;
+  excluded_context_reasons_present: boolean;
   deletes_records: false;
   suppresses_future_review: false;
   audit_provenance_only: true;
@@ -197,7 +197,7 @@ export function buildFormationReceiptDurableEventImplementation(
     selected_context_summary: {
       selected_context_count: selectedContextRefs.length,
       selected_context_ref_ids: selectedContextRefs.map((ref) => ref.context_ref_id),
-      selected_context_has_source_refs: true,
+      selected_context_has_source_refs: selectedContextHasSourceRefs,
       provenance_only: true,
       not_proof_or_evidence: true,
       not_source_of_truth: true,
@@ -208,7 +208,7 @@ export function buildFormationReceiptDurableEventImplementation(
     excluded_context_summary: {
       excluded_context_count: excludedContextRefs.length,
       excluded_context_ref_ids: excludedContextRefs.map((ref) => ref.context_ref_id),
-      excluded_context_reasons_present: true,
+      excluded_context_reasons_present: excludedContextHasReasons,
       deletes_records: false,
       suppresses_future_review: false,
       audit_provenance_only: true,

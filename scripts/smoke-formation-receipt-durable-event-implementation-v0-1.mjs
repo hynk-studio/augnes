@@ -115,6 +115,7 @@ assertReferenceLinkSummary(fixture.reference_link_summary);
 assertAuthorityBoundary(fixture.authority_boundary);
 assertValidationPolicy(fixture.validation_policy);
 assertValidation(fixture.validation);
+assertInvalidOverrideSummaryConsistency();
 assertDocsPointers();
 assertContractSmokeDownstreamPointer();
 assert.deepEqual(
@@ -432,6 +433,47 @@ function assertValidation(value) {
   assert.equal(value.reference_links_are_reference_only, true);
   assert.equal(value.authority_boundary_preserved, true);
   assert.equal(value.deterministic_rebuild_matches_fixture, true);
+}
+
+function assertInvalidOverrideSummaryConsistency() {
+  const invalidOverride = buildFormationReceiptDurableEventImplementation({
+    formation_receipt_durable_event_contract: contractFixture,
+    selected_context_refs: [
+      {
+        context_ref_id: "selected_context_ref_missing_source_refs",
+        context_kind: "synthetic_invalid_selected_context",
+        selection_status: "selected",
+        source_refs: [],
+        reason: "Synthetic invalid override for summary validation consistency.",
+      },
+    ],
+    excluded_context_refs: [
+      {
+        context_ref_id: "excluded_context_ref_missing_reason",
+        context_kind: "synthetic_invalid_excluded_context",
+        selection_status: "excluded",
+        source_refs: ["source_ref_feedback_aggregation_validation_711"],
+        reason: "",
+      },
+    ],
+  });
+
+  assert.equal(invalidOverride.validation.selected_context_has_source_refs, false);
+  assert.ok(
+    invalidOverride.validation.failure_codes.includes("selected_context_missing_source_refs"),
+  );
+  assert.equal(
+    invalidOverride.selected_context_summary.selected_context_has_source_refs,
+    false,
+  );
+  assert.equal(invalidOverride.validation.excluded_context_has_reasons, false);
+  assert.ok(
+    invalidOverride.validation.failure_codes.includes("excluded_context_missing_reason"),
+  );
+  assert.equal(
+    invalidOverride.excluded_context_summary.excluded_context_reasons_present,
+    false,
+  );
 }
 
 function assertDocsPointers() {
