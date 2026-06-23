@@ -157,6 +157,7 @@ assertNonAuthoritySummary(fixture.non_authority_summary);
 assertAuthorityBoundary(fixture.authority_boundary);
 assertValidationPolicy(fixture.validation_policy);
 assertValidation(fixture.validation);
+assertInvalidSourceRefOverride();
 assertDocsPointers();
 assertContractSmokeDownstreamPointer();
 assertPortableMergeBaseFallback();
@@ -547,6 +548,107 @@ function assertValidation(value) {
   assert.equal(value.deterministic_rebuild_matches_fixture, true);
 }
 
+function assertInvalidSourceRefOverride() {
+  const invalidSourceRefs = buildInvalidSourceRefs();
+  const invalidResult = buildBoundedExternalSourceIntakeImplementation({
+    bounded_external_source_intake_contract: contractFixture,
+    source_contract_ref: `${contractFixture.contract_version}:${contractFixturePath}`,
+    source_refs: invalidSourceRefs,
+  });
+  const invalidResultAgain = buildBoundedExternalSourceIntakeImplementation({
+    bounded_external_source_intake_contract: contractFixture,
+    source_contract_ref: `${contractFixture.contract_version}:${contractFixturePath}`,
+    source_refs: buildInvalidSourceRefs(),
+  });
+  assert.deepEqual(
+    invalidResult,
+    invalidResultAgain,
+    "invalid source_refs override result must remain deterministic",
+  );
+  assert.equal(invalidResult.validation.passed, false);
+  assert.equal(invalidResult.validation.generated_bundle_follows_contract, false);
+  for (const failureCode of [
+    "source_ref_disallowed_input_kind",
+    "source_ref_unknown_input_kind",
+    "source_ref_not_reference_only",
+    "source_ref_fetch_enabled",
+    "source_ref_provider_extraction_enabled",
+    "source_ref_candidate_generation_not_later_only",
+    "source_ref_missing_operator_context",
+    "source_ref_missing_refs",
+    "source_ref_not_public_safe",
+    "source_ref_invalid_status",
+  ]) {
+    assert.ok(
+      invalidResult.validation.failure_codes.includes(failureCode),
+      `invalid override must include ${failureCode}`,
+    );
+  }
+  assertAuthorityBoundary(invalidResult.authority_boundary);
+  assert.equal(
+    invalidResult.authority_boundary.runtime_source_fetch_implemented_now,
+    false,
+  );
+  assert.equal(invalidResult.authority_boundary.crawler_implemented_now, false);
+  assert.equal(
+    invalidResult.authority_boundary.provider_extraction_implemented_now,
+    false,
+  );
+  assert.equal(invalidResult.authority_boundary.retrieval_rag_implemented_now, false);
+  assert.equal(invalidResult.validation_policy.runtime_source_fetch_now, false);
+  assert.equal(invalidResult.validation_policy.runtime_provider_call_now, false);
+  assert.equal(invalidResult.validation_policy.runtime_retrieval_rag_now, false);
+}
+
+function buildInvalidSourceRefs() {
+  const sample =
+    contractFixture.sample_source_intake_reference_bundle.source_refs[0];
+  return [
+    invalidSourceRef(sample, "invalid_source_ref_disallowed_kind", {
+      source_input_kind: "crawler_seed",
+    }),
+    invalidSourceRef(sample, "invalid_source_ref_unknown_kind", {
+      source_input_kind: "not_in_contract",
+    }),
+    invalidSourceRef(sample, "invalid_source_ref_not_reference_only", {
+      accepted_as_reference_only_now: false,
+    }),
+    invalidSourceRef(sample, "invalid_source_ref_fetch_enabled", {
+      source_fetch_now: true,
+    }),
+    invalidSourceRef(sample, "invalid_source_ref_provider_enabled", {
+      provider_extraction_now: true,
+    }),
+    invalidSourceRef(sample, "invalid_source_ref_generation_now", {
+      candidate_generation_later_only: false,
+    }),
+    sourceRefWithoutSourceRefs(sample),
+    invalidSourceRef(sample, "invalid_source_ref_missing_operator_context", {
+      operator_context_ref: "",
+    }),
+    invalidSourceRef(sample, "invalid_source_ref_not_public_safe", {
+      public_safe: false,
+    }),
+    invalidSourceRef(sample, "invalid_source_ref_invalid_status", {
+      source_status: "invalid_status",
+    }),
+  ];
+}
+
+function invalidSourceRef(sample, sourceRefId, overrides) {
+  return {
+    ...clone(sample),
+    source_ref_id: sourceRefId,
+    ...overrides,
+  };
+}
+
+function sourceRefWithoutSourceRefs(sample) {
+  const sourceRef = invalidSourceRef(sample, "invalid_source_ref_missing_refs", {});
+  delete sourceRef.source_refs;
+  return sourceRef;
+}
+
 function assertDocsPointers() {
   for (const requiredText of [
     "Bounded External Source Intake implementation v0.1",
@@ -701,6 +803,10 @@ function tryGitOutput(args) {
 
 function readGitOutput(args) {
   return execFileSync("git", args, { encoding: "utf8" });
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 function browserValidationSliceActive() {

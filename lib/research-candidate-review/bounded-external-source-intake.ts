@@ -9,6 +9,12 @@ import type {
 
 type JsonRecord = Record<string, unknown>;
 
+interface SourceRefContractValidation {
+  all_source_refs_follow_contract: boolean;
+  all_have_operator_context: boolean;
+  failure_codes: string[];
+}
+
 export interface BoundedExternalSourceIntakeImplementationInput {
   bounded_external_source_intake_contract: BoundedExternalSourceIntakeContract;
   generated_at?: string;
@@ -246,6 +252,10 @@ export function buildBoundedExternalSourceIntakeImplementation(
     contract,
     generatedBundle.source_refs,
   );
+  const sourceRefValidation = validateSourceRefsAgainstContract(
+    contract,
+    generatedBundle.source_refs,
+  );
   const privacySummary = {
     ...contract.privacy_policy,
   };
@@ -254,7 +264,8 @@ export function buildBoundedExternalSourceIntakeImplementation(
   };
 
   const generatedBundleFollowsContract =
-    sourceIntakeReferenceBundleFollowsContract(generatedBundle);
+    sourceIntakeReferenceBundleFollowsContract(generatedBundle) &&
+    sourceRefValidation.all_source_refs_follow_contract;
   const generatedBundleBoundaryMatchesContract = deepEqual(
     generatedBundle.authority_boundary,
     contract.authority_boundary,
@@ -298,7 +309,7 @@ export function buildBoundedExternalSourceIntakeImplementation(
     contract.candidate_generation_policy.candidate_generation_not_implemented_now ===
       true && contract.authority_boundary.candidate_generation_now === false;
   const sourceRefsHaveOperatorContext =
-    sourceReferenceSummary.all_have_operator_context;
+    sourceRefValidation.all_have_operator_context;
   const privacyPolicyIsPreserved = privacyPolicyPreserved(contract);
   const nonAuthorityPolicyIsPreserved = nonAuthorityPolicyPreserved(contract);
   const authorityBoundaryPreserved = implementationAuthorityBoundaryPreserved(
@@ -326,11 +337,7 @@ export function buildBoundedExternalSourceIntakeImplementation(
     privacyPolicyIsPreserved ? null : "privacy_policy_not_preserved",
     nonAuthorityPolicyIsPreserved ? null : "non_authority_policy_not_preserved",
     authorityBoundaryPreserved ? null : "authority_boundary_not_preserved",
-    provenanceSummary.all_source_refs_have_valid_status
-      ? null
-      : "source_ref_invalid_status",
-    sourceReferenceSummary.all_have_source_refs ? null : "source_ref_missing_refs",
-    sourceReferenceSummary.all_public_safe ? null : "source_ref_not_public_safe",
+    ...sourceRefValidation.failure_codes,
   ].filter((code): code is string => Boolean(code));
 
   const implementation: BoundedExternalSourceIntakeImplementation = {
@@ -553,7 +560,9 @@ function buildSourceReferenceSummary(
         Array.isArray(sourceRef.source_refs) && sourceRef.source_refs.length > 0,
     ),
     all_have_operator_context: sourceRefs.every(
-      (sourceRef) => sourceRef.operator_context_ref.length > 0,
+      (sourceRef) =>
+        typeof sourceRef.operator_context_ref === "string" &&
+        sourceRef.operator_context_ref.length > 0,
     ),
     all_reference_only_now: sourceRefs.every(
       (sourceRef) => sourceRef.accepted_as_reference_only_now === true,
@@ -598,6 +607,76 @@ function buildProvenanceSummary(
         sourceRef.source_status,
       ),
     ),
+  };
+}
+
+function validateSourceRefsAgainstContract(
+  contract: BoundedExternalSourceIntakeContract,
+  sourceRefs: BoundedExternalSourceReference[],
+): SourceRefContractValidation {
+  const allowedInputKinds = new Set<string>(
+    contract.allowed_source_inputs.map((input) => input.input_kind),
+  );
+  const disallowedInputKinds = new Set<string>(
+    contract.disallowed_source_inputs.map((input) => input.input_kind),
+  );
+  const validStatuses = new Set<string>(
+    contract.provenance_policy.source_status_values,
+  );
+  const allAllowedInputKinds = sourceRefs.every((sourceRef) =>
+    allowedInputKinds.has(sourceRef.source_input_kind),
+  );
+  const noDisallowedInputKinds = sourceRefs.every(
+    (sourceRef) => !disallowedInputKinds.has(sourceRef.source_input_kind),
+  );
+  const allReferenceOnlyNow = sourceRefs.every(
+    (sourceRef) => sourceRef.accepted_as_reference_only_now === true,
+  );
+  const allSourceFetchNowFalse = sourceRefs.every(
+    (sourceRef) => sourceRef.source_fetch_now === false,
+  );
+  const allProviderExtractionNowFalse = sourceRefs.every(
+    (sourceRef) => sourceRef.provider_extraction_now === false,
+  );
+  const allCandidateGenerationLaterOnly = sourceRefs.every(
+    (sourceRef) => sourceRef.candidate_generation_later_only === true,
+  );
+  const allHaveOperatorContext = sourceRefs.every(
+    (sourceRef) =>
+      typeof sourceRef.operator_context_ref === "string" &&
+      sourceRef.operator_context_ref.length > 0,
+  );
+  const allHaveSourceRefs = sourceRefs.every(
+    (sourceRef) =>
+      Array.isArray(sourceRef.source_refs) && sourceRef.source_refs.length > 0,
+  );
+  const allPublicSafe = sourceRefs.every(
+    (sourceRef) => sourceRef.public_safe === true,
+  );
+  const allValidStatuses = sourceRefs.every((sourceRef) =>
+    validStatuses.has(sourceRef.source_status),
+  );
+  const failureCodes = [
+    noDisallowedInputKinds ? null : "source_ref_disallowed_input_kind",
+    allAllowedInputKinds ? null : "source_ref_unknown_input_kind",
+    allReferenceOnlyNow ? null : "source_ref_not_reference_only",
+    allSourceFetchNowFalse ? null : "source_ref_fetch_enabled",
+    allProviderExtractionNowFalse
+      ? null
+      : "source_ref_provider_extraction_enabled",
+    allCandidateGenerationLaterOnly
+      ? null
+      : "source_ref_candidate_generation_not_later_only",
+    allHaveOperatorContext ? null : "source_ref_missing_operator_context",
+    allHaveSourceRefs ? null : "source_ref_missing_refs",
+    allPublicSafe ? null : "source_ref_not_public_safe",
+    allValidStatuses ? null : "source_ref_invalid_status",
+  ].filter((code): code is string => Boolean(code));
+
+  return {
+    all_source_refs_follow_contract: failureCodes.length === 0,
+    all_have_operator_context: allHaveOperatorContext,
+    failure_codes: failureCodes,
   };
 }
 
@@ -671,7 +750,9 @@ function sortSourceRefs(
 ): BoundedExternalSourceReference[] {
   return sourceRefs
     .map(clone)
-    .sort((a, b) => a.source_ref_id.localeCompare(b.source_ref_id));
+    .sort((a, b) =>
+      String(a.source_ref_id ?? "").localeCompare(String(b.source_ref_id ?? "")),
+    );
 }
 
 function uniqueSorted(values: string[]): string[] {
