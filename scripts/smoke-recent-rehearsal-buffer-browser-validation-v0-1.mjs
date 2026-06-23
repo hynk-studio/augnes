@@ -5,15 +5,16 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 const builderPath = "lib/research-candidate-review/recent-rehearsal-buffer.ts";
 const contractFixturePath =
   "fixtures/research-candidate-review.recent-rehearsal-buffer-contract.sample.v0.1.json";
-const fixturePath =
+const implementationFixturePath =
   "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json";
-const smokePath =
+const implementationSmokePath =
   "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs";
-const browserValidationFixturePath =
+const contractSmokePath =
+  "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs";
+const fixturePath =
   "fixtures/research-candidate-review.recent-rehearsal-buffer-browser-validation.sample.v0.1.json";
-const browserValidationSmokePath =
+const smokePath =
   "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs";
-const contractSmokePath = "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
@@ -22,32 +23,21 @@ const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
 
 const packageScriptName =
-  "smoke:recent-rehearsal-buffer-implementation-v0-1";
-const packageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs";
-const browserValidationPackageScriptName =
   "smoke:recent-rehearsal-buffer-browser-validation-v0-1";
-const browserValidationPackageScriptValue =
+const packageScriptValue =
   "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs";
+const validationKind = "recent_rehearsal_buffer_browser_validation";
+const validationVersion = "recent_rehearsal_buffer_browser_validation.v0.1";
 const implementationKind = "recent_rehearsal_buffer_implementation";
 const implementationVersion =
   "recent_rehearsal_buffer_implementation.v0.1";
-const browserValidationVersion =
-  "recent_rehearsal_buffer_browser_validation.v0.1";
-const browserValidationRecommendationStatus =
-  "ready_for_salience_governor_contract_v0_1";
-const browserValidationNextRecommendedSlice =
-  "salience_governor_contract_v0_1";
 const bufferVersion = "recent_rehearsal_buffer.v0.1";
-const recommendationStatus =
-  "ready_for_recent_rehearsal_buffer_browser_validation_v0_1";
-const nextRecommendedSlice =
-  "recent_rehearsal_buffer_browser_validation_v0_1";
+const recommendationStatus = "ready_for_salience_governor_contract_v0_1";
+const nextRecommendedSlice = "salience_governor_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
 const expectedChangedFiles = [
-  builderPath,
   fixturePath,
   smokePath,
   packagePath,
@@ -55,38 +45,7 @@ const expectedChangedFiles = [
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
-  contractSmokePath,
-  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
-  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
-  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
-  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
-  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
-  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
-  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
-  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
-  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
-];
-
-const browserValidationChangedFiles = [
-  browserValidationFixturePath,
-  browserValidationSmokePath,
-  packagePath,
-  indexPath,
-  substrateDocPath,
-  surfaceDocPath,
-  gateDocPath,
-  smokePath,
+  implementationSmokePath,
   contractSmokePath,
   "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
   "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
@@ -113,7 +72,8 @@ const browserValidationChangedFiles = [
 for (const filePath of [
   builderPath,
   contractFixturePath,
-  smokePath,
+  implementationFixturePath,
+  implementationSmokePath,
   contractSmokePath,
   packagePath,
   indexPath,
@@ -128,11 +88,12 @@ if (!writeFixture) {
 }
 
 const builderSource = readFile(builderPath);
+const implementationSmokeSource = readFile(implementationSmokePath);
 const smokeSource = readFile(smokePath);
-const contractSmokeSource = readFile(contractSmokePath);
 const packageJson = readJson(packagePath);
 const basePackageJson = readJsonFromGit(packagePath);
 const contractFixture = readJson(contractFixturePath);
+const implementationFixture = readJson(implementationFixturePath);
 const indexDoc = readFile(indexPath);
 const substrateDoc = readFile(substrateDocPath);
 const surfaceDoc = readFile(surfaceDocPath);
@@ -142,9 +103,10 @@ const { buildRecentRehearsalBufferImplementation } = await import(
   "../lib/research-candidate-review/recent-rehearsal-buffer.ts"
 );
 
-const rebuiltFixture = buildImplementationFixture();
+const rebuiltImplementation = buildImplementationFixture();
 const invalidRecentContextOverride = buildInvalidRecentContextOverride();
 const invalidExcludedContextOverride = buildInvalidExcludedContextOverride();
+const rebuiltFixture = buildValidationFixture();
 
 if (writeFixture) {
   writeFileSync(fixturePath, `${JSON.stringify(rebuiltFixture, null, 2)}\n`);
@@ -153,50 +115,58 @@ if (writeFixture) {
 
 const fixture = readJson(fixturePath);
 
-assertBuilderFile();
+assertBuilderAndImplementationFixtureExist();
 assertPackageScript();
 assertStaticBoundary();
 assertNoForbiddenRuntimePatterns();
-assertImplementationFixture(fixture);
-assertGeneratedRecentRehearsalBuffer(fixture.generated_recent_rehearsal_buffer);
-assertResumeContextSummary(fixture.resume_context_summary);
-assertDecaySummary(fixture.decay_summary);
-assertNonDurableSummary(fixture.non_durable_summary);
-assertAuthorityBoundary(fixture.authority_boundary);
-assertValidationPolicy(fixture.validation_policy);
-assertValidation(fixture.validation);
+assertImplementationFixtureMatchesRebuild();
+assertValidationFixture(fixture);
+assertValidatedBuilder(fixture.validated_builder);
+assertValidatedBuffer(fixture.validated_buffer);
+assertGeneratedRecentRehearsalBuffer(
+  rebuiltImplementation.generated_recent_rehearsal_buffer,
+);
+assertTopLevelImplementationBoundary(rebuiltImplementation.authority_boundary);
+assertResumeContextSummary(rebuiltImplementation.resume_context_summary);
+assertDecaySummary(rebuiltImplementation.decay_summary);
+assertNonDurablePolicy(rebuiltImplementation.non_durable_summary);
+assertInvalidOverrideCoverage();
 assertInvalidOverrideSummaryConsistency();
+assertAuthorityBoundary(fixture.authority_boundary);
 assertDocsPointers();
-assertContractSmokeDownstreamPointer();
-assertBrowserValidationDownstreamPointer();
+assertImplementationSmokeDownstreamPointer();
 assertPortableMergeBaseFallback();
 assert.deepEqual(
   fixture,
   rebuiltFixture,
-  "rebuilt Recent Rehearsal Buffer implementation fixture must match committed fixture",
+  "rebuilt Recent Rehearsal Buffer browser validation fixture must match committed fixture",
 );
 
 console.log(
   JSON.stringify(
     {
-      smoke: "recent-rehearsal-buffer-implementation-v0-1",
+      smoke: "recent-rehearsal-buffer-browser-validation-v0-1",
       final_status: "pass",
-      implementation_kind: fixture.implementation_kind,
-      implementation_version: fixture.implementation_version,
-      source_contract_fingerprint: fixture.source_contract_fingerprint,
-      generated_buffer_version:
-        fixture.generated_recent_rehearsal_buffer.buffer_version,
-      recent_context_count:
-        fixture.resume_context_summary.recent_context_count,
-      excluded_context_count:
-        fixture.resume_context_summary.excluded_context_count,
-      decay_state: fixture.decay_summary.decay_state,
+      validation_kind: fixture.validation_kind,
+      validation_version: fixture.validation_version,
+      source_implementation_fingerprint:
+        fixture.source_implementation_fingerprint,
+      generated_buffer_authority_boundary_matches_contract:
+        fixture.validated_buffer.generated_buffer_authority_boundary_matches_contract,
+      top_level_implementation_boundary_is_separate:
+        fixture.validated_buffer.top_level_implementation_boundary_is_separate,
+      invalid_override_summary_validation_consistent:
+        fixture.validated_buffer.invalid_override_summary_validation_consistent,
+      runtime_db_write_now:
+        fixture.authority_boundary.runtime_db_write_now,
+      runtime_db_query_now:
+        fixture.authority_boundary.runtime_db_query_now,
       durable_memory_write_implemented_now:
         fixture.authority_boundary.durable_memory_write_implemented_now,
-      runtime_db_write_now: fixture.authority_boundary.runtime_db_write_now,
-      runtime_db_query_now: fixture.authority_boundary.runtime_db_query_now,
-      browser_request_now: fixture.authority_boundary.browser_request_now,
-      salience_authority: fixture.authority_boundary.salience_authority,
+      browser_request_now:
+        fixture.authority_boundary.browser_request_now,
+      salience_authority:
+        fixture.authority_boundary.salience_authority,
       product_write_lane_parked_by_686:
         fixture.authority_boundary.product_write_lane_parked_by_686,
       next_recommended_slice: fixture.next_recommended_slice,
@@ -241,56 +211,127 @@ function buildInvalidExcludedContextOverride() {
   });
 }
 
-function assertBuilderFile() {
-  for (const requiredText of [
-    "buildRecentRehearsalBufferImplementation",
-    implementationKind,
-    implementationVersion,
-    "source_contract_ref",
-    "source_contract_fingerprint",
-    "source_formation_receipt_validation_ref",
-    "generated_recent_rehearsal_buffer",
-    "resume_context_summary",
-    "decay_summary",
-    "non_durable_summary",
-    "authority_boundary",
-    "validation_policy",
-    "recommendation_status",
-    "next_recommended_slice",
-    "implementation_fingerprint",
-    "fnv1a32_canonical_json",
-  ]) {
-    assert.ok(builderSource.includes(requiredText), `${builderPath} must include ${requiredText}`);
-  }
+function buildValidationFixture() {
+  const validation = {
+    validation_kind: validationKind,
+    validation_version: validationVersion,
+    source_implementation_ref:
+      `${implementationFixture.implementation_version}:${implementationFixturePath}#716`,
+    source_implementation_fingerprint:
+      implementationFixture.implementation_fingerprint,
+    validated_builder: {
+      builder_path: builderPath,
+      implementation_fixture_path: implementationFixturePath,
+      deterministic_fixture_backed_only: true,
+      runtime_persistence_now: false,
+      durable_memory_write_now: false,
+      runtime_db_write_now: false,
+      runtime_db_query_now: false,
+      production_db_used_now: false,
+      browser_request_now: false,
+    },
+    validated_buffer: {
+      follows_contract_fields: bufferFollowsContractFields(
+        rebuiltImplementation.generated_recent_rehearsal_buffer,
+      ),
+      generated_buffer_authority_boundary_matches_contract:
+        generatedBufferAuthorityBoundaryMatchesContract(rebuiltImplementation),
+      generated_buffer_validation_matches_contract:
+        generatedBufferValidationMatchesContract(rebuiltImplementation),
+      top_level_implementation_boundary_is_separate:
+        topLevelImplementationBoundaryIsSeparate(rebuiltImplementation),
+      recent_context_has_source_refs:
+        rebuiltImplementation.validation.recent_context_has_source_refs,
+      excluded_context_has_reasons:
+        rebuiltImplementation.validation.excluded_context_has_reasons,
+      invalid_override_summary_validation_consistent:
+        invalidOverrideSummaryValidationConsistent(),
+      decay_state_allowed: rebuiltImplementation.validation.decay_state_allowed,
+      non_durable_policy_preserved:
+        rebuiltImplementation.validation.non_durable_policy_preserved,
+      not_promotion_basis:
+        rebuiltImplementation.resume_context_summary.not_promotion_basis,
+      not_source_of_truth:
+        rebuiltImplementation.resume_context_summary.not_source_of_truth,
+      not_proof_or_evidence:
+        rebuiltImplementation.resume_context_summary.not_proof_or_evidence,
+      not_perspective_state:
+        rebuiltImplementation.resume_context_summary.not_perspective_state,
+      not_work_status:
+        rebuiltImplementation.resume_context_summary.not_work_status,
+      not_salience_authority:
+        rebuiltImplementation.non_durable_summary.not_salience_authority,
+      not_retrieval_rag_result:
+        rebuiltImplementation.non_durable_summary.not_retrieval_rag_result,
+      not_product_write:
+        rebuiltImplementation.non_durable_summary.not_product_write,
+    },
+    authority_boundary: buildAuthorityBoundary(),
+    recommendation_status: recommendationStatus,
+    next_recommended_slice: nextRecommendedSlice,
+    validation: {
+      passed: true,
+      failure_codes: [],
+      deterministic_rebuild_matches_fixture: true,
+    },
+    validation_fingerprint: "",
+    fingerprint_algorithm: "fnv1a32_canonical_json",
+  };
+  validation.validation_fingerprint = createFingerprint(validation);
+  return validation;
+}
+
+function buildAuthorityBoundary() {
+  return {
+    browser_validation_added_now: true,
+    implementation_changed_now: false,
+    runtime_buffer_implemented_now: false,
+    runtime_persistence_implemented_now: false,
+    durable_memory_write_implemented_now: false,
+    runtime_db_write_now: false,
+    runtime_db_query_now: false,
+    production_db_used_now: false,
+    db_schema_implemented_now: false,
+    route_changed_now: false,
+    component_changed_now: false,
+    browser_request_now: false,
+    formation_receipt_written_now: false,
+    feedback_events_written_now: false,
+    feedback_events_mutated_now: false,
+    proof_or_evidence_record: false,
+    perspective_promotion: false,
+    durable_perspective_state_write: false,
+    promotion_decision_record: false,
+    work_mutation: false,
+    execution_authority: false,
+    codex_execution_authority: false,
+    github_automation_authority: false,
+    external_handoff_authority: false,
+    provider_openai_authority: false,
+    retrieval_rag_authority: false,
+    source_fetch_authority: false,
+    salience_authority: false,
+    product_write_authority: false,
+    product_id_allocation_authority: false,
+    product_write_lane_parked_by_686: true,
+  };
+}
+
+function assertBuilderAndImplementationFixtureExist() {
   assert.match(
     builderSource,
     /export function buildRecentRehearsalBufferImplementation\b/,
-    "builder must export buildRecentRehearsalBufferImplementation",
+    "#716 builder must export buildRecentRehearsalBufferImplementation",
+  );
+  assert.equal(implementationFixture.implementation_kind, implementationKind);
+  assert.equal(implementationFixture.implementation_version, implementationVersion);
+  assert.equal(
+    implementationFixture.next_recommended_slice,
+    "recent_rehearsal_buffer_browser_validation_v0_1",
   );
 }
 
 function assertPackageScript() {
-  if (browserValidationSliceActive()) {
-    assert.equal(
-      packageJson.scripts[browserValidationPackageScriptName],
-      browserValidationPackageScriptValue,
-    );
-    const addedScripts = Object.keys(packageJson.scripts)
-      .filter((scriptName) => !basePackageJson.scripts[scriptName])
-      .sort();
-    assert.deepEqual(
-      addedScripts,
-      [browserValidationPackageScriptName],
-      "package.json must add only the Recent Rehearsal Buffer browser validation smoke script",
-    );
-    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
-    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
-    assert.deepEqual(
-      packageJson.optionalDependencies ?? {},
-      basePackageJson.optionalDependencies ?? {},
-    );
-    return;
-  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const addedScripts = Object.keys(packageJson.scripts)
     .filter((scriptName) => !basePackageJson.scripts[scriptName])
@@ -298,7 +339,7 @@ function assertPackageScript() {
   assert.deepEqual(
     addedScripts,
     [packageScriptName],
-    "package.json must add only the Recent Rehearsal Buffer implementation smoke script",
+    "package.json must add only the Recent Rehearsal Buffer browser validation smoke script",
   );
   assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
   assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
@@ -310,26 +351,31 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  const activeExpectedFiles = browserValidationSliceActive()
-    ? browserValidationChangedFiles
-    : expectedChangedFiles;
-  if (browserValidationSliceActive()) {
-    assert.ok(
-      !changedFiles.includes(builderPath),
-      "browser validation slice must not change the #716 builder",
-    );
-    assert.ok(
-      !changedFiles.includes(fixturePath),
-      "browser validation slice must not change the #716 implementation fixture",
-    );
-  }
-  for (const expectedFile of activeExpectedFiles) {
+  assert.ok(
+    !changedFiles.includes(builderPath),
+    "browser validation slice must not change the #716 builder",
+  );
+  assert.ok(
+    !changedFiles.includes(implementationFixturePath),
+    "browser validation slice must not change the #716 implementation fixture",
+  );
+  assert.equal(
+    readGitOutput(["show", `${mergeBaseRef()}:${builderPath}`]),
+    readFile(builderPath),
+    "#716 builder file must be unchanged by this validation slice",
+  );
+  assert.equal(
+    readGitOutput(["show", `${mergeBaseRef()}:${implementationFixturePath}`]),
+    readFile(implementationFixturePath),
+    "#716 implementation fixture must be unchanged by this validation slice",
+  );
+  for (const expectedFile of expectedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      activeExpectedFiles.includes(changedFile),
-      `unexpected changed file in Recent Rehearsal Buffer implementation slice: ${changedFile}`,
+      expectedChangedFiles.includes(changedFile),
+      `unexpected changed file in Recent Rehearsal Buffer browser validation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
     assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
@@ -388,40 +434,79 @@ function assertNoForbiddenRuntimePatterns() {
   }
 }
 
-function assertImplementationFixture(value) {
-  assert.equal(value.implementation_kind, implementationKind);
-  assert.equal(value.implementation_version, implementationVersion);
-  assert.equal(
-    value.source_contract_ref,
-    `${contractFixture.contract_version}:${contractFixturePath}`,
+function assertImplementationFixtureMatchesRebuild() {
+  assert.deepEqual(
+    implementationFixture,
+    rebuiltImplementation,
+    "#716 implementation fixture must match rebuilt deterministic output",
   );
-  assert.equal(value.source_contract_fingerprint, contractFixture.contract_fingerprint);
+}
+
+function assertValidationFixture(value) {
+  assert.equal(value.validation_kind, validationKind);
+  assert.equal(value.validation_version, validationVersion);
   assert.equal(
-    value.source_formation_receipt_validation_ref,
-    contractFixture.source_formation_receipt_validation_ref,
+    value.source_implementation_ref,
+    `${implementationFixture.implementation_version}:${implementationFixturePath}#716`,
+  );
+  assert.equal(
+    value.source_implementation_fingerprint,
+    implementationFixture.implementation_fingerprint,
   );
   assert.equal(value.recommendation_status, recommendationStatus);
   assert.equal(value.next_recommended_slice, nextRecommendedSlice);
-  assert.match(value.implementation_fingerprint, /^fnv1a32:[0-9a-f]{8}$/);
+  assert.equal(value.validation.passed, true);
+  assert.deepEqual(value.validation.failure_codes, []);
+  assert.equal(value.validation.deterministic_rebuild_matches_fixture, true);
+  assert.match(value.validation_fingerprint, /^fnv1a32:[0-9a-f]{8}$/);
   assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
 }
 
+function assertValidatedBuilder(value) {
+  assert.deepEqual(value, {
+    builder_path: builderPath,
+    implementation_fixture_path: implementationFixturePath,
+    deterministic_fixture_backed_only: true,
+    runtime_persistence_now: false,
+    durable_memory_write_now: false,
+    runtime_db_write_now: false,
+    runtime_db_query_now: false,
+    production_db_used_now: false,
+    browser_request_now: false,
+  });
+}
+
+function assertValidatedBuffer(value) {
+  assert.equal(value.follows_contract_fields, true);
+  assert.equal(value.generated_buffer_authority_boundary_matches_contract, true);
+  assert.equal(value.generated_buffer_validation_matches_contract, true);
+  assert.equal(value.top_level_implementation_boundary_is_separate, true);
+  assert.equal(value.recent_context_has_source_refs, true);
+  assert.equal(value.excluded_context_has_reasons, true);
+  assert.equal(value.invalid_override_summary_validation_consistent, true);
+  assert.equal(value.decay_state_allowed, true);
+  assert.equal(value.non_durable_policy_preserved, true);
+  assert.equal(value.not_promotion_basis, true);
+  assert.equal(value.not_source_of_truth, true);
+  assert.equal(value.not_proof_or_evidence, true);
+  assert.equal(value.not_perspective_state, true);
+  assert.equal(value.not_work_status, true);
+  assert.equal(value.not_salience_authority, true);
+  assert.equal(value.not_retrieval_rag_result, true);
+  assert.equal(value.not_product_write, true);
+}
+
 function assertGeneratedRecentRehearsalBuffer(buffer) {
-  for (const field of Object.keys(contractFixture.buffer_fields)) {
-    assert.ok(Object.hasOwn(buffer, field), `generated buffer must include ${field}`);
-  }
+  assert.equal(bufferFollowsContractFields(buffer), true);
   assert.equal(buffer.buffer_version, bufferVersion);
   assert.ok(Array.isArray(buffer.source_refs) && buffer.source_refs.length > 0);
-  assert.equal(typeof buffer.last_active_research_question, "string");
-  assert.ok(buffer.last_active_research_question.length > 0);
   assert.ok(Array.isArray(buffer.last_open_tension_ids));
   assert.ok(buffer.last_open_tension_ids.length > 0);
   assert.ok(Array.isArray(buffer.recent_context_refs));
   assert.ok(buffer.recent_context_refs.length > 0);
   assert.ok(Array.isArray(buffer.excluded_context_refs));
   assert.ok(buffer.excluded_context_refs.length > 0);
-  assert.equal(buffer.decay_state, "fresh");
-  assert.equal(buffer.decay_policy_ref, "recent_rehearsal_buffer_decay_policy.v0.1");
+  assert.ok(contractFixture.decay_policy.allowed_decay_states.includes(buffer.decay_state));
   assert.deepEqual(buffer.authority_boundary, contractFixture.authority_boundary);
   assert.deepEqual(buffer.validation, contractFixture.validation_policy);
   assert.equal(buffer.authority_boundary.contract_only, true);
@@ -439,23 +524,31 @@ function assertGeneratedRecentRehearsalBuffer(buffer) {
   );
 }
 
+function assertTopLevelImplementationBoundary(value) {
+  assert.equal(value.implementation_added_now, true);
+  assert.equal(value.deterministic_builder_added_now, true);
+  for (const [key, flag] of Object.entries(value)) {
+    if (
+      key === "implementation_added_now" ||
+      key === "contract_followed_now" ||
+      key === "fixture_backed_only" ||
+      key === "deterministic_builder_added_now" ||
+      key === "product_write_lane_parked_by_686"
+    ) {
+      assert.equal(flag, true, `${key} must be true`);
+    } else {
+      assert.equal(flag, false, `${key} must be false`);
+    }
+  }
+}
+
 function assertResumeContextSummary(value) {
-  const buffer = fixture.generated_recent_rehearsal_buffer;
+  const buffer = rebuiltImplementation.generated_recent_rehearsal_buffer;
   assert.equal(value.recent_context_count, buffer.recent_context_refs.length);
-  assert.deepEqual(
-    value.recent_context_ref_ids,
-    buffer.recent_context_refs.map((ref) => ref.context_ref_id),
-  );
   assert.equal(value.recent_context_has_source_refs, true);
   assert.equal(value.excluded_context_count, buffer.excluded_context_refs.length);
-  assert.deepEqual(
-    value.excluded_context_ref_ids,
-    buffer.excluded_context_refs.map((ref) => ref.context_ref_id),
-  );
   assert.equal(value.excluded_context_reasons_present, true);
   assert.equal(value.last_open_tension_count, buffer.last_open_tension_ids.length);
-  assert.equal(value.last_failed_check_present, true);
-  assert.equal(value.last_user_decision_present, true);
   assert.equal(value.may_help_resume_work, true);
   assert.equal(value.non_durable, true);
   assert.equal(value.not_promotion_basis, true);
@@ -473,7 +566,6 @@ function assertResumeContextSummary(value) {
 }
 
 function assertDecaySummary(value) {
-  assert.equal(value.decay_state, fixture.generated_recent_rehearsal_buffer.decay_state);
   assert.deepEqual(value.allowed_decay_states, ["fresh", "warm", "cool", "archive"]);
   assert.ok(value.allowed_decay_states.includes(value.decay_state));
   assert.equal(value.decay_is_display_context_only, true);
@@ -481,9 +573,12 @@ function assertDecaySummary(value) {
   assert.equal(value.decay_does_not_mutate_work, true);
   assert.equal(value.decay_does_not_decide_promotion, true);
   assert.equal(value.pin_or_watch_not_implemented_now, true);
+  assert.equal(contractFixture.decay_policy.decay_does_not_delete_records, true);
+  assert.equal(contractFixture.decay_policy.decay_does_not_mutate_work, true);
+  assert.equal(contractFixture.decay_policy.decay_does_not_decide_promotion, true);
 }
 
-function assertNonDurableSummary(value) {
+function assertNonDurablePolicy(value) {
   assert.equal(value.non_durable, true);
   assert.equal(value.durable_write_requires_later_contract, true);
   assert.equal(value.runtime_persistence_implemented_now, false);
@@ -491,50 +586,30 @@ function assertNonDurableSummary(value) {
   assert.equal(value.not_salience_authority, true);
   assert.equal(value.not_retrieval_rag_result, true);
   assert.equal(value.not_product_write, true);
+  assert.equal(contractFixture.non_durable_policy.not_promotion_basis, true);
+  assert.equal(contractFixture.non_durable_policy.not_source_of_truth, true);
+  assert.equal(contractFixture.non_durable_policy.not_proof_or_evidence, true);
+  assert.equal(contractFixture.non_durable_policy.not_perspective_state, true);
+  assert.equal(contractFixture.non_durable_policy.not_work_status, true);
+  assert.equal(contractFixture.non_durable_policy.not_salience_authority, true);
+  assert.equal(contractFixture.non_durable_policy.not_retrieval_rag_result, true);
+  assert.equal(contractFixture.non_durable_policy.not_product_write, true);
 }
 
-function assertAuthorityBoundary(value) {
-  assert.equal(value.implementation_added_now, true);
-  assert.equal(value.deterministic_builder_added_now, true);
-  assert.equal(value.product_write_lane_parked_by_686, true);
-  assert.equal(value.product_write_authority, false);
-  assert.equal(value.salience_authority, false);
-  for (const [key, flag] of Object.entries(value)) {
-    if (
-      key === "implementation_added_now" ||
-      key === "contract_followed_now" ||
-      key === "fixture_backed_only" ||
-      key === "deterministic_builder_added_now" ||
-      key === "product_write_lane_parked_by_686"
-    ) {
-      assert.equal(flag, true, `${key} must be true`);
-    } else {
-      assert.equal(flag, false, `${key} must be false`);
-    }
+function assertInvalidOverrideCoverage() {
+  for (const requiredText of [
+    "recent_context_ref_missing_source_refs",
+    "recent_context_missing_source_refs",
+    "excluded_context_ref_missing_reason",
+    "excluded_context_missing_reason",
+    "resume_context_summary.recent_context_has_source_refs",
+    "resume_context_summary.excluded_context_reasons_present",
+  ]) {
+    assert.ok(
+      implementationSmokeSource.includes(requiredText),
+      `#716 implementation smoke must include invalid override coverage: ${requiredText}`,
+    );
   }
-}
-
-function assertValidationPolicy(value) {
-  assert.deepEqual(value, {
-    static_source_validation_only: true,
-    fixture_backed_only: true,
-    app_server_started_now: false,
-    production_db_used_now: false,
-    runtime_browser_request_now: false,
-    runtime_db_query_now: false,
-    runtime_db_write_now: false,
-  });
-}
-
-function assertValidation(value) {
-  assert.equal(value.passed, true);
-  assert.deepEqual(value.failure_codes, []);
-  assert.equal(value.recent_context_has_source_refs, true);
-  assert.equal(value.excluded_context_has_reasons, true);
-  assert.equal(value.decay_state_allowed, true);
-  assert.equal(value.non_durable_policy_preserved, true);
-  assert.equal(value.authority_boundary_preserved, true);
-  assert.equal(value.deterministic_rebuild_matches_fixture, true);
 }
 
 function assertInvalidOverrideSummaryConsistency() {
@@ -566,18 +641,31 @@ function assertInvalidOverrideSummaryConsistency() {
   );
 }
 
+function assertAuthorityBoundary(value) {
+  assert.equal(value.browser_validation_added_now, true);
+  assert.equal(value.product_write_lane_parked_by_686, true);
+  for (const [key, flag] of Object.entries(value)) {
+    if (key === "browser_validation_added_now" || key === "product_write_lane_parked_by_686") {
+      assert.equal(flag, true, `${key} must be true`);
+    } else {
+      assert.equal(flag, false, `${key} must be false`);
+    }
+  }
+}
+
 function assertDocsPointers() {
   for (const requiredText of [
-    "Recent Rehearsal Buffer implementation v0.1",
-    builderPath,
+    "Recent Rehearsal Buffer browser validation v0.1",
     fixturePath,
     smokePath,
     packageScriptName,
-    "deterministic fixture-backed implementation",
-    "generated non-durable buffer shape from #715 contract",
-    "resume context summary",
-    "decay summary",
-    "invalid override summary/validation consistency",
+    "validates deterministic fixture-backed implementation",
+    "validates generated non-durable buffer shape from #715 contract",
+    "validates generated buffer contract authority boundary",
+    "validates top-level implementation boundary separation",
+    "validates resume context summary",
+    "validates decay summary",
+    "validates invalid override summary/validation consistency",
     "no runtime persistence",
     "no durable memory write",
     "no runtime DB write/query",
@@ -594,7 +682,7 @@ function assertDocsPointers() {
     assert.ok(indexDoc.includes(requiredText), `index doc must include ${requiredText}`);
   }
   for (const doc of [substrateDoc, surfaceDoc, gateDoc]) {
-    assert.match(doc, /Recent Rehearsal Buffer implementation v0\.1/i);
+    assert.match(doc, /Recent Rehearsal Buffer browser validation v0\.1/i);
     assert.match(doc, /deterministic/i);
     assert.match(doc, /fixture-backed/i);
     assert.match(doc, /compact non-durable resume context|recent work resume context/i);
@@ -606,47 +694,24 @@ function assertDocsPointers() {
     assert.match(doc, /retrieval\/RAG/i);
     assert.match(doc, /product write/i);
     assert.match(doc, /runtime DB|no runtime DB/i);
-    assert.match(doc, new RegExp(nextRecommendedSlice));
+    assert.match(doc, /salience_governor_contract_v0_1|Salience Governor contract v0\.1/i);
   }
 }
 
-function assertContractSmokeDownstreamPointer() {
+function assertImplementationSmokeDownstreamPointer() {
   for (const requiredText of [
-    implementationVersion,
-    builderPath,
+    validationVersion,
     fixturePath,
     smokePath,
     packageScriptName,
     recommendationStatus,
     nextRecommendedSlice,
-    "invalid override summary/validation consistency",
-    "product-write remains parked by #686",
-  ]) {
-    assert.ok(
-      contractSmokeSource.includes(requiredText),
-      `#715 Recent Rehearsal Buffer contract smoke must allow implementation downstream pointer: ${requiredText}`,
-    );
-  }
-}
-
-function assertBrowserValidationDownstreamPointer() {
-  if (!browserValidationSliceActive()) {
-    return;
-  }
-  for (const requiredText of [
-    browserValidationVersion,
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    browserValidationPackageScriptName,
-    browserValidationRecommendationStatus,
-    browserValidationNextRecommendedSlice,
     "generated buffer contract authority boundary",
     "top-level implementation boundary separation",
     "product-write remains parked by #686",
   ]) {
     assert.ok(
-      readFile(browserValidationSmokePath).includes(requiredText) ||
-        readFile(smokePath).includes(requiredText),
+      implementationSmokeSource.includes(requiredText),
       `#716 implementation smoke must allow browser validation pointer: ${requiredText}`,
     );
   }
@@ -663,6 +728,87 @@ function assertPortableMergeBaseFallback() {
   ]) {
     assert.ok(smokeSource.includes(requiredText), `smoke must include portable mergeBaseRef text: ${requiredText}`);
   }
+}
+
+function bufferFollowsContractFields(buffer) {
+  return Object.keys(contractFixture.buffer_fields).every((field) =>
+    Object.hasOwn(buffer, field),
+  );
+}
+
+function generatedBufferAuthorityBoundaryMatchesContract(implementation) {
+  return deepEqual(
+    implementation.generated_recent_rehearsal_buffer.authority_boundary,
+    contractFixture.authority_boundary,
+  );
+}
+
+function generatedBufferValidationMatchesContract(implementation) {
+  return deepEqual(
+    implementation.generated_recent_rehearsal_buffer.validation,
+    contractFixture.validation_policy,
+  );
+}
+
+function topLevelImplementationBoundaryIsSeparate(implementation) {
+  return (
+    implementation.authority_boundary.implementation_added_now === true &&
+    implementation.authority_boundary.deterministic_builder_added_now === true &&
+    !Object.hasOwn(
+      implementation.generated_recent_rehearsal_buffer.authority_boundary,
+      "implementation_added_now",
+    ) &&
+    !Object.hasOwn(
+      implementation.generated_recent_rehearsal_buffer.authority_boundary,
+      "deterministic_builder_added_now",
+    )
+  );
+}
+
+function invalidOverrideSummaryValidationConsistent() {
+  return (
+    invalidRecentContextOverride.validation.recent_context_has_source_refs === false &&
+    invalidRecentContextOverride.resume_context_summary.recent_context_has_source_refs === false &&
+    invalidExcludedContextOverride.validation.excluded_context_has_reasons === false &&
+    invalidExcludedContextOverride.resume_context_summary.excluded_context_reasons_present === false
+  );
+}
+
+function createFingerprint(value) {
+  const normalized = JSON.parse(JSON.stringify(value));
+  delete normalized.validation_fingerprint;
+  return `fnv1a32:${fnv1a32(canonicalJson(normalized))}`;
+}
+
+function canonicalJson(value) {
+  return JSON.stringify(sortKeys(value));
+}
+
+function sortKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map(sortKeys);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, nested]) => [key, sortKeys(nested)]),
+    );
+  }
+  return value;
+}
+
+function fnv1a32(input) {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+function deepEqual(left, right) {
+  return JSON.stringify(sortKeys(left)) === JSON.stringify(sortKeys(right));
 }
 
 function readFile(filePath) {
@@ -722,10 +868,6 @@ function mergeBaseRef() {
 
 function gitRefExists(ref) {
   return tryGitOutput(["rev-parse", "--verify", ref]) !== null;
-}
-
-function browserValidationSliceActive() {
-  return readChangedFiles().includes(browserValidationSmokePath);
 }
 
 function tryGitOutput(args) {
