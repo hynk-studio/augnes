@@ -1272,6 +1272,37 @@ ID allocation. Product-write remains parked by the #686 stopline. Next
 recommended slice:
 `operator_source_candidate_generation_implementation_v0_1`.
 
+## Operator Source Candidate Generation Implementation v0.1 Pointer
+
+Operator Source Candidate Generation implementation remains separated from
+durable Perspective promotion. It generates candidate previews only from the
+#724 contract and committed fixtures.
+Operator Source Candidate Generation implementation remains separated from durable Perspective promotion.
+It generates candidate previews only.
+It does not implement runtime DB/browser/provider/retrieval behavior in this slice.
+
+The implementation keeps generated candidate previews candidate-only,
+preview-only, source-ref-backed, operator-context-backed, and review-required
+later. It validates invalid generated candidate preview override rejection and
+does not treat previews as proof/evidence, source of truth, Perspective state,
+work status, promotion basis, retrieval/RAG result, salience authority,
+candidate/work mutation, or product write.
+
+It does not implement runtime DB/browser/provider/retrieval behavior in this
+slice. It adds no runtime candidate generation, no runtime source fetch, no
+crawler behavior, no provider/OpenAI call, no provider extraction, no
+retrieval/RAG execution, no source index write, no durable source record write,
+no candidate record write, no runtime persistence, no durable memory write, no
+runtime DB write/query, no production DB read, no schema/migration, no route,
+no route handler, no server action, no component/UI implementation, no browser
+request, no browser persistence, no durable salience write, no recent
+rehearsal buffer write, no formation receipt write, no feedback write/mutation,
+no proof/evidence write, no Perspective promotion, no durable Perspective state
+write, no promotion decision record, no candidate/work mutation, no product
+write, no product DB write, and no product ID allocation. Product-write remains
+parked by the #686 stopline. Next recommended slice:
+`operator_source_candidate_generation_browser_validation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
