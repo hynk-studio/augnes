@@ -128,6 +128,69 @@ const perspectiveGeometryDigestBrowserValidationRecommendationStatus =
   "ready_for_ai_context_packet_contract_v0_1";
 const perspectiveGeometryDigestBrowserValidationNextRecommendedSlice =
   "ai_context_packet_contract_v0_1";
+const aiContextPacketTypePath = "types/ai-context-packet-contract.ts";
+const aiContextPacketFixturePath =
+  "fixtures/research-candidate-review.ai-context-packet-contract.sample.v0.1.json";
+const aiContextPacketSmokePath =
+  "scripts/smoke-ai-context-packet-contract-v0-1.mjs";
+const aiContextPacketPackageScriptName =
+  "smoke:ai-context-packet-contract-v0-1";
+const aiContextPacketPackageScriptValue =
+  "node scripts/smoke-ai-context-packet-contract-v0-1.mjs";
+const aiContextPacketContractVersion = "ai_context_packet_contract.v0.1";
+const aiContextPacketRecommendationStatus =
+  "ready_for_ai_context_packet_implementation_v0_1";
+const aiContextPacketNextRecommendedSlice =
+  "ai_context_packet_implementation_v0_1";
+const aiContextPacketDownstreamSmokePaths = [
+  "scripts/smoke-bounded-external-source-intake-browser-validation-v0-1.mjs",
+  "scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
+  "scripts/smoke-bounded-external-source-intake-implementation-v0-1.mjs",
+  "scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs",
+  "scripts/smoke-durable-perspective-state-trajectory-contract-v0-1.mjs",
+  "scripts/smoke-durable-perspective-state-trajectory-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+  "scripts/smoke-human-reviewed-durable-perspective-promotion-browser-validation-v0-1.mjs",
+  "scripts/smoke-human-reviewed-durable-perspective-promotion-contract-v0-1.mjs",
+  "scripts/smoke-human-reviewed-durable-perspective-promotion-implementation-v0-1.mjs",
+  "scripts/smoke-non-authoritative-retrieval-rag-browser-validation-v0-1.mjs",
+  "scripts/smoke-non-authoritative-retrieval-rag-contract-v0-1.mjs",
+  "scripts/smoke-non-authoritative-retrieval-rag-implementation-v0-1.mjs",
+  "scripts/smoke-operator-source-candidate-generation-browser-validation-v0-1.mjs",
+  "scripts/smoke-operator-source-candidate-generation-contract-v0-1.mjs",
+  "scripts/smoke-operator-source-candidate-generation-implementation-v0-1.mjs",
+  "scripts/smoke-perspective-geometry-digest-browser-validation-v0-1.mjs",
+  "scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",
+  "scripts/smoke-perspective-geometry-digest-implementation-v0-1.mjs",
+  "scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs",
+  "scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs",
+  "scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+  "scripts/smoke-salience-governor-browser-validation-v0-1.mjs",
+  "scripts/smoke-salience-governor-contract-v0-1.mjs",
+  "scripts/smoke-salience-governor-implementation-v0-1.mjs",
+];
 const perspectiveGeometryDigestImplementationDownstreamSmokePaths = [
   "scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs",
   "scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs",
@@ -701,6 +764,10 @@ function assertBuilderShape() {
 }
 
 function assertPackageScript() {
+  if (aiContextPacketContractSliceActive()) {
+    assertAIContextPacketContractPackageScript();
+    return;
+  }
   if (perspectiveGeometryDigestBrowserValidationSliceActive()) {
     assertPerspectiveGeometryDigestBrowserValidationPackageScript();
     return;
@@ -934,6 +1001,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (aiContextPacketContractSliceActive()) {
+    assertAIContextPacketContractChangedFiles(changedFiles);
+    return;
+  }
   if (perspectiveGeometryDigestBrowserValidationSliceActive()) {
     assertPerspectiveGeometryDigestBrowserValidationChangedFiles(changedFiles);
     return;
@@ -1335,6 +1406,97 @@ function assertDurablePerspectiveStateTrajectoryContractChangedFiles(changedFile
 }
 
 
+
+function aiContextPacketContractSliceActive() {
+  return readChangedFiles().includes(aiContextPacketSmokePath);
+}
+
+function assertAIContextPacketContractPackageScript() {
+  assert.equal(
+    packageJson.scripts[aiContextPacketPackageScriptName],
+    aiContextPacketPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [aiContextPacketPackageScriptName],
+    "package.json must add only the AI Context Packet contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  if (typeof basePackageJson !== "undefined") {
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+  }
+}
+
+function assertAIContextPacketContractChangedFiles(changedFiles) {
+  const expectedFiles = [
+    aiContextPacketTypePath,
+    aiContextPacketFixturePath,
+    aiContextPacketSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    ...aiContextPacketDownstreamSmokePaths,
+  ];
+  for (const expectedFile of expectedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in AI Context Packet contract downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertAIContextPacketContractDownstreamPointer();
+}
+
+function assertAIContextPacketContractDownstreamPointer() {
+  const contractSmoke = readFileSync(aiContextPacketSmokePath, "utf8");
+  for (const requiredText of [
+    aiContextPacketContractVersion,
+    aiContextPacketFixturePath,
+    aiContextPacketSmokePath,
+    aiContextPacketPackageScriptName,
+    aiContextPacketRecommendationStatus,
+    aiContextPacketNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      contractSmoke.includes(requiredText),
+      `AI Context Packet contract smoke must include ${requiredText}`,
+    );
+  }
+}
 
 function perspectiveGeometryDigestBrowserValidationSliceActive() {
   return readChangedFiles().includes(perspectiveGeometryDigestBrowserValidationSmokePath);
