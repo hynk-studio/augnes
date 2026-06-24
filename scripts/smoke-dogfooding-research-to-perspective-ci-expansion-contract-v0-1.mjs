@@ -51,6 +51,20 @@ const implementationRecommendationStatus =
   "ready_for_dogfooding_research_to_perspective_ci_expansion_browser_validation_v0_1";
 const implementationNextRecommendedSlice =
   "dogfooding_research_to_perspective_ci_expansion_browser_validation_v0_1";
+const browserValidationFixturePath =
+  "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-browser-validation.sample.v0.1.json";
+const browserValidationSmokePath =
+  "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1.mjs";
+const browserValidationPackageScriptName =
+  "smoke:dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1";
+const browserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1.mjs";
+const browserValidationVersion =
+  "dogfooding_research_to_perspective_ci_expansion_browser_validation.v0.1";
+const browserValidationRecommendationStatus =
+  "ready_for_dogfooding_research_to_perspective_ci_expansion_closeout_v0_1";
+const browserValidationNextRecommendedSlice =
+  "dogfooding_research_to_perspective_ci_expansion_closeout_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -132,6 +146,7 @@ assertPrivacyPolicy(fixture.privacy_policy);
 assertDocsPointers();
 assertFeedbackLoopCloseoutSmokeDownstreamPointer();
 assertImplementationDownstreamPointer();
+assertBrowserValidationDownstreamPointer();
 assertPortableMergeBaseFallback();
 assert.deepEqual(
   fixture,
@@ -619,6 +634,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (dogfoodingResearchToPerspectiveCiExpansionBrowserValidationSliceActive()) {
+    assertBrowserValidationPackageScript();
+    return;
+  }
   if (dogfoodingResearchToPerspectiveCiExpansionImplementationSliceActive()) {
     assertImplementationPackageScript();
     return;
@@ -655,6 +674,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (dogfoodingResearchToPerspectiveCiExpansionBrowserValidationSliceActive()) {
+    assertBrowserValidationChangedFiles(changedFiles);
+    return;
+  }
   if (dogfoodingResearchToPerspectiveCiExpansionImplementationSliceActive()) {
     assertImplementationChangedFiles(changedFiles);
     return;
@@ -1041,8 +1064,68 @@ function assertImplementationDownstreamPointer() {
   ]);
 }
 
+function assertBrowserValidationDownstreamPointer() {
+  if (!dogfoodingResearchToPerspectiveCiExpansionBrowserValidationSliceActive()) {
+    return;
+  }
+  assert.ok(existsSync(browserValidationFixturePath), `${browserValidationFixturePath} must exist`);
+  assert.ok(existsSync(browserValidationSmokePath), `${browserValidationSmokePath} must exist`);
+  assert.equal(
+    packageJson.scripts[browserValidationPackageScriptName],
+    browserValidationPackageScriptValue,
+  );
+  const validationFixture = readJson(browserValidationFixturePath);
+  assert.equal(validationFixture.validation_version, browserValidationVersion);
+  assert.equal(
+    validationFixture.recommendation_status,
+    browserValidationRecommendationStatus,
+  );
+  assert.equal(
+    validationFixture.next_recommended_slice,
+    browserValidationNextRecommendedSlice,
+  );
+}
+
+function dogfoodingResearchToPerspectiveCiExpansionBrowserValidationSliceActive() {
+  return readChangedFiles().includes(browserValidationSmokePath);
+}
+
 function dogfoodingResearchToPerspectiveCiExpansionImplementationSliceActive() {
   return readChangedFiles().includes(implementationSmokePath);
+}
+
+function assertBrowserValidationPackageScript() {
+  assert.equal(
+    packageJson.scripts[browserValidationPackageScriptName],
+    browserValidationPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [browserValidationPackageScriptName],
+    "package.json must add only the Dogfooding Research-to-Perspective CI Expansion browser validation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
 }
 
 function assertImplementationPackageScript() {
@@ -1077,6 +1160,54 @@ function assertImplementationPackageScript() {
     packageJson.optionalDependencies ?? {},
     basePackageJson.optionalDependencies ?? {},
   );
+}
+
+function assertBrowserValidationChangedFiles(changedFiles) {
+  const expected = [
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    implementationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ];
+  for (const filePath of expected) {
+    assert.ok(changedFiles.includes(filePath), `browser validation slice must include ${filePath}`);
+  }
+  for (const protectedPath of [
+    typePath,
+    fixturePath,
+    implementationBuilderPath,
+    implementationFixturePath,
+    feedbackLoopCloseoutFixturePath,
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(!changedFiles.includes(protectedPath), `browser validation slice must not change ${protectedPath}`);
+  }
+  for (const changedFile of changedFiles) {
+    const allowedDownstreamSmoke =
+      changedFile.startsWith("scripts/smoke-") &&
+      changedFile.endsWith(".mjs") &&
+      !expected.includes(changedFile) &&
+      readFileSync(changedFile, "utf8").includes(
+        "dogfoodingResearchToPerspectiveCiExpansionBrowserValidationSliceActive",
+      );
+    assert.ok(
+      expected.includes(changedFile) || allowedDownstreamSmoke,
+      `unexpected changed file in Dogfooding Research-to-Perspective CI Expansion browser validation slice: ${changedFile}`,
+    );
+    if (allowedDownstreamSmoke) continue;
+    assert.doesNotMatch(changedFile, /^\.github\/workflows\//, "must not change GitHub Actions workflows");
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
 }
 
 function assertImplementationChangedFiles(changedFiles) {

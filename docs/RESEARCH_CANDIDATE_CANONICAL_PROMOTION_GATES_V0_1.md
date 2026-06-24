@@ -1530,3 +1530,14 @@ This slice does not implement runtime CI/browser/provider/source-fetch/retrieval
 Product-write remains parked by #686.
 Next recommended slice is Dogfooding Research-to-Perspective CI Expansion browser validation v0.1.
 `dogfooding_research_to_perspective_ci_expansion_browser_validation_v0_1`
+
+Dogfooding CI expansion validation remains separated from candidate preview, feedback runtime, durable Perspective state, promotion runtime, and execution.
+Dogfooding signals remain candidate/review context.
+Smoke pass is not truth.
+Smoke fail is diagnostic, not automatic rejection.
+Changed files are review cues, not correctness proof.
+PR body is operator report, not authority.
+This slice does not implement runtime CI/browser/provider/source-fetch/retrieval/promotion/state/dogfooding behavior.
+Product-write remains parked by #686.
+Next recommended slice is Dogfooding Research-to-Perspective CI Expansion closeout v0.1.
+`dogfooding_research_to_perspective_ci_expansion_closeout_v0_1`

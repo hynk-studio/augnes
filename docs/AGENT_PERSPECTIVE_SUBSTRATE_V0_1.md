@@ -1239,3 +1239,11 @@ This slice does not add GitHub Actions, CI runtime, dogfooding ingestion, provid
 Product-write remains parked by #686.
 Next recommended slice is Dogfooding Research-to-Perspective CI Expansion browser validation v0.1.
 `dogfooding_research_to_perspective_ci_expansion_browser_validation_v0_1`
+
+Dogfooding Research-to-Perspective CI Expansion browser validation validates the deterministic fixture-backed #756 implementation.
+It validates public-safe Dogfooding Research-to-Perspective CI Expansion preview bundles against the #755 contract.
+Agent Substrate remains advisory-only and cannot treat smoke pass/fail, PR body, Codex result, or changed files as truth/authority.
+This slice does not add GitHub Actions, CI runtime, dogfooding ingestion, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, work mutation, or product write.
+Product-write remains parked by #686.
+Next recommended slice is Dogfooding Research-to-Perspective CI Expansion closeout v0.1.
+`dogfooding_research_to_perspective_ci_expansion_closeout_v0_1`
