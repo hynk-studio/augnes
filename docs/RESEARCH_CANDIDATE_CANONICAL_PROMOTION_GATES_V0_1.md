@@ -1319,6 +1319,15 @@ This slice does not implement runtime DB/browser/provider/source-fetch/retrieval
 Product-write remains parked by #686. Next recommended slice:
 `codex_handoff_draft_contract_v0_1`.
 
+Codex Handoff Draft remains separated from candidate preview, AI Context Packet runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, and execution.
+Draft-selected candidates remain candidates, not proof/evidence or durable state.
+Unresolved tensions and knowledge gaps must remain visible.
+AI Context Packet remains context, not execution authority.
+Codex Handoff Draft cannot execute Codex, create branches, create commits, create PRs, call providers, run retrieval/RAG, mutate state/work, or write product data.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/layout/digest/packet/handoff behavior.
+Product-write remains parked by #686. Next recommended slice:
+`codex_handoff_draft_implementation_v0_1`.
+
 The Research Candidate AI Context Packet preview preserves canonical promotion
 gates. Packet IDs must not use raw source titles, URLs, provider IDs, raw
 thread/run/session strings, arbitrary user strings, episode IDs, or demo refs.

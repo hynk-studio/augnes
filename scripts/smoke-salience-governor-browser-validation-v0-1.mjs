@@ -172,6 +172,22 @@ const aiContextPacketBrowserValidationRecommendationStatus =
   "ready_for_codex_handoff_draft_contract_v0_1";
 const aiContextPacketBrowserValidationNextRecommendedSlice =
   "codex_handoff_draft_contract_v0_1";
+const codexHandoffDraftTypePath = "types/codex-handoff-draft-contract.ts";
+const codexHandoffDraftFixturePath =
+  "fixtures/research-candidate-review.codex-handoff-draft-contract.sample.v0.1.json";
+const codexHandoffDraftSmokePath =
+  "scripts/smoke-codex-handoff-draft-contract-v0-1.mjs";
+const codexHandoffDraftPackageScriptName =
+  "smoke:codex-handoff-draft-contract-v0-1";
+const codexHandoffDraftPackageScriptValue =
+  "node scripts/smoke-codex-handoff-draft-contract-v0-1.mjs";
+const codexHandoffDraftContractVersion =
+  "codex_handoff_draft_contract.v0.1";
+const codexHandoffDraftRecommendationStatus =
+  "ready_for_codex_handoff_draft_implementation_v0_1";
+const codexHandoffDraftNextRecommendedSlice =
+  "codex_handoff_draft_implementation_v0_1";
+
 const aiContextPacketDownstreamSmokePaths = [
   "scripts/smoke-bounded-external-source-intake-browser-validation-v0-1.mjs",
   "scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
@@ -681,6 +697,10 @@ function assertBuilderFile() {
 }
 
 function assertPackageScript() {
+  if (codexHandoffDraftContractSliceActive()) {
+    assertCodexHandoffDraftContractPackageScript();
+    return;
+  }
   if (aiContextPacketBrowserValidationSliceActive()) {
     assertAIContextPacketBrowserValidationPackageScript();
     return;
@@ -798,6 +818,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (codexHandoffDraftContractSliceActive()) {
+    assertCodexHandoffDraftContractChangedFiles(changedFiles);
+    return;
+  }
   if (aiContextPacketBrowserValidationSliceActive()) {
     assertAIContextPacketBrowserValidationChangedFiles(changedFiles);
     return;
@@ -1094,6 +1118,112 @@ function assertDurablePerspectiveStateTrajectoryContractChangedFiles(changedFile
 
 
 
+
+function codexHandoffDraftContractSliceActive() {
+  return readChangedFiles().includes(codexHandoffDraftSmokePath);
+}
+
+function assertCodexHandoffDraftContractPackageScript() {
+  assert.equal(
+    packageJson.scripts[codexHandoffDraftPackageScriptName],
+    codexHandoffDraftPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [codexHandoffDraftPackageScriptName],
+    "package.json must add only the Codex Handoff Draft contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  if (typeof basePackageJson !== "undefined") {
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+  }
+}
+
+function assertCodexHandoffDraftContractChangedFiles(changedFiles) {
+  const expectedFiles = [
+    codexHandoffDraftTypePath,
+    codexHandoffDraftFixturePath,
+    codexHandoffDraftSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    aiContextPacketBrowserValidationSmokePath,
+    aiContextPacketImplementationSmokePath,
+    aiContextPacketSmokePath,
+    ...aiContextPacketDownstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    aiContextPacketBrowserValidationFixturePath,
+    aiContextPacketImplementationBuilderPath,
+    aiContextPacketImplementationFixturePath,
+    aiContextPacketTypePath,
+    aiContextPacketFixturePath,
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Codex Handoff Draft contract slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of expectedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Codex Handoff Draft contract downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertCodexHandoffDraftContractDownstreamPointer();
+}
+
+function assertCodexHandoffDraftContractDownstreamPointer() {
+  const contractSmoke = readFileSync(codexHandoffDraftSmokePath, "utf8");
+  for (const requiredText of [
+    codexHandoffDraftContractVersion,
+    codexHandoffDraftFixturePath,
+    codexHandoffDraftSmokePath,
+    codexHandoffDraftPackageScriptName,
+    codexHandoffDraftRecommendationStatus,
+    codexHandoffDraftNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      contractSmoke.includes(requiredText),
+      `Codex Handoff Draft contract smoke must include ${requiredText}`,
+    );
+  }
+}
 function aiContextPacketBrowserValidationSliceActive() {
   return readChangedFiles().includes(aiContextPacketBrowserValidationSmokePath);
 }
