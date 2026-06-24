@@ -32,6 +32,22 @@ const recommendationStatus =
   "ready_for_agent_perspective_substrate_feedback_loop_implementation_v0_1";
 const nextRecommendedSlice =
   "agent_perspective_substrate_feedback_loop_implementation_v0_1";
+const implementationBuilderPath =
+  "lib/research-candidate-review/agent-perspective-substrate-feedback-loop.ts";
+const implementationFixturePath =
+  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-implementation.sample.v0.1.json";
+const implementationSmokePath =
+  "scripts/smoke-agent-perspective-substrate-feedback-loop-implementation-v0-1.mjs";
+const implementationPackageScriptName =
+  "smoke:agent-perspective-substrate-feedback-loop-implementation-v0-1";
+const implementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-agent-perspective-substrate-feedback-loop-implementation-v0-1.mjs";
+const implementationVersion =
+  "agent_perspective_substrate_feedback_loop_implementation.v0.1";
+const implementationRecommendationStatus =
+  "ready_for_agent_perspective_substrate_feedback_loop_browser_validation_v0_1";
+const implementationNextRecommendedSlice =
+  "agent_perspective_substrate_feedback_loop_browser_validation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -901,6 +917,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive()) {
+    assertImplementationPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -933,6 +953,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive()) {
+    assertImplementationChangedFiles(changedFiles);
+    return;
+  }
   for (const unchangedPath of protectedUnchangedPaths) {
     assert.ok(
       !changedFiles.includes(unchangedPath),
@@ -964,6 +988,8 @@ function assertNoForbiddenRuntimePatterns() {
       filePath !== typePath &&
       filePath !== smokePath &&
       filePath !== sourceValidationSmokePath &&
+      filePath !== implementationBuilderPath &&
+      filePath !== implementationSmokePath &&
       !downstreamSmokePaths.includes(filePath),
   );
   for (const filePath of changedCodeFiles) {
@@ -1273,6 +1299,122 @@ function assertSourceValidationDownstreamPointer() {
     assert.ok(
       sourceValidationSmoke.includes(requiredText),
       `${sourceValidationSmokePath} must include ${requiredText}`,
+    );
+  }
+}
+
+function agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive() {
+  return readChangedFiles().includes(implementationSmokePath);
+}
+
+function assertImplementationPackageScript() {
+  assert.equal(
+    packageJson.scripts[implementationPackageScriptName],
+    implementationPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [implementationPackageScriptName],
+    "package.json must add only the Agent Perspective Substrate Feedback Loop implementation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertImplementationChangedFiles(changedFiles) {
+  const expected = [
+    implementationBuilderPath,
+    implementationFixturePath,
+    implementationSmokePath,
+    smokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ];
+  for (const filePath of expected) {
+    assert.ok(changedFiles.includes(filePath), `implementation slice must include ${filePath}`);
+  }
+  for (const unchangedPath of [
+    typePath,
+    fixturePath,
+    sourceValidationFixturePath,
+    "types/perspective-packet-receipt-linkage-contract.ts",
+    "fixtures/research-candidate-review.perspective-packet-receipt-linkage-contract.sample.v0.1.json",
+    "lib/research-candidate-review/perspective-packet-receipt-linkage.ts",
+    "fixtures/research-candidate-review.perspective-packet-receipt-linkage-implementation.sample.v0.1.json",
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Agent Perspective Substrate Feedback Loop implementation slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    const allowedDownstreamSmoke =
+      changedFile.startsWith("scripts/smoke-") &&
+      changedFile.endsWith(".mjs") &&
+      !expected.includes(changedFile) &&
+      readFile(changedFile).includes(
+        "agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive",
+      );
+    assert.ok(
+      expected.includes(changedFile) || allowedDownstreamSmoke,
+      `unexpected changed file in Agent Perspective Substrate Feedback Loop implementation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    if (changedFile.startsWith("lib/")) {
+      assert.equal(
+        changedFile,
+        implementationBuilderPath,
+        "implementation slice may only add the deterministic feedback-loop builder under lib",
+      );
+    }
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertImplementationDownstreamPointer();
+}
+
+function assertImplementationDownstreamPointer() {
+  const implementationSmokeSource = readFile(implementationSmokePath);
+  for (const requiredText of [
+    implementationVersion,
+    implementationBuilderPath,
+    implementationFixturePath,
+    implementationSmokePath,
+    implementationPackageScriptName,
+    implementationPackageScriptValue,
+    implementationRecommendationStatus,
+    implementationNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      implementationSmokeSource.includes(requiredText),
+      `${implementationSmokePath} must include ${requiredText}`,
     );
   }
 }
