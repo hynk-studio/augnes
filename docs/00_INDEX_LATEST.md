@@ -2763,6 +2763,40 @@ repo-local 색인이다.
   `perspective_geometry_digest_contract_v0_1`.
 
   Boundary phrases: Project Constellation Runtime Layout browser validation v0.1; validates deterministic fixture-backed implementation from #737; validates #736 contract boundary and #737 top-level implementation boundary separation; validates built Project Constellation layout preview bundle; validates layout principle summary; validates node family summary; validates edge family summary; validates stability summary; validates source balance summary; validates candidate overlay summary; validates snapshot summary; validates salience summary; validates reference summary; validates invalid layout preview override rejection; validates invalid node override rejection; validates invalid edge override rejection; validates invalid authority boundary override rejection; validates invalid refs override rejection; layout is interface, not truth; coordinates are display hints, not source of truth; stable layout across refreshes required later; deterministic seeded 2D layout required later; manual anchors are display hints only; temporal smoothing is display continuity only; source balance required and advisory-only; candidate overlay and durable graph remain distinct; stale high-gravity nodes are marked; bridge nodes are visible; tension markers are visible; knowledge gap markers are visible; evidence rays are refs, not proof/evidence writes; PerspectiveSnapshot remains derived view; salience state is display/reuse context only; salience state is not authority; layout coordinates, manual anchors, and cluster positions are not authority; no runtime layout execution; no seeded layout runtime; no force-directed layout runtime; no temporal smoothing runtime; no layout persistence; no graph DB; no graph mutation; no UI rendering; no browser request; no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs; product-write remains parked by #686.
+- Perspective Geometry Digest contract v0.1:
+  `types/perspective-geometry-digest-contract.ts`,
+  `fixtures/research-candidate-review.perspective-geometry-digest-contract.sample.v0.1.json`,
+  and `scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs`
+  (`npm run smoke:perspective-geometry-digest-contract-v0-1`) add a
+  contract-only, fixture-only, smoke-only specification that defines future
+  AI-readable interpretation layer over Project Constellation layout without
+  adding digest runtime behavior.
+
+  PerspectiveGeometryDigest is interpretation, not truth. Raw coordinates are
+  not enough. Raw coordinates are display hints only. Digest is derived view,
+  not independent source of truth. Diagnostics are advisory-only. Cluster
+  balance is not truth. Source dominance warning is not promotion authority.
+  Manual gravity distribution is not authority. Coverage gaps are not inferred
+  facts. Bridge nodes are visible. Stale high-gravity nodes are visible.
+  Contradiction pairs are explicit and source-ref-backed. Evidence chains are
+  refs, not proof/evidence writes. Recommended retrieval expansion is advisory
+  and does not execute retrieval. Candidate overlay and durable graph remain
+  distinct. PerspectiveSnapshot remains derived view. Salience state is
+  display/reuse context only.
+
+  This contract has no runtime geometry digest build, no geometry digest
+  write, no raw-coordinate-only digest, no runtime layout execution, no layout
+  persistence, no graph DB, no graph mutation, no UI rendering, no browser
+  request, no runtime state read/write, no durable Perspective delta apply, no
+  PerspectiveSnapshot runtime, no AI context packet implementation, no Codex
+  handoff implementation, no proof/evidence write, no accepted evidence write,
+  no Formation Receipt write, no work mutation, no DB write/query, no
+  schema/migration, no route or UI, no provider/OpenAI call, no retrieval/RAG
+  execution, and no product write/product IDs. Product-write remains parked by
+  #686. The next recommended slice is
+  `perspective_geometry_digest_implementation_v0_1`.
+
+  Boundary phrases: Perspective Geometry Digest contract v0.1; contract-only, fixture-only, smoke-only; defines future AI-readable interpretation layer over Project Constellation layout; PerspectiveGeometryDigest is interpretation, not truth; raw coordinates are not enough; raw coordinates are display hints only; digest is derived view, not independent source of truth; diagnostics are advisory-only; cluster balance is not truth; source dominance warning is not promotion authority; manual gravity distribution is not authority; coverage gaps are not inferred facts; bridge nodes are visible; stale high-gravity nodes are visible; contradiction pairs are explicit and source-ref-backed; evidence chains are refs, not proof/evidence writes; recommended retrieval expansion is advisory and does not execute retrieval; candidate overlay and durable graph remain distinct; PerspectiveSnapshot remains derived view; salience state is display/reuse context only; no runtime geometry digest build; no geometry digest write; no raw-coordinate-only digest; no runtime layout execution; no layout persistence; no graph DB; no graph mutation; no UI rendering; no browser request; no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no AI context packet implementation; no Codex handoff implementation; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
