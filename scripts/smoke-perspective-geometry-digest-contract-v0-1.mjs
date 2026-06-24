@@ -29,6 +29,22 @@ const recommendationStatus =
   "ready_for_perspective_geometry_digest_implementation_v0_1";
 const nextRecommendedSlice =
   "perspective_geometry_digest_implementation_v0_1";
+const implementationBuilderPath =
+  "lib/research-candidate-review/perspective-geometry-digest.ts";
+const implementationFixturePath =
+  "fixtures/research-candidate-review.perspective-geometry-digest-implementation.sample.v0.1.json";
+const implementationSmokePath =
+  "scripts/smoke-perspective-geometry-digest-implementation-v0-1.mjs";
+const implementationPackageScriptName =
+  "smoke:perspective-geometry-digest-implementation-v0-1";
+const implementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-geometry-digest-implementation-v0-1.mjs";
+const implementationVersion =
+  "perspective_geometry_digest_implementation.v0.1";
+const implementationRecommendationStatus =
+  "ready_for_perspective_geometry_digest_browser_validation_v0_1";
+const implementationNextRecommendedSlice =
+  "perspective_geometry_digest_browser_validation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -965,6 +981,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (implementationSliceActive()) {
+    assertImplementationPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -999,6 +1019,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (implementationSliceActive()) {
+    assertImplementationChangedFiles(changedFiles);
+    return;
+  }
   for (const unchangedPath of protectedUnchangedPaths) {
     assert.ok(
       !changedFiles.includes(unchangedPath),
@@ -1033,6 +1057,132 @@ function assertStaticBoundary() {
     assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
     assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
     assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function implementationSliceActive() {
+  return readChangedFiles().includes(implementationSmokePath);
+}
+
+function assertImplementationPackageScript() {
+  assert.equal(
+    packageJson.scripts[implementationPackageScriptName],
+    implementationPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [implementationPackageScriptName],
+    "package.json must add only the Perspective Geometry Digest implementation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertImplementationChangedFiles(changedFiles) {
+  const expectedImplementationFiles = [
+    implementationBuilderPath,
+    implementationFixturePath,
+    implementationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+    ...downstreamSmokePaths,
+    "scripts/smoke-research-candidate-review-perspective-geometry-digest-v0-1.mjs",
+  ];
+  for (const unchangedPath of [
+    typePath,
+    fixturePath,
+    sourceValidationFixturePath,
+    "types/project-constellation-runtime-layout-contract.ts",
+    "fixtures/research-candidate-review.project-constellation-runtime-layout-contract.sample.v0.1.json",
+    "lib/research-candidate-review/project-constellation-runtime-layout.ts",
+    "fixtures/research-candidate-review.project-constellation-runtime-layout-implementation.sample.v0.1.json",
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Perspective Geometry Digest implementation slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of expectedImplementationFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedImplementationFiles.includes(changedFile),
+      `unexpected changed file in Perspective Geometry Digest implementation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\/research-retrieval\//, "must not add retrieval implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/research-rag\//, "must not add RAG implementation files");
+    if (changedFile !== implementationBuilderPath) {
+      assert.doesNotMatch(changedFile, /^lib\/.*geometry.*digest/i, "must not add runtime geometry digest implementation files outside the deterministic builder");
+    }
+    assert.doesNotMatch(changedFile, /^lib\/.*layout/i, "must not add runtime layout implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*constellation/i, "must not add runtime constellation implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*graph/i, "must not add graph DB or graph mutation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*ai.*context/i, "must not add AI context packet files");
+    assert.doesNotMatch(changedFile, /^lib\/.*codex.*handoff/i, "must not add Codex handoff files");
+    assert.doesNotMatch(changedFile, /^lib\/.*perspective.*state/i, "must not add runtime Perspective state files");
+    assert.doesNotMatch(changedFile, /^lib\/.*perspective.*snapshot/i, "must not add runtime PerspectiveSnapshot files");
+    assert.doesNotMatch(changedFile, /^lib\/.*trajectory/i, "must not add runtime trajectory builder files");
+    assert.doesNotMatch(changedFile, /^lib\/.*promotion/i, "must not add runtime promotion implementation files");
+    assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
+    assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertImplementationDownstreamPointer();
+}
+
+function assertImplementationDownstreamPointer() {
+  const implementationSmoke = readFile(implementationSmokePath);
+  for (const requiredText of [
+    implementationVersion,
+    implementationBuilderPath,
+    implementationFixturePath,
+    implementationSmokePath,
+    implementationPackageScriptName,
+    implementationRecommendationStatus,
+    implementationNextRecommendedSlice,
+    "deterministic fixture-backed builder/helper for the #739 contract",
+    "materializes public-safe Perspective Geometry Digest preview bundles only",
+    "invalid_digest_preview_override_rejected",
+    "invalid_authority_boundary_override_rejected",
+  ]) {
+    assert.ok(
+      implementationSmoke.includes(requiredText),
+      `#739 contract smoke must allow Perspective Geometry Digest implementation downstream pointer: ${requiredText}`,
+    );
   }
 }
 

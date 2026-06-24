@@ -494,6 +494,7 @@ function assertPackageScript() {
       ["smoke:feedback-event-controls-ui-browser-validation-v0-1"],
       listRouteContractPackageScriptNames,
       listRouteImplementationPackageScriptNames,
+      ["smoke:perspective-geometry-digest-implementation-v0-1"],
     ].some((allowedNames) => JSON.stringify(addedScriptNames) === JSON.stringify(allowedNames)),
     `package additions must only include digest or downstream substrate/preview/panel/AI-context-upgrade/handoff-draft/review/operator-decision smoke scripts: ${JSON.stringify(addedScriptNames)}`,
   );

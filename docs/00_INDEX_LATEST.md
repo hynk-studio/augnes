@@ -2797,6 +2797,40 @@ repo-local 색인이다.
   `perspective_geometry_digest_implementation_v0_1`.
 
   Boundary phrases: Perspective Geometry Digest contract v0.1; contract-only, fixture-only, smoke-only; defines future AI-readable interpretation layer over Project Constellation layout; PerspectiveGeometryDigest is interpretation, not truth; raw coordinates are not enough; raw coordinates are display hints only; digest is derived view, not independent source of truth; diagnostics are advisory-only; cluster balance is not truth; source dominance warning is not promotion authority; manual gravity distribution is not authority; coverage gaps are not inferred facts; bridge nodes are visible; stale high-gravity nodes are visible; contradiction pairs are explicit and source-ref-backed; evidence chains are refs, not proof/evidence writes; recommended retrieval expansion is advisory and does not execute retrieval; candidate overlay and durable graph remain distinct; PerspectiveSnapshot remains derived view; salience state is display/reuse context only; no runtime geometry digest build; no geometry digest write; no raw-coordinate-only digest; no runtime layout execution; no layout persistence; no graph DB; no graph mutation; no UI rendering; no browser request; no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no AI context packet implementation; no Codex handoff implementation; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs; product-write remains parked by #686.
+- Perspective Geometry Digest implementation v0.1:
+  `lib/research-candidate-review/perspective-geometry-digest.ts`,
+  `fixtures/research-candidate-review.perspective-geometry-digest-implementation.sample.v0.1.json`,
+  and `scripts/smoke-perspective-geometry-digest-implementation-v0-1.mjs`
+  (`npm run smoke:perspective-geometry-digest-implementation-v0-1`) add a
+  deterministic fixture-backed implementation only. It validates and
+  materializes #739 Perspective Geometry Digest preview bundle output without
+  adding runtime digest behavior.
+
+  PerspectiveGeometryDigest is interpretation, not truth. Raw coordinates are
+  not enough. Raw coordinates are display hints only and not source of truth.
+  Digest is derived view, not independent source of truth. Diagnostics are
+  advisory-only. Cluster balance is not truth. Source dominance warning is not
+  promotion authority. Manual gravity distribution is not authority. Coverage
+  gaps are not inferred facts. Bridge nodes are visible. Stale high-gravity
+  nodes are visible. Contradiction pairs are explicit and source-ref-backed.
+  Evidence chains are refs, not proof/evidence writes. Recommended retrieval
+  expansion is advisory and does not execute retrieval. Candidate overlay and
+  durable graph remain distinct. PerspectiveSnapshot remains derived view.
+  Salience state is display/reuse context only.
+
+  This implementation has no runtime geometry digest build, no geometry digest
+  write, no geometry calculation runtime, no raw-coordinate-only digest, no
+  runtime layout execution, no layout persistence, no graph DB, no graph
+  mutation, no UI rendering, no browser request, no AI Context Packet
+  implementation, no Codex handoff implementation, no runtime state
+  read/write, no durable Perspective delta apply, no PerspectiveSnapshot
+  runtime, no proof/evidence write, no accepted evidence write, no Formation
+  Receipt write, no work mutation, no DB write/query, no schema/migration, no
+  route or UI, no provider/OpenAI call, no retrieval/RAG execution, and no
+  product write/product IDs. Product-write remains parked by #686. The next
+  recommended slice is `perspective_geometry_digest_browser_validation_v0_1`.
+
+  Boundary phrases: Perspective Geometry Digest implementation v0.1; deterministic fixture-backed implementation only; validates and materializes #739 Perspective Geometry Digest preview bundle; PerspectiveGeometryDigest is interpretation, not truth; raw coordinates are not enough; raw coordinates are display hints only and not source of truth; digest is derived view, not independent source of truth; diagnostics are advisory-only; cluster balance is not truth; source dominance warning is not promotion authority; manual gravity distribution is not authority; coverage gaps are not inferred facts; bridge nodes are visible; stale high-gravity nodes are visible; contradiction pairs are explicit and source-ref-backed; evidence chains are refs, not proof/evidence writes; recommended retrieval expansion is advisory and does not execute retrieval; candidate overlay and durable graph remain distinct; PerspectiveSnapshot remains derived view; salience state is display/reuse context only; no runtime geometry digest build; no geometry digest write; no geometry calculation runtime; no raw-coordinate-only digest; no runtime layout execution; no layout persistence; no graph DB; no graph mutation; no UI rendering; no browser request; no AI Context Packet implementation; no Codex handoff implementation; no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
