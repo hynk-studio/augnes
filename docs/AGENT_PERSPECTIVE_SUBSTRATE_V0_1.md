@@ -1097,6 +1097,16 @@ Product-write remains parked by #686.
 Next recommended slice is Codex Handoff Draft contract v0.1.
 `codex_handoff_draft_contract_v0_1`
 
+Codex Handoff Draft contract defines future operator-reviewed handoff draft grammar only.
+Agent Substrate remains advisory-only and cannot build runtime handoff drafts, execute Codex, create branches/commits/PRs, route agents, call providers, run retrieval/RAG, mutate graph/state, promote Perspective, write evidence/work/product data, or make external calls.
+Codex Handoff Draft is draft, not execution approval.
+Branch name, expected files, expected checks, PR title/body, and final report template are hints only and not authority.
+AI Context Packet remains context, not execution authority.
+This slice does not implement runtime handoff build, Codex handoff write, Codex execution, GitHub automation, branch/commit/PR creation, external handoff sending, agent routing/execution, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, Formation Receipt writes, work mutation, or product write.
+Product-write remains parked by #686.
+Next recommended slice is Codex Handoff Draft implementation v0.1.
+`codex_handoff_draft_implementation_v0_1`
+
 ## Next Recommended Slice
 
-`codex_handoff_draft_contract_v0_1`
+`codex_handoff_draft_implementation_v0_1`
