@@ -107,6 +107,22 @@ const projectLayoutBrowserValidationRecommendationStatus =
   "ready_for_perspective_geometry_digest_contract_v0_1";
 const projectLayoutBrowserValidationNextRecommendedSlice =
   "perspective_geometry_digest_contract_v0_1";
+const perspectiveGeometryDigestTypePath =
+  "types/perspective-geometry-digest-contract.ts";
+const perspectiveGeometryDigestFixturePath =
+  "fixtures/research-candidate-review.perspective-geometry-digest-contract.sample.v0.1.json";
+const perspectiveGeometryDigestSmokePath =
+  "scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs";
+const perspectiveGeometryDigestPackageScriptName =
+  "smoke:perspective-geometry-digest-contract-v0-1";
+const perspectiveGeometryDigestPackageScriptValue =
+  "node scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs";
+const perspectiveGeometryDigestContractVersion =
+  "perspective_geometry_digest_contract.v0.1";
+const perspectiveGeometryDigestRecommendationStatus =
+  "ready_for_perspective_geometry_digest_implementation_v0_1";
+const perspectiveGeometryDigestNextRecommendedSlice =
+  "perspective_geometry_digest_implementation_v0_1";
 const projectLayoutContractDownstreamSmokePaths = [
   "scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs",
   "scripts/smoke-durable-perspective-state-trajectory-implementation-v0-1.mjs",
@@ -839,6 +855,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (perspectiveGeometryDigestContractSliceActive()) {
+    assertPerspectiveGeometryDigestContractPackageScript();
+    return;
+  }
   if (projectConstellationRuntimeLayoutBrowserValidationSliceActive()) {
     assertProjectConstellationRuntimeLayoutBrowserValidationPackageScript();
     return;
@@ -893,6 +913,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (perspectiveGeometryDigestContractSliceActive()) {
+    assertPerspectiveGeometryDigestContractChangedFiles(changedFiles);
+    return;
+  }
   if (projectConstellationRuntimeLayoutBrowserValidationSliceActive()) {
     assertProjectConstellationRuntimeLayoutBrowserValidationChangedFiles(changedFiles);
     return;
@@ -941,6 +965,126 @@ function assertStaticBoundary() {
     assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
     assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
     assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function perspectiveGeometryDigestContractSliceActive() {
+  return readChangedFiles().includes(perspectiveGeometryDigestSmokePath);
+}
+
+function assertPerspectiveGeometryDigestContractPackageScript() {
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.equal(
+    packageJson.scripts[perspectiveGeometryDigestPackageScriptName],
+    perspectiveGeometryDigestPackageScriptValue,
+  );
+  assert.deepEqual(
+    addedScriptNames,
+    [perspectiveGeometryDigestPackageScriptName],
+    "package.json must add only the Perspective Geometry Digest contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  if (typeof basePackageJson !== "undefined") {
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+  }
+}
+
+function assertPerspectiveGeometryDigestContractChangedFiles(changedFiles) {
+  const expectedFiles = [
+    perspectiveGeometryDigestTypePath,
+    perspectiveGeometryDigestFixturePath,
+    perspectiveGeometryDigestSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    projectLayoutSmokePath,
+    projectLayoutImplementationSmokePath,
+    projectLayoutBrowserValidationSmokePath,
+    ...projectLayoutContractDownstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    projectLayoutTypePath,
+    projectLayoutFixturePath,
+    projectLayoutImplementationBuilderPath,
+    projectLayoutImplementationFixturePath,
+    projectLayoutBrowserValidationFixturePath,
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      "Perspective Geometry Digest contract slice must not change " + unchangedPath,
+    );
+  }
+  for (const expectedFile of expectedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), "changed files must include " + expectedFile);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(expectedFiles.includes(changedFile), "unexpected changed file in Perspective Geometry Digest contract downstream slice: " + changedFile);
+    assert.ok(!changedFile.startsWith("app/api/"), "must not change app/api routes");
+    assert.ok(!changedFile.endsWith("route.ts"), "must not change route handlers");
+    assert.ok(!changedFile.startsWith("components/"), "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.ok(!changedFile.startsWith("migrations/"), "must not change migrations");
+    assert.ok(!changedFile.startsWith("lib/research-retrieval/"), "must not add retrieval implementation files");
+    assert.ok(!changedFile.startsWith("lib/research-rag/"), "must not add RAG implementation files");
+    assert.equal(new RegExp("^lib/.*geometry.*digest", "i").test(changedFile), false, "must not add runtime geometry digest implementation files");
+    assert.equal(new RegExp("^lib/.*layout", "i").test(changedFile), false, "must not add runtime layout implementation files");
+    assert.equal(new RegExp("^lib/.*constellation", "i").test(changedFile), false, "must not add runtime constellation implementation files");
+    assert.equal(new RegExp("^lib/.*graph", "i").test(changedFile), false, "must not add graph DB or graph mutation files");
+    assert.equal(new RegExp("^lib/.*ai.*context", "i").test(changedFile), false, "must not add AI context packet files");
+    assert.equal(new RegExp("^lib/.*codex.*handoff", "i").test(changedFile), false, "must not add Codex handoff files");
+    assert.equal(new RegExp("^lib/.*perspective.*state", "i").test(changedFile), false, "must not add runtime Perspective state files");
+    assert.equal(new RegExp("^lib/.*perspective.*snapshot", "i").test(changedFile), false, "must not add runtime PerspectiveSnapshot files");
+    assert.equal(new RegExp("^lib/.*trajectory", "i").test(changedFile), false, "must not add runtime trajectory builder files");
+    assert.equal(new RegExp("^lib/.*promotion", "i").test(changedFile), false, "must not add runtime promotion implementation files");
+    assert.equal(new RegExp("^lib/.*(proof|evidence).*write", "i").test(changedFile), false, "must not add proof/evidence write files");
+    assert.equal(new RegExp("(^|/)(provider|openai|source-fetch|crawler)\\b", "i").test(changedFile), false, "must not change provider/OpenAI/source-fetch/crawler files");
+    assert.equal(new RegExp("product.*write", "i").test(changedFile), false, "must not change product write files");
+  }
+  assertPerspectiveGeometryDigestContractDownstreamPointer();
+}
+
+function assertPerspectiveGeometryDigestContractDownstreamPointer() {
+  const digestSmoke = readFileSync(perspectiveGeometryDigestSmokePath, "utf8");
+  for (const requiredText of [
+    perspectiveGeometryDigestContractVersion,
+    perspectiveGeometryDigestTypePath,
+    perspectiveGeometryDigestFixturePath,
+    perspectiveGeometryDigestSmokePath,
+    perspectiveGeometryDigestPackageScriptName,
+    perspectiveGeometryDigestRecommendationStatus,
+    perspectiveGeometryDigestNextRecommendedSlice,
+    "future AI-readable interpretation layer",
+    "PerspectiveGeometryDigest is interpretation, not truth",
+    "raw coordinates are not enough",
+    "recommended retrieval expansion is advisory and does not execute retrieval",
+    "product-write remains parked by #686",
+  ]) {
+    assert.ok(
+      digestSmoke.includes(requiredText),
+      "downstream smoke must allow Perspective Geometry Digest contract pointer: " + requiredText,
+    );
   }
 }
 

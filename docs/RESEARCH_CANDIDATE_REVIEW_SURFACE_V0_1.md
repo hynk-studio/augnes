@@ -1585,6 +1585,16 @@ This slice does not implement runtime DB/browser/provider/source-fetch/retrieval
 Product-write remains parked by #686. Next recommended slice:
 `perspective_geometry_digest_contract_v0_1`.
 
+Perspective Geometry Digest remains separated from candidate preview, layout runtime, durable Perspective state, promotion runtime, and AI context execution.
+Raw coordinates are display hints, not truth.
+Digest clusters, diagnostics, and recommendations are advisory-only.
+Candidate overlay remains distinct from durable graph.
+Evidence chains and evidence rays are refs, not proof/evidence records.
+Tensions and knowledge gaps remain visible and do not imply resolution or closure.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/layout/digest behavior.
+Product-write remains parked by #686. Next recommended slice:
+`perspective_geometry_digest_implementation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
