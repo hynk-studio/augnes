@@ -3011,6 +3011,42 @@ repo-local 색인이다.
   next recommended slice is `codex_handoff_draft_implementation_v0_1`.
 
   Boundary phrases: Codex Handoff Draft contract v0.1; contract-only, fixture-only, smoke-only; defines future Codex handoff draft grammar; Codex Handoff Draft is draft, not execution approval; draft is operator-reviewed context, not automation authority; draft is not Codex execution; draft is not GitHub automation; draft is not branch creation authority; draft is not commit authority; draft is not PR creation authority; draft is not external handoff sending authority; draft is not source of truth; draft is not proof/evidence; draft is not durable Perspective state; draft is not work status; draft is not product write; source_refs required; authority_boundary required; forbidden_actions required; stop_conditions required; expected_files are hints only, not write authority; expected_checks are validation hints only, not execution authority; branch_name is a suggestion only, not git authority; PR title/body are suggestions only, not GitHub authority; final_report_template is not completion proof; AI Context Packet remains context, not execution authority; Perspective Geometry Digest remains interpretation, not truth; unresolved tensions and knowledge gaps preserved; candidate/durable distinction preserved; no runtime handoff draft build; no Codex handoff draft write; no Codex execution; no GitHub automation; no GitHub PR creation; no git branch/commit creation; no external handoff sending; no agent routing/execution; no provider/OpenAI call; no retrieval/RAG execution; no DB write/query; no durable memory write; no perspective promotion; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no schema/migration; no route or UI; no browser request; no product write/product IDs; product-write remains parked by #686; codex_handoff_draft_implementation_v0_1.
+- Codex Handoff Draft implementation v0.1:
+  `lib/research-candidate-review/codex-handoff-draft.ts`,
+  `fixtures/research-candidate-review.codex-handoff-draft-implementation.sample.v0.1.json`,
+  and `scripts/smoke-codex-handoff-draft-implementation-v0-1.mjs`
+  (`npm run smoke:codex-handoff-draft-implementation-v0-1`) add a
+  deterministic fixture-backed implementation only. It validates and
+  materializes #745 Codex Handoff Draft preview bundle output without runtime
+  authority.
+
+  Codex Handoff Draft is draft, not execution approval. The draft is
+  operator-reviewed context, not automation authority. The draft is not Codex
+  execution, not GitHub automation, not branch creation authority, not commit
+  authority, not PR creation authority, not external handoff sending
+  authority, not source of truth, not proof/evidence, not durable Perspective
+  state, not work status, and not product write. `source_refs` required.
+  `authority_boundary` required. `forbidden_actions` required.
+  `stop_conditions` required. Expected files are hints only, not write
+  authority. Expected checks are validation hints only, not execution authority.
+  `branch_name` is a suggestion only, not git authority. PR title/body are
+  suggestions only, not GitHub authority. `final_report_template` is not
+  completion proof. AI Context Packet remains context, not execution authority.
+  Perspective Geometry Digest remains interpretation, not truth. Unresolved
+  tensions and knowledge gaps preserved. Candidate/durable distinction
+  preserved.
+
+  This implementation has no runtime handoff draft build, no Codex handoff
+  draft write, no Codex execution, no GitHub automation, no GitHub PR creation,
+  no git branch/commit creation, no external handoff sending, no agent
+  routing/execution, no provider/OpenAI call, no retrieval/RAG execution, no DB
+  write/query, no durable memory write, no perspective promotion, no
+  proof/evidence write, no accepted evidence write, no Formation Receipt write,
+  no work mutation, no schema/migration, no route or UI, no browser request,
+  and no product write/product IDs. Product-write remains parked by #686. The
+  next recommended slice is `codex_handoff_draft_browser_validation_v0_1`.
+
+  Boundary phrases: Codex Handoff Draft implementation v0.1; deterministic fixture-backed implementation only; validates and materializes #745 Codex Handoff Draft preview bundle; Codex Handoff Draft is draft, not execution approval; draft is operator-reviewed context, not automation authority; draft is not Codex execution; draft is not GitHub automation; draft is not branch creation authority; draft is not commit authority; draft is not PR creation authority; draft is not external handoff sending authority; draft is not source of truth; draft is not proof/evidence; draft is not durable Perspective state; draft is not work status; draft is not product write; source_refs required; authority_boundary required; forbidden_actions required; stop_conditions required; expected_files are hints only, not write authority; expected_checks are validation hints only, not execution authority; branch_name is a suggestion only, not git authority; PR title/body are suggestions only, not GitHub authority; final_report_template is not completion proof; AI Context Packet remains context, not execution authority; Perspective Geometry Digest remains interpretation, not truth; unresolved tensions and knowledge gaps preserved; candidate/durable distinction preserved; no runtime handoff draft build; no Codex handoff draft write; no Codex execution; no GitHub automation; no GitHub PR creation; no git branch/commit creation; no external handoff sending; no agent routing/execution; no provider/OpenAI call; no retrieval/RAG execution; no DB write/query; no durable memory write; no perspective promotion; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no schema/migration; no route or UI; no browser request; no product write/product IDs; product-write remains parked by #686; codex_handoff_draft_browser_validation_v0_1.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
