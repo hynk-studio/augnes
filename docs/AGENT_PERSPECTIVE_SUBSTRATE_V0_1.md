@@ -1150,6 +1150,17 @@ Product-write remains parked by #686.
 Next recommended slice is Perspective Packet Receipt Linkage browser validation v0.1.
 `perspective_packet_receipt_linkage_browser_validation_v0_1`
 
+Perspective Packet Receipt Linkage browser validation validates the deterministic fixture-backed #749 implementation.
+It validates public-safe provenance linkage preview bundles against the #748 contract.
+Agent Substrate remains advisory-only and cannot build runtime linkages, write receipts, write audit logs, execute Codex, create branches/commits/PRs, route agents, call providers, run retrieval/RAG, mutate graph/state, promote Perspective, write evidence/work/product data, or make external calls.
+Linkage is provenance, not execution authority.
+Future Formation Receipt refs and future decision/handoff refs are references only and are not written now.
+Selected, omitted, and deferred candidates remain visible and retain candidate/durable distinction.
+This slice does not implement runtime linkage build, linkage write, Formation Receipt write, durable audit log write, Codex execution, GitHub automation, branch/commit/PR creation, external handoff sending, agent routing/execution, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, work mutation, or product write.
+Product-write remains parked by #686.
+Next recommended slice is Agent Perspective Substrate Feedback Loop contract v0.1.
+`agent_perspective_substrate_feedback_loop_contract_v0_1`
+
 ## Next Recommended Slice
 
-`perspective_packet_receipt_linkage_browser_validation_v0_1`
+`agent_perspective_substrate_feedback_loop_contract_v0_1`
