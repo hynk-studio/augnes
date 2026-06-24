@@ -561,6 +561,7 @@
     "smoke:perspective-geometry-digest-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-geometry-digest-implementation-v0-1.mjs",
     "smoke:perspective-geometry-digest-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-geometry-digest-browser-validation-v0-1.mjs",
     "smoke:ai-context-packet-contract-v0-1": "node scripts/smoke-ai-context-packet-contract-v0-1.mjs",
+    "smoke:ai-context-packet-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ai-context-packet-implementation-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

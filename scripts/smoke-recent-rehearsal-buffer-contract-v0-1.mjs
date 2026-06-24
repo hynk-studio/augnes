@@ -142,6 +142,22 @@ const aiContextPacketRecommendationStatus =
   "ready_for_ai_context_packet_implementation_v0_1";
 const aiContextPacketNextRecommendedSlice =
   "ai_context_packet_implementation_v0_1";
+const aiContextPacketImplementationBuilderPath =
+  "lib/research-candidate-review/ai-context-packet.ts";
+const aiContextPacketImplementationFixturePath =
+  "fixtures/research-candidate-review.ai-context-packet-implementation.sample.v0.1.json";
+const aiContextPacketImplementationSmokePath =
+  "scripts/smoke-ai-context-packet-implementation-v0-1.mjs";
+const aiContextPacketImplementationPackageScriptName =
+  "smoke:ai-context-packet-implementation-v0-1";
+const aiContextPacketImplementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ai-context-packet-implementation-v0-1.mjs";
+const aiContextPacketImplementationVersion =
+  "ai_context_packet_implementation.v0.1";
+const aiContextPacketImplementationRecommendationStatus =
+  "ready_for_ai_context_packet_browser_validation_v0_1";
+const aiContextPacketImplementationNextRecommendedSlice =
+  "ai_context_packet_browser_validation_v0_1";
 const aiContextPacketDownstreamSmokePaths = [
   "scripts/smoke-bounded-external-source-intake-browser-validation-v0-1.mjs",
   "scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
@@ -859,6 +875,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (aiContextPacketImplementationSliceActive()) {
+    assertAIContextPacketImplementationPackageScript();
+    return;
+  }
   if (aiContextPacketContractSliceActive()) {
     assertAIContextPacketContractPackageScript();
     return;
@@ -1019,6 +1039,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (aiContextPacketImplementationSliceActive()) {
+    assertAIContextPacketImplementationChangedFiles(changedFiles);
+    return;
+  }
   if (aiContextPacketContractSliceActive()) {
     assertAIContextPacketContractChangedFiles(changedFiles);
     return;
@@ -1326,6 +1350,109 @@ function assertDurablePerspectiveStateTrajectoryContractChangedFiles(changedFile
 
 
 
+function aiContextPacketImplementationSliceActive() {
+  return readChangedFiles().includes(aiContextPacketImplementationSmokePath);
+}
+
+function assertAIContextPacketImplementationPackageScript() {
+  assert.equal(
+    packageJson.scripts[aiContextPacketImplementationPackageScriptName],
+    aiContextPacketImplementationPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [aiContextPacketImplementationPackageScriptName],
+    "package.json must add only the AI Context Packet implementation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  if (typeof basePackageJson !== "undefined") {
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+  }
+}
+
+function assertAIContextPacketImplementationChangedFiles(changedFiles) {
+  const expectedFiles = [
+    aiContextPacketImplementationBuilderPath,
+    aiContextPacketImplementationFixturePath,
+    aiContextPacketImplementationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    aiContextPacketSmokePath,
+    ...aiContextPacketDownstreamSmokePaths,
+  ];
+  for (const unchangedPath of [aiContextPacketTypePath, aiContextPacketFixturePath]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `AI Context Packet implementation slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of expectedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in AI Context Packet implementation downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    if (changedFile.startsWith("lib/")) {
+      assert.equal(
+        changedFile,
+        aiContextPacketImplementationBuilderPath,
+        "implementation slice may only change the deterministic AI Context Packet builder under lib",
+      );
+    }
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertAIContextPacketImplementationDownstreamPointer();
+}
+
+function assertAIContextPacketImplementationDownstreamPointer() {
+  const implementationSmoke = readFileSync(aiContextPacketImplementationSmokePath, "utf8");
+  for (const requiredText of [
+    aiContextPacketImplementationVersion,
+    aiContextPacketImplementationFixturePath,
+    aiContextPacketImplementationSmokePath,
+    aiContextPacketImplementationPackageScriptName,
+    aiContextPacketImplementationRecommendationStatus,
+    aiContextPacketImplementationNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      implementationSmoke.includes(requiredText),
+      `AI Context Packet implementation smoke must include ${requiredText}`,
+    );
+  }
+}
 function aiContextPacketContractSliceActive() {
   return readChangedFiles().includes(aiContextPacketSmokePath);
 }
