@@ -1456,6 +1456,10 @@ function assertTypeAndBuilderContracts() {
 }
 
 function assertPackageScript() {
+  if (researchToPerspectiveFoundationMilestoneCloseoutSliceActive()) {
+    assertResearchToPerspectiveFoundationMilestoneCloseoutPackageScript();
+    return;
+  }
   if (dogfoodingResearchToPerspectiveCiExpansionContractSliceActive()) {
     assertDogfoodingResearchToPerspectiveCiExpansionContractPackageScript();
     return;
@@ -1803,6 +1807,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (researchToPerspectiveFoundationMilestoneCloseoutSliceActive()) {
+    assertResearchToPerspectiveFoundationMilestoneCloseoutChangedFiles(changedFiles);
+    return;
+  }
   if (dogfoodingResearchToPerspectiveCiExpansionContractSliceActive()) {
     assertDogfoodingResearchToPerspectiveCiExpansionContractChangedFiles(changedFiles);
     return;
@@ -4273,6 +4281,100 @@ function recentRehearsalBufferContractSliceActive() {
   return readChangedFiles().includes("scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs");
 }
 
+
+function researchToPerspectiveFoundationMilestoneCloseoutSliceActive() {
+  return readChangedFiles().includes(
+    "scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs",
+  );
+}
+
+function assertResearchToPerspectiveFoundationMilestoneCloseoutPackageScript() {
+  const milestonePackageScriptName =
+    "smoke:research-to-perspective-foundation-milestone-closeout-v0-1";
+  const milestonePackageScriptValue =
+    "node scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs";
+  const milestoneBasePackageJson =
+    typeof basePackageJson !== "undefined"
+      ? basePackageJson
+      : JSON.parse(
+          readGitOutput(["show", mergeBaseRef() + ":" + packagePath]),
+        );
+  assert.equal(
+    packageJson.scripts[milestonePackageScriptName],
+    milestonePackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [milestonePackageScriptName],
+    "package.json must add only the Research-to-Perspective Foundation Milestone closeout smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, milestoneBasePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, milestoneBasePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    milestoneBasePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertResearchToPerspectiveFoundationMilestoneCloseoutChangedFiles(changedFiles) {
+  const expected = [
+    "fixtures/research-candidate-review.research-to-perspective-foundation-milestone-closeout.sample.v0.1.json",
+    "scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs",
+    "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-closeout-v0-1.mjs",
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ];
+  for (const filePath of expected) {
+    assert.ok(changedFiles.includes(filePath), "foundation milestone closeout slice must include " + filePath);
+  }
+  assert.ok(
+    !changedFiles.includes(
+      "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-closeout.sample.v0.1.json",
+    ),
+    "foundation milestone closeout slice must not change the #758 dogfooding closeout fixture",
+  );
+  for (const changedFile of changedFiles) {
+    const allowedDownstreamSmoke =
+      changedFile.startsWith("scripts/smoke-") &&
+      changedFile.endsWith(".mjs") &&
+      !expected.includes(changedFile) &&
+      readFileSync(changedFile, "utf8").includes(
+        "researchToPerspectiveFoundationMilestoneCloseoutSliceActive",
+      );
+    assert.ok(
+      expected.includes(changedFile) || allowedDownstreamSmoke,
+      "unexpected changed file in Research-to-Perspective Foundation Milestone closeout slice: " + changedFile,
+    );
+    if (allowedDownstreamSmoke) continue;
+    assert.doesNotMatch(changedFile, /^\.github\/workflows\//, "must not change GitHub Actions workflows");
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.(?:ts|tsx|js|jsx)$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+    assert.doesNotMatch(changedFile, /product.*write|product.*id/i, "must not change product write files");
+  }
+}
 
 function dogfoodingResearchToPerspectiveCiExpansionCloseoutSliceActive() {
   return readChangedFiles().includes(

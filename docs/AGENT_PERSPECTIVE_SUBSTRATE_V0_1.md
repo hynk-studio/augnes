@@ -1255,3 +1255,10 @@ This slice does not add GitHub Actions, CI runtime, dogfooding ingestion, provid
 Product-write remains parked by #686.
 Next recommended slice is Research-to-Perspective Foundation Milestone closeout v0.1.
 `research_to_perspective_foundation_milestone_closeout_v0_1`
+
+Research-to-Perspective Foundation Milestone closeout confirms current Agent Substrate related rails remain folded, derived, advisory-only.
+Closeout is summary-only and does not add runtime.
+No new execution, provider, retrieval/RAG, DB, promotion, proof/evidence, route/UI, or product-write behavior is added.
+Product-write remains parked by #686.
+Next recommended slice is Foundation Status Review and Next Runtime Slice Selection v0.1.
+`foundation_status_review_and_next_runtime_slice_selection_v0_1`

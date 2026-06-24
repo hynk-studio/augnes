@@ -41,6 +41,20 @@ const recommendationStatus =
   "ready_for_research_to_perspective_foundation_milestone_closeout_v0_1";
 const nextRecommendedSlice =
   "research_to_perspective_foundation_milestone_closeout_v0_1";
+const milestoneCloseoutFixturePath =
+  "fixtures/research-candidate-review.research-to-perspective-foundation-milestone-closeout.sample.v0.1.json";
+const milestoneCloseoutSmokePath =
+  "scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs";
+const milestoneCloseoutPackageScriptName =
+  "smoke:research-to-perspective-foundation-milestone-closeout-v0-1";
+const milestoneCloseoutPackageScriptValue =
+  "node scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs";
+const milestoneCloseoutVersion =
+  "research_to_perspective_foundation_milestone_closeout.v0.1";
+const milestoneCloseoutRecommendationStatus =
+  "ready_for_foundation_status_review_and_next_runtime_slice_selection_v0_1";
+const milestoneCloseoutNextRecommendedSlice =
+  "foundation_status_review_and_next_runtime_slice_selection_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -126,6 +140,7 @@ assertValidationPolicy(fixture.validation_policy);
 assertPrivacyPolicy(fixture.privacy_policy);
 assertDocsPointers();
 assertBrowserValidationSmokeDownstreamPointer();
+assertMilestoneCloseoutDownstreamPointer();
 assertPortableMergeBaseFallback();
 
 console.log(
@@ -342,6 +357,10 @@ function buildPrivacyPolicy() {
 }
 
 function assertPackageScript() {
+  if (researchToPerspectiveFoundationMilestoneCloseoutSliceActive()) {
+    assertMilestoneCloseoutPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -374,6 +393,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (researchToPerspectiveFoundationMilestoneCloseoutSliceActive()) {
+    assertMilestoneCloseoutChangedFiles(changedFiles);
+    return;
+  }
   for (const expectedFile of expectedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
@@ -606,6 +629,9 @@ function assertDocsPointers() {
 }
 
 function assertBrowserValidationSmokeDownstreamPointer() {
+  if (researchToPerspectiveFoundationMilestoneCloseoutSliceActive()) {
+    return;
+  }
   assertIncludes(browserValidationSmokeSource, [
     "dogfoodingResearchToPerspectiveCiExpansionCloseoutSliceActive",
     closeoutVersion,
@@ -616,6 +642,111 @@ function assertBrowserValidationSmokeDownstreamPointer() {
     recommendationStatus,
     nextRecommendedSlice,
   ]);
+}
+
+function assertMilestoneCloseoutDownstreamPointer() {
+  if (!researchToPerspectiveFoundationMilestoneCloseoutSliceActive()) {
+    return;
+  }
+  assert.ok(existsSync(milestoneCloseoutFixturePath), `${milestoneCloseoutFixturePath} must exist`);
+  assert.ok(existsSync(milestoneCloseoutSmokePath), `${milestoneCloseoutSmokePath} must exist`);
+  assert.equal(
+    packageJson.scripts[milestoneCloseoutPackageScriptName],
+    milestoneCloseoutPackageScriptValue,
+  );
+  const milestoneCloseoutFixture = readJson(milestoneCloseoutFixturePath);
+  assert.equal(milestoneCloseoutFixture.closeout_version, milestoneCloseoutVersion);
+  assert.equal(
+    milestoneCloseoutFixture.recommendation_status,
+    milestoneCloseoutRecommendationStatus,
+  );
+  assert.equal(
+    milestoneCloseoutFixture.next_recommended_slice,
+    milestoneCloseoutNextRecommendedSlice,
+  );
+}
+
+function assertMilestoneCloseoutPackageScript() {
+  assert.equal(
+    packageJson.scripts[milestoneCloseoutPackageScriptName],
+    milestoneCloseoutPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [milestoneCloseoutPackageScriptName],
+    "package.json must add only the Research-to-Perspective Foundation Milestone closeout smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertMilestoneCloseoutChangedFiles(changedFiles) {
+  const expected = [
+    milestoneCloseoutFixturePath,
+    milestoneCloseoutSmokePath,
+    closeoutSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ];
+  for (const filePath of expected) {
+    assert.ok(changedFiles.includes(filePath), `milestone closeout slice must include ${filePath}`);
+  }
+  for (const protectedPath of [
+    closeoutFixturePath,
+    contractTypePath,
+    builderPath,
+    contractFixturePath,
+    implementationFixturePath,
+    browserValidationFixturePath,
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(protectedPath),
+      `milestone closeout slice must not change ${protectedPath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    const allowedDownstreamSmoke =
+      changedFile.startsWith("scripts/smoke-") &&
+      changedFile.endsWith(".mjs") &&
+      !expected.includes(changedFile) &&
+      readFileSync(changedFile, "utf8").includes(
+        "researchToPerspectiveFoundationMilestoneCloseoutSliceActive",
+      );
+    assert.ok(
+      expected.includes(changedFile) || allowedDownstreamSmoke,
+      `unexpected changed file in Research-to-Perspective Foundation Milestone closeout slice: ${changedFile}`,
+    );
+    if (allowedDownstreamSmoke) continue;
+    assertNoForbiddenChangedPath(changedFile);
+  }
+}
+
+function researchToPerspectiveFoundationMilestoneCloseoutSliceActive() {
+  return readChangedFiles().includes(milestoneCloseoutSmokePath);
 }
 
 function assertPortableMergeBaseFallback() {
