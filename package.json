@@ -574,6 +574,7 @@
     "smoke:agent-perspective-substrate-feedback-loop-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-agent-perspective-substrate-feedback-loop-browser-validation-v0-1.mjs",
     "smoke:agent-perspective-substrate-feedback-loop-closeout-v0-1": "node scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs",
     "smoke:dogfooding-research-to-perspective-ci-expansion-contract-v0-1": "node scripts/smoke-dogfooding-research-to-perspective-ci-expansion-contract-v0-1.mjs",
+    "smoke:dogfooding-research-to-perspective-ci-expansion-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-dogfooding-research-to-perspective-ci-expansion-implementation-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
