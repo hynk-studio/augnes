@@ -3089,6 +3089,44 @@ repo-local 색인이다.
   `perspective_packet_receipt_linkage_contract_v0_1`.
 
   Boundary phrases: Codex Handoff Draft browser validation v0.1; validates deterministic fixture-backed implementation from #746; validates #745 contract boundary and #746 top-level implementation boundary separation; validates built Codex Handoff Draft preview bundle; validates draft principle summary; validates draft section family summary; validates forbidden actions summary; validates reference summary; validates invalid draft preview override rejection; validates invalid draft section override rejection; validates invalid forbidden actions override rejection; validates invalid authority boundary override rejection; validates invalid refs override rejection; Codex Handoff Draft is draft, not execution approval; draft is operator-reviewed context, not automation authority; draft is not Codex execution; draft is not GitHub automation; draft is not branch creation authority; draft is not commit authority; draft is not PR creation authority; draft is not external handoff sending authority; draft is not source of truth; draft is not proof/evidence; draft is not durable Perspective state; draft is not work status; draft is not product write; source_refs required; authority_boundary required; forbidden_actions required; stop_conditions required; expected_files are hints only, not write authority; expected_checks are validation hints only, not execution authority; branch_name is a suggestion only, not git authority; PR title/body are suggestions only, not GitHub authority; final_report_template is not completion proof; AI Context Packet remains context, not execution authority; Perspective Geometry Digest remains interpretation, not truth; unresolved tensions and knowledge gaps preserved; candidate/durable distinction preserved; no runtime handoff draft build; no Codex handoff draft write; no Codex execution; no GitHub automation; no GitHub PR creation; no git branch/commit creation; no external handoff sending; no agent routing/execution; no provider/OpenAI call; no retrieval/RAG execution; no DB write/query; no durable memory write; no perspective promotion; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no schema/migration; no route or UI; no browser request; no product write/product IDs; product-write remains parked by #686; perspective_packet_receipt_linkage_contract_v0_1.
+- Perspective Packet Receipt Linkage contract v0.1:
+  `types/perspective-packet-receipt-linkage-contract.ts`,
+  `fixtures/research-candidate-review.perspective-packet-receipt-linkage-contract.sample.v0.1.json`,
+  and `scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs`
+  (`npm run smoke:perspective-packet-receipt-linkage-contract-v0-1`) define a
+  contract-only, fixture-only, smoke-only future provenance linkage grammar
+  connecting AI Context Packet, Codex Handoff Draft, Geometry Digest,
+  candidates, `source_refs`, `stop_conditions`, and future Formation Receipt
+  refs.
+
+  Linkage is provenance, not execution authority. Linkage is derived,
+  public-safe, advisory-only. Linkage is not source of truth, not
+  proof/evidence, not completion proof, not durable Perspective state, not work
+  status, and not product write. Linkage does not prove Codex ran, does not
+  prove PR created, does not prove validation passed, and does not create
+  Formation Receipt now. Future Formation Receipt ref only. Future
+  decision/handoff ref only. Selected candidates remain candidates. Omitted
+  candidates remain visible and omission is not rejection. Deferred candidates
+  remain visible and deferral is not rejection. Unresolved tensions preserved.
+  Knowledge gaps preserved. Candidate/durable distinction preserved. AI Context
+  Packet remains context, not execution authority. Codex Handoff Draft remains
+  draft, not execution approval. Perspective Geometry Digest remains
+  interpretation, not truth. `expected_files` are hints only, not write
+  authority. `expected_checks` are validation hints only, not execution
+  authority. `final_report_template` is not completion proof.
+
+  This contract has no runtime linkage build, no linkage record write, no
+  durable audit log write, no Formation Receipt write, no Codex execution, no
+  GitHub automation, no GitHub PR creation, no git branch/commit creation, no
+  external handoff sending, no agent routing/execution, no provider/OpenAI
+  call, no retrieval/RAG execution, no DB write/query, no durable memory write,
+  no perspective promotion, no proof/evidence write, no accepted evidence
+  write, no work mutation, no schema/migration, no route or UI, no browser
+  request, and no product write/product IDs. Product-write remains parked by
+  #686. The next recommended slice is
+  `perspective_packet_receipt_linkage_implementation_v0_1`.
+
+  Boundary phrases: Perspective Packet Receipt Linkage contract v0.1; contract-only, fixture-only, smoke-only; defines future provenance linkage grammar connecting AI Context Packet, Codex Handoff Draft, Geometry Digest, candidates, source_refs, stop_conditions, and future Formation Receipt refs; linkage is provenance, not execution authority; linkage is derived, public-safe, advisory-only; linkage is not source of truth; linkage is not proof/evidence; linkage is not completion proof; linkage is not durable Perspective state; linkage is not work status; linkage is not product write; linkage does not prove Codex ran; linkage does not prove PR created; linkage does not prove validation passed; linkage does not create Formation Receipt now; future Formation Receipt ref only; future decision/handoff ref only; selected candidates remain candidates; omitted candidates remain visible and omission is not rejection; deferred candidates remain visible and deferral is not rejection; unresolved tensions preserved; knowledge gaps preserved; candidate/durable distinction preserved; AI Context Packet remains context, not execution authority; Codex Handoff Draft remains draft, not execution approval; Perspective Geometry Digest remains interpretation, not truth; expected_files are hints only, not write authority; expected_checks are validation hints only, not execution authority; final_report_template is not completion proof; no runtime linkage build; no linkage record write; no durable audit log write; no Formation Receipt write; no Codex execution; no GitHub automation; no GitHub PR creation; no git branch/commit creation; no external handoff sending; no agent routing/execution; no provider/OpenAI call; no retrieval/RAG execution; no DB write/query; no durable memory write; no perspective promotion; no proof/evidence write; no accepted evidence write; no work mutation; no schema/migration; no route or UI; no browser request; no product write/product IDs; product-write remains parked by #686; perspective_packet_receipt_linkage_implementation_v0_1.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

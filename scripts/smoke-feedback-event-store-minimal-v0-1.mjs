@@ -413,6 +413,80 @@ const stateTrajectoryImplementationDownstreamSmokePaths = [
 ];
 
 let cachedMergeBaseRef = null;
+const perspectivePacketReceiptLinkageTypePath =
+  "types/perspective-packet-receipt-linkage-contract.ts";
+const perspectivePacketReceiptLinkageFixturePath =
+  "fixtures/research-candidate-review.perspective-packet-receipt-linkage-contract.sample.v0.1.json";
+const perspectivePacketReceiptLinkageSmokePath =
+  "scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs";
+const perspectivePacketReceiptLinkageSourceValidationSmokePath =
+  "scripts/smoke-codex-handoff-draft-browser-validation-v0-1.mjs";
+const perspectivePacketReceiptLinkagePackageScriptName =
+  "smoke:perspective-packet-receipt-linkage-contract-v0-1";
+const perspectivePacketReceiptLinkagePackageScriptValue =
+  "node scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs";
+const perspectivePacketReceiptLinkageVersion =
+  "perspective_packet_receipt_linkage_contract.v0.1";
+const perspectivePacketReceiptLinkageRecommendationStatus =
+  "ready_for_perspective_packet_receipt_linkage_implementation_v0_1";
+const perspectivePacketReceiptLinkageNextRecommendedSlice =
+  "perspective_packet_receipt_linkage_implementation_v0_1";
+const perspectivePacketReceiptLinkageDownstreamSmokePaths = [
+  "scripts/smoke-codex-handoff-draft-browser-validation-v0-1.mjs",
+  "scripts/smoke-codex-handoff-draft-implementation-v0-1.mjs",
+  "scripts/smoke-codex-handoff-draft-contract-v0-1.mjs",
+  "scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs",
+  "scripts/smoke-ai-context-packet-implementation-v0-1.mjs",
+  "scripts/smoke-ai-context-packet-contract-v0-1.mjs",
+  "scripts/smoke-perspective-geometry-digest-browser-validation-v0-1.mjs",
+  "scripts/smoke-perspective-geometry-digest-implementation-v0-1.mjs",
+  "scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",
+  "scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs",
+  "scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs",
+  "scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs",
+  "scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs",
+  "scripts/smoke-durable-perspective-state-trajectory-implementation-v0-1.mjs",
+  "scripts/smoke-durable-perspective-state-trajectory-contract-v0-1.mjs",
+  "scripts/smoke-human-reviewed-durable-perspective-promotion-browser-validation-v0-1.mjs",
+  "scripts/smoke-human-reviewed-durable-perspective-promotion-implementation-v0-1.mjs",
+  "scripts/smoke-human-reviewed-durable-perspective-promotion-contract-v0-1.mjs",
+  "scripts/smoke-non-authoritative-retrieval-rag-browser-validation-v0-1.mjs",
+  "scripts/smoke-non-authoritative-retrieval-rag-implementation-v0-1.mjs",
+  "scripts/smoke-non-authoritative-retrieval-rag-contract-v0-1.mjs",
+  "scripts/smoke-operator-source-candidate-generation-browser-validation-v0-1.mjs",
+  "scripts/smoke-operator-source-candidate-generation-implementation-v0-1.mjs",
+  "scripts/smoke-operator-source-candidate-generation-contract-v0-1.mjs",
+  "scripts/smoke-bounded-external-source-intake-browser-validation-v0-1.mjs",
+  "scripts/smoke-bounded-external-source-intake-implementation-v0-1.mjs",
+  "scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
+  "scripts/smoke-salience-governor-browser-validation-v0-1.mjs",
+  "scripts/smoke-salience-governor-implementation-v0-1.mjs",
+  "scripts/smoke-salience-governor-contract-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+  "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+];
+
 
 
 const require = createRequire(import.meta.url);
@@ -1492,6 +1566,10 @@ function assertTypeAndHelperContracts() {
 }
 
 function assertPackageScript() {
+  if (perspectivePacketReceiptLinkageContractSliceActive()) {
+    assertPerspectivePacketReceiptLinkageContractPackageScript();
+    return;
+  }
   if (codexHandoffDraftBrowserValidationSliceActive()) {
     assertCodexHandoffDraftBrowserValidationPackageScript();
     return;
@@ -1864,6 +1942,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (perspectivePacketReceiptLinkageContractSliceActive()) {
+    assertPerspectivePacketReceiptLinkageContractChangedFiles(changedFiles);
+    return;
+  }
   if (codexHandoffDraftBrowserValidationSliceActive()) {
     assertCodexHandoffDraftBrowserValidationChangedFiles(changedFiles);
     return;
@@ -4686,6 +4768,107 @@ function recentRehearsalBufferImplementationSliceActive() {
 
 function recentRehearsalBufferContractSliceActive() {
   return readChangedFiles().includes("scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs");
+}
+
+function perspectivePacketReceiptLinkageContractSliceActive() {
+  return readChangedFiles().includes(perspectivePacketReceiptLinkageSmokePath);
+}
+
+function assertPerspectivePacketReceiptLinkageContractPackageScript() {
+  assert.equal(
+    packageJson.scripts[perspectivePacketReceiptLinkagePackageScriptName],
+    perspectivePacketReceiptLinkagePackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [perspectivePacketReceiptLinkagePackageScriptName],
+    "package.json must add only the Perspective Packet Receipt Linkage contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  if (typeof basePackageJson !== "undefined") {
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+  }
+}
+
+function assertPerspectivePacketReceiptLinkageContractChangedFiles(changedFiles) {
+  const expectedFiles = Array.from(new Set([
+    perspectivePacketReceiptLinkageTypePath,
+    perspectivePacketReceiptLinkageFixturePath,
+    perspectivePacketReceiptLinkageSmokePath,
+    perspectivePacketReceiptLinkageSourceValidationSmokePath,
+    ...perspectivePacketReceiptLinkageDownstreamSmokePaths,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ]));
+  for (const unchangedPath of [
+    "types/codex-handoff-draft-contract.ts",
+    "fixtures/research-candidate-review.codex-handoff-draft-contract.sample.v0.1.json",
+    "lib/research-candidate-review/codex-handoff-draft.ts",
+    "fixtures/research-candidate-review.codex-handoff-draft-implementation.sample.v0.1.json",
+    "fixtures/research-candidate-review.codex-handoff-draft-browser-validation.sample.v0.1.json",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Perspective Packet Receipt Linkage contract slice must not change ` + unchangedPath,
+    );
+  }
+  for (const expectedFile of expectedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ` + expectedFile);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Perspective Packet Receipt Linkage contract slice: ` + changedFile,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertPerspectivePacketReceiptLinkageContractDownstreamPointer();
+}
+
+function assertPerspectivePacketReceiptLinkageContractDownstreamPointer() {
+  const linkageSmoke = readFileSync(perspectivePacketReceiptLinkageSmokePath, "utf8");
+  for (const requiredText of [
+    perspectivePacketReceiptLinkageVersion,
+    perspectivePacketReceiptLinkageFixturePath,
+    perspectivePacketReceiptLinkageSmokePath,
+    perspectivePacketReceiptLinkagePackageScriptName,
+    perspectivePacketReceiptLinkageRecommendationStatus,
+    perspectivePacketReceiptLinkageNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      linkageSmoke.includes(requiredText),
+      perspectivePacketReceiptLinkageSmokePath + " must include " + requiredText,
+    );
+  }
 }
 
 function readChangedFiles() {

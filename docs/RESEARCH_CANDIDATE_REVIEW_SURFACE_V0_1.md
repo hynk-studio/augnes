@@ -1834,3 +1834,15 @@ automation inside Augnes runtime.
 
 Add Cockpit manual pasted note preview UI shell using the existing
 deterministic parser in a preview-only, read-only path.
+
+Perspective Packet Receipt Linkage remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.
+Selected candidates remain candidates, not proof/evidence or durable state.
+Omitted candidates remain visible and omission is not rejection.
+Deferred candidates remain visible and deferral is not rejection.
+Unresolved tensions and knowledge gaps must remain visible.
+Codex Handoff Draft remains draft, not execution approval.
+Linkage cannot execute Codex, create branches, create commits, create PRs, call providers, run retrieval/RAG, mutate state/work, write Formation Receipt, write audit logs, or write product data.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/layout/digest/packet/handoff/linkage behavior.
+Product-write remains parked by #686.
+Next recommended slice is Perspective Packet Receipt Linkage implementation v0.1.
+`perspective_packet_receipt_linkage_implementation_v0_1`
