@@ -1007,6 +1007,17 @@ Product-write remains parked by #686.
 Next recommended slice is Project Constellation Runtime Layout browser validation v0.1.
 `project_constellation_runtime_layout_browser_validation_v0_1`
 
+Project Constellation Runtime Layout browser validation validates the deterministic fixture-backed #737 implementation.
+It validates public-safe Project Constellation layout preview bundles against the #736 contract.
+Agent Substrate remains advisory-only and cannot execute layout, mutate graph/state, promote Perspective, or write evidence/work/product data.
+Coordinates are display hints, not source of truth.
+PerspectiveSnapshot remains a future derived view, not independent source of truth.
+Salience/manual anchors/cluster position remain display context only and not authority.
+This slice does not implement runtime layout execution, UI rendering, graph DB, graph mutation, state read/write, durable Perspective delta apply, proof/evidence writes, accepted evidence writes, Formation Receipt writes, DB writes, route/UI, provider/OpenAI, retrieval/RAG, or product write.
+Product-write remains parked by #686.
+Next recommended slice is Perspective Geometry Digest contract v0.1.
+`perspective_geometry_digest_contract_v0_1`
+
 ## Next Recommended Slice
 
-`project_constellation_runtime_layout_browser_validation_v0_1`
+`perspective_geometry_digest_contract_v0_1`

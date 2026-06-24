@@ -2723,6 +2723,46 @@ repo-local 색인이다.
   `project_constellation_runtime_layout_browser_validation_v0_1`.
 
   Boundary phrases: Project Constellation Runtime Layout implementation v0.1; deterministic fixture-backed implementation only; validates and materializes #736 Project Constellation layout preview bundle; layout is interface, not truth; coordinates are display hints, not source of truth; stable layout across refreshes required later; deterministic seeded 2D layout required later; manual anchors are display hints only; temporal smoothing is display continuity only; source balance required and advisory-only; candidate overlay and durable graph remain distinct; stale high-gravity nodes are marked; bridge nodes are visible; tension markers are visible; knowledge gap markers are visible; evidence rays are refs, not proof/evidence writes; PerspectiveSnapshot remains derived view; salience state is display/reuse context only; salience state is not authority; layout coordinates, manual anchors, and cluster positions are not authority; no runtime layout execution; no seeded layout runtime; no force-directed layout runtime; no temporal smoothing runtime; no layout persistence; no graph DB; no graph mutation; no UI rendering; no browser request; no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs; product-write remains parked by #686.
+- Project Constellation Runtime Layout browser validation v0.1:
+  `fixtures/research-candidate-review.project-constellation-runtime-layout-browser-validation.sample.v0.1.json`
+  and
+  `scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs`
+  (`npm run smoke:project-constellation-runtime-layout-browser-validation-v0-1`)
+  validate deterministic fixture-backed implementation from #737. This
+  validation-only slice validates #736 contract boundary and #737 top-level
+  implementation boundary separation, validates built Project Constellation
+  layout preview bundle output, validates layout principle summary, validates
+  node family summary, validates edge family summary, validates stability
+  summary, validates source balance summary, validates candidate overlay
+  summary, validates snapshot summary, validates salience summary, validates
+  reference summary, validates invalid layout preview override rejection,
+  validates invalid node override rejection, validates invalid edge override
+  rejection, validates invalid authority boundary override rejection, and
+  validates invalid refs override rejection.
+
+  Layout is interface, not truth. Coordinates are display hints, not source of
+  truth. Stable layout across refreshes required later. Deterministic seeded 2D
+  layout required later. Manual anchors are display hints only. Temporal
+  smoothing is display continuity only. Source balance required and
+  advisory-only. Candidate overlay and durable graph remain distinct. Stale
+  high-gravity nodes are marked. Bridge nodes are visible. Tension markers are
+  visible. Knowledge gap markers are visible. Evidence rays are refs, not
+  proof/evidence writes. PerspectiveSnapshot remains derived view. Salience
+  state is display/reuse context only. Salience state is not authority. Layout
+  coordinates, manual anchors, and cluster positions are not authority.
+
+  This validation has no runtime layout execution, no seeded layout runtime, no
+  force-directed layout runtime, no temporal smoothing runtime, no layout
+  persistence, no graph DB, no graph mutation, no UI rendering, no browser
+  request, no runtime state read/write, no durable Perspective delta apply, no
+  PerspectiveSnapshot runtime, no proof/evidence write, no accepted evidence
+  write, no Formation Receipt write, no work mutation, no DB write/query, no
+  schema/migration, no route or UI, no provider/OpenAI call, no retrieval/RAG
+  execution, and no product write/product IDs. Product-write remains parked by
+  #686. The next recommended slice is
+  `perspective_geometry_digest_contract_v0_1`.
+
+  Boundary phrases: Project Constellation Runtime Layout browser validation v0.1; validates deterministic fixture-backed implementation from #737; validates #736 contract boundary and #737 top-level implementation boundary separation; validates built Project Constellation layout preview bundle; validates layout principle summary; validates node family summary; validates edge family summary; validates stability summary; validates source balance summary; validates candidate overlay summary; validates snapshot summary; validates salience summary; validates reference summary; validates invalid layout preview override rejection; validates invalid node override rejection; validates invalid edge override rejection; validates invalid authority boundary override rejection; validates invalid refs override rejection; layout is interface, not truth; coordinates are display hints, not source of truth; stable layout across refreshes required later; deterministic seeded 2D layout required later; manual anchors are display hints only; temporal smoothing is display continuity only; source balance required and advisory-only; candidate overlay and durable graph remain distinct; stale high-gravity nodes are marked; bridge nodes are visible; tension markers are visible; knowledge gap markers are visible; evidence rays are refs, not proof/evidence writes; PerspectiveSnapshot remains derived view; salience state is display/reuse context only; salience state is not authority; layout coordinates, manual anchors, and cluster positions are not authority; no runtime layout execution; no seeded layout runtime; no force-directed layout runtime; no temporal smoothing runtime; no layout persistence; no graph DB; no graph mutation; no UI rendering; no browser request; no runtime state read/write; no durable Perspective delta apply; no PerspectiveSnapshot runtime; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no DB write/query; no schema/migration; no route or UI; no provider/OpenAI call; no retrieval/RAG execution; no product write/product IDs; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

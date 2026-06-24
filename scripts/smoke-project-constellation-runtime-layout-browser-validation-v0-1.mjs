@@ -10,7 +10,11 @@ const contractFixturePath =
   "fixtures/research-candidate-review.project-constellation-runtime-layout-contract.sample.v0.1.json";
 const implementationFixturePath =
   "fixtures/research-candidate-review.project-constellation-runtime-layout-implementation.sample.v0.1.json";
+const fixturePath =
+  "fixtures/research-candidate-review.project-constellation-runtime-layout-browser-validation.sample.v0.1.json";
 const smokePath =
+  "scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs";
+const implementationSmokePath =
   "scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs";
 const contractSmokePath =
   "scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs";
@@ -22,31 +26,25 @@ const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
 
 const packageScriptName =
-  "smoke:project-constellation-runtime-layout-implementation-v0-1";
+  "smoke:project-constellation-runtime-layout-browser-validation-v0-1";
 const packageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs";
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs";
 const implementationKind =
   "project_constellation_runtime_layout_implementation";
 const implementationVersion =
   "project_constellation_runtime_layout_implementation.v0.1";
+const implementationRecommendationStatus =
+  "ready_for_project_constellation_runtime_layout_browser_validation_v0_1";
+const implementationNextRecommendedSlice =
+  "project_constellation_runtime_layout_browser_validation_v0_1";
+const validationKind =
+  "project_constellation_runtime_layout_browser_validation";
+const validationVersion =
+  "project_constellation_runtime_layout_browser_validation.v0.1";
 const previewVersion = "project_constellation_runtime_layout_preview.v0.1";
 const recommendationStatus =
-  "ready_for_project_constellation_runtime_layout_browser_validation_v0_1";
-const nextRecommendedSlice =
-  "project_constellation_runtime_layout_browser_validation_v0_1";
-const browserValidationFixturePath =
-  "fixtures/research-candidate-review.project-constellation-runtime-layout-browser-validation.sample.v0.1.json";
-const browserValidationSmokePath =
-  "scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs";
-const browserValidationPackageScriptName =
-  "smoke:project-constellation-runtime-layout-browser-validation-v0-1";
-const browserValidationPackageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs";
-const browserValidationVersion =
-  "project_constellation_runtime_layout_browser_validation.v0.1";
-const browserValidationRecommendationStatus =
   "ready_for_perspective_geometry_digest_contract_v0_1";
-const browserValidationNextRecommendedSlice =
+const nextRecommendedSlice =
   "perspective_geometry_digest_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
@@ -96,14 +94,14 @@ const downstreamSmokePaths = [
 ];
 
 const expectedChangedFiles = [
-  builderPath,
-  implementationFixturePath,
+  fixturePath,
   smokePath,
   packagePath,
   indexPath,
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  implementationSmokePath,
   contractSmokePath,
   ...downstreamSmokePaths,
 ];
@@ -112,7 +110,9 @@ for (const filePath of [
   builderPath,
   contractTypePath,
   contractFixturePath,
+  implementationFixturePath,
   smokePath,
+  implementationSmokePath,
   contractSmokePath,
   packagePath,
   indexPath,
@@ -123,17 +123,16 @@ for (const filePath of [
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
 if (!writeFixture) {
-  assert.ok(
-    existsSync(implementationFixturePath),
-    `${implementationFixturePath} must exist`,
-  );
+  assert.ok(existsSync(fixturePath), `${fixturePath} must exist`);
 }
 
 const builderSource = readFile(builderPath);
 const smokeSource = readFile(smokePath);
+const implementationSmokeSource = readFile(implementationSmokePath);
 const contractSmokeSource = readFile(contractSmokePath);
 const contractTypeSource = readFile(contractTypePath);
 const contractFixture = readJson(contractFixturePath);
+const implementationFixture = readJson(implementationFixturePath);
 const packageJson = readJson(packagePath);
 const basePackageJson = readJsonFromGit(packagePath);
 const indexDoc = readFile(indexPath);
@@ -156,56 +155,71 @@ const rebuiltImplementationFixture =
     project_constellation_runtime_layout_contract: contractFixture,
     source_contract_ref: sourceContractRef,
   });
+const rebuiltFixture = buildValidationFixture();
 
 if (writeFixture) {
-  writeFileSync(
-    implementationFixturePath,
-    `${JSON.stringify(rebuiltImplementationFixture, null, 2)}\n`,
-  );
+  writeFileSync(fixturePath, `${JSON.stringify(rebuiltFixture, null, 2)}\n`);
   process.exit(0);
 }
 
-const fixture = readJson(implementationFixturePath);
+const fixture = readJson(fixturePath);
 
-assertContractArtifactsUnchanged();
+assertUpstreamArtifactsUnchanged();
 assertBuilderFile();
 assertPackageScript();
 assertStaticBoundary();
 assertNoForbiddenRuntimePatterns();
 assert.deepEqual(
-  fixture,
+  implementationFixture,
   rebuiltImplementationFixture,
-  "rebuilt Project Constellation Runtime Layout implementation fixture must match committed fixture",
+  "#737 implementation fixture must match rebuilt deterministic output",
 );
-assertImplementationFixture(fixture);
+assert.deepEqual(
+  fixture,
+  rebuiltFixture,
+  "rebuilt Project Constellation Runtime Layout browser validation fixture must match committed fixture",
+);
+assertValidationFixture(fixture);
+assertValidatedBuilder(fixture.validated_builder);
+assertValidatedProjectConstellationLayout(
+  fixture.validated_project_constellation_layout,
+);
+assertImplementationFixture(implementationFixture);
 assertBuiltLayoutPreviewBundle(
-  fixture.built_project_constellation_layout_preview_bundle,
+  implementationFixture.built_project_constellation_layout_preview_bundle,
 );
 assertAuthorityBoundary(fixture.authority_boundary);
-assertValidation(fixture.validated_implementation);
+assertImplementationAuthorityBoundary(implementationFixture.authority_boundary);
+assertValidation(implementationFixture.validated_implementation);
 assertInvalidLayoutPreviewOverrideCoverage();
 assertInvalidNodeOverrideCoverage();
 assertInvalidEdgeOverrideCoverage();
 assertInvalidAuthorityBoundaryOverrideCoverage();
 assertInvalidRefsOverrideCoverage();
 assertDocsPointers();
-assertContractSmokeDownstreamPointer();
+assertImplementationSmokeDownstreamPointer();
 assertPortableMergeBaseFallback();
 
 console.log(
   JSON.stringify(
     {
-      smoke: "project-constellation-runtime-layout-implementation-v0-1",
+      smoke: "project-constellation-runtime-layout-browser-validation-v0-1",
       final_status: "pass",
-      implementation_kind: fixture.implementation_kind,
-      implementation_version: fixture.implementation_version,
+      validation_kind: fixture.validation_kind,
+      validation_version: fixture.validation_version,
+      source_implementation_fingerprint:
+        fixture.source_implementation_fingerprint,
       source_contract_fingerprint: fixture.source_contract_fingerprint,
+      implementation_fixture_matches_rebuilt_output:
+        fixture.validated_project_constellation_layout
+          .implementation_fixture_matches_rebuilt_output,
       preview_bundle_follows_contract:
-        fixture.validated_implementation.preview_bundle_follows_contract,
+        fixture.validated_project_constellation_layout
+          .preview_bundle_follows_contract,
       node_families_preserved:
-        fixture.validated_implementation.node_families_preserved,
+        fixture.validated_project_constellation_layout.node_families_preserved,
       edge_families_preserved:
-        fixture.validated_implementation.edge_families_preserved,
+        fixture.validated_project_constellation_layout.edge_families_preserved,
       runtime_layout_execution_now:
         fixture.authority_boundary.runtime_layout_execution_now,
       graph_mutation_now: fixture.authority_boundary.graph_mutation_now,
@@ -227,16 +241,103 @@ console.log(
   ),
 );
 
-function assertContractArtifactsUnchanged() {
+function buildValidationFixture() {
+  const {
+    passed: _passed,
+    failure_codes: _failureCodes,
+    ...implementationValidation
+  } = implementationFixture.validated_implementation;
+  const validatedProjectConstellationLayout = {
+    implementation_fixture_matches_rebuilt_output: deepEqual(
+      implementationFixture,
+      rebuiltImplementationFixture,
+    ),
+    ...implementationValidation,
+    browser_validation_added_now: true,
+    implementation_changed_now: false,
+    contract_changed_now: false,
+  };
+  const {
+    builder_path: _builderPath,
+    ...deterministicBuilderFlags
+  } = implementationFixture.deterministic_builder;
+  const validation = {
+    validation_kind: validationKind,
+    validation_version: validationVersion,
+    source_implementation_ref:
+      `${implementationFixture.implementation_version}:${implementationFixturePath}#737`,
+    source_implementation_fingerprint:
+      implementationFixture.implementation_fingerprint,
+    source_contract_ref: implementationFixture.source_contract_ref,
+    source_contract_fingerprint:
+      implementationFixture.source_contract_fingerprint,
+    validated_builder: {
+      builder_path: builderPath,
+      implementation_fixture_path: implementationFixturePath,
+      contract_fixture_path: contractFixturePath,
+      ...deterministicBuilderFlags,
+    },
+    validated_project_constellation_layout: validatedProjectConstellationLayout,
+    authority_boundary: buildValidationAuthorityBoundary(),
+    recommendation_status: recommendationStatus,
+    next_recommended_slice: nextRecommendedSlice,
+    validation: {
+      passed: validatedProjectConstellationLayoutPasses(
+        validatedProjectConstellationLayout,
+      ),
+      failure_codes: [],
+      deterministic_rebuild_matches_fixture: true,
+    },
+    validation_fingerprint: "",
+    fingerprint_algorithm: "fnv1a32_canonical_json",
+  };
+  validation.validation_fingerprint = createValidationFingerprint(validation);
+  return validation;
+}
+
+function validatedProjectConstellationLayoutPasses(value) {
+  return Object.entries(value).every(([key, flag]) =>
+    key === "implementation_changed_now" || key === "contract_changed_now"
+      ? flag === false
+      : flag === true,
+  );
+}
+
+function buildValidationAuthorityBoundary() {
+  const {
+    implementation_added_now: _implementationAddedNow,
+    deterministic_builder_added_now: _deterministicBuilderAddedNow,
+    contract_changed_now: _contractChangedNow,
+    ...implementationBoundary
+  } = implementationFixture.authority_boundary;
+  return {
+    browser_validation_added_now: true,
+    implementation_changed_now: false,
+    contract_changed_now: false,
+    ...implementationBoundary,
+  };
+}
+
+function assertUpstreamArtifactsUnchanged() {
   assert.deepEqual(
     readJsonFromGit(contractFixturePath),
     contractFixture,
-    "#736 contract fixture must not change in implementation slice",
+    "#736 contract fixture must not change in browser validation slice",
   );
   assert.equal(
     readGitOutput(["show", `${mergeBaseRef()}:${contractTypePath}`]),
     contractTypeSource.trimEnd(),
-    "#736 type contract must not change in implementation slice",
+    "#736 type contract must not change in browser validation slice",
+  );
+  assert.equal(
+    readGitOutput(["show", `${mergeBaseRef()}:${builderPath}`]),
+    builderSource.trimEnd(),
+    "#737 builder file must not change in browser validation slice",
+  );
+  assert.deepEqual(
+    readJsonFromGit(implementationFixturePath),
+    implementationFixture,
+    "#737 implementation fixture must not change in browser validation slice",
   );
 }
 
@@ -295,10 +396,6 @@ function assertBuilderFile() {
 }
 
 function assertPackageScript() {
-  if (projectConstellationRuntimeLayoutBrowserValidationSliceActive()) {
-    assertProjectConstellationRuntimeLayoutBrowserValidationPackageScript();
-    return;
-  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -316,150 +413,26 @@ function assertPackageScript() {
   assert.deepEqual(
     addedScriptNames,
     [packageScriptName],
-    "package.json must add only the Project Constellation Runtime Layout implementation smoke script",
-  );
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
-  if (typeof basePackageJson !== "undefined") {
-    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
-    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
-    assert.deepEqual(
-      packageJson.optionalDependencies ?? {},
-      basePackageJson.optionalDependencies ?? {},
-    );
-  }
-}
-
-function assertStaticBoundary() {
-  const changedFiles = readChangedFiles();
-  if (projectConstellationRuntimeLayoutBrowserValidationSliceActive()) {
-    assertProjectConstellationRuntimeLayoutBrowserValidationChangedFiles(
-      changedFiles,
-    );
-    return;
-  }
-  for (const unchangedPath of [
-    contractTypePath,
-    contractFixturePath,
-    "fixtures/research-candidate-review.durable-perspective-state-trajectory-browser-validation.sample.v0.1.json",
-    "types/durable-perspective-state-trajectory-contract.ts",
-    "fixtures/research-candidate-review.durable-perspective-state-trajectory-contract.sample.v0.1.json",
-    "lib/research-candidate-review/durable-perspective-state-trajectory.ts",
-    "fixtures/research-candidate-review.durable-perspective-state-trajectory-implementation.sample.v0.1.json",
-    "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-browser-validation.sample.v0.1.json",
-    "lib/research-candidate-review/human-reviewed-durable-perspective-promotion.ts",
-    "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-implementation.sample.v0.1.json",
-    "lib/research-candidate-review/non-authoritative-retrieval-rag.ts",
-    "fixtures/research-candidate-review.non-authoritative-retrieval-rag-implementation.sample.v0.1.json",
-    "lib/research-candidate-review/operator-source-candidate-generation.ts",
-    "fixtures/research-candidate-review.operator-source-candidate-generation-implementation.sample.v0.1.json",
-    "lib/research-candidate-review/bounded-external-source-intake.ts",
-    "fixtures/research-candidate-review.bounded-external-source-intake-implementation.sample.v0.1.json",
-    "lib/research-candidate-review/salience-governor.ts",
-    "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
-    "lib/research-candidate-review/recent-rehearsal-buffer.ts",
-    "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
-    "lib/db/schema.sql",
-  ]) {
-    assert.ok(
-      !changedFiles.includes(unchangedPath),
-      `Project Constellation Runtime Layout implementation slice must not change ${unchangedPath}`,
-    );
-  }
-  for (const expectedFile of expectedChangedFiles) {
-    assert.ok(
-      changedFiles.includes(expectedFile),
-      `changed files must include ${expectedFile}`,
-    );
-  }
-  for (const changedFile of changedFiles) {
-    assert.ok(
-      expectedChangedFiles.includes(changedFile),
-      `unexpected changed file in Project Constellation Runtime Layout implementation slice: ${changedFile}`,
-    );
-    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
-    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
-    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
-    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
-    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
-    assert.doesNotMatch(changedFile, /^lib\/research-retrieval\//, "must not add retrieval implementation files");
-    assert.doesNotMatch(changedFile, /^lib\/research-rag\//, "must not add RAG implementation files");
-    if (changedFile !== builderPath) {
-      assert.doesNotMatch(changedFile, /^lib\/.*layout/i, "must not add runtime layout files");
-      assert.doesNotMatch(changedFile, /^lib\/.*constellation/i, "must not add runtime constellation UI files");
-      assert.doesNotMatch(changedFile, /^lib\/.*graph/i, "must not add graph DB or graph mutation files");
-    }
-    assert.doesNotMatch(changedFile, /^lib\/.*perspective.*state/i, "must not add runtime Perspective state files");
-    assert.doesNotMatch(changedFile, /^lib\/.*perspective.*snapshot/i, "must not add runtime PerspectiveSnapshot files");
-    assert.doesNotMatch(changedFile, /^lib\/.*trajectory/i, "must not add runtime trajectory builder files");
-    assert.doesNotMatch(changedFile, /^lib\/.*promotion/i, "must not add runtime promotion implementation files");
-    assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
-    assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
-    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
-  }
-}
-
-function projectConstellationRuntimeLayoutBrowserValidationSliceActive() {
-  return readChangedFiles().includes(browserValidationSmokePath);
-}
-
-function assertProjectConstellationRuntimeLayoutBrowserValidationPackageScript() {
-  const packageAddedLines = readGitOutput([
-    "diff",
-    "--unified=0",
-    mergeBaseRef(),
-    "--",
-    packagePath,
-  ])
-    .split("\n")
-    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
-  const addedScriptNames = packageAddedLines
-    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
-    .filter(Boolean)
-    .sort();
-  assert.equal(
-    packageJson.scripts[browserValidationPackageScriptName],
-    browserValidationPackageScriptValue,
-  );
-  assert.deepEqual(
-    addedScriptNames,
-    [browserValidationPackageScriptName],
     "package.json must add only the Project Constellation Runtime Layout browser validation smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
-  if (typeof basePackageJson !== "undefined") {
-    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
-    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
-    assert.deepEqual(
-      packageJson.optionalDependencies ?? {},
-      basePackageJson.optionalDependencies ?? {},
-    );
-  }
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
 }
 
-function assertProjectConstellationRuntimeLayoutBrowserValidationChangedFiles(
-  changedFiles,
-) {
-  const expectedFiles = [
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    packagePath,
-    indexPath,
-    substrateDocPath,
-    surfaceDocPath,
-    gateDocPath,
-    smokePath,
-    contractSmokePath,
-    ...downstreamSmokePaths,
-  ];
+function assertStaticBoundary() {
+  const changedFiles = readChangedFiles();
   for (const unchangedPath of [
     builderPath,
-    implementationFixturePath,
     contractTypePath,
     contractFixturePath,
+    implementationFixturePath,
     "fixtures/research-candidate-review.durable-perspective-state-trajectory-browser-validation.sample.v0.1.json",
     "types/durable-perspective-state-trajectory-contract.ts",
     "fixtures/research-candidate-review.durable-perspective-state-trajectory-contract.sample.v0.1.json",
@@ -485,12 +458,15 @@ function assertProjectConstellationRuntimeLayoutBrowserValidationChangedFiles(
       `Project Constellation Runtime Layout browser validation slice must not change ${unchangedPath}`,
     );
   }
-  for (const expectedFile of expectedFiles) {
-    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  for (const expectedFile of expectedChangedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include ${expectedFile}`,
+    );
   }
   for (const changedFile of changedFiles) {
     assert.ok(
-      expectedFiles.includes(changedFile),
+      expectedChangedFiles.includes(changedFile),
       `unexpected changed file in Project Constellation Runtime Layout browser validation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
@@ -510,31 +486,6 @@ function assertProjectConstellationRuntimeLayoutBrowserValidationChangedFiles(
     assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
     assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
     assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
-  }
-  assertProjectConstellationRuntimeLayoutBrowserValidationDownstreamPointer();
-}
-
-function assertProjectConstellationRuntimeLayoutBrowserValidationDownstreamPointer() {
-  const browserValidationSmoke = readFile(browserValidationSmokePath);
-  for (const requiredText of [
-    browserValidationVersion,
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    browserValidationPackageScriptName,
-    browserValidationRecommendationStatus,
-    browserValidationNextRecommendedSlice,
-    "validates deterministic fixture-backed implementation from #737",
-    "validates #736 contract boundary and #737 top-level implementation boundary separation",
-    "validates built Project Constellation layout preview bundle",
-    "validates invalid layout preview override rejection",
-    "layout is interface, not truth",
-    "coordinates are display hints, not source of truth",
-    "product-write remains parked by #686",
-  ]) {
-    assert.ok(
-      browserValidationSmoke.includes(requiredText),
-      `downstream smoke must allow Project Constellation Runtime Layout browser validation pointer: ${requiredText}`,
-    );
   }
 }
 
@@ -560,7 +511,7 @@ function assertNoForbiddenRuntimePatterns() {
     }
     if (
       filePath === smokePath ||
-      filePath === browserValidationSmokePath ||
+      filePath === implementationSmokePath ||
       downstreamSmokePaths.includes(filePath)
     ) {
       continue;
@@ -570,6 +521,88 @@ function assertNoForbiddenRuntimePatterns() {
     assert.doesNotMatch(stripped, /\brequestAnimationFrame\s*\(/, `${filePath} must not use requestAnimationFrame`);
     assert.doesNotMatch(stripped, /\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|\bdocument\.cookie\b/, `${filePath} must not use browser persistence`);
   }
+}
+
+function assertValidationFixture(value) {
+  assert.equal(value.validation_kind, validationKind);
+  assert.equal(value.validation_version, validationVersion);
+  assert.equal(
+    value.source_implementation_ref,
+    `${implementationVersion}:${implementationFixturePath}#737`,
+  );
+  assert.equal(
+    value.source_implementation_fingerprint,
+    implementationFixture.implementation_fingerprint,
+  );
+  assert.equal(value.source_contract_ref, implementationFixture.source_contract_ref);
+  assert.equal(
+    value.source_contract_fingerprint,
+    implementationFixture.source_contract_fingerprint,
+  );
+  assert.equal(value.recommendation_status, recommendationStatus);
+  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(value.validation.passed, true);
+  assert.deepEqual(value.validation.failure_codes, []);
+  assert.equal(value.validation.deterministic_rebuild_matches_fixture, true);
+  assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
+  assert.equal(value.validation_fingerprint, createValidationFingerprint(value));
+}
+
+function assertValidatedBuilder(value) {
+  assert.equal(value.builder_path, builderPath);
+  assert.equal(value.implementation_fixture_path, implementationFixturePath);
+  assert.equal(value.contract_fixture_path, contractFixturePath);
+  assert.equal(value.deterministic_fixture_backed_only, true);
+  for (const flag of [
+    "runtime_layout_execution_now",
+    "seeded_layout_runtime_now",
+    "force_directed_layout_runtime_now",
+    "temporal_smoothing_runtime_now",
+    "layout_persistence_now",
+    "layout_coordinate_write_now",
+    "graph_db_now",
+    "graph_mutation_now",
+    "ui_rendering_now",
+    "browser_rendering_now",
+    "browser_request_now",
+    "browser_persistence_now",
+    "request_animation_frame_now",
+    "durable_perspective_state_read_now",
+    "durable_perspective_state_write_now",
+    "durable_perspective_delta_apply_now",
+    "perspective_snapshot_runtime_now",
+    "trajectory_runtime_build_now",
+    "proof_evidence_write_now",
+    "accepted_evidence_write_now",
+    "formation_receipt_write_now",
+    "work_mutation_now",
+    "runtime_db_query_now",
+    "runtime_db_write_now",
+    "production_db_used_now",
+    "provider_openai_call_now",
+    "retrieval_rag_execution_now",
+    "source_fetch_now",
+    "crawler_now",
+    "durable_memory_write_now",
+  ]) {
+    assert.equal(value[flag], false, `${flag} must remain false`);
+  }
+}
+
+function assertValidatedProjectConstellationLayout(value) {
+  assert.equal(value.implementation_fixture_matches_rebuilt_output, true);
+  for (const [key, flag] of Object.entries(
+    implementationFixture.validated_implementation,
+  )) {
+    if (key === "passed" || key === "failure_codes") {
+      continue;
+    }
+    assert.equal(value[key], flag, `${key} must match #737 implementation validation`);
+  }
+  assert.equal(value.browser_validation_added_now, true);
+  assert.equal(value.implementation_changed_now, false);
+  assert.equal(value.contract_changed_now, false);
+  assert.equal(validatedProjectConstellationLayoutPasses(value), true);
 }
 
 function assertImplementationFixture(value) {
@@ -631,8 +664,8 @@ function assertImplementationFixture(value) {
   ]) {
     assert.equal(value.deterministic_builder[flag], false, `${flag} must be false`);
   }
-  assert.equal(value.recommendation_status, recommendationStatus);
-  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(value.recommendation_status, implementationRecommendationStatus);
+  assert.equal(value.next_recommended_slice, implementationNextRecommendedSlice);
   assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
   assert.equal(
     value.implementation_fingerprint,
@@ -673,6 +706,82 @@ function assertBuiltLayoutPreviewBundle(bundle) {
 }
 
 function assertAuthorityBoundary(boundary) {
+  assert.equal(boundary.browser_validation_added_now, true);
+  assert.equal(boundary.implementation_changed_now, false);
+  assert.equal(boundary.contract_changed_now, false);
+  assert.ok(!Object.hasOwn(boundary, "implementation_added_now"));
+  assert.ok(!Object.hasOwn(boundary, "deterministic_builder_added_now"));
+  for (const flag of [
+    "runtime_layout_implemented_now",
+    "runtime_layout_execution_now",
+    "seeded_layout_runtime_now",
+    "force_directed_layout_runtime_now",
+    "temporal_smoothing_runtime_now",
+    "layout_persistence_now",
+    "layout_coordinate_write_now",
+    "graph_db_implemented_now",
+    "graph_mutation_now",
+    "component_changed_now",
+    "route_changed_now",
+    "browser_request_now",
+    "browser_persistence_now",
+    "request_animation_frame_now",
+    "durable_perspective_state_read_now",
+    "durable_perspective_state_write_now",
+    "durable_perspective_delta_apply_now",
+    "perspective_snapshot_runtime_implemented_now",
+    "trajectory_runtime_build_implemented_now",
+    "proof_or_evidence_record_write_now",
+    "accepted_evidence_write_now",
+    "formation_receipt_write_now",
+    "work_mutation_now",
+    "candidate_mutation_now",
+    "candidate_record_write_now",
+    "runtime_promotion_implemented_now",
+    "promotion_decision_record_implemented_now",
+    "promotion_decision_record_write_now",
+    "runtime_retrieval_rag_implemented_now",
+    "runtime_index_build_implemented_now",
+    "runtime_index_write_now",
+    "embedding_generation_implemented_now",
+    "vector_db_implemented_now",
+    "fts_implemented_now",
+    "provider_openai_call_now",
+    "provider_extraction_now",
+    "source_fetch_now",
+    "crawler_now",
+    "source_index_write_now",
+    "durable_source_record_write_now",
+    "runtime_persistence_implemented_now",
+    "durable_memory_write_now",
+    "runtime_db_write_now",
+    "runtime_db_query_now",
+    "production_db_used_now",
+    "db_schema_implemented_now",
+    "durable_salience_write_now",
+    "recent_rehearsal_buffer_written_now",
+    "feedback_events_written_now",
+    "feedback_events_mutated_now",
+    "execution_authority",
+    "codex_execution_authority",
+    "github_automation_authority",
+    "external_handoff_authority",
+    "provider_openai_authority",
+    "retrieval_rag_authority",
+    "source_fetch_authority",
+    "salience_authority",
+    "layout_coordinate_authority",
+    "manual_anchor_authority",
+    "cluster_position_authority",
+    "product_write_authority",
+    "product_id_allocation_authority",
+  ]) {
+    assert.equal(boundary[flag], false, `${flag} must remain false`);
+  }
+  assert.equal(boundary.product_write_lane_parked_by_686, true);
+}
+
+function assertImplementationAuthorityBoundary(boundary) {
   assert.equal(boundary.implementation_added_now, true);
   assert.equal(boundary.deterministic_builder_added_now, true);
   assert.equal(boundary.contract_changed_now, false);
@@ -1097,12 +1206,26 @@ function assertDocsPointers() {
     [
       indexDoc,
       [
-        "Project Constellation Runtime Layout implementation v0.1",
-        builderPath,
-        implementationFixturePath,
+        "Project Constellation Runtime Layout browser validation v0.1",
+        fixturePath,
         smokePath,
-        "deterministic fixture-backed implementation only",
-        "validates and materializes #736 Project Constellation layout preview bundle",
+        "validates deterministic fixture-backed implementation from #737",
+        "validates #736 contract boundary and #737 top-level implementation boundary separation",
+        "validates built Project Constellation layout preview bundle",
+        "validates layout principle summary",
+        "validates node family summary",
+        "validates edge family summary",
+        "validates stability summary",
+        "validates source balance summary",
+        "validates candidate overlay summary",
+        "validates snapshot summary",
+        "validates salience summary",
+        "validates reference summary",
+        "validates invalid layout preview override rejection",
+        "validates invalid node override rejection",
+        "validates invalid edge override rejection",
+        "validates invalid authority boundary override rejection",
+        "validates invalid refs override rejection",
         "layout is interface, not truth",
         "coordinates are display hints, not source of truth",
         "source balance required and advisory-only",
@@ -1120,17 +1243,17 @@ function assertDocsPointers() {
     [
       substrateDoc,
       [
-        "Project Constellation Runtime Layout implementation is deterministic fixture-backed only.",
-        "It materializes preview bundles from the #736 contract.",
+        "Project Constellation Runtime Layout browser validation validates the deterministic fixture-backed #737 implementation.",
+        "It validates public-safe Project Constellation layout preview bundles against the #736 contract.",
         "Agent Substrate remains advisory-only and cannot execute layout, mutate graph/state, promote Perspective, or write evidence/work/product data.",
         "Coordinates are display hints, not source of truth.",
-        "Next recommended slice is Project Constellation Runtime Layout browser validation v0.1.",
+        "Next recommended slice is Perspective Geometry Digest contract v0.1.",
       ],
     ],
     [
       surfaceDoc,
       [
-        "Project Constellation Runtime Layout implementation remains separated from runtime layout, candidate preview, durable Perspective state, and promotion runtime.",
+        "Project Constellation Runtime Layout validation remains separated from runtime layout, candidate preview, durable Perspective state, and promotion runtime.",
         "Candidate overlay is not durable graph.",
         "Coordinates are display hints, not truth.",
         "Evidence rays are refs, not proof/evidence records.",
@@ -1140,7 +1263,7 @@ function assertDocsPointers() {
     [
       gateDoc,
       [
-        "Project Constellation Runtime Layout implementation remains separated from runtime layout, candidate preview, durable Perspective state, and promotion runtime.",
+        "Project Constellation Runtime Layout validation remains separated from runtime layout, candidate preview, durable Perspective state, and promotion runtime.",
         "Candidate overlay is not durable graph.",
         "Coordinates are display hints, not truth.",
         "Evidence rays are refs, not proof/evidence records.",
@@ -1155,24 +1278,24 @@ function assertDocsPointers() {
   }
 }
 
-function assertContractSmokeDownstreamPointer() {
+function assertImplementationSmokeDownstreamPointer() {
   for (const requiredText of [
-    implementationVersion,
-    builderPath,
-    implementationFixturePath,
+    validationVersion,
+    fixturePath,
     smokePath,
     packageScriptName,
     recommendationStatus,
     nextRecommendedSlice,
-    "deterministic fixture-backed implementation only",
-    "validates and materializes #736 Project Constellation layout preview bundle",
+    "validates deterministic fixture-backed implementation from #737",
+    "validates #736 contract boundary and #737 top-level implementation boundary separation",
     "layout is interface, not truth",
     "coordinates are display hints, not source of truth",
+    "validates invalid layout preview override rejection",
     "product-write remains parked by #686",
   ]) {
     assert.ok(
-      contractSmokeSource.includes(requiredText),
-      `#736 contract smoke must allow Project Constellation Runtime Layout implementation downstream pointer: ${requiredText}`,
+      implementationSmokeSource.includes(requiredText),
+      `#737 implementation smoke must allow Project Constellation Runtime Layout browser validation downstream pointer: ${requiredText}`,
     );
   }
 }
@@ -1237,6 +1360,44 @@ function stripNonCode(source) {
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/\/\/.*$/gm, "")
     .replace(/(["'`])(?:\\.|(?!\1)[\s\S])*\1/g, "\"\"");
+}
+
+function createValidationFingerprint(value) {
+  const normalized = clone(value);
+  const { validation_fingerprint: _validationFingerprint, ...rest } = normalized;
+  return `fnv1a32:${fnv1a32(canonicalJson(rest))}`;
+}
+
+function deepEqual(left, right) {
+  return canonicalJson(left) === canonicalJson(right);
+}
+
+function canonicalJson(value) {
+  return JSON.stringify(sortKeys(value));
+}
+
+function sortKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map(sortKeys);
+  }
+  if (value && typeof value === "object") {
+    return Object.keys(value)
+      .sort()
+      .reduce((accumulator, key) => {
+        accumulator[key] = sortKeys(value[key]);
+        return accumulator;
+      }, {});
+  }
+  return value;
+}
+
+function fnv1a32(input) {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
 }
 
 function clone(value) {
