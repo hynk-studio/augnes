@@ -60,6 +60,22 @@ const browserValidationRecommendationStatus =
   "ready_for_agent_perspective_substrate_feedback_loop_contract_v0_1";
 const browserValidationNextRecommendedSlice =
   "agent_perspective_substrate_feedback_loop_contract_v0_1";
+const feedbackLoopContractTypePath =
+  "types/agent-perspective-substrate-feedback-loop-contract.ts";
+const feedbackLoopContractFixturePath =
+  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-contract.sample.v0.1.json";
+const feedbackLoopContractSmokePath =
+  "scripts/smoke-agent-perspective-substrate-feedback-loop-contract-v0-1.mjs";
+const feedbackLoopContractPackageScriptName =
+  "smoke:agent-perspective-substrate-feedback-loop-contract-v0-1";
+const feedbackLoopContractPackageScriptValue =
+  "node scripts/smoke-agent-perspective-substrate-feedback-loop-contract-v0-1.mjs";
+const feedbackLoopContractVersion =
+  "agent_perspective_substrate_feedback_loop_contract.v0.1";
+const feedbackLoopContractRecommendationStatus =
+  "ready_for_agent_perspective_substrate_feedback_loop_implementation_v0_1";
+const feedbackLoopContractNextRecommendedSlice =
+  "agent_perspective_substrate_feedback_loop_implementation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -927,6 +943,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (feedbackLoopContractSliceActive()) {
+    assertFeedbackLoopContractPackageScript();
+    return;
+  }
   if (browserValidationSliceActive()) {
     assertBrowserValidationPackageScript();
     return;
@@ -967,6 +987,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (feedbackLoopContractSliceActive()) {
+    assertFeedbackLoopContractChangedFiles(changedFiles);
+    return;
+  }
   if (browserValidationSliceActive()) {
     assertBrowserValidationChangedFiles(changedFiles);
     return;
@@ -1011,6 +1035,8 @@ function assertNoForbiddenRuntimePatterns() {
       filePath !== implementationBuilderPath &&
       filePath !== implementationSmokePath &&
       filePath !== browserValidationSmokePath &&
+      filePath !== feedbackLoopContractTypePath &&
+      filePath !== feedbackLoopContractSmokePath &&
       filePath !== sourceValidationSmokePath &&
       !downstreamSmokePaths.includes(filePath),
   );
@@ -1035,6 +1061,121 @@ function assertNoForbiddenRuntimePatterns() {
 
 function implementationSliceActive() {
   return readChangedFiles().includes(implementationSmokePath);
+}
+
+function feedbackLoopContractSliceActive() {
+  const changedFiles = readChangedFiles();
+  return (
+    changedFiles.includes(feedbackLoopContractTypePath) ||
+    changedFiles.includes(feedbackLoopContractFixturePath) ||
+    changedFiles.includes(feedbackLoopContractSmokePath)
+  );
+}
+
+function assertFeedbackLoopContractPackageScript() {
+  assert.equal(
+    packageJson.scripts[feedbackLoopContractPackageScriptName],
+    feedbackLoopContractPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [feedbackLoopContractPackageScriptName],
+    "package.json must add only the Agent Perspective Substrate Feedback Loop contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertFeedbackLoopContractChangedFiles(changedFiles) {
+  const expectedFiles = [
+    feedbackLoopContractTypePath,
+    feedbackLoopContractFixturePath,
+    feedbackLoopContractSmokePath,
+    sourceValidationSmokePath,
+    browserValidationSmokePath,
+    implementationSmokePath,
+    smokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    ...downstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    browserValidationFixturePath,
+    implementationBuilderPath,
+    implementationFixturePath,
+    typePath,
+    fixturePath,
+    "fixtures/research-candidate-review.codex-handoff-draft-browser-validation.sample.v0.1.json",
+    "types/codex-handoff-draft-contract.ts",
+    "fixtures/research-candidate-review.codex-handoff-draft-contract.sample.v0.1.json",
+    "lib/research-candidate-review/codex-handoff-draft.ts",
+    "fixtures/research-candidate-review.codex-handoff-draft-implementation.sample.v0.1.json",
+    "lib/db/schema.sql",
+    ...protectedUnchangedPaths,
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Agent Perspective Substrate Feedback Loop contract slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of Array.from(new Set(expectedFiles))) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Agent Perspective Substrate Feedback Loop contract slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertFeedbackLoopContractDownstreamPointer();
+}
+
+function assertFeedbackLoopContractDownstreamPointer() {
+  if (!feedbackLoopContractSliceActive()) return;
+  const feedbackLoopContractSmoke = readFile(feedbackLoopContractSmokePath);
+  for (const requiredText of [
+    feedbackLoopContractVersion,
+    feedbackLoopContractFixturePath,
+    feedbackLoopContractSmokePath,
+    feedbackLoopContractPackageScriptName,
+    feedbackLoopContractRecommendationStatus,
+    feedbackLoopContractNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      feedbackLoopContractSmoke.includes(requiredText),
+      `${feedbackLoopContractSmokePath} must include ${requiredText}`,
+    );
+  }
 }
 
 function browserValidationSliceActive() {
