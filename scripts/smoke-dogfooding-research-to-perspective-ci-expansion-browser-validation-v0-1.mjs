@@ -47,6 +47,20 @@ const recommendationStatus =
   "ready_for_dogfooding_research_to_perspective_ci_expansion_closeout_v0_1";
 const nextRecommendedSlice =
   "dogfooding_research_to_perspective_ci_expansion_closeout_v0_1";
+const closeoutFixturePath =
+  "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-closeout.sample.v0.1.json";
+const closeoutSmokePath =
+  "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-closeout-v0-1.mjs";
+const closeoutPackageScriptName =
+  "smoke:dogfooding-research-to-perspective-ci-expansion-closeout-v0-1";
+const closeoutPackageScriptValue =
+  "node scripts/smoke-dogfooding-research-to-perspective-ci-expansion-closeout-v0-1.mjs";
+const closeoutVersion =
+  "dogfooding_research_to_perspective_ci_expansion_closeout.v0.1";
+const closeoutRecommendationStatus =
+  "ready_for_research_to_perspective_foundation_milestone_closeout_v0_1";
+const closeoutNextRecommendedSlice =
+  "research_to_perspective_foundation_milestone_closeout_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -259,6 +273,7 @@ assertImplementationAuthorityBoundary(implementationFixture.authority_boundary);
 assertInvalidOverrideCoverage();
 assertDocsPointers();
 assertImplementationSmokeDownstreamPointer();
+assertCloseoutDownstreamPointer();
 assertPortableMergeBaseFallback();
 
 console.log(
@@ -412,6 +427,10 @@ function assertRequiredExports() {
 }
 
 function assertPackageScript() {
+  if (dogfoodingResearchToPerspectiveCiExpansionCloseoutSliceActive()) {
+    assertCloseoutPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -444,6 +463,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (dogfoodingResearchToPerspectiveCiExpansionCloseoutSliceActive()) {
+    assertCloseoutChangedFiles(changedFiles);
+    return;
+  }
   for (const expectedFile of expectedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
@@ -1047,6 +1070,109 @@ function assertImplementationSmokeDownstreamPointer() {
     recommendationStatus,
     nextRecommendedSlice,
   ]);
+}
+
+function assertCloseoutDownstreamPointer() {
+  if (!dogfoodingResearchToPerspectiveCiExpansionCloseoutSliceActive()) {
+    return;
+  }
+  assert.ok(existsSync(closeoutFixturePath), `${closeoutFixturePath} must exist`);
+  assert.ok(existsSync(closeoutSmokePath), `${closeoutSmokePath} must exist`);
+  assert.equal(
+    packageJson.scripts[closeoutPackageScriptName],
+    closeoutPackageScriptValue,
+  );
+  const closeoutFixture = readJson(closeoutFixturePath);
+  assert.equal(closeoutFixture.closeout_version, closeoutVersion);
+  assert.equal(
+    closeoutFixture.recommendation_status,
+    closeoutRecommendationStatus,
+  );
+  assert.equal(
+    closeoutFixture.next_recommended_slice,
+    closeoutNextRecommendedSlice,
+  );
+}
+
+function assertCloseoutPackageScript() {
+  assert.equal(
+    packageJson.scripts[closeoutPackageScriptName],
+    closeoutPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [closeoutPackageScriptName],
+    "package.json must add only the Dogfooding Research-to-Perspective CI Expansion closeout smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertCloseoutChangedFiles(changedFiles) {
+  const expected = [
+    closeoutFixturePath,
+    closeoutSmokePath,
+    smokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ];
+  for (const filePath of expected) {
+    assert.ok(changedFiles.includes(filePath), `closeout slice must include ${filePath}`);
+  }
+  for (const protectedPath of [
+    builderPath,
+    contractTypePath,
+    contractFixturePath,
+    implementationFixturePath,
+    validationFixturePath,
+  ]) {
+    assert.ok(
+      !changedFiles.includes(protectedPath),
+      `closeout slice must not change ${protectedPath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    const allowedDownstreamSmoke =
+      changedFile.startsWith("scripts/smoke-") &&
+      changedFile.endsWith(".mjs") &&
+      !expected.includes(changedFile) &&
+      readFileSync(changedFile, "utf8").includes(
+        "dogfoodingResearchToPerspectiveCiExpansionCloseoutSliceActive",
+      );
+    assert.ok(
+      expected.includes(changedFile) || allowedDownstreamSmoke,
+      `unexpected changed file in Dogfooding Research-to-Perspective CI Expansion closeout slice: ${changedFile}`,
+    );
+    if (allowedDownstreamSmoke) continue;
+    assertNoForbiddenChangedPath(changedFile);
+  }
+}
+
+function dogfoodingResearchToPerspectiveCiExpansionCloseoutSliceActive() {
+  return readChangedFiles().includes(closeoutSmokePath);
 }
 
 function assertPortableMergeBaseFallback() {

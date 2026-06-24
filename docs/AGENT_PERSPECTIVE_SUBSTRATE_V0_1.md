@@ -1247,3 +1247,11 @@ This slice does not add GitHub Actions, CI runtime, dogfooding ingestion, provid
 Product-write remains parked by #686.
 Next recommended slice is Dogfooding Research-to-Perspective CI Expansion closeout v0.1.
 `dogfooding_research_to_perspective_ci_expansion_closeout_v0_1`
+
+Dogfooding Research-to-Perspective CI Expansion rail is closed through contract, implementation, and browser validation.
+Closeout is summary-only and does not add runtime.
+Agent Substrate remains advisory-only and cannot treat smoke pass/fail, PR body, Codex result, or changed files as truth/authority.
+This slice does not add GitHub Actions, CI runtime, dogfooding ingestion, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, work mutation, or product write.
+Product-write remains parked by #686.
+Next recommended slice is Research-to-Perspective Foundation Milestone closeout v0.1.
+`research_to_perspective_foundation_milestone_closeout_v0_1`
