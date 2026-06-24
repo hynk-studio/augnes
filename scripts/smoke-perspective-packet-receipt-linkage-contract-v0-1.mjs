@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
-const typePath = "types/codex-handoff-draft-contract.ts";
+const typePath = "types/perspective-packet-receipt-linkage-contract.ts";
 const fixturePath =
-  "fixtures/research-candidate-review.codex-handoff-draft-contract.sample.v0.1.json";
-const smokePath = "scripts/smoke-codex-handoff-draft-contract-v0-1.mjs";
+  "fixtures/research-candidate-review.perspective-packet-receipt-linkage-contract.sample.v0.1.json";
+const smokePath =
+  "scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs";
 const sourceValidationFixturePath =
-  "fixtures/research-candidate-review.ai-context-packet-browser-validation.sample.v0.1.json";
+  "fixtures/research-candidate-review.codex-handoff-draft-browser-validation.sample.v0.1.json";
 const sourceValidationSmokePath =
-  "scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs";
+  "scripts/smoke-codex-handoff-draft-browser-validation-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
@@ -17,127 +18,46 @@ const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
 const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
 
-const packageScriptName = "smoke:codex-handoff-draft-contract-v0-1";
+const packageScriptName =
+  "smoke:perspective-packet-receipt-linkage-contract-v0-1";
 const packageScriptValue =
-  "node scripts/smoke-codex-handoff-draft-contract-v0-1.mjs";
-const contractKind = "codex_handoff_draft_contract";
-const contractVersion = "codex_handoff_draft_contract.v0.1";
-const previewVersion = "codex_handoff_draft_preview.v0.1";
-const draftVersion = "codex_handoff_draft.v0.1";
+  "node scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs";
+const contractKind = "perspective_packet_receipt_linkage_contract";
+const contractVersion = "perspective_packet_receipt_linkage_contract.v0.1";
+const previewVersion = "perspective_packet_receipt_linkage_preview.v0.1";
+const linkageVersion = "perspective_packet_receipt_linkage.v0.1";
 const recommendationStatus =
-  "ready_for_codex_handoff_draft_implementation_v0_1";
-const nextRecommendedSlice = "codex_handoff_draft_implementation_v0_1";
+  "ready_for_perspective_packet_receipt_linkage_implementation_v0_1";
+const nextRecommendedSlice =
+  "perspective_packet_receipt_linkage_implementation_v0_1";
 const implementationBuilderPath =
-  "lib/research-candidate-review/codex-handoff-draft.ts";
+  "lib/research-candidate-review/perspective-packet-receipt-linkage.ts";
 const implementationFixturePath =
-  "fixtures/research-candidate-review.codex-handoff-draft-implementation.sample.v0.1.json";
+  "fixtures/research-candidate-review.perspective-packet-receipt-linkage-implementation.sample.v0.1.json";
 const implementationSmokePath =
-  "scripts/smoke-codex-handoff-draft-implementation-v0-1.mjs";
+  "scripts/smoke-perspective-packet-receipt-linkage-implementation-v0-1.mjs";
 const implementationPackageScriptName =
-  "smoke:codex-handoff-draft-implementation-v0-1";
+  "smoke:perspective-packet-receipt-linkage-implementation-v0-1";
 const implementationPackageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-handoff-draft-implementation-v0-1.mjs";
-const implementationVersion = "codex_handoff_draft_implementation.v0.1";
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-packet-receipt-linkage-implementation-v0-1.mjs";
+const implementationVersion =
+  "perspective_packet_receipt_linkage_implementation.v0.1";
 const implementationRecommendationStatus =
-  "ready_for_codex_handoff_draft_browser_validation_v0_1";
+  "ready_for_perspective_packet_receipt_linkage_browser_validation_v0_1";
 const implementationNextRecommendedSlice =
-  "codex_handoff_draft_browser_validation_v0_1";
-const browserValidationFixturePath =
-  "fixtures/research-candidate-review.codex-handoff-draft-browser-validation.sample.v0.1.json";
-const browserValidationSmokePath =
-  "scripts/smoke-codex-handoff-draft-browser-validation-v0-1.mjs";
-const browserValidationPackageScriptName =
-  "smoke:codex-handoff-draft-browser-validation-v0-1";
-const browserValidationPackageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-handoff-draft-browser-validation-v0-1.mjs";
-const browserValidationVersion = "codex_handoff_draft_browser_validation.v0.1";
-const browserValidationRecommendationStatus =
-  "ready_for_perspective_packet_receipt_linkage_contract_v0_1";
-const browserValidationNextRecommendedSlice =
-  "perspective_packet_receipt_linkage_contract_v0_1";
+  "perspective_packet_receipt_linkage_browser_validation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
-const perspectivePacketReceiptLinkageTypePath =
-  "types/perspective-packet-receipt-linkage-contract.ts";
-const perspectivePacketReceiptLinkageFixturePath =
-  "fixtures/research-candidate-review.perspective-packet-receipt-linkage-contract.sample.v0.1.json";
-const perspectivePacketReceiptLinkageSmokePath =
-  "scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs";
-const perspectivePacketReceiptLinkageSourceValidationSmokePath =
-  "scripts/smoke-codex-handoff-draft-browser-validation-v0-1.mjs";
-const perspectivePacketReceiptLinkagePackageScriptName =
-  "smoke:perspective-packet-receipt-linkage-contract-v0-1";
-const perspectivePacketReceiptLinkagePackageScriptValue =
-  "node scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs";
-const perspectivePacketReceiptLinkageVersion =
-  "perspective_packet_receipt_linkage_contract.v0.1";
-const perspectivePacketReceiptLinkageRecommendationStatus =
-  "ready_for_perspective_packet_receipt_linkage_implementation_v0_1";
-const perspectivePacketReceiptLinkageNextRecommendedSlice =
-  "perspective_packet_receipt_linkage_implementation_v0_1";
-const perspectivePacketReceiptLinkageDownstreamSmokePaths = [
-  "scripts/smoke-codex-handoff-draft-browser-validation-v0-1.mjs",
-  "scripts/smoke-codex-handoff-draft-implementation-v0-1.mjs",
-  "scripts/smoke-codex-handoff-draft-contract-v0-1.mjs",
-  "scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs",
-  "scripts/smoke-ai-context-packet-implementation-v0-1.mjs",
-  "scripts/smoke-ai-context-packet-contract-v0-1.mjs",
-  "scripts/smoke-perspective-geometry-digest-browser-validation-v0-1.mjs",
-  "scripts/smoke-perspective-geometry-digest-implementation-v0-1.mjs",
-  "scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",
-  "scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs",
-  "scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs",
-  "scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs",
-  "scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs",
-  "scripts/smoke-durable-perspective-state-trajectory-implementation-v0-1.mjs",
-  "scripts/smoke-durable-perspective-state-trajectory-contract-v0-1.mjs",
-  "scripts/smoke-human-reviewed-durable-perspective-promotion-browser-validation-v0-1.mjs",
-  "scripts/smoke-human-reviewed-durable-perspective-promotion-implementation-v0-1.mjs",
-  "scripts/smoke-human-reviewed-durable-perspective-promotion-contract-v0-1.mjs",
-  "scripts/smoke-non-authoritative-retrieval-rag-browser-validation-v0-1.mjs",
-  "scripts/smoke-non-authoritative-retrieval-rag-implementation-v0-1.mjs",
-  "scripts/smoke-non-authoritative-retrieval-rag-contract-v0-1.mjs",
-  "scripts/smoke-operator-source-candidate-generation-browser-validation-v0-1.mjs",
-  "scripts/smoke-operator-source-candidate-generation-implementation-v0-1.mjs",
-  "scripts/smoke-operator-source-candidate-generation-contract-v0-1.mjs",
-  "scripts/smoke-bounded-external-source-intake-browser-validation-v0-1.mjs",
-  "scripts/smoke-bounded-external-source-intake-implementation-v0-1.mjs",
-  "scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
-  "scripts/smoke-salience-governor-browser-validation-v0-1.mjs",
-  "scripts/smoke-salience-governor-implementation-v0-1.mjs",
-  "scripts/smoke-salience-governor-contract-v0-1.mjs",
-  "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs",
-  "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
-  "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
-  "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs",
-  "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
-  "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
-  "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
-  "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
-  "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
-  "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
-  "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
-  "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
-  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
-];
-
 
 const downstreamSmokePaths = [
+  "scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs",
   "scripts/smoke-ai-context-packet-contract-v0-1.mjs",
   "scripts/smoke-ai-context-packet-implementation-v0-1.mjs",
   "scripts/smoke-bounded-external-source-intake-browser-validation-v0-1.mjs",
   "scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
   "scripts/smoke-bounded-external-source-intake-implementation-v0-1.mjs",
+  "scripts/smoke-codex-handoff-draft-contract-v0-1.mjs",
+  "scripts/smoke-codex-handoff-draft-implementation-v0-1.mjs",
   "scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs",
   "scripts/smoke-durable-perspective-state-trajectory-contract-v0-1.mjs",
   "scripts/smoke-durable-perspective-state-trajectory-implementation-v0-1.mjs",
@@ -199,6 +119,10 @@ const expectedChangedFiles = [
 
 const protectedUnchangedPaths = [
   sourceValidationFixturePath,
+  "types/codex-handoff-draft-contract.ts",
+  "fixtures/research-candidate-review.codex-handoff-draft-contract.sample.v0.1.json",
+  "lib/research-candidate-review/codex-handoff-draft.ts",
+  "fixtures/research-candidate-review.codex-handoff-draft-implementation.sample.v0.1.json",
   "types/ai-context-packet-contract.ts",
   "fixtures/research-candidate-review.ai-context-packet-contract.sample.v0.1.json",
   "lib/research-candidate-review/ai-context-packet.ts",
@@ -207,7 +131,6 @@ const protectedUnchangedPaths = [
   "fixtures/research-candidate-review.perspective-geometry-digest-contract.sample.v0.1.json",
   "lib/research-candidate-review/perspective-geometry-digest.ts",
   "fixtures/research-candidate-review.perspective-geometry-digest-implementation.sample.v0.1.json",
-  "fixtures/research-candidate-review.perspective-geometry-digest-browser-validation.sample.v0.1.json",
   "fixtures/research-candidate-review.project-constellation-runtime-layout-browser-validation.sample.v0.1.json",
   "lib/research-candidate-review/project-constellation-runtime-layout.ts",
   "fixtures/research-candidate-review.project-constellation-runtime-layout-implementation.sample.v0.1.json",
@@ -271,49 +194,49 @@ assertStaticBoundary();
 assertNoForbiddenRuntimePatterns();
 assertContractShape(fixture);
 assertContractScope(fixture.contract_scope);
-assertDraftPrinciples(fixture.draft_principles);
-assertInputFields(fixture.handoff_input_fields);
-assertOutputFields(fixture.handoff_output_fields);
-assertSectionFamilies(fixture.draft_section_families);
+assertLinkagePrinciples(fixture.linkage_principles);
+assertInputFields(fixture.linkage_input_fields);
+assertOutputFields(fixture.linkage_output_fields);
+assertSectionFamilies(fixture.linkage_section_families);
 assertForbiddenActionsPolicy(fixture.forbidden_actions_policy);
-assertSamplePreview(fixture.sample_codex_handoff_draft_preview);
+assertSamplePreview(fixture.sample_perspective_packet_receipt_linkage_preview);
 assertAuthorityBoundary(fixture.authority_boundary);
 assertValidationPolicy(fixture.validation_policy);
 assertPrivacyPolicy(fixture.privacy_policy);
 assertDocsPointers();
 assertSourceValidationDownstreamPointer();
 assertImplementationDownstreamPointer();
-assertBrowserValidationDownstreamPointer();
 assertPortableMergeBaseFallback();
 assert.deepEqual(
   fixture,
   rebuiltFixture,
-  "rebuilt Codex Handoff Draft contract fixture must match committed fixture",
+  "rebuilt Perspective Packet Receipt Linkage contract fixture must match committed fixture",
 );
 
 console.log(
   JSON.stringify(
     {
-      smoke: "codex-handoff-draft-contract-v0-1",
+      smoke: "perspective-packet-receipt-linkage-contract-v0-1",
       final_status: "pass",
       contract_kind: fixture.contract_kind,
       contract_version: fixture.contract_version,
-      source_ai_context_packet_validation_fingerprint:
-        fixture.source_ai_context_packet_validation_fingerprint,
-      section_family_count: fixture.draft_section_families.length,
-      codex_handoff_draft_is_draft_not_execution_approval:
-        fixture.draft_principles
-          .codex_handoff_draft_is_draft_not_execution_approval,
-      draft_not_codex_execution:
-        fixture.draft_principles.draft_not_codex_execution,
-      github_automation_now: fixture.authority_boundary.github_automation_now,
+      source_codex_handoff_draft_validation_fingerprint:
+        fixture.source_codex_handoff_draft_validation_fingerprint,
+      section_family_count: fixture.linkage_section_families.length,
+      linkage_is_provenance_not_execution_authority:
+        fixture.linkage_principles
+          .linkage_is_provenance_not_execution_authority,
+      linkage_not_completion_proof:
+        fixture.linkage_principles.linkage_not_completion_proof,
+      linkage_runtime_build_implemented_now:
+        fixture.authority_boundary.linkage_runtime_build_implemented_now,
+      linkage_record_write_now:
+        fixture.authority_boundary.linkage_record_write_now,
+      formation_receipt_write_now:
+        fixture.authority_boundary.formation_receipt_write_now,
+      codex_execution_now: fixture.authority_boundary.codex_execution_now,
       github_pr_creation_now:
         fixture.authority_boundary.github_pr_creation_now,
-      git_branch_creation_now:
-        fixture.authority_boundary.git_branch_creation_now,
-      git_commit_creation_now:
-        fixture.authority_boundary.git_commit_creation_now,
-      codex_execution_now: fixture.authority_boundary.codex_execution_now,
       product_write_lane_parked_by_686:
         fixture.authority_boundary.product_write_lane_parked_by_686,
       next_recommended_slice: fixture.next_recommended_slice,
@@ -329,17 +252,17 @@ function buildContractFixture() {
   const contract = {
     contract_kind: contractKind,
     contract_version: contractVersion,
-    source_ai_context_packet_validation_ref:
-      `${sourceValidationFixture.validation_version}:${sourceValidationFixturePath}#744`,
-    source_ai_context_packet_validation_fingerprint:
+    source_codex_handoff_draft_validation_ref:
+      `${sourceValidationFixture.validation_version}:${sourceValidationFixturePath}#747`,
+    source_codex_handoff_draft_validation_fingerprint:
       sourceValidationFixture.validation_fingerprint,
     contract_scope: buildContractScope(),
-    draft_principles: buildDraftPrinciples(),
-    handoff_input_fields: buildInputFields(),
-    handoff_output_fields: buildOutputFields(),
-    draft_section_families: buildSectionFamilies(),
+    linkage_principles: buildLinkagePrinciples(),
+    linkage_input_fields: buildInputFields(),
+    linkage_output_fields: buildOutputFields(),
+    linkage_section_families: buildSectionFamilies(),
     forbidden_actions_policy: buildForbiddenActionsPolicy(),
-    sample_codex_handoff_draft_preview: buildSamplePreview(
+    sample_perspective_packet_receipt_linkage_preview: buildSamplePreview(
       authorityBoundary,
       validationPolicy,
     ),
@@ -357,10 +280,14 @@ function buildContractFixture() {
 
 function buildContractScope() {
   return {
-    codex_handoff_draft_contract_only: true,
+    perspective_packet_receipt_linkage_contract_only: true,
+    linkage_runtime_build_now: false,
+    linkage_record_write_now: false,
+    durable_audit_log_write_now: false,
+    formation_receipt_write_now: false,
+    formation_receipt_runtime_mutation_now: false,
     codex_handoff_draft_runtime_build_now: false,
     codex_handoff_draft_write_now: false,
-    codex_handoff_implementation_now: false,
     codex_execution_now: false,
     github_automation_now: false,
     github_pr_creation_now: false,
@@ -385,7 +312,6 @@ function buildContractScope() {
     perspective_snapshot_runtime_now: false,
     proof_evidence_write_now: false,
     accepted_evidence_write_now: false,
-    formation_receipt_write_now: false,
     work_mutation_now: false,
     runtime_db_query_now: false,
     runtime_db_write_now: false,
@@ -397,75 +323,86 @@ function buildContractScope() {
   };
 }
 
-function buildDraftPrinciples() {
+function buildLinkagePrinciples() {
   return {
-    codex_handoff_draft_is_draft_not_execution_approval: true,
-    draft_is_operator_reviewed_context_not_automation_authority: true,
-    draft_not_codex_execution: true,
-    draft_not_github_automation: true,
-    draft_not_branch_creation_authority: true,
-    draft_not_commit_authority: true,
-    draft_not_pr_creation_authority: true,
-    draft_not_external_handoff_sending_authority: true,
-    draft_not_agent_routing_or_execution_authority: true,
-    draft_not_source_of_truth: true,
-    draft_not_proof_or_evidence: true,
-    draft_not_durable_perspective_state: true,
-    draft_not_work_status: true,
-    draft_not_product_write: true,
+    linkage_is_provenance_not_execution_authority: true,
+    linkage_is_derived_public_safe_advisory_only: true,
+    linkage_not_source_of_truth: true,
+    linkage_not_proof_or_evidence: true,
+    linkage_not_completion_proof: true,
+    linkage_not_durable_perspective_state: true,
+    linkage_not_work_status: true,
+    linkage_not_product_write: true,
+    linkage_does_not_prove_codex_ran: true,
+    linkage_does_not_prove_pr_created: true,
+    linkage_does_not_prove_validation_passed: true,
+    linkage_does_not_create_formation_receipt_now: true,
+    formation_receipt_ref_future_only: true,
+    decision_or_handoff_ref_future_only: true,
     source_refs_required: true,
     authority_boundary_required: true,
     forbidden_actions_required: true,
     stop_conditions_required: true,
-    expected_files_hints_not_write_authority: true,
-    expected_checks_hints_not_execution_authority: true,
-    branch_name_hint_not_git_authority: true,
-    pr_title_body_hints_not_github_authority: true,
-    final_report_template_not_completion_proof: true,
-    ai_context_packet_context_not_execution_authority: true,
-    perspective_geometry_digest_interpretation_not_truth: true,
+    selected_candidates_remain_candidates: true,
+    omitted_candidates_remain_visible: true,
+    deferred_candidates_remain_visible: true,
     unresolved_tensions_preserved: true,
     knowledge_gaps_preserved: true,
     candidate_durable_distinction_preserved: true,
+    ai_context_packet_context_not_execution_authority: true,
+    codex_handoff_draft_not_execution_approval: true,
+    perspective_geometry_digest_interpretation_not_truth: true,
+    expected_files_hints_not_write_authority: true,
+    expected_checks_hints_not_execution_authority: true,
+    final_report_template_not_completion_proof: true,
     product_write_lane_parked_by_686: true,
   };
 }
 
 function buildInputFields() {
   return [
-    "handoff_scope_ref",
+    "linkage_scope_ref",
     "ai_context_packet_ref",
-    "mission_brief_ref",
-    "target_repository_ref",
-    "canonical_checkout_ref",
-    "branch_name_hint_ref",
-    "expected_files_ref",
-    "expected_checks_ref",
-    "forbidden_actions_ref",
-    "stop_conditions_ref",
+    "codex_handoff_draft_ref",
+    "perspective_geometry_digest_ref",
+    "selected_candidate_refs",
+    "omitted_candidate_refs",
+    "deferred_candidate_refs",
+    "unresolved_tension_refs",
+    "knowledge_gap_refs",
     "source_refs",
     "authority_boundary_ref",
+    "forbidden_actions_ref",
+    "stop_conditions_ref",
+    "expected_files_ref",
+    "expected_checks_ref",
+    "future_formation_receipt_ref",
+    "future_decision_or_handoff_ref",
     "operator_context_ref",
   ];
 }
 
 function buildOutputFields() {
   return [
-    "draft_id",
-    "draft_version",
-    "target_repository",
-    "canonical_checkout",
-    "branch_name_hint",
-    "pr_title_hint",
-    "mission_brief",
-    "implementation_instructions",
-    "expected_files",
-    "expected_checks",
+    "linkage_id",
+    "linkage_version",
+    "ai_context_packet_ref",
+    "codex_handoff_draft_ref",
+    "perspective_geometry_digest_ref",
+    "selected_candidates",
+    "omitted_candidates",
+    "deferred_candidates",
+    "unresolved_tensions",
+    "knowledge_gaps",
+    "source_refs",
     "authority_boundary",
     "forbidden_actions",
     "stop_conditions",
-    "final_report_template",
-    "source_refs",
+    "expected_files",
+    "expected_checks",
+    "future_formation_receipt_ref",
+    "future_decision_or_handoff_ref",
+    "linkage_notes",
     "validation_policy",
     "privacy_policy",
   ];
@@ -474,43 +411,91 @@ function buildOutputFields() {
 function buildSectionFamilies() {
   return [
     {
-      section_kind: "target_repository",
-      repository_ref_required: true,
-      repository_hint_only: true,
-      not_git_authority: true,
+      section_kind: "ai_context_packet_link",
+      ai_context_packet_ref_required: true,
+      context_not_execution_authority: true,
       runtime_write_now: false,
     },
     {
-      section_kind: "canonical_checkout",
-      checkout_ref_required: true,
-      checkout_hint_only: true,
-      not_filesystem_authority: true,
+      section_kind: "codex_handoff_draft_link",
+      codex_handoff_draft_ref_required: true,
+      draft_not_execution_approval: true,
       runtime_write_now: false,
     },
     {
-      section_kind: "branch_name_hint",
-      branch_name_hint_required: true,
-      branch_creation_authority: false,
+      section_kind: "perspective_geometry_digest_link",
+      geometry_digest_ref_required: true,
+      interpretation_not_truth: true,
       runtime_write_now: false,
     },
     {
-      section_kind: "pr_title_hint",
-      pr_title_hint_required: true,
-      github_pr_creation_authority: false,
-      runtime_write_now: false,
-    },
-    {
-      section_kind: "mission_brief",
-      public_safe_summary_required: true,
+      section_kind: "selected_candidates",
+      candidate_refs_required: true,
+      candidates_remain_candidates: true,
+      not_proof_or_evidence: true,
+      not_durable_state: true,
       source_refs_required: true,
-      not_instruction_to_execute: true,
       runtime_write_now: false,
     },
     {
-      section_kind: "implementation_instructions",
-      instructions_are_draft_only: true,
-      execution_requires_operator_action_later: true,
-      source_refs_required: true,
+      section_kind: "omitted_candidates",
+      omitted_candidate_refs_required: true,
+      omitted_candidates_remain_visible: true,
+      omission_not_rejection: true,
+      runtime_write_now: false,
+    },
+    {
+      section_kind: "deferred_candidates",
+      deferred_candidate_refs_required: true,
+      deferred_candidates_remain_visible: true,
+      deferral_not_rejection: true,
+      runtime_write_now: false,
+    },
+    {
+      section_kind: "unresolved_tensions",
+      tension_refs_required: true,
+      must_remain_visible: true,
+      resolution_not_implied: true,
+      runtime_write_now: false,
+    },
+    {
+      section_kind: "knowledge_gaps",
+      knowledge_gap_refs_required: true,
+      must_remain_visible: true,
+      closure_not_implied: true,
+      source_refs_or_gap_reason_required: true,
+      runtime_write_now: false,
+    },
+    {
+      section_kind: "future_formation_receipt_ref",
+      future_formation_receipt_ref_required: true,
+      receipt_not_written_now: true,
+      not_completion_proof: true,
+      runtime_write_now: false,
+    },
+    {
+      section_kind: "future_decision_or_handoff_ref",
+      future_decision_or_handoff_ref_required: true,
+      decision_not_made_now: true,
+      handoff_not_sent_now: true,
+      runtime_write_now: false,
+    },
+    {
+      section_kind: "authority_boundary",
+      authority_boundary_required: true,
+      execution_authority_false: true,
+      state_mutation_authority_false: true,
+      external_call_authority_false: true,
+      product_write_authority_false: true,
+      runtime_write_now: false,
+    },
+    {
+      section_kind: "forbidden_actions",
+      forbidden_actions_required: true,
+      must_include_execution_bans: true,
+      must_include_state_mutation_bans: true,
+      must_include_provider_retrieval_bans: true,
+      must_include_product_write_ban: true,
       runtime_write_now: false,
     },
     {
@@ -526,40 +511,9 @@ function buildSectionFamilies() {
       runtime_write_now: false,
     },
     {
-      section_kind: "authority_boundary",
-      authority_boundary_required: true,
-      execution_authority_false: true,
-      state_mutation_authority_false: true,
-      external_call_authority_false: true,
-      product_write_authority_false: true,
-      runtime_write_now: false,
-    },
-    {
-      section_kind: "forbidden_actions",
-      forbidden_actions_required: true,
-      must_include_codex_execution_ban: true,
-      must_include_github_automation_ban: true,
-      must_include_state_mutation_bans: true,
-      must_include_provider_retrieval_bans: true,
-      must_include_product_write_ban: true,
-      runtime_write_now: false,
-    },
-    {
-      section_kind: "stop_conditions",
-      stop_conditions_required: true,
-      stop_conditions_are_safety_constraints: true,
-      runtime_write_now: false,
-    },
-    {
-      section_kind: "final_report_template",
-      final_report_template_required: true,
-      final_report_not_completion_proof: true,
-      runtime_write_now: false,
-    },
-    {
-      section_kind: "source_refs",
-      source_refs_required: true,
-      source_refs_public_safe: true,
+      section_kind: "linkage_notes",
+      notes_are_explanatory_only: true,
+      not_truth_source: true,
       runtime_write_now: false,
     },
   ];
@@ -567,27 +521,30 @@ function buildSectionFamilies() {
 
 function buildForbiddenActionsPolicy() {
   return {
-    no_codex_execution_from_draft: true,
-    no_github_automation_from_draft: true,
-    no_github_pr_creation_from_draft: true,
-    no_git_branch_creation_from_draft: true,
-    no_git_commit_creation_from_draft: true,
-    no_external_handoff_sending_from_draft: true,
-    no_agent_routing_from_draft: true,
-    no_agent_execution_from_draft: true,
-    no_provider_openai_call_from_draft: true,
-    no_retrieval_rag_execution_from_draft: true,
-    no_source_fetch_from_draft: true,
-    no_crawler_from_draft: true,
-    no_db_write_or_query_from_draft: true,
-    no_durable_memory_write_from_draft: true,
-    no_perspective_promotion_from_draft: true,
-    no_durable_perspective_state_write_from_draft: true,
-    no_proof_or_evidence_write_from_draft: true,
-    no_accepted_evidence_write_from_draft: true,
-    no_formation_receipt_write_from_draft: true,
-    no_work_mutation_from_draft: true,
-    no_product_write_from_draft: true,
+    no_linkage_runtime_build: true,
+    no_linkage_record_write: true,
+    no_durable_audit_log_write: true,
+    no_formation_receipt_write: true,
+    no_codex_execution_from_linkage: true,
+    no_github_automation_from_linkage: true,
+    no_github_pr_creation_from_linkage: true,
+    no_git_branch_creation_from_linkage: true,
+    no_git_commit_creation_from_linkage: true,
+    no_external_handoff_sending_from_linkage: true,
+    no_agent_routing_from_linkage: true,
+    no_agent_execution_from_linkage: true,
+    no_provider_openai_call_from_linkage: true,
+    no_retrieval_rag_execution_from_linkage: true,
+    no_source_fetch_from_linkage: true,
+    no_crawler_from_linkage: true,
+    no_db_write_or_query_from_linkage: true,
+    no_durable_memory_write_from_linkage: true,
+    no_perspective_promotion_from_linkage: true,
+    no_durable_perspective_state_write_from_linkage: true,
+    no_proof_or_evidence_write_from_linkage: true,
+    no_accepted_evidence_write_from_linkage: true,
+    no_work_mutation_from_linkage: true,
+    no_product_write_from_linkage: true,
   };
 }
 
@@ -596,79 +553,109 @@ function buildSamplePreview(authorityBoundary, validationPolicy) {
   delete previewAuthorityBoundary.contract_added_now;
   return {
     preview_version: previewVersion,
-    operator_context_ref: "operator_context:public:codex_handoff_draft_contract",
-    handoff_input_preview: {
-      handoff_scope_ref: "codex_handoff_scope_ref:public:example",
+    operator_context_ref:
+      "operator_context:public:perspective_packet_receipt_linkage_contract",
+    linkage_input_preview: {
+      linkage_scope_ref: "packet_receipt_linkage_scope_ref:public:example",
       ai_context_packet_ref: "ai_context_packet_ref:public:contract_preview",
-      mission_brief_ref: "mission_brief_ref:public:example",
-      target_repository_ref: "repo_ref:public:hynk-studio_augnes",
-      canonical_checkout_ref:
-        "local_checkout_ref:public:canonical_augnes_checkout",
-      branch_name_hint_ref:
-        "branch_name_hint_ref:public:codex_handoff_draft_contract_v0_1",
-      expected_files_ref:
-        "expected_files_ref:public:codex_handoff_draft_contract",
-      expected_checks_ref:
-        "expected_checks_ref:public:codex_handoff_draft_contract",
-      forbidden_actions_ref:
-        "forbidden_actions_ref:public:codex_handoff_draft_contract",
-      stop_conditions_ref:
-        "stop_conditions_ref:public:codex_handoff_draft_contract",
+      codex_handoff_draft_ref:
+        "codex_handoff_draft_ref:public:contract_preview",
+      perspective_geometry_digest_ref:
+        "geometry_digest_ref:public:contract_preview",
+      selected_candidate_refs: ["candidate_ref:public:selected_claim_candidate"],
+      omitted_candidate_refs: ["candidate_ref:public:omitted_candidate_visible"],
+      deferred_candidate_refs: ["candidate_ref:public:deferred_candidate_visible"],
+      unresolved_tension_refs: ["tension_ref:public:visible_tension"],
+      knowledge_gap_refs: ["knowledge_gap_ref:public:visible_gap"],
       source_refs: [
-        "source_ref:public:ai_context_packet_validation",
-        "source_ref:public:codex_handoff_draft_contract",
+        "source_ref:public:codex_handoff_draft_validation",
+        "source_ref:public:perspective_packet_receipt_linkage_contract",
       ],
       authority_boundary_ref:
-        "authority_boundary_ref:public:codex_handoff_draft_contract",
-      operator_context_ref: "operator_context:public:codex_handoff_draft_contract",
+        "authority_boundary_ref:public:perspective_packet_receipt_linkage_contract",
+      forbidden_actions_ref:
+        "forbidden_actions_ref:public:perspective_packet_receipt_linkage_contract",
+      stop_conditions_ref:
+        "stop_conditions_ref:public:perspective_packet_receipt_linkage_contract",
+      expected_files_ref:
+        "expected_files_ref:public:perspective_packet_receipt_linkage_contract",
+      expected_checks_ref:
+        "expected_checks_ref:public:perspective_packet_receipt_linkage_contract",
+      future_formation_receipt_ref:
+        "formation_receipt_ref:public:future_required",
+      future_decision_or_handoff_ref:
+        "decision_or_handoff_ref:public:future_required",
+      operator_context_ref:
+        "operator_context:public:perspective_packet_receipt_linkage_contract",
       not_executed_now: true,
+      not_written_now: true,
     },
-    draft_preview: {
-      draft_id: "codex_handoff_draft_ref:public:contract_preview",
-      draft_version: draftVersion,
-      target_repository: "hynk-studio/augnes",
-      canonical_checkout: "/Users/hynk/code/augnes",
-      branch_name_hint: "codex/codex-handoff-draft-contract-v0-1",
-      pr_title_hint: "Add Codex Handoff Draft contract v0.1",
-      mission_brief: {
-        summary: "Public-safe draft mission brief preview.",
-        source_refs: ["source_ref:public:codex_handoff_draft_contract"],
-        not_instruction_to_execute: true,
-      },
-      implementation_instructions: {
-        summary: "Contract-only draft instructions preview.",
-        draft_only: true,
-        execution_requires_operator_action_later: true,
-        source_refs: [
-          "source_ref:public:ai_context_packet_validation",
-          "source_ref:public:codex_handoff_draft_contract",
-        ],
-      },
-      expected_files: [
+    linkage_preview: {
+      linkage_id: "packet_receipt_linkage_ref:public:contract_preview",
+      linkage_version: linkageVersion,
+      ai_context_packet_ref: "ai_context_packet_ref:public:contract_preview",
+      codex_handoff_draft_ref:
+        "codex_handoff_draft_ref:public:contract_preview",
+      perspective_geometry_digest_ref:
+        "geometry_digest_ref:public:contract_preview",
+      selected_candidates: [
         {
-          file_path: "types/codex-handoff-draft-contract.ts",
-          handoff_hint_only: true,
-          not_file_write_authority: true,
+          candidate_ref: "candidate_ref:public:selected_claim_candidate",
+          selected_for_context: true,
+          candidate_only: true,
+          not_proof_or_evidence: true,
+          not_durable_state: true,
+          source_refs: [
+            "source_ref:public:perspective_packet_receipt_linkage_contract",
+          ],
         },
       ],
-      expected_checks: [
+      omitted_candidates: [
         {
-          check_ref:
-            "node --check scripts/smoke-codex-handoff-draft-contract-v0-1.mjs",
-          validation_hint_only: true,
-          not_execution_authority: true,
+          candidate_ref: "candidate_ref:public:omitted_candidate_visible",
+          omission_reason_summary: "Public-safe omission reason preview.",
+          omission_not_rejection: true,
+          remains_visible: true,
         },
+      ],
+      deferred_candidates: [
+        {
+          candidate_ref: "candidate_ref:public:deferred_candidate_visible",
+          defer_reason_summary: "Public-safe defer reason preview.",
+          deferral_not_rejection: true,
+          remains_visible: true,
+        },
+      ],
+      unresolved_tensions: [
+        {
+          tension_ref: "tension_ref:public:visible_tension",
+          must_remain_visible: true,
+          resolution_not_implied: true,
+        },
+      ],
+      knowledge_gaps: [
+        {
+          knowledge_gap_ref: "knowledge_gap_ref:public:visible_gap",
+          must_remain_visible: true,
+          closure_not_implied: true,
+          source_refs_or_gap_reason_required: true,
+        },
+      ],
+      source_refs: [
+        "source_ref:public:codex_handoff_draft_validation",
+        "source_ref:public:perspective_packet_receipt_linkage_contract",
       ],
       authority_boundary: previewAuthorityBoundary,
       forbidden_actions: [
-        "no_codex_execution_from_draft",
-        "no_github_automation_from_draft",
-        "no_github_pr_creation_from_draft",
-        "no_provider_openai_call_from_draft",
-        "no_retrieval_rag_execution_from_draft",
-        "no_db_write_or_query_from_draft",
-        "no_perspective_promotion_from_draft",
-        "no_product_write_from_draft",
+        "no_linkage_record_write",
+        "no_formation_receipt_write",
+        "no_codex_execution_from_linkage",
+        "no_github_automation_from_linkage",
+        "no_provider_openai_call_from_linkage",
+        "no_retrieval_rag_execution_from_linkage",
+        "no_db_write_or_query_from_linkage",
+        "no_perspective_promotion_from_linkage",
+        "no_product_write_from_linkage",
       ],
       stop_conditions: [
         {
@@ -678,25 +665,34 @@ function buildSamplePreview(authorityBoundary, validationPolicy) {
           safety_constraint: true,
         },
       ],
-      final_report_template: {
-        required_fields: [
-          "changed_files",
-          "validation_commands",
-          "warnings",
-          "skipped_checks",
-          "authority_boundaries",
-          "next_recommended_slice",
-        ],
-        report_hint_only: true,
-        not_completion_proof: true,
-      },
-      source_refs: [
-        "source_ref:public:ai_context_packet_validation",
-        "source_ref:public:codex_handoff_draft_contract",
+      expected_files: [
+        {
+          file_path: "types/perspective-packet-receipt-linkage-contract.ts",
+          handoff_hint_only: true,
+          not_file_write_authority: true,
+        },
       ],
+      expected_checks: [
+        {
+          check_ref:
+            "node --check scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs",
+          validation_hint_only: true,
+          not_execution_authority: true,
+        },
+      ],
+      future_formation_receipt_ref:
+        "formation_receipt_ref:public:future_required",
+      future_decision_or_handoff_ref:
+        "decision_or_handoff_ref:public:future_required",
+      linkage_notes: {
+        summary: "Public-safe explanatory linkage preview.",
+        notes_are_explanatory_only: true,
+        not_truth_source: true,
+      },
       all_sections_public_safe: true,
       all_sections_source_ref_backed_or_explicit_gap: true,
       all_runtime_write_now_false: true,
+      not_completion_proof: true,
     },
     authority_boundary: previewAuthorityBoundary,
     validation_policy: validationPolicy,
@@ -708,6 +704,10 @@ function buildAuthorityBoundary() {
     contract_added_now: true,
     implementation_added_now: false,
     browser_validation_added_now: false,
+    linkage_runtime_build_implemented_now: false,
+    linkage_record_write_now: false,
+    durable_audit_log_write_now: false,
+    formation_receipt_write_now: false,
     codex_handoff_draft_runtime_build_implemented_now: false,
     codex_handoff_draft_write_now: false,
     codex_handoff_implemented_now: false,
@@ -744,7 +744,6 @@ function buildAuthorityBoundary() {
     trajectory_runtime_build_implemented_now: false,
     proof_or_evidence_record_write_now: false,
     accepted_evidence_write_now: false,
-    formation_receipt_write_now: false,
     work_mutation_now: false,
     candidate_mutation_now: false,
     candidate_record_write_now: false,
@@ -788,7 +787,9 @@ function buildAuthorityBoundary() {
     diagnostic_authority: false,
     recommendation_authority: false,
     ai_context_packet_authority: false,
-    target_agent_mode_authority: false,
+    codex_handoff_draft_authority: false,
+    linkage_authority: false,
+    receipt_completion_authority: false,
     final_report_completion_authority: false,
     expected_files_write_authority: false,
     expected_checks_execution_authority: false,
@@ -802,9 +803,11 @@ function buildAuthorityBoundary() {
 
 function buildValidationPolicy() {
   return {
-    ...buildDraftPrinciples(),
-    no_runtime_handoff_draft_build: true,
-    no_codex_handoff_draft_write: true,
+    ...buildLinkagePrinciples(),
+    no_runtime_linkage_build: true,
+    no_linkage_record_write: true,
+    no_durable_audit_log_write: true,
+    no_formation_receipt_write: true,
     no_codex_execution: true,
     no_github_automation: true,
     no_github_pr_creation: true,
@@ -815,6 +818,7 @@ function buildValidationPolicy() {
     no_retrieval_rag_execution: true,
     no_source_fetch_or_crawler: true,
     no_ai_context_packet_runtime_build: true,
+    no_codex_handoff_draft_runtime_build: true,
     no_runtime_geometry_digest_build: true,
     no_runtime_layout_execution: true,
     no_graph_mutation: true,
@@ -823,7 +827,6 @@ function buildValidationPolicy() {
     no_perspective_snapshot_runtime: true,
     no_proof_or_evidence_write: true,
     no_accepted_evidence_write: true,
-    no_formation_receipt_write: true,
     no_work_mutation: true,
     no_runtime_db_write_or_query: true,
     no_durable_memory_write: true,
@@ -842,11 +845,15 @@ function buildPrivacyPolicy() {
     no_raw_source_body: true,
     no_access_tokens: true,
     no_ssh_keys: true,
-    public_safe_handoff_refs_only: true,
+    public_safe_linkage_refs_only: true,
     public_safe_packet_refs_only: true,
+    public_safe_handoff_refs_only: true,
+    public_safe_receipt_refs_only: true,
+    public_safe_candidate_refs_only: true,
+    public_safe_tension_refs_only: true,
+    public_safe_knowledge_gap_refs_only: true,
     public_safe_source_refs_only: true,
     public_safe_file_paths_only: true,
-    public_safe_repo_refs_only: true,
     public_safe_check_refs_only: true,
     public_safe_stop_condition_refs_only: true,
   };
@@ -873,30 +880,30 @@ function assertSourceValidationUnchanged() {
   assert.deepEqual(
     sourceValidationFixture,
     readJsonFromGit(sourceValidationFixturePath),
-    "#744 AI Context Packet browser validation fixture must not change",
+    "#747 Codex Handoff Draft browser validation fixture must not change",
   );
 }
 
 function assertTypeContract() {
   for (const requiredText of [
-    "CodexHandoffDraftContractKind",
-    "CodexHandoffDraftContractVersion",
-    "CodexHandoffDraftInputField",
-    "CodexHandoffDraftOutputField",
-    "CodexHandoffDraftSectionKind",
-    "CodexHandoffDraftContractScope",
-    "CodexHandoffDraftPrinciples",
-    "CodexHandoffDraftSectionFamily",
-    "CodexHandoffDraftForbiddenActionsPolicy",
-    "CodexHandoffDraftAuthorityBoundary",
-    "CodexHandoffDraftValidationPolicy",
-    "CodexHandoffDraftPrivacyPolicy",
-    "CodexHandoffDraftContractFixture",
-    "codex_handoff_draft_contract",
-    "codex_handoff_draft_contract.v0.1",
-    "draft_not_codex_execution",
-    "github_pr_creation_authority: false",
-    "branch_name_git_authority: false",
+    "PerspectivePacketReceiptLinkageContractKind",
+    "PerspectivePacketReceiptLinkageContractVersion",
+    "PerspectivePacketReceiptLinkageInputField",
+    "PerspectivePacketReceiptLinkageOutputField",
+    "PerspectivePacketReceiptLinkageSectionKind",
+    "PerspectivePacketReceiptLinkageContractScope",
+    "PerspectivePacketReceiptLinkagePrinciples",
+    "PerspectivePacketReceiptLinkageSectionFamily",
+    "PerspectivePacketReceiptLinkageForbiddenActionsPolicy",
+    "PerspectivePacketReceiptLinkageAuthorityBoundary",
+    "PerspectivePacketReceiptLinkageValidationPolicy",
+    "PerspectivePacketReceiptLinkagePrivacyPolicy",
+    "PerspectivePacketReceiptLinkageContractFixture",
+    "perspective_packet_receipt_linkage_contract",
+    "perspective_packet_receipt_linkage_contract.v0.1",
+    "linkage_not_completion_proof",
+    "linkage_authority: false",
+    "receipt_completion_authority: false",
     "product_write_lane_parked_by_686",
   ]) {
     assert.ok(typeSource.includes(requiredText), `${typePath} must include ${requiredText}`);
@@ -905,14 +912,6 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
-  if (perspectivePacketReceiptLinkageContractSliceActive()) {
-    assertPerspectivePacketReceiptLinkageContractPackageScript();
-    return;
-  }
-  if (browserValidationSliceActive()) {
-    assertBrowserValidationPackageScript();
-    return;
-  }
   if (implementationSliceActive()) {
     assertImplementationPackageScript();
     return;
@@ -934,7 +933,7 @@ function assertPackageScript() {
   assert.deepEqual(
     addedScriptNames,
     [packageScriptName],
-    "package.json must add only the Codex Handoff Draft contract smoke script",
+    "package.json must add only the Perspective Packet Receipt Linkage contract smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
@@ -949,14 +948,6 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  if (perspectivePacketReceiptLinkageContractSliceActive()) {
-    assertPerspectivePacketReceiptLinkageContractChangedFiles(changedFiles);
-    return;
-  }
-  if (browserValidationSliceActive()) {
-    assertBrowserValidationChangedFiles(changedFiles);
-    return;
-  }
   if (implementationSliceActive()) {
     assertImplementationChangedFiles(changedFiles);
     return;
@@ -964,7 +955,7 @@ function assertStaticBoundary() {
   for (const unchangedPath of protectedUnchangedPaths) {
     assert.ok(
       !changedFiles.includes(unchangedPath),
-      `Codex Handoff Draft contract slice must not change ${unchangedPath}`,
+      `Perspective Packet Receipt Linkage contract slice must not change ${unchangedPath}`,
     );
   }
   for (const expectedFile of expectedChangedFiles) {
@@ -976,7 +967,7 @@ function assertStaticBoundary() {
   for (const changedFile of changedFiles) {
     assert.ok(
       expectedChangedFiles.includes(changedFile),
-      `unexpected changed file in Codex Handoff Draft contract slice: ${changedFile}`,
+      `unexpected changed file in Perspective Packet Receipt Linkage contract slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
     assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
@@ -994,11 +985,8 @@ function assertNoForbiddenRuntimePatterns() {
       (filePath.endsWith(".ts") || filePath.endsWith(".mjs")) &&
       filePath !== typePath &&
       filePath !== smokePath &&
-      filePath !== perspectivePacketReceiptLinkageTypePath &&
-      filePath !== perspectivePacketReceiptLinkageSmokePath &&
       filePath !== implementationBuilderPath &&
       filePath !== implementationSmokePath &&
-      filePath !== browserValidationSmokePath &&
       filePath !== sourceValidationSmokePath &&
       !downstreamSmokePaths.includes(filePath),
   );
@@ -1016,15 +1004,13 @@ function assertNoForbiddenRuntimePatterns() {
     assert.doesNotMatch(stripped, /\bdb\.\w+\s*\(|\bprisma\b|\bsql`|\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bUPSERT\b/i, `${filePath} must not query or write DB`);
     assert.doesNotMatch(stripped, /\bcreateEmbedding\b|\bupsertVector\b|\bwriteIndex\b|\bbuildIndex\b|\bfts5?\b/i, `${filePath} must not implement index/embedding/vector/FTS behavior`);
     assert.doesNotMatch(stripped, /\bwriteProduct\b|\ballocateProductId\b|\bcreateProduct\b/i, `${filePath} must not implement product write`);
+    assert.doesNotMatch(stripped, /\blinkage.*write|\bwrite.*linkage|\bdurableAuditLog|\bwriteAuditLog/i, `${filePath} must not implement linkage or audit log writes`);
+    assert.doesNotMatch(stripped, /\bwriteFormationReceipt\b|\bformationReceipt.*write/i, `${filePath} must not implement Formation Receipt writes`);
   }
 }
 
 function implementationSliceActive() {
   return readChangedFiles().includes(implementationSmokePath);
-}
-
-function browserValidationSliceActive() {
-  return readChangedFiles().includes(browserValidationSmokePath);
 }
 
 function assertImplementationPackageScript() {
@@ -1048,41 +1034,7 @@ function assertImplementationPackageScript() {
   assert.deepEqual(
     addedScriptNames,
     [implementationPackageScriptName],
-    "package.json must add only the Codex Handoff Draft implementation smoke script",
-  );
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
-  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
-  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
-  assert.deepEqual(
-    packageJson.optionalDependencies ?? {},
-    basePackageJson.optionalDependencies ?? {},
-  );
-}
-
-function assertBrowserValidationPackageScript() {
-  assert.equal(
-    packageJson.scripts[browserValidationPackageScriptName],
-    browserValidationPackageScriptValue,
-  );
-  const packageAddedLines = readGitOutput([
-    "diff",
-    "--unified=0",
-    mergeBaseRef(),
-    "--",
-    packagePath,
-  ])
-    .split("\n")
-    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
-  const addedScriptNames = packageAddedLines
-    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
-    .filter(Boolean)
-    .sort();
-  assert.deepEqual(
-    addedScriptNames,
-    [browserValidationPackageScriptName],
-    "package.json must add only the Codex Handoff Draft browser validation smoke script",
+    "package.json must add only the Perspective Packet Receipt Linkage implementation smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
@@ -1117,7 +1069,7 @@ function assertImplementationChangedFiles(changedFiles) {
   ]) {
     assert.ok(
       !changedFiles.includes(unchangedPath),
-      `Codex Handoff Draft implementation slice must not change ${unchangedPath}`,
+      `Perspective Packet Receipt Linkage implementation slice must not change ${unchangedPath}`,
     );
   }
   for (const expectedFile of expectedImplementationChangedFiles) {
@@ -1129,7 +1081,7 @@ function assertImplementationChangedFiles(changedFiles) {
   for (const changedFile of changedFiles) {
     assert.ok(
       expectedImplementationChangedFiles.includes(changedFile),
-      `unexpected changed file in Codex Handoff Draft implementation slice: ${changedFile}`,
+      `unexpected changed file in Perspective Packet Receipt Linkage implementation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
     assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
@@ -1143,63 +1095,15 @@ function assertImplementationChangedFiles(changedFiles) {
   }
 }
 
-function assertBrowserValidationChangedFiles(changedFiles) {
-  const expectedBrowserValidationChangedFiles = [
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    packagePath,
-    indexPath,
-    substrateDocPath,
-    surfaceDocPath,
-    gateDocPath,
-    implementationSmokePath,
-    smokePath,
-    sourceValidationSmokePath,
-    ...downstreamSmokePaths,
-  ];
-  for (const unchangedPath of [
-    typePath,
-    fixturePath,
-    implementationBuilderPath,
-    implementationFixturePath,
-    sourceValidationFixturePath,
-    ...protectedUnchangedPaths,
-  ]) {
-    assert.ok(
-      !changedFiles.includes(unchangedPath),
-      `Codex Handoff Draft browser validation slice must not change ${unchangedPath}`,
-    );
-  }
-  for (const expectedFile of expectedBrowserValidationChangedFiles) {
-    assert.ok(
-      changedFiles.includes(expectedFile),
-      `changed files must include ${expectedFile}`,
-    );
-  }
-  for (const changedFile of changedFiles) {
-    assert.ok(
-      expectedBrowserValidationChangedFiles.includes(changedFile),
-      `unexpected changed file in Codex Handoff Draft browser validation slice: ${changedFile}`,
-    );
-    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
-    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
-    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
-    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
-    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
-    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
-    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
-  }
-}
-
 function assertContractShape(value) {
   assert.equal(value.contract_kind, contractKind);
   assert.equal(value.contract_version, contractVersion);
   assert.equal(
-    value.source_ai_context_packet_validation_ref,
-    `${sourceValidationFixture.validation_version}:${sourceValidationFixturePath}#744`,
+    value.source_codex_handoff_draft_validation_ref,
+    `${sourceValidationFixture.validation_version}:${sourceValidationFixturePath}#747`,
   );
   assert.equal(
-    value.source_ai_context_packet_validation_fingerprint,
+    value.source_codex_handoff_draft_validation_fingerprint,
     sourceValidationFixture.validation_fingerprint,
   );
   assert.equal(value.recommendation_status, recommendationStatus);
@@ -1209,9 +1113,9 @@ function assertContractShape(value) {
 }
 
 function assertContractScope(value) {
-  assert.equal(value.codex_handoff_draft_contract_only, true);
+  assert.equal(value.perspective_packet_receipt_linkage_contract_only, true);
   for (const [key, flag] of Object.entries(value)) {
-    if (key === "codex_handoff_draft_contract_only") {
+    if (key === "perspective_packet_receipt_linkage_contract_only") {
       assert.equal(flag, true);
     } else {
       assert.equal(flag, false, `${key} must remain false`);
@@ -1219,8 +1123,8 @@ function assertContractScope(value) {
   }
 }
 
-function assertDraftPrinciples(value) {
-  for (const key of Object.keys(buildDraftPrinciples())) {
+function assertLinkagePrinciples(value) {
+  for (const key of Object.keys(buildLinkagePrinciples())) {
     assert.equal(value[key], true, `${key} must be true`);
   }
 }
@@ -1243,14 +1147,54 @@ function assertSectionFamilies(value) {
     assert.equal(family.runtime_write_now, false);
   }
   assert.equal(
-    value.find((family) => family.section_kind === "branch_name_hint")
-      .branch_creation_authority,
-    false,
+    value.find((family) => family.section_kind === "selected_candidates")
+      .candidates_remain_candidates,
+    true,
   );
   assert.equal(
-    value.find((family) => family.section_kind === "pr_title_hint")
-      .github_pr_creation_authority,
-    false,
+    value.find((family) => family.section_kind === "selected_candidates")
+      .not_proof_or_evidence,
+    true,
+  );
+  assert.equal(
+    value.find((family) => family.section_kind === "omitted_candidates")
+      .omission_not_rejection,
+    true,
+  );
+  assert.equal(
+    value.find((family) => family.section_kind === "deferred_candidates")
+      .deferral_not_rejection,
+    true,
+  );
+  assert.equal(
+    value.find((family) => family.section_kind === "unresolved_tensions")
+      .resolution_not_implied,
+    true,
+  );
+  assert.equal(
+    value.find((family) => family.section_kind === "knowledge_gaps")
+      .closure_not_implied,
+    true,
+  );
+  assert.equal(
+    value.find((family) => family.section_kind === "future_formation_receipt_ref")
+      .receipt_not_written_now,
+    true,
+  );
+  assert.equal(
+    value.find((family) => family.section_kind === "future_formation_receipt_ref")
+      .not_completion_proof,
+    true,
+  );
+  assert.equal(
+    value.find((family) => family.section_kind === "future_decision_or_handoff_ref")
+      .decision_not_made_now,
+    true,
+  );
+  assert.equal(
+    value.find((family) => family.section_kind === "future_decision_or_handoff_ref")
+      .handoff_not_sent_now,
+    true,
   );
   assert.equal(
     value.find((family) => family.section_kind === "expected_files")
@@ -1263,8 +1207,8 @@ function assertSectionFamilies(value) {
     true,
   );
   assert.equal(
-    value.find((family) => family.section_kind === "final_report_template")
-      .final_report_not_completion_proof,
+    value.find((family) => family.section_kind === "linkage_notes")
+      .not_truth_source,
     true,
   );
 }
@@ -1277,42 +1221,67 @@ function assertSamplePreview(value) {
   assert.equal(value.preview_version, previewVersion);
   assert.equal(
     value.operator_context_ref,
-    "operator_context:public:codex_handoff_draft_contract",
+    "operator_context:public:perspective_packet_receipt_linkage_contract",
   );
-  assert.equal(value.handoff_input_preview.not_executed_now, true);
-  assert.equal(value.draft_preview.draft_id, "codex_handoff_draft_ref:public:contract_preview");
-  assert.equal(value.draft_preview.draft_version, draftVersion);
-  assert.equal(value.draft_preview.target_repository, "hynk-studio/augnes");
-  assert.equal(value.draft_preview.canonical_checkout, "/Users/hynk/code/augnes");
+  assert.equal(value.linkage_input_preview.not_executed_now, true);
+  assert.equal(value.linkage_input_preview.not_written_now, true);
   assert.equal(
-    value.draft_preview.branch_name_hint,
-    "codex/codex-handoff-draft-contract-v0-1",
+    value.linkage_preview.linkage_id,
+    "packet_receipt_linkage_ref:public:contract_preview",
   );
+  assert.equal(value.linkage_preview.linkage_version, linkageVersion);
+  assert.equal(value.linkage_preview.selected_candidates[0].candidate_only, true);
   assert.equal(
-    value.draft_preview.pr_title_hint,
-    "Add Codex Handoff Draft contract v0.1",
-  );
-  assert.equal(value.draft_preview.all_sections_public_safe, true);
-  assert.equal(
-    value.draft_preview.all_sections_source_ref_backed_or_explicit_gap,
+    value.linkage_preview.selected_candidates[0].not_proof_or_evidence,
     true,
   );
-  assert.equal(value.draft_preview.all_runtime_write_now_false, true);
+  assert.equal(
+    value.linkage_preview.selected_candidates[0].not_durable_state,
+    true,
+  );
+  assert.equal(value.linkage_preview.omitted_candidates[0].remains_visible, true);
+  assert.equal(
+    value.linkage_preview.omitted_candidates[0].omission_not_rejection,
+    true,
+  );
+  assert.equal(value.linkage_preview.deferred_candidates[0].remains_visible, true);
+  assert.equal(
+    value.linkage_preview.deferred_candidates[0].deferral_not_rejection,
+    true,
+  );
+  assert.equal(value.linkage_preview.unresolved_tensions[0].must_remain_visible, true);
+  assert.equal(value.linkage_preview.knowledge_gaps[0].must_remain_visible, true);
+  assert.equal(
+    value.linkage_preview.future_formation_receipt_ref,
+    "formation_receipt_ref:public:future_required",
+  );
+  assert.equal(
+    value.linkage_preview.future_decision_or_handoff_ref,
+    "decision_or_handoff_ref:public:future_required",
+  );
+  assert.equal(value.linkage_preview.linkage_notes.not_truth_source, true);
+  assert.equal(value.linkage_preview.all_sections_public_safe, true);
+  assert.equal(
+    value.linkage_preview.all_sections_source_ref_backed_or_explicit_gap,
+    true,
+  );
+  assert.equal(value.linkage_preview.all_runtime_write_now_false, true);
+  assert.equal(value.linkage_preview.not_completion_proof, true);
   for (const requiredAction of [
-    "no_codex_execution_from_draft",
-    "no_github_automation_from_draft",
-    "no_github_pr_creation_from_draft",
-    "no_provider_openai_call_from_draft",
-    "no_retrieval_rag_execution_from_draft",
-    "no_db_write_or_query_from_draft",
-    "no_perspective_promotion_from_draft",
-    "no_product_write_from_draft",
+    "no_linkage_record_write",
+    "no_formation_receipt_write",
+    "no_codex_execution_from_linkage",
+    "no_github_automation_from_linkage",
+    "no_provider_openai_call_from_linkage",
+    "no_retrieval_rag_execution_from_linkage",
+    "no_db_write_or_query_from_linkage",
+    "no_perspective_promotion_from_linkage",
+    "no_product_write_from_linkage",
   ]) {
-    assert.ok(value.draft_preview.forbidden_actions.includes(requiredAction));
+    assert.ok(value.linkage_preview.forbidden_actions.includes(requiredAction));
   }
-  assert.equal(value.draft_preview.expected_files[0].not_file_write_authority, true);
-  assert.equal(value.draft_preview.expected_checks[0].not_execution_authority, true);
-  assert.equal(value.draft_preview.final_report_template.not_completion_proof, true);
+  assert.equal(value.linkage_preview.expected_files[0].not_file_write_authority, true);
+  assert.equal(value.linkage_preview.expected_checks[0].not_execution_authority, true);
   assert.equal(value.authority_boundary.contract_added_now, undefined);
   assert.equal(value.authority_boundary.product_write_lane_parked_by_686, true);
   assert.deepEqual(value.validation_policy, buildValidationPolicy());
@@ -1344,40 +1313,42 @@ function assertPrivacyPolicy(value) {
 
 function assertDocsPointers() {
   for (const requiredText of [
-    "Codex Handoff Draft contract v0.1",
+    "Perspective Packet Receipt Linkage contract v0.1",
     typePath,
     fixturePath,
     smokePath,
     "contract-only, fixture-only, smoke-only",
-    "defines future Codex handoff draft grammar",
-    "Codex Handoff Draft is draft, not execution approval",
-    "draft is operator-reviewed context, not automation authority",
-    "draft is not Codex execution",
-    "draft is not GitHub automation",
-    "draft is not branch creation authority",
-    "draft is not commit authority",
-    "draft is not PR creation authority",
-    "draft is not external handoff sending authority",
-    "draft is not source of truth",
-    "draft is not proof/evidence",
-    "draft is not durable Perspective state",
-    "draft is not work status",
-    "draft is not product write",
-    "source_refs required",
-    "authority_boundary required",
-    "forbidden_actions required",
-    "stop_conditions required",
+    "defines future provenance linkage grammar connecting AI Context Packet, Codex Handoff Draft, Geometry Digest, candidates, source_refs, stop_conditions, and future Formation Receipt refs",
+    "linkage is provenance, not execution authority",
+    "linkage is derived, public-safe, advisory-only",
+    "linkage is not source of truth",
+    "linkage is not proof/evidence",
+    "linkage is not completion proof",
+    "linkage is not durable Perspective state",
+    "linkage is not work status",
+    "linkage is not product write",
+    "linkage does not prove Codex ran",
+    "linkage does not prove PR created",
+    "linkage does not prove validation passed",
+    "linkage does not create Formation Receipt now",
+    "future Formation Receipt ref only",
+    "future decision/handoff ref only",
+    "selected candidates remain candidates",
+    "omitted candidates remain visible and omission is not rejection",
+    "deferred candidates remain visible and deferral is not rejection",
+    "unresolved tensions preserved",
+    "knowledge gaps preserved",
+    "candidate/durable distinction preserved",
+    "AI Context Packet remains context, not execution authority",
+    "Codex Handoff Draft remains draft, not execution approval",
+    "Perspective Geometry Digest remains interpretation, not truth",
     "expected_files are hints only, not write authority",
     "expected_checks are validation hints only, not execution authority",
-    "branch_name is a suggestion only, not git authority",
-    "PR title/body are suggestions only, not GitHub authority",
     "final_report_template is not completion proof",
-    "AI Context Packet remains context, not execution authority",
-    "Perspective Geometry Digest remains interpretation, not truth",
-    "unresolved tensions and knowledge gaps preserved",
-    "candidate/durable distinction preserved",
-    "no runtime handoff draft build",
-    "no Codex handoff draft write",
+    "no runtime linkage build",
+    "no linkage record write",
+    "no durable audit log write",
+    "no Formation Receipt write",
     "no Codex execution",
     "no GitHub automation",
     "no GitHub PR creation",
@@ -1391,7 +1362,6 @@ function assertDocsPointers() {
     "no perspective promotion",
     "no proof/evidence write",
     "no accepted evidence write",
-    "no Formation Receipt write",
     "no work mutation",
     "no schema/migration",
     "no route or UI",
@@ -1403,24 +1373,26 @@ function assertDocsPointers() {
     assert.ok(indexDoc.includes(requiredText), `${indexPath} must include ${requiredText}`);
   }
   for (const requiredText of [
-    "Codex Handoff Draft contract defines future operator-reviewed handoff draft grammar only.",
+    "Perspective Packet Receipt Linkage contract defines future public-safe provenance linkage grammar only.",
     "Agent Substrate remains advisory-only",
-    "Codex Handoff Draft is draft, not execution approval.",
-    "Branch name, expected files, expected checks, PR title/body, and final report template are hints only and not authority.",
-    "AI Context Packet remains context, not execution authority.",
-    "This slice does not implement runtime handoff build, Codex handoff write, Codex execution, GitHub automation, branch/commit/PR creation, external handoff sending, agent routing/execution, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, Formation Receipt writes, work mutation, or product write.",
-    "Next recommended slice is Codex Handoff Draft implementation v0.1.",
+    "Linkage is provenance, not execution authority.",
+    "Future Formation Receipt refs and future decision/handoff refs are references only and are not written now.",
+    "Selected, omitted, and deferred candidates remain visible and retain candidate/durable distinction.",
+    "This slice does not implement runtime linkage build, linkage write, Formation Receipt write, durable audit log write, Codex execution, GitHub automation, branch/commit/PR creation, external handoff sending, agent routing/execution, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, work mutation, or product write.",
+    "Next recommended slice is Perspective Packet Receipt Linkage implementation v0.1.",
   ]) {
     assert.ok(substrateDoc.includes(requiredText), `${substrateDocPath} must include ${requiredText}`);
   }
   for (const doc of [surfaceDoc, gateDoc]) {
     for (const requiredText of [
-      "Codex Handoff Draft remains separated from candidate preview, AI Context Packet runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, and execution.",
-      "Draft-selected candidates remain candidates, not proof/evidence or durable state.",
+      "Perspective Packet Receipt Linkage remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.",
+      "Selected candidates remain candidates, not proof/evidence or durable state.",
+      "Omitted candidates remain visible and omission is not rejection.",
+      "Deferred candidates remain visible and deferral is not rejection.",
       "Unresolved tensions and knowledge gaps must remain visible.",
-      "AI Context Packet remains context, not execution authority.",
-      "Codex Handoff Draft cannot execute Codex, create branches, create commits, create PRs, call providers, run retrieval/RAG, mutate state/work, or write product data.",
-      "This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/layout/digest/packet/handoff behavior.",
+      "Codex Handoff Draft remains draft, not execution approval.",
+      "Linkage cannot execute Codex, create branches, create commits, create PRs, call providers, run retrieval/RAG, mutate state/work, write Formation Receipt, write audit logs, or write product data.",
+      "This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/layout/digest/packet/handoff/linkage behavior.",
     ]) {
       assert.ok(doc.includes(requiredText), `Research Candidate docs must include ${requiredText}`);
     }
@@ -1460,129 +1432,10 @@ function assertImplementationDownstreamPointer() {
   }
 }
 
-function assertBrowserValidationDownstreamPointer() {
-  if (!browserValidationSliceActive()) return;
-  const browserValidationSmoke = readFile(browserValidationSmokePath);
-  for (const requiredText of [
-    browserValidationVersion,
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    browserValidationPackageScriptName,
-    browserValidationRecommendationStatus,
-    browserValidationNextRecommendedSlice,
-  ]) {
-    assert.ok(
-      browserValidationSmoke.includes(requiredText),
-      `${browserValidationSmokePath} must include ${requiredText}`,
-    );
-  }
-}
-
 function assertPortableMergeBaseFallback() {
   assert.ok(mergeBaseRef(), "mergeBaseRef must resolve");
   for (const requiredText of ["origin/main", "main", "HEAD^", "Unable to resolve merge base"]) {
     assert.ok(smokeSource.includes(requiredText), `${smokePath} must include ${requiredText}`);
-  }
-}
-
-function perspectivePacketReceiptLinkageContractSliceActive() {
-  return readChangedFiles().includes(perspectivePacketReceiptLinkageSmokePath);
-}
-
-function assertPerspectivePacketReceiptLinkageContractPackageScript() {
-  assert.equal(
-    packageJson.scripts[perspectivePacketReceiptLinkagePackageScriptName],
-    perspectivePacketReceiptLinkagePackageScriptValue,
-  );
-  const packageAddedLines = readGitOutput([
-    "diff",
-    "--unified=0",
-    mergeBaseRef(),
-    "--",
-    packagePath,
-  ])
-    .split("\n")
-    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
-  const addedScriptNames = packageAddedLines
-    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
-    .filter(Boolean)
-    .sort();
-  assert.deepEqual(
-    addedScriptNames,
-    [perspectivePacketReceiptLinkagePackageScriptName],
-    "package.json must add only the Perspective Packet Receipt Linkage contract smoke script",
-  );
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
-  if (typeof basePackageJson !== "undefined") {
-    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
-    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
-    assert.deepEqual(
-      packageJson.optionalDependencies ?? {},
-      basePackageJson.optionalDependencies ?? {},
-    );
-  }
-}
-
-function assertPerspectivePacketReceiptLinkageContractChangedFiles(changedFiles) {
-  const expectedFiles = Array.from(new Set([
-    perspectivePacketReceiptLinkageTypePath,
-    perspectivePacketReceiptLinkageFixturePath,
-    perspectivePacketReceiptLinkageSmokePath,
-    perspectivePacketReceiptLinkageSourceValidationSmokePath,
-    ...perspectivePacketReceiptLinkageDownstreamSmokePaths,
-    packagePath,
-    indexPath,
-    substrateDocPath,
-    surfaceDocPath,
-    gateDocPath,
-  ]));
-  for (const unchangedPath of [
-    "types/codex-handoff-draft-contract.ts",
-    "fixtures/research-candidate-review.codex-handoff-draft-contract.sample.v0.1.json",
-    "lib/research-candidate-review/codex-handoff-draft.ts",
-    "fixtures/research-candidate-review.codex-handoff-draft-implementation.sample.v0.1.json",
-    "fixtures/research-candidate-review.codex-handoff-draft-browser-validation.sample.v0.1.json",
-  ]) {
-    assert.ok(
-      !changedFiles.includes(unchangedPath),
-      `Perspective Packet Receipt Linkage contract slice must not change ` + unchangedPath,
-    );
-  }
-  for (const expectedFile of expectedFiles) {
-    assert.ok(changedFiles.includes(expectedFile), `changed files must include ` + expectedFile);
-  }
-  for (const changedFile of changedFiles) {
-    assert.ok(
-      expectedFiles.includes(changedFile),
-      `unexpected changed file in Perspective Packet Receipt Linkage contract slice: ` + changedFile,
-    );
-    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
-    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
-    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
-    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
-    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
-    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
-    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
-  }
-  assertPerspectivePacketReceiptLinkageContractDownstreamPointer();
-}
-
-function assertPerspectivePacketReceiptLinkageContractDownstreamPointer() {
-  const linkageSmoke = readFileSync(perspectivePacketReceiptLinkageSmokePath, "utf8");
-  for (const requiredText of [
-    perspectivePacketReceiptLinkageVersion,
-    perspectivePacketReceiptLinkageFixturePath,
-    perspectivePacketReceiptLinkageSmokePath,
-    perspectivePacketReceiptLinkagePackageScriptName,
-    perspectivePacketReceiptLinkageRecommendationStatus,
-    perspectivePacketReceiptLinkageNextRecommendedSlice,
-  ]) {
-    assert.ok(
-      linkageSmoke.includes(requiredText),
-      perspectivePacketReceiptLinkageSmokePath + " must include " + requiredText,
-    );
   }
 }
 
