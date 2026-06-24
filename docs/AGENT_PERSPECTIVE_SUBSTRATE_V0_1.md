@@ -1118,6 +1118,17 @@ Product-write remains parked by #686.
 Next recommended slice is Codex Handoff Draft browser validation v0.1.
 `codex_handoff_draft_browser_validation_v0_1`
 
+Codex Handoff Draft browser validation validates the deterministic fixture-backed #746 implementation.
+It validates public-safe Codex Handoff Draft preview bundles against the #745 contract.
+Agent Substrate remains advisory-only and cannot build runtime handoff drafts, execute Codex, create branches/commits/PRs, route agents, call providers, run retrieval/RAG, mutate graph/state, promote Perspective, write evidence/work/product data, or make external calls.
+Codex Handoff Draft is draft, not execution approval.
+Branch name, expected files, expected checks, PR title/body, and final report template are hints only and not authority.
+AI Context Packet remains context, not execution authority.
+This slice does not implement runtime handoff build, Codex handoff write, Codex execution, GitHub automation, branch/commit/PR creation, external handoff sending, agent routing/execution, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, Formation Receipt writes, work mutation, or product write.
+Product-write remains parked by #686.
+Next recommended slice is Perspective Packet Receipt Linkage contract v0.1.
+`perspective_packet_receipt_linkage_contract_v0_1`
+
 ## Next Recommended Slice
 
-`codex_handoff_draft_browser_validation_v0_1`
+`perspective_packet_receipt_linkage_contract_v0_1`
