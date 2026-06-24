@@ -1419,6 +1419,7 @@ function assertImplementationDownstreamPointer() {
   if (!implementationSliceActive()) return;
   for (const requiredText of [
     implementationVersion,
+    implementationBuilderPath,
     implementationFixturePath,
     implementationSmokePath,
     implementationPackageScriptName,
