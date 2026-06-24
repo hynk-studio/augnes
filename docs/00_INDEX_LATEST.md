@@ -3349,6 +3349,17 @@ repo-local 색인이다.
   `dogfooding_research_to_perspective_ci_expansion_contract_v0_1`.
 
   Boundary phrases: Agent Perspective Substrate Feedback Loop closeout v0.1; fixture/smoke paths; contract -> implementation -> browser validation rail complete; closeout is summary only, not runtime; feedback remains operator signal, not truth; feedback remains advisory input, not execution authority; dismiss is not deletion; pin is not promotion; mark_useful is not truth; mark_wrong is not proof of falsity; needs_more_evidence is review cue, not retrieval execution; scope_overreach is constraint signal, not state mutation; no runtime feedback loop build; no feedback event write/mutation/store; no Agent Substrate mutation/execution; no salience write; no durable salience write; no recent rehearsal buffer write; no durable memory write; no linkage record write; no Formation Receipt write; no provider/OpenAI call; no retrieval/RAG execution; no DB write/query; no perspective promotion; no proof/evidence write; no work mutation; no route/UI/schema/browser request; no product write/product IDs; product-write remains parked by #686; dogfooding_research_to_perspective_ci_expansion_contract_v0_1.
+- Dogfooding Research-to-Perspective CI Expansion contract v0.1:
+  `types/dogfooding-research-to-perspective-ci-expansion-contract.ts`,
+  `fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-contract.sample.v0.1.json`,
+  and
+  `scripts/smoke-dogfooding-research-to-perspective-ci-expansion-contract-v0-1.mjs`
+  define the future dogfooding grammar for applying Research-to-Perspective
+  rails to Augnes repo development. This is contract-only, fixture-only,
+  smoke-only. It does not add GitHub Actions, change CI runtime, execute CI,
+  or implement runtime dogfooding ingestion.
+
+  Boundary phrases: Dogfooding Research-to-Perspective CI Expansion contract v0.1; contract-only, fixture-only, smoke-only; defines future dogfooding grammar for applying Research-to-Perspective rails to Augnes repo development; dogfooding record is candidate/review context, not source of truth; CI expansion contract is not runtime CI implementation; CI signal is validation signal, not proof/evidence; smoke pass is not truth; smoke fail is diagnostic signal, not automatic rejection; Codex result report is candidate input, not execution proof; PR body is operator report, not authority; merge status is repo event context, not product write; changed files are review cues, not proof of correctness; validation command list is review cue, not execution authority; warning is diagnostic, not failure unless policy says so; skipped checks must be explicit and justified; authority boundary regression is candidate alert, not automatic mutation; dogfooding candidate remains candidate until future gate; product decision can create perspective delta candidate later, not durable state now; no GitHub Actions addition; no CI runtime change; no CI execution; no runtime dogfooding ingestion; no dogfooding record write; no Codex execution; no GitHub automation; no provider/OpenAI call; no retrieval/RAG execution; no DB write/query; no perspective promotion; no proof/evidence write; no work mutation; no route/UI/schema/browser request; no product write/product IDs; product-write remains parked by #686; dogfooding_research_to_perspective_ci_expansion_implementation_v0_1.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
