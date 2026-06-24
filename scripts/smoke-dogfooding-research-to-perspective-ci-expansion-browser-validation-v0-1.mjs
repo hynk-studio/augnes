@@ -10,7 +10,11 @@ const contractFixturePath =
   "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-contract.sample.v0.1.json";
 const implementationFixturePath =
   "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-implementation.sample.v0.1.json";
+const validationFixturePath =
+  "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-browser-validation.sample.v0.1.json";
 const smokePath =
+  "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1.mjs";
+const implementationSmokePath =
   "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-implementation-v0-1.mjs";
 const contractSmokePath =
   "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-contract-v0-1.mjs";
@@ -22,41 +26,34 @@ const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
 
 const packageScriptName =
-  "smoke:dogfooding-research-to-perspective-ci-expansion-implementation-v0-1";
+  "smoke:dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1";
 const packageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-dogfooding-research-to-perspective-ci-expansion-implementation-v0-1.mjs";
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1.mjs";
+const validationKind =
+  "dogfooding_research_to_perspective_ci_expansion_browser_validation";
+const validationVersion =
+  "dogfooding_research_to_perspective_ci_expansion_browser_validation.v0.1";
 const implementationKind =
   "dogfooding_research_to_perspective_ci_expansion_implementation";
 const implementationVersion =
   "dogfooding_research_to_perspective_ci_expansion_implementation.v0.1";
 const previewVersion =
   "dogfooding_research_to_perspective_ci_expansion_preview.v0.1";
-const recommendationStatus =
+const implementationRecommendationStatus =
   "ready_for_dogfooding_research_to_perspective_ci_expansion_browser_validation_v0_1";
-const nextRecommendedSlice =
+const implementationNextRecommendedSlice =
   "dogfooding_research_to_perspective_ci_expansion_browser_validation_v0_1";
-const browserValidationFixturePath =
-  "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-browser-validation.sample.v0.1.json";
-const browserValidationSmokePath =
-  "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1.mjs";
-const browserValidationPackageScriptName =
-  "smoke:dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1";
-const browserValidationPackageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1.mjs";
-const browserValidationVersion =
-  "dogfooding_research_to_perspective_ci_expansion_browser_validation.v0.1";
-const browserValidationRecommendationStatus =
+const recommendationStatus =
   "ready_for_dogfooding_research_to_perspective_ci_expansion_closeout_v0_1";
-const browserValidationNextRecommendedSlice =
+const nextRecommendedSlice =
   "dogfooding_research_to_perspective_ci_expansion_closeout_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
 const expectedChangedFiles = [
-  builderPath,
-  implementationFixturePath,
+  validationFixturePath,
   smokePath,
-  contractSmokePath,
+  implementationSmokePath,
   packagePath,
   indexPath,
   substrateDocPath,
@@ -65,22 +62,117 @@ const expectedChangedFiles = [
 ];
 
 const protectedUnchangedPaths = [
+  builderPath,
   contractTypePath,
   contractFixturePath,
+  implementationFixturePath,
   "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-closeout.sample.v0.1.json",
-  "types/agent-perspective-substrate-feedback-loop-contract.ts",
-  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-contract.sample.v0.1.json",
-  "lib/research-candidate-review/agent-perspective-substrate-feedback-loop.ts",
-  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-implementation.sample.v0.1.json",
-  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-browser-validation.sample.v0.1.json",
   "lib/db/schema.sql",
+];
+
+const requiredDogfoodingPreviewFailureCodes = [
+  "dogfooding_preview_missing_preview_id",
+  "dogfooding_preview_missing_source_refs",
+  "dogfooding_preview_runtime_write_enabled",
+  "dogfooding_preview_not_public_safe",
+  "dogfooding_preview_ci_runtime_change_enabled",
+  "dogfooding_preview_github_actions_added",
+  "dogfooding_preview_ci_execution_enabled",
+  "dogfooding_preview_smoke_pass_truth_enabled",
+  "dogfooding_preview_smoke_fail_rejection_enabled",
+  "dogfooding_preview_codex_execution_proof_enabled",
+  "dogfooding_preview_changed_files_correctness_enabled",
+  "dogfooding_preview_product_write_enabled",
+];
+
+const requiredDogfoodingSectionFailureCodes = [
+  "dogfooding_section_missing_section_kind",
+  "dogfooding_section_unknown_section_kind",
+  "dogfooding_section_runtime_write_enabled",
+  "source_pr_github_authority_enabled",
+  "codex_result_execution_proof_enabled",
+  "changed_files_correctness_proof_enabled",
+  "validation_matrix_execution_authority_enabled",
+  "validation_matrix_smoke_pass_truth_enabled",
+  "validation_matrix_smoke_fail_rejection_enabled",
+  "warning_treated_as_failure_without_policy",
+  "skipped_check_missing_reason",
+  "authority_boundary_regression_mutation_enabled",
+  "candidate_review_implication_proof_enabled",
+  "perspective_delta_candidate_durable_state_enabled",
+  "ci_expansion_candidate_github_actions_added",
+];
+
+const requiredForbiddenActionsFailureCodes = [
+  "forbidden_action_missing_no_runtime_dogfooding_ingestion",
+  "forbidden_action_missing_no_dogfooding_record_write",
+  "forbidden_action_missing_no_ci_runtime_change",
+  "forbidden_action_missing_no_github_actions_addition",
+  "forbidden_action_missing_no_ci_execution",
+  "forbidden_action_missing_no_codex_execution",
+  "forbidden_action_missing_no_github_automation",
+  "forbidden_action_missing_no_provider_openai_call",
+  "forbidden_action_missing_no_retrieval_rag_execution",
+  "forbidden_action_missing_no_db_write_or_query",
+  "forbidden_action_missing_no_perspective_promotion",
+  "forbidden_action_missing_no_product_write",
+];
+
+const requiredAuthorityBoundaryFailureCodes = [
+  "runtime_dogfooding_ingestion_enabled",
+  "dogfooding_record_write_enabled",
+  "ci_runtime_change_enabled",
+  "github_actions_added_enabled",
+  "ci_execution_enabled",
+  "codex_execution_enabled",
+  "github_automation_enabled",
+  "github_pr_creation_enabled",
+  "git_branch_creation_enabled",
+  "git_commit_creation_enabled",
+  "feedback_event_write_enabled",
+  "agent_substrate_mutation_enabled",
+  "provider_openai_call_enabled",
+  "retrieval_rag_execution_enabled",
+  "durable_perspective_state_write_enabled",
+  "durable_perspective_delta_apply_enabled",
+  "proof_or_evidence_record_write_enabled",
+  "accepted_evidence_write_enabled",
+  "work_mutation_enabled",
+  "runtime_db_query_enabled",
+  "runtime_db_write_enabled",
+  "dogfooding_authority_enabled",
+  "ci_authority_enabled",
+  "github_actions_authority_enabled",
+  "validation_pass_truth_authority_enabled",
+  "validation_failure_rejection_authority_enabled",
+  "codex_result_execution_authority_enabled",
+  "pr_body_authority_enabled",
+  "changed_files_correctness_authority_enabled",
+  "boundary_regression_mutation_authority_enabled",
+  "product_write_enabled",
+  "product_id_allocation_enabled",
+];
+
+const requiredRefsFailureCodes = [
+  "dogfooding_preview_id_missing",
+  "private_or_unstable_ref_detected",
+  "source_refs_missing",
+  "pr_ref_missing",
+  "codex_result_report_ref_missing",
+  "validation_matrix_ref_missing",
+  "raw_private_source_body_detected",
+  "raw_provider_thread_run_session_id_detected",
+  "access_token_detected",
+  "ssh_key_detected",
 ];
 
 for (const filePath of [
   builderPath,
   contractTypePath,
   contractFixturePath,
+  implementationFixturePath,
   smokePath,
+  implementationSmokePath,
   contractSmokePath,
   packagePath,
   indexPath,
@@ -91,17 +183,15 @@ for (const filePath of [
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
 if (!writeFixture) {
-  assert.ok(
-    existsSync(implementationFixturePath),
-    `${implementationFixturePath} must exist`,
-  );
+  assert.ok(existsSync(validationFixturePath), `${validationFixturePath} must exist`);
 }
 
 const builderSource = readFile(builderPath);
 const smokeSource = readFile(smokePath);
-const contractSmokeSource = readFile(contractSmokePath);
+const implementationSmokeSource = readFile(implementationSmokePath);
 const contractTypeSource = readFile(contractTypePath);
 const contractFixture = readJson(contractFixturePath);
+const implementationFixture = readJson(implementationFixturePath);
 const packageJson = readJson(packagePath);
 const basePackageJson = readJsonFromGit(packagePath);
 const indexDoc = readFile(indexPath);
@@ -120,68 +210,92 @@ const {
 
 const sourceContractRef =
   `${contractFixture.contract_version}:${contractFixturePath}#755`;
+const sourceImplementationRef =
+  `${implementationFixture.implementation_version}:${implementationFixturePath}#756`;
 const rebuiltImplementationFixture =
   buildDogfoodingResearchToPerspectiveCiExpansionImplementationFixture({
     dogfooding_research_to_perspective_ci_expansion_contract: contractFixture,
     source_contract_ref: sourceContractRef,
   });
+const rebuiltFixture = buildValidationFixture();
 
 if (writeFixture) {
   writeFileSync(
-    implementationFixturePath,
-    `${JSON.stringify(rebuiltImplementationFixture, null, 2)}\n`,
+    validationFixturePath,
+    `${JSON.stringify(rebuiltFixture, null, 2)}\n`,
   );
   process.exit(0);
 }
 
-const fixture = readJson(implementationFixturePath);
+const fixture = readJson(validationFixturePath);
 
-assertContractArtifactsUnchanged();
+assertContractAndImplementationArtifactsUnchanged();
 assertRequiredExports();
 assertPackageScript();
 assertStaticBoundary();
 assertNoForbiddenRuntimePatterns();
-assertImplementationFixture(fixture);
-assertPreviewBundle(
-  fixture.built_dogfooding_research_to_perspective_ci_expansion_preview_bundle,
+assert.deepEqual(
+  implementationFixture,
+  rebuiltImplementationFixture,
+  "#756 implementation fixture must match rebuilt deterministic output",
 );
-assertValidatedImplementation(fixture.validated_implementation);
-assertImplementationAuthorityBoundary(fixture.authority_boundary);
-assertInvalidOverrideCoverage();
-assertDocsPointers();
-assertContractSmokeDownstreamPointer();
-assertBrowserValidationDownstreamPointer();
-assertPortableMergeBaseFallback();
 assert.deepEqual(
   fixture,
-  rebuiltImplementationFixture,
-  "rebuilt Dogfooding Research-to-Perspective CI Expansion implementation fixture must match committed fixture",
+  rebuiltFixture,
+  "rebuilt Dogfooding Research-to-Perspective CI Expansion browser validation fixture must match committed fixture",
 );
+assertValidationFixture(fixture);
+assertValidatedBuilder(fixture.validated_builder);
+assertValidatedDogfooding(
+  fixture.validated_dogfooding_research_to_perspective_ci_expansion,
+);
+assertImplementationFixture(implementationFixture);
+assertPreviewBundle(
+  implementationFixture
+    .built_dogfooding_research_to_perspective_ci_expansion_preview_bundle,
+);
+assertValidationAuthorityBoundary(fixture.authority_boundary);
+assertImplementationAuthorityBoundary(implementationFixture.authority_boundary);
+assertInvalidOverrideCoverage();
+assertDocsPointers();
+assertImplementationSmokeDownstreamPointer();
+assertPortableMergeBaseFallback();
 
 console.log(
   JSON.stringify(
     {
       smoke:
-        "dogfooding-research-to-perspective-ci-expansion-implementation-v0-1",
+        "dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1",
       final_status: "pass",
-      implementation_kind: fixture.implementation_kind,
-      implementation_version: fixture.implementation_version,
+      validation_kind: fixture.validation_kind,
+      validation_version: fixture.validation_version,
+      source_implementation_fingerprint:
+        fixture.source_implementation_fingerprint,
       source_contract_fingerprint: fixture.source_contract_fingerprint,
+      implementation_fixture_matches_rebuilt_output:
+        fixture.validated_dogfooding_research_to_perspective_ci_expansion
+          .implementation_fixture_matches_rebuilt_output,
       preview_bundle_follows_contract:
-        fixture.validated_implementation.preview_bundle_follows_contract,
+        fixture.validated_dogfooding_research_to_perspective_ci_expansion
+          .preview_bundle_follows_contract,
       dogfooding_principles_preserved:
-        fixture.validated_implementation.dogfooding_principles_preserved,
+        fixture.validated_dogfooding_research_to_perspective_ci_expansion
+          .dogfooding_principles_preserved,
       dogfooding_section_families_preserved:
-        fixture.validated_implementation.dogfooding_section_families_preserved,
+        fixture.validated_dogfooding_research_to_perspective_ci_expansion
+          .dogfooding_section_families_preserved,
       runtime_dogfooding_ingestion_not_implemented:
-        fixture.validated_implementation
+        fixture.validated_dogfooding_research_to_perspective_ci_expansion
           .runtime_dogfooding_ingestion_not_implemented,
       ci_runtime_change_not_implemented:
-        fixture.validated_implementation.ci_runtime_change_not_implemented,
+        fixture.validated_dogfooding_research_to_perspective_ci_expansion
+          .ci_runtime_change_not_implemented,
       github_actions_not_added:
-        fixture.validated_implementation.github_actions_not_added,
+        fixture.validated_dogfooding_research_to_perspective_ci_expansion
+          .github_actions_not_added,
       product_write_not_implemented:
-        fixture.validated_implementation.product_write_not_implemented,
+        fixture.validated_dogfooding_research_to_perspective_ci_expansion
+          .product_write_not_implemented,
       next_recommended_slice: fixture.next_recommended_slice,
     },
     null,
@@ -189,16 +303,93 @@ console.log(
   ),
 );
 
-function assertContractArtifactsUnchanged() {
+function buildValidationFixture() {
+  const {
+    passed: _passed,
+    failure_codes: _failureCodes,
+    ...implementationValidation
+  } = implementationFixture.validated_implementation;
+  const {
+    builder_path: _builderPath,
+    ...deterministicBuilderFlags
+  } = implementationFixture.deterministic_builder;
+  const validatedDogfooding = {
+    implementation_fixture_matches_rebuilt_output: deepEqual(
+      implementationFixture,
+      rebuiltImplementationFixture,
+    ),
+    ...implementationValidation,
+    browser_validation_added_now: true,
+    implementation_changed_now: false,
+    contract_changed_now: false,
+  };
+  const validation = {
+    validation_kind: validationKind,
+    validation_version: validationVersion,
+    source_implementation_ref: sourceImplementationRef,
+    source_implementation_fingerprint:
+      implementationFixture.implementation_fingerprint,
+    source_contract_ref: implementationFixture.source_contract_ref,
+    source_contract_fingerprint:
+      implementationFixture.source_contract_fingerprint,
+    validated_builder: {
+      builder_path: builderPath,
+      implementation_fixture_path: implementationFixturePath,
+      contract_fixture_path: contractFixturePath,
+      ...deterministicBuilderFlags,
+    },
+    validated_dogfooding_research_to_perspective_ci_expansion:
+      validatedDogfooding,
+    authority_boundary: buildValidationAuthorityBoundary(),
+    recommendation_status: recommendationStatus,
+    next_recommended_slice: nextRecommendedSlice,
+    validation_fingerprint: "",
+    fingerprint_algorithm: "fnv1a32_canonical_json",
+  };
+  validation.validation_fingerprint =
+    createDogfoodingResearchToPerspectiveCiExpansionFingerprint({
+      ...validation,
+      validation_fingerprint: "",
+    });
+  return validation;
+}
+
+function buildValidationAuthorityBoundary() {
+  const {
+    implementation_added_now: _implementationAddedNow,
+    deterministic_builder_added_now: _deterministicBuilderAddedNow,
+    contract_changed_now: _contractChangedNow,
+    ...implementationBoundary
+  } = implementationFixture.authority_boundary;
+  return {
+    browser_validation_added_now: true,
+    implementation_changed_now: false,
+    contract_changed_now: false,
+    provider_extraction_now: false,
+    ...implementationBoundary,
+  };
+}
+
+function assertContractAndImplementationArtifactsUnchanged() {
   assert.deepEqual(
     contractFixture,
     readJsonFromGit(contractFixturePath),
-    "#755 Dogfooding Research-to-Perspective CI Expansion contract fixture must not change",
+    "#755 contract fixture must not change",
   );
   assert.equal(
     contractTypeSource.trimEnd(),
     readTextFromGit(contractTypePath).trimEnd(),
-    "#755 Dogfooding Research-to-Perspective CI Expansion type contract must not change",
+    "#755 type contract must not change",
+  );
+  assert.equal(
+    builderSource.trimEnd(),
+    readTextFromGit(builderPath).trimEnd(),
+    "#756 deterministic builder must not change",
+  );
+  assert.deepEqual(
+    implementationFixture,
+    readJsonFromGit(implementationFixturePath),
+    "#756 implementation fixture must not change",
   );
 }
 
@@ -214,13 +405,13 @@ function assertRequiredExports() {
       `${builderPath} must export ${exportName}`,
     );
   }
+  assert.equal(
+    typeof validateDogfoodingResearchToPerspectiveCiExpansionPreviewBundle,
+    "function",
+  );
 }
 
 function assertPackageScript() {
-  if (browserValidationSliceActive()) {
-    assertBrowserValidationPackageScript();
-    return;
-  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -238,14 +429,11 @@ function assertPackageScript() {
   assert.deepEqual(
     addedScriptNames,
     [packageScriptName],
-    "package.json must add only the Dogfooding Research-to-Perspective CI Expansion implementation smoke script",
+    "package.json must add only the Dogfooding Research-to-Perspective CI Expansion browser validation smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
-  assert.doesNotMatch(
-    packageAddedLines.join("\n"),
-    /"optionalDependencies"\s*:/,
-  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
   assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
   assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
   assert.deepEqual(
@@ -256,20 +444,13 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  if (browserValidationSliceActive()) {
-    assertBrowserValidationChangedFiles(changedFiles);
-    return;
-  }
   for (const expectedFile of expectedChangedFiles) {
-    assert.ok(
-      changedFiles.includes(expectedFile),
-      `changed files must include ${expectedFile}`,
-    );
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
-  for (const protectedPath of protectedUnchangedPaths) {
+  for (const unchangedPath of protectedUnchangedPaths) {
     assert.ok(
-      !changedFiles.includes(protectedPath),
-      `Dogfooding Research-to-Perspective CI Expansion implementation slice must not change ${protectedPath}`,
+      !changedFiles.includes(unchangedPath),
+      `Dogfooding Research-to-Perspective CI Expansion browser validation slice must not change ${unchangedPath}`,
     );
   }
   for (const changedFile of changedFiles) {
@@ -278,11 +459,11 @@ function assertStaticBoundary() {
       changedFile.endsWith(".mjs") &&
       !expectedChangedFiles.includes(changedFile) &&
       readFileSync(changedFile, "utf8").includes(
-        "dogfoodingResearchToPerspectiveCiExpansionImplementationSliceActive",
+        "dogfoodingResearchToPerspectiveCiExpansionBrowserValidationSliceActive",
       );
     assert.ok(
       expectedChangedFiles.includes(changedFile) || allowedDownstreamSmoke,
-      `unexpected changed file in Dogfooding Research-to-Perspective CI Expansion implementation slice: ${changedFile}`,
+      `unexpected changed file in Dogfooding Research-to-Perspective CI Expansion browser validation slice: ${changedFile}`,
     );
     if (allowedDownstreamSmoke) continue;
     assertNoForbiddenChangedPath(changedFile);
@@ -290,67 +471,21 @@ function assertStaticBoundary() {
 }
 
 function assertNoForbiddenChangedPath(filePath) {
-  assert.doesNotMatch(
-    filePath,
-    /^\.github\/workflows\//,
-    "must not change GitHub Actions workflows",
-  );
+  assert.doesNotMatch(filePath, /^\.github\/workflows\//, "must not change GitHub Actions workflows");
   assert.doesNotMatch(filePath, /^app\/api\//, "must not change app/api routes");
-  assert.doesNotMatch(
-    filePath,
-    /route\.(?:ts|tsx|js|jsx)$/,
-    "must not change route handlers",
-  );
+  assert.doesNotMatch(filePath, /route\.(?:ts|tsx|js|jsx)$/, "must not change route handlers");
   assert.doesNotMatch(filePath, /^components\//, "must not change components");
   assert.notEqual(filePath, "lib/db/schema.sql", "must not change schema.sql");
   assert.doesNotMatch(filePath, /^migrations\//, "must not change migrations");
-  assert.doesNotMatch(
-    filePath,
-    /^lib\/research-retrieval\//,
-    "must not add retrieval runtime files",
-  );
-  assert.doesNotMatch(
-    filePath,
-    /^lib\/research-rag\//,
-    "must not add RAG runtime files",
-  );
-  if (filePath !== builderPath) {
-    assert.doesNotMatch(
-      filePath,
-      /^lib\//,
-      "must not add runtime implementation files outside the deterministic builder",
-    );
-  }
-  assert.doesNotMatch(
-    filePath,
-    /provider|openai|source-fetch|crawler/i,
-    "must not change provider/source-fetch/crawler files",
-  );
-  assert.doesNotMatch(
-    filePath,
-    /product.*write|product.*id/i,
-    "must not change product write files",
-  );
-  assert.doesNotMatch(
-    filePath,
-    /runtime.*dogfooding.*ingest|dogfooding.*runtime.*ingest/i,
-    "must not add runtime dogfooding ingestion files",
-  );
-  assert.doesNotMatch(
-    filePath,
-    /runtime.*ci.*exec|ci.*runtime.*exec/i,
-    "must not add runtime CI execution files",
-  );
-  assert.doesNotMatch(
-    filePath,
-    /github.*automation|git.*automation|codex.*execution/i,
-    "must not add automation runtime files",
-  );
-  assert.doesNotMatch(
-    filePath,
-    /feedback.*(?:write|store)|agent.*substrate.*(?:mutat|exec)|salience.*write|durable.*memory|formation.*receipt.*write/i,
-    "must not add feedback/substrate/memory runtime files",
-  );
+  assert.doesNotMatch(filePath, /^lib\/research-retrieval\//, "must not add retrieval runtime files");
+  assert.doesNotMatch(filePath, /^lib\/research-rag\//, "must not add RAG runtime files");
+  assert.doesNotMatch(filePath, /^lib\//, "must not add runtime implementation files");
+  assert.doesNotMatch(filePath, /provider|openai|source-fetch|crawler/i, "must not change provider/source-fetch/crawler files");
+  assert.doesNotMatch(filePath, /product.*write|product.*id/i, "must not change product write files");
+  assert.doesNotMatch(filePath, /runtime.*dogfooding.*ingest|dogfooding.*runtime.*ingest/i, "must not add runtime dogfooding ingestion files");
+  assert.doesNotMatch(filePath, /runtime.*ci.*exec|ci.*runtime.*exec/i, "must not add runtime CI execution files");
+  assert.doesNotMatch(filePath, /github.*automation|git.*automation|codex.*execution/i, "must not add automation runtime files");
+  assert.doesNotMatch(filePath, /feedback.*(?:write|store)|agent.*substrate.*(?:mutat|exec)|salience.*write|durable.*memory|formation.*receipt.*write/i, "must not add feedback/substrate/memory runtime files");
 }
 
 function assertNoForbiddenRuntimePatterns() {
@@ -360,120 +495,46 @@ function assertNoForbiddenRuntimePatterns() {
         filePath.endsWith(".tsx") ||
         filePath.endsWith(".js") ||
         filePath.endsWith(".mjs")) &&
-      !filePath.startsWith("scripts/smoke-") &&
-      filePath === builderPath,
+      filePath !== smokePath &&
+      filePath !== implementationSmokePath &&
+      filePath !== contractSmokePath &&
+      !filePath.startsWith("scripts/smoke-"),
   );
   for (const filePath of changedCodeFiles) {
     const source = stripNonCode(readFile(filePath));
     assert.doesNotMatch(source, /\bfetch\s*\(/, `${filePath} must not call fetch`);
-    assert.doesNotMatch(
-      source,
-      /\bXMLHttpRequest\b|\bEventSource\b|\bWebSocket\b/,
-      `${filePath} must not call browser request APIs`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|\bdocument\.cookie\b/,
-      `${filePath} must not use browser persistence`,
-    );
-    assert.doesNotMatch(
-      source,
-      /from\s+["'][^"']*openai[^"']*["']|\bnew\s+OpenAI\b/i,
-      `${filePath} must not call providers/OpenAI`,
-    );
-    assert.doesNotMatch(
-      source,
-      /from\s+["'][^"']*(?:octokit|github)[^"']*["']|\bcreatePullRequest\b|\bgithubAutomation\b/i,
-      `${filePath} must not implement GitHub automation`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bcreateBranch\b|\bcreateCommit\b|\bcommitBranch\b|\bswitchBranch\b/i,
-      `${filePath} must not implement git branch or commit creation`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bexecuteCodex\b|\bspawnCodex\b|\brunCodex\b/i,
-      `${filePath} must not execute Codex`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bcreateDogfoodingRecord\b|\bwriteDogfoodingRecord\b|\bingestDogfooding\b/i,
-      `${filePath} must not ingest or write dogfooding records`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bcreateWorkflow\b|\bexecuteCi\b|\brunCi\b|\bciRuntime\b/i,
-      `${filePath} must not implement CI runtime`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bwriteFeedbackEvent\b|\bfeedbackEventStore\b|\bmutateFeedbackEvent\b/i,
-      `${filePath} must not write or mutate feedback events`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bagentSubstrate.*(?:mutate|execute|run)\b/i,
-      `${filePath} must not mutate or execute Agent Substrate`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bsalience.*(?:insert|write|update)\b|\brecentRehearsal.*(?:insert|write|update)\b/i,
-      `${filePath} must not write salience or rehearsal buffers`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bcreateEmbedding\b|\bembeddingModel\b|\bvector(?:Db|Store|Index)\b|\bfts\b/i,
-      `${filePath} must not implement embedding/vector/FTS behavior`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bdb\.(?:query|insert|update|delete|execute)|\bprisma\.|\bsql`|\bproductionDb\b/i,
-      `${filePath} must not query or write DB`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bcreateEvidence\b|\bwriteEvidence\b|\bacceptedEvidence\b/i,
-      `${filePath} must not write proof/evidence`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bpromotePerspective\b|\bpromotionDecision\b|\bapplyPerspectiveDelta\b/i,
-      `${filePath} must not implement Perspective promotion`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\bmutateWork\b|\bupdateWork\b/i,
-      `${filePath} must not mutate work`,
-    );
-    assert.doesNotMatch(
-      source,
-      /\ballocateProductId\b|\bwriteProduct\b|\bcreateProduct\b/i,
-      `${filePath} must not implement product writes or IDs`,
-    );
+    assert.doesNotMatch(source, /\bXMLHttpRequest\b|\bEventSource\b|\bWebSocket\b/, `${filePath} must not call browser request APIs`);
+    assert.doesNotMatch(source, /\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|\bdocument\.cookie\b/, `${filePath} must not use browser persistence`);
+    assert.doesNotMatch(source, /from\s+["'][^"']*openai[^"']*["']|\bnew\s+OpenAI\b/i, `${filePath} must not call providers/OpenAI`);
+    assert.doesNotMatch(source, /\bfetchSource\b|\bcrawl\b|\bcrawler\b|\bsourceFetch\b/i, `${filePath} must not fetch or crawl sources`);
+    assert.doesNotMatch(source, /\brunRetrieval\b|\brunRag\b|\brunRAG\b|\bembed(?:ding)?\b|\bvectorDb\b|\bfts\b/i, `${filePath} must not execute retrieval/RAG/indexing`);
+    assert.doesNotMatch(source, /\bdb\.(?:query|insert|update|delete|execute)|\bprisma\.|\bsql`|\bproductionDb\b/i, `${filePath} must not query or write DB`);
+    assert.doesNotMatch(source, /\bcreateDogfoodingRecord\b|\bwriteDogfoodingRecord\b|\bingestDogfooding\b/i, `${filePath} must not ingest dogfooding records`);
+    assert.doesNotMatch(source, /\bcreateWorkflow\b|\bgithubActions\b|\bexecuteCi\b|\brunCi\b|\bciRuntime\b/i, `${filePath} must not implement CI runtime`);
+    assert.doesNotMatch(source, /\bcreatePullRequest\b|\bgh\s+pr\b|\boctokit\b|\bgithubAutomation\b/i, `${filePath} must not implement GitHub automation`);
+    assert.doesNotMatch(source, /\bgit\s+(?:branch|checkout|switch|commit)\b|\bcreateBranch\b|\bcreateCommit\b/i, `${filePath} must not implement git branch or commit creation`);
+    assert.doesNotMatch(source, /\bexecuteCodex\b|\bspawnCodex\b|\brunCodex\b/i, `${filePath} must not execute Codex`);
+    assert.doesNotMatch(source, /\bfeedback.*(?:insert|write|mutate|store)|\bwriteFeedback\b/i, `${filePath} must not write feedback events`);
+    assert.doesNotMatch(source, /\bagentSubstrate.*(?:mutate|execute)|\bmutateAgentSubstrate\b/i, `${filePath} must not mutate or execute Agent Substrate`);
+    assert.doesNotMatch(source, /\bsalience.*(?:insert|write|mutate)\b|\brecentRehearsal.*write\b/i, `${filePath} must not write salience or rehearsal buffers`);
+    assert.doesNotMatch(source, /\bformationReceipt.*(?:insert|write|mutate|update)\b/i, `${filePath} must not write Formation Receipt`);
+    assert.doesNotMatch(source, /\bcreateEvidence\b|\bwriteEvidence\b|\bacceptedEvidence\b/i, `${filePath} must not write proof/evidence`);
+    assert.doesNotMatch(source, /\bpromotePerspective\b|\bpromotionDecision\b|\bapplyPerspectiveDelta\b/i, `${filePath} must not implement Perspective promotion or state mutation`);
+    assert.doesNotMatch(source, /\bmutateWork\b|\bupdateWork\b/i, `${filePath} must not mutate work`);
+    assert.doesNotMatch(source, /\bproductId\b|\bproduct_id\b|\bwriteProduct\b|\bcreateProduct\b/i, `${filePath} must not implement product writes or IDs`);
   }
+  assert.doesNotMatch(builderSource, /from\s+["'][^"']*(?:openai|octokit|github)[^"']*["']/i);
+  assert.doesNotMatch(builderSource, /\bfetch\s*\(/);
 }
 
 function assertImplementationFixture(value) {
   assert.equal(value.implementation_kind, implementationKind);
   assert.equal(value.implementation_version, implementationVersion);
   assert.equal(value.source_contract_ref, sourceContractRef);
-  assert.equal(
-    value.source_contract_fingerprint,
-    contractFixture.contract_fingerprint,
-  );
-  assert.equal(
-    value.implemented_contract.contract_kind,
-    contractFixture.contract_kind,
-  );
-  assert.equal(
-    value.implemented_contract.contract_version,
-    contractFixture.contract_version,
-  );
-  assert.equal(
-    value.implemented_contract.contract_fixture_path,
-    contractFixturePath,
-  );
+  assert.equal(value.source_contract_fingerprint, contractFixture.contract_fingerprint);
+  assert.equal(value.implemented_contract.contract_kind, contractFixture.contract_kind);
+  assert.equal(value.implemented_contract.contract_version, contractFixture.contract_version);
+  assert.equal(value.implemented_contract.contract_fixture_path, contractFixturePath);
   assert.equal(value.implemented_contract.type_contract_path, contractTypePath);
   for (const key of [
     "contract_authority_boundary_preserved",
@@ -485,23 +546,77 @@ function assertImplementationFixture(value) {
     assert.equal(value.implemented_contract[key], true, `${key} must be true`);
   }
   assert.equal(value.deterministic_builder.builder_path, builderPath);
-  assert.equal(
-    value.deterministic_builder.deterministic_fixture_backed_only,
-    true,
-  );
+  assert.equal(value.deterministic_builder.deterministic_fixture_backed_only, true);
   for (const [key, flag] of Object.entries(value.deterministic_builder)) {
     if (key === "builder_path" || key === "deterministic_fixture_backed_only") {
       continue;
     }
     assert.equal(flag, false, `deterministic_builder.${key} must be false`);
   }
-  assert.equal(value.recommendation_status, recommendationStatus);
-  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(value.recommendation_status, implementationRecommendationStatus);
+  assert.equal(value.next_recommended_slice, implementationNextRecommendedSlice);
   assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
   assert.equal(
     value.implementation_fingerprint,
     createDogfoodingResearchToPerspectiveCiExpansionFingerprint(value),
   );
+}
+
+function assertValidationFixture(value) {
+  assert.equal(value.validation_kind, validationKind);
+  assert.equal(value.validation_version, validationVersion);
+  assert.equal(value.source_implementation_ref, sourceImplementationRef);
+  assert.equal(
+    value.source_implementation_fingerprint,
+    implementationFixture.implementation_fingerprint,
+  );
+  assert.equal(value.source_contract_ref, implementationFixture.source_contract_ref);
+  assert.equal(
+    value.source_contract_fingerprint,
+    implementationFixture.source_contract_fingerprint,
+  );
+  assert.equal(value.recommendation_status, recommendationStatus);
+  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
+  assert.equal(
+    value.validation_fingerprint,
+    createDogfoodingResearchToPerspectiveCiExpansionFingerprint({
+      ...value,
+      validation_fingerprint: "",
+    }),
+  );
+}
+
+function assertValidatedBuilder(value) {
+  assert.equal(value.builder_path, builderPath);
+  assert.equal(value.implementation_fixture_path, implementationFixturePath);
+  assert.equal(value.contract_fixture_path, contractFixturePath);
+  assert.equal(value.deterministic_fixture_backed_only, true);
+  for (const [key, flag] of Object.entries(value)) {
+    if (
+      key === "builder_path" ||
+      key === "implementation_fixture_path" ||
+      key === "contract_fixture_path" ||
+      key === "deterministic_fixture_backed_only"
+    ) {
+      continue;
+    }
+    assert.equal(flag, false, `validated_builder.${key} must remain false`);
+  }
+}
+
+function assertValidatedDogfooding(value) {
+  assert.equal(value.implementation_fixture_matches_rebuilt_output, true);
+  assert.equal(value.browser_validation_added_now, true);
+  assert.equal(value.implementation_changed_now, false);
+  assert.equal(value.contract_changed_now, false);
+  for (const [key, flag] of Object.entries(value)) {
+    if (key === "implementation_changed_now" || key === "contract_changed_now") {
+      assert.equal(flag, false, `${key} must remain false`);
+    } else {
+      assert.equal(flag, true, `${key} must be true`);
+    }
+  }
 }
 
 function assertPreviewBundle(bundle) {
@@ -543,63 +658,17 @@ function assertPreviewBundle(bundle) {
   assert.equal(bundle.validation.passed, true);
 }
 
-function assertValidatedImplementation(value) {
-  const requiredTrueFlags = [
-    "preview_bundle_follows_contract",
-    "preview_bundle_authority_boundary_matches_contract",
-    "preview_bundle_validation_policy_matches_contract",
-    "preview_bundle_forbidden_actions_policy_matches_contract",
-    "top_level_implementation_boundary_is_separate",
-    "dogfooding_input_fields_preserved",
-    "dogfooding_output_fields_preserved",
-    "dogfooding_principles_preserved",
-    "dogfooding_section_families_preserved",
-    "forbidden_actions_policy_preserved",
-    "dogfooding_record_candidate_context_not_truth",
-    "ci_signal_not_proof_or_evidence",
-    "smoke_pass_not_truth",
-    "smoke_fail_diagnostic_not_rejection",
-    "codex_result_report_candidate_input_not_execution_proof",
-    "pr_body_operator_report_not_authority",
-    "merge_status_context_not_product_write",
-    "changed_files_review_cues_not_correctness_proof",
-    "validation_commands_review_cues_not_execution_authority",
-    "warnings_diagnostic_not_failure_unless_policy_says_so",
-    "skipped_checks_explicitly_justified",
-    "authority_boundary_regression_candidate_alert_not_mutation",
-    "dogfooding_candidate_remains_candidate_until_future_gate",
-    "product_decision_delta_candidate_later_not_state_now",
-    "public_safe_refs_only",
-    "runtime_dogfooding_ingestion_not_implemented",
-    "dogfooding_record_write_not_implemented",
-    "ci_runtime_change_not_implemented",
-    "github_actions_not_added",
-    "ci_execution_not_implemented",
-    "codex_execution_now_false",
-    "github_automation_now_false",
-    "provider_openai_call_not_implemented",
-    "retrieval_rag_execution_not_implemented",
-    "runtime_db_write_query_not_implemented",
-    "perspective_promotion_not_implemented",
-    "proof_or_evidence_write_not_implemented",
-    "work_mutation_now_false",
-    "product_write_not_implemented",
-    "no_raw_private_source_body",
-    "no_raw_provider_thread_run_session_ids",
-    "no_private_urls",
-    "no_secrets",
-    "no_access_tokens",
-    "no_ssh_keys",
-    "invalid_dogfooding_preview_override_rejected",
-    "invalid_dogfooding_section_override_rejected",
-    "invalid_forbidden_actions_override_rejected",
-    "invalid_authority_boundary_override_rejected",
-    "invalid_refs_override_rejected",
-  ];
-  assert.equal(value.passed, true);
-  assert.deepEqual(value.failure_codes, []);
-  for (const key of requiredTrueFlags) {
-    assert.equal(value[key], true, `validated_implementation.${key} must be true`);
+function assertValidationAuthorityBoundary(value) {
+  assert.equal(value.browser_validation_added_now, true);
+  assert.equal(value.implementation_changed_now, false);
+  assert.equal(value.contract_changed_now, false);
+  assert.equal(value.product_write_lane_parked_by_686, true);
+  for (const [key, flag] of Object.entries(value)) {
+    if (key === "browser_validation_added_now" || key === "product_write_lane_parked_by_686") {
+      assert.equal(flag, true, `${key} must be true`);
+    } else {
+      assert.equal(flag, false, `${key} must remain false`);
+    }
   }
 }
 
@@ -621,114 +690,44 @@ function assertImplementationAuthorityBoundary(value) {
 }
 
 function assertInvalidOverrideCoverage() {
+  assertIncludes(implementationSmokeSource, [
+    "assertInvalidOverrideCoverage",
+    ...requiredDogfoodingPreviewFailureCodes,
+    ...requiredDogfoodingSectionFailureCodes,
+    ...requiredForbiddenActionsFailureCodes,
+    ...requiredAuthorityBoundaryFailureCodes,
+    ...requiredRefsFailureCodes,
+  ]);
   assertFailureCodes(
     "invalid dogfooding preview override",
     invalidDogfoodingPreviewValidation().failure_codes,
-    [
-      "dogfooding_preview_missing_preview_id",
-      "dogfooding_preview_missing_source_refs",
-      "dogfooding_preview_runtime_write_enabled",
-      "dogfooding_preview_not_public_safe",
-      "dogfooding_preview_ci_runtime_change_enabled",
-      "dogfooding_preview_github_actions_added",
-      "dogfooding_preview_ci_execution_enabled",
-      "dogfooding_preview_smoke_pass_truth_enabled",
-      "dogfooding_preview_smoke_fail_rejection_enabled",
-      "dogfooding_preview_codex_execution_proof_enabled",
-      "dogfooding_preview_changed_files_correctness_enabled",
-      "dogfooding_preview_product_write_enabled",
-    ],
+    requiredDogfoodingPreviewFailureCodes,
   );
   assertFailureCodes(
     "invalid dogfooding section override",
     invalidDogfoodingSectionValidation().failure_codes,
-    [
-      "dogfooding_section_missing_section_kind",
-      "dogfooding_section_unknown_section_kind",
-      "dogfooding_section_runtime_write_enabled",
-      "source_pr_github_authority_enabled",
-      "codex_result_execution_proof_enabled",
-      "changed_files_correctness_proof_enabled",
-      "validation_matrix_execution_authority_enabled",
-      "validation_matrix_smoke_pass_truth_enabled",
-      "validation_matrix_smoke_fail_rejection_enabled",
-      "warning_treated_as_failure_without_policy",
-      "skipped_check_missing_reason",
-      "authority_boundary_regression_mutation_enabled",
-      "candidate_review_implication_proof_enabled",
-      "perspective_delta_candidate_durable_state_enabled",
-      "ci_expansion_candidate_github_actions_added",
-    ],
+    requiredDogfoodingSectionFailureCodes,
   );
   assertFailureCodes(
     "invalid forbidden actions override",
     invalidForbiddenActionsValidation().failure_codes,
-    [
-      "forbidden_action_missing_no_runtime_dogfooding_ingestion",
-      "forbidden_action_missing_no_dogfooding_record_write",
-      "forbidden_action_missing_no_ci_runtime_change",
-      "forbidden_action_missing_no_github_actions_addition",
-      "forbidden_action_missing_no_ci_execution",
-      "forbidden_action_missing_no_codex_execution",
-      "forbidden_action_missing_no_github_automation",
-      "forbidden_action_missing_no_provider_openai_call",
-      "forbidden_action_missing_no_retrieval_rag_execution",
-      "forbidden_action_missing_no_db_write_or_query",
-      "forbidden_action_missing_no_perspective_promotion",
-      "forbidden_action_missing_no_product_write",
-    ],
+    requiredForbiddenActionsFailureCodes,
   );
   const authorityCodes = uniqueSorted([
     ...invalidAuthorityBoundaryValidation().failure_codes,
     ...invalidImplementationAuthorityBoundaryValidation()
       .validated_implementation.failure_codes,
   ]);
-  assertFailureCodes("invalid authority boundary override", authorityCodes, [
-    "runtime_dogfooding_ingestion_enabled",
-    "dogfooding_record_write_enabled",
-    "ci_runtime_change_enabled",
-    "github_actions_added_enabled",
-    "ci_execution_enabled",
-    "codex_execution_enabled",
-    "github_automation_enabled",
-    "github_pr_creation_enabled",
-    "git_branch_creation_enabled",
-    "git_commit_creation_enabled",
-    "feedback_event_write_enabled",
-    "agent_substrate_mutation_enabled",
-    "provider_openai_call_enabled",
-    "retrieval_rag_execution_enabled",
-    "durable_perspective_state_write_enabled",
-    "durable_perspective_delta_apply_enabled",
-    "proof_or_evidence_record_write_enabled",
-    "accepted_evidence_write_enabled",
-    "work_mutation_enabled",
-    "runtime_db_query_enabled",
-    "runtime_db_write_enabled",
-    "dogfooding_authority_enabled",
-    "ci_authority_enabled",
-    "github_actions_authority_enabled",
-    "validation_pass_truth_authority_enabled",
-    "validation_failure_rejection_authority_enabled",
-    "codex_result_execution_authority_enabled",
-    "pr_body_authority_enabled",
-    "changed_files_correctness_authority_enabled",
-    "boundary_regression_mutation_authority_enabled",
-    "product_write_enabled",
-    "product_id_allocation_enabled",
-  ]);
-  assertFailureCodes("invalid refs override", invalidRefsValidation().failure_codes, [
-    "dogfooding_preview_id_missing",
-    "private_or_unstable_ref_detected",
-    "source_refs_missing",
-    "pr_ref_missing",
-    "codex_result_report_ref_missing",
-    "validation_matrix_ref_missing",
-    "raw_private_source_body_detected",
-    "raw_provider_thread_run_session_id_detected",
-    "access_token_detected",
-    "ssh_key_detected",
-  ]);
+  assertFailureCodes(
+    "invalid authority boundary override",
+    authorityCodes,
+    requiredAuthorityBoundaryFailureCodes,
+  );
+  assertFailureCodes(
+    "invalid refs override",
+    invalidRefsValidation().failure_codes,
+    requiredRefsFailureCodes,
+  );
 }
 
 function invalidDogfoodingPreviewValidation() {
@@ -971,12 +970,21 @@ function invalidRefsValidation() {
 
 function assertDocsPointers() {
   assertIncludes(indexDoc, [
-    "Dogfooding Research-to-Perspective CI Expansion implementation v0.1",
-    builderPath,
-    implementationFixturePath,
+    "Dogfooding Research-to-Perspective CI Expansion browser validation v0.1",
+    validationFixturePath,
     smokePath,
-    "deterministic fixture-backed implementation only",
-    "validates and materializes #755 Dogfooding Research-to-Perspective CI Expansion preview bundle",
+    "validates deterministic fixture-backed implementation from #756",
+    "validates #755 contract boundary and #756 top-level implementation boundary separation",
+    "validates built Dogfooding Research-to-Perspective CI Expansion preview bundle",
+    "validates dogfooding principle summary",
+    "validates dogfooding section family summary",
+    "validates forbidden actions summary",
+    "validates reference summary",
+    "validates invalid dogfooding preview override rejection",
+    "validates invalid dogfooding section override rejection",
+    "validates invalid forbidden actions override rejection",
+    "validates invalid authority boundary override rejection",
+    "validates invalid refs override rejection",
     "dogfooding record is candidate/review context, not source of truth",
     "CI signal is validation signal, not proof/evidence",
     "smoke pass is not truth",
@@ -1009,15 +1017,15 @@ function assertDocsPointers() {
     nextRecommendedSlice,
   ]);
   assertIncludes(substrateDoc, [
-    "Dogfooding Research-to-Perspective CI Expansion implementation is deterministic fixture-backed only.",
-    "It materializes preview bundles from the #755 contract.",
+    "Dogfooding Research-to-Perspective CI Expansion browser validation validates the deterministic fixture-backed #756 implementation.",
+    "It validates public-safe Dogfooding Research-to-Perspective CI Expansion preview bundles against the #755 contract.",
     "Agent Substrate remains advisory-only and cannot treat smoke pass/fail, PR body, Codex result, or changed files as truth/authority.",
     "This slice does not add GitHub Actions, CI runtime, dogfooding ingestion, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, work mutation, or product write.",
-    "Next recommended slice is Dogfooding Research-to-Perspective CI Expansion browser validation v0.1.",
+    "Next recommended slice is Dogfooding Research-to-Perspective CI Expansion closeout v0.1.",
   ]);
   for (const doc of [surfaceDoc, gateDoc]) {
     assertIncludes(doc, [
-      "Dogfooding CI expansion implementation remains separated from candidate preview, feedback runtime, durable Perspective state, promotion runtime, and execution.",
+      "Dogfooding CI expansion validation remains separated from candidate preview, feedback runtime, durable Perspective state, promotion runtime, and execution.",
       "Dogfooding signals remain candidate/review context.",
       "Smoke pass is not truth.",
       "Smoke fail is diagnostic, not automatic rejection.",
@@ -1028,116 +1036,22 @@ function assertDocsPointers() {
   }
 }
 
-function assertContractSmokeDownstreamPointer() {
-  assertIncludes(contractSmokeSource, [
-    "dogfoodingResearchToPerspectiveCiExpansionImplementationSliceActive",
-    builderPath,
-    implementationFixturePath,
+function assertImplementationSmokeDownstreamPointer() {
+  assertIncludes(implementationSmokeSource, [
+    "browserValidationSliceActive",
+    validationVersion,
+    validationFixturePath,
     smokePath,
     packageScriptName,
     packageScriptValue,
-    implementationVersion,
     recommendationStatus,
     nextRecommendedSlice,
   ]);
 }
 
-function assertBrowserValidationDownstreamPointer() {
-  if (!browserValidationSliceActive()) return;
-  assert.ok(existsSync(browserValidationFixturePath));
-  assert.ok(existsSync(browserValidationSmokePath));
-  assert.equal(
-    packageJson.scripts[browserValidationPackageScriptName],
-    browserValidationPackageScriptValue,
-  );
-  const validationFixture = readJson(browserValidationFixturePath);
-  assert.equal(validationFixture.validation_version, browserValidationVersion);
-  assert.equal(
-    validationFixture.recommendation_status,
-    browserValidationRecommendationStatus,
-  );
-  assert.equal(
-    validationFixture.next_recommended_slice,
-    browserValidationNextRecommendedSlice,
-  );
-}
-
-function assertBrowserValidationPackageScript() {
-  assert.equal(
-    packageJson.scripts[browserValidationPackageScriptName],
-    browserValidationPackageScriptValue,
-  );
-  const packageAddedLines = readGitOutput([
-    "diff",
-    "--unified=0",
-    mergeBaseRef(),
-    "--",
-    packagePath,
-  ])
-    .split("\n")
-    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
-  const addedScriptNames = packageAddedLines
-    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
-    .filter(Boolean)
-    .sort();
-  assert.deepEqual(
-    addedScriptNames,
-    [browserValidationPackageScriptName],
-    "package.json must add only the Dogfooding Research-to-Perspective CI Expansion browser validation smoke script",
-  );
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
-  assert.doesNotMatch(
-    packageAddedLines.join("\n"),
-    /"optionalDependencies"\s*:/,
-  );
-  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
-  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
-  assert.deepEqual(
-    packageJson.optionalDependencies ?? {},
-    basePackageJson.optionalDependencies ?? {},
-  );
-}
-
-function assertBrowserValidationChangedFiles(changedFiles) {
-  const expected = [
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    smokePath,
-    packagePath,
-    indexPath,
-    substrateDocPath,
-    surfaceDocPath,
-    gateDocPath,
-  ];
-  for (const filePath of expected) {
-    assert.ok(changedFiles.includes(filePath), `browser validation slice must include ${filePath}`);
-  }
-  for (const protectedPath of [
-    builderPath,
-    implementationFixturePath,
-    contractTypePath,
-    contractFixturePath,
-  ]) {
-    assert.ok(
-      !changedFiles.includes(protectedPath),
-      `browser validation slice must not change ${protectedPath}`,
-    );
-  }
-}
-
-function browserValidationSliceActive() {
-  return readChangedFiles().includes(browserValidationSmokePath);
-}
-
 function assertPortableMergeBaseFallback() {
   assert.ok(mergeBaseRef(), "mergeBaseRef must resolve");
-  for (const requiredText of [
-    "origin/main",
-    "main",
-    "HEAD^",
-    "Unable to resolve merge base",
-  ]) {
+  for (const requiredText of ["origin/main", "main", "HEAD^", "Unable to resolve merge base"]) {
     assert.ok(smokeSource.includes(requiredText), `${smokePath} must include ${requiredText}`);
   }
 }
@@ -1233,6 +1147,10 @@ function stripNonCode(source) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function deepEqual(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function uniqueSorted(values) {

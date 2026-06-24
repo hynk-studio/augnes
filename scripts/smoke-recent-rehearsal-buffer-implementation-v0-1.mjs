@@ -3341,6 +3341,107 @@ function readJsonFromGit(filePath) {
 }
 
 
+function dogfoodingResearchToPerspectiveCiExpansionBrowserValidationSliceActive() {
+  return readChangedFiles().includes(
+    "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1.mjs",
+  );
+}
+
+function assertDogfoodingResearchToPerspectiveCiExpansionBrowserValidationPackageScript() {
+  const browserValidationPackageScriptName =
+    "smoke:dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1";
+  const browserValidationPackageScriptValue =
+    "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1.mjs";
+  const dogfoodingBasePackageJson =
+    typeof basePackageJson !== "undefined"
+      ? basePackageJson
+      : JSON.parse(
+          readGitOutput(["show", mergeBaseRef() + ":" + packagePath]),
+        );
+  assert.equal(
+    packageJson.scripts[browserValidationPackageScriptName],
+    browserValidationPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [browserValidationPackageScriptName],
+    "package.json must add only the Dogfooding Research-to-Perspective CI Expansion browser validation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, dogfoodingBasePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, dogfoodingBasePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    dogfoodingBasePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertDogfoodingResearchToPerspectiveCiExpansionBrowserValidationChangedFiles(changedFiles) {
+  const expected = [
+    "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-browser-validation.sample.v0.1.json",
+    "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1.mjs",
+    "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-implementation-v0-1.mjs",
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ];
+  for (const filePath of expected) {
+    assert.ok(changedFiles.includes(filePath), "dogfooding browser validation slice must include " + filePath);
+  }
+  for (const protectedPath of [
+    "types/dogfooding-research-to-perspective-ci-expansion-contract.ts",
+    "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-contract.sample.v0.1.json",
+    "lib/research-candidate-review/dogfooding-research-to-perspective-ci-expansion.ts",
+    "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-implementation.sample.v0.1.json",
+    "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-closeout.sample.v0.1.json",
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(protectedPath),
+      "Dogfooding Research-to-Perspective CI Expansion browser validation slice must not change " + protectedPath,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    const allowedDownstreamSmoke =
+      changedFile.startsWith("scripts/smoke-") &&
+      changedFile.endsWith(".mjs") &&
+      !expected.includes(changedFile) &&
+      readFileSync(changedFile, "utf8").includes(
+        "dogfoodingResearchToPerspectiveCiExpansionBrowserValidationSliceActive",
+      );
+    assert.ok(
+      expected.includes(changedFile) || allowedDownstreamSmoke,
+      "unexpected changed file in Dogfooding Research-to-Perspective CI Expansion browser validation slice: " + changedFile,
+    );
+    if (allowedDownstreamSmoke) continue;
+    assert.doesNotMatch(changedFile, /^\.github\/workflows\//, "must not change GitHub Actions workflows");
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
 function dogfoodingResearchToPerspectiveCiExpansionImplementationSliceActive() {
   return readChangedFiles().includes(
     "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-implementation-v0-1.mjs",
@@ -3348,6 +3449,10 @@ function dogfoodingResearchToPerspectiveCiExpansionImplementationSliceActive() {
 }
 
 function assertDogfoodingResearchToPerspectiveCiExpansionImplementationPackageScript() {
+  if (dogfoodingResearchToPerspectiveCiExpansionBrowserValidationSliceActive()) {
+    assertDogfoodingResearchToPerspectiveCiExpansionBrowserValidationPackageScript();
+    return;
+  }
   const implementationPackageScriptName =
     "smoke:dogfooding-research-to-perspective-ci-expansion-implementation-v0-1";
   const implementationPackageScriptValue =
@@ -3392,6 +3497,10 @@ function assertDogfoodingResearchToPerspectiveCiExpansionImplementationPackageSc
 }
 
 function assertDogfoodingResearchToPerspectiveCiExpansionImplementationChangedFiles(changedFiles) {
+  if (dogfoodingResearchToPerspectiveCiExpansionBrowserValidationSliceActive()) {
+    assertDogfoodingResearchToPerspectiveCiExpansionBrowserValidationChangedFiles(changedFiles);
+    return;
+  }
   const expected = [
     "lib/research-candidate-review/dogfooding-research-to-perspective-ci-expansion.ts",
     "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-implementation.sample.v0.1.json",
