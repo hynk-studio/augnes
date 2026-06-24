@@ -1443,3 +1443,15 @@ This slice does not implement runtime DB/browser/provider/source-fetch/retrieval
 Product-write remains parked by #686.
 Next recommended slice is Perspective Packet Receipt Linkage browser validation v0.1.
 `perspective_packet_receipt_linkage_browser_validation_v0_1`
+
+Perspective Packet Receipt Linkage validation remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.
+Selected candidates remain candidates, not proof/evidence or durable state.
+Omitted candidates remain visible and omission is not rejection.
+Deferred candidates remain visible and deferral is not rejection.
+Unresolved tensions and knowledge gaps must remain visible.
+Codex Handoff Draft remains draft, not execution approval.
+Linkage cannot execute Codex, create branches, create commits, create PRs, call providers, run retrieval/RAG, mutate state/work, write Formation Receipt, write audit logs, or write product data.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/layout/digest/packet/handoff/linkage behavior.
+Product-write remains parked by #686.
+Next recommended slice is Agent Perspective Substrate Feedback Loop contract v0.1.
+`agent_perspective_substrate_feedback_loop_contract_v0_1`

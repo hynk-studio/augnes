@@ -10,7 +10,11 @@ const contractFixturePath =
   "fixtures/research-candidate-review.perspective-packet-receipt-linkage-contract.sample.v0.1.json";
 const implementationFixturePath =
   "fixtures/research-candidate-review.perspective-packet-receipt-linkage-implementation.sample.v0.1.json";
+const fixturePath =
+  "fixtures/research-candidate-review.perspective-packet-receipt-linkage-browser-validation.sample.v0.1.json";
 const smokePath =
+  "scripts/smoke-perspective-packet-receipt-linkage-browser-validation-v0-1.mjs";
+const implementationSmokePath =
   "scripts/smoke-perspective-packet-receipt-linkage-implementation-v0-1.mjs";
 const contractSmokePath =
   "scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs";
@@ -22,31 +26,24 @@ const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
 
 const packageScriptName =
-  "smoke:perspective-packet-receipt-linkage-implementation-v0-1";
+  "smoke:perspective-packet-receipt-linkage-browser-validation-v0-1";
 const packageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-packet-receipt-linkage-implementation-v0-1.mjs";
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-packet-receipt-linkage-browser-validation-v0-1.mjs";
+const validationKind = "perspective_packet_receipt_linkage_browser_validation";
+const validationVersion =
+  "perspective_packet_receipt_linkage_browser_validation.v0.1";
 const implementationKind =
   "perspective_packet_receipt_linkage_implementation";
 const implementationVersion =
   "perspective_packet_receipt_linkage_implementation.v0.1";
 const previewVersion = "perspective_packet_receipt_linkage_preview.v0.1";
-const recommendationStatus =
+const implementationRecommendationStatus =
   "ready_for_perspective_packet_receipt_linkage_browser_validation_v0_1";
-const nextRecommendedSlice =
+const implementationNextRecommendedSlice =
   "perspective_packet_receipt_linkage_browser_validation_v0_1";
-const browserValidationFixturePath =
-  "fixtures/research-candidate-review.perspective-packet-receipt-linkage-browser-validation.sample.v0.1.json";
-const browserValidationSmokePath =
-  "scripts/smoke-perspective-packet-receipt-linkage-browser-validation-v0-1.mjs";
-const browserValidationPackageScriptName =
-  "smoke:perspective-packet-receipt-linkage-browser-validation-v0-1";
-const browserValidationPackageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-packet-receipt-linkage-browser-validation-v0-1.mjs";
-const browserValidationVersion =
-  "perspective_packet_receipt_linkage_browser_validation.v0.1";
-const browserValidationRecommendationStatus =
+const recommendationStatus =
   "ready_for_agent_perspective_substrate_feedback_loop_contract_v0_1";
-const browserValidationNextRecommendedSlice =
+const nextRecommendedSlice =
   "agent_perspective_substrate_feedback_loop_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
@@ -108,19 +105,23 @@ const downstreamSmokePaths = [
 ];
 
 const expectedChangedFiles = [
-  builderPath,
-  implementationFixturePath,
+  fixturePath,
   smokePath,
   packagePath,
   indexPath,
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  implementationSmokePath,
   contractSmokePath,
   ...downstreamSmokePaths,
 ];
 
 const protectedUnchangedPaths = [
+  builderPath,
+  contractTypePath,
+  contractFixturePath,
+  implementationFixturePath,
   contractTypePath,
   contractFixturePath,
   "fixtures/research-candidate-review.codex-handoff-draft-browser-validation.sample.v0.1.json",
@@ -144,6 +145,7 @@ for (const filePath of [
   contractTypePath,
   contractFixturePath,
   smokePath,
+  implementationSmokePath,
   contractSmokePath,
   packagePath,
   indexPath,
@@ -154,14 +156,16 @@ for (const filePath of [
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
 if (!writeFixture) {
-  assert.ok(existsSync(implementationFixturePath), `${implementationFixturePath} must exist`);
+  assert.ok(existsSync(fixturePath), `${fixturePath} must exist`);
 }
 
 const builderSource = readFile(builderPath);
 const smokeSource = readFile(smokePath);
+const implementationSmokeSource = readFile(implementationSmokePath);
 const contractSmokeSource = readFile(contractSmokePath);
 const contractTypeSource = readFile(contractTypePath);
 const contractFixture = readJson(contractFixturePath);
+const implementationFixture = readJson(implementationFixturePath);
 const packageJson = readJson(packagePath);
 const basePackageJson = readJsonFromGit(packagePath);
 const indexDoc = readFile(indexPath);
@@ -183,71 +187,161 @@ const rebuiltImplementationFixture =
     perspective_packet_receipt_linkage_contract: contractFixture,
     source_contract_ref: sourceContractRef,
   });
+const rebuiltFixture = buildValidationFixture();
 
 if (writeFixture) {
-  writeFileSync(
-    implementationFixturePath,
-    `${JSON.stringify(rebuiltImplementationFixture, null, 2)}\n`,
-  );
+  writeFileSync(fixturePath, `${JSON.stringify(rebuiltFixture, null, 2)}\n`);
   process.exit(0);
 }
 
-const fixture = readJson(implementationFixturePath);
+const fixture = readJson(fixturePath);
 
 assertContractArtifactsUnchanged();
 assertRequiredExports();
 assertPackageScript();
 assertStaticBoundary();
 assertNoForbiddenRuntimePatterns();
-assertImplementationFixture(fixture);
-assertPreviewBundle(
-  fixture.built_perspective_packet_receipt_linkage_preview_bundle,
+assert.deepEqual(
+  implementationFixture,
+  rebuiltImplementationFixture,
+  "#749 implementation fixture must match rebuilt deterministic output",
 );
-assertValidatedImplementation(fixture.validated_implementation);
-assertImplementationAuthorityBoundary(fixture.authority_boundary);
-assertInvalidOverrideCoverage();
-assertDocsPointers();
-assertContractSmokeDownstreamPointer();
-assertBrowserValidationDownstreamPointer();
-assertPortableMergeBaseFallback();
 assert.deepEqual(
   fixture,
-  rebuiltImplementationFixture,
-  "rebuilt Perspective Packet Receipt Linkage implementation fixture must match committed fixture",
+  rebuiltFixture,
+  "rebuilt Perspective Packet Receipt Linkage browser validation fixture must match committed fixture",
 );
+assertValidationFixture(fixture);
+assertValidatedBuilder(fixture.validated_builder);
+assertValidatedLinkage(fixture.validated_perspective_packet_receipt_linkage);
+assertImplementationFixture(implementationFixture);
+assertPreviewBundle(
+  implementationFixture.built_perspective_packet_receipt_linkage_preview_bundle,
+);
+assertValidationAuthorityBoundary(fixture.authority_boundary);
+assertImplementationAuthorityBoundary(implementationFixture.authority_boundary);
+assertInvalidOverrideCoverage();
+assertDocsPointers();
+assertImplementationSmokeDownstreamPointer();
+assertContractSmokeDownstreamPointer();
+assertPortableMergeBaseFallback();
 
 console.log(
   JSON.stringify(
     {
-      smoke: "perspective-packet-receipt-linkage-implementation-v0-1",
+      smoke: "perspective-packet-receipt-linkage-browser-validation-v0-1",
       final_status: "pass",
-      implementation_kind: fixture.implementation_kind,
-      implementation_version: fixture.implementation_version,
+      validation_kind: fixture.validation_kind,
+      validation_version: fixture.validation_version,
+      source_implementation_fingerprint:
+        fixture.source_implementation_fingerprint,
       source_contract_fingerprint: fixture.source_contract_fingerprint,
+      implementation_fixture_matches_rebuilt_output:
+        fixture.validated_perspective_packet_receipt_linkage
+          .implementation_fixture_matches_rebuilt_output,
       preview_bundle_follows_contract:
-        fixture.validated_implementation.preview_bundle_follows_contract,
+        fixture.validated_perspective_packet_receipt_linkage
+          .preview_bundle_follows_contract,
       linkage_principles_preserved:
-        fixture.validated_implementation.linkage_principles_preserved,
+        fixture.validated_perspective_packet_receipt_linkage
+          .linkage_principles_preserved,
       linkage_section_families_preserved:
-        fixture.validated_implementation.linkage_section_families_preserved,
+        fixture.validated_perspective_packet_receipt_linkage
+          .linkage_section_families_preserved,
       runtime_linkage_build_not_implemented:
-        fixture.validated_implementation.runtime_linkage_build_not_implemented,
+        fixture.validated_perspective_packet_receipt_linkage
+          .runtime_linkage_build_not_implemented,
       linkage_record_write_not_implemented:
-        fixture.validated_implementation.linkage_record_write_not_implemented,
+        fixture.validated_perspective_packet_receipt_linkage
+          .linkage_record_write_not_implemented,
       formation_receipt_write_not_implemented:
-        fixture.validated_implementation.formation_receipt_write_not_implemented,
+        fixture.validated_perspective_packet_receipt_linkage
+          .formation_receipt_write_not_implemented,
       codex_execution_now_false:
-        fixture.validated_implementation.codex_execution_now_false,
+        fixture.validated_perspective_packet_receipt_linkage
+          .codex_execution_now_false,
       github_pr_creation_now_false:
-        fixture.validated_implementation.github_pr_creation_now_false,
+        fixture.validated_perspective_packet_receipt_linkage
+          .github_pr_creation_now_false,
       product_write_not_implemented:
-        fixture.validated_implementation.product_write_not_implemented,
+        fixture.validated_perspective_packet_receipt_linkage
+          .product_write_not_implemented,
+      linkage_record_write_now:
+        fixture.authority_boundary.linkage_record_write_now,
+      durable_audit_log_write_now:
+        fixture.authority_boundary.durable_audit_log_write_now,
       next_recommended_slice: fixture.next_recommended_slice,
     },
     null,
     2,
   ),
 );
+
+function buildValidationFixture() {
+  const {
+    passed: _passed,
+    failure_codes: _failureCodes,
+    ...implementationValidation
+  } = implementationFixture.validated_implementation;
+  const {
+    builder_path: _builderPath,
+    ...deterministicBuilderFlags
+  } = implementationFixture.deterministic_builder;
+  const validatedLinkage = {
+    implementation_fixture_matches_rebuilt_output: deepEqual(
+      implementationFixture,
+      rebuiltImplementationFixture,
+    ),
+    ...implementationValidation,
+    browser_validation_added_now: true,
+    implementation_changed_now: false,
+    contract_changed_now: false,
+  };
+  const validation = {
+    validation_kind: validationKind,
+    validation_version: validationVersion,
+    source_implementation_ref:
+      `${implementationFixture.implementation_version}:${implementationFixturePath}#749`,
+    source_implementation_fingerprint:
+      implementationFixture.implementation_fingerprint,
+    source_contract_ref: implementationFixture.source_contract_ref,
+    source_contract_fingerprint:
+      implementationFixture.source_contract_fingerprint,
+    validated_builder: {
+      builder_path: builderPath,
+      implementation_fixture_path: implementationFixturePath,
+      contract_fixture_path: contractFixturePath,
+      ...deterministicBuilderFlags,
+    },
+    validated_perspective_packet_receipt_linkage: validatedLinkage,
+    authority_boundary: buildValidationAuthorityBoundary(),
+    recommendation_status: recommendationStatus,
+    next_recommended_slice: nextRecommendedSlice,
+    validation_fingerprint: "",
+    fingerprint_algorithm: "fnv1a32_canonical_json",
+  };
+  validation.validation_fingerprint =
+    createPerspectivePacketReceiptLinkageFingerprint({
+      ...validation,
+      validation_fingerprint: "",
+    });
+  return validation;
+}
+
+function buildValidationAuthorityBoundary() {
+  const {
+    implementation_added_now: _implementationAddedNow,
+    deterministic_builder_added_now: _deterministicBuilderAddedNow,
+    contract_changed_now: _contractChangedNow,
+    ...implementationBoundary
+  } = implementationFixture.authority_boundary;
+  return {
+    browser_validation_added_now: true,
+    implementation_changed_now: false,
+    contract_changed_now: false,
+    ...implementationBoundary,
+  };
+}
 
 function assertContractArtifactsUnchanged() {
   assert.deepEqual(
@@ -259,6 +353,16 @@ function assertContractArtifactsUnchanged() {
     contractTypeSource,
     readTextFromGit(contractTypePath),
     "#748 Perspective Packet Receipt Linkage type contract must not change",
+  );
+  assert.equal(
+    builderSource,
+    readTextFromGit(builderPath),
+    "#749 Perspective Packet Receipt Linkage builder must not change",
+  );
+  assert.deepEqual(
+    implementationFixture,
+    readJsonFromGit(implementationFixturePath),
+    "#749 Perspective Packet Receipt Linkage implementation fixture must not change",
   );
 }
 
@@ -277,10 +381,6 @@ function assertRequiredExports() {
 }
 
 function assertPackageScript() {
-  if (browserValidationSliceActive()) {
-    assertBrowserValidationPackageScript();
-    return;
-  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -298,7 +398,7 @@ function assertPackageScript() {
   assert.deepEqual(
     addedScriptNames,
     [packageScriptName],
-    "package.json must add only the Perspective Packet Receipt Linkage implementation smoke script",
+    "package.json must add only the Perspective Packet Receipt Linkage browser validation smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
@@ -313,23 +413,19 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  if (browserValidationSliceActive()) {
-    assertBrowserValidationChangedFiles(changedFiles);
-    return;
-  }
   for (const expectedFile of expectedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const unchangedPath of protectedUnchangedPaths) {
     assert.ok(
       !changedFiles.includes(unchangedPath),
-      `Perspective Packet Receipt Linkage implementation slice must not change ${unchangedPath}`,
+      `Perspective Packet Receipt Linkage browser validation slice must not change ${unchangedPath}`,
     );
   }
   for (const changedFile of changedFiles) {
     assert.ok(
       expectedChangedFiles.includes(changedFile),
-      `unexpected changed file in Perspective Packet Receipt Linkage implementation slice: ${changedFile}`,
+      `unexpected changed file in Perspective Packet Receipt Linkage browser validation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
     assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
@@ -345,8 +441,8 @@ function assertNoForbiddenRuntimePatterns() {
     (filePath) =>
       (filePath.endsWith(".ts") || filePath.endsWith(".mjs")) &&
       filePath !== smokePath &&
+      filePath !== implementationSmokePath &&
       filePath !== contractSmokePath &&
-      filePath !== browserValidationSmokePath &&
       !downstreamSmokePaths.includes(filePath),
   );
   for (const filePath of changedCodeFiles) {
@@ -396,13 +492,73 @@ function assertImplementationFixture(value) {
     if (key === "builder_path" || key === "deterministic_fixture_backed_only") continue;
     assert.equal(flag, false, `deterministic_builder.${key} must be false`);
   }
-  assert.equal(value.recommendation_status, recommendationStatus);
-  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(value.recommendation_status, implementationRecommendationStatus);
+  assert.equal(value.next_recommended_slice, implementationNextRecommendedSlice);
   assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
   assert.equal(
     value.implementation_fingerprint,
     createPerspectivePacketReceiptLinkageFingerprint(value),
   );
+}
+
+function assertValidationFixture(value) {
+  assert.equal(value.validation_kind, validationKind);
+  assert.equal(value.validation_version, validationVersion);
+  assert.equal(
+    value.source_implementation_ref,
+    `${implementationFixture.implementation_version}:${implementationFixturePath}#749`,
+  );
+  assert.equal(
+    value.source_implementation_fingerprint,
+    implementationFixture.implementation_fingerprint,
+  );
+  assert.equal(value.source_contract_ref, implementationFixture.source_contract_ref);
+  assert.equal(
+    value.source_contract_fingerprint,
+    implementationFixture.source_contract_fingerprint,
+  );
+  assert.equal(value.recommendation_status, recommendationStatus);
+  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
+  assert.equal(
+    value.validation_fingerprint,
+    createPerspectivePacketReceiptLinkageFingerprint({
+      ...value,
+      validation_fingerprint: "",
+    }),
+  );
+}
+
+function assertValidatedBuilder(value) {
+  assert.equal(value.builder_path, builderPath);
+  assert.equal(value.implementation_fixture_path, implementationFixturePath);
+  assert.equal(value.contract_fixture_path, contractFixturePath);
+  assert.equal(value.deterministic_fixture_backed_only, true);
+  for (const [key, flag] of Object.entries(value)) {
+    if (
+      key === "builder_path" ||
+      key === "implementation_fixture_path" ||
+      key === "contract_fixture_path" ||
+      key === "deterministic_fixture_backed_only"
+    ) {
+      continue;
+    }
+    assert.equal(flag, false, `validated_builder.${key} must remain false`);
+  }
+}
+
+function assertValidatedLinkage(value) {
+  assert.equal(value.implementation_fixture_matches_rebuilt_output, true);
+  assert.equal(value.browser_validation_added_now, true);
+  assert.equal(value.implementation_changed_now, false);
+  assert.equal(value.contract_changed_now, false);
+  for (const [key, flag] of Object.entries(value)) {
+    if (key === "implementation_changed_now" || key === "contract_changed_now") {
+      assert.equal(flag, false, `${key} must remain false`);
+    } else {
+      assert.equal(flag, true, `${key} must be true`);
+    }
+  }
 }
 
 function assertPreviewBundle(bundle) {
@@ -441,88 +597,17 @@ function assertPreviewBundle(bundle) {
   assert.equal(bundle.validation.passed, true);
 }
 
-function assertValidatedImplementation(value) {
-  const requiredTrueFlags = [
-    "preview_bundle_follows_contract",
-    "preview_bundle_authority_boundary_matches_contract",
-    "preview_bundle_validation_policy_matches_contract",
-    "preview_bundle_forbidden_actions_policy_matches_contract",
-    "top_level_implementation_boundary_is_separate",
-    "linkage_input_fields_preserved",
-    "linkage_output_fields_preserved",
-    "linkage_principles_preserved",
-    "linkage_section_families_preserved",
-    "forbidden_actions_policy_preserved",
-    "linkage_is_provenance_not_execution_authority",
-    "linkage_is_derived_public_safe_advisory_only",
-    "linkage_not_source_of_truth",
-    "linkage_not_proof_or_evidence",
-    "linkage_not_completion_proof",
-    "linkage_not_durable_perspective_state",
-    "linkage_not_work_status",
-    "linkage_not_product_write",
-    "linkage_does_not_prove_codex_ran",
-    "linkage_does_not_prove_pr_created",
-    "linkage_does_not_prove_validation_passed",
-    "linkage_does_not_create_formation_receipt_now",
-    "formation_receipt_ref_future_only",
-    "decision_or_handoff_ref_future_only",
-    "source_refs_required",
-    "authority_boundary_required",
-    "forbidden_actions_required",
-    "stop_conditions_required",
-    "selected_candidates_remain_candidates",
-    "omitted_candidates_remain_visible",
-    "deferred_candidates_remain_visible",
-    "unresolved_tensions_preserved",
-    "knowledge_gaps_preserved",
-    "candidate_durable_distinction_preserved",
-    "ai_context_packet_context_not_execution_authority",
-    "codex_handoff_draft_not_execution_approval",
-    "perspective_geometry_digest_interpretation_not_truth",
-    "expected_files_hints_not_write_authority",
-    "expected_checks_hints_not_execution_authority",
-    "final_report_template_not_completion_proof",
-    "runtime_linkage_build_not_implemented",
-    "linkage_record_write_not_implemented",
-    "durable_audit_log_write_not_implemented",
-    "formation_receipt_write_not_implemented",
-    "codex_execution_now_false",
-    "github_automation_now_false",
-    "github_pr_creation_now_false",
-    "git_branch_commit_creation_now_false",
-    "external_handoff_sending_now_false",
-    "agent_routing_execution_now_false",
-    "provider_openai_call_not_implemented",
-    "retrieval_rag_execution_not_implemented",
-    "runtime_geometry_digest_build_not_implemented",
-    "runtime_layout_execution_not_implemented",
-    "graph_mutation_now_false",
-    "runtime_state_read_write_not_implemented",
-    "durable_perspective_delta_apply_not_implemented",
-    "proof_or_evidence_write_not_implemented",
-    "accepted_evidence_write_not_implemented",
-    "work_mutation_now_false",
-    "runtime_db_write_query_not_implemented",
-    "durable_memory_write_not_implemented",
-    "product_write_not_implemented",
-    "public_safe_refs_only",
-    "no_raw_private_source_body",
-    "no_raw_provider_thread_run_session_ids",
-    "no_private_urls",
-    "no_secrets",
-    "no_access_tokens",
-    "no_ssh_keys",
-    "invalid_linkage_preview_override_rejected",
-    "invalid_linkage_section_override_rejected",
-    "invalid_forbidden_actions_override_rejected",
-    "invalid_authority_boundary_override_rejected",
-    "invalid_refs_override_rejected",
-  ];
-  assert.equal(value.passed, true);
-  assert.deepEqual(value.failure_codes, []);
-  for (const key of requiredTrueFlags) {
-    assert.equal(value[key], true, `validated_implementation.${key} must be true`);
+function assertValidationAuthorityBoundary(value) {
+  assert.equal(value.browser_validation_added_now, true);
+  assert.equal(value.implementation_changed_now, false);
+  assert.equal(value.contract_changed_now, false);
+  assert.equal(value.product_write_lane_parked_by_686, true);
+  for (const [key, flag] of Object.entries(value)) {
+    if (key === "browser_validation_added_now" || key === "product_write_lane_parked_by_686") {
+      assert.equal(flag, true, `${key} must be true`);
+    } else {
+      assert.equal(flag, false, `${key} must remain false`);
+    }
   }
 }
 
@@ -841,12 +926,21 @@ function assertFailureCodes(label, actualCodes, requiredCodes) {
 
 function assertDocsPointers() {
   for (const requiredText of [
-    "Perspective Packet Receipt Linkage implementation v0.1",
-    builderPath,
-    implementationFixturePath,
+    "Perspective Packet Receipt Linkage browser validation v0.1",
+    fixturePath,
     smokePath,
-    "deterministic fixture-backed implementation only",
-    "validates and materializes #748 Perspective Packet Receipt Linkage preview bundle",
+    "validates deterministic fixture-backed implementation from #749",
+    "validates #748 contract boundary and #749 top-level implementation boundary separation",
+    "validates built Perspective Packet Receipt Linkage preview bundle",
+    "validates linkage principle summary",
+    "validates linkage section family summary",
+    "validates forbidden actions summary",
+    "validates reference summary",
+    "validates invalid linkage preview override rejection",
+    "validates invalid linkage section override rejection",
+    "validates invalid forbidden actions override rejection",
+    "validates invalid authority boundary override rejection",
+    "validates invalid refs override rejection",
     "linkage is provenance, not execution authority",
     "linkage is derived, public-safe, advisory-only",
     "linkage is not source of truth",
@@ -901,20 +995,20 @@ function assertDocsPointers() {
     assert.ok(indexDoc.includes(requiredText), `${indexPath} must include ${requiredText}`);
   }
   for (const requiredText of [
-    "Perspective Packet Receipt Linkage implementation is deterministic fixture-backed only.",
-    "It materializes preview bundles from the #748 contract.",
+    "Perspective Packet Receipt Linkage browser validation validates the deterministic fixture-backed #749 implementation.",
+    "It validates public-safe provenance linkage preview bundles against the #748 contract.",
     "Agent Substrate remains advisory-only",
     "Linkage is provenance, not execution authority.",
     "Future Formation Receipt refs and future decision/handoff refs are references only and are not written now.",
     "Selected, omitted, and deferred candidates remain visible and retain candidate/durable distinction.",
     "This slice does not implement runtime linkage build, linkage write, Formation Receipt write, durable audit log write, Codex execution, GitHub automation, branch/commit/PR creation, external handoff sending, agent routing/execution, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, work mutation, or product write.",
-    "Next recommended slice is Perspective Packet Receipt Linkage browser validation v0.1.",
+    "Next recommended slice is Agent Perspective Substrate Feedback Loop contract v0.1.",
   ]) {
     assert.ok(substrateDoc.includes(requiredText), `${substrateDocPath} must include ${requiredText}`);
   }
   for (const doc of [surfaceDoc, gateDoc]) {
     for (const requiredText of [
-      "Perspective Packet Receipt Linkage implementation remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.",
+      "Perspective Packet Receipt Linkage validation remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.",
       "Selected candidates remain candidates, not proof/evidence or durable state.",
       "Omitted candidates remain visible and omission is not rejection.",
       "Deferred candidates remain visible and deferral is not rejection.",
@@ -928,10 +1022,26 @@ function assertDocsPointers() {
   }
 }
 
+function assertImplementationSmokeDownstreamPointer() {
+  for (const requiredText of [
+    validationVersion,
+    fixturePath,
+    smokePath,
+    packageScriptName,
+    recommendationStatus,
+    nextRecommendedSlice,
+  ]) {
+    assert.ok(
+      implementationSmokeSource.includes(requiredText),
+      `${implementationSmokePath} must include ${requiredText}`,
+    );
+  }
+}
+
 function assertContractSmokeDownstreamPointer() {
   for (const requiredText of [
-    implementationVersion,
-    implementationFixturePath,
+    validationVersion,
+    fixturePath,
     smokePath,
     packageScriptName,
     recommendationStatus,
@@ -942,114 +1052,6 @@ function assertContractSmokeDownstreamPointer() {
       `${contractSmokePath} must include ${requiredText}`,
     );
   }
-}
-
-function assertBrowserValidationDownstreamPointer() {
-  if (!browserValidationSliceActive()) return;
-  for (const requiredText of [
-    browserValidationVersion,
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    browserValidationPackageScriptName,
-    browserValidationRecommendationStatus,
-    browserValidationNextRecommendedSlice,
-  ]) {
-    assert.ok(
-      smokeSource.includes(requiredText),
-      `${smokePath} must include ${requiredText}`,
-    );
-  }
-}
-
-function browserValidationSliceActive() {
-  const changedFiles = readChangedFiles();
-  return (
-    changedFiles.includes(browserValidationSmokePath) ||
-    changedFiles.includes(browserValidationFixturePath)
-  );
-}
-
-function assertBrowserValidationPackageScript() {
-  assert.equal(
-    packageJson.scripts[browserValidationPackageScriptName],
-    browserValidationPackageScriptValue,
-  );
-  const packageAddedLines = readGitOutput([
-    "diff",
-    "--unified=0",
-    mergeBaseRef(),
-    "--",
-    packagePath,
-  ])
-    .split("\n")
-    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
-  const addedScriptNames = packageAddedLines
-    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
-    .filter(Boolean)
-    .sort();
-  assert.deepEqual(
-    addedScriptNames,
-    [browserValidationPackageScriptName],
-    "package.json must add only the Perspective Packet Receipt Linkage browser validation smoke script",
-  );
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
-  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
-  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
-  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
-  assert.deepEqual(
-    packageJson.optionalDependencies ?? {},
-    basePackageJson.optionalDependencies ?? {},
-  );
-}
-
-function assertBrowserValidationChangedFiles(changedFiles) {
-  const expectedFiles = [
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    smokePath,
-    contractSmokePath,
-    packagePath,
-    indexPath,
-    substrateDocPath,
-    surfaceDocPath,
-    gateDocPath,
-    ...downstreamSmokePaths,
-  ];
-  for (const unchangedPath of [
-    builderPath,
-    implementationFixturePath,
-    contractTypePath,
-    contractFixturePath,
-    "fixtures/research-candidate-review.codex-handoff-draft-browser-validation.sample.v0.1.json",
-    "types/codex-handoff-draft-contract.ts",
-    "fixtures/research-candidate-review.codex-handoff-draft-contract.sample.v0.1.json",
-    "lib/research-candidate-review/codex-handoff-draft.ts",
-    "fixtures/research-candidate-review.codex-handoff-draft-implementation.sample.v0.1.json",
-    ...protectedUnchangedPaths,
-  ]) {
-    assert.ok(
-      !changedFiles.includes(unchangedPath),
-      `Perspective Packet Receipt Linkage browser validation slice must not change ${unchangedPath}`,
-    );
-  }
-  for (const expectedFile of expectedFiles) {
-    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
-  }
-  for (const changedFile of changedFiles) {
-    assert.ok(
-      expectedFiles.includes(changedFile),
-      `unexpected changed file in Perspective Packet Receipt Linkage browser validation slice: ${changedFile}`,
-    );
-    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
-    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
-    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
-    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
-    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
-    assert.doesNotMatch(changedFile, /^lib\//, "must not change runtime implementation files");
-    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
-  }
-  assertBrowserValidationDownstreamPointer();
 }
 
 function assertPortableMergeBaseFallback() {
@@ -1125,6 +1127,10 @@ function stripNonCode(source) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function deepEqual(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function uniqueSorted(values) {
