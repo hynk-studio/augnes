@@ -59,6 +59,20 @@ const browserValidationRecommendationStatus =
   "ready_for_ai_context_packet_contract_v0_1";
 const browserValidationNextRecommendedSlice =
   "ai_context_packet_contract_v0_1";
+const aiContextPacketTypePath = "types/ai-context-packet-contract.ts";
+const aiContextPacketFixturePath =
+  "fixtures/research-candidate-review.ai-context-packet-contract.sample.v0.1.json";
+const aiContextPacketSmokePath =
+  "scripts/smoke-ai-context-packet-contract-v0-1.mjs";
+const aiContextPacketPackageScriptName =
+  "smoke:ai-context-packet-contract-v0-1";
+const aiContextPacketPackageScriptValue =
+  "node scripts/smoke-ai-context-packet-contract-v0-1.mjs";
+const aiContextPacketContractVersion = "ai_context_packet_contract.v0.1";
+const aiContextPacketRecommendationStatus =
+  "ready_for_ai_context_packet_implementation_v0_1";
+const aiContextPacketNextRecommendedSlice =
+  "ai_context_packet_implementation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -110,6 +124,12 @@ const downstreamSmokePaths = [
 ];
 const browserValidationDownstreamSmokePaths = [
   smokePath,
+  ...downstreamSmokePaths,
+];
+const aiContextPacketDownstreamSmokePaths = [
+  smokePath,
+  implementationSmokePath,
+  browserValidationSmokePath,
   ...downstreamSmokePaths,
 ];
 
@@ -999,6 +1019,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (aiContextPacketContractSliceActive()) {
+    assertAIContextPacketContractPackageScript();
+    return;
+  }
   if (browserValidationSliceActive()) {
     assertBrowserValidationPackageScript();
     return;
@@ -1041,6 +1065,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (aiContextPacketContractSliceActive()) {
+    assertAIContextPacketContractChangedFiles(changedFiles);
+    return;
+  }
   if (browserValidationSliceActive()) {
     assertBrowserValidationChangedFiles(changedFiles);
     return;
@@ -1083,6 +1111,97 @@ function assertStaticBoundary() {
     assert.doesNotMatch(changedFile, /^lib\/.*(proof|evidence).*write/i, "must not add proof/evidence write files");
     assert.doesNotMatch(changedFile, /(^|\/)(provider|openai|source-fetch|crawler)\b/i);
     assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function aiContextPacketContractSliceActive() {
+  return readChangedFiles().includes(aiContextPacketSmokePath);
+}
+
+function assertAIContextPacketContractPackageScript() {
+  assert.equal(
+    packageJson.scripts[aiContextPacketPackageScriptName],
+    aiContextPacketPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [aiContextPacketPackageScriptName],
+    "package.json must add only the AI Context Packet contract smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  if (typeof basePackageJson !== "undefined") {
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+  }
+}
+
+function assertAIContextPacketContractChangedFiles(changedFiles) {
+  const expectedFiles = [
+    aiContextPacketTypePath,
+    aiContextPacketFixturePath,
+    aiContextPacketSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    ...aiContextPacketDownstreamSmokePaths,
+  ];
+  for (const expectedFile of expectedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in AI Context Packet contract downstream slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertAIContextPacketContractDownstreamPointer();
+}
+
+function assertAIContextPacketContractDownstreamPointer() {
+  const contractSmoke = readFileSync(aiContextPacketSmokePath, "utf8");
+  for (const requiredText of [
+    aiContextPacketContractVersion,
+    aiContextPacketFixturePath,
+    aiContextPacketSmokePath,
+    aiContextPacketPackageScriptName,
+    aiContextPacketRecommendationStatus,
+    aiContextPacketNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      contractSmoke.includes(requiredText),
+      `AI Context Packet contract smoke must include ${requiredText}`,
+    );
   }
 }
 

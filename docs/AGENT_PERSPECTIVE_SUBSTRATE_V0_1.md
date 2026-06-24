@@ -1056,6 +1056,19 @@ Product-write remains parked by #686.
 Next recommended slice is AI Context Packet contract v0.1.
 `ai_context_packet_contract_v0_1`
 
+AI Context Packet contract defines future folded AI/Codex context packet grammar only.
+Agent Substrate remains advisory-only and cannot build runtime packets, execute agents, route agents, call providers, run retrieval/RAG, mutate graph/state, promote Perspective, write evidence/work/product data, or make external calls.
+AI Context Packet is context, not execution authority.
+target_agent_mode is presentation scope only, not authority.
+expected_files are handoff hints only and not file write authority.
+expected_checks are validation hints only and not execution authority.
+final_critical_facts are review cues only and not authority.
+Codex handoff draft is not execution approval.
+This slice does not implement runtime packet build, AI Context Packet write, Codex handoff, Codex execution, GitHub automation, agent routing/execution, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, Formation Receipt writes, work mutation, or product write.
+Product-write remains parked by #686.
+Next recommended slice is AI Context Packet implementation v0.1.
+`ai_context_packet_implementation_v0_1`
+
 ## Next Recommended Slice
 
 `ai_context_packet_contract_v0_1`

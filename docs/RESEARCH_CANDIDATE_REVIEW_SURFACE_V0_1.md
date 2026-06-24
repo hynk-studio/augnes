@@ -1615,6 +1615,15 @@ This slice does not implement runtime DB/browser/provider/source-fetch/retrieval
 Product-write remains parked by #686. Next recommended slice:
 `ai_context_packet_contract_v0_1`.
 
+AI Context Packet remains separated from candidate preview, digest runtime, layout runtime, durable Perspective state, promotion runtime, and execution.
+Packet-selected candidates remain candidates, not proof/evidence or durable state.
+Unresolved tensions and knowledge gaps must remain visible.
+Perspective Geometry Digest remains interpretation, not truth.
+AI Context Packet cannot execute Codex, create PRs, call providers, run retrieval/RAG, mutate state/work, or write product data.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/layout/digest/packet behavior.
+Product-write remains parked by #686. Next recommended slice:
+`ai_context_packet_implementation_v0_1`.
+
 ## AI Context Packet Preview Pointer
 
 `types/research-candidate-ai-context-packet.ts` defines the type-only packet
