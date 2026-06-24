@@ -569,6 +569,7 @@
     "smoke:perspective-packet-receipt-linkage-contract-v0-1": "node scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs",
     "smoke:perspective-packet-receipt-linkage-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-packet-receipt-linkage-implementation-v0-1.mjs",
     "smoke:perspective-packet-receipt-linkage-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-packet-receipt-linkage-browser-validation-v0-1.mjs",
+    "smoke:agent-perspective-substrate-feedback-loop-contract-v0-1": "node scripts/smoke-agent-perspective-substrate-feedback-loop-contract-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
