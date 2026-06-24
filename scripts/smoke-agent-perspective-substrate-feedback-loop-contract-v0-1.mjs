@@ -62,6 +62,20 @@ const browserValidationRecommendationStatus =
   "ready_for_agent_perspective_substrate_feedback_loop_closeout_v0_1";
 const browserValidationNextRecommendedSlice =
   "agent_perspective_substrate_feedback_loop_closeout_v0_1";
+const closeoutFixturePath =
+  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-closeout.sample.v0.1.json";
+const closeoutSmokePath =
+  "scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs";
+const closeoutPackageScriptName =
+  "smoke:agent-perspective-substrate-feedback-loop-closeout-v0-1";
+const closeoutPackageScriptValue =
+  "node scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs";
+const closeoutVersion =
+  "agent_perspective_substrate_feedback_loop_closeout.v0.1";
+const closeoutRecommendationStatus =
+  "ready_for_dogfooding_research_to_perspective_ci_expansion_contract_v0_1";
+const closeoutNextRecommendedSlice =
+  "dogfooding_research_to_perspective_ci_expansion_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -931,6 +945,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive()) {
+    assertCloseoutPackageScript();
+    return;
+  }
   if (agentPerspectiveSubstrateFeedbackLoopBrowserValidationSliceActive()) {
     assertBrowserValidationPackageScript();
     return;
@@ -971,6 +989,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive()) {
+    assertCloseoutChangedFiles(changedFiles);
+    return;
+  }
   if (agentPerspectiveSubstrateFeedbackLoopBrowserValidationSliceActive()) {
     assertBrowserValidationChangedFiles(changedFiles);
     return;
@@ -1013,6 +1035,7 @@ function assertNoForbiddenRuntimePatterns() {
       filePath !== implementationBuilderPath &&
       filePath !== implementationSmokePath &&
       filePath !== browserValidationSmokePath &&
+      filePath !== closeoutSmokePath &&
       !downstreamSmokePaths.includes(filePath),
   );
   for (const filePath of changedCodeFiles) {
@@ -1328,6 +1351,122 @@ function assertSourceValidationDownstreamPointer() {
 
 function agentPerspectiveSubstrateFeedbackLoopBrowserValidationSliceActive() {
   return readChangedFiles().includes(browserValidationSmokePath);
+}
+
+function agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive() {
+  return (
+    readChangedFiles().includes(closeoutSmokePath) ||
+    (
+      readChangedFiles().includes(browserValidationSmokePath) &&
+      packageJson.scripts[closeoutPackageScriptName] === closeoutPackageScriptValue &&
+      basePackageJson.scripts?.[closeoutPackageScriptName] !== closeoutPackageScriptValue
+    )
+  );
+}
+
+function assertCloseoutPackageScript() {
+  assert.equal(
+    packageJson.scripts[closeoutPackageScriptName],
+    closeoutPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [closeoutPackageScriptName],
+    "package.json must add only the Agent Perspective Substrate Feedback Loop closeout smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertCloseoutChangedFiles(changedFiles) {
+  const expectedChanged = [
+    browserValidationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ];
+  const expectedPresent = [closeoutFixturePath, closeoutSmokePath];
+  for (const filePath of expectedChanged) {
+    assert.ok(changedFiles.includes(filePath), `closeout slice must include ${filePath}`);
+  }
+  for (const filePath of expectedPresent) {
+    assert.ok(existsSync(filePath), `closeout slice must include ${filePath}`);
+  }
+  for (const unchangedPath of [
+    implementationBuilderPath,
+    implementationFixturePath,
+    browserValidationFixturePath,
+    typePath,
+    fixturePath,
+    sourceValidationFixturePath,
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Agent Perspective Substrate Feedback Loop closeout slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    const allowedDownstreamSmoke =
+      changedFile.startsWith("scripts/smoke-") &&
+      changedFile.endsWith(".mjs") &&
+      !expectedChanged.includes(changedFile) &&
+      !expectedPresent.includes(changedFile) &&
+      readFile(changedFile).includes(
+        "agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive",
+      );
+    assert.ok(
+      expectedChanged.includes(changedFile) ||
+        expectedPresent.includes(changedFile) ||
+        allowedDownstreamSmoke,
+      `unexpected changed file in Agent Perspective Substrate Feedback Loop closeout slice: ${changedFile}`,
+    );
+  }
+  assertCloseoutDownstreamPointer();
+}
+
+function assertCloseoutDownstreamPointer() {
+  const closeoutSmokeSource = readFile(closeoutSmokePath);
+  const closeoutFixture = readJson(closeoutFixturePath);
+  assert.equal(closeoutFixture.closeout_version, closeoutVersion);
+  assert.equal(closeoutFixture.recommendation_status, closeoutRecommendationStatus);
+  assert.equal(closeoutFixture.next_recommended_slice, closeoutNextRecommendedSlice);
+  for (const requiredText of [
+    closeoutVersion,
+    closeoutFixturePath,
+    closeoutSmokePath,
+    closeoutPackageScriptName,
+    closeoutPackageScriptValue,
+    closeoutRecommendationStatus,
+    closeoutNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      closeoutSmokeSource.includes(requiredText),
+      `${closeoutSmokePath} must include ${requiredText}`,
+    );
+  }
 }
 
 function assertBrowserValidationPackageScript() {

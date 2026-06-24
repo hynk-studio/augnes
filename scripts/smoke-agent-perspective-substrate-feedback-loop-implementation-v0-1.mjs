@@ -49,6 +49,20 @@ const browserValidationRecommendationStatus =
   "ready_for_agent_perspective_substrate_feedback_loop_closeout_v0_1";
 const browserValidationNextRecommendedSlice =
   "agent_perspective_substrate_feedback_loop_closeout_v0_1";
+const closeoutFixturePath =
+  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-closeout.sample.v0.1.json";
+const closeoutSmokePath =
+  "scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs";
+const closeoutPackageScriptName =
+  "smoke:agent-perspective-substrate-feedback-loop-closeout-v0-1";
+const closeoutPackageScriptValue =
+  "node scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs";
+const closeoutVersion =
+  "agent_perspective_substrate_feedback_loop_closeout.v0.1";
+const closeoutRecommendationStatus =
+  "ready_for_dogfooding_research_to_perspective_ci_expansion_contract_v0_1";
+const closeoutNextRecommendedSlice =
+  "dogfooding_research_to_perspective_ci_expansion_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -148,6 +162,7 @@ assertInvalidOverrideCoverage();
 assertDocsPointers();
 assertContractSmokeDownstreamPointer();
 assertBrowserValidationDownstreamPointer();
+assertCloseoutDownstreamPointer();
 assertPortableMergeBaseFallback();
 assert.deepEqual(
   fixture,
@@ -216,6 +231,10 @@ function assertRequiredExports() {
 }
 
 function assertPackageScript() {
+  if (agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive()) {
+    assertCloseoutPackageScript();
+    return;
+  }
   if (browserValidationSliceActive()) {
     assertBrowserValidationPackageScript();
     return;
@@ -252,6 +271,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive()) {
+    assertCloseoutChangedFiles(changedFiles);
+    return;
+  }
   if (browserValidationSliceActive()) {
     assertBrowserValidationChangedFiles(changedFiles);
     return;
@@ -1015,8 +1038,50 @@ function assertBrowserValidationDownstreamPointer() {
   assert.equal(validationFixture.next_recommended_slice, browserValidationNextRecommendedSlice);
 }
 
+function assertCloseoutDownstreamPointer() {
+  if (!agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive()) return;
+  assert.ok(existsSync(closeoutFixturePath));
+  assert.ok(existsSync(closeoutSmokePath));
+  assert.equal(packageJson.scripts[closeoutPackageScriptName], closeoutPackageScriptValue);
+  const closeoutFixture = readJson(closeoutFixturePath);
+  assert.equal(closeoutFixture.closeout_version, closeoutVersion);
+  assert.equal(closeoutFixture.recommendation_status, closeoutRecommendationStatus);
+  assert.equal(closeoutFixture.next_recommended_slice, closeoutNextRecommendedSlice);
+}
+
 function assertBrowserValidationPackageScript() {
   assert.equal(packageJson.scripts[browserValidationPackageScriptName], browserValidationPackageScriptValue);
+}
+
+function assertCloseoutPackageScript() {
+  assert.equal(packageJson.scripts[closeoutPackageScriptName], closeoutPackageScriptValue);
+}
+
+function assertCloseoutChangedFiles(changedFiles) {
+  const expectedChanged = [
+    browserValidationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ];
+  const expectedPresent = [closeoutFixturePath, closeoutSmokePath];
+  for (const filePath of expectedChanged) {
+    assert.ok(changedFiles.includes(filePath), `closeout slice must include ${filePath}`);
+  }
+  for (const filePath of expectedPresent) {
+    assert.ok(existsSync(filePath), `closeout slice must include ${filePath}`);
+  }
+  for (const protectedPath of [
+    builderPath,
+    implementationFixturePath,
+    contractTypePath,
+    contractFixturePath,
+    browserValidationFixturePath,
+  ]) {
+    assert.ok(!changedFiles.includes(protectedPath), `closeout slice must not change ${protectedPath}`);
+  }
 }
 
 function assertBrowserValidationChangedFiles(changedFiles) {
@@ -1045,6 +1110,17 @@ function assertBrowserValidationChangedFiles(changedFiles) {
 
 function browserValidationSliceActive() {
   return readChangedFiles().includes(browserValidationSmokePath);
+}
+
+function agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive() {
+  return (
+    readChangedFiles().includes(closeoutSmokePath) ||
+    (
+      readChangedFiles().includes(browserValidationSmokePath) &&
+      packageJson.scripts[closeoutPackageScriptName] === closeoutPackageScriptValue &&
+      basePackageJson.scripts?.[closeoutPackageScriptName] !== closeoutPackageScriptValue
+    )
+  );
 }
 
 function assertPortableMergeBaseFallback() {

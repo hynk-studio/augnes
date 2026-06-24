@@ -1207,3 +1207,16 @@ Next recommended slice is Agent Perspective Substrate Feedback Loop closeout v0.
 ## Next Recommended Slice
 
 `agent_perspective_substrate_feedback_loop_closeout_v0_1`
+
+Agent Perspective Substrate Feedback Loop rail is closed through contract, implementation, and browser validation.
+Closeout is summary-only and does not add runtime.
+Agent Substrate remains folded, derived, advisory-only.
+Feedback remains operator signal, not truth or execution authority.
+This slice does not implement feedback writes, Agent Substrate mutation/execution, salience writes, recent rehearsal writes, durable memory writes, linkage/receipt writes, Codex/GitHub automation, agent routing/execution, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, work mutation, or product write.
+Product-write remains parked by #686.
+Next recommended slice is Dogfooding Research-to-Perspective CI Expansion contract v0.1.
+`dogfooding_research_to_perspective_ci_expansion_contract_v0_1`
+
+## Next Recommended Slice
+
+`dogfooding_research_to_perspective_ci_expansion_contract_v0_1`

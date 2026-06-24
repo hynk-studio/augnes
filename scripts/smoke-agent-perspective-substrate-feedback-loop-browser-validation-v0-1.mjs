@@ -47,6 +47,20 @@ const recommendationStatus =
   "ready_for_agent_perspective_substrate_feedback_loop_closeout_v0_1";
 const nextRecommendedSlice =
   "agent_perspective_substrate_feedback_loop_closeout_v0_1";
+const closeoutFixturePath =
+  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-closeout.sample.v0.1.json";
+const closeoutSmokePath =
+  "scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs";
+const closeoutPackageScriptName =
+  "smoke:agent-perspective-substrate-feedback-loop-closeout-v0-1";
+const closeoutPackageScriptValue =
+  "node scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs";
+const closeoutVersion =
+  "agent_perspective_substrate_feedback_loop_closeout.v0.1";
+const closeoutRecommendationStatus =
+  "ready_for_dogfooding_research_to_perspective_ci_expansion_contract_v0_1";
+const closeoutNextRecommendedSlice =
+  "dogfooding_research_to_perspective_ci_expansion_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -318,6 +332,10 @@ function assertRequiredExports() {
 }
 
 function assertPackageScript() {
+  if (agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive()) {
+    assertCloseoutPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -349,6 +367,10 @@ function assertPackageScript() {
 }
 
 function assertStaticBoundary() {
+  if (agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive()) {
+    assertCloseoutStaticBoundary();
+    return;
+  }
   const changedFiles = readChangedFiles();
   for (const expectedFile of expectedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
@@ -1183,6 +1205,101 @@ function assertImplementationSmokeDownstreamPointer() {
     packageScriptValue,
     recommendationStatus,
     nextRecommendedSlice,
+  ]);
+}
+
+function agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive() {
+  return readChangedFiles().includes(closeoutSmokePath);
+}
+
+function assertCloseoutPackageScript() {
+  assert.equal(
+    packageJson.scripts[closeoutPackageScriptName],
+    closeoutPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [closeoutPackageScriptName],
+    "package.json must add only the Agent Perspective Substrate Feedback Loop closeout smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertCloseoutStaticBoundary() {
+  const changedFiles = readChangedFiles();
+  const closeoutExpectedChangedFiles = [
+    closeoutFixturePath,
+    closeoutSmokePath,
+    smokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ];
+  for (const expectedFile of closeoutExpectedChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const unchangedPath of [
+    builderPath,
+    contractTypePath,
+    contractFixturePath,
+    implementationFixturePath,
+    validationFixturePath,
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Agent Perspective Substrate Feedback Loop closeout slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    const allowedDownstreamSmoke =
+      changedFile.startsWith("scripts/smoke-") &&
+      changedFile.endsWith(".mjs") &&
+      !closeoutExpectedChangedFiles.includes(changedFile) &&
+      readFile(changedFile).includes(
+        "agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive",
+      );
+    assert.ok(
+      closeoutExpectedChangedFiles.includes(changedFile) || allowedDownstreamSmoke,
+      `unexpected changed file in Agent Perspective Substrate Feedback Loop closeout slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertIncludes(readFile(closeoutSmokePath), [
+    closeoutVersion,
+    closeoutFixturePath,
+    closeoutSmokePath,
+    closeoutPackageScriptName,
+    closeoutPackageScriptValue,
+    closeoutRecommendationStatus,
+    closeoutNextRecommendedSlice,
   ]);
 }
 
