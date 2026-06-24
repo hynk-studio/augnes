@@ -42,6 +42,19 @@ const implementationRecommendationStatus =
   "ready_for_codex_handoff_draft_browser_validation_v0_1";
 const implementationNextRecommendedSlice =
   "codex_handoff_draft_browser_validation_v0_1";
+const browserValidationFixturePath =
+  "fixtures/research-candidate-review.codex-handoff-draft-browser-validation.sample.v0.1.json";
+const browserValidationSmokePath =
+  "scripts/smoke-codex-handoff-draft-browser-validation-v0-1.mjs";
+const browserValidationPackageScriptName =
+  "smoke:codex-handoff-draft-browser-validation-v0-1";
+const browserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-handoff-draft-browser-validation-v0-1.mjs";
+const browserValidationVersion = "codex_handoff_draft_browser_validation.v0.1";
+const browserValidationRecommendationStatus =
+  "ready_for_perspective_packet_receipt_linkage_contract_v0_1";
+const browserValidationNextRecommendedSlice =
+  "perspective_packet_receipt_linkage_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -196,6 +209,7 @@ assertPrivacyPolicy(fixture.privacy_policy);
 assertDocsPointers();
 assertSourceValidationDownstreamPointer();
 assertImplementationDownstreamPointer();
+assertBrowserValidationDownstreamPointer();
 assertPortableMergeBaseFallback();
 assert.deepEqual(
   fixture,
@@ -817,6 +831,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (browserValidationSliceActive()) {
+    assertBrowserValidationPackageScript();
+    return;
+  }
   if (implementationSliceActive()) {
     assertImplementationPackageScript();
     return;
@@ -853,6 +871,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (browserValidationSliceActive()) {
+    assertBrowserValidationChangedFiles(changedFiles);
+    return;
+  }
   if (implementationSliceActive()) {
     assertImplementationChangedFiles(changedFiles);
     return;
@@ -892,6 +914,7 @@ function assertNoForbiddenRuntimePatterns() {
       filePath !== smokePath &&
       filePath !== implementationBuilderPath &&
       filePath !== implementationSmokePath &&
+      filePath !== browserValidationSmokePath &&
       filePath !== sourceValidationSmokePath &&
       !downstreamSmokePaths.includes(filePath),
   );
@@ -916,6 +939,10 @@ function implementationSliceActive() {
   return readChangedFiles().includes(implementationSmokePath);
 }
 
+function browserValidationSliceActive() {
+  return readChangedFiles().includes(browserValidationSmokePath);
+}
+
 function assertImplementationPackageScript() {
   assert.equal(
     packageJson.scripts[implementationPackageScriptName],
@@ -938,6 +965,40 @@ function assertImplementationPackageScript() {
     addedScriptNames,
     [implementationPackageScriptName],
     "package.json must add only the Codex Handoff Draft implementation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertBrowserValidationPackageScript() {
+  assert.equal(
+    packageJson.scripts[browserValidationPackageScriptName],
+    browserValidationPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [browserValidationPackageScriptName],
+    "package.json must add only the Codex Handoff Draft browser validation smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
@@ -994,6 +1055,54 @@ function assertImplementationChangedFiles(changedFiles) {
     if (changedFile !== implementationBuilderPath) {
       assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files outside deterministic builder");
     }
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function assertBrowserValidationChangedFiles(changedFiles) {
+  const expectedBrowserValidationChangedFiles = [
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    implementationSmokePath,
+    smokePath,
+    sourceValidationSmokePath,
+    ...downstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    typePath,
+    fixturePath,
+    implementationBuilderPath,
+    implementationFixturePath,
+    sourceValidationFixturePath,
+    ...protectedUnchangedPaths,
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Codex Handoff Draft browser validation slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of expectedBrowserValidationChangedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedBrowserValidationChangedFiles.includes(changedFile),
+      `unexpected changed file in Codex Handoff Draft browser validation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
     assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
   }
 }
@@ -1263,6 +1372,24 @@ function assertImplementationDownstreamPointer() {
     assert.ok(
       smokeSource.includes(requiredText),
       `${smokePath} must include ${requiredText}`,
+    );
+  }
+}
+
+function assertBrowserValidationDownstreamPointer() {
+  if (!browserValidationSliceActive()) return;
+  const browserValidationSmoke = readFile(browserValidationSmokePath);
+  for (const requiredText of [
+    browserValidationVersion,
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    browserValidationPackageScriptName,
+    browserValidationRecommendationStatus,
+    browserValidationNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      browserValidationSmoke.includes(requiredText),
+      `${browserValidationSmokePath} must include ${requiredText}`,
     );
   }
 }
