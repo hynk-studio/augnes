@@ -2905,6 +2905,39 @@ repo-local 색인이다.
   `ai_context_packet_implementation_v0_1`.
 
   Boundary phrases: AI Context Packet contract v0.1; contract-only, fixture-only, smoke-only; defines future folded AI/Codex context packet grammar; AI Context Packet is context, not execution authority; packet is folded, derived, advisory-only; packet is not source of truth; packet is not proof/evidence; packet is not durable Perspective state; packet is not work status; packet is not product write; source_refs required; unresolved tensions preserved; knowledge gaps preserved; candidate/durable distinction preserved; authority_boundary required; forbidden_actions required; stop_conditions required; final critical facts are review cues, not authority; target_agent_mode is scope, not authority; Codex handoff draft is not execution approval; GitHub/Codex automation cannot execute from this packet; expected files are hints only, not write authority; expected checks are validation hints only, not execution authority; Perspective Geometry Digest remains interpretation, not truth; no runtime packet build; no AI context packet write; no Codex handoff implementation; no Codex execution; no GitHub automation; no external handoff sending; no agent routing/execution; no provider/OpenAI call; no retrieval/RAG execution; no DB write/query; no durable memory write; no perspective promotion; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no schema/migration; no route or UI; no browser request; no product write/product IDs; product-write remains parked by #686; ai_context_packet_implementation_v0_1.
+- AI Context Packet implementation v0.1:
+  `lib/research-candidate-review/ai-context-packet.ts`,
+  `fixtures/research-candidate-review.ai-context-packet-implementation.sample.v0.1.json`,
+  and `scripts/smoke-ai-context-packet-implementation-v0-1.mjs`
+  (`npm run smoke:ai-context-packet-implementation-v0-1`) add a deterministic
+  fixture-backed implementation only. The helper validates and materializes the
+  #742 AI Context Packet preview bundle without adding runtime packet build or
+  execution behavior.
+
+  AI Context Packet is context, not execution authority. The packet is folded,
+  derived, advisory-only. The packet is not source of truth, not
+  proof/evidence, not durable Perspective state, not work status, and not
+  product write. `source_refs` are required. Unresolved tensions are preserved.
+  Knowledge gaps are preserved. Candidate/durable distinction is preserved.
+  `authority_boundary` is required. `forbidden_actions` required.
+  `stop_conditions` required. Final critical facts are review cues, not
+  authority. `target_agent_mode` is scope, not authority. Codex handoff draft is
+  not execution approval. GitHub/Codex automation cannot execute from packet.
+  Expected files are hints only, not write authority. Expected checks are
+  validation hints only, not execution authority. Perspective Geometry Digest
+  remains interpretation, not truth.
+
+  This implementation has no runtime packet build, no AI context packet write,
+  no Codex handoff implementation, no Codex execution, no GitHub automation, no
+  external handoff sending, no agent routing/execution, no provider/OpenAI call,
+  no retrieval/RAG execution, no DB write/query, no durable memory write, no
+  perspective promotion, no proof/evidence write, no accepted evidence write,
+  no Formation Receipt write, no work mutation, no schema/migration, no route
+  or UI, no browser request, and no product write/product IDs. Product-write
+  remains parked by #686. The next recommended slice is
+  `ai_context_packet_browser_validation_v0_1`.
+
+  Boundary phrases: AI Context Packet implementation v0.1; deterministic fixture-backed implementation only; validates and materializes #742 AI Context Packet preview bundle; AI Context Packet is context, not execution authority; packet is folded, derived, advisory-only; packet is not source of truth; packet is not proof/evidence; packet is not durable Perspective state; packet is not work status; packet is not product write; source_refs required; unresolved tensions preserved; knowledge gaps preserved; candidate/durable distinction preserved; authority_boundary required; forbidden_actions required; stop_conditions required; final critical facts are review cues, not authority; target_agent_mode is scope, not authority; Codex handoff draft is not execution approval; GitHub/Codex automation cannot execute from packet; expected files are hints only, not write authority; expected checks are validation hints only, not execution authority; Perspective Geometry Digest remains interpretation, not truth; no runtime packet build; no AI context packet write; no Codex handoff implementation; no Codex execution; no GitHub automation; no external handoff sending; no agent routing/execution; no provider/OpenAI call; no retrieval/RAG execution; no DB write/query; no durable memory write; no perspective promotion; no proof/evidence write; no accepted evidence write; no Formation Receipt write; no work mutation; no schema/migration; no route or UI; no browser request; no product write/product IDs; product-write remains parked by #686; ai_context_packet_browser_validation_v0_1.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
