@@ -3245,6 +3245,43 @@ repo-local 색인이다.
   `agent_perspective_substrate_feedback_loop_implementation_v0_1`.
 
   Boundary phrases: Agent Perspective Substrate Feedback Loop contract v0.1; contract-only, fixture-only, smoke-only; defines future feedback grammar for operator responses to Agent Substrate surfaced warnings/suggestions/context packets/digests/linkages/handoff drafts; feedback is operator signal, not truth; feedback is advisory input, not execution authority; feedback is not proof/evidence; feedback is not durable Perspective state; feedback is not work status; feedback is not product write; feedback does not automatically promote candidates; feedback does not automatically suppress or delete candidates; dismiss is not deletion; pin is not promotion; mark_useful is not truth; mark_wrong is not proof of falsity; needs_more_evidence is review cue, not retrieval execution; scope_overreach is constraint signal, not state mutation; not_relevant_now is temporal context, not rejection; user correction does not mutate Core state now; source_refs required for grounded targets; target refs public-safe; target kind preserves candidate/durable distinction; unresolved tensions preserved; knowledge gaps preserved; future surfacing effect preview is display-priority only; rule failure candidate preview is candidate-only; follow-up candidate preview is candidate-only, not work item or retrieval execution; no runtime feedback loop build; no feedback event write; no feedback event mutation; no Agent Substrate mutation/execution; no salience write; no durable salience write; no recent rehearsal buffer write; no durable memory write; no linkage record write; no Formation Receipt write; no Codex/GitHub automation; no agent routing/execution; no provider/OpenAI call; no retrieval/RAG execution; no DB write/query; no perspective promotion; no proof/evidence write; no accepted evidence write; no work mutation; no schema/migration; no route or UI; no browser request; no product write/product IDs; product-write remains parked by #686; agent_perspective_substrate_feedback_loop_implementation_v0_1.
+- Agent Perspective Substrate Feedback Loop implementation v0.1:
+  `lib/research-candidate-review/agent-perspective-substrate-feedback-loop.ts`,
+  `fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-implementation.sample.v0.1.json`,
+  and `scripts/smoke-agent-perspective-substrate-feedback-loop-implementation-v0-1.mjs`
+  (`npm run smoke:agent-perspective-substrate-feedback-loop-implementation-v0-1`)
+  are deterministic fixture-backed implementation only. This validates and
+  materializes #751 Agent Perspective Substrate Feedback Loop preview bundle.
+
+  Feedback is operator signal, not truth. Feedback is advisory input, not
+  execution authority. Feedback is not proof/evidence, not durable Perspective
+  state, not work status, and not product write. Feedback does not
+  automatically promote candidates and does not automatically suppress or
+  delete candidates. Dismiss is not deletion. Pin is not promotion.
+  `mark_useful` is not truth. `mark_wrong` is not proof of falsity.
+  `needs_more_evidence` is review cue, not retrieval execution.
+  `scope_overreach` is constraint signal, not state mutation.
+  `not_relevant_now` is temporal context, not rejection. User correction does
+  not mutate Core state now. `source_refs` required for grounded targets.
+  Target refs public-safe. Target kind preserves candidate/durable distinction.
+  Unresolved tensions preserved. Knowledge gaps preserved. Future surfacing
+  effect preview is display-priority only. Rule failure candidate preview is
+  candidate-only. Follow-up candidate preview is candidate-only, not work item
+  or retrieval execution.
+
+  This implementation has no runtime feedback loop build, no feedback event
+  write, no feedback event mutation, no Agent Substrate mutation/execution, no
+  salience write, no durable salience write, no recent rehearsal buffer write,
+  no durable memory write, no linkage record write, no Formation Receipt write,
+  no Codex/GitHub automation, no agent routing/execution, no provider/OpenAI
+  call, no retrieval/RAG execution, no DB write/query, no perspective
+  promotion, no proof/evidence write, no accepted evidence write, no work
+  mutation, no schema/migration, no route or UI, no browser request, and no
+  product write/product IDs. Product-write remains parked by #686. The next
+  recommended slice is
+  `agent_perspective_substrate_feedback_loop_browser_validation_v0_1`.
+
+  Boundary phrases: Agent Perspective Substrate Feedback Loop implementation v0.1; builder/fixture/smoke paths; deterministic fixture-backed implementation only; validates and materializes #751 Agent Perspective Substrate Feedback Loop preview bundle; feedback is operator signal, not truth; feedback is advisory input, not execution authority; feedback is not proof/evidence; feedback is not durable Perspective state; feedback is not work status; feedback is not product write; feedback does not automatically promote candidates; feedback does not automatically suppress or delete candidates; dismiss is not deletion; pin is not promotion; mark_useful is not truth; mark_wrong is not proof of falsity; needs_more_evidence is review cue, not retrieval execution; scope_overreach is constraint signal, not state mutation; not_relevant_now is temporal context, not rejection; user correction does not mutate Core state now; source_refs required for grounded targets; target refs public-safe; target kind preserves candidate/durable distinction; unresolved tensions preserved; knowledge gaps preserved; future surfacing effect preview is display-priority only; rule failure candidate preview is candidate-only; follow-up candidate preview is candidate-only, not work item or retrieval execution; no runtime feedback loop build; no feedback event write; no feedback event mutation; no Agent Substrate mutation/execution; no salience write; no durable salience write; no recent rehearsal buffer write; no durable memory write; no linkage record write; no Formation Receipt write; no Codex/GitHub automation; no agent routing/execution; no provider/OpenAI call; no retrieval/RAG execution; no DB write/query; no perspective promotion; no proof/evidence write; no accepted evidence write; no work mutation; no schema/migration; no route or UI; no browser request; no product write/product IDs; product-write remains parked by #686; agent_perspective_substrate_feedback_loop_browser_validation_v0_1.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

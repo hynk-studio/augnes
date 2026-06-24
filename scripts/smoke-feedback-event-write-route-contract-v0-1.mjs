@@ -475,6 +475,22 @@ const agentPerspectiveSubstrateFeedbackLoopContractRecommendationStatus =
   "ready_for_agent_perspective_substrate_feedback_loop_implementation_v0_1";
 const agentPerspectiveSubstrateFeedbackLoopContractNextRecommendedSlice =
   "agent_perspective_substrate_feedback_loop_implementation_v0_1";
+const agentPerspectiveSubstrateFeedbackLoopImplementationBuilderPath =
+  "lib/research-candidate-review/agent-perspective-substrate-feedback-loop.ts";
+const agentPerspectiveSubstrateFeedbackLoopImplementationFixturePath =
+  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-implementation.sample.v0.1.json";
+const agentPerspectiveSubstrateFeedbackLoopImplementationSmokePath =
+  "scripts/smoke-agent-perspective-substrate-feedback-loop-implementation-v0-1.mjs";
+const agentPerspectiveSubstrateFeedbackLoopImplementationPackageScriptName =
+  "smoke:agent-perspective-substrate-feedback-loop-implementation-v0-1";
+const agentPerspectiveSubstrateFeedbackLoopImplementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-agent-perspective-substrate-feedback-loop-implementation-v0-1.mjs";
+const agentPerspectiveSubstrateFeedbackLoopImplementationVersion =
+  "agent_perspective_substrate_feedback_loop_implementation.v0.1";
+const agentPerspectiveSubstrateFeedbackLoopImplementationRecommendationStatus =
+  "ready_for_agent_perspective_substrate_feedback_loop_browser_validation_v0_1";
+const agentPerspectiveSubstrateFeedbackLoopImplementationNextRecommendedSlice =
+  "agent_perspective_substrate_feedback_loop_browser_validation_v0_1";
 const perspectivePacketReceiptLinkageDownstreamSmokePaths = [
   "scripts/smoke-codex-handoff-draft-browser-validation-v0-1.mjs",
   "scripts/smoke-codex-handoff-draft-implementation-v0-1.mjs",
@@ -1555,6 +1571,10 @@ function assertTypeAndBuilderContracts() {
 }
 
 function assertPackageScript() {
+  if (agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive()) {
+    assertAgentPerspectiveSubstrateFeedbackLoopImplementationPackageScript();
+    return;
+  }
   if (agentPerspectiveSubstrateFeedbackLoopContractSliceActive()) {
     assertAgentPerspectiveSubstrateFeedbackLoopContractPackageScript();
     return;
@@ -1927,6 +1947,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive()) {
+    assertAgentPerspectiveSubstrateFeedbackLoopImplementationChangedFiles(changedFiles);
+    return;
+  }
   if (agentPerspectiveSubstrateFeedbackLoopContractSliceActive()) {
     assertAgentPerspectiveSubstrateFeedbackLoopContractChangedFiles(changedFiles);
     return;
@@ -4443,6 +4467,128 @@ function recentRehearsalBufferImplementationSliceActive() {
 
 function recentRehearsalBufferContractSliceActive() {
   return readChangedFiles().includes("scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs");
+}
+
+function agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive() {
+  return readChangedFiles().includes(agentPerspectiveSubstrateFeedbackLoopImplementationSmokePath);
+}
+
+function assertAgentPerspectiveSubstrateFeedbackLoopImplementationPackageScript() {
+  assert.equal(
+    packageJson.scripts[agentPerspectiveSubstrateFeedbackLoopImplementationPackageScriptName],
+    agentPerspectiveSubstrateFeedbackLoopImplementationPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [agentPerspectiveSubstrateFeedbackLoopImplementationPackageScriptName],
+    "package.json must add only the Agent Perspective Substrate Feedback Loop implementation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  if (typeof basePackageJson !== "undefined") {
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+  }
+}
+
+function assertAgentPerspectiveSubstrateFeedbackLoopImplementationChangedFiles(changedFiles) {
+  const expectedFiles = [
+    agentPerspectiveSubstrateFeedbackLoopImplementationBuilderPath,
+    agentPerspectiveSubstrateFeedbackLoopImplementationFixturePath,
+    agentPerspectiveSubstrateFeedbackLoopImplementationSmokePath,
+    agentPerspectiveSubstrateFeedbackLoopContractSmokePath,
+    smokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ];
+  for (const unchangedPath of [
+    agentPerspectiveSubstrateFeedbackLoopContractTypePath,
+    agentPerspectiveSubstrateFeedbackLoopContractFixturePath,
+    perspectivePacketReceiptLinkageBrowserValidationFixturePath,
+    perspectivePacketReceiptLinkageImplementationBuilderPath,
+    perspectivePacketReceiptLinkageImplementationFixturePath,
+    perspectivePacketReceiptLinkageTypePath,
+    perspectivePacketReceiptLinkageFixturePath,
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      "Agent Perspective Substrate Feedback Loop implementation slice must not change " + unchangedPath,
+    );
+  }
+  for (const expectedFile of expectedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), "changed files must include " + expectedFile);
+  }
+  for (const changedFile of changedFiles) {
+    const allowedDownstreamSmoke =
+      changedFile.startsWith("scripts/smoke-") &&
+      changedFile.endsWith(".mjs") &&
+      !expectedFiles.includes(changedFile) &&
+      readFileSync(changedFile, "utf8").includes(
+        "agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive",
+      );
+    assert.ok(
+      expectedFiles.includes(changedFile) || allowedDownstreamSmoke,
+      "unexpected changed file in Agent Perspective Substrate Feedback Loop implementation slice: " + changedFile,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    if (changedFile.startsWith("lib/")) {
+      assert.equal(
+        changedFile,
+        agentPerspectiveSubstrateFeedbackLoopImplementationBuilderPath,
+        "implementation slice may only add the deterministic feedback-loop builder under lib",
+      );
+    }
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertAgentPerspectiveSubstrateFeedbackLoopImplementationDownstreamPointer();
+}
+
+function assertAgentPerspectiveSubstrateFeedbackLoopImplementationDownstreamPointer() {
+  const implementationSmoke = readFileSync(
+    agentPerspectiveSubstrateFeedbackLoopImplementationSmokePath,
+    "utf8",
+  );
+  for (const requiredText of [
+    agentPerspectiveSubstrateFeedbackLoopImplementationVersion,
+    agentPerspectiveSubstrateFeedbackLoopImplementationBuilderPath,
+    agentPerspectiveSubstrateFeedbackLoopImplementationFixturePath,
+    agentPerspectiveSubstrateFeedbackLoopImplementationSmokePath,
+    agentPerspectiveSubstrateFeedbackLoopImplementationPackageScriptName,
+    agentPerspectiveSubstrateFeedbackLoopImplementationPackageScriptValue,
+    agentPerspectiveSubstrateFeedbackLoopImplementationRecommendationStatus,
+    agentPerspectiveSubstrateFeedbackLoopImplementationNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      implementationSmoke.includes(requiredText),
+      agentPerspectiveSubstrateFeedbackLoopImplementationSmokePath + " must include " + requiredText,
+    );
+  }
 }
 
 function agentPerspectiveSubstrateFeedbackLoopContractSliceActive() {
