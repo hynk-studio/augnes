@@ -1,0 +1,359 @@
+{
+  "closeout_kind": "research_to_perspective_foundation_milestone_closeout",
+  "closeout_version": "research_to_perspective_foundation_milestone_closeout.v0.1",
+  "source_dogfooding_closeout_ref": "dogfooding_research_to_perspective_ci_expansion_closeout.v0.1:fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-closeout.sample.v0.1.json#758",
+  "source_dogfooding_closeout_fingerprint": "fnv1a32:ac60d56c",
+  "closed_milestone": {
+    "milestone_name": "Research-to-Perspective Foundation",
+    "milestone_closeout_summary": "Contract/fixture/smoke-based foundation scaffold complete through Dogfooding Research-to-Perspective CI Expansion closeout.",
+    "dogfooding_ci_expansion_rail_complete": true,
+    "agent_perspective_substrate_feedback_loop_rail_complete": true,
+    "perspective_packet_receipt_linkage_rail_complete": true,
+    "codex_handoff_draft_rail_complete": true,
+    "ai_context_packet_rail_complete": true,
+    "perspective_geometry_digest_rail_complete": true,
+    "project_constellation_layout_rail_complete": true,
+    "durable_perspective_state_trajectory_rail_complete": true,
+    "human_reviewed_durable_perspective_promotion_rail_complete": true,
+    "non_authoritative_retrieval_rag_rail_complete": true,
+    "operator_source_candidate_generation_rail_complete": true,
+    "bounded_external_source_intake_rail_complete": true,
+    "salience_governor_rail_complete": true,
+    "recent_rehearsal_buffer_rail_complete": true,
+    "formation_receipt_durable_event_rail_complete": true,
+    "feedback_event_store_rail_complete": true
+  },
+  "milestone_rail_sources": [
+    {
+      "rail_key": "dogfooding_ci_expansion",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-browser-validation.sample.v0.1.json",
+        "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-closeout.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-contract-v0-1.mjs",
+        "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-implementation-v0-1.mjs",
+        "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-browser-validation-v0-1.mjs",
+        "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-closeout-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "agent_perspective_substrate_feedback_loop",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-browser-validation.sample.v0.1.json",
+        "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-closeout.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-agent-perspective-substrate-feedback-loop-contract-v0-1.mjs",
+        "scripts/smoke-agent-perspective-substrate-feedback-loop-implementation-v0-1.mjs",
+        "scripts/smoke-agent-perspective-substrate-feedback-loop-browser-validation-v0-1.mjs",
+        "scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "perspective_packet_receipt_linkage",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.perspective-packet-receipt-linkage-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.perspective-packet-receipt-linkage-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.perspective-packet-receipt-linkage-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs",
+        "scripts/smoke-perspective-packet-receipt-linkage-implementation-v0-1.mjs",
+        "scripts/smoke-perspective-packet-receipt-linkage-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "codex_handoff_draft",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.codex-handoff-draft-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.codex-handoff-draft-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.codex-handoff-draft-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-codex-handoff-draft-contract-v0-1.mjs",
+        "scripts/smoke-codex-handoff-draft-implementation-v0-1.mjs",
+        "scripts/smoke-codex-handoff-draft-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "ai_context_packet",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.ai-context-packet-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.ai-context-packet-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.ai-context-packet-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-ai-context-packet-contract-v0-1.mjs",
+        "scripts/smoke-ai-context-packet-implementation-v0-1.mjs",
+        "scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "perspective_geometry_digest",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.perspective-geometry-digest-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.perspective-geometry-digest-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.perspective-geometry-digest-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",
+        "scripts/smoke-perspective-geometry-digest-implementation-v0-1.mjs",
+        "scripts/smoke-perspective-geometry-digest-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "project_constellation_runtime_layout",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.project-constellation-runtime-layout-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.project-constellation-runtime-layout-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.project-constellation-runtime-layout-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs",
+        "scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs",
+        "scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "durable_perspective_state_trajectory",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.durable-perspective-state-trajectory-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.durable-perspective-state-trajectory-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.durable-perspective-state-trajectory-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-durable-perspective-state-trajectory-contract-v0-1.mjs",
+        "scripts/smoke-durable-perspective-state-trajectory-implementation-v0-1.mjs",
+        "scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "human_reviewed_durable_perspective_promotion",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-human-reviewed-durable-perspective-promotion-contract-v0-1.mjs",
+        "scripts/smoke-human-reviewed-durable-perspective-promotion-implementation-v0-1.mjs",
+        "scripts/smoke-human-reviewed-durable-perspective-promotion-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "non_authoritative_retrieval_rag",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.non-authoritative-retrieval-rag-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.non-authoritative-retrieval-rag-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.non-authoritative-retrieval-rag-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-non-authoritative-retrieval-rag-contract-v0-1.mjs",
+        "scripts/smoke-non-authoritative-retrieval-rag-implementation-v0-1.mjs",
+        "scripts/smoke-non-authoritative-retrieval-rag-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "operator_source_candidate_generation",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.operator-source-candidate-generation-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.operator-source-candidate-generation-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.operator-source-candidate-generation-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-operator-source-candidate-generation-contract-v0-1.mjs",
+        "scripts/smoke-operator-source-candidate-generation-implementation-v0-1.mjs",
+        "scripts/smoke-operator-source-candidate-generation-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "bounded_external_source_intake",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.bounded-external-source-intake-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.bounded-external-source-intake-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.bounded-external-source-intake-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
+        "scripts/smoke-bounded-external-source-intake-implementation-v0-1.mjs",
+        "scripts/smoke-bounded-external-source-intake-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "salience_governor",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.salience-governor-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.salience-governor-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.salience-governor-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-salience-governor-contract-v0-1.mjs",
+        "scripts/smoke-salience-governor-implementation-v0-1.mjs",
+        "scripts/smoke-salience-governor-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "recent_rehearsal_buffer",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.recent-rehearsal-buffer-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.recent-rehearsal-buffer-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.recent-rehearsal-buffer-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+        "scripts/smoke-recent-rehearsal-buffer-implementation-v0-1.mjs",
+        "scripts/smoke-recent-rehearsal-buffer-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "formation_receipt_durable_event",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.formation-receipt-durable-event-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.formation-receipt-durable-event-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.formation-receipt-durable-event-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+        "scripts/smoke-formation-receipt-durable-event-implementation-v0-1.mjs",
+        "scripts/smoke-formation-receipt-durable-event-browser-validation-v0-1.mjs"
+      ]
+    },
+    {
+      "rail_key": "feedback_event_store",
+      "fixture_paths": [
+        "fixtures/research-candidate-review.feedback-event-write-route-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-write-route-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-write-route-browser-validation.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-controls-ui-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-controls-ui-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-controls-ui-browser-validation.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-store-list-route-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-store-list-route-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-store-list-route-browser-validation.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-store-list-ui-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-store-list-ui-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-store-list-ui-browser-validation.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-aggregation-read-model-contract.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-aggregation-read-model-implementation.sample.v0.1.json",
+        "fixtures/research-candidate-review.feedback-event-aggregation-read-model-browser-validation.sample.v0.1.json"
+      ],
+      "smoke_paths": [
+        "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs",
+        "scripts/smoke-feedback-event-write-route-implementation-v0-1.mjs",
+        "scripts/smoke-feedback-event-write-route-browser-validation-v0-1.mjs",
+        "scripts/smoke-feedback-event-controls-ui-contract-v0-1.mjs",
+        "scripts/smoke-feedback-event-controls-ui-implementation-v0-1.mjs",
+        "scripts/smoke-feedback-event-controls-ui-browser-validation-v0-1.mjs",
+        "scripts/smoke-feedback-event-store-list-route-contract-v0-1.mjs",
+        "scripts/smoke-feedback-event-store-list-route-implementation-v0-1.mjs",
+        "scripts/smoke-feedback-event-store-list-route-browser-validation-v0-1.mjs",
+        "scripts/smoke-feedback-event-store-list-ui-contract-v0-1.mjs",
+        "scripts/smoke-feedback-event-store-list-ui-implementation-v0-1.mjs",
+        "scripts/smoke-feedback-event-store-list-ui-browser-validation-v0-1.mjs",
+        "scripts/smoke-feedback-event-aggregation-read-model-contract-v0-1.mjs",
+        "scripts/smoke-feedback-event-aggregation-read-model-implementation-v0-1.mjs",
+        "scripts/smoke-feedback-event-aggregation-read-model-browser-validation-v0-1.mjs",
+        "scripts/smoke-feedback-event-store-review-controls-preview-v0-1.mjs",
+        "scripts/smoke-feedback-event-store-minimal-v0-1.mjs"
+      ]
+    }
+  ],
+  "closed_boundary_summary": {
+    "candidate_remains_candidate": true,
+    "evidence_candidate_not_proof_or_evidence_record": true,
+    "perspective_delta_candidate_not_durable_state": true,
+    "follow_up_candidate_not_work_item": true,
+    "retrieval_rag_recall_not_authority": true,
+    "provider_output_not_authority": true,
+    "source_ref_reference_only_until_bounded_runtime": true,
+    "agent_substrate_folded_derived_advisory_only": true,
+    "ai_context_packet_context_not_execution_authority": true,
+    "codex_handoff_draft_not_execution_approval": true,
+    "packet_receipt_linkage_provenance_not_completion_proof": true,
+    "feedback_operator_signal_not_truth": true,
+    "dogfooding_record_candidate_context_not_truth": true,
+    "ci_signal_not_proof_or_evidence": true,
+    "smoke_pass_not_truth": true,
+    "smoke_fail_diagnostic_not_rejection": true,
+    "product_write_lane_parked_by_686": true
+  },
+  "foundation_acceptance_summary": {
+    "grammar_boundary_scaffold_complete": true,
+    "contract_fixtures_smokes_complete": true,
+    "deterministic_preview_builders_complete": true,
+    "browser_static_validations_complete": true,
+    "rail_closeouts_complete": true,
+    "runtime_persistence_not_opened": true,
+    "provider_runtime_not_opened": true,
+    "retrieval_rag_runtime_not_opened": true,
+    "product_write_not_opened": true,
+    "future_runtime_requires_explicit_contract_and_gate": true
+  },
+  "authority_boundary": {
+    "milestone_closeout_added_now": true,
+    "dogfooding_closeout_changed_now": false,
+    "runtime_behavior_added_now": false,
+    "github_actions_added_now": false,
+    "ci_runtime_change_now": false,
+    "ci_execution_now": false,
+    "runtime_dogfooding_ingestion_now": false,
+    "dogfooding_record_write_now": false,
+    "feedback_event_write_now": false,
+    "agent_substrate_mutation_now": false,
+    "salience_write_now": false,
+    "durable_memory_write_now": false,
+    "linkage_record_write_now": false,
+    "formation_receipt_write_now": false,
+    "codex_execution_now": false,
+    "github_automation_now": false,
+    "provider_openai_call_now": false,
+    "retrieval_rag_execution_now": false,
+    "source_fetch_now": false,
+    "crawler_now": false,
+    "durable_perspective_state_write_now": false,
+    "durable_perspective_delta_apply_now": false,
+    "proof_or_evidence_record_write_now": false,
+    "accepted_evidence_write_now": false,
+    "candidate_record_write_now": false,
+    "candidate_mutation_now": false,
+    "work_mutation_now": false,
+    "runtime_db_write_now": false,
+    "runtime_db_query_now": false,
+    "production_db_used_now": false,
+    "db_schema_implemented_now": false,
+    "route_changed_now": false,
+    "component_changed_now": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "milestone_closeout_authority": false,
+    "product_write_lane_parked_by_686": true
+  },
+  "validation_policy": {
+    "milestone_closeout_is_summary_not_runtime": true,
+    "milestone_closeout_not_execution_authority": true,
+    "milestone_closeout_not_product_write": true,
+    "milestone_closeout_not_promotion": true,
+    "milestone_closeout_not_proof_or_evidence": true,
+    "all_source_fingerprints_present": true,
+    "all_boundary_flags_preserved": true,
+    "product_write_lane_parked_by_686": true
+  },
+  "privacy_policy": {
+    "no_secrets_in_fixture": true,
+    "no_private_urls": true,
+    "no_access_tokens": true,
+    "no_ssh_keys": true,
+    "no_raw_provider_thread_run_session_ids": true,
+    "no_raw_source_body": true,
+    "public_safe_refs_only": true
+  },
+  "recommendation_status": "ready_for_foundation_status_review_and_next_runtime_slice_selection_v0_1",
+  "next_recommended_slice": "foundation_status_review_and_next_runtime_slice_selection_v0_1",
+  "closeout_fingerprint": "fnv1a32:0af0d199",
+  "fingerprint_algorithm": "fnv1a32"
+}

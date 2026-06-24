@@ -1552,3 +1552,10 @@ This closeout does not implement runtime CI/browser/provider/source-fetch/retrie
 Product-write remains parked by #686.
 Next recommended slice is Research-to-Perspective Foundation Milestone closeout v0.1.
 `research_to_perspective_foundation_milestone_closeout_v0_1`
+
+Foundation milestone closeout summarizes completed candidate/review/provenance/boundary scaffold.
+It does not make candidates durable facts.
+It does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/dogfooding behavior.
+Product-write remains parked by #686.
+Next work must be selected explicitly after reviewing remaining runtime risk.
+`foundation_status_review_and_next_runtime_slice_selection_v0_1`

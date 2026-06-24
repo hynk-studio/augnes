@@ -3396,6 +3396,15 @@ repo-local 색인이다.
   validation slices are complete without adding product behavior.
 
   Boundary phrases: Dogfooding Research-to-Perspective CI Expansion closeout v0.1; contract -> implementation -> browser validation rail complete; closeout is summary only, not runtime; dogfooding record remains candidate/review context, not source of truth; CI signal remains validation signal, not proof/evidence; smoke pass remains not truth; smoke fail remains diagnostic, not automatic rejection; Codex result report remains candidate input, not execution proof; PR body remains operator report, not authority; changed files remain review cues, not proof of correctness; validation commands remain review cues, not execution authority; warnings remain diagnostic, not failure unless policy says so; skipped checks must remain explicit and justified; authority boundary regression remains candidate alert, not automatic mutation; no GitHub Actions addition; no CI runtime change; no CI execution; no runtime dogfooding ingestion; no dogfooding record write; no Codex execution; no GitHub automation; no provider/OpenAI call; no retrieval/RAG execution; no DB write/query; no perspective promotion; no proof/evidence write; no work mutation; no route/UI/schema/browser request; no product write/product IDs; product-write remains parked by #686; research_to_perspective_foundation_milestone_closeout_v0_1.
+- Research-to-Perspective Foundation Milestone closeout v0.1:
+  `fixtures/research-candidate-review.research-to-perspective-foundation-milestone-closeout.sample.v0.1.json`
+  and
+  `scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs`
+  summarize the completed Research-to-Perspective Foundation scaffold. The
+  foundation scaffold complete through Dogfooding Research-to-Perspective CI
+  Expansion closeout, and this closeout is summary only, not runtime.
+
+  Boundary phrases: Research-to-Perspective Foundation Milestone closeout v0.1; foundation scaffold complete through Dogfooding Research-to-Perspective CI Expansion closeout; closeout is summary only, not runtime; candidate remains candidate; evidence candidate is not proof/evidence record; perspective delta candidate is not durable state; retrieval/RAG remains recall, not authority; provider/OpenAI output remains non-authoritative; Agent Substrate remains folded, derived, advisory-only; AI Context Packet remains context, not execution authority; Codex Handoff Draft remains draft, not execution approval; Packet Receipt Linkage remains provenance, not completion proof; Dogfooding record remains candidate/review context, not truth; CI signal remains validation signal, not proof/evidence; smoke pass remains not truth; smoke fail remains diagnostic, not automatic rejection; no runtime persistence opened; no provider runtime opened; no retrieval/RAG runtime opened; no product write/product IDs; product-write remains parked by #686; foundation_status_review_and_next_runtime_slice_selection_v0_1.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
