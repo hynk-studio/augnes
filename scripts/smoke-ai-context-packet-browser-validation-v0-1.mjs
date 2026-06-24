@@ -52,6 +52,22 @@ const codexHandoffDraftRecommendationStatus =
   "ready_for_codex_handoff_draft_implementation_v0_1";
 const codexHandoffDraftNextRecommendedSlice =
   "codex_handoff_draft_implementation_v0_1";
+const codexHandoffDraftImplementationBuilderPath =
+  "lib/research-candidate-review/codex-handoff-draft.ts";
+const codexHandoffDraftImplementationFixturePath =
+  "fixtures/research-candidate-review.codex-handoff-draft-implementation.sample.v0.1.json";
+const codexHandoffDraftImplementationSmokePath =
+  "scripts/smoke-codex-handoff-draft-implementation-v0-1.mjs";
+const codexHandoffDraftImplementationPackageScriptName =
+  "smoke:codex-handoff-draft-implementation-v0-1";
+const codexHandoffDraftImplementationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-handoff-draft-implementation-v0-1.mjs";
+const codexHandoffDraftImplementationVersion =
+  "codex_handoff_draft_implementation.v0.1";
+const codexHandoffDraftImplementationRecommendationStatus =
+  "ready_for_codex_handoff_draft_browser_validation_v0_1";
+const codexHandoffDraftImplementationNextRecommendedSlice =
+  "codex_handoff_draft_browser_validation_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -407,6 +423,10 @@ function assertBuilderFile() {
 }
 
 function assertPackageScript() {
+  if (codexHandoffDraftImplementationSliceActive()) {
+    assertCodexHandoffDraftImplementationPackageScript();
+    return;
+  }
   if (codexHandoffDraftContractSliceActive()) {
     assertCodexHandoffDraftContractPackageScript();
     return;
@@ -443,6 +463,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (codexHandoffDraftImplementationSliceActive()) {
+    assertCodexHandoffDraftImplementationChangedFiles(changedFiles);
+    return;
+  }
   if (codexHandoffDraftContractSliceActive()) {
     assertCodexHandoffDraftContractChangedFiles(changedFiles);
     return;
@@ -495,6 +519,8 @@ function assertNoForbiddenRuntimePatterns() {
       (filePath.endsWith(".ts") || filePath.endsWith(".mjs")) &&
       filePath !== codexHandoffDraftTypePath &&
       filePath !== codexHandoffDraftSmokePath &&
+      filePath !== codexHandoffDraftImplementationBuilderPath &&
+      filePath !== codexHandoffDraftImplementationSmokePath &&
       filePath !== smokePath &&
       filePath !== implementationSmokePath &&
       filePath !== contractSmokePath &&
@@ -1125,6 +1151,118 @@ function assertImplementationSmokeDownstreamPointer() {
     assert.ok(
       implementationSmokeSource.includes(requiredText),
       `${implementationSmokePath} must include ${requiredText}`,
+    );
+  }
+}
+
+function codexHandoffDraftImplementationSliceActive() {
+  return readChangedFiles().includes(codexHandoffDraftImplementationSmokePath);
+}
+
+function assertCodexHandoffDraftImplementationPackageScript() {
+  assert.equal(
+    packageJson.scripts[codexHandoffDraftImplementationPackageScriptName],
+    codexHandoffDraftImplementationPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [codexHandoffDraftImplementationPackageScriptName],
+    "package.json must add only the Codex Handoff Draft implementation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  if (typeof basePackageJson !== "undefined") {
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+  }
+}
+
+function assertCodexHandoffDraftImplementationChangedFiles(changedFiles) {
+  const expectedFiles = [
+    codexHandoffDraftImplementationBuilderPath,
+    codexHandoffDraftImplementationFixturePath,
+    codexHandoffDraftImplementationSmokePath,
+    codexHandoffDraftSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    smokePath,
+    implementationSmokePath,
+    contractSmokePath,
+    ...downstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    codexHandoffDraftTypePath,
+    codexHandoffDraftFixturePath,
+    builderPath,
+    contractTypePath,
+    contractFixturePath,
+    implementationFixturePath,
+    fixturePath,
+    ...protectedUnchangedPaths,
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `Codex Handoff Draft implementation slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of expectedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in Codex Handoff Draft implementation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    if (changedFile !== codexHandoffDraftImplementationBuilderPath) {
+      assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files outside deterministic builder");
+    }
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertCodexHandoffDraftImplementationDownstreamPointer();
+}
+
+function assertCodexHandoffDraftImplementationDownstreamPointer() {
+  const implementationSmoke = readFileSync(codexHandoffDraftImplementationSmokePath, "utf8");
+  for (const requiredText of [
+    codexHandoffDraftImplementationVersion,
+    codexHandoffDraftImplementationFixturePath,
+    codexHandoffDraftImplementationSmokePath,
+    codexHandoffDraftImplementationPackageScriptName,
+    codexHandoffDraftImplementationRecommendationStatus,
+    codexHandoffDraftImplementationNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      implementationSmoke.includes(requiredText),
+      codexHandoffDraftImplementationSmokePath + " must include " + requiredText,
     );
   }
 }

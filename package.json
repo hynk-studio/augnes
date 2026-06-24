@@ -564,6 +564,7 @@
     "smoke:ai-context-packet-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ai-context-packet-implementation-v0-1.mjs",
     "smoke:ai-context-packet-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs",
     "smoke:codex-handoff-draft-contract-v0-1": "node scripts/smoke-codex-handoff-draft-contract-v0-1.mjs",
+    "smoke:codex-handoff-draft-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-handoff-draft-implementation-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
