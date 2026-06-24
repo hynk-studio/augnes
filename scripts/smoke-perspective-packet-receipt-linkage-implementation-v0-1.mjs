@@ -80,6 +80,20 @@ const agentPerspectiveSubstrateFeedbackLoopImplementationRecommendationStatus =
   "ready_for_agent_perspective_substrate_feedback_loop_browser_validation_v0_1";
 const agentPerspectiveSubstrateFeedbackLoopImplementationNextRecommendedSlice =
   "agent_perspective_substrate_feedback_loop_browser_validation_v0_1";
+const agentPerspectiveSubstrateFeedbackLoopBrowserValidationFixturePath =
+  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-browser-validation.sample.v0.1.json";
+const agentPerspectiveSubstrateFeedbackLoopBrowserValidationSmokePath =
+  "scripts/smoke-agent-perspective-substrate-feedback-loop-browser-validation-v0-1.mjs";
+const agentPerspectiveSubstrateFeedbackLoopBrowserValidationPackageScriptName =
+  "smoke:agent-perspective-substrate-feedback-loop-browser-validation-v0-1";
+const agentPerspectiveSubstrateFeedbackLoopBrowserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-agent-perspective-substrate-feedback-loop-browser-validation-v0-1.mjs";
+const agentPerspectiveSubstrateFeedbackLoopBrowserValidationVersion =
+  "agent_perspective_substrate_feedback_loop_browser_validation.v0.1";
+const agentPerspectiveSubstrateFeedbackLoopBrowserValidationRecommendationStatus =
+  "ready_for_agent_perspective_substrate_feedback_loop_closeout_v0_1";
+const agentPerspectiveSubstrateFeedbackLoopBrowserValidationNextRecommendedSlice =
+  "agent_perspective_substrate_feedback_loop_closeout_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -309,6 +323,10 @@ function assertRequiredExports() {
 }
 
 function assertPackageScript() {
+  if (agentPerspectiveSubstrateFeedbackLoopBrowserValidationSliceActive()) {
+    assertAgentPerspectiveSubstrateFeedbackLoopBrowserValidationPackageScript();
+    return;
+  }
   if (agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive()) {
     assertAgentPerspectiveSubstrateFeedbackLoopImplementationPackageScript();
     return;
@@ -353,6 +371,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (agentPerspectiveSubstrateFeedbackLoopBrowserValidationSliceActive()) {
+    assertAgentPerspectiveSubstrateFeedbackLoopBrowserValidationChangedFiles(changedFiles);
+    return;
+  }
   if (agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive()) {
     assertAgentPerspectiveSubstrateFeedbackLoopImplementationChangedFiles(changedFiles);
     return;
@@ -399,6 +421,7 @@ function assertNoForbiddenRuntimePatterns() {
       filePath !== feedbackLoopContractSmokePath &&
       filePath !== agentPerspectiveSubstrateFeedbackLoopImplementationBuilderPath &&
       filePath !== agentPerspectiveSubstrateFeedbackLoopImplementationSmokePath &&
+      filePath !== agentPerspectiveSubstrateFeedbackLoopBrowserValidationSmokePath &&
       !downstreamSmokePaths.includes(filePath),
   );
   for (const filePath of changedCodeFiles) {
@@ -1009,6 +1032,116 @@ function assertBrowserValidationDownstreamPointer() {
     assert.ok(
       smokeSource.includes(requiredText),
       `${smokePath} must include ${requiredText}`,
+    );
+  }
+}
+
+function agentPerspectiveSubstrateFeedbackLoopBrowserValidationSliceActive() {
+  return readChangedFiles().includes(agentPerspectiveSubstrateFeedbackLoopBrowserValidationSmokePath);
+}
+
+function assertAgentPerspectiveSubstrateFeedbackLoopBrowserValidationPackageScript() {
+  assert.equal(
+    packageJson.scripts[agentPerspectiveSubstrateFeedbackLoopBrowserValidationPackageScriptName],
+    agentPerspectiveSubstrateFeedbackLoopBrowserValidationPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [agentPerspectiveSubstrateFeedbackLoopBrowserValidationPackageScriptName],
+    "package.json must add only the Agent Perspective Substrate Feedback Loop browser validation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  if (typeof basePackageJson !== "undefined") {
+    assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+    assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+    assert.deepEqual(
+      packageJson.optionalDependencies ?? {},
+      basePackageJson.optionalDependencies ?? {},
+    );
+  }
+}
+
+function assertAgentPerspectiveSubstrateFeedbackLoopBrowserValidationChangedFiles(changedFiles) {
+  const expectedFiles = [
+    agentPerspectiveSubstrateFeedbackLoopBrowserValidationFixturePath,
+    agentPerspectiveSubstrateFeedbackLoopBrowserValidationSmokePath,
+    agentPerspectiveSubstrateFeedbackLoopImplementationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+  ];
+  for (const unchangedPath of [
+    agentPerspectiveSubstrateFeedbackLoopImplementationBuilderPath,
+    agentPerspectiveSubstrateFeedbackLoopImplementationFixturePath,
+    "types/agent-perspective-substrate-feedback-loop-contract.ts",
+    "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-contract.sample.v0.1.json",
+    "lib/db/schema.sql",
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      "Agent Perspective Substrate Feedback Loop browser validation slice must not change " + unchangedPath,
+    );
+  }
+  for (const expectedFile of expectedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), "changed files must include " + expectedFile);
+  }
+  for (const changedFile of changedFiles) {
+    const allowedDownstreamSmoke =
+      changedFile.startsWith("scripts/smoke-") &&
+      changedFile.endsWith(".mjs") &&
+      !expectedFiles.includes(changedFile) &&
+      readFileSync(changedFile, "utf8").includes(
+        "agentPerspectiveSubstrateFeedbackLoopBrowserValidationSliceActive",
+      );
+    assert.ok(
+      expectedFiles.includes(changedFile) || allowedDownstreamSmoke,
+      "unexpected changed file in Agent Perspective Substrate Feedback Loop browser validation slice: " + changedFile,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertAgentPerspectiveSubstrateFeedbackLoopBrowserValidationDownstreamPointer();
+}
+
+function assertAgentPerspectiveSubstrateFeedbackLoopBrowserValidationDownstreamPointer() {
+  const browserValidationSmoke = readFileSync(
+    agentPerspectiveSubstrateFeedbackLoopBrowserValidationSmokePath,
+    "utf8",
+  );
+  for (const requiredText of [
+    agentPerspectiveSubstrateFeedbackLoopBrowserValidationVersion,
+    agentPerspectiveSubstrateFeedbackLoopBrowserValidationFixturePath,
+    agentPerspectiveSubstrateFeedbackLoopBrowserValidationSmokePath,
+    agentPerspectiveSubstrateFeedbackLoopBrowserValidationPackageScriptName,
+    agentPerspectiveSubstrateFeedbackLoopBrowserValidationPackageScriptValue,
+    agentPerspectiveSubstrateFeedbackLoopBrowserValidationRecommendationStatus,
+    agentPerspectiveSubstrateFeedbackLoopBrowserValidationNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      browserValidationSmoke.includes(requiredText),
+      agentPerspectiveSubstrateFeedbackLoopBrowserValidationSmokePath + " must include " + requiredText,
     );
   }
 }

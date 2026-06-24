@@ -10,7 +10,11 @@ const contractFixturePath =
   "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-contract.sample.v0.1.json";
 const implementationFixturePath =
   "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-implementation.sample.v0.1.json";
+const validationFixturePath =
+  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-browser-validation.sample.v0.1.json";
 const smokePath =
+  "scripts/smoke-agent-perspective-substrate-feedback-loop-browser-validation-v0-1.mjs";
+const implementationSmokePath =
   "scripts/smoke-agent-perspective-substrate-feedback-loop-implementation-v0-1.mjs";
 const contractSmokePath =
   "scripts/smoke-agent-perspective-substrate-feedback-loop-contract-v0-1.mjs";
@@ -22,41 +26,34 @@ const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
 
 const packageScriptName =
-  "smoke:agent-perspective-substrate-feedback-loop-implementation-v0-1";
+  "smoke:agent-perspective-substrate-feedback-loop-browser-validation-v0-1";
 const packageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-agent-perspective-substrate-feedback-loop-implementation-v0-1.mjs";
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-agent-perspective-substrate-feedback-loop-browser-validation-v0-1.mjs";
+const validationKind =
+  "agent_perspective_substrate_feedback_loop_browser_validation";
+const validationVersion =
+  "agent_perspective_substrate_feedback_loop_browser_validation.v0.1";
 const implementationKind =
   "agent_perspective_substrate_feedback_loop_implementation";
 const implementationVersion =
   "agent_perspective_substrate_feedback_loop_implementation.v0.1";
 const previewVersion =
   "agent_perspective_substrate_feedback_loop_preview.v0.1";
-const recommendationStatus =
+const implementationRecommendationStatus =
   "ready_for_agent_perspective_substrate_feedback_loop_browser_validation_v0_1";
-const nextRecommendedSlice =
+const implementationNextRecommendedSlice =
   "agent_perspective_substrate_feedback_loop_browser_validation_v0_1";
-const browserValidationFixturePath =
-  "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-browser-validation.sample.v0.1.json";
-const browserValidationSmokePath =
-  "scripts/smoke-agent-perspective-substrate-feedback-loop-browser-validation-v0-1.mjs";
-const browserValidationPackageScriptName =
-  "smoke:agent-perspective-substrate-feedback-loop-browser-validation-v0-1";
-const browserValidationPackageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-agent-perspective-substrate-feedback-loop-browser-validation-v0-1.mjs";
-const browserValidationVersion =
-  "agent_perspective_substrate_feedback_loop_browser_validation.v0.1";
-const browserValidationRecommendationStatus =
+const recommendationStatus =
   "ready_for_agent_perspective_substrate_feedback_loop_closeout_v0_1";
-const browserValidationNextRecommendedSlice =
+const nextRecommendedSlice =
   "agent_perspective_substrate_feedback_loop_closeout_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
 const expectedChangedFiles = [
-  builderPath,
-  implementationFixturePath,
+  validationFixturePath,
   smokePath,
-  contractSmokePath,
+  implementationSmokePath,
   packagePath,
   indexPath,
   substrateDocPath,
@@ -65,8 +62,10 @@ const expectedChangedFiles = [
 ];
 
 const protectedUnchangedPaths = [
+  builderPath,
   contractTypePath,
   contractFixturePath,
+  implementationFixturePath,
   "fixtures/research-candidate-review.perspective-packet-receipt-linkage-browser-validation.sample.v0.1.json",
   "types/perspective-packet-receipt-linkage-contract.ts",
   "fixtures/research-candidate-review.perspective-packet-receipt-linkage-contract.sample.v0.1.json",
@@ -83,6 +82,7 @@ for (const filePath of [
   contractTypePath,
   contractFixturePath,
   smokePath,
+  implementationSmokePath,
   contractSmokePath,
   packagePath,
   indexPath,
@@ -93,14 +93,16 @@ for (const filePath of [
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
 if (!writeFixture) {
-  assert.ok(existsSync(implementationFixturePath), `${implementationFixturePath} must exist`);
+  assert.ok(existsSync(validationFixturePath), `${validationFixturePath} must exist`);
 }
 
 const builderSource = readFile(builderPath);
 const smokeSource = readFile(smokePath);
+const implementationSmokeSource = readFile(implementationSmokePath);
 const contractSmokeSource = readFile(contractSmokePath);
 const contractTypeSource = readFile(contractTypePath);
 const contractFixture = readJson(contractFixturePath);
+const implementationFixture = readJson(implementationFixturePath);
 const packageJson = readJson(packagePath);
 const basePackageJson = readJsonFromGit(packagePath);
 const indexDoc = readFile(indexPath);
@@ -122,71 +124,161 @@ const rebuiltImplementationFixture =
     agent_perspective_substrate_feedback_loop_contract: contractFixture,
     source_contract_ref: sourceContractRef,
   });
+const rebuiltFixture = buildValidationFixture();
 
 if (writeFixture) {
   writeFileSync(
-    implementationFixturePath,
-    `${JSON.stringify(rebuiltImplementationFixture, null, 2)}\n`,
+    validationFixturePath,
+    `${JSON.stringify(rebuiltFixture, null, 2)}\n`,
   );
   process.exit(0);
 }
 
-const fixture = readJson(implementationFixturePath);
+const fixture = readJson(validationFixturePath);
 
 assertContractArtifactsUnchanged();
 assertRequiredExports();
 assertPackageScript();
 assertStaticBoundary();
 assertNoForbiddenRuntimePatterns();
-assertImplementationFixture(fixture);
-assertPreviewBundle(
-  fixture.built_agent_perspective_substrate_feedback_loop_preview_bundle,
+assert.deepEqual(
+  implementationFixture,
+  rebuiltImplementationFixture,
+  "#752 implementation fixture must match rebuilt deterministic output",
 );
-assertValidatedImplementation(fixture.validated_implementation);
-assertImplementationAuthorityBoundary(fixture.authority_boundary);
-assertInvalidOverrideCoverage();
-assertDocsPointers();
-assertContractSmokeDownstreamPointer();
-assertBrowserValidationDownstreamPointer();
-assertPortableMergeBaseFallback();
 assert.deepEqual(
   fixture,
-  rebuiltImplementationFixture,
-  "rebuilt Agent Perspective Substrate Feedback Loop implementation fixture must match committed fixture",
+  rebuiltFixture,
+  "rebuilt Agent Perspective Substrate Feedback Loop browser validation fixture must match committed fixture",
 );
+assertValidationFixture(fixture);
+assertValidatedBuilder(fixture.validated_builder);
+assertValidatedFeedbackLoop(
+  fixture.validated_agent_perspective_substrate_feedback_loop,
+);
+assertImplementationFixture(implementationFixture);
+assertPreviewBundle(
+  implementationFixture.built_agent_perspective_substrate_feedback_loop_preview_bundle,
+);
+assertValidationAuthorityBoundary(fixture.authority_boundary);
+assertImplementationAuthorityBoundary(implementationFixture.authority_boundary);
+assertInvalidOverrideCoverage();
+assertDocsPointers();
+assertImplementationSmokeDownstreamPointer();
+assertPortableMergeBaseFallback();
 
 console.log(
   JSON.stringify(
     {
-      smoke: "agent-perspective-substrate-feedback-loop-implementation-v0-1",
+      smoke: "agent-perspective-substrate-feedback-loop-browser-validation-v0-1",
       final_status: "pass",
-      implementation_kind: fixture.implementation_kind,
-      implementation_version: fixture.implementation_version,
+      validation_kind: fixture.validation_kind,
+      validation_version: fixture.validation_version,
+      source_implementation_fingerprint: fixture.source_implementation_fingerprint,
       source_contract_fingerprint: fixture.source_contract_fingerprint,
+      implementation_fixture_matches_rebuilt_output:
+        fixture.validated_agent_perspective_substrate_feedback_loop
+          .implementation_fixture_matches_rebuilt_output,
       preview_bundle_follows_contract:
-        fixture.validated_implementation.preview_bundle_follows_contract,
+        fixture.validated_agent_perspective_substrate_feedback_loop
+          .preview_bundle_follows_contract,
       feedback_principles_preserved:
-        fixture.validated_implementation.feedback_principles_preserved,
+        fixture.validated_agent_perspective_substrate_feedback_loop
+          .feedback_principles_preserved,
       feedback_kinds_preserved:
-        fixture.validated_implementation.feedback_kinds_preserved,
+        fixture.validated_agent_perspective_substrate_feedback_loop
+          .feedback_kinds_preserved,
       feedback_section_families_preserved:
-        fixture.validated_implementation.feedback_section_families_preserved,
+        fixture.validated_agent_perspective_substrate_feedback_loop
+          .feedback_section_families_preserved,
       runtime_feedback_loop_build_not_implemented:
-        fixture.validated_implementation.runtime_feedback_loop_build_not_implemented,
+        fixture.validated_agent_perspective_substrate_feedback_loop
+          .runtime_feedback_loop_build_not_implemented,
       feedback_event_write_not_implemented:
-        fixture.validated_implementation.feedback_event_write_not_implemented,
+        fixture.validated_agent_perspective_substrate_feedback_loop
+          .feedback_event_write_not_implemented,
       agent_substrate_mutation_not_implemented:
-        fixture.validated_implementation.agent_substrate_mutation_not_implemented,
+        fixture.validated_agent_perspective_substrate_feedback_loop
+          .agent_substrate_mutation_not_implemented,
       salience_write_not_implemented:
-        fixture.validated_implementation.salience_write_not_implemented,
+        fixture.validated_agent_perspective_substrate_feedback_loop
+          .salience_write_not_implemented,
       product_write_not_implemented:
-        fixture.validated_implementation.product_write_not_implemented,
+        fixture.validated_agent_perspective_substrate_feedback_loop
+          .product_write_not_implemented,
       next_recommended_slice: fixture.next_recommended_slice,
     },
     null,
     2,
   ),
 );
+
+function buildValidationFixture() {
+  const {
+    passed: _passed,
+    failure_codes: _failureCodes,
+    ...implementationValidation
+  } = implementationFixture.validated_implementation;
+  const {
+    builder_path: _builderPath,
+    ...deterministicBuilderFlags
+  } = implementationFixture.deterministic_builder;
+  const validatedFeedbackLoop = {
+    implementation_fixture_matches_rebuilt_output: deepEqual(
+      implementationFixture,
+      rebuiltImplementationFixture,
+    ),
+    ...implementationValidation,
+    browser_validation_added_now: true,
+    implementation_changed_now: false,
+    contract_changed_now: false,
+  };
+  const validation = {
+    validation_kind: validationKind,
+    validation_version: validationVersion,
+    source_implementation_ref:
+      `${implementationFixture.implementation_version}:${implementationFixturePath}#752`,
+    source_implementation_fingerprint:
+      implementationFixture.implementation_fingerprint,
+    source_contract_ref: implementationFixture.source_contract_ref,
+    source_contract_fingerprint:
+      implementationFixture.source_contract_fingerprint,
+    validated_builder: {
+      builder_path: builderPath,
+      implementation_fixture_path: implementationFixturePath,
+      contract_fixture_path: contractFixturePath,
+      ...deterministicBuilderFlags,
+    },
+    validated_agent_perspective_substrate_feedback_loop:
+      validatedFeedbackLoop,
+    authority_boundary: buildValidationAuthorityBoundary(),
+    recommendation_status: recommendationStatus,
+    next_recommended_slice: nextRecommendedSlice,
+    validation_fingerprint: "",
+    fingerprint_algorithm: "fnv1a32_canonical_json",
+  };
+  validation.validation_fingerprint =
+    createAgentPerspectiveSubstrateFeedbackLoopFingerprint({
+      ...validation,
+      validation_fingerprint: "",
+    });
+  return validation;
+}
+
+function buildValidationAuthorityBoundary() {
+  const {
+    implementation_added_now: _implementationAddedNow,
+    deterministic_builder_added_now: _deterministicBuilderAddedNow,
+    contract_changed_now: _contractChangedNow,
+    ...implementationBoundary
+  } = implementationFixture.authority_boundary;
+  return {
+    browser_validation_added_now: true,
+    implementation_changed_now: false,
+    contract_changed_now: false,
+    ...implementationBoundary,
+  };
+}
 
 function assertContractArtifactsUnchanged() {
   assert.deepEqual(
@@ -198,6 +290,16 @@ function assertContractArtifactsUnchanged() {
     contractTypeSource.trimEnd(),
     readTextFromGit(contractTypePath).trimEnd(),
     "#751 Agent Perspective Substrate Feedback Loop type contract must not change",
+  );
+  assert.equal(
+    builderSource.trimEnd(),
+    readTextFromGit(builderPath).trimEnd(),
+    "#752 Agent Perspective Substrate Feedback Loop builder must not change",
+  );
+  assert.deepEqual(
+    implementationFixture,
+    readJsonFromGit(implementationFixturePath),
+    "#752 Agent Perspective Substrate Feedback Loop implementation fixture must not change",
   );
 }
 
@@ -216,10 +318,6 @@ function assertRequiredExports() {
 }
 
 function assertPackageScript() {
-  if (browserValidationSliceActive()) {
-    assertBrowserValidationPackageScript();
-    return;
-  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -237,7 +335,7 @@ function assertPackageScript() {
   assert.deepEqual(
     addedScriptNames,
     [packageScriptName],
-    "package.json must add only the Agent Perspective Substrate Feedback Loop implementation smoke script",
+    "package.json must add only the Agent Perspective Substrate Feedback Loop browser validation smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
@@ -252,17 +350,13 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  if (browserValidationSliceActive()) {
-    assertBrowserValidationChangedFiles(changedFiles);
-    return;
-  }
   for (const expectedFile of expectedChangedFiles) {
     assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
   }
   for (const unchangedPath of protectedUnchangedPaths) {
     assert.ok(
       !changedFiles.includes(unchangedPath),
-      `Agent Perspective Substrate Feedback Loop implementation slice must not change ${unchangedPath}`,
+      `Agent Perspective Substrate Feedback Loop browser validation slice must not change ${unchangedPath}`,
     );
   }
   for (const changedFile of changedFiles) {
@@ -271,11 +365,11 @@ function assertStaticBoundary() {
       changedFile.endsWith(".mjs") &&
       !expectedChangedFiles.includes(changedFile) &&
       readFile(changedFile).includes(
-        "agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive",
+        "agentPerspectiveSubstrateFeedbackLoopBrowserValidationSliceActive",
       );
     assert.ok(
       expectedChangedFiles.includes(changedFile) || allowedDownstreamSmoke,
-      `unexpected changed file in Agent Perspective Substrate Feedback Loop implementation slice: ${changedFile}`,
+      `unexpected changed file in Agent Perspective Substrate Feedback Loop browser validation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
     assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
@@ -291,8 +385,8 @@ function assertNoForbiddenRuntimePatterns() {
     (filePath) =>
       (filePath.endsWith(".ts") || filePath.endsWith(".mjs")) &&
       filePath !== smokePath &&
+      filePath !== implementationSmokePath &&
       filePath !== contractSmokePath &&
-      filePath !== browserValidationSmokePath &&
       !filePath.startsWith("scripts/smoke-"),
   );
   for (const filePath of changedCodeFiles) {
@@ -347,13 +441,73 @@ function assertImplementationFixture(value) {
     if (key === "builder_path" || key === "deterministic_fixture_backed_only") continue;
     assert.equal(flag, false, `deterministic_builder.${key} must be false`);
   }
-  assert.equal(value.recommendation_status, recommendationStatus);
-  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(value.recommendation_status, implementationRecommendationStatus);
+  assert.equal(value.next_recommended_slice, implementationNextRecommendedSlice);
   assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
   assert.equal(
     value.implementation_fingerprint,
     createAgentPerspectiveSubstrateFeedbackLoopFingerprint(value),
   );
+}
+
+function assertValidationFixture(value) {
+  assert.equal(value.validation_kind, validationKind);
+  assert.equal(value.validation_version, validationVersion);
+  assert.equal(
+    value.source_implementation_ref,
+    `${implementationFixture.implementation_version}:${implementationFixturePath}#752`,
+  );
+  assert.equal(
+    value.source_implementation_fingerprint,
+    implementationFixture.implementation_fingerprint,
+  );
+  assert.equal(value.source_contract_ref, implementationFixture.source_contract_ref);
+  assert.equal(
+    value.source_contract_fingerprint,
+    implementationFixture.source_contract_fingerprint,
+  );
+  assert.equal(value.recommendation_status, recommendationStatus);
+  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
+  assert.equal(
+    value.validation_fingerprint,
+    createAgentPerspectiveSubstrateFeedbackLoopFingerprint({
+      ...value,
+      validation_fingerprint: "",
+    }),
+  );
+}
+
+function assertValidatedBuilder(value) {
+  assert.equal(value.builder_path, builderPath);
+  assert.equal(value.implementation_fixture_path, implementationFixturePath);
+  assert.equal(value.contract_fixture_path, contractFixturePath);
+  assert.equal(value.deterministic_fixture_backed_only, true);
+  for (const [key, flag] of Object.entries(value)) {
+    if (
+      key === "builder_path" ||
+      key === "implementation_fixture_path" ||
+      key === "contract_fixture_path" ||
+      key === "deterministic_fixture_backed_only"
+    ) {
+      continue;
+    }
+    assert.equal(flag, false, `validated_builder.${key} must remain false`);
+  }
+}
+
+function assertValidatedFeedbackLoop(value) {
+  assert.equal(value.implementation_fixture_matches_rebuilt_output, true);
+  assert.equal(value.browser_validation_added_now, true);
+  assert.equal(value.implementation_changed_now, false);
+  assert.equal(value.contract_changed_now, false);
+  for (const [key, flag] of Object.entries(value)) {
+    if (key === "implementation_changed_now" || key === "contract_changed_now") {
+      assert.equal(flag, false, `${key} must remain false`);
+    } else {
+      assert.equal(flag, true, `${key} must be true`);
+    }
+  }
 }
 
 function assertPreviewBundle(bundle) {
@@ -484,6 +638,20 @@ function assertValidatedImplementation(value) {
   assert.deepEqual(value.failure_codes, []);
   for (const key of requiredTrueFlags) {
     assert.equal(value[key], true, `validated_implementation.${key} must be true`);
+  }
+}
+
+function assertValidationAuthorityBoundary(value) {
+  assert.equal(value.browser_validation_added_now, true);
+  assert.equal(value.implementation_changed_now, false);
+  assert.equal(value.contract_changed_now, false);
+  assert.equal(value.product_write_lane_parked_by_686, true);
+  for (const [key, flag] of Object.entries(value)) {
+    if (key === "browser_validation_added_now" || key === "product_write_lane_parked_by_686") {
+      assert.equal(flag, true, `${key} must be true`);
+    } else {
+      assert.equal(flag, false, `${key} must remain false`);
+    }
   }
 }
 
@@ -910,12 +1078,25 @@ function invalidRefsValidation() {
 
 function assertDocsPointers() {
   assertIncludes(indexDoc, [
-    "Agent Perspective Substrate Feedback Loop implementation v0.1",
-    builderPath,
-    implementationFixturePath,
+    "Agent Perspective Substrate Feedback Loop browser validation v0.1",
+    validationFixturePath,
     smokePath,
-    "deterministic fixture-backed implementation only",
-    "validates and materializes #751 Agent Perspective Substrate Feedback Loop preview bundle",
+    "validates deterministic fixture-backed implementation from #752",
+    "validates #751 contract boundary and #752 top-level implementation boundary separation",
+    "validates built Agent Perspective Substrate Feedback Loop preview bundle",
+    "validates feedback principle summary",
+    "validates feedback kind summary",
+    "validates feedback target kind summary",
+    "validates feedback section family summary",
+    "validates forbidden actions summary",
+    "validates reference summary",
+    "validates invalid feedback preview override rejection",
+    "validates invalid feedback kind override rejection",
+    "validates invalid feedback target override rejection",
+    "validates invalid feedback section override rejection",
+    "validates invalid forbidden actions override rejection",
+    "validates invalid authority boundary override rejection",
+    "validates invalid refs override rejection",
     "feedback is operator signal, not truth",
     "feedback is advisory input, not execution authority",
     "feedback is not proof/evidence",
@@ -965,17 +1146,19 @@ function assertDocsPointers() {
     nextRecommendedSlice,
   ]);
   assertIncludes(substrateDoc, [
-    "Agent Perspective Substrate Feedback Loop implementation is deterministic fixture-backed only.",
-    "It materializes preview bundles from the #751 contract.",
+    "Agent Perspective Substrate Feedback Loop browser validation validates the deterministic fixture-backed #752 implementation.",
+    "It validates public-safe Agent Perspective Substrate Feedback Loop preview bundles against the #751 contract.",
     "Agent Substrate remains folded, derived, advisory-only.",
     "Feedback is operator signal, not truth or execution authority.",
+    "Dismiss/pin/mark_useful/mark_wrong/needs_more_evidence/scope_overreach/not_relevant_now/correct do not mutate Core state or automatically promote/suppress/delete candidates.",
     "Future surfacing effect preview is display-priority only.",
     "Rule failure and follow-up previews remain candidate-only.",
-    "Next recommended slice is Agent Perspective Substrate Feedback Loop browser validation v0.1.",
+    "This slice does not implement feedback writes, Agent Substrate mutation/execution, salience writes, recent rehearsal writes, durable memory writes, linkage/receipt writes, Codex/GitHub automation, agent routing/execution, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, work mutation, or product write.",
+    "Next recommended slice is Agent Perspective Substrate Feedback Loop closeout v0.1.",
   ]);
   for (const doc of [surfaceDoc, gateDoc]) {
     assertIncludes(doc, [
-      "Agent Perspective Substrate Feedback Loop implementation remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, linkage runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.",
+      "Agent Perspective Substrate Feedback Loop validation remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, linkage runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.",
       "Feedback-selected targets remain refs/signals, not proof/evidence or durable state.",
       "Dismiss is not deletion.",
       "Pin is not promotion.",
@@ -990,61 +1173,17 @@ function assertDocsPointers() {
   }
 }
 
-function assertContractSmokeDownstreamPointer() {
-  assertIncludes(contractSmokeSource, [
-    "agentPerspectiveSubstrateFeedbackLoopImplementationSliceActive",
-    builderPath,
-    implementationFixturePath,
+function assertImplementationSmokeDownstreamPointer() {
+  assertIncludes(implementationSmokeSource, [
+    "browserValidationSliceActive",
+    validationVersion,
+    validationFixturePath,
     smokePath,
     packageScriptName,
     packageScriptValue,
-    implementationVersion,
     recommendationStatus,
     nextRecommendedSlice,
   ]);
-}
-
-function assertBrowserValidationDownstreamPointer() {
-  if (!browserValidationSliceActive()) return;
-  assert.ok(existsSync(browserValidationFixturePath));
-  assert.ok(existsSync(browserValidationSmokePath));
-  assert.equal(packageJson.scripts[browserValidationPackageScriptName], browserValidationPackageScriptValue);
-  const validationFixture = readJson(browserValidationFixturePath);
-  assert.equal(validationFixture.validation_version, browserValidationVersion);
-  assert.equal(validationFixture.recommendation_status, browserValidationRecommendationStatus);
-  assert.equal(validationFixture.next_recommended_slice, browserValidationNextRecommendedSlice);
-}
-
-function assertBrowserValidationPackageScript() {
-  assert.equal(packageJson.scripts[browserValidationPackageScriptName], browserValidationPackageScriptValue);
-}
-
-function assertBrowserValidationChangedFiles(changedFiles) {
-  const expected = [
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    smokePath,
-    packagePath,
-    indexPath,
-    substrateDocPath,
-    surfaceDocPath,
-    gateDocPath,
-  ];
-  for (const filePath of expected) {
-    assert.ok(changedFiles.includes(filePath), `browser validation slice must include ${filePath}`);
-  }
-  for (const protectedPath of [
-    builderPath,
-    implementationFixturePath,
-    contractTypePath,
-    contractFixturePath,
-  ]) {
-    assert.ok(!changedFiles.includes(protectedPath), `browser validation slice must not change ${protectedPath}`);
-  }
-}
-
-function browserValidationSliceActive() {
-  return readChangedFiles().includes(browserValidationSmokePath);
 }
 
 function assertPortableMergeBaseFallback() {
@@ -1136,6 +1275,15 @@ function stripNonCode(source) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function deepEqual(left, right) {
+  try {
+    assert.deepEqual(left, right);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function uniqueSorted(values) {

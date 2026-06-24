@@ -1191,3 +1191,19 @@ Next recommended slice is Agent Perspective Substrate Feedback Loop browser vali
 ## Next Recommended Slice
 
 `agent_perspective_substrate_feedback_loop_browser_validation_v0_1`
+
+Agent Perspective Substrate Feedback Loop browser validation validates the deterministic fixture-backed #752 implementation.
+It validates public-safe Agent Perspective Substrate Feedback Loop preview bundles against the #751 contract.
+Agent Substrate remains folded, derived, advisory-only.
+Feedback is operator signal, not truth or execution authority.
+Dismiss/pin/mark_useful/mark_wrong/needs_more_evidence/scope_overreach/not_relevant_now/correct do not mutate Core state or automatically promote/suppress/delete candidates.
+Future surfacing effect preview is display-priority only.
+Rule failure and follow-up previews remain candidate-only.
+This slice does not implement feedback writes, Agent Substrate mutation/execution, salience writes, recent rehearsal writes, durable memory writes, linkage/receipt writes, Codex/GitHub automation, agent routing/execution, provider/OpenAI, retrieval/RAG, DB writes, route/UI, proof/evidence writes, work mutation, or product write.
+Product-write remains parked by #686.
+Next recommended slice is Agent Perspective Substrate Feedback Loop closeout v0.1.
+`agent_perspective_substrate_feedback_loop_closeout_v0_1`
+
+## Next Recommended Slice
+
+`agent_perspective_substrate_feedback_loop_closeout_v0_1`

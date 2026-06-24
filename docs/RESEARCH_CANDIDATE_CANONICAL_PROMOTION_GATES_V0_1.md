@@ -1485,3 +1485,18 @@ This slice does not implement runtime DB/browser/provider/source-fetch/retrieval
 Product-write remains parked by #686.
 Next recommended slice is Agent Perspective Substrate Feedback Loop browser validation v0.1.
 `agent_perspective_substrate_feedback_loop_browser_validation_v0_1`
+
+Agent Perspective Substrate Feedback Loop validation remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, linkage runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.
+Feedback-selected targets remain refs/signals, not proof/evidence or durable state.
+Dismiss is not deletion.
+Pin is not promotion.
+mark_useful is not truth.
+mark_wrong is not proof of falsity.
+needs_more_evidence does not execute retrieval.
+scope_overreach does not mutate state.
+not_relevant_now is not rejection.
+Corrections do not mutate Core state in this slice.
+This slice does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/layout/digest/packet/handoff/linkage/feedback behavior.
+Product-write remains parked by #686.
+Next recommended slice is Agent Perspective Substrate Feedback Loop closeout v0.1.
+`agent_perspective_substrate_feedback_loop_closeout_v0_1`
