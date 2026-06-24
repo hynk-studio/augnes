@@ -1043,6 +1043,19 @@ Product-write remains parked by #686.
 Next recommended slice is Perspective Geometry Digest browser validation v0.1.
 `perspective_geometry_digest_browser_validation_v0_1`
 
+Perspective Geometry Digest browser validation validates the deterministic fixture-backed #740 implementation.
+It validates public-safe Perspective Geometry Digest preview bundles against the #739 contract.
+Agent Substrate remains advisory-only and cannot build the digest as runtime, execute layout, mutate graph/state, promote Perspective, write evidence/work/product data, or make external calls.
+Raw coordinates are not enough and are not source of truth.
+Digest diagnostics are advisory-only and not authority.
+Recommended retrieval expansion is advisory recall context, not retrieval execution.
+PerspectiveSnapshot remains a future derived view, not independent source of truth.
+Salience/manual gravity/cluster balance/source dominance remain display or diagnostic context only and not authority.
+This slice does not implement runtime digest build, geometry calculation, layout execution, UI rendering, graph DB, graph mutation, state read/write, durable Perspective delta apply, proof/evidence writes, accepted evidence writes, Formation Receipt writes, DB writes, route/UI, provider/OpenAI, retrieval/RAG, AI Context Packet, Codex handoff, or product write.
+Product-write remains parked by #686.
+Next recommended slice is AI Context Packet contract v0.1.
+`ai_context_packet_contract_v0_1`
+
 ## Next Recommended Slice
 
-`perspective_geometry_digest_browser_validation_v0_1`
+`ai_context_packet_contract_v0_1`

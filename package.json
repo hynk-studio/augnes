@@ -559,6 +559,7 @@
     "smoke:project-constellation-runtime-layout-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs",
     "smoke:perspective-geometry-digest-contract-v0-1": "node scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",
     "smoke:perspective-geometry-digest-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-geometry-digest-implementation-v0-1.mjs",
+    "smoke:perspective-geometry-digest-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-perspective-geometry-digest-browser-validation-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
