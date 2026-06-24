@@ -8,7 +8,12 @@ const contractFixturePath =
   "fixtures/research-candidate-review.ai-context-packet-contract.sample.v0.1.json";
 const implementationFixturePath =
   "fixtures/research-candidate-review.ai-context-packet-implementation.sample.v0.1.json";
-const smokePath = "scripts/smoke-ai-context-packet-implementation-v0-1.mjs";
+const fixturePath =
+  "fixtures/research-candidate-review.ai-context-packet-browser-validation.sample.v0.1.json";
+const smokePath =
+  "scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs";
+const implementationSmokePath =
+  "scripts/smoke-ai-context-packet-implementation-v0-1.mjs";
 const contractSmokePath = "scripts/smoke-ai-context-packet-contract-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -17,28 +22,21 @@ const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
 const gateDocPath =
   "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md";
 
-const packageScriptName = "smoke:ai-context-packet-implementation-v0-1";
+const packageScriptName = "smoke:ai-context-packet-browser-validation-v0-1";
 const packageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ai-context-packet-implementation-v0-1.mjs";
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs";
+const validationKind = "ai_context_packet_browser_validation";
+const validationVersion = "ai_context_packet_browser_validation.v0.1";
 const implementationKind = "ai_context_packet_implementation";
 const implementationVersion = "ai_context_packet_implementation.v0.1";
+const implementationRecommendationStatus =
+  "ready_for_ai_context_packet_browser_validation_v0_1";
+const implementationNextRecommendedSlice =
+  "ai_context_packet_browser_validation_v0_1";
 const previewVersion = "ai_context_packet_preview.v0.1";
 const recommendationStatus =
-  "ready_for_ai_context_packet_browser_validation_v0_1";
-const nextRecommendedSlice = "ai_context_packet_browser_validation_v0_1";
-const browserValidationFixturePath =
-  "fixtures/research-candidate-review.ai-context-packet-browser-validation.sample.v0.1.json";
-const browserValidationSmokePath =
-  "scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs";
-const browserValidationPackageScriptName =
-  "smoke:ai-context-packet-browser-validation-v0-1";
-const browserValidationPackageScriptValue =
-  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs";
-const browserValidationVersion =
-  "ai_context_packet_browser_validation.v0.1";
-const browserValidationRecommendationStatus =
   "ready_for_codex_handoff_draft_contract_v0_1";
-const browserValidationNextRecommendedSlice = "codex_handoff_draft_contract_v0_1";
+const nextRecommendedSlice = "codex_handoff_draft_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -91,28 +89,24 @@ const downstreamSmokePaths = [
   "scripts/smoke-salience-governor-contract-v0-1.mjs",
   "scripts/smoke-salience-governor-implementation-v0-1.mjs",
 ];
-const browserValidationDownstreamSmokePaths = [
-  contractSmokePath,
-  smokePath,
-  ...downstreamSmokePaths,
-];
-
 const expectedChangedFiles = [
-  builderPath,
-  implementationFixturePath,
+  fixturePath,
   smokePath,
   packagePath,
   indexPath,
   substrateDocPath,
   surfaceDocPath,
   gateDocPath,
+  implementationSmokePath,
   contractSmokePath,
   ...downstreamSmokePaths,
 ];
 
 const protectedUnchangedPaths = [
+  builderPath,
   contractTypePath,
   contractFixturePath,
+  implementationFixturePath,
   "fixtures/research-candidate-review.perspective-geometry-digest-browser-validation.sample.v0.1.json",
   "types/perspective-geometry-digest-contract.ts",
   "fixtures/research-candidate-review.perspective-geometry-digest-contract.sample.v0.1.json",
@@ -130,7 +124,9 @@ for (const filePath of [
   builderPath,
   contractTypePath,
   contractFixturePath,
+  implementationFixturePath,
   smokePath,
+  implementationSmokePath,
   contractSmokePath,
   packagePath,
   indexPath,
@@ -142,16 +138,18 @@ for (const filePath of [
 }
 if (!writeFixture) {
   assert.ok(
-    existsSync(implementationFixturePath),
-    `${implementationFixturePath} must exist`,
+    existsSync(fixturePath),
+    `${fixturePath} must exist`,
   );
 }
 
 const builderSource = readFile(builderPath);
 const smokeSource = readFile(smokePath);
+const implementationSmokeSource = readFile(implementationSmokePath);
 const contractSmokeSource = readFile(contractSmokePath);
 const contractTypeSource = readFile(contractTypePath);
 const contractFixture = readJson(contractFixturePath);
+const implementationFixture = readJson(implementationFixturePath);
 const packageJson = readJson(packagePath);
 const basePackageJson = readJsonFromGit(packagePath);
 const indexDoc = readFile(indexPath);
@@ -171,31 +169,40 @@ const rebuiltImplementationFixture = buildAIContextPacketImplementationFixture({
   ai_context_packet_contract: contractFixture,
   source_contract_ref: sourceContractRef,
 });
+const rebuiltFixture = buildValidationFixture();
 
 if (writeFixture) {
   writeFileSync(
-    implementationFixturePath,
-    `${JSON.stringify(rebuiltImplementationFixture, null, 2)}\n`,
+    fixturePath,
+    `${JSON.stringify(rebuiltFixture, null, 2)}\n`,
   );
   process.exit(0);
 }
 
-const fixture = readJson(implementationFixturePath);
+const fixture = readJson(fixturePath);
 
-assertContractArtifactsUnchanged();
+assertUpstreamArtifactsUnchanged();
 assertBuilderFile();
 assertPackageScript();
 assertStaticBoundary();
 assertNoForbiddenRuntimePatterns();
 assert.deepEqual(
-  fixture,
+  implementationFixture,
   rebuiltImplementationFixture,
-  "rebuilt AI Context Packet implementation fixture must match committed fixture",
+  "#743 implementation fixture must match rebuilt deterministic output",
 );
-assertImplementationFixture(fixture);
-assertBuiltPacketPreviewBundle(fixture.built_ai_context_packet_preview_bundle);
+assert.deepEqual(
+  fixture,
+  rebuiltFixture,
+  "rebuilt AI Context Packet browser validation fixture must match committed fixture",
+);
+assertValidationFixture(fixture);
+assertValidatedBuilder(fixture.validated_builder);
+assertValidatedAIContextPacket(fixture.validated_ai_context_packet);
+assertImplementationFixture(implementationFixture);
+assertBuiltPacketPreviewBundle(implementationFixture.built_ai_context_packet_preview_bundle);
 assertAuthorityBoundary(fixture.authority_boundary);
-assertValidation(fixture.validated_implementation);
+assertImplementationAuthorityBoundary(implementationFixture.authority_boundary);
 assertInvalidPacketPreviewOverrideCoverage();
 assertInvalidTargetAgentModeOverrideCoverage();
 assertInvalidPacketSectionOverrideCoverage();
@@ -203,27 +210,32 @@ assertInvalidForbiddenActionsOverrideCoverage();
 assertInvalidAuthorityBoundaryOverrideCoverage();
 assertInvalidRefsOverrideCoverage();
 assertDocsPointers();
-assertContractSmokeDownstreamPointer();
+assertImplementationSmokeDownstreamPointer();
 assertPortableMergeBaseFallback();
 
 console.log(
   JSON.stringify(
     {
-      smoke: "ai-context-packet-implementation-v0-1",
+      smoke: "ai-context-packet-browser-validation-v0-1",
       final_status: "pass",
-      implementation_kind: fixture.implementation_kind,
-      implementation_version: fixture.implementation_version,
+      validation_kind: fixture.validation_kind,
+      validation_version: fixture.validation_version,
+      source_implementation_fingerprint:
+        fixture.source_implementation_fingerprint,
       source_contract_fingerprint: fixture.source_contract_fingerprint,
+      implementation_fixture_matches_rebuilt_output:
+        fixture.validated_ai_context_packet
+          .implementation_fixture_matches_rebuilt_output,
       preview_bundle_follows_contract:
-        fixture.validated_implementation.preview_bundle_follows_contract,
+        fixture.validated_ai_context_packet.preview_bundle_follows_contract,
       packet_principles_preserved:
-        fixture.validated_implementation.packet_principles_preserved,
+        fixture.validated_ai_context_packet.packet_principles_preserved,
       target_agent_modes_preserved:
-        fixture.validated_implementation.target_agent_modes_preserved,
+        fixture.validated_ai_context_packet.target_agent_modes_preserved,
       packet_section_families_preserved:
-        fixture.validated_implementation.packet_section_families_preserved,
+        fixture.validated_ai_context_packet.packet_section_families_preserved,
       forbidden_actions_policy_preserved:
-        fixture.validated_implementation.forbidden_actions_policy_preserved,
+        fixture.validated_ai_context_packet.forbidden_actions_policy_preserved,
       ai_context_packet_runtime_build_implemented_now:
         fixture.authority_boundary.ai_context_packet_runtime_build_implemented_now,
       codex_execution_now: fixture.authority_boundary.codex_execution_now,
@@ -242,7 +254,82 @@ console.log(
   ),
 );
 
-function assertContractArtifactsUnchanged() {
+function buildValidationFixture() {
+  const {
+    passed: _passed,
+    failure_codes: _failureCodes,
+    ...implementationValidation
+  } = implementationFixture.validated_implementation;
+  const validatedAIContextPacket = {
+    implementation_fixture_matches_rebuilt_output: deepEqual(
+      implementationFixture,
+      rebuiltImplementationFixture,
+    ),
+    ...implementationValidation,
+    browser_validation_added_now: true,
+    implementation_changed_now: false,
+    contract_changed_now: false,
+  };
+  const {
+    builder_path: _builderPath,
+    ...deterministicBuilderFlags
+  } = implementationFixture.deterministic_builder;
+  const validation = {
+    validation_kind: validationKind,
+    validation_version: validationVersion,
+    source_implementation_ref:
+      `${implementationFixture.implementation_version}:${implementationFixturePath}#743`,
+    source_implementation_fingerprint:
+      implementationFixture.implementation_fingerprint,
+    source_contract_ref: implementationFixture.source_contract_ref,
+    source_contract_fingerprint:
+      implementationFixture.source_contract_fingerprint,
+    validated_builder: {
+      builder_path: builderPath,
+      implementation_fixture_path: implementationFixturePath,
+      contract_fixture_path: contractFixturePath,
+      ...deterministicBuilderFlags,
+    },
+    validated_ai_context_packet: validatedAIContextPacket,
+    authority_boundary: buildValidationAuthorityBoundary(),
+    recommendation_status: recommendationStatus,
+    next_recommended_slice: nextRecommendedSlice,
+    validation: {
+      passed: validatedAIContextPacketPasses(validatedAIContextPacket),
+      failure_codes: [],
+      deterministic_rebuild_matches_fixture: true,
+    },
+    validation_fingerprint: "",
+    fingerprint_algorithm: "fnv1a32_canonical_json",
+  };
+  validation.validation_fingerprint = createAIContextPacketFingerprint(validation);
+  return validation;
+}
+
+function validatedAIContextPacketPasses(value) {
+  return Object.entries(value).every(([key, flag]) =>
+    key === "implementation_changed_now" || key === "contract_changed_now"
+      ? flag === false
+      : flag === true,
+  );
+}
+
+function buildValidationAuthorityBoundary() {
+  const {
+    implementation_added_now: _implementationAddedNow,
+    deterministic_builder_added_now: _deterministicBuilderAddedNow,
+    contract_changed_now: _contractChangedNow,
+    ...implementationBoundary
+  } = implementationFixture.authority_boundary;
+  return {
+    browser_validation_added_now: true,
+    implementation_changed_now: false,
+    contract_changed_now: false,
+    ...implementationBoundary,
+  };
+}
+
+function assertUpstreamArtifactsUnchanged() {
   assert.deepEqual(
     contractFixture,
     readJsonFromGit(contractFixturePath),
@@ -252,6 +339,16 @@ function assertContractArtifactsUnchanged() {
     contractTypeSource,
     readTextFromGit(contractTypePath),
     "#742 AI Context Packet type contract must not change",
+  );
+  assert.equal(
+    builderSource,
+    readTextFromGit(builderPath),
+    "#743 AI Context Packet builder file must not change",
+  );
+  assert.deepEqual(
+    implementationFixture,
+    readJsonFromGit(implementationFixturePath),
+    "#743 AI Context Packet implementation fixture must not change",
   );
 }
 
@@ -295,10 +392,6 @@ function assertBuilderFile() {
 }
 
 function assertPackageScript() {
-  if (browserValidationSliceActive()) {
-    assertBrowserValidationPackageScript();
-    return;
-  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -316,7 +409,7 @@ function assertPackageScript() {
   assert.deepEqual(
     addedScriptNames,
     [packageScriptName],
-    "package.json must add only the AI Context Packet implementation smoke script",
+    "package.json must add only the AI Context Packet browser validation smoke script",
   );
   assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
   assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
@@ -331,14 +424,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
-  if (browserValidationSliceActive()) {
-    assertBrowserValidationChangedFiles(changedFiles);
-    return;
-  }
   for (const unchangedPath of protectedUnchangedPaths) {
     assert.ok(
       !changedFiles.includes(unchangedPath),
-      `AI Context Packet implementation slice must not change ${unchangedPath}`,
+      `AI Context Packet browser validation slice must not change ${unchangedPath}`,
     );
   }
   for (const expectedFile of expectedChangedFiles) {
@@ -350,7 +439,7 @@ function assertStaticBoundary() {
   for (const changedFile of changedFiles) {
     assert.ok(
       expectedChangedFiles.includes(changedFile),
-      `unexpected changed file in AI Context Packet implementation slice: ${changedFile}`,
+      `unexpected changed file in AI Context Packet browser validation slice: ${changedFile}`,
     );
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
     assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
@@ -359,9 +448,7 @@ function assertStaticBoundary() {
     assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
     assert.doesNotMatch(changedFile, /^lib\/research-retrieval\//, "must not add retrieval implementation files");
     assert.doesNotMatch(changedFile, /^lib\/research-rag\//, "must not add RAG implementation files");
-    if (changedFile !== builderPath) {
-      assert.doesNotMatch(changedFile, /^lib\/.*ai.*context/i, "must not add runtime AI context packet files outside the deterministic builder");
-    }
+    assert.doesNotMatch(changedFile, /^lib\/.*ai.*context/i, "must not add runtime AI context packet files");
     assert.doesNotMatch(changedFile, /^lib\/.*codex.*handoff/i, "must not add Codex handoff files");
     assert.doesNotMatch(changedFile, /^lib\/.*github/i, "must not add GitHub automation files");
     assert.doesNotMatch(changedFile, /^lib\/.*agent/i, "must not add agent routing or execution files");
@@ -384,8 +471,8 @@ function assertNoForbiddenRuntimePatterns() {
     (filePath) =>
       (filePath.endsWith(".ts") || filePath.endsWith(".mjs")) &&
       filePath !== smokePath &&
+      filePath !== implementationSmokePath &&
       filePath !== contractSmokePath &&
-      filePath !== browserValidationSmokePath &&
       !downstreamSmokePaths.includes(filePath),
   );
   for (const filePath of changedCodeFiles) {
@@ -425,8 +512,8 @@ function assertImplementationFixture(value) {
   }
   assert.equal(value.deterministic_builder.builder_path, builderPath);
   assert.equal(value.deterministic_builder.deterministic_fixture_backed_only, true);
-  assert.equal(value.recommendation_status, recommendationStatus);
-  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(value.recommendation_status, implementationRecommendationStatus);
+  assert.equal(value.next_recommended_slice, implementationNextRecommendedSlice);
   assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
   const valueWithoutImplementationFingerprint = { ...value };
   delete valueWithoutImplementationFingerprint.implementation_fingerprint;
@@ -434,6 +521,80 @@ function assertImplementationFixture(value) {
     value.implementation_fingerprint,
     createAIContextPacketFingerprint(valueWithoutImplementationFingerprint),
   );
+}
+
+function assertValidationFixture(value) {
+  assert.equal(value.validation_kind, validationKind);
+  assert.equal(value.validation_version, validationVersion);
+  assert.equal(
+    value.source_implementation_ref,
+    `${implementationFixture.implementation_version}:${implementationFixturePath}#743`,
+  );
+  assert.equal(
+    value.source_implementation_fingerprint,
+    implementationFixture.implementation_fingerprint,
+  );
+  assert.equal(value.source_contract_ref, implementationFixture.source_contract_ref);
+  assert.equal(
+    value.source_contract_fingerprint,
+    implementationFixture.source_contract_fingerprint,
+  );
+  assert.equal(value.recommendation_status, recommendationStatus);
+  assert.equal(value.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(value.fingerprint_algorithm, "fnv1a32_canonical_json");
+  const valueWithoutValidationFingerprint = { ...value, validation_fingerprint: "" };
+  assert.equal(
+    value.validation_fingerprint,
+    createAIContextPacketFingerprint(valueWithoutValidationFingerprint),
+  );
+  assert.deepEqual(value.validation, {
+    passed: true,
+    failure_codes: [],
+    deterministic_rebuild_matches_fixture: true,
+  });
+}
+
+function assertValidatedBuilder(value) {
+  assert.equal(value.builder_path, builderPath);
+  assert.equal(value.implementation_fixture_path, implementationFixturePath);
+  assert.equal(value.contract_fixture_path, contractFixturePath);
+  assert.equal(value.deterministic_fixture_backed_only, true);
+  for (const [key, flag] of Object.entries(value)) {
+    if (
+      key === "builder_path" ||
+      key === "implementation_fixture_path" ||
+      key === "contract_fixture_path" ||
+      key === "deterministic_fixture_backed_only"
+    ) {
+      continue;
+    }
+    assert.equal(flag, false, `${key} must remain false`);
+  }
+}
+
+function assertValidatedAIContextPacket(value) {
+  assert.equal(value.implementation_fixture_matches_rebuilt_output, true);
+  assert.equal(value.browser_validation_added_now, true);
+  assert.equal(value.implementation_changed_now, false);
+  assert.equal(value.contract_changed_now, false);
+  assert.equal(value.preview_bundle_follows_contract, true);
+  assert.equal(value.preview_bundle_authority_boundary_matches_contract, true);
+  assert.equal(value.preview_bundle_validation_policy_matches_contract, true);
+  assert.equal(value.preview_bundle_forbidden_actions_policy_matches_contract, true);
+  assert.equal(value.top_level_implementation_boundary_is_separate, true);
+  assert.equal(value.packet_input_fields_preserved, true);
+  assert.equal(value.packet_output_fields_preserved, true);
+  assert.equal(value.packet_principles_preserved, true);
+  assert.equal(value.target_agent_modes_preserved, true);
+  assert.equal(value.packet_section_families_preserved, true);
+  assert.equal(value.forbidden_actions_policy_preserved, true);
+  for (const [key, flag] of Object.entries(value)) {
+    if (key === "implementation_changed_now" || key === "contract_changed_now") {
+      assert.equal(flag, false, `${key} must remain false`);
+    } else {
+      assert.equal(flag, true, `${key} must be true`);
+    }
+  }
 }
 
 function assertBuiltPacketPreviewBundle(bundle) {
@@ -456,6 +617,23 @@ function assertBuiltPacketPreviewBundle(bundle) {
 }
 
 function assertAuthorityBoundary(boundary) {
+  assert.equal(boundary.browser_validation_added_now, true);
+  assert.equal(boundary.implementation_changed_now, false);
+  assert.equal(boundary.contract_changed_now, false);
+  assert.equal(boundary.product_write_lane_parked_by_686, true);
+  for (const [key, value] of Object.entries(boundary)) {
+    if (
+      key === "browser_validation_added_now" ||
+      key === "product_write_lane_parked_by_686"
+    ) {
+      assert.equal(value, true, `${key} must be true`);
+    } else {
+      assert.equal(value, false, `${key} must remain false`);
+    }
+  }
+}
+
+function assertImplementationAuthorityBoundary(boundary) {
   assert.equal(boundary.implementation_added_now, true);
   assert.equal(boundary.deterministic_builder_added_now, true);
   assert.equal(boundary.contract_changed_now, false);
@@ -819,12 +997,23 @@ function assertFailureCodes(validation, expectedCodes) {
 
 function assertDocsPointers() {
   for (const requiredText of [
-    "AI Context Packet implementation v0.1",
-    builderPath,
-    implementationFixturePath,
+    "AI Context Packet browser validation v0.1",
+    fixturePath,
     smokePath,
-    "deterministic fixture-backed implementation only",
-    "validates and materializes #742 AI Context Packet preview bundle",
+    "validates deterministic fixture-backed implementation from #743",
+    "validates #742 contract boundary and #743 top-level implementation boundary separation",
+    "validates built AI Context Packet preview bundle",
+    "validates packet principle summary",
+    "validates target agent mode summary",
+    "validates packet section family summary",
+    "validates forbidden actions summary",
+    "validates reference summary",
+    "validates invalid packet preview override rejection",
+    "validates invalid target agent mode override rejection",
+    "validates invalid packet section override rejection",
+    "validates invalid forbidden actions override rejection",
+    "validates invalid authority boundary override rejection",
+    "validates invalid refs override rejection",
     "AI Context Packet is context, not execution authority",
     "packet is folded, derived, advisory-only",
     "packet is not source of truth",
@@ -872,8 +1061,8 @@ function assertDocsPointers() {
     assert.ok(indexDoc.includes(requiredText), `${indexPath} must include ${requiredText}`);
   }
   for (const requiredText of [
-    "AI Context Packet implementation is deterministic fixture-backed only.",
-    "It materializes preview bundles from the #742 contract.",
+    "AI Context Packet browser validation validates the deterministic fixture-backed #743 implementation.",
+    "It validates public-safe AI Context Packet preview bundles against the #742 contract.",
     "Agent Substrate remains advisory-only",
     "AI Context Packet is context, not execution authority.",
     "target_agent_mode is presentation scope only, not authority.",
@@ -881,13 +1070,13 @@ function assertDocsPointers() {
     "expected_checks are validation hints only and not execution authority.",
     "final_critical_facts are review cues only and not authority.",
     "Codex handoff draft is not execution approval.",
-    "Next recommended slice is AI Context Packet browser validation v0.1.",
+    "Next recommended slice is Codex Handoff Draft contract v0.1.",
   ]) {
     assert.ok(substrateDoc.includes(requiredText), `${substrateDocPath} must include ${requiredText}`);
   }
   for (const doc of [surfaceDoc, gateDoc]) {
     for (const requiredText of [
-      "AI Context Packet implementation remains separated from candidate preview, digest runtime, layout runtime, durable Perspective state, promotion runtime, and execution.",
+      "AI Context Packet validation remains separated from candidate preview, digest runtime, layout runtime, durable Perspective state, promotion runtime, and execution.",
       "Packet-selected candidates remain candidates, not proof/evidence or durable state.",
       "Unresolved tensions and knowledge gaps must remain visible.",
       "Perspective Geometry Digest remains interpretation, not truth.",
@@ -899,62 +1088,18 @@ function assertDocsPointers() {
   }
 }
 
-function assertContractSmokeDownstreamPointer() {
+function assertImplementationSmokeDownstreamPointer() {
   for (const requiredText of [
-    implementationVersion,
-    implementationFixturePath,
+    validationVersion,
+    fixturePath,
     smokePath,
     packageScriptName,
     recommendationStatus,
     nextRecommendedSlice,
   ]) {
     assert.ok(
-      contractSmokeSource.includes(requiredText),
-      `${contractSmokePath} must include ${requiredText}`,
-    );
-  }
-}
-
-function browserValidationSliceActive() {
-  return readChangedFiles().includes(browserValidationSmokePath);
-}
-
-function assertBrowserValidationPackageScript() {
-  assert.equal(
-    packageJson.scripts[browserValidationPackageScriptName],
-    browserValidationPackageScriptValue,
-  );
-}
-
-function assertBrowserValidationChangedFiles(changedFiles) {
-  const expectedFiles = [
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    packagePath,
-    indexPath,
-    substrateDocPath,
-    surfaceDocPath,
-    gateDocPath,
-    smokePath,
-    ...browserValidationDownstreamSmokePaths,
-  ];
-  for (const changedFile of changedFiles) {
-    assert.ok(
-      expectedFiles.includes(changedFile),
-      `unexpected changed file in AI Context Packet browser validation downstream slice: ${changedFile}`,
-    );
-  }
-  for (const requiredText of [
-    browserValidationVersion,
-    browserValidationFixturePath,
-    browserValidationSmokePath,
-    browserValidationPackageScriptName,
-    browserValidationRecommendationStatus,
-    browserValidationNextRecommendedSlice,
-  ]) {
-    assert.ok(
-      smokeSource.includes(requiredText),
-      `${smokePath} must include ${requiredText}`,
+      implementationSmokeSource.includes(requiredText),
+      `${implementationSmokePath} must include ${requiredText}`,
     );
   }
 }
@@ -1029,4 +1174,8 @@ function stripNonCode(source) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function deepEqual(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
 }

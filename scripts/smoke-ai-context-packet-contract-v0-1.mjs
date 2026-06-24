@@ -40,6 +40,19 @@ const implementationRecommendationStatus =
   "ready_for_ai_context_packet_browser_validation_v0_1";
 const implementationNextRecommendedSlice =
   "ai_context_packet_browser_validation_v0_1";
+const browserValidationFixturePath =
+  "fixtures/research-candidate-review.ai-context-packet-browser-validation.sample.v0.1.json";
+const browserValidationSmokePath =
+  "scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs";
+const browserValidationPackageScriptName =
+  "smoke:ai-context-packet-browser-validation-v0-1";
+const browserValidationPackageScriptValue =
+  "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-ai-context-packet-browser-validation-v0-1.mjs";
+const browserValidationVersion = "ai_context_packet_browser_validation.v0.1";
+const browserValidationRecommendationStatus =
+  "ready_for_codex_handoff_draft_contract_v0_1";
+const browserValidationNextRecommendedSlice =
+  "codex_handoff_draft_contract_v0_1";
 const writeFixture = process.argv.includes("--write-fixture");
 let cachedMergeBaseRef = null;
 
@@ -879,6 +892,10 @@ function assertTypeContract() {
 }
 
 function assertPackageScript() {
+  if (browserValidationSliceActive()) {
+    assertBrowserValidationPackageScript();
+    return;
+  }
   if (implementationSliceActive()) {
     assertImplementationPackageScript();
     return;
@@ -949,6 +966,10 @@ function assertImplementationPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (browserValidationSliceActive()) {
+    assertBrowserValidationChangedFiles(changedFiles);
+    return;
+  }
   if (implementationSliceActive()) {
     assertImplementationChangedFiles(changedFiles);
     return;
@@ -1043,11 +1064,114 @@ function assertImplementationChangedFiles(changedFiles) {
   }
 }
 
+function browserValidationSliceActive() {
+  return readChangedFiles().includes(browserValidationSmokePath);
+}
+
+function assertBrowserValidationPackageScript() {
+  assert.equal(
+    packageJson.scripts[browserValidationPackageScriptName],
+    browserValidationPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [browserValidationPackageScriptName],
+    "package.json must add only the AI Context Packet browser validation smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertBrowserValidationChangedFiles(changedFiles) {
+  const expectedFiles = [
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    packagePath,
+    indexPath,
+    substrateDocPath,
+    surfaceDocPath,
+    gateDocPath,
+    implementationSmokePath,
+    smokePath,
+    ...aiContextPacketDownstreamSmokePaths,
+  ];
+  for (const unchangedPath of [
+    typePath,
+    fixturePath,
+    implementationBuilderPath,
+    implementationFixturePath,
+    ...protectedUnchangedPaths,
+  ]) {
+    assert.ok(
+      !changedFiles.includes(unchangedPath),
+      `AI Context Packet browser validation slice must not change ${unchangedPath}`,
+    );
+  }
+  for (const expectedFile of expectedFiles) {
+    assert.ok(
+      changedFiles.includes(expectedFile),
+      `changed files must include ${expectedFile}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expectedFiles.includes(changedFile),
+      `unexpected changed file in AI Context Packet browser validation slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+  assertBrowserValidationDownstreamPointer();
+}
+
+function assertBrowserValidationDownstreamPointer() {
+  const browserValidationSmoke = readFileSync(browserValidationSmokePath, "utf8");
+  for (const requiredText of [
+    browserValidationVersion,
+    browserValidationFixturePath,
+    browserValidationSmokePath,
+    browserValidationPackageScriptName,
+    browserValidationRecommendationStatus,
+    browserValidationNextRecommendedSlice,
+  ]) {
+    assert.ok(
+      browserValidationSmoke.includes(requiredText),
+      `AI Context Packet browser validation smoke must include ${requiredText}`,
+    );
+  }
+}
+
 function assertNoForbiddenRuntimePatterns() {
   const changedCodeFiles = readChangedFiles().filter((filePath) =>
     (filePath.endsWith(".ts") || filePath.endsWith(".mjs")) &&
     filePath !== smokePath &&
     filePath !== implementationSmokePath &&
+    filePath !== browserValidationSmokePath &&
     filePath !== sourceValidationSmokePath &&
     !aiContextPacketDownstreamSmokePaths.includes(filePath)
   );
