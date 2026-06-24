@@ -1915,3 +1915,11 @@ This slice does not implement runtime DB/browser/provider/source-fetch/retrieval
 Product-write remains parked by #686.
 Next recommended slice is Agent Perspective Substrate Feedback Loop closeout v0.1.
 `agent_perspective_substrate_feedback_loop_closeout_v0_1`
+
+Agent Perspective Substrate Feedback Loop is closed as preview-only grammar.
+Feedback-selected targets remain refs/signals, not proof/evidence or durable state.
+Feedback does not mutate Core state in this rail.
+This closeout does not implement runtime DB/browser/provider/source-fetch/retrieval/promotion/state/layout/digest/packet/handoff/linkage/feedback behavior.
+Product-write remains parked by #686.
+Next recommended slice is Dogfooding Research-to-Perspective CI Expansion contract v0.1.
+`dogfooding_research_to_perspective_ci_expansion_contract_v0_1`
