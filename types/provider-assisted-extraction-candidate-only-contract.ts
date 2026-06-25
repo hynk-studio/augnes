@@ -247,3 +247,117 @@ export interface ProviderAssistedExtractionValidationResult {
   passed: boolean;
   failure_codes: string[];
 }
+
+export type ProviderAssistedExtractionRuntimeVersion =
+  "provider_assisted_extraction_runtime.v0.1";
+
+export type ProviderAssistedExtractionRuntimeStatus =
+  "bounded_runtime_only";
+
+export type ProviderAssistedExtractionRuntimeDecision =
+  | "candidate_output_created"
+  | "blocked_private_or_raw_payload"
+  | "blocked_secret_like_payload"
+  | "blocked_missing_bounded_source"
+  | "blocked_unsupported_target"
+  | "needs_operator_review"
+  | "candidate_only"
+  | "rejected";
+
+export type ProviderAssistedExtractionRuntimeReasonCode =
+  | ProviderAssistedExtractionReasonCode
+  | "bounded_runtime_executed"
+  | "provider_call_still_not_executed"
+  | "prompt_still_not_sent"
+  | "provider_output_still_not_stored"
+  | "candidate_preview_present"
+  | "candidate_preview_missing"
+  | "candidate_preview_public_safe"
+  | "candidate_preview_blocked"
+  | "runtime_candidate_output_created"
+  | "runtime_request_validation_passed"
+  | "runtime_request_validation_failed"
+  | "blocked_request_not_executed"
+  | "accepted_output_not_truth"
+  | "accepted_output_not_proof";
+
+export interface ProviderAssistedExtractionRuntimeAuthorityBoundary {
+  bounded_runtime_only: true;
+  caller_provided_input_only: true;
+  provider_call_now: false;
+  prompt_sent_now: false;
+  provider_output_stored_now: false;
+  source_fetch_now: false;
+  local_file_read_now: false;
+  repository_file_read_now: false;
+  uploaded_file_read_now: false;
+  raw_source_body_storage_now: false;
+  retrieval_rag_execution_now: false;
+  db_query_or_write_now: false;
+  source_of_truth: false;
+  proof_or_evidence_record: false;
+  claim_or_evidence_write_now: false;
+  perspective_promotion: false;
+  durable_perspective_state: false;
+  work_mutation: false;
+  codex_execution_authority: false;
+  github_automation_authority: false;
+  git_ledger_export_authority: false;
+  product_write_authority: false;
+  product_id_allocation_authority: false;
+}
+
+export interface ProviderAssistedExtractionRuntimeCandidatePreview {
+  request_id: string;
+  output_kind: ProviderAssistedExtractionTargetKind;
+  candidate_ref?: string;
+  bounded_output_summary: string;
+  source_refs?: string[];
+  bounded_summary_refs?: string[];
+  confidence_preview?: ProviderAssistedExtractionConfidencePreview;
+  review_status?: ProviderAssistedExtractionCandidateReviewStatus;
+  public_safe: boolean;
+}
+
+export interface ProviderAssistedExtractionRuntimeInput {
+  runtime_version: ProviderAssistedExtractionRuntimeVersion;
+  contract_version: ProviderAssistedExtractionCandidateOnlyContractVersion;
+  scope: ProviderAssistedExtractionScope;
+  as_of: string;
+  source_fixture_refs: string[];
+  requests: ProviderAssistedExtractionCandidateRequest[];
+  candidate_previews?: ProviderAssistedExtractionRuntimeCandidatePreview[];
+}
+
+export interface ProviderAssistedExtractionRuntimeDecisionRecord {
+  request_id: string;
+  decision: ProviderAssistedExtractionRuntimeDecision;
+  requested_target_kinds?: ProviderAssistedExtractionTargetKind[];
+  output_refs: string[];
+  reason_codes: ProviderAssistedExtractionRuntimeReasonCode[];
+}
+
+export interface ProviderAssistedExtractionRuntimeReport {
+  runtime_version: ProviderAssistedExtractionRuntimeVersion;
+  contract_version: ProviderAssistedExtractionCandidateOnlyContractVersion;
+  scope: ProviderAssistedExtractionScope;
+  status: ProviderAssistedExtractionRuntimeStatus;
+  as_of: string;
+  source_fixture_refs: string[];
+  candidate_outputs: ProviderAssistedExtractionCandidateOutput[];
+  runtime_decisions: ProviderAssistedExtractionRuntimeDecisionRecord[];
+  decision_counts: Record<ProviderAssistedExtractionRuntimeDecision, number>;
+  output_kind_counts: Record<ProviderAssistedExtractionTargetKind, number>;
+  review_status_counts: Record<
+    ProviderAssistedExtractionCandidateReviewStatus,
+    number
+  >;
+  boundary_notes: string[];
+  authority_boundary: ProviderAssistedExtractionRuntimeAuthorityBoundary;
+  runtime_report_fingerprint: string;
+}
+
+export interface ProviderAssistedExtractionRuntimeValidationResult {
+  passed: boolean;
+  failure_codes: string[];
+}
