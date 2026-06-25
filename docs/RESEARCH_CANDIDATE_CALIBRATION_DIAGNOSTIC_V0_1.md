@@ -180,14 +180,23 @@ target-kind-matched feedback event source refs. Explicit
 absent. Missing source refs without boundary clarification raise
 `source_ref_missing` and `missing_source_ref`.
 
-Evidence support is counted from linked evidence candidates and direct support
-fields. Contradiction counts include contradicting evidence and contradiction
-tensions. Unresolved tension and knowledge gap counts prefer lifecycle summary
-counts when present, then fall back to direct candidate relationships. Locator
-coverage checks evidence locators and linked evidence locators for claims and
-Perspective deltas.
+Evidence support is counted from verified existing support records.
+support_count counts verified existing support records, not dangling candidate-local string refs.
+Claim support only counts supplied evidence candidate records that exist and
+either appear in support fields or link back to the claim without contradicting
+it. Perspective delta support only counts supplied basis evidence records and
+supplied basis claim records whose candidate records exist;
+dangling support ids are treated as missing evidence for diagnostic purposes.
+
+Contradiction counts include contradicting evidence and contradiction tensions.
+Unresolved tension and knowledge gap counts prefer lifecycle summary counts when
+present, then fall back to direct candidate relationships. Locator coverage
+checks evidence locators and linked evidence locators for claims and Perspective
+deltas.
 
 The diagnostic does not fetch sources. It does not execute retrieval/RAG.
+Calibration Diagnostic is diagnostic-only and does not turn refs into
+proof/evidence.
 
 ## Authority Boundary
 

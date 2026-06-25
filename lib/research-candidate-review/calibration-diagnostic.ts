@@ -187,6 +187,7 @@ export function buildResearchCandidateCalibrationDiagnosticReport(
       buildCandidateDiagnostic({
         input,
         candidate,
+        candidateRecords,
         evidenceRecords,
         tensionRecords,
         knowledgeGapRecords,
@@ -369,6 +370,7 @@ export function createResearchCandidateCalibrationDiagnosticFingerprint(
 function buildCandidateDiagnostic(args: {
   input: ResearchCandidateCalibrationDiagnosticBuilderInput;
   candidate: CandidateRecord;
+  candidateRecords: CandidateRecord[];
   evidenceRecords: CandidateRecord[];
   tensionRecords: CandidateRecord[];
   knowledgeGapRecords: CandidateRecord[];
@@ -378,6 +380,7 @@ function buildCandidateDiagnostic(args: {
   const {
     input,
     candidate,
+    candidateRecords,
     evidenceRecords,
     tensionRecords,
     knowledgeGapRecords,
@@ -415,7 +418,7 @@ function buildCandidateDiagnostic(args: {
     "next_review_action",
   );
   const sourceRefCoverageRatio = sourceRefs.length > 0 ? 1 : 0;
-  const supportCount = countSupport(candidate, evidenceRecords);
+  const supportCount = countSupport(candidate, candidateRecords, evidenceRecords);
   const contradictionCount = countContradictions(candidate, evidenceRecords, tensionRecords);
   const unresolvedTensionCount =
     numberField(lifecycleSummary?.object ?? {}, "unresolved_tension_count") ??
@@ -656,37 +659,84 @@ function buildRiskFlags(args: {
 
 function countSupport(
   candidate: CandidateRecord,
+  candidateRecords: CandidateRecord[],
   evidenceRecords: CandidateRecord[],
 ): number {
   if (candidate.family === "claim") {
-    const supportingEvidenceIds = new Set([
-      ...stringArrayField(candidate.object, "supporting_evidence_candidate_ids"),
-      ...stringArrayField(candidate.object, "basis_evidence_candidate_ids"),
-    ]);
-    for (const evidence of evidenceRecords) {
-      if (
-        evidenceLinksClaim(evidence, candidate.id) &&
-        stringField(evidence.object, "evidence_role") !== "contradicts"
-      ) {
-        supportingEvidenceIds.add(evidence.id);
-      }
-    }
-    return supportingEvidenceIds.size;
+    return supportedEvidenceRecordsForClaim(candidate, evidenceRecords).length;
   }
   if (candidate.family === "perspective_delta") {
-    return uniqueSorted([
-      ...stringArrayField(candidate.object, "basis_evidence_candidate_ids"),
-      ...stringArrayField(candidate.object, "basis_claim_candidate_ids"),
-      ...stringArrayField(candidate.object, "supporting_evidence_candidate_ids"),
-      ...stringArrayField(candidate.object, "supporting_claim_candidate_ids"),
-    ]).length;
+    return verifiedSupportIds(candidate, candidateRecords, evidenceRecords, {
+      evidenceFields: [
+        "basis_evidence_candidate_ids",
+        "supporting_evidence_candidate_ids",
+      ],
+      claimFields: ["basis_claim_candidate_ids", "supporting_claim_candidate_ids"],
+    }).length;
   }
-  return uniqueSorted([
-    ...stringArrayField(candidate.object, "supporting_evidence_candidate_ids"),
-    ...stringArrayField(candidate.object, "basis_evidence_candidate_ids"),
-    ...stringArrayField(candidate.object, "supporting_claim_candidate_ids"),
-    ...stringArrayField(candidate.object, "basis_claim_candidate_ids"),
-  ]).length;
+  return verifiedSupportIds(candidate, candidateRecords, evidenceRecords, {
+    evidenceFields: ["supporting_evidence_candidate_ids", "basis_evidence_candidate_ids"],
+    claimFields: ["supporting_claim_candidate_ids", "basis_claim_candidate_ids"],
+  }).length;
+}
+
+function supportedEvidenceRecordsForClaim(
+  claim: CandidateRecord,
+  evidenceRecords: CandidateRecord[],
+): CandidateRecord[] {
+  const explicitEvidenceIds = new Set([
+    ...stringArrayField(claim.object, "supporting_evidence_candidate_ids"),
+    ...stringArrayField(claim.object, "basis_evidence_candidate_ids"),
+  ]);
+  return evidenceRecords
+    .filter((evidence) => stringField(evidence.object, "evidence_role") !== "contradicts")
+    .filter(
+      (evidence) =>
+        explicitEvidenceIds.has(evidence.id) || evidenceLinksClaim(evidence, claim.id),
+    )
+    .sort((left, right) => left.id.localeCompare(right.id));
+}
+
+function verifiedSupportIds(
+  candidate: CandidateRecord,
+  candidateRecords: CandidateRecord[],
+  evidenceRecords: CandidateRecord[],
+  fields: {
+    evidenceFields: string[];
+    claimFields: string[];
+  },
+): string[] {
+  const evidenceById = existingEvidenceById(evidenceRecords);
+  const claimIds = existingClaimIds(candidateRecords);
+  const supportIds = new Set<string>();
+  for (const field of fields.evidenceFields) {
+    for (const evidenceId of stringArrayField(candidate.object, field)) {
+      const evidence = evidenceById.get(evidenceId);
+      if (evidence && stringField(evidence.object, "evidence_role") !== "contradicts") {
+        supportIds.add(`evidence:${evidence.id}`);
+      }
+    }
+  }
+  for (const field of fields.claimFields) {
+    for (const claimId of stringArrayField(candidate.object, field)) {
+      if (claimIds.has(claimId)) supportIds.add(`claim:${claimId}`);
+    }
+  }
+  return Array.from(supportIds).sort();
+}
+
+function existingEvidenceById(
+  evidenceRecords: CandidateRecord[],
+): Map<string, CandidateRecord> {
+  return new Map(evidenceRecords.map((evidence) => [evidence.id, evidence]));
+}
+
+function existingClaimIds(candidateRecords: CandidateRecord[]): Set<string> {
+  return new Set(
+    candidateRecords
+      .filter((candidate) => candidate.family === "claim")
+      .map((candidate) => candidate.id),
+  );
 }
 
 function countContradictions(

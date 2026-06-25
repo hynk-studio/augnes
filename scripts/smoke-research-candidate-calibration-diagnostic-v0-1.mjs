@@ -139,6 +139,7 @@ assert.equal(
   "diagnostic fingerprint must be stable",
 );
 assertTargetKindAwareFeedbackCollision(helper);
+assertDanglingSupportRefsDoNotCountAsSupport(helper);
 
 console.log(
   JSON.stringify(
@@ -325,6 +326,74 @@ function assertTargetKindAwareFeedbackCollision(helper) {
   assert.ok(!evidenceDiagnostic.source_refs.includes("feedback-source:unknown-kind"));
 }
 
+function assertDanglingSupportRefsDoNotCountAsSupport(helper) {
+  const report = helper.buildResearchCandidateCalibrationDiagnosticReport({
+    scope: "project:augnes",
+    as_of: "2026-06-25T00:00:00.000Z",
+    source_fixture_refs: ["synthetic:calibration-dangling-support-refs"],
+    candidate_review: {
+      claim_candidates: [
+        {
+          claim_candidate_id: "claim-dangling-support-001",
+          source_ref_id: "source:claim-dangling-support",
+          supporting_evidence_candidate_ids: ["missing-evidence-001"],
+          review_status: "needs_review",
+          epistemic_status: "candidate_only",
+        },
+      ],
+      perspective_delta_candidates: [
+        {
+          perspective_delta_candidate_id: "delta-dangling-basis-001",
+          source_ref_id: "source:delta-dangling-basis",
+          basis_evidence_candidate_ids: ["missing-evidence-002"],
+          promotion_readiness: "ready",
+          review_status: "needs_review",
+          epistemic_status: "candidate_only",
+        },
+      ],
+    },
+    lifecycle_read_model: {
+      candidate_summaries: [],
+    },
+    feedback_events: [],
+  });
+  assert.deepEqual(helper.validateResearchCandidateCalibrationDiagnosticReport(report), {
+    passed: true,
+    failure_codes: [],
+  });
+
+  const claimDiagnostic = report.diagnostics.find(
+    (diagnostic) =>
+      diagnostic.candidate_family === "claim" &&
+      diagnostic.candidate_id === "claim-dangling-support-001",
+  );
+  const deltaDiagnostic = report.diagnostics.find(
+    (diagnostic) =>
+      diagnostic.candidate_family === "perspective_delta" &&
+      diagnostic.candidate_id === "delta-dangling-basis-001",
+  );
+  assert.ok(claimDiagnostic, "dangling-support claim diagnostic must exist");
+  assert.equal(claimDiagnostic.support_count, 0);
+  assert.notEqual(claimDiagnostic.readiness_label, "ready");
+  assert.ok(claimDiagnostic.readiness_reason_codes.includes("evidence_missing"));
+  assert.ok(claimDiagnostic.risk_flags.includes("missing_evidence"));
+  assert.doesNotMatch(
+    claimDiagnostic.diagnostic_summary,
+    /promoted|proof created|evidence record created|state committed|product write|\btruth\b|\bpromotion\b/i,
+  );
+
+  assert.ok(deltaDiagnostic, "dangling-basis perspective delta diagnostic must exist");
+  assert.equal(deltaDiagnostic.support_count, 0);
+  assert.notEqual(deltaDiagnostic.readiness_label, "ready");
+  assert.ok(deltaDiagnostic.readiness_reason_codes.includes("evidence_missing"));
+  assert.ok(deltaDiagnostic.risk_flags.includes("missing_evidence"));
+  assert.ok(deltaDiagnostic.risk_flags.includes("overclaim_risk"));
+  assert.doesNotMatch(
+    deltaDiagnostic.diagnostic_summary,
+    /promoted|proof created|evidence record created|state committed|product write|\btruth\b|\bpromotion\b/i,
+  );
+}
+
 function assertAuthorityBoundary(boundary, label) {
   assert.equal(boundary.diagnostic_only, true, `${label} must be diagnostic only`);
   assert.equal(boundary.empirical_calibration_model, false);
@@ -408,6 +477,8 @@ function assertDocCoverage() {
     "ready_with_tensions preserves unresolved tensions.",
     "blocked is a review stop, not rejection.",
     "diagnostic_summary is explanation, not authority.",
+    "support_count counts verified existing support records, not dangling candidate-local string refs.",
+    "dangling support ids are treated as missing evidence for diagnostic purposes.",
     "integrated development roadmap guide v0.2",
     "background inputs already integrated into the roadmap guide",
   ]) {
