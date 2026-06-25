@@ -18,10 +18,11 @@ const fixtureVersion = "research_to_perspective_fixture_smoke_legacy_audit.v0.1"
 const sliceName = "research_to_perspective_fixture_smoke_legacy_audit_v0_1";
 const nextRecommendedSlice = "parked_lane_registry_and_smoke_catalog_plan_v0_1";
 
-const downstreamCompatibilityMarkers = [
-  "researchToPerspectiveFoundationMilestoneCloseoutSliceActive",
-  "dogfoodingResearchToPerspectiveCiExpansionCloseoutSliceActive",
-  "agentPerspectiveSubstrateFeedbackLoopCloseoutSliceActive",
+const downstreamSmokePaths = [
+  "scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs",
+  "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-closeout-v0-1.mjs",
+  "scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs",
+  "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
 ];
 
 for (const filePath of [
@@ -38,7 +39,6 @@ const auditDoc = readFile(auditDocPath);
 const auditFixture = readJson(auditFixturePath);
 const packageJson = readJson(packagePath);
 const indexDoc = readFile(indexPath);
-const auditSmokeSource = readFile(auditSmokePath);
 
 assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
 assert.equal(auditFixture.fixture_kind, fixtureKind);
@@ -52,14 +52,7 @@ assert.equal(auditFixture.audit_policy.retrieval_rag_execution_now, false);
 assert.equal(auditFixture.audit_policy.perspective_promotion_now, false);
 assert.equal(auditFixture.audit_policy.proof_evidence_write_now, false);
 
-assert.deepEqual(
-  downstreamCompatibilityMarkers.filter((marker) =>
-    auditSmokeSource.includes(marker),
-  ),
-  downstreamCompatibilityMarkers,
-  "audit smoke must carry downstream compatibility markers",
-);
-
+assertDownstreamSmokeRecognition();
 assertItems(auditFixture.items);
 assertWarningDebt(auditFixture.items);
 assertParkedProductWriteEntries(auditFixture.items);
@@ -86,6 +79,28 @@ console.log(
     2,
   ),
 );
+
+function assertDownstreamSmokeRecognition() {
+  for (const filePath of downstreamSmokePaths) {
+    assert.ok(existsSync(filePath), `${filePath} must exist`);
+    const source = readFile(filePath);
+    for (const requiredText of [
+      "researchToPerspectiveFixtureSmokeLegacyAuditSliceActive",
+      "assertResearchToPerspectiveFixtureSmokeLegacyAuditPackageScript",
+      "assertResearchToPerspectiveFixtureSmokeLegacyAuditChangedFiles",
+      auditDocPath,
+      auditFixturePath,
+      auditSmokePath,
+      packageScriptName,
+      packageScriptValue,
+    ]) {
+      assert.ok(
+        source.includes(requiredText),
+        `${filePath} must recognize audit slice via ${requiredText}`,
+      );
+    }
+  }
+}
 
 function assertItems(items) {
   assert.ok(Array.isArray(items), "fixture items must be an array");
