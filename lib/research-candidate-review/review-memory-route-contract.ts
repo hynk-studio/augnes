@@ -74,6 +74,11 @@ const routeActions: ReviewMemoryRouteAction[] = [
   "supersede_record",
 ];
 
+const allowedStorePathPrefixes = [
+  "tmp/research-candidate-review-memory/",
+  ".tmp/research-candidate-review-memory/",
+] as const;
+
 const unsafeStringPatterns = [
   /\/Users\//i,
   /\/home\//i,
@@ -259,12 +264,29 @@ export function validateReviewMemoryRouteRequest(
 }
 
 export function isSafeReviewMemoryRouteStoreFilePath(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  if (value.length === 0) return false;
-  if (value.endsWith("/") || value.endsWith("\\")) return false;
-  if (value.includes("\0")) return false;
-  if (value.includes("..")) return false;
-  return !unsafeStringPatterns.some((pattern) => pattern.test(value));
+  return isAllowedReviewMemoryStorePath(value);
+}
+
+export function normalizeReviewMemoryRouteStoreFilePath(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return value;
+}
+
+export function isAllowedReviewMemoryStorePath(value: unknown): value is string {
+  const normalized = normalizeReviewMemoryRouteStoreFilePath(value);
+  if (normalized === undefined) return false;
+  if (normalized.length === 0) return false;
+  if (normalized.startsWith("/") || /^[A-Za-z]:/.test(normalized)) return false;
+  if (normalized.includes("\\") || normalized.includes("//")) return false;
+  if (normalized.endsWith("/") || normalized.endsWith("\\")) return false;
+  if (normalized.includes("\0")) return false;
+  if (normalized.includes("..")) return false;
+  if (!normalized.endsWith(".json")) return false;
+  if (!allowedStorePathPrefixes.some((prefix) => normalized.startsWith(prefix))) return false;
+
+  const fileName = normalized.slice(normalized.lastIndexOf("/") + 1);
+  if (fileName.length <= ".json".length) return false;
+  return !unsafeStringPatterns.some((pattern) => pattern.test(normalized));
 }
 
 function validateTopLevelStringFields(input: Partial<ReviewMemoryRouteRequest>): string[] {

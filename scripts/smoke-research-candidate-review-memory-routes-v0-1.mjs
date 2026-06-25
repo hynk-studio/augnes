@@ -146,6 +146,8 @@ function assertRouteSourceBoundary() {
 }
 
 function assertRouteContractValidation() {
+  assertRouteStorePathAllowlist();
+
   const unsafePathExamples = [
     ["/Users", "hynk", "private.json"].join("/"),
     ["/home", "hynk", "private.json"].join("/"),
@@ -166,7 +168,9 @@ function assertRouteContractValidation() {
   }
   for (const safePath of [
     "tmp/research-candidate-review-memory/store.json",
+    "tmp/research-candidate-review-memory/operator-session-001/store.json",
     ".tmp/research-candidate-review-memory/store.json",
+    ".tmp/research-candidate-review-memory/route-smoke/store.json",
   ]) {
     assert.equal(
       routeContract.isSafeReviewMemoryRouteStoreFilePath(safePath),
@@ -179,6 +183,17 @@ function assertRouteContractValidation() {
     (request) => request.action === "create_empty_snapshot",
   );
   assert.deepEqual(routeContract.validateReviewMemoryRouteRequest(createRequest).failure_codes, []);
+  for (const unsafeStoreFilePath of [
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
+    "tmp/other-feature/store.json",
+  ]) {
+    assertValidationFails(
+      { ...createRequest, store_file_path: unsafeStoreFilePath },
+      "unsafe_store_file_path",
+      `${unsafeStoreFilePath} is rejected as route store path`,
+    );
+  }
   assertValidationFails(
     { ...createRequest, as_of: undefined },
     "missing_as_of",
@@ -225,6 +240,49 @@ function assertRouteContractValidation() {
     "invalid action is rejected",
   );
   assertNestedPayloadSafety();
+}
+
+function assertRouteStorePathAllowlist() {
+  for (const unsafePath of [
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
+    ".env",
+    "tmp/store.json",
+    "tmp/other-feature/store.json",
+    ".tmp/other-feature/store.json",
+    "research-candidate-review-memory/store.json",
+    "/workspace/augnes/tmp/research-candidate-review-memory/store.json",
+    "/tmp/research-candidate-review-memory/store.json",
+    String.raw`C:\temp\research-candidate-review-memory\store.json`,
+    "tmp/research-candidate-review-memory",
+    "tmp/research-candidate-review-memory/",
+    "tmp/research-candidate-review-memory/store.txt",
+    "tmp/research-candidate-review-memory/../package.json",
+    "tmp/research-candidate-review-memory//store.json",
+    "tmp/research-candidate-review-memory/sk-FAKE_UNREDACTED.json",
+    "tmp/research-candidate-review-memory/secret:example.json",
+    "file:///tmp/research-candidate-review-memory/store.json",
+    "https://example.invalid/store.json",
+  ]) {
+    assert.equal(
+      routeContract.isSafeReviewMemoryRouteStoreFilePath(unsafePath),
+      false,
+      `${unsafePath} must be rejected by store path allowlist`,
+    );
+  }
+
+  for (const safePath of [
+    "tmp/research-candidate-review-memory/store.json",
+    "tmp/research-candidate-review-memory/operator-session-001/store.json",
+    ".tmp/research-candidate-review-memory/store.json",
+    ".tmp/research-candidate-review-memory/route-smoke/store.json",
+  ]) {
+    assert.equal(
+      routeContract.isSafeReviewMemoryRouteStoreFilePath(safePath),
+      true,
+      `${safePath} must be accepted by store path allowlist`,
+    );
+  }
 }
 
 function assertRouteHandlerStaticBoundaries() {
@@ -308,6 +366,13 @@ function assertDocCoverage() {
     "Error responses must not echo raw unsafe payload strings.",
     "It does not choose a default private path.",
     "It does not expose private local paths in responses.",
+    "Route writes are constrained to the dedicated review-memory store directory.",
+    "`store_file_path` is allowlisted to relative paths under",
+    "`tmp/research-candidate-review-memory/`",
+    "`.tmp/research-candidate-review-memory/`",
+    "Arbitrary repo/server files such as",
+    "`package.json`, docs files, `.env`, or absolute paths are rejected.",
+    "Error responses must not echo raw path values.",
     "It does not store raw private payloads.",
     "It does not store raw source bodies.",
     "It does not store raw provider outputs.",

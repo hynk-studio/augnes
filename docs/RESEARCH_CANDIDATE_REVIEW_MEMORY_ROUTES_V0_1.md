@@ -108,11 +108,18 @@ authority.
 
 The routes require a caller-provided store file path. It does not choose a default private path.
 It does not expose private local paths in responses.
+Route writes are constrained to the dedicated review-memory store directory.
+
+`store_file_path` is allowlisted to relative paths under
+`tmp/research-candidate-review-memory/` or
+`.tmp/research-candidate-review-memory/`. Arbitrary repo/server files such as
+`package.json`, docs files, `.env`, or absolute paths are rejected.
 
 The route contract rejects private or dangerous path strings including local
 private paths, private URLs, path traversal, null bytes, token-like strings,
 secret-like strings, raw source body markers, raw provider output markers,
 hidden reasoning markers, raw DB row markers, and browser dump markers.
+Error responses must not echo raw path values.
 
 Source refs are lineage pointers, not proof. Source refs must be public-safe symbolic refs.
 
