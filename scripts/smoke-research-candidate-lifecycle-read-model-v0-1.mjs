@@ -90,6 +90,7 @@ assert.equal(
   builtModel.lifecycle_fingerprint,
   "lifecycle fingerprint must be stable",
 );
+assertTargetKindAwareFeedbackCollision(helper);
 
 console.log(
   JSON.stringify(
@@ -137,13 +138,20 @@ function assertReadModelFixture(model) {
     "invalidated",
     "needs_review",
     "ready_for_review",
+    "blocked",
   ]) {
     assert.ok(statuses.has(status), `lifecycle statuses must include ${status}`);
   }
-  assert.ok(
-    statuses.has("blocked") || statuses.has("new_candidate"),
-    "lifecycle statuses must include blocked or new_candidate",
+  assert.ok(model.review_queue.blocked.length > 0, "review_queue.blocked must be non-empty");
+
+  const blockedSummary = model.candidate_summaries.find(
+    (summary) => summary.lifecycle_status === "blocked",
   );
+  assert.ok(blockedSummary, "fixture must include a blocked summary");
+  assert.deepEqual(blockedSummary.source_refs, []);
+  assert.equal(typeof blockedSummary.source_coverage_boundary_note, "string");
+  assert.equal(blockedSummary.next_review_action, "inspect_source");
+  assertAuthorityBoundary(blockedSummary.authority_boundary, "blocked summary");
 
   for (const summary of model.candidate_summaries) {
     assert.ok(
@@ -181,6 +189,68 @@ function assertReadModelFixture(model) {
   for (const summary of readyForReview) {
     assert.doesNotMatch(summaryText(summary), /promoted/i);
   }
+}
+
+function assertTargetKindAwareFeedbackCollision(helper) {
+  const model = helper.buildResearchCandidateLifecycleReadModel({
+    scope: "project:augnes",
+    as_of: "2026-06-25T00:00:00.000Z",
+    source_fixture_refs: ["synthetic:target-kind-collision"],
+    candidate_review: {
+      claim_candidates: [
+        {
+          claim_candidate_id: "shared-candidate-id",
+          review_status: "needs_review",
+          source_ref_id: "source:shared-claim",
+        },
+      ],
+      evidence_candidates: [
+        {
+          evidence_candidate_id: "shared-candidate-id",
+          review_status: "needs_review",
+          source_ref_id: "source:shared-evidence",
+        },
+      ],
+    },
+    feedback_events: [
+      {
+        event_id: "feedback-shared-claim-dismiss",
+        event_type: "dismiss_preview",
+        target_kind: "claim",
+        target_id: "shared-candidate-id",
+        source_ref_ids: ["feedback-source:claim-only"],
+        created_at: "2026-06-25T00:05:00.000Z",
+      },
+      {
+        event_id: "feedback-shared-unknown-kind",
+        event_type: "invalidate_preview",
+        target_kind: "unknown_candidate_family",
+        target_id: "shared-candidate-id",
+        source_ref_ids: ["feedback-source:unknown-kind"],
+        created_at: "2026-06-25T00:06:00.000Z",
+      },
+    ],
+    packet_refs: [],
+    handoff_refs: [],
+  });
+  const claimSummary = model.candidate_summaries.find(
+    (summary) =>
+      summary.candidate_family === "claim" &&
+      summary.candidate_id === "shared-candidate-id",
+  );
+  const evidenceSummary = model.candidate_summaries.find(
+    (summary) =>
+      summary.candidate_family === "evidence" &&
+      summary.candidate_id === "shared-candidate-id",
+  );
+  assert.ok(claimSummary, "synthetic collision claim summary must exist");
+  assert.ok(evidenceSummary, "synthetic collision evidence summary must exist");
+  assert.equal(claimSummary.lifecycle_status, "operator_dismissed");
+  assert.notEqual(evidenceSummary.lifecycle_status, "operator_dismissed");
+  assert.deepEqual(evidenceSummary.related_feedback_event_refs, []);
+  assert.ok(!evidenceSummary.source_refs.includes("feedback-source:claim-only"));
+  assert.ok(!claimSummary.source_refs.includes("feedback-source:unknown-kind"));
+  assert.ok(!evidenceSummary.source_refs.includes("feedback-source:unknown-kind"));
 }
 
 function assertAuthorityBoundary(boundary, label) {

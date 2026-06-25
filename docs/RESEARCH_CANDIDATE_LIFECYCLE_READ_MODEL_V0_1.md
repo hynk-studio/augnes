@@ -115,7 +115,8 @@ Feedback priority determines operator feedback statuses first:
 2. `correct_preview` -> `operator_corrected`
 3. `pin_preview` -> `operator_pinned`
 4. `dismiss_preview` -> `operator_dismissed`
-5. Missing source refs without a boundary note -> `blocked`
+5. Missing source refs without an explicit input source coverage boundary note
+   -> `blocked`
 6. Review status `needs_review` or `candidate_only` -> `needs_review`
 7. Perspective delta with promotion readiness `ready` or `ready_with_tensions`
    -> `ready_for_review`
@@ -127,8 +128,13 @@ Ready for review is not promotion.
 ## Feedback Interpretation Rules
 
 Feedback is operator signal, not truth. Feedback changes lifecycle labels and
-review cues only. Corrected is not truth. Dismissed is not rejected. Pinned is
-not promoted. Invalidated is not proof.
+review cues only. Family-specific feedback `target_kind` values are respected
+when they map to candidate families, so feedback for one candidate family does
+not leak to another family that shares the same candidate id. Feedback with
+absent or empty `target_kind` keeps legacy target-id-only matching. Feedback
+with unknown `target_kind` does not attach across families. Corrected is not
+truth. Dismissed is not rejected. Pinned is not promoted. Invalidated is not
+proof.
 
 ## Source Coverage Rules
 
@@ -136,6 +142,12 @@ Source refs are detected from `source_ref_id` and `source_refs`, plus linked
 feedback, packet, and handoff source refs when provided by the caller. Every
 summary must include either non-empty `source_refs` or
 `source_coverage_boundary_note`.
+
+An explicit input `source_coverage_boundary_note` can explain a known
+missing-source boundary. Missing source refs without an explicit input boundary
+note are classified as `blocked`. The read model may synthesize an output
+source coverage boundary note for blocked candidates so every summary remains
+reviewable.
 
 The read model records missing source coverage. It does not fetch sources.
 

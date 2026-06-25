@@ -99,6 +99,12 @@
           "epistemic_status": "candidate_only",
           "source_coverage_boundary_note": "Input preview intentionally omits source refs for this follow-up work candidate; the lifecycle read model records the gap without fetching sources.",
           "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:follow-up-001"
+        },
+        {
+          "follow_up_work_candidate_id": "follow-up-blocked-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:follow-up-blocked-001"
         }
       ]
     },
@@ -353,7 +359,51 @@
           "family:follow_up_work",
           "lifecycle_status:needs_review",
           "next_review_action:inspect_source",
-          "source_boundary_note:present",
+          "source_boundary_note:explicit",
+          "source_refs:missing"
+        ],
+        "authority_boundary": {
+          "derived_read_model_only": true,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "lifecycle_version": "research_candidate_lifecycle.v0.1",
+        "scope": "project:augnes",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "follow-up-blocked-001",
+        "candidate_family": "follow_up_work",
+        "source_refs": [],
+        "source_coverage_boundary_note": "No source refs were provided by input candidate or linked refs; lifecycle read model records missing source coverage without fetching sources.",
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "blocked",
+        "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:follow-up-blocked-001",
+        "related_packet_refs": [],
+        "related_handoff_refs": [],
+        "related_feedback_event_refs": [],
+        "unresolved_tension_count": 0,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 0,
+        "next_review_action": "inspect_source",
+        "reason_codes": [
+          "family:follow_up_work",
+          "lifecycle_status:blocked",
+          "next_review_action:inspect_source",
+          "source_boundary_note:synthesized",
           "source_refs:missing"
         ],
         "authority_boundary": {
@@ -543,7 +593,7 @@
       "tension": 1,
       "knowledge_gap": 1,
       "perspective_delta": 1,
-      "follow_up_work": 1
+      "follow_up_work": 2
     },
     "lifecycle_status_counts": {
       "new_candidate": 1,
@@ -555,13 +605,15 @@
       "superseded": 0,
       "stale": 0,
       "ready_for_review": 1,
-      "blocked": 0
+      "blocked": 1
     },
     "review_queue": {
       "needs_review": [
         "follow-up-001"
       ],
-      "blocked": [],
+      "blocked": [
+        "follow-up-blocked-001"
+      ],
       "stale": [],
       "ready_for_review": [
         "delta-001"
@@ -577,7 +629,7 @@
       "Ready for review is not promotion.",
       "next_review_action is a review cue, not execution authority."
     ],
-    "lifecycle_fingerprint": "b44d74a31586b48d9376566ac496a52e262e5404be0ad403384705fbdfb384cf",
+    "lifecycle_fingerprint": "6c0841ef09e39280bf47cec4433c6124f6a778c08766de969fc9ba45832fd59a",
     "authority_boundary": {
       "derived_read_model_only": true,
       "source_of_truth": false,

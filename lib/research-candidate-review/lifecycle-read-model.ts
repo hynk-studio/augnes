@@ -330,7 +330,7 @@ function buildCandidateSummary(args: {
     handoffRefs,
   } = args;
   const relatedFeedbackEvents = feedbackEvents.filter(
-    (event) => event.target_id === candidate.id,
+    (event) => feedbackEventTargetsCandidate(event, candidate),
   );
   const relatedPacketRefs = packetRefs.filter((packet) =>
     packet.candidate_refs.includes(candidate.id),
@@ -344,9 +344,13 @@ function buildCandidateSummary(args: {
     ...relatedPacketRefs.flatMap((packet) => packet.source_refs ?? []),
     ...relatedHandoffRefs.flatMap((handoff) => handoff.source_refs ?? []),
   ]);
-  const sourceCoverageBoundaryNote =
+  const explicitSourceCoverageBoundaryNote = stringField(
+    candidate.object,
+    "source_coverage_boundary_note",
+  );
+  const outputSourceCoverageBoundaryNote =
     sourceRefs.length === 0
-      ? stringField(candidate.object, "source_coverage_boundary_note") ??
+      ? explicitSourceCoverageBoundaryNote ??
         "No source refs were provided by input candidate or linked refs; lifecycle read model records missing source coverage without fetching sources."
       : undefined;
   const unresolvedTensionCount = countUnresolvedTensions(candidate, tensionRecords);
@@ -362,7 +366,7 @@ function buildCandidateSummary(args: {
     currentReviewStatus,
     relatedFeedbackEvents,
     sourceRefs,
-    sourceCoverageBoundaryNote,
+    explicitSourceCoverageBoundaryNote,
   });
   const nextReviewAction = chooseNextReviewAction({
     lifecycleStatus,
@@ -376,7 +380,9 @@ function buildCandidateSummary(args: {
     lifecycleStatus,
     nextReviewAction,
     sourceRefs,
-    sourceCoverageBoundaryNote,
+    sourceCoverageBoundaryNote: outputSourceCoverageBoundaryNote,
+    sourceCoverageBoundaryNoteWasExplicit:
+      sourceRefs.length === 0 && Boolean(explicitSourceCoverageBoundaryNote),
     unresolvedTensionCount,
     knowledgeGapCount,
     relatedFeedbackEvents,
@@ -391,8 +397,8 @@ function buildCandidateSummary(args: {
     candidate_id: candidate.id,
     candidate_family: candidate.family,
     source_refs: sourceRefs,
-    ...(sourceCoverageBoundaryNote
-      ? { source_coverage_boundary_note: sourceCoverageBoundaryNote }
+    ...(outputSourceCoverageBoundaryNote
+      ? { source_coverage_boundary_note: outputSourceCoverageBoundaryNote }
       : {}),
     current_review_status: currentReviewStatus,
     ...(currentEpistemicStatus
@@ -426,14 +432,14 @@ function chooseLifecycleStatus(args: {
   currentReviewStatus: string;
   relatedFeedbackEvents: ResearchCandidateLifecycleFeedbackEvent[];
   sourceRefs: string[];
-  sourceCoverageBoundaryNote?: string;
+  explicitSourceCoverageBoundaryNote?: string;
 }): ResearchCandidateLifecycleStatusLabel {
   const feedbackTypes = new Set(args.relatedFeedbackEvents.map((event) => event.event_type));
   if (feedbackTypes.has("invalidate_preview")) return "invalidated";
   if (feedbackTypes.has("correct_preview")) return "operator_corrected";
   if (feedbackTypes.has("pin_preview")) return "operator_pinned";
   if (feedbackTypes.has("dismiss_preview")) return "operator_dismissed";
-  if (args.sourceRefs.length === 0 && !args.sourceCoverageBoundaryNote) {
+  if (args.sourceRefs.length === 0 && !args.explicitSourceCoverageBoundaryNote) {
     return "blocked";
   }
   if (args.currentReviewStatus === "stale") return "stale";
@@ -575,6 +581,7 @@ function buildReasonCodes(args: {
   nextReviewAction: ResearchCandidateNextReviewAction;
   sourceRefs: string[];
   sourceCoverageBoundaryNote?: string;
+  sourceCoverageBoundaryNoteWasExplicit: boolean;
   unresolvedTensionCount: number;
   knowledgeGapCount: number;
   relatedFeedbackEvents: ResearchCandidateLifecycleFeedbackEvent[];
@@ -586,7 +593,13 @@ function buildReasonCodes(args: {
     `lifecycle_status:${args.lifecycleStatus}`,
     `next_review_action:${args.nextReviewAction}`,
     args.sourceRefs.length > 0 ? "source_refs:present" : "source_refs:missing",
-    ...(args.sourceCoverageBoundaryNote ? ["source_boundary_note:present"] : []),
+    ...(args.sourceCoverageBoundaryNote
+      ? [
+          args.sourceCoverageBoundaryNoteWasExplicit
+            ? "source_boundary_note:explicit"
+            : "source_boundary_note:synthesized",
+        ]
+      : []),
     ...(args.unresolvedTensionCount > 0 ? ["unresolved_tension:present"] : []),
     ...(args.knowledgeGapCount > 0 ? ["knowledge_gap:present"] : []),
     ...(args.relatedFeedbackEvents.length > 0 ? ["feedback:present"] : []),
@@ -594,6 +607,54 @@ function buildReasonCodes(args: {
     ...(args.relatedPacketRefs.length > 0 ? ["packet_ref:present"] : []),
     ...(args.relatedHandoffRefs.length > 0 ? ["handoff_ref:present"] : []),
   ]);
+}
+
+function feedbackEventTargetsCandidate(
+  event: ResearchCandidateLifecycleFeedbackEvent,
+  candidate: CandidateRecord,
+): boolean {
+  if (event.target_id !== candidate.id) return false;
+  const normalizedFamily = normalizeFeedbackTargetFamily(event.target_kind);
+  if (normalizedFamily === null) {
+    // Legacy fixtures sometimes only scoped feedback by target_id. Preserve that
+    // behavior only when target_kind is absent or empty.
+    return true;
+  }
+  return normalizedFamily === candidate.family;
+}
+
+function normalizeFeedbackTargetFamily(
+  targetKind: string | undefined,
+): ResearchCandidateFamily | null | undefined {
+  if (!targetKind || targetKind.trim().length === 0) return null;
+  const normalized = targetKind.trim().toLowerCase();
+  if (normalized === "claim" || normalized === "claim_candidate") return "claim";
+  if (normalized === "evidence" || normalized === "evidence_candidate") {
+    return "evidence";
+  }
+  if (normalized === "tension" || normalized === "tension_candidate") {
+    return "tension";
+  }
+  if (
+    normalized === "knowledge_gap" ||
+    normalized === "gap" ||
+    normalized === "knowledge_gap_candidate"
+  ) {
+    return "knowledge_gap";
+  }
+  if (
+    normalized === "perspective_delta" ||
+    normalized === "perspective_delta_candidate"
+  ) {
+    return "perspective_delta";
+  }
+  if (
+    normalized === "follow_up_work" ||
+    normalized === "follow_up_work_candidate"
+  ) {
+    return "follow_up_work";
+  }
+  return undefined;
 }
 
 function sortFeedbackEvents(
