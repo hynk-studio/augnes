@@ -123,6 +123,10 @@ The profile includes source refs when source refs exist. It includes lifecycle, 
 
 `codex_handoff` and `dogfooding_review` profiles also include deferred work sections. Requested sections that are unavailable and sections explicitly omitted are summarized through an omitted-context section.
 
+Explicit `omitted_sections` are honored before section inclusion. An explicitly omitted section must not appear in `included_sections`. Omitted sections are represented as `included: false` and must not carry `source_refs` or `candidate_refs`.
+
+Omitting `source_refs` removes source refs from the profile and from included sections. Omitting `unresolved_tensions`, `knowledge_gaps`, or `review_cues` removes those top-level refs from the profile. `authority_boundary` remains included even if requested as omitted. Omission is profile shaping, not deletion, not truth, and not authority.
+
 ## 9. Compression rules
 
 Default compression is target-specific:

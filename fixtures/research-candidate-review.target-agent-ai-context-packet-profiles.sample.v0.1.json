@@ -660,24 +660,10 @@
             "included": false,
             "priority": "medium",
             "compression_level": "minimal",
-            "source_refs": [
-              "source:calibration-001",
-              "source:feedback-001",
-              "source:lifecycle-001",
-              "source:logical-001",
-              "source:operator-supplied-001",
-              "source:temporal-001"
-            ],
-            "candidate_refs": [
-              "candidate:operator-supplied-001",
-              "claim-calibration-001",
-              "claim-lifecycle-001",
-              "claim-logical-001",
-              "feedback-rule-001",
-              "temporal-handoff-001"
-            ],
+            "source_refs": [],
+            "candidate_refs": [],
             "summary": "Unavailable or explicitly omitted context is listed for review.",
-            "omission_reason": "Explicitly omitted sections: provider_prompt_detail."
+            "omission_reason": "Unknown omitted section hints: provider_prompt_detail."
           }
         ],
         "source_refs": [
@@ -1454,7 +1440,7 @@
       "Product-write remains parked by #686.",
       "Target-agent packet profiles do not execute prompts."
     ],
-    "report_fingerprint": "b0c83fc014410db1afb109875688cae584ea7780fb3247d17732b74919a0dca6",
+    "report_fingerprint": "3441fc8770af6bd8b0ccb0a8693f156e8c7ef37229aa48f09b8f31436a21354b",
     "authority_boundary": {
       "profile_preview_only": true,
       "prompt_execution_now": false,

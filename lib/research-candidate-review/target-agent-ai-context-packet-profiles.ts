@@ -108,6 +108,12 @@ const privateMarkerPattern =
 interface ArtifactSummary {
   sourceRefs: string[];
   candidateRefs: string[];
+  baseCandidateRefs: string[];
+  lifecycleCandidateRefs: string[];
+  calibrationCandidateRefs: string[];
+  logicalShapeCandidateRefs: string[];
+  feedbackToRuleCandidateRefs: string[];
+  temporalHandoffCandidateRefs: string[];
   unresolvedTensionRefs: string[];
   knowledgeGapRefs: string[];
   reviewCueRefs: string[];
@@ -246,8 +252,47 @@ export function validateTargetAgentAiContextPacketProfilesReport(
       ...(profile.included_sections ?? []),
       ...(profile.omitted_sections ?? []),
     ];
+    const includedKinds = new Set(
+      (profile.included_sections ?? []).map((section) => section.section_kind),
+    );
+    const omittedKinds = new Set(
+      (profile.omitted_sections ?? []).map((section) => section.section_kind),
+    );
     if (!allSections.some((section) => section.section_kind === "authority_boundary")) {
       failureCodes.push(`missing_authority_boundary_section:${profileKey}`);
+    }
+    for (const sectionKind of omittedKinds) {
+      if (includedKinds.has(sectionKind)) {
+        failureCodes.push(`section_included_and_omitted:${profileKey}:${sectionKind}`);
+      }
+    }
+    for (const section of profile.included_sections ?? []) {
+      if (section.included !== true) {
+        failureCodes.push(`included_section_not_true:${profileKey}:${section.section_id}`);
+      }
+    }
+    for (const section of profile.omitted_sections ?? []) {
+      if (section.included !== false) {
+        failureCodes.push(`omitted_section_not_false:${profileKey}:${section.section_id}`);
+      }
+      if (section.source_refs.length > 0 || section.candidate_refs.length > 0) {
+        failureCodes.push(`omitted_section_refs_present:${profileKey}:${section.section_id}`);
+      }
+    }
+    if (omittedKinds.has("source_refs") && profile.source_refs.length > 0) {
+      failureCodes.push(`omitted_source_refs_profile_refs_present:${profileKey}`);
+    }
+    if (
+      omittedKinds.has("unresolved_tensions") &&
+      profile.unresolved_tension_refs.length > 0
+    ) {
+      failureCodes.push(`omitted_tension_refs_profile_refs_present:${profileKey}`);
+    }
+    if (omittedKinds.has("knowledge_gaps") && profile.knowledge_gap_refs.length > 0) {
+      failureCodes.push(`omitted_gap_refs_profile_refs_present:${profileKey}`);
+    }
+    if (omittedKinds.has("review_cues") && profile.review_cue_refs.length > 0) {
+      failureCodes.push(`omitted_review_cue_refs_profile_refs_present:${profileKey}`);
     }
     for (const section of allSections) {
       if (!sectionKindValues.includes(section.section_kind)) {
@@ -299,16 +344,34 @@ function buildProfile(
   const profileMode = normalizeProfileMode(target.profile_mode) ?? defaultProfileMode(targetAgent);
   const compression =
     normalizeCompression(target.compression_level) ?? defaultCompression(targetAgent);
-  const sourceRefs = targetAgent === "unknown" ? [] : artifacts.sourceRefs;
-  const candidateRefs = targetAgent === "unknown" ? [] : artifacts.candidateRefs;
+  const omittedSectionKinds = explicitOmittedSectionKinds(target);
+  const sourceRefs =
+    targetAgent === "unknown" || omittedSectionKinds.has("source_refs")
+      ? []
+      : artifacts.sourceRefs;
+  const candidateRefs =
+    targetAgent === "unknown" ? [] : candidateRefsForProfile(artifacts, omittedSectionKinds);
   const unresolvedTensionRefs =
-    targetAgent === "unknown" ? [] : artifacts.unresolvedTensionRefs;
-  const knowledgeGapRefs = targetAgent === "unknown" ? [] : artifacts.knowledgeGapRefs;
-  const reviewCueRefs = targetAgent === "unknown" ? [] : artifacts.reviewCueRefs;
+    targetAgent === "unknown" || omittedSectionKinds.has("unresolved_tensions")
+      ? []
+      : artifacts.unresolvedTensionRefs;
+  const knowledgeGapRefs =
+    targetAgent === "unknown" || omittedSectionKinds.has("knowledge_gaps")
+      ? []
+      : artifacts.knowledgeGapRefs;
+  const reviewCueRefs =
+    targetAgent === "unknown" || omittedSectionKinds.has("review_cues")
+      ? []
+      : artifacts.reviewCueRefs;
   const includedSections: TargetAgentPacketProfileSection[] = [];
   const omittedSections: TargetAgentPacketProfileSection[] = [];
+  const pushedOmittedSections = new Set<TargetAgentPacketSectionKind>();
 
   const pushIncluded = (sectionKind: TargetAgentPacketSectionKind) => {
+    if (sectionKind !== "authority_boundary" && omittedSectionKinds.has(sectionKind)) {
+      pushOmitted(sectionKind, "Explicitly omitted by target profile input.");
+      return;
+    }
     includedSections.push(
       createSection({
         targetAgent,
@@ -321,16 +384,32 @@ function buildProfile(
       }),
     );
   };
+  const pushOmitted = (sectionKind: TargetAgentPacketSectionKind, reason: string) => {
+    if (sectionKind === "authority_boundary" || pushedOmittedSections.has(sectionKind)) {
+      return;
+    }
+    pushedOmittedSections.add(sectionKind);
+    omittedSections.push(
+      createOmittedSection({
+        targetAgent,
+        targetSegment,
+        sectionKind,
+        compression,
+        reason,
+      }),
+    );
+  };
 
   if (targetAgent === "unknown") {
     pushIncluded("authority_boundary");
+    for (const sectionKind of omittedSectionKinds) {
+      pushOmitted(sectionKind, "Explicitly omitted by target profile input.");
+    }
     omittedSections.push(
       createOmittedContextSection({
         targetAgent,
         targetSegment,
         compression,
-        sourceRefs: [],
-        candidateRefs: [],
         reason: "Target agent is unknown, so contextual sections are omitted for review.",
       }),
     );
@@ -352,15 +431,20 @@ function buildProfile(
     if (targetAgent === "codex_handoff" || targetAgent === "dogfooding_review") {
       pushIncluded("deferred_work");
     }
-    const omittedContextReasons = omittedContextReasonsForTarget(target, includedSections);
+    for (const sectionKind of omittedSectionKinds) {
+      pushOmitted(sectionKind, "Explicitly omitted by target profile input.");
+    }
+    const omittedContextReasons = omittedContextReasonsForTarget(
+      target,
+      includedSections,
+      omittedSectionKinds,
+    );
     if (omittedContextReasons.length > 0) {
       omittedSections.push(
         createOmittedContextSection({
           targetAgent,
           targetSegment,
           compression,
-          sourceRefs,
-          candidateRefs,
           reason: omittedContextReasons.join(" "),
         }),
       );
@@ -403,6 +487,12 @@ function summarizeArtifacts(artifacts: TargetAgentProfileArtifactInput): Artifac
   const logical = artifactArray(artifacts.logical_claim_shapes);
   const feedback = artifactArray(artifacts.feedback_to_rule_candidates);
   const temporal = artifactArray(artifacts.temporal_handoff_sections);
+  const baseCandidateRefs = uniqueSorted(artifacts.candidate_refs ?? []);
+  const lifecycleCandidateRefs = candidateRefsFrom(lifecycle);
+  const calibrationCandidateRefs = candidateRefsFrom(calibration);
+  const logicalShapeCandidateRefs = candidateRefsFrom(logical);
+  const feedbackToRuleCandidateRefs = candidateRefsFrom(feedback);
+  const temporalHandoffCandidateRefs = candidateRefsFrom(temporal);
   return {
     sourceRefs: uniqueSorted([
       ...(artifacts.source_refs ?? []),
@@ -413,13 +503,19 @@ function summarizeArtifacts(artifacts: TargetAgentProfileArtifactInput): Artifac
       ...sourceRefsFrom(temporal),
     ]),
     candidateRefs: uniqueSorted([
-      ...(artifacts.candidate_refs ?? []),
-      ...candidateRefsFrom(lifecycle),
-      ...candidateRefsFrom(calibration),
-      ...candidateRefsFrom(logical),
-      ...candidateRefsFrom(feedback),
-      ...candidateRefsFrom(temporal),
+      ...baseCandidateRefs,
+      ...lifecycleCandidateRefs,
+      ...calibrationCandidateRefs,
+      ...logicalShapeCandidateRefs,
+      ...feedbackToRuleCandidateRefs,
+      ...temporalHandoffCandidateRefs,
     ]),
+    baseCandidateRefs,
+    lifecycleCandidateRefs,
+    calibrationCandidateRefs,
+    logicalShapeCandidateRefs,
+    feedbackToRuleCandidateRefs,
+    temporalHandoffCandidateRefs,
     unresolvedTensionRefs: uniqueSorted([
       ...(artifacts.unresolved_tension_refs ?? []),
       ...refsFromField(logical, "related_tension_candidate_ids"),
@@ -441,6 +537,30 @@ function summarizeArtifacts(artifacts: TargetAgentProfileArtifactInput): Artifac
     feedbackToRuleCount: feedback.length,
     temporalHandoffCount: temporal.length,
   };
+}
+
+function candidateRefsForProfile(
+  artifacts: ArtifactSummary,
+  omittedSectionKinds: Set<TargetAgentPacketSectionKind>,
+): string[] {
+  return uniqueSorted([
+    ...artifacts.baseCandidateRefs,
+    ...(omittedSectionKinds.has("candidate_lifecycle")
+      ? []
+      : artifacts.lifecycleCandidateRefs),
+    ...(omittedSectionKinds.has("calibration_diagnostic")
+      ? []
+      : artifacts.calibrationCandidateRefs),
+    ...(omittedSectionKinds.has("logical_claim_shape")
+      ? []
+      : artifacts.logicalShapeCandidateRefs),
+    ...(omittedSectionKinds.has("feedback_to_rule")
+      ? []
+      : artifacts.feedbackToRuleCandidateRefs),
+    ...(omittedSectionKinds.has("temporal_handoff_diagnostic")
+      ? []
+      : artifacts.temporalHandoffCandidateRefs),
+  ]);
 }
 
 function createSection(args: {
@@ -472,8 +592,6 @@ function createOmittedContextSection(args: {
   targetAgent: TargetAgentKind;
   targetSegment: string;
   compression: TargetAgentContextCompressionLevel;
-  sourceRefs: string[];
-  candidateRefs: string[];
   reason: string;
 }): TargetAgentPacketProfileSection {
   return {
@@ -482,9 +600,33 @@ function createOmittedContextSection(args: {
     included: false,
     priority: "medium",
     compression_level: args.compression,
-    source_refs: uniqueSorted(args.sourceRefs),
-    candidate_refs: uniqueSorted(args.candidateRefs),
+    source_refs: [],
+    candidate_refs: [],
     summary: "Unavailable or explicitly omitted context is listed for review.",
+    omission_reason: args.reason,
+  };
+}
+
+function createOmittedSection(args: {
+  targetAgent: TargetAgentKind;
+  targetSegment: string;
+  sectionKind: TargetAgentPacketSectionKind;
+  compression: TargetAgentContextCompressionLevel;
+  reason: string;
+}): TargetAgentPacketProfileSection {
+  return {
+    section_id: `section:${args.targetAgent}:${args.targetSegment}:${args.sectionKind}:omitted`,
+    section_kind: args.sectionKind,
+    included: false,
+    priority: priorityForSection(args.targetAgent, args.sectionKind),
+    compression_level: compressionForSection(
+      args.targetAgent,
+      args.sectionKind,
+      args.compression,
+    ),
+    source_refs: [],
+    candidate_refs: [],
+    summary: `${args.sectionKind} context is omitted by target profile input.`,
     omission_reason: args.reason,
   };
 }
@@ -492,6 +634,7 @@ function createOmittedContextSection(args: {
 function omittedContextReasonsForTarget(
   target: TargetAgentProfileInput,
   includedSections: TargetAgentPacketProfileSection[],
+  omittedSectionKinds: Set<TargetAgentPacketSectionKind>,
 ): string[] {
   const includedKinds = new Set(includedSections.map((section) => section.section_kind));
   const unavailableRequested = uniqueSorted(target.requested_sections ?? []).filter(
@@ -499,13 +642,26 @@ function omittedContextReasonsForTarget(
       !sectionKindValues.includes(section as TargetAgentPacketSectionKind) ||
       !includedKinds.has(section as TargetAgentPacketSectionKind),
   );
-  const explicitOmitted = uniqueSorted(target.omitted_sections ?? []);
+  const unknownOmitted = uniqueSorted(target.omitted_sections ?? []).filter(
+    (section) => !normalizeSectionKind(section),
+  );
+  const protectedOmitted = uniqueSorted(target.omitted_sections ?? []).filter(
+    (section) => normalizeSectionKind(section) === "authority_boundary",
+  );
   const reasons: string[] = [];
   if (unavailableRequested.length > 0) {
     reasons.push(`Requested sections unavailable: ${unavailableRequested.join(", ")}.`);
   }
-  if (explicitOmitted.length > 0) {
-    reasons.push(`Explicitly omitted sections: ${explicitOmitted.join(", ")}.`);
+  if (unknownOmitted.length > 0) {
+    reasons.push(`Unknown omitted section hints: ${unknownOmitted.join(", ")}.`);
+  }
+  if (protectedOmitted.length > 0) {
+    reasons.push("Authority boundary omission was ignored because boundary context is required.");
+  }
+  if (omittedSectionKinds.size > 0) {
+    reasons.push(
+      `Explicitly omitted sections: ${Array.from(omittedSectionKinds).sort().join(", ")}.`,
+    );
   }
   return reasons;
 }
@@ -561,6 +717,25 @@ function normalizeTargetAgent(value: string): TargetAgentKind {
     return "dogfooding_review";
   }
   return "unknown";
+}
+
+function explicitOmittedSectionKinds(
+  target: TargetAgentProfileInput,
+): Set<TargetAgentPacketSectionKind> {
+  return new Set(
+    uniqueSorted(target.omitted_sections ?? []).flatMap((section) => {
+      const normalized = normalizeSectionKind(section);
+      return normalized && normalized !== "authority_boundary" ? [normalized] : [];
+    }),
+  );
+}
+
+function normalizeSectionKind(value: string): TargetAgentPacketSectionKind | undefined {
+  const normalized = value.toLowerCase().replace(/-/g, "_");
+  if (sectionKindValues.includes(normalized as TargetAgentPacketSectionKind)) {
+    return normalized as TargetAgentPacketSectionKind;
+  }
+  return undefined;
 }
 
 function normalizeProfileMode(value?: string): TargetAgentProfileMode | undefined {

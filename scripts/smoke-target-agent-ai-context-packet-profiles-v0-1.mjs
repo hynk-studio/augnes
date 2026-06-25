@@ -151,6 +151,9 @@ assert.equal(
 
 assertReport(fixture.expected_report);
 assertFixtureCoverage();
+assertExplicitSourceAndFeedbackOmissions();
+assertExplicitTensionGapCueOmissions();
+assertAuthorityBoundaryCannotBeOmitted();
 assertHelperSourceBoundary();
 assertSectionSummarySafety();
 assertDocCoverage();
@@ -313,6 +316,166 @@ function assertFixtureCoverage() {
     "product_write_denied",
     "profile_preview_not_prompt_execution",
   ]);
+}
+
+function assertExplicitSourceAndFeedbackOmissions() {
+  const report = buildSyntheticReport({
+    targets: [
+      {
+        target_agent: "chatgpt_review",
+        target_ref: "chatgpt-omit-source-feedback-001",
+        omitted_sections: ["source_refs", "feedback_to_rule"],
+      },
+    ],
+    artifacts: {
+      source_refs: ["source:should-not-leak"],
+      feedback_to_rule_candidates: [
+        {
+          candidate_id: "feedback-rule-should-not-leak",
+          source_refs: ["source:should-not-leak"],
+        },
+      ],
+      lifecycle_summaries: [{ candidate_id: "candidate:lifecycle-safe" }],
+      calibration_diagnostics: [{ candidate_id: "candidate:calibration-safe" }],
+      logical_claim_shapes: [{ claim_candidate_id: "candidate:logical-safe" }],
+      temporal_handoff_sections: [{ target_ref: "temporal-safe" }],
+    },
+  });
+  assert.deepEqual(helper.validateTargetAgentAiContextPacketProfilesReport(report), {
+    passed: true,
+    failure_codes: [],
+  });
+  const profile = onlyProfile(report);
+  assertNoIncludedSection(profile, "source_refs");
+  assertNoIncludedSection(profile, "feedback_to_rule");
+  const sourceSection = omittedSection(profile, "source_refs");
+  const feedbackSection = omittedSection(profile, "feedback_to_rule");
+  assert.equal(sourceSection.included, false);
+  assert.equal(feedbackSection.included, false);
+  assert.deepEqual(sourceSection.source_refs, []);
+  assert.deepEqual(sourceSection.candidate_refs, []);
+  assert.deepEqual(feedbackSection.source_refs, []);
+  assert.deepEqual(feedbackSection.candidate_refs, []);
+  assert.deepEqual(profile.source_refs, []);
+  for (const section of profile.included_sections) {
+    assert.ok(
+      !section.source_refs.includes("source:should-not-leak"),
+      "omitted source refs must not leak into included sections",
+    );
+  }
+  assert.ok(
+    profile.included_sections.some((section) => section.section_kind === "authority_boundary"),
+    "authority_boundary section must remain included",
+  );
+}
+
+function assertExplicitTensionGapCueOmissions() {
+  const report = buildSyntheticReport({
+    targets: [
+      {
+        target_agent: "human_review",
+        target_ref: "human-omit-tension-gap-cues-001",
+        omitted_sections: ["unresolved_tensions", "knowledge_gaps", "review_cues"],
+      },
+    ],
+    artifacts: {
+      source_refs: ["source:human-safe"],
+      unresolved_tension_refs: ["tension:should-not-leak"],
+      knowledge_gap_refs: ["gap:should-not-leak"],
+      review_cue_refs: ["review-cue:should-not-leak"],
+      lifecycle_summaries: [{ candidate_id: "candidate:lifecycle-human" }],
+    },
+  });
+  assert.deepEqual(helper.validateTargetAgentAiContextPacketProfilesReport(report), {
+    passed: true,
+    failure_codes: [],
+  });
+  const profile = onlyProfile(report);
+  assertNoIncludedSection(profile, "unresolved_tensions");
+  assertNoIncludedSection(profile, "knowledge_gaps");
+  assertNoIncludedSection(profile, "review_cues");
+  assert.equal(omittedSection(profile, "unresolved_tensions").included, false);
+  assert.equal(omittedSection(profile, "knowledge_gaps").included, false);
+  assert.equal(omittedSection(profile, "review_cues").included, false);
+  assert.deepEqual(profile.unresolved_tension_refs, []);
+  assert.deepEqual(profile.knowledge_gap_refs, []);
+  assert.deepEqual(profile.review_cue_refs, []);
+  assert.ok(!profile.reason_codes.includes("unresolved_tension_present"));
+  assert.ok(!profile.reason_codes.includes("knowledge_gap_present"));
+  assert.ok(
+    profile.included_sections.some((section) => section.section_kind === "authority_boundary"),
+    "authority_boundary section must remain included",
+  );
+}
+
+function assertAuthorityBoundaryCannotBeOmitted() {
+  const report = buildSyntheticReport({
+    targets: [
+      {
+        target_agent: "codex_handoff",
+        target_ref: "codex-cannot-omit-authority-001",
+        omitted_sections: ["authority_boundary", "source_refs"],
+      },
+    ],
+    artifacts: {
+      source_refs: ["source:codex-should-not-leak"],
+      review_cue_refs: ["review-cue:codex"],
+      temporal_handoff_sections: [{ target_ref: "temporal-codex" }],
+    },
+  });
+  assert.deepEqual(helper.validateTargetAgentAiContextPacketProfilesReport(report), {
+    passed: true,
+    failure_codes: [],
+  });
+  const profile = onlyProfile(report);
+  assert.ok(
+    profile.included_sections.some((section) => section.section_kind === "authority_boundary"),
+    "authority_boundary must remain included even when requested as omitted",
+  );
+  assertNoIncludedSection(profile, "source_refs");
+  assert.equal(omittedSection(profile, "source_refs").included, false);
+  assert.ok(profile.reason_codes.includes("codex_handoff_draft_not_execution"));
+  assert.deepEqual(profile.source_refs, []);
+  for (const section of profile.included_sections) {
+    assert.ok(
+      !section.source_refs.includes("source:codex-should-not-leak"),
+      "omitted source refs must not leak into codex included sections",
+    );
+  }
+}
+
+function buildSyntheticReport({ targets, artifacts }) {
+  return helper.buildTargetAgentAiContextPacketProfilesReport({
+    scope: "project:augnes",
+    as_of: fixture.as_of,
+    source_fixture_refs: fixture.source_fixture_refs,
+    targets,
+    artifacts,
+  });
+}
+
+function onlyProfile(report) {
+  assert.equal(report.profiles.length, 1, "synthetic report should contain one profile");
+  return report.profiles[0];
+}
+
+function assertNoIncludedSection(profile, sectionKind) {
+  assert.ok(
+    !profile.included_sections.some((section) => section.section_kind === sectionKind),
+    `${sectionKind} must not be included`,
+  );
+}
+
+function omittedSection(profile, sectionKind) {
+  const section = profile.omitted_sections.find(
+    (candidate) => candidate.section_kind === sectionKind,
+  );
+  assert.ok(section, `${sectionKind} must be represented as omitted`);
+  assert.equal(section.included, false);
+  assert.deepEqual(section.source_refs, []);
+  assert.deepEqual(section.candidate_refs, []);
+  assert.equal(section.omission_reason, "Explicitly omitted by target profile input.");
+  return section;
 }
 
 function assertHelperSourceBoundary() {
