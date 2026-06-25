@@ -3535,6 +3535,28 @@ repo-local 색인이다.
   Product-write remains parked by #686.
 
   Boundary phrases: Feedback-to-Rule Candidate Builder v0.1; candidate-only deterministic builder; follows the integrated roadmap guide v0.2 after the Feedback-to-Rule Candidate Contract; feedback is operator signal, not truth; rule candidate is not rule mutation; accepted_for_future_pr is not PR creation authority; proposed_rule_change is review text, not execution; secret-like operator notes must be blocked or redacted; repeated_* patterns require at least two distinct feedback events; older proposal documents are background inputs already integrated into the roadmap guide; no rule mutation, future PR creation from candidate, runtime route, UI, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are temporal handoff diagnostics, Cockpit lifecycle/calibration/logical preview read-only UI, Research Candidate Review Memory contract, Empirical Calibration Dataset plan, and Feedback Event Aggregation Runtime.
+- Temporal Handoff Diagnostic Sections v0.1:
+  `docs/TEMPORAL_HANDOFF_DIAGNOSTIC_SECTIONS_V0_1.md`,
+  `types/temporal-handoff-diagnostic-sections.ts`,
+  `lib/research-candidate-review/temporal-handoff-diagnostic-sections.ts`,
+  `fixtures/research-candidate-review.temporal-handoff-diagnostic-sections.sample.v0.1.json`,
+  and `scripts/smoke-temporal-handoff-diagnostic-sections-v0-1.mjs`
+  (`npm run smoke:temporal-handoff-diagnostic-sections-v0-1`) implement the
+  next roadmap slice after the Feedback-to-Rule Candidate Builder, following
+  the integrated roadmap guide v0.2 as diagnostic-preview-only. It builds
+  expected/observed delta, decision hold, not-done classification, source
+  coverage, tension/gap, review cue, and authority boundary sections from
+  caller-provided handoff preview inputs. This pointer is repo-local
+  documentation metadata, not SSOT, and adds no runtime route, UI, DB query or
+  write, provider/OpenAI call, source fetch, retrieval/RAG execution,
+  proof/evidence write, Perspective promotion, durable Perspective state write,
+  work mutation, Codex execution, GitHub automation, branch/PR creation, Git
+  Ledger export, product write, or product ID allocation. It does not implement
+  execution approval, Codex execution, GitHub automation, branch/PR creation,
+  proof/evidence, promotion, provider, retrieval, Git Ledger, or product write.
+  Product-write remains parked by #686.
+
+  Boundary phrases: Temporal Handoff Diagnostic Sections v0.1; diagnostic-preview-only; follows the integrated roadmap guide v0.2 after Feedback-to-Rule Candidate Builder; Expected/Observed delta is diagnostic, not authority; Decision hold is review context, not rejection; Not-done classification is review context, not automatic failure; Source refs are coverage signals, not proof; older proposal documents are background inputs already integrated into the roadmap guide; no execution approval, Codex execution, GitHub automation, branch/PR creation, runtime route, UI, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Cockpit lifecycle/calibration/logical preview read-only UI, Research Candidate Review Memory contract, Empirical Calibration Dataset plan, Feedback Event Aggregation Runtime, and Dogfooding Record Runtime Contract.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

@@ -1,0 +1,1091 @@
+{
+  "fixture_version": "temporal_handoff_diagnostic_sections.sample.v0.1",
+  "sections_version": "temporal_handoff_diagnostic_sections.v0.1",
+  "report_version": "temporal_handoff_diagnostic_report.v0.1",
+  "scope": "project:augnes",
+  "status": "diagnostic_preview_only",
+  "as_of": "2026-06-25T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+    "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+    "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json",
+    "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json"
+  ],
+  "input_preview": {
+    "handoff_previews": [
+      {
+        "target_kind": "codex_handoff_draft",
+        "target_ref": "handoff-complete-001",
+        "expected_files": [
+          "docs/EXPECTED_COMPLETE.md",
+          "scripts/smoke-complete.mjs"
+        ],
+        "observed_files": [
+          "scripts/smoke-complete.mjs",
+          "docs/EXPECTED_COMPLETE.md"
+        ],
+        "expected_checks": [
+          "node --check scripts/smoke-complete.mjs"
+        ],
+        "observed_checks": [
+          "node --check scripts/smoke-complete.mjs"
+        ],
+        "source_refs": [
+          "source:handoff-complete"
+        ],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:no-action"
+        ],
+        "status_hint": "complete",
+        "operator_note": "Complete preview with matching refs."
+      },
+      {
+        "target_kind": "codex_handoff_draft",
+        "target_ref": "handoff-omission-001",
+        "expected_files": [
+          "docs/MISSING_TEMPORAL_SECTION.md",
+          "scripts/smoke-missing-temporal.mjs"
+        ],
+        "observed_files": [],
+        "expected_checks": [
+          "npm run smoke:missing-temporal"
+        ],
+        "observed_checks": [],
+        "source_refs": [
+          "source:handoff-omission"
+        ],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:restore-omitted-section"
+        ],
+        "status_hint": "partial",
+        "operator_note": "Expected temporal section remains absent from observed draft."
+      },
+      {
+        "target_kind": "ai_context_packet",
+        "target_ref": "ai-context-tension-001",
+        "expected_files": [
+          "packet:ai-context-tension"
+        ],
+        "observed_files": [
+          "packet:ai-context-tension"
+        ],
+        "expected_checks": [
+          "review:ai-context-tension-visible"
+        ],
+        "observed_checks": [
+          "review:ai-context-tension-visible"
+        ],
+        "source_refs": [
+          "source:ai-context-tension"
+        ],
+        "unresolved_tension_refs": [
+          "tension:temporal-order-001"
+        ],
+        "knowledge_gap_refs": [
+          "gap:handoff-source-coverage-001"
+        ],
+        "review_cue_refs": [
+          "review-cue:resolve-temporal-tension"
+        ],
+        "status_hint": "needs_review",
+        "operator_note": "Unresolved temporal tension should remain visible."
+      },
+      {
+        "target_kind": "human_review_packet",
+        "target_ref": "human-review-missing-source-001",
+        "expected_files": [
+          "review:human-source-coverage"
+        ],
+        "observed_files": [
+          "review:human-source-coverage"
+        ],
+        "expected_checks": [
+          "manual:source-coverage-reviewed"
+        ],
+        "observed_checks": [
+          "manual:source-coverage-reviewed"
+        ],
+        "source_refs": [],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:inspect-source"
+        ],
+        "status_hint": "blocked",
+        "operator_note": "Missing source refs should stop review until coverage is clarified."
+      },
+      {
+        "target_kind": "dogfooding_review_packet",
+        "target_ref": "dogfooding-unexpected-001",
+        "expected_files": [
+          "reports/dogfooding/expected-review.md"
+        ],
+        "observed_files": [
+          "reports/dogfooding/expected-review.md",
+          "reports/dogfooding/unexpected-extra.md"
+        ],
+        "expected_checks": [
+          "npm run smoke:expected-dogfood"
+        ],
+        "observed_checks": [
+          "npm run smoke:unexpected-dogfood"
+        ],
+        "source_refs": [
+          "source:dogfooding-unexpected"
+        ],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:compare-observed-extra"
+        ],
+        "status_hint": "partial",
+        "operator_note": "Observed dogfooding preview includes extra material and check mismatch."
+      },
+      {
+        "target_kind": "handoff",
+        "target_ref": "handoff-authority-confusing-001",
+        "expected_files": [
+          "handoff:authority-boundary"
+        ],
+        "observed_files": [
+          "handoff:authority-boundary"
+        ],
+        "expected_checks": [
+          "manual:authority-boundary-clear"
+        ],
+        "observed_checks": [
+          "manual:authority-boundary-clear"
+        ],
+        "source_refs": [
+          "source:handoff-authority-boundary"
+        ],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:clarify-boundary"
+        ],
+        "status_hint": "needs_review",
+        "operator_note": "Authority boundary wording should be clarified.",
+        "authority_boundary_notes": [
+          "execution approval wording appeared in draft"
+        ]
+      },
+      {
+        "target_kind": "external_packet_kind",
+        "target_ref": "unknown-temporal-target-001",
+        "expected_files": [],
+        "observed_files": [
+          "unknown:observed-material"
+        ],
+        "expected_checks": [],
+        "observed_checks": [],
+        "source_refs": [],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:manual-triage"
+        ],
+        "status_hint": "unclassified",
+        "operator_note": "Unknown target kind requires manual triage."
+      }
+    ]
+  },
+  "expected_report": {
+    "report_version": "temporal_handoff_diagnostic_report.v0.1",
+    "scope": "project:augnes",
+    "status": "diagnostic_preview_only",
+    "as_of": "2026-06-25T00:00:00.000Z",
+    "sections": [
+      {
+        "sections_version": "temporal_handoff_diagnostic_sections.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_kind": "ai_context_packet",
+        "target_ref": "ai-context-tension-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json"
+        ],
+        "expected_files": [
+          "packet:ai-context-tension"
+        ],
+        "observed_files": [
+          "packet:ai-context-tension"
+        ],
+        "expected_checks": [
+          "review:ai-context-tension-visible"
+        ],
+        "observed_checks": [
+          "review:ai-context-tension-visible"
+        ],
+        "source_refs": [
+          "source:ai-context-tension"
+        ],
+        "unresolved_tension_refs": [
+          "tension:temporal-order-001"
+        ],
+        "knowledge_gap_refs": [
+          "gap:handoff-source-coverage-001"
+        ],
+        "review_cue_refs": [
+          "review-cue:resolve-temporal-tension"
+        ],
+        "expected_observed_deltas": [
+          {
+            "delta_id": "delta:ai_context_packet:ai-context-tension-001:none",
+            "delta_kind": "none",
+            "expected_refs": [
+              "packet:ai-context-tension",
+              "review:ai-context-tension-visible"
+            ],
+            "observed_refs": [
+              "packet:ai-context-tension",
+              "review:ai-context-tension-visible"
+            ],
+            "missing_expected_refs": [],
+            "unexpected_observed_refs": [],
+            "source_refs": [
+              "source:ai-context-tension"
+            ],
+            "reliability_preview": "high",
+            "review_note": "Expected and observed refs match for this diagnostic preview."
+          }
+        ],
+        "decision_hold_traces": [
+          {
+            "hold_id": "hold:ai_context_packet:ai-context-tension-001:tension",
+            "hold_mode": "anticipatory_stop",
+            "trigger_refs": [
+              "tension:temporal-order-001"
+            ],
+            "source_refs": [
+              "source:ai-context-tension"
+            ],
+            "why_now": "Unresolved tensions remain visible for operator review.",
+            "review_cue": "Review unresolved tensions before continuing the handoff."
+          },
+          {
+            "hold_id": "hold:ai_context_packet:ai-context-tension-001:bounded-continue",
+            "hold_mode": "bounded_continue",
+            "trigger_refs": [
+              "status_hint:needs_review"
+            ],
+            "source_refs": [
+              "source:ai-context-tension"
+            ],
+            "why_now": "The preview can continue only as bounded review context.",
+            "review_cue": "Continue review without treating the handoff as complete."
+          }
+        ],
+        "not_done": {
+          "classification": "needs_review",
+          "reason": "Status hint classifies this preview as needs_review.",
+          "expected_remaining_refs": [],
+          "blocking_refs": []
+        },
+        "reason_codes": [
+          "authority_boundary_preserved",
+          "decision_hold_present",
+          "diagnostic_preview_not_execution",
+          "expected_checks_present",
+          "expected_files_present",
+          "expected_observed_match",
+          "knowledge_gap_present",
+          "not_done_classified",
+          "observed_checks_present",
+          "observed_files_present",
+          "source_refs_present",
+          "unresolved_tension_present"
+        ],
+        "authority_boundary": {
+          "diagnostic_preview_only": true,
+          "execution_approval": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "sections_version": "temporal_handoff_diagnostic_sections.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_kind": "codex_handoff_draft",
+        "target_ref": "handoff-authority-confusing-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json"
+        ],
+        "expected_files": [
+          "handoff:authority-boundary"
+        ],
+        "observed_files": [
+          "handoff:authority-boundary"
+        ],
+        "expected_checks": [
+          "manual:authority-boundary-clear"
+        ],
+        "observed_checks": [
+          "manual:authority-boundary-clear"
+        ],
+        "source_refs": [
+          "source:handoff-authority-boundary"
+        ],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:clarify-boundary"
+        ],
+        "expected_observed_deltas": [
+          {
+            "delta_id": "delta:codex_handoff_draft:handoff-authority-confusing-001:authority_boundary_mismatch",
+            "delta_kind": "authority_boundary_mismatch",
+            "expected_refs": [
+              "authority-boundary:diagnostic-preview-only"
+            ],
+            "observed_refs": [
+              "authority-boundary:confusing-note"
+            ],
+            "missing_expected_refs": [],
+            "unexpected_observed_refs": [
+              "authority-boundary:confusing-note"
+            ],
+            "source_refs": [
+              "source:handoff-authority-boundary"
+            ],
+            "reliability_preview": "high",
+            "review_note": "Authority boundary wording needs operator review."
+          }
+        ],
+        "decision_hold_traces": [
+          {
+            "hold_id": "hold:codex_handoff_draft:handoff-authority-confusing-001:bounded-continue",
+            "hold_mode": "bounded_continue",
+            "trigger_refs": [
+              "status_hint:needs_review"
+            ],
+            "source_refs": [
+              "source:handoff-authority-boundary"
+            ],
+            "why_now": "The preview can continue only as bounded review context.",
+            "review_cue": "Continue review without treating the handoff as complete."
+          },
+          {
+            "hold_id": "hold:codex_handoff_draft:handoff-authority-confusing-001:repair",
+            "hold_mode": "reactive_repair",
+            "trigger_refs": [
+              "delta:codex_handoff_draft:handoff-authority-confusing-001:authority_boundary_mismatch"
+            ],
+            "source_refs": [
+              "source:handoff-authority-boundary"
+            ],
+            "why_now": "Expected and observed preview inputs differ.",
+            "review_cue": "Review mismatched refs before continuing."
+          }
+        ],
+        "not_done": {
+          "classification": "needs_review",
+          "reason": "Status hint classifies this preview as needs_review.",
+          "expected_remaining_refs": [],
+          "blocking_refs": []
+        },
+        "reason_codes": [
+          "authority_boundary_preserved",
+          "decision_hold_present",
+          "diagnostic_preview_not_execution",
+          "expected_checks_present",
+          "expected_files_present",
+          "expected_observed_mismatch",
+          "not_done_classified",
+          "observed_checks_present",
+          "observed_files_present",
+          "source_refs_present"
+        ],
+        "authority_boundary": {
+          "diagnostic_preview_only": true,
+          "execution_approval": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "sections_version": "temporal_handoff_diagnostic_sections.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_kind": "codex_handoff_draft",
+        "target_ref": "handoff-complete-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json"
+        ],
+        "expected_files": [
+          "docs/EXPECTED_COMPLETE.md",
+          "scripts/smoke-complete.mjs"
+        ],
+        "observed_files": [
+          "docs/EXPECTED_COMPLETE.md",
+          "scripts/smoke-complete.mjs"
+        ],
+        "expected_checks": [
+          "node --check scripts/smoke-complete.mjs"
+        ],
+        "observed_checks": [
+          "node --check scripts/smoke-complete.mjs"
+        ],
+        "source_refs": [
+          "source:handoff-complete"
+        ],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:no-action"
+        ],
+        "expected_observed_deltas": [
+          {
+            "delta_id": "delta:codex_handoff_draft:handoff-complete-001:none",
+            "delta_kind": "none",
+            "expected_refs": [
+              "docs/EXPECTED_COMPLETE.md",
+              "node --check scripts/smoke-complete.mjs",
+              "scripts/smoke-complete.mjs"
+            ],
+            "observed_refs": [
+              "docs/EXPECTED_COMPLETE.md",
+              "node --check scripts/smoke-complete.mjs",
+              "scripts/smoke-complete.mjs"
+            ],
+            "missing_expected_refs": [],
+            "unexpected_observed_refs": [],
+            "source_refs": [
+              "source:handoff-complete"
+            ],
+            "reliability_preview": "high",
+            "review_note": "Expected and observed refs match for this diagnostic preview."
+          }
+        ],
+        "decision_hold_traces": [],
+        "not_done": {
+          "classification": "complete",
+          "reason": "Status hint classifies this preview as complete.",
+          "expected_remaining_refs": [],
+          "blocking_refs": []
+        },
+        "reason_codes": [
+          "authority_boundary_preserved",
+          "diagnostic_preview_not_execution",
+          "expected_checks_present",
+          "expected_files_present",
+          "expected_observed_match",
+          "not_done_classified",
+          "observed_checks_present",
+          "observed_files_present",
+          "source_refs_present"
+        ],
+        "authority_boundary": {
+          "diagnostic_preview_only": true,
+          "execution_approval": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "sections_version": "temporal_handoff_diagnostic_sections.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_kind": "codex_handoff_draft",
+        "target_ref": "handoff-omission-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json"
+        ],
+        "expected_files": [
+          "docs/MISSING_TEMPORAL_SECTION.md",
+          "scripts/smoke-missing-temporal.mjs"
+        ],
+        "observed_files": [],
+        "expected_checks": [
+          "npm run smoke:missing-temporal"
+        ],
+        "observed_checks": [],
+        "source_refs": [
+          "source:handoff-omission"
+        ],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:restore-omitted-section"
+        ],
+        "expected_observed_deltas": [
+          {
+            "delta_id": "delta:codex_handoff_draft:handoff-omission-001:omission",
+            "delta_kind": "omission",
+            "expected_refs": [
+              "docs/MISSING_TEMPORAL_SECTION.md",
+              "scripts/smoke-missing-temporal.mjs"
+            ],
+            "observed_refs": [],
+            "missing_expected_refs": [
+              "docs/MISSING_TEMPORAL_SECTION.md",
+              "scripts/smoke-missing-temporal.mjs"
+            ],
+            "unexpected_observed_refs": [],
+            "source_refs": [
+              "source:handoff-omission"
+            ],
+            "reliability_preview": "high",
+            "review_note": "Expected refs are missing from the observed preview."
+          },
+          {
+            "delta_id": "delta:codex_handoff_draft:handoff-omission-001:validation_mismatch",
+            "delta_kind": "validation_mismatch",
+            "expected_refs": [
+              "npm run smoke:missing-temporal"
+            ],
+            "observed_refs": [],
+            "missing_expected_refs": [
+              "npm run smoke:missing-temporal"
+            ],
+            "unexpected_observed_refs": [],
+            "source_refs": [
+              "source:handoff-omission"
+            ],
+            "reliability_preview": "high",
+            "review_note": "Expected and observed validation refs differ."
+          }
+        ],
+        "decision_hold_traces": [
+          {
+            "hold_id": "hold:codex_handoff_draft:handoff-omission-001:bounded-continue",
+            "hold_mode": "bounded_continue",
+            "trigger_refs": [
+              "status_hint:partial"
+            ],
+            "source_refs": [
+              "source:handoff-omission"
+            ],
+            "why_now": "The preview can continue only as bounded review context.",
+            "review_cue": "Continue review without treating the handoff as complete."
+          },
+          {
+            "hold_id": "hold:codex_handoff_draft:handoff-omission-001:repair",
+            "hold_mode": "reactive_repair",
+            "trigger_refs": [
+              "delta:codex_handoff_draft:handoff-omission-001:omission",
+              "delta:codex_handoff_draft:handoff-omission-001:validation_mismatch"
+            ],
+            "source_refs": [
+              "source:handoff-omission"
+            ],
+            "why_now": "Expected and observed preview inputs differ.",
+            "review_cue": "Review mismatched refs before continuing."
+          }
+        ],
+        "not_done": {
+          "classification": "partial",
+          "reason": "Status hint classifies this preview as partial.",
+          "expected_remaining_refs": [
+            "docs/MISSING_TEMPORAL_SECTION.md",
+            "npm run smoke:missing-temporal",
+            "scripts/smoke-missing-temporal.mjs"
+          ],
+          "blocking_refs": []
+        },
+        "reason_codes": [
+          "authority_boundary_preserved",
+          "decision_hold_present",
+          "diagnostic_preview_not_execution",
+          "expected_checks_present",
+          "expected_files_present",
+          "expected_observed_mismatch",
+          "not_done_classified",
+          "observed_checks_missing",
+          "observed_files_missing",
+          "source_refs_present"
+        ],
+        "authority_boundary": {
+          "diagnostic_preview_only": true,
+          "execution_approval": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "sections_version": "temporal_handoff_diagnostic_sections.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_kind": "dogfooding_review_packet",
+        "target_ref": "dogfooding-unexpected-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json"
+        ],
+        "expected_files": [
+          "reports/dogfooding/expected-review.md"
+        ],
+        "observed_files": [
+          "reports/dogfooding/expected-review.md",
+          "reports/dogfooding/unexpected-extra.md"
+        ],
+        "expected_checks": [
+          "npm run smoke:expected-dogfood"
+        ],
+        "observed_checks": [
+          "npm run smoke:unexpected-dogfood"
+        ],
+        "source_refs": [
+          "source:dogfooding-unexpected"
+        ],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:compare-observed-extra"
+        ],
+        "expected_observed_deltas": [
+          {
+            "delta_id": "delta:dogfooding_review_packet:dogfooding-unexpected-001:unexpected_change",
+            "delta_kind": "unexpected_change",
+            "expected_refs": [
+              "reports/dogfooding/expected-review.md"
+            ],
+            "observed_refs": [
+              "reports/dogfooding/expected-review.md",
+              "reports/dogfooding/unexpected-extra.md"
+            ],
+            "missing_expected_refs": [],
+            "unexpected_observed_refs": [
+              "reports/dogfooding/unexpected-extra.md"
+            ],
+            "source_refs": [
+              "source:dogfooding-unexpected"
+            ],
+            "reliability_preview": "high",
+            "review_note": "Observed refs include unexpected preview material."
+          },
+          {
+            "delta_id": "delta:dogfooding_review_packet:dogfooding-unexpected-001:validation_mismatch",
+            "delta_kind": "validation_mismatch",
+            "expected_refs": [
+              "npm run smoke:expected-dogfood"
+            ],
+            "observed_refs": [
+              "npm run smoke:unexpected-dogfood"
+            ],
+            "missing_expected_refs": [
+              "npm run smoke:expected-dogfood"
+            ],
+            "unexpected_observed_refs": [
+              "npm run smoke:unexpected-dogfood"
+            ],
+            "source_refs": [
+              "source:dogfooding-unexpected"
+            ],
+            "reliability_preview": "high",
+            "review_note": "Expected and observed validation refs differ."
+          }
+        ],
+        "decision_hold_traces": [
+          {
+            "hold_id": "hold:dogfooding_review_packet:dogfooding-unexpected-001:bounded-continue",
+            "hold_mode": "bounded_continue",
+            "trigger_refs": [
+              "status_hint:partial"
+            ],
+            "source_refs": [
+              "source:dogfooding-unexpected"
+            ],
+            "why_now": "The preview can continue only as bounded review context.",
+            "review_cue": "Continue review without treating the handoff as complete."
+          },
+          {
+            "hold_id": "hold:dogfooding_review_packet:dogfooding-unexpected-001:repair",
+            "hold_mode": "reactive_repair",
+            "trigger_refs": [
+              "delta:dogfooding_review_packet:dogfooding-unexpected-001:unexpected_change",
+              "delta:dogfooding_review_packet:dogfooding-unexpected-001:validation_mismatch"
+            ],
+            "source_refs": [
+              "source:dogfooding-unexpected"
+            ],
+            "why_now": "Expected and observed preview inputs differ.",
+            "review_cue": "Review mismatched refs before continuing."
+          }
+        ],
+        "not_done": {
+          "classification": "partial",
+          "reason": "Status hint classifies this preview as partial.",
+          "expected_remaining_refs": [
+            "npm run smoke:expected-dogfood"
+          ],
+          "blocking_refs": []
+        },
+        "reason_codes": [
+          "authority_boundary_preserved",
+          "decision_hold_present",
+          "diagnostic_preview_not_execution",
+          "expected_checks_present",
+          "expected_files_present",
+          "expected_observed_mismatch",
+          "not_done_classified",
+          "observed_checks_present",
+          "observed_files_present",
+          "source_refs_present"
+        ],
+        "authority_boundary": {
+          "diagnostic_preview_only": true,
+          "execution_approval": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "sections_version": "temporal_handoff_diagnostic_sections.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_kind": "human_review_packet",
+        "target_ref": "human-review-missing-source-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json"
+        ],
+        "expected_files": [
+          "review:human-source-coverage"
+        ],
+        "observed_files": [
+          "review:human-source-coverage"
+        ],
+        "expected_checks": [
+          "manual:source-coverage-reviewed"
+        ],
+        "observed_checks": [
+          "manual:source-coverage-reviewed"
+        ],
+        "source_refs": [],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:inspect-source"
+        ],
+        "expected_observed_deltas": [
+          {
+            "delta_id": "delta:human_review_packet:human-review-missing-source-001:none",
+            "delta_kind": "none",
+            "expected_refs": [
+              "manual:source-coverage-reviewed",
+              "review:human-source-coverage"
+            ],
+            "observed_refs": [
+              "manual:source-coverage-reviewed",
+              "review:human-source-coverage"
+            ],
+            "missing_expected_refs": [],
+            "unexpected_observed_refs": [],
+            "source_refs": [],
+            "reliability_preview": "medium",
+            "review_note": "Expected and observed refs match for this diagnostic preview."
+          }
+        ],
+        "decision_hold_traces": [
+          {
+            "hold_id": "hold:human_review_packet:human-review-missing-source-001:blocked",
+            "hold_mode": "operator_decision_required",
+            "trigger_refs": [
+              "status_hint:blocked"
+            ],
+            "source_refs": [],
+            "why_now": "The preview status is blocked.",
+            "review_cue": "Ask the operator to resolve the blocking condition."
+          },
+          {
+            "hold_id": "hold:human_review_packet:human-review-missing-source-001:source",
+            "hold_mode": "operator_decision_required",
+            "trigger_refs": [
+              "source_refs_missing"
+            ],
+            "source_refs": [],
+            "why_now": "Source coverage is missing for this diagnostic preview.",
+            "review_cue": "Inspect source coverage before treating the handoff as complete."
+          }
+        ],
+        "not_done": {
+          "classification": "blocked",
+          "reason": "Status hint classifies this preview as blocked.",
+          "expected_remaining_refs": [],
+          "blocking_refs": []
+        },
+        "reason_codes": [
+          "authority_boundary_preserved",
+          "decision_hold_present",
+          "diagnostic_preview_not_execution",
+          "expected_checks_present",
+          "expected_files_present",
+          "expected_observed_match",
+          "not_done_classified",
+          "observed_checks_present",
+          "observed_files_present",
+          "source_refs_missing"
+        ],
+        "authority_boundary": {
+          "diagnostic_preview_only": true,
+          "execution_approval": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "sections_version": "temporal_handoff_diagnostic_sections.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_kind": "unknown",
+        "target_ref": "unknown-temporal-target-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json"
+        ],
+        "expected_files": [],
+        "observed_files": [
+          "unknown:observed-material"
+        ],
+        "expected_checks": [],
+        "observed_checks": [],
+        "source_refs": [],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [
+          "review-cue:manual-triage"
+        ],
+        "expected_observed_deltas": [
+          {
+            "delta_id": "delta:unknown:unknown-temporal-target-001:unexpected_change",
+            "delta_kind": "unexpected_change",
+            "expected_refs": [],
+            "observed_refs": [
+              "unknown:observed-material"
+            ],
+            "missing_expected_refs": [],
+            "unexpected_observed_refs": [
+              "unknown:observed-material"
+            ],
+            "source_refs": [],
+            "reliability_preview": "medium",
+            "review_note": "Observed refs include unexpected preview material."
+          }
+        ],
+        "decision_hold_traces": [
+          {
+            "hold_id": "hold:unknown:unknown-temporal-target-001:source",
+            "hold_mode": "operator_decision_required",
+            "trigger_refs": [
+              "source_refs_missing"
+            ],
+            "source_refs": [],
+            "why_now": "Source coverage is missing for this diagnostic preview.",
+            "review_cue": "Inspect source coverage before treating the handoff as complete."
+          },
+          {
+            "hold_id": "hold:unknown:unknown-temporal-target-001:repair",
+            "hold_mode": "reactive_repair",
+            "trigger_refs": [
+              "delta:unknown:unknown-temporal-target-001:unexpected_change"
+            ],
+            "source_refs": [],
+            "why_now": "Expected and observed preview inputs differ.",
+            "review_cue": "Review mismatched refs before continuing."
+          }
+        ],
+        "not_done": {
+          "classification": "unknown",
+          "reason": "The preview does not provide enough bounded status signal.",
+          "expected_remaining_refs": [],
+          "blocking_refs": []
+        },
+        "reason_codes": [
+          "authority_boundary_preserved",
+          "decision_hold_present",
+          "diagnostic_preview_not_execution",
+          "expected_checks_missing",
+          "expected_files_missing",
+          "expected_observed_mismatch",
+          "not_done_classified",
+          "observed_checks_missing",
+          "observed_files_present",
+          "source_refs_missing"
+        ],
+        "authority_boundary": {
+          "diagnostic_preview_only": true,
+          "execution_approval": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      }
+    ],
+    "target_counts": {
+      "ai_context_packet": 1,
+      "codex_handoff_draft": 3,
+      "human_review_packet": 1,
+      "dogfooding_review_packet": 1,
+      "unknown": 1
+    },
+    "delta_counts": {
+      "none": 3,
+      "omission": 1,
+      "unexpected_change": 2,
+      "factual_mismatch": 0,
+      "sequence_mismatch": 0,
+      "action_effect_mismatch": 0,
+      "scope_mismatch": 0,
+      "user_preference_shift": 0,
+      "repo_state_shift": 0,
+      "validation_mismatch": 2,
+      "authority_boundary_mismatch": 1
+    },
+    "hold_mode_counts": {
+      "none": 1,
+      "reactive_repair": 4,
+      "anticipatory_stop": 1,
+      "bounded_continue": 4,
+      "operator_decision_required": 3
+    },
+    "not_done_counts": {
+      "not_started": 0,
+      "partial": 2,
+      "blocked": 1,
+      "out_of_scope": 0,
+      "needs_review": 2,
+      "complete": 1,
+      "unknown": 1
+    },
+    "boundary_notes": [
+      "Decision hold is review context, not rejection.",
+      "Expected/Observed delta is diagnostic, not authority.",
+      "Not-done classification is review context, not automatic failure.",
+      "Product-write remains parked by #686.",
+      "Source refs are coverage signals, not proof."
+    ],
+    "report_fingerprint": "dac798670a616d631c06761738d09aec0a4e227d95fbeba176e589cf9603a00c",
+    "authority_boundary": {
+      "diagnostic_preview_only": true,
+      "execution_approval": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "branch_pr_creation_authority": false,
+      "source_of_truth": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state": false,
+      "work_mutation": false,
+      "provider_openai_authority": false,
+      "source_fetch_authority": false,
+      "retrieval_rag_authority": false,
+      "git_ledger_export_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false
+    }
+  }
+}

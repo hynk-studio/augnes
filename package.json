@@ -585,6 +585,7 @@
     "smoke:research-candidate-logical-claim-shape-v0-1": "node scripts/smoke-research-candidate-logical-claim-shape-v0-1.mjs",
     "smoke:feedback-to-rule-candidate-contract-v0-1": "node scripts/smoke-feedback-to-rule-candidate-contract-v0-1.mjs",
     "smoke:feedback-to-rule-candidate-builder-v0-1": "node scripts/smoke-feedback-to-rule-candidate-builder-v0-1.mjs",
+    "smoke:temporal-handoff-diagnostic-sections-v0-1": "node scripts/smoke-temporal-handoff-diagnostic-sections-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
