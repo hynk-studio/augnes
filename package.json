@@ -594,6 +594,7 @@
     "smoke:foundation-lifecycle-review-memory-readonly-ui-v0-1": "node scripts/smoke-foundation-lifecycle-review-memory-readonly-ui-v0-1.mjs",
     "smoke:bounded-source-intake-runtime-contract-v0-1": "node scripts/smoke-bounded-source-intake-runtime-contract-v0-1.mjs",
     "smoke:bounded-source-intake-runtime-v0-1": "node scripts/smoke-bounded-source-intake-runtime-v0-1.mjs",
+    "smoke:provider-assisted-extraction-candidate-only-contract-v0-1": "node scripts/smoke-provider-assisted-extraction-candidate-only-contract-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
