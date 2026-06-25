@@ -31,6 +31,16 @@ const fixtureSmokeLegacyAuditPackageScriptName =
   "smoke:research-to-perspective-fixture-smoke-legacy-audit-v0-1";
 const fixtureSmokeLegacyAuditPackageScriptValue =
   "node scripts/smoke-research-to-perspective-fixture-smoke-legacy-audit-v0-1.mjs";
+const foundationStatusReviewDocPath =
+  "docs/RESEARCH_TO_PERSPECTIVE_FOUNDATION_STATUS_REVIEW_V0_1.md";
+const foundationStatusReviewFixturePath =
+  "fixtures/research-candidate-review.foundation-status-review.sample.v0.1.json";
+const foundationStatusReviewSmokePath =
+  "scripts/smoke-research-to-perspective-foundation-status-review-v0-1.mjs";
+const foundationStatusReviewPackageScriptName =
+  "smoke:research-to-perspective-foundation-status-review-v0-1";
+const foundationStatusReviewPackageScriptValue =
+  "node scripts/smoke-research-to-perspective-foundation-status-review-v0-1.mjs";
 const closeoutKind = "research_to_perspective_foundation_milestone_closeout";
 const closeoutVersion =
   "research_to_perspective_foundation_milestone_closeout.v0.1";
@@ -382,6 +392,10 @@ function buildPrivacyPolicy() {
 }
 
 function assertPackageScript() {
+  if (researchToPerspectiveFoundationStatusReviewSliceActive()) {
+    assertResearchToPerspectiveFoundationStatusReviewPackageScript();
+    return;
+  }
   if (researchToPerspectiveFixtureSmokeLegacyAuditSliceActive()) {
     assertResearchToPerspectiveFixtureSmokeLegacyAuditPackageScript();
     return;
@@ -418,6 +432,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (researchToPerspectiveFoundationStatusReviewSliceActive()) {
+    assertResearchToPerspectiveFoundationStatusReviewChangedFiles(changedFiles);
+    return;
+  }
   if (researchToPerspectiveFixtureSmokeLegacyAuditSliceActive()) {
     assertResearchToPerspectiveFixtureSmokeLegacyAuditChangedFiles(changedFiles);
     return;
@@ -458,6 +476,69 @@ function assertStaticBoundary() {
 
 function researchToPerspectiveFixtureSmokeLegacyAuditSliceActive() {
   return readChangedFiles().includes(fixtureSmokeLegacyAuditSmokePath);
+}
+
+function researchToPerspectiveFoundationStatusReviewSliceActive() {
+  return readChangedFiles().includes(foundationStatusReviewSmokePath);
+}
+
+function assertResearchToPerspectiveFoundationStatusReviewPackageScript() {
+  assert.equal(
+    packageJson.scripts[foundationStatusReviewPackageScriptName],
+    foundationStatusReviewPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [foundationStatusReviewPackageScriptName],
+    "package.json must add only the Research-to-Perspective foundation status review smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertResearchToPerspectiveFoundationStatusReviewChangedFiles(changedFiles) {
+  const expected = [
+    foundationStatusReviewDocPath,
+    foundationStatusReviewFixturePath,
+    foundationStatusReviewSmokePath,
+    smokePath,
+    packagePath,
+    indexPath,
+  ];
+  for (const filePath of expected) {
+    assert.ok(
+      changedFiles.includes(filePath),
+      `foundation status review slice must include ${filePath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expected.includes(changedFile),
+      `unexpected changed file in foundation status review slice: ${changedFile}`,
+    );
+    if (changedFile.startsWith("scripts/smoke-")) continue;
+    assertNoForbiddenChangedPath(changedFile);
+  }
 }
 
 function assertResearchToPerspectiveFixtureSmokeLegacyAuditPackageScript() {

@@ -1,0 +1,390 @@
+{
+  "fixture_version": "research_to_perspective_foundation_status_review.sample.v0.1",
+  "review_version": "research_to_perspective_foundation_status_review.v0.1",
+  "scope": "project:augnes",
+  "status": "foundation_status_review_only",
+  "baseline": {
+    "after_prs": [
+      "#759",
+      "#760"
+    ],
+    "latest_audit_doc": "docs/RESEARCH_TO_PERSPECTIVE_FIXTURE_SMOKE_LEGACY_AUDIT_V0_1.md",
+    "foundation_closeout": "Research-to-Perspective Foundation Milestone closeout v0.1"
+  },
+  "authority_boundary": {
+    "classification_only": true,
+    "derived_planning_only": true,
+    "runtime_persistence_now": false,
+    "provider_openai_call_now": false,
+    "source_fetch_now": false,
+    "retrieval_rag_execution_now": false,
+    "db_query_or_write_now": false,
+    "proof_or_evidence_write_now": false,
+    "perspective_promotion_now": false,
+    "durable_perspective_state_write_now": false,
+    "work_mutation_now": false,
+    "codex_execution_now": false,
+    "github_automation_now": false,
+    "git_ledger_export_now": false,
+    "product_write_now": false,
+    "product_id_allocation_now": false,
+    "ci_runtime_change_now": false,
+    "github_actions_added_now": false
+  },
+  "product_write": {
+    "parked_by": "#686",
+    "status": "parked",
+    "reentry_allowed_now": false
+  },
+  "rail_statuses": [
+    {
+      "rail_id": "research_to_perspective_foundation_milestone_closeout",
+      "label": "Research-to-Perspective Foundation Milestone closeout",
+      "current_status": "closeout_lineage",
+      "authority_class": "fixture_smoke_only",
+      "runtime_readiness": "high",
+      "runtime_behavior_open_now": false,
+      "next_action": "Keep as #759 foundation closeout baseline lineage.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Closeout is summary only, not runtime; smoke pass is validation signal, not proof/evidence."
+    },
+    {
+      "rail_id": "dogfooding_research_to_perspective_ci_expansion_closeout",
+      "label": "Dogfooding Research-to-Perspective CI Expansion closeout",
+      "current_status": "closeout_lineage",
+      "authority_class": "fixture_smoke_only",
+      "runtime_readiness": "high",
+      "runtime_behavior_open_now": false,
+      "next_action": "Keep as upstream closeout lineage for the foundation milestone.",
+      "cleanup_target_now": false,
+      "boundary_notes": "CI signal is validation signal, not proof/evidence."
+    },
+    {
+      "rail_id": "agent_perspective_substrate_feedback_loop",
+      "label": "Agent Perspective Substrate Feedback Loop",
+      "current_status": "active_foundation_lineage",
+      "authority_class": "advisory_derived",
+      "runtime_readiness": "medium",
+      "runtime_behavior_open_now": false,
+      "next_action": "Preserve folded, derived, advisory-only boundary.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Feedback remains operator signal, not truth."
+    },
+    {
+      "rail_id": "perspective_packet_receipt_linkage",
+      "label": "Perspective Packet Receipt Linkage",
+      "current_status": "historical_preview",
+      "authority_class": "candidate_preview",
+      "runtime_readiness": "medium",
+      "runtime_behavior_open_now": false,
+      "next_action": "Use as provenance linkage context for the lifecycle read model.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Packet receipt linkage remains provenance, not completion proof."
+    },
+    {
+      "rail_id": "codex_handoff_draft",
+      "label": "Codex Handoff Draft",
+      "current_status": "historical_preview",
+      "authority_class": "candidate_preview",
+      "runtime_readiness": "medium",
+      "runtime_behavior_open_now": false,
+      "next_action": "Use as draft handoff context only.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Codex Handoff Draft remains draft, not execution approval."
+    },
+    {
+      "rail_id": "ai_context_packet",
+      "label": "AI Context Packet",
+      "current_status": "historical_preview",
+      "authority_class": "non_authoritative_context",
+      "runtime_readiness": "medium",
+      "runtime_behavior_open_now": false,
+      "next_action": "Use as context packet lineage for derived readouts.",
+      "cleanup_target_now": false,
+      "boundary_notes": "AI context remains context and does not grant provider, execution, or persistence authority."
+    },
+    {
+      "rail_id": "perspective_geometry_digest",
+      "label": "Perspective Geometry Digest",
+      "current_status": "historical_preview",
+      "authority_class": "advisory_derived",
+      "runtime_readiness": "medium",
+      "runtime_behavior_open_now": false,
+      "next_action": "Keep as derived review context.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Digest output remains derived review context, not durable Perspective state."
+    },
+    {
+      "rail_id": "project_constellation_runtime_layout",
+      "label": "Project Constellation Runtime Layout",
+      "current_status": "historical_preview",
+      "authority_class": "candidate_preview",
+      "runtime_readiness": "low",
+      "runtime_behavior_open_now": false,
+      "next_action": "Keep layout preview lineage only.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Layout preview does not add graph DB, persistence, route authority, or proof/evidence writes."
+    },
+    {
+      "rail_id": "durable_perspective_state_trajectory",
+      "label": "Durable Perspective State / Trajectory",
+      "current_status": "deferred_runtime",
+      "authority_class": "deferred_runtime",
+      "runtime_readiness": "low",
+      "runtime_behavior_open_now": false,
+      "next_action": "Defer until explicit durable state gate exists.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Trajectory language is not durable Perspective promotion."
+    },
+    {
+      "rail_id": "human_reviewed_durable_perspective_promotion",
+      "label": "Human-reviewed Durable Perspective Promotion",
+      "current_status": "deferred_runtime",
+      "authority_class": "deferred_runtime",
+      "runtime_readiness": "low",
+      "runtime_behavior_open_now": false,
+      "next_action": "Defer until human-reviewed promotion authority is explicitly reopened.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Human review semantics do not promote Perspective state in this review."
+    },
+    {
+      "rail_id": "non_authoritative_retrieval_rag",
+      "label": "Non-authoritative Retrieval/RAG",
+      "current_status": "deferred_runtime",
+      "authority_class": "non_authoritative_context",
+      "runtime_readiness": "low",
+      "runtime_behavior_open_now": false,
+      "next_action": "Defer retrieval/RAG runtime and keep recall/context boundary.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Retrieval/RAG remains recall/context, not authority."
+    },
+    {
+      "rail_id": "operator_source_candidate_generation",
+      "label": "Operator Source Candidate Generation",
+      "current_status": "active_foundation_lineage",
+      "authority_class": "candidate_preview",
+      "runtime_readiness": "medium",
+      "runtime_behavior_open_now": false,
+      "next_action": "Use as candidate generation lineage for lifecycle status only.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Candidate remains candidate; no source fetch is opened."
+    },
+    {
+      "rail_id": "bounded_external_source_intake",
+      "label": "Bounded External Source Intake",
+      "current_status": "deferred_runtime",
+      "authority_class": "deferred_runtime",
+      "runtime_readiness": "low",
+      "runtime_behavior_open_now": false,
+      "next_action": "Defer source intake runtime and source fetching.",
+      "cleanup_target_now": false,
+      "boundary_notes": "No source fetcher, crawler, provider call, or production DB write is opened."
+    },
+    {
+      "rail_id": "salience_governor",
+      "label": "Salience Governor",
+      "current_status": "historical_preview",
+      "authority_class": "advisory_derived",
+      "runtime_readiness": "medium",
+      "runtime_behavior_open_now": false,
+      "next_action": "Keep policy and selection lineage.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Salience review does not write durable state or mutate work."
+    },
+    {
+      "rail_id": "recent_rehearsal_buffer",
+      "label": "Recent Rehearsal Buffer",
+      "current_status": "historical_preview",
+      "authority_class": "non_authoritative_context",
+      "runtime_readiness": "low",
+      "runtime_behavior_open_now": false,
+      "next_action": "Keep rehearsal context non-durable.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Rehearsal buffer context is not hidden permanent memory or product persistence."
+    },
+    {
+      "rail_id": "formation_receipt_durable_event",
+      "label": "Formation Receipt Durable Event",
+      "current_status": "active_runtime_adjacent",
+      "authority_class": "advisory_derived",
+      "runtime_readiness": "medium",
+      "runtime_behavior_open_now": false,
+      "next_action": "Retain contract lineage without adding Formation Receipt writes.",
+      "cleanup_target_now": false,
+      "boundary_notes": "No Formation Receipt writes are authorized by this review."
+    },
+    {
+      "rail_id": "feedback_event_store",
+      "label": "Feedback Event Store",
+      "current_status": "active_runtime_adjacent",
+      "authority_class": "durable_feedback_event_only",
+      "runtime_readiness": "high",
+      "runtime_behavior_open_now": false,
+      "next_action": "Use existing feedback signal shape as lifecycle input without adding write authority.",
+      "cleanup_target_now": false,
+      "boundary_notes": "Active feedback validation does not authorize product-write, provider calls, production DB writes, or proof/evidence creation."
+    }
+  ],
+  "candidate_next_slices": [
+    {
+      "slice_id": "foundation_status_dashboard_readonly_ui_v0_1",
+      "selected": false,
+      "selection_class": "readonly_orientation_ui",
+      "decision": "deferred",
+      "reason_codes": [
+        "needs_lifecycle_read_model_first",
+        "dashboard_not_next_slice"
+      ]
+    },
+    {
+      "slice_id": "research_candidate_lifecycle_read_model_v0_1",
+      "selected": true,
+      "selection_class": "next_runtime_read_model",
+      "decision": "selected",
+      "reason_codes": [
+        "derived_from_existing_candidate_packet_handoff_feedback_provenance",
+        "no_db_provider_retrieval_promotion_product_write_or_github_automation_required",
+        "highest_immediate_operator_value",
+        "prepares_calibration_claim_shape_feedback_rule_and_temporal_handoff_diagnostics"
+      ]
+    },
+    {
+      "slice_id": "research_candidate_calibration_diagnostic_v0_1",
+      "selected": false,
+      "selection_class": "diagnostic_follow_up",
+      "decision": "deferred",
+      "reason_codes": [
+        "needs_lifecycle_status_first"
+      ]
+    },
+    {
+      "slice_id": "logical_claim_shape_preview_v0_1",
+      "selected": false,
+      "selection_class": "preview_follow_up",
+      "decision": "deferred",
+      "reason_codes": [
+        "needs_lifecycle_and_calibration_context"
+      ]
+    },
+    {
+      "slice_id": "feedback_to_rule_candidate_loop_v0_1",
+      "selected": false,
+      "selection_class": "candidate_loop_follow_up",
+      "decision": "deferred",
+      "reason_codes": [
+        "needs_lifecycle_and_calibration_basis"
+      ]
+    },
+    {
+      "slice_id": "research_candidate_review_memory_contract_v0_1",
+      "selected": false,
+      "selection_class": "memory_contract_follow_up",
+      "decision": "deferred",
+      "reason_codes": [
+        "durable_candidate_review_memory_deferred_until_lifecycle_and_diagnostic_basis_stable"
+      ]
+    },
+    {
+      "slice_id": "bounded_source_intake_runtime_contract_v0_1",
+      "selected": false,
+      "selection_class": "runtime_contract_follow_up",
+      "decision": "deferred",
+      "reason_codes": [
+        "source_fetch_remains_unopened"
+      ]
+    },
+    {
+      "slice_id": "provider_assisted_extraction_candidate_only_contract_v0_1",
+      "selected": false,
+      "selection_class": "provider_contract_follow_up",
+      "decision": "deferred",
+      "reason_codes": [
+        "provider_openai_output_non_authoritative",
+        "provider_calls_unopened"
+      ]
+    },
+    {
+      "slice_id": "research_retrieval_runtime_contract_v0_1",
+      "selected": false,
+      "selection_class": "retrieval_contract_follow_up",
+      "decision": "deferred",
+      "reason_codes": [
+        "retrieval_rag_remains_recall_context_not_authority",
+        "retrieval_execution_unopened"
+      ]
+    },
+    {
+      "slice_id": "perspective_promotion_runtime_contract_v0_1",
+      "selected": false,
+      "selection_class": "promotion_contract_follow_up",
+      "decision": "deferred",
+      "reason_codes": [
+        "promotion_and_durable_state_paths_unopened"
+      ]
+    },
+    {
+      "slice_id": "git_ledger_export_contract_v0_1",
+      "selected": false,
+      "selection_class": "ledger_export_follow_up",
+      "decision": "deferred",
+      "reason_codes": [
+        "requires_human_reviewed_durable_promotion",
+        "requires_formation_receipt_basis",
+        "requires_durable_state_basis"
+      ],
+      "deferral_basis": [
+        "human_reviewed_durable_promotion",
+        "Formation Receipt",
+        "durable state"
+      ]
+    },
+    {
+      "slice_id": "product_write_reentry_review_v0_1",
+      "selected": false,
+      "selection_class": "parked_product_write_follow_up",
+      "decision": "deferred",
+      "reason_codes": [
+        "product_write_parked_by_686"
+      ]
+    }
+  ],
+  "selected_next_slice": {
+    "slice_id": "research_candidate_lifecycle_read_model_v0_1",
+    "selected": true,
+    "selection_class": "next_runtime_read_model",
+    "reason_codes": [
+      "derived_from_existing_candidate_packet_handoff_feedback_provenance",
+      "no_db_provider_retrieval_promotion_product_write_or_github_automation_required",
+      "highest_immediate_operator_value",
+      "prepares_calibration_claim_shape_feedback_rule_and_temporal_handoff_diagnostics"
+    ]
+  },
+  "deferred_next_slices": [
+    "foundation_status_dashboard_readonly_ui_v0_1",
+    "research_candidate_calibration_diagnostic_v0_1",
+    "logical_claim_shape_preview_v0_1",
+    "feedback_to_rule_candidate_loop_v0_1",
+    "research_candidate_review_memory_contract_v0_1",
+    "bounded_source_intake_runtime_contract_v0_1",
+    "provider_assisted_extraction_candidate_only_contract_v0_1",
+    "research_retrieval_runtime_contract_v0_1",
+    "perspective_promotion_runtime_contract_v0_1",
+    "git_ledger_export_contract_v0_1",
+    "product_write_reentry_review_v0_1"
+  ],
+  "follow_up_order": [
+    "research_candidate_lifecycle_read_model_v0_1",
+    "research_candidate_calibration_diagnostic_v0_1",
+    "logical_claim_shape_preview_v0_1",
+    "feedback_to_rule_candidate_loop_v0_1",
+    "temporal_handoff_diagnostics_v0_1",
+    "foundation_status_dashboard_readonly_ui_v0_1",
+    "research_candidate_review_memory_contract_v0_1",
+    "bounded_source_intake_runtime_contract_v0_1",
+    "provider_assisted_extraction_candidate_only_contract_v0_1",
+    "research_retrieval_runtime_contract_v0_1",
+    "perspective_promotion_runtime_contract_v0_1",
+    "git_ledger_export_contract_v0_1",
+    "product_write_reentry_review_v0_1"
+  ]
+}
