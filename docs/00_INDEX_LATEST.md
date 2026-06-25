@@ -3471,6 +3471,27 @@ repo-local 색인이다.
   Product-write remains parked by #686.
 
   Boundary phrases: Research Candidate Calibration Diagnostic v0.1; calibration diagnostic is diagnostic-only; follows the integrated roadmap guide v0.2 after the Lifecycle Read Model; confidence is not truth; readiness is not promotion; ready means ready for review, not ready to promote; feedback is operator signal, not truth; diagnostic_summary is explanation, not authority; older proposal documents are background inputs already integrated into the roadmap guide; no empirical calibration model, runtime route, UI, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Logical Claim Shape Preview, Feedback-to-Rule Candidate Contract, temporal handoff diagnostics, Cockpit lifecycle/calibration preview read-only UI, Research Candidate Review Memory contract, and Empirical Calibration Dataset plan.
+- Research Candidate Logical Claim Shape Preview v0.1:
+  `docs/RESEARCH_CANDIDATE_LOGICAL_CLAIM_SHAPE_V0_1.md`,
+  `types/research-candidate-logical-claim-shape.ts`,
+  `lib/research-candidate-review/logical-claim-shape.ts`,
+  `fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json`,
+  and `scripts/smoke-research-candidate-logical-claim-shape-v0-1.mjs`
+  (`npm run smoke:research-candidate-logical-claim-shape-v0-1`) implement
+  Phase 1.3 after Calibration Diagnostic, following the integrated roadmap
+  guide v0.2 as structure-preview-only. It derives premise, conclusion,
+  missing-assumption, counterclaim, contradiction, tension, gap, and review cue
+  structure from caller-provided claim, evidence, tension, gap, and calibration
+  inputs. This pointer is repo-local documentation metadata, not SSOT, and adds
+  no runtime route, UI, DB query or write, provider/OpenAI call, source fetch,
+  retrieval/RAG execution, proof/evidence write, Perspective promotion, durable
+  Perspective state write, work mutation, theorem proving, formal verification,
+  Git Ledger export, product write, or product ID allocation. It does not
+  implement proof, theorem proving, formal verification, empirical calibration,
+  promotion, proof/evidence, provider, retrieval, Git Ledger, or product write.
+  Product-write remains parked by #686.
+
+  Boundary phrases: Research Candidate Logical Claim Shape Preview v0.1; logical claim shape preview is structure-preview-only; follows the integrated roadmap guide v0.2 after Calibration Diagnostic; calibration diagnostic is input signal, not truth; missing premise is a review cue, not rejection; contradiction is preserved as tension, not deletion; logical status is not proof status; review cues are not execution authority; shape summary is explanation, not authority; older proposal documents are background inputs already integrated into the roadmap guide; no proof checking, theorem proving, formal verification, runtime route, UI, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Feedback-to-Rule Candidate Contract, temporal handoff diagnostics, Cockpit lifecycle/calibration/logical preview read-only UI, Research Candidate Review Memory contract, and Empirical Calibration Dataset plan.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
