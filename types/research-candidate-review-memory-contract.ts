@@ -159,3 +159,64 @@ export interface ResearchCandidateReviewMemoryValidationResult {
   passed: boolean;
   failure_codes: string[];
 }
+
+export type ResearchCandidateReviewMemoryStoreVersion =
+  "research_candidate_review_memory_store.v0.1";
+
+export type ResearchCandidateReviewMemoryStoreStatus = "local_store_snapshot";
+
+export interface ResearchCandidateReviewMemoryStoreAuthorityBoundary {
+  local_store_only: true;
+  explicit_file_write_only: true;
+  runtime_route_added_now: false;
+  ui_added_now: false;
+  db_migration_added_now: false;
+  db_query_or_write_now: false;
+  provider_openai_call_now: false;
+  source_fetch_now: false;
+  retrieval_rag_execution_now: false;
+  source_of_truth: false;
+  proof_or_evidence_record: false;
+  perspective_promotion: false;
+  durable_perspective_state: false;
+  work_mutation: false;
+  codex_execution_authority: false;
+  github_automation_authority: false;
+  git_ledger_export_authority: false;
+  product_write_authority: false;
+  product_id_allocation_authority: false;
+}
+
+export interface ResearchCandidateReviewMemoryStoreSnapshot {
+  store_version: ResearchCandidateReviewMemoryStoreVersion;
+  contract_version: ResearchCandidateReviewMemoryContractVersion;
+  scope: ResearchCandidateReviewMemoryScope;
+  status: ResearchCandidateReviewMemoryStoreStatus;
+  as_of: string;
+  records: ResearchCandidateReviewMemoryRecord[];
+  record_order: string[];
+  record_count: number;
+  discarded_record_refs: string[];
+  superseded_record_refs: string[];
+  active_record_refs: string[];
+  boundary_notes: string[];
+  authority_boundary: ResearchCandidateReviewMemoryStoreAuthorityBoundary;
+  store_fingerprint: string;
+}
+
+export interface ResearchCandidateReviewMemoryStoreInput {
+  scope: ResearchCandidateReviewMemoryScope;
+  as_of: string;
+  records?: ResearchCandidateReviewMemoryRecord[];
+}
+
+export interface ResearchCandidateReviewMemoryDiscardInput {
+  record_id: string;
+  discard_reason: string;
+  updated_at: string;
+}
+
+export interface ResearchCandidateReviewMemorySupersedeInput {
+  record_id: string;
+  superseding_record: ResearchCandidateReviewMemoryRecord;
+}
