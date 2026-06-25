@@ -632,16 +632,34 @@ function normalizeStatusHint(value?: string): NotDoneClassification | undefined 
 }
 
 function isAuthorityBoundaryConfusingNote(note: string): boolean {
-  const normalized = note.toLowerCase();
+  const normalized = normalizeAuthorityBoundaryNote(note);
+  if (isSafeAuthorityBoundaryDenial(normalized)) return false;
+  return containsAuthorityGrantLikePhrase(normalized);
+}
+
+function normalizeAuthorityBoundaryNote(note: string): string {
+  return note.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function isSafeAuthorityBoundaryDenial(normalizedNote: string): boolean {
   if (
-    /not\s+(execution|approval|automation|pr creation|branch creation)|no\s+(execution|approval|automation|pr creation|branch creation)/i.test(
-      normalized,
-    )
+    /product[- ]write remains parked/.test(normalizedNote) ||
+    /parked by #686/.test(normalizedNote)
   ) {
-    return false;
+    return true;
   }
-  return /approval|execution|automation|pr creation|branch creation|product write/i.test(
-    normalized,
+  if (/product_write_authority\s*:?\s*false/.test(normalizedNote)) {
+    return true;
+  }
+  if (/does not write product records/.test(normalizedNote)) return true;
+  return /\b(no|not)\s+(execution|approval|automation|pr creation|branch creation|product[- ]write|product records|product_write_authority)\b/.test(
+    normalizedNote,
+  );
+}
+
+function containsAuthorityGrantLikePhrase(normalizedNote: string): boolean {
+  return /approval|execution|automation|pr creation|branch creation|product[- ]write|product records|product_write_authority/.test(
+    normalizedNote,
   );
 }
 

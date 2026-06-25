@@ -111,6 +111,8 @@ Expected and observed file refs are compared as sets. Missing expected files cre
 
 Authority boundary notes that contain approval, execution, automation, PR creation, branch creation, or product write wording create an `authority_boundary_mismatch` delta unless they clearly say that the capability is not granted.
 
+Safe product-write denial notes, including "Product-write remains parked by #686" and "no product write", must not create `authority_boundary_mismatch`. Notes such as "does not write product records" and `product_write_authority: false` are also safe denial notes. Positive or ambiguous product-write grants still create `authority_boundary_mismatch`.
+
 Delta reliability is only a preview label: high when source refs and concrete refs are present, medium when concrete refs are present without source refs, and low when refs are missing.
 
 ## 8. Decision hold rules

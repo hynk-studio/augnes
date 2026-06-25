@@ -158,6 +158,9 @@ assert.equal(
 assertReport(fixture.expected_report);
 assertFixtureCoverage();
 assertAuthorityBoundaryConfusion();
+assertSafeProductWriteDenialDoesNotMismatch();
+assertUnsafeProductWriteGrantMismatches();
+assertProductRecordDenialDoesNotMismatch();
 assertHelperSourceBoundary();
 assertOutputTextSafety();
 assertDocCoverage();
@@ -335,6 +338,110 @@ function assertAuthorityBoundaryConfusion() {
   assert.equal(section.authority_boundary.codex_execution_authority, false);
   assert.equal(section.authority_boundary.github_automation_authority, false);
   assert.equal(section.authority_boundary.branch_pr_creation_authority, false);
+}
+
+function assertSafeProductWriteDenialDoesNotMismatch() {
+  const report = buildSyntheticAuthorityNoteReport(
+    "safe-product-write-denial-001",
+    "source:safe-denial",
+    [
+      "Product-write remains parked by #686.",
+      "no product write",
+      "product_write_authority: false",
+    ],
+  );
+  const section = report.sections[0];
+  assert.deepEqual(
+    section.expected_observed_deltas.map((delta) => delta.delta_kind),
+    ["none"],
+    "safe product-write denial notes must not create authority mismatch",
+  );
+  assert.equal(section.not_done.classification, "complete");
+  assert.ok(
+    !section.decision_hold_traces.some(
+      (holdTrace) => holdTrace.hold_mode === "reactive_repair",
+    ),
+    "safe product-write denial notes must not create reactive repair",
+  );
+  assertAuthorityBoundary(section.authority_boundary, section.target_ref);
+  assert.deepEqual(helper.validateTemporalHandoffDiagnosticReport(report), {
+    passed: true,
+    failure_codes: [],
+  });
+}
+
+function assertUnsafeProductWriteGrantMismatches() {
+  const report = buildSyntheticAuthorityNoteReport(
+    "unsafe-product-write-grant-001",
+    "source:unsafe-grant",
+    ["product write authority granted"],
+  );
+  const section = report.sections[0];
+  assert.ok(
+    section.expected_observed_deltas.some(
+      (delta) => delta.delta_kind === "authority_boundary_mismatch",
+    ),
+    "positive product-write grant wording must create authority mismatch",
+  );
+  assert.ok(
+    section.decision_hold_traces.some(
+      (holdTrace) => holdTrace.hold_mode === "reactive_repair",
+    ),
+    "positive product-write grant wording must create reactive repair",
+  );
+  assertAuthorityBoundary(section.authority_boundary, section.target_ref);
+  assert.deepEqual(helper.validateTemporalHandoffDiagnosticReport(report), {
+    passed: true,
+    failure_codes: [],
+  });
+}
+
+function assertProductRecordDenialDoesNotMismatch() {
+  const report = buildSyntheticAuthorityNoteReport(
+    "safe-product-record-denial-001",
+    "source:product-record-denial",
+    ["does not write product records"],
+  );
+  const section = report.sections[0];
+  assert.ok(
+    !section.expected_observed_deltas.some(
+      (delta) => delta.delta_kind === "authority_boundary_mismatch",
+    ),
+    "does not write product records must be treated as safe denial",
+  );
+  assert.equal(section.not_done.classification, "complete");
+  assert.ok(
+    !section.decision_hold_traces.some(
+      (holdTrace) => holdTrace.hold_mode === "reactive_repair",
+    ),
+    "does not write product records must not create reactive repair",
+  );
+  assertAuthorityBoundary(section.authority_boundary, section.target_ref);
+  assert.deepEqual(helper.validateTemporalHandoffDiagnosticReport(report), {
+    passed: true,
+    failure_codes: [],
+  });
+}
+
+function buildSyntheticAuthorityNoteReport(targetRef, sourceRef, authorityBoundaryNotes) {
+  return helper.buildTemporalHandoffDiagnosticReport({
+    scope: "project:augnes",
+    as_of: fixture.as_of,
+    source_fixture_refs: fixture.source_fixture_refs,
+    handoff_previews: [
+      {
+        target_kind: "codex_handoff_draft",
+        target_ref: targetRef,
+        expected_files: ["file:a.ts"],
+        observed_files: ["file:a.ts"],
+        expected_checks: ["check:typecheck"],
+        observed_checks: ["check:typecheck"],
+        source_refs: [sourceRef],
+        authority_boundary_notes: authorityBoundaryNotes,
+        status_hint: "complete",
+      },
+    ],
+  });
 }
 
 function assertHelperSourceBoundary() {
