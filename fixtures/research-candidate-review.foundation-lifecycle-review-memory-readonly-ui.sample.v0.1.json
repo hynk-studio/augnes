@@ -1,0 +1,198 @@
+{
+  "fixture_version": "foundation_lifecycle_review_memory_readonly_ui.sample.v0.1",
+  "ui_version": "foundation_lifecycle_review_memory_readonly_ui.v0.1",
+  "route_version": "research_candidate_review_memory_routes.v0.1",
+  "store_version": "research_candidate_review_memory_store.v0.1",
+  "scope": "project:augnes",
+  "status": "readonly_ui_only",
+  "as_of": "2026-06-25T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+    "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+    "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json",
+    "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+    "fixtures/research-candidate-review.temporal-handoff-diagnostic-sections.sample.v0.1.json",
+    "fixtures/research-candidate-review.target-agent-ai-context-packet-profiles.sample.v0.1.json",
+    "fixtures/research-candidate-review.memory-store.sample.v0.1.json",
+    "fixtures/research-candidate-review.memory-ui.sample.v0.1.json"
+  ],
+  "sample_panel_state": {
+    "ui_version": "foundation_lifecycle_review_memory_readonly_ui.v0.1",
+    "status": "readonly_ui_only",
+    "store_file_path": "tmp/research-candidate-review-memory/ui-preview-store.json",
+    "as_of": "2026-06-25T00:00:00.000Z",
+    "loaded_route_status": "not_loaded",
+    "loaded_record_count": 3,
+    "section_kinds": [
+      "foundation_status",
+      "lifecycle_summary",
+      "calibration_summary",
+      "logical_claim_shape_summary",
+      "feedback_to_rule_summary",
+      "temporal_handoff_summary",
+      "target_agent_profile_summary",
+      "review_memory_snapshot_summary",
+      "authority_boundary",
+      "deferred_work"
+    ],
+    "boundary_notes": [
+      "Read-only UI.",
+      "Product-write remains parked by #686.",
+      "Review memory is not truth.",
+      "Candidate memory is not Perspective state.",
+      "Lifecycle status is derived review context, not source of truth.",
+      "Calibration context is diagnostic, not readiness authority.",
+      "Logical shape context is structure-only, not proof.",
+      "Feedback-to-Rule context is candidate-only, not rule mutation.",
+      "Temporal handoff context is diagnostic, not authority.",
+      "Target-agent packet profile is advisory, not prompt execution.",
+      "Discard is not deletion.",
+      "Supersede preserves lineage.",
+      "Source refs are lineage pointers, not proof.",
+      "Source refs must be public-safe symbolic refs.",
+      "Store paths remain constrained by the #771 route allowlist.",
+      "UI is read-only and does not perform automatic background writes."
+    ],
+    "authority_boundary": {
+      "readonly_ui_only": true,
+      "route_get_only": true,
+      "route_post_now": false,
+      "automatic_write_on_load": false,
+      "direct_file_write_now": false,
+      "direct_store_helper_write_now": false,
+      "new_api_route_added_now": false,
+      "db_migration_added_now": false,
+      "db_query_or_write_now": false,
+      "provider_openai_call_now": false,
+      "source_fetch_now": false,
+      "retrieval_rag_execution_now": false,
+      "source_of_truth": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state": false,
+      "work_mutation": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "git_ledger_export_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false
+    }
+  },
+  "sample_sections": [
+    {
+      "section_kind": "foundation_status",
+      "title": "Foundation Status",
+      "status": "foundation_status_review.v0.1",
+      "summary": "Foundation status identifies completed roadmap rails and keeps product-write parked.",
+      "metric_count": 3,
+      "boundary_note": "Foundation status is planning context only."
+    },
+    {
+      "section_kind": "lifecycle_summary",
+      "title": "Lifecycle Summary",
+      "status": "derived_read_model_only",
+      "summary": "Lifecycle summaries group candidate review states without becoming truth.",
+      "metric_count": 3,
+      "boundary_note": "Lifecycle status is derived review context, not source of truth."
+    },
+    {
+      "section_kind": "calibration_summary",
+      "title": "Calibration Summary",
+      "status": "diagnostic_only",
+      "summary": "Calibration diagnostics surface risk cues for operator review.",
+      "metric_count": 3,
+      "boundary_note": "Calibration context is diagnostic, not readiness authority."
+    },
+    {
+      "section_kind": "logical_claim_shape_summary",
+      "title": "Logical Claim Shape Summary",
+      "status": "structure_preview_only",
+      "summary": "Logical shape previews show bounded structure and unresolved relationships.",
+      "metric_count": 3,
+      "boundary_note": "Logical shape context is structure-only, not proof."
+    },
+    {
+      "section_kind": "feedback_to_rule_summary",
+      "title": "Feedback-to-Rule Summary",
+      "status": "candidate_contract_only",
+      "summary": "Feedback-to-Rule candidates summarize repeated feedback without mutating rules.",
+      "metric_count": 3,
+      "boundary_note": "Feedback-to-Rule context is candidate-only, not rule mutation."
+    },
+    {
+      "section_kind": "temporal_handoff_summary",
+      "title": "Temporal Handoff Summary",
+      "status": "diagnostic_preview_only",
+      "summary": "Temporal handoff diagnostics summarize handoff completeness and omissions.",
+      "metric_count": 3,
+      "boundary_note": "Temporal handoff context is diagnostic, not authority."
+    },
+    {
+      "section_kind": "target_agent_profile_summary",
+      "title": "Target-Agent Packet Profile Summary",
+      "status": "profile_preview_only",
+      "summary": "Target-agent profiles summarize packet shape for human, ChatGPT, Codex, and dogfood review.",
+      "metric_count": 3,
+      "boundary_note": "Target-agent packet profile is advisory, not prompt execution."
+    },
+    {
+      "section_kind": "review_memory_snapshot_summary",
+      "title": "Review Memory Snapshot Summary",
+      "status": "route_get_optional",
+      "summary": "Review memory rows are bounded metadata summaries loaded through GET only when requested.",
+      "metric_count": 4,
+      "boundary_note": "Review memory is not truth."
+    },
+    {
+      "section_kind": "authority_boundary",
+      "title": "Authority Boundary",
+      "status": "readonly_ui_only",
+      "summary": "The page displays summaries only and grants no execution, write, promotion, or product authority.",
+      "metric_count": 3,
+      "boundary_note": "UI is read-only and does not perform automatic background writes."
+    },
+    {
+      "section_kind": "deferred_work",
+      "title": "Deferred Work",
+      "status": "not_implemented_here",
+      "summary": "Runtime intake, provider extraction, retrieval, promotion, durable state, Git Ledger, and product-write reentry remain deferred.",
+      "metric_count": 3,
+      "boundary_note": "Product-write remains parked by #686."
+    }
+  ],
+  "sample_review_memory_rows": [
+    {
+      "record_id": "ui-readonly-active-001",
+      "record_kind": "candidate_review_snapshot",
+      "lifecycle_state": "active",
+      "review_decision": "keep_for_review",
+      "candidate_ref": "claim-readonly-active-001",
+      "source_refs_count": 1,
+      "related_record_refs_count": 0,
+      "privacy_class": "public_safe",
+      "updated_at": "2026-06-25T00:00:00.000Z"
+    },
+    {
+      "record_id": "ui-readonly-discarded-001",
+      "record_kind": "operator_review_note",
+      "lifecycle_state": "discarded",
+      "review_decision": "discard",
+      "candidate_ref": "claim-readonly-discarded-001",
+      "source_refs_count": 1,
+      "related_record_refs_count": 1,
+      "privacy_class": "public_safe",
+      "updated_at": "2026-06-25T00:00:01.000Z"
+    },
+    {
+      "record_id": "ui-readonly-superseded-001",
+      "record_kind": "diagnostic_summary",
+      "lifecycle_state": "superseded",
+      "review_decision": "supersede",
+      "candidate_ref": "claim-readonly-superseded-001",
+      "source_refs_count": 1,
+      "related_record_refs_count": 2,
+      "privacy_class": "public_safe",
+      "updated_at": "2026-06-25T00:00:02.000Z"
+    }
+  ]
+}
