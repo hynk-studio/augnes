@@ -3420,6 +3420,19 @@ repo-local 색인이다.
   changes.
 
   Boundary phrases: Research-to-Perspective Fixture Smoke Legacy Audit v0.1; no runtime persistence, provider/OpenAI calls, retrieval/RAG, Perspective promotion, proof/evidence writes, product write, product DB writes, GitHub Actions, or CI runtime changes; explicit non-deletion policy; next recommended slice parked_lane_registry_and_smoke_catalog_plan_v0_1.
+- Research-to-Perspective Foundation Status Review v0.1:
+  `docs/RESEARCH_TO_PERSPECTIVE_FOUNDATION_STATUS_REVIEW_V0_1.md`,
+  `fixtures/research-candidate-review.foundation-status-review.sample.v0.1.json`,
+  and
+  `scripts/smoke-research-to-perspective-foundation-status-review-v0-1.mjs`
+  (`npm run smoke:research-to-perspective-foundation-status-review-v0-1`)
+  classify the current Research-to-Perspective foundation after #759 and #760
+  and select `research_candidate_lifecycle_read_model_v0_1` as the next
+  runtime/read-model slice. This pointer is bounded documentation metadata, not
+  SSOT, not runtime behavior, and not implementation of the selected next
+  slice. Product-write remains parked by #686.
+
+  Boundary phrases: Research-to-Perspective Foundation Status Review v0.1; classification and next-slice selection only; selected next slice is not implemented here; Foundation Status Dashboard is deferred; Durable Candidate Review Memory is deferred; Bounded Source Intake, Provider Extraction, Retrieval/RAG, Human-reviewed Promotion, Durable State Apply, Git Ledger, and Product Write are deferred; no runtime persistence, provider/OpenAI calls, source fetch, retrieval/RAG execution, DB query/write, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex/GitHub automation inside Augnes runtime, GitHub Actions, CI runtime change, Git Ledger export, product write, or product ID allocation; smoke pass is validation signal, not proof/evidence; PR body is an operator report, not authority; CI signal is validation signal, not proof/evidence; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
