@@ -132,9 +132,15 @@ The helper rejects records with:
 - Source-ref reason-code mismatches.
 - Missing or non-array `reason_codes`.
 - Unknown `reason_codes`; reason_codes are controlled vocabulary and unknown reason codes are rejected.
+- Missing or malformed `created_at` or `updated_at`.
+- `updated_at` earlier than `created_at`.
 - Missing `privacy_boundary_preserved`,
   `contract_only_not_runtime_memory`, `candidate_memory_not_truth`,
   `review_memory_not_promotion`, or `product_write_denied`.
+
+`created_at` and `updated_at` are required. Timestamps must be deterministic ISO
+UTC strings using `YYYY-MM-DDTHH:mm:ss.sssZ`. `updated_at` may equal
+`created_at` or be later, but updated_at must not be earlier than created_at.
 
 ## 7. Source Ref Privacy Rules
 
@@ -154,7 +160,8 @@ Upsert validates the record first. If `record_id` is new, the record is added
 and the snapshot is rebuilt deterministically. If the record already exists and
 canonical content is identical, the snapshot is unchanged. If the record exists
 with different content, the helper replaces it only when `updated_at` is
-greater than or equal to the existing value. Older updates are rejected.
+greater than or equal to the existing value. Upsert chronology relies on
+validated updated_at. Older updates are rejected.
 
 ## 9. Discard Semantics
 
@@ -175,6 +182,8 @@ adds reciprocal lineage, and recomputes the snapshot.
 `supersedes_record_ref` must point to a record in the same store snapshot.
 Self-referential lineage refs are rejected. Supersede preserves lineage by
 keeping both old and new records in the snapshot.
+Self-supersede is rejected before store mutation. Supersede preserves lineage by
+keeping old and new record ids distinct.
 
 ## 11. File Read/Write Boundaries
 

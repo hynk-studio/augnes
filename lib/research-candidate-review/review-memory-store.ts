@@ -176,6 +176,8 @@ const forbiddenSourceRefPatterns = [
 const forbiddenSummaryPattern =
   /raw conversation|hidden reasoning|raw source body|raw candidate payload|raw provider output|provider thread|provider run|provider session|private URL|private_url|file:\/\/|\/Users\/|\/home\/|C:\\Users\\|\bsecret\b|\btoken\b|sk-|ghp_|OPENAI_API_KEY|GITHUB_TOKEN|password:|private key|raw db row|raw_db_row|browser dump|raw browser dump/i;
 
+const isoUtcTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
 export function getResearchCandidateReviewMemoryStoreAuthorityBoundary(): ResearchCandidateReviewMemoryStoreAuthorityBoundary {
   return {
     local_store_only: true,
@@ -243,6 +245,7 @@ export function validateResearchCandidateReviewMemoryRecordForStore(
       }
     }
   }
+  failureCodes.push(...validateRecordTimestamps(record));
   failureCodes.push(...validatePrivacyReport(record));
   failureCodes.push(...validateRecordAuthorityBoundary(record?.authority_boundary));
   if (record?.lifecycle_state === "discarded" && !record.discard_reason) {
@@ -387,7 +390,7 @@ export function upsertResearchCandidateReviewMemoryRecord(
   if (existingRecord && canonicalJson(existingRecord) === canonicalJson(record)) {
     return cloneSnapshot(snapshot);
   }
-  if (existingRecord && record.updated_at < existingRecord.updated_at) {
+  if (existingRecord && compareIsoTimestamp(record.updated_at, existingRecord.updated_at) < 0) {
     throw new Error(`older_record_update_rejected:${record.record_id}`);
   }
   const records = snapshot.records.filter((candidate) => candidate.record_id !== record.record_id);
@@ -423,6 +426,9 @@ export function supersedeResearchCandidateReviewMemoryRecord(
   assertValidation(validateResearchCandidateReviewMemoryStoreSnapshot(snapshot));
   const existingRecord = snapshot.records.find((record) => record.record_id === input.record_id);
   if (!existingRecord) throw new Error(`record_not_found:${input.record_id}`);
+  if (input.superseding_record.record_id === input.record_id) {
+    throw new Error(`self_supersede_rejected:${input.record_id}`);
+  }
   const supersedingRecord: ResearchCandidateReviewMemoryRecord = {
     ...cloneRecord(input.superseding_record),
     related_record_refs: uniqueSorted([
@@ -506,6 +512,28 @@ function validatePrivacyReport(record: ResearchCandidateReviewMemoryRecord): str
     (!Array.isArray(report.blocked_reason_codes) || report.blocked_reason_codes.length === 0)
   ) {
     failureCodes.push("blocked_payload_missing_blocked_reason_codes");
+  }
+  return failureCodes;
+}
+
+function validateRecordTimestamps(record: ResearchCandidateReviewMemoryRecord): string[] {
+  const failureCodes: string[] = [];
+  if (!record?.created_at) {
+    failureCodes.push("missing_created_at");
+  } else if (!isIsoUtcTimestamp(record.created_at)) {
+    failureCodes.push("invalid_created_at");
+  }
+  if (!record?.updated_at) {
+    failureCodes.push("missing_updated_at");
+  } else if (!isIsoUtcTimestamp(record.updated_at)) {
+    failureCodes.push("invalid_updated_at");
+  }
+  if (
+    isIsoUtcTimestamp(record?.created_at) &&
+    isIsoUtcTimestamp(record?.updated_at) &&
+    compareIsoTimestamp(record.updated_at, record.created_at) < 0
+  ) {
+    failureCodes.push("updated_at_before_created_at");
   }
   return failureCodes;
 }
@@ -594,6 +622,16 @@ function refsForState(
 
 function sourceRefHasForbiddenPrivatePattern(sourceRefValue: string): boolean {
   return forbiddenSourceRefPatterns.some((pattern) => pattern.test(sourceRefValue));
+}
+
+function isIsoUtcTimestamp(value: unknown): value is string {
+  if (typeof value !== "string" || !isoUtcTimestampPattern.test(value)) return false;
+  const parsedDate = new Date(value);
+  return !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString() === value;
+}
+
+function compareIsoTimestamp(left: string, right: string): number {
+  return left.localeCompare(right);
 }
 
 function assertValidation(result: ResearchCandidateReviewMemoryValidationResult): void {

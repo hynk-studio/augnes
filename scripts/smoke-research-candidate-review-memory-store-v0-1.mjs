@@ -114,6 +114,7 @@ assertSnapshot(fixture.expected_snapshot);
 assertStoreOperations();
 assertFileRoundtrip();
 assertPrivacyRejections();
+assertTimestampValidation();
 assertReasonCodeValidation();
 assertLineageValidation();
 assertAuthorityBoundary(fixture.expected_snapshot.authority_boundary, "snapshot");
@@ -215,6 +216,7 @@ function assertStoreOperations() {
   const olderRecord = {
     ...activeRecord,
     bounded_summary: "Older record should not replace newer review memory.",
+    created_at: "2026-06-24T00:00:00.000Z",
     updated_at: "2026-06-24T00:00:00.000Z",
   };
   assert.throws(
@@ -268,6 +270,17 @@ function assertStoreOperations() {
     passed: true,
     failure_codes: [],
   });
+
+  const snapshotBeforeSelfSupersede = deepClone(snapshot);
+  assert.throws(
+    () =>
+      helper.supersedeResearchCandidateReviewMemoryRecord(snapshot, {
+        record_id: "store-record-active-001",
+        superseding_record: deepClone(activeRecord),
+      }),
+    /self_supersede_rejected:store-record-active-001/,
+  );
+  assert.deepEqual(snapshot, snapshotBeforeSelfSupersede);
 }
 
 function assertFileRoundtrip() {
@@ -361,6 +374,84 @@ function assertPrivacyRejections() {
     helper.validateResearchCandidateReviewMemoryRecordForStore(invalidPrivacyRecord).passed,
     false,
     "blocked payload records cannot include raw/private booleans true",
+  );
+}
+
+function assertTimestampValidation() {
+  const baseRecord = fixture.expected_snapshot.records[0];
+  const missingCreatedAtRecord = deepClone(baseRecord);
+  missingCreatedAtRecord.record_id = "invalid-missing-created-at";
+  delete missingCreatedAtRecord.created_at;
+  assertRecordValidationFailure(missingCreatedAtRecord, "missing_created_at");
+
+  const missingUpdatedAtRecord = deepClone(baseRecord);
+  missingUpdatedAtRecord.record_id = "invalid-missing-updated-at";
+  delete missingUpdatedAtRecord.updated_at;
+  assertRecordValidationFailure(missingUpdatedAtRecord, "missing_updated_at");
+
+  assertRecordValidationFailure(
+    {
+      ...baseRecord,
+      record_id: "invalid-created-at-format",
+      created_at: "not-a-date",
+    },
+    "invalid_created_at",
+  );
+  assertRecordValidationFailure(
+    {
+      ...baseRecord,
+      record_id: "invalid-updated-at-format",
+      updated_at: "not-a-date",
+    },
+    "invalid_updated_at",
+  );
+  assertRecordValidationFailure(
+    {
+      ...baseRecord,
+      record_id: "invalid-updated-before-created",
+      created_at: "2026-06-25T02:00:00.000Z",
+      updated_at: "2026-06-25T01:00:00.000Z",
+    },
+    "updated_at_before_created_at",
+  );
+
+  assert.deepEqual(
+    helper.validateResearchCandidateReviewMemoryRecordForStore({
+      ...baseRecord,
+      record_id: "valid-equal-timestamps",
+      created_at: "2026-06-25T00:00:00.000Z",
+      updated_at: "2026-06-25T00:00:00.000Z",
+    }),
+    { passed: true, failure_codes: [] },
+  );
+  assert.deepEqual(
+    helper.validateResearchCandidateReviewMemoryRecordForStore({
+      ...baseRecord,
+      record_id: "valid-later-updated-at",
+      created_at: "2026-06-25T00:00:00.000Z",
+      updated_at: "2026-06-25T00:00:01.000Z",
+    }),
+    { passed: true, failure_codes: [] },
+  );
+
+  assert.throws(
+    () =>
+      helper.upsertResearchCandidateReviewMemoryRecord(fixture.expected_snapshot, {
+        ...baseRecord,
+        updated_at: "not-a-date",
+      }),
+    /invalid_updated_at/,
+  );
+
+  const upsertMissingUpdatedAtRecord = deepClone(baseRecord);
+  delete upsertMissingUpdatedAtRecord.updated_at;
+  assert.throws(
+    () =>
+      helper.upsertResearchCandidateReviewMemoryRecord(
+        fixture.expected_snapshot,
+        upsertMissingUpdatedAtRecord,
+      ),
+    /missing_updated_at/,
   );
 }
 
@@ -574,6 +665,15 @@ function assertValidationFailure(snapshot, failureCode) {
   assert.ok(
     validation.failure_codes.includes(failureCode),
     `expected validation failure ${failureCode}`,
+  );
+}
+
+function assertRecordValidationFailure(record, failureCode) {
+  const validation = helper.validateResearchCandidateReviewMemoryRecordForStore(record);
+  assert.equal(validation.passed, false);
+  assert.ok(
+    validation.failure_codes.includes(failureCode),
+    `expected record validation failure ${failureCode}`,
   );
 }
 
