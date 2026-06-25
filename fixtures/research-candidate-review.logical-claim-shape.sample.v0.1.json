@@ -1,0 +1,945 @@
+{
+  "fixture_version": "logical_claim_shape_preview.sample.v0.1",
+  "shape_version": "logical_claim_shape_preview.v0.1",
+  "scope": "project:augnes",
+  "status": "structure_preview_only",
+  "as_of": "2026-06-25T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json"
+  ],
+  "input_preview": {
+    "candidate_review": {
+      "claim_candidates": [
+        {
+          "claim_candidate_id": "claim-blocked-001",
+          "claim_text": "Blocked claim awaits source coverage before structural review.",
+          "conclusion_text": "Source coverage must be inspected before review proceeds.",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only"
+        },
+        {
+          "claim_candidate_id": "claim-boundary-001",
+          "claim_text": "Boundary claim is reviewable as a known missing-source public fixture case.",
+          "conclusion_text": "The source gap is explicit rather than hidden.",
+          "source_coverage_boundary_note": "Public fixture intentionally omits source refs while preserving a source coverage boundary note.",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only"
+        },
+        {
+          "claim_candidate_id": "claim-contradicted-001",
+          "claim_text": "The candidate signal improves operator review quality in every case.",
+          "conclusion_text": "The claim should be reviewed with the contradiction visible.",
+          "claim_type": "causal_claim",
+          "source_ref_id": "source:claim-contradicted",
+          "supporting_evidence_candidate_ids": [
+            "evidence-contradicted-support-001"
+          ],
+          "contradicting_evidence_candidate_ids": [
+            "evidence-contradict-001"
+          ],
+          "possible_counterclaim_candidate_ids": [
+            "claim-counterclaim-001"
+          ],
+          "related_tension_candidate_ids": [
+            "tension-contradiction-001"
+          ],
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only"
+        },
+        {
+          "claim_candidate_id": "claim-gap-001",
+          "claim_text": "A knowledge gap remains before the operator can compare the claim across contexts.",
+          "conclusion_text": "The claim needs additional review material for the open gap.",
+          "claim_type": "comparison",
+          "source_ref_id": "source:claim-gap",
+          "supporting_evidence_candidate_ids": [
+            "evidence-gap-001"
+          ],
+          "related_gap_candidate_ids": [
+            "gap-open-001"
+          ],
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only"
+        },
+        {
+          "claim_candidate_id": "claim-missing-conclusion-001",
+          "summary": "A summary-only candidate has enough text to inspect but lacks an explicit conclusion field.",
+          "source_ref_id": "source:claim-missing-conclusion",
+          "supporting_evidence_candidate_ids": [
+            "evidence-missing-conclusion-001"
+          ],
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only"
+        },
+        {
+          "claim_candidate_id": "claim-missing-premise-001",
+          "claim_text": "The preview lane should be adopted as the next operator-facing layer.",
+          "conclusion_text": "Adoption requires an explicit premise before review proceeds.",
+          "claim_type": "operational_translation",
+          "source_ref_id": "source:claim-missing-premise",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only"
+        },
+        {
+          "claim_candidate_id": "claim-missing-text-001",
+          "after_summary": "The conclusion exists as an after-summary but no claim text was supplied.",
+          "source_ref_id": "source:claim-missing-text",
+          "supporting_evidence_candidate_ids": [
+            "evidence-missing-text-001"
+          ],
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only"
+        },
+        {
+          "claim_candidate_id": "claim-missing-assumption-001",
+          "claim_text": "The review cue will generalize from one observed workflow to a broader operator pattern.",
+          "conclusion_text": "The generalization needs an explicit assumption before review.",
+          "claim_type": "extrapolation",
+          "source_ref_id": "source:claim-missing-assumption",
+          "supporting_evidence_candidate_ids": [
+            "evidence-assumption-001"
+          ],
+          "missing_assumption_notes": [
+            "The candidate does not state why one workflow observation should generalize across contexts."
+          ],
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only"
+        },
+        {
+          "claim_candidate_id": "claim-well-001",
+          "claim_text": "Operator review is easier when claim candidates expose source-linked premises.",
+          "conclusion_text": "Source-linked premises improve reviewability for this candidate.",
+          "inference_type": "source_summary",
+          "source_refs": [
+            "source:claim-well"
+          ],
+          "supporting_evidence_candidate_ids": [
+            "evidence-support-001"
+          ],
+          "review_status": "reviewed",
+          "epistemic_status": "candidate_only"
+        }
+      ],
+      "evidence_candidates": [
+        {
+          "evidence_candidate_id": "evidence-assumption-001",
+          "claim_candidate_id": "claim-missing-assumption-001",
+          "evidence_summary": "One workflow observation is available but does not justify broad generalization alone.",
+          "locator": "section:assumption",
+          "source_ref_id": "source:evidence-assumption"
+        },
+        {
+          "evidence_candidate_id": "evidence-contradict-001",
+          "evidence_role": "contradicts",
+          "related_claim_candidate_ids": [
+            "claim-contradicted-001"
+          ],
+          "evidence_summary": "A counterexample fixture shows the signal can reduce review quality in one case.",
+          "locator": "section:contradict",
+          "source_ref_id": "source:evidence-contradict"
+        },
+        {
+          "evidence_candidate_id": "evidence-contradicted-support-001",
+          "claim_candidate_id": "claim-contradicted-001",
+          "evidence_summary": "A supporting fixture links the review quality claim to an observed operator workflow.",
+          "locator": "section:contradicted-support",
+          "source_ref_id": "source:evidence-contradicted-support"
+        },
+        {
+          "evidence_candidate_id": "evidence-gap-001",
+          "claim_candidate_id": "claim-gap-001",
+          "evidence_summary": "The candidate identifies one context but leaves the comparison context open.",
+          "locator": "section:gap",
+          "source_ref_id": "source:evidence-gap"
+        },
+        {
+          "evidence_candidate_id": "evidence-missing-conclusion-001",
+          "claim_candidate_id": "claim-missing-conclusion-001",
+          "evidence_summary": "The summary-only claim has a source-linked observation but no explicit conclusion field.",
+          "locator": "section:missing-conclusion",
+          "source_ref_id": "source:evidence-missing-conclusion"
+        },
+        {
+          "evidence_candidate_id": "evidence-missing-text-001",
+          "claim_candidate_id": "claim-missing-text-001",
+          "evidence_summary": "The after-summary was provided without a claim text field.",
+          "locator": "section:missing-text",
+          "source_ref_id": "source:evidence-missing-text"
+        },
+        {
+          "evidence_candidate_id": "evidence-support-001",
+          "claim_candidate_id": "claim-well-001",
+          "evidence_summary": "The fixture includes a source-linked premise for the well-structured claim.",
+          "locator": "section:well",
+          "source_ref_id": "source:evidence-support"
+        }
+      ],
+      "tension_candidates": [
+        {
+          "tension_candidate_id": "tension-contradiction-001",
+          "tension_type": "contradiction",
+          "related_claim_candidate_ids": [
+            "claim-contradicted-001"
+          ],
+          "source_ref_id": "source:tension-contradiction"
+        }
+      ],
+      "knowledge_gap_candidates": [
+        {
+          "knowledge_gap_candidate_id": "gap-open-001",
+          "related_claim_candidate_ids": [
+            "claim-gap-001"
+          ],
+          "source_ref_id": "source:gap-open"
+        }
+      ]
+    },
+    "calibration_diagnostic": {
+      "diagnostics": [
+        {
+          "candidate_id": "claim-blocked-001",
+          "candidate_family": "claim",
+          "source_refs": [],
+          "readiness_label": "blocked",
+          "readiness_reason_codes": [
+            "source_ref_missing",
+            "lifecycle_blocked",
+            "diagnostic_only_not_promotion"
+          ],
+          "risk_flags": [
+            "missing_source_ref"
+          ]
+        },
+        {
+          "candidate_id": "claim-contradicted-001",
+          "candidate_family": "claim",
+          "source_refs": [
+            "source:claim-contradicted"
+          ],
+          "readiness_label": "ready_with_tensions",
+          "readiness_reason_codes": [
+            "source_ref_present",
+            "evidence_present",
+            "contradiction_present",
+            "unresolved_tension_present",
+            "ready_with_unresolved_tensions",
+            "diagnostic_only_not_promotion"
+          ],
+          "risk_flags": [
+            "contradiction_or_tension"
+          ]
+        },
+        {
+          "candidate_id": "claim-gap-001",
+          "candidate_family": "claim",
+          "source_refs": [
+            "source:claim-gap"
+          ],
+          "readiness_label": "weak_ready",
+          "readiness_reason_codes": [
+            "source_ref_present",
+            "evidence_present",
+            "knowledge_gap_present",
+            "diagnostic_only_not_promotion"
+          ],
+          "risk_flags": [
+            "knowledge_gap_open"
+          ]
+        },
+        {
+          "candidate_id": "claim-missing-premise-001",
+          "candidate_family": "claim",
+          "source_refs": [
+            "source:claim-missing-premise"
+          ],
+          "readiness_label": "weak_ready",
+          "readiness_reason_codes": [
+            "source_ref_present",
+            "evidence_missing",
+            "readiness_overclaim_risk",
+            "diagnostic_only_not_promotion"
+          ],
+          "risk_flags": [
+            "missing_evidence",
+            "overclaim_risk"
+          ]
+        },
+        {
+          "candidate_id": "claim-well-001",
+          "candidate_family": "claim",
+          "source_refs": [
+            "source:claim-well"
+          ],
+          "readiness_label": "ready",
+          "readiness_reason_codes": [
+            "source_ref_present",
+            "evidence_present",
+            "diagnostic_only_not_promotion"
+          ],
+          "risk_flags": []
+        }
+      ]
+    }
+  },
+  "expected_report": {
+    "shape_version": "logical_claim_shape_preview.v0.1",
+    "scope": "project:augnes",
+    "status": "structure_preview_only",
+    "as_of": "2026-06-25T00:00:00.000Z",
+    "source_fixture_refs": [
+      "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json"
+    ],
+    "claim_shapes": [
+      {
+        "shape_version": "logical_claim_shape_preview.v0.1",
+        "scope": "project:augnes",
+        "status": "structure_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "claim_candidate_id": "claim-blocked-001",
+        "source_refs": [],
+        "claim_text": "Blocked claim awaits source coverage before structural review.",
+        "inference_type": "unknown",
+        "premise_candidate_ids": [],
+        "premise_summaries": [],
+        "conclusion_text": "Source coverage must be inspected before review proceeds.",
+        "missing_assumption_notes": [
+          "No explicit assumption notes were supplied; operator review should inspect whether the conclusion follows from the listed premises."
+        ],
+        "possible_counterclaim_candidate_ids": [],
+        "contradiction_candidate_ids": [],
+        "related_tension_candidate_ids": [],
+        "related_knowledge_gap_candidate_ids": [],
+        "calibration_ref": "calibration:claim-blocked-001",
+        "calibration_readiness_label": "blocked",
+        "calibration_reason_codes": [
+          "diagnostic_only_not_promotion",
+          "lifecycle_blocked",
+          "source_ref_missing"
+        ],
+        "logical_status": "blocked",
+        "review_cues": [
+          "inspect_source"
+        ],
+        "reason_codes": [
+          "calibration_blocked",
+          "claim_text_present",
+          "conclusion_present",
+          "evidence_missing",
+          "missing_assumption_present",
+          "premise_missing",
+          "source_ref_missing",
+          "structure_only_not_proof"
+        ],
+        "shape_summary": "Logical shape cue for claim claim-blocked-001: logical_status=blocked; review_cues=inspect_source; structure-only explanation for operator review.",
+        "authority_boundary": {
+          "structure_preview_only": true,
+          "proof_check": false,
+          "theorem_proving": false,
+          "formal_verification": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "shape_version": "logical_claim_shape_preview.v0.1",
+        "scope": "project:augnes",
+        "status": "structure_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "claim_candidate_id": "claim-boundary-001",
+        "source_refs": [],
+        "source_coverage_boundary_note": "Public fixture intentionally omits source refs while preserving a source coverage boundary note.",
+        "claim_text": "Boundary claim is reviewable as a known missing-source public fixture case.",
+        "inference_type": "unknown",
+        "premise_candidate_ids": [],
+        "premise_summaries": [],
+        "conclusion_text": "The source gap is explicit rather than hidden.",
+        "missing_assumption_notes": [
+          "No explicit assumption notes were supplied; operator review should inspect whether the conclusion follows from the listed premises."
+        ],
+        "possible_counterclaim_candidate_ids": [],
+        "contradiction_candidate_ids": [],
+        "related_tension_candidate_ids": [],
+        "related_knowledge_gap_candidate_ids": [],
+        "calibration_reason_codes": [],
+        "logical_status": "missing_premise",
+        "review_cues": [
+          "add_premise"
+        ],
+        "reason_codes": [
+          "claim_text_present",
+          "conclusion_present",
+          "evidence_missing",
+          "missing_assumption_present",
+          "premise_missing",
+          "source_ref_missing",
+          "structure_only_not_proof"
+        ],
+        "shape_summary": "Logical shape cue for claim claim-boundary-001: logical_status=missing_premise; review_cues=add_premise; structure-only explanation for operator review.",
+        "authority_boundary": {
+          "structure_preview_only": true,
+          "proof_check": false,
+          "theorem_proving": false,
+          "formal_verification": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "shape_version": "logical_claim_shape_preview.v0.1",
+        "scope": "project:augnes",
+        "status": "structure_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "claim_candidate_id": "claim-contradicted-001",
+        "source_refs": [
+          "source:claim-contradicted"
+        ],
+        "claim_text": "The candidate signal improves operator review quality in every case.",
+        "inference_type": "causal_claim",
+        "premise_candidate_ids": [
+          "evidence-contradicted-support-001"
+        ],
+        "premise_summaries": [
+          "A counterexample fixture shows the signal can reduce review quality in one case.",
+          "A supporting fixture links the review quality claim to an observed operator workflow."
+        ],
+        "conclusion_text": "The claim should be reviewed with the contradiction visible.",
+        "missing_assumption_notes": [],
+        "possible_counterclaim_candidate_ids": [
+          "claim-counterclaim-001"
+        ],
+        "contradiction_candidate_ids": [
+          "calibration:contradiction_or_tension",
+          "evidence-contradict-001",
+          "tension-contradiction-001"
+        ],
+        "related_tension_candidate_ids": [
+          "tension-contradiction-001"
+        ],
+        "related_knowledge_gap_candidate_ids": [],
+        "calibration_ref": "calibration:claim-contradicted-001",
+        "calibration_readiness_label": "ready_with_tensions",
+        "calibration_reason_codes": [
+          "contradiction_present",
+          "diagnostic_only_not_promotion",
+          "evidence_present",
+          "ready_with_unresolved_tensions",
+          "source_ref_present",
+          "unresolved_tension_present"
+        ],
+        "logical_status": "contradicted_by_candidate",
+        "review_cues": [
+          "resolve_contradiction",
+          "resolve_counterclaim"
+        ],
+        "reason_codes": [
+          "calibration_ready_with_tensions",
+          "claim_text_present",
+          "conclusion_present",
+          "contradiction_present",
+          "counterclaim_present",
+          "evidence_present",
+          "premise_present",
+          "source_ref_present",
+          "structure_only_not_proof",
+          "tension_present"
+        ],
+        "shape_summary": "Logical shape cue for claim claim-contradicted-001: logical_status=contradicted_by_candidate; review_cues=resolve_contradiction, resolve_counterclaim; structure-only explanation for operator review.",
+        "authority_boundary": {
+          "structure_preview_only": true,
+          "proof_check": false,
+          "theorem_proving": false,
+          "formal_verification": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "shape_version": "logical_claim_shape_preview.v0.1",
+        "scope": "project:augnes",
+        "status": "structure_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "claim_candidate_id": "claim-gap-001",
+        "source_refs": [
+          "source:claim-gap"
+        ],
+        "claim_text": "A knowledge gap remains before the operator can compare the claim across contexts.",
+        "inference_type": "comparison",
+        "premise_candidate_ids": [
+          "evidence-gap-001"
+        ],
+        "premise_summaries": [
+          "The candidate identifies one context but leaves the comparison context open."
+        ],
+        "conclusion_text": "The claim needs additional review material for the open gap.",
+        "missing_assumption_notes": [],
+        "possible_counterclaim_candidate_ids": [],
+        "contradiction_candidate_ids": [],
+        "related_tension_candidate_ids": [],
+        "related_knowledge_gap_candidate_ids": [
+          "calibration:knowledge_gap",
+          "gap-open-001"
+        ],
+        "calibration_ref": "calibration:claim-gap-001",
+        "calibration_readiness_label": "weak_ready",
+        "calibration_reason_codes": [
+          "diagnostic_only_not_promotion",
+          "evidence_present",
+          "knowledge_gap_present",
+          "source_ref_present"
+        ],
+        "logical_status": "well_structured_candidate",
+        "review_cues": [
+          "add_evidence"
+        ],
+        "reason_codes": [
+          "claim_text_present",
+          "conclusion_present",
+          "evidence_present",
+          "knowledge_gap_present",
+          "premise_present",
+          "source_ref_present",
+          "structure_only_not_proof"
+        ],
+        "shape_summary": "Logical shape cue for claim claim-gap-001: logical_status=well_structured_candidate; review_cues=add_evidence; structure-only explanation for operator review.",
+        "authority_boundary": {
+          "structure_preview_only": true,
+          "proof_check": false,
+          "theorem_proving": false,
+          "formal_verification": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "shape_version": "logical_claim_shape_preview.v0.1",
+        "scope": "project:augnes",
+        "status": "structure_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "claim_candidate_id": "claim-missing-assumption-001",
+        "source_refs": [
+          "source:claim-missing-assumption"
+        ],
+        "claim_text": "The review cue will generalize from one observed workflow to a broader operator pattern.",
+        "inference_type": "extrapolation",
+        "premise_candidate_ids": [
+          "evidence-assumption-001"
+        ],
+        "premise_summaries": [
+          "One workflow observation is available but does not justify broad generalization alone."
+        ],
+        "conclusion_text": "The generalization needs an explicit assumption before review.",
+        "missing_assumption_notes": [
+          "The candidate does not state why one workflow observation should generalize across contexts."
+        ],
+        "possible_counterclaim_candidate_ids": [],
+        "contradiction_candidate_ids": [],
+        "related_tension_candidate_ids": [],
+        "related_knowledge_gap_candidate_ids": [],
+        "calibration_reason_codes": [],
+        "logical_status": "underspecified",
+        "review_cues": [
+          "state_missing_assumption"
+        ],
+        "reason_codes": [
+          "claim_text_present",
+          "conclusion_present",
+          "evidence_present",
+          "missing_assumption_present",
+          "premise_present",
+          "source_ref_present",
+          "structure_only_not_proof"
+        ],
+        "shape_summary": "Logical shape cue for claim claim-missing-assumption-001: logical_status=underspecified; review_cues=state_missing_assumption; structure-only explanation for operator review.",
+        "authority_boundary": {
+          "structure_preview_only": true,
+          "proof_check": false,
+          "theorem_proving": false,
+          "formal_verification": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "shape_version": "logical_claim_shape_preview.v0.1",
+        "scope": "project:augnes",
+        "status": "structure_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "claim_candidate_id": "claim-missing-conclusion-001",
+        "source_refs": [
+          "source:claim-missing-conclusion"
+        ],
+        "claim_text": "A summary-only candidate has enough text to inspect but lacks an explicit conclusion field.",
+        "inference_type": "unknown",
+        "premise_candidate_ids": [
+          "evidence-missing-conclusion-001"
+        ],
+        "premise_summaries": [
+          "The summary-only claim has a source-linked observation but no explicit conclusion field."
+        ],
+        "conclusion_text": "",
+        "missing_assumption_notes": [
+          "No explicit assumption notes were supplied; operator review should inspect whether the conclusion follows from the listed premises."
+        ],
+        "possible_counterclaim_candidate_ids": [],
+        "contradiction_candidate_ids": [],
+        "related_tension_candidate_ids": [],
+        "related_knowledge_gap_candidate_ids": [],
+        "calibration_reason_codes": [],
+        "logical_status": "missing_conclusion",
+        "review_cues": [
+          "clarify_conclusion"
+        ],
+        "reason_codes": [
+          "claim_text_present",
+          "conclusion_missing",
+          "evidence_present",
+          "missing_assumption_present",
+          "premise_present",
+          "source_ref_present",
+          "structure_only_not_proof"
+        ],
+        "shape_summary": "Logical shape cue for claim claim-missing-conclusion-001: logical_status=missing_conclusion; review_cues=clarify_conclusion; structure-only explanation for operator review.",
+        "authority_boundary": {
+          "structure_preview_only": true,
+          "proof_check": false,
+          "theorem_proving": false,
+          "formal_verification": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "shape_version": "logical_claim_shape_preview.v0.1",
+        "scope": "project:augnes",
+        "status": "structure_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "claim_candidate_id": "claim-missing-premise-001",
+        "source_refs": [
+          "source:claim-missing-premise"
+        ],
+        "claim_text": "The preview lane should be adopted as the next operator-facing layer.",
+        "inference_type": "operational_translation",
+        "premise_candidate_ids": [],
+        "premise_summaries": [],
+        "conclusion_text": "Adoption requires an explicit premise before review proceeds.",
+        "missing_assumption_notes": [
+          "No explicit assumption notes were supplied; operator review should inspect whether the conclusion follows from the listed premises."
+        ],
+        "possible_counterclaim_candidate_ids": [],
+        "contradiction_candidate_ids": [],
+        "related_tension_candidate_ids": [],
+        "related_knowledge_gap_candidate_ids": [],
+        "calibration_ref": "calibration:claim-missing-premise-001",
+        "calibration_readiness_label": "weak_ready",
+        "calibration_reason_codes": [
+          "diagnostic_only_not_promotion",
+          "evidence_missing",
+          "readiness_overclaim_risk",
+          "source_ref_present"
+        ],
+        "logical_status": "missing_premise",
+        "review_cues": [
+          "add_evidence",
+          "add_premise",
+          "state_missing_assumption"
+        ],
+        "reason_codes": [
+          "calibration_overclaim_risk",
+          "claim_text_present",
+          "conclusion_present",
+          "evidence_missing",
+          "missing_assumption_present",
+          "premise_missing",
+          "source_ref_present",
+          "structure_only_not_proof"
+        ],
+        "shape_summary": "Logical shape cue for claim claim-missing-premise-001: logical_status=missing_premise; review_cues=add_evidence, add_premise, state_missing_assumption; structure-only explanation for operator review.",
+        "authority_boundary": {
+          "structure_preview_only": true,
+          "proof_check": false,
+          "theorem_proving": false,
+          "formal_verification": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "shape_version": "logical_claim_shape_preview.v0.1",
+        "scope": "project:augnes",
+        "status": "structure_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "claim_candidate_id": "claim-missing-text-001",
+        "source_refs": [
+          "source:claim-missing-text"
+        ],
+        "claim_text": "",
+        "inference_type": "unknown",
+        "premise_candidate_ids": [
+          "evidence-missing-text-001"
+        ],
+        "premise_summaries": [
+          "The after-summary was provided without a claim text field."
+        ],
+        "conclusion_text": "The conclusion exists as an after-summary but no claim text was supplied.",
+        "missing_assumption_notes": [],
+        "possible_counterclaim_candidate_ids": [],
+        "contradiction_candidate_ids": [],
+        "related_tension_candidate_ids": [],
+        "related_knowledge_gap_candidate_ids": [],
+        "calibration_reason_codes": [],
+        "logical_status": "underspecified",
+        "review_cues": [
+          "state_missing_assumption"
+        ],
+        "reason_codes": [
+          "claim_text_missing",
+          "conclusion_present",
+          "evidence_present",
+          "premise_present",
+          "source_ref_present",
+          "structure_only_not_proof"
+        ],
+        "shape_summary": "Logical shape cue for claim claim-missing-text-001: logical_status=underspecified; review_cues=state_missing_assumption; structure-only explanation for operator review.",
+        "authority_boundary": {
+          "structure_preview_only": true,
+          "proof_check": false,
+          "theorem_proving": false,
+          "formal_verification": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "shape_version": "logical_claim_shape_preview.v0.1",
+        "scope": "project:augnes",
+        "status": "structure_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "claim_candidate_id": "claim-well-001",
+        "source_refs": [
+          "source:claim-well"
+        ],
+        "claim_text": "Operator review is easier when claim candidates expose source-linked premises.",
+        "inference_type": "source_summary",
+        "premise_candidate_ids": [
+          "evidence-support-001"
+        ],
+        "premise_summaries": [
+          "The fixture includes a source-linked premise for the well-structured claim."
+        ],
+        "conclusion_text": "Source-linked premises improve reviewability for this candidate.",
+        "missing_assumption_notes": [],
+        "possible_counterclaim_candidate_ids": [],
+        "contradiction_candidate_ids": [],
+        "related_tension_candidate_ids": [],
+        "related_knowledge_gap_candidate_ids": [],
+        "calibration_ref": "calibration:claim-well-001",
+        "calibration_readiness_label": "ready",
+        "calibration_reason_codes": [
+          "diagnostic_only_not_promotion",
+          "evidence_present",
+          "source_ref_present"
+        ],
+        "logical_status": "well_structured_candidate",
+        "review_cues": [
+          "no_action"
+        ],
+        "reason_codes": [
+          "claim_text_present",
+          "conclusion_present",
+          "evidence_present",
+          "premise_present",
+          "source_ref_present",
+          "structure_only_not_proof"
+        ],
+        "shape_summary": "Logical shape cue for claim claim-well-001: logical_status=well_structured_candidate; review_cues=no_action; structure-only explanation for operator review.",
+        "authority_boundary": {
+          "structure_preview_only": true,
+          "proof_check": false,
+          "theorem_proving": false,
+          "formal_verification": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      }
+    ],
+    "logical_status_counts": {
+      "well_structured_candidate": 2,
+      "missing_premise": 2,
+      "missing_conclusion": 1,
+      "missing_source_grounding": 0,
+      "possible_non_sequitur": 0,
+      "contradicted_by_candidate": 1,
+      "underspecified": 2,
+      "blocked": 1
+    },
+    "review_cue_counts": {
+      "inspect_source": 1,
+      "add_premise": 2,
+      "clarify_conclusion": 1,
+      "state_missing_assumption": 3,
+      "resolve_counterclaim": 1,
+      "resolve_contradiction": 1,
+      "add_evidence": 2,
+      "defer": 0,
+      "no_action": 1
+    },
+    "shape_queue": {
+      "blocked": [
+        "claim-blocked-001"
+      ],
+      "missing_premise": [
+        "claim-boundary-001",
+        "claim-missing-premise-001"
+      ],
+      "missing_conclusion": [
+        "claim-missing-conclusion-001"
+      ],
+      "contradictions": [
+        "claim-contradicted-001"
+      ],
+      "ready_for_review": [
+        "claim-gap-001",
+        "claim-well-001"
+      ]
+    },
+    "boundary_notes": [
+      "Calibration Diagnostic is input signal, not truth.",
+      "Contradiction is preserved as tension, not deletion.",
+      "Logical Claim Shape Preview is structure-only.",
+      "Logical status is not proof status.",
+      "Missing premise is a review cue, not rejection.",
+      "Product-write remains parked by #686.",
+      "Review cues are not execution authority.",
+      "Shape summary is explanation, not authority."
+    ],
+    "shape_fingerprint": "a066a4202e5dcc458514c614a65e1a1a27207e17e60241e4e145f55e5a60bad9",
+    "authority_boundary": {
+      "structure_preview_only": true,
+      "proof_check": false,
+      "theorem_proving": false,
+      "formal_verification": false,
+      "source_of_truth": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state": false,
+      "work_mutation": false,
+      "execution_authority": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "provider_openai_authority": false,
+      "source_fetch_authority": false,
+      "retrieval_rag_authority": false,
+      "git_ledger_export_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false
+    }
+  }
+}
