@@ -1,0 +1,607 @@
+{
+  "fixture_version": "feedback_to_rule_candidate_contract.sample.v0.1",
+  "bundle_version": "feedback_to_rule_candidate_bundle.v0.1",
+  "candidate_version": "feedback_to_rule_candidate.v0.1",
+  "scope": "project:augnes",
+  "status": "candidate_contract_only",
+  "as_of": "2026-06-25T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+    "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+    "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json"
+  ],
+  "sample_feedback_events": [
+    {
+      "event_id": "feedback-ai-context-correct-001",
+      "event_type": "correct_preview",
+      "target_kind": "ai_context_packet",
+      "target_id": "packet-candidate-001",
+      "source_ref_ids": [
+        "source:packet-correction-001"
+      ],
+      "operator_note": "Packet summary should say review cue instead of action approval."
+    },
+    {
+      "event_id": "feedback-ai-context-correct-002",
+      "event_type": "correct_preview",
+      "target_kind": "ai_context_packet",
+      "target_id": "packet-candidate-001",
+      "source_ref_ids": [
+        "source:packet-correction-002"
+      ],
+      "operator_note": "Correction repeats the request to keep packet output candidate-only."
+    },
+    {
+      "event_id": "feedback-logical-invalidate-001",
+      "event_type": "invalidate_preview",
+      "target_kind": "logical_claim_shape_preview",
+      "target_id": "claim-shape-contradiction-001",
+      "source_ref_ids": [
+        "source:logical-invalidation-001"
+      ],
+      "operator_note": "Invalidation says contradiction cue was hidden."
+    },
+    {
+      "event_id": "feedback-logical-invalidate-002",
+      "event_type": "invalidate_preview",
+      "target_kind": "logical_claim_shape_preview",
+      "target_id": "claim-shape-contradiction-001",
+      "source_ref_ids": [
+        "source:logical-invalidation-002"
+      ],
+      "operator_note": "Repeat review says the contradiction cue remained hidden."
+    },
+    {
+      "event_id": "feedback-calibration-evidence-001",
+      "event_type": "correct_preview",
+      "target_kind": "research_candidate_calibration_diagnostic",
+      "target_id": "calibration-diagnostic-001",
+      "source_ref_ids": [],
+      "operator_note": "Needs more evidence before readiness is displayed as ready."
+    },
+    {
+      "event_id": "feedback-lifecycle-missing-source-001",
+      "event_type": "correct_preview",
+      "target_kind": "research_candidate_lifecycle_read_model",
+      "target_id": "lifecycle-summary-001",
+      "source_ref_ids": [],
+      "operator_note": "Missing source coverage should stay blocked until a boundary note exists."
+    },
+    {
+      "event_id": "feedback-manual-scope-overreach-001",
+      "event_type": "dismiss_preview",
+      "target_kind": "manual_note_parser",
+      "target_id": "manual-note-parser-001",
+      "source_ref_ids": [
+        "source:manual-scope-overreach-001"
+      ],
+      "operator_note": "Blocked token-like sample OPENAI_API_KEY=REDACTED_EXAMPLE and ghp_REDACTED_EXAMPLE."
+    },
+    {
+      "event_id": "feedback-codex-boundary-001",
+      "event_type": "correct_preview",
+      "target_kind": "codex_handoff_draft",
+      "target_id": "handoff-draft-001",
+      "source_ref_ids": [
+        "source:codex-boundary-001"
+      ],
+      "operator_note": "Handoff draft wording sounded like Codex execution approval; keep it draft-only."
+    },
+    {
+      "event_id": "feedback-codex-boundary-002",
+      "event_type": "pin_preview",
+      "target_kind": "codex_handoff_draft",
+      "target_id": "handoff-draft-001",
+      "source_ref_ids": [
+        "source:codex-boundary-002"
+      ],
+      "operator_note": "Pin the boundary wording but do not create automation."
+    }
+  ],
+  "expected_bundle": {
+    "bundle_version": "feedback_to_rule_candidate_bundle.v0.1",
+    "scope": "project:augnes",
+    "status": "candidate_contract_only",
+    "as_of": "2026-06-25T00:00:00.000Z",
+    "source_fixture_refs": [
+      "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+      "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+      "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json"
+    ],
+    "candidates": [
+      {
+        "candidate_version": "feedback_to_rule_candidate.v0.1",
+        "scope": "project:augnes",
+        "status": "candidate_contract_only",
+        "candidate_id": "feedback-rule-ai-context-correction-001",
+        "affected_surface": "ai_context_packet",
+        "feedback_pattern_kind": "repeated_correction",
+        "feedback_event_refs": [
+          "feedback-ai-context-correct-001",
+          "feedback-ai-context-correct-002"
+        ],
+        "source_feedback_refs": [
+          {
+            "feedback_event_ref": "feedback-ai-context-correct-001",
+            "event_type": "correct_preview",
+            "target_kind": "ai_context_packet",
+            "target_id": "packet-candidate-001",
+            "source_ref_ids": [
+              "source:packet-correction-001"
+            ],
+            "operator_note_summary": "Packet wording should remain review cue copy.",
+            "redaction_status": "not_needed"
+          },
+          {
+            "feedback_event_ref": "feedback-ai-context-correct-002",
+            "event_type": "correct_preview",
+            "target_kind": "ai_context_packet",
+            "target_id": "packet-candidate-001",
+            "source_ref_ids": [
+              "source:packet-correction-002"
+            ],
+            "operator_note_summary": "Repeated correction asks for candidate-only packet wording.",
+            "redaction_status": "not_needed"
+          }
+        ],
+        "observed_pattern": "Two correction signals ask AI Context Packet copy to avoid action approval wording.",
+        "proposed_rule_change": "Candidate-only future rule text could require packet summaries to label review cues as cues, not approvals.",
+        "expected_benefit": "Future review packets would be less likely to imply execution authority.",
+        "risk_level": "medium",
+        "risk_note": "Medium risk because packet wording is handoff-adjacent and must not widen into execution behavior.",
+        "review_status": "accepted_for_future_pr",
+        "reason_codes": [
+          "accepted_for_future_pr_not_pr_authority",
+          "affected_surface_supported",
+          "authority_boundary_preserved",
+          "candidate_only_not_truth",
+          "feedback_refs_present",
+          "future_pr_not_created",
+          "pattern_kind_supported",
+          "proposed_change_present",
+          "rule_mutation_not_executed",
+          "source_refs_present"
+        ],
+        "boundary_notes": [
+          "Feedback is operator signal, not truth.",
+          "Rule candidate is not rule mutation.",
+          "accepted_for_future_pr is not PR creation authority.",
+          "proposed_rule_change is review text, not execution."
+        ],
+        "authority_boundary": {
+          "candidate_only": true,
+          "rule_mutation_executed_now": false,
+          "future_pr_created_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "candidate_version": "feedback_to_rule_candidate.v0.1",
+        "scope": "project:augnes",
+        "status": "candidate_contract_only",
+        "candidate_id": "feedback-rule-logical-invalidation-001",
+        "affected_surface": "logical_claim_shape_preview",
+        "feedback_pattern_kind": "repeated_invalidation",
+        "feedback_event_refs": [
+          "feedback-logical-invalidate-001",
+          "feedback-logical-invalidate-002"
+        ],
+        "source_feedback_refs": [
+          {
+            "feedback_event_ref": "feedback-logical-invalidate-001",
+            "event_type": "invalidate_preview",
+            "target_kind": "logical_claim_shape_preview",
+            "target_id": "claim-shape-contradiction-001",
+            "source_ref_ids": [
+              "source:logical-invalidation-001"
+            ],
+            "operator_note_summary": "Invalidation says contradiction cue was hidden.",
+            "redaction_status": "not_needed"
+          },
+          {
+            "feedback_event_ref": "feedback-logical-invalidate-002",
+            "event_type": "invalidate_preview",
+            "target_kind": "logical_claim_shape_preview",
+            "target_id": "claim-shape-contradiction-001",
+            "source_ref_ids": [
+              "source:logical-invalidation-002"
+            ],
+            "operator_note_summary": "Repeat review says the contradiction cue remained hidden.",
+            "redaction_status": "not_needed"
+          }
+        ],
+        "observed_pattern": "Two invalidation signals point at hidden contradiction review cues in logical shape output.",
+        "proposed_rule_change": "Candidate-only future rule text could require contradiction cues to remain visible whenever contradiction refs exist.",
+        "expected_benefit": "Operators can review tension without mistaking it for deletion or proof.",
+        "risk_level": "high",
+        "risk_note": "High risk because invalidation can be misread as proof or automatic rejection if boundaries are unclear.",
+        "review_status": "needs_review",
+        "reason_codes": [
+          "affected_surface_supported",
+          "authority_boundary_preserved",
+          "candidate_only_not_truth",
+          "feedback_refs_present",
+          "future_pr_not_created",
+          "pattern_kind_supported",
+          "proposed_change_present",
+          "rule_mutation_not_executed",
+          "source_refs_present"
+        ],
+        "boundary_notes": [
+          "Feedback is operator signal, not truth.",
+          "Invalidation is not proof.",
+          "Rule candidate is not rule mutation."
+        ],
+        "authority_boundary": {
+          "candidate_only": true,
+          "rule_mutation_executed_now": false,
+          "future_pr_created_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "candidate_version": "feedback_to_rule_candidate.v0.1",
+        "scope": "project:augnes",
+        "status": "candidate_contract_only",
+        "candidate_id": "feedback-rule-calibration-evidence-001",
+        "affected_surface": "research_candidate_calibration_diagnostic",
+        "feedback_pattern_kind": "needs_more_evidence_pattern",
+        "feedback_event_refs": [
+          "feedback-calibration-evidence-001"
+        ],
+        "source_feedback_refs": [
+          {
+            "feedback_event_ref": "feedback-calibration-evidence-001",
+            "event_type": "correct_preview",
+            "target_kind": "research_candidate_calibration_diagnostic",
+            "target_id": "calibration-diagnostic-001",
+            "source_ref_ids": [],
+            "operator_note_summary": "Needs more evidence before readiness wording is shown as ready.",
+            "redaction_status": "not_needed"
+          }
+        ],
+        "observed_pattern": "Correction signal asks calibration output to emphasize missing support before readiness language.",
+        "proposed_rule_change": "Candidate-only future rule text could require evidence_missing reason codes to be prominent before ready-like labels.",
+        "expected_benefit": "Reduces overclaim risk in operator-facing diagnostic summaries.",
+        "risk_level": "medium",
+        "risk_note": "Medium risk because readiness language can be confused with promotion.",
+        "review_status": "candidate_only",
+        "reason_codes": [
+          "affected_surface_supported",
+          "authority_boundary_preserved",
+          "candidate_only_not_truth",
+          "feedback_refs_present",
+          "future_pr_not_created",
+          "pattern_kind_supported",
+          "proposed_change_present",
+          "rule_mutation_not_executed",
+          "source_refs_missing"
+        ],
+        "boundary_notes": [
+          "Feedback is operator signal, not truth.",
+          "Readiness is not promotion.",
+          "Rule candidate is not rule mutation."
+        ],
+        "authority_boundary": {
+          "candidate_only": true,
+          "rule_mutation_executed_now": false,
+          "future_pr_created_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "candidate_version": "feedback_to_rule_candidate.v0.1",
+        "scope": "project:augnes",
+        "status": "candidate_contract_only",
+        "candidate_id": "feedback-rule-lifecycle-missing-source-001",
+        "affected_surface": "research_candidate_lifecycle_read_model",
+        "feedback_pattern_kind": "missing_source_pattern",
+        "feedback_event_refs": [
+          "feedback-lifecycle-missing-source-001"
+        ],
+        "source_feedback_refs": [
+          {
+            "feedback_event_ref": "feedback-lifecycle-missing-source-001",
+            "event_type": "correct_preview",
+            "target_kind": "research_candidate_lifecycle_read_model",
+            "target_id": "lifecycle-summary-001",
+            "source_ref_ids": [],
+            "operator_note_summary": "Missing source coverage should stay blocked without an explicit boundary note.",
+            "redaction_status": "not_needed"
+          }
+        ],
+        "observed_pattern": "Correction signal points at missing source coverage being under-emphasized in lifecycle review cues.",
+        "proposed_rule_change": "Candidate-only future rule text could require missing source refs to keep blocked review cues until an explicit boundary note exists.",
+        "expected_benefit": "Keeps source coverage gaps visible without adding retrieval or source fetching.",
+        "risk_level": "medium",
+        "risk_note": "Medium risk because source coverage rules affect operator review order.",
+        "review_status": "candidate_only",
+        "reason_codes": [
+          "affected_surface_supported",
+          "authority_boundary_preserved",
+          "candidate_only_not_truth",
+          "feedback_refs_present",
+          "future_pr_not_created",
+          "pattern_kind_supported",
+          "proposed_change_present",
+          "rule_mutation_not_executed",
+          "source_refs_missing"
+        ],
+        "boundary_notes": [
+          "Feedback is operator signal, not truth.",
+          "Rule candidate is not rule mutation.",
+          "No source fetch is authorized."
+        ],
+        "authority_boundary": {
+          "candidate_only": true,
+          "rule_mutation_executed_now": false,
+          "future_pr_created_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "candidate_version": "feedback_to_rule_candidate.v0.1",
+        "scope": "project:augnes",
+        "status": "candidate_contract_only",
+        "candidate_id": "feedback-rule-manual-scope-overreach-001",
+        "affected_surface": "manual_note_parser",
+        "feedback_pattern_kind": "scope_overreach_pattern",
+        "feedback_event_refs": [
+          "feedback-manual-scope-overreach-001"
+        ],
+        "source_feedback_refs": [
+          {
+            "feedback_event_ref": "feedback-manual-scope-overreach-001",
+            "event_type": "dismiss_preview",
+            "target_kind": "manual_note_parser",
+            "target_id": "manual-note-parser-001",
+            "source_ref_ids": [
+              "source:manual-scope-overreach-001"
+            ],
+            "operator_note_summary": "Blocked token-like markers OPENAI_API_KEY=REDACTED_EXAMPLE and ghp_REDACTED_EXAMPLE.",
+            "redaction_status": "blocked_secret_like_pattern"
+          }
+        ],
+        "observed_pattern": "Dismissal signal includes safe redacted token-like markers and flags a scope-overreach parsing suggestion.",
+        "proposed_rule_change": "Candidate-only future rule text could require manual-note parser rule candidates to block token-like operator notes and stay preview-only.",
+        "expected_benefit": "Keeps future parser suggestions public-safe and prevents accidental secret propagation.",
+        "risk_level": "high",
+        "risk_note": "High risk because token-like text must never become runtime input or unredacted fixture content.",
+        "review_status": "rejected",
+        "reason_codes": [
+          "affected_surface_supported",
+          "authority_boundary_preserved",
+          "candidate_only_not_truth",
+          "feedback_refs_present",
+          "future_pr_not_created",
+          "operator_note_redacted",
+          "pattern_kind_supported",
+          "proposed_change_present",
+          "rule_mutation_not_executed",
+          "secret_like_pattern_blocked",
+          "source_refs_present"
+        ],
+        "boundary_notes": [
+          "Feedback is operator signal, not truth.",
+          "Secret-like operator notes must be blocked or redacted.",
+          "Rule candidate is not rule mutation."
+        ],
+        "authority_boundary": {
+          "candidate_only": true,
+          "rule_mutation_executed_now": false,
+          "future_pr_created_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "candidate_version": "feedback_to_rule_candidate.v0.1",
+        "scope": "project:augnes",
+        "status": "candidate_contract_only",
+        "candidate_id": "feedback-rule-codex-boundary-001",
+        "affected_surface": "codex_handoff_draft",
+        "feedback_pattern_kind": "authority_boundary_confusion",
+        "feedback_event_refs": [
+          "feedback-codex-boundary-001",
+          "feedback-codex-boundary-002"
+        ],
+        "source_feedback_refs": [
+          {
+            "feedback_event_ref": "feedback-codex-boundary-001",
+            "event_type": "correct_preview",
+            "target_kind": "codex_handoff_draft",
+            "target_id": "handoff-draft-001",
+            "source_ref_ids": [
+              "source:codex-boundary-001"
+            ],
+            "operator_note_summary": "Handoff draft wording sounded like execution approval.",
+            "redaction_status": "not_needed"
+          },
+          {
+            "feedback_event_ref": "feedback-codex-boundary-002",
+            "event_type": "pin_preview",
+            "target_kind": "codex_handoff_draft",
+            "target_id": "handoff-draft-001",
+            "source_ref_ids": [
+              "source:codex-boundary-002"
+            ],
+            "operator_note_summary": "Pinned boundary wording should stay draft-only.",
+            "redaction_status": "not_needed"
+          }
+        ],
+        "observed_pattern": "Correction and pin signals show handoff wording can be mistaken for Codex execution approval.",
+        "proposed_rule_change": "Candidate-only future rule text could require handoff drafts to state that copyable text is not execution approval.",
+        "expected_benefit": "Keeps Codex handoff drafts useful without creating automation authority.",
+        "risk_level": "low",
+        "risk_note": "Low risk when kept to wording guidance and not runtime automation.",
+        "review_status": "needs_review",
+        "reason_codes": [
+          "affected_surface_supported",
+          "authority_boundary_preserved",
+          "candidate_only_not_truth",
+          "feedback_refs_present",
+          "future_pr_not_created",
+          "pattern_kind_supported",
+          "proposed_change_present",
+          "rule_mutation_not_executed",
+          "source_refs_present"
+        ],
+        "boundary_notes": [
+          "Codex Handoff Draft remains draft, not execution approval.",
+          "Feedback is operator signal, not truth.",
+          "Rule candidate is not rule mutation."
+        ],
+        "authority_boundary": {
+          "candidate_only": true,
+          "rule_mutation_executed_now": false,
+          "future_pr_created_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      }
+    ],
+    "affected_surface_counts": {
+      "manual_note_parser": 1,
+      "research_candidate_review": 0,
+      "research_candidate_lifecycle_read_model": 1,
+      "research_candidate_calibration_diagnostic": 1,
+      "logical_claim_shape_preview": 1,
+      "perspective_geometry_digest": 0,
+      "agent_perspective_substrate": 0,
+      "ai_context_packet": 1,
+      "codex_handoff_draft": 1,
+      "feedback_event_store": 0,
+      "foundation_status_review": 0,
+      "unknown": 0
+    },
+    "feedback_pattern_counts": {
+      "repeated_dismissal": 0,
+      "repeated_pin": 0,
+      "repeated_correction": 1,
+      "repeated_invalidation": 1,
+      "needs_more_evidence_pattern": 1,
+      "scope_overreach_pattern": 1,
+      "missing_source_pattern": 1,
+      "overclaim_risk_pattern": 0,
+      "logical_structure_gap_pattern": 0,
+      "handoff_not_done_pattern": 0,
+      "authority_boundary_confusion": 1,
+      "other": 0
+    },
+    "review_status_counts": {
+      "candidate_only": 2,
+      "needs_review": 2,
+      "rejected": 1,
+      "accepted_for_future_pr": 1,
+      "superseded": 0
+    },
+    "risk_level_counts": {
+      "low": 1,
+      "medium": 3,
+      "high": 2
+    },
+    "boundary_notes": [
+      "Feedback is operator signal, not truth.",
+      "Product-write remains parked by #686.",
+      "Rule candidate is not rule mutation.",
+      "accepted_for_future_pr is not PR creation authority.",
+      "proposed_rule_change is review text, not execution."
+    ],
+    "authority_boundary": {
+      "candidate_only": true,
+      "rule_mutation_executed_now": false,
+      "future_pr_created_now": false,
+      "source_of_truth": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state": false,
+      "work_mutation": false,
+      "execution_authority": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "provider_openai_authority": false,
+      "source_fetch_authority": false,
+      "retrieval_rag_authority": false,
+      "git_ledger_export_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false
+    },
+    "bundle_fingerprint": "a8f44dca829109ad7682b89d3a70734c2b7e7a862c4ccf99109e37321ab1afdb"
+  }
+}
