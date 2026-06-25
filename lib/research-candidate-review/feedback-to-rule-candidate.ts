@@ -28,10 +28,14 @@ type NormalizedFeedbackEvent = {
   redactionStatus: FeedbackToRuleSourceFeedbackRef["redaction_status"];
 };
 
-type FeedbackGroup = {
+type FeedbackTargetGroup = {
   affectedSurface: FeedbackToRuleAffectedSurface;
   targetId: string;
   events: NormalizedFeedbackEvent[];
+};
+
+type FeedbackGroup = FeedbackTargetGroup & {
+  patternKind: FeedbackToRuleFeedbackPatternKind;
 };
 
 const candidateVersion = "feedback_to_rule_candidate.v0.1" as const;
@@ -148,7 +152,7 @@ export function buildFeedbackToRuleCandidateBundle(
     .map(normalizeFeedbackEvent)
     .sort(compareFeedbackEvents);
   const candidateOverrides = input.candidate_overrides ?? [];
-  const groups = groupFeedbackEvents(normalizedEvents);
+  const groups = groupFeedbackEvents(normalizedEvents).flatMap(splitFeedbackGroupByPattern);
   const candidates = groups
     .map((group) => buildCandidate(group, input.scope, candidateOverrides))
     .sort(compareCandidates);
@@ -324,7 +328,7 @@ function buildCandidate(
   scope: FeedbackToRuleCandidateBuilderInput["scope"],
   overrides: FeedbackToRuleCandidateOverride[],
 ): FeedbackToRuleCandidate {
-  const patternKind = derivePatternKind(group.events);
+  const patternKind = group.patternKind;
   const feedbackEventRefs = uniqueSorted(group.events.map((event) => event.eventId));
   const candidateId = createCandidateId(group, patternKind, feedbackEventRefs);
   const override = findOverride(overrides, candidateId, group, patternKind);
@@ -410,8 +414,8 @@ function compareFeedbackEvents(
   );
 }
 
-function groupFeedbackEvents(events: NormalizedFeedbackEvent[]): FeedbackGroup[] {
-  const groups = new Map<string, FeedbackGroup>();
+function groupFeedbackEvents(events: NormalizedFeedbackEvent[]): FeedbackTargetGroup[] {
+  const groups = new Map<string, FeedbackTargetGroup>();
   for (const event of events) {
     const key = `${event.affectedSurface}::${event.targetId}`;
     const group =
@@ -420,7 +424,7 @@ function groupFeedbackEvents(events: NormalizedFeedbackEvent[]): FeedbackGroup[]
         affectedSurface: event.affectedSurface,
         targetId: event.targetId,
         events: [],
-      } satisfies FeedbackGroup);
+      } satisfies FeedbackTargetGroup);
     group.events.push(event);
     groups.set(key, group);
   }
@@ -428,6 +432,95 @@ function groupFeedbackEvents(events: NormalizedFeedbackEvent[]): FeedbackGroup[]
     ...group,
     events: group.events.sort(compareFeedbackEvents),
   }));
+}
+
+function splitFeedbackGroupByPattern(group: FeedbackTargetGroup): FeedbackGroup[] {
+  const consumedEventIds = new Set<string>();
+  const patternGroups: FeedbackGroup[] = [];
+
+  for (const [eventType, patternKind] of [
+    ["correct_preview", "repeated_correction"],
+    ["invalidate_preview", "repeated_invalidation"],
+    ["dismiss_preview", "repeated_dismissal"],
+    ["pin_preview", "repeated_pin"],
+  ] as const) {
+    const events = uniqueEventsById(
+      group.events.filter((event) => event.eventType === eventType),
+    );
+    if (events.length >= 2) {
+      patternGroups.push(createPatternGroup(group, patternKind, events));
+      for (const event of events) consumedEventIds.add(event.eventId);
+    }
+  }
+
+  for (const [patternKind, matcher] of notePatternMatchers) {
+    const events = uniqueEventsById(
+      group.events.filter(
+        (event) => !consumedEventIds.has(event.eventId) && matcher(event.noteText),
+      ),
+    );
+    if (events.length > 0) {
+      patternGroups.push(createPatternGroup(group, patternKind, events));
+      for (const event of events) consumedEventIds.add(event.eventId);
+    }
+  }
+
+  const remainingEvents = uniqueEventsById(
+    group.events.filter((event) => !consumedEventIds.has(event.eventId)),
+  );
+  if (remainingEvents.length > 0) {
+    patternGroups.push(createPatternGroup(group, "other", remainingEvents));
+  }
+
+  return patternGroups;
+}
+
+const notePatternMatchers: Array<
+  [FeedbackToRuleFeedbackPatternKind, (noteText: string) => boolean]
+> = [
+  [
+    "needs_more_evidence_pattern",
+    (noteText) => /needs more evidence|more evidence|evidence missing|add evidence/i.test(noteText),
+  ],
+  ["scope_overreach_pattern", (noteText) => /scope overreach|out of scope|overreach/i.test(noteText)],
+  [
+    "missing_source_pattern",
+    (noteText) => /missing source|source missing|source coverage|no source refs/i.test(noteText),
+  ],
+  ["overclaim_risk_pattern", (noteText) => /overclaim|readiness|confidence|too ready/i.test(noteText)],
+  [
+    "logical_structure_gap_pattern",
+    (noteText) => /premise|conclusion|assumption|contradiction cue|logical structure/i.test(noteText),
+  ],
+  [
+    "handoff_not_done_pattern",
+    (noteText) => /not done|incomplete handoff|expected checks missing/i.test(noteText),
+  ],
+  [
+    "authority_boundary_confusion",
+    (noteText) => /authority|approval|execution approval|automation|github|pr creation|branch creation/i.test(noteText),
+  ],
+];
+
+function createPatternGroup(
+  group: FeedbackTargetGroup,
+  patternKind: FeedbackToRuleFeedbackPatternKind,
+  events: NormalizedFeedbackEvent[],
+): FeedbackGroup {
+  return {
+    affectedSurface: group.affectedSurface,
+    targetId: group.targetId,
+    patternKind,
+    events: events.sort(compareFeedbackEvents),
+  };
+}
+
+function uniqueEventsById(events: NormalizedFeedbackEvent[]): NormalizedFeedbackEvent[] {
+  const eventsById = new Map<string, NormalizedFeedbackEvent>();
+  for (const event of events) {
+    if (!eventsById.has(event.eventId)) eventsById.set(event.eventId, event);
+  }
+  return Array.from(eventsById.values()).sort(compareFeedbackEvents);
 }
 
 function normalizeAffectedSurface(targetKind?: string): FeedbackToRuleAffectedSurface {
@@ -458,41 +551,6 @@ function normalizeAffectedSurface(targetKind?: string): FeedbackToRuleAffectedSu
   if (normalized === "feedback_event_store") return "feedback_event_store";
   if (normalized === "foundation_status_review") return "foundation_status_review";
   return "unknown";
-}
-
-function derivePatternKind(events: NormalizedFeedbackEvent[]): FeedbackToRuleFeedbackPatternKind {
-  if (countEvents(events, "correct_preview") >= 2) return "repeated_correction";
-  if (countEvents(events, "invalidate_preview") >= 2) return "repeated_invalidation";
-  if (countEvents(events, "dismiss_preview") >= 2) return "repeated_dismissal";
-  if (countEvents(events, "pin_preview") >= 2) return "repeated_pin";
-
-  const note = events.map((event) => event.noteText.toLowerCase()).join(" ");
-  if (/needs more evidence|more evidence|evidence missing|add evidence/.test(note)) {
-    return "needs_more_evidence_pattern";
-  }
-  if (/scope overreach|out of scope|overreach/.test(note)) return "scope_overreach_pattern";
-  if (/missing source|source missing|source coverage|no source refs/.test(note)) {
-    return "missing_source_pattern";
-  }
-  if (/overclaim|readiness|confidence|too ready/.test(note)) {
-    return "overclaim_risk_pattern";
-  }
-  if (/premise|conclusion|assumption|contradiction cue|logical structure/.test(note)) {
-    return "logical_structure_gap_pattern";
-  }
-  if (/not done|incomplete handoff|expected checks missing/.test(note)) {
-    return "handoff_not_done_pattern";
-  }
-  if (/authority|approval|execution approval|automation|github|pr creation|branch creation/.test(note)) {
-    return "authority_boundary_confusion";
-  }
-  return "other";
-}
-
-function countEvents(events: NormalizedFeedbackEvent[], eventType: string): number {
-  return new Set(
-    events.filter((event) => event.eventType === eventType).map((event) => event.eventId),
-  ).size;
 }
 
 function deriveRiskLevel(
@@ -604,12 +662,18 @@ function findOverride(
   patternKind: FeedbackToRuleFeedbackPatternKind,
 ): FeedbackToRuleCandidateOverride | undefined {
   return overrides.find((override) => {
-    if (
-      override.target_candidate_id &&
-      (override.target_candidate_id === candidateId ||
-        override.target_candidate_id === group.targetId)
-    ) {
-      return true;
+    const surfaceMatches =
+      !override.affected_surface || override.affected_surface === group.affectedSurface;
+    const patternMatches =
+      !override.feedback_pattern_kind || override.feedback_pattern_kind === patternKind;
+    if (override.target_candidate_id === candidateId) {
+      return surfaceMatches;
+    }
+    if (override.target_candidate_id === group.targetId) {
+      return surfaceMatches && patternMatches && Boolean(override.feedback_pattern_kind);
+    }
+    if (override.target_candidate_id) {
+      return false;
     }
     return (
       override.affected_surface === group.affectedSurface &&

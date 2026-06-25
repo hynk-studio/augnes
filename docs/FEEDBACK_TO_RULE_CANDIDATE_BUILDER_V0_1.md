@@ -104,6 +104,12 @@ The fingerprint is a SHA-256 hash over canonical JSON excluding `bundle_fingerpr
 
 Feedback events are sorted by target kind, target id, event type, created timestamp, and event id. Candidate output is sorted by affected surface, feedback pattern kind, and candidate id.
 
+The builder emits one candidate per `affected_surface + target_id + feedback_pattern_kind`. A single target may produce multiple candidates when multiple supported patterns are present.
+
+`repeated_correction` and `repeated_invalidation` on the same target are separate candidates. Repeated event-type patterns use only the events that support that repeated pattern, so `source_feedback_refs.feedback_event_ref` values still match each candidate's `feedback_event_refs` exactly as a set.
+
+Overrides match the pattern-specific candidate, not every candidate on the same target. An override for `repeated_correction` does not apply to a `repeated_invalidation` candidate on the same target unless it names that exact candidate id.
+
 Target kinds map to affected surfaces such as:
 
 - `lifecycle` -> `research_candidate_lifecycle_read_model`

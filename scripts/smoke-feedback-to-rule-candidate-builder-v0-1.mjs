@@ -137,6 +137,7 @@ assertBundle(fixture.expected_bundle);
 assertFixtureCoverage();
 assertSecretRedaction();
 assertOutputTextSafety();
+assertMultiPatternTargetEmitsDistinctCandidates();
 assertBlockedSecretOverrideCannotBeAccepted();
 assertUnsafeOverrideTextUsesFallback();
 assertSafeOverrideTextIsPreserved();
@@ -355,6 +356,86 @@ function assertOutputTextSafety() {
   }
 }
 
+function assertMultiPatternTargetEmitsDistinctCandidates() {
+  const bundle = buildSyntheticBundle({
+    feedback_events: [
+      {
+        event_id: "feedback-multi-correct-001",
+        event_type: "correct_preview",
+        target_kind: "ai_context_packet",
+        target_id: "multi-pattern-target-001",
+        source_ref_ids: ["source:multi-correct-001"],
+        operator_note: "Correction signal keeps packet cue wording bounded.",
+        created_at: "2026-06-25T01:10:00.000Z",
+      },
+      {
+        event_id: "feedback-multi-correct-002",
+        event_type: "correct_preview",
+        target_kind: "ai_context_packet",
+        target_id: "multi-pattern-target-001",
+        source_ref_ids: ["source:multi-correct-002"],
+        operator_note: "Second correction signal keeps packet cue wording bounded.",
+        created_at: "2026-06-25T01:11:00.000Z",
+      },
+      {
+        event_id: "feedback-multi-invalidate-001",
+        event_type: "invalidate_preview",
+        target_kind: "ai_context_packet",
+        target_id: "multi-pattern-target-001",
+        source_ref_ids: ["source:multi-invalidate-001"],
+        operator_note: "Invalidation signal keeps unsafe packet wording visible.",
+        created_at: "2026-06-25T01:12:00.000Z",
+      },
+      {
+        event_id: "feedback-multi-invalidate-002",
+        event_type: "invalidate_preview",
+        target_kind: "ai_context_packet",
+        target_id: "multi-pattern-target-001",
+        source_ref_ids: ["source:multi-invalidate-002"],
+        operator_note: "Second invalidation signal keeps unsafe packet wording visible.",
+        created_at: "2026-06-25T01:13:00.000Z",
+      },
+    ],
+    candidate_overrides: [
+      {
+        affected_surface: "ai_context_packet",
+        feedback_pattern_kind: "repeated_correction",
+        review_status: "accepted_for_future_pr",
+      },
+    ],
+  });
+  assert.deepEqual(helper.validateFeedbackToRuleCandidateBundle(bundle), {
+    passed: true,
+    failure_codes: [],
+  });
+  const correctionCandidate = candidateForPattern(
+    bundle,
+    "multi-pattern-target-001",
+    "repeated_correction",
+  );
+  const invalidationCandidate = candidateForPattern(
+    bundle,
+    "multi-pattern-target-001",
+    "repeated_invalidation",
+  );
+  assert.notEqual(correctionCandidate.candidate_id, invalidationCandidate.candidate_id);
+  assert.deepEqual(correctionCandidate.feedback_event_refs, [
+    "feedback-multi-correct-001",
+    "feedback-multi-correct-002",
+  ]);
+  assert.deepEqual(invalidationCandidate.feedback_event_refs, [
+    "feedback-multi-invalidate-001",
+    "feedback-multi-invalidate-002",
+  ]);
+  assert.ok(bundle.feedback_pattern_counts.repeated_correction >= 1);
+  assert.ok(bundle.feedback_pattern_counts.repeated_invalidation >= 1);
+  assertSourceFeedbackSet(correctionCandidate);
+  assertSourceFeedbackSet(invalidationCandidate);
+  assert.equal(correctionCandidate.review_status, "accepted_for_future_pr");
+  assert.equal(invalidationCandidate.review_status, "needs_review");
+  assert.notEqual(invalidationCandidate.review_status, "accepted_for_future_pr");
+}
+
 function assertBlockedSecretOverrideCannotBeAccepted() {
   const bundle = buildSyntheticBundle({
     feedback_events: [
@@ -504,6 +585,16 @@ function buildSyntheticBundle(inputPreview) {
 function onlyCandidate(bundle) {
   assert.equal(bundle.candidates.length, 1, "synthetic bundle must have one candidate");
   return bundle.candidates[0];
+}
+
+function candidateForPattern(bundle, targetId, patternKind) {
+  const candidate = bundle.candidates.find(
+    (item) =>
+      item.feedback_pattern_kind === patternKind &&
+      item.source_feedback_refs.every((ref) => ref.target_id === targetId),
+  );
+  assert.ok(candidate, `${patternKind} candidate for ${targetId} must exist`);
+  return candidate;
 }
 
 function assertCandidateTextSafety(candidate) {
