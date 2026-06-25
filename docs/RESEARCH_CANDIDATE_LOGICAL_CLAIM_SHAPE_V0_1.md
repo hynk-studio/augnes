@@ -132,9 +132,16 @@ Premises are detected from explicit fields only:
 - `supporting_evidence_candidate_ids`
 - `related_evidence_candidate_ids`
 
+These premise refs count as structural premises only when they resolve to
+existing claim or evidence candidate records supplied by the caller. Dangling
+premise refs are review cues, not verified premise structure. Explicit
+`premise_summaries` can count as premise structure because they are supplied as
+bounded review text.
+
 Evidence-backed premise summaries use bounded caller-provided evidence summary,
-quality note, locator, or source ref text when present. The helper does not
-invent premises from free text.
+quality note, locator, or source ref text when present and the evidence record
+exists. The helper does not invent premises from free text. Logical Claim Shape
+Preview is structure-only and does not turn refs into proof/evidence.
 
 Conclusion text uses explicit fields in order:
 
@@ -171,7 +178,9 @@ status and review cues:
 - `evidence_missing` -> `add_evidence`
 - `source_ref_missing` -> `inspect_source`
 
-Calibration does not create proof/evidence and does not promote Perspective.
+Calibration `evidence_present` is input signal, not proof and not a verified
+premise by itself. Calibration does not create proof/evidence and does not
+promote Perspective.
 
 ## Logical Status Rules
 
@@ -180,7 +189,7 @@ Ordered status rules:
 1. Missing source refs without source coverage boundary -> `blocked`.
 2. Empty claim text -> `underspecified`.
 3. Empty conclusion text -> `missing_conclusion`.
-4. Empty premise refs and premise summaries -> `missing_premise`.
+4. Empty verified premise refs and premise summaries -> `missing_premise`.
 5. Contradiction refs or contradiction/tension calibration signals ->
    `contradicted_by_candidate`.
 6. Conclusion with no premise and no evidence support ->

@@ -423,7 +423,6 @@
           "evidence-contradicted-support-001"
         ],
         "premise_summaries": [
-          "A counterexample fixture shows the signal can reduce review quality in one case.",
           "A supporting fixture links the review quality claim to an observed operator workflow."
         ],
         "conclusion_text": "The claim should be reviewed with the contradiction visible.",
@@ -920,7 +919,7 @@
       "Review cues are not execution authority.",
       "Shape summary is explanation, not authority."
     ],
-    "shape_fingerprint": "a066a4202e5dcc458514c614a65e1a1a27207e17e60241e4e145f55e5a60bad9",
+    "shape_fingerprint": "40b632c7a9a8a8e28be1dd05d3a8f0087c255158c38847957c8c38a897455024",
     "authority_boundary": {
       "structure_preview_only": true,
       "proof_check": false,

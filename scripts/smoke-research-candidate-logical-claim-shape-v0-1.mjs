@@ -128,6 +128,7 @@ assert.equal(
   builtReport.shape_fingerprint,
   "shape fingerprint must be stable",
 );
+assertDanglingPremiseRegression(helper);
 
 console.log(
   JSON.stringify(
@@ -267,6 +268,106 @@ function assertShapeFixture(report) {
   assert.ok(contradictedShape, "contradiction/tension claim shape must exist");
   assert.equal(contradictedShape.logical_status, "contradicted_by_candidate");
   assert.ok(contradictedShape.review_cues.includes("resolve_contradiction"));
+}
+
+function assertDanglingPremiseRegression(helper) {
+  const syntheticReport = helper.buildLogicalClaimShapePreviewReport({
+    scope: "project:augnes",
+    as_of: "2026-06-25T00:00:00.000Z",
+    source_fixture_refs: ["synthetic:logical-claim-shape-dangling-premise"],
+    candidate_review: {
+      claim_candidates: [
+        {
+          claim_candidate_id: "claim-dangling-premise-001",
+          claim_text:
+            "A claim with dangling premise refs should not be treated as structured.",
+          conclusion_text: "Dangling premise refs are not verified structure.",
+          source_ref_id: "source:claim-dangling-premise",
+          supporting_evidence_candidate_ids: ["missing-evidence-001"],
+          premise_candidate_ids: ["missing-premise-claim-001"],
+          review_status: "needs_review",
+          epistemic_status: "candidate_only",
+        },
+        {
+          claim_candidate_id: "claim-explicit-premise-summary-001",
+          claim_text:
+            "A claim with an explicit premise summary can be structurally reviewed.",
+          conclusion_text: "Explicit premise summaries count as reviewable structure.",
+          source_ref_id: "source:claim-explicit-premise-summary",
+          premise_summaries: [
+            "The operator supplied a bounded premise summary.",
+          ],
+        },
+      ],
+      evidence_candidates: [],
+      tension_candidates: [],
+      knowledge_gap_candidates: [],
+    },
+  });
+  assert.deepEqual(helper.validateLogicalClaimShapePreviewReport(syntheticReport), {
+    passed: true,
+    failure_codes: [],
+  });
+
+  const danglingShape = syntheticReport.claim_shapes.find(
+    (shape) => shape.claim_candidate_id === "claim-dangling-premise-001",
+  );
+  assert.ok(danglingShape, "dangling premise regression shape must exist");
+  assert.equal(danglingShape.logical_status, "missing_premise");
+  assert.ok(
+    danglingShape.reason_codes.includes("premise_missing"),
+    "dangling refs must leave premise_missing",
+  );
+  assert.ok(
+    !danglingShape.reason_codes.includes("premise_present"),
+    "dangling refs must not create premise_present",
+  );
+  assert.ok(
+    danglingShape.review_cues.includes("add_premise"),
+    "dangling premise shape must cue add_premise",
+  );
+  assert.ok(
+    !danglingShape.premise_candidate_ids.includes("missing-evidence-001"),
+    "missing evidence id must not become a premise candidate id",
+  );
+  assert.ok(
+    !danglingShape.premise_candidate_ids.includes("missing-premise-claim-001"),
+    "missing premise claim id must not become a premise candidate id",
+  );
+  assert.deepEqual(
+    danglingShape.premise_summaries,
+    [],
+    "dangling premise shape must not invent premise summaries",
+  );
+  assert.doesNotMatch(
+    danglingShape.shape_summary,
+    /proof|proven|theorem|verified truth|promoted|evidence record created|state committed|product write|\btruth\b/i,
+    "dangling premise summary must avoid authority wording",
+  );
+
+  const explicitSummaryShape = syntheticReport.claim_shapes.find(
+    (shape) => shape.claim_candidate_id === "claim-explicit-premise-summary-001",
+  );
+  assert.ok(
+    explicitSummaryShape,
+    "explicit premise summary regression shape must exist",
+  );
+  assert.notEqual(explicitSummaryShape.logical_status, "missing_premise");
+  assert.ok(
+    explicitSummaryShape.reason_codes.includes("premise_present"),
+    "explicit premise summary must create premise_present",
+  );
+  assert.ok(
+    explicitSummaryShape.premise_summaries.includes(
+      "The operator supplied a bounded premise summary.",
+    ),
+    "explicit premise summary must be preserved",
+  );
+  assert.doesNotMatch(
+    explicitSummaryShape.shape_summary,
+    /proof|proven|theorem|verified truth|promoted|evidence record created|state committed|product write|\btruth\b/i,
+    "explicit premise summary shape must stay structure-preview-only",
+  );
 }
 
 function assertAuthorityBoundary(boundary, label) {

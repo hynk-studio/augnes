@@ -400,9 +400,12 @@ function buildClaimShape(args: {
   const claimText = claimTextForClaim(claim.object);
   const conclusionText = conclusionTextForClaim(claim.object);
   const inferenceType = inferenceTypeForClaim(claim.object);
-  const premiseCandidateIds = premiseIdsForClaim(claim.object);
   const evidencePremises = evidencePremiseSummaries(claim, evidenceRecords);
   const claimPremises = claimPremiseSummaries(claim, claimRecords);
+  const premiseCandidateIds = uniqueSorted([
+    ...claimPremises.ids,
+    ...evidencePremises.ids,
+  ]);
   const premiseSummaries = uniqueSorted([
     ...stringArrayField(claim.object, "premise_summaries"),
     ...evidencePremises.summaries,
@@ -743,29 +746,20 @@ function inferenceTypeForClaim(claim: Record<string, unknown>): LogicalClaimInfe
   return "unknown";
 }
 
-function premiseIdsForClaim(claim: Record<string, unknown>): string[] {
-  return uniqueSorted([
-    ...stringArrayField(claim, "premise_candidate_ids"),
-    ...stringArrayField(claim, "premise_claim_candidate_ids"),
-    ...stringArrayField(claim, "basis_claim_candidate_ids"),
-    ...stringArrayField(claim, "supporting_claim_candidate_ids"),
-    ...stringArrayField(claim, "basis_evidence_candidate_ids"),
-    ...stringArrayField(claim, "supporting_evidence_candidate_ids"),
-    ...stringArrayField(claim, "related_evidence_candidate_ids"),
-  ]);
-}
-
 function evidencePremiseSummaries(
   claim: CandidateRecord,
   evidenceRecords: CandidateRecord[],
 ): { ids: string[]; summaries: string[] } {
   const explicitEvidenceIds = new Set([
+    ...stringArrayField(claim.object, "premise_candidate_ids"),
     ...stringArrayField(claim.object, "basis_evidence_candidate_ids"),
     ...stringArrayField(claim.object, "supporting_evidence_candidate_ids"),
     ...stringArrayField(claim.object, "related_evidence_candidate_ids"),
   ]);
   const linkedEvidence = evidenceRecords.filter(
-    (evidence) => explicitEvidenceIds.has(evidence.id) || evidenceLinksClaim(evidence, claim.id),
+    (evidence) =>
+      !evidenceIsContradicting(evidence) &&
+      (explicitEvidenceIds.has(evidence.id) || evidenceLinksClaim(evidence, claim.id)),
   );
   return {
     ids: uniqueSorted(linkedEvidence.map((evidence) => evidence.id)),
@@ -782,6 +776,7 @@ function claimPremiseSummaries(
   claimRecords: CandidateRecord[],
 ): { ids: string[]; summaries: string[] } {
   const premiseClaimIds = new Set([
+    ...stringArrayField(claim.object, "premise_candidate_ids"),
     ...stringArrayField(claim.object, "premise_claim_candidate_ids"),
     ...stringArrayField(claim.object, "basis_claim_candidate_ids"),
     ...stringArrayField(claim.object, "supporting_claim_candidate_ids"),
@@ -827,6 +822,14 @@ function evidenceLinksClaim(evidence: CandidateRecord, claimId: string): boolean
     stringArrayField(evidence.object, "related_claim_candidate_ids").includes(claimId) ||
     stringArrayField(evidence.object, "claim_candidate_ids").includes(claimId)
   );
+}
+
+function evidenceIsContradicting(evidence: CandidateRecord): boolean {
+  const evidenceRole =
+    stringField(evidence.object, "evidence_role") ??
+    stringField(evidence.object, "role") ??
+    "";
+  return evidenceRole === "contradicts" || evidenceRole === "contradicting";
 }
 
 function relatedTensionIdsForClaim(
