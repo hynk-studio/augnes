@@ -248,6 +248,7 @@ export function buildProviderAssistedExtractionRuntimeReport(
     runtimeDecisions.push({
       request_id: request.request_id,
       decision,
+      requested_target_kinds: uniqueSorted(request.target_kinds),
       output_refs: output ? [output.output_id] : [],
       reason_codes: createDecisionReasonCodes(request, decision, Boolean(preview), Boolean(output)),
     });
@@ -326,15 +327,15 @@ export function validateProviderAssistedExtractionRuntimeInput(
   ) {
     failureCodes.push("candidate_previews_not_array");
   } else if (Array.isArray(input.candidate_previews)) {
-    const requestIds = new Set(
-      Array.isArray(input.requests)
-        ? input.requests
-            .filter(isRecord)
-            .map((request) => request.request_id)
-            .filter(isNonEmptyString)
-        : [],
-    );
-    failureCodes.push(...validateCandidatePreviews(input.candidate_previews, requestIds));
+    const requestById = new Map<string, Record<string, unknown>>();
+    if (Array.isArray(input.requests)) {
+      for (const request of input.requests) {
+        if (isRecord(request) && isNonEmptyString(request.request_id)) {
+          requestById.set(request.request_id, request);
+        }
+      }
+    }
+    failureCodes.push(...validateCandidatePreviews(input.candidate_previews, requestById));
   }
   if (!isSafePublicText(JSON.stringify(input))) {
     failureCodes.push("input_contains_unsafe_text");
@@ -397,6 +398,7 @@ export function validateProviderAssistedExtractionRuntimeReport(
   const decisionIds = new Set<string>();
   const decisionByRequestId = new Map<string, ProviderAssistedExtractionRuntimeDecisionRecord>();
   const outputIds = new Set<string>();
+  const outputById = new Map<string, Record<string, unknown>>();
   const candidateRefs = new Set<string>();
 
   for (const decision of decisions) {
@@ -422,6 +424,7 @@ export function validateProviderAssistedExtractionRuntimeReport(
         failureCodes.push("duplicate_output_id");
       }
       outputIds.add(output.output_id);
+      outputById.set(output.output_id, output);
     }
     if (isNonEmptyString(output.candidate_ref)) {
       if (candidateRefs.has(output.candidate_ref)) {
@@ -447,9 +450,23 @@ export function validateProviderAssistedExtractionRuntimeReport(
     if (!decision.output_refs.includes(output.output_id as string)) {
       failureCodes.push("candidate_output_not_listed_in_decision_output_refs");
     }
+    if (
+      Array.isArray(decision.requested_target_kinds) &&
+      !decision.requested_target_kinds.includes(output.output_kind as ProviderAssistedExtractionTargetKind)
+    ) {
+      failureCodes.push("candidate_output_kind_not_requested");
+    }
   }
 
   for (const decision of decisionByRequestId.values()) {
+    for (const outputRef of decision.output_refs) {
+      const matchingOutput = outputById.get(outputRef);
+      if (!matchingOutput) {
+        failureCodes.push("dangling_decision_output_ref");
+      } else if (matchingOutput.request_id !== decision.request_id) {
+        failureCodes.push("decision_output_ref_request_mismatch");
+      }
+    }
     if (decision.decision === "candidate_output_created" && decision.output_refs.length === 0) {
       failureCodes.push("decision_candidate_output_created_without_output_refs");
     }
@@ -511,7 +528,8 @@ function decideRuntimeRequest(
     request.input_refs.some(
       (inputRef) =>
         inputRef.privacy_class === "blocked_raw_private_payload" ||
-        inputRef.redaction_status === "blocked_raw_payload",
+        inputRef.redaction_status === "blocked_raw_payload" ||
+        inputRef.redaction_status === "blocked_private_location",
     )
   ) {
     return "blocked_private_or_raw_payload";
@@ -542,9 +560,14 @@ function decideRuntimeRequest(
   if (
     preview &&
     preview.public_safe === true &&
+    preview.output_kind !== "unknown" &&
+    request.target_kinds.includes(preview.output_kind) &&
     isSafeProviderAssistedExtractionRuntimeText(preview.bounded_output_summary)
   ) {
     return "candidate_output_created";
+  }
+  if (preview && (preview.output_kind === "unknown" || !request.target_kinds.includes(preview.output_kind))) {
+    return "blocked_unsupported_target";
   }
   if (request.request_status === "accepted_for_future_provider_run") {
     return "candidate_only";
@@ -847,7 +870,10 @@ function validatePromptDescriptor(
   return failureCodes;
 }
 
-function validateCandidatePreviews(previews: unknown[], requestIds: Set<string>): string[] {
+function validateCandidatePreviews(
+  previews: unknown[],
+  requestById: Map<string, Record<string, unknown>>,
+): string[] {
   const failureCodes: string[] = [];
   const previewRequestIds = new Set<string>();
   for (const preview of previews) {
@@ -858,7 +884,8 @@ function validateCandidatePreviews(previews: unknown[], requestIds: Set<string>)
     if (!isNonEmptyString(preview.request_id)) {
       failureCodes.push("candidate_preview_missing_request_id");
     } else {
-      if (!requestIds.has(preview.request_id)) {
+      const request = requestById.get(preview.request_id);
+      if (!request) {
         failureCodes.push("candidate_preview_request_id_not_found");
       }
       if (previewRequestIds.has(preview.request_id)) {
@@ -868,6 +895,17 @@ function validateCandidatePreviews(previews: unknown[], requestIds: Set<string>)
     }
     if (!targetKinds.includes(preview.output_kind as ProviderAssistedExtractionTargetKind)) {
       failureCodes.push("candidate_preview_output_kind_outside_vocabulary");
+    } else if (preview.output_kind === "unknown") {
+      failureCodes.push("candidate_preview_output_kind_unknown");
+    } else if (isNonEmptyString(preview.request_id)) {
+      const request = requestById.get(preview.request_id);
+      if (
+        request &&
+        Array.isArray(request.target_kinds) &&
+        !request.target_kinds.includes(preview.output_kind)
+      ) {
+        failureCodes.push("candidate_preview_output_kind_not_requested");
+      }
     }
     if (preview.public_safe !== true) {
       failureCodes.push("candidate_preview_public_safe_not_true");
@@ -1102,6 +1140,11 @@ function isRuntimeDecisionRecord(
     isRecord(value) &&
     isNonEmptyString(value.request_id) &&
     runtimeDecisions.includes(value.decision as ProviderAssistedExtractionRuntimeDecision) &&
+    (value.requested_target_kinds === undefined ||
+      (Array.isArray(value.requested_target_kinds) &&
+        value.requested_target_kinds.every((kind) =>
+          targetKinds.includes(kind as ProviderAssistedExtractionTargetKind),
+        ))) &&
     Array.isArray(value.output_refs) &&
     value.output_refs.every(isSafeProviderAssistedExtractionRuntimeRef) &&
     Array.isArray(value.reason_codes) &&

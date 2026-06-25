@@ -96,6 +96,8 @@ the matching request, output kind, bounded output summary, public-safe flag,
 and optional candidate ref, source refs, bounded summary refs, confidence
 preview, and review status.
 
+Candidate previews must match the request target_kinds.
+Candidate preview output_kind unknown is rejected.
 candidate preview is caller-provided bounded input, not provider output.
 Preview summaries, refs, and review metadata must be public-safe. Unsafe
 private paths, private URLs, token-like strings, provider responses, raw
@@ -119,6 +121,9 @@ The helper applies deterministic ordered decisions:
 11. `accepted_for_future_provider_run` without preview becomes `candidate_only`.
 12. Everything else becomes `candidate_only`.
 
+blocked_private_location redaction blocks candidate output creation.
+Preview output kinds that are not requested by the matching request are not
+eligible for candidate output creation.
 accepted_for_future_provider_run is not provider execution.
 candidate_only is not runtime execution approval.
 
@@ -142,6 +147,8 @@ Every candidate output keeps:
 
 Candidate output is not truth.
 Candidate output is not proof/evidence.
+Runtime decisions preserve output lineage through output_refs.
+Every output_ref must resolve to an output for the same request.
 
 ## 9. Validation Rules
 
@@ -152,6 +159,8 @@ authority boundaries.
 
 The report validator rejects duplicate decisions, duplicate output ids,
 duplicate candidate refs, candidate outputs for blocked/rejected decisions,
+candidate outputs outside the matching decision target kinds, dangling decision
+output refs, cross-request decision output refs,
 candidate outputs with execution/write flags set true, count mismatches,
 fingerprint mismatches, unsafe text, and authority boundaries that grant
 provider, prompt, source, retrieval, DB, proof, claim/evidence, promotion,
@@ -177,6 +186,8 @@ candidate-output shaping. Private URLs and local private paths are not accepted.
 Secret-like strings are not accepted. Raw source bodies, provider responses,
 raw conversations, hidden reasoning, raw DB rows, browser dumps, and provider
 transcripts are not accepted.
+
+blocked_private_location redaction blocks candidate output creation.
 
 Source refs are lineage pointers, not proof.
 Source refs must be public-safe symbolic refs.

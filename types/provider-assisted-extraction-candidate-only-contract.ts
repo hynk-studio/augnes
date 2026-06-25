@@ -332,6 +332,7 @@ export interface ProviderAssistedExtractionRuntimeInput {
 export interface ProviderAssistedExtractionRuntimeDecisionRecord {
   request_id: string;
   decision: ProviderAssistedExtractionRuntimeDecision;
+  requested_target_kinds?: ProviderAssistedExtractionTargetKind[];
   output_refs: string[];
   reason_codes: ProviderAssistedExtractionRuntimeReasonCode[];
 }

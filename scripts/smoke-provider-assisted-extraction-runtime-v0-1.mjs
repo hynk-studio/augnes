@@ -124,11 +124,17 @@ assertRuntimeAuthorityBoundary(
 assertUnsafeCandidatePreviewRejected();
 assertCandidatePreviewPublicSafeFalseRejected();
 assertCandidatePreviewMissingRequestRejected();
+assertBlockedPrivateLocationRedactionBlocksOutput();
+assertCandidatePreviewOutputKindNotRequestedRejected();
+assertCandidatePreviewOutputKindUnknownRejected();
 assertReportAuthorityGrantRejected();
 assertCandidateOutputProviderOutputRejected();
 assertCandidateOutputPromptSentRejected();
 assertCandidateOutputClaimWriteRejected();
 assertCandidateOutputForBlockedDecisionRejected();
+assertReportOutputKindOutsideDecisionTargetsRejected();
+assertDanglingDecisionOutputRefRejected();
+assertDecisionOutputRefRequestMismatchRejected();
 assertHelperSourceBoundary();
 assertFixtureSafety();
 assertDocCoverage();
@@ -227,10 +233,26 @@ function assertRuntimeReportShape() {
     );
   }
   for (const decision of report.runtime_decisions) {
+    const request = requests.find((candidateRequest) => candidateRequest.request_id === decision.request_id);
+    assert.ok(request, `${decision.request_id} decision must match a request`);
+    assert.deepEqual(
+      decision.requested_target_kinds,
+      [...request.target_kinds].sort(),
+      `${decision.request_id} must carry requested target kinds`,
+    );
     if (decision.decision === "candidate_output_created") {
       assert.ok(decision.output_refs.length > 0, `${decision.request_id} must carry output_refs`);
     } else {
       assert.equal(decision.output_refs.length, 0, `${decision.request_id} non-created decision output_refs empty`);
+    }
+    for (const outputRef of decision.output_refs) {
+      const output = report.candidate_outputs.find((candidateOutput) => candidateOutput.output_id === outputRef);
+      assert.ok(output, `${decision.request_id} output_ref must resolve to candidate output`);
+      assert.equal(output.request_id, decision.request_id, `${decision.request_id} output_ref must match request`);
+      assert.ok(
+        decision.requested_target_kinds.includes(output.output_kind),
+        `${decision.request_id} output kind must be requested`,
+      );
     }
   }
   for (const decision of requiredDecisionCounts) {
@@ -307,6 +329,89 @@ function assertCandidatePreviewMissingRequestRejected() {
   );
 }
 
+function assertBlockedPrivateLocationRedactionBlocksOutput() {
+  const input = cloneInputPreview();
+  const request = JSON.parse(
+    JSON.stringify(
+      input.requests.find((candidateRequest) => candidateRequest.request_id === "provider-runtime-request-claim-001"),
+    ),
+  );
+  request.request_id = "provider-runtime-request-private-location-regression-001";
+  request.input_refs[0] = {
+    ...request.input_refs[0],
+    input_ref: "bounded-source-intake-envelope-ref:private-location-regression-001",
+    source_refs: ["source-ref:private-location-regression-001"],
+    bounded_summary_refs: ["bounded-summary-ref:private-location-regression-001"],
+    privacy_class: "public_safe_bounded_input",
+    redaction_status: "blocked_private_location",
+    reason_codes: [
+      "bounded_source_ref_present",
+      "bounded_summary_ref_present",
+      "input_kind_supported",
+      "source_ref_present",
+    ],
+  };
+  request.prompt_descriptor.prompt_descriptor_id = "provider-runtime-prompt-private-location-regression-001";
+  request.prompt_descriptor.allowed_input_refs = [
+    "bounded-source-intake-envelope-ref:private-location-regression-001",
+  ];
+  request.expected_candidate_output_refs = ["provider-runtime-candidate-ref:private-location-regression-001"];
+  input.requests = [request];
+  input.candidate_previews = [
+    {
+      request_id: request.request_id,
+      output_kind: "claim_candidate",
+      candidate_ref: "provider-runtime-candidate-ref:private-location-regression-001",
+      bounded_output_summary: "Public-safe preview must not override private-location redaction.",
+      source_refs: ["source-ref:private-location-preview-regression-001"],
+      bounded_summary_refs: ["bounded-summary-ref:private-location-preview-regression-001"],
+      confidence_preview: "low",
+      review_status: "candidate_only",
+      public_safe: true,
+    },
+  ];
+  assert.deepEqual(runtime.validateProviderAssistedExtractionRuntimeInput(input), {
+    passed: true,
+    failure_codes: [],
+  });
+  const report = runtime.buildProviderAssistedExtractionRuntimeReport(input);
+  const decision = report.runtime_decisions.find((candidateDecision) => candidateDecision.request_id === request.request_id);
+  assert.equal(decision?.decision, "blocked_private_or_raw_payload");
+  assert.equal(report.candidate_outputs.some((output) => output.request_id === request.request_id), false);
+  assert.ok(decision.reason_codes.includes("blocked_request_not_executed"));
+  assert.ok(decision.reason_codes.includes("raw_payload_blocked"));
+  assert.deepEqual(runtime.validateProviderAssistedExtractionRuntimeReport(report), {
+    passed: true,
+    failure_codes: [],
+  });
+}
+
+function assertCandidatePreviewOutputKindNotRequestedRejected() {
+  const input = cloneInputPreview();
+  input.candidate_previews[0].output_kind = "evidence_candidate";
+  const validation = runtime.validateProviderAssistedExtractionRuntimeInput(input);
+  assert.equal(validation.passed, false, "preview output kind outside request targets must be rejected");
+  assert.ok(
+    validation.failure_codes.includes("candidate_preview_output_kind_not_requested"),
+    "preview output kind target mismatch failure code required",
+  );
+  assert.throws(
+    () => runtime.buildProviderAssistedExtractionRuntimeReport(input),
+    /provider_assisted_extraction_runtime_input_invalid/,
+  );
+}
+
+function assertCandidatePreviewOutputKindUnknownRejected() {
+  const input = cloneInputPreview();
+  input.candidate_previews[0].output_kind = "unknown";
+  const validation = runtime.validateProviderAssistedExtractionRuntimeInput(input);
+  assert.equal(validation.passed, false, "unknown preview output kind must be rejected");
+  assert.ok(
+    validation.failure_codes.includes("candidate_preview_output_kind_unknown"),
+    "unknown preview output kind failure code required",
+  );
+}
+
 function assertReportAuthorityGrantRejected() {
   const report = cloneExpectedReport();
   report.authority_boundary.provider_call_now = true;
@@ -370,6 +475,58 @@ function assertCandidateOutputForBlockedDecisionRejected() {
     validation.failure_codes.includes("candidate_output_for_blocked_or_rejected_decision") ||
       validation.failure_codes.includes("candidate_output_for_noncreated_decision"),
     "blocked decision output failure code required",
+  );
+}
+
+function assertReportOutputKindOutsideDecisionTargetsRejected() {
+  const report = cloneExpectedReport();
+  const output = report.candidate_outputs[0];
+  const decision = report.runtime_decisions.find((candidateDecision) =>
+    candidateDecision.output_refs.includes(output.output_id),
+  );
+  assert.ok(decision, "created decision for output kind regression must exist");
+  output.output_kind = "evidence_candidate";
+  output.output_id = `${output.output_id}:kind-not-requested`;
+  decision.output_refs = [output.output_id];
+  recomputeReportFingerprint(report);
+  const validation = runtime.validateProviderAssistedExtractionRuntimeReport(report);
+  assert.equal(validation.passed, false, "output kind outside requested targets must be rejected");
+  assert.ok(
+    validation.failure_codes.includes("candidate_output_kind_not_requested"),
+    "candidate output kind target mismatch failure code required",
+  );
+}
+
+function assertDanglingDecisionOutputRefRejected() {
+  const report = cloneExpectedReport();
+  const createdDecision = report.runtime_decisions.find(
+    (decision) => decision.decision === "candidate_output_created",
+  );
+  assert.ok(createdDecision, "created decision must exist");
+  createdDecision.output_refs.push("provider-runtime-output:missing-output-ref-001");
+  recomputeReportFingerprint(report);
+  const validation = runtime.validateProviderAssistedExtractionRuntimeReport(report);
+  assert.equal(validation.passed, false, "dangling decision output_ref must be rejected");
+  assert.ok(
+    validation.failure_codes.includes("dangling_decision_output_ref"),
+    "dangling decision output_ref failure code required",
+  );
+}
+
+function assertDecisionOutputRefRequestMismatchRejected() {
+  const report = cloneExpectedReport();
+  const createdDecisions = report.runtime_decisions.filter(
+    (decision) => decision.decision === "candidate_output_created",
+  );
+  assert.ok(createdDecisions.length >= 2, "two created decisions must exist for request mismatch regression");
+  const [firstDecision, secondDecision] = createdDecisions;
+  firstDecision.output_refs.push(secondDecision.output_refs[0]);
+  recomputeReportFingerprint(report);
+  const validation = runtime.validateProviderAssistedExtractionRuntimeReport(report);
+  assert.equal(validation.passed, false, "cross-request decision output_ref must be rejected");
+  assert.ok(
+    validation.failure_codes.includes("decision_output_ref_request_mismatch"),
+    "decision output_ref request mismatch failure code required",
   );
 }
 
@@ -444,6 +601,11 @@ function assertDocCoverage() {
     "Source refs must be public-safe symbolic refs.",
     "Bounded summary refs are lineage metadata, not proof.",
     "Raw provider outputs must not be stored.",
+    "blocked_private_location redaction blocks candidate output creation.",
+    "Candidate previews must match the request target_kinds.",
+    "Candidate preview output_kind unknown is rejected.",
+    "Runtime decisions preserve output lineage through output_refs.",
+    "Every output_ref must resolve to an output for the same request.",
     "integrated development roadmap guide v0.2",
     "background inputs already integrated into the roadmap guide",
   ]) {

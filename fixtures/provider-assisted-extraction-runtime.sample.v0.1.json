@@ -811,7 +811,7 @@
             "bounded_summary_refs": [],
             "public_safe": true,
             "privacy_class": "private_ref_only",
-            "redaction_status": "blocked_private_location",
+            "redaction_status": "redacted",
             "reason_codes": [
               "bounded_source_ref_missing",
               "bounded_summary_ref_missing",
@@ -1572,6 +1572,9 @@
       {
         "request_id": "provider-runtime-request-accepted-without-preview-001",
         "decision": "candidate_only",
+        "requested_target_kinds": [
+          "logical_shape_hint"
+        ],
         "output_refs": [],
         "reason_codes": [
           "accepted_for_future_provider_run_not_execution",
@@ -1602,6 +1605,9 @@
       {
         "request_id": "provider-runtime-request-claim-001",
         "decision": "candidate_output_created",
+        "requested_target_kinds": [
+          "claim_candidate"
+        ],
         "output_refs": [
           "provider-runtime-output:provider-runtime-request-claim-001:claim_candidate:a1f9f39d8de1"
         ],
@@ -1638,6 +1644,9 @@
       {
         "request_id": "provider-runtime-request-gap-001",
         "decision": "candidate_output_created",
+        "requested_target_kinds": [
+          "knowledge_gap_signal"
+        ],
         "output_refs": [
           "provider-runtime-output:provider-runtime-request-gap-001:knowledge_gap_signal:fda52e2b0109"
         ],
@@ -1673,6 +1682,9 @@
       {
         "request_id": "provider-runtime-request-missing-source-001",
         "decision": "blocked_missing_bounded_source",
+        "requested_target_kinds": [
+          "logical_shape_hint"
+        ],
         "output_refs": [],
         "reason_codes": [
           "blocked_request_not_executed",
@@ -1704,6 +1716,9 @@
       {
         "request_id": "provider-runtime-request-raw-blocked-001",
         "decision": "blocked_private_or_raw_payload",
+        "requested_target_kinds": [
+          "contradiction_signal"
+        ],
         "output_refs": [],
         "reason_codes": [
           "blocked_request_not_executed",
@@ -1736,6 +1751,9 @@
       {
         "request_id": "provider-runtime-request-rejected-001",
         "decision": "rejected",
+        "requested_target_kinds": [
+          "handoff_hint"
+        ],
         "output_refs": [],
         "reason_codes": [
           "blocked_request_not_executed",
@@ -1766,6 +1784,9 @@
       {
         "request_id": "provider-runtime-request-review-001",
         "decision": "needs_operator_review",
+        "requested_target_kinds": [
+          "calibration_signal"
+        ],
         "output_refs": [],
         "reason_codes": [
           "bounded_runtime_executed",
@@ -1796,6 +1817,9 @@
       {
         "request_id": "provider-runtime-request-secret-blocked-001",
         "decision": "blocked_secret_like_payload",
+        "requested_target_kinds": [
+          "evidence_candidate"
+        ],
         "output_refs": [],
         "reason_codes": [
           "blocked_request_not_executed",
@@ -1828,6 +1852,9 @@
       {
         "request_id": "provider-runtime-request-summary-001",
         "decision": "candidate_output_created",
+        "requested_target_kinds": [
+          "source_summary_candidate"
+        ],
         "output_refs": [
           "provider-runtime-output:provider-runtime-request-summary-001:source_summary_candidate:c5f0fb30a94f"
         ],
@@ -1863,6 +1890,9 @@
       {
         "request_id": "provider-runtime-request-unsupported-target-001",
         "decision": "blocked_unsupported_target",
+        "requested_target_kinds": [
+          "unknown"
+        ],
         "output_refs": [],
         "reason_codes": [
           "blocked_request_not_executed",
@@ -1952,6 +1982,6 @@
       "product_write_authority": false,
       "product_id_allocation_authority": false
     },
-    "runtime_report_fingerprint": "6ea4326fb72da1b65f669424001275535a07718bcf1beb61d0926eb412e9e901"
+    "runtime_report_fingerprint": "3c53fc2093b25d043213731d3d87d2aa767acca63bfd0de4f1443a9f766f84b1"
   }
 }
