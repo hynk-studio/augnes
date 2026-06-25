@@ -1,0 +1,1075 @@
+{
+  "fixture_version": "research_candidate_calibration_diagnostic.sample.v0.1",
+  "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+  "scope": "project:augnes",
+  "status": "diagnostic_only",
+  "as_of": "2026-06-25T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/research-candidate-review.lifecycle.sample.v0.1.json"
+  ],
+  "input_preview": {
+    "candidate_review": {
+      "claim_candidates": [
+        {
+          "claim_candidate_id": "claim-invalidated-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "promotion_readiness": "ready",
+          "source_ref_id": "source:claim-invalidated",
+          "first_seen_ref": "fixture:claim-invalidated"
+        },
+        {
+          "claim_candidate_id": "claim-overclaim-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "promotion_readiness": "ready_with_tensions",
+          "source_refs": [
+            "source:claim-overclaim"
+          ],
+          "supporting_evidence_candidate_ids": [
+            "evidence-overclaim-support-001"
+          ],
+          "related_tension_candidate_ids": [
+            "tension-contradiction-001"
+          ],
+          "related_gap_candidate_ids": [
+            "gap-open-001"
+          ],
+          "first_seen_ref": "fixture:claim-overclaim"
+        },
+        {
+          "claim_candidate_id": "claim-ready-001",
+          "review_status": "reviewed",
+          "epistemic_status": "candidate_only",
+          "source_ref_id": "source:claim-ready",
+          "supporting_evidence_candidate_ids": [
+            "evidence-support-001"
+          ],
+          "first_seen_ref": "fixture:claim-ready"
+        }
+      ],
+      "evidence_candidates": [
+        {
+          "evidence_candidate_id": "evidence-contradict-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "evidence_role": "contradicts",
+          "related_claim_candidate_ids": [
+            "claim-overclaim-001"
+          ],
+          "locator": "section:2",
+          "source_ref_id": "source:evidence-contradict",
+          "first_seen_ref": "fixture:evidence-contradict"
+        },
+        {
+          "evidence_candidate_id": "evidence-overclaim-support-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "evidence_role": "supports",
+          "claim_candidate_id": "claim-overclaim-001",
+          "source_refs": [
+            "source:evidence-overclaim"
+          ],
+          "first_seen_ref": "fixture:evidence-overclaim-support"
+        },
+        {
+          "evidence_candidate_id": "evidence-support-001",
+          "review_status": "reviewed",
+          "epistemic_status": "candidate_only",
+          "evidence_role": "supports",
+          "claim_candidate_id": "claim-ready-001",
+          "locator": "section:1",
+          "source_ref_id": "source:evidence-support",
+          "first_seen_ref": "fixture:evidence-support"
+        }
+      ],
+      "tension_candidates": [
+        {
+          "tension_candidate_id": "tension-contradiction-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "tension_type": "contradiction",
+          "blocks_or_qualifies_promotion": true,
+          "related_claim_candidate_ids": [
+            "claim-overclaim-001"
+          ],
+          "related_evidence_candidate_ids": [
+            "evidence-overclaim-support-001",
+            "evidence-contradict-001"
+          ],
+          "source_ref_id": "source:tension-contradiction",
+          "first_seen_ref": "fixture:tension-contradiction"
+        }
+      ],
+      "knowledge_gap_candidates": [
+        {
+          "knowledge_gap_candidate_id": "gap-open-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "related_claim_candidate_ids": [
+            "claim-overclaim-001"
+          ],
+          "related_tension_candidate_ids": [
+            "tension-contradiction-001"
+          ],
+          "source_ref_id": "source:gap-open",
+          "first_seen_ref": "fixture:gap-open"
+        }
+      ],
+      "perspective_delta_candidates": [
+        {
+          "perspective_delta_candidate_id": "delta-overclaim-001",
+          "review_status": "ready_for_review",
+          "epistemic_status": "candidate_only",
+          "promotion_readiness": "ready_with_tensions",
+          "basis_evidence_candidate_ids": [
+            "evidence-overclaim-support-001"
+          ],
+          "basis_claim_candidate_ids": [
+            "claim-overclaim-001"
+          ],
+          "related_tension_candidate_ids": [
+            "tension-contradiction-001"
+          ],
+          "related_gap_candidate_ids": [
+            "gap-open-001"
+          ],
+          "source_ref_id": "source:delta-overclaim",
+          "first_seen_ref": "fixture:delta-overclaim"
+        }
+      ],
+      "follow_up_work_candidates": [
+        {
+          "follow_up_work_candidate_id": "follow-up-blocked-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "first_seen_ref": "fixture:follow-up-blocked"
+        },
+        {
+          "follow_up_work_candidate_id": "follow-up-boundary-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "source_coverage_boundary_note": "Operator supplied a bounded note explaining why source refs are absent in this public fixture.",
+          "first_seen_ref": "fixture:follow-up-boundary"
+        }
+      ]
+    },
+    "lifecycle_read_model": {
+      "candidate_summaries": [
+        {
+          "candidate_id": "claim-invalidated-001",
+          "candidate_family": "claim",
+          "source_refs": [
+            "source:claim-invalidated"
+          ],
+          "current_review_status": "needs_review",
+          "current_epistemic_status": "candidate_only",
+          "lifecycle_status": "invalidated",
+          "next_review_action": "review_feedback",
+          "unresolved_tension_count": 0,
+          "knowledge_gap_count": 0
+        },
+        {
+          "candidate_id": "claim-overclaim-001",
+          "candidate_family": "claim",
+          "source_refs": [
+            "source:claim-overclaim"
+          ],
+          "current_review_status": "needs_review",
+          "current_epistemic_status": "candidate_only",
+          "lifecycle_status": "needs_review",
+          "next_review_action": "resolve_tension",
+          "unresolved_tension_count": 1,
+          "knowledge_gap_count": 1
+        },
+        {
+          "candidate_id": "claim-ready-001",
+          "candidate_family": "claim",
+          "source_refs": [
+            "source:claim-ready"
+          ],
+          "current_review_status": "reviewed",
+          "current_epistemic_status": "candidate_only",
+          "lifecycle_status": "operator_corrected",
+          "next_review_action": "review_feedback",
+          "unresolved_tension_count": 0,
+          "knowledge_gap_count": 0
+        },
+        {
+          "candidate_id": "evidence-contradict-001",
+          "candidate_family": "evidence",
+          "source_refs": [
+            "source:evidence-contradict"
+          ],
+          "current_review_status": "needs_review",
+          "current_epistemic_status": "candidate_only",
+          "lifecycle_status": "needs_review",
+          "next_review_action": "no_action",
+          "unresolved_tension_count": 1,
+          "knowledge_gap_count": 0
+        },
+        {
+          "candidate_id": "evidence-overclaim-support-001",
+          "candidate_family": "evidence",
+          "source_refs": [
+            "source:evidence-overclaim"
+          ],
+          "current_review_status": "needs_review",
+          "current_epistemic_status": "candidate_only",
+          "lifecycle_status": "operator_dismissed",
+          "next_review_action": "defer",
+          "unresolved_tension_count": 1,
+          "knowledge_gap_count": 0
+        },
+        {
+          "candidate_id": "evidence-support-001",
+          "candidate_family": "evidence",
+          "source_refs": [
+            "source:evidence-support"
+          ],
+          "current_review_status": "reviewed",
+          "current_epistemic_status": "candidate_only",
+          "lifecycle_status": "new_candidate",
+          "next_review_action": "no_action",
+          "unresolved_tension_count": 0,
+          "knowledge_gap_count": 0
+        },
+        {
+          "candidate_id": "tension-contradiction-001",
+          "candidate_family": "tension",
+          "source_refs": [
+            "source:tension-contradiction"
+          ],
+          "current_review_status": "needs_review",
+          "current_epistemic_status": "candidate_only",
+          "lifecycle_status": "operator_pinned",
+          "next_review_action": "prepare_handoff",
+          "unresolved_tension_count": 1,
+          "knowledge_gap_count": 1
+        },
+        {
+          "candidate_id": "gap-open-001",
+          "candidate_family": "knowledge_gap",
+          "source_refs": [
+            "source:gap-open"
+          ],
+          "current_review_status": "needs_review",
+          "current_epistemic_status": "candidate_only",
+          "lifecycle_status": "needs_review",
+          "next_review_action": "add_evidence",
+          "unresolved_tension_count": 0,
+          "knowledge_gap_count": 1
+        },
+        {
+          "candidate_id": "delta-overclaim-001",
+          "candidate_family": "perspective_delta",
+          "source_refs": [
+            "source:delta-overclaim"
+          ],
+          "current_review_status": "ready_for_review",
+          "current_epistemic_status": "candidate_only",
+          "lifecycle_status": "ready_for_review",
+          "next_review_action": "prepare_handoff",
+          "unresolved_tension_count": 1,
+          "knowledge_gap_count": 1
+        },
+        {
+          "candidate_id": "follow-up-blocked-001",
+          "candidate_family": "follow_up_work",
+          "source_refs": [],
+          "current_review_status": "needs_review",
+          "current_epistemic_status": "candidate_only",
+          "lifecycle_status": "blocked",
+          "next_review_action": "inspect_source",
+          "unresolved_tension_count": 0,
+          "knowledge_gap_count": 0
+        },
+        {
+          "candidate_id": "follow-up-boundary-001",
+          "candidate_family": "follow_up_work",
+          "source_refs": [],
+          "source_coverage_boundary_note": "Operator supplied a bounded note explaining why source refs are absent in this public fixture.",
+          "current_review_status": "needs_review",
+          "current_epistemic_status": "candidate_only",
+          "lifecycle_status": "needs_review",
+          "next_review_action": "inspect_source",
+          "unresolved_tension_count": 0,
+          "knowledge_gap_count": 0
+        }
+      ]
+    },
+    "feedback_events": [
+      {
+        "event_id": "feedback-claim-ready-correct",
+        "event_type": "correct_preview",
+        "target_kind": "claim",
+        "target_id": "claim-ready-001",
+        "source_ref_ids": [
+          "feedback-source:claim-ready-correct"
+        ],
+        "created_at": "2026-06-25T00:01:00.000Z"
+      },
+      {
+        "event_id": "feedback-evidence-dismiss",
+        "event_type": "dismiss_preview",
+        "target_kind": "evidence",
+        "target_id": "evidence-overclaim-support-001",
+        "source_ref_ids": [
+          "feedback-source:evidence-dismiss"
+        ],
+        "created_at": "2026-06-25T00:02:00.000Z"
+      },
+      {
+        "event_id": "feedback-tension-pin",
+        "event_type": "pin_preview",
+        "target_kind": "tension",
+        "target_id": "tension-contradiction-001",
+        "source_ref_ids": [
+          "feedback-source:tension-pin"
+        ],
+        "created_at": "2026-06-25T00:03:00.000Z"
+      },
+      {
+        "event_id": "feedback-claim-invalidated",
+        "event_type": "invalidate_preview",
+        "target_kind": "claim_candidate",
+        "target_id": "claim-invalidated-001",
+        "source_ref_ids": [
+          "feedback-source:claim-invalidated"
+        ],
+        "created_at": "2026-06-25T00:04:00.000Z"
+      }
+    ]
+  },
+  "expected_report": {
+    "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+    "scope": "project:augnes",
+    "status": "diagnostic_only",
+    "as_of": "2026-06-25T00:00:00.000Z",
+    "source_fixture_refs": [
+      "fixtures/research-candidate-review.lifecycle.sample.v0.1.json"
+    ],
+    "diagnostics": [
+      {
+        "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "claim-invalidated-001",
+        "candidate_family": "claim",
+        "source_refs": [
+          "feedback-source:claim-invalidated",
+          "source:claim-invalidated"
+        ],
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "invalidated",
+        "lifecycle_next_review_action": "review_feedback",
+        "support_count": 0,
+        "contradiction_count": 0,
+        "unresolved_tension_count": 0,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 1,
+        "missing_locator_count": 0,
+        "feedback_signal_counts": {
+          "dismiss_preview": 0,
+          "pin_preview": 0,
+          "correct_preview": 0,
+          "invalidate_preview": 1
+        },
+        "risk_flags": [
+          "missing_evidence",
+          "operator_invalidated",
+          "overclaim_risk"
+        ],
+        "readiness_label": "not_ready",
+        "readiness_reason_codes": [
+          "diagnostic_only_not_promotion",
+          "evidence_missing",
+          "lifecycle_invalidated",
+          "operator_invalidation_present",
+          "readiness_overclaim_risk",
+          "source_ref_present"
+        ],
+        "diagnostic_summary": "Diagnostic review cue for claim claim-invalidated-001: readiness_label=not_ready; risk_flags=missing_evidence, operator_invalidated, overclaim_risk; diagnostic-only explanation for operator review.",
+        "authority_boundary": {
+          "diagnostic_only": true,
+          "empirical_calibration_model": false,
+          "confidence_is_truth": false,
+          "readiness_is_promotion": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "claim-overclaim-001",
+        "candidate_family": "claim",
+        "source_refs": [
+          "source:claim-overclaim"
+        ],
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "needs_review",
+        "lifecycle_next_review_action": "resolve_tension",
+        "support_count": 1,
+        "contradiction_count": 2,
+        "unresolved_tension_count": 1,
+        "knowledge_gap_count": 1,
+        "source_ref_coverage_ratio": 1,
+        "missing_locator_count": 1,
+        "feedback_signal_counts": {
+          "dismiss_preview": 0,
+          "pin_preview": 0,
+          "correct_preview": 0,
+          "invalidate_preview": 0
+        },
+        "risk_flags": [
+          "contradiction_or_tension",
+          "knowledge_gap_open",
+          "missing_locator",
+          "overclaim_risk"
+        ],
+        "readiness_label": "ready_with_tensions",
+        "readiness_reason_codes": [
+          "contradiction_present",
+          "diagnostic_only_not_promotion",
+          "evidence_present",
+          "knowledge_gap_present",
+          "locator_missing",
+          "readiness_overclaim_risk",
+          "ready_with_unresolved_tensions",
+          "source_ref_present",
+          "unresolved_tension_present"
+        ],
+        "diagnostic_summary": "Diagnostic review cue for claim claim-overclaim-001: readiness_label=ready_with_tensions; risk_flags=contradiction_or_tension, knowledge_gap_open, missing_locator, overclaim_risk; diagnostic-only explanation for operator review.",
+        "authority_boundary": {
+          "diagnostic_only": true,
+          "empirical_calibration_model": false,
+          "confidence_is_truth": false,
+          "readiness_is_promotion": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "claim-ready-001",
+        "candidate_family": "claim",
+        "source_refs": [
+          "feedback-source:claim-ready-correct",
+          "source:claim-ready"
+        ],
+        "current_review_status": "reviewed",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "operator_corrected",
+        "lifecycle_next_review_action": "review_feedback",
+        "support_count": 1,
+        "contradiction_count": 0,
+        "unresolved_tension_count": 0,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 1,
+        "missing_locator_count": 0,
+        "feedback_signal_counts": {
+          "dismiss_preview": 0,
+          "pin_preview": 0,
+          "correct_preview": 1,
+          "invalidate_preview": 0
+        },
+        "risk_flags": [],
+        "readiness_label": "ready",
+        "readiness_reason_codes": [
+          "diagnostic_only_not_promotion",
+          "evidence_present",
+          "lifecycle_operator_corrected",
+          "operator_correction_present",
+          "source_ref_present"
+        ],
+        "diagnostic_summary": "Diagnostic review cue for claim claim-ready-001: readiness_label=ready; risk_flags=none; diagnostic-only explanation for operator review.",
+        "authority_boundary": {
+          "diagnostic_only": true,
+          "empirical_calibration_model": false,
+          "confidence_is_truth": false,
+          "readiness_is_promotion": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "evidence-contradict-001",
+        "candidate_family": "evidence",
+        "source_refs": [
+          "source:evidence-contradict"
+        ],
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "needs_review",
+        "lifecycle_next_review_action": "no_action",
+        "support_count": 0,
+        "contradiction_count": 2,
+        "unresolved_tension_count": 1,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 1,
+        "missing_locator_count": 0,
+        "feedback_signal_counts": {
+          "dismiss_preview": 0,
+          "pin_preview": 0,
+          "correct_preview": 0,
+          "invalidate_preview": 0
+        },
+        "risk_flags": [
+          "contradiction_or_tension"
+        ],
+        "readiness_label": "weak_ready",
+        "readiness_reason_codes": [
+          "contradiction_present",
+          "diagnostic_only_not_promotion",
+          "locator_present",
+          "source_ref_present",
+          "unresolved_tension_present"
+        ],
+        "diagnostic_summary": "Diagnostic review cue for evidence evidence-contradict-001: readiness_label=weak_ready; risk_flags=contradiction_or_tension; diagnostic-only explanation for operator review.",
+        "authority_boundary": {
+          "diagnostic_only": true,
+          "empirical_calibration_model": false,
+          "confidence_is_truth": false,
+          "readiness_is_promotion": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "evidence-overclaim-support-001",
+        "candidate_family": "evidence",
+        "source_refs": [
+          "feedback-source:evidence-dismiss",
+          "source:evidence-overclaim"
+        ],
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "operator_dismissed",
+        "lifecycle_next_review_action": "defer",
+        "support_count": 0,
+        "contradiction_count": 1,
+        "unresolved_tension_count": 1,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 1,
+        "missing_locator_count": 1,
+        "feedback_signal_counts": {
+          "dismiss_preview": 1,
+          "pin_preview": 0,
+          "correct_preview": 0,
+          "invalidate_preview": 0
+        },
+        "risk_flags": [
+          "contradiction_or_tension",
+          "missing_locator"
+        ],
+        "readiness_label": "weak_ready",
+        "readiness_reason_codes": [
+          "contradiction_present",
+          "diagnostic_only_not_promotion",
+          "lifecycle_operator_dismissed",
+          "locator_missing",
+          "operator_dismissal_present",
+          "source_ref_present",
+          "unresolved_tension_present"
+        ],
+        "diagnostic_summary": "Diagnostic review cue for evidence evidence-overclaim-support-001: readiness_label=weak_ready; risk_flags=contradiction_or_tension, missing_locator; diagnostic-only explanation for operator review.",
+        "authority_boundary": {
+          "diagnostic_only": true,
+          "empirical_calibration_model": false,
+          "confidence_is_truth": false,
+          "readiness_is_promotion": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "evidence-support-001",
+        "candidate_family": "evidence",
+        "source_refs": [
+          "source:evidence-support"
+        ],
+        "current_review_status": "reviewed",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "new_candidate",
+        "lifecycle_next_review_action": "no_action",
+        "support_count": 0,
+        "contradiction_count": 0,
+        "unresolved_tension_count": 0,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 1,
+        "missing_locator_count": 0,
+        "feedback_signal_counts": {
+          "dismiss_preview": 0,
+          "pin_preview": 0,
+          "correct_preview": 0,
+          "invalidate_preview": 0
+        },
+        "risk_flags": [],
+        "readiness_label": "weak_ready",
+        "readiness_reason_codes": [
+          "diagnostic_only_not_promotion",
+          "locator_present",
+          "source_ref_present"
+        ],
+        "diagnostic_summary": "Diagnostic review cue for evidence evidence-support-001: readiness_label=weak_ready; risk_flags=none; diagnostic-only explanation for operator review.",
+        "authority_boundary": {
+          "diagnostic_only": true,
+          "empirical_calibration_model": false,
+          "confidence_is_truth": false,
+          "readiness_is_promotion": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "follow-up-blocked-001",
+        "candidate_family": "follow_up_work",
+        "source_refs": [],
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "blocked",
+        "lifecycle_next_review_action": "inspect_source",
+        "support_count": 0,
+        "contradiction_count": 0,
+        "unresolved_tension_count": 0,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 0,
+        "missing_locator_count": 0,
+        "feedback_signal_counts": {
+          "dismiss_preview": 0,
+          "pin_preview": 0,
+          "correct_preview": 0,
+          "invalidate_preview": 0
+        },
+        "risk_flags": [
+          "missing_source_ref"
+        ],
+        "readiness_label": "blocked",
+        "readiness_reason_codes": [
+          "diagnostic_only_not_promotion",
+          "lifecycle_blocked",
+          "source_ref_missing"
+        ],
+        "diagnostic_summary": "Diagnostic review cue for follow_up_work follow-up-blocked-001: readiness_label=blocked; risk_flags=missing_source_ref; diagnostic-only explanation for operator review.",
+        "authority_boundary": {
+          "diagnostic_only": true,
+          "empirical_calibration_model": false,
+          "confidence_is_truth": false,
+          "readiness_is_promotion": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "follow-up-boundary-001",
+        "candidate_family": "follow_up_work",
+        "source_refs": [],
+        "source_coverage_boundary_note": "Operator supplied a bounded note explaining why source refs are absent in this public fixture.",
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "needs_review",
+        "lifecycle_next_review_action": "inspect_source",
+        "support_count": 0,
+        "contradiction_count": 0,
+        "unresolved_tension_count": 0,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 0,
+        "missing_locator_count": 0,
+        "feedback_signal_counts": {
+          "dismiss_preview": 0,
+          "pin_preview": 0,
+          "correct_preview": 0,
+          "invalidate_preview": 0
+        },
+        "risk_flags": [],
+        "readiness_label": "weak_ready",
+        "readiness_reason_codes": [
+          "diagnostic_only_not_promotion",
+          "source_coverage_boundary_present",
+          "source_ref_missing"
+        ],
+        "diagnostic_summary": "Diagnostic review cue for follow_up_work follow-up-boundary-001: readiness_label=weak_ready; risk_flags=none; diagnostic-only explanation for operator review.",
+        "authority_boundary": {
+          "diagnostic_only": true,
+          "empirical_calibration_model": false,
+          "confidence_is_truth": false,
+          "readiness_is_promotion": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "gap-open-001",
+        "candidate_family": "knowledge_gap",
+        "source_refs": [
+          "source:gap-open"
+        ],
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "needs_review",
+        "lifecycle_next_review_action": "add_evidence",
+        "support_count": 0,
+        "contradiction_count": 1,
+        "unresolved_tension_count": 0,
+        "knowledge_gap_count": 1,
+        "source_ref_coverage_ratio": 1,
+        "missing_locator_count": 0,
+        "feedback_signal_counts": {
+          "dismiss_preview": 0,
+          "pin_preview": 0,
+          "correct_preview": 0,
+          "invalidate_preview": 0
+        },
+        "risk_flags": [
+          "contradiction_or_tension",
+          "knowledge_gap_open"
+        ],
+        "readiness_label": "weak_ready",
+        "readiness_reason_codes": [
+          "contradiction_present",
+          "diagnostic_only_not_promotion",
+          "knowledge_gap_present",
+          "source_ref_present"
+        ],
+        "diagnostic_summary": "Diagnostic review cue for knowledge_gap gap-open-001: readiness_label=weak_ready; risk_flags=contradiction_or_tension, knowledge_gap_open; diagnostic-only explanation for operator review.",
+        "authority_boundary": {
+          "diagnostic_only": true,
+          "empirical_calibration_model": false,
+          "confidence_is_truth": false,
+          "readiness_is_promotion": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "delta-overclaim-001",
+        "candidate_family": "perspective_delta",
+        "source_refs": [
+          "source:delta-overclaim"
+        ],
+        "current_review_status": "ready_for_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "ready_for_review",
+        "lifecycle_next_review_action": "prepare_handoff",
+        "support_count": 2,
+        "contradiction_count": 1,
+        "unresolved_tension_count": 1,
+        "knowledge_gap_count": 1,
+        "source_ref_coverage_ratio": 1,
+        "missing_locator_count": 1,
+        "feedback_signal_counts": {
+          "dismiss_preview": 0,
+          "pin_preview": 0,
+          "correct_preview": 0,
+          "invalidate_preview": 0
+        },
+        "risk_flags": [
+          "contradiction_or_tension",
+          "knowledge_gap_open",
+          "missing_locator",
+          "overclaim_risk"
+        ],
+        "readiness_label": "ready_with_tensions",
+        "readiness_reason_codes": [
+          "contradiction_present",
+          "diagnostic_only_not_promotion",
+          "evidence_present",
+          "knowledge_gap_present",
+          "locator_missing",
+          "readiness_overclaim_risk",
+          "ready_with_unresolved_tensions",
+          "source_ref_present",
+          "unresolved_tension_present"
+        ],
+        "diagnostic_summary": "Diagnostic review cue for perspective_delta delta-overclaim-001: readiness_label=ready_with_tensions; risk_flags=contradiction_or_tension, knowledge_gap_open, missing_locator, overclaim_risk; diagnostic-only explanation for operator review.",
+        "authority_boundary": {
+          "diagnostic_only": true,
+          "empirical_calibration_model": false,
+          "confidence_is_truth": false,
+          "readiness_is_promotion": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "diagnostic_version": "research_candidate_calibration_diagnostic.v0.1",
+        "scope": "project:augnes",
+        "status": "diagnostic_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "tension-contradiction-001",
+        "candidate_family": "tension",
+        "source_refs": [
+          "feedback-source:tension-pin",
+          "source:tension-contradiction"
+        ],
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "operator_pinned",
+        "lifecycle_next_review_action": "prepare_handoff",
+        "support_count": 0,
+        "contradiction_count": 1,
+        "unresolved_tension_count": 1,
+        "knowledge_gap_count": 1,
+        "source_ref_coverage_ratio": 1,
+        "missing_locator_count": 0,
+        "feedback_signal_counts": {
+          "dismiss_preview": 0,
+          "pin_preview": 1,
+          "correct_preview": 0,
+          "invalidate_preview": 0
+        },
+        "risk_flags": [
+          "contradiction_or_tension",
+          "knowledge_gap_open"
+        ],
+        "readiness_label": "weak_ready",
+        "readiness_reason_codes": [
+          "contradiction_present",
+          "diagnostic_only_not_promotion",
+          "knowledge_gap_present",
+          "lifecycle_operator_pinned",
+          "operator_pin_present",
+          "source_ref_present",
+          "unresolved_tension_present"
+        ],
+        "diagnostic_summary": "Diagnostic review cue for tension tension-contradiction-001: readiness_label=weak_ready; risk_flags=contradiction_or_tension, knowledge_gap_open; diagnostic-only explanation for operator review.",
+        "authority_boundary": {
+          "diagnostic_only": true,
+          "empirical_calibration_model": false,
+          "confidence_is_truth": false,
+          "readiness_is_promotion": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      }
+    ],
+    "readiness_counts": {
+      "not_ready": 1,
+      "weak_ready": 6,
+      "ready_with_tensions": 2,
+      "ready": 1,
+      "blocked": 1
+    },
+    "risk_flag_counts": {
+      "stale_context": 0,
+      "overclaim_risk": 3,
+      "missing_source_ref": 1,
+      "missing_evidence": 1,
+      "missing_locator": 3,
+      "operator_invalidated": 1,
+      "contradiction_or_tension": 6,
+      "knowledge_gap_open": 4
+    },
+    "diagnostic_queue": {
+      "blocked": [
+        "follow-up-blocked-001"
+      ],
+      "overclaim_risk": [
+        "claim-invalidated-001",
+        "claim-overclaim-001",
+        "delta-overclaim-001"
+      ],
+      "missing_source": [
+        "follow-up-blocked-001"
+      ],
+      "unresolved_tensions": [
+        "claim-overclaim-001",
+        "delta-overclaim-001",
+        "evidence-contradict-001",
+        "evidence-overclaim-support-001",
+        "tension-contradiction-001"
+      ],
+      "ready_with_tensions": [
+        "claim-overclaim-001",
+        "delta-overclaim-001"
+      ]
+    },
+    "boundary_notes": [
+      "Calibration Diagnostic is diagnostic-only.",
+      "Confidence is not truth.",
+      "Feedback is operator signal, not truth.",
+      "Product-write remains parked by #686.",
+      "Readiness is not promotion.",
+      "Ready means ready for review, not ready to promote.",
+      "diagnostic_summary is explanation, not authority."
+    ],
+    "diagnostic_fingerprint": "eeb7ef4cd6ccedb2e01a1c2fd7ab7f063f08fbac9510f9749c5245158a03f9ac",
+    "authority_boundary": {
+      "diagnostic_only": true,
+      "empirical_calibration_model": false,
+      "confidence_is_truth": false,
+      "readiness_is_promotion": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state": false,
+      "work_mutation": false,
+      "execution_authority": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "provider_openai_authority": false,
+      "source_fetch_authority": false,
+      "retrieval_rag_authority": false,
+      "git_ledger_export_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false
+    }
+  }
+}

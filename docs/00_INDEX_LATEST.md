@@ -3451,6 +3451,26 @@ repo-local 색인이다.
   Product-write remains parked by #686.
 
   Boundary phrases: Research Candidate Lifecycle Read Model v0.1; candidate lifecycle is a derived read model only; feedback is operator signal, not truth; dismissed is not rejected; pinned is not promoted; invalidated is not proof; ready for review is not promotion; next_review_action is a review cue, not execution authority; no runtime route, UI, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Calibration Diagnostic, Logical Claim Shape Preview, Feedback-to-Rule Candidate Contract, Cockpit lifecycle preview read-only UI, and Research Candidate Review Memory contract.
+- Research Candidate Calibration Diagnostic v0.1:
+  `docs/RESEARCH_CANDIDATE_CALIBRATION_DIAGNOSTIC_V0_1.md`,
+  `types/research-candidate-calibration-diagnostic.ts`,
+  `lib/research-candidate-review/calibration-diagnostic.ts`,
+  `fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json`,
+  and `scripts/smoke-research-candidate-calibration-diagnostic-v0-1.mjs`
+  (`npm run smoke:research-candidate-calibration-diagnostic-v0-1`) implement
+  Phase 1.2 after the Lifecycle Read Model, following the integrated roadmap
+  guide v0.2 as diagnostic-only. It derives readiness labels, reason codes,
+  risk flags, and diagnostic queues from caller-provided candidate, lifecycle,
+  feedback, source, evidence, tension, and gap inputs. This pointer is
+  repo-local documentation metadata, not SSOT, and adds no runtime route, UI,
+  DB query or write, provider/OpenAI call, source fetch, retrieval/RAG
+  execution, Perspective promotion, durable Perspective state write,
+  proof/evidence write, work mutation, Git Ledger export, product write, or
+  product ID allocation. It does not implement empirical calibration,
+  promotion, proof/evidence, provider, retrieval, Git Ledger, or product write.
+  Product-write remains parked by #686.
+
+  Boundary phrases: Research Candidate Calibration Diagnostic v0.1; calibration diagnostic is diagnostic-only; follows the integrated roadmap guide v0.2 after the Lifecycle Read Model; confidence is not truth; readiness is not promotion; ready means ready for review, not ready to promote; feedback is operator signal, not truth; diagnostic_summary is explanation, not authority; older proposal documents are background inputs already integrated into the roadmap guide; no empirical calibration model, runtime route, UI, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Logical Claim Shape Preview, Feedback-to-Rule Candidate Contract, temporal handoff diagnostics, Cockpit lifecycle/calibration preview read-only UI, Research Candidate Review Memory contract, and Empirical Calibration Dataset plan.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
