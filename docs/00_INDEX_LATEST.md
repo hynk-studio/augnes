@@ -3433,6 +3433,24 @@ repo-local 색인이다.
   slice. Product-write remains parked by #686.
 
   Boundary phrases: Research-to-Perspective Foundation Status Review v0.1; classification and next-slice selection only; selected next slice is not implemented here; Foundation Status Dashboard is deferred; Durable Candidate Review Memory is deferred; Bounded Source Intake, Provider Extraction, Retrieval/RAG, Human-reviewed Promotion, Durable State Apply, Git Ledger, and Product Write are deferred; no runtime persistence, provider/OpenAI calls, source fetch, retrieval/RAG execution, DB query/write, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex/GitHub automation inside Augnes runtime, GitHub Actions, CI runtime change, Git Ledger export, product write, or product ID allocation; smoke pass is validation signal, not proof/evidence; PR body is an operator report, not authority; CI signal is validation signal, not proof/evidence; product-write remains parked by #686.
+- Research Candidate Lifecycle Read Model v0.1:
+  `docs/RESEARCH_CANDIDATE_LIFECYCLE_READ_MODEL_V0_1.md`,
+  `types/research-candidate-lifecycle.ts`,
+  `lib/research-candidate-review/lifecycle-read-model.ts`,
+  `fixtures/research-candidate-review.lifecycle.sample.v0.1.json`,
+  and `scripts/smoke-research-candidate-lifecycle-read-model-v0-1.mjs`
+  (`npm run smoke:research-candidate-lifecycle-read-model-v0-1`) implement the
+  selected next runtime/read-model slice from the Foundation Status Review as a
+  derived read model only. It combines caller-provided candidate, feedback,
+  packet, handoff, tension, gap, and source coverage inputs into deterministic
+  lifecycle summaries and review queues. This pointer is repo-local
+  documentation metadata, not SSOT, and adds no runtime route, UI, DB query or
+  write, provider/OpenAI call, source fetch, retrieval/RAG execution,
+  Perspective promotion, durable Perspective state write, proof/evidence write,
+  work mutation, Git Ledger export, product write, or product ID allocation.
+  Product-write remains parked by #686.
+
+  Boundary phrases: Research Candidate Lifecycle Read Model v0.1; candidate lifecycle is a derived read model only; feedback is operator signal, not truth; dismissed is not rejected; pinned is not promoted; invalidated is not proof; ready for review is not promotion; next_review_action is a review cue, not execution authority; no runtime route, UI, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Calibration Diagnostic, Logical Claim Shape Preview, Feedback-to-Rule Candidate Contract, Cockpit lifecycle preview read-only UI, and Research Candidate Review Memory contract.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

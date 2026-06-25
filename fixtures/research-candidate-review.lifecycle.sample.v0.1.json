@@ -1,0 +1,651 @@
+{
+  "fixture_version": "research_candidate_lifecycle.sample.v0.1",
+  "lifecycle_version": "research_candidate_lifecycle.v0.1",
+  "scope": "project:augnes",
+  "status": "derived_read_model_only",
+  "as_of": "2026-06-25T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/research-candidate-review.sample.v0.1.json",
+    "fixtures/research-candidate-review.foundation-status-review.sample.v0.1.json"
+  ],
+  "input_preview": {
+    "candidate_review": {
+      "claim_candidates": [
+        {
+          "claim_candidate_id": "claim-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "source_ref_id": "source:claim:primary",
+          "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:claim-001"
+        },
+        {
+          "claim_candidate_id": "claim-002",
+          "review_status": "observed",
+          "epistemic_status": "candidate_only",
+          "source_refs": [
+            "source:claim:secondary"
+          ],
+          "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:claim-002"
+        }
+      ],
+      "evidence_candidates": [
+        {
+          "evidence_candidate_id": "evidence-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "source_refs": [
+            "source:evidence:primary"
+          ],
+          "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:evidence-001"
+        }
+      ],
+      "tension_candidates": [
+        {
+          "tension_candidate_id": "tension-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "source_refs": [
+            "source:tension:primary"
+          ],
+          "related_claim_candidate_ids": [
+            "claim-001"
+          ],
+          "related_evidence_candidate_ids": [
+            "evidence-001"
+          ],
+          "blocks_or_qualifies_promotion": true,
+          "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:tension-001"
+        }
+      ],
+      "knowledge_gap_candidates": [
+        {
+          "knowledge_gap_candidate_id": "gap-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "source_refs": [
+            "source:gap:primary"
+          ],
+          "related_claim_candidate_ids": [
+            "claim-001"
+          ],
+          "related_tension_candidate_ids": [
+            "tension-001"
+          ],
+          "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:gap-001"
+        }
+      ],
+      "perspective_delta_candidates": [
+        {
+          "perspective_delta_candidate_id": "delta-001",
+          "review_status": "reviewed",
+          "epistemic_status": "candidate_only",
+          "source_refs": [
+            "source:delta:primary"
+          ],
+          "related_tension_candidate_ids": [
+            "tension-001"
+          ],
+          "related_gap_candidate_ids": [
+            "gap-001"
+          ],
+          "promotion_readiness": "ready_with_tensions",
+          "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:delta-001"
+        }
+      ],
+      "follow_up_work_candidates": [
+        {
+          "follow_up_work_candidate_id": "follow-up-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "source_coverage_boundary_note": "Input preview intentionally omits source refs for this follow-up work candidate; the lifecycle read model records the gap without fetching sources.",
+          "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:follow-up-001"
+        },
+        {
+          "follow_up_work_candidate_id": "follow-up-blocked-001",
+          "review_status": "needs_review",
+          "epistemic_status": "candidate_only",
+          "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:follow-up-blocked-001"
+        }
+      ]
+    },
+    "feedback_events": [
+      {
+        "event_id": "feedback-001-correct-claim",
+        "event_type": "correct_preview",
+        "target_kind": "claim",
+        "target_id": "claim-001",
+        "source_ref_ids": [
+          "feedback-source:operator-correction"
+        ],
+        "created_at": "2026-06-25T00:01:00.000Z"
+      },
+      {
+        "event_id": "feedback-002-dismiss-evidence",
+        "event_type": "dismiss_preview",
+        "target_kind": "evidence",
+        "target_id": "evidence-001",
+        "source_ref_ids": [
+          "feedback-source:operator-dismissal"
+        ],
+        "created_at": "2026-06-25T00:02:00.000Z"
+      },
+      {
+        "event_id": "feedback-003-pin-tension",
+        "event_type": "pin_preview",
+        "target_kind": "tension",
+        "target_id": "tension-001",
+        "source_ref_ids": [
+          "feedback-source:operator-pin"
+        ],
+        "created_at": "2026-06-25T00:03:00.000Z"
+      },
+      {
+        "event_id": "feedback-004-invalidate-gap",
+        "event_type": "invalidate_preview",
+        "target_kind": "knowledge_gap",
+        "target_id": "gap-001",
+        "source_ref_ids": [
+          "feedback-source:operator-invalidation"
+        ],
+        "created_at": "2026-06-25T00:04:00.000Z"
+      }
+    ],
+    "packet_refs": [
+      {
+        "packet_ref": "packet:ai-context:001",
+        "candidate_refs": [
+          "claim-001",
+          "delta-001"
+        ],
+        "source_refs": [
+          "source:packet:001"
+        ]
+      }
+    ],
+    "handoff_refs": [
+      {
+        "handoff_ref": "handoff:codex-draft:001",
+        "candidate_refs": [
+          "delta-001",
+          "tension-001"
+        ],
+        "source_refs": [
+          "source:handoff:001"
+        ]
+      }
+    ]
+  },
+  "expected_read_model": {
+    "lifecycle_version": "research_candidate_lifecycle.v0.1",
+    "scope": "project:augnes",
+    "status": "derived_read_model_only",
+    "as_of": "2026-06-25T00:00:00.000Z",
+    "source_fixture_refs": [
+      "fixtures/research-candidate-review.foundation-status-review.sample.v0.1.json",
+      "fixtures/research-candidate-review.sample.v0.1.json"
+    ],
+    "candidate_summaries": [
+      {
+        "lifecycle_version": "research_candidate_lifecycle.v0.1",
+        "scope": "project:augnes",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "claim-001",
+        "candidate_family": "claim",
+        "source_refs": [
+          "feedback-source:operator-correction",
+          "source:claim:primary",
+          "source:packet:001"
+        ],
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "operator_corrected",
+        "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:claim-001",
+        "latest_feedback_event_ref": "feedback-001-correct-claim",
+        "related_packet_refs": [
+          "packet:ai-context:001"
+        ],
+        "related_handoff_refs": [],
+        "related_feedback_event_refs": [
+          "feedback-001-correct-claim"
+        ],
+        "unresolved_tension_count": 1,
+        "knowledge_gap_count": 1,
+        "source_ref_coverage_ratio": 1,
+        "next_review_action": "review_feedback",
+        "reason_codes": [
+          "family:claim",
+          "feedback:present",
+          "feedback_type:correct_preview",
+          "knowledge_gap:present",
+          "lifecycle_status:operator_corrected",
+          "next_review_action:review_feedback",
+          "packet_ref:present",
+          "source_refs:present",
+          "unresolved_tension:present"
+        ],
+        "authority_boundary": {
+          "derived_read_model_only": true,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "lifecycle_version": "research_candidate_lifecycle.v0.1",
+        "scope": "project:augnes",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "claim-002",
+        "candidate_family": "claim",
+        "source_refs": [
+          "source:claim:secondary"
+        ],
+        "current_review_status": "observed",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "new_candidate",
+        "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:claim-002",
+        "related_packet_refs": [],
+        "related_handoff_refs": [],
+        "related_feedback_event_refs": [],
+        "unresolved_tension_count": 0,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 1,
+        "next_review_action": "no_action",
+        "reason_codes": [
+          "family:claim",
+          "lifecycle_status:new_candidate",
+          "next_review_action:no_action",
+          "source_refs:present"
+        ],
+        "authority_boundary": {
+          "derived_read_model_only": true,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "lifecycle_version": "research_candidate_lifecycle.v0.1",
+        "scope": "project:augnes",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "evidence-001",
+        "candidate_family": "evidence",
+        "source_refs": [
+          "feedback-source:operator-dismissal",
+          "source:evidence:primary"
+        ],
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "operator_dismissed",
+        "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:evidence-001",
+        "latest_feedback_event_ref": "feedback-002-dismiss-evidence",
+        "related_packet_refs": [],
+        "related_handoff_refs": [],
+        "related_feedback_event_refs": [
+          "feedback-002-dismiss-evidence"
+        ],
+        "unresolved_tension_count": 1,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 1,
+        "next_review_action": "defer",
+        "reason_codes": [
+          "family:evidence",
+          "feedback:present",
+          "feedback_type:dismiss_preview",
+          "lifecycle_status:operator_dismissed",
+          "next_review_action:defer",
+          "source_refs:present",
+          "unresolved_tension:present"
+        ],
+        "authority_boundary": {
+          "derived_read_model_only": true,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "lifecycle_version": "research_candidate_lifecycle.v0.1",
+        "scope": "project:augnes",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "follow-up-001",
+        "candidate_family": "follow_up_work",
+        "source_refs": [],
+        "source_coverage_boundary_note": "Input preview intentionally omits source refs for this follow-up work candidate; the lifecycle read model records the gap without fetching sources.",
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "needs_review",
+        "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:follow-up-001",
+        "related_packet_refs": [],
+        "related_handoff_refs": [],
+        "related_feedback_event_refs": [],
+        "unresolved_tension_count": 0,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 0,
+        "next_review_action": "inspect_source",
+        "reason_codes": [
+          "family:follow_up_work",
+          "lifecycle_status:needs_review",
+          "next_review_action:inspect_source",
+          "source_boundary_note:explicit",
+          "source_refs:missing"
+        ],
+        "authority_boundary": {
+          "derived_read_model_only": true,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "lifecycle_version": "research_candidate_lifecycle.v0.1",
+        "scope": "project:augnes",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "follow-up-blocked-001",
+        "candidate_family": "follow_up_work",
+        "source_refs": [],
+        "source_coverage_boundary_note": "No source refs were provided by input candidate or linked refs; lifecycle read model records missing source coverage without fetching sources.",
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "blocked",
+        "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:follow-up-blocked-001",
+        "related_packet_refs": [],
+        "related_handoff_refs": [],
+        "related_feedback_event_refs": [],
+        "unresolved_tension_count": 0,
+        "knowledge_gap_count": 0,
+        "source_ref_coverage_ratio": 0,
+        "next_review_action": "inspect_source",
+        "reason_codes": [
+          "family:follow_up_work",
+          "lifecycle_status:blocked",
+          "next_review_action:inspect_source",
+          "source_boundary_note:synthesized",
+          "source_refs:missing"
+        ],
+        "authority_boundary": {
+          "derived_read_model_only": true,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "lifecycle_version": "research_candidate_lifecycle.v0.1",
+        "scope": "project:augnes",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "gap-001",
+        "candidate_family": "knowledge_gap",
+        "source_refs": [
+          "feedback-source:operator-invalidation",
+          "source:gap:primary"
+        ],
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "invalidated",
+        "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:gap-001",
+        "latest_feedback_event_ref": "feedback-004-invalidate-gap",
+        "related_packet_refs": [],
+        "related_handoff_refs": [],
+        "related_feedback_event_refs": [
+          "feedback-004-invalidate-gap"
+        ],
+        "unresolved_tension_count": 1,
+        "knowledge_gap_count": 1,
+        "source_ref_coverage_ratio": 1,
+        "next_review_action": "review_feedback",
+        "reason_codes": [
+          "family:knowledge_gap",
+          "feedback:present",
+          "feedback_type:invalidate_preview",
+          "knowledge_gap:present",
+          "lifecycle_status:invalidated",
+          "next_review_action:review_feedback",
+          "source_refs:present",
+          "unresolved_tension:present"
+        ],
+        "authority_boundary": {
+          "derived_read_model_only": true,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "lifecycle_version": "research_candidate_lifecycle.v0.1",
+        "scope": "project:augnes",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "delta-001",
+        "candidate_family": "perspective_delta",
+        "source_refs": [
+          "source:delta:primary",
+          "source:handoff:001",
+          "source:packet:001"
+        ],
+        "current_review_status": "reviewed",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "ready_for_review",
+        "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:delta-001",
+        "related_packet_refs": [
+          "packet:ai-context:001"
+        ],
+        "related_handoff_refs": [
+          "handoff:codex-draft:001"
+        ],
+        "related_feedback_event_refs": [],
+        "unresolved_tension_count": 1,
+        "knowledge_gap_count": 1,
+        "source_ref_coverage_ratio": 1,
+        "next_review_action": "prepare_handoff",
+        "reason_codes": [
+          "family:perspective_delta",
+          "handoff_ref:present",
+          "knowledge_gap:present",
+          "lifecycle_status:ready_for_review",
+          "next_review_action:prepare_handoff",
+          "packet_ref:present",
+          "source_refs:present",
+          "unresolved_tension:present"
+        ],
+        "authority_boundary": {
+          "derived_read_model_only": true,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "lifecycle_version": "research_candidate_lifecycle.v0.1",
+        "scope": "project:augnes",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "candidate_id": "tension-001",
+        "candidate_family": "tension",
+        "source_refs": [
+          "feedback-source:operator-pin",
+          "source:handoff:001",
+          "source:tension:primary"
+        ],
+        "current_review_status": "needs_review",
+        "current_epistemic_status": "candidate_only",
+        "lifecycle_status": "operator_pinned",
+        "first_seen_ref": "fixture:research-candidate-review.sample.v0.1:tension-001",
+        "latest_feedback_event_ref": "feedback-003-pin-tension",
+        "related_packet_refs": [],
+        "related_handoff_refs": [
+          "handoff:codex-draft:001"
+        ],
+        "related_feedback_event_refs": [
+          "feedback-003-pin-tension"
+        ],
+        "unresolved_tension_count": 1,
+        "knowledge_gap_count": 1,
+        "source_ref_coverage_ratio": 1,
+        "next_review_action": "prepare_handoff",
+        "reason_codes": [
+          "family:tension",
+          "feedback:present",
+          "feedback_type:pin_preview",
+          "handoff_ref:present",
+          "knowledge_gap:present",
+          "lifecycle_status:operator_pinned",
+          "next_review_action:prepare_handoff",
+          "source_refs:present",
+          "unresolved_tension:present"
+        ],
+        "authority_boundary": {
+          "derived_read_model_only": true,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "execution_authority": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      }
+    ],
+    "family_counts": {
+      "claim": 2,
+      "evidence": 1,
+      "tension": 1,
+      "knowledge_gap": 1,
+      "perspective_delta": 1,
+      "follow_up_work": 2
+    },
+    "lifecycle_status_counts": {
+      "new_candidate": 1,
+      "needs_review": 1,
+      "operator_corrected": 1,
+      "operator_pinned": 1,
+      "operator_dismissed": 1,
+      "invalidated": 1,
+      "superseded": 0,
+      "stale": 0,
+      "ready_for_review": 1,
+      "blocked": 1
+    },
+    "review_queue": {
+      "needs_review": [
+        "follow-up-001"
+      ],
+      "blocked": [
+        "follow-up-blocked-001"
+      ],
+      "stale": [],
+      "ready_for_review": [
+        "delta-001"
+      ]
+    },
+    "boundary_notes": [
+      "Candidate lifecycle is a derived read model only.",
+      "Dismissed is not rejected.",
+      "Feedback is operator signal, not truth.",
+      "Invalidated is not proof.",
+      "Pinned is not promoted.",
+      "Product-write remains parked by #686.",
+      "Ready for review is not promotion.",
+      "next_review_action is a review cue, not execution authority."
+    ],
+    "lifecycle_fingerprint": "6c0841ef09e39280bf47cec4433c6124f6a778c08766de969fc9ba45832fd59a",
+    "authority_boundary": {
+      "derived_read_model_only": true,
+      "source_of_truth": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state": false,
+      "work_mutation": false,
+      "execution_authority": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "provider_openai_authority": false,
+      "source_fetch_authority": false,
+      "retrieval_rag_authority": false,
+      "git_ledger_export_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false
+    }
+  }
+}
