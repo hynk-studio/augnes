@@ -134,3 +134,34 @@ export interface FeedbackToRuleCandidateValidationResult {
   passed: boolean;
   failure_codes: string[];
 }
+
+export interface FeedbackToRuleRawFeedbackEvent {
+  event_id: string;
+  event_type: string;
+  target_kind?: string;
+  target_id?: string;
+  source_ref_ids?: string[];
+  operator_note?: string;
+  operator_note_summary?: string;
+  created_at?: string;
+}
+
+export interface FeedbackToRuleCandidateOverride {
+  target_candidate_id?: string;
+  affected_surface?: FeedbackToRuleAffectedSurface;
+  feedback_pattern_kind?: FeedbackToRuleFeedbackPatternKind;
+  review_status?: FeedbackToRuleCandidateReviewStatus;
+  risk_level?: FeedbackToRuleRiskLevel;
+  observed_pattern?: string;
+  proposed_rule_change?: string;
+  expected_benefit?: string;
+  risk_note?: string;
+}
+
+export interface FeedbackToRuleCandidateBuilderInput {
+  scope: FeedbackToRuleCandidateScope;
+  as_of: string;
+  source_fixture_refs: string[];
+  feedback_events: FeedbackToRuleRawFeedbackEvent[];
+  candidate_overrides?: FeedbackToRuleCandidateOverride[];
+}
