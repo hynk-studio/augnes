@@ -3598,6 +3598,28 @@ repo-local 색인이다.
   or product write. Product-write remains parked by #686.
 
   Boundary phrases: Research Candidate Review Memory Contract v0.1; Phase 2; contract-only; follows the integrated roadmap guide v0.2; review memory is not truth; candidate memory is not Perspective state; discard is not deletion; supersede preserves lineage; blocked raw payloads must not be stored; source refs are lineage pointers, not proof; older proposal documents are background inputs already integrated into the roadmap guide; no runtime memory write, runtime route, UI, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Research Candidate Review Memory store, Research Candidate Review Memory routes, Research Candidate Review Memory UI, Foundation/Lifecycle/Memory read-only UI, and Bounded Source Intake Runtime Contract.
+- Research Candidate Review Memory Store v0.1:
+  `docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_STORE_V0_1.md`,
+  `types/research-candidate-review-memory-contract.ts`,
+  `lib/research-candidate-review/review-memory-store.ts`,
+  `fixtures/research-candidate-review.memory-store.sample.v0.1.json`,
+  and `scripts/smoke-research-candidate-review-memory-store-v0-1.mjs`
+  (`npm run smoke:research-candidate-review-memory-store-v0-1`) implements
+  Phase 2.2 from the integrated roadmap guide v0.2 as local-store-only. It adds
+  a deterministic caller-controlled local JSON store helper for validated
+  Research Candidate Review Memory records, including snapshot validation,
+  idempotent upsert, discard, supersede, deterministic fingerprinting, and
+  caller-provided file read/write helpers. This pointer is repo-local
+  documentation metadata, not SSOT, and adds no runtime route, UI, DB migration,
+  provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence
+  write, Perspective promotion, durable Perspective state write, work mutation,
+  Codex execution, GitHub automation, Git Ledger export, product write, or
+  product ID allocation. It does not implement routes, UI, DB migrations,
+  provider calls, source fetch, retrieval, proof/evidence, promotion, GitHub
+  automation, Git Ledger, or product write. Product-write remains parked by
+  #686.
+
+  Boundary phrases: Research Candidate Review Memory Store v0.1; Phase 2.2; local-store-only; follows the integrated roadmap guide v0.2; follows the #769 Review Memory Contract; explicit caller-provided file write only; review memory is not truth; candidate memory is not Perspective state; discard is not deletion; supersede preserves lineage; source refs are lineage pointers, not proof; source refs must be public-safe symbolic refs; older proposal documents are background inputs already integrated into the roadmap guide; no runtime route, UI, DB migration, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Research Candidate Review Memory routes, Research Candidate Review Memory UI, Foundation/Lifecycle/Memory read-only UI, Bounded Source Intake Runtime Contract, and Bounded Source Intake Runtime.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

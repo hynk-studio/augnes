@@ -588,6 +588,7 @@
     "smoke:temporal-handoff-diagnostic-sections-v0-1": "node scripts/smoke-temporal-handoff-diagnostic-sections-v0-1.mjs",
     "smoke:target-agent-ai-context-packet-profiles-v0-1": "node scripts/smoke-target-agent-ai-context-packet-profiles-v0-1.mjs",
     "smoke:research-candidate-review-memory-contract-v0-1": "node scripts/smoke-research-candidate-review-memory-contract-v0-1.mjs",
+    "smoke:research-candidate-review-memory-store-v0-1": "node scripts/smoke-research-candidate-review-memory-store-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

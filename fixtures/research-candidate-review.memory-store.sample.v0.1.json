@@ -1,0 +1,772 @@
+{
+  "fixture_version": "research_candidate_review_memory_store.sample.v0.1",
+  "store_version": "research_candidate_review_memory_store.v0.1",
+  "contract_version": "research_candidate_review_memory_contract.v0.1",
+  "scope": "project:augnes",
+  "status": "local_store_snapshot",
+  "as_of": "2026-06-25T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/research-candidate-review.memory-contract.sample.v0.1.json"
+  ],
+  "input_records": [
+    {
+      "record_version": "research_candidate_review_memory_record.v0.1",
+      "scope": "project:augnes",
+      "status": "contract_only",
+      "record_id": "store-record-active-001",
+      "record_kind": "candidate_review_snapshot",
+      "lifecycle_state": "active",
+      "candidate_ref": "claim-store-active-001",
+      "candidate_family": "claim",
+      "source_refs": [
+        {
+          "source_surface": "research_candidate_lifecycle_read_model",
+          "source_ref": "lifecycle-summary:claim-store-active-001",
+          "source_version": "research_candidate_lifecycle.v0.1",
+          "public_safe": true
+        }
+      ],
+      "related_record_refs": [
+        "store-record-operator-draft-001"
+      ],
+      "review_decision": "keep_for_review",
+      "bounded_summary": "Active candidate snapshot keeps bounded review memory metadata only.",
+      "created_at": "2026-06-25T00:00:00.000Z",
+      "updated_at": "2026-06-25T00:00:00.000Z",
+      "privacy_report": {
+        "privacy_class": "public_safe",
+        "public_safe": true,
+        "raw_conversation_included": false,
+        "hidden_reasoning_included": false,
+        "raw_source_body_included": false,
+        "raw_candidate_payload_included": false,
+        "raw_provider_output_included": false,
+        "provider_thread_run_session_ids_included": false,
+        "private_urls_included": false,
+        "local_private_paths_included": false,
+        "secrets_included": false,
+        "raw_db_rows_included": false,
+        "raw_browser_dump_included": false,
+        "blocked_reason_codes": []
+      },
+      "reason_codes": [
+        "candidate_ref_present",
+        "source_ref_present",
+        "privacy_boundary_preserved",
+        "contract_only_not_runtime_memory",
+        "candidate_memory_not_truth",
+        "review_memory_not_promotion",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "contract_only": true,
+        "runtime_memory_write_now": false,
+        "db_query_or_write_now": false,
+        "source_of_truth": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "durable_perspective_state": false,
+        "work_mutation": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "provider_openai_authority": false,
+        "source_fetch_authority": false,
+        "retrieval_rag_authority": false,
+        "git_ledger_export_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      }
+    },
+    {
+      "record_version": "research_candidate_review_memory_record.v0.1",
+      "scope": "project:augnes",
+      "status": "contract_only",
+      "record_id": "store-record-operator-draft-001",
+      "record_kind": "operator_review_note",
+      "lifecycle_state": "draft",
+      "candidate_ref": "claim-store-note-001",
+      "candidate_family": "claim",
+      "source_refs": [
+        {
+          "source_surface": "operator_note",
+          "source_ref": "operator-note:blocked-payload-placeholder-store-001",
+          "public_safe": false
+        },
+        {
+          "source_surface": "manual_source_ref",
+          "source_ref": "manual-source-ref:store-operator-boundary-001",
+          "public_safe": true
+        }
+      ],
+      "related_record_refs": [
+        "store-record-active-001"
+      ],
+      "review_decision": "needs_operator_review",
+      "bounded_summary": "Draft operator review note stores only a blocked-payload boundary marker.",
+      "operator_note_summary": "Operator note retained as bounded review metadata only.",
+      "created_at": "2026-06-25T00:00:00.000Z",
+      "updated_at": "2026-06-25T00:00:00.000Z",
+      "privacy_report": {
+        "privacy_class": "blocked_raw_private_payload",
+        "public_safe": false,
+        "raw_conversation_included": false,
+        "hidden_reasoning_included": false,
+        "raw_source_body_included": false,
+        "raw_candidate_payload_included": false,
+        "raw_provider_output_included": false,
+        "provider_thread_run_session_ids_included": false,
+        "private_urls_included": false,
+        "local_private_paths_included": false,
+        "secrets_included": false,
+        "raw_db_rows_included": false,
+        "raw_browser_dump_included": false,
+        "blocked_reason_codes": [
+          "raw_payload_blocked",
+          "privacy_boundary_preserved"
+        ]
+      },
+      "reason_codes": [
+        "candidate_ref_present",
+        "source_ref_present",
+        "operator_review_required",
+        "privacy_boundary_preserved",
+        "raw_payload_blocked",
+        "contract_only_not_runtime_memory",
+        "candidate_memory_not_truth",
+        "review_memory_not_promotion",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "contract_only": true,
+        "runtime_memory_write_now": false,
+        "db_query_or_write_now": false,
+        "source_of_truth": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "durable_perspective_state": false,
+        "work_mutation": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "provider_openai_authority": false,
+        "source_fetch_authority": false,
+        "retrieval_rag_authority": false,
+        "git_ledger_export_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      }
+    },
+    {
+      "record_version": "research_candidate_review_memory_record.v0.1",
+      "scope": "project:augnes",
+      "status": "contract_only",
+      "record_id": "store-record-discarded-001",
+      "record_kind": "discard_record",
+      "lifecycle_state": "discarded",
+      "candidate_ref": "claim-store-discarded-001",
+      "candidate_family": "claim",
+      "source_refs": [],
+      "related_record_refs": [
+        "store-record-active-001"
+      ],
+      "review_decision": "discard",
+      "bounded_summary": "Discarded record preserves review lineage without deletion.",
+      "created_at": "2026-06-25T00:00:00.000Z",
+      "updated_at": "2026-06-25T00:00:00.000Z",
+      "discard_reason": "Source coverage remained unavailable in the bounded review input.",
+      "privacy_report": {
+        "privacy_class": "public_safe",
+        "public_safe": true,
+        "raw_conversation_included": false,
+        "hidden_reasoning_included": false,
+        "raw_source_body_included": false,
+        "raw_candidate_payload_included": false,
+        "raw_provider_output_included": false,
+        "provider_thread_run_session_ids_included": false,
+        "private_urls_included": false,
+        "local_private_paths_included": false,
+        "secrets_included": false,
+        "raw_db_rows_included": false,
+        "raw_browser_dump_included": false,
+        "blocked_reason_codes": []
+      },
+      "reason_codes": [
+        "candidate_ref_present",
+        "source_ref_missing",
+        "discard_is_not_deletion",
+        "privacy_boundary_preserved",
+        "contract_only_not_runtime_memory",
+        "candidate_memory_not_truth",
+        "review_memory_not_promotion",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "contract_only": true,
+        "runtime_memory_write_now": false,
+        "db_query_or_write_now": false,
+        "source_of_truth": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "durable_perspective_state": false,
+        "work_mutation": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "provider_openai_authority": false,
+        "source_fetch_authority": false,
+        "retrieval_rag_authority": false,
+        "git_ledger_export_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      }
+    },
+    {
+      "record_version": "research_candidate_review_memory_record.v0.1",
+      "scope": "project:augnes",
+      "status": "contract_only",
+      "record_id": "store-record-superseded-001",
+      "record_kind": "feedback_summary",
+      "lifecycle_state": "superseded",
+      "candidate_ref": "feedback-rule-store-001",
+      "source_refs": [
+        {
+          "source_surface": "feedback_to_rule_candidate",
+          "source_ref": "feedback-rule:review-memory:superseded-001",
+          "source_version": "feedback_to_rule_candidate.v0.1",
+          "public_safe": true
+        }
+      ],
+      "related_record_refs": [
+        "store-record-active-superseding-001"
+      ],
+      "review_decision": "supersede",
+      "bounded_summary": "Superseded feedback summary keeps lineage to the newer review record.",
+      "created_at": "2026-06-25T00:00:00.000Z",
+      "updated_at": "2026-06-25T00:00:00.000Z",
+      "supersedes_record_ref": "store-record-active-superseding-001",
+      "privacy_report": {
+        "privacy_class": "public_safe",
+        "public_safe": true,
+        "raw_conversation_included": false,
+        "hidden_reasoning_included": false,
+        "raw_source_body_included": false,
+        "raw_candidate_payload_included": false,
+        "raw_provider_output_included": false,
+        "provider_thread_run_session_ids_included": false,
+        "private_urls_included": false,
+        "local_private_paths_included": false,
+        "secrets_included": false,
+        "raw_db_rows_included": false,
+        "raw_browser_dump_included": false,
+        "blocked_reason_codes": []
+      },
+      "reason_codes": [
+        "candidate_ref_present",
+        "source_ref_present",
+        "supersede_preserves_lineage",
+        "privacy_boundary_preserved",
+        "contract_only_not_runtime_memory",
+        "candidate_memory_not_truth",
+        "review_memory_not_promotion",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "contract_only": true,
+        "runtime_memory_write_now": false,
+        "db_query_or_write_now": false,
+        "source_of_truth": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "durable_perspective_state": false,
+        "work_mutation": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "provider_openai_authority": false,
+        "source_fetch_authority": false,
+        "retrieval_rag_authority": false,
+        "git_ledger_export_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      }
+    },
+    {
+      "record_version": "research_candidate_review_memory_record.v0.1",
+      "scope": "project:augnes",
+      "status": "contract_only",
+      "record_id": "store-record-active-superseding-001",
+      "record_kind": "diagnostic_summary",
+      "lifecycle_state": "active",
+      "candidate_ref": "claim-store-superseding-001",
+      "candidate_family": "claim",
+      "source_refs": [
+        {
+          "source_surface": "research_candidate_calibration_diagnostic",
+          "source_ref": "calibration-diagnostic:claim-store-superseding-001",
+          "source_version": "research_candidate_calibration_diagnostic.v0.1",
+          "public_safe": true
+        },
+        {
+          "source_surface": "logical_claim_shape_preview",
+          "source_ref": "logical-claim-shape:claim-store-superseding-001",
+          "source_version": "logical_claim_shape_preview.v0.1",
+          "public_safe": true
+        }
+      ],
+      "related_record_refs": [
+        "store-record-superseded-001"
+      ],
+      "review_decision": "keep_for_review",
+      "bounded_summary": "Superseding diagnostic summary keeps newer review metadata active.",
+      "created_at": "2026-06-25T00:00:00.000Z",
+      "updated_at": "2026-06-25T00:00:00.000Z",
+      "privacy_report": {
+        "privacy_class": "public_safe",
+        "public_safe": true,
+        "raw_conversation_included": false,
+        "hidden_reasoning_included": false,
+        "raw_source_body_included": false,
+        "raw_candidate_payload_included": false,
+        "raw_provider_output_included": false,
+        "provider_thread_run_session_ids_included": false,
+        "private_urls_included": false,
+        "local_private_paths_included": false,
+        "secrets_included": false,
+        "raw_db_rows_included": false,
+        "raw_browser_dump_included": false,
+        "blocked_reason_codes": []
+      },
+      "reason_codes": [
+        "candidate_ref_present",
+        "source_ref_present",
+        "privacy_boundary_preserved",
+        "contract_only_not_runtime_memory",
+        "candidate_memory_not_truth",
+        "review_memory_not_promotion",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "contract_only": true,
+        "runtime_memory_write_now": false,
+        "db_query_or_write_now": false,
+        "source_of_truth": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "durable_perspective_state": false,
+        "work_mutation": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "provider_openai_authority": false,
+        "source_fetch_authority": false,
+        "retrieval_rag_authority": false,
+        "git_ledger_export_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      }
+    }
+  ],
+  "expected_snapshot": {
+    "store_version": "research_candidate_review_memory_store.v0.1",
+    "contract_version": "research_candidate_review_memory_contract.v0.1",
+    "scope": "project:augnes",
+    "status": "local_store_snapshot",
+    "as_of": "2026-06-25T00:00:00.000Z",
+    "records": [
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "store-record-active-001",
+        "record_kind": "candidate_review_snapshot",
+        "lifecycle_state": "active",
+        "candidate_ref": "claim-store-active-001",
+        "candidate_family": "claim",
+        "source_refs": [
+          {
+            "source_surface": "research_candidate_lifecycle_read_model",
+            "source_ref": "lifecycle-summary:claim-store-active-001",
+            "source_version": "research_candidate_lifecycle.v0.1",
+            "public_safe": true
+          }
+        ],
+        "related_record_refs": [
+          "store-record-operator-draft-001"
+        ],
+        "review_decision": "keep_for_review",
+        "bounded_summary": "Active candidate snapshot keeps bounded review memory metadata only.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "privacy_report": {
+          "privacy_class": "public_safe",
+          "public_safe": true,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": []
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "privacy_boundary_preserved",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "store-record-active-superseding-001",
+        "record_kind": "diagnostic_summary",
+        "lifecycle_state": "active",
+        "candidate_ref": "claim-store-superseding-001",
+        "candidate_family": "claim",
+        "source_refs": [
+          {
+            "source_surface": "research_candidate_calibration_diagnostic",
+            "source_ref": "calibration-diagnostic:claim-store-superseding-001",
+            "source_version": "research_candidate_calibration_diagnostic.v0.1",
+            "public_safe": true
+          },
+          {
+            "source_surface": "logical_claim_shape_preview",
+            "source_ref": "logical-claim-shape:claim-store-superseding-001",
+            "source_version": "logical_claim_shape_preview.v0.1",
+            "public_safe": true
+          }
+        ],
+        "related_record_refs": [
+          "store-record-superseded-001"
+        ],
+        "review_decision": "keep_for_review",
+        "bounded_summary": "Superseding diagnostic summary keeps newer review metadata active.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "privacy_report": {
+          "privacy_class": "public_safe",
+          "public_safe": true,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": []
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "privacy_boundary_preserved",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "store-record-discarded-001",
+        "record_kind": "discard_record",
+        "lifecycle_state": "discarded",
+        "candidate_ref": "claim-store-discarded-001",
+        "candidate_family": "claim",
+        "source_refs": [],
+        "related_record_refs": [
+          "store-record-active-001"
+        ],
+        "review_decision": "discard",
+        "bounded_summary": "Discarded record preserves review lineage without deletion.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "discard_reason": "Source coverage remained unavailable in the bounded review input.",
+        "privacy_report": {
+          "privacy_class": "public_safe",
+          "public_safe": true,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": []
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_missing",
+          "discard_is_not_deletion",
+          "privacy_boundary_preserved",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "store-record-operator-draft-001",
+        "record_kind": "operator_review_note",
+        "lifecycle_state": "draft",
+        "candidate_ref": "claim-store-note-001",
+        "candidate_family": "claim",
+        "source_refs": [
+          {
+            "source_surface": "operator_note",
+            "source_ref": "operator-note:blocked-payload-placeholder-store-001",
+            "public_safe": false
+          },
+          {
+            "source_surface": "manual_source_ref",
+            "source_ref": "manual-source-ref:store-operator-boundary-001",
+            "public_safe": true
+          }
+        ],
+        "related_record_refs": [
+          "store-record-active-001"
+        ],
+        "review_decision": "needs_operator_review",
+        "bounded_summary": "Draft operator review note stores only a blocked-payload boundary marker.",
+        "operator_note_summary": "Operator note retained as bounded review metadata only.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "privacy_report": {
+          "privacy_class": "blocked_raw_private_payload",
+          "public_safe": false,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": [
+            "raw_payload_blocked",
+            "privacy_boundary_preserved"
+          ]
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "operator_review_required",
+          "privacy_boundary_preserved",
+          "raw_payload_blocked",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "store-record-superseded-001",
+        "record_kind": "feedback_summary",
+        "lifecycle_state": "superseded",
+        "candidate_ref": "feedback-rule-store-001",
+        "source_refs": [
+          {
+            "source_surface": "feedback_to_rule_candidate",
+            "source_ref": "feedback-rule:review-memory:superseded-001",
+            "source_version": "feedback_to_rule_candidate.v0.1",
+            "public_safe": true
+          }
+        ],
+        "related_record_refs": [
+          "store-record-active-superseding-001"
+        ],
+        "review_decision": "supersede",
+        "bounded_summary": "Superseded feedback summary keeps lineage to the newer review record.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "supersedes_record_ref": "store-record-active-superseding-001",
+        "privacy_report": {
+          "privacy_class": "public_safe",
+          "public_safe": true,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": []
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "supersede_preserves_lineage",
+          "privacy_boundary_preserved",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      }
+    ],
+    "record_order": [
+      "store-record-active-001",
+      "store-record-active-superseding-001",
+      "store-record-discarded-001",
+      "store-record-operator-draft-001",
+      "store-record-superseded-001"
+    ],
+    "record_count": 5,
+    "discarded_record_refs": [
+      "store-record-discarded-001"
+    ],
+    "superseded_record_refs": [
+      "store-record-superseded-001"
+    ],
+    "active_record_refs": [
+      "store-record-active-001",
+      "store-record-active-superseding-001"
+    ],
+    "boundary_notes": [
+      "Product-write remains parked by #686.",
+      "Research Candidate Review Memory Store v0.1 is local-store-only.",
+      "Review memory is not truth.",
+      "Writes require an explicit caller-provided file path."
+    ],
+    "authority_boundary": {
+      "local_store_only": true,
+      "explicit_file_write_only": true,
+      "runtime_route_added_now": false,
+      "ui_added_now": false,
+      "db_migration_added_now": false,
+      "db_query_or_write_now": false,
+      "provider_openai_call_now": false,
+      "source_fetch_now": false,
+      "retrieval_rag_execution_now": false,
+      "source_of_truth": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state": false,
+      "work_mutation": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "git_ledger_export_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false
+    },
+    "store_fingerprint": "8481f85a3e5ea89e20d6f5119201fd6adf6e7eb3990fd03cf8bb6af95de920ec"
+  }
+}
