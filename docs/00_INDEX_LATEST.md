@@ -3492,6 +3492,26 @@ repo-local 색인이다.
   Product-write remains parked by #686.
 
   Boundary phrases: Research Candidate Logical Claim Shape Preview v0.1; logical claim shape preview is structure-preview-only; follows the integrated roadmap guide v0.2 after Calibration Diagnostic; calibration diagnostic is input signal, not truth; missing premise is a review cue, not rejection; contradiction is preserved as tension, not deletion; logical status is not proof status; review cues are not execution authority; shape summary is explanation, not authority; older proposal documents are background inputs already integrated into the roadmap guide; no proof checking, theorem proving, formal verification, runtime route, UI, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Feedback-to-Rule Candidate Contract, temporal handoff diagnostics, Cockpit lifecycle/calibration/logical preview read-only UI, Research Candidate Review Memory contract, and Empirical Calibration Dataset plan.
+- Feedback-to-Rule Candidate Contract v0.1:
+  `docs/FEEDBACK_TO_RULE_CANDIDATE_CONTRACT_V0_1.md`,
+  `types/feedback-to-rule-candidate.ts`,
+  `fixtures/research-candidate-review.feedback-to-rule-candidate-contract.sample.v0.1.json`,
+  and `scripts/smoke-feedback-to-rule-candidate-contract-v0-1.mjs`
+  (`npm run smoke:feedback-to-rule-candidate-contract-v0-1`) define Phase
+  1.4 after Logical Claim Shape Preview, following the integrated roadmap guide
+  v0.2 as candidate-contract-only. It defines candidate-only rule/update
+  suggestion vocabulary from durable operator feedback signals. This pointer is
+  repo-local documentation metadata, not SSOT, and adds no runtime route, UI,
+  DB query or write, provider/OpenAI call, source fetch, retrieval/RAG
+  execution, proof/evidence write, Perspective promotion, durable Perspective
+  state write, work mutation, rule mutation, parser behavior change, builder
+  behavior change, Codex execution, GitHub automation, Git Ledger export,
+  product write, or product ID allocation. It does not implement rule mutation,
+  builder behavior, parser behavior changes, proof/evidence, promotion,
+  provider, retrieval, Codex execution, GitHub automation, Git Ledger, or
+  product write. Product-write remains parked by #686.
+
+  Boundary phrases: Feedback-to-Rule Candidate Contract v0.1; feedback-to-rule candidate is candidate-contract-only; follows the integrated roadmap guide v0.2 after Logical Claim Shape Preview; feedback is operator signal, not truth; rule candidate is not rule mutation; accepted_for_future_pr is not PR creation authority; proposed_rule_change is review text, not execution; secret-like operator notes must be blocked or redacted; older proposal documents are background inputs already integrated into the roadmap guide; no rule mutation, future PR creation from candidate, runtime route, UI, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Feedback-to-Rule builder, temporal handoff diagnostics, Cockpit lifecycle/calibration/logical preview read-only UI, Research Candidate Review Memory contract, and Empirical Calibration Dataset plan.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
