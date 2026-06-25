@@ -1,0 +1,590 @@
+{
+  "fixture_version": "research_candidate_review_memory_contract.sample.v0.1",
+  "contract_version": "research_candidate_review_memory_contract.v0.1",
+  "record_version": "research_candidate_review_memory_record.v0.1",
+  "bundle_version": "research_candidate_review_memory_contract_bundle.v0.1",
+  "scope": "project:augnes",
+  "status": "contract_only",
+  "as_of": "2026-06-25T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+    "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+    "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json",
+    "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+    "fixtures/research-candidate-review.temporal-handoff-diagnostic-sections.sample.v0.1.json",
+    "fixtures/research-candidate-review.target-agent-ai-context-packet-profiles.sample.v0.1.json"
+  ],
+  "expected_bundle": {
+    "bundle_version": "research_candidate_review_memory_contract_bundle.v0.1",
+    "contract_version": "research_candidate_review_memory_contract.v0.1",
+    "scope": "project:augnes",
+    "status": "contract_only",
+    "as_of": "2026-06-25T00:00:00.000Z",
+    "source_fixture_refs": [
+      "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+      "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+      "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json",
+      "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+      "fixtures/research-candidate-review.temporal-handoff-diagnostic-sections.sample.v0.1.json",
+      "fixtures/research-candidate-review.target-agent-ai-context-packet-profiles.sample.v0.1.json"
+    ],
+    "records": [
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "memory-record-candidate-snapshot-001",
+        "record_kind": "candidate_review_snapshot",
+        "lifecycle_state": "active",
+        "candidate_ref": "claim-lifecycle-001",
+        "candidate_family": "claim",
+        "source_refs": [
+          {
+            "source_surface": "research_candidate_lifecycle_read_model",
+            "source_ref": "lifecycle-summary:claim-lifecycle-001",
+            "source_version": "research_candidate_lifecycle.v0.1",
+            "public_safe": true
+          },
+          {
+            "source_surface": "research_candidate_calibration_diagnostic",
+            "source_ref": "calibration-diagnostic:claim-calibration-001",
+            "source_version": "research_candidate_calibration_diagnostic.v0.1",
+            "public_safe": true
+          }
+        ],
+        "related_record_refs": [
+          "memory-record-diagnostic-summary-001"
+        ],
+        "review_decision": "keep_for_review",
+        "bounded_summary": "Operator-reviewed snapshot keeps lifecycle and calibration summaries reviewable.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "privacy_report": {
+          "privacy_class": "public_safe",
+          "public_safe": true,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": []
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "privacy_boundary_preserved",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "memory-record-operator-note-001",
+        "record_kind": "operator_review_note",
+        "lifecycle_state": "draft",
+        "candidate_ref": "claim-operator-note-001",
+        "candidate_family": "claim",
+        "source_refs": [
+          {
+            "source_surface": "operator_note",
+            "source_ref": "operator-note:blocked-payload-placeholder-001",
+            "public_safe": false
+          },
+          {
+            "source_surface": "manual_source_ref",
+            "source_ref": "manual-source-ref:operator-note-boundary-001",
+            "public_safe": true
+          }
+        ],
+        "related_record_refs": [
+          "memory-record-candidate-snapshot-001"
+        ],
+        "review_decision": "needs_operator_review",
+        "bounded_summary": "Operator note keeps only a blocked-payload boundary marker for later review.",
+        "operator_note_summary": "Operator note contained blocked payload material; only the review boundary is retained.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "privacy_report": {
+          "privacy_class": "blocked_raw_private_payload",
+          "public_safe": false,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": [
+            "raw_payload_blocked",
+            "privacy_boundary_preserved"
+          ]
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "operator_review_required",
+          "privacy_boundary_preserved",
+          "raw_payload_blocked",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "memory-record-discard-001",
+        "record_kind": "discard_record",
+        "lifecycle_state": "discarded",
+        "candidate_ref": "claim-discarded-001",
+        "candidate_family": "claim",
+        "source_refs": [],
+        "related_record_refs": [
+          "memory-record-operator-note-001"
+        ],
+        "review_decision": "discard",
+        "bounded_summary": "Discard record preserves why review stopped without deleting lineage.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "discard_reason": "Source lineage was not available in the reviewed fixture input.",
+        "privacy_report": {
+          "privacy_class": "public_safe",
+          "public_safe": true,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": []
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_missing",
+          "discard_is_not_deletion",
+          "privacy_boundary_preserved",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "memory-record-feedback-summary-001",
+        "record_kind": "feedback_summary",
+        "lifecycle_state": "superseded",
+        "candidate_ref": "feedback-rule-001",
+        "source_refs": [
+          {
+            "source_surface": "feedback_to_rule_candidate",
+            "source_ref": "feedback-rule-candidate:feedback-rule-001",
+            "source_version": "feedback_to_rule_candidate.v0.1",
+            "public_safe": true
+          }
+        ],
+        "related_record_refs": [
+          "memory-record-operator-note-001"
+        ],
+        "review_decision": "supersede",
+        "bounded_summary": "Feedback summary was replaced by a clearer candidate-only rule suggestion.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "supersedes_record_ref": "memory-record-feedback-summary-000",
+        "privacy_report": {
+          "privacy_class": "public_safe",
+          "public_safe": true,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": []
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "supersede_preserves_lineage",
+          "privacy_boundary_preserved",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "memory-record-handoff-summary-001",
+        "record_kind": "handoff_summary",
+        "lifecycle_state": "archived",
+        "candidate_ref": "temporal-handoff-001",
+        "source_refs": [
+          {
+            "source_surface": "temporal_handoff_diagnostic_sections",
+            "source_ref": "temporal-handoff-diagnostic:temporal-handoff-001",
+            "source_version": "temporal_handoff_diagnostic_sections.v0.1",
+            "public_safe": true
+          }
+        ],
+        "related_record_refs": [
+          "memory-record-candidate-snapshot-001"
+        ],
+        "review_decision": "none",
+        "bounded_summary": "Handoff diagnostic summary is archived as review context only.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "privacy_report": {
+          "privacy_class": "public_safe",
+          "public_safe": true,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": []
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "privacy_boundary_preserved",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "memory-record-diagnostic-summary-001",
+        "record_kind": "diagnostic_summary",
+        "lifecycle_state": "active",
+        "candidate_ref": "claim-diagnostic-001",
+        "candidate_family": "claim",
+        "source_refs": [
+          {
+            "source_surface": "research_candidate_lifecycle_read_model",
+            "source_ref": "lifecycle-summary:claim-diagnostic-001",
+            "source_version": "research_candidate_lifecycle.v0.1",
+            "public_safe": true
+          },
+          {
+            "source_surface": "research_candidate_calibration_diagnostic",
+            "source_ref": "calibration-diagnostic:claim-diagnostic-001",
+            "source_version": "research_candidate_calibration_diagnostic.v0.1",
+            "public_safe": true
+          },
+          {
+            "source_surface": "logical_claim_shape_preview",
+            "source_ref": "logical-claim-shape:claim-diagnostic-001",
+            "source_version": "logical_claim_shape_preview.v0.1",
+            "public_safe": true
+          }
+        ],
+        "related_record_refs": [
+          "memory-record-candidate-snapshot-001",
+          "memory-record-discard-001"
+        ],
+        "review_decision": "needs_more_evidence",
+        "bounded_summary": "Diagnostic summary keeps missing evidence and source coverage review cues visible.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "privacy_report": {
+          "privacy_class": "public_safe",
+          "public_safe": true,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": []
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "operator_review_required",
+          "privacy_boundary_preserved",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "memory-record-profile-summary-001",
+        "record_kind": "profile_summary",
+        "lifecycle_state": "draft",
+        "candidate_ref": "profile-codex-handoff-001",
+        "source_refs": [
+          {
+            "source_surface": "target_agent_ai_context_packet_profiles",
+            "source_ref": "target-agent-profile:codex-handoff-001",
+            "source_version": "target_agent_ai_context_packet_profiles.v0.1",
+            "public_safe": false
+          }
+        ],
+        "related_record_refs": [
+          "memory-record-handoff-summary-001"
+        ],
+        "review_decision": "keep_for_review",
+        "bounded_summary": "Profile summary preserves reference metadata only; no content body is stored.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "privacy_report": {
+          "privacy_class": "private_ref_only",
+          "public_safe": false,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": [
+            "private_ref_only"
+          ]
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "privacy_boundary_preserved",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      }
+    ],
+    "record_kind_counts": {
+      "candidate_review_snapshot": 1,
+      "operator_review_note": 1,
+      "discard_record": 1,
+      "feedback_summary": 1,
+      "handoff_summary": 1,
+      "diagnostic_summary": 1,
+      "profile_summary": 1
+    },
+    "lifecycle_state_counts": {
+      "draft": 2,
+      "active": 2,
+      "discarded": 1,
+      "superseded": 1,
+      "archived": 1
+    },
+    "review_decision_counts": {
+      "none": 1,
+      "keep_for_review": 2,
+      "discard": 1,
+      "supersede": 1,
+      "needs_more_evidence": 1,
+      "needs_operator_review": 1
+    },
+    "privacy_class_counts": {
+      "public_safe": 5,
+      "private_ref_only": 1,
+      "blocked_raw_private_payload": 1
+    },
+    "boundary_notes": [
+      "Research Candidate Review Memory Contract v0.1 is contract-only.",
+      "Future memory records store bounded summaries and symbolic refs only.",
+      "Blocked payload content is represented by privacy metadata only.",
+      "Product-write remains parked by #686."
+    ],
+    "authority_boundary": {
+      "contract_only": true,
+      "runtime_memory_write_now": false,
+      "db_query_or_write_now": false,
+      "source_of_truth": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state": false,
+      "work_mutation": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "provider_openai_authority": false,
+      "source_fetch_authority": false,
+      "retrieval_rag_authority": false,
+      "git_ledger_export_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false
+    },
+    "bundle_fingerprint": "5931cfe708a4cdbf9b9da9017226969a79b8a3c354d20eabb35936e24bc160f1"
+  }
+}
