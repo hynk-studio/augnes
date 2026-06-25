@@ -180,3 +180,96 @@ export interface BoundedSourceIntakeValidationResult {
   passed: boolean;
   failure_codes: string[];
 }
+
+export type BoundedSourceIntakeRuntimeVersion =
+  "bounded_source_intake_runtime.v0.1";
+
+export type BoundedSourceIntakeRuntimeStatus = "bounded_runtime_only";
+
+export type BoundedSourceIntakeRuntimeDecision =
+  | "accepted_bounded_summary"
+  | "blocked_private_or_raw_payload"
+  | "blocked_secret_like_payload"
+  | "blocked_unsupported_source_kind"
+  | "needs_operator_review"
+  | "candidate_only";
+
+export type BoundedSourceIntakeRuntimeReasonCode =
+  | BoundedSourceIntakeReasonCode
+  | "bounded_runtime_executed"
+  | "bounded_summary_present"
+  | "bounded_summary_missing"
+  | "runtime_result_envelope_created"
+  | "request_validation_passed"
+  | "request_validation_failed"
+  | "blocked_request_not_executed"
+  | "accepted_request_not_truth";
+
+export interface BoundedSourceIntakeRuntimeAuthorityBoundary {
+  bounded_runtime_only: true;
+  caller_provided_input_only: true;
+  source_fetch_now: false;
+  local_file_read_now: false;
+  repository_file_read_now: false;
+  uploaded_file_read_now: false;
+  raw_source_body_storage_now: false;
+  provider_openai_call_now: false;
+  retrieval_rag_execution_now: false;
+  db_query_or_write_now: false;
+  source_of_truth: false;
+  proof_or_evidence_record: false;
+  perspective_promotion: false;
+  durable_perspective_state: false;
+  work_mutation: false;
+  codex_execution_authority: false;
+  github_automation_authority: false;
+  git_ledger_export_authority: false;
+  product_write_authority: false;
+  product_id_allocation_authority: false;
+}
+
+export interface BoundedSourceIntakeRuntimeBoundedSummary {
+  request_id?: string;
+  source_id?: string;
+  bounded_summary_ref: string;
+  bounded_summary: string;
+  public_safe: boolean;
+}
+
+export interface BoundedSourceIntakeRuntimeInput {
+  runtime_version: BoundedSourceIntakeRuntimeVersion;
+  contract_version: BoundedSourceIntakeRuntimeContractVersion;
+  scope: BoundedSourceIntakeRuntimeScope;
+  as_of: string;
+  source_fixture_refs: string[];
+  requests: BoundedSourceIntakeRequest[];
+  bounded_summaries?: BoundedSourceIntakeRuntimeBoundedSummary[];
+}
+
+export interface BoundedSourceIntakeRuntimeDecisionRecord {
+  request_id: string;
+  source_id: string;
+  decision: BoundedSourceIntakeRuntimeDecision;
+  reason_codes: BoundedSourceIntakeRuntimeReasonCode[];
+  bounded_summary_ref?: string;
+}
+
+export interface BoundedSourceIntakeRuntimeReport {
+  runtime_version: BoundedSourceIntakeRuntimeVersion;
+  contract_version: BoundedSourceIntakeRuntimeContractVersion;
+  scope: BoundedSourceIntakeRuntimeScope;
+  status: BoundedSourceIntakeRuntimeStatus;
+  as_of: string;
+  source_fixture_refs: string[];
+  result_envelopes: BoundedSourceIntakeResultEnvelope[];
+  runtime_decisions: BoundedSourceIntakeRuntimeDecisionRecord[];
+  decision_counts: Record<BoundedSourceIntakeRuntimeDecision, number>;
+  boundary_notes: string[];
+  authority_boundary: BoundedSourceIntakeRuntimeAuthorityBoundary;
+  runtime_report_fingerprint: string;
+}
+
+export interface BoundedSourceIntakeRuntimeValidationResult {
+  passed: boolean;
+  failure_codes: string[];
+}
