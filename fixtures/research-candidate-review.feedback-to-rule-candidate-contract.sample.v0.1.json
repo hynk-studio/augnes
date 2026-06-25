@@ -42,6 +42,16 @@
       "operator_note": "Invalidation says contradiction cue was hidden."
     },
     {
+      "event_id": "feedback-logical-invalidate-002",
+      "event_type": "invalidate_preview",
+      "target_kind": "logical_claim_shape_preview",
+      "target_id": "claim-shape-contradiction-001",
+      "source_ref_ids": [
+        "source:logical-invalidation-002"
+      ],
+      "operator_note": "Repeat review says the contradiction cue remained hidden."
+    },
+    {
       "event_id": "feedback-calibration-evidence-001",
       "event_type": "correct_preview",
       "target_kind": "research_candidate_calibration_diagnostic",
@@ -186,7 +196,8 @@
         "affected_surface": "logical_claim_shape_preview",
         "feedback_pattern_kind": "repeated_invalidation",
         "feedback_event_refs": [
-          "feedback-logical-invalidate-001"
+          "feedback-logical-invalidate-001",
+          "feedback-logical-invalidate-002"
         ],
         "source_feedback_refs": [
           {
@@ -199,9 +210,20 @@
             ],
             "operator_note_summary": "Invalidation says contradiction cue was hidden.",
             "redaction_status": "not_needed"
+          },
+          {
+            "feedback_event_ref": "feedback-logical-invalidate-002",
+            "event_type": "invalidate_preview",
+            "target_kind": "logical_claim_shape_preview",
+            "target_id": "claim-shape-contradiction-001",
+            "source_ref_ids": [
+              "source:logical-invalidation-002"
+            ],
+            "operator_note_summary": "Repeat review says the contradiction cue remained hidden.",
+            "redaction_status": "not_needed"
           }
         ],
-        "observed_pattern": "Invalidation signal points at hidden contradiction review cues in logical shape output.",
+        "observed_pattern": "Two invalidation signals point at hidden contradiction review cues in logical shape output.",
         "proposed_rule_change": "Candidate-only future rule text could require contradiction cues to remain visible whenever contradiction refs exist.",
         "expected_benefit": "Operators can review tension without mistaking it for deletion or proof.",
         "risk_level": "high",
@@ -580,6 +602,6 @@
       "product_write_authority": false,
       "product_id_allocation_authority": false
     },
-    "bundle_fingerprint": "cf321f673ebade5c5fbd1f3fa2b5cfd878295da7b7802cf3628c8ab4b10a3eb3"
+    "bundle_fingerprint": "a8f44dca829109ad7682b89d3a70734c2b7e7a862c4ccf99109e37321ab1afdb"
   }
 }

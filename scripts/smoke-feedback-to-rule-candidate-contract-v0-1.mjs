@@ -225,6 +225,25 @@ function assertBundle(bundle) {
         "redaction_status must be controlled",
       );
     }
+    const feedbackEventRefs = uniqueSorted(candidate.feedback_event_refs);
+    const sourceFeedbackEventRefs = uniqueSorted(
+      candidate.source_feedback_refs.map((ref) => ref.feedback_event_ref),
+    );
+    assert.deepEqual(
+      sourceFeedbackEventRefs,
+      feedbackEventRefs,
+      `${candidate.candidate_id} source_feedback_refs must match feedback_event_refs`,
+    );
+    if (candidate.feedback_pattern_kind.startsWith("repeated_")) {
+      assert.ok(
+        feedbackEventRefs.length >= 2,
+        `${candidate.candidate_id} repeated pattern requires at least two distinct feedback_event_refs`,
+      );
+      assert.ok(
+        candidate.source_feedback_refs.length >= 2,
+        `${candidate.candidate_id} repeated pattern requires at least two source_feedback_refs`,
+      );
+    }
     assertAuthorityBoundary(candidate.authority_boundary, candidate.candidate_id);
     if (candidate.review_status === "accepted_for_future_pr") {
       for (const reasonCode of [
@@ -241,6 +260,15 @@ function assertBundle(bundle) {
       assert.equal(candidate.authority_boundary.github_automation_authority, false);
     }
   }
+
+  const repeatedInvalidation = bundle.candidates.find(
+    (candidate) => candidate.candidate_id === "feedback-rule-logical-invalidation-001",
+  );
+  assert.ok(repeatedInvalidation, "repeated invalidation candidate must exist");
+  assert.ok(
+    uniqueSorted(repeatedInvalidation.feedback_event_refs).length >= 2,
+    "repeated invalidation candidate must have at least two feedback_event_refs",
+  );
 }
 
 function assertFixtureCoverage() {
@@ -436,6 +464,10 @@ function canonicalJson(value) {
       .join(",")}}`;
   }
   return JSON.stringify(value);
+}
+
+function uniqueSorted(values) {
+  return Array.from(new Set(values)).sort();
 }
 
 function readJson(filePath) {

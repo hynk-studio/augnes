@@ -146,6 +146,12 @@ Controlled feedback pattern kinds are:
 Feedback pattern kinds summarize operator signals. They do not establish truth,
 proof, or automatic rule updates.
 
+Any `repeated_*` feedback pattern kind requires at least two distinct feedback
+events. The matching `source_feedback_refs` must carry the same feedback event
+refs as `feedback_event_refs`. Single feedback events may still become
+candidate signals, but they must not be labeled `repeated_*` unless another
+event supports the repeated pattern.
+
 ## Review Status Semantics
 
 Controlled review statuses are:
