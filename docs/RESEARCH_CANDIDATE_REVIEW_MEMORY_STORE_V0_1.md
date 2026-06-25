@@ -130,6 +130,8 @@ The helper rejects records with:
 - `superseded` lifecycle without `supersedes_record_ref`.
 - Authority boundary grants.
 - Source-ref reason-code mismatches.
+- Missing or non-array `reason_codes`.
+- Unknown `reason_codes`; reason_codes are controlled vocabulary and unknown reason codes are rejected.
 - Missing `privacy_boundary_preserved`,
   `contract_only_not_runtime_memory`, `candidate_memory_not_truth`,
   `review_memory_not_promotion`, or `product_write_denied`.
@@ -168,6 +170,11 @@ Supersede preserves lineage. The supersede helper keeps the old record,
 updates it to `lifecycle_state: superseded`, sets `review_decision: supersede`,
 links it to the superseding record, validates the superseding record, keeps or
 adds reciprocal lineage, and recomputes the snapshot.
+
+`related_record_refs` must point to records in the same store snapshot.
+`supersedes_record_ref` must point to a record in the same store snapshot.
+Self-referential lineage refs are rejected. Supersede preserves lineage by
+keeping both old and new records in the snapshot.
 
 ## 11. File Read/Write Boundaries
 

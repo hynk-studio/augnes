@@ -75,6 +75,22 @@ const privacyClassValues: ResearchCandidateReviewMemoryPrivacyClass[] = [
   "blocked_raw_private_payload",
 ];
 
+const reasonCodeValues: ResearchCandidateReviewMemoryReasonCode[] = [
+  "candidate_ref_present",
+  "candidate_ref_missing",
+  "source_ref_present",
+  "source_ref_missing",
+  "operator_review_required",
+  "discard_is_not_deletion",
+  "supersede_preserves_lineage",
+  "privacy_boundary_preserved",
+  "raw_payload_blocked",
+  "contract_only_not_runtime_memory",
+  "candidate_memory_not_truth",
+  "review_memory_not_promotion",
+  "product_write_denied",
+];
+
 const requiredReasonCodes: ResearchCandidateReviewMemoryReasonCode[] = [
   "privacy_boundary_preserved",
   "contract_only_not_runtime_memory",
@@ -235,6 +251,15 @@ export function validateResearchCandidateReviewMemoryRecordForStore(
   if (record?.lifecycle_state === "superseded" && !record.supersedes_record_ref) {
     failureCodes.push("superseded_missing_supersedes_record_ref");
   }
+  if (!Array.isArray(record?.reason_codes)) {
+    failureCodes.push("invalid_reason_codes");
+  } else {
+    for (const reasonCode of record.reason_codes) {
+      if (!reasonCodeValues.includes(reasonCode)) {
+        failureCodes.push(`invalid_reason_code:${reasonCode}`);
+      }
+    }
+  }
   if (Array.isArray(record?.source_refs)) {
     if (record.source_refs.length > 0 && !record.reason_codes?.includes("source_ref_present")) {
       failureCodes.push("source_ref_present_reason_missing");
@@ -294,6 +319,7 @@ export function validateResearchCandidateReviewMemoryStoreSnapshot(
   if (!arraysEqual(snapshot?.superseded_record_refs ?? [], refsForState(records, "superseded"))) {
     failureCodes.push("superseded_record_refs_mismatch");
   }
+  failureCodes.push(...validateLineageRefs(records));
   if (!snapshot?.store_fingerprint) {
     failureCodes.push("empty_store_fingerprint");
   } else if (
@@ -366,7 +392,9 @@ export function upsertResearchCandidateReviewMemoryRecord(
   }
   const records = snapshot.records.filter((candidate) => candidate.record_id !== record.record_id);
   records.push(cloneRecord(record));
-  return rebuildSnapshot({ ...cloneSnapshot(snapshot), records });
+  const rebuiltSnapshot = rebuildSnapshot({ ...cloneSnapshot(snapshot), records });
+  assertValidation(validateResearchCandidateReviewMemoryStoreSnapshot(rebuiltSnapshot));
+  return rebuiltSnapshot;
 }
 
 export function discardResearchCandidateReviewMemoryRecord(
@@ -418,10 +446,15 @@ export function supersedeResearchCandidateReviewMemoryRecord(
         : existingRecord.updated_at,
     reason_codes: uniqueSorted([...existingRecord.reason_codes, "supersede_preserves_lineage"]),
   };
-  return upsertResearchCandidateReviewMemoryRecord(
-    upsertResearchCandidateReviewMemoryRecord(snapshot, updatedExistingRecord),
-    supersedingRecord,
+  const records = snapshot.records.filter(
+    (record) =>
+      record.record_id !== existingRecord.record_id &&
+      record.record_id !== supersedingRecord.record_id,
   );
+  records.push(updatedExistingRecord, supersedingRecord);
+  const rebuiltSnapshot = rebuildSnapshot({ ...cloneSnapshot(snapshot), records });
+  assertValidation(validateResearchCandidateReviewMemoryStoreSnapshot(rebuiltSnapshot));
+  return rebuiltSnapshot;
 }
 
 export function readResearchCandidateReviewMemoryStoreFile(
@@ -498,6 +531,30 @@ function validateStoreAuthorityBoundary(
   }
   for (const field of storeForbiddenAuthorityFields) {
     if (boundary?.[field] !== false) failureCodes.push(`store_authority_granted:${field}`);
+  }
+  return failureCodes;
+}
+
+function validateLineageRefs(records: ResearchCandidateReviewMemoryRecord[]): string[] {
+  const failureCodes: string[] = [];
+  const recordIdSet = new Set(records.map((record) => record.record_id));
+  for (const record of records) {
+    for (const relatedRef of record.related_record_refs ?? []) {
+      if (relatedRef === record.record_id) {
+        failureCodes.push(`self_related_record_ref:${record.record_id}`);
+      } else if (!recordIdSet.has(relatedRef)) {
+        failureCodes.push(`dangling_related_record_ref:${record.record_id}:${relatedRef}`);
+      }
+    }
+    if (record.supersedes_record_ref) {
+      if (record.supersedes_record_ref === record.record_id) {
+        failureCodes.push(`self_supersedes_record_ref:${record.record_id}`);
+      } else if (!recordIdSet.has(record.supersedes_record_ref)) {
+        failureCodes.push(
+          `dangling_supersedes_record_ref:${record.record_id}:${record.supersedes_record_ref}`,
+        );
+      }
+    }
   }
   return failureCodes;
 }

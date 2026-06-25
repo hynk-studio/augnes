@@ -114,6 +114,8 @@ assertSnapshot(fixture.expected_snapshot);
 assertStoreOperations();
 assertFileRoundtrip();
 assertPrivacyRejections();
+assertReasonCodeValidation();
+assertLineageValidation();
 assertAuthorityBoundary(fixture.expected_snapshot.authority_boundary, "snapshot");
 assertHelperSourceBoundary();
 assertDocCoverage();
@@ -154,13 +156,11 @@ function assertTypeCoverage() {
 }
 
 function assertHelperOutput() {
-  let snapshot = helper.createEmptyResearchCandidateReviewMemoryStoreSnapshot({
+  const snapshot = helper.createEmptyResearchCandidateReviewMemoryStoreSnapshot({
     scope: fixture.scope,
     as_of: fixture.as_of,
+    records: fixture.input_records,
   });
-  for (const record of fixture.input_records) {
-    snapshot = helper.upsertResearchCandidateReviewMemoryRecord(snapshot, record);
-  }
   assert.deepEqual(snapshot, fixture.expected_snapshot);
   assert.deepEqual(helper.validateResearchCandidateReviewMemoryStoreSnapshot(snapshot), {
     passed: true,
@@ -364,6 +364,79 @@ function assertPrivacyRejections() {
   );
 }
 
+function assertReasonCodeValidation() {
+  const baseRecord = fixture.expected_snapshot.records[0];
+  const unknownReasonRecord = {
+    ...baseRecord,
+    record_id: "invalid-unknown-reason-code",
+    reason_codes: [...baseRecord.reason_codes, "proof_created"],
+  };
+  const unknownReasonValidation =
+    helper.validateResearchCandidateReviewMemoryRecordForStore(unknownReasonRecord);
+  assert.equal(unknownReasonValidation.passed, false);
+  assert.ok(
+    unknownReasonValidation.failure_codes.includes("invalid_reason_code:proof_created"),
+    "unknown reason code must be rejected",
+  );
+
+  const nonArrayReasonRecord = {
+    ...baseRecord,
+    record_id: "invalid-non-array-reason-codes",
+    reason_codes: "source_ref_present",
+  };
+  const nonArrayReasonValidation =
+    helper.validateResearchCandidateReviewMemoryRecordForStore(nonArrayReasonRecord);
+  assert.equal(nonArrayReasonValidation.passed, false);
+  assert.ok(
+    nonArrayReasonValidation.failure_codes.includes("invalid_reason_codes"),
+    "non-array reason codes must be rejected",
+  );
+}
+
+function assertLineageValidation() {
+  const danglingRelatedSnapshot = snapshotWithRecordPatch(
+    "store-record-active-001",
+    (record) => ({
+      ...record,
+      related_record_refs: [...record.related_record_refs, "missing-record-ref-001"],
+    }),
+  );
+  assertValidationFailure(
+    danglingRelatedSnapshot,
+    "dangling_related_record_ref:store-record-active-001:missing-record-ref-001",
+  );
+
+  const selfRelatedSnapshot = snapshotWithRecordPatch("store-record-active-001", (record) => ({
+    ...record,
+    related_record_refs: [...record.related_record_refs, record.record_id],
+  }));
+  assertValidationFailure(selfRelatedSnapshot, "self_related_record_ref:store-record-active-001");
+
+  const danglingSupersedesSnapshot = snapshotWithRecordPatch(
+    "store-record-superseded-001",
+    (record) => ({
+      ...record,
+      supersedes_record_ref: "missing-superseding-record-001",
+    }),
+  );
+  assertValidationFailure(
+    danglingSupersedesSnapshot,
+    "dangling_supersedes_record_ref:store-record-superseded-001:missing-superseding-record-001",
+  );
+
+  const selfSupersedesSnapshot = snapshotWithRecordPatch(
+    "store-record-superseded-001",
+    (record) => ({
+      ...record,
+      supersedes_record_ref: record.record_id,
+    }),
+  );
+  assertValidationFailure(
+    selfSupersedesSnapshot,
+    "self_supersedes_record_ref:store-record-superseded-001",
+  );
+}
+
 function assertHelperSourceBoundary() {
   for (const forbiddenText of forbiddenHelperSourceSnippets) {
     assert.ok(!helperSource.includes(forbiddenText), `helper must not contain ${forbiddenText}`);
@@ -483,6 +556,29 @@ function refsForState(snapshot, lifecycleState) {
     .filter((record) => record.lifecycle_state === lifecycleState)
     .map((record) => record.record_id)
     .sort();
+}
+
+function snapshotWithRecordPatch(recordId, patchRecord) {
+  const snapshot = deepClone(fixture.expected_snapshot);
+  snapshot.records = snapshot.records.map((record) =>
+    record.record_id === recordId ? patchRecord(deepClone(record)) : record,
+  );
+  snapshot.store_fingerprint =
+    helper.createResearchCandidateReviewMemoryStoreFingerprint(snapshot);
+  return snapshot;
+}
+
+function assertValidationFailure(snapshot, failureCode) {
+  const validation = helper.validateResearchCandidateReviewMemoryStoreSnapshot(snapshot);
+  assert.equal(validation.passed, false);
+  assert.ok(
+    validation.failure_codes.includes(failureCode),
+    `expected validation failure ${failureCode}`,
+  );
+}
+
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 function extractIndexBlock(source, heading) {
