@@ -1,0 +1,312 @@
+{
+  "fixture_version": "research_candidate_review_memory_routes.sample.v0.1",
+  "route_version": "research_candidate_review_memory_routes.v0.1",
+  "store_version": "research_candidate_review_memory_store.v0.1",
+  "scope": "project:augnes",
+  "status": "route_boundary_only",
+  "as_of": "2026-06-25T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/research-candidate-review.memory-store.sample.v0.1.json"
+  ],
+  "sample_requests": [
+    {
+      "route_version": "research_candidate_review_memory_routes.v0.1",
+      "scope": "project:augnes",
+      "action": "create_empty_snapshot",
+      "store_file_path": "tmp/research-candidate-review-memory/store.json",
+      "as_of": "2026-06-25T00:00:00.000Z"
+    },
+    {
+      "route_version": "research_candidate_review_memory_routes.v0.1",
+      "scope": "project:augnes",
+      "action": "upsert_record",
+      "store_file_path": "tmp/research-candidate-review-memory/store.json",
+      "as_of": "2026-06-25T00:00:00.000Z",
+      "record": {
+        "record_version": "research_candidate_review_memory_record.v0.1",
+        "scope": "project:augnes",
+        "status": "contract_only",
+        "record_id": "route-record-active-001",
+        "record_kind": "candidate_review_snapshot",
+        "lifecycle_state": "active",
+        "candidate_ref": "claim-route-active-001",
+        "candidate_family": "claim",
+        "source_refs": [
+          {
+            "source_surface": "manual_source_ref",
+            "source_ref": "manual-source-ref:route-store-001",
+            "public_safe": true
+          }
+        ],
+        "related_record_refs": [],
+        "review_decision": "keep_for_review",
+        "bounded_summary": "Route smoke record stores bounded review metadata only.",
+        "created_at": "2026-06-25T00:00:00.000Z",
+        "updated_at": "2026-06-25T00:00:00.000Z",
+        "privacy_report": {
+          "privacy_class": "public_safe",
+          "public_safe": true,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": []
+        },
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "privacy_boundary_preserved",
+          "contract_only_not_runtime_memory",
+          "candidate_memory_not_truth",
+          "review_memory_not_promotion",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "runtime_memory_write_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "provider_openai_authority": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      }
+    },
+    {
+      "route_version": "research_candidate_review_memory_routes.v0.1",
+      "scope": "project:augnes",
+      "action": "discard_record",
+      "store_file_path": "tmp/research-candidate-review-memory/store.json",
+      "discard": {
+        "record_id": "route-record-active-001",
+        "discard_reason": "Operator discarded the route smoke record.",
+        "updated_at": "2026-06-25T00:00:01.000Z"
+      }
+    },
+    {
+      "route_version": "research_candidate_review_memory_routes.v0.1",
+      "scope": "project:augnes",
+      "action": "supersede_record",
+      "store_file_path": "tmp/research-candidate-review-memory/store.json",
+      "supersede": {
+        "record_id": "route-record-active-001",
+        "superseding_record": {
+          "record_version": "research_candidate_review_memory_record.v0.1",
+          "scope": "project:augnes",
+          "status": "contract_only",
+          "record_id": "route-record-superseding-001",
+          "record_kind": "diagnostic_summary",
+          "lifecycle_state": "active",
+          "candidate_ref": "claim-route-superseding-001",
+          "source_refs": [
+            {
+              "source_surface": "manual_source_ref",
+              "source_ref": "manual-source-ref:route-superseding-001",
+              "public_safe": true
+            }
+          ],
+          "related_record_refs": [],
+          "review_decision": "keep_for_review",
+          "bounded_summary": "Superseding route record preserves bounded lineage.",
+          "created_at": "2026-06-25T00:00:00.000Z",
+          "updated_at": "2026-06-25T00:00:02.000Z",
+          "privacy_report": {
+            "privacy_class": "public_safe",
+            "public_safe": true,
+            "raw_conversation_included": false,
+            "hidden_reasoning_included": false,
+            "raw_source_body_included": false,
+            "raw_candidate_payload_included": false,
+            "raw_provider_output_included": false,
+            "provider_thread_run_session_ids_included": false,
+            "private_urls_included": false,
+            "local_private_paths_included": false,
+            "secrets_included": false,
+            "raw_db_rows_included": false,
+            "raw_browser_dump_included": false,
+            "blocked_reason_codes": []
+          },
+          "reason_codes": [
+            "candidate_ref_present",
+            "source_ref_present",
+            "privacy_boundary_preserved",
+            "contract_only_not_runtime_memory",
+            "candidate_memory_not_truth",
+            "review_memory_not_promotion",
+            "product_write_denied"
+          ],
+          "authority_boundary": {
+            "contract_only": true,
+            "runtime_memory_write_now": false,
+            "db_query_or_write_now": false,
+            "source_of_truth": false,
+            "proof_or_evidence_record": false,
+            "perspective_promotion": false,
+            "durable_perspective_state": false,
+            "work_mutation": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "provider_openai_authority": false,
+            "source_fetch_authority": false,
+            "retrieval_rag_authority": false,
+            "git_ledger_export_authority": false,
+            "product_write_authority": false,
+            "product_id_allocation_authority": false
+          }
+        }
+      }
+    },
+    {
+      "route_version": "research_candidate_review_memory_routes.v0.1",
+      "scope": "project:augnes",
+      "action": "create_empty_snapshot",
+      "store_file_path": "../private.json",
+      "as_of": "2026-06-25T00:00:00.000Z",
+      "expected_error_code": "unsafe_store_file_path"
+    },
+    {
+      "route_version": "research_candidate_review_memory_routes.v0.1",
+      "scope": "project:augnes",
+      "action": "unknown_action",
+      "store_file_path": "tmp/research-candidate-review-memory/store.json",
+      "as_of": "2026-06-25T00:00:00.000Z",
+      "expected_error_code": "invalid_route_request"
+    },
+    {
+      "route_version": "research_candidate_review_memory_routes.v0.1",
+      "scope": "project:augnes",
+      "action": "create_empty_snapshot",
+      "store_file_path": "sk-FAKE_UNREDACTED",
+      "as_of": "2026-06-25T00:00:00.000Z",
+      "expected_error_code": "unsafe_store_file_path"
+    }
+  ],
+  "same_origin_denial_example": {
+    "origin": "https://example.invalid",
+    "host": "localhost:3000",
+    "expected_error_code": "same_origin_required"
+  },
+  "expected_responses": [
+    {
+      "route_version": "research_candidate_review_memory_routes.v0.1",
+      "scope": "project:augnes",
+      "status": "ok",
+      "action": "create_empty_snapshot",
+      "snapshot": {
+        "store_version": "research_candidate_review_memory_store.v0.1",
+        "contract_version": "research_candidate_review_memory_contract.v0.1",
+        "scope": "project:augnes",
+        "status": "local_store_snapshot",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "records": [],
+        "record_order": [],
+        "record_count": 0,
+        "discarded_record_refs": [],
+        "superseded_record_refs": [],
+        "active_record_refs": [],
+        "boundary_notes": [
+          "Product-write remains parked by #686.",
+          "Research Candidate Review Memory Store v0.1 is local-store-only.",
+          "Review memory is not truth.",
+          "Writes require an explicit caller-provided file path."
+        ],
+        "authority_boundary": {
+          "local_store_only": true,
+          "explicit_file_write_only": true,
+          "runtime_route_added_now": false,
+          "ui_added_now": false,
+          "db_migration_added_now": false,
+          "db_query_or_write_now": false,
+          "provider_openai_call_now": false,
+          "source_fetch_now": false,
+          "retrieval_rag_execution_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        },
+        "store_fingerprint": "7a266bbf512dcb83b23f884bbede9b34702b8f724a9b881daceebbeb1d45a682"
+      },
+      "boundary_notes": [
+        "Product-write remains parked by #686.",
+        "Review memory is not truth.",
+        "Review memory route is route-boundary-only."
+      ],
+      "authority_boundary": {
+        "route_boundary_only": true,
+        "same_origin_required": true,
+        "local_store_helper_only": true,
+        "ui_added_now": false,
+        "db_migration_added_now": false,
+        "db_query_or_write_now": false,
+        "provider_openai_call_now": false,
+        "source_fetch_now": false,
+        "retrieval_rag_execution_now": false,
+        "source_of_truth": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "durable_perspective_state": false,
+        "work_mutation": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "git_ledger_export_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      }
+    },
+    {
+      "route_version": "research_candidate_review_memory_routes.v0.1",
+      "scope": "project:augnes",
+      "status": "error",
+      "error_code": "unsafe_store_file_path",
+      "boundary_notes": [
+        "Product-write remains parked by #686.",
+        "Review memory is not truth.",
+        "Review memory route is route-boundary-only."
+      ],
+      "authority_boundary": {
+        "route_boundary_only": true,
+        "same_origin_required": true,
+        "local_store_helper_only": true,
+        "ui_added_now": false,
+        "db_migration_added_now": false,
+        "db_query_or_write_now": false,
+        "provider_openai_call_now": false,
+        "source_fetch_now": false,
+        "retrieval_rag_execution_now": false,
+        "source_of_truth": false,
+        "proof_or_evidence_record": false,
+        "perspective_promotion": false,
+        "durable_perspective_state": false,
+        "work_mutation": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "git_ledger_export_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false
+      }
+    }
+  ]
+}
