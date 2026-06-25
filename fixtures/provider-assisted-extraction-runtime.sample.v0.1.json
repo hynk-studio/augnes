@@ -1,0 +1,1957 @@
+{
+  "fixture_version": "provider_assisted_extraction_runtime.sample.v0.1",
+  "runtime_version": "provider_assisted_extraction_runtime.v0.1",
+  "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+  "request_version": "provider_assisted_extraction_candidate_request.v0.1",
+  "output_version": "provider_assisted_extraction_candidate_output.v0.1",
+  "scope": "project:augnes",
+  "status": "bounded_runtime_only",
+  "as_of": "2026-06-25T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/provider-assisted-extraction-candidate-only-contract.sample.v0.1.json",
+    "fixtures/bounded-source-intake-runtime.sample.v0.1.json"
+  ],
+  "input_preview": {
+    "runtime_version": "provider_assisted_extraction_runtime.v0.1",
+    "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+    "scope": "project:augnes",
+    "as_of": "2026-06-25T00:00:00.000Z",
+    "source_fixture_refs": [
+      "fixtures/provider-assisted-extraction-candidate-only-contract.sample.v0.1.json",
+      "fixtures/bounded-source-intake-runtime.sample.v0.1.json"
+    ],
+    "requests": [
+      {
+        "request_version": "provider_assisted_extraction_candidate_request.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-claim-001",
+        "request_status": "accepted_for_future_provider_run",
+        "requested_at": "2026-06-25T00:00:00.000Z",
+        "requested_by_surface": "bounded_source_intake_runtime",
+        "input_refs": [
+          {
+            "input_kind": "bounded_source_intake_result_envelope",
+            "input_ref": "bounded-source-intake-envelope-ref:claim-001",
+            "source_refs": [
+              "source-ref:claim-001"
+            ],
+            "bounded_summary_refs": [
+              "bounded-summary-ref:claim-001"
+            ],
+            "public_safe": true,
+            "privacy_class": "public_safe_bounded_input",
+            "redaction_status": "not_needed",
+            "reason_codes": [
+              "bounded_source_ref_present",
+              "bounded_summary_ref_present",
+              "input_kind_supported",
+              "source_ref_present"
+            ]
+          }
+        ],
+        "target_kinds": [
+          "claim_candidate"
+        ],
+        "extraction_mode": "candidate_claim_extraction",
+        "prompt_descriptor": {
+          "prompt_descriptor_version": "provider_assisted_extraction_prompt_descriptor.v0.1",
+          "scope": "project:augnes",
+          "prompt_descriptor_id": "provider-runtime-prompt-claim-001",
+          "mode": "candidate_claim_extraction",
+          "bounded_prompt_summary": "Bounded descriptor summary for provider-runtime-request-claim-001; no executable prompt is sent.",
+          "allowed_input_refs": [
+            "bounded-source-intake-envelope-ref:claim-001"
+          ],
+          "forbidden_input_classes": [
+            "provider_transcript",
+            "source_body",
+            "private_payload"
+          ],
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "prompt_not_sent",
+            "provider_call_not_executed",
+            "provider_output_not_stored"
+          ],
+          "authority_boundary": {
+            "candidate_contract_only": true,
+            "provider_call_now": false,
+            "prompt_sent_now": false,
+            "provider_output_stored_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "raw_source_body_storage_now": false,
+            "retrieval_rag_execution_now": false,
+            "db_query_or_write_now": false,
+            "source_of_truth": false,
+            "proof_or_evidence_record": false,
+            "claim_or_evidence_write_now": false,
+            "perspective_promotion": false,
+            "durable_perspective_state": false,
+            "work_mutation": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "git_ledger_export_authority": false,
+            "product_write_authority": false,
+            "product_id_allocation_authority": false
+          }
+        },
+        "bounded_purpose": "Shape a claim candidate from caller-provided bounded preview data.",
+        "expected_candidate_output_refs": [
+          "provider-runtime-candidate-ref:claim-001"
+        ],
+        "boundary_notes": [
+          "Candidate output is not truth.",
+          "accepted_for_future_provider_run is not provider execution."
+        ],
+        "reason_codes": [
+          "accepted_for_future_provider_run_not_execution",
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "request_version": "provider_assisted_extraction_candidate_request.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-summary-001",
+        "request_status": "candidate_only",
+        "requested_at": "2026-06-25T00:00:00.000Z",
+        "requested_by_surface": "operator",
+        "input_refs": [
+          {
+            "input_kind": "bounded_summary_ref",
+            "input_ref": "bounded-summary-ref:summary-001",
+            "source_refs": [
+              "source-ref:summary-001"
+            ],
+            "bounded_summary_refs": [
+              "bounded-summary-ref:summary-001"
+            ],
+            "public_safe": true,
+            "privacy_class": "public_safe_bounded_input",
+            "redaction_status": "not_needed",
+            "reason_codes": [
+              "bounded_source_ref_present",
+              "bounded_summary_ref_present",
+              "input_kind_supported",
+              "source_ref_present"
+            ]
+          }
+        ],
+        "target_kinds": [
+          "source_summary_candidate"
+        ],
+        "extraction_mode": "summarize_only",
+        "prompt_descriptor": {
+          "prompt_descriptor_version": "provider_assisted_extraction_prompt_descriptor.v0.1",
+          "scope": "project:augnes",
+          "prompt_descriptor_id": "provider-runtime-prompt-summary-001",
+          "mode": "summarize_only",
+          "bounded_prompt_summary": "Bounded descriptor summary for provider-runtime-request-summary-001; no executable prompt is sent.",
+          "allowed_input_refs": [
+            "bounded-summary-ref:summary-001"
+          ],
+          "forbidden_input_classes": [
+            "provider_transcript",
+            "source_body",
+            "private_payload"
+          ],
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "prompt_not_sent",
+            "provider_call_not_executed",
+            "provider_output_not_stored"
+          ],
+          "authority_boundary": {
+            "candidate_contract_only": true,
+            "provider_call_now": false,
+            "prompt_sent_now": false,
+            "provider_output_stored_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "raw_source_body_storage_now": false,
+            "retrieval_rag_execution_now": false,
+            "db_query_or_write_now": false,
+            "source_of_truth": false,
+            "proof_or_evidence_record": false,
+            "claim_or_evidence_write_now": false,
+            "perspective_promotion": false,
+            "durable_perspective_state": false,
+            "work_mutation": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "git_ledger_export_authority": false,
+            "product_write_authority": false,
+            "product_id_allocation_authority": false
+          }
+        },
+        "bounded_purpose": "Shape a source summary candidate from caller-provided bounded preview data.",
+        "expected_candidate_output_refs": [
+          "provider-runtime-candidate-ref:summary-001"
+        ],
+        "boundary_notes": [
+          "candidate preview is caller-provided bounded input, not provider output."
+        ],
+        "reason_codes": [
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "request_version": "provider_assisted_extraction_candidate_request.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-gap-001",
+        "request_status": "candidate_only",
+        "requested_at": "2026-06-25T00:00:00.000Z",
+        "requested_by_surface": "foundation_lifecycle_review_memory_readonly_ui",
+        "input_refs": [
+          {
+            "input_kind": "bounded_source_intake_runtime_report",
+            "input_ref": "bounded-source-intake-report-ref:gap-001",
+            "source_refs": [
+              "source-ref:gap-001"
+            ],
+            "bounded_summary_refs": [
+              "bounded-summary-ref:gap-001"
+            ],
+            "public_safe": true,
+            "privacy_class": "public_safe_bounded_input",
+            "redaction_status": "not_needed",
+            "reason_codes": [
+              "bounded_source_ref_present",
+              "bounded_summary_ref_present",
+              "input_kind_supported",
+              "source_ref_present"
+            ]
+          }
+        ],
+        "target_kinds": [
+          "knowledge_gap_signal"
+        ],
+        "extraction_mode": "gap_signal_detection",
+        "prompt_descriptor": {
+          "prompt_descriptor_version": "provider_assisted_extraction_prompt_descriptor.v0.1",
+          "scope": "project:augnes",
+          "prompt_descriptor_id": "provider-runtime-prompt-gap-001",
+          "mode": "gap_signal_detection",
+          "bounded_prompt_summary": "Bounded descriptor summary for provider-runtime-request-gap-001; no executable prompt is sent.",
+          "allowed_input_refs": [
+            "bounded-source-intake-report-ref:gap-001"
+          ],
+          "forbidden_input_classes": [
+            "provider_transcript",
+            "source_body",
+            "private_payload"
+          ],
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "prompt_not_sent",
+            "provider_call_not_executed",
+            "provider_output_not_stored"
+          ],
+          "authority_boundary": {
+            "candidate_contract_only": true,
+            "provider_call_now": false,
+            "prompt_sent_now": false,
+            "provider_output_stored_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "raw_source_body_storage_now": false,
+            "retrieval_rag_execution_now": false,
+            "db_query_or_write_now": false,
+            "source_of_truth": false,
+            "proof_or_evidence_record": false,
+            "claim_or_evidence_write_now": false,
+            "perspective_promotion": false,
+            "durable_perspective_state": false,
+            "work_mutation": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "git_ledger_export_authority": false,
+            "product_write_authority": false,
+            "product_id_allocation_authority": false
+          }
+        },
+        "bounded_purpose": "Shape a knowledge gap signal from caller-provided bounded preview data.",
+        "expected_candidate_output_refs": [
+          "provider-runtime-candidate-ref:gap-001"
+        ],
+        "boundary_notes": [
+          "Candidate output is not proof/evidence."
+        ],
+        "reason_codes": [
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "request_version": "provider_assisted_extraction_candidate_request.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-review-001",
+        "request_status": "needs_operator_review",
+        "requested_at": "2026-06-25T00:00:00.000Z",
+        "requested_by_surface": "review_memory_ui",
+        "input_refs": [
+          {
+            "input_kind": "review_memory_ref",
+            "input_ref": "review-memory-ref:needs-review-001",
+            "source_refs": [
+              "source-ref:review-memory-001"
+            ],
+            "bounded_summary_refs": [
+              "bounded-summary-ref:review-memory-001"
+            ],
+            "public_safe": true,
+            "privacy_class": "private_ref_only",
+            "redaction_status": "not_needed",
+            "reason_codes": [
+              "bounded_source_ref_present",
+              "bounded_summary_ref_present",
+              "input_kind_supported",
+              "operator_review_required",
+              "source_ref_present"
+            ]
+          }
+        ],
+        "target_kinds": [
+          "calibration_signal"
+        ],
+        "extraction_mode": "calibration_signal_detection",
+        "prompt_descriptor": {
+          "prompt_descriptor_version": "provider_assisted_extraction_prompt_descriptor.v0.1",
+          "scope": "project:augnes",
+          "prompt_descriptor_id": "provider-runtime-prompt-review-001",
+          "mode": "calibration_signal_detection",
+          "bounded_prompt_summary": "Bounded descriptor summary for provider-runtime-request-review-001; no executable prompt is sent.",
+          "allowed_input_refs": [
+            "review-memory-ref:needs-review-001"
+          ],
+          "forbidden_input_classes": [
+            "provider_transcript",
+            "source_body",
+            "private_payload"
+          ],
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "prompt_not_sent",
+            "provider_call_not_executed",
+            "provider_output_not_stored"
+          ],
+          "authority_boundary": {
+            "candidate_contract_only": true,
+            "provider_call_now": false,
+            "prompt_sent_now": false,
+            "provider_output_stored_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "raw_source_body_storage_now": false,
+            "retrieval_rag_execution_now": false,
+            "db_query_or_write_now": false,
+            "source_of_truth": false,
+            "proof_or_evidence_record": false,
+            "claim_or_evidence_write_now": false,
+            "perspective_promotion": false,
+            "durable_perspective_state": false,
+            "work_mutation": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "git_ledger_export_authority": false,
+            "product_write_authority": false,
+            "product_id_allocation_authority": false
+          }
+        },
+        "bounded_purpose": "Keep calibration signal candidate request in operator review without preview data.",
+        "expected_candidate_output_refs": [],
+        "boundary_notes": [
+          "Operator review remains required."
+        ],
+        "reason_codes": [
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "operator_review_required",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "request_version": "provider_assisted_extraction_candidate_request.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-raw-blocked-001",
+        "request_status": "blocked_private_or_raw_payload",
+        "requested_at": "2026-06-25T00:00:00.000Z",
+        "requested_by_surface": "operator",
+        "input_refs": [
+          {
+            "input_kind": "manual_bounded_context",
+            "input_ref": "blocked-placeholder:raw-private-payload-001",
+            "source_refs": [],
+            "bounded_summary_refs": [],
+            "public_safe": false,
+            "privacy_class": "blocked_raw_private_payload",
+            "redaction_status": "blocked_raw_payload",
+            "reason_codes": [
+              "bounded_source_ref_missing",
+              "bounded_summary_ref_missing",
+              "input_kind_supported",
+              "operator_review_required",
+              "raw_payload_blocked",
+              "source_ref_missing"
+            ]
+          }
+        ],
+        "target_kinds": [
+          "contradiction_signal"
+        ],
+        "extraction_mode": "contradiction_signal_detection",
+        "prompt_descriptor": {
+          "prompt_descriptor_version": "provider_assisted_extraction_prompt_descriptor.v0.1",
+          "scope": "project:augnes",
+          "prompt_descriptor_id": "provider-runtime-prompt-raw-blocked-001",
+          "mode": "contradiction_signal_detection",
+          "bounded_prompt_summary": "Bounded descriptor summary for provider-runtime-request-raw-blocked-001; no executable prompt is sent.",
+          "allowed_input_refs": [
+            "blocked-placeholder:raw-private-payload-001"
+          ],
+          "forbidden_input_classes": [
+            "provider_transcript",
+            "source_body",
+            "private_payload"
+          ],
+          "redaction_status": "blocked_raw_payload",
+          "public_safe": true,
+          "reason_codes": [
+            "prompt_not_sent",
+            "provider_call_not_executed",
+            "provider_output_not_stored"
+          ],
+          "authority_boundary": {
+            "candidate_contract_only": true,
+            "provider_call_now": false,
+            "prompt_sent_now": false,
+            "provider_output_stored_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "raw_source_body_storage_now": false,
+            "retrieval_rag_execution_now": false,
+            "db_query_or_write_now": false,
+            "source_of_truth": false,
+            "proof_or_evidence_record": false,
+            "claim_or_evidence_write_now": false,
+            "perspective_promotion": false,
+            "durable_perspective_state": false,
+            "work_mutation": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "git_ledger_export_authority": false,
+            "product_write_authority": false,
+            "product_id_allocation_authority": false
+          }
+        },
+        "bounded_purpose": "Block raw private payload before any candidate output can be shaped.",
+        "expected_candidate_output_refs": [],
+        "boundary_notes": [
+          "raw private payload blocked by runtime fixture"
+        ],
+        "reason_codes": [
+          "bounded_source_ref_missing",
+          "bounded_summary_ref_missing",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "operator_review_required",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "raw_payload_blocked",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_missing",
+          "source_ref_not_proof",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "request_version": "provider_assisted_extraction_candidate_request.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-secret-blocked-001",
+        "request_status": "blocked_private_or_raw_payload",
+        "requested_at": "2026-06-25T00:00:00.000Z",
+        "requested_by_surface": "operator",
+        "input_refs": [
+          {
+            "input_kind": "source_ref",
+            "input_ref": "blocked-placeholder:secret-like-provider-input-001",
+            "source_refs": [
+              "source-ref:secret-placeholder-001"
+            ],
+            "bounded_summary_refs": [],
+            "public_safe": false,
+            "privacy_class": "blocked_secret_like_payload",
+            "redaction_status": "blocked_secret_like_pattern",
+            "reason_codes": [
+              "bounded_source_ref_present",
+              "bounded_summary_ref_missing",
+              "input_kind_supported",
+              "operator_review_required",
+              "secret_like_pattern_blocked",
+              "source_ref_present"
+            ]
+          }
+        ],
+        "target_kinds": [
+          "evidence_candidate"
+        ],
+        "extraction_mode": "candidate_evidence_mapping",
+        "prompt_descriptor": {
+          "prompt_descriptor_version": "provider_assisted_extraction_prompt_descriptor.v0.1",
+          "scope": "project:augnes",
+          "prompt_descriptor_id": "provider-runtime-prompt-secret-blocked-001",
+          "mode": "candidate_evidence_mapping",
+          "bounded_prompt_summary": "Bounded descriptor summary for provider-runtime-request-secret-blocked-001; no executable prompt is sent.",
+          "allowed_input_refs": [
+            "blocked-placeholder:secret-like-provider-input-001"
+          ],
+          "forbidden_input_classes": [
+            "provider_transcript",
+            "source_body",
+            "private_payload"
+          ],
+          "redaction_status": "blocked_secret_like_pattern",
+          "public_safe": true,
+          "reason_codes": [
+            "prompt_not_sent",
+            "provider_call_not_executed",
+            "provider_output_not_stored"
+          ],
+          "authority_boundary": {
+            "candidate_contract_only": true,
+            "provider_call_now": false,
+            "prompt_sent_now": false,
+            "provider_output_stored_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "raw_source_body_storage_now": false,
+            "retrieval_rag_execution_now": false,
+            "db_query_or_write_now": false,
+            "source_of_truth": false,
+            "proof_or_evidence_record": false,
+            "claim_or_evidence_write_now": false,
+            "perspective_promotion": false,
+            "durable_perspective_state": false,
+            "work_mutation": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "git_ledger_export_authority": false,
+            "product_write_authority": false,
+            "product_id_allocation_authority": false
+          }
+        },
+        "bounded_purpose": "Block secret-like placeholder input before any candidate output can be shaped.",
+        "expected_candidate_output_refs": [],
+        "boundary_notes": [
+          "secret-like provider input blocked by runtime fixture"
+        ],
+        "reason_codes": [
+          "bounded_source_ref_present",
+          "bounded_summary_ref_missing",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "operator_review_required",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "secret_like_pattern_blocked",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "request_version": "provider_assisted_extraction_candidate_request.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-missing-source-001",
+        "request_status": "blocked_missing_bounded_source",
+        "requested_at": "2026-06-25T00:00:00.000Z",
+        "requested_by_surface": "operator",
+        "input_refs": [
+          {
+            "input_kind": "source_ref",
+            "input_ref": "source-ref:missing-bounded-source-001",
+            "source_refs": [],
+            "bounded_summary_refs": [],
+            "public_safe": true,
+            "privacy_class": "private_ref_only",
+            "redaction_status": "blocked_private_location",
+            "reason_codes": [
+              "bounded_source_ref_missing",
+              "bounded_summary_ref_missing",
+              "input_kind_supported",
+              "operator_review_required",
+              "source_ref_missing"
+            ]
+          }
+        ],
+        "target_kinds": [
+          "logical_shape_hint"
+        ],
+        "extraction_mode": "logical_shape_hinting",
+        "prompt_descriptor": {
+          "prompt_descriptor_version": "provider_assisted_extraction_prompt_descriptor.v0.1",
+          "scope": "project:augnes",
+          "prompt_descriptor_id": "provider-runtime-prompt-missing-source-001",
+          "mode": "logical_shape_hinting",
+          "bounded_prompt_summary": "Bounded descriptor summary for provider-runtime-request-missing-source-001; no executable prompt is sent.",
+          "allowed_input_refs": [
+            "source-ref:missing-bounded-source-001"
+          ],
+          "forbidden_input_classes": [
+            "provider_transcript",
+            "source_body",
+            "private_payload"
+          ],
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "prompt_not_sent",
+            "provider_call_not_executed",
+            "provider_output_not_stored"
+          ],
+          "authority_boundary": {
+            "candidate_contract_only": true,
+            "provider_call_now": false,
+            "prompt_sent_now": false,
+            "provider_output_stored_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "raw_source_body_storage_now": false,
+            "retrieval_rag_execution_now": false,
+            "db_query_or_write_now": false,
+            "source_of_truth": false,
+            "proof_or_evidence_record": false,
+            "claim_or_evidence_write_now": false,
+            "perspective_promotion": false,
+            "durable_perspective_state": false,
+            "work_mutation": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "git_ledger_export_authority": false,
+            "product_write_authority": false,
+            "product_id_allocation_authority": false
+          }
+        },
+        "bounded_purpose": "Block candidate shaping when bounded source lineage is missing.",
+        "expected_candidate_output_refs": [],
+        "boundary_notes": [
+          "Missing bounded source lineage blocks future provider use."
+        ],
+        "reason_codes": [
+          "bounded_source_ref_missing",
+          "bounded_summary_ref_missing",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "operator_review_required",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_missing",
+          "source_ref_not_proof",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "request_version": "provider_assisted_extraction_candidate_request.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-unsupported-target-001",
+        "request_status": "blocked_unsupported_target",
+        "requested_at": "2026-06-25T00:00:00.000Z",
+        "requested_by_surface": "operator",
+        "input_refs": [
+          {
+            "input_kind": "unknown",
+            "input_ref": "unknown-input-ref:unsupported-target-001",
+            "source_refs": [],
+            "bounded_summary_refs": [],
+            "public_safe": true,
+            "privacy_class": "public_safe_bounded_input",
+            "redaction_status": "not_needed",
+            "reason_codes": [
+              "bounded_source_ref_missing",
+              "bounded_summary_ref_missing",
+              "input_kind_unknown",
+              "source_ref_missing"
+            ]
+          }
+        ],
+        "target_kinds": [
+          "unknown"
+        ],
+        "extraction_mode": "unknown",
+        "prompt_descriptor": {
+          "prompt_descriptor_version": "provider_assisted_extraction_prompt_descriptor.v0.1",
+          "scope": "project:augnes",
+          "prompt_descriptor_id": "provider-runtime-prompt-unsupported-target-001",
+          "mode": "unknown",
+          "bounded_prompt_summary": "Bounded descriptor summary for provider-runtime-request-unsupported-target-001; no executable prompt is sent.",
+          "allowed_input_refs": [
+            "unknown-input-ref:unsupported-target-001"
+          ],
+          "forbidden_input_classes": [
+            "provider_transcript",
+            "source_body",
+            "private_payload"
+          ],
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "prompt_not_sent",
+            "provider_call_not_executed",
+            "provider_output_not_stored"
+          ],
+          "authority_boundary": {
+            "candidate_contract_only": true,
+            "provider_call_now": false,
+            "prompt_sent_now": false,
+            "provider_output_stored_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "raw_source_body_storage_now": false,
+            "retrieval_rag_execution_now": false,
+            "db_query_or_write_now": false,
+            "source_of_truth": false,
+            "proof_or_evidence_record": false,
+            "claim_or_evidence_write_now": false,
+            "perspective_promotion": false,
+            "durable_perspective_state": false,
+            "work_mutation": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "git_ledger_export_authority": false,
+            "product_write_authority": false,
+            "product_id_allocation_authority": false
+          }
+        },
+        "bounded_purpose": "Block unsupported target kind before candidate output shaping.",
+        "expected_candidate_output_refs": [],
+        "boundary_notes": [
+          "Unknown target kinds are blocked."
+        ],
+        "reason_codes": [
+          "bounded_source_ref_missing",
+          "bounded_summary_ref_missing",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_unknown",
+          "local_file_read_not_executed",
+          "operator_review_required",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_missing",
+          "source_ref_not_proof",
+          "target_kind_unknown"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "request_version": "provider_assisted_extraction_candidate_request.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-rejected-001",
+        "request_status": "rejected",
+        "requested_at": "2026-06-25T00:00:00.000Z",
+        "requested_by_surface": "operator",
+        "input_refs": [
+          {
+            "input_kind": "source_ref",
+            "input_ref": "source-ref:rejected-001",
+            "source_refs": [
+              "source-ref:rejected-001"
+            ],
+            "bounded_summary_refs": [
+              "bounded-summary-ref:rejected-001"
+            ],
+            "public_safe": true,
+            "privacy_class": "public_safe_bounded_input",
+            "redaction_status": "not_needed",
+            "reason_codes": [
+              "bounded_source_ref_present",
+              "bounded_summary_ref_present",
+              "input_kind_supported",
+              "source_ref_present"
+            ]
+          }
+        ],
+        "target_kinds": [
+          "handoff_hint"
+        ],
+        "extraction_mode": "metadata_only",
+        "prompt_descriptor": {
+          "prompt_descriptor_version": "provider_assisted_extraction_prompt_descriptor.v0.1",
+          "scope": "project:augnes",
+          "prompt_descriptor_id": "provider-runtime-prompt-rejected-001",
+          "mode": "metadata_only",
+          "bounded_prompt_summary": "Bounded descriptor summary for provider-runtime-request-rejected-001; no executable prompt is sent.",
+          "allowed_input_refs": [
+            "source-ref:rejected-001"
+          ],
+          "forbidden_input_classes": [
+            "provider_transcript",
+            "source_body",
+            "private_payload"
+          ],
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "prompt_not_sent",
+            "provider_call_not_executed",
+            "provider_output_not_stored"
+          ],
+          "authority_boundary": {
+            "candidate_contract_only": true,
+            "provider_call_now": false,
+            "prompt_sent_now": false,
+            "provider_output_stored_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "raw_source_body_storage_now": false,
+            "retrieval_rag_execution_now": false,
+            "db_query_or_write_now": false,
+            "source_of_truth": false,
+            "proof_or_evidence_record": false,
+            "claim_or_evidence_write_now": false,
+            "perspective_promotion": false,
+            "durable_perspective_state": false,
+            "work_mutation": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "git_ledger_export_authority": false,
+            "product_write_authority": false,
+            "product_id_allocation_authority": false
+          }
+        },
+        "bounded_purpose": "Keep rejected candidate request from producing runtime candidate output.",
+        "expected_candidate_output_refs": [],
+        "boundary_notes": [
+          "Rejected candidate requests do not produce runtime outputs."
+        ],
+        "reason_codes": [
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "request_version": "provider_assisted_extraction_candidate_request.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-accepted-without-preview-001",
+        "request_status": "accepted_for_future_provider_run",
+        "requested_at": "2026-06-25T00:00:00.000Z",
+        "requested_by_surface": "target_agent_packet_profile",
+        "input_refs": [
+          {
+            "input_kind": "bounded_source_intake_result_envelope",
+            "input_ref": "bounded-source-intake-envelope-ref:no-preview-001",
+            "source_refs": [
+              "source-ref:no-preview-001"
+            ],
+            "bounded_summary_refs": [
+              "bounded-summary-ref:no-preview-001"
+            ],
+            "public_safe": true,
+            "privacy_class": "public_safe_bounded_input",
+            "redaction_status": "not_needed",
+            "reason_codes": [
+              "bounded_source_ref_present",
+              "bounded_summary_ref_present",
+              "input_kind_supported",
+              "source_ref_present"
+            ]
+          }
+        ],
+        "target_kinds": [
+          "logical_shape_hint"
+        ],
+        "extraction_mode": "logical_shape_hinting",
+        "prompt_descriptor": {
+          "prompt_descriptor_version": "provider_assisted_extraction_prompt_descriptor.v0.1",
+          "scope": "project:augnes",
+          "prompt_descriptor_id": "provider-runtime-prompt-no-preview-001",
+          "mode": "logical_shape_hinting",
+          "bounded_prompt_summary": "Bounded descriptor summary for provider-runtime-request-accepted-without-preview-001; no executable prompt is sent.",
+          "allowed_input_refs": [
+            "bounded-source-intake-envelope-ref:no-preview-001"
+          ],
+          "forbidden_input_classes": [
+            "provider_transcript",
+            "source_body",
+            "private_payload"
+          ],
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "prompt_not_sent",
+            "provider_call_not_executed",
+            "provider_output_not_stored"
+          ],
+          "authority_boundary": {
+            "candidate_contract_only": true,
+            "provider_call_now": false,
+            "prompt_sent_now": false,
+            "provider_output_stored_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "raw_source_body_storage_now": false,
+            "retrieval_rag_execution_now": false,
+            "db_query_or_write_now": false,
+            "source_of_truth": false,
+            "proof_or_evidence_record": false,
+            "claim_or_evidence_write_now": false,
+            "perspective_promotion": false,
+            "durable_perspective_state": false,
+            "work_mutation": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "git_ledger_export_authority": false,
+            "product_write_authority": false,
+            "product_id_allocation_authority": false
+          }
+        },
+        "bounded_purpose": "Keep accepted request candidate-only when no caller-provided preview exists.",
+        "expected_candidate_output_refs": [],
+        "boundary_notes": [
+          "accepted_for_future_provider_run is not provider execution."
+        ],
+        "reason_codes": [
+          "accepted_for_future_provider_run_not_execution",
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      }
+    ],
+    "candidate_previews": [
+      {
+        "request_id": "provider-runtime-request-claim-001",
+        "output_kind": "claim_candidate",
+        "candidate_ref": "provider-runtime-candidate-ref:claim-001",
+        "bounded_output_summary": "Public-safe claim candidate preview supplied by caller for runtime shaping.",
+        "source_refs": [
+          "source-ref:claim-preview-001"
+        ],
+        "bounded_summary_refs": [
+          "bounded-summary-ref:claim-preview-001"
+        ],
+        "confidence_preview": "medium",
+        "review_status": "candidate_only",
+        "public_safe": true
+      },
+      {
+        "request_id": "provider-runtime-request-summary-001",
+        "output_kind": "source_summary_candidate",
+        "candidate_ref": "provider-runtime-candidate-ref:summary-001",
+        "bounded_output_summary": "Public-safe source summary candidate preview supplied by caller.",
+        "source_refs": [
+          "source-ref:summary-preview-001"
+        ],
+        "bounded_summary_refs": [
+          "bounded-summary-ref:summary-preview-001"
+        ],
+        "confidence_preview": "high",
+        "review_status": "accepted_for_future_runtime",
+        "public_safe": true
+      },
+      {
+        "request_id": "provider-runtime-request-gap-001",
+        "output_kind": "knowledge_gap_signal",
+        "candidate_ref": "provider-runtime-candidate-ref:gap-001",
+        "bounded_output_summary": "Public-safe knowledge gap signal preview supplied by caller.",
+        "source_refs": [
+          "source-ref:gap-preview-001"
+        ],
+        "bounded_summary_refs": [
+          "bounded-summary-ref:gap-preview-001"
+        ],
+        "confidence_preview": "low",
+        "review_status": "needs_review",
+        "public_safe": true
+      }
+    ]
+  },
+  "expected_report": {
+    "runtime_version": "provider_assisted_extraction_runtime.v0.1",
+    "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+    "scope": "project:augnes",
+    "status": "bounded_runtime_only",
+    "as_of": "2026-06-25T00:00:00.000Z",
+    "source_fixture_refs": [
+      "fixtures/bounded-source-intake-runtime.sample.v0.1.json",
+      "fixtures/provider-assisted-extraction-candidate-only-contract.sample.v0.1.json"
+    ],
+    "candidate_outputs": [
+      {
+        "output_version": "provider_assisted_extraction_candidate_output.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-claim-001",
+        "output_id": "provider-runtime-output:provider-runtime-request-claim-001:claim_candidate:a1f9f39d8de1",
+        "output_kind": "claim_candidate",
+        "candidate_ref": "provider-runtime-candidate-ref:claim-001",
+        "bounded_output_summary": "Public-safe claim candidate preview supplied by caller for runtime shaping.",
+        "source_refs": [
+          "source-ref:claim-001",
+          "source-ref:claim-preview-001"
+        ],
+        "bounded_summary_refs": [
+          "bounded-summary-ref:claim-001",
+          "bounded-summary-ref:claim-preview-001"
+        ],
+        "confidence_preview": "medium",
+        "review_status": "candidate_only",
+        "provider_output_included": false,
+        "prompt_sent": false,
+        "provider_call_executed": false,
+        "claim_or_evidence_written": false,
+        "proof_or_evidence_created": false,
+        "perspective_promoted": false,
+        "product_write_executed": false,
+        "reason_codes": [
+          "accepted_for_future_provider_run_not_execution",
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "output_version": "provider_assisted_extraction_candidate_output.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-gap-001",
+        "output_id": "provider-runtime-output:provider-runtime-request-gap-001:knowledge_gap_signal:fda52e2b0109",
+        "output_kind": "knowledge_gap_signal",
+        "candidate_ref": "provider-runtime-candidate-ref:gap-001",
+        "bounded_output_summary": "Public-safe knowledge gap signal preview supplied by caller.",
+        "source_refs": [
+          "source-ref:gap-001",
+          "source-ref:gap-preview-001"
+        ],
+        "bounded_summary_refs": [
+          "bounded-summary-ref:gap-001",
+          "bounded-summary-ref:gap-preview-001"
+        ],
+        "confidence_preview": "low",
+        "review_status": "needs_review",
+        "provider_output_included": false,
+        "prompt_sent": false,
+        "provider_call_executed": false,
+        "claim_or_evidence_written": false,
+        "proof_or_evidence_created": false,
+        "perspective_promoted": false,
+        "product_write_executed": false,
+        "reason_codes": [
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "output_version": "provider_assisted_extraction_candidate_output.v0.1",
+        "contract_version": "provider_assisted_extraction_candidate_only_contract.v0.1",
+        "scope": "project:augnes",
+        "request_id": "provider-runtime-request-summary-001",
+        "output_id": "provider-runtime-output:provider-runtime-request-summary-001:source_summary_candidate:c5f0fb30a94f",
+        "output_kind": "source_summary_candidate",
+        "candidate_ref": "provider-runtime-candidate-ref:summary-001",
+        "bounded_output_summary": "Public-safe source summary candidate preview supplied by caller.",
+        "source_refs": [
+          "source-ref:summary-001",
+          "source-ref:summary-preview-001"
+        ],
+        "bounded_summary_refs": [
+          "bounded-summary-ref:summary-001",
+          "bounded-summary-ref:summary-preview-001"
+        ],
+        "confidence_preview": "high",
+        "review_status": "accepted_for_future_runtime",
+        "provider_output_included": false,
+        "prompt_sent": false,
+        "provider_call_executed": false,
+        "claim_or_evidence_written": false,
+        "proof_or_evidence_created": false,
+        "perspective_promoted": false,
+        "product_write_executed": false,
+        "reason_codes": [
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "provider_call_not_executed",
+          "provider_output_not_stored",
+          "retrieval_not_executed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ],
+        "authority_boundary": {
+          "candidate_contract_only": true,
+          "provider_call_now": false,
+          "prompt_sent_now": false,
+          "provider_output_stored_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "raw_source_body_storage_now": false,
+          "retrieval_rag_execution_now": false,
+          "db_query_or_write_now": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "claim_or_evidence_write_now": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      }
+    ],
+    "runtime_decisions": [
+      {
+        "request_id": "provider-runtime-request-accepted-without-preview-001",
+        "decision": "candidate_only",
+        "output_refs": [],
+        "reason_codes": [
+          "accepted_for_future_provider_run_not_execution",
+          "bounded_runtime_executed",
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "candidate_preview_missing",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "prompt_still_not_sent",
+          "provider_call_not_executed",
+          "provider_call_still_not_executed",
+          "provider_output_not_stored",
+          "provider_output_still_not_stored",
+          "retrieval_not_executed",
+          "runtime_request_validation_passed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ]
+      },
+      {
+        "request_id": "provider-runtime-request-claim-001",
+        "decision": "candidate_output_created",
+        "output_refs": [
+          "provider-runtime-output:provider-runtime-request-claim-001:claim_candidate:a1f9f39d8de1"
+        ],
+        "reason_codes": [
+          "accepted_for_future_provider_run_not_execution",
+          "accepted_output_not_proof",
+          "accepted_output_not_truth",
+          "bounded_runtime_executed",
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "candidate_preview_present",
+          "candidate_preview_public_safe",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "prompt_still_not_sent",
+          "provider_call_not_executed",
+          "provider_call_still_not_executed",
+          "provider_output_not_stored",
+          "provider_output_still_not_stored",
+          "retrieval_not_executed",
+          "runtime_candidate_output_created",
+          "runtime_request_validation_passed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ]
+      },
+      {
+        "request_id": "provider-runtime-request-gap-001",
+        "decision": "candidate_output_created",
+        "output_refs": [
+          "provider-runtime-output:provider-runtime-request-gap-001:knowledge_gap_signal:fda52e2b0109"
+        ],
+        "reason_codes": [
+          "accepted_output_not_proof",
+          "accepted_output_not_truth",
+          "bounded_runtime_executed",
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "candidate_preview_present",
+          "candidate_preview_public_safe",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "prompt_still_not_sent",
+          "provider_call_not_executed",
+          "provider_call_still_not_executed",
+          "provider_output_not_stored",
+          "provider_output_still_not_stored",
+          "retrieval_not_executed",
+          "runtime_candidate_output_created",
+          "runtime_request_validation_passed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ]
+      },
+      {
+        "request_id": "provider-runtime-request-missing-source-001",
+        "decision": "blocked_missing_bounded_source",
+        "output_refs": [],
+        "reason_codes": [
+          "blocked_request_not_executed",
+          "bounded_runtime_executed",
+          "bounded_source_ref_missing",
+          "bounded_summary_ref_missing",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "candidate_preview_missing",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "operator_review_required",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "prompt_still_not_sent",
+          "provider_call_not_executed",
+          "provider_call_still_not_executed",
+          "provider_output_not_stored",
+          "provider_output_still_not_stored",
+          "retrieval_not_executed",
+          "runtime_request_validation_passed",
+          "source_fetch_not_executed",
+          "source_ref_missing",
+          "source_ref_not_proof",
+          "target_kind_supported"
+        ]
+      },
+      {
+        "request_id": "provider-runtime-request-raw-blocked-001",
+        "decision": "blocked_private_or_raw_payload",
+        "output_refs": [],
+        "reason_codes": [
+          "blocked_request_not_executed",
+          "bounded_runtime_executed",
+          "bounded_source_ref_missing",
+          "bounded_summary_ref_missing",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "candidate_preview_missing",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "operator_review_required",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "prompt_still_not_sent",
+          "provider_call_not_executed",
+          "provider_call_still_not_executed",
+          "provider_output_not_stored",
+          "provider_output_still_not_stored",
+          "raw_payload_blocked",
+          "retrieval_not_executed",
+          "runtime_request_validation_passed",
+          "source_fetch_not_executed",
+          "source_ref_missing",
+          "source_ref_not_proof",
+          "target_kind_supported"
+        ]
+      },
+      {
+        "request_id": "provider-runtime-request-rejected-001",
+        "decision": "rejected",
+        "output_refs": [],
+        "reason_codes": [
+          "blocked_request_not_executed",
+          "bounded_runtime_executed",
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "candidate_preview_missing",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "prompt_still_not_sent",
+          "provider_call_not_executed",
+          "provider_call_still_not_executed",
+          "provider_output_not_stored",
+          "provider_output_still_not_stored",
+          "retrieval_not_executed",
+          "runtime_request_validation_passed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ]
+      },
+      {
+        "request_id": "provider-runtime-request-review-001",
+        "decision": "needs_operator_review",
+        "output_refs": [],
+        "reason_codes": [
+          "bounded_runtime_executed",
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "candidate_preview_missing",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "operator_review_required",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "prompt_still_not_sent",
+          "provider_call_not_executed",
+          "provider_call_still_not_executed",
+          "provider_output_not_stored",
+          "provider_output_still_not_stored",
+          "retrieval_not_executed",
+          "runtime_request_validation_passed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ]
+      },
+      {
+        "request_id": "provider-runtime-request-secret-blocked-001",
+        "decision": "blocked_secret_like_payload",
+        "output_refs": [],
+        "reason_codes": [
+          "blocked_request_not_executed",
+          "bounded_runtime_executed",
+          "bounded_source_ref_present",
+          "bounded_summary_ref_missing",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "candidate_preview_missing",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "operator_review_required",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "prompt_still_not_sent",
+          "provider_call_not_executed",
+          "provider_call_still_not_executed",
+          "provider_output_not_stored",
+          "provider_output_still_not_stored",
+          "retrieval_not_executed",
+          "runtime_request_validation_passed",
+          "secret_like_pattern_blocked",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ]
+      },
+      {
+        "request_id": "provider-runtime-request-summary-001",
+        "decision": "candidate_output_created",
+        "output_refs": [
+          "provider-runtime-output:provider-runtime-request-summary-001:source_summary_candidate:c5f0fb30a94f"
+        ],
+        "reason_codes": [
+          "accepted_output_not_proof",
+          "accepted_output_not_truth",
+          "bounded_runtime_executed",
+          "bounded_source_ref_present",
+          "bounded_summary_ref_present",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "candidate_preview_present",
+          "candidate_preview_public_safe",
+          "input_kind_supported",
+          "local_file_read_not_executed",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "prompt_still_not_sent",
+          "provider_call_not_executed",
+          "provider_call_still_not_executed",
+          "provider_output_not_stored",
+          "provider_output_still_not_stored",
+          "retrieval_not_executed",
+          "runtime_candidate_output_created",
+          "runtime_request_validation_passed",
+          "source_fetch_not_executed",
+          "source_ref_not_proof",
+          "source_ref_present",
+          "target_kind_supported"
+        ]
+      },
+      {
+        "request_id": "provider-runtime-request-unsupported-target-001",
+        "decision": "blocked_unsupported_target",
+        "output_refs": [],
+        "reason_codes": [
+          "blocked_request_not_executed",
+          "bounded_runtime_executed",
+          "bounded_source_ref_missing",
+          "bounded_summary_ref_missing",
+          "candidate_only_not_truth",
+          "candidate_output_shape_defined",
+          "candidate_preview_missing",
+          "input_kind_unknown",
+          "local_file_read_not_executed",
+          "operator_review_required",
+          "product_write_denied",
+          "prompt_descriptor_present",
+          "prompt_not_sent",
+          "prompt_still_not_sent",
+          "provider_call_not_executed",
+          "provider_call_still_not_executed",
+          "provider_output_not_stored",
+          "provider_output_still_not_stored",
+          "retrieval_not_executed",
+          "runtime_request_validation_passed",
+          "source_fetch_not_executed",
+          "source_ref_missing",
+          "source_ref_not_proof",
+          "target_kind_unknown"
+        ]
+      }
+    ],
+    "decision_counts": {
+      "candidate_output_created": 3,
+      "blocked_private_or_raw_payload": 1,
+      "blocked_secret_like_payload": 1,
+      "blocked_missing_bounded_source": 1,
+      "blocked_unsupported_target": 1,
+      "needs_operator_review": 1,
+      "candidate_only": 1,
+      "rejected": 1
+    },
+    "output_kind_counts": {
+      "claim_candidate": 1,
+      "evidence_candidate": 0,
+      "source_summary_candidate": 1,
+      "knowledge_gap_signal": 1,
+      "contradiction_signal": 0,
+      "calibration_signal": 0,
+      "logical_shape_hint": 0,
+      "handoff_hint": 0,
+      "unknown": 0
+    },
+    "review_status_counts": {
+      "candidate_only": 1,
+      "needs_review": 1,
+      "rejected": 0,
+      "accepted_for_future_runtime": 1,
+      "superseded": 0
+    },
+    "boundary_notes": [
+      "Provider-Assisted Extraction Runtime is bounded-runtime-only.",
+      "It processes caller-provided candidate previews and bounded inputs only.",
+      "Candidate output is not truth.",
+      "Candidate output is not proof/evidence.",
+      "Product-write remains parked by #686."
+    ],
+    "authority_boundary": {
+      "bounded_runtime_only": true,
+      "caller_provided_input_only": true,
+      "provider_call_now": false,
+      "prompt_sent_now": false,
+      "provider_output_stored_now": false,
+      "source_fetch_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "retrieval_rag_execution_now": false,
+      "db_query_or_write_now": false,
+      "source_of_truth": false,
+      "proof_or_evidence_record": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion": false,
+      "durable_perspective_state": false,
+      "work_mutation": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "git_ledger_export_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false
+    },
+    "runtime_report_fingerprint": "6ea4326fb72da1b65f669424001275535a07718bcf1beb61d0926eb412e9e901"
+  }
+}
