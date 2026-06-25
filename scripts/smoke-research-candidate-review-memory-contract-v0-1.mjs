@@ -96,6 +96,41 @@ const forbiddenAuthorityFields = [
 
 const forbiddenSummaryPattern =
   /raw conversation|hidden reasoning|raw source body|raw candidate payload|raw provider output|provider thread|provider run|private URL|file:\/\/\/Users|\/Users\/|\bsecret\b|\btoken\b|sk-|ghp_|password:|private key/i;
+const forbiddenSourceRefPatterns = [
+  /https?:\/\//i,
+  /file:\/\//i,
+  /\/Users\//,
+  /\/home\//,
+  /C:\\Users\\/i,
+  /private URL/i,
+  /private_url/i,
+  /local private path/i,
+  /raw source body/i,
+  /raw candidate payload/i,
+  /raw provider output/i,
+  /provider thread/i,
+  /provider_thread/i,
+  /provider run/i,
+  /provider_run/i,
+  /provider session/i,
+  /thread_/i,
+  /run_/i,
+  /raw db row/i,
+  /raw_db_row/i,
+  /raw browser dump/i,
+  /browser dump/i,
+  /hidden reasoning/i,
+  /sk-/i,
+  /ghp_/i,
+  /OPENAI_API_KEY/i,
+  /GITHUB_TOKEN/i,
+  /password:/i,
+  /secret:/i,
+  /private key/i,
+  /-----BEGIN PRIVATE KEY-----/i,
+  /-----BEGIN RSA PRIVATE KEY-----/i,
+  /-----BEGIN OPENSSH PRIVATE KEY-----/i,
+];
 
 for (const filePath of [docPath, fixturePath, typePath, packagePath, indexPath]) {
   assert.ok(existsSync(filePath), `${filePath} must exist`);
@@ -119,6 +154,7 @@ assert.equal(fixture.status, status);
 assert.equal(fixture.expected_bundle.status, status);
 
 assertTypeContract();
+assertSourceRefPrivacyGuards();
 assertBundle(fixture.expected_bundle);
 assertFixtureCoverage(fixture.expected_bundle);
 assertFingerprint(fixture.expected_bundle);
@@ -234,6 +270,7 @@ function assertBundle(bundle) {
         `${record.record_id} source surface ${sourceRef.source_surface} controlled`,
       );
       assert.ok(sourceRef.source_ref, `${record.record_id} source_ref present`);
+      assertPublicSafeSourceRef(sourceRef.source_ref, record.record_id);
       assert.equal(typeof sourceRef.public_safe, "boolean");
     }
     for (const reasonCode of record.reason_codes) {
@@ -258,6 +295,84 @@ function assertBundle(bundle) {
       assert.doesNotMatch(record.operator_note_summary, forbiddenSummaryPattern);
     }
   }
+}
+
+function assertSourceRefPrivacyGuards() {
+  const forbiddenExamples = [
+    "https://private.example.com/customer/path",
+    "http://private.example.com/customer/path",
+    "file:///Users/hynk/private.txt",
+    "/Users/hynk/private.txt",
+    "/home/hynk/private.txt",
+    "C:\\Users\\hynk\\private.txt",
+    "raw source body: example",
+    "raw candidate payload: example",
+    "raw provider output: example",
+    "provider thread thread_abc123",
+    "provider run run_abc123",
+    "provider session session_abc123",
+    "raw_db_row: users",
+    "browser dump: html",
+    "hidden reasoning: example",
+    "sk-FAKE_UNREDACTED_EXAMPLE",
+    "ghp_FAKE_UNREDACTED_EXAMPLE",
+    "OPENAI_API_KEY=FAKE_UNREDACTED_EXAMPLE",
+    "GITHUB_TOKEN=FAKE_UNREDACTED_EXAMPLE",
+    "password: example",
+    "secret: example",
+    "-----BEGIN PRIVATE KEY-----",
+    "-----BEGIN RSA PRIVATE KEY-----",
+    "-----BEGIN OPENSSH PRIVATE KEY-----",
+  ];
+  const safeExamples = [
+    "lifecycle-summary:claim-lifecycle-001",
+    "calibration-diagnostic:claim-calibration-001",
+    "logical-claim-shape:claim-well-001",
+    "feedback-rule:ai-context:repeated-correction:001",
+    "temporal-handoff:codex-handoff-001",
+    "target-agent-profile:codex-handoff-001",
+    "operator-note:blocked-payload-placeholder-001",
+    "manual-source-ref:operator-note-boundary-001",
+  ];
+
+  for (const example of forbiddenExamples) {
+    assert.equal(
+      sourceRefHasForbiddenPrivatePattern(example),
+      true,
+      `${example} must be rejected as source_ref`,
+    );
+  }
+  for (const example of safeExamples) {
+    assert.equal(
+      sourceRefHasForbiddenPrivatePattern(example),
+      false,
+      `${example} must be allowed as symbolic source_ref`,
+    );
+    assertPublicSafeSourceRef(example, "safe source ref example");
+  }
+
+  const sourceRefWithVersion = {
+    source_ref: "manual-source-ref:operator-note-boundary-001",
+    source_version: "private-url-does-not-weaken-source-ref-validation",
+  };
+  assertPublicSafeSourceRef(
+    sourceRefWithVersion.source_ref,
+    `source_version ${sourceRefWithVersion.source_version}`,
+  );
+}
+
+function assertPublicSafeSourceRef(sourceRefValue, label) {
+  assert.equal(typeof sourceRefValue, "string", `${label} source_ref must be a string`);
+  assert.ok(sourceRefValue.length > 0, `${label} source_ref must be non-empty`);
+  assert.equal(
+    sourceRefHasForbiddenPrivatePattern(sourceRefValue),
+    false,
+    `${label} source_ref must be a public-safe symbolic ref`,
+  );
+}
+
+function sourceRefHasForbiddenPrivatePattern(value) {
+  return forbiddenSourceRefPatterns.some((pattern) => pattern.test(value));
 }
 
 function assertFixtureCoverage(bundle) {

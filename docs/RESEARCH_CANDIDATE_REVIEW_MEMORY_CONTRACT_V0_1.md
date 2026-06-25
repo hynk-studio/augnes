@@ -189,6 +189,11 @@ Perspective.
 
 Source refs are lineage pointers, not proof. Source refs point to public-safe
 symbols from Phase 1 derived artifacts, operator notes, or manual source refs.
+The `source_ref` strings themselves must be public-safe symbolic refs.
+`sourceRef.public_safe` false does not allow raw private values inside
+`source_ref`; it only says the referenced upstream material is not public-safe.
+`private_ref_only` may preserve a symbolic ref and privacy report, but not the
+private content body or private URL/path/token itself.
 
 Controlled source surfaces are:
 
@@ -202,8 +207,9 @@ Controlled source surfaces are:
 - `manual_source_ref`
 - `unknown`
 
-Source refs must not contain raw source bodies, private URLs, local private
-paths, provider logs, raw DB rows, raw browser dumps, or hidden reasoning.
+Source refs must not contain private URLs, local private paths, tokens,
+secrets, provider thread/run/session IDs, raw DB rows, browser dumps, hidden
+reasoning, raw source bodies, raw candidate payloads, or raw provider outputs.
 
 ## 10. Privacy And Blocked Raw Payload Rules
 
