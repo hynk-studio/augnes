@@ -281,6 +281,16 @@ export function validateFeedbackToRuleCandidateBundle(
           failureCodes.push(`accepted_for_future_pr_missing_${reasonCode}:${candidateId}`);
         }
       }
+      if (candidate.reason_codes.includes("secret_like_pattern_blocked")) {
+        failureCodes.push(`accepted_for_future_pr_blocked_secret_reason:${candidateId}`);
+      }
+      if (
+        (candidate.source_feedback_refs ?? []).some(
+          (ref) => ref.redaction_status === "blocked_secret_like_pattern",
+        )
+      ) {
+        failureCodes.push(`accepted_for_future_pr_blocked_secret_ref:${candidateId}`);
+      }
     }
     failureCodes.push(
       ...validateAuthorityBoundary(
@@ -321,12 +331,28 @@ function buildCandidate(
   const riskLevel = controlledRiskLevel(override?.risk_level) ?? deriveRiskLevel(group, patternKind);
   const reviewStatus = deriveReviewStatus(group, patternKind, riskLevel, override);
   const sourceFeedbackRefs = group.events.map(sourceFeedbackRef).sort(compareSourceFeedbackRefs);
+  const observedPatternText = safeOverrideText(
+    override?.observed_pattern,
+    observedPattern(group, patternKind),
+  );
+  const proposedRuleChangeText = safeOverrideText(
+    override?.proposed_rule_change,
+    proposedRuleChange(group.affectedSurface, patternKind),
+  );
+  const expectedBenefitText = safeOverrideText(
+    override?.expected_benefit,
+    expectedBenefit(group.affectedSurface, patternKind),
+  );
+  const riskNoteText = safeOverrideText(
+    override?.risk_note,
+    riskNote(group.affectedSurface, patternKind, riskLevel),
+  );
   const reasonCodes = buildReasonCodes({
     affectedSurface: group.affectedSurface,
     patternKind,
     feedbackEventRefs,
     sourceFeedbackRefs,
-    proposedRuleChange: override?.proposed_rule_change,
+    proposedRuleChange: proposedRuleChangeText,
     reviewStatus,
   });
 
@@ -339,13 +365,11 @@ function buildCandidate(
     feedback_pattern_kind: patternKind,
     feedback_event_refs: feedbackEventRefs,
     source_feedback_refs: sourceFeedbackRefs,
-    observed_pattern: override?.observed_pattern ?? observedPattern(group, patternKind),
-    proposed_rule_change:
-      override?.proposed_rule_change ?? proposedRuleChange(group.affectedSurface, patternKind),
-    expected_benefit:
-      override?.expected_benefit ?? expectedBenefit(group.affectedSurface, patternKind),
+    observed_pattern: observedPatternText,
+    proposed_rule_change: proposedRuleChangeText,
+    expected_benefit: expectedBenefitText,
     risk_level: riskLevel,
-    risk_note: override?.risk_note ?? riskNote(group.affectedSurface, patternKind, riskLevel),
+    risk_note: riskNoteText,
     review_status: reviewStatus,
     reason_codes: reasonCodes,
     boundary_notes: [
@@ -508,10 +532,10 @@ function deriveReviewStatus(
     (event) => event.redactionStatus === "blocked_secret_like_pattern",
   );
   const controlledOverride = controlledReviewStatus(override?.review_status);
-  if (controlledOverride === "accepted_for_future_pr") return "accepted_for_future_pr";
   if (hasBlockedSecret) {
     return controlledOverride === "needs_review" ? "needs_review" : "rejected";
   }
+  if (controlledOverride === "accepted_for_future_pr") return "accepted_for_future_pr";
   if (controlledOverride) return controlledOverride;
   if (riskLevel === "high" || patternKind === "authority_boundary_confusion") {
     return "needs_review";
@@ -705,6 +729,15 @@ function riskNote(
   return `Low risk because ${patternKind} is retained as candidate-only review text.`;
 }
 
+function safeOverrideText(value: string | undefined, fallback: string): string {
+  if (!value) return fallback;
+  return overrideTextIsSafe(value) ? value : fallback;
+}
+
+function overrideTextIsSafe(value: string): boolean {
+  return !textHasUnredactedSecretLikePattern(value) && !textHasForbiddenAuthority(value);
+}
+
 function buildReasonCodes(args: {
   affectedSurface: FeedbackToRuleAffectedSurface;
   patternKind: FeedbackToRuleFeedbackPatternKind;
@@ -773,7 +806,7 @@ function candidateTextHasUnredactedSecret(candidate: FeedbackToRuleCandidate): b
     candidate.expected_benefit,
     candidate.risk_note,
     ...candidate.source_feedback_refs.map((ref) => ref.operator_note_summary ?? ""),
-  ].some(hasUnredactedSecretLikePattern);
+  ].some(textHasUnredactedSecretLikePattern);
 }
 
 function candidateTextHasForbiddenAuthority(candidate: FeedbackToRuleCandidate): boolean {
@@ -782,7 +815,15 @@ function candidateTextHasForbiddenAuthority(candidate: FeedbackToRuleCandidate):
     candidate.proposed_rule_change,
     candidate.expected_benefit,
     candidate.risk_note,
-  ].some((value) => forbiddenCandidateTextPattern.test(value));
+  ].some(textHasForbiddenAuthority);
+}
+
+function textHasUnredactedSecretLikePattern(value: string): boolean {
+  return hasUnredactedSecretLikePattern(value);
+}
+
+function textHasForbiddenAuthority(value: string): boolean {
+  return forbiddenCandidateTextPattern.test(value);
 }
 
 function validateAuthorityBoundary(boundary: FeedbackToRuleAuthorityBoundary, label: string): string[] {

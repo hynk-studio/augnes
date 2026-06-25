@@ -137,6 +137,9 @@ assertBundle(fixture.expected_bundle);
 assertFixtureCoverage();
 assertSecretRedaction();
 assertOutputTextSafety();
+assertBlockedSecretOverrideCannotBeAccepted();
+assertUnsafeOverrideTextUsesFallback();
+assertSafeOverrideTextIsPreserved();
 assertHelperSourceBoundary();
 assertDocCoverage();
 assertNoForbiddenPositiveAuthorityGrants(doc);
@@ -322,6 +325,8 @@ function assertAcceptedForFuturePrBoundary(candidate) {
   }
   assert.equal(candidate.authority_boundary.future_pr_created_now, false);
   assert.equal(candidate.authority_boundary.github_automation_authority, false);
+  assert.equal(candidate.authority_boundary.codex_execution_authority, false);
+  assert.equal(candidate.authority_boundary.work_mutation, false);
 }
 
 function assertSecretRedaction() {
@@ -346,36 +351,195 @@ function assertSecretRedaction() {
 
 function assertOutputTextSafety() {
   for (const candidate of fixture.expected_bundle.candidates) {
-    const textPayload = [
-      candidate.candidate_id,
-      candidate.observed_pattern,
-      candidate.proposed_rule_change,
-      candidate.expected_benefit,
-      candidate.risk_note,
-      ...candidate.boundary_notes,
-      ...candidate.source_feedback_refs.map((ref) => ref.operator_note_summary ?? ""),
-    ].join("\n");
-    for (const forbiddenPattern of [
-      /OPENAI_API_KEY=(?!REDACTED)[A-Za-z0-9_./+=-]+/,
-      /ghp_(?!REDACTED)[A-Za-z0-9_]+/,
-      /sk-(?!REDACTED)[A-Za-z0-9_]+/,
-      /\bpassword:/i,
-      /\bsecret:/i,
-      /-----BEGIN [A-Z ]*PRIVATE KEY-----/i,
-      /rule was applied/i,
-      /PR was created/i,
-      /branch was created/i,
-      /proof created/i,
-      /evidence record created/i,
-      /perspective promoted/i,
-      /state committed/i,
-      /product write/i,
-      /\btruth\b/i,
-      /automatic mutation/i,
-    ]) {
-      assert.doesNotMatch(textPayload, forbiddenPattern, `${candidate.candidate_id}`);
-    }
+    assertCandidateTextSafety(candidate);
   }
+}
+
+function assertBlockedSecretOverrideCannotBeAccepted() {
+  const bundle = buildSyntheticBundle({
+    feedback_events: [
+      {
+        event_id: "feedback-override-secret-accepted-001",
+        event_type: "correct_preview",
+        target_kind: "manual_note_parser",
+        target_id: "override-secret-accepted-001",
+        source_ref_ids: ["source:override-secret"],
+        operator_note: "fake ghp_FAKE_UNREDACTED_EXAMPLE",
+        created_at: "2026-06-25T01:00:00.000Z",
+      },
+    ],
+    candidate_overrides: [
+      {
+        target_candidate_id: "override-secret-accepted-001",
+        affected_surface: "manual_note_parser",
+        feedback_pattern_kind: "other",
+        review_status: "accepted_for_future_pr",
+      },
+    ],
+  });
+  const candidate = onlyCandidate(bundle);
+  assert.notEqual(candidate.review_status, "accepted_for_future_pr");
+  assert.equal(candidate.review_status, "rejected");
+  assert.ok(candidate.reason_codes.includes("secret_like_pattern_blocked"));
+  assert.ok(candidate.reason_codes.includes("future_pr_not_created"));
+  assert.ok(candidate.reason_codes.includes("rule_mutation_not_executed"));
+  assert.equal(candidate.authority_boundary.future_pr_created_now, false);
+  assert.equal(candidate.authority_boundary.github_automation_authority, false);
+  assert.equal(candidate.authority_boundary.codex_execution_authority, false);
+  assert.equal(candidate.authority_boundary.work_mutation, false);
+  assert.deepEqual(helper.validateFeedbackToRuleCandidateBundle(bundle), {
+    passed: true,
+    failure_codes: [],
+  });
+}
+
+function assertUnsafeOverrideTextUsesFallback() {
+  const unsafeOverride = {
+    observed_pattern: "OPENAI_API_KEY=FAKE_UNREDACTED should not appear",
+    proposed_rule_change: "PR was created and rule was applied",
+    expected_benefit: "truth",
+    risk_note: "product write",
+  };
+  const bundle = buildSyntheticBundle({
+    feedback_events: [
+      {
+        event_id: "feedback-override-unsafe-text-001",
+        event_type: "pin_preview",
+        target_kind: "ai_context_packet",
+        target_id: "override-unsafe-text-001",
+        source_ref_ids: ["source:override-unsafe-text"],
+        operator_note: "Safe feedback asks to keep cue wording visible.",
+        created_at: "2026-06-25T01:01:00.000Z",
+      },
+    ],
+    candidate_overrides: [
+      {
+        target_candidate_id: "override-unsafe-text-001",
+        affected_surface: "ai_context_packet",
+        feedback_pattern_kind: "other",
+        ...unsafeOverride,
+      },
+    ],
+  });
+  const candidate = onlyCandidate(bundle);
+  for (const unsafeText of Object.values(unsafeOverride)) {
+    assert.ok(
+      !candidateTextPayload(candidate).includes(unsafeText),
+      `${candidate.candidate_id} must not include unsafe override text`,
+    );
+  }
+  assert.equal(
+    candidate.observed_pattern,
+    "Operator feedback produced 1 candidate-only signal for ai_context_packet override-unsafe-text-001.",
+  );
+  assert.equal(
+    candidate.proposed_rule_change,
+    "Candidate-only future rule text could preserve this feedback pattern for operator review.",
+  );
+  assert.equal(
+    candidate.expected_benefit,
+    "Could make repeated operator feedback easier to review without applying a rule change.",
+  );
+  assert.equal(
+    candidate.risk_note,
+    "Low risk because other is retained as candidate-only review text.",
+  );
+  assert.deepEqual(helper.validateFeedbackToRuleCandidateBundle(bundle), {
+    passed: true,
+    failure_codes: [],
+  });
+  assertCandidateTextSafety(candidate);
+}
+
+function assertSafeOverrideTextIsPreserved() {
+  const safeOverride = {
+    observed_pattern: "Safe override records a bounded review signal for cue visibility.",
+    proposed_rule_change: "Safe candidate-only future rule text could keep review cues visible.",
+    expected_benefit: "Could make safe review wording easier to inspect.",
+    risk_note: "Low risk while remaining candidate-only review text.",
+  };
+  const bundle = buildSyntheticBundle({
+    feedback_events: [
+      {
+        event_id: "feedback-override-safe-text-001",
+        event_type: "pin_preview",
+        target_kind: "ai_context_packet",
+        target_id: "override-safe-text-001",
+        source_ref_ids: ["source:override-safe-text"],
+        operator_note: "Safe feedback asks to preserve override review text.",
+        created_at: "2026-06-25T01:02:00.000Z",
+      },
+    ],
+    candidate_overrides: [
+      {
+        target_candidate_id: "override-safe-text-001",
+        affected_surface: "ai_context_packet",
+        feedback_pattern_kind: "other",
+        ...safeOverride,
+      },
+    ],
+  });
+  const candidate = onlyCandidate(bundle);
+  assert.equal(candidate.observed_pattern, safeOverride.observed_pattern);
+  assert.equal(candidate.proposed_rule_change, safeOverride.proposed_rule_change);
+  assert.equal(candidate.expected_benefit, safeOverride.expected_benefit);
+  assert.equal(candidate.risk_note, safeOverride.risk_note);
+  assert.deepEqual(helper.validateFeedbackToRuleCandidateBundle(bundle), {
+    passed: true,
+    failure_codes: [],
+  });
+  assertCandidateTextSafety(candidate);
+}
+
+function buildSyntheticBundle(inputPreview) {
+  return helper.buildFeedbackToRuleCandidateBundle({
+    scope: "project:augnes",
+    as_of: "2026-06-25T00:00:00.000Z",
+    source_fixture_refs: [fixturePath],
+    feedback_events: inputPreview.feedback_events,
+    candidate_overrides: inputPreview.candidate_overrides,
+  });
+}
+
+function onlyCandidate(bundle) {
+  assert.equal(bundle.candidates.length, 1, "synthetic bundle must have one candidate");
+  return bundle.candidates[0];
+}
+
+function assertCandidateTextSafety(candidate) {
+  const textPayload = candidateTextPayload(candidate);
+  for (const forbiddenPattern of [
+    /OPENAI_API_KEY=(?!REDACTED)[A-Za-z0-9_./+=-]+/,
+    /ghp_(?!REDACTED)[A-Za-z0-9_]+/,
+    /sk-(?!REDACTED)[A-Za-z0-9_]+/,
+    /\bpassword:/i,
+    /\bsecret:/i,
+    /-----BEGIN [A-Z ]*PRIVATE KEY-----/i,
+    /rule was applied/i,
+    /PR was created/i,
+    /branch was created/i,
+    /proof created/i,
+    /evidence record created/i,
+    /perspective promoted/i,
+    /state committed/i,
+    /product write/i,
+    /\btruth\b/i,
+    /automatic mutation/i,
+  ]) {
+    assert.doesNotMatch(textPayload, forbiddenPattern, `${candidate.candidate_id}`);
+  }
+}
+
+function candidateTextPayload(candidate) {
+  return [
+    candidate.candidate_id,
+    candidate.observed_pattern,
+    candidate.proposed_rule_change,
+    candidate.expected_benefit,
+    candidate.risk_note,
+    ...candidate.boundary_notes,
+    ...candidate.source_feedback_refs.map((ref) => ref.operator_note_summary ?? ""),
+  ].join("\n");
 }
 
 function assertHelperSourceBoundary() {

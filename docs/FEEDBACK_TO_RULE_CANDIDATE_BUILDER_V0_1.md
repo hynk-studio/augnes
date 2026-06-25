@@ -130,6 +130,10 @@ The builder detects public redacted markers and unredacted secret-like patterns.
 
 The builder must not echo raw token-like values in candidate ids, observed patterns, proposed changes, expected benefits, risk notes, boundary notes, or source feedback summaries.
 
+`blocked_secret_like_pattern` cannot be `accepted_for_future_pr`. Secret-like blocked feedback may be rejected or `needs_review`, but not `accepted_for_future_pr`.
+
+Override text is accepted only when public-safe and authority-safe. Unsafe override text is ignored or replaced with bounded fallback text.
+
 ## 10. Candidate-to-future-PR boundary
 
 Feedback is operator signal, not truth.
@@ -156,6 +160,7 @@ Validation fails when:
 - source feedback refs do not match feedback refs as a set
 - a repeated pattern has fewer than two distinct feedback refs
 - `accepted_for_future_pr` lacks boundary reason codes
+- `accepted_for_future_pr` appears with `blocked_secret_like_pattern`
 - authority boundaries grant forbidden authority
 - output text contains unredacted secret-like material
 - output text claims a rule was applied, a PR was created, proof/evidence was created, Perspective was promoted, state was committed, product write happened, truth was established, or automatic mutation occurred
