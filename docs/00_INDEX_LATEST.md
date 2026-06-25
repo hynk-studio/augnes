@@ -3405,6 +3405,21 @@ repo-local 색인이다.
   Expansion closeout, and this closeout is summary only, not runtime.
 
   Boundary phrases: Research-to-Perspective Foundation Milestone closeout v0.1; foundation scaffold complete through Dogfooding Research-to-Perspective CI Expansion closeout; closeout is summary only, not runtime; candidate remains candidate; evidence candidate is not proof/evidence record; perspective delta candidate is not durable state; retrieval/RAG remains recall, not authority; provider/OpenAI output remains non-authoritative; Agent Substrate remains folded, derived, advisory-only; AI Context Packet remains context, not execution authority; Codex Handoff Draft remains draft, not execution approval; Packet Receipt Linkage remains provenance, not completion proof; Dogfooding record remains candidate/review context, not truth; CI signal remains validation signal, not proof/evidence; smoke pass remains not truth; smoke fail remains diagnostic, not automatic rejection; no runtime persistence opened; no provider runtime opened; no retrieval/RAG runtime opened; no product write/product IDs; product-write remains parked by #686; foundation_status_review_and_next_runtime_slice_selection_v0_1.
+- Research-to-Perspective Fixture Smoke Legacy Audit v0.1:
+  `docs/RESEARCH_TO_PERSPECTIVE_FIXTURE_SMOKE_LEGACY_AUDIT_V0_1.md`,
+  `fixtures/research-candidate-review.fixture-smoke-legacy-audit.sample.v0.1.json`,
+  and
+  `scripts/smoke-research-to-perspective-fixture-smoke-legacy-audit-v0-1.mjs`
+  (`npm run smoke:research-to-perspective-fixture-smoke-legacy-audit-v0-1`)
+  classify active foundation, active runtime, closeout, historical,
+  warning-debt, disabled-adapter, temp DB harness, and parked product-write
+  validation artifacts after #759 without deleting active validation coverage.
+  Product-write remains parked by #686. This audit adds no runtime persistence,
+  provider/OpenAI calls, retrieval/RAG, Perspective promotion, proof/evidence
+  writes, product write, product DB writes, GitHub Actions, or CI runtime
+  changes.
+
+  Boundary phrases: Research-to-Perspective Fixture Smoke Legacy Audit v0.1; no runtime persistence, provider/OpenAI calls, retrieval/RAG, Perspective promotion, proof/evidence writes, product write, product DB writes, GitHub Actions, or CI runtime changes; explicit non-deletion policy; next recommended slice parked_lane_registry_and_smoke_catalog_plan_v0_1.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
