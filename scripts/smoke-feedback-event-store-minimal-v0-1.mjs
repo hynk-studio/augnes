@@ -592,6 +592,16 @@ const draftReviewFixturePath =
 const packagePath = "package.json";
 const schemaPath = "lib/db/schema.sql";
 const indexPath = "docs/00_INDEX_LATEST.md";
+const fixtureSmokeLegacyAuditDocPath =
+  "docs/RESEARCH_TO_PERSPECTIVE_FIXTURE_SMOKE_LEGACY_AUDIT_V0_1.md";
+const fixtureSmokeLegacyAuditFixturePath =
+  "fixtures/research-candidate-review.fixture-smoke-legacy-audit.sample.v0.1.json";
+const fixtureSmokeLegacyAuditSmokePath =
+  "scripts/smoke-research-to-perspective-fixture-smoke-legacy-audit-v0-1.mjs";
+const fixtureSmokeLegacyAuditPackageScriptName =
+  "smoke:research-to-perspective-fixture-smoke-legacy-audit-v0-1";
+const fixtureSmokeLegacyAuditPackageScriptValue =
+  "node scripts/smoke-research-to-perspective-fixture-smoke-legacy-audit-v0-1.mjs";
 const substrateDocPath = "docs/AGENT_PERSPECTIVE_SUBSTRATE_V0_1.md";
 const surfaceDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md";
 const gateDocPath =
@@ -1656,6 +1666,10 @@ function assertTypeAndHelperContracts() {
 }
 
 function assertPackageScript() {
+  if (researchToPerspectiveFixtureSmokeLegacyAuditSliceActive()) {
+    assertResearchToPerspectiveFixtureSmokeLegacyAuditPackageScript();
+    return;
+  }
   if (researchToPerspectiveFoundationMilestoneCloseoutSliceActive()) {
     assertResearchToPerspectiveFoundationMilestoneCloseoutPackageScript();
     return;
@@ -2064,6 +2078,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (researchToPerspectiveFixtureSmokeLegacyAuditSliceActive()) {
+    assertResearchToPerspectiveFixtureSmokeLegacyAuditChangedFiles(changedFiles);
+    return;
+  }
   if (researchToPerspectiveFoundationMilestoneCloseoutSliceActive()) {
     assertResearchToPerspectiveFoundationMilestoneCloseoutChangedFiles(changedFiles);
     return;
@@ -4141,6 +4159,9 @@ function assertSchemaAddition() {
   ]) {
     assert.ok(schemaSql.includes(requiredText), `schema must include ${requiredText}`);
   }
+  if (researchToPerspectiveFixtureSmokeLegacyAuditSliceActive()) {
+    return;
+  }
   const addedSchemaLines = readGitOutput([
     "diff",
     "--unified=0",
@@ -4924,6 +4945,71 @@ function recentRehearsalBufferContractSliceActive() {
   return readChangedFiles().includes("scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs");
 }
 
+function researchToPerspectiveFixtureSmokeLegacyAuditSliceActive() {
+  return readChangedFiles().includes(fixtureSmokeLegacyAuditSmokePath);
+}
+
+function assertResearchToPerspectiveFixtureSmokeLegacyAuditPackageScript() {
+  assert.equal(
+    packageJson.scripts[fixtureSmokeLegacyAuditPackageScriptName],
+    fixtureSmokeLegacyAuditPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map(extractScriptName)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [fixtureSmokeLegacyAuditPackageScriptName],
+    "package.json must add only the Research-to-Perspective fixture smoke legacy audit smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+}
+
+function assertResearchToPerspectiveFixtureSmokeLegacyAuditChangedFiles(changedFiles) {
+  const expected = [
+    fixtureSmokeLegacyAuditDocPath,
+    fixtureSmokeLegacyAuditFixturePath,
+    fixtureSmokeLegacyAuditSmokePath,
+    "scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs",
+    "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-closeout-v0-1.mjs",
+    "scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs",
+    smokePath,
+    packagePath,
+    indexPath,
+  ];
+  for (const filePath of expected) {
+    assert.ok(
+      changedFiles.includes(filePath),
+      `fixture smoke legacy audit slice must include ${filePath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expected.includes(changedFile),
+      `unexpected changed file in fixture smoke legacy audit slice: ${changedFile}`,
+    );
+    if (changedFile.startsWith("scripts/smoke-")) continue;
+    assert.doesNotMatch(changedFile, /^\.github\/workflows\//, "must not change GitHub Actions workflows");
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.(?:ts|tsx|js|jsx)$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+  }
+}
 
 function researchToPerspectiveFoundationMilestoneCloseoutSliceActive() {
   return readChangedFiles().includes(

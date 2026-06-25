@@ -1,0 +1,491 @@
+{
+  "fixture_kind": "research_to_perspective_fixture_smoke_legacy_audit",
+  "fixture_version": "research_to_perspective_fixture_smoke_legacy_audit.v0.1",
+  "slice_name": "research_to_perspective_fixture_smoke_legacy_audit_v0_1",
+  "audit_created_after": [
+    "#759 Research-to-Perspective Foundation Milestone closeout v0.1",
+    "#686 product-write parked lane"
+  ],
+  "audit_policy": {
+    "classification_only": true,
+    "delete_active_validation_now": false,
+    "delete_parked_product_write_chain_now": false,
+    "runtime_persistence_now": false,
+    "provider_openai_call_now": false,
+    "retrieval_rag_execution_now": false,
+    "perspective_promotion_now": false,
+    "proof_evidence_write_now": false,
+    "product_write_now": false,
+    "github_actions_now": false,
+    "ci_runtime_change_now": false
+  },
+  "artifact_categories": [
+    "active_foundation_smoke",
+    "active_runtime_smoke",
+    "closeout_smoke",
+    "historical_preview_smoke",
+    "parked_product_write_smoke",
+    "disabled_adapter_smoke",
+    "temp_db_harness_smoke",
+    "design_only_smoke",
+    "report_only_runner",
+    "package_script_only",
+    "docs_pointer",
+    "warning_debt"
+  ],
+  "items": [
+    {
+      "category": "active_foundation_smoke",
+      "artifact_kind": "fixture",
+      "path": "fixtures/research-candidate-review.research-to-perspective-foundation-milestone-closeout.sample.v0.1.json",
+      "package_script_name": null,
+      "status": "active",
+      "deletion_allowed_now": false,
+      "reason": "Foundation milestone closeout fixture is the current public-safe summary for the closed fixture/smoke scaffold after #759.",
+      "boundary_notes": "Summary-only lineage; runtime persistence, provider calls, retrieval execution, Perspective promotion, proof/evidence write, and product-write remain unopened.",
+      "source_refs": [
+        "#759",
+        "scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs"
+      ]
+    },
+    {
+      "category": "active_foundation_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs",
+      "package_script_name": "smoke:research-to-perspective-foundation-milestone-closeout-v0-1",
+      "status": "active",
+      "deletion_allowed_now": false,
+      "reason": "Current top-level foundation closeout guard and downstream compatibility anchor.",
+      "boundary_notes": "Smoke pass is a validation signal only and does not create proof/evidence or runtime authority.",
+      "source_refs": [
+        "#759",
+        "fixtures/research-candidate-review.research-to-perspective-foundation-milestone-closeout.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "closeout_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-closeout-v0-1.mjs",
+      "package_script_name": "smoke:dogfooding-research-to-perspective-ci-expansion-closeout-v0-1",
+      "status": "closeout",
+      "deletion_allowed_now": false,
+      "reason": "Dogfooding Research-to-Perspective CI Expansion closeout remains a source rail for the foundation milestone.",
+      "boundary_notes": "Closeout lineage only; CI signal and smoke pass are not proof/evidence.",
+      "source_refs": [
+        "#758",
+        "fixtures/research-candidate-review.dogfooding-research-to-perspective-ci-expansion-closeout.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "closeout_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs",
+      "package_script_name": "smoke:agent-perspective-substrate-feedback-loop-closeout-v0-1",
+      "status": "closeout",
+      "deletion_allowed_now": false,
+      "reason": "Agent Perspective Substrate Feedback Loop closeout remains part of downstream Research-to-Perspective lineage.",
+      "boundary_notes": "Feedback targets remain refs/signals, not proof/evidence records, durable state, or product-write.",
+      "source_refs": [
+        "#754",
+        "fixtures/research-candidate-review.agent-perspective-substrate-feedback-loop-closeout.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "active_runtime_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+      "package_script_name": "smoke:feedback-event-store-minimal-v0-1",
+      "status": "active",
+      "deletion_allowed_now": false,
+      "reason": "Feedback Event Store minimal smoke is an active bounded validation anchor for the feedback rail.",
+      "boundary_notes": "Active validation does not authorize product-write, provider calls, production DB writes, or proof/evidence creation.",
+      "source_refs": [
+        "fixtures/research-candidate-review.feedback-event-store.sample.v0.1.json",
+        "scripts/smoke-feedback-event-write-route-contract-v0-1.mjs"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-perspective-packet-receipt-linkage-contract-v0-1.mjs",
+      "package_script_name": "smoke:perspective-packet-receipt-linkage-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Perspective Packet Receipt Linkage contract remains historical provenance lineage for packet receipt semantics.",
+      "boundary_notes": "Packet receipt linkage remains provenance context, not completion proof or state promotion.",
+      "source_refs": [
+        "fixtures/research-candidate-review.perspective-packet-receipt-linkage-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-codex-handoff-draft-contract-v0-1.mjs",
+      "package_script_name": "smoke:codex-handoff-draft-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Codex Handoff Draft contract remains part of the preview/handoff lineage.",
+      "boundary_notes": "Draft handoff text is not Codex execution approval, GitHub automation, or product mutation.",
+      "source_refs": [
+        "fixtures/research-candidate-review.codex-handoff-draft-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-ai-context-packet-contract-v0-1.mjs",
+      "package_script_name": "smoke:ai-context-packet-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "AI Context Packet contract remains a source for context packet lineage.",
+      "boundary_notes": "AI context remains context only and does not grant provider, execution, or persistence authority.",
+      "source_refs": [
+        "fixtures/research-candidate-review.ai-context-packet-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",
+      "package_script_name": "smoke:perspective-geometry-digest-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Perspective Geometry Digest contract remains preview lineage for geometry digest semantics.",
+      "boundary_notes": "Digest output remains derived review context, not durable Perspective state.",
+      "source_refs": [
+        "fixtures/research-candidate-review.perspective-geometry-digest-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs",
+      "package_script_name": "smoke:project-constellation-runtime-layout-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Project Constellation Runtime Layout contract remains part of the layout preview lineage.",
+      "boundary_notes": "Layout contract does not add graph DB, persistence, route authority, or proof/evidence writes.",
+      "source_refs": [
+        "fixtures/research-candidate-review.project-constellation-runtime-layout-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-durable-perspective-state-trajectory-contract-v0-1.mjs",
+      "package_script_name": "smoke:durable-perspective-state-trajectory-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Durable Perspective State / Trajectory contract remains retained because durable state authority is still parked.",
+      "boundary_notes": "Trajectory candidate language is not durable Perspective promotion.",
+      "source_refs": [
+        "fixtures/research-candidate-review.durable-perspective-state-trajectory-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-human-reviewed-durable-perspective-promotion-contract-v0-1.mjs",
+      "package_script_name": "smoke:human-reviewed-durable-perspective-promotion-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Human-reviewed Durable Perspective Promotion contract remains retained until durable promotion authority is explicitly reopened.",
+      "boundary_notes": "Human review semantics do not promote Perspective state in this audit.",
+      "source_refs": [
+        "fixtures/research-candidate-review.human-reviewed-durable-perspective-promotion-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-non-authoritative-retrieval-rag-contract-v0-1.mjs",
+      "package_script_name": "smoke:non-authoritative-retrieval-rag-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Non-authoritative Retrieval/RAG contract remains retained because retrieval is recall context, not source of truth.",
+      "boundary_notes": "Retrieval/RAG remains non-authoritative and is not executed by this audit.",
+      "source_refs": [
+        "fixtures/research-candidate-review.non-authoritative-retrieval-rag-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-operator-source-candidate-generation-contract-v0-1.mjs",
+      "package_script_name": "smoke:operator-source-candidate-generation-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Operator Source Candidate Generation contract remains source-candidate lineage.",
+      "boundary_notes": "Candidate generation remains review context and does not fetch provider/source data in this audit.",
+      "source_refs": [
+        "fixtures/research-candidate-review.operator-source-candidate-generation-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-bounded-external-source-intake-contract-v0-1.mjs",
+      "package_script_name": "smoke:bounded-external-source-intake-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Bounded External Source Intake contract remains lineage for intake boundaries.",
+      "boundary_notes": "No source fetcher, crawler, provider call, or production DB write is opened here.",
+      "source_refs": [
+        "fixtures/research-candidate-review.bounded-external-source-intake-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-salience-governor-contract-v0-1.mjs",
+      "package_script_name": "smoke:salience-governor-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Salience Governor contract remains retained as policy/selection lineage.",
+      "boundary_notes": "Salience review does not write durable state or mutate work.",
+      "source_refs": [
+        "fixtures/research-candidate-review.salience-governor-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-recent-rehearsal-buffer-contract-v0-1.mjs",
+      "package_script_name": "smoke:recent-rehearsal-buffer-contract-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Recent Rehearsal Buffer contract remains retained as rehearsal-memory boundary lineage.",
+      "boundary_notes": "Rehearsal buffer context is not hidden permanent memory or product persistence.",
+      "source_refs": [
+        "fixtures/research-candidate-review.recent-rehearsal-buffer-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "active_runtime_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-formation-receipt-durable-event-contract-v0-1.mjs",
+      "package_script_name": "smoke:formation-receipt-durable-event-contract-v0-1",
+      "status": "active",
+      "deletion_allowed_now": false,
+      "reason": "Formation Receipt Durable Event contract remains active bounded validation for formation receipt event shape.",
+      "boundary_notes": "Active event shape validation does not create proof/evidence records or product-write.",
+      "source_refs": [
+        "fixtures/research-candidate-review.formation-receipt-durable-event-contract.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "historical_preview_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-research-candidate-manual-note-runtime-hook-transitions-v0-1.mjs",
+      "package_script_name": "smoke:research-candidate-manual-note-runtime-hook-transitions-v0-1",
+      "status": "historical",
+      "deletion_allowed_now": false,
+      "reason": "Research Candidate manual note preview draft lane remains historical preview lineage.",
+      "boundary_notes": "Manual note preview draft state is not product-write, proof/evidence, or durable Perspective state.",
+      "source_refs": [
+        "fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "parked_product_write_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-research-candidate-single-claim-product-write-preflight-stopline-v0-1.mjs",
+      "package_script_name": "smoke:research-candidate-single-claim-product-write-preflight-stopline-v0-1",
+      "status": "parked",
+      "deletion_allowed_now": false,
+      "reason": "Product-write preflight stopline remains parked by #686 and is needed for reentry review.",
+      "boundary_notes": "Product-write parked status is preserved; no product-write is authorized.",
+      "source_refs": [
+        "#686",
+        "fixtures/research-candidate-review.manual-note-single-claim-product-write-preflight-stopline.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "parked_product_write_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-research-candidate-single-claim-product-write-preflight-command-envelope-v0-1.mjs",
+      "package_script_name": "smoke:research-candidate-single-claim-product-write-preflight-command-envelope-v0-1",
+      "status": "parked",
+      "deletion_allowed_now": false,
+      "reason": "Product-write preflight command envelope remains parked by #686.",
+      "boundary_notes": "Envelope validation is parked and must not be treated as product-write authority.",
+      "source_refs": [
+        "#686",
+        "fixtures/research-candidate-review.manual-note-single-claim-product-write-preflight-command-envelope.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "parked_product_write_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+      "package_script_name": "smoke:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1",
+      "status": "parked",
+      "deletion_allowed_now": false,
+      "reason": "No-op invocation report remains parked product-write evidence-prevention lineage by #686.",
+      "boundary_notes": "Report-only output does not create product, proof, evidence, Perspective, work, or output IDs.",
+      "source_refs": [
+        "#686",
+        "fixtures/research-candidate-review.manual-note-single-claim-product-write-disabled-adapter-noop-invocation-report.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "disabled_adapter_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-research-candidate-disabled-adapter-temp-harness-v0-1.mjs",
+      "package_script_name": "smoke:research-candidate-disabled-adapter-temp-harness-v0-1",
+      "status": "parked",
+      "deletion_allowed_now": false,
+      "reason": "Disabled adapter temp harness remains parked validation scaffolding.",
+      "boundary_notes": "Disabled adapter must stay disabled; this audit does not enable adapters or write product state.",
+      "source_refs": [
+        "fixtures/research-candidate-review.manual-note-disabled-adapter-temp-harness.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "temp_db_harness_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-research-candidate-temp-db-single-claim-write-prototype-v0-1.mjs",
+      "package_script_name": "smoke:research-candidate-temp-db-single-claim-write-prototype-v0-1",
+      "status": "parked",
+      "deletion_allowed_now": false,
+      "reason": "Temp DB single-claim harness remains parked until product-write reentry is decided by #686 follow-up.",
+      "boundary_notes": "Temp DB harness does not authorize production DB query/write or product-write.",
+      "source_refs": [
+        "#686",
+        "fixtures/research-candidate-review.manual-note-temp-db-single-claim-result-review.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "design_only_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-research-candidate-product-write-design-review-v0-1.mjs",
+      "package_script_name": "smoke:research-candidate-product-write-design-review-v0-1",
+      "status": "parked",
+      "deletion_allowed_now": false,
+      "reason": "Product-write design review remains design-only and parked by #686.",
+      "boundary_notes": "Design review is not implementation, adapter enablement, product-write, or product DB mutation.",
+      "source_refs": [
+        "#686",
+        "fixtures/research-candidate-review.manual-note-single-claim-product-write-gate-design.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "design_only_smoke",
+      "artifact_kind": "smoke_script",
+      "path": "scripts/smoke-research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1.mjs",
+      "package_script_name": "smoke:research-candidate-single-claim-temp-to-product-disabled-bridge-skeleton-v0-1",
+      "status": "parked",
+      "deletion_allowed_now": false,
+      "reason": "Temp-to-product disabled bridge skeleton remains parked by #686 as design-only scaffolding.",
+      "boundary_notes": "Disabled bridge must stay disabled and must not become product-write in this audit.",
+      "source_refs": [
+        "#686",
+        "fixtures/research-candidate-review.manual-note-single-claim-temp-to-product-disabled-bridge-skeleton.sample.v0.1.json"
+      ]
+    },
+    {
+      "category": "report_only_runner",
+      "artifact_kind": "runner_script",
+      "path": "scripts/run-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs",
+      "package_script_name": "report:research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1",
+      "status": "parked",
+      "deletion_allowed_now": false,
+      "reason": "Report-only runner remains parked by #686 and summarizes no-op invocation boundaries.",
+      "boundary_notes": "Report generation must not create proof/evidence records, product writes, or durable Perspective state.",
+      "source_refs": [
+        "#686",
+        "scripts/smoke-research-candidate-single-claim-product-write-disabled-adapter-noop-invocation-report-v0-1.mjs"
+      ]
+    },
+    {
+      "category": "package_script_only",
+      "artifact_kind": "package_script",
+      "path": "package.json#scripts.smoke:research-to-perspective-foundation-milestone-closeout-v0-1",
+      "package_script_name": "smoke:research-to-perspective-foundation-milestone-closeout-v0-1",
+      "status": "active",
+      "deletion_allowed_now": false,
+      "reason": "Package script pointer keeps the active foundation smoke runnable.",
+      "boundary_notes": "Package script registration is validation metadata only and does not change CI runtime.",
+      "source_refs": [
+        "#759",
+        "package.json"
+      ]
+    },
+    {
+      "category": "package_script_only",
+      "artifact_kind": "package_script",
+      "path": "package.json#scripts.smoke:research-to-perspective-fixture-smoke-legacy-audit-v0-1",
+      "package_script_name": "smoke:research-to-perspective-fixture-smoke-legacy-audit-v0-1",
+      "status": "active",
+      "deletion_allowed_now": false,
+      "reason": "Package script pointer keeps this audit smoke runnable.",
+      "boundary_notes": "This script is local validation metadata and does not add GitHub Actions or CI runtime.",
+      "source_refs": [
+        "scripts/smoke-research-to-perspective-fixture-smoke-legacy-audit-v0-1.mjs"
+      ]
+    },
+    {
+      "category": "docs_pointer",
+      "artifact_kind": "doc",
+      "path": "docs/RESEARCH_TO_PERSPECTIVE_FIXTURE_SMOKE_LEGACY_AUDIT_V0_1.md",
+      "package_script_name": null,
+      "status": "active",
+      "deletion_allowed_now": false,
+      "reason": "Repo-local audit document records classification and future cleanup candidates.",
+      "boundary_notes": "Document is non-authoritative implementation-wise and cannot grant product-write, provider, retrieval, promotion, proof/evidence, DB, or CI authority.",
+      "source_refs": [
+        "docs/00_INDEX_LATEST.md"
+      ]
+    },
+    {
+      "category": "docs_pointer",
+      "artifact_kind": "doc",
+      "path": "docs/00_INDEX_LATEST.md",
+      "package_script_name": null,
+      "status": "active",
+      "deletion_allowed_now": false,
+      "reason": "Index pointer makes the audit discoverable without changing SSOT authority.",
+      "boundary_notes": "Index pointer is documentation metadata only.",
+      "source_refs": [
+        "docs/RESEARCH_TO_PERSPECTIVE_FIXTURE_SMOKE_LEGACY_AUDIT_V0_1.md"
+      ]
+    },
+    {
+      "category": "warning_debt",
+      "artifact_kind": "node_warning_family",
+      "path": "warning:MODULE_TYPELESS_PACKAGE_JSON",
+      "package_script_name": null,
+      "status": "warning_debt",
+      "deletion_allowed_now": false,
+      "reason": "Known Node warning family appears in existing validation and should be tracked rather than globally suppressed.",
+      "boundary_notes": "Warning debt cleanup is deferred to runner policy work and does not affect artifact deletion.",
+      "source_refs": [
+        "MODULE_TYPELESS_PACKAGE_JSON"
+      ]
+    },
+    {
+      "category": "warning_debt",
+      "artifact_kind": "node_warning_family",
+      "path": "warning:ExperimentalWarning: stripTypeScriptTypes",
+      "package_script_name": null,
+      "status": "warning_debt",
+      "deletion_allowed_now": false,
+      "reason": "Known Node warning family for stripTypeScriptTypes appears in existing validation and should be tracked.",
+      "boundary_notes": "Warning debt cleanup is deferred; this audit does not suppress warnings globally.",
+      "source_refs": [
+        "ExperimentalWarning: stripTypeScriptTypes"
+      ]
+    }
+  ],
+  "future_cleanup_candidates": [
+    "centralize downstream smoke allowlists",
+    "split package.json smoke scripts into domain manifests or generated docs",
+    "normalize node vs tsx smoke runner policy",
+    "resolve known Node warning debt",
+    "add parked lane registry",
+    "add smoke catalog generation",
+    "evaluate obsolete temp DB/product-write preflight artifacts only after product-write reentry decision",
+    "evaluate closeout fixture retention policy only after runtime replacement exists"
+  ],
+  "next_recommended_slice": "parked_lane_registry_and_smoke_catalog_plan_v0_1"
+}

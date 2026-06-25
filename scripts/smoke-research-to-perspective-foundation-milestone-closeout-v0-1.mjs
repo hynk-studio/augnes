@@ -21,6 +21,16 @@ const packageScriptName =
   "smoke:research-to-perspective-foundation-milestone-closeout-v0-1";
 const packageScriptValue =
   "node scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs";
+const fixtureSmokeLegacyAuditDocPath =
+  "docs/RESEARCH_TO_PERSPECTIVE_FIXTURE_SMOKE_LEGACY_AUDIT_V0_1.md";
+const fixtureSmokeLegacyAuditFixturePath =
+  "fixtures/research-candidate-review.fixture-smoke-legacy-audit.sample.v0.1.json";
+const fixtureSmokeLegacyAuditSmokePath =
+  "scripts/smoke-research-to-perspective-fixture-smoke-legacy-audit-v0-1.mjs";
+const fixtureSmokeLegacyAuditPackageScriptName =
+  "smoke:research-to-perspective-fixture-smoke-legacy-audit-v0-1";
+const fixtureSmokeLegacyAuditPackageScriptValue =
+  "node scripts/smoke-research-to-perspective-fixture-smoke-legacy-audit-v0-1.mjs";
 const closeoutKind = "research_to_perspective_foundation_milestone_closeout";
 const closeoutVersion =
   "research_to_perspective_foundation_milestone_closeout.v0.1";
@@ -372,6 +382,10 @@ function buildPrivacyPolicy() {
 }
 
 function assertPackageScript() {
+  if (researchToPerspectiveFixtureSmokeLegacyAuditSliceActive()) {
+    assertResearchToPerspectiveFixtureSmokeLegacyAuditPackageScript();
+    return;
+  }
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
   const packageAddedLines = readGitOutput([
     "diff",
@@ -404,6 +418,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (researchToPerspectiveFixtureSmokeLegacyAuditSliceActive()) {
+    assertResearchToPerspectiveFixtureSmokeLegacyAuditChangedFiles(changedFiles);
+    return;
+  }
   const protectedFixturePaths = new Set(
     buildMilestoneRailSources()
       .flatMap((source) => source.fixture_paths)
@@ -434,6 +452,72 @@ function assertStaticBoundary() {
       `unexpected changed file in Research-to-Perspective Foundation Milestone closeout slice: ${changedFile}`,
     );
     if (allowedDownstreamSmoke) continue;
+    assertNoForbiddenChangedPath(changedFile);
+  }
+}
+
+function researchToPerspectiveFixtureSmokeLegacyAuditSliceActive() {
+  return readChangedFiles().includes(fixtureSmokeLegacyAuditSmokePath);
+}
+
+function assertResearchToPerspectiveFixtureSmokeLegacyAuditPackageScript() {
+  assert.equal(
+    packageJson.scripts[fixtureSmokeLegacyAuditPackageScriptName],
+    fixtureSmokeLegacyAuditPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [fixtureSmokeLegacyAuditPackageScriptName],
+    "package.json must add only the Research-to-Perspective fixture smoke legacy audit smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertResearchToPerspectiveFixtureSmokeLegacyAuditChangedFiles(changedFiles) {
+  const expected = [
+    fixtureSmokeLegacyAuditDocPath,
+    fixtureSmokeLegacyAuditFixturePath,
+    fixtureSmokeLegacyAuditSmokePath,
+    smokePath,
+    dogfoodingCloseoutSmokePath,
+    "scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs",
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+    packagePath,
+    indexPath,
+  ];
+  for (const filePath of expected) {
+    assert.ok(
+      changedFiles.includes(filePath),
+      `fixture smoke legacy audit slice must include ${filePath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expected.includes(changedFile),
+      `unexpected changed file in fixture smoke legacy audit slice: ${changedFile}`,
+    );
+    if (changedFile.startsWith("scripts/smoke-")) continue;
     assertNoForbiddenChangedPath(changedFile);
   }
 }

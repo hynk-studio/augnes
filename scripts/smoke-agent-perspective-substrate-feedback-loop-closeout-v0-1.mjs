@@ -29,6 +29,16 @@ const packageScriptName =
   "smoke:agent-perspective-substrate-feedback-loop-closeout-v0-1";
 const packageScriptValue =
   "node scripts/smoke-agent-perspective-substrate-feedback-loop-closeout-v0-1.mjs";
+const fixtureSmokeLegacyAuditDocPath =
+  "docs/RESEARCH_TO_PERSPECTIVE_FIXTURE_SMOKE_LEGACY_AUDIT_V0_1.md";
+const fixtureSmokeLegacyAuditFixturePath =
+  "fixtures/research-candidate-review.fixture-smoke-legacy-audit.sample.v0.1.json";
+const fixtureSmokeLegacyAuditSmokePath =
+  "scripts/smoke-research-to-perspective-fixture-smoke-legacy-audit-v0-1.mjs";
+const fixtureSmokeLegacyAuditPackageScriptName =
+  "smoke:research-to-perspective-fixture-smoke-legacy-audit-v0-1";
+const fixtureSmokeLegacyAuditPackageScriptValue =
+  "node scripts/smoke-research-to-perspective-fixture-smoke-legacy-audit-v0-1.mjs";
 const closeoutKind = "agent_perspective_substrate_feedback_loop_closeout";
 const closeoutVersion =
   "agent_perspective_substrate_feedback_loop_closeout.v0.1";
@@ -391,6 +401,10 @@ function buildPrivacyPolicy() {
 }
 
 function assertPackageScript() {
+  if (researchToPerspectiveFixtureSmokeLegacyAuditSliceActive()) {
+    assertResearchToPerspectiveFixtureSmokeLegacyAuditPackageScript();
+    return;
+  }
   if (researchToPerspectiveFoundationMilestoneCloseoutSliceActive()) {
     assertResearchToPerspectiveFoundationMilestoneCloseoutPackageScript();
     return;
@@ -431,6 +445,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (researchToPerspectiveFixtureSmokeLegacyAuditSliceActive()) {
+    assertResearchToPerspectiveFixtureSmokeLegacyAuditChangedFiles(changedFiles);
+    return;
+  }
   if (researchToPerspectiveFoundationMilestoneCloseoutSliceActive()) {
     assertResearchToPerspectiveFoundationMilestoneCloseoutChangedFiles(changedFiles);
     return;
@@ -460,6 +478,78 @@ function assertStaticBoundary() {
       expectedChangedFiles.includes(changedFile) || allowedDownstreamSmoke,
       `unexpected changed file in Agent Perspective Substrate Feedback Loop closeout slice: ${changedFile}`,
     );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema.sql");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(changedFile, /^lib\//, "must not add runtime implementation files");
+    assert.doesNotMatch(changedFile, /product.*write/i, "must not change product write files");
+  }
+}
+
+function researchToPerspectiveFixtureSmokeLegacyAuditSliceActive() {
+  return readChangedFiles().includes(fixtureSmokeLegacyAuditSmokePath);
+}
+
+function assertResearchToPerspectiveFixtureSmokeLegacyAuditPackageScript() {
+  assert.equal(
+    packageJson.scripts[fixtureSmokeLegacyAuditPackageScriptName],
+    fixtureSmokeLegacyAuditPackageScriptValue,
+  );
+  const packageAddedLines = readGitOutput([
+    "diff",
+    "--unified=0",
+    mergeBaseRef(),
+    "--",
+    packagePath,
+  ])
+    .split("\n")
+    .filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+  const addedScriptNames = packageAddedLines
+    .map((line) => line.match(/^\+\s+"([^"]+)"\s*:/)?.[1] ?? null)
+    .filter(Boolean)
+    .sort();
+  assert.deepEqual(
+    addedScriptNames,
+    [fixtureSmokeLegacyAuditPackageScriptName],
+    "package.json must add only the Research-to-Perspective fixture smoke legacy audit smoke script",
+  );
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"dependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"devDependencies"\s*:/);
+  assert.doesNotMatch(packageAddedLines.join("\n"), /"optionalDependencies"\s*:/);
+  assert.deepEqual(packageJson.dependencies, basePackageJson.dependencies);
+  assert.deepEqual(packageJson.devDependencies, basePackageJson.devDependencies);
+  assert.deepEqual(
+    packageJson.optionalDependencies ?? {},
+    basePackageJson.optionalDependencies ?? {},
+  );
+}
+
+function assertResearchToPerspectiveFixtureSmokeLegacyAuditChangedFiles(changedFiles) {
+  const expected = [
+    fixtureSmokeLegacyAuditDocPath,
+    fixtureSmokeLegacyAuditFixturePath,
+    fixtureSmokeLegacyAuditSmokePath,
+    "scripts/smoke-research-to-perspective-foundation-milestone-closeout-v0-1.mjs",
+    "scripts/smoke-dogfooding-research-to-perspective-ci-expansion-closeout-v0-1.mjs",
+    closeoutSmokePath,
+    "scripts/smoke-feedback-event-store-minimal-v0-1.mjs",
+    packagePath,
+    indexPath,
+  ];
+  for (const filePath of expected) {
+    assert.ok(
+      changedFiles.includes(filePath),
+      `fixture smoke legacy audit slice must include ${filePath}`,
+    );
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      expected.includes(changedFile),
+      `unexpected changed file in fixture smoke legacy audit slice: ${changedFile}`,
+    );
+    if (changedFile.startsWith("scripts/smoke-")) continue;
     assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
     assert.doesNotMatch(changedFile, /route\.ts$/, "must not change route handlers");
     assert.doesNotMatch(changedFile, /^components\//, "must not change components");
