@@ -1,0 +1,1463 @@
+{
+  "fixture_version": "target_agent_ai_context_packet_profiles.sample.v0.1",
+  "report_version": "target_agent_ai_context_packet_profiles_report.v0.1",
+  "profile_version": "target_agent_ai_context_packet_profiles.v0.1",
+  "scope": "project:augnes",
+  "status": "profile_preview_only",
+  "as_of": "2026-06-25T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+    "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+    "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json",
+    "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+    "fixtures/research-candidate-review.temporal-handoff-diagnostic-sections.sample.v0.1.json"
+  ],
+  "input_preview": {
+    "targets": [
+      {
+        "target_agent": "human_review",
+        "target_ref": "human-profile-001",
+        "requested_sections": [
+          "source_refs",
+          "candidate_lifecycle",
+          "calibration_diagnostic",
+          "logical_claim_shape"
+        ]
+      },
+      {
+        "target_agent": "chatgpt",
+        "target_ref": "chatgpt-profile-001",
+        "profile_mode": "review"
+      },
+      {
+        "target_agent": "codex",
+        "target_ref": "codex-profile-001",
+        "omitted_sections": [
+          "provider_prompt_detail"
+        ]
+      },
+      {
+        "target_agent": "dogfood",
+        "target_ref": "dogfooding-profile-001"
+      },
+      {
+        "target_agent": "external_agent",
+        "target_ref": "unknown-profile-001",
+        "requested_sections": [
+          "source_refs"
+        ]
+      }
+    ],
+    "artifacts": {
+      "lifecycle_summaries": [
+        {
+          "candidate_id": "claim-lifecycle-001",
+          "source_refs": [
+            "source:lifecycle-001"
+          ],
+          "unresolved_tension_count": 1,
+          "next_review_action": "resolve_tension"
+        }
+      ],
+      "calibration_diagnostics": [
+        {
+          "candidate_id": "claim-calibration-001",
+          "source_refs": [
+            "source:calibration-001"
+          ],
+          "readiness_label": "ready_with_tensions"
+        }
+      ],
+      "logical_claim_shapes": [
+        {
+          "claim_candidate_id": "claim-logical-001",
+          "source_refs": [
+            "source:logical-001"
+          ],
+          "related_tension_candidate_ids": [
+            "tension:logical-001"
+          ],
+          "related_knowledge_gap_candidate_ids": [
+            "gap:logical-001"
+          ],
+          "review_cues": [
+            "review-cue:add-evidence"
+          ]
+        }
+      ],
+      "feedback_to_rule_candidates": [
+        {
+          "candidate_id": "feedback-rule-001",
+          "source_refs": [
+            "source:feedback-001"
+          ],
+          "feedback_pattern_kind": "authority_boundary_confusion"
+        }
+      ],
+      "temporal_handoff_sections": [
+        {
+          "target_ref": "temporal-handoff-001",
+          "source_refs": [
+            "source:temporal-001"
+          ],
+          "unresolved_tension_refs": [
+            "tension:temporal-001"
+          ],
+          "knowledge_gap_refs": [
+            "gap:temporal-001"
+          ],
+          "review_cue_refs": [
+            "review-cue:inspect-handoff"
+          ]
+        }
+      ],
+      "source_refs": [
+        "source:operator-supplied-001"
+      ],
+      "candidate_refs": [
+        "candidate:operator-supplied-001"
+      ],
+      "unresolved_tension_refs": [
+        "tension:operator-001"
+      ],
+      "knowledge_gap_refs": [
+        "gap:operator-001"
+      ],
+      "review_cue_refs": [
+        "review-cue:operator-001"
+      ]
+    }
+  },
+  "expected_report": {
+    "report_version": "target_agent_ai_context_packet_profiles_report.v0.1",
+    "scope": "project:augnes",
+    "status": "profile_preview_only",
+    "as_of": "2026-06-25T00:00:00.000Z",
+    "source_fixture_refs": [
+      "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+      "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+      "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+      "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json",
+      "fixtures/research-candidate-review.temporal-handoff-diagnostic-sections.sample.v0.1.json"
+    ],
+    "profiles": [
+      {
+        "profile_version": "target_agent_ai_context_packet_profiles.v0.1",
+        "scope": "project:augnes",
+        "status": "profile_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_agent": "chatgpt_review",
+        "profile_mode": "review",
+        "target_ref": "chatgpt-profile-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json",
+          "fixtures/research-candidate-review.temporal-handoff-diagnostic-sections.sample.v0.1.json"
+        ],
+        "included_sections": [
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:authority_boundary",
+            "section_kind": "authority_boundary",
+            "included": true,
+            "priority": "low",
+            "compression_level": "compact",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Authority boundary is included for review."
+          },
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:calibration_diagnostic",
+            "section_kind": "calibration_diagnostic",
+            "included": true,
+            "priority": "high",
+            "compression_level": "compact",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Calibration context is diagnostic, not readiness authority."
+          },
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:candidate_lifecycle",
+            "section_kind": "candidate_lifecycle",
+            "included": true,
+            "priority": "low",
+            "compression_level": "compact",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Lifecycle context is included as review cue context only."
+          },
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:expected_observed_delta",
+            "section_kind": "expected_observed_delta",
+            "included": true,
+            "priority": "low",
+            "compression_level": "compact",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Expected and observed deltas are included as diagnostic context."
+          },
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:feedback_to_rule",
+            "section_kind": "feedback_to_rule",
+            "included": true,
+            "priority": "low",
+            "compression_level": "compact",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Feedback-to-Rule context remains candidate-only."
+          },
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:knowledge_gaps",
+            "section_kind": "knowledge_gaps",
+            "included": true,
+            "priority": "low",
+            "compression_level": "compact",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Knowledge gaps remain visible for review."
+          },
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:logical_claim_shape",
+            "section_kind": "logical_claim_shape",
+            "included": true,
+            "priority": "high",
+            "compression_level": "compact",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Logical shape context is structure-only."
+          },
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:review_cues",
+            "section_kind": "review_cues",
+            "included": true,
+            "priority": "low",
+            "compression_level": "compact",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Review cues are included without action authority."
+          },
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:scope_summary",
+            "section_kind": "scope_summary",
+            "included": true,
+            "priority": "high",
+            "compression_level": "compact",
+            "source_refs": [],
+            "candidate_refs": [],
+            "summary": "Scope context is included as bounded review orientation."
+          },
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:source_refs",
+            "section_kind": "source_refs",
+            "included": true,
+            "priority": "high",
+            "compression_level": "compact",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Source refs are included as coverage signals only."
+          },
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:temporal_handoff_diagnostic",
+            "section_kind": "temporal_handoff_diagnostic",
+            "included": true,
+            "priority": "low",
+            "compression_level": "compact",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Temporal handoff context is diagnostic-preview-only."
+          },
+          {
+            "section_id": "section:chatgpt_review:chatgpt-profile-001:unresolved_tensions",
+            "section_kind": "unresolved_tensions",
+            "included": true,
+            "priority": "high",
+            "compression_level": "compact",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Unresolved tensions remain visible for review."
+          }
+        ],
+        "omitted_sections": [],
+        "source_refs": [
+          "source:calibration-001",
+          "source:feedback-001",
+          "source:lifecycle-001",
+          "source:logical-001",
+          "source:operator-supplied-001",
+          "source:temporal-001"
+        ],
+        "candidate_refs": [
+          "candidate:operator-supplied-001",
+          "claim-calibration-001",
+          "claim-lifecycle-001",
+          "claim-logical-001",
+          "feedback-rule-001",
+          "temporal-handoff-001"
+        ],
+        "unresolved_tension_refs": [
+          "tension:logical-001",
+          "tension:operator-001",
+          "tension:temporal-001"
+        ],
+        "knowledge_gap_refs": [
+          "gap:logical-001",
+          "gap:operator-001",
+          "gap:temporal-001"
+        ],
+        "review_cue_refs": [
+          "review-cue:add-evidence",
+          "review-cue:inspect-handoff",
+          "review-cue:operator-001"
+        ],
+        "reason_codes": [
+          "authority_boundary_included",
+          "calibration_context_included",
+          "execution_authority_denied",
+          "feedback_to_rule_context_included",
+          "github_automation_denied",
+          "knowledge_gap_present",
+          "lifecycle_context_included",
+          "logical_shape_context_included",
+          "product_write_denied",
+          "profile_preview_not_prompt_execution",
+          "provider_call_denied",
+          "source_refs_present",
+          "target_agent_supported",
+          "temporal_handoff_context_included",
+          "unresolved_tension_present"
+        ],
+        "boundary_notes": [
+          "Context packet profile is advisory, not source of truth.",
+          "Generated summary is not memory or proof.",
+          "No prompt execution is authorized.",
+          "Product-write remains parked by #686."
+        ],
+        "authority_boundary": {
+          "profile_preview_only": true,
+          "prompt_execution_now": false,
+          "provider_openai_call_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "profile_version": "target_agent_ai_context_packet_profiles.v0.1",
+        "scope": "project:augnes",
+        "status": "profile_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_agent": "codex_handoff",
+        "profile_mode": "handoff",
+        "target_ref": "codex-profile-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json",
+          "fixtures/research-candidate-review.temporal-handoff-diagnostic-sections.sample.v0.1.json"
+        ],
+        "included_sections": [
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:authority_boundary",
+            "section_kind": "authority_boundary",
+            "included": true,
+            "priority": "high",
+            "compression_level": "minimal",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Authority boundary is included for review."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:calibration_diagnostic",
+            "section_kind": "calibration_diagnostic",
+            "included": true,
+            "priority": "low",
+            "compression_level": "minimal",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Calibration context is diagnostic, not readiness authority."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:candidate_lifecycle",
+            "section_kind": "candidate_lifecycle",
+            "included": true,
+            "priority": "low",
+            "compression_level": "minimal",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Lifecycle context is included as review cue context only."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:deferred_work",
+            "section_kind": "deferred_work",
+            "included": true,
+            "priority": "medium",
+            "compression_level": "minimal",
+            "source_refs": [],
+            "candidate_refs": [],
+            "summary": "Deferred work remains listed as future review context."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:expected_observed_delta",
+            "section_kind": "expected_observed_delta",
+            "included": true,
+            "priority": "high",
+            "compression_level": "minimal",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Expected and observed deltas are included as diagnostic context."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:feedback_to_rule",
+            "section_kind": "feedback_to_rule",
+            "included": true,
+            "priority": "low",
+            "compression_level": "minimal",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Feedback-to-Rule context remains candidate-only."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:knowledge_gaps",
+            "section_kind": "knowledge_gaps",
+            "included": true,
+            "priority": "low",
+            "compression_level": "minimal",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Knowledge gaps remain visible for review."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:logical_claim_shape",
+            "section_kind": "logical_claim_shape",
+            "included": true,
+            "priority": "low",
+            "compression_level": "minimal",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Logical shape context is structure-only."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:review_cues",
+            "section_kind": "review_cues",
+            "included": true,
+            "priority": "high",
+            "compression_level": "minimal",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Review cues are included without action authority."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:scope_summary",
+            "section_kind": "scope_summary",
+            "included": true,
+            "priority": "low",
+            "compression_level": "minimal",
+            "source_refs": [],
+            "candidate_refs": [],
+            "summary": "Scope context is included as bounded review orientation."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:source_refs",
+            "section_kind": "source_refs",
+            "included": true,
+            "priority": "high",
+            "compression_level": "minimal",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Source refs are included as coverage signals only."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:temporal_handoff_diagnostic",
+            "section_kind": "temporal_handoff_diagnostic",
+            "included": true,
+            "priority": "low",
+            "compression_level": "minimal",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Temporal handoff context is diagnostic-preview-only."
+          },
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:unresolved_tensions",
+            "section_kind": "unresolved_tensions",
+            "included": true,
+            "priority": "high",
+            "compression_level": "minimal",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Unresolved tensions remain visible for review."
+          }
+        ],
+        "omitted_sections": [
+          {
+            "section_id": "section:codex_handoff:codex-profile-001:omitted_context",
+            "section_kind": "omitted_context",
+            "included": false,
+            "priority": "medium",
+            "compression_level": "minimal",
+            "source_refs": [],
+            "candidate_refs": [],
+            "summary": "Unavailable or explicitly omitted context is listed for review.",
+            "omission_reason": "Unknown omitted section hints: provider_prompt_detail."
+          }
+        ],
+        "source_refs": [
+          "source:calibration-001",
+          "source:feedback-001",
+          "source:lifecycle-001",
+          "source:logical-001",
+          "source:operator-supplied-001",
+          "source:temporal-001"
+        ],
+        "candidate_refs": [
+          "candidate:operator-supplied-001",
+          "claim-calibration-001",
+          "claim-lifecycle-001",
+          "claim-logical-001",
+          "feedback-rule-001",
+          "temporal-handoff-001"
+        ],
+        "unresolved_tension_refs": [
+          "tension:logical-001",
+          "tension:operator-001",
+          "tension:temporal-001"
+        ],
+        "knowledge_gap_refs": [
+          "gap:logical-001",
+          "gap:operator-001",
+          "gap:temporal-001"
+        ],
+        "review_cue_refs": [
+          "review-cue:add-evidence",
+          "review-cue:inspect-handoff",
+          "review-cue:operator-001"
+        ],
+        "reason_codes": [
+          "authority_boundary_included",
+          "calibration_context_included",
+          "codex_handoff_draft_not_execution",
+          "execution_authority_denied",
+          "feedback_to_rule_context_included",
+          "github_automation_denied",
+          "knowledge_gap_present",
+          "lifecycle_context_included",
+          "logical_shape_context_included",
+          "product_write_denied",
+          "profile_preview_not_prompt_execution",
+          "provider_call_denied",
+          "source_refs_present",
+          "target_agent_supported",
+          "temporal_handoff_context_included",
+          "unresolved_tension_present"
+        ],
+        "boundary_notes": [
+          "Codex Handoff Draft is not execution approval.",
+          "Context packet profile is advisory, not source of truth.",
+          "No prompt execution is authorized.",
+          "Product-write remains parked by #686."
+        ],
+        "authority_boundary": {
+          "profile_preview_only": true,
+          "prompt_execution_now": false,
+          "provider_openai_call_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "profile_version": "target_agent_ai_context_packet_profiles.v0.1",
+        "scope": "project:augnes",
+        "status": "profile_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_agent": "dogfooding_review",
+        "profile_mode": "dogfood",
+        "target_ref": "dogfooding-profile-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json",
+          "fixtures/research-candidate-review.temporal-handoff-diagnostic-sections.sample.v0.1.json"
+        ],
+        "included_sections": [
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:authority_boundary",
+            "section_kind": "authority_boundary",
+            "included": true,
+            "priority": "high",
+            "compression_level": "balanced",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Authority boundary is included for review."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:calibration_diagnostic",
+            "section_kind": "calibration_diagnostic",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Calibration context is diagnostic, not readiness authority."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:candidate_lifecycle",
+            "section_kind": "candidate_lifecycle",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Lifecycle context is included as review cue context only."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:deferred_work",
+            "section_kind": "deferred_work",
+            "included": true,
+            "priority": "medium",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [],
+            "summary": "Deferred work remains listed as future review context."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:expected_observed_delta",
+            "section_kind": "expected_observed_delta",
+            "included": true,
+            "priority": "high",
+            "compression_level": "balanced",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Expected and observed deltas are included as diagnostic context."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:feedback_to_rule",
+            "section_kind": "feedback_to_rule",
+            "included": true,
+            "priority": "high",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Feedback-to-Rule context remains candidate-only."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:knowledge_gaps",
+            "section_kind": "knowledge_gaps",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Knowledge gaps remain visible for review."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:logical_claim_shape",
+            "section_kind": "logical_claim_shape",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Logical shape context is structure-only."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:review_cues",
+            "section_kind": "review_cues",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Review cues are included without action authority."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:scope_summary",
+            "section_kind": "scope_summary",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [],
+            "summary": "Scope context is included as bounded review orientation."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:source_refs",
+            "section_kind": "source_refs",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Source refs are included as coverage signals only."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:temporal_handoff_diagnostic",
+            "section_kind": "temporal_handoff_diagnostic",
+            "included": true,
+            "priority": "high",
+            "compression_level": "balanced",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Temporal handoff context is diagnostic-preview-only."
+          },
+          {
+            "section_id": "section:dogfooding_review:dogfooding-profile-001:unresolved_tensions",
+            "section_kind": "unresolved_tensions",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Unresolved tensions remain visible for review."
+          }
+        ],
+        "omitted_sections": [],
+        "source_refs": [
+          "source:calibration-001",
+          "source:feedback-001",
+          "source:lifecycle-001",
+          "source:logical-001",
+          "source:operator-supplied-001",
+          "source:temporal-001"
+        ],
+        "candidate_refs": [
+          "candidate:operator-supplied-001",
+          "claim-calibration-001",
+          "claim-lifecycle-001",
+          "claim-logical-001",
+          "feedback-rule-001",
+          "temporal-handoff-001"
+        ],
+        "unresolved_tension_refs": [
+          "tension:logical-001",
+          "tension:operator-001",
+          "tension:temporal-001"
+        ],
+        "knowledge_gap_refs": [
+          "gap:logical-001",
+          "gap:operator-001",
+          "gap:temporal-001"
+        ],
+        "review_cue_refs": [
+          "review-cue:add-evidence",
+          "review-cue:inspect-handoff",
+          "review-cue:operator-001"
+        ],
+        "reason_codes": [
+          "authority_boundary_included",
+          "calibration_context_included",
+          "execution_authority_denied",
+          "feedback_to_rule_context_included",
+          "github_automation_denied",
+          "knowledge_gap_present",
+          "lifecycle_context_included",
+          "logical_shape_context_included",
+          "product_write_denied",
+          "profile_preview_not_prompt_execution",
+          "provider_call_denied",
+          "source_refs_present",
+          "target_agent_supported",
+          "temporal_handoff_context_included",
+          "unresolved_tension_present"
+        ],
+        "boundary_notes": [
+          "Context packet profile is advisory, not source of truth.",
+          "Dogfooding profile is not PR, Codex, or CI report authority.",
+          "No prompt execution is authorized.",
+          "Product-write remains parked by #686."
+        ],
+        "authority_boundary": {
+          "profile_preview_only": true,
+          "prompt_execution_now": false,
+          "provider_openai_call_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "profile_version": "target_agent_ai_context_packet_profiles.v0.1",
+        "scope": "project:augnes",
+        "status": "profile_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_agent": "human_review",
+        "profile_mode": "review",
+        "target_ref": "human-profile-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json",
+          "fixtures/research-candidate-review.temporal-handoff-diagnostic-sections.sample.v0.1.json"
+        ],
+        "included_sections": [
+          {
+            "section_id": "section:human_review:human-profile-001:authority_boundary",
+            "section_kind": "authority_boundary",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Authority boundary is included for review."
+          },
+          {
+            "section_id": "section:human_review:human-profile-001:calibration_diagnostic",
+            "section_kind": "calibration_diagnostic",
+            "included": true,
+            "priority": "high",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Calibration context is diagnostic, not readiness authority."
+          },
+          {
+            "section_id": "section:human_review:human-profile-001:candidate_lifecycle",
+            "section_kind": "candidate_lifecycle",
+            "included": true,
+            "priority": "high",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Lifecycle context is included as review cue context only."
+          },
+          {
+            "section_id": "section:human_review:human-profile-001:expected_observed_delta",
+            "section_kind": "expected_observed_delta",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Expected and observed deltas are included as diagnostic context."
+          },
+          {
+            "section_id": "section:human_review:human-profile-001:feedback_to_rule",
+            "section_kind": "feedback_to_rule",
+            "included": true,
+            "priority": "high",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Feedback-to-Rule context remains candidate-only."
+          },
+          {
+            "section_id": "section:human_review:human-profile-001:knowledge_gaps",
+            "section_kind": "knowledge_gaps",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Knowledge gaps remain visible for review."
+          },
+          {
+            "section_id": "section:human_review:human-profile-001:logical_claim_shape",
+            "section_kind": "logical_claim_shape",
+            "included": true,
+            "priority": "high",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Logical shape context is structure-only."
+          },
+          {
+            "section_id": "section:human_review:human-profile-001:review_cues",
+            "section_kind": "review_cues",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Review cues are included without action authority."
+          },
+          {
+            "section_id": "section:human_review:human-profile-001:scope_summary",
+            "section_kind": "scope_summary",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [],
+            "summary": "Scope context is included as bounded review orientation."
+          },
+          {
+            "section_id": "section:human_review:human-profile-001:source_refs",
+            "section_kind": "source_refs",
+            "included": true,
+            "priority": "high",
+            "compression_level": "balanced",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Source refs are included as coverage signals only."
+          },
+          {
+            "section_id": "section:human_review:human-profile-001:temporal_handoff_diagnostic",
+            "section_kind": "temporal_handoff_diagnostic",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [
+              "source:calibration-001",
+              "source:feedback-001",
+              "source:lifecycle-001",
+              "source:logical-001",
+              "source:operator-supplied-001",
+              "source:temporal-001"
+            ],
+            "candidate_refs": [],
+            "summary": "Temporal handoff context is diagnostic-preview-only."
+          },
+          {
+            "section_id": "section:human_review:human-profile-001:unresolved_tensions",
+            "section_kind": "unresolved_tensions",
+            "included": true,
+            "priority": "low",
+            "compression_level": "balanced",
+            "source_refs": [],
+            "candidate_refs": [
+              "candidate:operator-supplied-001",
+              "claim-calibration-001",
+              "claim-lifecycle-001",
+              "claim-logical-001",
+              "feedback-rule-001",
+              "temporal-handoff-001"
+            ],
+            "summary": "Unresolved tensions remain visible for review."
+          }
+        ],
+        "omitted_sections": [],
+        "source_refs": [
+          "source:calibration-001",
+          "source:feedback-001",
+          "source:lifecycle-001",
+          "source:logical-001",
+          "source:operator-supplied-001",
+          "source:temporal-001"
+        ],
+        "candidate_refs": [
+          "candidate:operator-supplied-001",
+          "claim-calibration-001",
+          "claim-lifecycle-001",
+          "claim-logical-001",
+          "feedback-rule-001",
+          "temporal-handoff-001"
+        ],
+        "unresolved_tension_refs": [
+          "tension:logical-001",
+          "tension:operator-001",
+          "tension:temporal-001"
+        ],
+        "knowledge_gap_refs": [
+          "gap:logical-001",
+          "gap:operator-001",
+          "gap:temporal-001"
+        ],
+        "review_cue_refs": [
+          "review-cue:add-evidence",
+          "review-cue:inspect-handoff",
+          "review-cue:operator-001"
+        ],
+        "reason_codes": [
+          "authority_boundary_included",
+          "calibration_context_included",
+          "execution_authority_denied",
+          "feedback_to_rule_context_included",
+          "github_automation_denied",
+          "knowledge_gap_present",
+          "lifecycle_context_included",
+          "logical_shape_context_included",
+          "product_write_denied",
+          "profile_preview_not_prompt_execution",
+          "provider_call_denied",
+          "source_refs_present",
+          "target_agent_supported",
+          "temporal_handoff_context_included",
+          "unresolved_tension_present"
+        ],
+        "boundary_notes": [
+          "Context packet profile is advisory, not source of truth.",
+          "No prompt execution is authorized.",
+          "Product-write remains parked by #686."
+        ],
+        "authority_boundary": {
+          "profile_preview_only": true,
+          "prompt_execution_now": false,
+          "provider_openai_call_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      },
+      {
+        "profile_version": "target_agent_ai_context_packet_profiles.v0.1",
+        "scope": "project:augnes",
+        "status": "profile_preview_only",
+        "as_of": "2026-06-25T00:00:00.000Z",
+        "target_agent": "unknown",
+        "profile_mode": "unknown",
+        "target_ref": "unknown-profile-001",
+        "source_fixture_refs": [
+          "fixtures/research-candidate-review.calibration-diagnostic.sample.v0.1.json",
+          "fixtures/research-candidate-review.feedback-to-rule-candidate-builder.sample.v0.1.json",
+          "fixtures/research-candidate-review.lifecycle.sample.v0.1.json",
+          "fixtures/research-candidate-review.logical-claim-shape.sample.v0.1.json",
+          "fixtures/research-candidate-review.temporal-handoff-diagnostic-sections.sample.v0.1.json"
+        ],
+        "included_sections": [
+          {
+            "section_id": "section:unknown:unknown-profile-001:authority_boundary",
+            "section_kind": "authority_boundary",
+            "included": true,
+            "priority": "high",
+            "compression_level": "compact",
+            "source_refs": [],
+            "candidate_refs": [],
+            "summary": "Authority boundary is included for review."
+          }
+        ],
+        "omitted_sections": [
+          {
+            "section_id": "section:unknown:unknown-profile-001:omitted_context",
+            "section_kind": "omitted_context",
+            "included": false,
+            "priority": "medium",
+            "compression_level": "compact",
+            "source_refs": [],
+            "candidate_refs": [],
+            "summary": "Unavailable or explicitly omitted context is listed for review.",
+            "omission_reason": "Target agent is unknown, so contextual sections are omitted for review."
+          }
+        ],
+        "source_refs": [],
+        "candidate_refs": [],
+        "unresolved_tension_refs": [],
+        "knowledge_gap_refs": [],
+        "review_cue_refs": [],
+        "reason_codes": [
+          "authority_boundary_included",
+          "execution_authority_denied",
+          "github_automation_denied",
+          "product_write_denied",
+          "profile_preview_not_prompt_execution",
+          "provider_call_denied",
+          "source_refs_missing",
+          "target_agent_unknown"
+        ],
+        "boundary_notes": [
+          "Context packet profile is advisory, not source of truth.",
+          "No prompt execution is authorized.",
+          "Product-write remains parked by #686."
+        ],
+        "authority_boundary": {
+          "profile_preview_only": true,
+          "prompt_execution_now": false,
+          "provider_openai_call_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "branch_pr_creation_authority": false,
+          "source_of_truth": false,
+          "proof_or_evidence_record": false,
+          "perspective_promotion": false,
+          "durable_perspective_state": false,
+          "work_mutation": false,
+          "source_fetch_authority": false,
+          "retrieval_rag_authority": false,
+          "git_ledger_export_authority": false,
+          "product_write_authority": false,
+          "product_id_allocation_authority": false
+        }
+      }
+    ],
+    "target_counts": {
+      "human_review": 1,
+      "chatgpt_review": 1,
+      "codex_handoff": 1,
+      "dogfooding_review": 1,
+      "unknown": 1
+    },
+    "section_counts": {
+      "scope_summary": 4,
+      "source_refs": 4,
+      "candidate_lifecycle": 4,
+      "calibration_diagnostic": 4,
+      "logical_claim_shape": 4,
+      "feedback_to_rule": 4,
+      "temporal_handoff_diagnostic": 4,
+      "unresolved_tensions": 4,
+      "knowledge_gaps": 4,
+      "review_cues": 4,
+      "expected_observed_delta": 4,
+      "authority_boundary": 5,
+      "deferred_work": 2,
+      "omitted_context": 2
+    },
+    "compression_counts": {
+      "full": 0,
+      "balanced": 25,
+      "compact": 14,
+      "minimal": 14
+    },
+    "boundary_notes": [
+      "Codex handoff profile is not execution approval.",
+      "Context packet profile is advisory, not source of truth.",
+      "Product-write remains parked by #686.",
+      "Target-agent packet profiles do not execute prompts."
+    ],
+    "report_fingerprint": "3441fc8770af6bd8b0ccb0a8693f156e8c7ef37229aa48f09b8f31436a21354b",
+    "authority_boundary": {
+      "profile_preview_only": true,
+      "prompt_execution_now": false,
+      "provider_openai_call_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "branch_pr_creation_authority": false,
+      "source_of_truth": false,
+      "proof_or_evidence_record": false,
+      "perspective_promotion": false,
+      "durable_perspective_state": false,
+      "work_mutation": false,
+      "source_fetch_authority": false,
+      "retrieval_rag_authority": false,
+      "git_ledger_export_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false
+    }
+  }
+}

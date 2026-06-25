@@ -3557,6 +3557,29 @@ repo-local 색인이다.
   Product-write remains parked by #686.
 
   Boundary phrases: Temporal Handoff Diagnostic Sections v0.1; diagnostic-preview-only; follows the integrated roadmap guide v0.2 after Feedback-to-Rule Candidate Builder; Expected/Observed delta is diagnostic, not authority; Decision hold is review context, not rejection; Not-done classification is review context, not automatic failure; Source refs are coverage signals, not proof; older proposal documents are background inputs already integrated into the roadmap guide; no execution approval, Codex execution, GitHub automation, branch/PR creation, runtime route, UI, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Cockpit lifecycle/calibration/logical preview read-only UI, Research Candidate Review Memory contract, Empirical Calibration Dataset plan, Feedback Event Aggregation Runtime, and Dogfooding Record Runtime Contract.
+- Target-Agent AI Context Packet Profiles v0.1:
+  `docs/TARGET_AGENT_AI_CONTEXT_PACKET_PROFILES_V0_1.md`,
+  `types/target-agent-ai-context-packet-profiles.ts`,
+  `lib/research-candidate-review/target-agent-ai-context-packet-profiles.ts`,
+  `fixtures/research-candidate-review.target-agent-ai-context-packet-profiles.sample.v0.1.json`,
+  and `scripts/smoke-target-agent-ai-context-packet-profiles-v0-1.mjs`
+  (`npm run smoke:target-agent-ai-context-packet-profiles-v0-1`)
+  implement Phase 1.6 from the integrated roadmap guide v0.2 as
+  profile-preview-only. It builds target-specific advisory profile sections
+  for human review, ChatGPT review, Codex handoff review, dogfooding review,
+  and unknown targets from caller-provided lifecycle, calibration, logical
+  shape, Feedback-to-Rule, and temporal handoff diagnostic inputs. This pointer
+  is repo-local documentation metadata, not SSOT, and adds no runtime route,
+  UI, DB query or write, provider/OpenAI call, source fetch, retrieval/RAG
+  execution, prompt execution, proof/evidence write, Perspective promotion,
+  durable Perspective state write, work mutation, Codex execution, GitHub
+  automation, branch/PR creation, Git Ledger export, product write, or product
+  ID allocation. It does not implement prompt execution, provider calls, Codex
+  execution, GitHub automation, branch/PR creation, proof/evidence, promotion,
+  retrieval, Git Ledger, or product write. Product-write remains parked by
+  #686.
+
+  Boundary phrases: Target-Agent AI Context Packet Profiles v0.1; Phase 1.6; profile-preview-only; follows the integrated roadmap guide v0.2; context packet profile is advisory, not source of truth; Codex handoff profile is not execution approval; calibration context is diagnostic, not readiness authority; logical shape context is structure-only, not proof; Feedback-to-Rule context is candidate-only, not rule mutation; temporal handoff context is diagnostic, not authority; older proposal documents are background inputs already integrated into the roadmap guide; no prompt execution, provider/OpenAI call, Codex execution, GitHub automation, branch/PR creation, runtime route, UI, DB query/write, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Research Candidate Review Memory contract, Research Candidate Review Memory store, Research Candidate Review Memory routes, Research Candidate Review Memory UI, and Foundation/Lifecycle/Memory read-only UI.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
