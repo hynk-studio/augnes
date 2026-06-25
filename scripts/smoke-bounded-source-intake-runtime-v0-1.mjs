@@ -99,6 +99,12 @@ assertRuntimeAuthorityBoundary(
   "fixture report authority boundary",
 );
 assertSyntheticUnsafeSummaryRejected();
+assertSyntheticMissingSummaryRefRejected();
+assertSyntheticUnsafeSummaryRefRejected();
+assertAcceptedEnvelopeRequiresBoundedSummaryRef();
+assertAcceptedEnvelopeRefMustMatchDecisionRef();
+assertNonacceptedEnvelopeCannotCarryBoundedSummaryRef();
+assertBlockedEnvelopeCannotCarryBoundedSummaryRef();
 assertSourceKindBoundaries();
 assertHelperSourceBoundary();
 assertFixtureSafety();
@@ -198,6 +204,31 @@ function assertRuntimeReportShape() {
     assert.equal(envelope.retrieval_executed, false, `${envelope.request_id} retrieval_executed false`);
     assert.equal(envelope.proof_or_evidence_created, false, `${envelope.request_id} proof_or_evidence_created false`);
     assert.equal(envelope.product_write_executed, false, `${envelope.request_id} product_write_executed false`);
+    const decision = report.runtime_decisions.find(
+      (runtimeDecision) => runtimeDecision.request_id === envelope.request_id,
+    );
+    assert.ok(decision, `${envelope.request_id} decision must exist`);
+    if (decision.decision === "accepted_bounded_summary") {
+      assert.ok(decision.bounded_summary_ref, `${envelope.request_id} decision bounded_summary_ref must exist`);
+      assert.ok(envelope.bounded_summary_ref, `${envelope.request_id} envelope bounded_summary_ref must exist`);
+      assert.equal(
+        envelope.bounded_summary_ref,
+        decision.bounded_summary_ref,
+        `${envelope.request_id} envelope and decision bounded_summary_ref must match`,
+      );
+      assert.equal(envelope.accepted_for_future_runtime, true, `${envelope.request_id} accepted envelope true`);
+    } else {
+      assert.equal(
+        envelope.accepted_for_future_runtime,
+        false,
+        `${envelope.request_id} nonaccepted envelope false`,
+      );
+      assert.equal(
+        envelope.bounded_summary_ref,
+        undefined,
+        `${envelope.request_id} nonaccepted envelope bounded_summary_ref absent`,
+      );
+    }
   }
 }
 
@@ -222,6 +253,101 @@ function assertSyntheticUnsafeSummaryRejected() {
   assert.ok(
     validation.failure_codes.includes("bounded_summary_unsafe"),
     "unsafe bounded summary must carry bounded_summary_unsafe",
+  );
+}
+
+function assertSyntheticMissingSummaryRefRejected() {
+  const missingRefInput = JSON.parse(JSON.stringify(fixture.input_preview));
+  missingRefInput.bounded_summaries.push({
+    request_id: "runtime-request-public-url-summary-001",
+    bounded_summary: "Public-safe summary without a ref.",
+    public_safe: true,
+  });
+  const validation = runtime.validateBoundedSourceIntakeRuntimeInput(missingRefInput);
+  assert.equal(validation.passed, false, "missing bounded_summary_ref synthetic input must be rejected");
+  assert.ok(
+    validation.failure_codes.includes("missing_bounded_summary_ref"),
+    "missing bounded_summary_ref must carry missing_bounded_summary_ref",
+  );
+  assert.throws(
+    () => runtime.buildBoundedSourceIntakeRuntimeReport(missingRefInput),
+    /bounded_source_intake_runtime_input_invalid/,
+    "runtime must refuse to build from missing bounded_summary_ref input",
+  );
+}
+
+function assertSyntheticUnsafeSummaryRefRejected() {
+  const unsafeRefInput = JSON.parse(JSON.stringify(fixture.input_preview));
+  unsafeRefInput.bounded_summaries.push({
+    request_id: "runtime-request-public-url-summary-001",
+    bounded_summary_ref: "sk-FAKE_UNREDACTED",
+    bounded_summary: "Public-safe synthetic summary with unsafe ref.",
+    public_safe: true,
+  });
+  const validation = runtime.validateBoundedSourceIntakeRuntimeInput(unsafeRefInput);
+  assert.equal(validation.passed, false, "unsafe bounded_summary_ref synthetic input must be rejected");
+  assert.ok(
+    validation.failure_codes.includes("unsafe_bounded_summary_ref") ||
+      validation.failure_codes.includes("bounded_summary_ref_unsafe"),
+    "unsafe bounded_summary_ref must carry unsafe ref failure code",
+  );
+}
+
+function assertAcceptedEnvelopeRequiresBoundedSummaryRef() {
+  const report = cloneExpectedReport();
+  const { envelope } = findAcceptedDecisionAndEnvelope(report);
+  delete envelope.bounded_summary_ref;
+  recomputeReportFingerprint(report);
+  const validation = runtime.validateBoundedSourceIntakeRuntimeReport(report);
+  assert.equal(validation.passed, false, "accepted envelope without bounded_summary_ref must be rejected");
+  assert.ok(
+    validation.failure_codes.includes("accepted_envelope_without_bounded_summary_ref"),
+    "missing accepted envelope ref must carry accepted_envelope_without_bounded_summary_ref",
+  );
+}
+
+function assertAcceptedEnvelopeRefMustMatchDecisionRef() {
+  const report = cloneExpectedReport();
+  const { envelope } = findAcceptedDecisionAndEnvelope(report);
+  envelope.bounded_summary_ref = "bounded-summary-ref:runtime-mismatched-accepted-ref";
+  recomputeReportFingerprint(report);
+  const validation = runtime.validateBoundedSourceIntakeRuntimeReport(report);
+  assert.equal(validation.passed, false, "accepted envelope ref mismatch must be rejected");
+  assert.ok(
+    validation.failure_codes.includes("accepted_bounded_summary_ref_mismatch"),
+    "accepted ref mismatch must carry accepted_bounded_summary_ref_mismatch",
+  );
+}
+
+function assertNonacceptedEnvelopeCannotCarryBoundedSummaryRef() {
+  const report = cloneExpectedReport();
+  const { envelope } = findDecisionAndEnvelope(report, (decision) =>
+    ["candidate_only", "needs_operator_review"].includes(decision.decision),
+  );
+  envelope.bounded_summary_ref = "bounded-summary-ref:runtime-unexpected-nonaccepted-ref";
+  recomputeReportFingerprint(report);
+  const validation = runtime.validateBoundedSourceIntakeRuntimeReport(report);
+  assert.equal(validation.passed, false, "nonaccepted envelope bounded_summary_ref must be rejected");
+  assert.ok(
+    validation.failure_codes.includes("nonaccepted_decision_with_bounded_summary_ref"),
+    "nonaccepted envelope ref must carry nonaccepted_decision_with_bounded_summary_ref",
+  );
+}
+
+function assertBlockedEnvelopeCannotCarryBoundedSummaryRef() {
+  const report = cloneExpectedReport();
+  const { envelope } = findDecisionAndEnvelope(report, (decision) =>
+    decision.decision.startsWith("blocked_"),
+  );
+  envelope.bounded_summary_ref = "bounded-summary-ref:runtime-unexpected-blocked-ref";
+  envelope.accepted_for_future_runtime = true;
+  recomputeReportFingerprint(report);
+  const validation = runtime.validateBoundedSourceIntakeRuntimeReport(report);
+  assert.equal(validation.passed, false, "blocked envelope bounded_summary_ref must be rejected");
+  assert.ok(
+    validation.failure_codes.includes("blocked_decision_with_bounded_summary_ref") ||
+      validation.failure_codes.includes("accepted_envelope_without_accepted_decision"),
+    "blocked envelope ref must carry blocked or accepted-without-decision failure code",
   );
 }
 
@@ -416,6 +542,32 @@ function assertIndexCoverage() {
   ]) {
     assert.doesNotMatch(block, forbiddenPattern);
   }
+}
+
+function cloneExpectedReport() {
+  return JSON.parse(JSON.stringify(fixture.expected_report));
+}
+
+function findAcceptedDecisionAndEnvelope(report) {
+  return findDecisionAndEnvelope(
+    report,
+    (decision) => decision.decision === "accepted_bounded_summary",
+  );
+}
+
+function findDecisionAndEnvelope(report, predicate) {
+  const decision = report.runtime_decisions.find(predicate);
+  assert.ok(decision, "expected runtime decision must exist");
+  const envelope = report.result_envelopes.find(
+    (candidateEnvelope) => candidateEnvelope.request_id === decision.request_id,
+  );
+  assert.ok(envelope, `${decision.request_id} matching envelope must exist`);
+  return { decision, envelope };
+}
+
+function recomputeReportFingerprint(report) {
+  report.runtime_report_fingerprint =
+    runtime.createBoundedSourceIntakeRuntimeReportFingerprint(report);
 }
 
 function extractIndexBlock(source, heading) {

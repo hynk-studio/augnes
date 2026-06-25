@@ -204,8 +204,14 @@ export function buildBoundedSourceIntakeRuntimeReport(
     const summary =
       summariesByRequestId.get(request.request_id) ??
       summariesBySourceId.get(request.source_descriptor.source_id);
-    const decision = decideRuntimeRequest(request, summary);
-    const boundedSummaryRef = getBoundedSummaryRef(request, summary, decision);
+    const initialDecision = decideRuntimeRequest(request, summary);
+    const initialBoundedSummaryRef = getBoundedSummaryRef(request, summary, initialDecision);
+    const decision =
+      initialDecision === "accepted_bounded_summary" && !initialBoundedSummaryRef
+        ? "candidate_only"
+        : initialDecision;
+    const boundedSummaryRef =
+      decision === "accepted_bounded_summary" ? initialBoundedSummaryRef : undefined;
     const decisionRecord: BoundedSourceIntakeRuntimeDecisionRecord = {
       request_id: request.request_id,
       source_id: request.source_descriptor.source_id,
@@ -348,6 +354,7 @@ export function validateBoundedSourceIntakeRuntimeReport(
     : [];
   const envelopeIds = new Set<string>();
   const decisionIds = new Set<string>();
+  const envelopeByRequestId = new Map<string, Record<string, unknown>>();
   const decisionByRequestId = new Map<string, BoundedSourceIntakeRuntimeDecisionRecord>();
 
   for (const envelope of envelopes) {
@@ -359,6 +366,7 @@ export function validateBoundedSourceIntakeRuntimeReport(
       failure_codes.push("duplicate_result_envelope_request_id");
     }
     envelopeIds.add(envelope.request_id);
+    envelopeByRequestId.set(envelope.request_id, envelope);
     failure_codes.push(...validateResultEnvelope(envelope));
   }
 
@@ -392,6 +400,10 @@ export function validateBoundedSourceIntakeRuntimeReport(
     if (!decision) {
       continue;
     }
+    const envelopeBoundedSummaryRef =
+      typeof envelope.bounded_summary_ref === "string" ? envelope.bounded_summary_ref : undefined;
+    const decisionBoundedSummaryRef =
+      typeof decision.bounded_summary_ref === "string" ? decision.bounded_summary_ref : undefined;
     if (
       envelope.accepted_for_future_runtime === true &&
       decision.decision !== "accepted_bounded_summary"
@@ -400,15 +412,61 @@ export function validateBoundedSourceIntakeRuntimeReport(
     }
     if (
       decision.decision === "accepted_bounded_summary" &&
-      !isNonEmptyString(decision.bounded_summary_ref)
+      !isSafeBoundedSummaryRef(decisionBoundedSummaryRef)
     ) {
       failure_codes.push("accepted_decision_without_bounded_summary_ref");
+    }
+    if (
+      decision.decision === "accepted_bounded_summary" &&
+      envelope.accepted_for_future_runtime !== true
+    ) {
+      failure_codes.push("accepted_decision_without_accepted_envelope");
+    }
+    if (
+      (decision.decision === "accepted_bounded_summary" ||
+        envelope.accepted_for_future_runtime === true) &&
+      !isSafeBoundedSummaryRef(envelopeBoundedSummaryRef)
+    ) {
+      failure_codes.push("accepted_envelope_without_bounded_summary_ref");
+    }
+    if (
+      isSafeBoundedSummaryRef(decisionBoundedSummaryRef) &&
+      isSafeBoundedSummaryRef(envelopeBoundedSummaryRef) &&
+      decisionBoundedSummaryRef !== envelopeBoundedSummaryRef
+    ) {
+      failure_codes.push("accepted_bounded_summary_ref_mismatch");
     }
     if (
       decision.decision.startsWith("blocked_") &&
       envelope.accepted_for_future_runtime === true
     ) {
       failure_codes.push("blocked_decision_with_accepted_envelope");
+    }
+    if (
+      decision.decision.startsWith("blocked_") &&
+      (isSafeBoundedSummaryRef(decisionBoundedSummaryRef) ||
+        isSafeBoundedSummaryRef(envelopeBoundedSummaryRef))
+    ) {
+      failure_codes.push("blocked_decision_with_bounded_summary_ref");
+    }
+    if (
+      (decision.decision === "candidate_only" || decision.decision === "needs_operator_review") &&
+      (isSafeBoundedSummaryRef(decisionBoundedSummaryRef) ||
+        isSafeBoundedSummaryRef(envelopeBoundedSummaryRef))
+    ) {
+      failure_codes.push("nonaccepted_decision_with_bounded_summary_ref");
+    }
+  }
+  for (const decision of decisionByRequestId.values()) {
+    const envelope = envelopeByRequestId.get(decision.request_id);
+    if (!envelope) {
+      continue;
+    }
+    if (
+      decision.decision === "accepted_bounded_summary" &&
+      envelope.accepted_for_future_runtime !== true
+    ) {
+      failure_codes.push("accepted_decision_without_accepted_envelope");
     }
   }
   if (!decisionCountsMatch(report.decision_counts, decisions)) {
@@ -502,7 +560,7 @@ function decideRuntimeRequest(
   if (request.request_status === "needs_operator_review") {
     return "needs_operator_review";
   }
-  if (summary) {
+  if (summary && isSafeBoundedSummaryRef(summary.bounded_summary_ref)) {
     return "accepted_bounded_summary";
   }
   if (
@@ -526,11 +584,16 @@ function getBoundedSummaryRef(
   if (decision !== "accepted_bounded_summary") {
     return undefined;
   }
-  if (summary?.bounded_summary_ref) {
+  if (isSafeBoundedSummaryRef(summary?.bounded_summary_ref)) {
     return summary.bounded_summary_ref;
   }
-  if (request.source_descriptor.source_kind === "manual_text_summary") {
-    return `bounded-summary-ref:${request.request_id}`;
+  if (
+    request.source_descriptor.source_kind === "manual_text_summary" &&
+    request.source_descriptor.operator_supplied_summary &&
+    isSafeBoundedSourceIntakeRuntimeSummary(request.source_descriptor.operator_supplied_summary)
+  ) {
+    const syntheticRef = `bounded-summary-ref:${request.request_id}`;
+    return isSafeBoundedSummaryRef(syntheticRef) ? syntheticRef : undefined;
   }
   return undefined;
 }
@@ -544,15 +607,17 @@ function createResultEnvelope(
   const source_refs = isSafeSourceRef(descriptor.symbolic_source_ref)
     ? [descriptor.symbolic_source_ref].sort()
     : [];
+  const acceptedWithLineage =
+    decision === "accepted_bounded_summary" && isSafeBoundedSummaryRef(boundedSummaryRef);
   return {
     result_version: resultVersion,
     contract_version: contractVersion,
     scope,
     status: contractStatus,
     request_id: request.request_id,
-    accepted_for_future_runtime: decision === "accepted_bounded_summary",
+    accepted_for_future_runtime: acceptedWithLineage,
     source_refs,
-    ...(boundedSummaryRef ? { bounded_summary_ref: boundedSummaryRef } : {}),
+    ...(acceptedWithLineage ? { bounded_summary_ref: boundedSummaryRef } : {}),
     raw_source_body_included: false,
     source_fetch_executed: false,
     local_file_read_executed: false,
@@ -726,8 +791,10 @@ function validateBoundedSummaries(summaries: unknown[]): string[] {
     if (!isNonEmptyString(summary.request_id) && !isNonEmptyString(summary.source_id)) {
       failureCodes.push("bounded_summary_missing_request_or_source_id");
     }
-    if (!isSafeSourceRef(summary.bounded_summary_ref)) {
-      failureCodes.push("bounded_summary_ref_unsafe");
+    if (!isNonEmptyString(summary.bounded_summary_ref)) {
+      failureCodes.push("missing_bounded_summary_ref");
+    } else if (!isSafeBoundedSummaryRef(summary.bounded_summary_ref)) {
+      failureCodes.push("unsafe_bounded_summary_ref");
     }
     if (summary.public_safe !== true) {
       failureCodes.push("bounded_summary_public_safe_not_true");
@@ -769,7 +836,7 @@ function validateResultEnvelope(envelope: Record<string, unknown>): string[] {
   if (!Array.isArray(envelope.source_refs) || envelope.source_refs.some((ref) => !isSafeSourceRef(ref))) {
     failureCodes.push("unsafe_source_refs");
   }
-  if (!isSafeSourceRef(envelope.bounded_summary_ref)) {
+  if (envelope.bounded_summary_ref !== undefined && !isSafeBoundedSummaryRef(envelope.bounded_summary_ref)) {
     failureCodes.push("unsafe_bounded_summary_ref");
   }
   if (!Array.isArray(envelope.reason_codes) || envelope.reason_codes.some((code) => !isContractReasonCode(code))) {
@@ -941,6 +1008,10 @@ function isSafeSourceRef(value: unknown): value is string | undefined {
   if (value === undefined || value === null) {
     return true;
   }
+  return typeof value === "string" && value.length > 0 && isSafePublicText(value);
+}
+
+function isSafeBoundedSummaryRef(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && isSafePublicText(value);
 }
 

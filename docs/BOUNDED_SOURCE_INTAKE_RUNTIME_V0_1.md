@@ -10,6 +10,8 @@ a runtime report.
 It processes caller-provided source descriptors and bounded summaries only.
 accepted_bounded_summary is not truth.
 accepted_bounded_summary is not proof/evidence.
+accepted_bounded_summary requires bounded_summary_ref.
+bounded_summary_ref is lineage metadata, not proof.
 candidate_only is not runtime execution approval.
 Source refs are lineage pointers, not proof.
 Source refs must be public-safe symbolic refs.
@@ -101,6 +103,8 @@ The fingerprint is a deterministic sha256 over canonical JSON with
 The helper validates versions, scope, timestamp shape, duplicate request IDs,
 request/source descriptor vocabularies, #774 reason codes, privacy/redaction
 states, public-safe symbolic refs, bounded summaries, and authority boundaries.
+Every bounded summary must include a public-safe `bounded_summary_ref`. Missing
+bounded_summary_ref prevents accepted_bounded_summary.
 
 It rejects unsafe raw/private patterns in descriptors, source refs, bounded
 purpose text, boundary notes, and bounded summaries. The only raw-source phrase
@@ -119,13 +123,15 @@ Decision rules are deterministic and ordered:
 4. Missing source locator becomes `needs_operator_review`.
 5. Blocked request status stays blocked.
 6. `needs_operator_review` request status stays `needs_operator_review`.
-7. Public-safe bounded summary becomes `accepted_bounded_summary`.
+7. Public-safe bounded summary with public-safe `bounded_summary_ref` becomes `accepted_bounded_summary`.
 8. Public-safe manual operator summary becomes `accepted_bounded_summary`.
 9. `accepted_for_future_runtime` without a bounded summary becomes `candidate_only`.
 10. Everything else becomes `candidate_only`.
 
 accepted_bounded_summary is not truth. accepted_bounded_summary is not
 proof/evidence. candidate_only is not runtime execution approval.
+Manual operator summaries accepted without a separate bounded summary entry use
+a deterministic `bounded-summary-ref:<request_id>` lineage ref.
 
 ## 9. Source Kind Handling
 
@@ -156,8 +162,10 @@ Every envelope explicitly keeps:
 - `proof_or_evidence_created` false
 - `product_write_executed` false
 
-`accepted_for_future_runtime` is true only for `accepted_bounded_summary`.
-Source refs remain lineage pointers, not proof.
+`accepted_for_future_runtime` is true only when accepted_bounded_summary has bounded summary lineage.
+Accepted result envelopes must carry the same bounded_summary_ref as the
+matching runtime decision. Non-accepted and blocked envelopes do not carry
+bounded summary refs. Source refs remain lineage pointers, not proof.
 
 ## 11. Privacy And Redaction Rules
 
