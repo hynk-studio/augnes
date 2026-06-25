@@ -127,15 +127,23 @@ function requestHasSameOriginBoundary(request: Request): boolean {
   if (fetchSite && !["same-origin", "same-site", "none"].includes(fetchSite)) return false;
 
   const origin = request.headers.get("origin");
-  if (!origin) return true;
-
   const host = request.headers.get("host");
   if (!host) return false;
+  if (!origin) return isLocalTestHost(host);
+
   try {
-    return new URL(origin).host === host;
+    return new URL(origin).host.toLowerCase() === host.toLowerCase();
   } catch {
     return false;
   }
+}
+
+function isLocalTestHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase();
+  return (
+    /^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(normalized) ||
+    /^\[::1\](:\d+)?$/.test(normalized)
+  );
 }
 
 function okResponse(snapshot: unknown, action?: ReviewMemoryRouteAction): ReviewMemoryRouteResponse {

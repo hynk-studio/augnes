@@ -221,14 +221,16 @@ function assertRouteContractValidation() {
       action: "unknown_action",
       store_file_path: "tmp/research-candidate-review-memory/store.json",
     },
-    "invalid_action:unknown_action",
+    "invalid_action",
     "invalid action is rejected",
   );
+  assertNestedPayloadSafety();
 }
 
 function assertRouteHandlerStaticBoundaries() {
   for (const requiredText of [
     "requestHasSameOriginBoundary",
+    "isLocalTestHost",
     "same_origin_required",
     "sec-fetch-site",
     "same-origin",
@@ -246,6 +248,16 @@ function assertRouteHandlerStaticBoundaries() {
   ]) {
     assert.ok(routeSource.includes(requiredText), `route source must include ${requiredText}`);
   }
+  assert.ok(
+    routeSource.includes("return isLocalTestHost(host)"),
+    "Origin-absent requests must require local/test host",
+  );
+  assert.ok(
+    !routeSource.includes("if (!origin) return true"),
+    "Origin-absent requests must not be unconditionally allowed",
+  );
+  assert.match(routeSource, /localhost\|127\\\.0\\\.0\\\.1\|0\\\.0\\\.0\\\.0/);
+  assert.match(routeSource, /\\\[::1\\\]/);
   assert.ok(!routeSource.includes("error.stack"), "route must not expose raw error stack");
   assert.ok(!routeSource.includes("error.message"), "route must not expose raw error message");
   for (const response of fixture.expected_responses) {
@@ -289,6 +301,11 @@ function assertDocCoverage() {
     "It does not query or write DB.",
     "It uses only the local store helper.",
     "It requires same-origin or local/test-safe requests.",
+    "Origin-absent requests are allowed only for local/test-safe `Host` values.",
+    "Non-local Origin-absent requests are rejected.",
+    "Route request validation recursively rejects raw/private markers in nested action payloads.",
+    "Nested discard, record, and supersede payloads must remain public-safe before store helper execution.",
+    "Error responses must not echo raw unsafe payload strings.",
     "It does not choose a default private path.",
     "It does not expose private local paths in responses.",
     "It does not store raw private payloads.",
@@ -385,6 +402,145 @@ function assertValidationFails(request, failureCode, label) {
   const validation = routeContract.validateReviewMemoryRouteRequest(request);
   assert.equal(validation.passed, false, label);
   assert.ok(validation.failure_codes.includes(failureCode), `${label}: ${failureCode}`);
+}
+
+function assertNestedPayloadSafety() {
+  for (const request of fixture.sample_requests.slice(0, 4)) {
+    assert.deepEqual(
+      routeContract.validateReviewMemoryRouteRequest(request).failure_codes,
+      [],
+      `safe fixture request ${request.action} validates`,
+    );
+  }
+
+  const createRequest = fixture.sample_requests.find(
+    (request) => request.action === "create_empty_snapshot",
+  );
+  const upsertRequest = fixture.sample_requests.find(
+    (request) => request.action === "upsert_record",
+  );
+  const discardRequest = fixture.sample_requests.find(
+    (request) => request.action === "discard_record",
+  );
+  const supersedeRequest = fixture.sample_requests.find(
+    (request) => request.action === "supersede_record",
+  );
+
+  assertNestedValidationFails(
+    {
+      ...deepClone(discardRequest),
+      discard: {
+        ...deepClone(discardRequest.discard),
+        discard_reason: "hidden reasoning: example",
+      },
+    },
+    "unsafe_nested_field:discard.discard_reason",
+    "discard hidden reasoning is rejected",
+  );
+  assertNestedValidationFails(
+    {
+      ...deepClone(discardRequest),
+      discard: {
+        ...deepClone(discardRequest.discard),
+        discard_reason: "raw source body: example",
+      },
+    },
+    "unsafe_nested_field:discard.discard_reason",
+    "discard raw source body is rejected",
+  );
+  assertNestedValidationFails(
+    {
+      ...deepClone(upsertRequest),
+      record: {
+        ...deepClone(upsertRequest.record),
+        candidate_ref: "https://private.example.com/candidate",
+      },
+    },
+    "unsafe_nested_field:record.candidate_ref",
+    "record private candidate ref is rejected",
+  );
+  assertNestedValidationFails(
+    {
+      ...deepClone(supersedeRequest),
+      supersede: {
+        ...deepClone(supersedeRequest.supersede),
+        superseding_record: {
+          ...deepClone(supersedeRequest.supersede.superseding_record),
+          bounded_summary: "raw provider output: example",
+        },
+      },
+    },
+    "unsafe_nested_field:supersede.superseding_record.bounded_summary",
+    "supersede raw provider output is rejected",
+  );
+  assertNestedValidationFails(
+    {
+      ...deepClone(upsertRequest),
+      record: {
+        ...deepClone(upsertRequest.record),
+        related_record_refs: [["file://", "/Users", "hynk", "private.txt"].join("")],
+      },
+    },
+    "unsafe_nested_field:record.related_record_refs",
+    "related private file refs are rejected",
+  );
+  assertNestedValidationFails(
+    {
+      ...deepClone(createRequest),
+      action: "product write execution",
+    },
+    "unsafe_top_level_field:action",
+    "unsafe action wording is rejected",
+  );
+
+  const safeBoundaryNoteRequest = {
+    ...deepClone(upsertRequest),
+    record: {
+      boundary_notes: ["Product-write remains parked by #686."],
+      reason_codes: ["source_ref_present", "product_write_denied"],
+      record_version: "research_candidate_review_memory_record.v0.1",
+      scope: "project:augnes",
+      status: "contract_only",
+    },
+  };
+  assert.deepEqual(
+    routeContract.validateReviewMemoryRouteRequest(safeBoundaryNoteRequest).failure_codes,
+    [],
+    "safe controlled literals and parked product-write boundary note remain allowed",
+  );
+}
+
+function assertNestedValidationFails(request, failureCode, label) {
+  const validation = routeContract.validateReviewMemoryRouteRequest(request);
+  assert.equal(validation.passed, false, label);
+  assert.ok(validation.failure_codes.includes(failureCode), `${label}: ${failureCode}`);
+  assertFailureCodesPublicSafe(validation.failure_codes, label);
+}
+
+function assertFailureCodesPublicSafe(failureCodes, label) {
+  const codeText = failureCodes.join(" ");
+  for (const forbiddenText of [
+    "/Users/",
+    "/home/",
+    "file://",
+    "http://",
+    "https://",
+    "hidden reasoning",
+    "raw source body",
+    "raw provider output",
+    "raw conversation",
+    "raw candidate payload",
+    "sk-",
+    "ghp_",
+    "OPENAI_API_KEY",
+    "GITHUB_TOKEN",
+    "password:",
+    "secret:",
+    "private key",
+    "product write execution",
+  ]) {
+    assert.ok(!codeText.includes(forbiddenText), `${label}: failure codes must not echo ${forbiddenText}`);
+  }
 }
 
 function extractIndexBlock(source, heading) {

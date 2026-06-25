@@ -106,6 +106,56 @@ const unsafeStringPatterns = [
   /product write/i,
 ];
 
+const unsafeNestedPayloadPatterns = [
+  /\/Users\//i,
+  /\/home\//i,
+  /file:\/\//i,
+  /https?:\/\//i,
+  /private URL/i,
+  /private_url/i,
+  /local private path/i,
+  /raw source body/i,
+  /raw provider output/i,
+  /raw conversation/i,
+  /hidden reasoning/i,
+  /raw candidate payload/i,
+  /raw db row/i,
+  /raw_db_row/i,
+  /browser dump/i,
+  /sk-/i,
+  /ghp_/i,
+  /OPENAI_API_KEY/i,
+  /GITHUB_TOKEN/i,
+  /password:/i,
+  /secret:/i,
+  /private key/i,
+  /provider thread/i,
+  /provider run/i,
+  /provider session/i,
+];
+
+const unsafeAuthorityImplicationPatterns = [
+  /product[- ]write (execution|enabled|approved|authority granted|implementation)/i,
+  /execute product[- ]write/i,
+  /write product records/i,
+  /proof\/evidence creation/i,
+  /proof created/i,
+  /evidence record created/i,
+  /perspective promotion/i,
+  /perspective promoted/i,
+  /work mutation/i,
+  /mutate work/i,
+  /provider call/i,
+  /provider called/i,
+  /retrieval\/rag execution/i,
+  /retrieval execution/i,
+  /rag execution/i,
+  /github automation/i,
+  /github pr created/i,
+  /codex execution/i,
+  /codex executed/i,
+];
+
 const safeErrorCodes = new Set([
   "invalid_json_body",
   "same_origin_required",
@@ -176,7 +226,7 @@ export function validateReviewMemoryRouteRequest(
   if (input.route_version !== routeVersion) failureCodes.push("invalid_route_version");
   if (input.scope !== routeScope) failureCodes.push("invalid_scope");
   if (!isReviewMemoryRouteAction(input.action)) {
-    failureCodes.push(`invalid_action:${String(input.action ?? "missing")}`);
+    failureCodes.push("invalid_action");
   }
   if (!input.store_file_path) {
     failureCodes.push("missing_store_file_path");
@@ -199,6 +249,8 @@ export function validateReviewMemoryRouteRequest(
     failureCodes.push("missing_supersede");
   }
 
+  failureCodes.push(...validateActionPayloadShape(input));
+
   return {
     passed: failureCodes.length === 0,
     failure_codes: uniqueSorted(failureCodes),
@@ -218,11 +270,72 @@ export function isSafeReviewMemoryRouteStoreFilePath(value: unknown): value is s
 function validateTopLevelStringFields(input: Partial<ReviewMemoryRouteRequest>): string[] {
   const failureCodes: string[] = [];
   for (const [key, value] of Object.entries(input)) {
-    if (typeof value === "string" && unsafeStringPatterns.some((pattern) => pattern.test(value))) {
+    if (typeof value === "string" && stringHasUnsafeRoutePayloadMarker(value, key)) {
       failureCodes.push(`unsafe_top_level_field:${key}`);
     }
   }
   return failureCodes;
+}
+
+function validateActionPayloadShape(input: Partial<ReviewMemoryRouteRequest>): string[] {
+  const failureCodes: string[] = [];
+  if (input.record !== undefined) {
+    failureCodes.push(...validateNestedPayloadSafety(input.record, "record"));
+  }
+  if (input.discard !== undefined) {
+    failureCodes.push(...validateNestedPayloadSafety(input.discard, "discard"));
+  }
+  if (input.supersede !== undefined) {
+    failureCodes.push(...validateNestedPayloadSafety(input.supersede, "supersede"));
+  }
+  return failureCodes;
+}
+
+function validateNestedPayloadSafety(value: unknown, path: string): string[] {
+  if (typeof value === "string") {
+    return stringHasUnsafeRoutePayloadMarker(value, path) ? [`unsafe_nested_field:${path}`] : [];
+  }
+  if (!value || typeof value !== "object") return [];
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => validateNestedPayloadSafety(item, path));
+  }
+
+  const failureCodes: string[] = [];
+  for (const [key, nestedValue] of Object.entries(value)) {
+    const nestedPath = `${path}.${key}`;
+    failureCodes.push(...validateNestedPayloadSafety(nestedValue, nestedPath));
+  }
+  return failureCodes;
+}
+
+function stringHasUnsafeRoutePayloadMarker(value: string, path: string): boolean {
+  if (pathIsAllowedBoundaryNote(path, value)) return false;
+  if (unsafeNestedPayloadPatterns.some((pattern) => pattern.test(value))) return true;
+  if (isSafeRouteBoundaryDenial(value)) return false;
+  return unsafeAuthorityImplicationPatterns.some((pattern) => pattern.test(value));
+}
+
+function pathIsAllowedBoundaryNote(path: string, value: string): boolean {
+  if (!path.endsWith("boundary_notes") && !path.includes(".boundary_notes")) return false;
+  return [
+    "Product-write remains parked by #686.",
+    "Review memory is not truth.",
+    "Review memory route is route-boundary-only.",
+  ].includes(value);
+}
+
+function isSafeRouteBoundaryDenial(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    normalized.includes("product-write remains parked") ||
+    normalized.includes("product write remains parked") ||
+    normalized.includes("parked by #686") ||
+    normalized.includes("product_write_authority false") ||
+    normalized.includes("product_write_authority: false") ||
+    normalized.includes("no product write") ||
+    normalized.includes("not product write") ||
+    normalized.includes("does not write product records")
+  );
 }
 
 function uniqueSorted(values: string[]): string[] {

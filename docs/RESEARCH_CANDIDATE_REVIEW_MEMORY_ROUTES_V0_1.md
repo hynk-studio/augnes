@@ -76,6 +76,9 @@ must match `Host`. If `Sec-Fetch-Site` is present, only `same-origin`,
 `same-site`, or `none` are accepted. Cross-site requests receive the public-safe
 error code `same_origin_required`.
 
+Origin-absent requests are allowed only for local/test-safe `Host` values.
+Non-local Origin-absent requests are rejected.
+
 No auth/session framework is added in this PR.
 
 ## 7. Request Validation
@@ -92,9 +95,12 @@ The request contract rejects:
 - `discard_record` without `discard`.
 - `supersede_record` without `supersede`.
 - Top-level raw/private markers.
+- Nested raw/private markers in `record`, `discard`, and `supersede` payloads.
 - Action strings that imply product write, proof/evidence, promotion, work
   mutation, provider calls, retrieval, GitHub automation, or Codex execution.
 
+Route request validation recursively rejects raw/private markers in nested action payloads.
+Nested discard, record, and supersede payloads must remain public-safe before store helper execution.
 Requests remain explicit operator actions. They do not grant execution
 authority.
 
@@ -139,6 +145,7 @@ Responses include:
 
 Responses do not include raw stack traces, raw Error objects, or private local
 paths. Error responses use public-safe error codes only.
+Error responses must not echo raw unsafe payload strings.
 
 ## 11. Authority Boundary
 
