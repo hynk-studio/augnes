@@ -182,7 +182,7 @@ export interface FeedbackInfluencedAggregateInput {
 }
 
 export interface FeedbackInfluencedRuleFailureCandidateInput {
-  rule_failure_candidate_id?: string;
+  rule_failure_candidate_id: string;
   failure_kind?: string;
   target_surface: string;
   target_surface_ref: string;
@@ -1070,13 +1070,11 @@ function validateRuleFailureCandidateInput(
     return;
   }
   const ruleFailure = value as Partial<FeedbackInfluencedRuleFailureCandidateInput>;
-  if (ruleFailure.rule_failure_candidate_id !== undefined) {
-    validatePublicString(
-      ruleFailure.rule_failure_candidate_id,
-      `rule_failure_candidates.${index}.rule_failure_candidate_id`,
-      failureCodes,
-    );
-  }
+  validatePublicString(
+    ruleFailure.rule_failure_candidate_id,
+    `rule_failure_candidates.${index}.rule_failure_candidate_id`,
+    failureCodes,
+  );
   if (ruleFailure.failure_kind !== undefined) {
     validatePublicString(
       ruleFailure.failure_kind,

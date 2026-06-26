@@ -187,6 +187,11 @@ Rule failure candidates do not mutate rules, mutate parser behavior, delete
 candidates, promote candidates, write DB rows, create proof/evidence, or
 product-write.
 
+Rule failure candidates must include public-safe rule_failure_candidate_id
+values so preview warnings remain traceable.
+
+Malformed rule failure candidates are rejected before preview build.
+
 ## 10. Candidate overlay hint rules
 
 Candidate overlay hints are display hints only.

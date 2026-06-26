@@ -326,6 +326,22 @@ function assertHelperBehavior() {
     byRef.get("candidate:feedback-surfacing:scope").scope_overreach_hint,
     true,
   );
+  assert.equal(
+    byRef.get("candidate:feedback-surfacing:scope").rule_failure_hint,
+    true,
+    "valid rule failure candidate must produce rule_failure_hint",
+  );
+  assert.equal(
+    byRef.get("candidate:feedback-surfacing:scope").review_attention_hint,
+    "rule_review_needed",
+    "valid rule failure candidate must preserve review cue",
+  );
+  assert.ok(
+    byRef
+      .get("candidate:feedback-surfacing:scope")
+      .rule_failure_candidate_refs.includes("feedback-rule-failure:surfacing:scope"),
+    "valid rule failure candidate id must remain traceable in item refs",
+  );
   assert.equal(byRef.get("candidate:feedback-surfacing:stale").stale_context_hint, true);
   assert.ok(
     [...byRef.values()].some((item) => item.rule_failure_hint === true),
@@ -433,6 +449,8 @@ function assertHelperBehavior() {
     "aggregate_non_string_reason_code",
     "rule_failure_invalid_review_status",
     "rule_failure_mutates_rules_true",
+    "rule_failure_missing_id",
+    "rule_failure_empty_id",
   ]) {
     const rejection = helper.buildFeedbackInfluencedSurfacingPreviewV01(
       fixture.invalid_inputs[key],
@@ -460,6 +478,21 @@ function assertHelperBehavior() {
     "aggregate_private_reason_code",
   );
 
+  const fixturePrivateRuleFailureIdRejection =
+    helper.buildFeedbackInfluencedSurfacingPreviewV01(
+      fixture.invalid_inputs.rule_failure_private_id,
+    );
+  assert.deepEqual(
+    fixturePrivateRuleFailureIdRejection,
+    fixture.expected_rejection_results.rule_failure_private_id,
+    "rule_failure_private_id rejection result must match helper",
+  );
+  assertBlockedResult(
+    fixturePrivateRuleFailureIdRejection,
+    "blocked_private_or_raw_payload",
+    "rule_failure_private_id",
+  );
+
   const privatePathReasonCodeInput = JSON.parse(JSON.stringify(fixture.expected_valid_input));
   privatePathReasonCodeInput.preview_id =
     "feedback-surfacing-preview:fixture:private-path-reason-code";
@@ -468,6 +501,17 @@ function assertHelperBehavior() {
     helper.buildFeedbackInfluencedSurfacingPreviewV01(privatePathReasonCodeInput),
     "blocked_private_or_raw_payload",
     "aggregate reason_codes private path",
+  );
+
+  const privatePathRuleFailureIdInput = JSON.parse(JSON.stringify(fixture.expected_valid_input));
+  privatePathRuleFailureIdInput.preview_id =
+    "feedback-surfacing-preview:fixture:private-path-rule-failure-id";
+  privatePathRuleFailureIdInput.rule_failure_candidates[0].rule_failure_candidate_id =
+    "/Users/private/rule-failure";
+  assertBlockedResult(
+    helper.buildFeedbackInfluencedSurfacingPreviewV01(privatePathRuleFailureIdInput),
+    "blocked_private_or_raw_payload",
+    "rule failure candidate private path id",
   );
 }
 
