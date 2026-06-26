@@ -390,6 +390,64 @@
       "based_on": "promotion-decision:store:promote:001",
       "basis_refs": []
     },
+    "duplicate_basis_id": {
+      "based_on": "promotion-decision:store:promote:001",
+      "basis_refs": [
+        {
+          "basis_version": "perspective_promotion_basis.v0.1",
+          "scope": "project:augnes",
+          "basis_id": "basis:duplicate:001",
+          "basis_kind": "source_ref",
+          "basis_ref": "source-ref:duplicate:001",
+          "source_refs": [
+            "source-ref:duplicate:001"
+          ],
+          "candidate_refs": [],
+          "review_record_refs": [
+            "review-record:promotion:001"
+          ],
+          "rag_context_preview_refs": [],
+          "retrieval_candidate_refs": [],
+          "provider_candidate_refs": [],
+          "feedback_refs": [],
+          "bounded_summary": "Bounded duplicate basis summary for atomic create rejection coverage.",
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "source_ref_present"
+          ]
+        },
+        {
+          "basis_version": "perspective_promotion_basis.v0.1",
+          "scope": "project:augnes",
+          "basis_id": "basis:duplicate:001",
+          "basis_kind": "claim_candidate",
+          "basis_ref": "claim-candidate:duplicate:001",
+          "source_refs": [
+            "source-ref:duplicate:001"
+          ],
+          "candidate_refs": [
+            "claim-candidate:duplicate:001"
+          ],
+          "review_record_refs": [
+            "review-record:promotion:001"
+          ],
+          "rag_context_preview_refs": [],
+          "retrieval_candidate_refs": [],
+          "provider_candidate_refs": [],
+          "feedback_refs": [],
+          "bounded_summary": "Bounded duplicate basis candidate summary for atomic create rejection coverage.",
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "claim_candidate_ref_present",
+            "source_ref_present"
+          ]
+        }
+      ]
+    },
     "forbidden_authority": {
       "based_on": "promotion-decision:store:promote:001",
       "product_write_executed": true
@@ -552,6 +610,10 @@
     {
       "case": "missing_basis_refs",
       "status": "blocked_missing_basis_refs"
+    },
+    {
+      "case": "duplicate_basis_id",
+      "status": "blocked_invalid_input"
     },
     {
       "case": "forbidden_authority",
