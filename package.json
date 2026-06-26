@@ -598,6 +598,7 @@
     "smoke:provider-assisted-extraction-runtime-v0-1": "node scripts/smoke-provider-assisted-extraction-runtime-v0-1.mjs",
     "smoke:research-retrieval-runtime-contract-v0-1": "node scripts/smoke-research-retrieval-runtime-contract-v0-1.mjs",
     "smoke:research-retrieval-index-runtime-v0-1": "node scripts/smoke-research-retrieval-index-runtime-v0-1.mjs",
+    "smoke:rag-context-preview-v0-1": "node scripts/smoke-rag-context-preview-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
