@@ -77,25 +77,36 @@ export async function POST(request: Request) {
     return jsonResponse(errorResponse("invalid_db_path"), 400);
   }
 
-  const db = openWriteLocalDb(inputBody.db_path);
-  try {
-    if (inputBody.action === "discard") {
-      if (typeof inputBody.receipt_id !== "string" || inputBody.receipt_id.length === 0) {
-        return jsonResponse(errorResponse("invalid_receipt_id"), 400);
-      }
-      if (typeof inputBody.reason !== "string" || inputBody.reason.length === 0) {
-        return jsonResponse(errorResponse("invalid_discard_reason"), 400);
-      }
-      const result = discardFormationReceiptV01(inputBody.receipt_id, inputBody.reason, db);
-      return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result));
+  const isDiscardAction = inputBody.action === "discard";
+  let discardReceiptId: string | null = null;
+  let discardReason: string | null = null;
+  let createInput: FormationReceiptCreateInput | null = null;
+  if (isDiscardAction) {
+    if (typeof inputBody.receipt_id !== "string" || inputBody.receipt_id.length === 0) {
+      return jsonResponse(errorResponse("invalid_receipt_id"), 400);
     }
+    if (typeof inputBody.reason !== "string" || inputBody.reason.length === 0) {
+      return jsonResponse(errorResponse("invalid_discard_reason"), 400);
+    }
+    discardReceiptId = inputBody.receipt_id;
+    discardReason = inputBody.reason;
+  } else {
     if (inputBody.action !== undefined && inputBody.action !== "create") {
       return jsonResponse(errorResponse("invalid_action"), 400);
     }
     if (!inputBody.input || typeof inputBody.input !== "object" || Array.isArray(inputBody.input)) {
       return jsonResponse(errorResponse("invalid_input"), 400);
     }
-    const result = createFormationReceiptV01(inputBody.input as FormationReceiptCreateInput, db);
+    createInput = inputBody.input as FormationReceiptCreateInput;
+  }
+
+  const db = openWriteLocalDb(inputBody.db_path);
+  try {
+    if (isDiscardAction) {
+      const result = discardFormationReceiptV01(discardReceiptId!, discardReason!, db);
+      return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result));
+    }
+    const result = createFormationReceiptV01(createInput!, db);
     return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result, 201));
   } finally {
     db.close();

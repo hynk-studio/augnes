@@ -328,6 +328,7 @@ function assertTempDbBehavior() {
     assertRejection("forbidden_authority", "blocked_forbidden_authority", db);
     assertRejection("private_raw_payload", "blocked_private_or_raw_payload", db);
     assertRejection("secret_like_payload", "blocked_private_or_raw_payload", db);
+    assertStrictCreateArrayValidation(db);
     assertLineageRejectionIsAtomic(
       "unknown_promotion_decision",
       "blocked_missing_promotion_decision",
@@ -379,6 +380,7 @@ function assertTempDbBehavior() {
     const discardedRead = store.readFormationReceiptV01(receiptId, db);
     assert.equal(discardedRead.status, "discarded");
     assert.equal(discardedRead.record.discard_reason, "operator-discarded-formation-receipt");
+    assertActivityReasonCodeValidation(db, receiptId);
   } finally {
     db.close();
     rmSync(tempDir, { recursive: true, force: true });
@@ -574,6 +576,124 @@ function assertLineageRejectionIsAtomic(caseName, expectedStatus, expectedReason
   assert(result.authority_boundary, `${caseName} includes authority boundary`);
 }
 
+function assertStrictCreateArrayValidation(db) {
+  const cases = [
+    {
+      caseName: "non_string_candidate_source_ref",
+      mutate(input) {
+        input.selected_candidate_refs[0].source_refs = [123];
+      },
+    },
+    {
+      caseName: "non_string_candidate_reason_code",
+      mutate(input) {
+        input.selected_candidate_refs[0].reason_codes = [123];
+      },
+    },
+    {
+      caseName: "unknown_candidate_reason_code",
+      mutate(input) {
+        input.selected_candidate_refs[0].reason_codes = ["not_a_real_reason_code"];
+      },
+    },
+    {
+      caseName: "non_string_selected_source_reason_code",
+      mutate(input) {
+        input.selected_source_refs[0].reason_codes = [123];
+      },
+    },
+    {
+      caseName: "non_string_agent_warning_ref",
+      mutate(input) {
+        input.agent_substrate_warning_refs = [123];
+      },
+    },
+    {
+      caseName: "non_string_feedback_ref",
+      mutate(input) {
+        input.feedback_event_refs = [123];
+      },
+    },
+    {
+      caseName: "non_string_unresolved_tension_ref",
+      mutate(input) {
+        input.unresolved_tensions_preserved = [123];
+      },
+    },
+    {
+      caseName: "non_string_knowledge_gap_ref",
+      mutate(input) {
+        input.knowledge_gaps_preserved = [123];
+      },
+    },
+    {
+      caseName: "non_string_boundary_acknowledgement",
+      mutate(input) {
+        input.boundary_acknowledgements = [123];
+      },
+    },
+    {
+      caseName: "non_string_top_level_reason_code",
+      mutate(input) {
+        input.reason_codes = [123];
+      },
+    },
+    {
+      caseName: "unknown_top_level_reason_code",
+      mutate(input) {
+        input.reason_codes = ["not_a_real_reason_code"];
+      },
+    },
+    {
+      caseName: "non_string_boundary_note",
+      mutate(input) {
+        input.boundary_notes = [123];
+      },
+    },
+  ];
+
+  for (const testCase of cases) {
+    const input = clone(fixture.valid_create_inputs[0]);
+    input.receipt_id = `formation-receipt:durable-write:invalid:${testCase.caseName}`;
+    testCase.mutate(input);
+    const validation = builder.validateFormationReceiptCreateInputV01(input);
+    assert.equal(validation.passed, false, `${testCase.caseName} fails builder validation`);
+    const result = store.createFormationReceiptV01(input, db);
+    assert.equal(result.status, "blocked_invalid_input", `${testCase.caseName} returns blocked_invalid_input`);
+    assert.equal(result.record, null, `${testCase.caseName} does not return record`);
+    const counts = countPersistedRowsForReceipt(db, input.receipt_id);
+    assert.equal(counts.receipts, 0, `${testCase.caseName} leaves no receipt row`);
+    assert.equal(counts.selectedCandidates, 0, `${testCase.caseName} leaves no selected candidate rows`);
+    assert.equal(counts.omittedCandidates, 0, `${testCase.caseName} leaves no omitted candidate rows`);
+    assert.equal(counts.deferredCandidates, 0, `${testCase.caseName} leaves no deferred candidate rows`);
+    assert.equal(counts.sources, 0, `${testCase.caseName} leaves no source rows`);
+    assert.equal(counts.activities, 0, `${testCase.caseName} leaves no activity rows`);
+  }
+}
+
+function assertActivityReasonCodeValidation(db, receiptId) {
+  for (const [caseName, reasonCodes] of [
+    ["non_string_activity_reason_code", [123]],
+    ["unknown_activity_reason_code", ["not_a_real_reason_code"]],
+  ]) {
+    const before = countActivityRows(db, receiptId);
+    const result = store.appendFormationReceiptActivityV01(
+      {
+        activity_id: `${receiptId}:activity:${caseName}`,
+        receipt_id: receiptId,
+        activity_kind: "formation_receipt_listed",
+        actor_ref: "operator:reviewer:001",
+        summary: "Bounded smoke activity append must reject malformed reason codes.",
+        reason_codes: reasonCodes,
+        created_at: "2026-06-26T00:00:06.000Z",
+      },
+      db,
+    );
+    assert.equal(result.status, "blocked_invalid_input", `${caseName} returns blocked_invalid_input`);
+    assert.equal(countActivityRows(db, receiptId), before, `${caseName} writes no activity row`);
+  }
+}
+
 function assertDuplicateCreateRejectionIsAtomic(caseName, db) {
   const input = invalidInput(caseName);
   const result = store.createFormationReceiptV01(input, db);
@@ -717,6 +837,7 @@ function assertTypeAndHelperExports() {
     "FORMATION_RECEIPT_BUILDER_VERSION",
     "FORMATION_RECEIPT_RECORD_VERSION",
     "FORMATION_RECEIPT_ACTIVITY_VERSION",
+    "allowedFormationReceiptReasonCodes",
     "buildFormationReceiptRecordV01",
     "validateFormationReceiptCreateInputV01",
     "createFormationReceiptAuthorityBoundaryV01",
@@ -811,6 +932,18 @@ function assertWritePostRoute(source) {
   assertIncludes(postSource, "openWriteLocalDb", "POST uses write DB opener");
   assertIncludes(postSource, "storeResultResponse", "POST maps store result response");
   assertIncludes(postSource, "storeResultHttpStatus", "POST maps store result status");
+  const openWriteIndex = postSource.indexOf("const db = openWriteLocalDb(inputBody.db_path)");
+  assert(openWriteIndex > 0, "POST opens write DB through bounded opener");
+  for (const [errorCode, message] of [
+    ["invalid_action", "invalid action is checked before write DB open"],
+    ["invalid_input", "invalid create input is checked before write DB open"],
+    ["invalid_receipt_id", "invalid discard receipt id is checked before write DB open"],
+    ["invalid_discard_reason", "invalid discard reason is checked before write DB open"],
+  ]) {
+    const errorIndex = postSource.indexOf(errorCode);
+    assert(errorIndex > 0, `POST contains ${errorCode}`);
+    assert(errorIndex < openWriteIndex, message);
+  }
 }
 
 function assertRouteStoreResultMapping(source) {

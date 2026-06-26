@@ -77,6 +77,8 @@ The route is:
 
 POST requires same-origin requests, JSON object bodies, a safe allowlisted DB path, and caller-provided bounded input. POST may create local test DB directories and ensure schema for Formation Receipt writes only.
 
+Shape-invalid POST bodies are rejected before opening the write DB.
+
 GET uses read-only DB open, must not create DB files, must not create directories, and must not ensure schema. Missing DB returns `db_missing`; existing DB without schema returns `schema_missing`.
 
 Formation Receipt routes may use the same allowlisted local DB path as Promotion Decision Store/Routes so receipt creation can validate promotion-decision lineage in the same DB.
@@ -101,6 +103,12 @@ These tables store public-safe refs, bounded summaries, decision metadata, autho
 ## 9. Validation and refusal rules
 
 The builder and store reject missing promotion decision refs, phantom promotion decision refs, discarded promotion decisions, non-promote promotion decisions, non-eligible promotion decisions, promotion review-record mismatch, promotion operator mismatch, missing review record refs, missing selected candidates, missing selected source refs, duplicate candidate table IDs, duplicate source IDs, forbidden authority flags, private/raw markers, and invalid input shapes.
+
+String-array fields reject non-string items instead of silently dropping them.
+
+Unknown Formation Receipt reason codes are rejected.
+
+Malformed arrays must not leave partial receipt rows.
 
 Explicit user action is required.
 

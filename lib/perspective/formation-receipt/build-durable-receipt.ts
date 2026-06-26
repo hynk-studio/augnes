@@ -85,6 +85,56 @@ export type FormationReceiptReasonCode =
   | "db_write_executed_for_receipt_only"
   | "git_ledger_export_not_executed";
 
+export const allowedFormationReceiptReasonCodes = [
+  "promotion_decision_ref_present",
+  "promotion_decision_ref_missing",
+  "promotion_decision_store_missing",
+  "promotion_decision_discarded",
+  "promotion_decision_not_promote",
+  "promotion_decision_not_eligible",
+  "promotion_decision_review_record_mismatch",
+  "promotion_decision_operator_mismatch",
+  "promotion_decision_source_ref_mismatch",
+  "promotion_decision_receipt_already_written",
+  "promotion_decision_forbidden_authority",
+  "review_record_ref_present",
+  "review_record_ref_missing",
+  "selected_candidate_ref_present",
+  "selected_candidate_ref_missing",
+  "selected_source_ref_present",
+  "selected_source_ref_missing",
+  "omitted_candidate_preserved",
+  "deferred_candidate_preserved",
+  "unresolved_tension_preserved",
+  "knowledge_gap_preserved",
+  "boundary_acknowledgement_present",
+  "formation_receipt_written",
+  "formation_receipt_required_before_state_apply",
+  "formation_receipt_is_not_proof",
+  "formation_receipt_is_not_evidence",
+  "formation_receipt_is_not_state_apply",
+  "durable_state_not_applied",
+  "promotion_not_executed",
+  "proof_not_created",
+  "evidence_not_created",
+  "claim_evidence_not_written",
+  "product_write_denied",
+  "private_or_raw_payload_blocked",
+  "secret_like_pattern_blocked",
+  "local_path_blocked",
+  "private_url_blocked",
+  "provider_call_not_executed",
+  "prompt_not_sent",
+  "retrieval_not_executed",
+  "rag_answer_not_generated",
+  "source_fetch_not_executed",
+  "file_read_not_executed",
+  "db_write_executed_for_receipt_only",
+  "git_ledger_export_not_executed",
+] as const satisfies readonly FormationReceiptReasonCode[];
+
+const allowedFormationReceiptReasonCodeSet = new Set<string>(allowedFormationReceiptReasonCodes);
+
 export interface FormationReceiptAuthorityBoundary {
   formation_receipt_write_now: true;
   durable_perspective_state_apply_now: false;
@@ -400,15 +450,11 @@ export function validateFormationReceiptCreateInputV01(
     "unresolved_tensions_preserved",
     "knowledge_gaps_preserved",
     "boundary_acknowledgements",
-    "reason_codes",
     "boundary_notes",
   ] as const) {
-    if (!Array.isArray(value[key])) {
-      failureCodes.push(`${key}_invalid`);
-    } else {
-      failureCodes.push(...validatePublicSafeValue(value[key], key));
-    }
+    failureCodes.push(...validateStringArray(value[key], key));
   }
+  failureCodes.push(...validateReasonCodeArray(value.reason_codes, "reason_codes"));
 
   for (const [field, fieldValue] of Object.entries(value)) {
     if (
@@ -543,16 +589,8 @@ function validateCandidateRefs(
     }
     failureCodes.push(...validateRequiredSafeString(value.candidate_ref, `${path}.${index}.candidate_ref`));
     failureCodes.push(...validateRequiredSafeString(value.bounded_summary, `${path}.${index}.bounded_summary`));
-    if (!Array.isArray(value.source_refs)) {
-      failureCodes.push(`${path}.${index}.source_refs_invalid`);
-    } else {
-      failureCodes.push(...validatePublicSafeValue(value.source_refs, `${path}.${index}.source_refs`));
-    }
-    if (!Array.isArray(value.reason_codes)) {
-      failureCodes.push(`${path}.${index}.reason_codes_invalid`);
-    } else {
-      failureCodes.push(...validatePublicSafeValue(value.reason_codes, `${path}.${index}.reason_codes`));
-    }
+    failureCodes.push(...validateStringArray(value.source_refs, `${path}.${index}.source_refs`));
+    failureCodes.push(...validateReasonCodeArray(value.reason_codes, `${path}.${index}.reason_codes`));
     return failureCodes;
   });
 }
@@ -564,11 +602,7 @@ function validateSourceRefs(refs: unknown[], path: string): string[] {
     const value = ref as Partial<FormationReceiptSourceRef>;
     failureCodes.push(...validateRequiredSafeString(value.source_ref, `${path}.${index}.source_ref`));
     failureCodes.push(...validateRequiredSafeString(value.bounded_summary, `${path}.${index}.bounded_summary`));
-    if (!Array.isArray(value.reason_codes)) {
-      failureCodes.push(`${path}.${index}.reason_codes_invalid`);
-    } else {
-      failureCodes.push(...validatePublicSafeValue(value.reason_codes, `${path}.${index}.reason_codes`));
-    }
+    failureCodes.push(...validateReasonCodeArray(value.reason_codes, `${path}.${index}.reason_codes`));
     return failureCodes;
   });
 }
@@ -647,6 +681,26 @@ function normalizeSourceRefs(refs: FormationReceiptSourceRef[]): FormationReceip
 function validateRequiredSafeString(value: unknown, path: string): string[] {
   if (typeof value !== "string" || value.length === 0) return [`${path}_invalid`];
   return hasUnsafeString(value) ? [`${path}_unsafe_private_or_raw_marker`] : [];
+}
+
+function validateStringArray(value: unknown, path: string): string[] {
+  if (!Array.isArray(value)) return [`${path}_invalid`];
+  return value.flatMap((item, index) => {
+    if (typeof item !== "string") return [`${path}.${index}_non_string`];
+    if (item.length === 0) return [`${path}.${index}_empty`];
+    return hasUnsafeString(item) ? [`${path}.${index}_unsafe_private_or_raw_marker`] : [];
+  });
+}
+
+function validateReasonCodeArray(value: unknown, path: string): string[] {
+  const failureCodes = validateStringArray(value, path);
+  if (!Array.isArray(value)) return failureCodes;
+  for (const [index, item] of value.entries()) {
+    if (typeof item === "string" && item.length > 0 && !allowedFormationReceiptReasonCodeSet.has(item)) {
+      failureCodes.push(`${path}.${index}_unknown_reason_code`);
+    }
+  }
+  return failureCodes;
 }
 
 function validatePublicSafeValue(value: unknown, path: string): string[] {
