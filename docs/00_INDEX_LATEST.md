@@ -3832,6 +3832,7 @@ repo-local 색인이다.
 - Feedback Controls Expansion v0.1:
   `docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md`,
   `components/feedback-event-expanded-controls.tsx`,
+  `components/feedback-controls-expanded-audit-panel.tsx`,
   `components/agent-perspective-substrate-folded-audit-panel.tsx`,
   `fixtures/feedback-controls-expanded.sample.v0.1.json`,
   `scripts/smoke-feedback-controls-expanded-v0-1.mjs`,
@@ -3839,13 +3840,16 @@ repo-local 색인이다.
   (`npm run smoke:feedback-controls-expanded-v0-1`,
   `npm run browser:feedback-controls-expanded-v0-1`) follows PR #792
   Feedback Event Aggregation Runtime. This slice is local UI intent only.
-  Feedback is not truth. This pointer is repo-local documentation metadata,
-  not SSOT. The roadmap guide is not SSOT. It does not add feedback write
-  route, feedback persistence, DB write, candidate mutation, rule mutation,
-  parser mutation, durable state mutation, proof/evidence writes,
-  product-write, Git Ledger export, provider calls, retrieval/RAG execution,
-  source fetch, local/repository/uploaded file read as source input, or
-  product ID allocation. Product-write remains parked by #686.
+  Feedback is not truth. It preserves the existing Agent Perspective Substrate
+  folded audit panel contract and does not replace existing folded preview
+  fixture behavior; the existing Cockpit default panel remains fixture-backed.
+  This pointer is repo-local documentation metadata, not SSOT. The roadmap
+  guide is not SSOT. It does not add feedback write route, feedback
+  persistence, DB write, candidate mutation, rule mutation, parser mutation,
+  durable state mutation, proof/evidence writes, product-write, Git Ledger
+  export, provider calls, retrieval/RAG execution, source fetch,
+  local/repository/uploaded file read as source input, or product ID
+  allocation. Product-write remains parked by #686.
 
   Boundary phrases: Feedback Controls Expansion v0.1; local UI intent only;
   feedback is not truth; feedback is not proof; feedback is not evidence;

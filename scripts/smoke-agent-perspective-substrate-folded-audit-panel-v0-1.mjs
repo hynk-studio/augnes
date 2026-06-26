@@ -110,6 +110,22 @@ const listUiContractPackageScriptNames = [
 const listUiImplementationPackageScriptNames = [
   "smoke:feedback-event-store-list-ui-implementation-v0-1",
 ];
+const feedbackControlsExpansionPackageScriptNames = [
+  "browser:feedback-controls-expanded-v0-1",
+  "smoke:feedback-controls-expanded-v0-1",
+];
+const feedbackControlsExpansionDocsPath =
+  "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
+const feedbackControlsExpansionComponentPath =
+  "components/feedback-event-expanded-controls.tsx";
+const feedbackControlsExpansionAuditPanelPath =
+  "components/feedback-controls-expanded-audit-panel.tsx";
+const feedbackControlsExpansionFixturePath =
+  "fixtures/feedback-controls-expanded.sample.v0.1.json";
+const feedbackControlsExpansionSmokePath =
+  "scripts/smoke-feedback-controls-expanded-v0-1.mjs";
+const feedbackControlsExpansionBrowserValidationPath =
+  "scripts/browser-validate-feedback-controls-expanded-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -146,6 +162,18 @@ const expectedChangedFiles = [
   aiContextSmokePath,
   formationReceiptSmokePath,
   productWriteStoplineSmokePath,
+];
+const feedbackControlsExpansionChangedFiles = [
+  componentPath,
+  feedbackControlsExpansionComponentPath,
+  feedbackControlsExpansionAuditPanelPath,
+  feedbackControlsExpansionDocsPath,
+  feedbackControlsExpansionFixturePath,
+  feedbackControlsExpansionSmokePath,
+  feedbackControlsExpansionBrowserValidationPath,
+  smokePath,
+  packagePath,
+  indexPath,
 ];
 const downstreamAIContextPacketGeometrySubstrateUpgradeChangedFiles = [
   aiContextPacketTypePath,
@@ -274,6 +302,12 @@ for (const filePath of [
   candidateToCodexHandoffDraftBuilderPath,
   candidateToCodexHandoffDraftFixturePath,
   candidateToCodexHandoffDraftSmokePath,
+  feedbackControlsExpansionDocsPath,
+  feedbackControlsExpansionComponentPath,
+  feedbackControlsExpansionAuditPanelPath,
+  feedbackControlsExpansionFixturePath,
+  feedbackControlsExpansionSmokePath,
+  feedbackControlsExpansionBrowserValidationPath,
 ]) {
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
@@ -444,6 +478,7 @@ function assertPackageScript() {
       listRouteBrowserValidationPackageScriptNames,
       listUiContractPackageScriptNames,
       listUiImplementationPackageScriptNames,
+      feedbackControlsExpansionPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include the downstream Candidate-to-Codex handoff draft/review/operator decision smoke script",
   );
@@ -456,6 +491,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (feedbackControlsExpansionSliceActive(changedFiles)) {
+    assertFeedbackControlsExpansionChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackEventStoreListUiImplementationSliceActive(changedFiles)) {
     assertFeedbackEventStoreListUiImplementationChangedFiles(changedFiles);
     return;
@@ -541,6 +580,43 @@ function assertStaticBoundary() {
     if (usesDownstreamAIContextUpgradeDelta) {
       assert.doesNotMatch(changedFile, /^components\//, "downstream AI context upgrade must not change components");
     }
+  }
+}
+
+function feedbackControlsExpansionSliceActive(changedFiles) {
+  return [
+    feedbackControlsExpansionComponentPath,
+    feedbackControlsExpansionAuditPanelPath,
+    feedbackControlsExpansionDocsPath,
+    feedbackControlsExpansionFixturePath,
+    feedbackControlsExpansionSmokePath,
+    feedbackControlsExpansionBrowserValidationPath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertFeedbackControlsExpansionChangedFiles(changedFiles) {
+  for (const expectedFile of feedbackControlsExpansionChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      feedbackControlsExpansionChangedFiles.includes(changedFile),
+      `unexpected changed file in feedback controls expansion slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)route\.(ts|tsx|js|mjs)$/,
+      "must not change route handlers",
+    );
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)actions?\.(ts|tsx|js|mjs)$/,
+      "must not change server actions",
+    );
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
   }
 }
 

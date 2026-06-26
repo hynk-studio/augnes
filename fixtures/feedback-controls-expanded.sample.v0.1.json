@@ -569,6 +569,18 @@
       "product_write_authority": false
     }
   },
+  "expected_legacy_folded_audit_panel_compatibility": {
+    "component_ref": "components/agent-perspective-substrate-folded-audit-panel.tsx",
+    "default_fixture_ref": "fixtures/agent-perspective-substrate-preview.sample.v0.1.json",
+    "existing_cockpit_no_props_mount_remains_fixture_backed": true,
+    "renders_existing_folded_sections": true,
+    "renders_existing_surfacing_cards": true,
+    "renders_existing_rule_groups": true,
+    "renders_existing_source_coverage": true,
+    "renders_existing_feedback_controls": true,
+    "renders_existing_feedback_store_list": true,
+    "new_feedback_controls_audit_summaries_are_additive": true
+  },
   "expected_static_labels": [
     "Feedback controls are local intent only",
     "No feedback is persisted",

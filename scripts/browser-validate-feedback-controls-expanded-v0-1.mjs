@@ -4,10 +4,12 @@ import { readFileSync } from "node:fs";
 
 const controlsPath = "components/feedback-event-expanded-controls.tsx";
 const auditPanelPath = "components/agent-perspective-substrate-folded-audit-panel.tsx";
+const expandedAuditPanelPath = "components/feedback-controls-expanded-audit-panel.tsx";
 const fixturePath = "fixtures/feedback-controls-expanded.sample.v0.1.json";
 
 const controls = readFileSync(controlsPath, "utf8");
 const auditPanel = readFileSync(auditPanelPath, "utf8");
+const expandedAuditPanel = readFileSync(expandedAuditPanelPath, "utf8");
 const fixture = JSON.parse(readFileSync(fixturePath, "utf8"));
 
 const requiredLabels = [
@@ -24,9 +26,21 @@ const requiredLabels = [
 
 for (const label of requiredLabels) {
   assert.ok(
-    controls.includes(label) || auditPanel.includes(label),
+    controls.includes(label) || auditPanel.includes(label) || expandedAuditPanel.includes(label),
     `required UI label missing from static sources: ${label}`,
   );
+}
+
+for (const legacyRequired of [
+  "agent-perspective-substrate-preview.sample.v0.1.json",
+  "FeedbackEventControls",
+  "FeedbackEventStoreListPanel",
+  "folded_sections",
+  "surfacing_cards",
+  "rule_groups",
+  "source_coverage_preview",
+]) {
+  assert.ok(auditPanel.includes(legacyRequired), `${auditPanelPath} missing ${legacyRequired}`);
 }
 
 for (const controlKind of ["dismiss_preview", "invalidate_preview", "mark_wrong"]) {
@@ -54,7 +68,10 @@ for (const forbidden of [
   "OpenAI",
 ]) {
   assert.ok(!controls.includes(forbidden), `${controlsPath} includes forbidden marker ${forbidden}`);
-  assert.ok(!auditPanel.includes(forbidden), `${auditPanelPath} includes forbidden marker ${forbidden}`);
+  assert.ok(
+    !expandedAuditPanel.includes(forbidden),
+    `${expandedAuditPanelPath} includes forbidden marker ${forbidden}`,
+  );
 }
 
 for (const payload of fixture.expected_payloads) {

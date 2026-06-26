@@ -7,6 +7,7 @@ const aggregationDocsPath = "docs/FEEDBACK_EVENT_AGGREGATION_RUNTIME_V0_1.md";
 const docsPath = "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const controlsPath = "components/feedback-event-expanded-controls.tsx";
 const auditPanelPath = "components/agent-perspective-substrate-folded-audit-panel.tsx";
+const expandedAuditPanelPath = "components/feedback-controls-expanded-audit-panel.tsx";
 const fixturePath = "fixtures/feedback-controls-expanded.sample.v0.1.json";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -81,6 +82,10 @@ const docsExactPhrases = [
   "Audit panel is read-only.",
   "Aggregation is advisory only.",
   "Rule failure candidates are review aids.",
+  "Feedback Controls Expansion adds local UI intent controls and optional audit summaries.",
+  "It preserves the existing Agent Perspective Substrate folded audit panel contract.",
+  "It does not replace existing folded preview fixture behavior.",
+  "Existing Cockpit default panel remains fixture-backed.",
   "roadmap guide is not SSOT",
 ];
 
@@ -186,6 +191,7 @@ const aggregationDocs = readText(aggregationDocsPath);
 const docs = readText(docsPath);
 const controls = readText(controlsPath);
 const auditPanel = readText(auditPanelPath);
+const expandedAuditPanel = readText(expandedAuditPanelPath);
 const fixture = readJson(fixturePath);
 const fixtureText = readText(fixturePath);
 const packageJson = readJson(packagePath);
@@ -216,6 +222,7 @@ for (const path of [
   docsPath,
   controlsPath,
   auditPanelPath,
+  expandedAuditPanelPath,
   fixturePath,
   "scripts/smoke-feedback-controls-expanded-v0-1.mjs",
   "scripts/browser-validate-feedback-controls-expanded-v0-1.mjs",
@@ -249,6 +256,7 @@ for (const [source, label] of [
   [index, indexPath],
   [controls, controlsPath],
   [auditPanel, auditPanelPath],
+  [expandedAuditPanel, expandedAuditPanelPath],
 ]) {
   for (const forbidden of forbiddenPositiveAuthorityGrants) {
     assertNotIncludes(source, forbidden, label);
@@ -272,19 +280,46 @@ for (const phrase of [
   "No durable state mutation",
   "Product-write remains parked",
 ]) {
-  assertIncludes(auditPanel, phrase, auditPanelPath);
+  assertIncludes(expandedAuditPanel, phrase, expandedAuditPanelPath);
 }
 
 for (const [source, label] of [
   [controls, controlsPath],
-  [auditPanel, auditPanelPath],
+  [expandedAuditPanel, expandedAuditPanelPath],
 ]) {
   for (const pattern of componentForbiddenPatterns) {
     assert.ok(!pattern.test(source), `${label} matched forbidden pattern ${pattern}`);
   }
 }
 assert.ok(!/\bfs\b/.test(controls), `${controlsPath} must not reference fs`);
-assert.ok(!/\bfs\b/.test(auditPanel), `${auditPanelPath} must not reference fs`);
+assert.ok(!/\bfs\b/.test(expandedAuditPanel), `${expandedAuditPanelPath} must not reference fs`);
+
+for (const legacyRequired of [
+  "agent-perspective-substrate-preview.sample.v0.1.json",
+  "FeedbackEventControls",
+  "FeedbackEventStoreListPanel",
+  "preview?: AgentPerspectiveSubstratePreview",
+  "fixturePath?: string",
+  "DEFAULT_FIXTURE_PATH",
+  "folded_sections",
+  "surfacing_cards",
+  "rule_groups",
+  "source_coverage_preview",
+  "FeedbackEventStoreListPanel",
+  "folded-by-default",
+  "useState<Set<string>>",
+  "Inspect preview",
+]) {
+  assertIncludes(auditPanel, legacyRequired, auditPanelPath);
+}
+for (const expandedRequired of [
+  "FeedbackControlsExpandedAuditPanel",
+  "feedbackIntents?: FeedbackControlsExpandedIntentSummary[]",
+  "feedbackAggregates?: FeedbackControlsExpandedAggregateSummary[]",
+  "ruleFailureCandidates?: FeedbackControlsExpandedRuleFailureCandidateSummary[]",
+]) {
+  assertIncludes(auditPanel, expandedRequired, auditPanelPath);
+}
 
 for (const controlKind of controlKinds) {
   assertIncludes(controls, controlKind, controlsPath);
@@ -381,7 +416,10 @@ for (const payload of fixture.expected_payloads) {
 }
 
 for (const label of fixture.expected_static_labels) {
-  const found = controls.includes(label) || auditPanel.includes(label);
+  const found =
+    controls.includes(label) ||
+    auditPanel.includes(label) ||
+    expandedAuditPanel.includes(label);
   assert.ok(found, `expected static label missing from components: ${label}`);
 }
 
@@ -400,6 +438,17 @@ assert.equal(
   false,
   "panel intent summary remains no product-write",
 );
+assert.equal(
+  fixture.expected_legacy_folded_audit_panel_compatibility.default_fixture_ref,
+  "fixtures/agent-perspective-substrate-preview.sample.v0.1.json",
+);
+for (const [field, value] of Object.entries(
+  fixture.expected_legacy_folded_audit_panel_compatibility,
+)) {
+  if (typeof value === "boolean") {
+    assert.equal(value, true, `fixture compatibility.${field} must be true`);
+  }
+}
 
 assertNoForbiddenFixtureMarkers(fixtureText);
 

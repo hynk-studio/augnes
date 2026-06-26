@@ -8,6 +8,11 @@ This slice adds bounded UI affordances for an operator to express feedback
 intent. The controls shape intent payloads for review surfaces, but they do not
 persist feedback and do not create authority.
 
+Feedback Controls Expansion adds local UI intent controls and optional audit summaries.
+It preserves the existing Agent Perspective Substrate folded audit panel contract.
+It does not replace existing folded preview fixture behavior.
+Existing Cockpit default panel remains fixture-backed.
+
 Feedback is not truth.
 Feedback is not proof.
 Feedback is not evidence.
@@ -31,6 +36,11 @@ This slice follows that boundary. It adds local UI intent controls only and a
 read-only folded audit panel for supplied intent, aggregate, and rule-failure
 candidate summaries. It does not persist aggregation output and does not add a
 feedback write route.
+
+The optional feedback-controls audit summaries render alongside the existing
+Agent Perspective Substrate folded audit panel content. They do not replace the
+existing folded sections, surfacing cards, rule groups, source coverage preview,
+FeedbackEventControls, or FeedbackEventStoreListPanel behavior.
 
 ## 4. Scope and non-goals
 
