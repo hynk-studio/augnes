@@ -3829,6 +3829,39 @@ repo-local 색인이다.
   (`npm run smoke:feedback-event-aggregation-runtime-v0-1`) follows PR #791 Manual Anchors and prior feedback-to-rule slices. This slice is advisory aggregation only. Feedback is not truth. This pointer is repo-local documentation metadata, not SSOT. The roadmap guide is not SSOT. It does not add feedback write route, UI controls, DB write, state mutation, proof/evidence writes, product-write, Git Ledger export, provider calls, retrieval/RAG execution, source fetch, local/repository/uploaded file read as source input, or product ID allocation. Product-write remains parked by #686.
 
   Boundary phrases: Feedback Event Aggregation Runtime v0.1; advisory aggregation only; feedback is not truth; feedback is not proof; feedback is not evidence; feedback is not promotion readiness; aggregation is not authority; pinned items stay visible but are not promoted; dismissed items lower display priority but are not deleted; corrected items show correction warning but do not mutate parser/rules; invalidated items require source/review follow-up and are not hard-deleted; needs-more-evidence creates review cue only; scope-overreach creates rule failure candidate only; same-origin POST aggregation route only; caller-provided public-safe feedback events only; no feedback write route, UI controls, DB write, candidate mutation, rule mutation, parser mutation, durable state mutation, Formation Receipt write, promotion execution, proof/evidence write, claim/evidence write, product write, product ID allocation, provider/OpenAI call, prompt sending, retrieval execution, RAG answer generation, source fetch, local/repository/uploaded file read as source input, Git Ledger export, Codex execution, or GitHub automation; product-write remains parked by #686.
+- Feedback Controls Expansion v0.1:
+  `docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md`,
+  `components/feedback-event-expanded-controls.tsx`,
+  `components/feedback-controls-expanded-audit-panel.tsx`,
+  `components/agent-perspective-substrate-folded-audit-panel.tsx`,
+  `fixtures/feedback-controls-expanded.sample.v0.1.json`,
+  `scripts/smoke-feedback-controls-expanded-v0-1.mjs`,
+  and `scripts/browser-validate-feedback-controls-expanded-v0-1.mjs`
+  (`npm run smoke:feedback-controls-expanded-v0-1`,
+  `npm run browser:feedback-controls-expanded-v0-1`) follows PR #792
+  Feedback Event Aggregation Runtime. This slice is local UI intent only.
+  Feedback is not truth. It preserves the existing Agent Perspective Substrate
+  folded audit panel contract and does not replace existing folded preview
+  fixture behavior; the existing Cockpit default panel remains fixture-backed.
+  This pointer is repo-local documentation metadata, not SSOT. The roadmap
+  guide is not SSOT. It does not add feedback write route, feedback
+  persistence, DB write, candidate mutation, rule mutation, parser mutation,
+  durable state mutation, proof/evidence writes, product-write, Git Ledger
+  export, provider calls, retrieval/RAG execution, source fetch,
+  local/repository/uploaded file read as source input, or product ID
+  allocation. Product-write remains parked by #686.
+
+  Boundary phrases: Feedback Controls Expansion v0.1; local UI intent only;
+  feedback is not truth; feedback is not proof; feedback is not evidence;
+  feedback is not promotion readiness; callback-only feedback intent emission;
+  no feedback write route; no feedback persistence; no DB read/write; no
+  candidate mutation; no candidate deletion; no promotion; no rule mutation;
+  no parser mutation; no durable state mutation; no Formation Receipt write; no
+  proof/evidence write; no claim/evidence write; no product write; no product
+  ID allocation; no provider/OpenAI call; no prompt sending; no retrieval
+  execution; no RAG answer generation; no source fetch; no
+  local/repository/uploaded file read as source input; no Git Ledger export; no
+  Codex execution; no GitHub automation; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

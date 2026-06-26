@@ -560,6 +560,8 @@
     "browser:project-constellation-runtime-ui-v0-1": "node scripts/browser-validate-project-constellation-runtime-ui-v0-1.mjs",
     "smoke:project-constellation-manual-anchors-v0-1": "node scripts/smoke-project-constellation-manual-anchors-v0-1.mjs",
     "smoke:feedback-event-aggregation-runtime-v0-1": "node scripts/smoke-feedback-event-aggregation-runtime-v0-1.mjs",
+    "smoke:feedback-controls-expanded-v0-1": "node scripts/smoke-feedback-controls-expanded-v0-1.mjs",
+    "browser:feedback-controls-expanded-v0-1": "node scripts/browser-validate-feedback-controls-expanded-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs",
     "smoke:perspective-geometry-digest-contract-v0-1": "node scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",

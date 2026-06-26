@@ -1,0 +1,608 @@
+{
+  "fixture_version": "feedback_controls_expanded.sample.v0.1",
+  "feedback_control_version": "feedback_controls_expansion.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-06-26T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/feedback-event-aggregation-runtime.sample.v0.1.json",
+    "fixtures/research-candidate-review.feedback-to-rule-candidate.sample.v0.1.json"
+  ],
+  "expected_controls": [
+    {
+      "control_kind": "dismiss_preview",
+      "bounded_label": "Dismiss preview intent",
+      "destructive_confirmation_required": true,
+      "intent_only": true
+    },
+    {
+      "control_kind": "pin_preview",
+      "bounded_label": "Pin preview intent",
+      "destructive_confirmation_required": false,
+      "intent_only": true
+    },
+    {
+      "control_kind": "correct_preview",
+      "bounded_label": "Correct preview intent",
+      "bounded_operator_note_summary_required": true,
+      "intent_only": true
+    },
+    {
+      "control_kind": "invalidate_preview",
+      "bounded_label": "Invalidate preview intent",
+      "destructive_confirmation_required": true,
+      "intent_only": true
+    },
+    {
+      "control_kind": "needs_more_evidence",
+      "bounded_label": "Needs more evidence intent",
+      "review_cue_intent_only": true,
+      "intent_only": true
+    },
+    {
+      "control_kind": "scope_overreach",
+      "bounded_label": "Scope overreach intent",
+      "rule_failure_candidate_intent_only": true,
+      "intent_only": true
+    },
+    {
+      "control_kind": "not_relevant_now",
+      "bounded_label": "Not relevant now intent",
+      "destructive_confirmation_required": false,
+      "intent_only": true
+    },
+    {
+      "control_kind": "mark_useful",
+      "bounded_label": "Mark useful intent",
+      "destructive_confirmation_required": false,
+      "intent_only": true
+    },
+    {
+      "control_kind": "mark_wrong",
+      "bounded_label": "Mark wrong intent",
+      "destructive_confirmation_required": true,
+      "intent_only": true
+    }
+  ],
+  "expected_payloads": [
+    {
+      "feedback_control_version": "feedback_controls_expansion.v0.1",
+      "scope": "project:augnes",
+      "control_kind": "dismiss_preview",
+      "target_surface": "research_candidate_review",
+      "target_surface_ref": "surface:feedback-controls:review:001",
+      "target_candidate_ref": "candidate:feedback-controls:001",
+      "target_source_refs": [
+        "source-ref:feedback-controls:001"
+      ],
+      "target_review_record_refs": [
+        "review-record:feedback-controls:001"
+      ],
+      "operator_actor_ref": "operator:feedback-controls:001",
+      "bounded_feedback_summary": "Dismiss preview lowers display priority only.",
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "public_safe": true,
+      "advisory_only": true,
+      "persists_feedback": false,
+      "mutates_candidate": false,
+      "deletes_candidate": false,
+      "promotes_candidate": false,
+      "mutates_rules": false,
+      "mutates_parser": false,
+      "mutates_durable_state": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "destructive_action_local_confirmation_required",
+        "feedback_controls_local_intent_only",
+        "feedback_is_not_evidence",
+        "feedback_is_not_promotion_readiness",
+        "feedback_is_not_proof",
+        "feedback_is_not_truth",
+        "feedback_persistence_not_executed",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "local_ui_intent_only": true,
+        "callback_emission_only": true,
+        "feedback_write_now": false,
+        "feedback_persistence_now": false,
+        "db_query_or_write_now": false,
+        "candidate_mutation_now": false,
+        "candidate_deletion_now": false,
+        "promotion_execution_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "feedback_is_truth": false,
+        "feedback_is_proof": false,
+        "feedback_is_evidence": false,
+        "feedback_is_promotion_readiness": false,
+        "product_write_authority": false
+      }
+    },
+    {
+      "feedback_control_version": "feedback_controls_expansion.v0.1",
+      "scope": "project:augnes",
+      "control_kind": "pin_preview",
+      "target_surface": "constellation_runtime_ui",
+      "target_surface_ref": "surface:feedback-controls:constellation:001",
+      "target_candidate_ref": "candidate:feedback-controls:002",
+      "target_source_refs": [
+        "source-ref:feedback-controls:002"
+      ],
+      "target_review_record_refs": [
+        "review-record:feedback-controls:002"
+      ],
+      "operator_actor_ref": "operator:feedback-controls:001",
+      "bounded_feedback_summary": "Pin preview keeps the item visible without promotion.",
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "public_safe": true,
+      "advisory_only": true,
+      "persists_feedback": false,
+      "mutates_candidate": false,
+      "deletes_candidate": false,
+      "promotes_candidate": false,
+      "mutates_rules": false,
+      "mutates_parser": false,
+      "mutates_durable_state": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "feedback_controls_local_intent_only",
+        "feedback_is_not_evidence",
+        "feedback_is_not_promotion_readiness",
+        "feedback_is_not_proof",
+        "feedback_is_not_truth",
+        "feedback_persistence_not_executed",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "local_ui_intent_only": true,
+        "callback_emission_only": true,
+        "feedback_write_now": false,
+        "feedback_persistence_now": false,
+        "db_query_or_write_now": false,
+        "candidate_mutation_now": false,
+        "candidate_deletion_now": false,
+        "promotion_execution_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "feedback_is_truth": false,
+        "feedback_is_proof": false,
+        "feedback_is_evidence": false,
+        "feedback_is_promotion_readiness": false,
+        "product_write_authority": false
+      }
+    },
+    {
+      "feedback_control_version": "feedback_controls_expansion.v0.1",
+      "scope": "project:augnes",
+      "control_kind": "correct_preview",
+      "target_surface": "manual_note_parser",
+      "target_surface_ref": "surface:feedback-controls:parser:001",
+      "target_candidate_ref": "candidate:feedback-controls:003",
+      "target_source_refs": [
+        "source-ref:feedback-controls:003"
+      ],
+      "target_review_record_refs": [
+        "review-record:feedback-controls:003"
+      ],
+      "operator_actor_ref": "operator:feedback-controls:001",
+      "bounded_feedback_summary": "Correction intent: bounded correction summary for review only",
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "public_safe": true,
+      "advisory_only": true,
+      "persists_feedback": false,
+      "mutates_candidate": false,
+      "deletes_candidate": false,
+      "promotes_candidate": false,
+      "mutates_rules": false,
+      "mutates_parser": false,
+      "mutates_durable_state": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "bounded_operator_note_summary_required",
+        "candidate_not_mutated",
+        "feedback_controls_local_intent_only",
+        "feedback_is_not_evidence",
+        "feedback_is_not_promotion_readiness",
+        "feedback_is_not_proof",
+        "feedback_is_not_truth",
+        "feedback_persistence_not_executed",
+        "product_write_denied"
+      ],
+      "authority_boundary_ref": "expected_payloads[0].authority_boundary"
+    },
+    {
+      "feedback_control_version": "feedback_controls_expansion.v0.1",
+      "scope": "project:augnes",
+      "control_kind": "invalidate_preview",
+      "target_surface": "geometry_digest",
+      "target_surface_ref": "surface:feedback-controls:geometry:001",
+      "target_candidate_ref": "candidate:feedback-controls:004",
+      "target_source_refs": [
+        "source-ref:feedback-controls:004"
+      ],
+      "target_review_record_refs": [
+        "review-record:feedback-controls:004"
+      ],
+      "operator_actor_ref": "operator:feedback-controls:001",
+      "bounded_feedback_summary": "Invalidate preview requires review follow-up and does not delete.",
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "public_safe": true,
+      "advisory_only": true,
+      "persists_feedback": false,
+      "mutates_candidate": false,
+      "deletes_candidate": false,
+      "promotes_candidate": false,
+      "mutates_rules": false,
+      "mutates_parser": false,
+      "mutates_durable_state": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "destructive_action_local_confirmation_required",
+        "feedback_controls_local_intent_only",
+        "feedback_is_not_evidence",
+        "feedback_is_not_promotion_readiness",
+        "feedback_is_not_proof",
+        "feedback_is_not_truth",
+        "feedback_persistence_not_executed",
+        "product_write_denied"
+      ],
+      "authority_boundary_ref": "expected_payloads[0].authority_boundary"
+    },
+    {
+      "feedback_control_version": "feedback_controls_expansion.v0.1",
+      "scope": "project:augnes",
+      "control_kind": "needs_more_evidence",
+      "target_surface": "perspective_trajectory",
+      "target_surface_ref": "surface:feedback-controls:trajectory:001",
+      "target_candidate_ref": "candidate:feedback-controls:005",
+      "target_source_refs": [
+        "source-ref:feedback-controls:005"
+      ],
+      "target_review_record_refs": [
+        "review-record:feedback-controls:005"
+      ],
+      "operator_actor_ref": "operator:feedback-controls:001",
+      "bounded_feedback_summary": "Needs-more-evidence creates review cue intent only.",
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "public_safe": true,
+      "advisory_only": true,
+      "persists_feedback": false,
+      "mutates_candidate": false,
+      "deletes_candidate": false,
+      "promotes_candidate": false,
+      "mutates_rules": false,
+      "mutates_parser": false,
+      "mutates_durable_state": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "feedback_controls_local_intent_only",
+        "feedback_is_not_evidence",
+        "feedback_is_not_promotion_readiness",
+        "feedback_is_not_proof",
+        "feedback_is_not_truth",
+        "feedback_persistence_not_executed",
+        "product_write_denied",
+        "review_cue_intent_only"
+      ],
+      "authority_boundary_ref": "expected_payloads[0].authority_boundary"
+    },
+    {
+      "feedback_control_version": "feedback_controls_expansion.v0.1",
+      "scope": "project:augnes",
+      "control_kind": "scope_overreach",
+      "target_surface": "manual_anchor_store",
+      "target_surface_ref": "surface:feedback-controls:anchor:001",
+      "target_candidate_ref": "candidate:feedback-controls:006",
+      "target_source_refs": [
+        "source-ref:feedback-controls:006"
+      ],
+      "target_review_record_refs": [
+        "review-record:feedback-controls:006"
+      ],
+      "operator_actor_ref": "operator:feedback-controls:001",
+      "bounded_feedback_summary": "Scope-overreach creates rule failure candidate intent only.",
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "public_safe": true,
+      "advisory_only": true,
+      "persists_feedback": false,
+      "mutates_candidate": false,
+      "deletes_candidate": false,
+      "promotes_candidate": false,
+      "mutates_rules": false,
+      "mutates_parser": false,
+      "mutates_durable_state": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "feedback_controls_local_intent_only",
+        "feedback_is_not_evidence",
+        "feedback_is_not_promotion_readiness",
+        "feedback_is_not_proof",
+        "feedback_is_not_truth",
+        "feedback_persistence_not_executed",
+        "product_write_denied",
+        "rule_failure_candidate_intent_only"
+      ],
+      "authority_boundary_ref": "expected_payloads[0].authority_boundary"
+    },
+    {
+      "feedback_control_version": "feedback_controls_expansion.v0.1",
+      "scope": "project:augnes",
+      "control_kind": "not_relevant_now",
+      "target_surface": "lifecycle_read_model",
+      "target_surface_ref": "surface:feedback-controls:lifecycle:001",
+      "target_candidate_ref": "candidate:feedback-controls:007",
+      "target_source_refs": [
+        "source-ref:feedback-controls:007"
+      ],
+      "target_review_record_refs": [
+        "review-record:feedback-controls:007"
+      ],
+      "operator_actor_ref": "operator:feedback-controls:001",
+      "bounded_feedback_summary": "Not relevant now lowers display priority only.",
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "public_safe": true,
+      "advisory_only": true,
+      "persists_feedback": false,
+      "mutates_candidate": false,
+      "deletes_candidate": false,
+      "promotes_candidate": false,
+      "mutates_rules": false,
+      "mutates_parser": false,
+      "mutates_durable_state": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "feedback_controls_local_intent_only",
+        "feedback_is_not_evidence",
+        "feedback_is_not_promotion_readiness",
+        "feedback_is_not_proof",
+        "feedback_is_not_truth",
+        "feedback_persistence_not_executed",
+        "product_write_denied"
+      ],
+      "authority_boundary_ref": "expected_payloads[0].authority_boundary"
+    },
+    {
+      "feedback_control_version": "feedback_controls_expansion.v0.1",
+      "scope": "project:augnes",
+      "control_kind": "mark_useful",
+      "target_surface": "ai_context_packet",
+      "target_surface_ref": "surface:feedback-controls:packet:001",
+      "target_candidate_ref": "candidate:feedback-controls:008",
+      "target_source_refs": [
+        "source-ref:feedback-controls:008"
+      ],
+      "target_review_record_refs": [
+        "review-record:feedback-controls:008"
+      ],
+      "operator_actor_ref": "operator:feedback-controls:001",
+      "bounded_feedback_summary": "Mark useful raises display attention without promotion.",
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "public_safe": true,
+      "advisory_only": true,
+      "persists_feedback": false,
+      "mutates_candidate": false,
+      "deletes_candidate": false,
+      "promotes_candidate": false,
+      "mutates_rules": false,
+      "mutates_parser": false,
+      "mutates_durable_state": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "feedback_controls_local_intent_only",
+        "feedback_is_not_evidence",
+        "feedback_is_not_promotion_readiness",
+        "feedback_is_not_proof",
+        "feedback_is_not_truth",
+        "feedback_persistence_not_executed",
+        "product_write_denied"
+      ],
+      "authority_boundary_ref": "expected_payloads[0].authority_boundary"
+    },
+    {
+      "feedback_control_version": "feedback_controls_expansion.v0.1",
+      "scope": "project:augnes",
+      "control_kind": "mark_wrong",
+      "target_surface": "calibration_diagnostic",
+      "target_surface_ref": "surface:feedback-controls:calibration:001",
+      "target_candidate_ref": "candidate:feedback-controls:009",
+      "target_source_refs": [
+        "source-ref:feedback-controls:009"
+      ],
+      "target_review_record_refs": [
+        "review-record:feedback-controls:009"
+      ],
+      "operator_actor_ref": "operator:feedback-controls:001",
+      "bounded_feedback_summary": "Mark wrong requires confirmation and does not mutate parser behavior.",
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "public_safe": true,
+      "advisory_only": true,
+      "persists_feedback": false,
+      "mutates_candidate": false,
+      "deletes_candidate": false,
+      "promotes_candidate": false,
+      "mutates_rules": false,
+      "mutates_parser": false,
+      "mutates_durable_state": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "destructive_action_local_confirmation_required",
+        "feedback_controls_local_intent_only",
+        "feedback_is_not_evidence",
+        "feedback_is_not_promotion_readiness",
+        "feedback_is_not_proof",
+        "feedback_is_not_truth",
+        "feedback_persistence_not_executed",
+        "product_write_denied"
+      ],
+      "authority_boundary_ref": "expected_payloads[0].authority_boundary"
+    }
+  ],
+  "expected_panel_props": {
+    "feedbackIntents": [
+      {
+        "control_kind": "needs_more_evidence",
+        "target_surface": "perspective_trajectory",
+        "target_surface_ref": "surface:feedback-controls:trajectory:001",
+        "target_candidate_ref": "candidate:feedback-controls:005",
+        "bounded_feedback_summary": "Needs-more-evidence creates review cue intent only.",
+        "reason_codes": [
+          "review_cue_intent_only"
+        ],
+        "advisory_only": true,
+        "persists_feedback": false,
+        "mutates_candidate": false,
+        "product_write_executed": false
+      }
+    ],
+    "feedbackAggregates": [
+      {
+        "aggregate_id": "feedback-aggregate:feedback-controls:001",
+        "target_surface": "research_candidate_review",
+        "target_surface_ref": "surface:feedback-controls:review:001",
+        "target_candidate_ref": "candidate:feedback-controls:001",
+        "pin_count": 1,
+        "dismiss_count": 1,
+        "correct_count": 1,
+        "invalidate_count": 1,
+        "needs_more_evidence_count": 1,
+        "scope_overreach_count": 1,
+        "not_relevant_now_count": 1,
+        "mark_useful_count": 1,
+        "mark_wrong_count": 1,
+        "current_surface_priority_hint": "needs_review",
+        "reason_codes": [
+          "aggregation_is_advisory",
+          "feedback_is_not_truth"
+        ]
+      }
+    ],
+    "ruleFailureCandidates": [
+      {
+        "rule_failure_candidate_id": "rule-failure-candidate:feedback-controls:001",
+        "failure_kind": "surface_scope_overreach",
+        "target_surface": "manual_anchor_store",
+        "target_surface_ref": "surface:feedback-controls:anchor:001",
+        "target_candidate_refs": [
+          "candidate:feedback-controls:006"
+        ],
+        "bounded_summary": "Scope-overreach creates rule failure candidate intent only.",
+        "review_status": "candidate_only",
+        "reason_codes": [
+          "rule_failure_candidate_intent_only"
+        ]
+      }
+    ],
+    "authorityBoundary": {
+      "local_ui_intent_only": true,
+      "advisory_read_model_only": true,
+      "feedback_write_now": false,
+      "feedback_persistence_now": false,
+      "db_query_or_write_now": false,
+      "candidate_mutation_now": false,
+      "candidate_deletion_now": false,
+      "promotion_execution_now": false,
+      "rule_mutation_now": false,
+      "parser_mutation_now": false,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "source_fetch_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "feedback_is_truth": false,
+      "feedback_is_proof": false,
+      "feedback_is_evidence": false,
+      "feedback_is_promotion_readiness": false,
+      "product_write_authority": false
+    }
+  },
+  "expected_legacy_folded_audit_panel_compatibility": {
+    "component_ref": "components/agent-perspective-substrate-folded-audit-panel.tsx",
+    "default_fixture_ref": "fixtures/agent-perspective-substrate-preview.sample.v0.1.json",
+    "existing_cockpit_no_props_mount_remains_fixture_backed": true,
+    "renders_existing_folded_sections": true,
+    "renders_existing_surfacing_cards": true,
+    "renders_existing_rule_groups": true,
+    "renders_existing_source_coverage": true,
+    "renders_existing_feedback_controls": true,
+    "renders_existing_feedback_store_list": true,
+    "new_feedback_controls_audit_summaries_are_additive": true
+  },
+  "expected_static_labels": [
+    "Feedback controls are local intent only",
+    "No feedback is persisted",
+    "Feedback is not truth",
+    "No candidate mutation",
+    "Product-write remains parked",
+    "Audit panel is read-only",
+    "Aggregation is advisory only",
+    "Rule failure candidates are review aids",
+    "No durable state mutation"
+  ],
+  "expected_forbidden_controls_absent": [
+    "feedback write route",
+    "feedback persistence",
+    "DB write",
+    "candidate mutation",
+    "candidate deletion",
+    "promotion",
+    "rule mutation",
+    "parser mutation",
+    "durable state mutation",
+    "proof/evidence write",
+    "product-write"
+  ]
+}

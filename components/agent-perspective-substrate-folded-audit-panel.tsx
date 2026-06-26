@@ -2,6 +2,12 @@
 
 import { FeedbackEventControls } from "@/components/feedback-event-controls";
 import { FeedbackEventStoreListPanel } from "@/components/feedback-event-store-list-panel";
+import {
+  FeedbackControlsExpandedAuditPanel,
+  type FeedbackControlsExpandedAggregateSummary,
+  type FeedbackControlsExpandedIntentSummary,
+  type FeedbackControlsExpandedRuleFailureCandidateSummary,
+} from "@/components/feedback-controls-expanded-audit-panel";
 import agentPerspectiveSubstratePreviewFixture from "@/fixtures/agent-perspective-substrate-preview.sample.v0.1.json";
 import feedbackEventControlsUiContractFixture from "@/fixtures/research-candidate-review.feedback-event-controls-ui-contract.sample.v0.1.json";
 import feedbackEventStoreListUiContractFixture from "@/fixtures/research-candidate-review.feedback-event-store-list-ui-contract.sample.v0.1.json";
@@ -22,6 +28,10 @@ import { useMemo, useState } from "react";
 type AgentPerspectiveSubstrateFoldedAuditPanelProps = {
   preview?: AgentPerspectiveSubstratePreview;
   fixturePath?: string;
+  feedbackIntents?: FeedbackControlsExpandedIntentSummary[];
+  feedbackAggregates?: FeedbackControlsExpandedAggregateSummary[];
+  ruleFailureCandidates?: FeedbackControlsExpandedRuleFailureCandidateSummary[];
+  authorityBoundary?: Record<string, unknown>;
 };
 
 type FeedbackControlsForSurface = {
@@ -55,6 +65,10 @@ const REQUIRED_SECTION_KINDS = [
 export function AgentPerspectiveSubstrateFoldedAuditPanel({
   preview = agentPerspectiveSubstratePreviewFixture as AgentPerspectiveSubstratePreview,
   fixturePath = DEFAULT_FIXTURE_PATH,
+  feedbackIntents = [],
+  feedbackAggregates = [],
+  ruleFailureCandidates = [],
+  authorityBoundary,
 }: AgentPerspectiveSubstrateFoldedAuditPanelProps) {
   const [openSectionIds, setOpenSectionIds] = useState<Set<string>>(
     () => new Set(),
@@ -291,6 +305,13 @@ export function AgentPerspectiveSubstrateFoldedAuditPanel({
       <FeedbackEventStoreListPanel
         contract={FEEDBACK_EVENT_STORE_LIST_UI_CONTRACT}
         initialFilter={{ limit: 50 }}
+      />
+
+      <FeedbackControlsExpandedAuditPanel
+        feedbackIntents={feedbackIntents}
+        feedbackAggregates={feedbackAggregates}
+        ruleFailureCandidates={ruleFailureCandidates}
+        authorityBoundary={authorityBoundary}
       />
 
       <section className="perspective-inspector-section">
