@@ -373,6 +373,8 @@ async function assertHelperBehavior() {
   assertTopLevelUnsafeInputIsRedacted(helper, "knowledge_gap_refs", "/Users/private/gap");
   assertTopLevelUnsafeInputIsRedacted(helper, "boundary_notes", "/Users/private/boundary-note");
   assertUnsafeInputRefIsRedacted(helper);
+  assertDuplicateRedactionPrecedence(helper);
+  assertSafeDuplicateStillUsesDuplicate(helper);
 }
 
 function assertTopLevelUnsafeInputIsRedacted(helper, field, unsafeMarker) {
@@ -433,6 +435,92 @@ function assertUnsafeInputRefIsRedacted(helper) {
   for (const unsafeValue of [unsafeInputRef, unsafeTitle, unsafeSummary]) {
     assert(!serializedEnvelope.includes(unsafeValue), `unsafe input-ref field is not echoed: ${unsafeValue}`);
   }
+}
+
+function assertDuplicateRedactionPrecedence(helper) {
+  const unsafeTitle = "Unsafe duplicate context title should not echo";
+  const unsafeSummary = "Unsafe duplicate context summary should not echo";
+  const unsafeSourceRef = "source-ref:unsafe-duplicate-should-not-echo";
+  const input = clone(fixture.sample_input);
+  const safeRef = {
+    ...clone(fixture.sample_input.input_refs[0]),
+    input_ref: "rag-context:duplicate-ref",
+    bounded_title: "Safe duplicate context",
+    bounded_summary: "Safe duplicate context summary.",
+    source_refs: ["source-ref:duplicate-safe"],
+    candidate_refs: ["candidate-ref:duplicate-safe"],
+    review_memory_refs: [],
+    durable_summary_refs: [],
+    feedback_refs: [],
+    public_safe: true,
+  };
+  const unsafeDuplicateRef = {
+    ...clone(safeRef),
+    bounded_title: unsafeTitle,
+    bounded_summary: unsafeSummary,
+    source_refs: [unsafeSourceRef],
+    candidate_refs: ["candidate-ref:unsafe-duplicate-should-not-echo"],
+    public_safe: false,
+  };
+  input.input_refs = [safeRef, unsafeDuplicateRef];
+  const envelope = helper.buildRagContextPreviewV01(input);
+  const serializedEnvelope = JSON.stringify(envelope);
+  const redactedItem = envelope.excluded_context_items.find(
+    (item) => item.input_ref === "blocked-rag-context-input-ref:1",
+  );
+  assert(redactedItem, "duplicate redaction-required input uses redacted placeholder ref");
+  assert.equal(redactedItem.inclusion_status, "excluded_private_or_raw_payload");
+  assert.equal(redactedItem.bounded_title, "Blocked RAG context input");
+  assert.equal(redactedItem.bounded_summary, "blocked RAG context payload redacted by preview");
+  assert.deepEqual(redactedItem.source_refs, []);
+  assert.deepEqual(redactedItem.candidate_refs, []);
+  assert.deepEqual(redactedItem.review_memory_refs, []);
+  assert.deepEqual(redactedItem.durable_summary_refs, []);
+  assert.deepEqual(redactedItem.feedback_refs, []);
+  assert(redactedItem.reason_codes.includes("private_or_raw_payload_blocked"), "redacted duplicate has private/raw reason");
+  assert(
+    !envelope.excluded_context_items.some(
+      (item) =>
+        item.inclusion_status === "excluded_duplicate" &&
+        (item.bounded_title === unsafeTitle || item.bounded_summary === unsafeSummary),
+    ),
+    "duplicate classification does not win for redaction-required input",
+  );
+  for (const unsafeValue of [unsafeTitle, unsafeSummary, unsafeSourceRef, "candidate-ref:unsafe-duplicate-should-not-echo"]) {
+    assert(!serializedEnvelope.includes(unsafeValue), `unsafe duplicate field is not echoed: ${unsafeValue}`);
+  }
+}
+
+function assertSafeDuplicateStillUsesDuplicate(helper) {
+  const input = clone(fixture.sample_input);
+  const safeRef = {
+    ...clone(fixture.sample_input.input_refs[0]),
+    input_ref: "rag-context:duplicate-ref",
+    bounded_title: "Safe duplicate context",
+    bounded_summary: "Safe duplicate context summary.",
+    source_refs: ["source-ref:duplicate-safe"],
+    candidate_refs: ["candidate-ref:duplicate-safe"],
+    review_memory_refs: [],
+    durable_summary_refs: [],
+    feedback_refs: [],
+    public_safe: true,
+  };
+  const safeDuplicateRef = {
+    ...clone(safeRef),
+    bounded_title: "Safe duplicate context repeated",
+    bounded_summary: "Safe duplicate context repeated summary.",
+    source_refs: ["source-ref:duplicate-safe-repeat"],
+    candidate_refs: ["candidate-ref:duplicate-safe-repeat"],
+  };
+  input.input_refs = [safeRef, safeDuplicateRef];
+  const envelope = helper.buildRagContextPreviewV01(input);
+  const duplicateItem = envelope.excluded_context_items.find(
+    (item) => item.inclusion_status === "excluded_duplicate",
+  );
+  assert(duplicateItem, "safe duplicate input produces excluded_duplicate");
+  assert.equal(duplicateItem.input_ref, "rag-context:duplicate-ref");
+  assert.equal(duplicateItem.bounded_title, "Safe duplicate context repeated");
+  assert.equal(duplicateItem.bounded_summary, "Safe duplicate context repeated summary.");
 }
 
 function assertEnvelopeShape(envelope) {

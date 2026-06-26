@@ -503,13 +503,16 @@ function createContextItem(
   seenContentRefs: Set<string>,
 ): RagContextPreviewContextItem {
   const validation = validateRagContextPreviewInputRefV01(inputRef);
+  const layer = layers.includes(inputRef.layer) ? inputRef.layer : "unknown";
+  if (isPrivateOrRawValidationFailure(validation.failure_codes)) {
+    return createRedactedPrivateRawContextItem(inputRef, input, index, validation, layer);
+  }
   const sourceRefs = uniqueSorted(asStringArray(inputRef.source_refs));
   const candidateRefs = uniqueSorted(asStringArray(inputRef.candidate_refs));
   const reviewMemoryRefs = uniqueSorted(asStringArray(inputRef.review_memory_refs));
   const durableSummaryRefs = uniqueSorted(asStringArray(inputRef.durable_summary_refs));
   const feedbackRefs = uniqueSorted(asStringArray(inputRef.feedback_refs));
   const inputRefValue = typeof inputRef.input_ref === "string" ? inputRef.input_ref : `input-ref:${index}`;
-  const layer = layers.includes(inputRef.layer) ? inputRef.layer : "unknown";
   const itemKind = determineItemKind(inputRef, input);
   const contentKey = [
     inputRef.bounded_summary,
@@ -530,12 +533,6 @@ function createContextItem(
     itemKind,
     duplicate: duplicateByInputRef || duplicateByContent,
   });
-  if (
-    inclusionStatus === "excluded_private_or_raw_payload" &&
-    isPrivateOrRawValidationFailure(validation.failure_codes)
-  ) {
-    return createRedactedPrivateRawContextItem(inputRef, input, index, validation, layer);
-  }
   const staleWarning = inputRef.freshness_status === "stale" && inclusionStatus !== "excluded_stale_without_warning";
   const item: RagContextPreviewContextItem = {
     item_version: itemVersion,
