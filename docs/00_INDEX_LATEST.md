@@ -3966,6 +3966,40 @@ repo-local 색인이다.
   ID allocation; no provider/OpenAI call; no prompt sending; no retrieval
   execution; no RAG answer generation; no Git Ledger export; no Codex
   execution; no GitHub automation; product-write remains parked by #686.
+- Runtime Audit Panel v0.1:
+  `docs/RUNTIME_AUDIT_PANEL_V0_1.md`,
+  `lib/runtime-audit/build-runtime-audit-model.ts`,
+  `components/runtime-audit-panel.tsx`,
+  `fixtures/runtime-audit-panel.sample.v0.1.json`,
+  `scripts/smoke-runtime-audit-panel-v0-1.mjs`, and
+  `scripts/browser-validate-runtime-audit-panel-v0-1.mjs`
+  (`npm run smoke:runtime-audit-panel-v0-1`,
+  `npm run browser:runtime-audit-panel-v0-1`) follows PR #786 through PR
+  #796. This slice is a read-only audit panel. Audit is review cue not truth.
+  This pointer is repo-local documentation metadata, not SSOT. The roadmap
+  guide is not SSOT. It does not add audit persistence, audit routes, route
+  calls, fetch, DB read/write, durable Perspective state mutation, Formation
+  Receipt writes, promotion execution, proof/evidence writes, claim/evidence
+  writes, product-write, product ID allocation, provider calls, prompt sending,
+  retrieval/RAG execution, source fetch, browser log ingestion, session log
+  ingestion, raw conversation ingestion, telemetry ingestion, Git Ledger export,
+  Codex execution, or GitHub automation. Product-write remains parked by #686.
+
+  Boundary phrases: Runtime Audit Panel v0.1; read-only audit panel; audit is
+  review cue not truth; audit is not proof; audit is not authority;
+  verification is not proof; smoke pass is not truth; CI pass is not truth;
+  dogfooding records are bounded review records; feedback aggregation is
+  advisory only; manual anchors are display hints; durable state apply is not
+  product-write; source refs are lineage pointers, not proof; source refs must
+  be public-safe symbolic refs; no audit persistence; no audit route; no route
+  calls; no fetch; no DB read/write; no durable state mutation; no Formation
+  Receipt write; no promotion execution; no proof/evidence write; no
+  claim/evidence write; no product write; no product ID allocation; no
+  provider/OpenAI call; no prompt sending; no retrieval execution; no RAG answer
+  generation; no source fetch; no browser/session/raw conversation/telemetry
+  ingestion; no local/repository/uploaded file read as source input; no Git
+  Ledger export; no Codex execution; no GitHub automation; product-write
+  remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
