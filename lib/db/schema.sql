@@ -293,6 +293,98 @@ CREATE INDEX IF NOT EXISTS idx_perspective_promotion_decision_basis_refs_decisio
 CREATE INDEX IF NOT EXISTS idx_perspective_promotion_decision_activity_decision
   ON perspective_promotion_decision_activity(promotion_decision_id, created_at);
 
+CREATE TABLE IF NOT EXISTS perspective_formation_receipts (
+  receipt_id text primary key,
+  scope text not null,
+  promotion_decision_id text not null,
+  review_record_ref text not null,
+  operator_actor_ref text not null,
+  receipt_status text not null,
+  formation_receipt_written integer not null default 1,
+  durable_state_applied integer not null default 0,
+  promotion_executed integer not null default 0,
+  proof_or_evidence_created integer not null default 0,
+  claim_or_evidence_written integer not null default 0,
+  product_write_executed integer not null default 0,
+  geometry_digest_ref text not null,
+  agent_substrate_warning_refs_json text not null,
+  context_packet_ref text not null,
+  feedback_event_refs_json text not null,
+  unresolved_tensions_preserved_json text not null,
+  knowledge_gaps_preserved_json text not null,
+  boundary_acknowledgements_json text not null,
+  authority_boundary_json text not null,
+  reason_codes_json text not null,
+  boundary_notes_json text not null,
+  created_at text not null,
+  updated_at text not null,
+  discarded_at text,
+  discard_reason text
+);
+
+CREATE TABLE IF NOT EXISTS perspective_formation_receipt_selected_candidates (
+  id text primary key,
+  receipt_id text not null,
+  candidate_ref text not null,
+  candidate_kind text not null,
+  bounded_summary text not null,
+  source_refs_json text not null,
+  reason_codes_json text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_formation_receipt_omitted_candidates (
+  id text primary key,
+  receipt_id text not null,
+  candidate_ref text not null,
+  candidate_kind text not null,
+  bounded_summary text not null,
+  source_refs_json text not null,
+  reason_codes_json text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_formation_receipt_deferred_candidates (
+  id text primary key,
+  receipt_id text not null,
+  candidate_ref text not null,
+  candidate_kind text not null,
+  bounded_summary text not null,
+  source_refs_json text not null,
+  reason_codes_json text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_formation_receipt_sources (
+  id text primary key,
+  receipt_id text not null,
+  source_ref text not null,
+  bounded_summary text not null,
+  reason_codes_json text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_formation_receipt_activity (
+  activity_id text primary key,
+  receipt_id text not null,
+  activity_kind text not null,
+  actor_ref text not null,
+  summary text not null,
+  reason_codes_json text not null,
+  created_at text not null
+);
+
+CREATE INDEX IF NOT EXISTS idx_perspective_formation_receipts_promotion_decision
+  ON perspective_formation_receipts(scope, promotion_decision_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_perspective_formation_receipts_review_record
+  ON perspective_formation_receipts(scope, review_record_ref, created_at);
+CREATE INDEX IF NOT EXISTS idx_perspective_formation_receipt_selected_candidates
+  ON perspective_formation_receipt_selected_candidates(receipt_id, candidate_kind);
+CREATE INDEX IF NOT EXISTS idx_perspective_formation_receipt_omitted_candidates
+  ON perspective_formation_receipt_omitted_candidates(receipt_id, candidate_kind);
+CREATE INDEX IF NOT EXISTS idx_perspective_formation_receipt_deferred_candidates
+  ON perspective_formation_receipt_deferred_candidates(receipt_id, candidate_kind);
+CREATE INDEX IF NOT EXISTS idx_perspective_formation_receipt_sources
+  ON perspective_formation_receipt_sources(receipt_id, source_ref);
+CREATE INDEX IF NOT EXISTS idx_perspective_formation_receipt_activity
+  ON perspective_formation_receipt_activity(receipt_id, created_at);
+
 CREATE TABLE IF NOT EXISTS ag_work_resume_mapping_proposals (
   proposal_id TEXT PRIMARY KEY,
   record_kind TEXT NOT NULL CHECK (
