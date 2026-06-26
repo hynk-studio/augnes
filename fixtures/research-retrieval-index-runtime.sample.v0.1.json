@@ -1,0 +1,3000 @@
+{
+  "fixture_version": "research_retrieval_index_runtime.sample.v0.1",
+  "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+  "index_version": "rebuildable_retrieval_index.v0.1",
+  "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+  "build_report_version": "rebuildable_retrieval_index_build_report.v0.1",
+  "search_request_version": "research_retrieval_index_search_request.v0.1",
+  "search_result_version": "research_retrieval_index_search_result.v0.1",
+  "contract_version": "research_retrieval_runtime_contract.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-06-26T00:00:00.000Z",
+  "roadmap_ref": "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+  "contract_ref": "types/research-retrieval-runtime-contract.ts",
+  "source_fixture_refs": [
+    "fixtures/research-retrieval-runtime-contract.sample.v0.1.json",
+    "fixtures/bounded-source-intake-runtime.sample.v0.1.json",
+    "fixtures/provider-assisted-extraction-runtime.sample.v0.1.json",
+    "fixtures/research-candidate-review.memory-store.sample.v0.1.json"
+  ],
+  "entry_kind_coverage": [
+    "source_ref_metadata",
+    "candidate_summary",
+    "review_note_summary",
+    "perspective_delta_summary",
+    "formation_receipt_summary",
+    "feedback_summary",
+    "manual_bounded_context",
+    "unknown"
+  ],
+  "build_status_coverage": [
+    "rebuilt",
+    "rejected_empty_input",
+    "rejected_private_or_raw_payload",
+    "rejected_invalid_entry",
+    "rejected_unsupported_entry_kind"
+  ],
+  "search_status_coverage": [
+    "candidate_only",
+    "no_matches",
+    "blocked_unsupported_mode",
+    "blocked_private_or_raw_payload",
+    "rejected_invalid_request"
+  ],
+  "build_reason_code_coverage": [
+    "roadmap_file_present",
+    "contract_ref_present",
+    "entry_ref_present",
+    "entry_ref_missing",
+    "entry_kind_supported",
+    "entry_kind_unknown",
+    "bounded_summary_present",
+    "bounded_summary_missing",
+    "source_ref_present",
+    "source_ref_missing",
+    "candidate_ref_present",
+    "review_memory_ref_present",
+    "durable_summary_ref_present",
+    "feedback_ref_present",
+    "public_safe_entry",
+    "private_or_raw_payload_blocked",
+    "secret_like_pattern_blocked",
+    "local_path_blocked",
+    "private_url_blocked",
+    "raw_source_body_blocked",
+    "raw_provider_output_blocked",
+    "raw_retrieval_output_blocked",
+    "index_rebuilt_from_caller_input",
+    "index_is_rebuildable",
+    "index_is_derived",
+    "index_is_non_authoritative",
+    "stale_index_cannot_override_current_state",
+    "lexical_tokens_created",
+    "embedding_not_created",
+    "vector_search_not_executed",
+    "provider_call_not_executed",
+    "prompt_not_sent",
+    "source_fetch_not_executed",
+    "file_read_not_executed",
+    "db_write_not_executed",
+    "proof_not_created",
+    "evidence_not_created",
+    "promotion_not_executed",
+    "product_write_denied"
+  ],
+  "search_reason_code_coverage": [
+    "index_present",
+    "index_missing",
+    "query_summary_present",
+    "query_summary_missing",
+    "retrieval_mode_supported",
+    "retrieval_mode_unsupported",
+    "bounded_local_search_executed",
+    "metadata_lookup_executed",
+    "lexical_search_executed",
+    "hybrid_search_executed",
+    "no_retrieval_requested",
+    "semantic_embedding_search_deferred",
+    "rag_context_preview_deferred",
+    "rerank_deferred",
+    "citation_context_preview_deferred",
+    "entry_match_found",
+    "entry_match_not_found",
+    "stale_result_warning",
+    "retrieval_result_not_evidence",
+    "retrieval_score_not_truth_score",
+    "retrieval_score_not_promotion_readiness",
+    "rag_answer_not_generated",
+    "embedding_not_created",
+    "vector_search_not_executed",
+    "provider_call_not_executed",
+    "prompt_not_sent",
+    "source_fetch_not_executed",
+    "file_read_not_executed",
+    "db_query_not_executed",
+    "proof_not_created",
+    "evidence_not_created",
+    "promotion_not_executed",
+    "product_write_denied"
+  ],
+  "successful_build_input": {
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "requested_at": "2026-06-26T00:00:00.000Z",
+    "requested_by_surface": "roadmap_guided_codex_slice",
+    "roadmap_ref": "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+    "contract_ref": "types/research-retrieval-runtime-contract.ts",
+    "entries": [
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-source-001",
+        "entry_ref": "retrieval-index-entry-ref:source-001",
+        "entry_kind": "source_ref_metadata",
+        "bounded_title": "Atlas source",
+        "bounded_summary": "atlas candidate review source index",
+        "source_refs": [
+          "source-ref:public-safe-001"
+        ],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "tags": [
+          "atlas",
+          "source"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-candidate-002",
+        "entry_ref": "retrieval-index-entry-ref:candidate-002",
+        "entry_kind": "candidate_summary",
+        "bounded_title": "Atlas candidate",
+        "bounded_summary": "atlas candidate summary evidence score",
+        "source_refs": [
+          "source-ref:public-safe-001"
+        ],
+        "candidate_refs": [
+          "candidate-ref:summary-002"
+        ],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "tags": [
+          "atlas",
+          "candidate"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_present",
+          "candidate_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-review-003",
+        "entry_ref": "retrieval-index-entry-ref:review-003",
+        "entry_kind": "review_note_summary",
+        "bounded_title": "Atlas review",
+        "bounded_summary": "atlas review stale marker",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [
+          "review-memory-ref:public-safe-003"
+        ],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "tags": [
+          "atlas",
+          "review"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "stale",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_missing",
+          "review_memory_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-perspective-004",
+        "entry_ref": "retrieval-index-entry-ref:perspective-004",
+        "entry_kind": "perspective_delta_summary",
+        "bounded_title": "Delta perspective",
+        "bounded_summary": "delta perspective summary trajectory",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [
+          "perspective-delta-summary-ref:public-safe-004"
+        ],
+        "feedback_refs": [],
+        "tags": [
+          "delta",
+          "perspective"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_missing",
+          "durable_summary_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-formation-005",
+        "entry_ref": "retrieval-index-entry-ref:formation-005",
+        "entry_kind": "formation_receipt_summary",
+        "bounded_title": "Epsilon formation",
+        "bounded_summary": "epsilon formation receipt decision",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [
+          "formation-receipt-summary-ref:public-safe-005"
+        ],
+        "feedback_refs": [],
+        "tags": [
+          "epsilon",
+          "formation"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_missing",
+          "durable_summary_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-feedback-006",
+        "entry_ref": "retrieval-index-entry-ref:feedback-006",
+        "entry_kind": "feedback_summary",
+        "bounded_title": "Zeta feedback",
+        "bounded_summary": "zeta feedback signal review",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [
+          "feedback-summary-ref:public-safe-006"
+        ],
+        "tags": [
+          "zeta",
+          "feedback"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_missing",
+          "feedback_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-manual-007",
+        "entry_ref": "retrieval-index-entry-ref:manual-007",
+        "entry_kind": "manual_bounded_context",
+        "bounded_title": "Manual context",
+        "bounded_summary": "manual context atlas gap low",
+        "source_refs": [
+          "source-ref:public-safe-007"
+        ],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "tags": [
+          "manual",
+          "gap"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_present",
+          "public_safe_entry"
+        ]
+      }
+    ],
+    "max_entries": 20,
+    "max_summary_chars": 240,
+    "public_safe_only": true,
+    "boundary_notes": [
+      "Rebuildable Retrieval Index Runtime is a bounded derived runtime.",
+      "The index is rebuildable.",
+      "The index is derived.",
+      "The index is non-authoritative.",
+      "Product-write remains parked by #686."
+    ],
+    "reason_codes": [
+      "roadmap_file_present",
+      "contract_ref_present",
+      "index_rebuilt_from_caller_input",
+      "product_write_denied"
+    ]
+  },
+  "expected_successful_build_report": {
+    "report_version": "rebuildable_retrieval_index_build_report.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "build_status": "rebuilt",
+    "index": {
+      "index_version": "rebuildable_retrieval_index.v0.1",
+      "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+      "contract_version": "research_retrieval_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "index_id": "rebuildable-retrieval-index:sample-001",
+      "built_at": "2026-06-26T00:00:00.000Z",
+      "roadmap_ref": "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+      "contract_ref": "types/research-retrieval-runtime-contract.ts",
+      "build_status": "rebuilt",
+      "rebuildable": true,
+      "derived_non_authoritative": true,
+      "stale_index_cannot_override_current_state": true,
+      "public_safe_only": true,
+      "entries": [
+        {
+          "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+          "scope": "project:augnes",
+          "entry_id": "entry-candidate-002",
+          "entry_ref": "retrieval-index-entry-ref:candidate-002",
+          "entry_kind": "candidate_summary",
+          "bounded_title": "Atlas candidate",
+          "bounded_summary": "atlas candidate summary evidence score",
+          "source_refs": [
+            "source-ref:public-safe-001"
+          ],
+          "candidate_refs": [
+            "candidate-ref:summary-002"
+          ],
+          "review_memory_refs": [],
+          "durable_summary_refs": [],
+          "feedback_refs": [],
+          "tags": [
+            "atlas",
+            "candidate"
+          ],
+          "updated_at": "2026-06-26T00:00:00.000Z",
+          "public_safe": true,
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "freshness_status": "fresh",
+          "reason_codes": [
+            "entry_ref_present",
+            "entry_kind_supported",
+            "bounded_summary_present",
+            "source_ref_present",
+            "candidate_ref_present",
+            "public_safe_entry"
+          ]
+        },
+        {
+          "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+          "scope": "project:augnes",
+          "entry_id": "entry-feedback-006",
+          "entry_ref": "retrieval-index-entry-ref:feedback-006",
+          "entry_kind": "feedback_summary",
+          "bounded_title": "Zeta feedback",
+          "bounded_summary": "zeta feedback signal review",
+          "source_refs": [],
+          "candidate_refs": [],
+          "review_memory_refs": [],
+          "durable_summary_refs": [],
+          "feedback_refs": [
+            "feedback-summary-ref:public-safe-006"
+          ],
+          "tags": [
+            "zeta",
+            "feedback"
+          ],
+          "updated_at": "2026-06-26T00:00:00.000Z",
+          "public_safe": true,
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "freshness_status": "fresh",
+          "reason_codes": [
+            "entry_ref_present",
+            "entry_kind_supported",
+            "bounded_summary_present",
+            "source_ref_missing",
+            "feedback_ref_present",
+            "public_safe_entry"
+          ]
+        },
+        {
+          "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+          "scope": "project:augnes",
+          "entry_id": "entry-formation-005",
+          "entry_ref": "retrieval-index-entry-ref:formation-005",
+          "entry_kind": "formation_receipt_summary",
+          "bounded_title": "Epsilon formation",
+          "bounded_summary": "epsilon formation receipt decision",
+          "source_refs": [],
+          "candidate_refs": [],
+          "review_memory_refs": [],
+          "durable_summary_refs": [
+            "formation-receipt-summary-ref:public-safe-005"
+          ],
+          "feedback_refs": [],
+          "tags": [
+            "epsilon",
+            "formation"
+          ],
+          "updated_at": "2026-06-26T00:00:00.000Z",
+          "public_safe": true,
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "freshness_status": "fresh",
+          "reason_codes": [
+            "entry_ref_present",
+            "entry_kind_supported",
+            "bounded_summary_present",
+            "source_ref_missing",
+            "durable_summary_ref_present",
+            "public_safe_entry"
+          ]
+        },
+        {
+          "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+          "scope": "project:augnes",
+          "entry_id": "entry-manual-007",
+          "entry_ref": "retrieval-index-entry-ref:manual-007",
+          "entry_kind": "manual_bounded_context",
+          "bounded_title": "Manual context",
+          "bounded_summary": "manual context atlas gap low",
+          "source_refs": [
+            "source-ref:public-safe-007"
+          ],
+          "candidate_refs": [],
+          "review_memory_refs": [],
+          "durable_summary_refs": [],
+          "feedback_refs": [],
+          "tags": [
+            "manual",
+            "gap"
+          ],
+          "updated_at": "2026-06-26T00:00:00.000Z",
+          "public_safe": true,
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "freshness_status": "fresh",
+          "reason_codes": [
+            "entry_ref_present",
+            "entry_kind_supported",
+            "bounded_summary_present",
+            "source_ref_present",
+            "public_safe_entry"
+          ]
+        },
+        {
+          "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+          "scope": "project:augnes",
+          "entry_id": "entry-perspective-004",
+          "entry_ref": "retrieval-index-entry-ref:perspective-004",
+          "entry_kind": "perspective_delta_summary",
+          "bounded_title": "Delta perspective",
+          "bounded_summary": "delta perspective summary trajectory",
+          "source_refs": [],
+          "candidate_refs": [],
+          "review_memory_refs": [],
+          "durable_summary_refs": [
+            "perspective-delta-summary-ref:public-safe-004"
+          ],
+          "feedback_refs": [],
+          "tags": [
+            "delta",
+            "perspective"
+          ],
+          "updated_at": "2026-06-26T00:00:00.000Z",
+          "public_safe": true,
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "freshness_status": "fresh",
+          "reason_codes": [
+            "entry_ref_present",
+            "entry_kind_supported",
+            "bounded_summary_present",
+            "source_ref_missing",
+            "durable_summary_ref_present",
+            "public_safe_entry"
+          ]
+        },
+        {
+          "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+          "scope": "project:augnes",
+          "entry_id": "entry-review-003",
+          "entry_ref": "retrieval-index-entry-ref:review-003",
+          "entry_kind": "review_note_summary",
+          "bounded_title": "Atlas review",
+          "bounded_summary": "atlas review stale marker",
+          "source_refs": [],
+          "candidate_refs": [],
+          "review_memory_refs": [
+            "review-memory-ref:public-safe-003"
+          ],
+          "durable_summary_refs": [],
+          "feedback_refs": [],
+          "tags": [
+            "atlas",
+            "review"
+          ],
+          "updated_at": "2026-06-26T00:00:00.000Z",
+          "public_safe": true,
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "freshness_status": "stale",
+          "reason_codes": [
+            "entry_ref_present",
+            "entry_kind_supported",
+            "bounded_summary_present",
+            "source_ref_missing",
+            "review_memory_ref_present",
+            "public_safe_entry"
+          ]
+        },
+        {
+          "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+          "scope": "project:augnes",
+          "entry_id": "entry-source-001",
+          "entry_ref": "retrieval-index-entry-ref:source-001",
+          "entry_kind": "source_ref_metadata",
+          "bounded_title": "Atlas source",
+          "bounded_summary": "atlas candidate review source index",
+          "source_refs": [
+            "source-ref:public-safe-001"
+          ],
+          "candidate_refs": [],
+          "review_memory_refs": [],
+          "durable_summary_refs": [],
+          "feedback_refs": [],
+          "tags": [
+            "atlas",
+            "source"
+          ],
+          "updated_at": "2026-06-26T00:00:00.000Z",
+          "public_safe": true,
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "freshness_status": "fresh",
+          "reason_codes": [
+            "entry_ref_present",
+            "entry_kind_supported",
+            "bounded_summary_present",
+            "source_ref_present",
+            "public_safe_entry"
+          ]
+        }
+      ],
+      "token_records": [
+        {
+          "token": "atlas",
+          "entry_refs": [
+            "retrieval-index-entry-ref:candidate-002",
+            "retrieval-index-entry-ref:manual-007",
+            "retrieval-index-entry-ref:review-003",
+            "retrieval-index-entry-ref:source-001"
+          ],
+          "entry_count": 4
+        },
+        {
+          "token": "candidate",
+          "entry_refs": [
+            "retrieval-index-entry-ref:candidate-002",
+            "retrieval-index-entry-ref:source-001"
+          ],
+          "entry_count": 2
+        },
+        {
+          "token": "context",
+          "entry_refs": [
+            "retrieval-index-entry-ref:manual-007"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "decision",
+          "entry_refs": [
+            "retrieval-index-entry-ref:formation-005"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "delta",
+          "entry_refs": [
+            "retrieval-index-entry-ref:perspective-004"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "epsilon",
+          "entry_refs": [
+            "retrieval-index-entry-ref:formation-005"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "evidence",
+          "entry_refs": [
+            "retrieval-index-entry-ref:candidate-002"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "feedback",
+          "entry_refs": [
+            "retrieval-index-entry-ref:feedback-006"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "formation",
+          "entry_refs": [
+            "retrieval-index-entry-ref:formation-005"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "gap",
+          "entry_refs": [
+            "retrieval-index-entry-ref:manual-007"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "index",
+          "entry_refs": [
+            "retrieval-index-entry-ref:source-001"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "low",
+          "entry_refs": [
+            "retrieval-index-entry-ref:manual-007"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "manual",
+          "entry_refs": [
+            "retrieval-index-entry-ref:manual-007"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "marker",
+          "entry_refs": [
+            "retrieval-index-entry-ref:review-003"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "perspective",
+          "entry_refs": [
+            "retrieval-index-entry-ref:perspective-004"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "receipt",
+          "entry_refs": [
+            "retrieval-index-entry-ref:formation-005"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "review",
+          "entry_refs": [
+            "retrieval-index-entry-ref:feedback-006",
+            "retrieval-index-entry-ref:review-003",
+            "retrieval-index-entry-ref:source-001"
+          ],
+          "entry_count": 3
+        },
+        {
+          "token": "score",
+          "entry_refs": [
+            "retrieval-index-entry-ref:candidate-002"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "signal",
+          "entry_refs": [
+            "retrieval-index-entry-ref:feedback-006"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "source",
+          "entry_refs": [
+            "retrieval-index-entry-ref:source-001"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "stale",
+          "entry_refs": [
+            "retrieval-index-entry-ref:review-003"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "summary",
+          "entry_refs": [
+            "retrieval-index-entry-ref:candidate-002",
+            "retrieval-index-entry-ref:perspective-004"
+          ],
+          "entry_count": 2
+        },
+        {
+          "token": "trajectory",
+          "entry_refs": [
+            "retrieval-index-entry-ref:perspective-004"
+          ],
+          "entry_count": 1
+        },
+        {
+          "token": "zeta",
+          "entry_refs": [
+            "retrieval-index-entry-ref:feedback-006"
+          ],
+          "entry_count": 1
+        }
+      ],
+      "entry_kind_counts": {
+        "source_ref_metadata": 1,
+        "candidate_summary": 1,
+        "review_note_summary": 1,
+        "perspective_delta_summary": 1,
+        "formation_receipt_summary": 1,
+        "feedback_summary": 1,
+        "manual_bounded_context": 1,
+        "unknown": 0
+      },
+      "source_refs": [
+        "source-ref:public-safe-001",
+        "source-ref:public-safe-007"
+      ],
+      "candidate_refs": [
+        "candidate-ref:summary-002"
+      ],
+      "review_memory_refs": [
+        "review-memory-ref:public-safe-003"
+      ],
+      "durable_summary_refs": [
+        "formation-receipt-summary-ref:public-safe-005",
+        "perspective-delta-summary-ref:public-safe-004"
+      ],
+      "feedback_refs": [
+        "feedback-summary-ref:public-safe-006"
+      ],
+      "boundary_notes": [
+        "Product-write remains parked by #686.",
+        "Rebuildable Retrieval Index Runtime is a bounded derived runtime.",
+        "Search results are not evidence.",
+        "The index is derived.",
+        "The index is non-authoritative.",
+        "The index is rebuildable."
+      ],
+      "reason_codes": [
+        "bounded_summary_present",
+        "candidate_ref_present",
+        "contract_ref_present",
+        "db_write_not_executed",
+        "durable_summary_ref_present",
+        "embedding_not_created",
+        "entry_kind_supported",
+        "entry_ref_present",
+        "evidence_not_created",
+        "feedback_ref_present",
+        "file_read_not_executed",
+        "index_is_derived",
+        "index_is_non_authoritative",
+        "index_is_rebuildable",
+        "index_rebuilt_from_caller_input",
+        "lexical_tokens_created",
+        "product_write_denied",
+        "promotion_not_executed",
+        "prompt_not_sent",
+        "proof_not_created",
+        "provider_call_not_executed",
+        "public_safe_entry",
+        "review_memory_ref_present",
+        "roadmap_file_present",
+        "source_fetch_not_executed",
+        "source_ref_missing",
+        "source_ref_present",
+        "stale_index_cannot_override_current_state",
+        "vector_search_not_executed"
+      ],
+      "authority_boundary": {
+        "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+        "rebuildable_index_runtime_now": true,
+        "bounded_local_index_rebuild_now": true,
+        "bounded_local_index_search_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "semantic_embedding_search_now": false,
+        "external_retrieval_provider_now": false,
+        "source_fetch_now": false,
+        "crawler_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "raw_source_body_storage_now": false,
+        "raw_provider_output_storage_now": false,
+        "raw_retrieval_output_storage_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "db_migration_now": false,
+        "production_db_read_or_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "perspective_promotion_now": false,
+        "durable_perspective_state_now": false,
+        "work_mutation_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "product_write_authority": false,
+        "product_id_allocation_authority": false,
+        "source_of_truth": false,
+        "retrieval_result_is_evidence": false,
+        "retrieval_score_is_truth_score": false,
+        "retrieval_score_is_promotion_readiness": false
+      },
+      "index_fingerprint": "46a32b61be8245b6791f0ad93c509bd248139214b9be897bcf62ff4b8b17a1b7"
+    },
+    "rejected_entry_refs": [],
+    "warnings": [],
+    "reason_codes": [
+      "bounded_summary_present",
+      "candidate_ref_present",
+      "contract_ref_present",
+      "db_write_not_executed",
+      "durable_summary_ref_present",
+      "embedding_not_created",
+      "entry_kind_supported",
+      "entry_ref_present",
+      "evidence_not_created",
+      "feedback_ref_present",
+      "file_read_not_executed",
+      "index_is_derived",
+      "index_is_non_authoritative",
+      "index_is_rebuildable",
+      "index_rebuilt_from_caller_input",
+      "lexical_tokens_created",
+      "product_write_denied",
+      "promotion_not_executed",
+      "prompt_not_sent",
+      "proof_not_created",
+      "provider_call_not_executed",
+      "public_safe_entry",
+      "review_memory_ref_present",
+      "roadmap_file_present",
+      "source_fetch_not_executed",
+      "source_ref_missing",
+      "source_ref_present",
+      "stale_index_cannot_override_current_state",
+      "vector_search_not_executed"
+    ],
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": false,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "expected_rebuildable_index": {
+    "index_version": "rebuildable_retrieval_index.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "built_at": "2026-06-26T00:00:00.000Z",
+    "roadmap_ref": "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+    "contract_ref": "types/research-retrieval-runtime-contract.ts",
+    "build_status": "rebuilt",
+    "rebuildable": true,
+    "derived_non_authoritative": true,
+    "stale_index_cannot_override_current_state": true,
+    "public_safe_only": true,
+    "entries": [
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-candidate-002",
+        "entry_ref": "retrieval-index-entry-ref:candidate-002",
+        "entry_kind": "candidate_summary",
+        "bounded_title": "Atlas candidate",
+        "bounded_summary": "atlas candidate summary evidence score",
+        "source_refs": [
+          "source-ref:public-safe-001"
+        ],
+        "candidate_refs": [
+          "candidate-ref:summary-002"
+        ],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "tags": [
+          "atlas",
+          "candidate"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_present",
+          "candidate_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-feedback-006",
+        "entry_ref": "retrieval-index-entry-ref:feedback-006",
+        "entry_kind": "feedback_summary",
+        "bounded_title": "Zeta feedback",
+        "bounded_summary": "zeta feedback signal review",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [
+          "feedback-summary-ref:public-safe-006"
+        ],
+        "tags": [
+          "zeta",
+          "feedback"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_missing",
+          "feedback_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-formation-005",
+        "entry_ref": "retrieval-index-entry-ref:formation-005",
+        "entry_kind": "formation_receipt_summary",
+        "bounded_title": "Epsilon formation",
+        "bounded_summary": "epsilon formation receipt decision",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [
+          "formation-receipt-summary-ref:public-safe-005"
+        ],
+        "feedback_refs": [],
+        "tags": [
+          "epsilon",
+          "formation"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_missing",
+          "durable_summary_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-manual-007",
+        "entry_ref": "retrieval-index-entry-ref:manual-007",
+        "entry_kind": "manual_bounded_context",
+        "bounded_title": "Manual context",
+        "bounded_summary": "manual context atlas gap low",
+        "source_refs": [
+          "source-ref:public-safe-007"
+        ],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "tags": [
+          "manual",
+          "gap"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-perspective-004",
+        "entry_ref": "retrieval-index-entry-ref:perspective-004",
+        "entry_kind": "perspective_delta_summary",
+        "bounded_title": "Delta perspective",
+        "bounded_summary": "delta perspective summary trajectory",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [
+          "perspective-delta-summary-ref:public-safe-004"
+        ],
+        "feedback_refs": [],
+        "tags": [
+          "delta",
+          "perspective"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_missing",
+          "durable_summary_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-review-003",
+        "entry_ref": "retrieval-index-entry-ref:review-003",
+        "entry_kind": "review_note_summary",
+        "bounded_title": "Atlas review",
+        "bounded_summary": "atlas review stale marker",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [
+          "review-memory-ref:public-safe-003"
+        ],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "tags": [
+          "atlas",
+          "review"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "stale",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_missing",
+          "review_memory_ref_present",
+          "public_safe_entry"
+        ]
+      },
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-source-001",
+        "entry_ref": "retrieval-index-entry-ref:source-001",
+        "entry_kind": "source_ref_metadata",
+        "bounded_title": "Atlas source",
+        "bounded_summary": "atlas candidate review source index",
+        "source_refs": [
+          "source-ref:public-safe-001"
+        ],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "tags": [
+          "atlas",
+          "source"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": true,
+        "privacy_class": "public_safe_refs_only",
+        "redaction_status": "not_needed",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "entry_ref_present",
+          "entry_kind_supported",
+          "bounded_summary_present",
+          "source_ref_present",
+          "public_safe_entry"
+        ]
+      }
+    ],
+    "token_records": [
+      {
+        "token": "atlas",
+        "entry_refs": [
+          "retrieval-index-entry-ref:candidate-002",
+          "retrieval-index-entry-ref:manual-007",
+          "retrieval-index-entry-ref:review-003",
+          "retrieval-index-entry-ref:source-001"
+        ],
+        "entry_count": 4
+      },
+      {
+        "token": "candidate",
+        "entry_refs": [
+          "retrieval-index-entry-ref:candidate-002",
+          "retrieval-index-entry-ref:source-001"
+        ],
+        "entry_count": 2
+      },
+      {
+        "token": "context",
+        "entry_refs": [
+          "retrieval-index-entry-ref:manual-007"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "decision",
+        "entry_refs": [
+          "retrieval-index-entry-ref:formation-005"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "delta",
+        "entry_refs": [
+          "retrieval-index-entry-ref:perspective-004"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "epsilon",
+        "entry_refs": [
+          "retrieval-index-entry-ref:formation-005"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "evidence",
+        "entry_refs": [
+          "retrieval-index-entry-ref:candidate-002"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "feedback",
+        "entry_refs": [
+          "retrieval-index-entry-ref:feedback-006"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "formation",
+        "entry_refs": [
+          "retrieval-index-entry-ref:formation-005"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "gap",
+        "entry_refs": [
+          "retrieval-index-entry-ref:manual-007"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "index",
+        "entry_refs": [
+          "retrieval-index-entry-ref:source-001"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "low",
+        "entry_refs": [
+          "retrieval-index-entry-ref:manual-007"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "manual",
+        "entry_refs": [
+          "retrieval-index-entry-ref:manual-007"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "marker",
+        "entry_refs": [
+          "retrieval-index-entry-ref:review-003"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "perspective",
+        "entry_refs": [
+          "retrieval-index-entry-ref:perspective-004"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "receipt",
+        "entry_refs": [
+          "retrieval-index-entry-ref:formation-005"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "review",
+        "entry_refs": [
+          "retrieval-index-entry-ref:feedback-006",
+          "retrieval-index-entry-ref:review-003",
+          "retrieval-index-entry-ref:source-001"
+        ],
+        "entry_count": 3
+      },
+      {
+        "token": "score",
+        "entry_refs": [
+          "retrieval-index-entry-ref:candidate-002"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "signal",
+        "entry_refs": [
+          "retrieval-index-entry-ref:feedback-006"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "source",
+        "entry_refs": [
+          "retrieval-index-entry-ref:source-001"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "stale",
+        "entry_refs": [
+          "retrieval-index-entry-ref:review-003"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "summary",
+        "entry_refs": [
+          "retrieval-index-entry-ref:candidate-002",
+          "retrieval-index-entry-ref:perspective-004"
+        ],
+        "entry_count": 2
+      },
+      {
+        "token": "trajectory",
+        "entry_refs": [
+          "retrieval-index-entry-ref:perspective-004"
+        ],
+        "entry_count": 1
+      },
+      {
+        "token": "zeta",
+        "entry_refs": [
+          "retrieval-index-entry-ref:feedback-006"
+        ],
+        "entry_count": 1
+      }
+    ],
+    "entry_kind_counts": {
+      "source_ref_metadata": 1,
+      "candidate_summary": 1,
+      "review_note_summary": 1,
+      "perspective_delta_summary": 1,
+      "formation_receipt_summary": 1,
+      "feedback_summary": 1,
+      "manual_bounded_context": 1,
+      "unknown": 0
+    },
+    "source_refs": [
+      "source-ref:public-safe-001",
+      "source-ref:public-safe-007"
+    ],
+    "candidate_refs": [
+      "candidate-ref:summary-002"
+    ],
+    "review_memory_refs": [
+      "review-memory-ref:public-safe-003"
+    ],
+    "durable_summary_refs": [
+      "formation-receipt-summary-ref:public-safe-005",
+      "perspective-delta-summary-ref:public-safe-004"
+    ],
+    "feedback_refs": [
+      "feedback-summary-ref:public-safe-006"
+    ],
+    "boundary_notes": [
+      "Product-write remains parked by #686.",
+      "Rebuildable Retrieval Index Runtime is a bounded derived runtime.",
+      "Search results are not evidence.",
+      "The index is derived.",
+      "The index is non-authoritative.",
+      "The index is rebuildable."
+    ],
+    "reason_codes": [
+      "bounded_summary_present",
+      "candidate_ref_present",
+      "contract_ref_present",
+      "db_write_not_executed",
+      "durable_summary_ref_present",
+      "embedding_not_created",
+      "entry_kind_supported",
+      "entry_ref_present",
+      "evidence_not_created",
+      "feedback_ref_present",
+      "file_read_not_executed",
+      "index_is_derived",
+      "index_is_non_authoritative",
+      "index_is_rebuildable",
+      "index_rebuilt_from_caller_input",
+      "lexical_tokens_created",
+      "product_write_denied",
+      "promotion_not_executed",
+      "prompt_not_sent",
+      "proof_not_created",
+      "provider_call_not_executed",
+      "public_safe_entry",
+      "review_memory_ref_present",
+      "roadmap_file_present",
+      "source_fetch_not_executed",
+      "source_ref_missing",
+      "source_ref_present",
+      "stale_index_cannot_override_current_state",
+      "vector_search_not_executed"
+    ],
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": false,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    },
+    "index_fingerprint": "46a32b61be8245b6791f0ad93c509bd248139214b9be897bcf62ff4b8b17a1b7"
+  },
+  "lexical_search_request": {
+    "search_request_version": "research_retrieval_index_search_request.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-lexical-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "retrieval_mode": "lexical_candidate_retrieval",
+    "bounded_query_summary": "atlas candidate review source",
+    "filters": {
+      "entry_kinds": [],
+      "source_refs": [],
+      "candidate_refs": [],
+      "review_memory_refs": [],
+      "durable_summary_refs": [],
+      "feedback_refs": [],
+      "freshness_statuses": []
+    },
+    "limit": 10,
+    "public_safe": true,
+    "reason_codes": [
+      "index_present",
+      "query_summary_present",
+      "retrieval_mode_supported"
+    ],
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "expected_lexical_search_result": {
+    "search_result_version": "research_retrieval_index_search_result.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-lexical-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "status": "candidate_only",
+    "hits": [
+      {
+        "rank": 1,
+        "entry_id": "entry-source-001",
+        "entry_ref": "retrieval-index-entry-ref:source-001",
+        "entry_kind": "source_ref_metadata",
+        "bounded_title": "Atlas source",
+        "bounded_summary": "atlas candidate review source index",
+        "source_refs": [
+          "source-ref:public-safe-001"
+        ],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "matched_terms": [
+          "atlas",
+          "candidate",
+          "review",
+          "source"
+        ],
+        "score_hint": 4,
+        "score_band": "high",
+        "stale_warning": false,
+        "retrieval_result_is_evidence": false,
+        "retrieval_score_is_truth_score": false,
+        "retrieval_score_is_promotion_readiness": false,
+        "reason_codes": [
+          "entry_match_found",
+          "retrieval_result_not_evidence",
+          "retrieval_score_not_promotion_readiness",
+          "retrieval_score_not_truth_score"
+        ]
+      },
+      {
+        "rank": 2,
+        "entry_id": "entry-candidate-002",
+        "entry_ref": "retrieval-index-entry-ref:candidate-002",
+        "entry_kind": "candidate_summary",
+        "bounded_title": "Atlas candidate",
+        "bounded_summary": "atlas candidate summary evidence score",
+        "source_refs": [
+          "source-ref:public-safe-001"
+        ],
+        "candidate_refs": [
+          "candidate-ref:summary-002"
+        ],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "matched_terms": [
+          "atlas",
+          "candidate"
+        ],
+        "score_hint": 2,
+        "score_band": "medium",
+        "stale_warning": false,
+        "retrieval_result_is_evidence": false,
+        "retrieval_score_is_truth_score": false,
+        "retrieval_score_is_promotion_readiness": false,
+        "reason_codes": [
+          "entry_match_found",
+          "retrieval_result_not_evidence",
+          "retrieval_score_not_promotion_readiness",
+          "retrieval_score_not_truth_score"
+        ]
+      },
+      {
+        "rank": 3,
+        "entry_id": "entry-review-003",
+        "entry_ref": "retrieval-index-entry-ref:review-003",
+        "entry_kind": "review_note_summary",
+        "bounded_title": "Atlas review",
+        "bounded_summary": "atlas review stale marker",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [
+          "review-memory-ref:public-safe-003"
+        ],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "matched_terms": [
+          "atlas",
+          "review"
+        ],
+        "score_hint": 2,
+        "score_band": "medium",
+        "stale_warning": true,
+        "retrieval_result_is_evidence": false,
+        "retrieval_score_is_truth_score": false,
+        "retrieval_score_is_promotion_readiness": false,
+        "reason_codes": [
+          "entry_match_found",
+          "retrieval_result_not_evidence",
+          "retrieval_score_not_promotion_readiness",
+          "retrieval_score_not_truth_score",
+          "stale_result_warning"
+        ]
+      },
+      {
+        "rank": 4,
+        "entry_id": "entry-feedback-006",
+        "entry_ref": "retrieval-index-entry-ref:feedback-006",
+        "entry_kind": "feedback_summary",
+        "bounded_title": "Zeta feedback",
+        "bounded_summary": "zeta feedback signal review",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [
+          "feedback-summary-ref:public-safe-006"
+        ],
+        "matched_terms": [
+          "review"
+        ],
+        "score_hint": 1,
+        "score_band": "low",
+        "stale_warning": false,
+        "retrieval_result_is_evidence": false,
+        "retrieval_score_is_truth_score": false,
+        "retrieval_score_is_promotion_readiness": false,
+        "reason_codes": [
+          "entry_match_found",
+          "retrieval_result_not_evidence",
+          "retrieval_score_not_promotion_readiness",
+          "retrieval_score_not_truth_score"
+        ]
+      },
+      {
+        "rank": 5,
+        "entry_id": "entry-manual-007",
+        "entry_ref": "retrieval-index-entry-ref:manual-007",
+        "entry_kind": "manual_bounded_context",
+        "bounded_title": "Manual context",
+        "bounded_summary": "manual context atlas gap low",
+        "source_refs": [
+          "source-ref:public-safe-007"
+        ],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "matched_terms": [
+          "atlas"
+        ],
+        "score_hint": 1,
+        "score_band": "low",
+        "stale_warning": false,
+        "retrieval_result_is_evidence": false,
+        "retrieval_score_is_truth_score": false,
+        "retrieval_score_is_promotion_readiness": false,
+        "reason_codes": [
+          "entry_match_found",
+          "retrieval_result_not_evidence",
+          "retrieval_score_not_promotion_readiness",
+          "retrieval_score_not_truth_score"
+        ]
+      }
+    ],
+    "rejected": false,
+    "warnings": [
+      "Stale index entries are candidate-only review aids and cannot override current state."
+    ],
+    "reason_codes": [
+      "bounded_local_search_executed",
+      "db_query_not_executed",
+      "embedding_not_created",
+      "entry_match_found",
+      "evidence_not_created",
+      "file_read_not_executed",
+      "index_present",
+      "lexical_search_executed",
+      "product_write_denied",
+      "promotion_not_executed",
+      "prompt_not_sent",
+      "proof_not_created",
+      "provider_call_not_executed",
+      "query_summary_present",
+      "rag_answer_not_generated",
+      "retrieval_mode_supported",
+      "retrieval_result_not_evidence",
+      "retrieval_score_not_promotion_readiness",
+      "retrieval_score_not_truth_score",
+      "source_fetch_not_executed",
+      "stale_result_warning",
+      "vector_search_not_executed"
+    ],
+    "retrieval_executed": true,
+    "rag_executed": false,
+    "embedding_created": false,
+    "vector_search_executed": false,
+    "semantic_embedding_search_executed": false,
+    "rerank_executed": false,
+    "provider_call_executed": false,
+    "prompt_sent": false,
+    "source_fetch_executed": false,
+    "file_read_executed": false,
+    "db_query_executed": false,
+    "proof_or_evidence_created": false,
+    "perspective_promoted": false,
+    "product_write_executed": false,
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "metadata_lookup_request": {
+    "search_request_version": "research_retrieval_index_search_request.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-metadata-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "retrieval_mode": "metadata_lookup",
+    "bounded_query_summary": "",
+    "filters": {
+      "entry_kinds": [
+        "source_ref_metadata",
+        "candidate_summary"
+      ],
+      "source_refs": [],
+      "candidate_refs": [],
+      "review_memory_refs": [],
+      "durable_summary_refs": [],
+      "feedback_refs": [],
+      "freshness_statuses": []
+    },
+    "limit": 10,
+    "public_safe": true,
+    "reason_codes": [
+      "index_present",
+      "query_summary_present",
+      "retrieval_mode_supported"
+    ],
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "expected_metadata_lookup_result": {
+    "search_result_version": "research_retrieval_index_search_result.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-metadata-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "status": "candidate_only",
+    "hits": [
+      {
+        "rank": 1,
+        "entry_id": "entry-candidate-002",
+        "entry_ref": "retrieval-index-entry-ref:candidate-002",
+        "entry_kind": "candidate_summary",
+        "bounded_title": "Atlas candidate",
+        "bounded_summary": "atlas candidate summary evidence score",
+        "source_refs": [
+          "source-ref:public-safe-001"
+        ],
+        "candidate_refs": [
+          "candidate-ref:summary-002"
+        ],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "matched_terms": [],
+        "score_hint": 1,
+        "score_band": "low",
+        "stale_warning": false,
+        "retrieval_result_is_evidence": false,
+        "retrieval_score_is_truth_score": false,
+        "retrieval_score_is_promotion_readiness": false,
+        "reason_codes": [
+          "entry_match_found",
+          "retrieval_result_not_evidence",
+          "retrieval_score_not_promotion_readiness",
+          "retrieval_score_not_truth_score"
+        ]
+      },
+      {
+        "rank": 2,
+        "entry_id": "entry-source-001",
+        "entry_ref": "retrieval-index-entry-ref:source-001",
+        "entry_kind": "source_ref_metadata",
+        "bounded_title": "Atlas source",
+        "bounded_summary": "atlas candidate review source index",
+        "source_refs": [
+          "source-ref:public-safe-001"
+        ],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "matched_terms": [],
+        "score_hint": 1,
+        "score_band": "low",
+        "stale_warning": false,
+        "retrieval_result_is_evidence": false,
+        "retrieval_score_is_truth_score": false,
+        "retrieval_score_is_promotion_readiness": false,
+        "reason_codes": [
+          "entry_match_found",
+          "retrieval_result_not_evidence",
+          "retrieval_score_not_promotion_readiness",
+          "retrieval_score_not_truth_score"
+        ]
+      }
+    ],
+    "rejected": false,
+    "warnings": [],
+    "reason_codes": [
+      "bounded_local_search_executed",
+      "db_query_not_executed",
+      "embedding_not_created",
+      "entry_match_found",
+      "evidence_not_created",
+      "file_read_not_executed",
+      "index_present",
+      "metadata_lookup_executed",
+      "product_write_denied",
+      "promotion_not_executed",
+      "prompt_not_sent",
+      "proof_not_created",
+      "provider_call_not_executed",
+      "query_summary_missing",
+      "rag_answer_not_generated",
+      "retrieval_mode_supported",
+      "retrieval_result_not_evidence",
+      "retrieval_score_not_promotion_readiness",
+      "retrieval_score_not_truth_score",
+      "source_fetch_not_executed",
+      "vector_search_not_executed"
+    ],
+    "retrieval_executed": true,
+    "rag_executed": false,
+    "embedding_created": false,
+    "vector_search_executed": false,
+    "semantic_embedding_search_executed": false,
+    "rerank_executed": false,
+    "provider_call_executed": false,
+    "prompt_sent": false,
+    "source_fetch_executed": false,
+    "file_read_executed": false,
+    "db_query_executed": false,
+    "proof_or_evidence_created": false,
+    "perspective_promoted": false,
+    "product_write_executed": false,
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "hybrid_search_request": {
+    "search_request_version": "research_retrieval_index_search_request.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-hybrid-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "retrieval_mode": "hybrid_candidate_retrieval",
+    "bounded_query_summary": "formation feedback perspective",
+    "filters": {
+      "entry_kinds": [],
+      "source_refs": [],
+      "candidate_refs": [],
+      "review_memory_refs": [],
+      "durable_summary_refs": [
+        "formation-receipt-summary-ref:public-safe-005",
+        "perspective-delta-summary-ref:public-safe-004"
+      ],
+      "feedback_refs": [],
+      "freshness_statuses": []
+    },
+    "limit": 10,
+    "public_safe": true,
+    "reason_codes": [
+      "index_present",
+      "query_summary_present",
+      "retrieval_mode_supported"
+    ],
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "expected_hybrid_search_result": {
+    "search_result_version": "research_retrieval_index_search_result.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-hybrid-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "status": "candidate_only",
+    "hits": [
+      {
+        "rank": 1,
+        "entry_id": "entry-formation-005",
+        "entry_ref": "retrieval-index-entry-ref:formation-005",
+        "entry_kind": "formation_receipt_summary",
+        "bounded_title": "Epsilon formation",
+        "bounded_summary": "epsilon formation receipt decision",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [
+          "formation-receipt-summary-ref:public-safe-005"
+        ],
+        "feedback_refs": [],
+        "matched_terms": [
+          "formation"
+        ],
+        "score_hint": 2,
+        "score_band": "medium",
+        "stale_warning": false,
+        "retrieval_result_is_evidence": false,
+        "retrieval_score_is_truth_score": false,
+        "retrieval_score_is_promotion_readiness": false,
+        "reason_codes": [
+          "entry_match_found",
+          "retrieval_result_not_evidence",
+          "retrieval_score_not_promotion_readiness",
+          "retrieval_score_not_truth_score"
+        ]
+      },
+      {
+        "rank": 2,
+        "entry_id": "entry-perspective-004",
+        "entry_ref": "retrieval-index-entry-ref:perspective-004",
+        "entry_kind": "perspective_delta_summary",
+        "bounded_title": "Delta perspective",
+        "bounded_summary": "delta perspective summary trajectory",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [
+          "perspective-delta-summary-ref:public-safe-004"
+        ],
+        "feedback_refs": [],
+        "matched_terms": [
+          "perspective"
+        ],
+        "score_hint": 2,
+        "score_band": "medium",
+        "stale_warning": false,
+        "retrieval_result_is_evidence": false,
+        "retrieval_score_is_truth_score": false,
+        "retrieval_score_is_promotion_readiness": false,
+        "reason_codes": [
+          "entry_match_found",
+          "retrieval_result_not_evidence",
+          "retrieval_score_not_promotion_readiness",
+          "retrieval_score_not_truth_score"
+        ]
+      }
+    ],
+    "rejected": false,
+    "warnings": [],
+    "reason_codes": [
+      "bounded_local_search_executed",
+      "db_query_not_executed",
+      "embedding_not_created",
+      "entry_match_found",
+      "evidence_not_created",
+      "file_read_not_executed",
+      "hybrid_search_executed",
+      "index_present",
+      "product_write_denied",
+      "promotion_not_executed",
+      "prompt_not_sent",
+      "proof_not_created",
+      "provider_call_not_executed",
+      "query_summary_present",
+      "rag_answer_not_generated",
+      "retrieval_mode_supported",
+      "retrieval_result_not_evidence",
+      "retrieval_score_not_promotion_readiness",
+      "retrieval_score_not_truth_score",
+      "source_fetch_not_executed",
+      "vector_search_not_executed"
+    ],
+    "retrieval_executed": true,
+    "rag_executed": false,
+    "embedding_created": false,
+    "vector_search_executed": false,
+    "semantic_embedding_search_executed": false,
+    "rerank_executed": false,
+    "provider_call_executed": false,
+    "prompt_sent": false,
+    "source_fetch_executed": false,
+    "file_read_executed": false,
+    "db_query_executed": false,
+    "proof_or_evidence_created": false,
+    "perspective_promoted": false,
+    "product_write_executed": false,
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "no_retrieval_request": {
+    "search_request_version": "research_retrieval_index_search_request.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-none-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "retrieval_mode": "no_retrieval",
+    "bounded_query_summary": "bounded no retrieval preview",
+    "filters": {
+      "entry_kinds": [],
+      "source_refs": [],
+      "candidate_refs": [],
+      "review_memory_refs": [],
+      "durable_summary_refs": [],
+      "feedback_refs": [],
+      "freshness_statuses": []
+    },
+    "limit": 10,
+    "public_safe": true,
+    "reason_codes": [
+      "index_present",
+      "query_summary_present",
+      "no_retrieval_requested"
+    ],
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "expected_no_retrieval_result": {
+    "search_result_version": "research_retrieval_index_search_result.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-none-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "status": "no_matches",
+    "hits": [],
+    "rejected": false,
+    "warnings": [],
+    "reason_codes": [
+      "db_query_not_executed",
+      "embedding_not_created",
+      "entry_match_not_found",
+      "evidence_not_created",
+      "file_read_not_executed",
+      "index_present",
+      "no_retrieval_requested",
+      "product_write_denied",
+      "promotion_not_executed",
+      "prompt_not_sent",
+      "proof_not_created",
+      "provider_call_not_executed",
+      "query_summary_present",
+      "rag_answer_not_generated",
+      "retrieval_mode_supported",
+      "retrieval_result_not_evidence",
+      "retrieval_score_not_promotion_readiness",
+      "retrieval_score_not_truth_score",
+      "source_fetch_not_executed",
+      "vector_search_not_executed"
+    ],
+    "retrieval_executed": false,
+    "rag_executed": false,
+    "embedding_created": false,
+    "vector_search_executed": false,
+    "semantic_embedding_search_executed": false,
+    "rerank_executed": false,
+    "provider_call_executed": false,
+    "prompt_sent": false,
+    "source_fetch_executed": false,
+    "file_read_executed": false,
+    "db_query_executed": false,
+    "proof_or_evidence_created": false,
+    "perspective_promoted": false,
+    "product_write_executed": false,
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "blocked_semantic_search_request": {
+    "search_request_version": "research_retrieval_index_search_request.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-semantic-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "retrieval_mode": "semantic_candidate_retrieval",
+    "bounded_query_summary": "semantic retrieval remains deferred",
+    "filters": {
+      "entry_kinds": [],
+      "source_refs": [],
+      "candidate_refs": [],
+      "review_memory_refs": [],
+      "durable_summary_refs": [],
+      "feedback_refs": [],
+      "freshness_statuses": []
+    },
+    "limit": 10,
+    "public_safe": true,
+    "reason_codes": [
+      "index_present",
+      "query_summary_present",
+      "retrieval_mode_supported"
+    ],
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "expected_blocked_semantic_search_result": {
+    "search_result_version": "research_retrieval_index_search_result.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-semantic-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "status": "blocked_unsupported_mode",
+    "hits": [],
+    "rejected": true,
+    "warnings": [
+      "Requested retrieval mode is deferred for a later slice."
+    ],
+    "reason_codes": [
+      "db_query_not_executed",
+      "embedding_not_created",
+      "evidence_not_created",
+      "file_read_not_executed",
+      "index_present",
+      "product_write_denied",
+      "promotion_not_executed",
+      "prompt_not_sent",
+      "proof_not_created",
+      "provider_call_not_executed",
+      "query_summary_present",
+      "rag_answer_not_generated",
+      "retrieval_mode_unsupported",
+      "retrieval_result_not_evidence",
+      "retrieval_score_not_promotion_readiness",
+      "retrieval_score_not_truth_score",
+      "semantic_embedding_search_deferred",
+      "source_fetch_not_executed",
+      "vector_search_not_executed"
+    ],
+    "retrieval_executed": false,
+    "rag_executed": false,
+    "embedding_created": false,
+    "vector_search_executed": false,
+    "semantic_embedding_search_executed": false,
+    "rerank_executed": false,
+    "provider_call_executed": false,
+    "prompt_sent": false,
+    "source_fetch_executed": false,
+    "file_read_executed": false,
+    "db_query_executed": false,
+    "proof_or_evidence_created": false,
+    "perspective_promoted": false,
+    "product_write_executed": false,
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "blocked_rag_search_request": {
+    "search_request_version": "research_retrieval_index_search_request.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-rag-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "retrieval_mode": "rag_context_preview",
+    "bounded_query_summary": "rag context preview remains deferred",
+    "filters": {
+      "entry_kinds": [],
+      "source_refs": [],
+      "candidate_refs": [],
+      "review_memory_refs": [],
+      "durable_summary_refs": [],
+      "feedback_refs": [],
+      "freshness_statuses": []
+    },
+    "limit": 10,
+    "public_safe": true,
+    "reason_codes": [
+      "index_present",
+      "query_summary_present",
+      "retrieval_mode_supported"
+    ],
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "expected_blocked_rag_search_result": {
+    "search_result_version": "research_retrieval_index_search_result.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-rag-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "status": "blocked_unsupported_mode",
+    "hits": [],
+    "rejected": true,
+    "warnings": [
+      "Requested retrieval mode is deferred for a later slice."
+    ],
+    "reason_codes": [
+      "db_query_not_executed",
+      "embedding_not_created",
+      "evidence_not_created",
+      "file_read_not_executed",
+      "index_present",
+      "product_write_denied",
+      "promotion_not_executed",
+      "prompt_not_sent",
+      "proof_not_created",
+      "provider_call_not_executed",
+      "query_summary_present",
+      "rag_answer_not_generated",
+      "rag_context_preview_deferred",
+      "retrieval_mode_unsupported",
+      "retrieval_result_not_evidence",
+      "retrieval_score_not_promotion_readiness",
+      "retrieval_score_not_truth_score",
+      "source_fetch_not_executed",
+      "vector_search_not_executed"
+    ],
+    "retrieval_executed": false,
+    "rag_executed": false,
+    "embedding_created": false,
+    "vector_search_executed": false,
+    "semantic_embedding_search_executed": false,
+    "rerank_executed": false,
+    "provider_call_executed": false,
+    "prompt_sent": false,
+    "source_fetch_executed": false,
+    "file_read_executed": false,
+    "db_query_executed": false,
+    "proof_or_evidence_created": false,
+    "perspective_promoted": false,
+    "product_write_executed": false,
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "blocked_private_search_request": {
+    "search_request_version": "research_retrieval_index_search_request.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-private-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "retrieval_mode": "lexical_candidate_retrieval",
+    "bounded_query_summary": "secret-like retrieval input blocked by runtime fixture",
+    "filters": {
+      "entry_kinds": [],
+      "source_refs": [],
+      "candidate_refs": [],
+      "review_memory_refs": [],
+      "durable_summary_refs": [],
+      "feedback_refs": [],
+      "freshness_statuses": []
+    },
+    "limit": 10,
+    "public_safe": false,
+    "reason_codes": [
+      "query_summary_present"
+    ],
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "expected_blocked_private_search_result": {
+    "search_result_version": "research_retrieval_index_search_result.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "request_id": "retrieval-search-request-private-001",
+    "index_id": "rebuildable-retrieval-index:sample-001",
+    "status": "blocked_private_or_raw_payload",
+    "hits": [],
+    "rejected": true,
+    "warnings": [
+      "Search request was rejected before local derived index search."
+    ],
+    "reason_codes": [
+      "db_query_not_executed",
+      "embedding_not_created",
+      "evidence_not_created",
+      "file_read_not_executed",
+      "index_present",
+      "product_write_denied",
+      "promotion_not_executed",
+      "prompt_not_sent",
+      "proof_not_created",
+      "provider_call_not_executed",
+      "query_summary_present",
+      "rag_answer_not_generated",
+      "retrieval_result_not_evidence",
+      "retrieval_score_not_promotion_readiness",
+      "retrieval_score_not_truth_score",
+      "source_fetch_not_executed",
+      "vector_search_not_executed"
+    ],
+    "retrieval_executed": false,
+    "rag_executed": false,
+    "embedding_created": false,
+    "vector_search_executed": false,
+    "semantic_embedding_search_executed": false,
+    "rerank_executed": false,
+    "provider_call_executed": false,
+    "prompt_sent": false,
+    "source_fetch_executed": false,
+    "file_read_executed": false,
+    "db_query_executed": false,
+    "proof_or_evidence_created": false,
+    "perspective_promoted": false,
+    "product_write_executed": false,
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": true,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "rejected_private_raw_payload_build_input": {
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "index_id": "rebuildable-retrieval-index:blocked-999",
+    "requested_at": "2026-06-26T00:00:00.000Z",
+    "requested_by_surface": "roadmap_guided_codex_slice",
+    "roadmap_ref": "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+    "contract_ref": "types/research-retrieval-runtime-contract.ts",
+    "entries": [
+      {
+        "entry_version": "rebuildable_retrieval_index_entry.v0.1",
+        "scope": "project:augnes",
+        "entry_id": "entry-blocked-999",
+        "entry_ref": "retrieval-index-entry-ref:blocked-999",
+        "entry_kind": "manual_bounded_context",
+        "bounded_title": "Blocked runtime fixture",
+        "bounded_summary": "raw retrieval payload blocked by runtime fixture",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_memory_refs": [],
+        "durable_summary_refs": [],
+        "feedback_refs": [],
+        "tags": [
+          "blocked"
+        ],
+        "updated_at": "2026-06-26T00:00:00.000Z",
+        "public_safe": false,
+        "privacy_class": "blocked_raw_private_payload",
+        "redaction_status": "blocked_raw_payload",
+        "freshness_status": "fresh",
+        "reason_codes": [
+          "private_or_raw_payload_blocked",
+          "raw_retrieval_output_blocked",
+          "bounded_summary_present"
+        ]
+      }
+    ],
+    "max_entries": 20,
+    "max_summary_chars": 240,
+    "public_safe_only": true,
+    "boundary_notes": [
+      "raw retrieval payload blocked by runtime fixture"
+    ],
+    "reason_codes": [
+      "private_or_raw_payload_blocked",
+      "raw_retrieval_output_blocked"
+    ]
+  },
+  "expected_rejected_private_raw_payload_build_report": {
+    "report_version": "rebuildable_retrieval_index_build_report.v0.1",
+    "runtime_version": "rebuildable_retrieval_index_runtime.v0.1",
+    "contract_version": "research_retrieval_runtime_contract.v0.1",
+    "scope": "project:augnes",
+    "index_id": "rebuildable-retrieval-index:blocked-999",
+    "build_status": "rejected_private_or_raw_payload",
+    "index": null,
+    "rejected_entry_refs": [
+      "retrieval-index-entry-ref:blocked-999"
+    ],
+    "warnings": [
+      "No derived index was persisted.",
+      "No source fetch, file read, provider call, embedding, vector search, DB write, proof/evidence write, promotion, or product write was executed."
+    ],
+    "reason_codes": [
+      "bounded_summary_present",
+      "contract_ref_present",
+      "db_write_not_executed",
+      "embedding_not_created",
+      "entry_kind_supported",
+      "entry_ref_present",
+      "evidence_not_created",
+      "file_read_not_executed",
+      "private_or_raw_payload_blocked",
+      "product_write_denied",
+      "promotion_not_executed",
+      "prompt_not_sent",
+      "proof_not_created",
+      "provider_call_not_executed",
+      "roadmap_file_present",
+      "source_fetch_not_executed",
+      "source_ref_missing",
+      "vector_search_not_executed"
+    ],
+    "authority_boundary": {
+      "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+      "rebuildable_index_runtime_now": true,
+      "bounded_local_index_rebuild_now": true,
+      "bounded_local_index_search_now": false,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "semantic_embedding_search_now": false,
+      "external_retrieval_provider_now": false,
+      "source_fetch_now": false,
+      "crawler_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "raw_source_body_storage_now": false,
+      "raw_provider_output_storage_now": false,
+      "raw_retrieval_output_storage_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "db_migration_now": false,
+      "production_db_read_or_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "perspective_promotion_now": false,
+      "durable_perspective_state_now": false,
+      "work_mutation_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "product_id_allocation_authority": false,
+      "source_of_truth": false,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth_score": false,
+      "retrieval_score_is_promotion_readiness": false
+    }
+  },
+  "authority_boundary": {
+    "runtime_slice": "rebuildable_retrieval_index_runtime.v0.1",
+    "rebuildable_index_runtime_now": true,
+    "bounded_local_index_rebuild_now": true,
+    "bounded_local_index_search_now": false,
+    "rag_answer_generation_now": false,
+    "embedding_created_now": false,
+    "vector_search_now": false,
+    "semantic_embedding_search_now": false,
+    "external_retrieval_provider_now": false,
+    "source_fetch_now": false,
+    "crawler_now": false,
+    "local_file_read_now": false,
+    "repository_file_read_now": false,
+    "uploaded_file_read_now": false,
+    "raw_source_body_storage_now": false,
+    "raw_provider_output_storage_now": false,
+    "raw_retrieval_output_storage_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "db_migration_now": false,
+    "production_db_read_or_write_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "perspective_promotion_now": false,
+    "durable_perspective_state_now": false,
+    "work_mutation_now": false,
+    "git_ledger_export_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "product_id_allocation_authority": false,
+    "source_of_truth": false,
+    "retrieval_result_is_evidence": false,
+    "retrieval_score_is_truth_score": false,
+    "retrieval_score_is_promotion_readiness": false
+  }
+}
