@@ -544,6 +544,22 @@ export function ensurePromotionDecisionStoreSchemaV01(db: PromotionDecisionDbLik
   db.exec(promotionDecisionStoreSchemaSqlV01);
 }
 
+export function promotionDecisionStoreSchemaExistsV01(db: PromotionDecisionDbLike): boolean {
+  const requiredTables = [
+    "perspective_promotion_decisions",
+    "perspective_promotion_decision_basis_refs",
+    "perspective_promotion_decision_activity",
+  ];
+  const rows = db
+    .prepare(
+      `SELECT name FROM sqlite_master
+       WHERE type = 'table' AND name IN (?, ?, ?)`,
+    )
+    .all(...requiredTables) as { name: string }[];
+  const tableNames = new Set(rows.map((row) => row.name));
+  return requiredTables.every((tableName) => tableNames.has(tableName));
+}
+
 export function validatePromotionDecisionCreateInputV01(
   input: unknown,
 ): PromotionDecisionValidationResult {
@@ -574,6 +590,17 @@ export function validatePromotionDecisionCreateInputV01(
     failureCodes.push("basis_refs_missing");
   }
   const basisRefs = Array.isArray(value.basis_refs) ? value.basis_refs : [];
+  const basisIds = basisRefs.flatMap((basis) =>
+    typeof basis?.basis_id === "string" && basis.basis_id.length > 0 ? [basis.basis_id] : [],
+  );
+  const duplicateBasisIds = duplicateValues(basisIds);
+  if (duplicateBasisIds.length > 0) failureCodes.push("basis_refs_duplicate_basis_id");
+  if (typeof value.promotion_decision_id === "string") {
+    const duplicateBasisDbIds = duplicateValues(
+      basisIds.map((basisId) => `${value.promotion_decision_id}:${basisId}`),
+    );
+    if (duplicateBasisDbIds.length > 0) failureCodes.push("basis_refs_duplicate_db_id");
+  }
   const sourceRefs = basisRefs.flatMap((basis) => arrayOrEmpty(basis.source_refs));
   if (sourceRefs.length === 0) failureCodes.push("source_refs_missing");
 
@@ -602,7 +629,10 @@ export function createPromotionDecisionRecordV01(
   ensurePromotionDecisionStoreSchemaV01(db);
   const now = input.created_at ?? "2026-06-26T00:00:00.000Z";
   const record = normalizeCreateInputToRecord(input, now);
+  let transactionStarted = false;
   try {
+    db.prepare("BEGIN IMMEDIATE").run();
+    transactionStarted = true;
     db.prepare(
       `INSERT INTO perspective_promotion_decisions (
         promotion_decision_id,
@@ -675,23 +705,27 @@ export function createPromotionDecisionRecordV01(
     for (const basis of record.basis_refs) {
       insertBasisRef(db, record.promotion_decision_id, basis);
     }
-    appendPromotionDecisionActivityV01(
-      {
-        activity_id: `${record.promotion_decision_id}:activity:created`,
-        promotion_decision_id: record.promotion_decision_id,
-        activity_kind: "decision_record_created",
-        actor_ref: record.operator_actor_ref,
-        summary: "Promotion decision record stored as explicit operator decision only.",
-        reason_codes: [
-          "promotion_decision_record_written",
-          "promotion_not_executed",
-          "formation_receipt_not_written",
-          "durable_state_not_applied",
-        ],
-        created_at: record.created_at,
-      },
+    insertActivityRecord(
       db,
+      normalizeActivityInput(
+        {
+          activity_id: `${record.promotion_decision_id}:activity:created`,
+          promotion_decision_id: record.promotion_decision_id,
+          activity_kind: "decision_record_created",
+          actor_ref: record.operator_actor_ref,
+          summary: "Promotion decision record stored as explicit operator decision only.",
+          reason_codes: [
+            "promotion_decision_record_written",
+            "promotion_not_executed",
+            "formation_receipt_not_written",
+            "durable_state_not_applied",
+          ],
+          created_at: record.created_at,
+        },
+      ),
     );
+    db.prepare("COMMIT").run();
+    transactionStarted = false;
     return result("stored", record, [record], listActivitiesForRecord(db, record.promotion_decision_id), [
       "promotion_decision_record_written",
       "db_write_executed_for_decision_record_only",
@@ -701,6 +735,13 @@ export function createPromotionDecisionRecordV01(
       "product_write_denied",
     ]);
   } catch {
+    if (transactionStarted) {
+      try {
+        db.prepare("ROLLBACK").run();
+      } catch {
+        // Rollback failure still returns a bounded blocked result.
+      }
+    }
     return blockedResult("blocked_invalid_input");
   }
 }
@@ -710,7 +751,6 @@ export function readPromotionDecisionRecordV01(
   db: PromotionDecisionDbLike,
 ): PromotionDecisionStoreResult {
   if (!isSafeString(promotionDecisionId)) return blockedResult("blocked_private_or_raw_payload");
-  ensurePromotionDecisionStoreSchemaV01(db);
   const record = readRecordById(db, promotionDecisionId);
   if (!record) return result("not_found", null, [], [], ["contract_ref_present"]);
   return result(
@@ -726,7 +766,6 @@ export function listPromotionDecisionRecordsV01(
   filters: PromotionDecisionListFilters,
   db: PromotionDecisionDbLike,
 ): PromotionDecisionStoreResult {
-  ensurePromotionDecisionStoreSchemaV01(db);
   if (filters.decision_status && hasUnsafeString(filters.decision_status)) {
     return blockedResult("blocked_private_or_raw_payload");
   }
@@ -821,27 +860,12 @@ export function appendPromotionDecisionActivityV01(
   if (failureCodes.length > 0) return blockedResult("blocked_private_or_raw_payload");
 
   ensurePromotionDecisionStoreSchemaV01(db);
+  if (!promotionDecisionExists(db, input.promotion_decision_id)) {
+    return result("not_found", null, [], [], ["contract_ref_present"]);
+  }
   const activity = normalizeActivityInput(input);
   try {
-    db.prepare(
-      `INSERT OR IGNORE INTO perspective_promotion_decision_activity (
-        activity_id,
-        promotion_decision_id,
-        activity_kind,
-        actor_ref,
-        summary,
-        reason_codes_json,
-        created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      activity.activity_id,
-      activity.promotion_decision_id,
-      activity.activity_kind,
-      activity.actor_ref,
-      activity.summary,
-      JSON.stringify(activity.reason_codes),
-      activity.created_at,
-    );
+    insertActivityRecord(db, activity);
   } catch {
     return blockedResult("blocked_invalid_input");
   }
@@ -962,6 +986,43 @@ function insertBasisRef(
     JSON.stringify(uniqueSorted(basis.feedback_refs)),
     JSON.stringify(uniqueSorted(basis.reason_codes)),
   );
+}
+
+function insertActivityRecord(
+  db: PromotionDecisionDbLike,
+  activity: PromotionDecisionActivityRecord,
+): void {
+  db.prepare(
+    `INSERT OR IGNORE INTO perspective_promotion_decision_activity (
+      activity_id,
+      promotion_decision_id,
+      activity_kind,
+      actor_ref,
+      summary,
+      reason_codes_json,
+      created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    activity.activity_id,
+    activity.promotion_decision_id,
+    activity.activity_kind,
+    activity.actor_ref,
+    activity.summary,
+    JSON.stringify(activity.reason_codes),
+    activity.created_at,
+  );
+}
+
+function promotionDecisionExists(
+  db: PromotionDecisionDbLike,
+  promotionDecisionId: string,
+): boolean {
+  const row = db
+    .prepare(
+      "SELECT promotion_decision_id FROM perspective_promotion_decisions WHERE promotion_decision_id = ?",
+    )
+    .get(promotionDecisionId) as { promotion_decision_id: string } | undefined;
+  return Boolean(row);
 }
 
 function readRecordById(
@@ -1255,6 +1316,19 @@ function arrayOrEmpty(value: unknown): string[] {
 
 function uniqueSorted<T extends string>(values: T[]): T[] {
   return [...new Set(values)].sort();
+}
+
+function duplicateValues(values: string[]): string[] {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const value of values) {
+    if (seen.has(value)) {
+      duplicates.add(value);
+    } else {
+      seen.add(value);
+    }
+  }
+  return [...duplicates].sort();
 }
 
 function compareBasisRefs(a: PerspectivePromotionBasisRef, b: PerspectivePromotionBasisRef): number {

@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
 import Database from "better-sqlite3";
@@ -9,6 +9,7 @@ import {
   discardPromotionDecisionRecordV01,
   ensurePromotionDecisionStoreSchemaV01,
   isSafePromotionDecisionRouteDbPathV01,
+  promotionDecisionStoreSchemaExistsV01,
   readPromotionDecisionRecordV01,
   type PromotionDecisionStoreResult,
 } from "../../../../../lib/perspective/promotion/promotion-decision-store";
@@ -29,13 +30,20 @@ export async function GET(
     return jsonResponse(errorResponse("invalid_db_path"), 400);
   }
 
-  const db = openExplicitLocalDb(dbPath);
+  const opened = openReadOnlyLocalDb(dbPath);
+  if ("errorCode" in opened) {
+    return jsonResponse(errorResponse(opened.errorCode), opened.status);
+  }
+  const db = opened.db;
   try {
+    if (!promotionDecisionStoreSchemaExistsV01(db)) {
+      return jsonResponse(errorResponse("schema_missing"), 400);
+    }
     const result = readPromotionDecisionRecordV01(
       decodeURIComponent(promotion_decision_id),
       db,
     );
-    return jsonResponse(okResponse(result), result.status === "not_found" ? 404 : 200);
+    return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result));
   } finally {
     db.close();
   }
@@ -69,14 +77,14 @@ export async function POST(
     return jsonResponse(errorResponse("invalid_discard_reason"), 400);
   }
 
-  const db = openExplicitLocalDb(inputBody.db_path);
+  const db = openWriteLocalDb(inputBody.db_path);
   try {
     const result = discardPromotionDecisionRecordV01(
       decodeURIComponent(promotion_decision_id),
       inputBody.reason,
       db,
     );
-    return jsonResponse(okResponse(result), result.status === "not_found" ? 404 : 200);
+    return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result));
   } finally {
     db.close();
   }
@@ -106,18 +114,40 @@ function isLocalTestHost(host: string): boolean {
   );
 }
 
-function openExplicitLocalDb(dbPath: string) {
+function openReadOnlyLocalDb(dbPath: string):
+  | { db: Database.Database }
+  | { errorCode: "db_missing"; status: 404 } {
+  if (!existsSync(dbPath)) return { errorCode: "db_missing", status: 404 };
+  try {
+    return { db: new Database(dbPath, { readonly: true, fileMustExist: true }) };
+  } catch {
+    return { errorCode: "db_missing", status: 404 };
+  }
+}
+
+function openWriteLocalDb(dbPath: string) {
   mkdirSync(dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
   ensurePromotionDecisionStoreSchemaV01(db);
   return db;
 }
 
-function okResponse(result: PromotionDecisionStoreResult) {
+function storeResultHttpStatus(result: PromotionDecisionStoreResult, okStatus = 200): number {
+  if (result.status === "not_found") return 404;
+  if (result.status === "blocked_forbidden_authority") return 403;
+  if (result.status.startsWith("blocked")) return 400;
+  return okStatus;
+}
+
+function storeResultResponse(result: PromotionDecisionStoreResult) {
+  const errorCode = result.status.startsWith("blocked") || result.status === "not_found"
+    ? result.status
+    : null;
   return {
     route_version: routeVersion,
     scope,
-    status: "ok",
+    status: errorCode ? "error" : "ok",
+    error_code: errorCode,
     result,
     promotion_executed: false,
     formation_receipt_written: false,

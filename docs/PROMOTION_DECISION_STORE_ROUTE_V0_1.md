@@ -55,6 +55,10 @@ Mutating routes require same-origin requests and JSON object bodies. Routes requ
 
 Route responses include the authority boundary and explicit non-execution booleans.
 
+GET routes are read-only and must not create DB files, directories, or schema. Missing DB files return bounded not-found responses, and existing DBs without the promotion decision schema return bounded `schema_missing` responses.
+
+Blocked store results are returned as bounded error responses, not top-level ok responses.
+
 ## 7. DB schema additions
 
 `lib/db/schema.sql` adds:
@@ -71,6 +75,8 @@ The helper validates input shape before DB write.
 
 It rejects missing review record refs, missing source refs through basis refs, missing basis refs, forbidden authority flags, private/raw markers, missing operator actor refs, missing explicit user action, and missing future-operator-only markers.
 
+Create operations are atomic and must not leave partial decision, basis, or activity rows on failure. Duplicate basis IDs are rejected before persistence.
+
 It rejects any request where promotion execution, Formation Receipt write, durable state apply, proof/evidence creation, claim/evidence write, or product write is marked true.
 
 Source refs are lineage pointers, not proof. Source refs must be public-safe symbolic refs.
@@ -86,6 +92,8 @@ Discard is a lifecycle transition on the decision record. Rejected, deferred, di
 ## 10. Activity/audit rules
 
 Activity records capture bounded events such as record creation, read, list, discard, and invalid-input rejection summaries. Activity records use public-safe actor refs, bounded summaries, and reason codes only.
+
+Activity rows require an existing promotion decision record, and orphan activity is rejected.
 
 Activity is audit context for the decision record. It is not proof, accepted evidence, durable Perspective state, Formation Receipt, Git Ledger export, or product write.
 

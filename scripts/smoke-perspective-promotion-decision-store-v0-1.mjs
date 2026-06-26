@@ -322,9 +322,26 @@ function assertTempDbBehavior() {
     assertRejection("missing_review_record", "blocked_missing_review_record", db);
     assertRejection("missing_source_refs", "blocked_missing_source_refs", db);
     assertRejection("missing_basis_refs", "blocked_missing_basis_refs", db);
+    assertDuplicateBasisRejectionIsAtomic(db);
     assertRejection("forbidden_authority", "blocked_forbidden_authority", db);
     assertRejection("private_raw_payload", "blocked_private_or_raw_payload", db);
     assertRejection("secret_like_payload", "blocked_private_or_raw_payload", db);
+
+    const orphanActivityDecisionId = "promotion-decision:store:unknown:orphan-activity";
+    const orphanActivityResult = helper.appendPromotionDecisionActivityV01(
+      {
+        activity_id: `${orphanActivityDecisionId}:activity:orphan`,
+        promotion_decision_id: orphanActivityDecisionId,
+        activity_kind: "decision_record_listed",
+        actor_ref: "operator:reviewer:001",
+        summary: "Bounded smoke orphan activity append must be rejected.",
+        reason_codes: ["promotion_not_executed", "formation_receipt_not_written"],
+        created_at: "2026-06-26T00:00:05.000Z",
+      },
+      db,
+    );
+    assert.equal(orphanActivityResult.status, "not_found", "orphan activity append is rejected");
+    assert.equal(countActivityRows(db, orphanActivityDecisionId), 0, "orphan activity row is not inserted");
 
     for (const forbiddenFlag of [
       "product_write_executed",
@@ -357,9 +374,29 @@ function assertRejection(caseName, expectedStatus, db) {
   assert(result.authority_boundary, `${caseName} includes authority boundary`);
 }
 
+function assertDuplicateBasisRejectionIsAtomic(db) {
+  const input = invalidInput("duplicate_basis_id");
+  const result = helper.createPromotionDecisionRecordV01(input, db);
+  assert.equal(result.status, "blocked_invalid_input", "duplicate basis ID returns blocked_invalid_input");
+  assert.equal(result.record, null, "duplicate basis ID does not return record");
+  const counts = countPersistedRowsForDecision(db, input.promotion_decision_id);
+  assert.equal(counts.decisions, 0, "duplicate basis ID leaves no decision row");
+  assert.equal(counts.basisRefs, 0, "duplicate basis ID leaves no basis rows");
+  assert.equal(counts.activities, 0, "duplicate basis ID leaves no activity rows");
+  const readAfterBlockedCreate = helper.readPromotionDecisionRecordV01(input.promotion_decision_id, db);
+  assert.equal(readAfterBlockedCreate.status, "not_found", "duplicate basis ID remains unreadable");
+  const listedAfterBlockedCreate = helper.listPromotionDecisionRecordsV01({ include_discarded: true }, db);
+  assert(
+    !listedAfterBlockedCreate.records.some(
+      (record) => record.promotion_decision_id === input.promotion_decision_id,
+    ),
+    "duplicate basis ID does not appear in list results",
+  );
+}
+
 function invalidInput(caseName) {
   const base = clone(fixture.valid_create_inputs[0]);
-  const override = fixture.invalid_create_inputs[caseName];
+  const override = clone(fixture.invalid_create_inputs[caseName]);
   assert(override, `invalid fixture case exists: ${caseName}`);
   delete override.based_on;
   return {
@@ -477,6 +514,12 @@ function assertStaticRouteBoundaries() {
   assertIncludes(detailRouteText, "await request.json()", "detail POST parses JSON");
   assertIncludes(collectionRouteText, "invalid_json_object", "collection POST requires object");
   assertIncludes(detailRouteText, "invalid_json_object", "detail POST requires object");
+  assertReadOnlyGetRoute(collectionRouteText, "collection");
+  assertReadOnlyGetRoute(detailRouteText, "detail");
+  assertWritePostRoute(collectionRouteText, "collection");
+  assertWritePostRoute(detailRouteText, "detail");
+  assertRouteStoreResultMapping(collectionRouteText, "collection");
+  assertRouteStoreResultMapping(detailRouteText, "detail");
 
   const routeText = `${collectionRouteText}\n${detailRouteText}`;
   for (const snippet of forbiddenRouteSnippets) {
@@ -497,9 +540,49 @@ function assertTypeAndHelperExports() {
     "appendPromotionDecisionActivityV01",
     "validatePromotionDecisionCreateInputV01",
     "createPromotionDecisionAuthorityBoundaryV01",
+    "promotionDecisionStoreSchemaExistsV01",
   ]) {
     assert.equal(typeof helper[exportName] !== "undefined", true, `${exportName} is exported`);
   }
+}
+
+function assertReadOnlyGetRoute(routeText, label) {
+  const getSource = extractExportedFunctionSource(routeText, "GET");
+  assertIncludes(getSource, "openReadOnlyLocalDb", `${label} GET uses read-only DB opener`);
+  assertIncludes(getSource, "schema_missing", `${label} GET has schema_missing path`);
+  assert(!getSource.includes("openWriteLocalDb"), `${label} GET must not call write opener`);
+  assert(!getSource.includes("mkdirSync"), `${label} GET must not call mkdirSync`);
+  assert(
+    !getSource.includes("ensurePromotionDecisionStoreSchemaV01"),
+    `${label} GET must not ensure schema`,
+  );
+  assertIncludes(routeText, "readonly: true", `${label} route has read-only DB option`);
+  assertIncludes(routeText, "fileMustExist: true", `${label} route requires existing DB file`);
+  assertIncludes(routeText, "db_missing", `${label} route has missing DB path`);
+}
+
+function assertWritePostRoute(routeText, label) {
+  const postSource = extractExportedFunctionSource(routeText, "POST");
+  assertIncludes(postSource, "openWriteLocalDb", `${label} POST uses write DB opener`);
+  assertIncludes(postSource, "storeResultResponse", `${label} POST maps store result response`);
+  assertIncludes(postSource, "storeResultHttpStatus", `${label} POST maps store result status`);
+}
+
+function assertRouteStoreResultMapping(routeText, label) {
+  assertIncludes(routeText, "storeResultResponse", `${label} route has store result mapper`);
+  assertIncludes(routeText, 'result.status.startsWith("blocked")', `${label} route maps blocked status`);
+  assertIncludes(routeText, 'result.status === "not_found"', `${label} route maps not_found status`);
+  assertIncludes(routeText, 'status: errorCode ? "error" : "ok"', `${label} route sets error status`);
+  assertIncludes(routeText, "error_code: errorCode", `${label} route returns bounded error code`);
+  assert(
+    !routeText.includes("return jsonResponse(okResponse(result))"),
+    `${label} route must not always return okResponse(result)`,
+  );
+  assert(
+    !routeText.includes('result.status === "not_found" ? 404 : 200'),
+    `${label} route must not only special-case not_found while allowing blocked as ok`,
+  );
+  assert(!routeText.includes("function okResponse"), `${label} route must not keep okResponse wrapper`);
 }
 
 function assertNoForbiddenPositiveAuthorityGrants(text, label) {
@@ -533,4 +616,55 @@ function assertIncludes(text, needle, message) {
 
 function readText(path) {
   return readFileSync(path, "utf8");
+}
+
+function extractExportedFunctionSource(text, functionName) {
+  const pattern = new RegExp(`export async function ${functionName}[\\s\\S]*?\\)\\s*\\{`);
+  const match = text.match(pattern);
+  assert(match?.index !== undefined, `${functionName} function exists`);
+  const bodyStart = match.index + match[0].length - 1;
+  let depth = 0;
+  for (let index = bodyStart; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "{") depth += 1;
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(match.index, index + 1);
+    }
+  }
+  assert.fail(`${functionName} function body must close`);
+}
+
+function countPersistedRowsForDecision(db, promotionDecisionId) {
+  return {
+    decisions: countRows(
+      db,
+      "perspective_promotion_decisions",
+      "promotion_decision_id",
+      promotionDecisionId,
+    ),
+    basisRefs: countRows(
+      db,
+      "perspective_promotion_decision_basis_refs",
+      "promotion_decision_id",
+      promotionDecisionId,
+    ),
+    activities: countActivityRows(db, promotionDecisionId),
+  };
+}
+
+function countActivityRows(db, promotionDecisionId) {
+  return countRows(
+    db,
+    "perspective_promotion_decision_activity",
+    "promotion_decision_id",
+    promotionDecisionId,
+  );
+}
+
+function countRows(db, tableName, columnName, value) {
+  const row = db
+    .prepare(`SELECT COUNT(*) AS count FROM ${tableName} WHERE ${columnName} = ?`)
+    .get(value);
+  return Number(row.count);
 }
