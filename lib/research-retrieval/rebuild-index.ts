@@ -287,6 +287,42 @@ const forbiddenTextMarkers = [
   "actual query:",
   "embedding vector:",
   "vector index dump:",
+  "raw retrieval payload blocked by runtime fixture",
+  "secret-like retrieval input blocked by runtime fixture",
+];
+
+const authorityBoundaryFalseFields: Array<keyof RebuildableRetrievalIndexRuntimeBoundary> = [
+  "rag_answer_generation_now",
+  "embedding_created_now",
+  "vector_search_now",
+  "semantic_embedding_search_now",
+  "external_retrieval_provider_now",
+  "source_fetch_now",
+  "crawler_now",
+  "local_file_read_now",
+  "repository_file_read_now",
+  "uploaded_file_read_now",
+  "raw_source_body_storage_now",
+  "raw_provider_output_storage_now",
+  "raw_retrieval_output_storage_now",
+  "provider_openai_call_now",
+  "prompt_sent_now",
+  "db_migration_now",
+  "production_db_read_or_write_now",
+  "proof_or_evidence_record_now",
+  "claim_or_evidence_write_now",
+  "perspective_promotion_now",
+  "durable_perspective_state_now",
+  "work_mutation_now",
+  "git_ledger_export_now",
+  "codex_execution_authority",
+  "github_automation_authority",
+  "product_write_authority",
+  "product_id_allocation_authority",
+  "source_of_truth",
+  "retrieval_result_is_evidence",
+  "retrieval_score_is_truth_score",
+  "retrieval_score_is_promotion_readiness",
 ];
 
 export function createRebuildableRetrievalIndexRuntimeBoundaryV01(options?: {
@@ -525,8 +561,89 @@ export function validateRebuildableRetrievalIndexBuildInputV01(
     failureCodes.push("max_summary_chars_invalid");
   }
   if (input.public_safe_only !== true) failureCodes.push("public_safe_only_required");
-  if (!Array.isArray(input.boundary_notes)) failureCodes.push("boundary_notes_invalid");
+  if (!isStringArray(input.boundary_notes)) {
+    failureCodes.push("boundary_notes_invalid");
+  } else if (input.boundary_notes.some((note) => containsForbiddenMarker(note))) {
+    failureCodes.push("boundary_notes_forbidden_marker_present");
+  }
   if (!Array.isArray(input.reason_codes)) failureCodes.push("reason_codes_invalid");
+  return { passed: failureCodes.length === 0, failure_codes: uniqueSorted(failureCodes) };
+}
+
+export function validateRebuildableRetrievalIndexV01(
+  index: unknown,
+): RebuildableRetrievalIndexValidationResult {
+  const failureCodes: string[] = [];
+  if (!isRecord(index)) {
+    return { passed: false, failure_codes: ["index_not_object"] };
+  }
+  if (index.index_version !== REBUILDABLE_RETRIEVAL_INDEX_VERSION) {
+    failureCodes.push("index_version_invalid");
+  }
+  if (index.runtime_version !== REBUILDABLE_RETRIEVAL_INDEX_RUNTIME_VERSION) {
+    failureCodes.push("runtime_version_invalid");
+  }
+  if (index.contract_version !== contractVersion) failureCodes.push("contract_version_invalid");
+  if (index.scope !== scope) failureCodes.push("scope_invalid");
+  if (!isNonEmptyString(index.index_id)) failureCodes.push("index_id_missing");
+  if (!isNonEmptyString(index.built_at)) failureCodes.push("built_at_missing");
+  if (index.roadmap_ref !== roadmapRef) failureCodes.push("roadmap_ref_invalid");
+  if (index.contract_ref !== contractRef) failureCodes.push("contract_ref_invalid");
+  if (index.build_status !== "rebuilt") failureCodes.push("build_status_invalid");
+  if (index.rebuildable !== true) failureCodes.push("rebuildable_required");
+  if (index.derived_non_authoritative !== true) {
+    failureCodes.push("derived_non_authoritative_required");
+  }
+  if (index.stale_index_cannot_override_current_state !== true) {
+    failureCodes.push("stale_index_cannot_override_current_state_required");
+  }
+  if (index.public_safe_only !== true) failureCodes.push("public_safe_only_required");
+  if (!Array.isArray(index.entries)) {
+    failureCodes.push("entries_invalid");
+  } else {
+    for (const entry of index.entries) {
+      failureCodes.push(...validateRebuildableRetrievalIndexEntryV01(entry).failure_codes);
+    }
+  }
+  if (!Array.isArray(index.token_records)) {
+    failureCodes.push("token_records_invalid");
+  }
+  for (const key of [
+    "source_refs",
+    "candidate_refs",
+    "review_memory_refs",
+    "durable_summary_refs",
+    "feedback_refs",
+  ]) {
+    if (!isStringArray(index[key])) failureCodes.push(`${key}_invalid`);
+  }
+  if (!isStringArray(index.boundary_notes)) {
+    failureCodes.push("boundary_notes_invalid");
+  } else if (index.boundary_notes.some((note) => containsForbiddenMarker(note))) {
+    failureCodes.push("boundary_notes_forbidden_marker_present");
+  }
+  if (!isRecord(index.authority_boundary)) {
+    failureCodes.push("authority_boundary_invalid");
+  } else {
+    if (index.authority_boundary.runtime_slice !== REBUILDABLE_RETRIEVAL_INDEX_RUNTIME_VERSION) {
+      failureCodes.push("authority_boundary_runtime_slice_invalid");
+    }
+    if (index.authority_boundary.rebuildable_index_runtime_now !== true) {
+      failureCodes.push("authority_boundary_rebuildable_index_runtime_required");
+    }
+    if (index.authority_boundary.bounded_local_index_rebuild_now !== true) {
+      failureCodes.push("authority_boundary_bounded_local_index_rebuild_required");
+    }
+    if (typeof index.authority_boundary.bounded_local_index_search_now !== "boolean") {
+      failureCodes.push("authority_boundary_bounded_local_index_search_invalid");
+    }
+    for (const field of authorityBoundaryFalseFields) {
+      if (index.authority_boundary[field] !== false) {
+        failureCodes.push(`authority_boundary_${field}_must_be_false`);
+      }
+    }
+  }
+  if (!isNonEmptyString(index.index_fingerprint)) failureCodes.push("index_fingerprint_missing");
   return { passed: failureCodes.length === 0, failure_codes: uniqueSorted(failureCodes) };
 }
 
@@ -562,7 +679,9 @@ function chooseBuildStatus(
     validation.failure_codes.includes("public_safe_required") ||
     validation.failure_codes.includes("privacy_class_not_public_safe") ||
     validation.failure_codes.includes("redaction_status_blocked") ||
-    validation.failure_codes.includes("forbidden_marker_present")
+    validation.failure_codes.includes("forbidden_marker_present") ||
+    validation.failure_codes.includes("boundary_notes_invalid") ||
+    validation.failure_codes.includes("boundary_notes_forbidden_marker_present")
   ) {
     return "rejected_private_or_raw_payload";
   }
@@ -630,6 +749,10 @@ function failureCodesToReasonCodes(failureCodes: string[]): RebuildableRetrieval
   }
   if (failureCodes.includes("redaction_status_blocked")) mapped.push("private_or_raw_payload_blocked");
   if (failureCodes.includes("forbidden_marker_present")) mapped.push("private_or_raw_payload_blocked");
+  if (failureCodes.includes("boundary_notes_invalid")) mapped.push("private_or_raw_payload_blocked");
+  if (failureCodes.includes("boundary_notes_forbidden_marker_present")) {
+    mapped.push("private_or_raw_payload_blocked");
+  }
   if (failureCodes.includes("bounded_summary_missing")) mapped.push("bounded_summary_missing");
   return uniqueSorted(mapped);
 }

@@ -204,6 +204,19 @@ export function searchRebuildableRetrievalIndexV01(
     });
   }
 
+  if (!isSearchableDerivedIndex(index)) {
+    return createSearchResult({
+      request,
+      index: undefined,
+      status: "rejected_invalid_request",
+      hits: [],
+      rejected: true,
+      warnings: ["Index shape was rejected before local derived index search."],
+      reason_codes: uniqueSorted([...baseSearchReasonCodes(undefined, request), "index_missing"]),
+      retrieval_executed: false,
+    });
+  }
+
   if (!index || index.index_id !== request.index_id) {
     return createSearchResult({
       request,
@@ -382,7 +395,7 @@ function scoreEntry(
 
 function createSearchResult(input: {
   request: ResearchRetrievalIndexSearchRequest;
-  index: RebuildableRetrievalIndex;
+  index: RebuildableRetrievalIndex | undefined;
   status: ResearchRetrievalIndexSearchStatus;
   hits: ResearchRetrievalIndexSearchHit[];
   rejected: boolean;
@@ -515,6 +528,35 @@ function isSearchFilters(value: unknown): value is ResearchRetrievalIndexSearchF
     value.freshness_statuses.every((status) =>
       freshnessStatuses.includes(status as RebuildableRetrievalIndexFreshnessStatus),
     )
+  );
+}
+
+function isSearchableDerivedIndex(value: unknown): value is RebuildableRetrievalIndex {
+  return (
+    isRecord(value) &&
+    value.index_version === "rebuildable_retrieval_index.v0.1" &&
+    value.runtime_version === runtimeVersion &&
+    value.contract_version === contractVersion &&
+    value.scope === scope &&
+    isNonEmptyString(value.index_id) &&
+    isNonEmptyString(value.built_at) &&
+    value.roadmap_ref === "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md" &&
+    value.contract_ref === "types/research-retrieval-runtime-contract.ts" &&
+    value.build_status === "rebuilt" &&
+    value.rebuildable === true &&
+    value.derived_non_authoritative === true &&
+    value.stale_index_cannot_override_current_state === true &&
+    value.public_safe_only === true &&
+    Array.isArray(value.entries) &&
+    Array.isArray(value.token_records) &&
+    isStringArray(value.source_refs) &&
+    isStringArray(value.candidate_refs) &&
+    isStringArray(value.review_memory_refs) &&
+    isStringArray(value.durable_summary_refs) &&
+    isStringArray(value.feedback_refs) &&
+    isStringArray(value.boundary_notes) &&
+    isRecord(value.authority_boundary) &&
+    isNonEmptyString(value.index_fingerprint)
   );
 }
 

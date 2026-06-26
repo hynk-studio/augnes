@@ -425,6 +425,40 @@ async function runHelperBehaviorChecks() {
   assert.deepEqual(reportA, fixture.expected_successful_build_report, "build report matches fixture");
   assert.deepEqual(reportB, reportA, "repeated build is deterministic");
   assert.equal(reportA.index.index_fingerprint, reportB.index.index_fingerprint, "repeated build fingerprint matches");
+  assert.equal(
+    reportA.index.index_fingerprint,
+    fixture.expected_rebuildable_index.index_fingerprint,
+    "valid build still produces the fixture fingerprint",
+  );
+
+  const unsafeBoundaryNotesInput = {
+    ...fixture.successful_build_input,
+    boundary_notes: ["secret-like retrieval input blocked by runtime fixture"],
+  };
+  const unsafeBoundaryNotesReport = rebuild.buildRebuildableRetrievalIndexV01(unsafeBoundaryNotesInput);
+  assert.equal(
+    unsafeBoundaryNotesReport.build_status,
+    "rejected_private_or_raw_payload",
+    "unsafe boundary_notes are rejected as private/raw payload",
+  );
+  assert.equal(unsafeBoundaryNotesReport.index, null, "unsafe boundary_notes do not produce an index");
+  assert.deepEqual(unsafeBoundaryNotesReport.rejected_entry_refs, [], "unsafe boundary_notes do not reject entry refs");
+  assert(
+    unsafeBoundaryNotesReport.reason_codes.includes("private_or_raw_payload_blocked"),
+    "unsafe boundary_notes report private_or_raw_payload_blocked",
+  );
+
+  const minimalInvalidIndex = { index_id: fixture.expected_rebuildable_index.index_id };
+  assert.equal(
+    rebuild.validateRebuildableRetrievalIndexV01(minimalInvalidIndex).passed,
+    false,
+    "index validator rejects malformed inline index",
+  );
+  assert.equal(
+    rebuild.validateRebuildableRetrievalIndexV01(fixture.expected_rebuildable_index).passed,
+    true,
+    "index validator accepts fixture index",
+  );
 
   const lexicalA = search.searchRebuildableRetrievalIndexV01(
     fixture.expected_rebuildable_index,
@@ -439,6 +473,15 @@ async function runHelperBehaviorChecks() {
     lexicalA.hits.map((hit) => hit.entry_ref),
     lexicalB.hits.map((hit) => hit.entry_ref),
     "repeated lexical search ordering is deterministic",
+  );
+  assert.doesNotThrow(
+    () => search.searchRebuildableRetrievalIndexV01(minimalInvalidIndex, fixture.lexical_search_request),
+    "direct search helper does not throw on malformed index input",
+  );
+  assert.equal(
+    search.searchRebuildableRetrievalIndexV01(minimalInvalidIndex, fixture.lexical_search_request).status,
+    "rejected_invalid_request",
+    "direct search helper rejects malformed index input",
   );
 
   assert.deepEqual(
@@ -476,6 +519,32 @@ function assertRouteSource(source, label) {
   assertIncludes(source, "request.headers.get(\"host\")", `${label} route checks host`);
   assertIncludes(source, "request.json()", `${label} route parses JSON`);
   assertIncludes(source, "isRecord(body)", `${label} route requires JSON object`);
+  if (label === "search") {
+    assertIncludes(source, "invalid_inline_index", "search route has invalid_inline_index path");
+    assertIncludes(
+      source,
+      "validateRebuildableRetrievalIndexV01(inlineIndex)",
+      "search route validates inline indexes",
+    );
+    assertIncludes(
+      source,
+      "return jsonResponse(errorResponse(\"invalid_inline_index\"), 400)",
+      "search route returns bounded 400 for invalid_inline_index",
+    );
+    assertIncludes(
+      source,
+      "authority_boundary: createRebuildableRetrievalIndexRuntimeBoundaryV01",
+      "search route error responses include authority_boundary",
+    );
+    assert(
+      !source.includes("const index = inlineIndex ??"),
+      "search route does not pass arbitrary inline index through nullish fallback",
+    );
+    assert(
+      !source.includes("body.index as never"),
+      "search route does not pass arbitrary body.index directly into search",
+    );
+  }
   for (const pattern of [
     "fetch(",
     "OpenAI",

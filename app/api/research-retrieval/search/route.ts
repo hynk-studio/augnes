@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { createRebuildableRetrievalIndexRuntimeBoundaryV01 } from "@/lib/research-retrieval/rebuild-index";
+import {
+  createRebuildableRetrievalIndexRuntimeBoundaryV01,
+  validateRebuildableRetrievalIndexV01,
+} from "@/lib/research-retrieval/rebuild-index";
 import { rebuildableRetrievalIndexRuntimeDerivedStoreV01 } from "@/lib/research-retrieval/index-store";
 import {
   searchRebuildableRetrievalIndexV01,
@@ -31,14 +34,24 @@ export async function POST(request: Request) {
     return jsonResponse(errorResponse("invalid_search_request"), 400);
   }
 
-  const inlineIndex = isRecord(body.index) ? body.index : null;
+  const hasInlineIndex = Object.prototype.hasOwnProperty.call(body, "index");
+  const inlineIndex = hasInlineIndex && isRecord(body.index) ? body.index : null;
+  if (hasInlineIndex) {
+    if (!inlineIndex || !validateRebuildableRetrievalIndexV01(inlineIndex).passed) {
+      return jsonResponse(errorResponse("invalid_inline_index"), 400);
+    }
+  }
+
   const requestedIndexId =
     typeof body.index_id === "string"
       ? body.index_id
       : typeof searchRequest.index_id === "string"
         ? searchRequest.index_id
         : "";
-  const index = inlineIndex ?? rebuildableRetrievalIndexRuntimeDerivedStoreV01.readIndex(requestedIndexId);
+  let index: unknown = inlineIndex;
+  if (!index) {
+    index = rebuildableRetrievalIndexRuntimeDerivedStoreV01.readIndex(requestedIndexId);
+  }
   if (!index) {
     return jsonResponse(errorResponse("derived_index_not_found"), 404);
   }
