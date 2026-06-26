@@ -1,17 +1,408 @@
-// Contract-only Project Constellation Runtime Layout v0.1 shape.
-// This file defines types only. It does not implement runtime layout
-// execution, seeded layout, force-directed layout, temporal smoothing,
-// layout persistence, graph DB, graph mutation, UI rendering, durable
-// Perspective state reads/writes, DB access, provider/OpenAI calls,
-// retrieval/RAG execution, source fetching, crawling, routes, schema changes,
-// migrations, proof/evidence writes, accepted evidence writes, Formation
-// Receipt writes, work mutation, or product writes.
-
-export type ProjectConstellationRuntimeLayoutContractKind =
-  "project_constellation_runtime_layout_contract";
+// Type-only Project Constellation Runtime Layout Contract v0.1.
+// This contract defines future runtime layout boundaries only. It does not
+// implement seeded layout runtime, layout algorithms, persistence, routes, UI,
+// graph rendering, DB access, durable state mutation, proof/evidence writes,
+// product writes, provider calls, retrieval/RAG execution, source fetch, file
+// reads, Git Ledger export, Codex/GitHub automation, or background work.
 
 export type ProjectConstellationRuntimeLayoutContractVersion =
   "project_constellation_runtime_layout_contract.v0.1";
+
+export type ProjectConstellationRuntimeLayoutScope = "project:augnes";
+
+export type ProjectConstellationRuntimeLayoutContractStatus =
+  "contract_only";
+
+export type ProjectConstellationLayoutVersion =
+  "project_constellation_layout.v0.1";
+
+export type ProjectConstellationLayoutNodeVersion =
+  "project_constellation_layout_node.v0.1";
+
+export type ProjectConstellationLayoutEdgeVersion =
+  "project_constellation_layout_edge.v0.1";
+
+export type ProjectConstellationManualAnchorVersion =
+  "project_constellation_manual_anchor.v0.1";
+
+export type ProjectConstellationLayoutDiagnosticVersion =
+  "project_constellation_layout_diagnostic.v0.1";
+
+export type ProjectConstellationRuntimeLayoutBundleVersion =
+  "project_constellation_runtime_layout_bundle.v0.1";
+
+export type ProjectConstellationLayoutLayer =
+  | "durable_graph"
+  | "candidate_overlay"
+  | "review_memory"
+  | "source_ref"
+  | "feedback"
+  | "trajectory"
+  | "unknown";
+
+export type ProjectConstellationNodeKind =
+  | "perspective"
+  | "thesis"
+  | "claim"
+  | "evidence_ref"
+  | "source_ref"
+  | "tension"
+  | "knowledge_gap"
+  | "candidate"
+  | "review_record"
+  | "promotion_decision"
+  | "formation_receipt"
+  | "apply_event"
+  | "feedback"
+  | "bridge"
+  | "durable_perspective_node"
+  | "candidate_overlay_node"
+  | "claim_node"
+  | "evidence_anchor_node"
+  | "tension_marker_node"
+  | "knowledge_gap_marker_node"
+  | "bridge_node"
+  | "stale_high_gravity_node"
+  | "source_reference_node"
+  | "work_context_node"
+  | "unknown";
+
+export type ProjectConstellationEdgeKind =
+  | "supports"
+  | "contradicts"
+  | "refines"
+  | "weakens"
+  | "reverses"
+  | "splits"
+  | "merges"
+  | "retires"
+  | "reactivates"
+  | "preserves_tension"
+  | "resolves_tension"
+  | "preserves_gap"
+  | "closes_gap"
+  | "selected_by_receipt"
+  | "omitted_by_receipt"
+  | "deferred_by_receipt"
+  | "promoted_by_decision"
+  | "applied_by_event"
+  | "feedback_influences"
+  | "source_lineage"
+  | "bridge_relation"
+  | "supports_ref"
+  | "contradicts_ref"
+  | "qualifies_ref"
+  | "derived_from_source"
+  | "candidate_overlay_link"
+  | "bridge_hint"
+  | "tension_line"
+  | "knowledge_gap_line"
+  | "reuse_condition_link"
+  | "work_context_link"
+  | "unknown";
+
+export type ProjectConstellationLayoutStatus =
+  | "contract_only"
+  | "layout_candidate"
+  | "needs_operator_review"
+  | "blocked_private_or_raw_payload"
+  | "blocked_missing_state"
+  | "blocked_forbidden_authority"
+  | "rejected";
+
+export type ProjectConstellationCoordinateAuthority =
+  | "display_hint_only"
+  | "manual_anchor_hint"
+  | "temporal_smoothing_hint"
+  | "stale_layout_hint"
+  | "unknown";
+
+export type ProjectConstellationMarkerKind =
+  | "stale"
+  | "tension"
+  | "gap"
+  | "bridge"
+  | "source_balance"
+  | "candidate_overlay"
+  | "retired"
+  | "prior_thesis"
+  | "contradiction"
+  | "unknown";
+
+export type ProjectConstellationDiagnosticKind =
+  | "source_balance"
+  | "stale_layout"
+  | "candidate_overlay_separation"
+  | "durable_candidate_boundary"
+  | "unresolved_tension_visibility"
+  | "knowledge_gap_visibility"
+  | "retired_claim_visibility"
+  | "prior_thesis_visibility"
+  | "bridge_node_visibility"
+  | "authority_boundary"
+  | "unknown";
+
+export type ProjectConstellationReasonCode =
+  | "roadmap_file_present"
+  | "trajectory_ref_present"
+  | "trajectory_ref_missing"
+  | "durable_state_ref_present"
+  | "durable_state_ref_missing"
+  | "perspective_id_present"
+  | "perspective_id_missing"
+  | "layout_seed_present"
+  | "layout_seed_missing"
+  | "node_ref_present"
+  | "node_ref_missing"
+  | "edge_ref_present"
+  | "edge_ref_missing"
+  | "source_ref_present"
+  | "source_ref_missing"
+  | "candidate_ref_present"
+  | "review_record_ref_present"
+  | "promotion_decision_ref_present"
+  | "formation_receipt_ref_present"
+  | "apply_event_ref_present"
+  | "feedback_ref_present"
+  | "prior_thesis_ref_present"
+  | "retired_claim_ref_present"
+  | "tension_ref_present"
+  | "knowledge_gap_ref_present"
+  | "coordinate_display_hint_only"
+  | "coordinate_not_truth"
+  | "coordinate_not_proof"
+  | "coordinate_not_evidence_strength"
+  | "coordinate_not_promotion_readiness"
+  | "manual_anchor_display_hint_only"
+  | "temporal_smoothing_display_continuity_only"
+  | "candidate_overlay_not_durable_graph"
+  | "source_balance_advisory_only"
+  | "stale_marker_display_warning_only"
+  | "tension_marker_review_aid_only"
+  | "gap_marker_review_aid_only"
+  | "bridge_marker_review_aid_only"
+  | "layout_runtime_not_implemented"
+  | "layout_algorithm_not_implemented"
+  | "layout_persistence_not_implemented"
+  | "route_not_implemented"
+  | "ui_not_implemented"
+  | "db_write_not_executed"
+  | "durable_state_not_mutated"
+  | "formation_receipt_not_written"
+  | "promotion_not_executed"
+  | "proof_not_created"
+  | "evidence_not_created"
+  | "claim_evidence_not_written"
+  | "product_write_denied"
+  | "provider_call_not_executed"
+  | "prompt_not_sent"
+  | "retrieval_not_executed"
+  | "rag_answer_not_generated"
+  | "source_fetch_not_executed"
+  | "file_read_not_executed"
+  | "git_ledger_export_not_executed"
+  | "private_or_raw_payload_blocked"
+  | "secret_like_pattern_blocked"
+  | "local_path_blocked"
+  | "private_url_blocked";
+
+export interface ProjectConstellationRuntimeLayoutAuthorityBoundary {
+  contract_only: true;
+  layout_runtime_now: false;
+  layout_algorithm_now: false;
+  seeded_layout_now: false;
+  layout_persistence_now: false;
+  manual_anchor_persistence_now: false;
+  route_now: false;
+  ui_now: false;
+  graph_rendering_now: false;
+  graph_database_now: false;
+  db_query_or_write_now: false;
+  durable_state_write_now: false;
+  durable_state_apply_now: false;
+  formation_receipt_write_now: false;
+  promotion_execution_now: false;
+  promotion_decision_record_write_now: false;
+  proof_or_evidence_record_now: false;
+  claim_or_evidence_write_now: false;
+  product_write_now: false;
+  product_id_allocation_now: false;
+  work_mutation_now: false;
+  source_fetch_now: false;
+  local_file_read_now: false;
+  repository_file_read_now: false;
+  uploaded_file_read_now: false;
+  provider_openai_call_now: false;
+  prompt_sent_now: false;
+  retrieval_execution_now: false;
+  rag_answer_generation_now: false;
+  embedding_created_now: false;
+  vector_search_now: false;
+  git_ledger_export_now: false;
+  codex_execution_authority: false;
+  github_automation_authority: false;
+  layout_is_truth: false;
+  coordinate_is_truth: false;
+  coordinate_is_proof: false;
+  coordinate_is_evidence_strength: false;
+  coordinate_is_promotion_readiness: false;
+  manual_anchor_is_authority: false;
+  temporal_smoothing_is_state: false;
+  candidate_overlay_is_durable_graph: false;
+  source_balance_is_truth: false;
+  product_write_authority: false;
+}
+
+export interface ProjectConstellationLayoutPosition {
+  x: number;
+  y: number;
+  z: number;
+  coordinate_authority: ProjectConstellationCoordinateAuthority;
+  reason_codes: ProjectConstellationReasonCode[];
+}
+
+export interface ProjectConstellationLayoutNode {
+  node_version: ProjectConstellationLayoutNodeVersion;
+  scope: ProjectConstellationRuntimeLayoutScope;
+  node_id: string;
+  node_ref: string;
+  node_kind: ProjectConstellationNodeKind;
+  layer: ProjectConstellationLayoutLayer;
+  bounded_label: string;
+  bounded_summary: string;
+  position: ProjectConstellationLayoutPosition;
+  source_refs: string[];
+  candidate_refs: string[];
+  review_record_refs: string[];
+  promotion_decision_refs: string[];
+  formation_receipt_refs: string[];
+  apply_event_refs: string[];
+  feedback_refs: string[];
+  marker_refs: string[];
+  public_safe: boolean;
+  reason_codes: ProjectConstellationReasonCode[];
+  authority_boundary: ProjectConstellationRuntimeLayoutAuthorityBoundary;
+}
+
+export interface ProjectConstellationLayoutEdge {
+  edge_version: ProjectConstellationLayoutEdgeVersion;
+  scope: ProjectConstellationRuntimeLayoutScope;
+  edge_id: string;
+  edge_ref: string;
+  edge_kind: ProjectConstellationEdgeKind;
+  from_node_ref: string;
+  to_node_ref: string;
+  bounded_label: string;
+  bounded_summary: string;
+  source_refs: string[];
+  reason_codes: ProjectConstellationReasonCode[];
+  authority_boundary: ProjectConstellationRuntimeLayoutAuthorityBoundary;
+}
+
+export interface ProjectConstellationManualAnchor {
+  anchor_version: ProjectConstellationManualAnchorVersion;
+  scope: ProjectConstellationRuntimeLayoutScope;
+  anchor_id: string;
+  node_ref: string;
+  anchor_position: ProjectConstellationLayoutPosition;
+  anchor_reason: string;
+  created_by_ref: string;
+  applies_to_layout_scope: string;
+  display_hint_only: true;
+  persistence_now: false;
+  authority_boundary: ProjectConstellationRuntimeLayoutAuthorityBoundary;
+  reason_codes: ProjectConstellationReasonCode[];
+}
+
+export interface ProjectConstellationLayoutMarker {
+  marker_id: string;
+  marker_kind: ProjectConstellationMarkerKind;
+  marker_ref: string;
+  node_refs: string[];
+  edge_refs: string[];
+  bounded_label: string;
+  bounded_summary: string;
+  display_warning_only: boolean;
+  review_aid_only: boolean;
+  reason_codes: ProjectConstellationReasonCode[];
+}
+
+export interface ProjectConstellationLayoutDiagnostic {
+  diagnostic_version: ProjectConstellationLayoutDiagnosticVersion;
+  scope: ProjectConstellationRuntimeLayoutScope;
+  diagnostic_id: string;
+  diagnostic_kind: ProjectConstellationDiagnosticKind;
+  bounded_summary: string;
+  affected_node_refs: string[];
+  affected_edge_refs: string[];
+  reason_codes: ProjectConstellationReasonCode[];
+  authority_boundary: ProjectConstellationRuntimeLayoutAuthorityBoundary;
+}
+
+export interface ProjectConstellationRuntimeLayoutContract {
+  layout_version: ProjectConstellationLayoutVersion;
+  contract_version: ProjectConstellationRuntimeLayoutContractVersion;
+  scope: ProjectConstellationRuntimeLayoutScope;
+  status: ProjectConstellationLayoutStatus;
+  layout_id: string;
+  perspective_id: string;
+  as_of_state_version: string;
+  trajectory_ref: string;
+  candidate_overlay_ref: string;
+  layout_seed: string;
+  node_positions: ProjectConstellationLayoutNode[];
+  edge_routes: ProjectConstellationLayoutEdge[];
+  manual_anchors: ProjectConstellationManualAnchor[];
+  temporal_smoothing_state: {
+    smoothing_ref: string;
+    display_continuity_only: true;
+    persistence_now: false;
+    reason_codes: ProjectConstellationReasonCode[];
+  };
+  stale_markers: ProjectConstellationLayoutMarker[];
+  tension_markers: ProjectConstellationLayoutMarker[];
+  gap_markers: ProjectConstellationLayoutMarker[];
+  bridge_node_markers: ProjectConstellationLayoutMarker[];
+  source_balance_diagnostics: ProjectConstellationLayoutDiagnostic[];
+  boundary_notes: string[];
+  reason_codes: ProjectConstellationReasonCode[];
+  authority_boundary: ProjectConstellationRuntimeLayoutAuthorityBoundary;
+  layout_fingerprint: string;
+}
+
+export interface ProjectConstellationRuntimeLayoutBundle {
+  bundle_version: ProjectConstellationRuntimeLayoutBundleVersion;
+  contract_version: ProjectConstellationRuntimeLayoutContractVersion;
+  scope: ProjectConstellationRuntimeLayoutScope;
+  status: ProjectConstellationRuntimeLayoutContractStatus;
+  as_of: string;
+  roadmap_ref: "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md";
+  source_fixture_refs: string[];
+  layouts: ProjectConstellationRuntimeLayoutContract[];
+  node_kind_counts: Record<ProjectConstellationNodeKind, number>;
+  edge_kind_counts: Record<ProjectConstellationEdgeKind, number>;
+  layer_counts: Record<ProjectConstellationLayoutLayer, number>;
+  marker_kind_counts: Record<ProjectConstellationMarkerKind, number>;
+  diagnostic_kind_counts: Record<ProjectConstellationDiagnosticKind, number>;
+  coordinate_authority_counts: Record<ProjectConstellationCoordinateAuthority, number>;
+  boundary_notes: string[];
+  reason_codes: ProjectConstellationReasonCode[];
+  authority_boundary: ProjectConstellationRuntimeLayoutAuthorityBoundary;
+  bundle_fingerprint: string;
+}
+
+export interface ProjectConstellationRuntimeLayoutValidationResult {
+  passed: boolean;
+  failure_codes: string[];
+}
+
+// Legacy type-only compatibility for earlier Project Constellation preview
+// helpers that still compile against this contract file. These names remain
+// type-only and do not grant runtime layout, route, UI, persistence, DB,
+// provider, retrieval/RAG, proof/evidence, Git Ledger, or product-write
+// authority.
+export type ProjectConstellationRuntimeLayoutContractKind =
+  "project_constellation_runtime_layout_contract";
 
 export type ProjectConstellationLayoutInputField =
   | "layout_scope_ref"
@@ -38,30 +429,6 @@ export type ProjectConstellationLayoutOutputField =
   | "stability_policy"
   | "authority_boundary"
   | "validation_policy";
-
-export type ProjectConstellationNodeKind =
-  | "durable_perspective_node"
-  | "candidate_overlay_node"
-  | "claim_node"
-  | "evidence_anchor_node"
-  | "tension_marker_node"
-  | "knowledge_gap_marker_node"
-  | "bridge_node"
-  | "stale_high_gravity_node"
-  | "source_reference_node"
-  | "work_context_node";
-
-export type ProjectConstellationEdgeKind =
-  | "supports_ref"
-  | "contradicts_ref"
-  | "qualifies_ref"
-  | "derived_from_source"
-  | "candidate_overlay_link"
-  | "bridge_hint"
-  | "tension_line"
-  | "knowledge_gap_line"
-  | "reuse_condition_link"
-  | "work_context_link";
 
 export type ProjectConstellationStateBoundary =
   | "durable"
@@ -221,80 +588,6 @@ export interface ProjectConstellationSaliencePolicy {
   durable_salience_write_now: false;
 }
 
-export interface ProjectConstellationRuntimeLayoutAuthorityBoundary {
-  contract_added_now: true;
-  implementation_added_now: false;
-  browser_validation_added_now: false;
-  runtime_layout_implemented_now: false;
-  runtime_layout_execution_now: false;
-  seeded_layout_runtime_now: false;
-  force_directed_layout_runtime_now: false;
-  temporal_smoothing_runtime_now: false;
-  layout_persistence_now: false;
-  layout_coordinate_write_now: false;
-  graph_db_implemented_now: false;
-  graph_mutation_now: false;
-  component_changed_now: false;
-  route_changed_now: false;
-  browser_request_now: false;
-  browser_persistence_now: false;
-  durable_perspective_state_read_now: false;
-  durable_perspective_state_write_now: false;
-  durable_perspective_delta_apply_now: false;
-  perspective_snapshot_runtime_implemented_now: false;
-  trajectory_runtime_build_implemented_now: false;
-  proof_or_evidence_record_write_now: false;
-  accepted_evidence_write_now: false;
-  formation_receipt_write_now: false;
-  work_mutation_now: false;
-  candidate_mutation_now: false;
-  candidate_record_write_now: false;
-  runtime_promotion_implemented_now: false;
-  promotion_decision_record_implemented_now: false;
-  promotion_decision_record_write_now: false;
-  runtime_retrieval_rag_implemented_now: false;
-  runtime_index_build_implemented_now: false;
-  runtime_index_write_now: false;
-  embedding_generation_implemented_now: false;
-  vector_db_implemented_now: false;
-  fts_implemented_now: false;
-  provider_openai_call_now: false;
-  provider_extraction_now: false;
-  source_fetch_now: false;
-  crawler_now: false;
-  source_index_write_now: false;
-  durable_source_record_write_now: false;
-  runtime_persistence_implemented_now: false;
-  durable_memory_write_now: false;
-  runtime_db_write_now: false;
-  runtime_db_query_now: false;
-  production_db_used_now: false;
-  db_schema_implemented_now: false;
-  durable_salience_write_now: false;
-  recent_rehearsal_buffer_written_now: false;
-  feedback_events_written_now: false;
-  feedback_events_mutated_now: false;
-  execution_authority: false;
-  codex_execution_authority: false;
-  github_automation_authority: false;
-  external_handoff_authority: false;
-  provider_openai_authority: false;
-  retrieval_rag_authority: false;
-  source_fetch_authority: false;
-  salience_authority: false;
-  layout_coordinate_authority: false;
-  manual_anchor_authority: false;
-  cluster_position_authority: false;
-  product_write_authority: false;
-  product_id_allocation_authority: false;
-  product_write_lane_parked_by_686: true;
-}
-
-export type ProjectConstellationRuntimeLayoutPreviewAuthorityBoundary = Omit<
-  ProjectConstellationRuntimeLayoutAuthorityBoundary,
-  "contract_added_now"
->;
-
 export interface ProjectConstellationRuntimeLayoutValidationPolicy {
   layout_is_interface_not_truth: true;
   coordinates_are_display_hints_not_truth: true;
@@ -407,7 +700,7 @@ export interface ProjectConstellationRuntimeLayoutEdgePreview {
 
 export interface ProjectConstellationRuntimeLayoutPreview {
   layout_id: string;
-  layout_version: "project_constellation_layout.v0.1";
+  layout_version: ProjectConstellationLayoutVersion;
   nodes: ProjectConstellationRuntimeLayoutNodePreview[];
   edges: ProjectConstellationRuntimeLayoutEdgePreview[];
   clusters: Array<{
@@ -469,9 +762,76 @@ export interface ProjectConstellationRuntimeLayoutPreview {
   all_runtime_write_now_false: true;
 }
 
+export interface ProjectConstellationRuntimeLayoutPreviewAuthorityBoundary {
+  implementation_added_now: false;
+  browser_validation_added_now: false;
+  runtime_layout_implemented_now: false;
+  runtime_layout_execution_now: false;
+  seeded_layout_runtime_now: false;
+  force_directed_layout_runtime_now: false;
+  temporal_smoothing_runtime_now: false;
+  layout_persistence_now: false;
+  layout_coordinate_write_now: false;
+  graph_db_implemented_now: false;
+  graph_mutation_now: false;
+  component_changed_now: false;
+  route_changed_now: false;
+  browser_request_now: false;
+  browser_persistence_now: false;
+  durable_perspective_state_read_now: false;
+  durable_perspective_state_write_now: false;
+  durable_perspective_delta_apply_now: false;
+  perspective_snapshot_runtime_implemented_now: false;
+  trajectory_runtime_build_implemented_now: false;
+  proof_or_evidence_record_write_now: false;
+  accepted_evidence_write_now: false;
+  formation_receipt_write_now: false;
+  work_mutation_now: false;
+  candidate_mutation_now: false;
+  candidate_record_write_now: false;
+  runtime_promotion_implemented_now: false;
+  promotion_decision_record_implemented_now: false;
+  promotion_decision_record_write_now: false;
+  runtime_retrieval_rag_implemented_now: false;
+  runtime_index_build_implemented_now: false;
+  runtime_index_write_now: false;
+  embedding_generation_implemented_now: false;
+  vector_db_implemented_now: false;
+  fts_implemented_now: false;
+  provider_openai_call_now: false;
+  provider_extraction_now: false;
+  source_fetch_now: false;
+  crawler_now: false;
+  source_index_write_now: false;
+  durable_source_record_write_now: false;
+  runtime_persistence_implemented_now: false;
+  durable_memory_write_now: false;
+  runtime_db_write_now: false;
+  runtime_db_query_now: false;
+  production_db_used_now: false;
+  db_schema_implemented_now: false;
+  durable_salience_write_now: false;
+  recent_rehearsal_buffer_written_now: false;
+  feedback_events_written_now: false;
+  feedback_events_mutated_now: false;
+  execution_authority: false;
+  codex_execution_authority: false;
+  github_automation_authority: false;
+  external_handoff_authority: false;
+  provider_openai_authority: false;
+  retrieval_rag_authority: false;
+  source_fetch_authority: false;
+  salience_authority: false;
+  layout_coordinate_authority: false;
+  manual_anchor_authority: false;
+  cluster_position_authority: false;
+  product_write_authority: false;
+  product_id_allocation_authority: false;
+  product_write_lane_parked_by_686: true;
+}
+
 export interface ProjectConstellationRuntimeLayoutContract {
   contract_kind: ProjectConstellationRuntimeLayoutContractKind;
-  contract_version: ProjectConstellationRuntimeLayoutContractVersion;
   source_state_trajectory_validation_ref: string;
   source_state_trajectory_validation_fingerprint: string;
   contract_scope: ProjectConstellationRuntimeLayoutContractScope;
@@ -493,11 +853,12 @@ export interface ProjectConstellationRuntimeLayoutContract {
     authority_boundary: ProjectConstellationRuntimeLayoutPreviewAuthorityBoundary;
     validation_policy: ProjectConstellationRuntimeLayoutValidationPolicy;
   };
-  authority_boundary: ProjectConstellationRuntimeLayoutAuthorityBoundary;
   validation_policy: ProjectConstellationRuntimeLayoutValidationPolicy;
   privacy_policy: ProjectConstellationRuntimeLayoutPrivacyPolicy;
-  recommendation_status: "ready_for_project_constellation_runtime_layout_implementation_v0_1";
-  next_recommended_slice: "project_constellation_runtime_layout_implementation_v0_1";
+  recommendation_status:
+    "ready_for_project_constellation_runtime_layout_implementation_v0_1";
+  next_recommended_slice:
+    "project_constellation_runtime_layout_implementation_v0_1";
   contract_fingerprint: string;
   fingerprint_algorithm: "fnv1a32_canonical_json";
 }
