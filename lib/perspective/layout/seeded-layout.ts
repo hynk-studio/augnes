@@ -40,6 +40,8 @@ export type SeededConstellationLayoutReasonCode =
   | "input_node_present"
   | "input_node_missing"
   | "input_edge_present"
+  | "edge_endpoint_ref_missing"
+  | "orphan_edge_blocked"
   | "source_ref_present"
   | "candidate_ref_present"
   | "deterministic_seed_used"
@@ -365,6 +367,8 @@ const allowedReasonCodes: SeededConstellationLayoutReasonCode[] = [
   "input_node_present",
   "input_node_missing",
   "input_edge_present",
+  "edge_endpoint_ref_missing",
+  "orphan_edge_blocked",
   "source_ref_present",
   "candidate_ref_present",
   "deterministic_seed_used",
@@ -649,12 +653,49 @@ export function validateSeededConstellationLayoutInputV01(
       );
     });
   }
+  failures.push(...validateSeededLayoutEdgeEndpointsV01(input).failure_codes);
   const authorityBoundary = input.authority_boundary;
   if (isRecord(authorityBoundary)) {
     if (forbiddenAuthorityKeys.some((key) => authorityBoundary[key] === true)) {
       failures.push("forbidden_authority");
     }
   }
+  return { passed: failures.length === 0, failure_codes: uniqueSorted(failures) };
+}
+
+function validateSeededLayoutEdgeEndpointsV01(
+  input: Record<string, unknown>,
+): SeededConstellationLayoutValidationResult {
+  if (!Array.isArray(input.input_nodes) || !Array.isArray(input.input_edges)) {
+    return { passed: true, failure_codes: [] };
+  }
+  const inputNodeRefs = new Set<string>();
+  for (const node of input.input_nodes) {
+    if (!isRecord(node)) continue;
+    if (isPublicSafeNonEmptyString(node.node_ref)) {
+      inputNodeRefs.add(node.node_ref);
+    }
+  }
+
+  const failures: string[] = [];
+  input.input_edges.forEach((edge, index) => {
+    if (!isRecord(edge)) return;
+    if (
+      isPublicSafeNonEmptyString(edge.from_node_ref) &&
+      !inputNodeRefs.has(edge.from_node_ref)
+    ) {
+      failures.push(`input_edges.${index}.from_node_ref_missing_node`);
+      failures.push(`input_edges.${index}.orphan_edge_endpoint`);
+    }
+    if (
+      isPublicSafeNonEmptyString(edge.to_node_ref) &&
+      !inputNodeRefs.has(edge.to_node_ref)
+    ) {
+      failures.push(`input_edges.${index}.to_node_ref_missing_node`);
+      failures.push(`input_edges.${index}.orphan_edge_endpoint`);
+    }
+  });
+
   return { passed: failures.length === 0, failure_codes: uniqueSorted(failures) };
 }
 
@@ -1177,6 +1218,14 @@ function validateStringField(
   failures.push(...privateRawFailures(value, field));
 }
 
+function isPublicSafeNonEmptyString(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim() !== "" &&
+    privateRawFailures(value, "value").length === 0
+  );
+}
+
 function validateStringArray(
   value: unknown,
   field: string,
@@ -1311,6 +1360,15 @@ function failureCodesToReasonCodes(failureCodes: string[]) {
     }
     if (code.includes("private_or_raw_payload_blocked")) {
       reasonCodes.push("private_or_raw_payload_blocked");
+    }
+    if (code.includes("from_node_ref_missing_node")) {
+      reasonCodes.push("edge_endpoint_ref_missing");
+    }
+    if (code.includes("to_node_ref_missing_node")) {
+      reasonCodes.push("edge_endpoint_ref_missing");
+    }
+    if (code.includes("orphan_edge_endpoint")) {
+      reasonCodes.push("orphan_edge_blocked");
     }
   }
   return reasonCodes;

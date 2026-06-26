@@ -293,6 +293,17 @@ function assertHelperBehavior() {
   assert(result.layout.tension_markers.length > 0, "tension marker is present");
   assert(result.layout.gap_markers.length > 0, "gap marker is present");
   assert(result.layout.bridge_node_markers.length > 0, "bridge marker is present");
+  const builtNodeRefs = new Set(result.layout.node_positions.map((node) => node.node_ref));
+  for (const edge of result.layout.edge_routes) {
+    assert(
+      builtNodeRefs.has(edge.from_node_ref),
+      `built edge ${edge.edge_ref} has a present from_node_ref`,
+    );
+    assert(
+      builtNodeRefs.has(edge.to_node_ref),
+      `built edge ${edge.edge_ref} has a present to_node_ref`,
+    );
+  }
 
   assertBoundary(result.layout.authority_boundary, "layout");
   for (const node of result.layout.node_positions) assertBoundary(node.authority_boundary, `node ${node.node_ref}`);
@@ -310,6 +321,19 @@ function assertHelperBehavior() {
   assert.equal(fixture.expected_rejection_results.empty_nodes.status, "blocked_missing_nodes");
   assert.equal(fixture.expected_rejection_results.unsafe_public_safe_false_node.status, "blocked_invalid_input");
   assert.equal(fixture.expected_rejection_results.non_string_refs.status, "blocked_invalid_input");
+  assert.equal(fixture.expected_rejection_results.orphan_edge_from_node.status, "blocked_invalid_input");
+  assert.equal(fixture.expected_rejection_results.orphan_edge_to_node.status, "blocked_invalid_input");
+  for (const key of ["orphan_edge_from_node", "orphan_edge_to_node"]) {
+    assert.equal(fixture.expected_rejection_results[key].layout, null, `${key} does not build layout`);
+    assert(
+      fixture.expected_rejection_results[key].reason_codes.includes("edge_endpoint_ref_missing"),
+      `${key} includes edge endpoint missing reason code`,
+    );
+    assert(
+      fixture.expected_rejection_results[key].reason_codes.includes("orphan_edge_blocked"),
+      `${key} includes orphan edge blocked reason code`,
+    );
+  }
 
   assertNoRawPrivateMarkers(JSON.stringify(result), "valid result");
 }
@@ -332,6 +356,31 @@ function assertStaticChecks() {
     assert(!text.includes("product_write_now: true"), `${label} must not product-write`);
     assert(!text.includes("github_automation_authority: true"), `${label} must not add GitHub automation`);
   }
+  assertIncludes(
+    seededLayoutText,
+    "validateSeededLayoutEdgeEndpointsV01",
+    "seeded-layout helper has cross-input edge endpoint validator",
+  );
+  assertIncludes(
+    seededLayoutText,
+    "inputNodeRefs",
+    "seeded-layout helper checks edge endpoints against input node refs",
+  );
+  assertIncludes(
+    seededLayoutText,
+    "from_node_ref_missing_node",
+    "seeded-layout helper rejects missing from_node_ref endpoint",
+  );
+  assertIncludes(
+    seededLayoutText,
+    "to_node_ref_missing_node",
+    "seeded-layout helper rejects missing to_node_ref endpoint",
+  );
+  assertIncludes(
+    seededLayoutText,
+    "orphan_edge_endpoint",
+    "seeded-layout helper emits orphan edge endpoint failure",
+  );
 }
 
 function assertDocsCoverage() {

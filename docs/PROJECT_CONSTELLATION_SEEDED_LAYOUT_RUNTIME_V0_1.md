@@ -58,6 +58,8 @@ It does not implement layout persistence, manual anchor persistence, graph datab
 
 The runtime accepts public-safe symbolic node refs, edge refs, source refs, candidate refs, review record refs, promotion decision refs, Formation Receipt refs, apply event refs, feedback refs, marker refs, layout seed metadata, requested marker kinds, and requested diagnostic kinds.
 
+Edge routes require both endpoint node refs to exist in the same input node set. Orphan edge endpoints are rejected before layout build.
+
 Source refs are lineage pointers, not proof.
 
 Source refs must be public-safe symbolic refs.
