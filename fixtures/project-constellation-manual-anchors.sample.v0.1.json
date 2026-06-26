@@ -1,0 +1,253 @@
+{
+  "fixture_version": "project_constellation_manual_anchors.sample.v0.1",
+  "store_version": "project_constellation_manual_anchor_store.v0.1",
+  "record_version": "project_constellation_manual_anchor_record.v0.1",
+  "activity_version": "project_constellation_manual_anchor_activity.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-06-26T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/project-constellation-runtime-ui.sample.v0.1.json",
+    "fixtures/project-constellation-seeded-layout.sample.v0.1.json"
+  ],
+  "valid_create_inputs": [
+    {
+      "store_version": "project_constellation_manual_anchor_store.v0.1",
+      "record_version": "project_constellation_manual_anchor_record.v0.1",
+      "scope": "project:augnes",
+      "anchor_id": "manual-anchor:runtime-ui:001",
+      "layout_id": "layout:runtime-ui:001",
+      "perspective_id": "perspective:runtime-ui:001",
+      "state_version_ref": "state-version:runtime-ui:001",
+      "node_ref": "node-ref:durable:ui:001",
+      "anchor_position": {
+        "x": 144,
+        "y": 208,
+        "z": 0,
+        "coordinate_authority": "manual_anchor_hint",
+        "display_hint_only": true,
+        "reason_codes": [
+          "manual_anchor_display_hint_only",
+          "manual_anchor_not_truth",
+          "manual_anchor_not_proof",
+          "manual_anchor_not_evidence_strength",
+          "manual_anchor_not_promotion_readiness"
+        ]
+      },
+      "anchor_reason": "Operator pinned the durable node for display continuity.",
+      "created_by_ref": "operator:runtime-ui:001",
+      "applies_to_layout_scope": "project-constellation:runtime-ui:display",
+      "explicit_operator_action_required": true,
+      "persistence_now": true,
+      "display_hint_only": true,
+      "reason_codes": [
+        "explicit_operator_action_required",
+        "manual_anchor_display_hint_only",
+        "manual_anchor_not_authority",
+        "manual_anchor_not_truth",
+        "layout_persistence_executed_for_anchor_only",
+        "durable_state_not_mutated",
+        "product_write_denied"
+      ],
+      "boundary_notes": [
+        "manual anchor is display hint only",
+        "product-write remains parked"
+      ],
+      "authority_boundary": {
+        "manual_anchor_persistence_now": true,
+        "layout_persistence_now": true,
+        "manual_anchor_display_hint_only": true,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "work_mutation_now": false,
+        "db_query_or_write_now": true,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "manual_anchor_is_authority": false,
+        "manual_anchor_is_truth": false,
+        "manual_anchor_is_proof": false,
+        "manual_anchor_is_evidence_strength": false,
+        "manual_anchor_is_promotion_readiness": false,
+        "coordinate_is_truth": false,
+        "coordinate_is_proof": false,
+        "coordinate_is_evidence_strength": false,
+        "coordinate_is_promotion_readiness": false,
+        "product_write_authority": false
+      },
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "updated_at": "2026-06-26T00:00:00.000Z"
+    }
+  ],
+  "invalid_create_inputs": {
+    "missing_node_ref": {
+      "node_ref": ""
+    },
+    "private_raw_payload": {
+      "anchor_reason": "raw manual anchor payload blocked by fixture"
+    },
+    "forbidden_authority": {
+      "authority_boundary": {
+        "product_write_now": true
+      }
+    },
+    "non_finite_coordinate": {
+      "anchor_position": {
+        "x": "NaN"
+      }
+    },
+    "explicit_operator_action_required_false": {
+      "explicit_operator_action_required": false
+    },
+    "display_hint_only_false": {
+      "display_hint_only": false
+    },
+    "persistence_now_false": {
+      "persistence_now": false
+    },
+    "non_string_reason_code": {
+      "reason_codes": [
+        123
+      ]
+    },
+    "unknown_reason_code": {
+      "reason_codes": [
+        "not_a_manual_anchor_reason_code"
+      ]
+    },
+    "secret_like_input": {
+      "anchor_reason": "secret-like manual anchor input blocked by fixture"
+    }
+  },
+  "expected_records": [
+    {
+      "anchor_id": "manual-anchor:runtime-ui:001",
+      "layout_id": "layout:runtime-ui:001",
+      "perspective_id": "perspective:runtime-ui:001",
+      "node_ref": "node-ref:durable:ui:001",
+      "persistence_now": true,
+      "display_hint_only": true,
+      "manual_anchor_is_authority": false,
+      "manual_anchor_is_truth": false,
+      "manual_anchor_is_proof": false,
+      "manual_anchor_is_evidence_strength": false,
+      "manual_anchor_is_promotion_readiness": false,
+      "durable_state_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false
+    }
+  ],
+  "expected_activities": [
+    {
+      "activity_id": "manual-anchor:runtime-ui:001:activity:created",
+      "anchor_id": "manual-anchor:runtime-ui:001",
+      "activity_kind": "manual_anchor_created"
+    },
+    {
+      "activity_id": "manual-anchor:runtime-ui:001:activity:discarded",
+      "anchor_id": "manual-anchor:runtime-ui:001",
+      "activity_kind": "manual_anchor_discarded"
+    }
+  ],
+  "expected_create_results": {
+    "valid_manual_anchor_create": {
+      "status": "stored",
+      "record_count": 1,
+      "activity_count": 1,
+      "durable_state_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false
+    }
+  },
+  "expected_read_results": {
+    "read_existing": {
+      "status": "stored",
+      "anchor_id": "manual-anchor:runtime-ui:001"
+    },
+    "read_not_found": {
+      "status": "not_found"
+    }
+  },
+  "expected_list_results": {
+    "by_layout_id": {
+      "status": "stored",
+      "anchor_ids": [
+        "manual-anchor:runtime-ui:001"
+      ]
+    },
+    "by_perspective_id": {
+      "status": "stored",
+      "anchor_ids": [
+        "manual-anchor:runtime-ui:001"
+      ]
+    },
+    "by_node_ref": {
+      "status": "stored",
+      "anchor_ids": [
+        "manual-anchor:runtime-ui:001"
+      ]
+    }
+  },
+  "expected_discard_results": {
+    "valid_discard": {
+      "status": "discarded",
+      "discard_reason": "operator cleared display hint"
+    }
+  },
+  "expected_rejection_results": {
+    "read_not_found": {
+      "status": "not_found"
+    },
+    "orphan_activity": {
+      "status": "not_found"
+    },
+    "duplicate_anchor": {
+      "status": "blocked_invalid_input"
+    },
+    "missing_node_ref": {
+      "status": "blocked_missing_node_ref"
+    },
+    "private_raw_payload": {
+      "status": "blocked_private_or_raw_payload"
+    },
+    "forbidden_authority": {
+      "status": "blocked_forbidden_authority"
+    },
+    "non_finite_coordinate": {
+      "status": "blocked_invalid_input"
+    },
+    "explicit_operator_action_required_false": {
+      "status": "blocked_invalid_input"
+    },
+    "display_hint_only_false": {
+      "status": "blocked_invalid_input"
+    },
+    "persistence_now_false": {
+      "status": "blocked_invalid_input"
+    },
+    "non_string_reason_code": {
+      "status": "blocked_invalid_input"
+    },
+    "unknown_reason_code": {
+      "status": "blocked_invalid_input"
+    }
+  }
+}
