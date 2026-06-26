@@ -1005,6 +1005,907 @@
         "dogfooding_signal_present",
         "operator_actor_ref_present"
       ]
+    },
+    "capitalized_password_marker": {
+      "input_version": "dogfooding_ingestion_input.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-password",
+      "record_id": "dogfooding-record:ingestion:blocked-capitalized-password",
+      "operator_actor_ref": "operator-ref:dogfooding:fixture",
+      "recorded_at": "2026-06-26T00:00:00.000Z",
+      "bounded_context_summary": "Password: copied into note",
+      "signals": [
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:01",
+          "signal_kind": "missing_context",
+          "surface": "surfacing_preview",
+          "surface_ref": "surface-ref:dogfooding:surfacing-preview",
+          "severity": "medium",
+          "bounded_summary": "Bounded public-safe dogfooding signal for missing context in surfacing preview.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:01"
+          ],
+          "feedback_refs": [
+            "feedback-ref:dogfooding:aggregate:01"
+          ],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:01"
+          ],
+          "manual_anchor_refs": [
+            "manual-anchor-ref:dogfooding:anchor:01"
+          ],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [],
+          "trajectory_refs": [
+            "trajectory-ref:dogfooding:trajectory:01"
+          ],
+          "create_review_cue": true,
+          "review_cue_kind": "evidence_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "feedback_ref_present",
+            "surfacing_preview_ref_present",
+            "manual_anchor_ref_present"
+          ]
+        },
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:02",
+          "signal_kind": "wrong_surfacing",
+          "surface": "constellation_runtime_ui",
+          "surface_ref": "surface-ref:dogfooding:constellation-runtime-ui",
+          "severity": "high",
+          "bounded_summary": "Bounded public-safe dogfooding signal for wrong surfacing display.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:02"
+          ],
+          "feedback_refs": [],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:02"
+          ],
+          "manual_anchor_refs": [],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [
+            "durable-state-ref:dogfooding:state:01"
+          ],
+          "trajectory_refs": [],
+          "create_review_cue": true,
+          "review_cue_kind": "surfacing_review",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "surfacing_preview_ref_present"
+          ]
+        }
+      ],
+      "product_write_request_only": false,
+      "explicit_operator_action_required": true,
+      "public_safe": true,
+      "boundary_notes": [
+        "Caller provided bounded summaries only.",
+        "Explicit operator action required before dogfooding record write."
+      ],
+      "reason_codes": [
+        "explicit_operator_action_required",
+        "dogfooding_record_contract_present",
+        "bounded_summary_present",
+        "dogfooding_signal_present",
+        "operator_actor_ref_present"
+      ]
+    },
+    "capitalized_secret_marker": {
+      "input_version": "dogfooding_ingestion_input.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-secret",
+      "record_id": "dogfooding-record:ingestion:blocked-capitalized-secret",
+      "operator_actor_ref": "operator-ref:dogfooding:fixture",
+      "recorded_at": "2026-06-26T00:00:00.000Z",
+      "bounded_context_summary": "Secret: copied into note",
+      "signals": [
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:01",
+          "signal_kind": "missing_context",
+          "surface": "surfacing_preview",
+          "surface_ref": "surface-ref:dogfooding:surfacing-preview",
+          "severity": "medium",
+          "bounded_summary": "Bounded public-safe dogfooding signal for missing context in surfacing preview.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:01"
+          ],
+          "feedback_refs": [
+            "feedback-ref:dogfooding:aggregate:01"
+          ],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:01"
+          ],
+          "manual_anchor_refs": [
+            "manual-anchor-ref:dogfooding:anchor:01"
+          ],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [],
+          "trajectory_refs": [
+            "trajectory-ref:dogfooding:trajectory:01"
+          ],
+          "create_review_cue": true,
+          "review_cue_kind": "evidence_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "feedback_ref_present",
+            "surfacing_preview_ref_present",
+            "manual_anchor_ref_present"
+          ]
+        },
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:02",
+          "signal_kind": "wrong_surfacing",
+          "surface": "constellation_runtime_ui",
+          "surface_ref": "surface-ref:dogfooding:constellation-runtime-ui",
+          "severity": "high",
+          "bounded_summary": "Bounded public-safe dogfooding signal for wrong surfacing display.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:02"
+          ],
+          "feedback_refs": [],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:02"
+          ],
+          "manual_anchor_refs": [],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [
+            "durable-state-ref:dogfooding:state:01"
+          ],
+          "trajectory_refs": [],
+          "create_review_cue": true,
+          "review_cue_kind": "surfacing_review",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "surfacing_preview_ref_present"
+          ]
+        }
+      ],
+      "product_write_request_only": false,
+      "explicit_operator_action_required": true,
+      "public_safe": true,
+      "boundary_notes": [
+        "Caller provided bounded summaries only.",
+        "Explicit operator action required before dogfooding record write."
+      ],
+      "reason_codes": [
+        "explicit_operator_action_required",
+        "dogfooding_record_contract_present",
+        "bounded_summary_present",
+        "dogfooding_signal_present",
+        "operator_actor_ref_present"
+      ]
+    },
+    "capitalized_private_key_marker": {
+      "input_version": "dogfooding_ingestion_input.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-private-key",
+      "record_id": "dogfooding-record:ingestion:blocked-capitalized-private-key",
+      "operator_actor_ref": "operator-ref:dogfooding:fixture",
+      "recorded_at": "2026-06-26T00:00:00.000Z",
+      "bounded_context_summary": "Private Key copied into note",
+      "signals": [
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:01",
+          "signal_kind": "missing_context",
+          "surface": "surfacing_preview",
+          "surface_ref": "surface-ref:dogfooding:surfacing-preview",
+          "severity": "medium",
+          "bounded_summary": "Bounded public-safe dogfooding signal for missing context in surfacing preview.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:01"
+          ],
+          "feedback_refs": [
+            "feedback-ref:dogfooding:aggregate:01"
+          ],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:01"
+          ],
+          "manual_anchor_refs": [
+            "manual-anchor-ref:dogfooding:anchor:01"
+          ],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [],
+          "trajectory_refs": [
+            "trajectory-ref:dogfooding:trajectory:01"
+          ],
+          "create_review_cue": true,
+          "review_cue_kind": "evidence_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "feedback_ref_present",
+            "surfacing_preview_ref_present",
+            "manual_anchor_ref_present"
+          ]
+        },
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:02",
+          "signal_kind": "wrong_surfacing",
+          "surface": "constellation_runtime_ui",
+          "surface_ref": "surface-ref:dogfooding:constellation-runtime-ui",
+          "severity": "high",
+          "bounded_summary": "Bounded public-safe dogfooding signal for wrong surfacing display.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:02"
+          ],
+          "feedback_refs": [],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:02"
+          ],
+          "manual_anchor_refs": [],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [
+            "durable-state-ref:dogfooding:state:01"
+          ],
+          "trajectory_refs": [],
+          "create_review_cue": true,
+          "review_cue_kind": "surfacing_review",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "surfacing_preview_ref_present"
+          ]
+        }
+      ],
+      "product_write_request_only": false,
+      "explicit_operator_action_required": true,
+      "public_safe": true,
+      "boundary_notes": [
+        "Caller provided bounded summaries only.",
+        "Explicit operator action required before dogfooding record write."
+      ],
+      "reason_codes": [
+        "explicit_operator_action_required",
+        "dogfooding_record_contract_present",
+        "bounded_summary_present",
+        "dogfooding_signal_present",
+        "operator_actor_ref_present"
+      ]
+    },
+    "capitalized_raw_conversation_marker": {
+      "input_version": "dogfooding_ingestion_input.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-raw-conversation",
+      "record_id": "dogfooding-record:ingestion:blocked-capitalized-raw-conversation",
+      "operator_actor_ref": "operator-ref:dogfooding:fixture",
+      "recorded_at": "2026-06-26T00:00:00.000Z",
+      "bounded_context_summary": "Raw Conversation copied into note",
+      "signals": [
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:01",
+          "signal_kind": "missing_context",
+          "surface": "surfacing_preview",
+          "surface_ref": "surface-ref:dogfooding:surfacing-preview",
+          "severity": "medium",
+          "bounded_summary": "Bounded public-safe dogfooding signal for missing context in surfacing preview.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:01"
+          ],
+          "feedback_refs": [
+            "feedback-ref:dogfooding:aggregate:01"
+          ],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:01"
+          ],
+          "manual_anchor_refs": [
+            "manual-anchor-ref:dogfooding:anchor:01"
+          ],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [],
+          "trajectory_refs": [
+            "trajectory-ref:dogfooding:trajectory:01"
+          ],
+          "create_review_cue": true,
+          "review_cue_kind": "evidence_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "feedback_ref_present",
+            "surfacing_preview_ref_present",
+            "manual_anchor_ref_present"
+          ]
+        },
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:02",
+          "signal_kind": "wrong_surfacing",
+          "surface": "constellation_runtime_ui",
+          "surface_ref": "surface-ref:dogfooding:constellation-runtime-ui",
+          "severity": "high",
+          "bounded_summary": "Bounded public-safe dogfooding signal for wrong surfacing display.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:02"
+          ],
+          "feedback_refs": [],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:02"
+          ],
+          "manual_anchor_refs": [],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [
+            "durable-state-ref:dogfooding:state:01"
+          ],
+          "trajectory_refs": [],
+          "create_review_cue": true,
+          "review_cue_kind": "surfacing_review",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "surfacing_preview_ref_present"
+          ]
+        }
+      ],
+      "product_write_request_only": false,
+      "explicit_operator_action_required": true,
+      "public_safe": true,
+      "boundary_notes": [
+        "Caller provided bounded summaries only.",
+        "Explicit operator action required before dogfooding record write."
+      ],
+      "reason_codes": [
+        "explicit_operator_action_required",
+        "dogfooding_record_contract_present",
+        "bounded_summary_present",
+        "dogfooding_signal_present",
+        "operator_actor_ref_present"
+      ]
+    },
+    "capitalized_hidden_reasoning_marker": {
+      "input_version": "dogfooding_ingestion_input.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-hidden-reasoning",
+      "record_id": "dogfooding-record:ingestion:blocked-capitalized-hidden-reasoning",
+      "operator_actor_ref": "operator-ref:dogfooding:fixture",
+      "recorded_at": "2026-06-26T00:00:00.000Z",
+      "bounded_context_summary": "Hidden Reasoning copied into note",
+      "signals": [
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:01",
+          "signal_kind": "missing_context",
+          "surface": "surfacing_preview",
+          "surface_ref": "surface-ref:dogfooding:surfacing-preview",
+          "severity": "medium",
+          "bounded_summary": "Bounded public-safe dogfooding signal for missing context in surfacing preview.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:01"
+          ],
+          "feedback_refs": [
+            "feedback-ref:dogfooding:aggregate:01"
+          ],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:01"
+          ],
+          "manual_anchor_refs": [
+            "manual-anchor-ref:dogfooding:anchor:01"
+          ],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [],
+          "trajectory_refs": [
+            "trajectory-ref:dogfooding:trajectory:01"
+          ],
+          "create_review_cue": true,
+          "review_cue_kind": "evidence_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "feedback_ref_present",
+            "surfacing_preview_ref_present",
+            "manual_anchor_ref_present"
+          ]
+        },
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:02",
+          "signal_kind": "wrong_surfacing",
+          "surface": "constellation_runtime_ui",
+          "surface_ref": "surface-ref:dogfooding:constellation-runtime-ui",
+          "severity": "high",
+          "bounded_summary": "Bounded public-safe dogfooding signal for wrong surfacing display.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:02"
+          ],
+          "feedback_refs": [],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:02"
+          ],
+          "manual_anchor_refs": [],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [
+            "durable-state-ref:dogfooding:state:01"
+          ],
+          "trajectory_refs": [],
+          "create_review_cue": true,
+          "review_cue_kind": "surfacing_review",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "surfacing_preview_ref_present"
+          ]
+        }
+      ],
+      "product_write_request_only": false,
+      "explicit_operator_action_required": true,
+      "public_safe": true,
+      "boundary_notes": [
+        "Caller provided bounded summaries only.",
+        "Explicit operator action required before dogfooding record write."
+      ],
+      "reason_codes": [
+        "explicit_operator_action_required",
+        "dogfooding_record_contract_present",
+        "bounded_summary_present",
+        "dogfooding_signal_present",
+        "operator_actor_ref_present"
+      ]
+    },
+    "capitalized_telemetry_dump_marker": {
+      "input_version": "dogfooding_ingestion_input.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-telemetry-dump",
+      "record_id": "dogfooding-record:ingestion:blocked-capitalized-telemetry-dump",
+      "operator_actor_ref": "operator-ref:dogfooding:fixture",
+      "recorded_at": "2026-06-26T00:00:00.000Z",
+      "bounded_context_summary": "Telemetry Dump copied into note",
+      "signals": [
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:01",
+          "signal_kind": "missing_context",
+          "surface": "surfacing_preview",
+          "surface_ref": "surface-ref:dogfooding:surfacing-preview",
+          "severity": "medium",
+          "bounded_summary": "Bounded public-safe dogfooding signal for missing context in surfacing preview.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:01"
+          ],
+          "feedback_refs": [
+            "feedback-ref:dogfooding:aggregate:01"
+          ],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:01"
+          ],
+          "manual_anchor_refs": [
+            "manual-anchor-ref:dogfooding:anchor:01"
+          ],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [],
+          "trajectory_refs": [
+            "trajectory-ref:dogfooding:trajectory:01"
+          ],
+          "create_review_cue": true,
+          "review_cue_kind": "evidence_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "feedback_ref_present",
+            "surfacing_preview_ref_present",
+            "manual_anchor_ref_present"
+          ]
+        },
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:02",
+          "signal_kind": "wrong_surfacing",
+          "surface": "constellation_runtime_ui",
+          "surface_ref": "surface-ref:dogfooding:constellation-runtime-ui",
+          "severity": "high",
+          "bounded_summary": "Bounded public-safe dogfooding signal for wrong surfacing display.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:02"
+          ],
+          "feedback_refs": [],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:02"
+          ],
+          "manual_anchor_refs": [],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [
+            "durable-state-ref:dogfooding:state:01"
+          ],
+          "trajectory_refs": [],
+          "create_review_cue": true,
+          "review_cue_kind": "surfacing_review",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "surfacing_preview_ref_present"
+          ]
+        }
+      ],
+      "product_write_request_only": false,
+      "explicit_operator_action_required": true,
+      "public_safe": true,
+      "boundary_notes": [
+        "Caller provided bounded summaries only.",
+        "Explicit operator action required before dogfooding record write."
+      ],
+      "reason_codes": [
+        "explicit_operator_action_required",
+        "dogfooding_record_contract_present",
+        "bounded_summary_present",
+        "dogfooding_signal_present",
+        "operator_actor_ref_present"
+      ]
+    },
+    "capitalized_signal_secret_marker": {
+      "input_version": "dogfooding_ingestion_input.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-signal-secret",
+      "record_id": "dogfooding-record:ingestion:blocked-capitalized-signal-secret",
+      "operator_actor_ref": "operator-ref:dogfooding:fixture",
+      "recorded_at": "2026-06-26T00:00:00.000Z",
+      "bounded_context_summary": "Bounded public-safe dogfooding ingestion context summary.",
+      "signals": [
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:01",
+          "signal_kind": "missing_context",
+          "surface": "surfacing_preview",
+          "surface_ref": "surface-ref:dogfooding:surfacing-preview",
+          "severity": "medium",
+          "bounded_summary": "Secret: copied into signal summary",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:01"
+          ],
+          "feedback_refs": [
+            "feedback-ref:dogfooding:aggregate:01"
+          ],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:01"
+          ],
+          "manual_anchor_refs": [
+            "manual-anchor-ref:dogfooding:anchor:01"
+          ],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [],
+          "trajectory_refs": [
+            "trajectory-ref:dogfooding:trajectory:01"
+          ],
+          "create_review_cue": true,
+          "review_cue_kind": "evidence_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "feedback_ref_present",
+            "surfacing_preview_ref_present",
+            "manual_anchor_ref_present"
+          ]
+        }
+      ],
+      "product_write_request_only": false,
+      "explicit_operator_action_required": true,
+      "public_safe": true,
+      "boundary_notes": [
+        "Caller provided bounded summaries only.",
+        "Explicit operator action required before dogfooding record write."
+      ],
+      "reason_codes": [
+        "explicit_operator_action_required",
+        "dogfooding_record_contract_present",
+        "bounded_summary_present",
+        "dogfooding_signal_present",
+        "operator_actor_ref_present"
+      ]
+    },
+    "capitalized_boundary_note_marker": {
+      "input_version": "dogfooding_ingestion_input.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-boundary-note",
+      "record_id": "dogfooding-record:ingestion:blocked-capitalized-boundary-note",
+      "operator_actor_ref": "operator-ref:dogfooding:fixture",
+      "recorded_at": "2026-06-26T00:00:00.000Z",
+      "bounded_context_summary": "Bounded public-safe dogfooding ingestion context summary.",
+      "signals": [
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:01",
+          "signal_kind": "missing_context",
+          "surface": "surfacing_preview",
+          "surface_ref": "surface-ref:dogfooding:surfacing-preview",
+          "severity": "medium",
+          "bounded_summary": "Bounded public-safe dogfooding signal for missing context in surfacing preview.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:01"
+          ],
+          "feedback_refs": [
+            "feedback-ref:dogfooding:aggregate:01"
+          ],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:01"
+          ],
+          "manual_anchor_refs": [
+            "manual-anchor-ref:dogfooding:anchor:01"
+          ],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [],
+          "trajectory_refs": [
+            "trajectory-ref:dogfooding:trajectory:01"
+          ],
+          "create_review_cue": true,
+          "review_cue_kind": "evidence_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "feedback_ref_present",
+            "surfacing_preview_ref_present",
+            "manual_anchor_ref_present"
+          ]
+        },
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:02",
+          "signal_kind": "wrong_surfacing",
+          "surface": "constellation_runtime_ui",
+          "surface_ref": "surface-ref:dogfooding:constellation-runtime-ui",
+          "severity": "high",
+          "bounded_summary": "Bounded public-safe dogfooding signal for wrong surfacing display.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:02"
+          ],
+          "feedback_refs": [],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:02"
+          ],
+          "manual_anchor_refs": [],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [
+            "durable-state-ref:dogfooding:state:01"
+          ],
+          "trajectory_refs": [],
+          "create_review_cue": true,
+          "review_cue_kind": "surfacing_review",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "surfacing_preview_ref_present"
+          ]
+        }
+      ],
+      "product_write_request_only": false,
+      "explicit_operator_action_required": true,
+      "public_safe": true,
+      "boundary_notes": [
+        "Hidden Reasoning copied into boundary note"
+      ],
+      "reason_codes": [
+        "explicit_operator_action_required",
+        "dogfooding_record_contract_present",
+        "bounded_summary_present",
+        "dogfooding_signal_present",
+        "operator_actor_ref_present"
+      ]
+    },
+    "capitalized_ref_marker": {
+      "input_version": "dogfooding_ingestion_input.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-ref",
+      "record_id": "dogfooding-record:ingestion:blocked-capitalized-ref",
+      "operator_actor_ref": "operator-ref:dogfooding:fixture",
+      "recorded_at": "2026-06-26T00:00:00.000Z",
+      "bounded_context_summary": "Bounded public-safe dogfooding ingestion context summary.",
+      "signals": [
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:01",
+          "signal_kind": "missing_context",
+          "surface": "surfacing_preview",
+          "surface_ref": "surface-ref:dogfooding:surfacing-preview",
+          "severity": "medium",
+          "bounded_summary": "Bounded public-safe dogfooding signal for missing context in surfacing preview.",
+          "source_refs": [
+            "Private-Local-Path-Ref:Dogfooding:Blocked"
+          ],
+          "feedback_refs": [
+            "feedback-ref:dogfooding:aggregate:01"
+          ],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:01"
+          ],
+          "manual_anchor_refs": [
+            "manual-anchor-ref:dogfooding:anchor:01"
+          ],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [],
+          "trajectory_refs": [
+            "trajectory-ref:dogfooding:trajectory:01"
+          ],
+          "create_review_cue": true,
+          "review_cue_kind": "evidence_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "feedback_ref_present",
+            "surfacing_preview_ref_present",
+            "manual_anchor_ref_present"
+          ]
+        }
+      ],
+      "product_write_request_only": false,
+      "explicit_operator_action_required": true,
+      "public_safe": true,
+      "boundary_notes": [
+        "Caller provided bounded summaries only.",
+        "Explicit operator action required before dogfooding record write."
+      ],
+      "reason_codes": [
+        "explicit_operator_action_required",
+        "dogfooding_record_contract_present",
+        "bounded_summary_present",
+        "dogfooding_signal_present",
+        "operator_actor_ref_present"
+      ]
+    },
+    "capitalized_reason_code_marker": {
+      "input_version": "dogfooding_ingestion_input.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-reason-code",
+      "record_id": "dogfooding-record:ingestion:blocked-capitalized-reason-code",
+      "operator_actor_ref": "operator-ref:dogfooding:fixture",
+      "recorded_at": "2026-06-26T00:00:00.000Z",
+      "bounded_context_summary": "Bounded public-safe dogfooding ingestion context summary.",
+      "signals": [
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:01",
+          "signal_kind": "missing_context",
+          "surface": "surfacing_preview",
+          "surface_ref": "surface-ref:dogfooding:surfacing-preview",
+          "severity": "medium",
+          "bounded_summary": "Bounded public-safe dogfooding signal for missing context in surfacing preview.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:01"
+          ],
+          "feedback_refs": [
+            "feedback-ref:dogfooding:aggregate:01"
+          ],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:01"
+          ],
+          "manual_anchor_refs": [
+            "manual-anchor-ref:dogfooding:anchor:01"
+          ],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [],
+          "trajectory_refs": [
+            "trajectory-ref:dogfooding:trajectory:01"
+          ],
+          "create_review_cue": true,
+          "review_cue_kind": "evidence_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "feedback_ref_present",
+            "surfacing_preview_ref_present",
+            "manual_anchor_ref_present"
+          ]
+        },
+        {
+          "signal_id": "dogfooding-signal:ingestion:bounded:02",
+          "signal_kind": "wrong_surfacing",
+          "surface": "constellation_runtime_ui",
+          "surface_ref": "surface-ref:dogfooding:constellation-runtime-ui",
+          "severity": "high",
+          "bounded_summary": "Bounded public-safe dogfooding signal for wrong surfacing display.",
+          "source_refs": [
+            "source-ref:dogfooding:bounded:02"
+          ],
+          "feedback_refs": [],
+          "surfacing_preview_refs": [
+            "surfacing-preview-ref:dogfooding:preview:02"
+          ],
+          "manual_anchor_refs": [],
+          "promotion_decision_refs": [],
+          "formation_receipt_refs": [],
+          "durable_state_refs": [
+            "durable-state-ref:dogfooding:state:01"
+          ],
+          "trajectory_refs": [],
+          "create_review_cue": true,
+          "review_cue_kind": "surfacing_review",
+          "public_safe": true,
+          "reason_codes": [
+            "dogfooding_signal_present",
+            "dogfooding_surface_present",
+            "bounded_summary_present",
+            "source_ref_present",
+            "surfacing_preview_ref_present"
+          ]
+        }
+      ],
+      "product_write_request_only": false,
+      "explicit_operator_action_required": true,
+      "public_safe": true,
+      "boundary_notes": [
+        "Caller provided bounded summaries only.",
+        "Explicit operator action required before dogfooding record write."
+      ],
+      "reason_codes": [
+        "Secret: copied into reason code"
+      ]
     }
   },
   "expected_results": {
@@ -3744,6 +4645,791 @@
         "dogfooding_record_is_not_truth",
         "durable_state_not_mutated",
         "explicit_operator_action_required",
+        "product_write_denied",
+        "raw_payload_not_stored",
+        "secret_like_pattern_blocked"
+      ],
+      "authority_boundary": {
+        "dogfooding_ingestion_runtime_now": true,
+        "dogfooding_record_write_now": true,
+        "db_query_or_write_now": true,
+        "bounded_summary_only": true,
+        "explicit_operator_action_required": true,
+        "browser_log_ingestion_now": false,
+        "session_log_ingestion_now": false,
+        "raw_conversation_ingestion_now": false,
+        "telemetry_ingestion_now": false,
+        "external_analytics_ingestion_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "candidate_mutation_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "dogfooding_record_is_truth": false,
+        "dogfooding_record_is_proof": false,
+        "dogfooding_record_is_promotion_readiness": false,
+        "dogfooding_record_is_raw_conversation": false,
+        "dogfooding_record_is_hidden_reasoning": false,
+        "dogfooding_record_is_telemetry_dump": false,
+        "product_write_authority": false
+      }
+    },
+    "capitalized_password_marker": {
+      "result_version": "dogfooding_ingestion_result.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-password",
+      "status": "blocked_private_or_raw_payload",
+      "record": null,
+      "review_cues": [],
+      "rejected_signal_refs": [
+        "dogfooding-signal:ingestion:bounded:01",
+        "dogfooding-signal:ingestion:bounded:02"
+      ],
+      "warnings": [
+        "Dogfooding ingestion input was blocked before preview build."
+      ],
+      "durable_state_mutated": false,
+      "candidate_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "dogfooding_record_is_not_promotion_readiness",
+        "dogfooding_record_is_not_proof",
+        "dogfooding_record_is_not_truth",
+        "durable_state_not_mutated",
+        "explicit_operator_action_required",
+        "private_or_raw_payload_blocked",
+        "product_write_denied",
+        "raw_payload_not_stored",
+        "secret_like_pattern_blocked"
+      ],
+      "authority_boundary": {
+        "dogfooding_ingestion_runtime_now": true,
+        "dogfooding_record_write_now": true,
+        "db_query_or_write_now": true,
+        "bounded_summary_only": true,
+        "explicit_operator_action_required": true,
+        "browser_log_ingestion_now": false,
+        "session_log_ingestion_now": false,
+        "raw_conversation_ingestion_now": false,
+        "telemetry_ingestion_now": false,
+        "external_analytics_ingestion_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "candidate_mutation_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "dogfooding_record_is_truth": false,
+        "dogfooding_record_is_proof": false,
+        "dogfooding_record_is_promotion_readiness": false,
+        "dogfooding_record_is_raw_conversation": false,
+        "dogfooding_record_is_hidden_reasoning": false,
+        "dogfooding_record_is_telemetry_dump": false,
+        "product_write_authority": false
+      }
+    },
+    "capitalized_secret_marker": {
+      "result_version": "dogfooding_ingestion_result.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-secret",
+      "status": "blocked_private_or_raw_payload",
+      "record": null,
+      "review_cues": [],
+      "rejected_signal_refs": [
+        "dogfooding-signal:ingestion:bounded:01",
+        "dogfooding-signal:ingestion:bounded:02"
+      ],
+      "warnings": [
+        "Dogfooding ingestion input was blocked before preview build."
+      ],
+      "durable_state_mutated": false,
+      "candidate_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "dogfooding_record_is_not_promotion_readiness",
+        "dogfooding_record_is_not_proof",
+        "dogfooding_record_is_not_truth",
+        "durable_state_not_mutated",
+        "explicit_operator_action_required",
+        "private_or_raw_payload_blocked",
+        "product_write_denied",
+        "raw_payload_not_stored",
+        "secret_like_pattern_blocked"
+      ],
+      "authority_boundary": {
+        "dogfooding_ingestion_runtime_now": true,
+        "dogfooding_record_write_now": true,
+        "db_query_or_write_now": true,
+        "bounded_summary_only": true,
+        "explicit_operator_action_required": true,
+        "browser_log_ingestion_now": false,
+        "session_log_ingestion_now": false,
+        "raw_conversation_ingestion_now": false,
+        "telemetry_ingestion_now": false,
+        "external_analytics_ingestion_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "candidate_mutation_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "dogfooding_record_is_truth": false,
+        "dogfooding_record_is_proof": false,
+        "dogfooding_record_is_promotion_readiness": false,
+        "dogfooding_record_is_raw_conversation": false,
+        "dogfooding_record_is_hidden_reasoning": false,
+        "dogfooding_record_is_telemetry_dump": false,
+        "product_write_authority": false
+      }
+    },
+    "capitalized_private_key_marker": {
+      "result_version": "dogfooding_ingestion_result.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-private-key",
+      "status": "blocked_private_or_raw_payload",
+      "record": null,
+      "review_cues": [],
+      "rejected_signal_refs": [
+        "dogfooding-signal:ingestion:bounded:01",
+        "dogfooding-signal:ingestion:bounded:02"
+      ],
+      "warnings": [
+        "Dogfooding ingestion input was blocked before preview build."
+      ],
+      "durable_state_mutated": false,
+      "candidate_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "dogfooding_record_is_not_promotion_readiness",
+        "dogfooding_record_is_not_proof",
+        "dogfooding_record_is_not_truth",
+        "durable_state_not_mutated",
+        "explicit_operator_action_required",
+        "private_or_raw_payload_blocked",
+        "product_write_denied",
+        "raw_payload_not_stored",
+        "secret_like_pattern_blocked"
+      ],
+      "authority_boundary": {
+        "dogfooding_ingestion_runtime_now": true,
+        "dogfooding_record_write_now": true,
+        "db_query_or_write_now": true,
+        "bounded_summary_only": true,
+        "explicit_operator_action_required": true,
+        "browser_log_ingestion_now": false,
+        "session_log_ingestion_now": false,
+        "raw_conversation_ingestion_now": false,
+        "telemetry_ingestion_now": false,
+        "external_analytics_ingestion_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "candidate_mutation_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "dogfooding_record_is_truth": false,
+        "dogfooding_record_is_proof": false,
+        "dogfooding_record_is_promotion_readiness": false,
+        "dogfooding_record_is_raw_conversation": false,
+        "dogfooding_record_is_hidden_reasoning": false,
+        "dogfooding_record_is_telemetry_dump": false,
+        "product_write_authority": false
+      }
+    },
+    "capitalized_raw_conversation_marker": {
+      "result_version": "dogfooding_ingestion_result.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-raw-conversation",
+      "status": "blocked_private_or_raw_payload",
+      "record": null,
+      "review_cues": [],
+      "rejected_signal_refs": [
+        "dogfooding-signal:ingestion:bounded:01",
+        "dogfooding-signal:ingestion:bounded:02"
+      ],
+      "warnings": [
+        "Dogfooding ingestion input was blocked before preview build."
+      ],
+      "durable_state_mutated": false,
+      "candidate_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "dogfooding_record_is_not_promotion_readiness",
+        "dogfooding_record_is_not_proof",
+        "dogfooding_record_is_not_truth",
+        "durable_state_not_mutated",
+        "explicit_operator_action_required",
+        "product_write_denied",
+        "raw_conversation_blocked",
+        "raw_payload_not_stored"
+      ],
+      "authority_boundary": {
+        "dogfooding_ingestion_runtime_now": true,
+        "dogfooding_record_write_now": true,
+        "db_query_or_write_now": true,
+        "bounded_summary_only": true,
+        "explicit_operator_action_required": true,
+        "browser_log_ingestion_now": false,
+        "session_log_ingestion_now": false,
+        "raw_conversation_ingestion_now": false,
+        "telemetry_ingestion_now": false,
+        "external_analytics_ingestion_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "candidate_mutation_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "dogfooding_record_is_truth": false,
+        "dogfooding_record_is_proof": false,
+        "dogfooding_record_is_promotion_readiness": false,
+        "dogfooding_record_is_raw_conversation": false,
+        "dogfooding_record_is_hidden_reasoning": false,
+        "dogfooding_record_is_telemetry_dump": false,
+        "product_write_authority": false
+      }
+    },
+    "capitalized_hidden_reasoning_marker": {
+      "result_version": "dogfooding_ingestion_result.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-hidden-reasoning",
+      "status": "blocked_private_or_raw_payload",
+      "record": null,
+      "review_cues": [],
+      "rejected_signal_refs": [
+        "dogfooding-signal:ingestion:bounded:01",
+        "dogfooding-signal:ingestion:bounded:02"
+      ],
+      "warnings": [
+        "Dogfooding ingestion input was blocked before preview build."
+      ],
+      "durable_state_mutated": false,
+      "candidate_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "dogfooding_record_is_not_promotion_readiness",
+        "dogfooding_record_is_not_proof",
+        "dogfooding_record_is_not_truth",
+        "durable_state_not_mutated",
+        "explicit_operator_action_required",
+        "hidden_reasoning_blocked",
+        "product_write_denied",
+        "raw_payload_not_stored"
+      ],
+      "authority_boundary": {
+        "dogfooding_ingestion_runtime_now": true,
+        "dogfooding_record_write_now": true,
+        "db_query_or_write_now": true,
+        "bounded_summary_only": true,
+        "explicit_operator_action_required": true,
+        "browser_log_ingestion_now": false,
+        "session_log_ingestion_now": false,
+        "raw_conversation_ingestion_now": false,
+        "telemetry_ingestion_now": false,
+        "external_analytics_ingestion_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "candidate_mutation_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "dogfooding_record_is_truth": false,
+        "dogfooding_record_is_proof": false,
+        "dogfooding_record_is_promotion_readiness": false,
+        "dogfooding_record_is_raw_conversation": false,
+        "dogfooding_record_is_hidden_reasoning": false,
+        "dogfooding_record_is_telemetry_dump": false,
+        "product_write_authority": false
+      }
+    },
+    "capitalized_telemetry_dump_marker": {
+      "result_version": "dogfooding_ingestion_result.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-telemetry-dump",
+      "status": "blocked_private_or_raw_payload",
+      "record": null,
+      "review_cues": [],
+      "rejected_signal_refs": [
+        "dogfooding-signal:ingestion:bounded:01",
+        "dogfooding-signal:ingestion:bounded:02"
+      ],
+      "warnings": [
+        "Dogfooding ingestion input was blocked before preview build."
+      ],
+      "durable_state_mutated": false,
+      "candidate_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "dogfooding_record_is_not_promotion_readiness",
+        "dogfooding_record_is_not_proof",
+        "dogfooding_record_is_not_truth",
+        "durable_state_not_mutated",
+        "explicit_operator_action_required",
+        "product_write_denied",
+        "raw_payload_not_stored",
+        "telemetry_dump_blocked"
+      ],
+      "authority_boundary": {
+        "dogfooding_ingestion_runtime_now": true,
+        "dogfooding_record_write_now": true,
+        "db_query_or_write_now": true,
+        "bounded_summary_only": true,
+        "explicit_operator_action_required": true,
+        "browser_log_ingestion_now": false,
+        "session_log_ingestion_now": false,
+        "raw_conversation_ingestion_now": false,
+        "telemetry_ingestion_now": false,
+        "external_analytics_ingestion_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "candidate_mutation_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "dogfooding_record_is_truth": false,
+        "dogfooding_record_is_proof": false,
+        "dogfooding_record_is_promotion_readiness": false,
+        "dogfooding_record_is_raw_conversation": false,
+        "dogfooding_record_is_hidden_reasoning": false,
+        "dogfooding_record_is_telemetry_dump": false,
+        "product_write_authority": false
+      }
+    },
+    "capitalized_signal_secret_marker": {
+      "result_version": "dogfooding_ingestion_result.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-signal-secret",
+      "status": "blocked_private_or_raw_payload",
+      "record": null,
+      "review_cues": [],
+      "rejected_signal_refs": [
+        "dogfooding-signal:ingestion:bounded:01"
+      ],
+      "warnings": [
+        "Dogfooding ingestion input was blocked before preview build."
+      ],
+      "durable_state_mutated": false,
+      "candidate_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "bounded_summary_missing",
+        "candidate_not_mutated",
+        "dogfooding_record_is_not_promotion_readiness",
+        "dogfooding_record_is_not_proof",
+        "dogfooding_record_is_not_truth",
+        "durable_state_not_mutated",
+        "explicit_operator_action_required",
+        "private_or_raw_payload_blocked",
+        "product_write_denied",
+        "raw_payload_not_stored",
+        "secret_like_pattern_blocked"
+      ],
+      "authority_boundary": {
+        "dogfooding_ingestion_runtime_now": true,
+        "dogfooding_record_write_now": true,
+        "db_query_or_write_now": true,
+        "bounded_summary_only": true,
+        "explicit_operator_action_required": true,
+        "browser_log_ingestion_now": false,
+        "session_log_ingestion_now": false,
+        "raw_conversation_ingestion_now": false,
+        "telemetry_ingestion_now": false,
+        "external_analytics_ingestion_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "candidate_mutation_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "dogfooding_record_is_truth": false,
+        "dogfooding_record_is_proof": false,
+        "dogfooding_record_is_promotion_readiness": false,
+        "dogfooding_record_is_raw_conversation": false,
+        "dogfooding_record_is_hidden_reasoning": false,
+        "dogfooding_record_is_telemetry_dump": false,
+        "product_write_authority": false
+      }
+    },
+    "capitalized_boundary_note_marker": {
+      "result_version": "dogfooding_ingestion_result.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-boundary-note",
+      "status": "blocked_private_or_raw_payload",
+      "record": null,
+      "review_cues": [],
+      "rejected_signal_refs": [
+        "dogfooding-signal:ingestion:bounded:01",
+        "dogfooding-signal:ingestion:bounded:02"
+      ],
+      "warnings": [
+        "Dogfooding ingestion input was blocked before preview build."
+      ],
+      "durable_state_mutated": false,
+      "candidate_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "dogfooding_record_is_not_promotion_readiness",
+        "dogfooding_record_is_not_proof",
+        "dogfooding_record_is_not_truth",
+        "durable_state_not_mutated",
+        "explicit_operator_action_required",
+        "hidden_reasoning_blocked",
+        "product_write_denied",
+        "raw_payload_not_stored"
+      ],
+      "authority_boundary": {
+        "dogfooding_ingestion_runtime_now": true,
+        "dogfooding_record_write_now": true,
+        "db_query_or_write_now": true,
+        "bounded_summary_only": true,
+        "explicit_operator_action_required": true,
+        "browser_log_ingestion_now": false,
+        "session_log_ingestion_now": false,
+        "raw_conversation_ingestion_now": false,
+        "telemetry_ingestion_now": false,
+        "external_analytics_ingestion_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "candidate_mutation_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "dogfooding_record_is_truth": false,
+        "dogfooding_record_is_proof": false,
+        "dogfooding_record_is_promotion_readiness": false,
+        "dogfooding_record_is_raw_conversation": false,
+        "dogfooding_record_is_hidden_reasoning": false,
+        "dogfooding_record_is_telemetry_dump": false,
+        "product_write_authority": false
+      }
+    },
+    "capitalized_ref_marker": {
+      "result_version": "dogfooding_ingestion_result.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-ref",
+      "status": "blocked_private_or_raw_payload",
+      "record": null,
+      "review_cues": [],
+      "rejected_signal_refs": [
+        "dogfooding-signal:ingestion:bounded:01"
+      ],
+      "warnings": [
+        "Dogfooding ingestion input was blocked before preview build."
+      ],
+      "durable_state_mutated": false,
+      "candidate_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "dogfooding_record_is_not_promotion_readiness",
+        "dogfooding_record_is_not_proof",
+        "dogfooding_record_is_not_truth",
+        "durable_state_not_mutated",
+        "explicit_operator_action_required",
+        "local_path_blocked",
+        "product_write_denied",
+        "raw_payload_not_stored",
+        "source_ref_missing"
+      ],
+      "authority_boundary": {
+        "dogfooding_ingestion_runtime_now": true,
+        "dogfooding_record_write_now": true,
+        "db_query_or_write_now": true,
+        "bounded_summary_only": true,
+        "explicit_operator_action_required": true,
+        "browser_log_ingestion_now": false,
+        "session_log_ingestion_now": false,
+        "raw_conversation_ingestion_now": false,
+        "telemetry_ingestion_now": false,
+        "external_analytics_ingestion_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "candidate_mutation_now": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "dogfooding_record_is_truth": false,
+        "dogfooding_record_is_proof": false,
+        "dogfooding_record_is_promotion_readiness": false,
+        "dogfooding_record_is_raw_conversation": false,
+        "dogfooding_record_is_hidden_reasoning": false,
+        "dogfooding_record_is_telemetry_dump": false,
+        "product_write_authority": false
+      }
+    },
+    "capitalized_reason_code_marker": {
+      "result_version": "dogfooding_ingestion_result.v0.1",
+      "runtime_version": "dogfooding_ingestion_runtime.v0.1",
+      "contract_version": "dogfooding_record_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "ingestion_id": "dogfooding-ingestion:fixture:blocked-capitalized-reason-code",
+      "status": "blocked_private_or_raw_payload",
+      "record": null,
+      "review_cues": [],
+      "rejected_signal_refs": [
+        "dogfooding-signal:ingestion:bounded:01",
+        "dogfooding-signal:ingestion:bounded:02"
+      ],
+      "warnings": [
+        "Dogfooding ingestion input was blocked before preview build."
+      ],
+      "durable_state_mutated": false,
+      "candidate_mutated": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "candidate_not_mutated",
+        "dogfooding_record_is_not_promotion_readiness",
+        "dogfooding_record_is_not_proof",
+        "dogfooding_record_is_not_truth",
+        "durable_state_not_mutated",
+        "explicit_operator_action_required",
+        "private_or_raw_payload_blocked",
         "product_write_denied",
         "raw_payload_not_stored",
         "secret_like_pattern_blocked"

@@ -250,6 +250,7 @@ function jsonResponse(response: unknown, status = 200) {
 }
 
 function hasPrivateMarker(value: string): boolean {
+  const normalizedValue = value.toLowerCase();
   return [
     "/Users/",
     "/home/",
@@ -258,5 +259,8 @@ function hasPrivateMarker(value: string): boolean {
     "ghp_",
     "OPENAI_API_KEY",
     "GITHUB_TOKEN",
-  ].some((marker) => value.includes(marker));
+    "password:",
+    "secret:",
+    "private key",
+  ].some((marker) => normalizedValue.includes(marker.toLowerCase()));
 }

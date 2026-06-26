@@ -54,6 +54,8 @@ const docsExactPhrases = [
   "Product-write requests do not execute product-write.",
   "Source refs are lineage pointers, not proof.",
   "Source refs must be public-safe symbolic refs.",
+  "Private/raw/secret-like markers are rejected case-insensitively.",
+  "Capitalization does not bypass raw conversation, hidden reasoning, telemetry, secret-like, private path, or private URL blocking.",
   "roadmap guide is not SSOT",
 ];
 
@@ -92,6 +94,16 @@ const allowedFixturePlaceholders = [
   "hidden reasoning blocked by ingestion fixture",
   "telemetry dump blocked by ingestion fixture",
   "secret-like dogfooding input blocked by ingestion fixture",
+  "Password: copied into note",
+  "Secret: copied into note",
+  "Private Key copied into note",
+  "Raw Conversation copied into note",
+  "Hidden Reasoning copied into note",
+  "Telemetry Dump copied into note",
+  "Secret: copied into signal summary",
+  "Hidden Reasoning copied into boundary note",
+  "Private-Local-Path-Ref:Dogfooding:Blocked",
+  "Secret: copied into reason code",
 ];
 
 const forbiddenPositiveAuthorityGrants = [
@@ -244,6 +256,24 @@ function assertStaticFiles() {
   }
   assertIncludes(contractTypeText, "export interface DogfoodingRecord", contractTypePath);
   assert.equal(packageJson.scripts[packageScriptName], packageScriptValue);
+  assertIncludes(helperText, "const normalizedValue = value.toLowerCase()", "helper normalizes marker values");
+  assertIncludes(helperText, "marker.toLowerCase()", "helper normalizes markers");
+  assertIncludes(helperText, "function includesMarker", "helper case-insensitive marker helper");
+  assertIncludes(routeText, "const normalizedValue = value.toLowerCase()", "route normalizes marker values");
+  assertIncludes(routeText, "marker.toLowerCase()", "route normalizes markers");
+  assertIncludes(storeText, "const normalizedValue = value.toLowerCase()", "store normalizes marker values");
+  assertIncludes(storeText, "marker.toLowerCase()", "store normalizes markers");
+  for (const [source, label] of [
+    [helperText, helperPath],
+    [routeText, routePath],
+    [storeText, storePath],
+  ]) {
+    assert.doesNotMatch(
+      source,
+      /value\\.includes\\(marker\\)|JSON\\.stringify\\(record\\)\\.includes\\(marker\\)/,
+      `${label} must not use plain case-sensitive marker includes`,
+    );
+  }
 }
 
 function assertHelperBehavior() {
@@ -331,6 +361,68 @@ function assertHelperBehavior() {
     fixture.expected_rejection_results.signal_public_safe_false.status,
     "blocked_invalid_input",
   );
+  for (const key of [
+    "capitalized_password_marker",
+    "capitalized_secret_marker",
+    "capitalized_private_key_marker",
+    "capitalized_raw_conversation_marker",
+    "capitalized_hidden_reasoning_marker",
+    "capitalized_telemetry_dump_marker",
+    "capitalized_signal_secret_marker",
+    "capitalized_boundary_note_marker",
+    "capitalized_ref_marker",
+    "capitalized_reason_code_marker",
+  ]) {
+    assert.equal(
+      fixture.expected_rejection_results[key].status,
+      "blocked_private_or_raw_payload",
+      `${key} must block private/raw payload`,
+    );
+  }
+  for (const key of [
+    "capitalized_password_marker",
+    "capitalized_secret_marker",
+    "capitalized_private_key_marker",
+    "capitalized_signal_secret_marker",
+    "capitalized_reason_code_marker",
+  ]) {
+    assert.ok(
+      fixture.expected_rejection_results[key].reason_codes.includes(
+        "secret_like_pattern_blocked",
+      ),
+      `${key} must include secret_like_pattern_blocked`,
+    );
+  }
+  assert.ok(
+    fixture.expected_rejection_results.capitalized_raw_conversation_marker.reason_codes.includes(
+      "raw_conversation_blocked",
+    ),
+    "capitalized raw conversation must include raw_conversation_blocked",
+  );
+  assert.ok(
+    fixture.expected_rejection_results.capitalized_hidden_reasoning_marker.reason_codes.includes(
+      "hidden_reasoning_blocked",
+    ),
+    "capitalized hidden reasoning must include hidden_reasoning_blocked",
+  );
+  assert.ok(
+    fixture.expected_rejection_results.capitalized_boundary_note_marker.reason_codes.includes(
+      "hidden_reasoning_blocked",
+    ),
+    "capitalized boundary note must include hidden_reasoning_blocked",
+  );
+  assert.ok(
+    fixture.expected_rejection_results.capitalized_telemetry_dump_marker.reason_codes.includes(
+      "telemetry_dump_blocked",
+    ),
+    "capitalized telemetry dump must include telemetry_dump_blocked",
+  );
+  assert.ok(
+    fixture.expected_rejection_results.capitalized_ref_marker.reason_codes.includes(
+      "local_path_blocked",
+    ),
+    "capitalized local path ref must include local_path_blocked",
+  );
 }
 
 function assertStoreBehavior() {
@@ -366,6 +458,15 @@ function assertStoreBehavior() {
       fixture.store_expectations.list_expected_record_ids,
     );
 
+    const unsafeStoreRecord = structuredClone(validRecord);
+    unsafeStoreRecord.record_id = "dogfooding-record:ingestion:store-capitalized-private";
+    unsafeStoreRecord.bounded_context_summary = "Password: copied into stored record";
+    const unsafeStoreCreate = store.createDogfoodingRecordV01(unsafeStoreRecord, db);
+    assert.equal(unsafeStoreCreate.ok, false);
+    assert.equal(unsafeStoreCreate.status, "blocked_private_or_raw_payload");
+    const unsafeStoreRead = store.readDogfoodingRecordV01(unsafeStoreRecord.record_id, db);
+    assert.equal(unsafeStoreRead.status, "not_found", "unsafe store record must not persist");
+
     const conflictingRecord = structuredClone(validRecord);
     conflictingRecord.record_id = "dogfooding-record:ingestion:partial-failure";
     const failedCreate = store.createDogfoodingRecordV01(conflictingRecord, db);
@@ -392,6 +493,8 @@ function assertRouteBoundaries() {
   assertIncludes(routeText, "db_missing", "GET has db_missing bounded response");
   assertIncludes(routeText, "schema_missing", "GET has schema_missing bounded response");
   assertIncludes(routeText, "storeResponse", "route maps store errors to top-level response");
+  assertIncludes(routeText, "OPENAI_API_KEY", "route safe DB path checks token markers");
+  assertIncludes(routeText, "password:", "route safe DB path checks secret-like markers");
 
   const postStart = routeText.indexOf("export async function POST");
   const validationIndex = routeText.indexOf("validateDogfoodingIngestionInputV01", postStart);

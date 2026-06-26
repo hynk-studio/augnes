@@ -80,6 +80,8 @@ Telemetry dumps are blocked.
 Private file paths are blocked.
 Private URLs are blocked.
 Secret-like values are blocked.
+Private/raw/secret-like markers are rejected case-insensitively.
+Capitalization does not bypass raw conversation, hidden reasoning, telemetry, secret-like, private path, or private URL blocking.
 
 Source refs are lineage pointers, not proof.
 Source refs must be public-safe symbolic refs.

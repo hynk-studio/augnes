@@ -269,7 +269,12 @@ const hiddenReasoningMarkers = ["hidden reasoning"] as const;
 const telemetryMarkers = ["telemetry dump"] as const;
 const privateUrlMarkers = ["http://", "https://"] as const;
 const symbolicLocalPathMarkers = ["private-local-path-ref:"] as const;
-const secretLikeMarkers = ["secret-like dogfooding input blocked by ingestion fixture"] as const;
+const secretLikeMarkers = [
+  "password:",
+  "secret:",
+  "private key",
+  "secret-like dogfooding input blocked by ingestion fixture",
+] as const;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -1021,34 +1026,43 @@ function validateSafeString(value: unknown, field: string): string[] {
 
 function unsafeStringFailureCodes(value: string, field: string): string[] {
   const failures: string[] = [];
-  if (privateOrRawMarkers.some((marker) => value.includes(marker))) {
+  const normalizedValue = value.toLowerCase();
+  if (includesMarker(normalizedValue, privateOrRawMarkers)) {
     failures.push(`${field}_private_or_raw_payload`);
   }
-  if (rawConversationMarkers.some((marker) => value.toLowerCase().includes(marker))) {
+  if (includesMarker(normalizedValue, rawConversationMarkers)) {
     failures.push(`${field}_raw_conversation`);
   }
-  if (hiddenReasoningMarkers.some((marker) => value.toLowerCase().includes(marker))) {
+  if (includesMarker(normalizedValue, hiddenReasoningMarkers)) {
     failures.push(`${field}_hidden_reasoning`);
   }
-  if (telemetryMarkers.some((marker) => value.toLowerCase().includes(marker))) {
+  if (includesMarker(normalizedValue, telemetryMarkers)) {
     failures.push(`${field}_telemetry_dump`);
   }
-  if (privateUrlMarkers.some((marker) => value.toLowerCase().includes(marker))) {
+  if (includesMarker(normalizedValue, privateUrlMarkers)) {
     failures.push(`${field}_private_url`);
   }
-  if (symbolicLocalPathMarkers.some((marker) => value.includes(marker))) {
+  if (includesMarker(normalizedValue, symbolicLocalPathMarkers)) {
     failures.push(`${field}_local_path`);
   }
-  if (secretLikeMarkers.some((marker) => value.includes(marker))) {
+  if (includesMarker(normalizedValue, secretLikeMarkers)) {
     failures.push(`${field}_secret_like_pattern`);
   }
   return failures;
+}
+
+function includesMarker(
+  normalizedValue: string,
+  markers: readonly string[],
+): boolean {
+  return markers.some((marker) => normalizedValue.includes(marker.toLowerCase()));
 }
 
 function validateAuthorityBoundary(value: unknown, field: string): string[] {
   if (value === undefined) return [];
   if (!isRecord(value)) return [`${field}_invalid`];
   const failures: string[] = [];
+  failures.push(...unsafeStringFailureCodes(canonicalJson(value), field));
   for (const key of forbiddenFalseAuthorityFields) {
     if (value[key] === true) failures.push(`${field}_${key}_forbidden_authority`);
   }

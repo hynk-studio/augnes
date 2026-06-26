@@ -539,16 +539,22 @@ function storeResult(
 }
 
 function hasUnsafeRecord(record: DogfoodingRecord): boolean {
-  return privateMarkers.some((marker) => JSON.stringify(record).includes(marker));
+  return hasPrivateMarker(JSON.stringify(record));
 }
 
 function isSafeString(value: string): boolean {
+  const normalizedValue = value.toLowerCase();
   return (
     value.trim().length > 0 &&
-    !privateMarkers.some((marker) => value.includes(marker)) &&
-    !value.includes("http://") &&
-    !value.includes("https://")
+    !privateMarkers.some((marker) => normalizedValue.includes(marker.toLowerCase())) &&
+    !normalizedValue.includes("http://") &&
+    !normalizedValue.includes("https://")
   );
+}
+
+function hasPrivateMarker(value: string): boolean {
+  const normalizedValue = value.toLowerCase();
+  return privateMarkers.some((marker) => normalizedValue.includes(marker.toLowerCase()));
 }
 
 function boolToInt(value: boolean): number {
