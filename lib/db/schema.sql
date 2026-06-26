@@ -1627,3 +1627,66 @@ CREATE INDEX IF NOT EXISTS idx_coordination_events_scope_time
 
 CREATE INDEX IF NOT EXISTS idx_coordination_events_scope_work_time
   ON coordination_events(scope, work_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS dogfooding_records (
+  record_id text primary key,
+  scope text not null,
+  status text not null,
+  operator_actor_ref text not null,
+  recorded_at text not null,
+  bounded_context_summary text not null,
+  privacy_class text not null,
+  redaction_status text not null,
+  public_safe integer not null,
+  boundary_notes_json text not null,
+  reason_codes_json text not null,
+  authority_boundary_json text not null,
+  record_fingerprint text not null,
+  created_at text not null
+);
+
+CREATE TABLE IF NOT EXISTS dogfooding_signals (
+  signal_id text primary key,
+  record_id text not null,
+  signal_kind text not null,
+  surface text not null,
+  surface_ref text not null,
+  severity text not null,
+  bounded_summary text not null,
+  refs_json text not null,
+  privacy_class text not null,
+  redaction_status text not null,
+  public_safe integer not null,
+  reason_codes_json text not null,
+  authority_boundary_json text not null,
+  foreign key (record_id) references dogfooding_records(record_id) on delete cascade
+);
+
+CREATE TABLE IF NOT EXISTS dogfooding_review_cues (
+  review_cue_id text primary key,
+  record_id text not null,
+  cue_kind text not null,
+  target_surface text not null,
+  target_surface_ref text not null,
+  target_signal_refs_json text not null,
+  bounded_summary text not null,
+  severity text not null,
+  candidate_only integer not null,
+  product_write_request_only integer not null,
+  product_write_executed integer not null,
+  reason_codes_json text not null,
+  authority_boundary_json text not null,
+  foreign key (record_id) references dogfooding_records(record_id) on delete cascade
+);
+
+CREATE INDEX IF NOT EXISTS idx_dogfooding_records_status
+  ON dogfooding_records(scope, status, recorded_at, record_id);
+
+CREATE INDEX IF NOT EXISTS idx_dogfooding_records_operator
+  ON dogfooding_records(scope, operator_actor_ref, recorded_at, record_id);
+
+CREATE INDEX IF NOT EXISTS idx_dogfooding_signals_record
+  ON dogfooding_signals(record_id, signal_id);
+
+CREATE INDEX IF NOT EXISTS idx_dogfooding_review_cues_record
+  ON dogfooding_review_cues(record_id, review_cue_id);

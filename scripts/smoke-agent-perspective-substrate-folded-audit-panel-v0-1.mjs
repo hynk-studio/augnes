@@ -121,6 +121,9 @@ const feedbackInfluencedSurfacingPreviewPackageScriptNames = [
 const dogfoodingRecordRuntimeContractPackageScriptNames = [
   "smoke:dogfooding-record-runtime-contract-v0-1",
 ];
+const dogfoodingIngestionRuntimePackageScriptNames = [
+  "smoke:dogfooding-ingestion-runtime-v0-1",
+];
 const feedbackControlsExpansionDocsPath =
   "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const feedbackControlsExpansionComponentPath =
@@ -153,6 +156,18 @@ const dogfoodingRecordRuntimeContractFixturePath =
   "fixtures/dogfooding-record-runtime-contract.sample.v0.1.json";
 const dogfoodingRecordRuntimeContractSmokePath =
   "scripts/smoke-dogfooding-record-runtime-contract-v0-1.mjs";
+const dogfoodingIngestionRuntimeDocsPath =
+  "docs/DOGFOODING_INGESTION_RUNTIME_V0_1.md";
+const dogfoodingIngestionRuntimeHelperPath =
+  "lib/dogfooding/dogfooding-ingestion-runtime.ts";
+const dogfoodingIngestionRuntimeStorePath =
+  "lib/dogfooding/dogfooding-record-store.ts";
+const dogfoodingIngestionRuntimeRoutePath =
+  "app/api/dogfooding/records/route.ts";
+const dogfoodingIngestionRuntimeFixturePath =
+  "fixtures/dogfooding-ingestion-runtime.sample.v0.1.json";
+const dogfoodingIngestionRuntimeSmokePath =
+  "scripts/smoke-dogfooding-ingestion-runtime-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -218,6 +233,19 @@ const dogfoodingRecordRuntimeContractChangedFiles = [
   dogfoodingRecordRuntimeContractTypePath,
   dogfoodingRecordRuntimeContractFixturePath,
   dogfoodingRecordRuntimeContractSmokePath,
+  smokePath,
+  packagePath,
+  indexPath,
+];
+const dogfoodingIngestionRuntimeChangedFiles = [
+  "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+  dogfoodingIngestionRuntimeDocsPath,
+  dogfoodingIngestionRuntimeHelperPath,
+  dogfoodingIngestionRuntimeStorePath,
+  dogfoodingIngestionRuntimeRoutePath,
+  dogfoodingIngestionRuntimeFixturePath,
+  dogfoodingIngestionRuntimeSmokePath,
+  "lib/db/schema.sql",
   smokePath,
   packagePath,
   indexPath,
@@ -528,6 +556,7 @@ function assertPackageScript() {
       feedbackControlsExpansionPackageScriptNames,
       feedbackInfluencedSurfacingPreviewPackageScriptNames,
       dogfoodingRecordRuntimeContractPackageScriptNames,
+      dogfoodingIngestionRuntimePackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include a recognized downstream slice package script set",
   );
@@ -542,6 +571,10 @@ function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
   if (dogfoodingRecordRuntimeContractSliceActive(changedFiles)) {
     assertDogfoodingRecordRuntimeContractChangedFiles(changedFiles);
+    return;
+  }
+  if (dogfoodingIngestionRuntimeSliceActive(changedFiles)) {
+    assertDogfoodingIngestionRuntimeChangedFiles(changedFiles);
     return;
   }
   if (feedbackInfluencedSurfacingPreviewSliceActive(changedFiles)) {
@@ -669,6 +702,29 @@ function dogfoodingRecordRuntimeContractSliceActive(changedFiles) {
     dogfoodingRecordRuntimeContractFixturePath,
     dogfoodingRecordRuntimeContractSmokePath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function dogfoodingIngestionRuntimeSliceActive(changedFiles) {
+  return [
+    dogfoodingIngestionRuntimeDocsPath,
+    dogfoodingIngestionRuntimeHelperPath,
+    dogfoodingIngestionRuntimeStorePath,
+    dogfoodingIngestionRuntimeRoutePath,
+    dogfoodingIngestionRuntimeFixturePath,
+    dogfoodingIngestionRuntimeSmokePath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertDogfoodingIngestionRuntimeChangedFiles(changedFiles) {
+  for (const expectedFile of dogfoodingIngestionRuntimeChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      dogfoodingIngestionRuntimeChangedFiles.includes(changedFile),
+      `unexpected changed file in dogfooding ingestion runtime slice: ${changedFile}`,
+    );
+  }
 }
 
 function assertDogfoodingRecordRuntimeContractChangedFiles(changedFiles) {
