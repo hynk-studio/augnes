@@ -94,6 +94,8 @@ Candidate overlay is not durable graph.
 
 Candidate overlay positions are stable for the same input and seed, but they remain display/review aids only.
 
+Candidate overlay offsets are display hints and do not use manual anchor authority. Manual anchor hints remain deferred to the manual anchor persistence slice.
+
 ## 9. Marker placement rules
 
 Stale markers are display warnings only.
@@ -111,6 +113,8 @@ Markers do not create proof, evidence, accepted evidence, promotion readiness, d
 Source balance is advisory.
 
 Diagnostics summarize source balance, candidate overlay separation, durable/candidate boundary, tension visibility, and knowledge-gap visibility. Diagnostics are public-safe, deterministic, and non-authoritative.
+
+The layout contract field `source_balance_diagnostics` contains source-balance diagnostics only. Broader runtime diagnostics remain result-level diagnostics.
 
 ## 11. Privacy and redaction rules
 

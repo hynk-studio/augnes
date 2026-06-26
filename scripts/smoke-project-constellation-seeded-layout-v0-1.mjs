@@ -224,6 +224,62 @@ function assertHelperBehavior() {
   );
   for (const candidate of candidateNodes) {
     assert(candidate.position.x > 120, "candidate overlay node is offset from durable graph");
+    assert.equal(
+      candidate.position.coordinate_authority,
+      "display_hint_only",
+      "candidate overlay coordinate authority is display_hint_only",
+    );
+    assert.notEqual(
+      candidate.position.coordinate_authority,
+      "manual_anchor_hint",
+      "candidate overlay coordinate authority is not manual_anchor_hint",
+    );
+    for (const reasonCode of [
+      "coordinate_display_hint_only",
+      "coordinate_not_truth",
+      "coordinate_not_proof",
+      "coordinate_not_evidence_strength",
+      "coordinate_not_promotion_readiness",
+    ]) {
+      assert(candidate.position.reason_codes.includes(reasonCode), `candidate overlay position has ${reasonCode}`);
+    }
+  }
+
+  const expectedDiagnosticKinds = [
+    "source_balance",
+    "candidate_overlay_separation",
+    "durable_candidate_boundary",
+    "unresolved_tension_visibility",
+    "knowledge_gap_visibility",
+  ];
+  for (const diagnosticKind of expectedDiagnosticKinds) {
+    assert(
+      result.diagnostics.some((diagnostic) => diagnostic.diagnostic_kind === diagnosticKind),
+      `result diagnostics include ${diagnosticKind}`,
+    );
+  }
+  assert(
+    result.layout.source_balance_diagnostics.length > 0,
+    "layout source_balance_diagnostics is non-empty",
+  );
+  assert(
+    result.layout.source_balance_diagnostics.every(
+      (diagnostic) => diagnostic.diagnostic_kind === "source_balance",
+    ),
+    "layout source_balance_diagnostics contains source_balance diagnostics only",
+  );
+  for (const diagnosticKind of [
+    "candidate_overlay_separation",
+    "durable_candidate_boundary",
+    "unresolved_tension_visibility",
+    "knowledge_gap_visibility",
+  ]) {
+    assert(
+      !result.layout.source_balance_diagnostics.some(
+        (diagnostic) => diagnostic.diagnostic_kind === diagnosticKind,
+      ),
+      `layout source_balance_diagnostics excludes ${diagnosticKind}`,
+    );
   }
 
   assert(result.diagnostics.some((diagnostic) => diagnostic.diagnostic_kind === "source_balance"), "source balance diagnostic is present");

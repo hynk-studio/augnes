@@ -510,12 +510,15 @@ export function buildSeededConstellationLayoutV01(
     layout,
     input,
   );
+  const sourceBalanceDiagnostics = diagnostics.filter(
+    (diagnostic) => diagnostic.diagnostic_kind === "source_balance",
+  );
   const layoutWithDiagnostics: ProjectConstellationRuntimeLayoutContract = {
     ...layout,
-    source_balance_diagnostics: diagnostics,
+    source_balance_diagnostics: sourceBalanceDiagnostics,
     layout_fingerprint: createSeededLayoutFingerprintV01({
       ...layout,
-      source_balance_diagnostics: diagnostics,
+      source_balance_diagnostics: sourceBalanceDiagnostics,
       layout_fingerprint: undefined,
     }),
   };
@@ -805,11 +808,9 @@ export function createSeededLayoutPositionV01(args: {
     y: round(base.y + Math.sin(angle) * radius + nodeJitter),
     z: round(base.z + normalizedHash(`${args.seed}:z:${args.node_ref}`) * 0.2),
     coordinate_authority:
-      args.layer === "candidate_overlay"
-        ? "manual_anchor_hint"
-        : args.node_kind === "stale_high_gravity_node"
-          ? "stale_layout_hint"
-          : "display_hint_only",
+      args.node_kind === "stale_high_gravity_node"
+        ? "stale_layout_hint"
+        : "display_hint_only",
     reason_codes: [
       "coordinate_display_hint_only",
       "coordinate_not_truth",
