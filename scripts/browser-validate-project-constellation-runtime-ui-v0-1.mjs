@@ -20,6 +20,11 @@ for (const filePath of [fixturePath, docPath, ...componentPaths]) {
 const fixture = JSON.parse(readFileSync(fixturePath, "utf8"));
 const docText = readFileSync(docPath, "utf8");
 const componentText = componentPaths.map((filePath) => readFileSync(filePath, "utf8")).join("\n");
+const layout = fixture.expected_props.layoutResult.layout;
+const negativeCoordinateNodes = layout.node_positions.filter(
+  (node) => node.position.x < 0 || node.position.y < 0,
+);
+const negativeCoordinateNodeRefs = new Set(negativeCoordinateNodes.map((node) => node.node_ref));
 
 assert.equal(fixture.browser_validation_expectation.viewport_width_px, 390);
 assert.equal(fixture.browser_validation_expectation.validation_mode, "static-only");
@@ -28,10 +33,29 @@ assert(
   "static browser validation reports concrete no-route skip reason",
 );
 assert(docText.includes("Missing edge endpoints render bounded warnings rather than crashing or inventing nodes."));
+assert(docText.includes("Negative seeded layout coordinates are normalized for display only."));
+assert(docText.includes("Coordinate normalization does not mutate layout data."));
+assert(docText.includes("Coordinate normalization does not persist layout."));
+assert(docText.includes("Coordinate normalization does not make coordinates truth."));
+assert(docText.includes("Coordinate normalization keeps coordinates as display hints."));
 assert(componentText.includes("Missing edge endpoints render bounded warnings rather than crashing or"));
 assert(componentText.includes("Read-only constellation view"));
 assert(componentText.includes("No state mutation"));
 assert(componentText.includes("Product-write remains parked"));
+assert(componentText.includes("createConstellationRenderFrameV01"));
+assert(componentText.includes("normalizeConstellationNodePositionV01"));
+assert(componentText.includes("normalizedNodePositionsByRef"));
+assert(componentText.includes("renderPosition"));
+assert(negativeCoordinateNodes.some((node) => node.position.x < 0), "fixture includes negative x");
+assert(negativeCoordinateNodes.some((node) => node.position.y < 0), "fixture includes negative y");
+assert(
+  layout.edge_routes.some(
+    (edge) =>
+      negativeCoordinateNodeRefs.has(edge.from_node_ref) ||
+      negativeCoordinateNodeRefs.has(edge.to_node_ref),
+  ),
+  "fixture includes edge connected to negative-coordinate node",
+);
 
 for (const forbidden of [
   "fetch(",
@@ -65,6 +89,8 @@ console.log(
       viewport_wording_checked_px: 390,
       false_affordance_controls_absent: true,
       missing_endpoint_warning_text_present: true,
+      negative_coordinate_fixture_checked: true,
+      coordinate_normalization_static_check: true,
       route_added: false,
       fetch_added: false,
       persistence_added: false,

@@ -225,8 +225,8 @@
             "bounded_label": "Source ref",
             "bounded_summary": "Source provenance node is lineage only.",
             "position": {
-              "x": 86,
-              "y": 268,
+              "x": -120,
+              "y": -80,
               "z": 0,
               "coordinate_authority": "display_hint_only",
               "reason_codes": [
@@ -999,6 +999,9 @@
     "source_ref_nodes": [
       "node-ref:source:ui:003"
     ],
+    "negative_coordinate_nodes": [
+      "node-ref:source:ui:003"
+    ],
     "feedback_nodes": [
       "node-ref:feedback:ui:004"
     ],
@@ -1094,6 +1097,7 @@
       }
     },
     "missing_endpoint_behavior": "bounded warning only; no invented node",
+    "negative_coordinate_normalization": "negative seeded layout coordinates are normalized for display only without mutating layout data",
     "authority_boundary_display_example": [
       "route_now false",
       "product_write_now false",

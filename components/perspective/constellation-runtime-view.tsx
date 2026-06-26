@@ -10,8 +10,15 @@ import type { SeededConstellationLayoutResult } from "@/lib/perspective/layout/s
 import type {
   ProjectConstellationLayoutEdge,
   ProjectConstellationLayoutNode,
+  ProjectConstellationLayoutPosition,
   ProjectConstellationRuntimeLayoutContract,
 } from "@/types/project-constellation-runtime-layout-contract";
+
+const CONSTELLATION_RENDER_PADDING_V01 = 64;
+const CONSTELLATION_NODE_RENDER_WIDTH_V01 = 140;
+const CONSTELLATION_NODE_RENDER_HEIGHT_V01 = 100;
+const CONSTELLATION_MIN_RENDER_WIDTH_V01 = 720;
+const CONSTELLATION_MIN_RENDER_HEIGHT_V01 = 520;
 
 type ConstellationRuntimeViewProps = {
   layoutResult?: SeededConstellationLayoutResult | null;
@@ -21,6 +28,61 @@ type ConstellationRuntimeViewProps = {
   onSelectedRefChange?: (ref: string | null) => void;
   className?: string;
 };
+
+type ConstellationRenderFrameV01 = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  padding: number;
+  offsetX: number;
+  offsetY: number;
+  width: number;
+  height: number;
+};
+
+export function createConstellationRenderFrameV01(
+  nodes: ProjectConstellationLayoutNode[],
+  padding = CONSTELLATION_RENDER_PADDING_V01,
+): ConstellationRenderFrameV01 {
+  const xValues = nodes.map((node) => finitePositionValue(node.position.x));
+  const yValues = nodes.map((node) => finitePositionValue(node.position.y));
+  const minX = xValues.length > 0 ? Math.min(...xValues) : 0;
+  const minY = yValues.length > 0 ? Math.min(...yValues) : 0;
+  const maxX = xValues.length > 0 ? Math.max(...xValues) : 0;
+  const maxY = yValues.length > 0 ? Math.max(...yValues) : 0;
+  const offsetX = minX < padding ? padding - minX : padding;
+  const offsetY = minY < padding ? padding - minY : padding;
+
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    padding,
+    offsetX,
+    offsetY,
+    width: Math.max(
+      CONSTELLATION_MIN_RENDER_WIDTH_V01,
+      Math.ceil(maxX + offsetX + padding + CONSTELLATION_NODE_RENDER_WIDTH_V01),
+    ),
+    height: Math.max(
+      CONSTELLATION_MIN_RENDER_HEIGHT_V01,
+      Math.ceil(maxY + offsetY + padding + CONSTELLATION_NODE_RENDER_HEIGHT_V01),
+    ),
+  };
+}
+
+export function normalizeConstellationNodePositionV01(
+  position: ProjectConstellationLayoutPosition,
+  frame: ConstellationRenderFrameV01,
+): ProjectConstellationLayoutPosition {
+  return {
+    ...position,
+    x: finitePositionValue(position.x) + frame.offsetX,
+    y: finitePositionValue(position.y) + frame.offsetY,
+  };
+}
 
 export function ConstellationRuntimeView({
   layoutResult,
@@ -55,6 +117,20 @@ export function ConstellationRuntimeView({
   const nodeByRef = useMemo(
     () => new Map(visibleNodes.map((node) => [node.node_ref, node])),
     [visibleNodes],
+  );
+  const renderFrame = useMemo(
+    () => createConstellationRenderFrameV01(visibleNodes),
+    [visibleNodes],
+  );
+  const normalizedNodePositionsByRef = useMemo(
+    () =>
+      new Map(
+        visibleNodes.map((node) => [
+          node.node_ref,
+          normalizeConstellationNodePositionV01(node.position, renderFrame),
+        ]),
+      ),
+    [visibleNodes, renderFrame],
   );
   const selectedNode =
     visibleNodes.find((node) => node.node_ref === activeSelectedRef) ?? null;
@@ -117,7 +193,16 @@ export function ConstellationRuntimeView({
 
       <div className="constellation-runtime-view__workspace">
         <div className="constellation-canvas" aria-label="Read-only constellation canvas">
-          <svg className="constellation-edge-layer" role="img" aria-label="Read-only edge layer">
+          <svg
+            className="constellation-edge-layer"
+            role="img"
+            aria-label="Read-only edge layer"
+            viewBox={`0 0 ${renderFrame.width} ${renderFrame.height}`}
+            style={{
+              width: `${renderFrame.width}px`,
+              height: `${renderFrame.height}px`,
+            }}
+          >
             {layout.edge_routes.map((edge) => {
               const fromNode = nodeByRef.get(edge.from_node_ref);
               const toNode = nodeByRef.get(edge.to_node_ref);
@@ -126,8 +211,8 @@ export function ConstellationRuntimeView({
                 <ConstellationEdge
                   key={edge.edge_ref}
                   edge={edge}
-                  fromPosition={fromNode.position}
-                  toPosition={toNode.position}
+                  fromPosition={normalizedNodePositionsByRef.get(fromNode.node_ref)}
+                  toPosition={normalizedNodePositionsByRef.get(toNode.node_ref)}
                   selected={activeSelectedRef === edge.edge_ref}
                   onSelect={setSelected}
                 />
@@ -139,6 +224,7 @@ export function ConstellationRuntimeView({
             <ConstellationNode
               key={node.node_ref}
               node={node}
+              renderPosition={normalizedNodePositionsByRef.get(node.node_ref)}
               selected={activeSelectedRef === node.node_ref}
               onSelect={setSelected}
             />
@@ -155,8 +241,8 @@ export function ConstellationRuntimeView({
                 <ConstellationEdge
                   key={`warning:${edge.edge_ref}`}
                   edge={edge}
-                  fromPosition={nodeByRef.get(edge.from_node_ref)?.position}
-                  toPosition={nodeByRef.get(edge.to_node_ref)?.position}
+                  fromPosition={normalizedNodePositionsByRef.get(edge.from_node_ref)}
+                  toPosition={normalizedNodePositionsByRef.get(edge.to_node_ref)}
                 />
               ))}
           </div>
@@ -173,6 +259,10 @@ export function ConstellationRuntimeView({
       <MarkerSummary layout={layout} />
     </section>
   );
+}
+
+function finitePositionValue(value: number) {
+  return Number.isFinite(value) ? value : 0;
 }
 
 function MarkerSummary({
@@ -201,6 +291,7 @@ function MarkerSummary({
 
 export type {
   ConstellationRuntimeViewProps,
+  ConstellationRenderFrameV01,
   ProjectConstellationLayoutEdge,
   ProjectConstellationLayoutNode,
 };

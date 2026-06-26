@@ -40,6 +40,11 @@ const requiredDocPhrases = [
   "Constellation Runtime UI does not create proof/evidence.",
   "Constellation Runtime UI does not product-write.",
   "Coordinates are display hints.",
+  "Negative seeded layout coordinates are normalized for display only.",
+  "Coordinate normalization does not mutate layout data.",
+  "Coordinate normalization does not persist layout.",
+  "Coordinate normalization does not make coordinates truth.",
+  "Coordinate normalization keeps coordinates as display hints.",
   "Coordinates are not truth.",
   "Coordinates are not proof.",
   "Coordinates are not evidence strength.",
@@ -206,6 +211,28 @@ function assertComponentStaticChecks() {
   assertIncludes(toggleText, "Show candidate overlay", "toggle has overlay label");
   assertIncludes(toggleText, "Display only", "toggle has display-only label");
   assertIncludes(edgeText, "Missing edge endpoints render bounded warnings rather than crashing or", "edge has missing endpoint warning");
+  assertIncludes(viewText, "createConstellationRenderFrameV01", "view has render-frame helper");
+  assertIncludes(viewText, "normalizeConstellationNodePositionV01", "view has position normalization helper");
+  assertIncludes(viewText, "const minX", "view computes minX");
+  assertIncludes(viewText, "const minY", "view computes minY");
+  assertIncludes(viewText, "const offsetX", "view computes offsetX");
+  assertIncludes(viewText, "const offsetY", "view computes offsetY");
+  assertIncludes(viewText, "padding - minX", "view offsets negative or low x coordinates");
+  assertIncludes(viewText, "padding - minY", "view offsets negative or low y coordinates");
+  assertIncludes(viewText, "frame.offsetX", "view applies x offset");
+  assertIncludes(viewText, "frame.offsetY", "view applies y offset");
+  assertIncludes(viewText, "...position", "normalization copies original position metadata instead of mutating it");
+  assertIncludes(viewText, "normalizedNodePositionsByRef", "view stores normalized render positions separately");
+  assertIncludes(viewText, "fromPosition={normalizedNodePositionsByRef.get", "view passes normalized edge fromPosition");
+  assertIncludes(viewText, "toPosition={normalizedNodePositionsByRef.get", "view passes normalized edge toPosition");
+  assertIncludes(nodeText, "renderPosition", "node accepts renderPosition distinct from persisted node.position");
+  assertIncludes(nodeText, "const displayPosition = renderPosition ?? node.position", "node falls back to original position only when no render position is supplied");
+  assertIncludes(nodeText, "left: `${displayPosition.x}px`", "node uses display x position");
+  assertIncludes(nodeText, "top: `${displayPosition.y}px`", "node uses display y position");
+  assert(!nodeText.includes("left: `${node.position.x}px`"), "node must not render raw x position directly");
+  assert(!nodeText.includes("top: `${node.position.y}px`"), "node must not render raw y position directly");
+  assert(!viewText.includes("fromPosition={fromNode.position}"), "view must not pass raw from node position to edges");
+  assert(!viewText.includes("toPosition={toNode.position}"), "view must not pass raw to node position to edges");
 
   for (const [text, label] of componentTexts) {
     assert(!text.includes("fetch("), `${label} must not fetch`);
@@ -241,6 +268,20 @@ function assertFixtureCoverage() {
   assert(layout.node_positions.some((node) => node.layer === "source_ref"), "fixture includes source ref nodes");
   assert(layout.node_positions.some((node) => node.layer === "feedback"), "fixture includes feedback nodes");
   assert(layout.node_positions.some((node) => node.layer === "trajectory"), "fixture includes trajectory nodes");
+  const negativeCoordinateNodes = layout.node_positions.filter(
+    (node) => node.position.x < 0 || node.position.y < 0,
+  );
+  const negativeCoordinateNodeRefs = new Set(negativeCoordinateNodes.map((node) => node.node_ref));
+  assert(negativeCoordinateNodes.some((node) => node.position.x < 0), "fixture includes negative x position");
+  assert(negativeCoordinateNodes.some((node) => node.position.y < 0), "fixture includes negative y position");
+  assert(
+    layout.edge_routes.some(
+      (edge) =>
+        negativeCoordinateNodeRefs.has(edge.from_node_ref) ||
+        negativeCoordinateNodeRefs.has(edge.to_node_ref),
+    ),
+    "fixture includes an edge connected to a negative-coordinate node",
+  );
   assert(layout.stale_markers.length > 0, "fixture includes stale markers");
   assert(layout.tension_markers.length > 0, "fixture includes tension markers");
   assert(layout.gap_markers.length > 0, "fixture includes gap markers");
@@ -251,6 +292,11 @@ function assertFixtureCoverage() {
   assert.equal(fixture.expected_render_summary.missing_endpoint_behavior, "bounded warning only; no invented node");
   assertIncludes(JSON.stringify(fixture.expected_render_summary), "route_now false", "fixture includes authority boundary display example");
   assertIncludes(JSON.stringify(fixture.expected_render_summary), "overlay nodes are hidden locally without persistence", "fixture covers overlay off display");
+  assertIncludes(
+    JSON.stringify(fixture.expected_render_summary),
+    "negative seeded layout coordinates are normalized for display only",
+    "fixture covers negative-coordinate display normalization",
+  );
   for (const label of fixture.expected_static_labels) {
     assertIncludes(componentBundleText, label, `expected static label exists: ${label}`);
   }

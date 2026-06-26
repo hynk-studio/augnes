@@ -1,9 +1,13 @@
 "use client";
 
-import type { ProjectConstellationLayoutNode } from "@/types/project-constellation-runtime-layout-contract";
+import type {
+  ProjectConstellationLayoutNode,
+  ProjectConstellationLayoutPosition,
+} from "@/types/project-constellation-runtime-layout-contract";
 
 type ConstellationNodeProps = {
   node: ProjectConstellationLayoutNode;
+  renderPosition?: ProjectConstellationLayoutPosition;
   selected?: boolean;
   onSelect?: (nodeRef: string) => void;
 };
@@ -19,9 +23,11 @@ const markerLabels: Record<string, string> = {
 
 export function ConstellationNode({
   node,
+  renderPosition,
   selected = false,
   onSelect,
 }: ConstellationNodeProps) {
+  const displayPosition = renderPosition ?? node.position;
   const markerHints = node.marker_refs.map((markerRef) => markerLabels[markerRef] ?? markerRef);
   const layerLabel =
     node.layer === "candidate_overlay"
@@ -39,8 +45,8 @@ export function ConstellationNode({
       tabIndex={onSelect ? 0 : undefined}
       aria-pressed={onSelect ? selected : undefined}
       style={{
-        left: `${node.position.x}px`,
-        top: `${node.position.y}px`,
+        left: `${displayPosition.x}px`,
+        top: `${displayPosition.y}px`,
       }}
       onClick={() => onSelect?.(node.node_ref)}
       onKeyDown={(event) => {

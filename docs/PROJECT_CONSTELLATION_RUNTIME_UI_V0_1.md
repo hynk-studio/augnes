@@ -60,6 +60,16 @@ The view accepts caller-provided layout result or layout props. It renders nodes
 
 Coordinates are display hints.
 
+Negative seeded layout coordinates are normalized for display only.
+
+Coordinate normalization does not mutate layout data.
+
+Coordinate normalization does not persist layout.
+
+Coordinate normalization does not make coordinates truth.
+
+Coordinate normalization keeps coordinates as display hints.
+
 Coordinates are not truth.
 
 Coordinates are not proof.
