@@ -118,6 +118,24 @@ interface FormationReceiptLineageRow {
   discarded_at: string | null;
 }
 
+interface PromotionDecisionLineageRow {
+  promotion_decision_id: string;
+  scope: string;
+  decision_kind: string;
+  decision_status: string;
+  operator_actor_ref: string;
+  explicit_user_action_required: number;
+  future_operator_decision_only: number;
+  review_record_ref: string;
+  promotion_executed: number;
+  formation_receipt_written: number;
+  durable_state_applied: number;
+  proof_or_evidence_created: number;
+  claim_or_evidence_written: number;
+  product_write_executed: number;
+  discarded_at: string | null;
+}
+
 interface FormationReceiptCandidateLineageRow {
   candidate_ref: string;
 }
@@ -145,6 +163,12 @@ const allowedDurablePerspectiveApplyOperations = [
 const allowedDurablePerspectiveStateReasonCodes = [
   "promotion_decision_ref_present",
   "promotion_decision_ref_missing",
+  "promotion_decision_discarded",
+  "promotion_decision_not_promote",
+  "promotion_decision_not_eligible",
+  "promotion_decision_review_record_mismatch",
+  "promotion_decision_operator_mismatch",
+  "promotion_decision_forbidden_authority",
   "formation_receipt_ref_present",
   "formation_receipt_ref_missing",
   "formation_receipt_written",
@@ -452,6 +476,11 @@ export function applyDurablePerspectiveStateV01(
   const receiptLineage = validateFormationReceiptLineageV01(input, db);
   if (!receiptLineage.passed) {
     return blockedResult(receiptLineage.status, receiptLineage.reason_codes);
+  }
+
+  const promotionDecisionLineage = validatePromotionDecisionLineageV01(input, db);
+  if (!promotionDecisionLineage.passed) {
+    return blockedResult(promotionDecisionLineage.status, promotionDecisionLineage.reason_codes);
   }
 
   ensureDurablePerspectiveStateSchemaV01(db);
@@ -1177,6 +1206,175 @@ function validateFormationReceiptLineageV01(
   };
 }
 
+function validatePromotionDecisionLineageV01(
+  input: DurablePerspectiveStateApplyInput,
+  db: DurablePerspectiveDbLike,
+): {
+  passed: boolean;
+  status: DurablePerspectiveApplyStatus;
+  reason_codes: DurablePerspectiveStateReasonCode[];
+} {
+  if (!promotionDecisionLineageTableExistsV01(db)) {
+    return {
+      passed: false,
+      status: "blocked_missing_promotion_decision",
+      reason_codes: [
+        "promotion_decision_ref_missing",
+        "formation_receipt_required_before_state_apply",
+        "product_write_denied",
+      ],
+    };
+  }
+
+  const promotionDecision = db
+    .prepare(
+      `SELECT
+        promotion_decision_id,
+        scope,
+        decision_kind,
+        decision_status,
+        operator_actor_ref,
+        explicit_user_action_required,
+        future_operator_decision_only,
+        review_record_ref,
+        promotion_executed,
+        formation_receipt_written,
+        durable_state_applied,
+        proof_or_evidence_created,
+        claim_or_evidence_written,
+        product_write_executed,
+        discarded_at
+       FROM perspective_promotion_decisions
+       WHERE promotion_decision_id = ?`,
+    )
+    .get(input.promotion_decision_id) as PromotionDecisionLineageRow | undefined;
+
+  if (!promotionDecision || promotionDecision.scope !== scope) {
+    return {
+      passed: false,
+      status: "blocked_missing_promotion_decision",
+      reason_codes: [
+        "promotion_decision_ref_missing",
+        "formation_receipt_ref_present",
+        "formation_receipt_required_before_state_apply",
+        "product_write_denied",
+      ],
+    };
+  }
+
+  const reasonCodes: DurablePerspectiveStateReasonCode[] = [
+    "promotion_decision_ref_present",
+    "formation_receipt_ref_present",
+    "formation_receipt_required_before_state_apply",
+    "promotion_not_executed",
+    "proof_not_created",
+    "evidence_not_created",
+    "claim_evidence_not_written",
+    "product_write_denied",
+  ];
+
+  if (promotionDecision.discarded_at) {
+    return {
+      passed: false,
+      status: "blocked_invalid_input",
+      reason_codes: uniqueSorted([...reasonCodes, "promotion_decision_discarded"]),
+    };
+  }
+  if (promotionDecision.decision_kind !== "promote") {
+    return {
+      passed: false,
+      status: "blocked_forbidden_authority",
+      reason_codes: uniqueSorted([...reasonCodes, "promotion_decision_not_promote"]),
+    };
+  }
+  if (promotionDecision.decision_status !== "eligible_for_future_operator_decision") {
+    return {
+      passed: false,
+      status: "blocked_forbidden_authority",
+      reason_codes: uniqueSorted([...reasonCodes, "promotion_decision_not_eligible"]),
+    };
+  }
+  if (promotionDecision.review_record_ref !== input.review_record_ref) {
+    return {
+      passed: false,
+      status: "blocked_invalid_input",
+      reason_codes: uniqueSorted([
+        ...reasonCodes,
+        "promotion_decision_review_record_mismatch",
+        "review_record_ref_present",
+      ]),
+    };
+  }
+  if (promotionDecision.operator_actor_ref !== input.operator_actor_ref) {
+    return {
+      passed: false,
+      status: "blocked_invalid_input",
+      reason_codes: uniqueSorted([
+        ...reasonCodes,
+        "promotion_decision_operator_mismatch",
+        "operator_actor_present",
+      ]),
+    };
+  }
+  if (
+    promotionDecision.explicit_user_action_required !== 1 ||
+    promotionDecision.future_operator_decision_only !== 1 ||
+    promotionDecision.promotion_executed !== 0 ||
+    promotionDecision.durable_state_applied !== 0 ||
+    promotionDecision.proof_or_evidence_created !== 0 ||
+    promotionDecision.claim_or_evidence_written !== 0 ||
+    promotionDecision.product_write_executed !== 0
+  ) {
+    return {
+      passed: false,
+      status: "blocked_forbidden_authority",
+      reason_codes: uniqueSorted([...reasonCodes, "promotion_decision_forbidden_authority"]),
+    };
+  }
+
+  const receipt = db
+    .prepare(
+      `SELECT
+        promotion_decision_id,
+        review_record_ref,
+        operator_actor_ref
+       FROM perspective_formation_receipts
+       WHERE receipt_id = ?`,
+    )
+    .get(input.formation_receipt_id) as Pick<
+    FormationReceiptLineageRow,
+    "promotion_decision_id" | "review_record_ref" | "operator_actor_ref"
+  > | undefined;
+
+  if (
+    !receipt ||
+    receipt.promotion_decision_id !== promotionDecision.promotion_decision_id ||
+    receipt.review_record_ref !== promotionDecision.review_record_ref ||
+    receipt.operator_actor_ref !== promotionDecision.operator_actor_ref
+  ) {
+    return {
+      passed: false,
+      status: "blocked_invalid_input",
+      reason_codes: uniqueSorted([
+        ...reasonCodes,
+        "promotion_decision_review_record_mismatch",
+        "promotion_decision_operator_mismatch",
+      ]),
+    };
+  }
+
+  return {
+    passed: true,
+    status: "applied",
+    reason_codes: uniqueSorted([
+      ...reasonCodes,
+      "review_record_ref_present",
+      "operator_actor_present",
+      "formation_receipt_written",
+    ]),
+  };
+}
+
 function validatePriorStatePreservationV01(
   input: DurablePerspectiveStateApplyInput,
   priorState: DurablePerspectiveState | null,
@@ -1214,6 +1412,16 @@ function validatePriorStatePreservationV01(
     };
   }
   return null;
+}
+
+function promotionDecisionLineageTableExistsV01(db: DurablePerspectiveDbLike): boolean {
+  const row = db
+    .prepare(
+      `SELECT name FROM sqlite_master
+       WHERE type = 'table' AND name = ?`,
+    )
+    .get("perspective_promotion_decisions") as { name: string } | undefined;
+  return row?.name === "perspective_promotion_decisions";
 }
 
 function formationReceiptLineageTablesExistV01(db: DurablePerspectiveDbLike): boolean {

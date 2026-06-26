@@ -34,6 +34,14 @@ const docsExactPhrases = [
   "Product-write remains parked by #686.",
   "Durable Perspective State Apply writes durable Perspective state.",
   "Durable Perspective State Apply requires a Formation Receipt.",
+  "Durable Perspective State Apply requires an existing promotion decision record.",
+  "The referenced promotion decision must not be discarded.",
+  "The referenced promotion decision must be an explicit operator-reviewed promote decision.",
+  "The referenced promotion decision must be eligible for future operator decision.",
+  "Durable Perspective State Apply rejects phantom promotion decision refs.",
+  "Durable Perspective State Apply rejects non-promote or non-eligible promotion decisions.",
+  "Durable Perspective State Apply does not mutate promotion decision records.",
+  "Durable Perspective State Apply does not mutate Formation Receipt records.",
   "Formation Receipt is required before durable state apply.",
   "Durable Perspective State Apply does not product-write.",
   "Durable Perspective State Apply does not create proof/evidence records.",
@@ -294,6 +302,13 @@ function assertTempDbBehavior() {
     assert.equal(missingRead.status, "not_found", "read unknown state returns not_found");
 
     assertRejection("missing_formation_receipt", "blocked_missing_formation_receipt", db);
+    assertRejection("missing_promotion_decision", "blocked_missing_promotion_decision", db);
+    assertRejection("discarded_promotion_decision", "blocked_invalid_input", db);
+    assertRejection("non_promote_promotion_decision", "blocked_forbidden_authority", db);
+    assertRejection("non_eligible_promotion_decision", "blocked_forbidden_authority", db);
+    assertRejection("promotion_review_record_mismatch", "blocked_invalid_input", db);
+    assertRejection("promotion_operator_mismatch", "blocked_invalid_input", db);
+    assertRejection("promotion_forbidden_authority", "blocked_forbidden_authority", db);
     assertRejection("discarded_formation_receipt", "blocked_discarded_formation_receipt", db);
     assertRejection("already_applied_receipt", "blocked_already_applied_receipt", db);
     assertRejection("missing_selected_candidate_refs", "blocked_missing_selected_candidates", db);
@@ -344,25 +359,70 @@ function seedPromotionDecisionAndReceipts(db) {
     db,
   );
   assert.equal(discard.status, "discarded", "discarded receipt seeded");
+  seedBadPromotionDecisionLineages(db);
 }
 
-function makePromotionDecisionInput() {
+function seedBadPromotionDecisionLineages(db) {
+  const lineageCases = [
+    ["promotion-decision:state-lineage:missing", "formation-receipt:durable-write:missing-promotion"],
+    ["promotion-decision:state-lineage:discarded", "formation-receipt:durable-write:discarded-promotion"],
+    ["promotion-decision:state-lineage:non-promote", "formation-receipt:durable-write:non-promote-promotion"],
+    ["promotion-decision:state-lineage:non-eligible", "formation-receipt:durable-write:non-eligible-promotion"],
+    ["promotion-decision:state-lineage:review-mismatch", "formation-receipt:durable-write:promotion-review-mismatch"],
+    ["promotion-decision:state-lineage:operator-mismatch", "formation-receipt:durable-write:promotion-operator-mismatch"],
+    ["promotion-decision:state-lineage:forbidden-authority", "formation-receipt:durable-write:promotion-forbidden-authority"],
+  ];
+  for (const [promotionDecisionId, receiptId] of lineageCases) {
+    const promotion = promotionStore.createPromotionDecisionRecordV01(
+      makePromotionDecisionInput({ promotion_decision_id: promotionDecisionId }),
+      db,
+    );
+    assert.equal(promotion.status, "stored", `${promotionDecisionId} promotion decision seeded`);
+    const receipt = receiptStore.createFormationReceiptV01(makeReceiptInput(receiptId, promotionDecisionId), db);
+    assert.equal(receipt.status, "written", `${receiptId} receipt seeded`);
+  }
+
+  db.prepare("DELETE FROM perspective_promotion_decisions WHERE promotion_decision_id = ?")
+    .run("promotion-decision:state-lineage:missing");
+  db.prepare(
+    `UPDATE perspective_promotion_decisions
+     SET discarded_at = ?, discard_reason = ?
+     WHERE promotion_decision_id = ?`,
+  ).run(
+    "2026-06-26T00:00:30.000Z",
+    "operator-discarded-before-state-apply",
+    "promotion-decision:state-lineage:discarded",
+  );
+  db.prepare("UPDATE perspective_promotion_decisions SET decision_kind = ? WHERE promotion_decision_id = ?")
+    .run("reject", "promotion-decision:state-lineage:non-promote");
+  db.prepare("UPDATE perspective_promotion_decisions SET decision_status = ? WHERE promotion_decision_id = ?")
+    .run("candidate_only", "promotion-decision:state-lineage:non-eligible");
+  db.prepare("UPDATE perspective_promotion_decisions SET review_record_ref = ? WHERE promotion_decision_id = ?")
+    .run("review-record:promotion:mismatch", "promotion-decision:state-lineage:review-mismatch");
+  db.prepare("UPDATE perspective_promotion_decisions SET operator_actor_ref = ? WHERE promotion_decision_id = ?")
+    .run("operator:reviewer:mismatch", "promotion-decision:state-lineage:operator-mismatch");
+  db.prepare("UPDATE perspective_promotion_decisions SET product_write_executed = 1 WHERE promotion_decision_id = ?")
+    .run("promotion-decision:state-lineage:forbidden-authority");
+}
+
+function makePromotionDecisionInput(overrides = {}) {
+  const promotionDecisionId = overrides.promotion_decision_id ?? "promotion-decision:store:promote:001";
   return {
     contract_version: "perspective_promotion_runtime_contract.v0.1",
     scope,
-    promotion_decision_id: "promotion-decision:store:promote:001",
+    promotion_decision_id: promotionDecisionId,
     decision_kind: "promote",
     decision_status: "eligible_for_future_operator_decision",
     operator_actor_ref: "operator:reviewer:001",
     explicit_user_action_required: true,
     future_operator_decision_only: true,
     review_record_ref: "review-record:promotion:001",
-    gate_report_ref: "promotion-decision:store:promote:001:gate-report",
+    gate_report_ref: `${promotionDecisionId}:gate-report`,
     basis_refs: [
       {
         basis_version: "perspective_promotion_basis.v0.1",
         scope,
-        basis_id: "promotion-decision:store:promote:001:basis:source",
+        basis_id: `${promotionDecisionId}:basis:source`,
         basis_kind: "source_ref",
         basis_ref: "source-ref:bounded:001",
         source_refs: ["source-ref:bounded:001"],
@@ -381,7 +441,7 @@ function makePromotionDecisionInput() {
       {
         basis_version: "perspective_promotion_basis.v0.1",
         scope,
-        basis_id: "promotion-decision:store:promote:001:basis:claim",
+        basis_id: `${promotionDecisionId}:basis:claim`,
         basis_kind: "claim_candidate",
         basis_ref: "claim-candidate:bounded:001",
         source_refs: ["source-ref:bounded:001"],
@@ -436,12 +496,14 @@ function makePromotionDecisionInput() {
     ],
     created_at: "2026-06-26T00:00:00.000Z",
     updated_at: "2026-06-26T00:00:00.000Z",
+    ...overrides,
   };
 }
 
-function makeReceiptInput(receiptId) {
+function makeReceiptInput(receiptId, promotionDecisionId = "promotion-decision:store:promote:001") {
   const input = clone(receiptFixture.valid_create_inputs[0]);
   input.receipt_id = receiptId;
+  input.promotion_decision_id = promotionDecisionId;
   input.created_at = receiptId.endsWith("001") ? "2026-06-26T00:00:00.000Z" : "2026-06-26T00:00:10.000Z";
   input.updated_at = input.created_at;
   return input;
@@ -459,6 +521,18 @@ function assertRejection(caseName, expectedStatus, db) {
     beforeEvents,
     `${caseName} leaves no partial apply event rows`,
   );
+  assert.equal(
+    countRowsIfTableExists(db, "perspective_state_apply_events", "apply_event_id", input.apply_event_id),
+    0,
+    `${caseName} leaves no apply event row for the rejected input`,
+  );
+  if (input.perspective_id.includes(":invalid:")) {
+    assert.equal(
+      countRowsIfTableExists(db, "perspective_states", "perspective_id", input.perspective_id),
+      0,
+      `${caseName} leaves no state row for the rejected input`,
+    );
+  }
   assertNoUnsafePayloadEcho(result);
   assert(result.authority_boundary, `${caseName} includes authority boundary`);
 }
@@ -630,9 +704,49 @@ function assertTypeAndHelperExports() {
   assertIncludes(stateStoreText, "ROLLBACK", "state apply has rollback path");
   assertIncludes(stateStoreText, "validateFormationReceiptLineageV01", "store validates Formation Receipt lineage");
   assertIncludes(stateStoreText, "perspective_formation_receipts", "store references Formation Receipt table");
+  assertIncludes(stateStoreText, "validatePromotionDecisionLineageV01", "store validates promotion decision lineage");
+  assertIncludes(stateStoreText, "perspective_promotion_decisions", "store references promotion decision table");
+  assertPromotionDecisionLineageStaticBoundary();
   assertIncludes(stateStoreText, "applyEventExistsForReceipt", "store rejects already-applied receipt");
   assertIncludes(stateStoreText, "unresolved_tension_loss_blocked", "store blocks unresolved tension loss");
   assertIncludes(stateStoreText, "knowledge_gap_loss_blocked", "store blocks knowledge gap loss");
+  for (const reasonCode of [
+    "promotion_decision_discarded",
+    "promotion_decision_not_promote",
+    "promotion_decision_not_eligible",
+    "promotion_decision_review_record_mismatch",
+    "promotion_decision_operator_mismatch",
+    "promotion_decision_forbidden_authority",
+  ]) {
+    assert(
+      applyHelper.allowedDurablePerspectiveStateReasonCodes.includes(reasonCode),
+      `${reasonCode} is covered by apply helper reason code list`,
+    );
+    assertIncludes(stateStoreText, reasonCode, `${reasonCode} is covered by state store reason code list`);
+  }
+}
+
+function assertPromotionDecisionLineageStaticBoundary() {
+  const applyStart = stateStoreText.indexOf("export function applyDurablePerspectiveStateV01");
+  assert(applyStart >= 0, "apply function exists in state store source");
+  const promotionGateIndex = stateStoreText.indexOf("validatePromotionDecisionLineageV01(input, db)", applyStart);
+  const ensureIndex = stateStoreText.indexOf("ensureDurablePerspectiveStateSchemaV01(db)", applyStart);
+  assert(promotionGateIndex >= 0, "apply calls promotion decision lineage validation");
+  assert(ensureIndex >= 0, "apply ensures state schema after gates");
+  assert(
+    promotionGateIndex < ensureIndex,
+    "promotion decision lineage validation happens before state schema writes",
+  );
+
+  const helperStart = stateStoreText.indexOf("function validatePromotionDecisionLineageV01");
+  const helperEnd = stateStoreText.indexOf("function validatePriorStatePreservationV01", helperStart);
+  assert(helperStart >= 0 && helperEnd > helperStart, "promotion lineage helper source can be isolated");
+  const helperSource = stateStoreText.slice(helperStart, helperEnd);
+  assert(!helperSource.includes("ensureDurablePerspectiveStateSchemaV01"), "promotion lineage helper does not ensure schema");
+  assert(!helperSource.includes(".run("), "promotion lineage helper does not mutate DB");
+  assert(!helperSource.includes("INSERT INTO"), "promotion lineage helper does not insert rows");
+  assert(!helperSource.includes("UPDATE "), "promotion lineage helper does not update rows");
+  assert(!helperSource.includes("DELETE "), "promotion lineage helper does not delete rows");
 }
 
 function assertStaticRouteBoundaries() {
@@ -726,6 +840,23 @@ function readText(path) {
 
 function extractExportedFunctionSource(text, functionName) {
   const pattern = new RegExp(`export async function ${functionName}[\\s\\S]*?\\)\\s*\\{`);
+  const match = text.match(pattern);
+  assert(match?.index !== undefined, `${functionName} function exists`);
+  const bodyStart = match.index + match[0].length - 1;
+  let depth = 0;
+  for (let index = bodyStart; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "{") depth += 1;
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(match.index, index + 1);
+    }
+  }
+  assert.fail(`${functionName} function body must close`);
+}
+
+function extractNamedFunctionSource(text, functionName) {
+  const pattern = new RegExp(`(?:export )?function ${functionName}[\\s\\S]*?\\)\\s*\\{`);
   const match = text.match(pattern);
   assert(match?.index !== undefined, `${functionName} function exists`);
   const bodyStart = match.index + match[0].length - 1;

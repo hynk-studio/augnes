@@ -26,6 +26,22 @@ PR #782 defined the future human-reviewed promotion decision boundary. PR #783/#
 
 This PR writes durable Perspective state only after a valid, non-discarded Formation Receipt that points to an explicit operator-reviewed promotion decision.
 
+Durable Perspective State Apply requires an existing promotion decision record.
+
+The referenced promotion decision must not be discarded.
+
+The referenced promotion decision must be an explicit operator-reviewed promote decision.
+
+The referenced promotion decision must be eligible for future operator decision.
+
+Durable Perspective State Apply rejects phantom promotion decision refs.
+
+Durable Perspective State Apply rejects non-promote or non-eligible promotion decisions.
+
+Durable Perspective State Apply does not mutate promotion decision records.
+
+Durable Perspective State Apply does not mutate Formation Receipt records.
+
 ## 4. Scope and non-goals
 
 This slice applies durable Perspective state in a caller-injected/local test DB only.
@@ -63,6 +79,10 @@ Apply requires an existing Formation Receipt in the same caller-provided DB.
 The Formation Receipt must be scoped to `project:augnes`, non-discarded, written, not already applied, and must not indicate promotion execution, proof/evidence creation, claim/evidence writing, or product write.
 
 The Formation Receipt promotion decision id, review record ref, and operator actor ref must match the apply input.
+
+Apply also requires the referenced promotion decision row in `perspective_promotion_decisions` in the same caller-provided DB. The promotion decision row must be scoped to `project:augnes`, non-discarded, `decision_kind` promote, `decision_status` eligible for future operator decision, explicit-user-action-only, future-operator-decision-only, and must not indicate promotion execution, durable state apply, proof/evidence creation, claim/evidence writing, or product write.
+
+Promotion decision review record and operator actor refs must match the Formation Receipt and apply input.
 
 Formation Receipt is required before durable state apply.
 

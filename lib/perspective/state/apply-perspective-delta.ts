@@ -36,6 +36,12 @@ export type DurablePerspectiveApplyStatus =
 export type DurablePerspectiveStateReasonCode =
   | "promotion_decision_ref_present"
   | "promotion_decision_ref_missing"
+  | "promotion_decision_discarded"
+  | "promotion_decision_not_promote"
+  | "promotion_decision_not_eligible"
+  | "promotion_decision_review_record_mismatch"
+  | "promotion_decision_operator_mismatch"
+  | "promotion_decision_forbidden_authority"
   | "formation_receipt_ref_present"
   | "formation_receipt_ref_missing"
   | "formation_receipt_written"
@@ -98,6 +104,12 @@ export const allowedDurablePerspectiveApplyOperations = [
 export const allowedDurablePerspectiveStateReasonCodes = [
   "promotion_decision_ref_present",
   "promotion_decision_ref_missing",
+  "promotion_decision_discarded",
+  "promotion_decision_not_promote",
+  "promotion_decision_not_eligible",
+  "promotion_decision_review_record_mismatch",
+  "promotion_decision_operator_mismatch",
+  "promotion_decision_forbidden_authority",
   "formation_receipt_ref_present",
   "formation_receipt_ref_missing",
   "formation_receipt_written",

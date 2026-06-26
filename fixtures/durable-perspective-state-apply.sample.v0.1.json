@@ -298,6 +298,55 @@
       "apply_event_id": "durable-state-apply:event:invalid:missing-receipt",
       "formation_receipt_id": "formation-receipt:missing:404"
     },
+    "missing_promotion_decision": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:missing-promotion",
+      "perspective_id": "perspective:durable:invalid:missing-promotion",
+      "promotion_decision_id": "promotion-decision:state-lineage:missing",
+      "formation_receipt_id": "formation-receipt:durable-write:missing-promotion"
+    },
+    "discarded_promotion_decision": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:discarded-promotion",
+      "perspective_id": "perspective:durable:invalid:discarded-promotion",
+      "promotion_decision_id": "promotion-decision:state-lineage:discarded",
+      "formation_receipt_id": "formation-receipt:durable-write:discarded-promotion"
+    },
+    "non_promote_promotion_decision": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:non-promote-promotion",
+      "perspective_id": "perspective:durable:invalid:non-promote-promotion",
+      "promotion_decision_id": "promotion-decision:state-lineage:non-promote",
+      "formation_receipt_id": "formation-receipt:durable-write:non-promote-promotion"
+    },
+    "non_eligible_promotion_decision": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:non-eligible-promotion",
+      "perspective_id": "perspective:durable:invalid:non-eligible-promotion",
+      "promotion_decision_id": "promotion-decision:state-lineage:non-eligible",
+      "formation_receipt_id": "formation-receipt:durable-write:non-eligible-promotion"
+    },
+    "promotion_review_record_mismatch": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:promotion-review-mismatch",
+      "perspective_id": "perspective:durable:invalid:promotion-review-mismatch",
+      "promotion_decision_id": "promotion-decision:state-lineage:review-mismatch",
+      "formation_receipt_id": "formation-receipt:durable-write:promotion-review-mismatch"
+    },
+    "promotion_operator_mismatch": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:promotion-operator-mismatch",
+      "perspective_id": "perspective:durable:invalid:promotion-operator-mismatch",
+      "promotion_decision_id": "promotion-decision:state-lineage:operator-mismatch",
+      "formation_receipt_id": "formation-receipt:durable-write:promotion-operator-mismatch"
+    },
+    "promotion_forbidden_authority": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:promotion-forbidden-authority",
+      "perspective_id": "perspective:durable:invalid:promotion-forbidden-authority",
+      "promotion_decision_id": "promotion-decision:state-lineage:forbidden-authority",
+      "formation_receipt_id": "formation-receipt:durable-write:promotion-forbidden-authority"
+    },
     "discarded_formation_receipt": {
       "based_on": "durable-state-apply:event:001",
       "apply_event_id": "durable-state-apply:event:invalid:discarded-receipt",
@@ -418,6 +467,34 @@
     {
       "case_name": "missing_formation_receipt",
       "status": "blocked_missing_formation_receipt"
+    },
+    {
+      "case_name": "missing_promotion_decision",
+      "status": "blocked_missing_promotion_decision"
+    },
+    {
+      "case_name": "discarded_promotion_decision",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case_name": "non_promote_promotion_decision",
+      "status": "blocked_forbidden_authority"
+    },
+    {
+      "case_name": "non_eligible_promotion_decision",
+      "status": "blocked_forbidden_authority"
+    },
+    {
+      "case_name": "promotion_review_record_mismatch",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case_name": "promotion_operator_mismatch",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case_name": "promotion_forbidden_authority",
+      "status": "blocked_forbidden_authority"
     },
     {
       "case_name": "discarded_formation_receipt",
