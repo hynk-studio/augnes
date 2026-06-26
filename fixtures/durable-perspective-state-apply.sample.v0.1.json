@@ -1,0 +1,455 @@
+{
+  "fixture_version": "durable_perspective_state_apply.sample.v0.1",
+  "apply_version": "durable_perspective_state_apply.v0.1",
+  "state_version": "durable_perspective_state.v0.1",
+  "apply_event_version": "durable_perspective_state_apply_event.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-06-26T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/formation-receipt-durable-write.sample.v0.1.json",
+    "fixtures/perspective-promotion-decision-store.sample.v0.1.json",
+    "fixtures/perspective-promotion-runtime-contract.sample.v0.1.json"
+  ],
+  "valid_apply_inputs": [
+    {
+      "apply_version": "durable_perspective_state_apply.v0.1",
+      "scope": "project:augnes",
+      "apply_event_id": "durable-state-apply:event:001",
+      "perspective_id": "perspective:durable:001",
+      "promotion_decision_id": "promotion-decision:store:promote:001",
+      "formation_receipt_id": "formation-receipt:durable-write:001",
+      "review_record_ref": "review-record:promotion:001",
+      "operator_actor_ref": "operator:reviewer:001",
+      "apply_operation": "add",
+      "current_thesis": "Bounded durable thesis from operator-reviewed Formation Receipt.",
+      "prior_state_version": null,
+      "selected_candidate_refs": [
+        "claim-candidate:bounded:001",
+        "evidence-candidate:bounded:001"
+      ],
+      "omitted_candidate_refs": [
+        "retrieval-candidate:omitted:001"
+      ],
+      "deferred_candidate_refs": [
+        "rag-context-candidate:deferred:001"
+      ],
+      "supporting_evidence_refs": [
+        "source-ref:bounded:001"
+      ],
+      "contradicting_evidence_refs": [
+        "contradicting-evidence:bounded:001"
+      ],
+      "open_tensions": [
+        {
+          "tension_ref": "unresolved-tension:bounded:001",
+          "bounded_summary": "Bounded unresolved tension preserved during durable state apply.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "unresolved_tension_preserved"
+          ]
+        }
+      ],
+      "resolved_tensions": [],
+      "knowledge_gaps": [
+        {
+          "knowledge_gap_ref": "knowledge-gap:bounded:001",
+          "bounded_summary": "Bounded knowledge gap preserved during durable state apply.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "gap_status": "open",
+          "reason_codes": [
+            "knowledge_gap_preserved"
+          ]
+        }
+      ],
+      "active_claims": [
+        {
+          "claim_ref": "claim-candidate:bounded:001",
+          "bounded_summary": "Bounded active claim retained in durable Perspective state.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "selected_candidate_ref_present",
+            "source_ref_present"
+          ]
+        }
+      ],
+      "retired_claims": [],
+      "salience_state": {
+        "claim-candidate:bounded:001": "primary"
+      },
+      "reuse_conditions": [
+        "reuse-condition:bounded:operator-reviewed"
+      ],
+      "reason_codes": [
+        "promotion_decision_ref_present",
+        "formation_receipt_ref_present",
+        "formation_receipt_written",
+        "formation_receipt_required_before_state_apply",
+        "selected_candidate_ref_present",
+        "source_ref_present",
+        "omitted_candidate_preserved",
+        "deferred_candidate_preserved",
+        "unresolved_tension_preserved",
+        "knowledge_gap_preserved"
+      ],
+      "boundary_notes": [
+        "Durable Perspective State Apply writes durable Perspective state only after Formation Receipt.",
+        "Product-write remains parked by #686."
+      ],
+      "applied_at": "2026-06-26T00:00:00.000Z"
+    },
+    {
+      "apply_version": "durable_perspective_state_apply.v0.1",
+      "scope": "project:augnes",
+      "apply_event_id": "durable-state-apply:event:002",
+      "perspective_id": "perspective:durable:001",
+      "promotion_decision_id": "promotion-decision:store:promote:001",
+      "formation_receipt_id": "formation-receipt:durable-write:002",
+      "review_record_ref": "review-record:promotion:001",
+      "operator_actor_ref": "operator:reviewer:001",
+      "apply_operation": "refine",
+      "current_thesis": "Refined bounded durable thesis with prior thesis preserved.",
+      "prior_state_version": "durable_perspective_state.v0.1",
+      "selected_candidate_refs": [
+        "claim-candidate:bounded:001",
+        "evidence-candidate:bounded:001"
+      ],
+      "omitted_candidate_refs": [
+        "retrieval-candidate:omitted:001"
+      ],
+      "deferred_candidate_refs": [
+        "rag-context-candidate:deferred:001"
+      ],
+      "supporting_evidence_refs": [
+        "source-ref:bounded:001"
+      ],
+      "contradicting_evidence_refs": [
+        "contradicting-evidence:bounded:001"
+      ],
+      "open_tensions": [],
+      "resolved_tensions": [
+        {
+          "tension_ref": "unresolved-tension:bounded:001",
+          "bounded_summary": "Bounded tension explicitly resolved while preserving audit lineage.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "unresolved_tension_resolved_explicitly"
+          ]
+        }
+      ],
+      "knowledge_gaps": [
+        {
+          "knowledge_gap_ref": "knowledge-gap:bounded:001",
+          "bounded_summary": "Bounded knowledge gap deferred for later review.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "gap_status": "deferred",
+          "reason_codes": [
+            "knowledge_gap_deferred"
+          ]
+        }
+      ],
+      "active_claims": [
+        {
+          "claim_ref": "claim-candidate:bounded:001",
+          "bounded_summary": "Bounded refined active claim retained in durable Perspective state.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "selected_candidate_ref_present",
+            "source_ref_present"
+          ]
+        }
+      ],
+      "retired_claims": [],
+      "salience_state": {
+        "claim-candidate:bounded:001": "primary-refined"
+      },
+      "reuse_conditions": [
+        "reuse-condition:bounded:operator-reviewed"
+      ],
+      "reason_codes": [
+        "promotion_decision_ref_present",
+        "formation_receipt_ref_present",
+        "formation_receipt_written",
+        "formation_receipt_required_before_state_apply",
+        "prior_thesis_preserved",
+        "contradiction_preserved",
+        "selected_candidate_ref_present",
+        "source_ref_present",
+        "omitted_candidate_preserved",
+        "deferred_candidate_preserved",
+        "unresolved_tension_resolved_explicitly",
+        "knowledge_gap_deferred"
+      ],
+      "boundary_notes": [
+        "Prior thesis must not be silently overwritten.",
+        "Product-write remains parked by #686."
+      ],
+      "applied_at": "2026-06-26T00:00:01.000Z"
+    },
+    {
+      "apply_version": "durable_perspective_state_apply.v0.1",
+      "scope": "project:augnes",
+      "apply_event_id": "durable-state-apply:event:003",
+      "perspective_id": "perspective:durable:001",
+      "promotion_decision_id": "promotion-decision:store:promote:001",
+      "formation_receipt_id": "formation-receipt:durable-write:003",
+      "review_record_ref": "review-record:promotion:001",
+      "operator_actor_ref": "operator:reviewer:001",
+      "apply_operation": "retire",
+      "current_thesis": "Retired bounded claim while durable thesis remains auditable.",
+      "prior_state_version": "durable_perspective_state.v0.1",
+      "selected_candidate_refs": [
+        "claim-candidate:bounded:001",
+        "evidence-candidate:bounded:001"
+      ],
+      "omitted_candidate_refs": [
+        "retrieval-candidate:omitted:001"
+      ],
+      "deferred_candidate_refs": [
+        "rag-context-candidate:deferred:001"
+      ],
+      "supporting_evidence_refs": [
+        "source-ref:bounded:001"
+      ],
+      "contradicting_evidence_refs": [
+        "contradicting-evidence:bounded:001"
+      ],
+      "open_tensions": [
+        {
+          "tension_ref": "unresolved-tension:bounded:001",
+          "bounded_summary": "Bounded unresolved tension preserved after retirement apply.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "unresolved_tension_preserved"
+          ]
+        }
+      ],
+      "resolved_tensions": [],
+      "knowledge_gaps": [
+        {
+          "knowledge_gap_ref": "knowledge-gap:bounded:001",
+          "bounded_summary": "Bounded knowledge gap explicitly closed with operator-reviewed basis.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "gap_status": "closed",
+          "reason_codes": [
+            "knowledge_gap_closed_explicitly"
+          ]
+        }
+      ],
+      "active_claims": [],
+      "retired_claims": [
+        {
+          "claim_ref": "claim-candidate:bounded:001",
+          "bounded_summary": "Bounded retired claim remains auditable.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "retired_claim_preserved"
+          ]
+        }
+      ],
+      "salience_state": {
+        "claim-candidate:bounded:001": "retired"
+      },
+      "reuse_conditions": [
+        "reuse-condition:bounded:operator-reviewed"
+      ],
+      "reason_codes": [
+        "promotion_decision_ref_present",
+        "formation_receipt_ref_present",
+        "formation_receipt_written",
+        "formation_receipt_required_before_state_apply",
+        "prior_thesis_preserved",
+        "retired_claim_preserved",
+        "contradiction_preserved",
+        "selected_candidate_ref_present",
+        "source_ref_present",
+        "omitted_candidate_preserved",
+        "deferred_candidate_preserved",
+        "unresolved_tension_preserved",
+        "knowledge_gap_closed_explicitly"
+      ],
+      "boundary_notes": [
+        "Retired claims must remain auditable.",
+        "Product-write remains parked by #686."
+      ],
+      "applied_at": "2026-06-26T00:00:02.000Z"
+    }
+  ],
+  "invalid_apply_inputs": {
+    "missing_formation_receipt": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:missing-receipt",
+      "formation_receipt_id": "formation-receipt:missing:404"
+    },
+    "discarded_formation_receipt": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:discarded-receipt",
+      "formation_receipt_id": "formation-receipt:durable-write:discarded"
+    },
+    "already_applied_receipt": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:already-applied"
+    },
+    "missing_selected_candidate_refs": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:missing-selected-candidates",
+      "formation_receipt_id": "formation-receipt:durable-write:004",
+      "selected_candidate_refs": []
+    },
+    "unresolved_tension_loss": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:tension-loss",
+      "formation_receipt_id": "formation-receipt:durable-write:005",
+      "open_tensions": [],
+      "resolved_tensions": []
+    },
+    "knowledge_gap_loss": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:gap-loss",
+      "formation_receipt_id": "formation-receipt:durable-write:006",
+      "knowledge_gaps": []
+    },
+    "forbidden_authority": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:forbidden-authority",
+      "formation_receipt_id": "formation-receipt:durable-write:007",
+      "authority_boundary": {
+        "product_write_now": true
+      }
+    },
+    "private_raw_payload": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:private-raw",
+      "formation_receipt_id": "formation-receipt:durable-write:008",
+      "current_thesis": "raw durable perspective state payload blocked by fixture"
+    },
+    "secret_like_payload": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:secret-like",
+      "formation_receipt_id": "formation-receipt:durable-write:009",
+      "boundary_notes": [
+        "secret-like durable perspective state input blocked by fixture"
+      ]
+    },
+    "duplicate_apply_event": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:001",
+      "formation_receipt_id": "formation-receipt:durable-write:010"
+    }
+  },
+  "expected_state": {
+    "perspective_id": "perspective:durable:001",
+    "state_version": "durable_perspective_state.v0.1",
+    "durable_state_applied": true,
+    "formation_receipt_written": true,
+    "promotion_executed": false,
+    "proof_or_evidence_created": false,
+    "claim_or_evidence_written": false,
+    "product_write_executed": false
+  },
+  "expected_apply_events": [
+    {
+      "apply_event_id": "durable-state-apply:event:001",
+      "apply_operation": "add",
+      "durable_state_applied": true,
+      "formation_receipt_written": true,
+      "promotion_executed": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false
+    },
+    {
+      "apply_event_id": "durable-state-apply:event:002",
+      "apply_operation": "refine",
+      "durable_state_applied": true,
+      "formation_receipt_written": true,
+      "promotion_executed": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false
+    },
+    {
+      "apply_event_id": "durable-state-apply:event:003",
+      "apply_operation": "retire",
+      "durable_state_applied": true,
+      "formation_receipt_written": true,
+      "promotion_executed": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false
+    }
+  ],
+  "expected_apply_results": [
+    {
+      "status": "applied",
+      "durable_state_applied": true,
+      "formation_receipt_written": true,
+      "product_write_executed": false
+    }
+  ],
+  "expected_read_results": [
+    {
+      "status": "applied",
+      "perspective_id": "perspective:durable:001"
+    },
+    {
+      "status": "not_found",
+      "perspective_id": "perspective:durable:missing:404"
+    }
+  ],
+  "expected_rejection_results": [
+    {
+      "case_name": "missing_formation_receipt",
+      "status": "blocked_missing_formation_receipt"
+    },
+    {
+      "case_name": "discarded_formation_receipt",
+      "status": "blocked_discarded_formation_receipt"
+    },
+    {
+      "case_name": "already_applied_receipt",
+      "status": "blocked_already_applied_receipt"
+    },
+    {
+      "case_name": "missing_selected_candidate_refs",
+      "status": "blocked_missing_selected_candidates"
+    },
+    {
+      "case_name": "unresolved_tension_loss",
+      "status": "blocked_unresolved_tension_loss"
+    },
+    {
+      "case_name": "knowledge_gap_loss",
+      "status": "blocked_knowledge_gap_loss"
+    },
+    {
+      "case_name": "forbidden_authority",
+      "status": "blocked_forbidden_authority"
+    },
+    {
+      "case_name": "private_raw_payload",
+      "status": "blocked_private_or_raw_payload"
+    },
+    {
+      "case_name": "duplicate_apply_event",
+      "status": "blocked_invalid_input"
+    }
+  ]
+}

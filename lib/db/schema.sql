@@ -385,6 +385,110 @@ CREATE INDEX IF NOT EXISTS idx_perspective_formation_receipt_sources
 CREATE INDEX IF NOT EXISTS idx_perspective_formation_receipt_activity
   ON perspective_formation_receipt_activity(receipt_id, created_at);
 
+CREATE TABLE IF NOT EXISTS perspective_states (
+  perspective_id text primary key,
+  scope text not null,
+  state_version text not null,
+  current_thesis text not null,
+  salience_state_json text not null,
+  reuse_conditions_json text not null,
+  promotion_history_json text not null,
+  retirement_history_json text not null,
+  formation_receipt_refs_json text not null,
+  authority_boundary_json text not null,
+  reason_codes_json text not null,
+  created_at text not null,
+  updated_at text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_state_prior_theses (
+  id text primary key,
+  perspective_id text not null,
+  thesis text not null,
+  reason_codes_json text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_state_claims (
+  id text primary key,
+  perspective_id text not null,
+  claim_ref text not null,
+  claim_status text not null,
+  bounded_summary text not null,
+  source_refs_json text not null,
+  reason_codes_json text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_state_evidence_refs (
+  id text primary key,
+  perspective_id text not null,
+  evidence_ref text not null,
+  evidence_relation text not null,
+  reason_codes_json text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_state_tensions (
+  id text primary key,
+  perspective_id text not null,
+  tension_ref text not null,
+  tension_status text not null,
+  bounded_summary text not null,
+  source_refs_json text not null,
+  reason_codes_json text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_state_knowledge_gaps (
+  id text primary key,
+  perspective_id text not null,
+  knowledge_gap_ref text not null,
+  gap_status text not null,
+  bounded_summary text not null,
+  source_refs_json text not null,
+  reason_codes_json text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_state_apply_events (
+  apply_event_id text primary key,
+  perspective_id text not null,
+  promotion_decision_id text not null,
+  formation_receipt_id text not null,
+  review_record_ref text not null,
+  operator_actor_ref text not null,
+  apply_operation text not null,
+  applied_at text not null,
+  prior_state_version text,
+  next_state_version text not null,
+  selected_candidate_refs_json text not null,
+  omitted_candidate_refs_json text not null,
+  deferred_candidate_refs_json text not null,
+  unresolved_tensions_preserved_json text not null,
+  knowledge_gaps_preserved_json text not null,
+  durable_state_applied integer not null default 1,
+  formation_receipt_written integer not null default 1,
+  promotion_executed integer not null default 0,
+  proof_or_evidence_created integer not null default 0,
+  claim_or_evidence_written integer not null default 0,
+  product_write_executed integer not null default 0,
+  reason_codes_json text not null,
+  authority_boundary_json text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_state_activity (
+  activity_id text primary key,
+  perspective_id text not null,
+  activity_kind text not null,
+  actor_ref text not null,
+  summary text not null,
+  reason_codes_json text not null,
+  created_at text not null
+);
+
+CREATE INDEX IF NOT EXISTS idx_perspective_state_apply_events_perspective
+  ON perspective_state_apply_events(perspective_id, applied_at);
+CREATE INDEX IF NOT EXISTS idx_perspective_state_apply_events_receipt
+  ON perspective_state_apply_events(formation_receipt_id);
+CREATE INDEX IF NOT EXISTS idx_perspective_state_activity
+  ON perspective_state_activity(perspective_id, created_at);
+
 CREATE TABLE IF NOT EXISTS ag_work_resume_mapping_proposals (
   proposal_id TEXT PRIMARY KEY,
   record_kind TEXT NOT NULL CHECK (
