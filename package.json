@@ -556,6 +556,8 @@
     "smoke:durable-perspective-state-trajectory-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-durable-perspective-state-trajectory-browser-validation-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-contract-v0-1": "node scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs",
     "smoke:project-constellation-seeded-layout-v0-1": "node scripts/smoke-project-constellation-seeded-layout-v0-1.mjs",
+    "smoke:project-constellation-runtime-ui-v0-1": "node scripts/smoke-project-constellation-runtime-ui-v0-1.mjs",
+    "browser:project-constellation-runtime-ui-v0-1": "node scripts/browser-validate-project-constellation-runtime-ui-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs",
     "smoke:perspective-geometry-digest-contract-v0-1": "node scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",

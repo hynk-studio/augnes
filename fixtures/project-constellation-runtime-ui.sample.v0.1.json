@@ -1,0 +1,1130 @@
+{
+  "fixture_version": "project_constellation_runtime_ui.sample.v0.1",
+  "ui_version": "project_constellation_runtime_ui.v0.1",
+  "runtime_version": "seeded_constellation_layout_runtime.v0.1",
+  "contract_version": "project_constellation_runtime_layout_contract.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-06-26T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/project-constellation-seeded-layout.sample.v0.1.json",
+    "fixtures/project-constellation-runtime-layout-contract.sample.v0.1.json"
+  ],
+  "expected_props": {
+    "showCandidateOverlay": true,
+    "selectedRef": "node-ref:candidate:ui:002",
+    "layoutResult": {
+      "result_version": "seeded_constellation_layout_result.v0.1",
+      "runtime_version": "seeded_constellation_layout_runtime.v0.1",
+      "contract_version": "project_constellation_runtime_layout_contract.v0.1",
+      "scope": "project:augnes",
+      "status": "built",
+      "layout": {
+        "layout_version": "project_constellation_layout.v0.1",
+        "contract_version": "project_constellation_runtime_layout_contract.v0.1",
+        "scope": "project:augnes",
+        "status": "layout_candidate",
+        "layout_id": "layout:runtime-ui:001",
+        "perspective_id": "perspective:runtime-ui:001",
+        "as_of_state_version": "state-version:runtime-ui:001",
+        "trajectory_ref": "trajectory-ref:runtime-ui:001",
+        "candidate_overlay_ref": "candidate-overlay-ref:runtime-ui:001",
+        "layout_seed": "layout-seed:runtime-ui:001",
+        "node_positions": [
+          {
+            "node_version": "project_constellation_layout_node.v0.1",
+            "scope": "project:augnes",
+            "node_id": "node:ui:durable:001",
+            "node_ref": "node-ref:durable:ui:001",
+            "node_kind": "perspective",
+            "layer": "durable_graph",
+            "bounded_label": "Durable thesis",
+            "bounded_summary": "Durable graph node rendered as read-only context.",
+            "position": {
+              "x": 96,
+              "y": 108,
+              "z": 0,
+              "coordinate_authority": "display_hint_only",
+              "reason_codes": [
+                "coordinate_display_hint_only",
+                "coordinate_not_truth",
+                "coordinate_not_proof",
+                "coordinate_not_evidence_strength",
+                "coordinate_not_promotion_readiness"
+              ]
+            },
+            "source_refs": [
+              "source-ref:runtime-ui:001"
+            ],
+            "candidate_refs": [],
+            "review_record_refs": [],
+            "promotion_decision_refs": [],
+            "formation_receipt_refs": [],
+            "apply_event_refs": [
+              "apply-event-ref:runtime-ui:001"
+            ],
+            "feedback_refs": [],
+            "marker_refs": [
+              "prior_thesis"
+            ],
+            "public_safe": true,
+            "reason_codes": [
+              "node_ref_present",
+              "prior_thesis_ref_present",
+              "source_ref_present"
+            ],
+            "authority_boundary": {
+              "contract_only": true,
+              "layout_runtime_now": false,
+              "layout_algorithm_now": false,
+              "seeded_layout_now": false,
+              "layout_persistence_now": false,
+              "manual_anchor_persistence_now": false,
+              "route_now": false,
+              "ui_now": false,
+              "graph_rendering_now": false,
+              "graph_database_now": false,
+              "db_query_or_write_now": false,
+              "durable_state_write_now": false,
+              "durable_state_apply_now": false,
+              "formation_receipt_write_now": false,
+              "promotion_execution_now": false,
+              "promotion_decision_record_write_now": false,
+              "proof_or_evidence_record_now": false,
+              "claim_or_evidence_write_now": false,
+              "product_write_now": false,
+              "product_id_allocation_now": false,
+              "work_mutation_now": false,
+              "source_fetch_now": false,
+              "local_file_read_now": false,
+              "repository_file_read_now": false,
+              "uploaded_file_read_now": false,
+              "provider_openai_call_now": false,
+              "prompt_sent_now": false,
+              "retrieval_execution_now": false,
+              "rag_answer_generation_now": false,
+              "embedding_created_now": false,
+              "vector_search_now": false,
+              "git_ledger_export_now": false,
+              "codex_execution_authority": false,
+              "github_automation_authority": false,
+              "layout_is_truth": false,
+              "coordinate_is_truth": false,
+              "coordinate_is_proof": false,
+              "coordinate_is_evidence_strength": false,
+              "coordinate_is_promotion_readiness": false,
+              "manual_anchor_is_authority": false,
+              "temporal_smoothing_is_state": false,
+              "candidate_overlay_is_durable_graph": false,
+              "source_balance_is_truth": false,
+              "product_write_authority": false
+            }
+          },
+          {
+            "node_version": "project_constellation_layout_node.v0.1",
+            "scope": "project:augnes",
+            "node_id": "node:ui:candidate:002",
+            "node_ref": "node-ref:candidate:ui:002",
+            "node_kind": "candidate",
+            "layer": "candidate_overlay",
+            "bounded_label": "Candidate overlay",
+            "bounded_summary": "Candidate overlay node is display-only and not durable graph.",
+            "position": {
+              "x": 316,
+              "y": 124,
+              "z": 0,
+              "coordinate_authority": "display_hint_only",
+              "reason_codes": [
+                "coordinate_display_hint_only",
+                "coordinate_not_truth",
+                "coordinate_not_proof",
+                "coordinate_not_evidence_strength",
+                "coordinate_not_promotion_readiness"
+              ]
+            },
+            "source_refs": [
+              "source-ref:runtime-ui:002"
+            ],
+            "candidate_refs": [
+              "candidate-ref:runtime-ui:001"
+            ],
+            "review_record_refs": [
+              "review-record-ref:runtime-ui:001"
+            ],
+            "promotion_decision_refs": [
+              "promotion-decision-ref:runtime-ui:001"
+            ],
+            "formation_receipt_refs": [
+              "formation-receipt-ref:runtime-ui:001"
+            ],
+            "apply_event_refs": [],
+            "feedback_refs": [],
+            "marker_refs": [
+              "tension"
+            ],
+            "public_safe": true,
+            "reason_codes": [
+              "node_ref_present",
+              "candidate_overlay_not_durable_graph",
+              "candidate_ref_present",
+              "source_ref_present"
+            ],
+            "authority_boundary": {
+              "contract_only": true,
+              "layout_runtime_now": false,
+              "layout_algorithm_now": false,
+              "seeded_layout_now": false,
+              "layout_persistence_now": false,
+              "manual_anchor_persistence_now": false,
+              "route_now": false,
+              "ui_now": false,
+              "graph_rendering_now": false,
+              "graph_database_now": false,
+              "db_query_or_write_now": false,
+              "durable_state_write_now": false,
+              "durable_state_apply_now": false,
+              "formation_receipt_write_now": false,
+              "promotion_execution_now": false,
+              "promotion_decision_record_write_now": false,
+              "proof_or_evidence_record_now": false,
+              "claim_or_evidence_write_now": false,
+              "product_write_now": false,
+              "product_id_allocation_now": false,
+              "work_mutation_now": false,
+              "source_fetch_now": false,
+              "local_file_read_now": false,
+              "repository_file_read_now": false,
+              "uploaded_file_read_now": false,
+              "provider_openai_call_now": false,
+              "prompt_sent_now": false,
+              "retrieval_execution_now": false,
+              "rag_answer_generation_now": false,
+              "embedding_created_now": false,
+              "vector_search_now": false,
+              "git_ledger_export_now": false,
+              "codex_execution_authority": false,
+              "github_automation_authority": false,
+              "layout_is_truth": false,
+              "coordinate_is_truth": false,
+              "coordinate_is_proof": false,
+              "coordinate_is_evidence_strength": false,
+              "coordinate_is_promotion_readiness": false,
+              "manual_anchor_is_authority": false,
+              "temporal_smoothing_is_state": false,
+              "candidate_overlay_is_durable_graph": false,
+              "source_balance_is_truth": false,
+              "product_write_authority": false
+            }
+          },
+          {
+            "node_version": "project_constellation_layout_node.v0.1",
+            "scope": "project:augnes",
+            "node_id": "node:ui:source:003",
+            "node_ref": "node-ref:source:ui:003",
+            "node_kind": "source_ref",
+            "layer": "source_ref",
+            "bounded_label": "Source ref",
+            "bounded_summary": "Source provenance node is lineage only.",
+            "position": {
+              "x": 86,
+              "y": 268,
+              "z": 0,
+              "coordinate_authority": "display_hint_only",
+              "reason_codes": [
+                "coordinate_display_hint_only",
+                "coordinate_not_truth",
+                "coordinate_not_proof",
+                "coordinate_not_evidence_strength",
+                "coordinate_not_promotion_readiness"
+              ]
+            },
+            "source_refs": [
+              "source-ref:runtime-ui:003"
+            ],
+            "candidate_refs": [],
+            "review_record_refs": [],
+            "promotion_decision_refs": [],
+            "formation_receipt_refs": [],
+            "apply_event_refs": [],
+            "feedback_refs": [],
+            "marker_refs": [
+              "stale"
+            ],
+            "public_safe": true,
+            "reason_codes": [
+              "node_ref_present",
+              "source_ref_present"
+            ],
+            "authority_boundary": {
+              "contract_only": true,
+              "layout_runtime_now": false,
+              "layout_algorithm_now": false,
+              "seeded_layout_now": false,
+              "layout_persistence_now": false,
+              "manual_anchor_persistence_now": false,
+              "route_now": false,
+              "ui_now": false,
+              "graph_rendering_now": false,
+              "graph_database_now": false,
+              "db_query_or_write_now": false,
+              "durable_state_write_now": false,
+              "durable_state_apply_now": false,
+              "formation_receipt_write_now": false,
+              "promotion_execution_now": false,
+              "promotion_decision_record_write_now": false,
+              "proof_or_evidence_record_now": false,
+              "claim_or_evidence_write_now": false,
+              "product_write_now": false,
+              "product_id_allocation_now": false,
+              "work_mutation_now": false,
+              "source_fetch_now": false,
+              "local_file_read_now": false,
+              "repository_file_read_now": false,
+              "uploaded_file_read_now": false,
+              "provider_openai_call_now": false,
+              "prompt_sent_now": false,
+              "retrieval_execution_now": false,
+              "rag_answer_generation_now": false,
+              "embedding_created_now": false,
+              "vector_search_now": false,
+              "git_ledger_export_now": false,
+              "codex_execution_authority": false,
+              "github_automation_authority": false,
+              "layout_is_truth": false,
+              "coordinate_is_truth": false,
+              "coordinate_is_proof": false,
+              "coordinate_is_evidence_strength": false,
+              "coordinate_is_promotion_readiness": false,
+              "manual_anchor_is_authority": false,
+              "temporal_smoothing_is_state": false,
+              "candidate_overlay_is_durable_graph": false,
+              "source_balance_is_truth": false,
+              "product_write_authority": false
+            }
+          },
+          {
+            "node_version": "project_constellation_layout_node.v0.1",
+            "scope": "project:augnes",
+            "node_id": "node:ui:feedback:004",
+            "node_ref": "node-ref:feedback:ui:004",
+            "node_kind": "feedback",
+            "layer": "feedback",
+            "bounded_label": "Feedback",
+            "bounded_summary": "Feedback node is displayed as read-only context.",
+            "position": {
+              "x": 420,
+              "y": 270,
+              "z": 0,
+              "coordinate_authority": "display_hint_only",
+              "reason_codes": [
+                "coordinate_display_hint_only",
+                "coordinate_not_truth",
+                "coordinate_not_proof",
+                "coordinate_not_evidence_strength",
+                "coordinate_not_promotion_readiness"
+              ]
+            },
+            "source_refs": [],
+            "candidate_refs": [],
+            "review_record_refs": [],
+            "promotion_decision_refs": [],
+            "formation_receipt_refs": [],
+            "apply_event_refs": [],
+            "feedback_refs": [
+              "feedback-ref:runtime-ui:001"
+            ],
+            "marker_refs": [
+              "gap"
+            ],
+            "public_safe": true,
+            "reason_codes": [
+              "node_ref_present",
+              "feedback_ref_present"
+            ],
+            "authority_boundary": {
+              "contract_only": true,
+              "layout_runtime_now": false,
+              "layout_algorithm_now": false,
+              "seeded_layout_now": false,
+              "layout_persistence_now": false,
+              "manual_anchor_persistence_now": false,
+              "route_now": false,
+              "ui_now": false,
+              "graph_rendering_now": false,
+              "graph_database_now": false,
+              "db_query_or_write_now": false,
+              "durable_state_write_now": false,
+              "durable_state_apply_now": false,
+              "formation_receipt_write_now": false,
+              "promotion_execution_now": false,
+              "promotion_decision_record_write_now": false,
+              "proof_or_evidence_record_now": false,
+              "claim_or_evidence_write_now": false,
+              "product_write_now": false,
+              "product_id_allocation_now": false,
+              "work_mutation_now": false,
+              "source_fetch_now": false,
+              "local_file_read_now": false,
+              "repository_file_read_now": false,
+              "uploaded_file_read_now": false,
+              "provider_openai_call_now": false,
+              "prompt_sent_now": false,
+              "retrieval_execution_now": false,
+              "rag_answer_generation_now": false,
+              "embedding_created_now": false,
+              "vector_search_now": false,
+              "git_ledger_export_now": false,
+              "codex_execution_authority": false,
+              "github_automation_authority": false,
+              "layout_is_truth": false,
+              "coordinate_is_truth": false,
+              "coordinate_is_proof": false,
+              "coordinate_is_evidence_strength": false,
+              "coordinate_is_promotion_readiness": false,
+              "manual_anchor_is_authority": false,
+              "temporal_smoothing_is_state": false,
+              "candidate_overlay_is_durable_graph": false,
+              "source_balance_is_truth": false,
+              "product_write_authority": false
+            }
+          },
+          {
+            "node_version": "project_constellation_layout_node.v0.1",
+            "scope": "project:augnes",
+            "node_id": "node:ui:trajectory:005",
+            "node_ref": "node-ref:trajectory:ui:005",
+            "node_kind": "apply_event",
+            "layer": "trajectory",
+            "bounded_label": "Apply event",
+            "bounded_summary": "Trajectory node links read-only apply event context.",
+            "position": {
+              "x": 260,
+              "y": 366,
+              "z": 0,
+              "coordinate_authority": "display_hint_only",
+              "reason_codes": [
+                "coordinate_display_hint_only",
+                "coordinate_not_truth",
+                "coordinate_not_proof",
+                "coordinate_not_evidence_strength",
+                "coordinate_not_promotion_readiness"
+              ]
+            },
+            "source_refs": [],
+            "candidate_refs": [],
+            "review_record_refs": [],
+            "promotion_decision_refs": [],
+            "formation_receipt_refs": [],
+            "apply_event_refs": [
+              "apply-event-ref:runtime-ui:001"
+            ],
+            "feedback_refs": [],
+            "marker_refs": [
+              "bridge"
+            ],
+            "public_safe": true,
+            "reason_codes": [
+              "node_ref_present",
+              "apply_event_ref_present"
+            ],
+            "authority_boundary": {
+              "contract_only": true,
+              "layout_runtime_now": false,
+              "layout_algorithm_now": false,
+              "seeded_layout_now": false,
+              "layout_persistence_now": false,
+              "manual_anchor_persistence_now": false,
+              "route_now": false,
+              "ui_now": false,
+              "graph_rendering_now": false,
+              "graph_database_now": false,
+              "db_query_or_write_now": false,
+              "durable_state_write_now": false,
+              "durable_state_apply_now": false,
+              "formation_receipt_write_now": false,
+              "promotion_execution_now": false,
+              "promotion_decision_record_write_now": false,
+              "proof_or_evidence_record_now": false,
+              "claim_or_evidence_write_now": false,
+              "product_write_now": false,
+              "product_id_allocation_now": false,
+              "work_mutation_now": false,
+              "source_fetch_now": false,
+              "local_file_read_now": false,
+              "repository_file_read_now": false,
+              "uploaded_file_read_now": false,
+              "provider_openai_call_now": false,
+              "prompt_sent_now": false,
+              "retrieval_execution_now": false,
+              "rag_answer_generation_now": false,
+              "embedding_created_now": false,
+              "vector_search_now": false,
+              "git_ledger_export_now": false,
+              "codex_execution_authority": false,
+              "github_automation_authority": false,
+              "layout_is_truth": false,
+              "coordinate_is_truth": false,
+              "coordinate_is_proof": false,
+              "coordinate_is_evidence_strength": false,
+              "coordinate_is_promotion_readiness": false,
+              "manual_anchor_is_authority": false,
+              "temporal_smoothing_is_state": false,
+              "candidate_overlay_is_durable_graph": false,
+              "source_balance_is_truth": false,
+              "product_write_authority": false
+            }
+          }
+        ],
+        "edge_routes": [
+          {
+            "edge_version": "project_constellation_layout_edge.v0.1",
+            "scope": "project:augnes",
+            "edge_id": "edge:ui:001",
+            "edge_ref": "edge-ref:runtime-ui:001",
+            "edge_kind": "supports",
+            "from_node_ref": "node-ref:source:ui:003",
+            "to_node_ref": "node-ref:durable:ui:001",
+            "bounded_label": "Source supports durable thesis",
+            "bounded_summary": "Read-only edge route links source lineage to durable graph.",
+            "source_refs": [
+              "source-ref:runtime-ui:edge:001"
+            ],
+            "reason_codes": [
+              "edge_ref_present",
+              "source_ref_present"
+            ],
+            "authority_boundary": {
+              "contract_only": true,
+              "layout_runtime_now": false,
+              "layout_algorithm_now": false,
+              "seeded_layout_now": false,
+              "layout_persistence_now": false,
+              "manual_anchor_persistence_now": false,
+              "route_now": false,
+              "ui_now": false,
+              "graph_rendering_now": false,
+              "graph_database_now": false,
+              "db_query_or_write_now": false,
+              "durable_state_write_now": false,
+              "durable_state_apply_now": false,
+              "formation_receipt_write_now": false,
+              "promotion_execution_now": false,
+              "promotion_decision_record_write_now": false,
+              "proof_or_evidence_record_now": false,
+              "claim_or_evidence_write_now": false,
+              "product_write_now": false,
+              "product_id_allocation_now": false,
+              "work_mutation_now": false,
+              "source_fetch_now": false,
+              "local_file_read_now": false,
+              "repository_file_read_now": false,
+              "uploaded_file_read_now": false,
+              "provider_openai_call_now": false,
+              "prompt_sent_now": false,
+              "retrieval_execution_now": false,
+              "rag_answer_generation_now": false,
+              "embedding_created_now": false,
+              "vector_search_now": false,
+              "git_ledger_export_now": false,
+              "codex_execution_authority": false,
+              "github_automation_authority": false,
+              "layout_is_truth": false,
+              "coordinate_is_truth": false,
+              "coordinate_is_proof": false,
+              "coordinate_is_evidence_strength": false,
+              "coordinate_is_promotion_readiness": false,
+              "manual_anchor_is_authority": false,
+              "temporal_smoothing_is_state": false,
+              "candidate_overlay_is_durable_graph": false,
+              "source_balance_is_truth": false,
+              "product_write_authority": false
+            }
+          },
+          {
+            "edge_version": "project_constellation_layout_edge.v0.1",
+            "scope": "project:augnes",
+            "edge_id": "edge:ui:002",
+            "edge_ref": "edge-ref:runtime-ui:002",
+            "edge_kind": "candidate_overlay_link",
+            "from_node_ref": "node-ref:candidate:ui:002",
+            "to_node_ref": "node-ref:durable:ui:001",
+            "bounded_label": "Candidate overlay relation",
+            "bounded_summary": "Read-only edge route shows candidate overlay relation.",
+            "source_refs": [
+              "source-ref:runtime-ui:edge:002"
+            ],
+            "reason_codes": [
+              "edge_ref_present",
+              "candidate_overlay_not_durable_graph"
+            ],
+            "authority_boundary": {
+              "contract_only": true,
+              "layout_runtime_now": false,
+              "layout_algorithm_now": false,
+              "seeded_layout_now": false,
+              "layout_persistence_now": false,
+              "manual_anchor_persistence_now": false,
+              "route_now": false,
+              "ui_now": false,
+              "graph_rendering_now": false,
+              "graph_database_now": false,
+              "db_query_or_write_now": false,
+              "durable_state_write_now": false,
+              "durable_state_apply_now": false,
+              "formation_receipt_write_now": false,
+              "promotion_execution_now": false,
+              "promotion_decision_record_write_now": false,
+              "proof_or_evidence_record_now": false,
+              "claim_or_evidence_write_now": false,
+              "product_write_now": false,
+              "product_id_allocation_now": false,
+              "work_mutation_now": false,
+              "source_fetch_now": false,
+              "local_file_read_now": false,
+              "repository_file_read_now": false,
+              "uploaded_file_read_now": false,
+              "provider_openai_call_now": false,
+              "prompt_sent_now": false,
+              "retrieval_execution_now": false,
+              "rag_answer_generation_now": false,
+              "embedding_created_now": false,
+              "vector_search_now": false,
+              "git_ledger_export_now": false,
+              "codex_execution_authority": false,
+              "github_automation_authority": false,
+              "layout_is_truth": false,
+              "coordinate_is_truth": false,
+              "coordinate_is_proof": false,
+              "coordinate_is_evidence_strength": false,
+              "coordinate_is_promotion_readiness": false,
+              "manual_anchor_is_authority": false,
+              "temporal_smoothing_is_state": false,
+              "candidate_overlay_is_durable_graph": false,
+              "source_balance_is_truth": false,
+              "product_write_authority": false
+            }
+          }
+        ],
+        "manual_anchors": [],
+        "temporal_smoothing_state": {
+          "smoothing_ref": "temporal-smoothing:runtime-ui:001",
+          "display_continuity_only": true,
+          "persistence_now": false,
+          "reason_codes": [
+            "temporal_smoothing_display_continuity_only"
+          ]
+        },
+        "stale_markers": [
+          {
+            "marker_id": "marker:runtime-ui:stale",
+            "marker_kind": "stale",
+            "marker_ref": "marker-ref:runtime-ui:stale",
+            "node_refs": [
+              "node-ref:source:ui:003"
+            ],
+            "edge_refs": [],
+            "bounded_label": "stale marker",
+            "bounded_summary": "stale marker is a display or review aid only.",
+            "display_warning_only": true,
+            "review_aid_only": false,
+            "reason_codes": [
+              "stale_marker_display_warning_only"
+            ]
+          }
+        ],
+        "tension_markers": [
+          {
+            "marker_id": "marker:runtime-ui:tension",
+            "marker_kind": "tension",
+            "marker_ref": "marker-ref:runtime-ui:tension",
+            "node_refs": [
+              "node-ref:candidate:ui:002"
+            ],
+            "edge_refs": [],
+            "bounded_label": "tension marker",
+            "bounded_summary": "tension marker is a display or review aid only.",
+            "display_warning_only": false,
+            "review_aid_only": true,
+            "reason_codes": [
+              "tension_marker_review_aid_only"
+            ]
+          }
+        ],
+        "gap_markers": [
+          {
+            "marker_id": "marker:runtime-ui:gap",
+            "marker_kind": "gap",
+            "marker_ref": "marker-ref:runtime-ui:gap",
+            "node_refs": [
+              "node-ref:feedback:ui:004"
+            ],
+            "edge_refs": [],
+            "bounded_label": "gap marker",
+            "bounded_summary": "gap marker is a display or review aid only.",
+            "display_warning_only": false,
+            "review_aid_only": true,
+            "reason_codes": [
+              "gap_marker_review_aid_only"
+            ]
+          }
+        ],
+        "bridge_node_markers": [
+          {
+            "marker_id": "marker:runtime-ui:bridge",
+            "marker_kind": "bridge",
+            "marker_ref": "marker-ref:runtime-ui:bridge",
+            "node_refs": [
+              "node-ref:trajectory:ui:005"
+            ],
+            "edge_refs": [],
+            "bounded_label": "bridge marker",
+            "bounded_summary": "bridge marker is a display or review aid only.",
+            "display_warning_only": false,
+            "review_aid_only": true,
+            "reason_codes": [
+              "bridge_marker_review_aid_only"
+            ]
+          }
+        ],
+        "source_balance_diagnostics": [
+          {
+            "diagnostic_version": "project_constellation_layout_diagnostic.v0.1",
+            "scope": "project:augnes",
+            "diagnostic_id": "diagnostic:runtime-ui:source_balance",
+            "diagnostic_kind": "source_balance",
+            "bounded_summary": "source_balance diagnostic is read-only and advisory.",
+            "affected_node_refs": [
+              "node-ref:source:ui:003"
+            ],
+            "affected_edge_refs": [
+              "edge-ref:runtime-ui:001"
+            ],
+            "reason_codes": [
+              "source_balance_advisory_only",
+              "source_ref_present"
+            ],
+            "authority_boundary": {
+              "contract_only": true,
+              "layout_runtime_now": false,
+              "layout_algorithm_now": false,
+              "seeded_layout_now": false,
+              "layout_persistence_now": false,
+              "manual_anchor_persistence_now": false,
+              "route_now": false,
+              "ui_now": false,
+              "graph_rendering_now": false,
+              "graph_database_now": false,
+              "db_query_or_write_now": false,
+              "durable_state_write_now": false,
+              "durable_state_apply_now": false,
+              "formation_receipt_write_now": false,
+              "promotion_execution_now": false,
+              "promotion_decision_record_write_now": false,
+              "proof_or_evidence_record_now": false,
+              "claim_or_evidence_write_now": false,
+              "product_write_now": false,
+              "product_id_allocation_now": false,
+              "work_mutation_now": false,
+              "source_fetch_now": false,
+              "local_file_read_now": false,
+              "repository_file_read_now": false,
+              "uploaded_file_read_now": false,
+              "provider_openai_call_now": false,
+              "prompt_sent_now": false,
+              "retrieval_execution_now": false,
+              "rag_answer_generation_now": false,
+              "embedding_created_now": false,
+              "vector_search_now": false,
+              "git_ledger_export_now": false,
+              "codex_execution_authority": false,
+              "github_automation_authority": false,
+              "layout_is_truth": false,
+              "coordinate_is_truth": false,
+              "coordinate_is_proof": false,
+              "coordinate_is_evidence_strength": false,
+              "coordinate_is_promotion_readiness": false,
+              "manual_anchor_is_authority": false,
+              "temporal_smoothing_is_state": false,
+              "candidate_overlay_is_durable_graph": false,
+              "source_balance_is_truth": false,
+              "product_write_authority": false
+            }
+          }
+        ],
+        "boundary_notes": [
+          "Read-only constellation view.",
+          "Coordinates are display hints.",
+          "Product-write remains parked by #686."
+        ],
+        "reason_codes": [
+          "coordinate_display_hint_only",
+          "candidate_overlay_not_durable_graph",
+          "source_balance_advisory_only",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "contract_only": true,
+          "layout_runtime_now": false,
+          "layout_algorithm_now": false,
+          "seeded_layout_now": false,
+          "layout_persistence_now": false,
+          "manual_anchor_persistence_now": false,
+          "route_now": false,
+          "ui_now": false,
+          "graph_rendering_now": false,
+          "graph_database_now": false,
+          "db_query_or_write_now": false,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "layout_is_truth": false,
+          "coordinate_is_truth": false,
+          "coordinate_is_proof": false,
+          "coordinate_is_evidence_strength": false,
+          "coordinate_is_promotion_readiness": false,
+          "manual_anchor_is_authority": false,
+          "temporal_smoothing_is_state": false,
+          "candidate_overlay_is_durable_graph": false,
+          "source_balance_is_truth": false,
+          "product_write_authority": false
+        },
+        "layout_fingerprint": "runtime-ui-fixture-fingerprint:001"
+      },
+      "diagnostics": [
+        {
+          "diagnostic_version": "project_constellation_layout_diagnostic.v0.1",
+          "scope": "project:augnes",
+          "diagnostic_id": "diagnostic:runtime-ui:source_balance",
+          "diagnostic_kind": "source_balance",
+          "bounded_summary": "source_balance diagnostic is read-only and advisory.",
+          "affected_node_refs": [
+            "node-ref:source:ui:003"
+          ],
+          "affected_edge_refs": [
+            "edge-ref:runtime-ui:001"
+          ],
+          "reason_codes": [
+            "source_balance_advisory_only",
+            "source_ref_present"
+          ],
+          "authority_boundary": {
+            "contract_only": true,
+            "layout_runtime_now": false,
+            "layout_algorithm_now": false,
+            "seeded_layout_now": false,
+            "layout_persistence_now": false,
+            "manual_anchor_persistence_now": false,
+            "route_now": false,
+            "ui_now": false,
+            "graph_rendering_now": false,
+            "graph_database_now": false,
+            "db_query_or_write_now": false,
+            "durable_state_write_now": false,
+            "durable_state_apply_now": false,
+            "formation_receipt_write_now": false,
+            "promotion_execution_now": false,
+            "promotion_decision_record_write_now": false,
+            "proof_or_evidence_record_now": false,
+            "claim_or_evidence_write_now": false,
+            "product_write_now": false,
+            "product_id_allocation_now": false,
+            "work_mutation_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "provider_openai_call_now": false,
+            "prompt_sent_now": false,
+            "retrieval_execution_now": false,
+            "rag_answer_generation_now": false,
+            "embedding_created_now": false,
+            "vector_search_now": false,
+            "git_ledger_export_now": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "layout_is_truth": false,
+            "coordinate_is_truth": false,
+            "coordinate_is_proof": false,
+            "coordinate_is_evidence_strength": false,
+            "coordinate_is_promotion_readiness": false,
+            "manual_anchor_is_authority": false,
+            "temporal_smoothing_is_state": false,
+            "candidate_overlay_is_durable_graph": false,
+            "source_balance_is_truth": false,
+            "product_write_authority": false
+          }
+        },
+        {
+          "diagnostic_version": "project_constellation_layout_diagnostic.v0.1",
+          "scope": "project:augnes",
+          "diagnostic_id": "diagnostic:runtime-ui:candidate_overlay_separation",
+          "diagnostic_kind": "candidate_overlay_separation",
+          "bounded_summary": "candidate_overlay_separation diagnostic is read-only and advisory.",
+          "affected_node_refs": [
+            "node-ref:candidate:ui:002",
+            "node-ref:durable:ui:001"
+          ],
+          "affected_edge_refs": [
+            "edge-ref:runtime-ui:002"
+          ],
+          "reason_codes": [
+            "source_balance_advisory_only",
+            "candidate_overlay_not_durable_graph"
+          ],
+          "authority_boundary": {
+            "contract_only": true,
+            "layout_runtime_now": false,
+            "layout_algorithm_now": false,
+            "seeded_layout_now": false,
+            "layout_persistence_now": false,
+            "manual_anchor_persistence_now": false,
+            "route_now": false,
+            "ui_now": false,
+            "graph_rendering_now": false,
+            "graph_database_now": false,
+            "db_query_or_write_now": false,
+            "durable_state_write_now": false,
+            "durable_state_apply_now": false,
+            "formation_receipt_write_now": false,
+            "promotion_execution_now": false,
+            "promotion_decision_record_write_now": false,
+            "proof_or_evidence_record_now": false,
+            "claim_or_evidence_write_now": false,
+            "product_write_now": false,
+            "product_id_allocation_now": false,
+            "work_mutation_now": false,
+            "source_fetch_now": false,
+            "local_file_read_now": false,
+            "repository_file_read_now": false,
+            "uploaded_file_read_now": false,
+            "provider_openai_call_now": false,
+            "prompt_sent_now": false,
+            "retrieval_execution_now": false,
+            "rag_answer_generation_now": false,
+            "embedding_created_now": false,
+            "vector_search_now": false,
+            "git_ledger_export_now": false,
+            "codex_execution_authority": false,
+            "github_automation_authority": false,
+            "layout_is_truth": false,
+            "coordinate_is_truth": false,
+            "coordinate_is_proof": false,
+            "coordinate_is_evidence_strength": false,
+            "coordinate_is_promotion_readiness": false,
+            "manual_anchor_is_authority": false,
+            "temporal_smoothing_is_state": false,
+            "candidate_overlay_is_durable_graph": false,
+            "source_balance_is_truth": false,
+            "product_write_authority": false
+          }
+        }
+      ],
+      "rejected_input_refs": [],
+      "warnings": [],
+      "reason_codes": [
+        "deterministic_layout_built",
+        "layout_is_derived"
+      ],
+      "authority_boundary": {
+        "seeded_layout_runtime_now": true,
+        "deterministic_layout_algorithm_now": true,
+        "layout_persistence_now": false,
+        "manual_anchor_persistence_now": false,
+        "route_now": false,
+        "ui_now": false,
+        "graph_rendering_now": false,
+        "graph_database_now": false,
+        "db_query_or_write_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "layout_is_truth": false,
+        "coordinate_is_truth": false,
+        "coordinate_is_proof": false,
+        "coordinate_is_evidence_strength": false,
+        "coordinate_is_promotion_readiness": false,
+        "manual_anchor_is_authority": false,
+        "candidate_overlay_is_durable_graph": false,
+        "source_balance_is_truth": false,
+        "product_write_authority": false
+      }
+    }
+  },
+  "expected_render_summary": {
+    "durable_graph_nodes": [
+      "node-ref:durable:ui:001"
+    ],
+    "candidate_overlay_nodes": [
+      "node-ref:candidate:ui:002"
+    ],
+    "source_ref_nodes": [
+      "node-ref:source:ui:003"
+    ],
+    "feedback_nodes": [
+      "node-ref:feedback:ui:004"
+    ],
+    "trajectory_nodes": [
+      "node-ref:trajectory:ui:005"
+    ],
+    "prior_thesis_markers": [
+      "prior_thesis"
+    ],
+    "retired_claim_markers": [
+      "retired"
+    ],
+    "stale_markers": [
+      "marker-ref:runtime-ui:stale"
+    ],
+    "tension_markers": [
+      "marker-ref:runtime-ui:tension"
+    ],
+    "gap_markers": [
+      "marker-ref:runtime-ui:gap"
+    ],
+    "bridge_markers": [
+      "marker-ref:runtime-ui:bridge"
+    ],
+    "source_balance_diagnostics": [
+      "diagnostic:runtime-ui:source_balance"
+    ],
+    "candidate_overlay_separation_diagnostics": [
+      "diagnostic:runtime-ui:candidate_overlay_separation"
+    ],
+    "selected_node_example": "node-ref:candidate:ui:002",
+    "selected_edge_example": "edge-ref:runtime-ui:002",
+    "missing_endpoint_edge_warning_example": {
+      "edge_version": "project_constellation_layout_edge.v0.1",
+      "scope": "project:augnes",
+      "edge_id": "edge:ui:missing:001",
+      "edge_ref": "edge-ref:runtime-ui:missing-endpoint",
+      "edge_kind": "bridge_relation",
+      "from_node_ref": "node-ref:missing:ui:999",
+      "to_node_ref": "node-ref:durable:ui:001",
+      "bounded_label": "Missing endpoint warning example",
+      "bounded_summary": "Missing endpoint edge warning is bounded and does not invent nodes.",
+      "source_refs": [],
+      "reason_codes": [
+        "edge_ref_present",
+        "edge_ref_present"
+      ],
+      "authority_boundary": {
+        "contract_only": true,
+        "layout_runtime_now": false,
+        "layout_algorithm_now": false,
+        "seeded_layout_now": false,
+        "layout_persistence_now": false,
+        "manual_anchor_persistence_now": false,
+        "route_now": false,
+        "ui_now": false,
+        "graph_rendering_now": false,
+        "graph_database_now": false,
+        "db_query_or_write_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "promotion_execution_now": false,
+        "promotion_decision_record_write_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "work_mutation_now": false,
+        "source_fetch_now": false,
+        "local_file_read_now": false,
+        "repository_file_read_now": false,
+        "uploaded_file_read_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "git_ledger_export_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "layout_is_truth": false,
+        "coordinate_is_truth": false,
+        "coordinate_is_proof": false,
+        "coordinate_is_evidence_strength": false,
+        "coordinate_is_promotion_readiness": false,
+        "manual_anchor_is_authority": false,
+        "temporal_smoothing_is_state": false,
+        "candidate_overlay_is_durable_graph": false,
+        "source_balance_is_truth": false,
+        "product_write_authority": false
+      }
+    },
+    "missing_endpoint_behavior": "bounded warning only; no invented node",
+    "authority_boundary_display_example": [
+      "route_now false",
+      "product_write_now false",
+      "durable_state_write_now false"
+    ],
+    "overlay_on_display_summary": "candidate overlay nodes are visible as display-only context",
+    "overlay_off_display_summary": "candidate overlay nodes are hidden locally without persistence"
+  },
+  "expected_static_labels": [
+    "Read-only constellation view",
+    "Coordinates are display hints",
+    "Candidate overlay is not durable graph",
+    "No state mutation",
+    "Product-write remains parked",
+    "Inspector is read-only",
+    "Source refs are lineage pointers, not proof",
+    "Markers are review aids",
+    "Show candidate overlay",
+    "Display only"
+  ],
+  "expected_forbidden_controls_absent": [
+    "save button",
+    "rollback button",
+    "promote button",
+    "apply state button",
+    "create proof/evidence button",
+    "product write button"
+  ],
+  "browser_validation_expectation": {
+    "viewport_width_px": 390,
+    "validation_mode": "static-only",
+    "skipped_reason": "No route or browser-mounted page is added by this read-only props-only UI slice."
+  }
+}
