@@ -219,6 +219,80 @@ CREATE TABLE IF NOT EXISTS work_events (
 CREATE INDEX IF NOT EXISTS idx_work_events_scope_work_time
   ON work_events(scope, work_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS perspective_promotion_decisions (
+  promotion_decision_id text primary key,
+  scope text not null,
+  decision_kind text not null,
+  decision_status text not null,
+  operator_actor_ref text not null,
+  explicit_user_action_required integer not null,
+  future_operator_decision_only integer not null,
+  review_record_ref text not null,
+  gate_report_ref text not null,
+  unresolved_tension_policy text not null,
+  knowledge_gap_policy text not null,
+  formation_receipt_policy text not null,
+  promotion_executed integer not null default 0,
+  decision_store_written integer not null default 1,
+  formation_receipt_written integer not null default 0,
+  durable_state_applied integer not null default 0,
+  proof_or_evidence_created integer not null default 0,
+  claim_or_evidence_written integer not null default 0,
+  product_write_executed integer not null default 0,
+  boundary_json text not null,
+  reason_codes_json text not null,
+  boundary_notes_json text not null,
+  basis_claim_candidate_refs_json text not null default '[]',
+  basis_evidence_candidate_refs_json text not null default '[]',
+  perspective_delta_candidate_refs_json text not null default '[]',
+  accepted_evidence_refs_json text not null default '[]',
+  unresolved_tension_refs_json text not null default '[]',
+  knowledge_gap_refs_json text not null default '[]',
+  created_at text not null,
+  updated_at text not null,
+  discarded_at text,
+  discard_reason text
+);
+
+CREATE TABLE IF NOT EXISTS perspective_promotion_decision_basis_refs (
+  id text primary key,
+  promotion_decision_id text not null,
+  basis_id text not null,
+  basis_kind text not null,
+  basis_ref text not null,
+  bounded_summary text not null,
+  source_refs_json text not null,
+  candidate_refs_json text not null,
+  review_record_refs_json text not null,
+  rag_context_preview_refs_json text not null,
+  retrieval_candidate_refs_json text not null,
+  provider_candidate_refs_json text not null,
+  feedback_refs_json text not null,
+  reason_codes_json text not null
+);
+
+CREATE TABLE IF NOT EXISTS perspective_promotion_decision_activity (
+  activity_id text primary key,
+  promotion_decision_id text not null,
+  activity_kind text not null,
+  actor_ref text not null,
+  summary text not null,
+  reason_codes_json text not null,
+  created_at text not null
+);
+
+CREATE INDEX IF NOT EXISTS idx_perspective_promotion_decisions_status
+  ON perspective_promotion_decisions(scope, decision_status, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_perspective_promotion_decisions_review_record
+  ON perspective_promotion_decisions(scope, review_record_ref, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_perspective_promotion_decision_basis_refs_decision
+  ON perspective_promotion_decision_basis_refs(promotion_decision_id, basis_kind);
+
+CREATE INDEX IF NOT EXISTS idx_perspective_promotion_decision_activity_decision
+  ON perspective_promotion_decision_activity(promotion_decision_id, created_at);
+
 CREATE TABLE IF NOT EXISTS ag_work_resume_mapping_proposals (
   proposal_id TEXT PRIMARY KEY,
   record_kind TEXT NOT NULL CHECK (
