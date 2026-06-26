@@ -1,0 +1,316 @@
+{
+  "fixture_version": "formation_receipt_durable_write.sample.v0.1",
+  "builder_version": "formation_receipt_builder.v0.1",
+  "record_version": "formation_receipt_record.v0.1",
+  "activity_version": "formation_receipt_activity.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-06-26T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/perspective-promotion-decision-store.sample.v0.1.json",
+    "fixtures/perspective-promotion-runtime-contract.sample.v0.1.json",
+    "fixtures/rag-context-preview.sample.v0.1.json"
+  ],
+  "valid_create_inputs": [
+    {
+      "builder_version": "formation_receipt_builder.v0.1",
+      "record_version": "formation_receipt_record.v0.1",
+      "scope": "project:augnes",
+      "receipt_id": "formation-receipt:durable-write:001",
+      "promotion_decision_id": "promotion-decision:store:promote:001",
+      "review_record_ref": "review-record:promotion:001",
+      "operator_actor_ref": "operator:reviewer:001",
+      "selected_candidate_refs": [
+        {
+          "disposition": "selected",
+          "candidate_kind": "claim_candidate",
+          "candidate_ref": "claim-candidate:bounded:001",
+          "bounded_summary": "Bounded selected claim candidate summary preserved by receipt.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "selected_candidate_ref_present",
+            "selected_source_ref_present"
+          ]
+        },
+        {
+          "disposition": "selected",
+          "candidate_kind": "evidence_candidate",
+          "candidate_ref": "evidence-candidate:bounded:001",
+          "bounded_summary": "Bounded selected evidence candidate summary preserved by receipt.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "selected_candidate_ref_present",
+            "selected_source_ref_present"
+          ]
+        }
+      ],
+      "omitted_candidate_refs": [
+        {
+          "disposition": "omitted",
+          "candidate_kind": "retrieval_candidate",
+          "candidate_ref": "retrieval-candidate:omitted:001",
+          "bounded_summary": "Bounded omitted retrieval candidate summary preserved by receipt.",
+          "source_refs": [
+            "source-ref:bounded:002"
+          ],
+          "reason_codes": [
+            "omitted_candidate_preserved"
+          ]
+        }
+      ],
+      "deferred_candidate_refs": [
+        {
+          "disposition": "deferred",
+          "candidate_kind": "rag_context_candidate",
+          "candidate_ref": "rag-context-candidate:deferred:001",
+          "bounded_summary": "Bounded deferred RAG context candidate summary preserved by receipt.",
+          "source_refs": [
+            "source-ref:bounded:003"
+          ],
+          "reason_codes": [
+            "deferred_candidate_preserved"
+          ]
+        }
+      ],
+      "selected_source_refs": [
+        {
+          "source_ref": "source-ref:bounded:001",
+          "bounded_summary": "Bounded selected source lineage summary for Formation Receipt.",
+          "reason_codes": [
+            "selected_source_ref_present"
+          ]
+        }
+      ],
+      "geometry_digest_ref": "geometry-digest:bounded:001",
+      "agent_substrate_warning_refs": [
+        "agent-substrate-warning:bounded:001"
+      ],
+      "context_packet_ref": "context-packet:bounded:001",
+      "feedback_event_refs": [
+        "feedback-event:bounded:001"
+      ],
+      "unresolved_tensions_preserved": [
+        "unresolved-tension:bounded:001"
+      ],
+      "knowledge_gaps_preserved": [
+        "knowledge-gap:bounded:001"
+      ],
+      "boundary_acknowledgements": [
+        "Formation Receipt is not durable Perspective state apply.",
+        "Formation Receipt is not proof of correctness.",
+        "Product-write remains parked by #686."
+      ],
+      "reason_codes": [
+        "promotion_decision_ref_present",
+        "review_record_ref_present",
+        "selected_candidate_ref_present",
+        "selected_source_ref_present",
+        "omitted_candidate_preserved",
+        "deferred_candidate_preserved",
+        "unresolved_tension_preserved",
+        "knowledge_gap_preserved",
+        "boundary_acknowledgement_present"
+      ],
+      "boundary_notes": [
+        "Formation Receipt records selected, omitted, and deferred context only.",
+        "Durable Perspective state apply remains deferred."
+      ],
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "updated_at": "2026-06-26T00:00:00.000Z"
+    }
+  ],
+  "invalid_create_inputs": {
+    "missing_promotion_decision": {
+      "based_on": "formation-receipt:durable-write:001",
+      "promotion_decision_id": ""
+    },
+    "missing_review_record": {
+      "based_on": "formation-receipt:durable-write:001",
+      "review_record_ref": ""
+    },
+    "missing_selected_candidates": {
+      "based_on": "formation-receipt:durable-write:001",
+      "selected_candidate_refs": []
+    },
+    "missing_selected_source_refs": {
+      "based_on": "formation-receipt:durable-write:001",
+      "selected_source_refs": []
+    },
+    "forbidden_authority": {
+      "based_on": "formation-receipt:durable-write:001",
+      "authority_boundary": {
+        "durable_perspective_state_apply_now": true
+      }
+    },
+    "private_raw_payload": {
+      "based_on": "formation-receipt:durable-write:001",
+      "selected_candidate_refs": [
+        {
+          "disposition": "selected",
+          "candidate_kind": "manual_operator_note_summary",
+          "candidate_ref": "manual-note:blocked:formation-receipt:001",
+          "bounded_summary": "raw formation receipt payload blocked by fixture",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "private_or_raw_payload_blocked"
+          ]
+        }
+      ]
+    },
+    "secret_like_payload": {
+      "based_on": "formation-receipt:durable-write:001",
+      "boundary_notes": [
+        "secret-like formation receipt input blocked by fixture"
+      ]
+    },
+    "duplicate_candidate_id": {
+      "based_on": "formation-receipt:durable-write:001",
+      "selected_candidate_refs": [
+        {
+          "disposition": "selected",
+          "candidate_kind": "claim_candidate",
+          "candidate_ref": "claim-candidate:duplicate:001",
+          "bounded_summary": "Bounded duplicate selected candidate summary one.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "selected_candidate_ref_present"
+          ]
+        },
+        {
+          "disposition": "selected",
+          "candidate_kind": "evidence_candidate",
+          "candidate_ref": "claim-candidate:duplicate:001",
+          "bounded_summary": "Bounded duplicate selected candidate summary two.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "selected_candidate_ref_present"
+          ]
+        }
+      ]
+    },
+    "duplicate_source_id": {
+      "based_on": "formation-receipt:durable-write:001",
+      "selected_source_refs": [
+        {
+          "source_ref": "source-ref:duplicate:001",
+          "bounded_summary": "Bounded duplicate selected source summary one.",
+          "reason_codes": [
+            "selected_source_ref_present"
+          ]
+        },
+        {
+          "source_ref": "source-ref:duplicate:001",
+          "bounded_summary": "Bounded duplicate selected source summary two.",
+          "reason_codes": [
+            "selected_source_ref_present"
+          ]
+        }
+      ]
+    }
+  },
+  "expected_records": [
+    {
+      "receipt_id": "formation-receipt:durable-write:001",
+      "promotion_decision_id": "promotion-decision:store:promote:001",
+      "review_record_ref": "review-record:promotion:001",
+      "formation_receipt_written": true,
+      "durable_state_applied": false,
+      "promotion_executed": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false
+    }
+  ],
+  "expected_activities": [
+    {
+      "activity_kind": "formation_receipt_written",
+      "receipt_id": "formation-receipt:durable-write:001"
+    },
+    {
+      "activity_kind": "formation_receipt_discarded",
+      "receipt_id": "formation-receipt:durable-write:001"
+    }
+  ],
+  "expected_create_results": [
+    {
+      "receipt_id": "formation-receipt:durable-write:001",
+      "status": "written"
+    }
+  ],
+  "expected_read_results": [
+    {
+      "receipt_id": "formation-receipt:durable-write:001",
+      "status": "written"
+    },
+    {
+      "receipt_id": "formation-receipt:durable-write:unknown:404",
+      "status": "not_found"
+    }
+  ],
+  "expected_list_results": [
+    {
+      "filter": "promotion_decision_id",
+      "value": "promotion-decision:store:promote:001",
+      "minimum_count": 1
+    },
+    {
+      "filter": "review_record_ref",
+      "value": "review-record:promotion:001",
+      "minimum_count": 1
+    }
+  ],
+  "expected_discard_results": [
+    {
+      "receipt_id": "formation-receipt:durable-write:001",
+      "status": "discarded",
+      "discard_reason": "operator-discarded-formation-receipt"
+    }
+  ],
+  "expected_rejection_results": [
+    {
+      "case": "missing_promotion_decision",
+      "status": "blocked_missing_promotion_decision"
+    },
+    {
+      "case": "missing_review_record",
+      "status": "blocked_missing_review_record"
+    },
+    {
+      "case": "missing_selected_candidates",
+      "status": "blocked_missing_selected_candidates"
+    },
+    {
+      "case": "missing_selected_source_refs",
+      "status": "blocked_missing_selected_source_refs"
+    },
+    {
+      "case": "forbidden_authority",
+      "status": "blocked_forbidden_authority"
+    },
+    {
+      "case": "private_raw_payload",
+      "status": "blocked_private_or_raw_payload"
+    },
+    {
+      "case": "secret_like_payload",
+      "status": "blocked_private_or_raw_payload"
+    },
+    {
+      "case": "duplicate_candidate_id",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case": "duplicate_source_id",
+      "status": "blocked_invalid_input"
+    }
+  ]
+}
