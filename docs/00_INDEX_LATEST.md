@@ -3900,6 +3900,39 @@ repo-local 색인이다.
   execution; no RAG answer generation; no source fetch; no
   local/repository/uploaded file read as source input; no Git Ledger export; no
   Codex execution; no GitHub automation; product-write remains parked by #686.
+- Dogfooding Record Runtime Contract v0.1:
+  `docs/DOGFOODING_RECORD_RUNTIME_CONTRACT_V0_1.md`,
+  `types/dogfooding-record-runtime-contract.ts`,
+  `fixtures/dogfooding-record-runtime-contract.sample.v0.1.json`,
+  and `scripts/smoke-dogfooding-record-runtime-contract-v0-1.mjs`
+  (`npm run smoke:dogfooding-record-runtime-contract-v0-1`) follows PR #792
+  through PR #794 feedback and surfacing slices. This slice is contract-only.
+  Dogfooding records are bounded review records. This pointer is repo-local
+  documentation metadata, not SSOT. The roadmap guide is not SSOT. It does not
+  add dogfooding ingestion runtime, dogfooding write route, dogfooding read
+  route, DB read/write, browser log ingestion, session log ingestion, raw
+  conversation ingestion, telemetry ingestion, durable state mutation, Formation
+  Receipt write, promotion execution, proof/evidence writes, claim/evidence
+  writes, product-write, Git Ledger export, provider calls, retrieval/RAG
+  execution, source fetch, local/repository/uploaded file read as source input,
+  Codex execution, GitHub automation, or product ID allocation. Product-write
+  remains parked by #686.
+
+  Boundary phrases: Dogfooding Record Runtime Contract v0.1; contract-only;
+  bounded review records; dogfooding records are not raw conversation logs;
+  dogfooding records are not hidden reasoning; dogfooding records are not
+  telemetry dumps; dogfooding records are not truth; dogfooding records are not
+  proof; dogfooding records are not promotion readiness; product-write requests
+  are review cues only; product-write requests do not execute product-write; no
+  dogfooding ingestion runtime; no dogfooding write route; no dogfooding read
+  route; no DB read/write; no browser log ingestion; no session log ingestion;
+  no raw conversation ingestion; no telemetry ingestion; no durable state
+  mutation; no Formation Receipt write; no promotion execution; no
+  proof/evidence write; no claim/evidence write; no product write; no product
+  ID allocation; no provider/OpenAI call; no prompt sending; no retrieval
+  execution; no RAG answer generation; no source fetch; no
+  local/repository/uploaded file read as source input; no Git Ledger export; no
+  Codex execution; no GitHub automation; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
