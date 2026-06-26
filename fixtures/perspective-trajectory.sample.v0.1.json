@@ -1,0 +1,3317 @@
+{
+  "fixture_version": "perspective_trajectory.sample.v0.1",
+  "builder_version": "perspective_trajectory_builder.v0.1",
+  "event_version": "perspective_trajectory_event.v0.1",
+  "trajectory_version": "perspective_trajectory.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-06-26T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/durable-perspective-state-apply.sample.v0.1.json",
+    "fixtures/formation-receipt-durable-write.sample.v0.1.json",
+    "fixtures/perspective-promotion-decision-store.sample.v0.1.json"
+  ],
+  "expected_input": {
+    "builder_version": "perspective_trajectory_builder.v0.1",
+    "scope": "project:augnes",
+    "perspective_id": "perspective:trajectory:001",
+    "as_of": "2026-06-26T00:00:00.000Z",
+    "durable_state_refs": [
+      "perspective:durable:001"
+    ],
+    "apply_events": [
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:candidate-created:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "candidate_created",
+        "layer": "candidate",
+        "occurred_at": "2026-06-26T00:00:00.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "claim-candidate:bounded:001",
+        "bounded_summary": "Bounded candidate created for initial durable trajectory review.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [],
+        "promotion_decision_refs": [],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:review-record-saved:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "review_record_saved",
+        "layer": "review_memory",
+        "occurred_at": "2026-06-26T00:00:01.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "review-record:promotion:001",
+        "bounded_summary": "Bounded review record saved before promotion decision.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "review_record_ref_present",
+          "candidate_ref_present",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:promotion-decision:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "promotion_decision_created",
+        "layer": "promotion_decision",
+        "occurred_at": "2026-06-26T00:00:02.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "promotion-decision:store:promote:001",
+        "bounded_summary": "Bounded promotion decision created as explicit operator decision.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "promotion_decision_ref_present",
+          "review_record_ref_present",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:formation-receipt:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "formation_receipt_created",
+        "layer": "formation_receipt",
+        "occurred_at": "2026-06-26T00:00:03.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "formation-receipt:durable-write:001",
+        "bounded_summary": "Bounded Formation Receipt captured selected omitted and deferred context.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001",
+          "retrieval-candidate:omitted:001",
+          "rag-context-candidate:deferred:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001"
+        ],
+        "reason_codes": [
+          "formation_receipt_ref_present",
+          "source_ref_present",
+          "unresolved_tension_preserved",
+          "knowledge_gap_preserved",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:durable-delta:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "durable_delta_applied",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:04.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "durable-state-apply:event:001",
+        "bounded_summary": "Bounded durable delta applied after Formation Receipt gate.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:001"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:initial"
+        ],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001"
+        ],
+        "reason_codes": [
+          "durable_state_ref_present",
+          "apply_event_ref_present",
+          "prior_thesis_preserved",
+          "source_ref_present",
+          "unresolved_tension_preserved",
+          "knowledge_gap_preserved",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:claim-retired:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "claim_retired",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:05.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "claim-candidate:bounded:001",
+        "bounded_summary": "Bounded retired claim remains auditable in trajectory.",
+        "source_refs": [
+          "contradicting-evidence:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:003"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:refined"
+        ],
+        "active_claim_refs": [],
+        "retired_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "retired_claim_preserved",
+          "contradiction_preserved",
+          "apply_event_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:tension-resolved:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "tension_resolved",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:06.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "unresolved-tension:bounded:001",
+        "bounded_summary": "Bounded tension was explicitly resolved during durable state evolution.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:002"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:initial"
+        ],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "unresolved_tension_resolved_explicitly",
+          "apply_event_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:knowledge-gap-deferred:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "knowledge_gap_deferred",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:07.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "knowledge-gap:bounded:001",
+        "bounded_summary": "Bounded knowledge gap deferred for future review.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:002"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001"
+        ],
+        "reason_codes": [
+          "knowledge_gap_deferred",
+          "apply_event_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:knowledge-gap-closed:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "knowledge_gap_closed",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:08.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "knowledge-gap:bounded:002",
+        "bounded_summary": "Bounded knowledge gap closed explicitly with reviewed lineage.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:003"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:002"
+        ],
+        "reason_codes": [
+          "knowledge_gap_closed_explicitly",
+          "apply_event_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:feedback-influenced:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "feedback_influenced_surface",
+        "layer": "feedback",
+        "occurred_at": "2026-06-26T00:00:09.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "feedback-ref:bounded:001",
+        "bounded_summary": "Bounded feedback ref influenced the visible trajectory surface.",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [
+          "feedback-ref:bounded:001"
+        ],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "feedback_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:salience-changed:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "salience_changed",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:10.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "perspective:trajectory:001",
+        "bounded_summary": "Bounded salience changed without product write or authority expansion.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:003"
+        ],
+        "feedback_refs": [
+          "feedback-ref:bounded:001"
+        ],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:refined"
+        ],
+        "active_claim_refs": [
+          "claim-candidate:bounded:002"
+        ],
+        "retired_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001",
+          "knowledge-gap:bounded:002"
+        ],
+        "reason_codes": [
+          "durable_state_ref_present",
+          "apply_event_ref_present",
+          "source_ref_present",
+          "feedback_ref_present",
+          "prior_thesis_preserved",
+          "retired_claim_preserved",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:candidate-created:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "candidate_created",
+        "layer": "candidate",
+        "occurred_at": "2026-06-26T00:00:11.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "claim-candidate:bounded:001",
+        "bounded_summary": "Duplicate bounded candidate event should be deduplicated by event id.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [],
+        "promotion_decision_refs": [],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      }
+    ],
+    "promotion_decision_refs": [
+      "promotion-decision:store:promote:001"
+    ],
+    "formation_receipt_refs": [
+      "formation-receipt:durable-write:001"
+    ],
+    "review_record_refs": [
+      "review-record:promotion:001"
+    ],
+    "feedback_refs": [
+      "feedback-ref:bounded:001"
+    ],
+    "source_refs": [
+      {
+        "source_ref": "source-ref:bounded:001",
+        "bounded_summary": "Bounded source ref summary for trajectory fixture.",
+        "reason_codes": [
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "source_ref": "contradicting-evidence:bounded:001",
+        "bounded_summary": "Bounded contradicting evidence ref summary preserved in trajectory.",
+        "reason_codes": [
+          "source_ref_present",
+          "contradiction_preserved",
+          "trajectory_is_read_only"
+        ]
+      }
+    ],
+    "boundary_notes": [
+      "Perspective trajectory is read-only.",
+      "Derived view, not source of truth.",
+      "Product-write remains parked by #686."
+    ],
+    "reason_codes": [
+      "durable_state_ref_present",
+      "apply_event_ref_present",
+      "promotion_decision_ref_present",
+      "formation_receipt_ref_present",
+      "review_record_ref_present",
+      "source_ref_present",
+      "candidate_ref_present",
+      "trajectory_is_read_only",
+      "derived_view_not_source_of_truth",
+      "no_state_mutation",
+      "no_product_write"
+    ],
+    "authority_boundary": {
+      "trajectory_read_model_now": true,
+      "derived_view_only": true,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "promotion_execution_now": false,
+      "promotion_decision_record_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "work_mutation_now": false,
+      "db_write_now": false,
+      "source_fetch_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "source_of_truth": false,
+      "candidate_is_fact": false,
+      "candidate_is_proof": false,
+      "candidate_is_accepted_evidence": false,
+      "formation_receipt_is_proof": false,
+      "durable_state_apply_is_product_write": false,
+      "product_write_authority": false
+    }
+  },
+  "empty_input": {
+    "builder_version": "perspective_trajectory_builder.v0.1",
+    "scope": "project:augnes",
+    "perspective_id": "perspective:trajectory:empty",
+    "as_of": "2026-06-26T00:00:00.000Z",
+    "durable_state_refs": [],
+    "apply_events": [],
+    "promotion_decision_refs": [],
+    "formation_receipt_refs": [],
+    "review_record_refs": [],
+    "feedback_refs": [],
+    "source_refs": [],
+    "boundary_notes": [
+      "Perspective trajectory is read-only.",
+      "Derived view, not source of truth.",
+      "Product-write remains parked by #686."
+    ],
+    "reason_codes": [
+      "trajectory_is_read_only",
+      "derived_view_not_source_of_truth",
+      "no_state_mutation",
+      "no_product_write"
+    ],
+    "authority_boundary": {
+      "trajectory_read_model_now": true,
+      "derived_view_only": true,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "promotion_execution_now": false,
+      "promotion_decision_record_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "work_mutation_now": false,
+      "db_write_now": false,
+      "source_fetch_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "source_of_truth": false,
+      "candidate_is_fact": false,
+      "candidate_is_proof": false,
+      "candidate_is_accepted_evidence": false,
+      "formation_receipt_is_proof": false,
+      "durable_state_apply_is_product_write": false,
+      "product_write_authority": false
+    }
+  },
+  "blocked_private_raw_input": {
+    "builder_version": "perspective_trajectory_builder.v0.1",
+    "scope": "project:augnes",
+    "perspective_id": "perspective:trajectory:blocked",
+    "as_of": "2026-06-26T00:00:00.000Z",
+    "durable_state_refs": [
+      "perspective:durable:001"
+    ],
+    "apply_events": [
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:candidate-created:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "candidate_created",
+        "layer": "candidate",
+        "occurred_at": "2026-06-26T00:00:00.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "claim-candidate:bounded:001",
+        "bounded_summary": "Bounded candidate created for initial durable trajectory review.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [],
+        "promotion_decision_refs": [],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:review-record-saved:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "review_record_saved",
+        "layer": "review_memory",
+        "occurred_at": "2026-06-26T00:00:01.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "review-record:promotion:001",
+        "bounded_summary": "Bounded review record saved before promotion decision.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "review_record_ref_present",
+          "candidate_ref_present",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:promotion-decision:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "promotion_decision_created",
+        "layer": "promotion_decision",
+        "occurred_at": "2026-06-26T00:00:02.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "promotion-decision:store:promote:001",
+        "bounded_summary": "Bounded promotion decision created as explicit operator decision.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "promotion_decision_ref_present",
+          "review_record_ref_present",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:formation-receipt:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "formation_receipt_created",
+        "layer": "formation_receipt",
+        "occurred_at": "2026-06-26T00:00:03.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "formation-receipt:durable-write:001",
+        "bounded_summary": "Bounded Formation Receipt captured selected omitted and deferred context.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001",
+          "retrieval-candidate:omitted:001",
+          "rag-context-candidate:deferred:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001"
+        ],
+        "reason_codes": [
+          "formation_receipt_ref_present",
+          "source_ref_present",
+          "unresolved_tension_preserved",
+          "knowledge_gap_preserved",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:durable-delta:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "durable_delta_applied",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:04.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "durable-state-apply:event:001",
+        "bounded_summary": "Bounded durable delta applied after Formation Receipt gate.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:001"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:initial"
+        ],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001"
+        ],
+        "reason_codes": [
+          "durable_state_ref_present",
+          "apply_event_ref_present",
+          "prior_thesis_preserved",
+          "source_ref_present",
+          "unresolved_tension_preserved",
+          "knowledge_gap_preserved",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:claim-retired:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "claim_retired",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:05.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "claim-candidate:bounded:001",
+        "bounded_summary": "Bounded retired claim remains auditable in trajectory.",
+        "source_refs": [
+          "contradicting-evidence:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:003"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:refined"
+        ],
+        "active_claim_refs": [],
+        "retired_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "retired_claim_preserved",
+          "contradiction_preserved",
+          "apply_event_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:tension-resolved:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "tension_resolved",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:06.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "unresolved-tension:bounded:001",
+        "bounded_summary": "Bounded tension was explicitly resolved during durable state evolution.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:002"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:initial"
+        ],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "unresolved_tension_resolved_explicitly",
+          "apply_event_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:knowledge-gap-deferred:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "knowledge_gap_deferred",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:07.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "knowledge-gap:bounded:001",
+        "bounded_summary": "Bounded knowledge gap deferred for future review.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:002"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001"
+        ],
+        "reason_codes": [
+          "knowledge_gap_deferred",
+          "apply_event_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:knowledge-gap-closed:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "knowledge_gap_closed",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:08.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "knowledge-gap:bounded:002",
+        "bounded_summary": "Bounded knowledge gap closed explicitly with reviewed lineage.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:003"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:002"
+        ],
+        "reason_codes": [
+          "knowledge_gap_closed_explicitly",
+          "apply_event_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:feedback-influenced:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "feedback_influenced_surface",
+        "layer": "feedback",
+        "occurred_at": "2026-06-26T00:00:09.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "feedback-ref:bounded:001",
+        "bounded_summary": "Bounded feedback ref influenced the visible trajectory surface.",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [
+          "feedback-ref:bounded:001"
+        ],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "feedback_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:salience-changed:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "salience_changed",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:10.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "perspective:trajectory:001",
+        "bounded_summary": "Bounded salience changed without product write or authority expansion.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:003"
+        ],
+        "feedback_refs": [
+          "feedback-ref:bounded:001"
+        ],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:refined"
+        ],
+        "active_claim_refs": [
+          "claim-candidate:bounded:002"
+        ],
+        "retired_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001",
+          "knowledge-gap:bounded:002"
+        ],
+        "reason_codes": [
+          "durable_state_ref_present",
+          "apply_event_ref_present",
+          "source_ref_present",
+          "feedback_ref_present",
+          "prior_thesis_preserved",
+          "retired_claim_preserved",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:candidate-created:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "candidate_created",
+        "layer": "candidate",
+        "occurred_at": "2026-06-26T00:00:11.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "claim-candidate:bounded:001",
+        "bounded_summary": "Duplicate bounded candidate event should be deduplicated by event id.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [],
+        "promotion_decision_refs": [],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      }
+    ],
+    "promotion_decision_refs": [
+      "promotion-decision:store:promote:001"
+    ],
+    "formation_receipt_refs": [
+      "formation-receipt:durable-write:001"
+    ],
+    "review_record_refs": [
+      "review-record:promotion:001"
+    ],
+    "feedback_refs": [
+      "feedback-ref:bounded:001"
+    ],
+    "source_refs": [
+      {
+        "source_ref": "source-ref:bounded:001",
+        "bounded_summary": "Bounded source ref summary for trajectory fixture.",
+        "reason_codes": [
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "source_ref": "contradicting-evidence:bounded:001",
+        "bounded_summary": "Bounded contradicting evidence ref summary preserved in trajectory.",
+        "reason_codes": [
+          "source_ref_present",
+          "contradiction_preserved",
+          "trajectory_is_read_only"
+        ]
+      }
+    ],
+    "boundary_notes": [
+      "raw perspective trajectory payload blocked by fixture"
+    ],
+    "reason_codes": [
+      "durable_state_ref_present",
+      "apply_event_ref_present",
+      "promotion_decision_ref_present",
+      "formation_receipt_ref_present",
+      "review_record_ref_present",
+      "source_ref_present",
+      "candidate_ref_present",
+      "trajectory_is_read_only",
+      "derived_view_not_source_of_truth",
+      "no_state_mutation",
+      "no_product_write"
+    ],
+    "authority_boundary": {
+      "trajectory_read_model_now": true,
+      "derived_view_only": true,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "promotion_execution_now": false,
+      "promotion_decision_record_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "work_mutation_now": false,
+      "db_write_now": false,
+      "source_fetch_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "source_of_truth": false,
+      "candidate_is_fact": false,
+      "candidate_is_proof": false,
+      "candidate_is_accepted_evidence": false,
+      "formation_receipt_is_proof": false,
+      "durable_state_apply_is_product_write": false,
+      "product_write_authority": false
+    }
+  },
+  "expected_trajectory": {
+    "trajectory_version": "perspective_trajectory.v0.1",
+    "builder_version": "perspective_trajectory_builder.v0.1",
+    "scope": "project:augnes",
+    "perspective_id": "perspective:trajectory:001",
+    "status": "built",
+    "as_of": "2026-06-26T00:00:00.000Z",
+    "events": [
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:candidate-created:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "candidate_created",
+        "layer": "candidate",
+        "occurred_at": "2026-06-26T00:00:00.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "claim-candidate:bounded:001",
+        "bounded_summary": "Bounded candidate created for initial durable trajectory review.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [],
+        "promotion_decision_refs": [],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "candidate_ref_present",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:review-record-saved:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "review_record_saved",
+        "layer": "review_memory",
+        "occurred_at": "2026-06-26T00:00:01.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "review-record:promotion:001",
+        "bounded_summary": "Bounded review record saved before promotion decision.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "candidate_ref_present",
+          "review_record_ref_present",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:promotion-decision:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "promotion_decision_created",
+        "layer": "promotion_decision",
+        "occurred_at": "2026-06-26T00:00:02.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "promotion-decision:store:promote:001",
+        "bounded_summary": "Bounded promotion decision created as explicit operator decision.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "promotion_decision_ref_present",
+          "review_record_ref_present",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:formation-receipt:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "formation_receipt_created",
+        "layer": "formation_receipt",
+        "occurred_at": "2026-06-26T00:00:03.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "formation-receipt:durable-write:001",
+        "bounded_summary": "Bounded Formation Receipt captured selected omitted and deferred context.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001",
+          "rag-context-candidate:deferred:001",
+          "retrieval-candidate:omitted:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001"
+        ],
+        "reason_codes": [
+          "formation_receipt_ref_present",
+          "knowledge_gap_preserved",
+          "source_ref_present",
+          "trajectory_is_read_only",
+          "unresolved_tension_preserved"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:durable-delta:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "durable_delta_applied",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:04.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "durable-state-apply:event:001",
+        "bounded_summary": "Bounded durable delta applied after Formation Receipt gate.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:001"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:initial"
+        ],
+        "active_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "retired_claim_refs": [],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001"
+        ],
+        "reason_codes": [
+          "apply_event_ref_present",
+          "durable_state_ref_present",
+          "knowledge_gap_preserved",
+          "prior_thesis_preserved",
+          "source_ref_present",
+          "trajectory_is_read_only",
+          "unresolved_tension_preserved"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:claim-retired:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "claim_retired",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:05.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "claim-candidate:bounded:001",
+        "bounded_summary": "Bounded retired claim remains auditable in trajectory.",
+        "source_refs": [
+          "contradicting-evidence:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:003"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:refined"
+        ],
+        "active_claim_refs": [],
+        "retired_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "apply_event_ref_present",
+          "contradiction_preserved",
+          "retired_claim_preserved",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:tension-resolved:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "tension_resolved",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:06.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "unresolved-tension:bounded:001",
+        "bounded_summary": "Bounded tension was explicitly resolved during durable state evolution.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:002"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:initial"
+        ],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "apply_event_ref_present",
+          "trajectory_is_read_only",
+          "unresolved_tension_resolved_explicitly"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:knowledge-gap-deferred:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "knowledge_gap_deferred",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:07.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "knowledge-gap:bounded:001",
+        "bounded_summary": "Bounded knowledge gap deferred for future review.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:002"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001"
+        ],
+        "reason_codes": [
+          "apply_event_ref_present",
+          "knowledge_gap_deferred",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:knowledge-gap-closed:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "knowledge_gap_closed",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:08.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "knowledge-gap:bounded:002",
+        "bounded_summary": "Bounded knowledge gap closed explicitly with reviewed lineage.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:003"
+        ],
+        "feedback_refs": [],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:002"
+        ],
+        "reason_codes": [
+          "apply_event_ref_present",
+          "knowledge_gap_closed_explicitly",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:feedback-influenced:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "feedback_influenced_surface",
+        "layer": "feedback",
+        "occurred_at": "2026-06-26T00:00:09.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "feedback-ref:bounded:001",
+        "bounded_summary": "Bounded feedback ref influenced the visible trajectory surface.",
+        "source_refs": [],
+        "candidate_refs": [],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [],
+        "formation_receipt_refs": [],
+        "apply_event_refs": [],
+        "feedback_refs": [
+          "feedback-ref:bounded:001"
+        ],
+        "prior_thesis_refs": [],
+        "active_claim_refs": [],
+        "retired_claim_refs": [],
+        "tension_refs": [],
+        "knowledge_gap_refs": [],
+        "reason_codes": [
+          "feedback_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "event_version": "perspective_trajectory_event.v0.1",
+        "builder_version": "perspective_trajectory_builder.v0.1",
+        "scope": "project:augnes",
+        "authority_boundary": {
+          "trajectory_read_model_now": true,
+          "derived_view_only": true,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "promotion_execution_now": false,
+          "promotion_decision_record_write_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "product_write_now": false,
+          "product_id_allocation_now": false,
+          "work_mutation_now": false,
+          "db_write_now": false,
+          "source_fetch_now": false,
+          "local_file_read_now": false,
+          "repository_file_read_now": false,
+          "uploaded_file_read_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "embedding_created_now": false,
+          "vector_search_now": false,
+          "git_ledger_export_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "source_of_truth": false,
+          "candidate_is_fact": false,
+          "candidate_is_proof": false,
+          "candidate_is_accepted_evidence": false,
+          "formation_receipt_is_proof": false,
+          "durable_state_apply_is_product_write": false,
+          "product_write_authority": false
+        },
+        "event_id": "trajectory:event:salience-changed:001",
+        "perspective_id": "perspective:trajectory:001",
+        "event_kind": "salience_changed",
+        "layer": "durable_state",
+        "occurred_at": "2026-06-26T00:00:10.000Z",
+        "actor_ref": "operator:reviewer:001",
+        "subject_ref": "perspective:trajectory:001",
+        "bounded_summary": "Bounded salience changed without product write or authority expansion.",
+        "source_refs": [
+          "source-ref:bounded:001"
+        ],
+        "candidate_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "review_record_refs": [
+          "review-record:promotion:001"
+        ],
+        "promotion_decision_refs": [
+          "promotion-decision:store:promote:001"
+        ],
+        "formation_receipt_refs": [
+          "formation-receipt:durable-write:001"
+        ],
+        "apply_event_refs": [
+          "durable-state-apply:event:003"
+        ],
+        "feedback_refs": [
+          "feedback-ref:bounded:001"
+        ],
+        "prior_thesis_refs": [
+          "prior-thesis:bounded:refined"
+        ],
+        "active_claim_refs": [
+          "claim-candidate:bounded:002"
+        ],
+        "retired_claim_refs": [
+          "claim-candidate:bounded:001"
+        ],
+        "tension_refs": [
+          "unresolved-tension:bounded:001"
+        ],
+        "knowledge_gap_refs": [
+          "knowledge-gap:bounded:001",
+          "knowledge-gap:bounded:002"
+        ],
+        "reason_codes": [
+          "apply_event_ref_present",
+          "durable_state_ref_present",
+          "feedback_ref_present",
+          "prior_thesis_preserved",
+          "retired_claim_preserved",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      }
+    ],
+    "current_state_summary": "Bounded salience changed without product write or authority expansion.",
+    "prior_thesis_refs": [
+      "prior-thesis:bounded:initial",
+      "prior-thesis:bounded:refined"
+    ],
+    "active_claim_refs": [
+      "claim-candidate:bounded:001",
+      "claim-candidate:bounded:002"
+    ],
+    "retired_claim_refs": [
+      "claim-candidate:bounded:001"
+    ],
+    "supporting_evidence_refs": [
+      "source-ref:bounded:001"
+    ],
+    "contradicting_evidence_refs": [
+      "contradicting-evidence:bounded:001"
+    ],
+    "open_tension_refs": [
+      "unresolved-tension:bounded:001"
+    ],
+    "resolved_tension_refs": [
+      "unresolved-tension:bounded:001"
+    ],
+    "knowledge_gap_refs": [
+      "knowledge-gap:bounded:001",
+      "knowledge-gap:bounded:002"
+    ],
+    "promotion_decision_refs": [
+      "promotion-decision:store:promote:001"
+    ],
+    "formation_receipt_refs": [
+      "formation-receipt:durable-write:001"
+    ],
+    "apply_event_refs": [
+      "durable-state-apply:event:001",
+      "durable-state-apply:event:002",
+      "durable-state-apply:event:003"
+    ],
+    "feedback_refs": [
+      "feedback-ref:bounded:001"
+    ],
+    "source_refs": [
+      {
+        "source_ref": "contradicting-evidence:bounded:001",
+        "bounded_summary": "Bounded contradicting evidence ref summary preserved in trajectory.",
+        "reason_codes": [
+          "contradiction_preserved",
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      },
+      {
+        "source_ref": "source-ref:bounded:001",
+        "bounded_summary": "Bounded source ref summary for trajectory fixture.",
+        "reason_codes": [
+          "source_ref_present",
+          "trajectory_is_read_only"
+        ]
+      }
+    ],
+    "boundary_notes": [
+      "Derived view, not source of truth.",
+      "Perspective trajectory is read-only.",
+      "Product-write remains parked by #686."
+    ],
+    "authority_boundary": {
+      "trajectory_read_model_now": true,
+      "derived_view_only": true,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "promotion_execution_now": false,
+      "promotion_decision_record_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "work_mutation_now": false,
+      "db_write_now": false,
+      "source_fetch_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "source_of_truth": false,
+      "candidate_is_fact": false,
+      "candidate_is_proof": false,
+      "candidate_is_accepted_evidence": false,
+      "formation_receipt_is_proof": false,
+      "durable_state_apply_is_product_write": false,
+      "product_write_authority": false
+    },
+    "reason_codes": [
+      "apply_event_ref_present",
+      "candidate_ref_present",
+      "contradiction_preserved",
+      "db_write_not_executed",
+      "derived_view_not_source_of_truth",
+      "durable_state_ref_present",
+      "feedback_ref_present",
+      "file_read_not_executed",
+      "formation_receipt_ref_present",
+      "git_ledger_export_not_executed",
+      "knowledge_gap_closed_explicitly",
+      "knowledge_gap_deferred",
+      "knowledge_gap_preserved",
+      "no_evidence_created",
+      "no_formation_receipt_write",
+      "no_product_write",
+      "no_promotion_execution",
+      "no_proof_created",
+      "no_state_mutation",
+      "prior_thesis_preserved",
+      "promotion_decision_ref_present",
+      "prompt_not_sent",
+      "provider_call_not_executed",
+      "rag_answer_not_generated",
+      "retired_claim_preserved",
+      "retrieval_not_executed",
+      "review_record_ref_present",
+      "source_fetch_not_executed",
+      "source_ref_present",
+      "trajectory_built",
+      "trajectory_is_read_only",
+      "unresolved_tension_preserved",
+      "unresolved_tension_resolved_explicitly"
+    ],
+    "trajectory_fingerprint": "570f81687eb983b6699ccba41cbfe529441a8097c5437908687cbd34c755ef75"
+  },
+  "expected_empty_trajectory": {
+    "trajectory_version": "perspective_trajectory.v0.1",
+    "builder_version": "perspective_trajectory_builder.v0.1",
+    "scope": "project:augnes",
+    "perspective_id": "perspective:trajectory:empty",
+    "status": "empty",
+    "as_of": "2026-06-26T00:00:00.000Z",
+    "events": [],
+    "current_state_summary": "No Perspective trajectory events available.",
+    "prior_thesis_refs": [],
+    "active_claim_refs": [],
+    "retired_claim_refs": [],
+    "supporting_evidence_refs": [],
+    "contradicting_evidence_refs": [],
+    "open_tension_refs": [],
+    "resolved_tension_refs": [],
+    "knowledge_gap_refs": [],
+    "promotion_decision_refs": [],
+    "formation_receipt_refs": [],
+    "apply_event_refs": [],
+    "feedback_refs": [],
+    "source_refs": [],
+    "boundary_notes": [
+      "Derived view, not source of truth.",
+      "Perspective trajectory is read-only.",
+      "Product-write remains parked by #686."
+    ],
+    "authority_boundary": {
+      "trajectory_read_model_now": true,
+      "derived_view_only": true,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "promotion_execution_now": false,
+      "promotion_decision_record_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "work_mutation_now": false,
+      "db_write_now": false,
+      "source_fetch_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "source_of_truth": false,
+      "candidate_is_fact": false,
+      "candidate_is_proof": false,
+      "candidate_is_accepted_evidence": false,
+      "formation_receipt_is_proof": false,
+      "durable_state_apply_is_product_write": false,
+      "product_write_authority": false
+    },
+    "reason_codes": [
+      "db_write_not_executed",
+      "derived_view_not_source_of_truth",
+      "file_read_not_executed",
+      "git_ledger_export_not_executed",
+      "no_evidence_created",
+      "no_formation_receipt_write",
+      "no_product_write",
+      "no_promotion_execution",
+      "no_proof_created",
+      "no_state_mutation",
+      "prompt_not_sent",
+      "provider_call_not_executed",
+      "rag_answer_not_generated",
+      "retrieval_not_executed",
+      "source_fetch_not_executed",
+      "trajectory_built",
+      "trajectory_is_read_only"
+    ],
+    "trajectory_fingerprint": "bf418e9f350e4419d6908bc424f7a434267e2dd8f8d6a8208543037cd1cdae7b"
+  },
+  "expected_blocked_private_raw_trajectory": {
+    "trajectory_version": "perspective_trajectory.v0.1",
+    "builder_version": "perspective_trajectory_builder.v0.1",
+    "scope": "project:augnes",
+    "perspective_id": "perspective:trajectory:blocked",
+    "status": "blocked_private_or_raw_payload",
+    "as_of": "2026-06-26T00:00:00.000Z",
+    "events": [],
+    "current_state_summary": "Perspective trajectory input blocked before read model build.",
+    "prior_thesis_refs": [],
+    "active_claim_refs": [],
+    "retired_claim_refs": [],
+    "supporting_evidence_refs": [],
+    "contradicting_evidence_refs": [],
+    "open_tension_refs": [],
+    "resolved_tension_refs": [],
+    "knowledge_gap_refs": [],
+    "promotion_decision_refs": [],
+    "formation_receipt_refs": [],
+    "apply_event_refs": [],
+    "feedback_refs": [],
+    "source_refs": [],
+    "boundary_notes": [],
+    "authority_boundary": {
+      "trajectory_read_model_now": true,
+      "derived_view_only": true,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "promotion_execution_now": false,
+      "promotion_decision_record_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "work_mutation_now": false,
+      "db_write_now": false,
+      "source_fetch_now": false,
+      "local_file_read_now": false,
+      "repository_file_read_now": false,
+      "uploaded_file_read_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "embedding_created_now": false,
+      "vector_search_now": false,
+      "git_ledger_export_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "source_of_truth": false,
+      "candidate_is_fact": false,
+      "candidate_is_proof": false,
+      "candidate_is_accepted_evidence": false,
+      "formation_receipt_is_proof": false,
+      "durable_state_apply_is_product_write": false,
+      "product_write_authority": false
+    },
+    "reason_codes": [
+      "private_or_raw_payload_blocked",
+      "secret_like_pattern_blocked",
+      "local_path_blocked",
+      "private_url_blocked",
+      "trajectory_is_read_only",
+      "no_state_mutation",
+      "no_product_write"
+    ],
+    "trajectory_fingerprint": "f5d26b1f274ca95dd9794a23c0504a16f2879f58bc6752891abbbeafab42aad6"
+  }
+}
