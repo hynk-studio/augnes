@@ -22,6 +22,18 @@ PR #782 defined that Formation Receipt is required before durable state apply. P
 
 This slice writes Formation Receipt records only after an explicit operator-reviewed promotion decision. It does not execute promotion and does not apply durable Perspective state.
 
+Formation Receipt creation requires an existing promotion decision record.
+
+The referenced promotion decision must not be discarded.
+
+The referenced promotion decision must be an explicit operator-reviewed promote decision.
+
+Formation Receipt creation rejects phantom promotion decision refs.
+
+Formation Receipt creation rejects non-promote or non-eligible promotion decisions.
+
+Formation Receipt creation does not mutate the promotion decision into durable Perspective state.
+
 ## 4. Scope and non-goals
 
 This slice writes public-safe Formation Receipt records to a caller-injected/local test DB only.
@@ -84,7 +96,7 @@ These tables store public-safe refs, bounded summaries, decision metadata, autho
 
 ## 9. Validation and refusal rules
 
-The builder and store reject missing promotion decision refs, missing review record refs, missing selected candidates, missing selected source refs, duplicate candidate table IDs, duplicate source IDs, forbidden authority flags, private/raw markers, and invalid input shapes.
+The builder and store reject missing promotion decision refs, phantom promotion decision refs, discarded promotion decisions, non-promote promotion decisions, non-eligible promotion decisions, promotion review-record mismatch, promotion operator mismatch, missing review record refs, missing selected candidates, missing selected source refs, duplicate candidate table IDs, duplicate source IDs, forbidden authority flags, private/raw markers, and invalid input shapes.
 
 Explicit user action is required.
 

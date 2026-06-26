@@ -124,6 +124,28 @@ interface FormationReceiptActivityRow {
   created_at: string;
 }
 
+interface PromotionDecisionLineageRow {
+  promotion_decision_id: string;
+  scope: string;
+  decision_kind: string;
+  decision_status: string;
+  operator_actor_ref: string;
+  explicit_user_action_required: number;
+  future_operator_decision_only: number;
+  review_record_ref: string;
+  promotion_executed: number;
+  formation_receipt_written: number;
+  durable_state_applied: number;
+  proof_or_evidence_created: number;
+  claim_or_evidence_written: number;
+  product_write_executed: number;
+  discarded_at: string | null;
+}
+
+interface PromotionDecisionBasisLineageRow {
+  source_refs_json: string;
+}
+
 const scope = "project:augnes" as const;
 
 const allowedActivityKinds: FormationReceiptActivityKind[] = [
@@ -385,6 +407,157 @@ export function formationReceiptStoreSchemaExistsV01(db: FormationReceiptDbLike)
   return requiredTables.every((tableName) => tableNames.has(tableName));
 }
 
+function validatePromotionDecisionLineageV01(
+  input: FormationReceiptCreateInput,
+  db: FormationReceiptDbLike,
+): {
+  passed: boolean;
+  status: FormationReceiptStatus;
+  reason_codes: FormationReceiptReasonCode[];
+} {
+  if (!promotionDecisionLineageTablesExistV01(db)) {
+    return {
+      passed: false,
+      status: "blocked_missing_promotion_decision",
+      reason_codes: [
+        "promotion_decision_store_missing",
+        "promotion_decision_ref_missing",
+        "formation_receipt_required_before_state_apply",
+        "durable_state_not_applied",
+        "product_write_denied",
+      ],
+    };
+  }
+
+  const row = db
+    .prepare(
+      `SELECT
+        promotion_decision_id,
+        scope,
+        decision_kind,
+        decision_status,
+        operator_actor_ref,
+        explicit_user_action_required,
+        future_operator_decision_only,
+        review_record_ref,
+        promotion_executed,
+        formation_receipt_written,
+        durable_state_applied,
+        proof_or_evidence_created,
+        claim_or_evidence_written,
+        product_write_executed,
+        discarded_at
+       FROM perspective_promotion_decisions
+       WHERE promotion_decision_id = ?`,
+    )
+    .get(input.promotion_decision_id) as PromotionDecisionLineageRow | undefined;
+
+  if (!row || row.scope !== scope) {
+    return {
+      passed: false,
+      status: "blocked_missing_promotion_decision",
+      reason_codes: [
+        "promotion_decision_ref_missing",
+        "formation_receipt_required_before_state_apply",
+        "durable_state_not_applied",
+        "product_write_denied",
+      ],
+    };
+  }
+
+  const reasonCodes: FormationReceiptReasonCode[] = [
+    "promotion_decision_ref_present",
+    "formation_receipt_required_before_state_apply",
+    "durable_state_not_applied",
+    "promotion_not_executed",
+    "proof_not_created",
+    "evidence_not_created",
+    "claim_evidence_not_written",
+    "product_write_denied",
+  ];
+
+  let status: FormationReceiptStatus = "blocked_invalid_input";
+  if (row.discarded_at) reasonCodes.push("promotion_decision_discarded");
+  if (row.decision_kind !== "promote") reasonCodes.push("promotion_decision_not_promote");
+  if (row.decision_status !== "eligible_for_future_operator_decision") {
+    reasonCodes.push("promotion_decision_not_eligible");
+  }
+  if (row.review_record_ref !== input.review_record_ref) {
+    reasonCodes.push("promotion_decision_review_record_mismatch");
+  }
+  if (row.operator_actor_ref !== input.operator_actor_ref) {
+    reasonCodes.push("promotion_decision_operator_mismatch");
+  }
+  if (row.formation_receipt_written !== 0) {
+    reasonCodes.push("promotion_decision_receipt_already_written");
+  }
+  if (
+    row.explicit_user_action_required !== 1 ||
+    row.future_operator_decision_only !== 1 ||
+    row.promotion_executed !== 0 ||
+    row.durable_state_applied !== 0 ||
+    row.proof_or_evidence_created !== 0 ||
+    row.claim_or_evidence_written !== 0 ||
+    row.product_write_executed !== 0
+  ) {
+    status = "blocked_forbidden_authority";
+    reasonCodes.push("promotion_decision_forbidden_authority");
+  }
+
+  const backedSourceRefs = readPromotionDecisionBasisSourceRefsV01(input.promotion_decision_id, db);
+  const selectedSourceRefs = input.selected_source_refs.map((source) => source.source_ref);
+  if (!selectedSourceRefs.every((sourceRef) => backedSourceRefs.has(sourceRef))) {
+    reasonCodes.push("promotion_decision_source_ref_mismatch", "selected_source_ref_missing");
+  }
+
+  const blockingReasonCodes = reasonCodes.filter((reasonCode) =>
+    [
+      "promotion_decision_discarded",
+      "promotion_decision_not_promote",
+      "promotion_decision_not_eligible",
+      "promotion_decision_review_record_mismatch",
+      "promotion_decision_operator_mismatch",
+      "promotion_decision_source_ref_mismatch",
+      "promotion_decision_receipt_already_written",
+      "promotion_decision_forbidden_authority",
+    ].includes(reasonCode),
+  );
+  if (blockingReasonCodes.length > 0) {
+    return { passed: false, status, reason_codes: uniqueSorted(reasonCodes) };
+  }
+
+  return { passed: true, status: "ready_to_write", reason_codes: uniqueSorted(reasonCodes) };
+}
+
+function promotionDecisionLineageTablesExistV01(db: FormationReceiptDbLike): boolean {
+  const requiredTables = [
+    "perspective_promotion_decisions",
+    "perspective_promotion_decision_basis_refs",
+  ];
+  const rows = db
+    .prepare(
+      `SELECT name FROM sqlite_master
+       WHERE type = 'table' AND name IN (?, ?)`,
+    )
+    .all(...requiredTables) as { name: string }[];
+  const tableNames = new Set(rows.map((row) => row.name));
+  return requiredTables.every((tableName) => tableNames.has(tableName));
+}
+
+function readPromotionDecisionBasisSourceRefsV01(
+  promotionDecisionId: string,
+  db: FormationReceiptDbLike,
+): Set<string> {
+  const rows = db
+    .prepare(
+      `SELECT source_refs_json
+       FROM perspective_promotion_decision_basis_refs
+       WHERE promotion_decision_id = ?`,
+    )
+    .all(promotionDecisionId) as PromotionDecisionBasisLineageRow[];
+  return new Set(rows.flatMap((row) => parseStringArray(row.source_refs_json)));
+}
+
 export function createFormationReceiptV01(
   input: FormationReceiptCreateInput,
   db: FormationReceiptDbLike,
@@ -392,6 +565,11 @@ export function createFormationReceiptV01(
   const validation = validateFormationReceiptCreateInputForStoreV01(input);
   if (!validation.passed) {
     return blockedResult(statusForValidationFailures(validation.failure_codes));
+  }
+
+  const promotionDecisionLineage = validatePromotionDecisionLineageV01(input, db);
+  if (!promotionDecisionLineage.passed) {
+    return blockedResult(promotionDecisionLineage.status, promotionDecisionLineage.reason_codes);
   }
 
   const record = normalizeCreateInputToRecord(input);
@@ -1057,7 +1235,10 @@ function result(
   };
 }
 
-function blockedResult(status: FormationReceiptStoreStatus): FormationReceiptStoreResult {
+function blockedResult(
+  status: FormationReceiptStoreStatus,
+  overrideReasonCodes?: FormationReceiptReasonCode[],
+): FormationReceiptStoreResult {
   const reasonCodesByStatus: Record<FormationReceiptStoreStatus, FormationReceiptReasonCode[]> = {
     receipt_candidate: [],
     ready_to_write: [],
@@ -1077,7 +1258,7 @@ function blockedResult(status: FormationReceiptStoreStatus): FormationReceiptSto
       "private_url_blocked",
     ],
   };
-  return result(status, null, [], [], reasonCodesByStatus[status]);
+  return result(status, null, [], [], overrideReasonCodes ?? reasonCodesByStatus[status]);
 }
 
 function validateCandidateRefs(

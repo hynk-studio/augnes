@@ -168,6 +168,32 @@
         "secret-like formation receipt input blocked by fixture"
       ]
     },
+    "unknown_promotion_decision": {
+      "based_on": "formation-receipt:durable-write:001",
+      "promotion_decision_id": "promotion-decision:lineage:unknown:404"
+    },
+    "discarded_promotion_decision": {
+      "based_on": "formation-receipt:durable-write:001",
+      "promotion_decision_id": "promotion-decision:lineage:discarded:001"
+    },
+    "non_promote_promotion_decision": {
+      "based_on": "formation-receipt:durable-write:001",
+      "promotion_decision_id": "promotion-decision:lineage:non-promote:001"
+    },
+    "non_eligible_promotion_decision": {
+      "based_on": "formation-receipt:durable-write:001",
+      "promotion_decision_id": "promotion-decision:lineage:non-eligible:001"
+    },
+    "promotion_review_record_mismatch": {
+      "based_on": "formation-receipt:durable-write:001",
+      "promotion_decision_id": "promotion-decision:lineage:review-mismatch:001",
+      "review_record_ref": "review-record:promotion:lineage-input"
+    },
+    "promotion_operator_mismatch": {
+      "based_on": "formation-receipt:durable-write:001",
+      "promotion_decision_id": "promotion-decision:lineage:operator-mismatch:001",
+      "operator_actor_ref": "operator:reviewer:lineage-input"
+    },
     "duplicate_candidate_id": {
       "based_on": "formation-receipt:durable-write:001",
       "selected_candidate_refs": [
@@ -303,6 +329,30 @@
     {
       "case": "secret_like_payload",
       "status": "blocked_private_or_raw_payload"
+    },
+    {
+      "case": "unknown_promotion_decision",
+      "status": "blocked_missing_promotion_decision"
+    },
+    {
+      "case": "discarded_promotion_decision",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case": "non_promote_promotion_decision",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case": "non_eligible_promotion_decision",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case": "promotion_review_record_mismatch",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case": "promotion_operator_mismatch",
+      "status": "blocked_invalid_input"
     },
     {
       "case": "duplicate_candidate_id",

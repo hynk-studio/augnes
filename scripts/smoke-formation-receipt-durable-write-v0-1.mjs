@@ -179,6 +179,7 @@ const packageJson = JSON.parse(readText(packagePath));
 const indexText = readText(indexPath);
 const builder = await import(pathToFileURL(builderPath).href);
 const store = await import(pathToFileURL(storePath).href);
+const promotionStore = await import(pathToFileURL(promotionStorePath).href);
 
 assertIncludes(roadmapText, "formation_receipt_durable_write_v0_1", "roadmap has Phase 4.3 slice");
 assertIncludes(
@@ -248,6 +249,8 @@ function assertTempDbBehavior() {
   const db = new Database(tempDbPath);
   try {
     store.ensureFormationReceiptStoreSchemaV01(db);
+    assertMissingPromotionStoreIsBlocked(db);
+    seedPromotionDecisionLineage(db);
     for (const input of fixture.valid_create_inputs) {
       const built = builder.buildFormationReceiptRecordV01(input);
       assert.equal(built.receipt_id, input.receipt_id, "builder preserves receipt_id");
@@ -324,6 +327,42 @@ function assertTempDbBehavior() {
     assertRejection("forbidden_authority", "blocked_forbidden_authority", db);
     assertRejection("private_raw_payload", "blocked_private_or_raw_payload", db);
     assertRejection("secret_like_payload", "blocked_private_or_raw_payload", db);
+    assertLineageRejectionIsAtomic(
+      "unknown_promotion_decision",
+      "blocked_missing_promotion_decision",
+      "promotion_decision_ref_missing",
+      db,
+    );
+    assertLineageRejectionIsAtomic(
+      "discarded_promotion_decision",
+      "blocked_invalid_input",
+      "promotion_decision_discarded",
+      db,
+    );
+    assertLineageRejectionIsAtomic(
+      "non_promote_promotion_decision",
+      "blocked_invalid_input",
+      "promotion_decision_not_promote",
+      db,
+    );
+    assertLineageRejectionIsAtomic(
+      "non_eligible_promotion_decision",
+      "blocked_invalid_input",
+      "promotion_decision_not_eligible",
+      db,
+    );
+    assertLineageRejectionIsAtomic(
+      "promotion_review_record_mismatch",
+      "blocked_invalid_input",
+      "promotion_decision_review_record_mismatch",
+      db,
+    );
+    assertLineageRejectionIsAtomic(
+      "promotion_operator_mismatch",
+      "blocked_invalid_input",
+      "promotion_decision_operator_mismatch",
+      db,
+    );
     assertDuplicateCreateRejectionIsAtomic("duplicate_candidate_id", db);
     assertDuplicateCreateRejectionIsAtomic("duplicate_source_id", db);
 
@@ -345,11 +384,191 @@ function assertTempDbBehavior() {
   }
 }
 
+function assertMissingPromotionStoreIsBlocked(db) {
+  const input = clone(fixture.valid_create_inputs[0]);
+  input.receipt_id = "formation-receipt:durable-write:invalid:missing-promotion-store";
+  const result = store.createFormationReceiptV01(input, db);
+  assert.equal(result.status, "blocked_missing_promotion_decision");
+  assert(result.reason_codes.includes("promotion_decision_store_missing"));
+  assert(result.reason_codes.includes("promotion_decision_ref_missing"));
+  const counts = countPersistedRowsForReceipt(db, input.receipt_id);
+  assert.equal(counts.receipts, 0, "missing promotion store leaves no receipt row");
+  assert.equal(counts.selectedCandidates, 0, "missing promotion store leaves no selected candidate rows");
+  assert.equal(counts.omittedCandidates, 0, "missing promotion store leaves no omitted candidate rows");
+  assert.equal(counts.deferredCandidates, 0, "missing promotion store leaves no deferred candidate rows");
+  assert.equal(counts.sources, 0, "missing promotion store leaves no source rows");
+  assert.equal(counts.activities, 0, "missing promotion store leaves no activity rows");
+  assertNoUnsafePayloadEcho(result);
+}
+
+function seedPromotionDecisionLineage(db) {
+  for (const input of [
+    makePromotionDecisionInput("promotion-decision:store:promote:001", {
+      review_record_ref: "review-record:promotion:001",
+      operator_actor_ref: "operator:reviewer:001",
+      created_at: "2026-06-26T00:00:00.000Z",
+    }),
+    makePromotionDecisionInput("promotion-decision:lineage:discarded:001", {
+      review_record_ref: "review-record:promotion:001",
+      operator_actor_ref: "operator:reviewer:001",
+      created_at: "2026-06-26T00:00:01.000Z",
+    }),
+    makePromotionDecisionInput("promotion-decision:lineage:non-promote:001", {
+      decision_kind: "reject",
+      decision_status: "eligible_for_future_operator_decision",
+      review_record_ref: "review-record:promotion:001",
+      operator_actor_ref: "operator:reviewer:001",
+      created_at: "2026-06-26T00:00:02.000Z",
+    }),
+    makePromotionDecisionInput("promotion-decision:lineage:non-eligible:001", {
+      decision_kind: "promote",
+      decision_status: "candidate_only",
+      review_record_ref: "review-record:promotion:001",
+      operator_actor_ref: "operator:reviewer:001",
+      created_at: "2026-06-26T00:00:03.000Z",
+    }),
+    makePromotionDecisionInput("promotion-decision:lineage:review-mismatch:001", {
+      review_record_ref: "review-record:promotion:lineage-source",
+      operator_actor_ref: "operator:reviewer:001",
+      created_at: "2026-06-26T00:00:04.000Z",
+    }),
+    makePromotionDecisionInput("promotion-decision:lineage:operator-mismatch:001", {
+      review_record_ref: "review-record:promotion:001",
+      operator_actor_ref: "operator:reviewer:lineage-source",
+      created_at: "2026-06-26T00:00:05.000Z",
+    }),
+  ]) {
+    const createResult = promotionStore.createPromotionDecisionRecordV01(input, db);
+    assert.equal(createResult.status, "stored", `${input.promotion_decision_id} promotion decision seeded`);
+  }
+
+  const discardResult = promotionStore.discardPromotionDecisionRecordV01(
+    "promotion-decision:lineage:discarded:001",
+    "operator-discarded-before-formation-receipt",
+    db,
+  );
+  assert.equal(discardResult.status, "discarded", "discarded promotion decision seeded");
+}
+
+function makePromotionDecisionInput(promotionDecisionId, overrides = {}) {
+  const reviewRecordRef = overrides.review_record_ref ?? "review-record:promotion:001";
+  return {
+    contract_version: "perspective_promotion_runtime_contract.v0.1",
+    scope,
+    promotion_decision_id: promotionDecisionId,
+    decision_kind: overrides.decision_kind ?? "promote",
+    decision_status: overrides.decision_status ?? "eligible_for_future_operator_decision",
+    operator_actor_ref: overrides.operator_actor_ref ?? "operator:reviewer:001",
+    explicit_user_action_required: true,
+    future_operator_decision_only: true,
+    review_record_ref: reviewRecordRef,
+    gate_report_ref: `${promotionDecisionId}:gate-report`,
+    basis_refs: [
+      {
+        basis_version: "perspective_promotion_basis.v0.1",
+        scope,
+        basis_id: `${promotionDecisionId}:basis:source`,
+        basis_kind: "source_ref",
+        basis_ref: "source-ref:bounded:001",
+        source_refs: ["source-ref:bounded:001"],
+        candidate_refs: [],
+        review_record_refs: [reviewRecordRef],
+        rag_context_preview_refs: [],
+        retrieval_candidate_refs: [],
+        provider_candidate_refs: [],
+        feedback_refs: [],
+        bounded_summary: "Bounded source lineage summary for Formation Receipt smoke.",
+        privacy_class: "public_safe_refs_only",
+        redaction_status: "not_needed",
+        public_safe: true,
+        reason_codes: ["source_ref_present", "basis_candidate_ref_present"],
+      },
+      {
+        basis_version: "perspective_promotion_basis.v0.1",
+        scope,
+        basis_id: `${promotionDecisionId}:basis:claim`,
+        basis_kind: "claim_candidate",
+        basis_ref: "claim-candidate:bounded:001",
+        source_refs: ["source-ref:bounded:001"],
+        candidate_refs: ["claim-candidate:bounded:001"],
+        review_record_refs: [reviewRecordRef],
+        rag_context_preview_refs: [],
+        retrieval_candidate_refs: [],
+        provider_candidate_refs: [],
+        feedback_refs: [],
+        bounded_summary: "Bounded claim lineage summary for Formation Receipt smoke.",
+        privacy_class: "public_safe_refs_only",
+        redaction_status: "not_needed",
+        public_safe: true,
+        reason_codes: ["claim_candidate_ref_present", "source_ref_present"],
+      },
+    ],
+    basis_claim_candidate_refs: ["claim-candidate:bounded:001"],
+    basis_evidence_candidate_refs: ["evidence-candidate:bounded:001"],
+    perspective_delta_candidate_refs: ["perspective-delta:bounded:001"],
+    accepted_evidence_refs: [],
+    unresolved_tension_refs: ["unresolved-tension:bounded:001"],
+    knowledge_gap_refs: ["knowledge-gap:bounded:001"],
+    unresolved_tension_policy: "preserve_unresolved",
+    knowledge_gap_policy: "preserve_gap",
+    formation_receipt_policy: "required_before_state_apply",
+    promotion_executed: false,
+    decision_store_written: false,
+    formation_receipt_written: false,
+    durable_state_applied: false,
+    proof_or_evidence_created: false,
+    claim_or_evidence_written: false,
+    product_write_executed: false,
+    reason_codes: [
+      "contract_ref_present",
+      "review_record_ref_present",
+      "source_ref_present",
+      "basis_ref_present",
+      "operator_actor_present",
+      "explicit_user_action_required",
+      "future_operator_decision_only",
+      "promotion_not_executed",
+      "formation_receipt_not_written",
+      "durable_state_not_applied",
+      "proof_not_created",
+      "evidence_not_created",
+      "claim_evidence_not_written",
+      "product_write_denied",
+    ],
+    boundary_notes: [
+      "Promotion decision record storage is not promotion execution.",
+      "Product-write remains parked by #686.",
+    ],
+    created_at: overrides.created_at ?? "2026-06-26T00:00:00.000Z",
+    updated_at: overrides.updated_at ?? overrides.created_at ?? "2026-06-26T00:00:00.000Z",
+  };
+}
+
 function assertRejection(caseName, expectedStatus, db) {
   const input = invalidInput(caseName);
   const result = store.createFormationReceiptV01(input, db);
   assert.equal(result.status, expectedStatus, `${caseName} returns ${expectedStatus}`);
   assert.equal(result.record, null, `${caseName} does not return record`);
+  assertNoUnsafePayloadEcho(result);
+  assert(result.authority_boundary, `${caseName} includes authority boundary`);
+}
+
+function assertLineageRejectionIsAtomic(caseName, expectedStatus, expectedReasonCode, db) {
+  const input = invalidInput(caseName);
+  const result = store.createFormationReceiptV01(input, db);
+  assert.equal(result.status, expectedStatus, `${caseName} returns ${expectedStatus}`);
+  assert(result.reason_codes.includes(expectedReasonCode), `${caseName} has ${expectedReasonCode}`);
+  assert(result.reason_codes.includes("formation_receipt_required_before_state_apply"));
+  assert(result.reason_codes.includes("durable_state_not_applied"));
+  assert(result.reason_codes.includes("product_write_denied"));
+  assert.equal(result.record, null, `${caseName} does not return record`);
+  const counts = countPersistedRowsForReceipt(db, input.receipt_id);
+  assert.equal(counts.receipts, 0, `${caseName} leaves no receipt row`);
+  assert.equal(counts.selectedCandidates, 0, `${caseName} leaves no selected candidate rows`);
+  assert.equal(counts.omittedCandidates, 0, `${caseName} leaves no omitted candidate rows`);
+  assert.equal(counts.deferredCandidates, 0, `${caseName} leaves no deferred candidate rows`);
+  assert.equal(counts.sources, 0, `${caseName} leaves no source rows`);
+  assert.equal(counts.activities, 0, `${caseName} leaves no activity rows`);
   assertNoUnsafePayloadEcho(result);
   assert(result.authority_boundary, `${caseName} includes authority boundary`);
 }
@@ -518,6 +737,17 @@ function assertTypeAndHelperExports() {
   }
   assertIncludes(storeText, "BEGIN IMMEDIATE", "store create uses explicit transaction");
   assertIncludes(storeText, "ROLLBACK", "store create has rollback path");
+  assertIncludes(storeText, "validatePromotionDecisionLineageV01", "store validates promotion lineage");
+  assertIncludes(storeText, "perspective_promotion_decisions", "store references promotion decision table");
+  assertIncludes(storeText, "perspective_promotion_decision_basis_refs", "store references promotion basis refs");
+  assertIncludes(storeText, 'decision_kind !== "promote"', "store rejects non-promote decisions");
+  assertIncludes(
+    storeText,
+    'decision_status !== "eligible_for_future_operator_decision"',
+    "store rejects non-eligible decisions",
+  );
+  assertIncludes(storeText, "promotion_decision_review_record_mismatch", "store checks review record match");
+  assertIncludes(storeText, "promotion_decision_operator_mismatch", "store checks operator match");
 }
 
 function assertReadOnlyGetRoute(source) {
