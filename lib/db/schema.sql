@@ -486,6 +486,8 @@ CREATE INDEX IF NOT EXISTS idx_perspective_state_apply_events_perspective
   ON perspective_state_apply_events(perspective_id, applied_at);
 CREATE INDEX IF NOT EXISTS idx_perspective_state_apply_events_receipt
   ON perspective_state_apply_events(formation_receipt_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_perspective_state_apply_events_receipt_unique
+  ON perspective_state_apply_events(formation_receipt_id);
 CREATE INDEX IF NOT EXISTS idx_perspective_state_activity
   ON perspective_state_activity(perspective_id, created_at);
 

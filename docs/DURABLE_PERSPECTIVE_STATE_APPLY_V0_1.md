@@ -84,6 +84,12 @@ Apply also requires the referenced promotion decision row in `perspective_promot
 
 Promotion decision review record and operator actor refs must match the Formation Receipt and apply input.
 
+Durable Perspective State Apply rejects candidate refs not backed by the Formation Receipt.
+
+Durable Perspective State Apply rejects unreviewed candidate refs.
+
+Active and retired claim refs must be Formation-Receipt-backed or prior-state-backed.
+
 Formation Receipt is required before durable state apply.
 
 ## 8. Prior thesis and retired claim preservation
@@ -142,6 +148,10 @@ These tables store public-safe refs, bounded summaries, lineage metadata, author
 
 The helper and store reject missing promotion decision refs, missing Formation Receipt refs, discarded Formation Receipts, non-written Formation Receipts, already-applied Formation Receipts, missing source refs, missing selected candidates, unresolved tension loss, knowledge gap loss, forbidden authority flags, private/raw markers, unknown reason codes, and invalid input shapes.
 
+A Formation Receipt can be applied at most once.
+
+Duplicate apply attempts for the same Formation Receipt are blocked.
+
 Provider output cannot apply durable Perspective state automatically.
 
 Retrieval result cannot apply durable Perspective state automatically.
@@ -165,6 +175,8 @@ Explicit user action is required.
 Apply is atomic: state row, prior thesis rows, claim rows, evidence refs, tension rows, knowledge gap rows, apply event rows, and activity rows commit or rollback together.
 
 Failed apply must leave no partial state or apply rows.
+
+The apply event table enforces one durable state apply per Formation Receipt.
 
 The store must not silently overwrite prior state, delete contradicted evidence, delete retired claims, lose unresolved tensions, or lose knowledge gaps.
 

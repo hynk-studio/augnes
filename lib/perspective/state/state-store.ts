@@ -171,6 +171,9 @@ const allowedDurablePerspectiveStateReasonCodes = [
   "promotion_decision_forbidden_authority",
   "formation_receipt_ref_present",
   "formation_receipt_ref_missing",
+  "receipt_candidate_ref_mismatch",
+  "unreviewed_candidate_ref_blocked",
+  "unreceipted_candidate_ref_blocked",
   "formation_receipt_written",
   "formation_receipt_required_before_state_apply",
   "formation_receipt_not_written",
@@ -435,6 +438,8 @@ CREATE INDEX IF NOT EXISTS idx_perspective_state_apply_events_perspective
   ON perspective_state_apply_events(perspective_id, applied_at);
 CREATE INDEX IF NOT EXISTS idx_perspective_state_apply_events_receipt
   ON perspective_state_apply_events(formation_receipt_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_perspective_state_apply_events_receipt_unique
+  ON perspective_state_apply_events(formation_receipt_id);
 CREATE INDEX IF NOT EXISTS idx_perspective_state_activity
   ON perspective_state_activity(perspective_id, created_at);
 `;
@@ -473,7 +478,8 @@ export function applyDurablePerspectiveStateV01(
     return blockedResult(durablePerspectiveStatusForValidationFailuresV01(validation.failure_codes));
   }
 
-  const receiptLineage = validateFormationReceiptLineageV01(input, db);
+  const priorState = durablePerspectiveStateSchemaExistsV01(db) ? readStateById(db, input.perspective_id) : null;
+  const receiptLineage = validateFormationReceiptLineageV01(input, db, priorState);
   if (!receiptLineage.passed) {
     return blockedResult(receiptLineage.status, receiptLineage.reason_codes);
   }
@@ -485,15 +491,9 @@ export function applyDurablePerspectiveStateV01(
 
   ensureDurablePerspectiveStateSchemaV01(db);
   if (applyEventExistsForReceipt(db, input.formation_receipt_id)) {
-    return blockedResult("blocked_already_applied_receipt", [
-      "formation_receipt_ref_present",
-      "formation_receipt_already_applied",
-      "formation_receipt_required_before_state_apply",
-      "product_write_denied",
-    ]);
+    return blockedResult("blocked_already_applied_receipt", alreadyAppliedReceiptReasonCodes());
   }
 
-  const priorState = readStateById(db, input.perspective_id);
   const preservationFailure = validatePriorStatePreservationV01(input, priorState);
   if (preservationFailure) return blockedResult(preservationFailure.status, preservationFailure.reason_codes);
 
@@ -524,6 +524,11 @@ export function applyDurablePerspectiveStateV01(
   try {
     db.prepare("BEGIN IMMEDIATE").run();
     transactionStarted = true;
+    if (applyEventExistsForReceipt(db, input.formation_receipt_id)) {
+      db.prepare("ROLLBACK").run();
+      transactionStarted = false;
+      return blockedResult("blocked_already_applied_receipt", alreadyAppliedReceiptReasonCodes());
+    }
     upsertStateRow(db, state);
     replaceStateRefs(db, state);
     insertApplyEvent(db, event);
@@ -554,13 +559,16 @@ export function applyDurablePerspectiveStateV01(
       "product_write_denied",
       "db_write_executed_for_state_apply_only",
     ]);
-  } catch {
+  } catch (error) {
     if (transactionStarted) {
       try {
         db.prepare("ROLLBACK").run();
       } catch {
         // Rollback failure still returns a bounded blocked result.
       }
+    }
+    if (isDuplicateReceiptApplyError(error)) {
+      return blockedResult("blocked_already_applied_receipt", alreadyAppliedReceiptReasonCodes());
     }
     return blockedResult("blocked_invalid_input");
   }
@@ -1001,6 +1009,7 @@ function stableStringify(value: unknown): string {
 function validateFormationReceiptLineageV01(
   input: DurablePerspectiveStateApplyInput,
   db: DurablePerspectiveDbLike,
+  priorState: DurablePerspectiveState | null,
 ): {
   passed: boolean;
   status: DurablePerspectiveApplyStatus;
@@ -1108,18 +1117,65 @@ function validateFormationReceiptLineageV01(
   const selectedCandidates = readReceiptCandidateRefs(db, "perspective_formation_receipt_selected_candidates", row.receipt_id);
   const omittedCandidates = readReceiptCandidateRefs(db, "perspective_formation_receipt_omitted_candidates", row.receipt_id);
   const deferredCandidates = readReceiptCandidateRefs(db, "perspective_formation_receipt_deferred_candidates", row.receipt_id);
-  if (!includesAll(input.selected_candidate_refs, selectedCandidates)) {
+  const selectedValidation = validateExactReceiptCandidateSet(input.selected_candidate_refs, selectedCandidates);
+  if (!selectedValidation.matches && selectedValidation.missing.length > 0) {
     return {
       passed: false,
       status: "blocked_missing_selected_candidates",
-      reason_codes: uniqueSorted([...reasonCodes, "selected_candidate_ref_missing"]),
+      reason_codes: uniqueSorted([
+        ...reasonCodes,
+        "selected_candidate_ref_missing",
+        "receipt_candidate_ref_mismatch",
+      ]),
     };
   }
-  if (!includesAll(input.omitted_candidate_refs, omittedCandidates) || !includesAll(input.deferred_candidate_refs, deferredCandidates)) {
+  if (!selectedValidation.matches) {
     return {
       passed: false,
       status: "blocked_invalid_input",
-      reason_codes: uniqueSorted([...reasonCodes, "omitted_candidate_preserved", "deferred_candidate_preserved"]),
+      reason_codes: uniqueSorted([
+        ...reasonCodes,
+        "receipt_candidate_ref_mismatch",
+        "unreviewed_candidate_ref_blocked",
+        "unreceipted_candidate_ref_blocked",
+      ]),
+    };
+  }
+  const omittedValidation = validateExactReceiptCandidateSet(input.omitted_candidate_refs, omittedCandidates);
+  const deferredValidation = validateExactReceiptCandidateSet(input.deferred_candidate_refs, deferredCandidates);
+  if (!omittedValidation.matches || !deferredValidation.matches) {
+    return {
+      passed: false,
+      status: "blocked_invalid_input",
+      reason_codes: uniqueSorted([
+        ...reasonCodes,
+        "omitted_candidate_preserved",
+        "deferred_candidate_preserved",
+        "receipt_candidate_ref_mismatch",
+        "unreviewed_candidate_ref_blocked",
+        "unreceipted_candidate_ref_blocked",
+      ]),
+    };
+  }
+
+  const receiptCandidateRefs = new Set([...selectedCandidates, ...omittedCandidates, ...deferredCandidates]);
+  const priorClaimRefs = new Set([
+    ...(priorState?.active_claims ?? []).map((claim) => claim.claim_ref),
+    ...(priorState?.retired_claims ?? []).map((claim) => claim.claim_ref),
+  ]);
+  const unbackedClaimRef = [...input.active_claims, ...input.retired_claims]
+    .map((claim) => claim.claim_ref)
+    .find((claimRef) => !receiptCandidateRefs.has(claimRef) && !priorClaimRefs.has(claimRef));
+  if (unbackedClaimRef) {
+    return {
+      passed: false,
+      status: "blocked_invalid_input",
+      reason_codes: uniqueSorted([
+        ...reasonCodes,
+        "receipt_candidate_ref_mismatch",
+        "unreviewed_candidate_ref_blocked",
+        "unreceipted_candidate_ref_blocked",
+      ]),
     };
   }
 
@@ -1958,9 +2014,38 @@ function blockedResult(
   return result(status, null, [], null, [], overrideReasonCodes ?? reasonCodesByStatus[status]);
 }
 
-function includesAll(values: string[], requiredValues: string[]): boolean {
-  const valueSet = new Set(values);
-  return requiredValues.every((value) => valueSet.has(value));
+function alreadyAppliedReceiptReasonCodes(): DurablePerspectiveStateReasonCode[] {
+  return [
+    "formation_receipt_ref_present",
+    "formation_receipt_already_applied",
+    "formation_receipt_required_before_state_apply",
+    "product_write_denied",
+  ];
+}
+
+function validateExactReceiptCandidateSet(
+  inputRefs: string[],
+  receiptRefs: string[],
+): { matches: boolean; missing: string[]; extra: string[]; duplicate: boolean } {
+  const inputSet = new Set(inputRefs);
+  const receiptSet = new Set(receiptRefs);
+  const missing = [...receiptSet].filter((value) => !inputSet.has(value)).sort();
+  const extra = [...inputSet].filter((value) => !receiptSet.has(value)).sort();
+  const duplicate = inputRefs.length !== inputSet.size || receiptRefs.length !== receiptSet.size;
+  return {
+    matches: missing.length === 0 && extra.length === 0 && !duplicate,
+    missing,
+    extra,
+    duplicate,
+  };
+}
+
+function isDuplicateReceiptApplyError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    /UNIQUE constraint failed/i.test(message) &&
+    /perspective_state_apply_events\.formation_receipt_id/i.test(message)
+  );
 }
 
 function hasReason(

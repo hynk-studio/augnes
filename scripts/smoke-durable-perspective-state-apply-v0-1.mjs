@@ -42,6 +42,12 @@ const docsExactPhrases = [
   "Durable Perspective State Apply rejects non-promote or non-eligible promotion decisions.",
   "Durable Perspective State Apply does not mutate promotion decision records.",
   "Durable Perspective State Apply does not mutate Formation Receipt records.",
+  "Durable Perspective State Apply rejects candidate refs not backed by the Formation Receipt.",
+  "Durable Perspective State Apply rejects unreviewed candidate refs.",
+  "Active and retired claim refs must be Formation-Receipt-backed or prior-state-backed.",
+  "A Formation Receipt can be applied at most once.",
+  "Duplicate apply attempts for the same Formation Receipt are blocked.",
+  "The apply event table enforces one durable state apply per Formation Receipt.",
   "Formation Receipt is required before durable state apply.",
   "Durable Perspective State Apply does not product-write.",
   "Durable Perspective State Apply does not create proof/evidence records.",
@@ -312,11 +318,17 @@ function assertTempDbBehavior() {
     assertRejection("discarded_formation_receipt", "blocked_discarded_formation_receipt", db);
     assertRejection("already_applied_receipt", "blocked_already_applied_receipt", db);
     assertRejection("missing_selected_candidate_refs", "blocked_missing_selected_candidates", db);
+    assertRejection("extra_selected_candidate_ref", "blocked_invalid_input", db);
+    assertRejection("extra_omitted_candidate_ref", "blocked_invalid_input", db);
+    assertRejection("extra_deferred_candidate_ref", "blocked_invalid_input", db);
+    assertRejection("unreceipted_active_claim", "blocked_invalid_input", db);
+    assertRejection("unreceipted_retired_claim", "blocked_invalid_input", db);
     assertRejection("unresolved_tension_loss", "blocked_unresolved_tension_loss", db);
     assertRejection("knowledge_gap_loss", "blocked_knowledge_gap_loss", db);
     assertRejection("forbidden_authority", "blocked_forbidden_authority", db);
     assertRejection("private_raw_payload", "blocked_private_or_raw_payload", db);
     assertRejection("secret_like_payload", "blocked_private_or_raw_payload", db);
+    assertDuplicateReceiptApplyBlocked(db);
     assertDuplicateApplyEventRollback(db);
   } finally {
     db.close();
@@ -348,6 +360,11 @@ function seedPromotionDecisionAndReceipts(db) {
     "formation-receipt:durable-write:008",
     "formation-receipt:durable-write:009",
     "formation-receipt:durable-write:010",
+    "formation-receipt:durable-write:011",
+    "formation-receipt:durable-write:012",
+    "formation-receipt:durable-write:013",
+    "formation-receipt:durable-write:014",
+    "formation-receipt:durable-write:015",
     "formation-receipt:durable-write:discarded",
   ]) {
     const receipt = receiptStore.createFormationReceiptV01(makeReceiptInput(receiptId), db);
@@ -555,6 +572,36 @@ function assertDuplicateApplyEventRollback(db) {
   );
 }
 
+function assertDuplicateReceiptApplyBlocked(db) {
+  const input = invalidInput("duplicate_receipt_apply");
+  const beforeReceiptEvents = countRows(db, "perspective_state_apply_events", "formation_receipt_id", input.formation_receipt_id);
+  const beforePerspectiveEvents = countRows(db, "perspective_state_apply_events", "perspective_id", input.perspective_id);
+  const beforeActivityRows = countRows(db, "perspective_state_activity", "perspective_id", input.perspective_id);
+  const result = stateStore.applyDurablePerspectiveStateV01(input, db);
+  assert.equal(result.status, "blocked_already_applied_receipt", "duplicate receipt apply returns blocked_already_applied_receipt");
+  assert.equal(
+    countRows(db, "perspective_state_apply_events", "formation_receipt_id", input.formation_receipt_id),
+    beforeReceiptEvents,
+    "duplicate receipt apply does not create a second apply event for the same receipt",
+  );
+  assert.equal(
+    countRows(db, "perspective_state_apply_events", "perspective_id", input.perspective_id),
+    beforePerspectiveEvents,
+    "duplicate receipt apply does not advance state event count",
+  );
+  assert.equal(
+    countRows(db, "perspective_state_activity", "perspective_id", input.perspective_id),
+    beforeActivityRows,
+    "duplicate receipt apply does not insert apply activity",
+  );
+  assert.equal(
+    countRowsIfTableExists(db, "perspective_state_apply_events", "apply_event_id", input.apply_event_id),
+    0,
+    "duplicate receipt apply leaves no apply event row for the rejected input",
+  );
+  assertNoUnsafePayloadEcho(result);
+}
+
 function invalidInput(caseName) {
   const base = clone(fixture.valid_apply_inputs[0]);
   const override = clone(fixture.invalid_apply_inputs[caseName]);
@@ -707,6 +754,8 @@ function assertTypeAndHelperExports() {
   assertIncludes(stateStoreText, "validatePromotionDecisionLineageV01", "store validates promotion decision lineage");
   assertIncludes(stateStoreText, "perspective_promotion_decisions", "store references promotion decision table");
   assertPromotionDecisionLineageStaticBoundary();
+  assertReceiptCandidateBackingStaticBoundary();
+  assertDuplicateReceiptApplyStaticBoundary();
   assertIncludes(stateStoreText, "applyEventExistsForReceipt", "store rejects already-applied receipt");
   assertIncludes(stateStoreText, "unresolved_tension_loss_blocked", "store blocks unresolved tension loss");
   assertIncludes(stateStoreText, "knowledge_gap_loss_blocked", "store blocks knowledge gap loss");
@@ -717,6 +766,9 @@ function assertTypeAndHelperExports() {
     "promotion_decision_review_record_mismatch",
     "promotion_decision_operator_mismatch",
     "promotion_decision_forbidden_authority",
+    "receipt_candidate_ref_mismatch",
+    "unreviewed_candidate_ref_blocked",
+    "unreceipted_candidate_ref_blocked",
   ]) {
     assert(
       applyHelper.allowedDurablePerspectiveStateReasonCodes.includes(reasonCode),
@@ -747,6 +799,41 @@ function assertPromotionDecisionLineageStaticBoundary() {
   assert(!helperSource.includes("INSERT INTO"), "promotion lineage helper does not insert rows");
   assert(!helperSource.includes("UPDATE "), "promotion lineage helper does not update rows");
   assert(!helperSource.includes("DELETE "), "promotion lineage helper does not delete rows");
+}
+
+function assertReceiptCandidateBackingStaticBoundary() {
+  const helperStart = stateStoreText.indexOf("function validateFormationReceiptLineageV01");
+  const helperEnd = stateStoreText.indexOf("function validatePromotionDecisionLineageV01", helperStart);
+  assert(helperStart >= 0 && helperEnd > helperStart, "Formation Receipt lineage helper source can be isolated");
+  const helperSource = stateStoreText.slice(helperStart, helperEnd);
+  assertIncludes(helperSource, "validateExactReceiptCandidateSet", "receipt lineage uses exact candidate set validation");
+  assertIncludes(helperSource, "receipt_candidate_ref_mismatch", "receipt lineage blocks candidate set mismatch");
+  assertIncludes(helperSource, "unreviewed_candidate_ref_blocked", "receipt lineage blocks unreviewed candidates");
+  assertIncludes(helperSource, "unreceipted_candidate_ref_blocked", "receipt lineage blocks unreceipted candidates");
+  assertIncludes(helperSource, "input.active_claims", "receipt lineage validates active claim backing");
+  assertIncludes(helperSource, "input.retired_claims", "receipt lineage validates retired claim backing");
+  assertIncludes(helperSource, "priorState?.active_claims", "receipt lineage allows prior-state-backed active claims");
+  assertIncludes(helperSource, "priorState?.retired_claims", "receipt lineage allows prior-state-backed retired claims");
+  assert(!helperSource.includes("includesAll("), "receipt candidate backing is not includes-only");
+}
+
+function assertDuplicateReceiptApplyStaticBoundary() {
+  assertIncludes(schemaText, "idx_perspective_state_apply_events_receipt_unique", "schema has unique receipt apply index");
+  assertIncludes(stateStoreText, "idx_perspective_state_apply_events_receipt_unique", "store schema has unique receipt apply index");
+  assertIncludes(
+    stateStoreText,
+    "ON perspective_state_apply_events(formation_receipt_id)",
+    "unique index targets formation_receipt_id",
+  );
+  const applySource = extractNamedFunctionSource(stateStoreText, "applyDurablePerspectiveStateV01");
+  const beginIndex = applySource.indexOf('db.prepare("BEGIN IMMEDIATE").run()');
+  const transactionCheckIndex = applySource.indexOf("applyEventExistsForReceipt(db, input.formation_receipt_id)", beginIndex);
+  const writeIndex = applySource.indexOf("upsertStateRow(db, state)", beginIndex);
+  assert(beginIndex >= 0, "apply starts an immediate transaction");
+  assert(transactionCheckIndex > beginIndex, "apply rechecks receipt apply after transaction begins");
+  assert(writeIndex > transactionCheckIndex, "transaction-time duplicate receipt check happens before state writes");
+  assertIncludes(applySource, "blocked_already_applied_receipt", "apply maps duplicate receipt to blocked status");
+  assertIncludes(applySource, "isDuplicateReceiptApplyError", "apply maps unique index failures to bounded status");
 }
 
 function assertStaticRouteBoundaries() {
@@ -856,17 +943,19 @@ function extractExportedFunctionSource(text, functionName) {
 }
 
 function extractNamedFunctionSource(text, functionName) {
-  const pattern = new RegExp(`(?:export )?function ${functionName}[\\s\\S]*?\\)\\s*\\{`);
-  const match = text.match(pattern);
-  assert(match?.index !== undefined, `${functionName} function exists`);
-  const bodyStart = match.index + match[0].length - 1;
+  const exportToken = `export function ${functionName}`;
+  const localToken = `function ${functionName}`;
+  const start = text.indexOf(exportToken) >= 0 ? text.indexOf(exportToken) : text.indexOf(localToken);
+  assert(start >= 0, `${functionName} function exists`);
+  const bodyStart = text.indexOf("{", start);
+  assert(bodyStart > start, `${functionName} function body starts`);
   let depth = 0;
   for (let index = bodyStart; index < text.length; index += 1) {
     const char = text[index];
     if (char === "{") depth += 1;
     if (char === "}") {
       depth -= 1;
-      if (depth === 0) return text.slice(match.index, index + 1);
+      if (depth === 0) return text.slice(start, index + 1);
     }
   }
   assert.fail(`${functionName} function body must close`);

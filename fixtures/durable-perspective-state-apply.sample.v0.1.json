@@ -362,6 +362,73 @@
       "formation_receipt_id": "formation-receipt:durable-write:004",
       "selected_candidate_refs": []
     },
+    "extra_selected_candidate_ref": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:extra-selected-candidate",
+      "perspective_id": "perspective:durable:invalid:extra-selected-candidate",
+      "formation_receipt_id": "formation-receipt:durable-write:011",
+      "selected_candidate_refs": [
+        "claim-candidate:bounded:001",
+        "evidence-candidate:bounded:001",
+        "claim-candidate:unreviewed:999"
+      ]
+    },
+    "extra_omitted_candidate_ref": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:extra-omitted-candidate",
+      "perspective_id": "perspective:durable:invalid:extra-omitted-candidate",
+      "formation_receipt_id": "formation-receipt:durable-write:012",
+      "omitted_candidate_refs": [
+        "retrieval-candidate:omitted:001",
+        "retrieval-candidate:unreceipted:999"
+      ]
+    },
+    "extra_deferred_candidate_ref": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:extra-deferred-candidate",
+      "perspective_id": "perspective:durable:invalid:extra-deferred-candidate",
+      "formation_receipt_id": "formation-receipt:durable-write:013",
+      "deferred_candidate_refs": [
+        "rag-context-candidate:deferred:001",
+        "rag-context-candidate:unreceipted:999"
+      ]
+    },
+    "unreceipted_active_claim": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:unreceipted-active-claim",
+      "perspective_id": "perspective:durable:invalid:unreceipted-active-claim",
+      "formation_receipt_id": "formation-receipt:durable-write:014",
+      "active_claims": [
+        {
+          "claim_ref": "claim-candidate:unreviewed-active:999",
+          "bounded_summary": "Bounded unreviewed active claim candidate blocked before durable state apply.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "selected_candidate_ref_present"
+          ]
+        }
+      ]
+    },
+    "unreceipted_retired_claim": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:unreceipted-retired-claim",
+      "perspective_id": "perspective:durable:invalid:unreceipted-retired-claim",
+      "formation_receipt_id": "formation-receipt:durable-write:015",
+      "retired_claims": [
+        {
+          "claim_ref": "claim-candidate:unreviewed-retired:999",
+          "bounded_summary": "Bounded unreviewed retired claim candidate blocked before durable state apply.",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "reason_codes": [
+            "retired_claim_preserved"
+          ]
+        }
+      ]
+    },
     "unresolved_tension_loss": {
       "based_on": "durable-state-apply:event:001",
       "apply_event_id": "durable-state-apply:event:invalid:tension-loss",
@@ -401,6 +468,11 @@
       "based_on": "durable-state-apply:event:001",
       "apply_event_id": "durable-state-apply:event:001",
       "formation_receipt_id": "formation-receipt:durable-write:010"
+    },
+    "duplicate_receipt_apply": {
+      "based_on": "durable-state-apply:event:001",
+      "apply_event_id": "durable-state-apply:event:invalid:duplicate-receipt",
+      "formation_receipt_id": "formation-receipt:durable-write:001"
     }
   },
   "expected_state": {
@@ -509,6 +581,26 @@
       "status": "blocked_missing_selected_candidates"
     },
     {
+      "case_name": "extra_selected_candidate_ref",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case_name": "extra_omitted_candidate_ref",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case_name": "extra_deferred_candidate_ref",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case_name": "unreceipted_active_claim",
+      "status": "blocked_invalid_input"
+    },
+    {
+      "case_name": "unreceipted_retired_claim",
+      "status": "blocked_invalid_input"
+    },
+    {
       "case_name": "unresolved_tension_loss",
       "status": "blocked_unresolved_tension_loss"
     },
@@ -527,6 +619,10 @@
     {
       "case_name": "duplicate_apply_event",
       "status": "blocked_invalid_input"
+    },
+    {
+      "case_name": "duplicate_receipt_apply",
+      "status": "blocked_already_applied_receipt"
     }
   ]
 }

@@ -44,6 +44,9 @@ export type DurablePerspectiveStateReasonCode =
   | "promotion_decision_forbidden_authority"
   | "formation_receipt_ref_present"
   | "formation_receipt_ref_missing"
+  | "receipt_candidate_ref_mismatch"
+  | "unreviewed_candidate_ref_blocked"
+  | "unreceipted_candidate_ref_blocked"
   | "formation_receipt_written"
   | "formation_receipt_required_before_state_apply"
   | "formation_receipt_not_written"
@@ -112,6 +115,9 @@ export const allowedDurablePerspectiveStateReasonCodes = [
   "promotion_decision_forbidden_authority",
   "formation_receipt_ref_present",
   "formation_receipt_ref_missing",
+  "receipt_candidate_ref_mismatch",
+  "unreviewed_candidate_ref_blocked",
+  "unreceipted_candidate_ref_blocked",
   "formation_receipt_written",
   "formation_receipt_required_before_state_apply",
   "formation_receipt_not_written",
