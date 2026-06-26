@@ -3862,6 +3862,44 @@ repo-local 색인이다.
   execution; no RAG answer generation; no source fetch; no
   local/repository/uploaded file read as source input; no Git Ledger export; no
   Codex execution; no GitHub automation; product-write remains parked by #686.
+- Feedback Influenced Surfacing Preview v0.1:
+  `docs/FEEDBACK_INFLUENCED_SURFACING_PREVIEW_V0_1.md`,
+  `lib/research-candidate-review/feedback-influenced-surfacing-preview.ts`,
+  `components/feedback-influenced-surfacing-preview-panel.tsx`,
+  `fixtures/feedback-influenced-surfacing-preview.sample.v0.1.json`,
+  `scripts/smoke-feedback-influenced-surfacing-preview-v0-1.mjs`,
+  and `scripts/browser-validate-feedback-influenced-surfacing-preview-v0-1.mjs`
+  (`npm run smoke:feedback-influenced-surfacing-preview-v0-1`,
+  `npm run browser:feedback-influenced-surfacing-preview-v0-1`) follows PR
+  #792 Feedback Event Aggregation Runtime and PR #793 Feedback Controls
+  Expansion. This slice is preview-only and advisory only. Feedback is not
+  truth. Feedback is not proof, evidence, or promotion readiness. This pointer
+  is repo-local documentation metadata, not SSOT. The roadmap guide is not SSOT.
+  It does not add feedback write route, feedback persistence, DB write,
+  candidate mutation, candidate deletion, candidate auto-hide, promotion, rule
+  mutation, parser mutation, durable state mutation, proof/evidence writes,
+  product-write, Git Ledger export, provider calls, retrieval/RAG execution,
+  source fetch, local/repository/uploaded file read as source input, or product
+  ID allocation. Product-write remains parked by #686.
+
+  Boundary phrases: Feedback Influenced Surfacing Preview v0.1; preview-only;
+  advisory only; feedback is not truth; feedback is not proof; feedback is not
+  evidence; feedback is not promotion readiness; surfacing preview is not
+  authority; pin/useful feedback can elevate display hint but cannot promote;
+  dismiss/wrong feedback can lower display hint but cannot delete;
+  correction/invalidation feedback creates review warning only;
+  needs-more-evidence creates review cue only; scope-overreach creates rule
+  review cue only; rule failure candidates are review aids; candidate overlay
+  hints are display hints only; source refs are lineage pointers, not proof;
+  source refs must be public-safe symbolic refs; no feedback write route; no
+  feedback persistence; no DB read/write; no candidate mutation; no candidate
+  deletion; no candidate auto-hide; no promotion; no rule mutation; no parser
+  mutation; no durable state mutation; no Formation Receipt write; no
+  proof/evidence write; no claim/evidence write; no product write; no product
+  ID allocation; no provider/OpenAI call; no prompt sending; no retrieval
+  execution; no RAG answer generation; no source fetch; no
+  local/repository/uploaded file read as source input; no Git Ledger export; no
+  Codex execution; no GitHub automation; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

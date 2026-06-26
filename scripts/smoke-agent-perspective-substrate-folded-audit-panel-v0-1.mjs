@@ -114,6 +114,10 @@ const feedbackControlsExpansionPackageScriptNames = [
   "browser:feedback-controls-expanded-v0-1",
   "smoke:feedback-controls-expanded-v0-1",
 ];
+const feedbackInfluencedSurfacingPreviewPackageScriptNames = [
+  "browser:feedback-influenced-surfacing-preview-v0-1",
+  "smoke:feedback-influenced-surfacing-preview-v0-1",
+];
 const feedbackControlsExpansionDocsPath =
   "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const feedbackControlsExpansionComponentPath =
@@ -126,6 +130,18 @@ const feedbackControlsExpansionSmokePath =
   "scripts/smoke-feedback-controls-expanded-v0-1.mjs";
 const feedbackControlsExpansionBrowserValidationPath =
   "scripts/browser-validate-feedback-controls-expanded-v0-1.mjs";
+const feedbackInfluencedSurfacingPreviewDocsPath =
+  "docs/FEEDBACK_INFLUENCED_SURFACING_PREVIEW_V0_1.md";
+const feedbackInfluencedSurfacingPreviewHelperPath =
+  "lib/research-candidate-review/feedback-influenced-surfacing-preview.ts";
+const feedbackInfluencedSurfacingPreviewPanelPath =
+  "components/feedback-influenced-surfacing-preview-panel.tsx";
+const feedbackInfluencedSurfacingPreviewFixturePath =
+  "fixtures/feedback-influenced-surfacing-preview.sample.v0.1.json";
+const feedbackInfluencedSurfacingPreviewSmokePath =
+  "scripts/smoke-feedback-influenced-surfacing-preview-v0-1.mjs";
+const feedbackInfluencedSurfacingPreviewBrowserValidationPath =
+  "scripts/browser-validate-feedback-influenced-surfacing-preview-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -171,6 +187,17 @@ const feedbackControlsExpansionChangedFiles = [
   feedbackControlsExpansionFixturePath,
   feedbackControlsExpansionSmokePath,
   feedbackControlsExpansionBrowserValidationPath,
+  smokePath,
+  packagePath,
+  indexPath,
+];
+const feedbackInfluencedSurfacingPreviewChangedFiles = [
+  feedbackInfluencedSurfacingPreviewHelperPath,
+  feedbackInfluencedSurfacingPreviewPanelPath,
+  feedbackInfluencedSurfacingPreviewFixturePath,
+  feedbackInfluencedSurfacingPreviewSmokePath,
+  feedbackInfluencedSurfacingPreviewBrowserValidationPath,
+  feedbackInfluencedSurfacingPreviewDocsPath,
   smokePath,
   packagePath,
   indexPath,
@@ -479,8 +506,9 @@ function assertPackageScript() {
       listUiContractPackageScriptNames,
       listUiImplementationPackageScriptNames,
       feedbackControlsExpansionPackageScriptNames,
+      feedbackInfluencedSurfacingPreviewPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
-    "package additions must only include the downstream Candidate-to-Codex handoff draft/review/operator decision smoke script",
+    "package additions must only include a recognized downstream slice package script set",
   );
   assert.doesNotMatch(
     packageAddedLines.join("\n"),
@@ -491,6 +519,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (feedbackInfluencedSurfacingPreviewSliceActive(changedFiles)) {
+    assertFeedbackInfluencedSurfacingPreviewChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackControlsExpansionSliceActive(changedFiles)) {
     assertFeedbackControlsExpansionChangedFiles(changedFiles);
     return;
@@ -592,6 +624,48 @@ function feedbackControlsExpansionSliceActive(changedFiles) {
     feedbackControlsExpansionSmokePath,
     feedbackControlsExpansionBrowserValidationPath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function feedbackInfluencedSurfacingPreviewSliceActive(changedFiles) {
+  return [
+    feedbackInfluencedSurfacingPreviewHelperPath,
+    feedbackInfluencedSurfacingPreviewPanelPath,
+    feedbackInfluencedSurfacingPreviewDocsPath,
+    feedbackInfluencedSurfacingPreviewFixturePath,
+    feedbackInfluencedSurfacingPreviewSmokePath,
+    feedbackInfluencedSurfacingPreviewBrowserValidationPath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertFeedbackInfluencedSurfacingPreviewChangedFiles(changedFiles) {
+  for (const expectedFile of feedbackInfluencedSurfacingPreviewChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      feedbackInfluencedSurfacingPreviewChangedFiles.includes(changedFile),
+      `unexpected changed file in feedback influenced surfacing preview slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)route\.(ts|tsx|js|mjs)$/,
+      "must not change route handlers",
+    );
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)actions?\.(ts|tsx|js|mjs)$/,
+      "must not change server actions",
+    );
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)(schema|migration|db|sql)\b/i,
+      "must not change schema/db/sql paths",
+    );
+  }
 }
 
 function assertFeedbackControlsExpansionChangedFiles(changedFiles) {
