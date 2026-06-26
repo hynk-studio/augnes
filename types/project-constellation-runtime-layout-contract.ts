@@ -830,8 +830,9 @@ export interface ProjectConstellationRuntimeLayoutPreviewAuthorityBoundary {
   product_write_lane_parked_by_686: true;
 }
 
-export interface ProjectConstellationRuntimeLayoutContract {
+export interface ProjectConstellationRuntimeLayoutLegacyContract {
   contract_kind: ProjectConstellationRuntimeLayoutContractKind;
+  contract_version: ProjectConstellationRuntimeLayoutContractVersion;
   source_state_trajectory_validation_ref: string;
   source_state_trajectory_validation_fingerprint: string;
   contract_scope: ProjectConstellationRuntimeLayoutContractScope;

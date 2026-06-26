@@ -6,6 +6,7 @@ const roadmapPath = "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md";
 const trajectoryDocPath = "docs/PERSPECTIVE_TRAJECTORY_BUILDER_V0_1.md";
 const docPath = "docs/PROJECT_CONSTELLATION_RUNTIME_LAYOUT_V0_1.md";
 const typePath = "types/project-constellation-runtime-layout-contract.ts";
+const legacyHelperPath = "lib/research-candidate-review/project-constellation-runtime-layout.ts";
 const fixturePath = "fixtures/project-constellation-runtime-layout-contract.sample.v0.1.json";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
@@ -334,6 +335,7 @@ for (const filePath of [
   trajectoryDocPath,
   docPath,
   typePath,
+  legacyHelperPath,
   fixturePath,
   packagePath,
   indexPath,
@@ -345,6 +347,7 @@ const roadmapText = readText(roadmapPath);
 const trajectoryDocText = readText(trajectoryDocPath);
 const docText = readText(docPath);
 const typeText = readText(typePath);
+const legacyHelperText = readText(legacyHelperPath);
 const fixtureText = readText(fixturePath);
 const fixture = JSON.parse(fixtureText);
 const packageJson = JSON.parse(readText(packagePath));
@@ -374,6 +377,7 @@ assert.equal(bundle.status, "contract_only");
 assert(Array.isArray(bundle.layouts) && bundle.layouts.length > 0, "expected_bundle.layouts is non-empty");
 
 assertTypeCoverage();
+assertInterfaceSeparation();
 assertFixtureCoverage();
 assertFingerprint();
 assertAuthorityBoundaries();
@@ -437,6 +441,63 @@ function assertTypeCoverage() {
   }
 }
 
+function assertInterfaceSeparation() {
+  const newContractInterfaceMatches =
+    typeText.match(/^export interface ProjectConstellationRuntimeLayoutContract \{/gm) ?? [];
+  assert.equal(
+    newContractInterfaceMatches.length,
+    1,
+    "ProjectConstellationRuntimeLayoutContract is exported exactly once",
+  );
+  assertIncludes(
+    typeText,
+    "export interface ProjectConstellationRuntimeLayoutLegacyContract",
+    "legacy compatibility contract shape is exported under a distinct name",
+  );
+
+  const newContract = sliceBetween(
+    typeText,
+    "export interface ProjectConstellationRuntimeLayoutContract {",
+    "export interface ProjectConstellationRuntimeLayoutBundle {",
+  );
+  for (const field of [
+    "layout_version",
+    "contract_version",
+    "node_positions",
+    "edge_routes",
+    "layout_fingerprint",
+  ]) {
+    assertIncludes(newContract, field, `new contract interface contains ${field}`);
+  }
+
+  const legacyContract = typeText.slice(
+    typeText.indexOf("export interface ProjectConstellationRuntimeLayoutLegacyContract {"),
+  );
+  assertIncludes(legacyContract, "contract_kind", "legacy contract contains contract_kind");
+  assertIncludes(
+    legacyContract,
+    "source_state_trajectory_validation_ref",
+    "legacy contract contains source_state_trajectory_validation_ref",
+  );
+  assertIncludes(
+    legacyContract,
+    "sample_project_constellation_layout_preview",
+    "legacy contract contains sample_project_constellation_layout_preview",
+  );
+  assertIncludes(legacyContract, "contract_fingerprint", "legacy contract contains contract_fingerprint");
+
+  assertIncludes(
+    legacyHelperText,
+    "ProjectConstellationRuntimeLayoutLegacyContract",
+    "legacy preview helper uses the distinct legacy contract type",
+  );
+  assert.equal(
+    (legacyHelperText.match(/\bProjectConstellationRuntimeLayoutContract\b/g) ?? []).length,
+    0,
+    "legacy preview helper does not use the new ProjectConstellationRuntimeLayoutContract type",
+  );
+}
+
 function assertFixtureCoverage() {
   assertSetCoverage(new Set(bundle.layouts.map((layout) => layout.status)), requiredStatuses, "layout status");
   assertSetCoverage(new Set(allNodes().map((node) => node.node_kind)), requiredNodeKinds, "node kind");
@@ -474,8 +535,17 @@ function assertFixtureCoverage() {
 }
 
 function assertFingerprint() {
-  const withoutFingerprint = { ...bundle, bundle_fingerprint: "" };
-  assert.equal(bundle.bundle_fingerprint, sha256(stableStringify(withoutFingerprint)), "bundle_fingerprint is deterministic");
+  const { bundle_fingerprint: recordedFingerprint, ...bundleWithoutFingerprint } = bundle;
+  const canonicalBundleWithoutFingerprint = stableStringify(bundleWithoutFingerprint);
+  assert(
+    !canonicalBundleWithoutFingerprint.includes("bundle_fingerprint"),
+    "bundle_fingerprint is omitted from canonical fingerprint input",
+  );
+  assert.equal(
+    recordedFingerprint,
+    sha256(canonicalBundleWithoutFingerprint),
+    "bundle_fingerprint is deterministic over expected_bundle without bundle_fingerprint",
+  );
 }
 
 function assertAuthorityBoundaries() {
@@ -610,6 +680,14 @@ function extractIndexBlock(text, heading) {
   const after = text.slice(start + 2);
   const next = after.search(/\n- [^\n]+:/);
   return next >= 0 ? after.slice(0, next) : after;
+}
+
+function sliceBetween(text, startMarker, endMarker) {
+  const start = text.indexOf(startMarker);
+  assert(start >= 0, `start marker exists: ${startMarker}`);
+  const end = text.indexOf(endMarker, start + startMarker.length);
+  assert(end >= 0, `end marker exists: ${endMarker}`);
+  return text.slice(start, end);
 }
 
 function stableStringify(value) {
