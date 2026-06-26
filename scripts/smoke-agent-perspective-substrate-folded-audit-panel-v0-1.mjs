@@ -118,6 +118,9 @@ const feedbackInfluencedSurfacingPreviewPackageScriptNames = [
   "browser:feedback-influenced-surfacing-preview-v0-1",
   "smoke:feedback-influenced-surfacing-preview-v0-1",
 ];
+const dogfoodingRecordRuntimeContractPackageScriptNames = [
+  "smoke:dogfooding-record-runtime-contract-v0-1",
+];
 const feedbackControlsExpansionDocsPath =
   "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const feedbackControlsExpansionComponentPath =
@@ -142,6 +145,14 @@ const feedbackInfluencedSurfacingPreviewSmokePath =
   "scripts/smoke-feedback-influenced-surfacing-preview-v0-1.mjs";
 const feedbackInfluencedSurfacingPreviewBrowserValidationPath =
   "scripts/browser-validate-feedback-influenced-surfacing-preview-v0-1.mjs";
+const dogfoodingRecordRuntimeContractDocsPath =
+  "docs/DOGFOODING_RECORD_RUNTIME_CONTRACT_V0_1.md";
+const dogfoodingRecordRuntimeContractTypePath =
+  "types/dogfooding-record-runtime-contract.ts";
+const dogfoodingRecordRuntimeContractFixturePath =
+  "fixtures/dogfooding-record-runtime-contract.sample.v0.1.json";
+const dogfoodingRecordRuntimeContractSmokePath =
+  "scripts/smoke-dogfooding-record-runtime-contract-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -198,6 +209,15 @@ const feedbackInfluencedSurfacingPreviewChangedFiles = [
   feedbackInfluencedSurfacingPreviewSmokePath,
   feedbackInfluencedSurfacingPreviewBrowserValidationPath,
   feedbackInfluencedSurfacingPreviewDocsPath,
+  smokePath,
+  packagePath,
+  indexPath,
+];
+const dogfoodingRecordRuntimeContractChangedFiles = [
+  dogfoodingRecordRuntimeContractDocsPath,
+  dogfoodingRecordRuntimeContractTypePath,
+  dogfoodingRecordRuntimeContractFixturePath,
+  dogfoodingRecordRuntimeContractSmokePath,
   smokePath,
   packagePath,
   indexPath,
@@ -507,6 +527,7 @@ function assertPackageScript() {
       listUiImplementationPackageScriptNames,
       feedbackControlsExpansionPackageScriptNames,
       feedbackInfluencedSurfacingPreviewPackageScriptNames,
+      dogfoodingRecordRuntimeContractPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include a recognized downstream slice package script set",
   );
@@ -519,6 +540,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (dogfoodingRecordRuntimeContractSliceActive(changedFiles)) {
+    assertDogfoodingRecordRuntimeContractChangedFiles(changedFiles);
+    return;
+  }
   if (feedbackInfluencedSurfacingPreviewSliceActive(changedFiles)) {
     assertFeedbackInfluencedSurfacingPreviewChangedFiles(changedFiles);
     return;
@@ -635,6 +660,47 @@ function feedbackInfluencedSurfacingPreviewSliceActive(changedFiles) {
     feedbackInfluencedSurfacingPreviewSmokePath,
     feedbackInfluencedSurfacingPreviewBrowserValidationPath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function dogfoodingRecordRuntimeContractSliceActive(changedFiles) {
+  return [
+    dogfoodingRecordRuntimeContractDocsPath,
+    dogfoodingRecordRuntimeContractTypePath,
+    dogfoodingRecordRuntimeContractFixturePath,
+    dogfoodingRecordRuntimeContractSmokePath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertDogfoodingRecordRuntimeContractChangedFiles(changedFiles) {
+  for (const expectedFile of dogfoodingRecordRuntimeContractChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      dogfoodingRecordRuntimeContractChangedFiles.includes(changedFile),
+      `unexpected changed file in dogfooding record runtime contract slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)route\.(ts|tsx|js|mjs)$/,
+      "must not change route handlers",
+    );
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)actions?\.(ts|tsx|js|mjs)$/,
+      "must not change server actions",
+    );
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)(schema|migration|db|sql)\b/i,
+      "must not change schema/db/sql paths",
+    );
+  }
 }
 
 function assertFeedbackInfluencedSurfacingPreviewChangedFiles(changedFiles) {
