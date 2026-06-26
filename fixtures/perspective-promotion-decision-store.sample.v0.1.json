@@ -1,0 +1,569 @@
+{
+  "fixture_version": "perspective_promotion_decision_store.sample.v0.1",
+  "store_version": "promotion_decision_store.v0.1",
+  "record_version": "promotion_decision_record.v0.1",
+  "activity_version": "promotion_decision_activity.v0.1",
+  "contract_version": "perspective_promotion_runtime_contract.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-06-26T00:00:00.000Z",
+  "source_fixture_refs": [
+    "fixtures/perspective-promotion-runtime-contract.sample.v0.1.json",
+    "fixtures/rag-context-preview.sample.v0.1.json"
+  ],
+  "valid_create_inputs": [
+    {
+      "contract_version": "perspective_promotion_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "promotion_decision_id": "promotion-decision:store:promote:001",
+      "decision_kind": "promote",
+      "decision_status": "eligible_for_future_operator_decision",
+      "operator_actor_ref": "operator:reviewer:001",
+      "explicit_user_action_required": true,
+      "future_operator_decision_only": true,
+      "review_record_ref": "review-record:promotion:001",
+      "gate_report_ref": "gate-report:promotion:001",
+      "basis_refs": [
+        {
+          "basis_version": "perspective_promotion_basis.v0.1",
+          "scope": "project:augnes",
+          "basis_id": "basis:source:001",
+          "basis_kind": "source_ref",
+          "basis_ref": "source-ref:bounded:001",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "candidate_refs": [],
+          "review_record_refs": [
+            "review-record:promotion:001"
+          ],
+          "rag_context_preview_refs": [],
+          "retrieval_candidate_refs": [],
+          "provider_candidate_refs": [],
+          "feedback_refs": [],
+          "bounded_summary": "Bounded source lineage summary for explicit promotion decision review.",
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "source_ref_present",
+            "basis_candidate_ref_present"
+          ]
+        },
+        {
+          "basis_version": "perspective_promotion_basis.v0.1",
+          "scope": "project:augnes",
+          "basis_id": "basis:claim:001",
+          "basis_kind": "claim_candidate",
+          "basis_ref": "claim-candidate:bounded:001",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "candidate_refs": [
+            "claim-candidate:bounded:001"
+          ],
+          "review_record_refs": [
+            "review-record:promotion:001"
+          ],
+          "rag_context_preview_refs": [
+            "rag-context-preview:bounded:001"
+          ],
+          "retrieval_candidate_refs": [],
+          "provider_candidate_refs": [],
+          "feedback_refs": [],
+          "bounded_summary": "Bounded claim candidate summary preserved for future reviewed decision.",
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "claim_candidate_ref_present",
+            "source_ref_present"
+          ]
+        }
+      ],
+      "basis_claim_candidate_refs": [
+        "claim-candidate:bounded:001"
+      ],
+      "basis_evidence_candidate_refs": [
+        "evidence-candidate:bounded:001"
+      ],
+      "perspective_delta_candidate_refs": [
+        "perspective-delta:bounded:001"
+      ],
+      "accepted_evidence_refs": [],
+      "unresolved_tension_refs": [
+        "unresolved-tension:bounded:001"
+      ],
+      "knowledge_gap_refs": [
+        "knowledge-gap:bounded:001"
+      ],
+      "unresolved_tension_policy": "preserve_unresolved",
+      "knowledge_gap_policy": "preserve_gap",
+      "formation_receipt_policy": "required_before_state_apply",
+      "promotion_executed": false,
+      "decision_store_written": false,
+      "formation_receipt_written": false,
+      "durable_state_applied": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "contract_ref_present",
+        "review_record_ref_present",
+        "source_ref_present",
+        "basis_ref_present",
+        "operator_actor_present",
+        "explicit_user_action_required",
+        "future_operator_decision_only",
+        "promotion_not_executed",
+        "formation_receipt_not_written",
+        "durable_state_not_applied",
+        "proof_not_created",
+        "evidence_not_created",
+        "claim_evidence_not_written",
+        "product_write_denied"
+      ],
+      "boundary_notes": [
+        "Promotion decision record storage is not promotion execution.",
+        "Product-write remains parked by #686."
+      ],
+      "created_at": "2026-06-26T00:00:00.000Z",
+      "updated_at": "2026-06-26T00:00:00.000Z"
+    },
+    {
+      "contract_version": "perspective_promotion_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "promotion_decision_id": "promotion-decision:store:reject:001",
+      "decision_kind": "reject",
+      "decision_status": "candidate_only",
+      "operator_actor_ref": "operator:reviewer:001",
+      "explicit_user_action_required": true,
+      "future_operator_decision_only": true,
+      "review_record_ref": "review-record:promotion:002",
+      "gate_report_ref": "gate-report:promotion:002",
+      "basis_refs": [
+        {
+          "basis_version": "perspective_promotion_basis.v0.1",
+          "scope": "project:augnes",
+          "basis_id": "basis:source:002",
+          "basis_kind": "source_ref",
+          "basis_ref": "source-ref:bounded:002",
+          "source_refs": [
+            "source-ref:bounded:002"
+          ],
+          "candidate_refs": [],
+          "review_record_refs": [
+            "review-record:promotion:002"
+          ],
+          "rag_context_preview_refs": [],
+          "retrieval_candidate_refs": [],
+          "provider_candidate_refs": [],
+          "feedback_refs": [],
+          "bounded_summary": "Bounded source summary for explicit rejection decision.",
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "source_ref_present",
+            "basis_candidate_ref_present"
+          ]
+        }
+      ],
+      "basis_claim_candidate_refs": [],
+      "basis_evidence_candidate_refs": [],
+      "perspective_delta_candidate_refs": [],
+      "accepted_evidence_refs": [],
+      "unresolved_tension_refs": [],
+      "knowledge_gap_refs": [],
+      "unresolved_tension_policy": "defer_to_future_review",
+      "knowledge_gap_policy": "defer_to_future_review",
+      "formation_receipt_policy": "deferred_until_runtime_slice",
+      "promotion_executed": false,
+      "decision_store_written": false,
+      "formation_receipt_written": false,
+      "durable_state_applied": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "contract_ref_present",
+        "review_record_ref_present",
+        "source_ref_present",
+        "basis_ref_present",
+        "operator_actor_present",
+        "explicit_user_action_required",
+        "future_operator_decision_only",
+        "promotion_not_executed",
+        "product_write_denied"
+      ],
+      "boundary_notes": [
+        "Rejected decision record remains readable.",
+        "Product-write remains parked by #686."
+      ],
+      "created_at": "2026-06-26T00:00:01.000Z",
+      "updated_at": "2026-06-26T00:00:01.000Z"
+    },
+    {
+      "contract_version": "perspective_promotion_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "promotion_decision_id": "promotion-decision:store:defer:001",
+      "decision_kind": "defer",
+      "decision_status": "candidate_only",
+      "operator_actor_ref": "operator:reviewer:001",
+      "explicit_user_action_required": true,
+      "future_operator_decision_only": true,
+      "review_record_ref": "review-record:promotion:003",
+      "gate_report_ref": "gate-report:promotion:003",
+      "basis_refs": [
+        {
+          "basis_version": "perspective_promotion_basis.v0.1",
+          "scope": "project:augnes",
+          "basis_id": "basis:source:003",
+          "basis_kind": "source_ref",
+          "basis_ref": "source-ref:bounded:003",
+          "source_refs": [
+            "source-ref:bounded:003"
+          ],
+          "candidate_refs": [],
+          "review_record_refs": [
+            "review-record:promotion:003"
+          ],
+          "rag_context_preview_refs": [],
+          "retrieval_candidate_refs": [],
+          "provider_candidate_refs": [],
+          "feedback_refs": [],
+          "bounded_summary": "Bounded source summary for explicit deferred decision.",
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "source_ref_present",
+            "basis_candidate_ref_present"
+          ]
+        }
+      ],
+      "basis_claim_candidate_refs": [],
+      "basis_evidence_candidate_refs": [],
+      "perspective_delta_candidate_refs": [],
+      "accepted_evidence_refs": [],
+      "unresolved_tension_refs": [
+        "unresolved-tension:bounded:003"
+      ],
+      "knowledge_gap_refs": [],
+      "unresolved_tension_policy": "defer_to_future_review",
+      "knowledge_gap_policy": "preserve_gap",
+      "formation_receipt_policy": "deferred_until_runtime_slice",
+      "promotion_executed": false,
+      "decision_store_written": false,
+      "formation_receipt_written": false,
+      "durable_state_applied": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "contract_ref_present",
+        "review_record_ref_present",
+        "source_ref_present",
+        "basis_ref_present",
+        "operator_actor_present",
+        "promotion_not_executed",
+        "product_write_denied"
+      ],
+      "boundary_notes": [
+        "Deferred decision record remains readable.",
+        "Product-write remains parked by #686."
+      ],
+      "created_at": "2026-06-26T00:00:02.000Z",
+      "updated_at": "2026-06-26T00:00:02.000Z"
+    },
+    {
+      "contract_version": "perspective_promotion_runtime_contract.v0.1",
+      "scope": "project:augnes",
+      "promotion_decision_id": "promotion-decision:store:more-evidence:001",
+      "decision_kind": "request_more_evidence",
+      "decision_status": "candidate_only",
+      "operator_actor_ref": "operator:reviewer:001",
+      "explicit_user_action_required": true,
+      "future_operator_decision_only": true,
+      "review_record_ref": "review-record:promotion:004",
+      "gate_report_ref": "gate-report:promotion:004",
+      "basis_refs": [
+        {
+          "basis_version": "perspective_promotion_basis.v0.1",
+          "scope": "project:augnes",
+          "basis_id": "basis:source:004",
+          "basis_kind": "source_ref",
+          "basis_ref": "source-ref:bounded:004",
+          "source_refs": [
+            "source-ref:bounded:004"
+          ],
+          "candidate_refs": [],
+          "review_record_refs": [
+            "review-record:promotion:004"
+          ],
+          "rag_context_preview_refs": [],
+          "retrieval_candidate_refs": [],
+          "provider_candidate_refs": [],
+          "feedback_refs": [
+            "feedback-ref:bounded:004"
+          ],
+          "bounded_summary": "Bounded source summary for explicit more-evidence decision.",
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "source_ref_present",
+            "basis_candidate_ref_present"
+          ]
+        }
+      ],
+      "basis_claim_candidate_refs": [],
+      "basis_evidence_candidate_refs": [],
+      "perspective_delta_candidate_refs": [],
+      "accepted_evidence_refs": [],
+      "unresolved_tension_refs": [],
+      "knowledge_gap_refs": [
+        "knowledge-gap:bounded:004"
+      ],
+      "unresolved_tension_policy": "preserve_unresolved",
+      "knowledge_gap_policy": "block_until_closed",
+      "formation_receipt_policy": "deferred_until_runtime_slice",
+      "promotion_executed": false,
+      "decision_store_written": false,
+      "formation_receipt_written": false,
+      "durable_state_applied": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false,
+      "reason_codes": [
+        "contract_ref_present",
+        "review_record_ref_present",
+        "source_ref_present",
+        "basis_ref_present",
+        "operator_actor_present",
+        "promotion_not_executed",
+        "product_write_denied"
+      ],
+      "boundary_notes": [
+        "Request-more-evidence decision record remains readable.",
+        "Product-write remains parked by #686."
+      ],
+      "created_at": "2026-06-26T00:00:03.000Z",
+      "updated_at": "2026-06-26T00:00:03.000Z"
+    }
+  ],
+  "invalid_create_inputs": {
+    "missing_review_record": {
+      "based_on": "promotion-decision:store:promote:001",
+      "review_record_ref": ""
+    },
+    "missing_source_refs": {
+      "based_on": "promotion-decision:store:promote:001",
+      "basis_refs": [
+        {
+          "basis_version": "perspective_promotion_basis.v0.1",
+          "scope": "project:augnes",
+          "basis_id": "basis:no-source:001",
+          "basis_kind": "claim_candidate",
+          "basis_ref": "claim-candidate:no-source:001",
+          "source_refs": [],
+          "candidate_refs": [
+            "claim-candidate:no-source:001"
+          ],
+          "review_record_refs": [
+            "review-record:promotion:001"
+          ],
+          "rag_context_preview_refs": [],
+          "retrieval_candidate_refs": [],
+          "provider_candidate_refs": [],
+          "feedback_refs": [],
+          "bounded_summary": "Bounded basis summary without source refs for rejection coverage.",
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "basis_candidate_ref_present"
+          ]
+        }
+      ]
+    },
+    "missing_basis_refs": {
+      "based_on": "promotion-decision:store:promote:001",
+      "basis_refs": []
+    },
+    "forbidden_authority": {
+      "based_on": "promotion-decision:store:promote:001",
+      "product_write_executed": true
+    },
+    "private_raw_payload": {
+      "based_on": "promotion-decision:store:promote:001",
+      "basis_refs": [
+        {
+          "basis_version": "perspective_promotion_basis.v0.1",
+          "scope": "project:augnes",
+          "basis_id": "basis:blocked:001",
+          "basis_kind": "manual_operator_note_summary",
+          "basis_ref": "manual-note:blocked:001",
+          "source_refs": [
+            "source-ref:bounded:001"
+          ],
+          "candidate_refs": [],
+          "review_record_refs": [
+            "review-record:promotion:001"
+          ],
+          "rag_context_preview_refs": [],
+          "retrieval_candidate_refs": [],
+          "provider_candidate_refs": [],
+          "feedback_refs": [],
+          "bounded_summary": "raw promotion decision payload blocked by store fixture",
+          "privacy_class": "public_safe_refs_only",
+          "redaction_status": "not_needed",
+          "public_safe": true,
+          "reason_codes": [
+            "raw_payload_blocked"
+          ]
+        }
+      ]
+    },
+    "secret_like_payload": {
+      "based_on": "promotion-decision:store:promote:001",
+      "boundary_notes": [
+        "secret-like promotion decision input blocked by store fixture"
+      ]
+    }
+  },
+  "expected_records": [
+    {
+      "promotion_decision_id": "promotion-decision:store:promote:001",
+      "decision_kind": "promote",
+      "decision_status": "eligible_for_future_operator_decision",
+      "explicit_user_action_required": true,
+      "future_operator_decision_only": true,
+      "promotion_executed": false,
+      "decision_store_written": true,
+      "formation_receipt_written": false,
+      "durable_state_applied": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false
+    },
+    {
+      "promotion_decision_id": "promotion-decision:store:reject:001",
+      "decision_kind": "reject",
+      "decision_status": "candidate_only",
+      "promotion_executed": false,
+      "decision_store_written": true,
+      "formation_receipt_written": false,
+      "durable_state_applied": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false
+    },
+    {
+      "promotion_decision_id": "promotion-decision:store:defer:001",
+      "decision_kind": "defer",
+      "decision_status": "candidate_only",
+      "promotion_executed": false,
+      "decision_store_written": true,
+      "formation_receipt_written": false,
+      "durable_state_applied": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false
+    },
+    {
+      "promotion_decision_id": "promotion-decision:store:more-evidence:001",
+      "decision_kind": "request_more_evidence",
+      "decision_status": "candidate_only",
+      "promotion_executed": false,
+      "decision_store_written": true,
+      "formation_receipt_written": false,
+      "durable_state_applied": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false
+    }
+  ],
+  "expected_activities": [
+    {
+      "activity_kind": "decision_record_created",
+      "promotion_decision_id": "promotion-decision:store:promote:001"
+    },
+    {
+      "activity_kind": "decision_record_discarded",
+      "promotion_decision_id": "promotion-decision:store:defer:001"
+    }
+  ],
+  "expected_create_results": [
+    {
+      "promotion_decision_id": "promotion-decision:store:promote:001",
+      "status": "stored"
+    },
+    {
+      "promotion_decision_id": "promotion-decision:store:reject:001",
+      "status": "stored"
+    },
+    {
+      "promotion_decision_id": "promotion-decision:store:defer:001",
+      "status": "stored"
+    },
+    {
+      "promotion_decision_id": "promotion-decision:store:more-evidence:001",
+      "status": "stored"
+    }
+  ],
+  "expected_read_results": [
+    {
+      "promotion_decision_id": "promotion-decision:store:promote:001",
+      "status": "stored"
+    },
+    {
+      "promotion_decision_id": "promotion-decision:store:unknown:404",
+      "status": "not_found"
+    }
+  ],
+  "expected_list_results": [
+    {
+      "filter": "decision_status",
+      "value": "eligible_for_future_operator_decision",
+      "minimum_count": 1
+    },
+    {
+      "filter": "review_record_ref",
+      "value": "review-record:promotion:001",
+      "minimum_count": 1
+    }
+  ],
+  "expected_discard_results": [
+    {
+      "promotion_decision_id": "promotion-decision:store:defer:001",
+      "status": "discarded",
+      "discard_reason": "operator-discarded-deferred-decision"
+    }
+  ],
+  "expected_rejection_results": [
+    {
+      "case": "missing_review_record",
+      "status": "blocked_missing_review_record"
+    },
+    {
+      "case": "missing_source_refs",
+      "status": "blocked_missing_source_refs"
+    },
+    {
+      "case": "missing_basis_refs",
+      "status": "blocked_missing_basis_refs"
+    },
+    {
+      "case": "forbidden_authority",
+      "status": "blocked_forbidden_authority"
+    },
+    {
+      "case": "private_raw_payload",
+      "status": "blocked_private_or_raw_payload"
+    },
+    {
+      "case": "secret_like_payload",
+      "status": "blocked_private_or_raw_payload"
+    }
+  ]
+}
