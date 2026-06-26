@@ -185,6 +185,10 @@ Unknown or extra input fields are also scanned for private/raw/secret-like marke
 
 Unknown fields cannot be used to carry raw conversation, hidden reasoning, telemetry, secrets, private paths, or private URLs through the audit builder.
 
+Token-like secret markers are detected case-insensitively without treating ordinary words such as risk-reduction or task-level as secrets.
+
+Public-safe audit language must not be blocked merely because it contains the letters "sk-" inside a normal word.
+
 Fixtures and examples use bounded summaries and public-safe symbolic refs only.
 They do not store raw source bodies, raw provider output, raw retrieval output,
 raw dogfooding payload, raw audit payload, raw conversations, hidden reasoning,

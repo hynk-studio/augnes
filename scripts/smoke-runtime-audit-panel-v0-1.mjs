@@ -69,6 +69,8 @@ const docsExactPhrases = [
   "Source refs must be public-safe symbolic refs.",
   "Unknown or extra input fields are also scanned for private/raw/secret-like markers.",
   "Unknown fields cannot be used to carry raw conversation, hidden reasoning, telemetry, secrets, private paths, or private URLs through the audit builder.",
+  "Token-like secret markers are detected case-insensitively without treating ordinary words such as risk-reduction or task-level as secrets.",
+  "Public-safe audit language must not be blocked merely because it contains the letters \"sk-\" inside a normal word.",
   "roadmap guide is not SSOT",
 ];
 
@@ -242,7 +244,11 @@ function assertStaticFiles() {
   }
   assertIncludes(helperText, "const normalizedValue = value.toLowerCase()", "case-insensitive values");
   assertIncludes(helperText, "marker.toLowerCase()", "case-insensitive markers");
-  assertIncludes(helperText, "function includesMarker", "case-insensitive marker helper");
+  assertIncludes(helperText, "const tokenLikePatterns", "token-like marker patterns");
+  assertIncludes(helperText, "\\bsk-", "token-like sk marker pattern");
+  assertIncludes(helperText, "\\bghp_", "token-like ghp marker pattern");
+  assertIncludes(helperText, "function includesPlainMarker", "plain marker helper");
+  assertIncludes(helperText, "function includesTokenLikeMarker", "token-like marker helper");
   assertIncludes(helperText, "function collectUnsafeObjectFailures", "recursive unsafe object scan");
   assertIncludes(
     helperText,
@@ -254,6 +260,12 @@ function assertStaticFiles() {
     "collectUnsafeObjectFailures(item, \"input_item\")",
     "item-level recursive unsafe scan",
   );
+  const plainMarkerBlock = helperText.match(
+    /const privateOrRawMarkers = \[([\s\S]*?)\] as const;/,
+  );
+  assert.ok(plainMarkerBlock, "plain marker block must be parseable");
+  assertNotIncludes(plainMarkerBlock[1], "\"sk-\"", "plain markers must not include sk-");
+  assertNotIncludes(plainMarkerBlock[1], "\"ghp_\"", "plain markers must not include ghp_");
   for (const forbidden of [
     "from \"node:fs\"",
     "from 'node:fs'",
@@ -346,6 +358,39 @@ function assertHelperBehavior() {
       false,
       `${label} proof`,
     );
+  }
+  for (const { label, summary } of publicSafeTokenPrefixWordCases()) {
+    const safeInput = cloneJson(fixture.expected_valid_input);
+    safeInput.audit_id = `runtime-audit:dynamic:${label}`;
+    safeInput.input_items[0].bounded_summary = summary;
+    const built = helper.buildRuntimeAuditModelV01(safeInput);
+    assert.equal(built.status, "built", `${label} must remain public-safe`);
+    assert.equal(built.blocked_item_refs.length, 0, `${label} blocked refs`);
+    assert.ok(
+      built.all_items.some((item) => item.bounded_summary === summary),
+      `${label} summary present`,
+    );
+    assertAuthorityBoundary(built.authority_boundary, label);
+  }
+  for (const { label, unsafeValue, apply } of tokenLikeUnsafeCases()) {
+    const unsafeInput = cloneJson(fixture.expected_valid_input);
+    unsafeInput.audit_id = `runtime-audit:dynamic:${label}`;
+    apply(unsafeInput, unsafeValue);
+    const rejection = helper.buildRuntimeAuditModelV01(unsafeInput);
+    assert.equal(rejection.status, "blocked_private_or_raw_payload", `${label} status`);
+    assert.equal(rejection.all_items.length, 0, `${label} must not build items`);
+    assert.equal(rejection.sections.length, 0, `${label} must not build sections`);
+    assert.ok(
+      rejection.reason_codes.includes("private_or_raw_payload_blocked"),
+      `${label} private marker reason`,
+    );
+    assert.ok(
+      !JSON.stringify(rejection).includes(unsafeValue),
+      `${label} blocked output must not echo token-like value`,
+    );
+    assert.equal(rejection.authority_boundary.product_write_now, false, `${label} product write`);
+    assert.equal(rejection.authority_boundary.fetch_now, false, `${label} fetch`);
+    assert.equal(rejection.authority_boundary.db_query_or_write_now, false, `${label} db`);
   }
   assert.equal(
     fixture.expected_rejection_results.private_raw_payload.status,
@@ -592,6 +637,60 @@ function unknownUnsafeCases() {
       reasonCode: "secret_like_pattern_blocked",
       apply(input, unsafeValue) {
         input.authority_boundary = { nested: { secret: unsafeValue } };
+      },
+    },
+  ];
+}
+
+function publicSafeTokenPrefixWordCases() {
+  return [
+    {
+      label: "public-safe-risk-reduction",
+      summary: "Public-safe risk-reduction audit summary.",
+    },
+    {
+      label: "public-safe-task-level",
+      summary: "Public-safe task-level audit summary.",
+    },
+    {
+      label: "public-safe-ask-followup",
+      summary: "Public-safe ask-followup audit summary.",
+    },
+    {
+      label: "public-safe-disk-cache",
+      summary: "Public-safe disk-cache audit summary.",
+    },
+  ];
+}
+
+function tokenLikeUnsafeCases() {
+  return [
+    {
+      label: "token-like-sk-lowercase",
+      unsafeValue: "sk-test-token-like-000000",
+      apply(input, unsafeValue) {
+        input.extra_secret_token = unsafeValue;
+      },
+    },
+    {
+      label: "token-like-sk-uppercase",
+      unsafeValue: "SK-TEST-TOKEN-LIKE-000000",
+      apply(input, unsafeValue) {
+        input.extra_secret_token = unsafeValue;
+      },
+    },
+    {
+      label: "token-like-ghp-lowercase",
+      unsafeValue: "ghp_exampleTokenLikeValue000000",
+      apply(input, unsafeValue) {
+        input.extra_github_token = unsafeValue;
+      },
+    },
+    {
+      label: "token-like-ghp-uppercase",
+      unsafeValue: "GHP_exampleTokenLikeValue000000",
+      apply(input, unsafeValue) {
+        input.extra_github_token = unsafeValue;
       },
     },
   ];
