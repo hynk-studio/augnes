@@ -488,6 +488,48 @@ CREATE INDEX IF NOT EXISTS idx_perspective_state_apply_events_receipt
   ON perspective_state_apply_events(formation_receipt_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_perspective_state_apply_events_receipt_unique
   ON perspective_state_apply_events(formation_receipt_id);
+
+CREATE TABLE IF NOT EXISTS project_constellation_manual_anchors (
+  anchor_id text primary key,
+  scope text not null,
+  layout_id text not null,
+  perspective_id text not null,
+  state_version_ref text not null,
+  node_ref text not null,
+  anchor_position_json text not null,
+  anchor_reason text not null,
+  created_by_ref text not null,
+  applies_to_layout_scope text not null,
+  explicit_operator_action_required integer not null,
+  persistence_now integer not null,
+  display_hint_only integer not null,
+  authority_boundary_json text not null,
+  reason_codes_json text not null,
+  boundary_notes_json text not null,
+  created_at text not null,
+  updated_at text not null,
+  discarded_at text,
+  discard_reason text
+);
+
+CREATE TABLE IF NOT EXISTS project_constellation_manual_anchor_activity (
+  activity_id text primary key,
+  anchor_id text not null,
+  activity_kind text not null,
+  actor_ref text not null,
+  summary text not null,
+  reason_codes_json text not null,
+  created_at text not null
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_constellation_manual_anchors_layout
+  ON project_constellation_manual_anchors(layout_id, discarded_at);
+CREATE INDEX IF NOT EXISTS idx_project_constellation_manual_anchors_perspective
+  ON project_constellation_manual_anchors(perspective_id, discarded_at);
+CREATE INDEX IF NOT EXISTS idx_project_constellation_manual_anchors_node
+  ON project_constellation_manual_anchors(node_ref, discarded_at);
+CREATE INDEX IF NOT EXISTS idx_project_constellation_manual_anchor_activity_anchor
+  ON project_constellation_manual_anchor_activity(anchor_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_perspective_state_activity
   ON perspective_state_activity(perspective_id, created_at);
 
