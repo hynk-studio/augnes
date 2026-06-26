@@ -603,6 +603,7 @@
     "smoke:perspective-promotion-decision-store-v0-1": "node scripts/smoke-perspective-promotion-decision-store-v0-1.mjs",
     "smoke:formation-receipt-durable-write-v0-1": "node scripts/smoke-formation-receipt-durable-write-v0-1.mjs",
     "smoke:durable-perspective-state-apply-v0-1": "node scripts/smoke-durable-perspective-state-apply-v0-1.mjs",
+    "smoke:perspective-trajectory-v0-1": "node scripts/smoke-perspective-trajectory-v0-1.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
