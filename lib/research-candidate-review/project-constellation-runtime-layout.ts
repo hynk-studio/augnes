@@ -7,8 +7,8 @@ import type {
   ProjectConstellationLayoutPrinciples,
   ProjectConstellationNodeFamily,
   ProjectConstellationNodeKind,
-  ProjectConstellationRuntimeLayoutContract,
   ProjectConstellationRuntimeLayoutEdgePreview,
+  ProjectConstellationRuntimeLayoutLegacyContract,
   ProjectConstellationRuntimeLayoutNodePreview,
   ProjectConstellationRuntimeLayoutPreview,
   ProjectConstellationRuntimeLayoutPreviewAuthorityBoundary,
@@ -24,7 +24,7 @@ type JsonRecord = Record<string, unknown>;
 
 export interface ProjectConstellationRuntimeLayoutImplementationInput {
   project_constellation_runtime_layout_contract:
-    ProjectConstellationRuntimeLayoutContract;
+    ProjectConstellationRuntimeLayoutLegacyContract;
   source_contract_ref?: string;
   source_contract_fixture_path?: string;
   type_contract_path?: string;
@@ -35,7 +35,7 @@ export interface ProjectConstellationRuntimeLayoutImplementationInput {
 }
 
 export interface ProjectConstellationRuntimeLayoutPreviewBundleInput {
-  contract: ProjectConstellationRuntimeLayoutContract;
+  contract: ProjectConstellationRuntimeLayoutLegacyContract;
   source_contract_ref?: string;
   operator_context_ref?: string;
   layout_input_preview?: JsonRecord;
@@ -597,7 +597,7 @@ export function buildProjectConstellationRuntimeLayoutPreviewBundle(
 
 export function validateProjectConstellationRuntimeLayoutPreviewBundle(
   previewBundle: Omit<ProjectConstellationRuntimeLayoutPreviewBundle, "validation">,
-  contract: ProjectConstellationRuntimeLayoutContract,
+  contract: ProjectConstellationRuntimeLayoutLegacyContract,
 ): ProjectConstellationRuntimeLayoutValidation {
   const layoutValidation = validateLayoutPreview(
     previewBundle.layout_preview,
@@ -921,7 +921,7 @@ function getProjectConstellationRuntimeLayoutImplementationAuthorityBoundary():
 }
 
 function buildLayoutPrincipleSummary(
-  contract: ProjectConstellationRuntimeLayoutContract,
+  contract: ProjectConstellationRuntimeLayoutLegacyContract,
 ): ProjectConstellationLayoutPrincipleSummary {
   return {
     ...clone(contract.layout_principles),
@@ -931,7 +931,7 @@ function buildLayoutPrincipleSummary(
 }
 
 function buildNodeFamilySummary(
-  contract: ProjectConstellationRuntimeLayoutContract,
+  contract: ProjectConstellationRuntimeLayoutLegacyContract,
   layoutPreview: ProjectConstellationRuntimeLayoutPreview,
 ): ProjectConstellationNodeFamilySummary {
   const nodes = Array.isArray(layoutPreview.nodes) ? layoutPreview.nodes : [];
@@ -950,7 +950,7 @@ function buildNodeFamilySummary(
 }
 
 function buildEdgeFamilySummary(
-  contract: ProjectConstellationRuntimeLayoutContract,
+  contract: ProjectConstellationRuntimeLayoutLegacyContract,
   layoutPreview: ProjectConstellationRuntimeLayoutPreview,
 ): ProjectConstellationEdgeFamilySummary {
   const edges = Array.isArray(layoutPreview.edges) ? layoutPreview.edges : [];
@@ -966,7 +966,7 @@ function buildEdgeFamilySummary(
 }
 
 function buildStabilitySummary(
-  contract: ProjectConstellationRuntimeLayoutContract,
+  contract: ProjectConstellationRuntimeLayoutLegacyContract,
 ): ProjectConstellationStabilitySummary {
   return {
     deterministic_seed_required_later:
@@ -986,7 +986,7 @@ function buildStabilitySummary(
 }
 
 function buildSourceBalanceSummary(
-  contract: ProjectConstellationRuntimeLayoutContract,
+  contract: ProjectConstellationRuntimeLayoutLegacyContract,
 ): ProjectConstellationSourceBalanceSummary {
   return {
     source_balance_required:
@@ -1001,7 +1001,7 @@ function buildSourceBalanceSummary(
 }
 
 function buildCandidateOverlaySummary(
-  contract: ProjectConstellationRuntimeLayoutContract,
+  contract: ProjectConstellationRuntimeLayoutLegacyContract,
 ): ProjectConstellationCandidateOverlaySummary {
   return {
     candidate_overlay_allowed_later:
@@ -1022,7 +1022,7 @@ function buildCandidateOverlaySummary(
 }
 
 function buildSnapshotSummary(
-  contract: ProjectConstellationRuntimeLayoutContract,
+  contract: ProjectConstellationRuntimeLayoutLegacyContract,
 ): ProjectConstellationSnapshotSummary {
   return {
     perspective_snapshot_input_allowed:
@@ -1037,7 +1037,7 @@ function buildSnapshotSummary(
 }
 
 function buildSalienceSummary(
-  contract: ProjectConstellationRuntimeLayoutContract,
+  contract: ProjectConstellationRuntimeLayoutLegacyContract,
 ): ProjectConstellationSalienceSummary {
   return {
     salience_state_allowed_as_display_context:
@@ -1055,7 +1055,7 @@ function buildSalienceSummary(
 }
 
 function buildReferenceSummary(
-  contract: ProjectConstellationRuntimeLayoutContract,
+  contract: ProjectConstellationRuntimeLayoutLegacyContract,
   layoutInputPreview: JsonRecord,
   layoutPreview: ProjectConstellationRuntimeLayoutPreview & JsonRecord,
 ): ProjectConstellationReferenceSummary {
@@ -1092,7 +1092,7 @@ function buildReferenceSummary(
 
 function validateLayoutPreview(
   layoutPreview: ProjectConstellationRuntimeLayoutPreview & JsonRecord,
-  contract: ProjectConstellationRuntimeLayoutContract,
+  contract: ProjectConstellationRuntimeLayoutLegacyContract,
 ) {
   const failureCodes: Array<string | null> = [];
   const nodes = Array.isArray(layoutPreview.nodes) ? layoutPreview.nodes : [];
