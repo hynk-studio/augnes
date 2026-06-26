@@ -79,6 +79,10 @@ POST requires same-origin requests, JSON object bodies, a safe allowlisted DB pa
 
 GET uses read-only DB open, must not create DB files, must not create directories, and must not ensure schema. Missing DB returns `db_missing`; existing DB without schema returns `schema_missing`.
 
+Formation Receipt routes may use the same allowlisted local DB path as Promotion Decision Store/Routes so receipt creation can validate promotion-decision lineage in the same DB.
+
+This shared local DB path policy is still bounded to allowlisted local test paths and does not imply production DB access.
+
 Route responses include the authority boundary and explicit non-execution booleans. Blocked or not-found store results return bounded top-level error responses.
 
 ## 8. DB schema additions

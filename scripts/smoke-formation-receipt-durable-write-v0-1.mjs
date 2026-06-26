@@ -221,6 +221,7 @@ assertDocsCoverage();
 assertFixturePrivacy();
 assertStaticRouteBoundaries();
 assertTypeAndHelperExports();
+assertRouteDbPathPolicy();
 assertExpectedFixtureRecords();
 assertTempDbBehavior();
 
@@ -748,6 +749,49 @@ function assertTypeAndHelperExports() {
   );
   assertIncludes(storeText, "promotion_decision_review_record_mismatch", "store checks review record match");
   assertIncludes(storeText, "promotion_decision_operator_mismatch", "store checks operator match");
+}
+
+function assertRouteDbPathPolicy() {
+  for (const safePath of [
+    "tmp/perspective-formation-receipts/shared-formation-receipt.sqlite",
+    ".tmp/perspective-formation-receipts/shared-formation-receipt.db",
+    "tmp/perspective-promotion-decisions/shared-promotion-receipt.sqlite",
+    ".tmp/perspective-promotion-decisions/shared-promotion-receipt.sqlite",
+  ]) {
+    assert.equal(
+      store.isSafeFormationReceiptRouteDbPathV01(safePath),
+      true,
+      `${safePath} is accepted by Formation Receipt route path policy`,
+    );
+  }
+
+  for (const unsafePath of [
+    "/tmp/perspective-promotion-decisions/x.sqlite",
+    "tmp/perspective-promotion-decisions/../x.sqlite",
+    "tmp/perspective-promotion-decisions/x.txt",
+    "tmp/other/x.sqlite",
+    "file://tmp/perspective-promotion-decisions/x.sqlite",
+    "tmp/perspective-promotion-decisions//x.sqlite",
+  ]) {
+    assert.equal(
+      store.isSafeFormationReceiptRouteDbPathV01(unsafePath),
+      false,
+      `${unsafePath} is rejected by Formation Receipt route path policy`,
+    );
+  }
+
+  assertIncludes(
+    storeText,
+    "tmp/perspective-promotion-decisions/",
+    "Formation Receipt helper allows promotion-decision route DB prefix",
+  );
+  assertIncludes(
+    storeText,
+    ".tmp/perspective-promotion-decisions/",
+    "Formation Receipt helper allows dot promotion-decision route DB prefix",
+  );
+  assertIncludes(routeText, "isSafeFormationReceiptRouteDbPathV01(dbPath)", "GET uses safe path validator");
+  assertIncludes(routeText, "isSafeFormationReceiptRouteDbPathV01(inputBody.db_path)", "POST uses safe path validator");
 }
 
 function assertReadOnlyGetRoute(source) {

@@ -248,6 +248,8 @@ const unsafeStringPatterns = [
 const safeRouteDbPathPrefixes = [
   "tmp/perspective-formation-receipts/",
   ".tmp/perspective-formation-receipts/",
+  "tmp/perspective-promotion-decisions/",
+  ".tmp/perspective-promotion-decisions/",
 ] as const;
 
 export function createFormationReceiptAuthorityBoundaryV01(): FormationReceiptAuthorityBoundary {
