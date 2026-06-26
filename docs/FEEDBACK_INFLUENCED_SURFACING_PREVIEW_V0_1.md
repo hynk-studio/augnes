@@ -121,6 +121,13 @@ Feedback aggregates are bounded objects compatible with the PR #792 aggregate
 shape. Rule failure candidates are bounded objects compatible with the PR #792
 candidate-only rule failure shape.
 
+Feedback aggregate count fields must be non-negative finite integers.
+
+Malformed aggregate reason codes are rejected before preview build.
+
+Aggregate-compatible inputs with candidate deletion, promotion, rule mutation,
+parser mutation, durable state mutation, or product-write flags are rejected.
+
 Source refs are lineage pointers, not proof.
 
 Source refs must be public-safe symbolic refs.

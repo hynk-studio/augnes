@@ -418,6 +418,57 @@ function assertHelperBehavior() {
     fixture.expected_rejection_results.forbidden_authority.status,
     "blocked_invalid_input",
   );
+
+  for (const key of [
+    "negative_aggregate_count",
+    "fractional_aggregate_count",
+    "string_aggregate_count",
+    "aggregate_product_write_true",
+    "aggregate_deletes_candidate_true",
+    "aggregate_promotes_candidate_true",
+    "aggregate_mutates_rules_true",
+    "aggregate_mutates_parser_true",
+    "aggregate_mutates_durable_state_true",
+    "aggregate_advisory_only_false",
+    "aggregate_non_string_reason_code",
+    "rule_failure_invalid_review_status",
+    "rule_failure_mutates_rules_true",
+  ]) {
+    const rejection = helper.buildFeedbackInfluencedSurfacingPreviewV01(
+      fixture.invalid_inputs[key],
+    );
+    assert.deepEqual(
+      rejection,
+      fixture.expected_rejection_results[key],
+      `${key} rejection result must match helper`,
+    );
+    assertBlockedResult(rejection, "blocked_invalid_input", key);
+  }
+
+  const fixturePrivateReasonCodeRejection =
+    helper.buildFeedbackInfluencedSurfacingPreviewV01(
+      fixture.invalid_inputs.aggregate_private_reason_code,
+    );
+  assert.deepEqual(
+    fixturePrivateReasonCodeRejection,
+    fixture.expected_rejection_results.aggregate_private_reason_code,
+    "aggregate_private_reason_code rejection result must match helper",
+  );
+  assertBlockedResult(
+    fixturePrivateReasonCodeRejection,
+    "blocked_private_or_raw_payload",
+    "aggregate_private_reason_code",
+  );
+
+  const privatePathReasonCodeInput = JSON.parse(JSON.stringify(fixture.expected_valid_input));
+  privatePathReasonCodeInput.preview_id =
+    "feedback-surfacing-preview:fixture:private-path-reason-code";
+  privatePathReasonCodeInput.feedback_aggregates[0].reason_codes = ["/Users/private"];
+  assertBlockedResult(
+    helper.buildFeedbackInfluencedSurfacingPreviewV01(privatePathReasonCodeInput),
+    "blocked_private_or_raw_payload",
+    "aggregate reason_codes private path",
+  );
 }
 
 function assertPanelStaticChecks() {
@@ -611,6 +662,12 @@ function assertAuthorityBoundaryFalse(boundary, label) {
   for (const field of falseFields) {
     assert.equal(boundary[field], false, `${label}.${field} must be false`);
   }
+}
+
+function assertBlockedResult(result, expectedStatus, label) {
+  assert.equal(result.status, expectedStatus, `${label}.status`);
+  assert.deepEqual(result.items, [], `${label}.items`);
+  assertAuthorityBoundaryFalse(result.authority_boundary, `${label}.authority_boundary`);
 }
 
 function readText(path) {

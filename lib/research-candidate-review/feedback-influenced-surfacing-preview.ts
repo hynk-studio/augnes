@@ -171,6 +171,13 @@ export interface FeedbackInfluencedAggregateInput {
   mark_useful_count?: number;
   mark_wrong_count?: number;
   current_surface_priority_hint?: FeedbackInfluencedPriorityPreview;
+  advisory_only?: true;
+  deletes_candidate?: false;
+  promotes_candidate?: false;
+  mutates_rules?: false;
+  mutates_parser?: false;
+  mutates_durable_state?: false;
+  product_write_executed?: false;
   reason_codes?: string[];
 }
 
@@ -184,6 +191,12 @@ export interface FeedbackInfluencedRuleFailureCandidateInput {
   review_status?: string;
   source_refs?: string[];
   feedback_event_refs?: string[];
+  mutates_rules?: false;
+  mutates_parser?: false;
+  mutates_durable_state?: false;
+  promotes_candidate?: false;
+  deletes_candidate?: false;
+  product_write_executed?: false;
   reason_codes?: string[];
 }
 
@@ -367,6 +380,86 @@ const forbiddenTrueAuthorityFields = [
   "surfacing_preview_is_authority",
   "surfacing_preview_is_ranking_authority",
   "product_write_authority",
+] as const;
+
+const aggregateCountFields = [
+  "pin_count",
+  "dismiss_count",
+  "correct_count",
+  "invalidate_count",
+  "needs_more_evidence_count",
+  "scope_overreach_count",
+  "not_relevant_now_count",
+  "mark_useful_count",
+  "mark_wrong_count",
+] as const;
+
+const compatibleAggregationReasonCodes = [
+  "feedback_event_present",
+  "feedback_event_missing",
+  "feedback_event_kind_supported",
+  "feedback_event_kind_unknown",
+  "target_candidate_ref_present",
+  "target_candidate_ref_missing",
+  "target_surface_ref_present",
+  "target_surface_ref_missing",
+  "operator_actor_ref_present",
+  "operator_actor_ref_missing",
+  "feedback_is_advisory",
+  "feedback_is_not_truth",
+  "feedback_is_not_proof",
+  "feedback_is_not_evidence",
+  "feedback_is_not_promotion",
+  "aggregation_is_advisory",
+  "aggregation_is_not_state",
+  "aggregation_does_not_delete_candidates",
+  "aggregation_does_not_promote",
+  "aggregation_does_not_mutate_rules",
+  "aggregation_does_not_product_write",
+  "pin_counted",
+  "dismiss_counted",
+  "correction_counted",
+  "invalidation_counted",
+  "needs_more_evidence_counted",
+  "scope_overreach_counted",
+  "not_relevant_now_counted",
+  "useful_counted",
+  "wrong_counted",
+  "priority_hint_lowered",
+  "priority_hint_elevated",
+  "operator_review_required",
+  "rule_failure_candidate_created",
+  "evidence_gap_review_cue_created",
+  "stale_context_review_cue_created",
+  "private_or_raw_payload_blocked",
+  "secret_like_pattern_blocked",
+  "local_path_blocked",
+  "private_url_blocked",
+  "durable_state_not_mutated",
+  "proof_not_created",
+  "evidence_not_created",
+  "claim_evidence_not_written",
+  "product_write_denied",
+  "provider_call_not_executed",
+  "prompt_not_sent",
+  "retrieval_not_executed",
+  "rag_answer_not_generated",
+  "source_fetch_not_executed",
+  "file_read_not_executed",
+  "db_write_not_executed",
+  "git_ledger_export_not_executed",
+] as const;
+
+const compatibleReasonCodes = new Set<string>([
+  ...reasonCodes,
+  ...compatibleAggregationReasonCodes,
+]);
+
+const compatibleRuleFailureReviewStatuses = [
+  "candidate_only",
+  "needs_review",
+  "rejected",
+  "accepted_for_future_runtime",
 ] as const;
 
 const unsafeTextPattern =
@@ -930,6 +1023,41 @@ function validateAggregateInput(value: unknown, index: number, failureCodes: str
       failureCodes,
     );
   }
+  for (const countField of aggregateCountFields) {
+    validateOptionalNonNegativeInteger(
+      aggregate[countField],
+      `feedback_aggregates.${index}.${countField}`,
+      failureCodes,
+    );
+  }
+  if (aggregate.reason_codes !== undefined) {
+    validateCompatibleReasonCodeArray(
+      aggregate.reason_codes,
+      `feedback_aggregates.${index}.reason_codes`,
+      failureCodes,
+    );
+  }
+  validateOptionalBooleanLiteral(
+    aggregate.advisory_only,
+    true,
+    `feedback_aggregates.${index}.advisory_only`,
+    failureCodes,
+  );
+  for (const field of [
+    "deletes_candidate",
+    "promotes_candidate",
+    "mutates_rules",
+    "mutates_parser",
+    "mutates_durable_state",
+    "product_write_executed",
+  ] as const) {
+    validateOptionalBooleanLiteral(
+      aggregate[field],
+      false,
+      `feedback_aggregates.${index}.${field}`,
+      failureCodes,
+    );
+  }
 }
 
 function validateRuleFailureCandidateInput(
@@ -985,6 +1113,43 @@ function validateRuleFailureCandidateInput(
       failureCodes,
     );
   }
+  if (ruleFailure.review_status !== undefined) {
+    validatePublicString(
+      ruleFailure.review_status,
+      `rule_failure_candidates.${index}.review_status`,
+      failureCodes,
+    );
+    if (
+      typeof ruleFailure.review_status === "string" &&
+      !compatibleRuleFailureReviewStatuses.includes(
+        ruleFailure.review_status as (typeof compatibleRuleFailureReviewStatuses)[number],
+      )
+    ) {
+      failureCodes.push(`rule_failure_candidates.${index}.review_status_unknown`);
+    }
+  }
+  if (ruleFailure.reason_codes !== undefined) {
+    validateCompatibleReasonCodeArray(
+      ruleFailure.reason_codes,
+      `rule_failure_candidates.${index}.reason_codes`,
+      failureCodes,
+    );
+  }
+  for (const field of [
+    "mutates_rules",
+    "mutates_parser",
+    "mutates_durable_state",
+    "promotes_candidate",
+    "deletes_candidate",
+    "product_write_executed",
+  ] as const) {
+    validateOptionalBooleanLiteral(
+      ruleFailure[field],
+      false,
+      `rule_failure_candidates.${index}.${field}`,
+      failureCodes,
+    );
+  }
 }
 
 function validatePublicString(value: unknown, label: string, failureCodes: string[]) {
@@ -1024,6 +1189,55 @@ function validateReasonCodeArray(value: unknown, label: string, failureCodes: st
       failureCodes.push(`${label}.${index}_unknown`);
     }
   }
+}
+
+function validateCompatibleReasonCodeArray(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+) {
+  if (!Array.isArray(value)) {
+    failureCodes.push(`${label}_not_array`);
+    return;
+  }
+  for (let index = 0; index < value.length; index += 1) {
+    const reasonCode = value[index];
+    validatePublicString(reasonCode, `${label}.${index}`, failureCodes);
+    if (typeof reasonCode === "string" && !compatibleReasonCodes.has(reasonCode)) {
+      failureCodes.push(`${label}.${index}_unknown`);
+    }
+  }
+}
+
+function validateOptionalNonNegativeInteger(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+) {
+  if (value === undefined) return;
+  if (typeof value !== "number") {
+    failureCodes.push(`${label}_not_number`);
+    return;
+  }
+  if (!Number.isFinite(value)) {
+    failureCodes.push(`${label}_not_finite`);
+    return;
+  }
+  if (!Number.isInteger(value)) {
+    failureCodes.push(`${label}_not_integer`);
+    return;
+  }
+  if (value < 0) failureCodes.push(`${label}_negative`);
+}
+
+function validateOptionalBooleanLiteral(
+  value: unknown,
+  expected: boolean,
+  label: string,
+  failureCodes: string[],
+) {
+  if (value === undefined) return;
+  if (value !== expected) failureCodes.push(`${label}_unsafe_value`);
 }
 
 function validateAuthorityBoundaryInput(
