@@ -532,7 +532,7 @@ export function createPerspectiveTrajectoryInputFromDurableStateV01(args: {
     actor_ref: args.apply_events.at(-1)?.operator_actor_ref ?? "operator:unknown",
     subject_ref: args.state.perspective_id,
     bounded_summary: `Current durable Perspective state summary for ${args.state.perspective_id}.`,
-    source_refs: args.state.supporting_evidence_refs,
+    source_refs: [],
     candidate_refs: [
       ...args.state.active_claims.map((claim) => claim.claim_ref),
       ...args.state.retired_claims.map((claim) => claim.claim_ref),
@@ -545,10 +545,7 @@ export function createPerspectiveTrajectoryInputFromDurableStateV01(args: {
     prior_thesis_refs: args.state.prior_theses,
     active_claim_refs: args.state.active_claims.map((claim) => claim.claim_ref),
     retired_claim_refs: args.state.retired_claims.map((claim) => claim.claim_ref),
-    tension_refs: [
-      ...args.state.open_tensions.map((tension) => tension.tension_ref),
-      ...args.state.resolved_tensions.map((tension) => tension.tension_ref),
-    ],
+    tension_refs: [],
     knowledge_gap_refs: args.state.knowledge_gaps.map((gap) => gap.knowledge_gap_ref),
     reason_codes: [
       "durable_state_ref_present",
@@ -561,6 +558,132 @@ export function createPerspectiveTrajectoryInputFromDurableStateV01(args: {
       "no_product_write",
     ],
   });
+  const stateDerivedEvents = [
+    args.state.supporting_evidence_refs.length > 0
+      ? createTrajectoryEvent({
+          event_id: `trajectory:event:${args.state.perspective_id}:supporting-evidence`,
+          perspective_id: args.state.perspective_id,
+          event_kind: "durable_delta_applied",
+          layer: "source_ref",
+          occurred_at: args.state.updated_at,
+          actor_ref: args.apply_events.at(-1)?.operator_actor_ref ?? "operator:unknown",
+          subject_ref: `${args.state.perspective_id}:supporting-evidence`,
+          bounded_summary: `Supporting evidence refs preserved for ${args.state.perspective_id}.`,
+          source_refs: args.state.supporting_evidence_refs,
+          candidate_refs: [],
+          review_record_refs: uniqueSorted(args.apply_events.map((event) => event.review_record_ref)),
+          promotion_decision_refs: args.state.promotion_history,
+          formation_receipt_refs: args.state.formation_receipt_refs,
+          apply_event_refs: [latestEventId],
+          feedback_refs: args.feedback_refs ?? [],
+          prior_thesis_refs: [],
+          active_claim_refs: [],
+          retired_claim_refs: [],
+          tension_refs: [],
+          knowledge_gap_refs: [],
+          reason_codes: [
+            "source_ref_present",
+            "trajectory_is_read_only",
+            "derived_view_not_source_of_truth",
+            "no_state_mutation",
+            "no_product_write",
+          ],
+        })
+      : null,
+    args.state.contradicting_evidence_refs.length > 0
+      ? createTrajectoryEvent({
+          event_id: `trajectory:event:${args.state.perspective_id}:contradicting-evidence`,
+          perspective_id: args.state.perspective_id,
+          event_kind: "durable_delta_applied",
+          layer: "source_ref",
+          occurred_at: args.state.updated_at,
+          actor_ref: args.apply_events.at(-1)?.operator_actor_ref ?? "operator:unknown",
+          subject_ref: `${args.state.perspective_id}:contradicting-evidence`,
+          bounded_summary: `Contradicting evidence refs preserved for ${args.state.perspective_id}.`,
+          source_refs: args.state.contradicting_evidence_refs,
+          candidate_refs: [],
+          review_record_refs: uniqueSorted(args.apply_events.map((event) => event.review_record_ref)),
+          promotion_decision_refs: args.state.promotion_history,
+          formation_receipt_refs: args.state.formation_receipt_refs,
+          apply_event_refs: [latestEventId],
+          feedback_refs: args.feedback_refs ?? [],
+          prior_thesis_refs: [],
+          active_claim_refs: [],
+          retired_claim_refs: [],
+          tension_refs: [],
+          knowledge_gap_refs: [],
+          reason_codes: [
+            "contradiction_preserved",
+            "trajectory_is_read_only",
+            "derived_view_not_source_of_truth",
+            "no_state_mutation",
+            "no_product_write",
+          ],
+        })
+      : null,
+    args.state.open_tensions.length > 0
+      ? createTrajectoryEvent({
+          event_id: `trajectory:event:${args.state.perspective_id}:open-tensions`,
+          perspective_id: args.state.perspective_id,
+          event_kind: "durable_delta_applied",
+          layer: "durable_state",
+          occurred_at: args.state.updated_at,
+          actor_ref: args.apply_events.at(-1)?.operator_actor_ref ?? "operator:unknown",
+          subject_ref: `${args.state.perspective_id}:open-tensions`,
+          bounded_summary: `Open tension refs preserved for ${args.state.perspective_id}.`,
+          source_refs: [],
+          candidate_refs: [],
+          review_record_refs: uniqueSorted(args.apply_events.map((event) => event.review_record_ref)),
+          promotion_decision_refs: args.state.promotion_history,
+          formation_receipt_refs: args.state.formation_receipt_refs,
+          apply_event_refs: [latestEventId],
+          feedback_refs: args.feedback_refs ?? [],
+          prior_thesis_refs: [],
+          active_claim_refs: [],
+          retired_claim_refs: [],
+          tension_refs: args.state.open_tensions.map((tension) => tension.tension_ref),
+          knowledge_gap_refs: [],
+          reason_codes: [
+            "unresolved_tension_preserved",
+            "trajectory_is_read_only",
+            "derived_view_not_source_of_truth",
+            "no_state_mutation",
+            "no_product_write",
+          ],
+        })
+      : null,
+    args.state.resolved_tensions.length > 0
+      ? createTrajectoryEvent({
+          event_id: `trajectory:event:${args.state.perspective_id}:resolved-tensions`,
+          perspective_id: args.state.perspective_id,
+          event_kind: "tension_resolved",
+          layer: "durable_state",
+          occurred_at: args.state.updated_at,
+          actor_ref: args.apply_events.at(-1)?.operator_actor_ref ?? "operator:unknown",
+          subject_ref: `${args.state.perspective_id}:resolved-tensions`,
+          bounded_summary: `Resolved tension refs preserved for ${args.state.perspective_id}.`,
+          source_refs: [],
+          candidate_refs: [],
+          review_record_refs: uniqueSorted(args.apply_events.map((event) => event.review_record_ref)),
+          promotion_decision_refs: args.state.promotion_history,
+          formation_receipt_refs: args.state.formation_receipt_refs,
+          apply_event_refs: [latestEventId],
+          feedback_refs: args.feedback_refs ?? [],
+          prior_thesis_refs: [],
+          active_claim_refs: [],
+          retired_claim_refs: [],
+          tension_refs: args.state.resolved_tensions.map((tension) => tension.tension_ref),
+          knowledge_gap_refs: [],
+          reason_codes: [
+            "unresolved_tension_resolved_explicitly",
+            "trajectory_is_read_only",
+            "derived_view_not_source_of_truth",
+            "no_state_mutation",
+            "no_product_write",
+          ],
+        })
+      : null,
+  ].filter((event): event is PerspectiveTrajectoryEvent => event !== null);
   const applyEvents = args.apply_events.map((event) =>
     createTrajectoryEvent({
       event_id: `trajectory:event:${event.apply_event_id}`,
@@ -605,7 +728,7 @@ export function createPerspectiveTrajectoryInputFromDurableStateV01(args: {
     perspective_id: args.state.perspective_id,
     as_of: args.as_of ?? args.state.updated_at,
     durable_state_refs: [args.state.perspective_id],
-    apply_events: [...applyEvents, stateEvent],
+    apply_events: [...applyEvents, stateEvent, ...stateDerivedEvents],
     promotion_decision_refs: args.state.promotion_history,
     formation_receipt_refs: args.state.formation_receipt_refs,
     review_record_refs: uniqueSorted(args.apply_events.map((event) => event.review_record_ref)),
@@ -661,11 +784,11 @@ function emptyTrajectory(
     trajectory_version: PERSPECTIVE_TRAJECTORY_VERSION,
     builder_version: PERSPECTIVE_TRAJECTORY_BUILDER_VERSION,
     scope,
-    perspective_id: typeof input.perspective_id === "string" && input.perspective_id.length > 0
+    perspective_id: isPublicSafeNonEmptyString(input.perspective_id)
       ? input.perspective_id
       : "perspective:trajectory:blocked",
     status,
-    as_of: typeof input.as_of === "string" && input.as_of.length > 0
+    as_of: isPublicSafeNonEmptyString(input.as_of)
       ? input.as_of
       : "2026-06-26T00:00:00.000Z",
     events: [],
@@ -869,6 +992,10 @@ function normalizeSourceRefs(sourceRefs: PerspectiveTrajectorySourceRef[]): Pers
 }
 
 function buildCurrentStateSummary(events: PerspectiveTrajectoryEvent[]): string {
+  const stateSummaryEvent = [...events].reverse().find((event) =>
+    event.layer === "durable_state" && event.event_id.endsWith(":state-summary"),
+  );
+  if (stateSummaryEvent) return stateSummaryEvent.bounded_summary;
   const latestStateEvent = [...events].reverse().find((event) => event.layer === "durable_state");
   return latestStateEvent?.bounded_summary ?? "No Perspective trajectory events available.";
 }
@@ -914,4 +1041,8 @@ function stableStringify(value: unknown): string {
 
 function hasUnsafeString(value: string): boolean {
   return unsafeStringPatterns.some((pattern) => pattern.test(value));
+}
+
+function isPublicSafeNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && !hasUnsafeString(value);
 }

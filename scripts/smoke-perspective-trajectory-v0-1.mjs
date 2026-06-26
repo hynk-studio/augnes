@@ -287,6 +287,208 @@ function assertBuilderBehavior() {
   assert.deepEqual(blockedTrajectory, fixture.expected_blocked_private_raw_trajectory, "blocked trajectory matches expected fixture");
   assert.equal(blockedTrajectory.status, "blocked_private_or_raw_payload", "private/raw input is blocked");
   assertNoUnsafePayloadEcho(blockedTrajectory);
+
+  const routeDerivedInput = createRouteDerivedInputWithEvidenceAndTensions();
+  const routeDerivedTrajectory = builder.buildPerspectiveTrajectoryV01(routeDerivedInput);
+  const repeatedRouteDerivedTrajectory = builder.buildPerspectiveTrajectoryV01(routeDerivedInput);
+  assert.deepEqual(
+    repeatedRouteDerivedTrajectory,
+    routeDerivedTrajectory,
+    "route-derived trajectory build is deterministic",
+  );
+  assert(
+    routeDerivedTrajectory.supporting_evidence_refs.includes("source-ref:supporting:route:001"),
+    "route-derived supporting evidence refs are preserved",
+  );
+  assert.equal(
+    routeDerivedTrajectory.current_state_summary,
+    "Current durable Perspective state summary for perspective:trajectory:route-derived:001.",
+    "route-derived current state summary remains the durable state summary",
+  );
+  assert(
+    routeDerivedTrajectory.contradicting_evidence_refs.includes("source-ref:contradicting:route:001"),
+    "route-derived contradicting evidence refs are preserved",
+  );
+  assert(
+    routeDerivedTrajectory.open_tension_refs.includes("tension:open:route:001"),
+    "route-derived open tension refs are preserved",
+  );
+  assert(
+    routeDerivedTrajectory.resolved_tension_refs.includes("tension:resolved:route:001"),
+    "route-derived resolved tension refs are preserved",
+  );
+  assert(
+    !routeDerivedTrajectory.supporting_evidence_refs.includes("source-ref:contradicting:route:001"),
+    "contradicting evidence is not cross-contaminated into supporting refs",
+  );
+  assert(
+    !routeDerivedTrajectory.contradicting_evidence_refs.includes("source-ref:supporting:route:001"),
+    "supporting evidence is not cross-contaminated into contradicting refs",
+  );
+  assert(
+    !routeDerivedTrajectory.open_tension_refs.includes("tension:resolved:route:001"),
+    "resolved tensions are not cross-contaminated into open tension refs",
+  );
+  assert(
+    !routeDerivedTrajectory.resolved_tension_refs.includes("tension:open:route:001"),
+    "open tensions are not cross-contaminated into resolved tension refs",
+  );
+
+  const runtimeUnsafePerspectiveId = "/Users/private/perspective";
+  const runtimeBlockedPerspectiveInput = {
+    ...fixture.expected_input,
+    perspective_id: runtimeUnsafePerspectiveId,
+  };
+  const runtimeBlockedPerspectiveOutput = builder.buildPerspectiveTrajectoryV01(runtimeBlockedPerspectiveInput);
+  assert.equal(
+    runtimeBlockedPerspectiveOutput.status,
+    "blocked_private_or_raw_payload",
+    "runtime unsafe perspective id is blocked",
+  );
+  assert.equal(
+    runtimeBlockedPerspectiveOutput.perspective_id,
+    "perspective:trajectory:blocked",
+    "runtime unsafe perspective id is not echoed",
+  );
+  assert(
+    !JSON.stringify(runtimeBlockedPerspectiveOutput).includes(runtimeUnsafePerspectiveId),
+    "runtime unsafe perspective id does not appear in blocked output",
+  );
+
+  const runtimeUnsafeAsOf = "/Users/private/as-of";
+  const runtimeBlockedAsOfInput = {
+    ...fixture.expected_input,
+    as_of: runtimeUnsafeAsOf,
+  };
+  const runtimeBlockedAsOfOutput = builder.buildPerspectiveTrajectoryV01(runtimeBlockedAsOfInput);
+  assert.equal(runtimeBlockedAsOfOutput.status, "blocked_private_or_raw_payload", "runtime unsafe as_of is blocked");
+  assert.equal(
+    runtimeBlockedAsOfOutput.as_of,
+    "2026-06-26T00:00:00.000Z",
+    "runtime unsafe as_of is not echoed",
+  );
+  assert(
+    !JSON.stringify(runtimeBlockedAsOfOutput).includes(runtimeUnsafeAsOf),
+    "runtime unsafe as_of does not appear in blocked output",
+  );
+}
+
+function createRouteDerivedInputWithEvidenceAndTensions() {
+  const asOf = "2026-06-26T00:00:00.000Z";
+  const authorityBoundary = builder.createPerspectiveTrajectoryAuthorityBoundaryV01();
+  const durableState = {
+    state_version: "durable_perspective_state.v0.1",
+    apply_version: "durable_perspective_state_apply.v0.1",
+    scope,
+    perspective_id: "perspective:trajectory:route-derived:001",
+    current_thesis: "Route-derived durable Perspective thesis summary.",
+    prior_theses: ["prior-thesis:route:001"],
+    active_claims: [
+      {
+        claim_ref: "claim-candidate:route:active:001",
+        bounded_summary: "Bounded active claim preserved from durable state.",
+        source_refs: ["source-ref:supporting:route:001"],
+        reason_codes: ["selected_candidate_ref_present", "durable_state_applied"],
+      },
+    ],
+    retired_claims: [
+      {
+        claim_ref: "claim-candidate:route:retired:001",
+        bounded_summary: "Bounded retired claim preserved from durable state.",
+        source_refs: ["source-ref:contradicting:route:001"],
+        reason_codes: ["retired_claim_preserved", "durable_state_applied"],
+      },
+    ],
+    supporting_evidence_refs: ["source-ref:supporting:route:001"],
+    contradicting_evidence_refs: ["source-ref:contradicting:route:001"],
+    open_tensions: [
+      {
+        tension_ref: "tension:open:route:001",
+        bounded_summary: "Bounded open tension preserved from durable state.",
+        source_refs: ["source-ref:supporting:route:001"],
+        reason_codes: ["unresolved_tension_preserved"],
+      },
+    ],
+    resolved_tensions: [
+      {
+        tension_ref: "tension:resolved:route:001",
+        bounded_summary: "Bounded resolved tension preserved from durable state.",
+        source_refs: ["source-ref:contradicting:route:001"],
+        reason_codes: ["unresolved_tension_resolved_explicitly"],
+      },
+    ],
+    knowledge_gaps: [
+      {
+        knowledge_gap_ref: "knowledge-gap:route:001",
+        bounded_summary: "Bounded knowledge gap preserved from durable state.",
+        source_refs: ["source-ref:supporting:route:001"],
+        gap_status: "open",
+        reason_codes: ["knowledge_gap_preserved"],
+      },
+    ],
+    promotion_history: ["promotion-decision:route:001"],
+    retirement_history: ["claim-candidate:route:retired:001"],
+    formation_receipt_refs: ["formation-receipt:route:001"],
+    salience_state: { salience_ref: "salience:route:001" },
+    reuse_conditions: ["reuse-condition:route:001"],
+    created_at: asOf,
+    updated_at: "2026-06-26T00:05:00.000Z",
+    authority_boundary: authorityBoundary,
+    reason_codes: ["durable_state_applied", "formation_receipt_required_before_state_apply"],
+    state_fingerprint: "state-fingerprint:route:001",
+  };
+  const durableApplyEvent = {
+    apply_event_version: "durable_perspective_state_apply_event.v0.1",
+    apply_version: "durable_perspective_state_apply.v0.1",
+    state_version: "durable_perspective_state.v0.1",
+    scope,
+    apply_event_id: "durable-state-apply:event:route:001",
+    perspective_id: durableState.perspective_id,
+    promotion_decision_id: "promotion-decision:route:001",
+    formation_receipt_id: "formation-receipt:route:001",
+    review_record_ref: "review-record:route:001",
+    operator_actor_ref: "operator:route:001",
+    apply_operation: "add",
+    applied_at: "2026-06-26T00:04:00.000Z",
+    prior_state_version: null,
+    next_state_version: "durable_perspective_state.v0.1",
+    selected_candidate_refs: ["claim-candidate:route:active:001"],
+    omitted_candidate_refs: ["claim-candidate:route:omitted:001"],
+    deferred_candidate_refs: ["claim-candidate:route:deferred:001"],
+    unresolved_tensions_preserved: ["tension:open:route:001"],
+    knowledge_gaps_preserved: ["knowledge-gap:route:001"],
+    durable_state_applied: true,
+    formation_receipt_written: true,
+    promotion_executed: false,
+    proof_or_evidence_created: false,
+    claim_or_evidence_written: false,
+    product_write_executed: false,
+    reason_codes: ["durable_state_applied", "promotion_decision_ref_present", "formation_receipt_ref_present"],
+    authority_boundary: authorityBoundary,
+  };
+  return builder.createPerspectiveTrajectoryInputFromDurableStateV01({
+    state: durableState,
+    apply_events: [durableApplyEvent],
+    as_of: asOf,
+    feedback_refs: ["feedback-ref:route:001"],
+    source_refs: [
+      {
+        source_ref: "source-ref:supporting:route:001",
+        bounded_summary: "Bounded supporting source ref summary for route-derived trajectory.",
+        reason_codes: ["source_ref_present", "trajectory_is_read_only"],
+      },
+      {
+        source_ref: "source-ref:contradicting:route:001",
+        bounded_summary: "Bounded contradicting source ref summary for route-derived trajectory.",
+        reason_codes: ["source_ref_present", "contradiction_preserved", "trajectory_is_read_only"],
+      },
+    ],
+    boundary_notes: [
+      "Perspective trajectory is read-only.",
+      "Route-derived trajectory preserves durable evidence and tension status.",
+      "Product-write remains parked by #686.",
+    ],
+  });
 }
 
 function assertBuilderExports() {
@@ -311,6 +513,11 @@ function assertBuilderExports() {
   assertIncludes(builderText, "db_write_now: false", "builder boundary denies DB writes");
   assertIncludes(builderText, "source_fetch_now: false", "builder boundary denies source fetch");
   assertIncludes(builderText, "provider_openai_call_now: false", "builder boundary denies provider calls");
+  assertIncludes(builderText, ":supporting-evidence", "builder emits supporting evidence state-derived events");
+  assertIncludes(builderText, ":contradicting-evidence", "builder emits contradicting evidence state-derived events");
+  assertIncludes(builderText, ":open-tensions", "builder emits open tension state-derived events");
+  assertIncludes(builderText, ":resolved-tensions", "builder emits resolved tension state-derived events");
+  assertIncludes(builderText, "isPublicSafeNonEmptyString", "builder sanitizes blocked top-level output fields");
   assertIncludes(readHelperText, "buildDurablePerspectiveStateReadModelV01", "read helper remains available");
   assertIncludes(stateStoreText, "readDurablePerspectiveStateV01", "state store read helper remains available");
 }

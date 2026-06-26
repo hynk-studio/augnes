@@ -64,6 +64,10 @@ The route reads existing durable state and durable apply events only.
 
 It builds a derived trajectory from state/read-model outputs and does not write DB rows.
 
+Route-derived trajectories preserve supporting and contradicting evidence refs from durable state.
+
+Route-derived trajectories preserve open and resolved tension status from durable state.
+
 ## 8. Prior thesis and retired claim visibility
 
 Prior thesis must remain visible.
@@ -107,6 +111,8 @@ It exposes no save, apply, promote, proof/evidence, or product-write controls.
 The builder rejects real private URLs, local user paths, tokens, secrets, raw source text, raw provider output, raw retrieval output, raw trajectory payload, hidden reasoning, raw conversation, browser dumps, raw DB rows, actual prompt text, and actual query text.
 
 Blocked examples in fixtures use bounded placeholder text only and do not include actual raw private payload.
+
+Blocked private/raw trajectory inputs do not echo unsafe perspective ids or timestamps.
 
 ## 13. Authority boundary
 
