@@ -124,6 +124,10 @@ const dogfoodingRecordRuntimeContractPackageScriptNames = [
 const dogfoodingIngestionRuntimePackageScriptNames = [
   "smoke:dogfooding-ingestion-runtime-v0-1",
 ];
+const runtimeAuditPanelPackageScriptNames = [
+  "browser:runtime-audit-panel-v0-1",
+  "smoke:runtime-audit-panel-v0-1",
+];
 const feedbackControlsExpansionDocsPath =
   "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const feedbackControlsExpansionComponentPath =
@@ -168,6 +172,15 @@ const dogfoodingIngestionRuntimeFixturePath =
   "fixtures/dogfooding-ingestion-runtime.sample.v0.1.json";
 const dogfoodingIngestionRuntimeSmokePath =
   "scripts/smoke-dogfooding-ingestion-runtime-v0-1.mjs";
+const runtimeAuditPanelDocsPath = "docs/RUNTIME_AUDIT_PANEL_V0_1.md";
+const runtimeAuditPanelHelperPath =
+  "lib/runtime-audit/build-runtime-audit-model.ts";
+const runtimeAuditPanelComponentPath = "components/runtime-audit-panel.tsx";
+const runtimeAuditPanelFixturePath =
+  "fixtures/runtime-audit-panel.sample.v0.1.json";
+const runtimeAuditPanelSmokePath = "scripts/smoke-runtime-audit-panel-v0-1.mjs";
+const runtimeAuditPanelBrowserValidationPath =
+  "scripts/browser-validate-runtime-audit-panel-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -246,6 +259,17 @@ const dogfoodingIngestionRuntimeChangedFiles = [
   dogfoodingIngestionRuntimeFixturePath,
   dogfoodingIngestionRuntimeSmokePath,
   "lib/db/schema.sql",
+  smokePath,
+  packagePath,
+  indexPath,
+];
+const runtimeAuditPanelChangedFiles = [
+  runtimeAuditPanelDocsPath,
+  runtimeAuditPanelHelperPath,
+  runtimeAuditPanelComponentPath,
+  runtimeAuditPanelFixturePath,
+  runtimeAuditPanelSmokePath,
+  runtimeAuditPanelBrowserValidationPath,
   smokePath,
   packagePath,
   indexPath,
@@ -383,6 +407,12 @@ for (const filePath of [
   feedbackControlsExpansionFixturePath,
   feedbackControlsExpansionSmokePath,
   feedbackControlsExpansionBrowserValidationPath,
+  runtimeAuditPanelDocsPath,
+  runtimeAuditPanelHelperPath,
+  runtimeAuditPanelComponentPath,
+  runtimeAuditPanelFixturePath,
+  runtimeAuditPanelSmokePath,
+  runtimeAuditPanelBrowserValidationPath,
 ]) {
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
@@ -557,6 +587,7 @@ function assertPackageScript() {
       feedbackInfluencedSurfacingPreviewPackageScriptNames,
       dogfoodingRecordRuntimeContractPackageScriptNames,
       dogfoodingIngestionRuntimePackageScriptNames,
+      runtimeAuditPanelPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include a recognized downstream slice package script set",
   );
@@ -575,6 +606,10 @@ function assertStaticBoundary() {
   }
   if (dogfoodingIngestionRuntimeSliceActive(changedFiles)) {
     assertDogfoodingIngestionRuntimeChangedFiles(changedFiles);
+    return;
+  }
+  if (runtimeAuditPanelSliceActive(changedFiles)) {
+    assertRuntimeAuditPanelChangedFiles(changedFiles);
     return;
   }
   if (feedbackInfluencedSurfacingPreviewSliceActive(changedFiles)) {
@@ -713,6 +748,48 @@ function dogfoodingIngestionRuntimeSliceActive(changedFiles) {
     dogfoodingIngestionRuntimeFixturePath,
     dogfoodingIngestionRuntimeSmokePath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function runtimeAuditPanelSliceActive(changedFiles) {
+  return [
+    runtimeAuditPanelDocsPath,
+    runtimeAuditPanelHelperPath,
+    runtimeAuditPanelComponentPath,
+    runtimeAuditPanelFixturePath,
+    runtimeAuditPanelSmokePath,
+    runtimeAuditPanelBrowserValidationPath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertRuntimeAuditPanelChangedFiles(changedFiles) {
+  for (const expectedFile of runtimeAuditPanelChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      runtimeAuditPanelChangedFiles.includes(changedFile),
+      `unexpected changed file in runtime audit panel slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)route\.(ts|tsx|js|mjs)$/,
+      "must not change route handlers",
+    );
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)actions?\.(ts|tsx|js|mjs)$/,
+      "must not change server actions",
+    );
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)(schema|migration|db|sql)\b/i,
+      "must not change schema/db/sql paths",
+    );
+  }
 }
 
 function assertDogfoodingIngestionRuntimeChangedFiles(changedFiles) {
