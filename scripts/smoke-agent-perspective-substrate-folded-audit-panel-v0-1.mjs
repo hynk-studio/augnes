@@ -128,6 +128,9 @@ const runtimeAuditPanelPackageScriptNames = [
   "browser:runtime-audit-panel-v0-1",
   "smoke:runtime-audit-panel-v0-1",
 ];
+const gitLedgerExportContractPackageScriptNames = [
+  "smoke:git-ledger-export-contract-v0-1",
+];
 const feedbackControlsExpansionDocsPath =
   "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const feedbackControlsExpansionComponentPath =
@@ -181,6 +184,14 @@ const runtimeAuditPanelFixturePath =
 const runtimeAuditPanelSmokePath = "scripts/smoke-runtime-audit-panel-v0-1.mjs";
 const runtimeAuditPanelBrowserValidationPath =
   "scripts/browser-validate-runtime-audit-panel-v0-1.mjs";
+const gitLedgerExportContractDocsPath =
+  "docs/GIT_LEDGER_EXPORT_CONTRACT_V0_1.md";
+const gitLedgerExportContractTypePath =
+  "types/git-ledger-export-contract.ts";
+const gitLedgerExportContractFixturePath =
+  "fixtures/git-ledger-export-contract.sample.v0.1.json";
+const gitLedgerExportContractSmokePath =
+  "scripts/smoke-git-ledger-export-contract-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -270,6 +281,15 @@ const runtimeAuditPanelChangedFiles = [
   runtimeAuditPanelFixturePath,
   runtimeAuditPanelSmokePath,
   runtimeAuditPanelBrowserValidationPath,
+  smokePath,
+  packagePath,
+  indexPath,
+];
+const gitLedgerExportContractChangedFiles = [
+  gitLedgerExportContractDocsPath,
+  gitLedgerExportContractTypePath,
+  gitLedgerExportContractFixturePath,
+  gitLedgerExportContractSmokePath,
   smokePath,
   packagePath,
   indexPath,
@@ -588,6 +608,7 @@ function assertPackageScript() {
       dogfoodingRecordRuntimeContractPackageScriptNames,
       dogfoodingIngestionRuntimePackageScriptNames,
       runtimeAuditPanelPackageScriptNames,
+      gitLedgerExportContractPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include a recognized downstream slice package script set",
   );
@@ -600,6 +621,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (gitLedgerExportContractSliceActive(changedFiles)) {
+    assertGitLedgerExportContractChangedFiles(changedFiles);
+    return;
+  }
   if (dogfoodingRecordRuntimeContractSliceActive(changedFiles)) {
     assertDogfoodingRecordRuntimeContractChangedFiles(changedFiles);
     return;
@@ -759,6 +784,47 @@ function runtimeAuditPanelSliceActive(changedFiles) {
     runtimeAuditPanelSmokePath,
     runtimeAuditPanelBrowserValidationPath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function gitLedgerExportContractSliceActive(changedFiles) {
+  return [
+    gitLedgerExportContractDocsPath,
+    gitLedgerExportContractTypePath,
+    gitLedgerExportContractFixturePath,
+    gitLedgerExportContractSmokePath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertGitLedgerExportContractChangedFiles(changedFiles) {
+  for (const expectedFile of gitLedgerExportContractChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      gitLedgerExportContractChangedFiles.includes(changedFile),
+      `unexpected changed file in git ledger export contract slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)route\.(ts|tsx|js|mjs)$/,
+      "must not change route handlers",
+    );
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)actions?\.(ts|tsx|js|mjs)$/,
+      "must not change server actions",
+    );
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)(schema|migration|db|sql)\b/i,
+      "must not change schema/db/sql paths",
+    );
+  }
 }
 
 function assertRuntimeAuditPanelChangedFiles(changedFiles) {

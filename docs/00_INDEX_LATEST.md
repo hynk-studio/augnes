@@ -4000,6 +4000,38 @@ repo-local 색인이다.
   ingestion; no local/repository/uploaded file read as source input; no Git
   Ledger export; no Codex execution; no GitHub automation; product-write
   remains parked by #686.
+- Git Ledger Export Contract v0.1:
+  `docs/GIT_LEDGER_EXPORT_CONTRACT_V0_1.md`,
+  `types/git-ledger-export-contract.ts`,
+  `fixtures/git-ledger-export-contract.sample.v0.1.json`, and
+  `scripts/smoke-git-ledger-export-contract-v0-1.mjs`
+  (`npm run smoke:git-ledger-export-contract-v0-1`) follows PR #797 Runtime
+  Audit Panel. This slice is contract-only. Ledger packets are review/export
+  candidates, and ledger packets are not commits. This pointer is repo-local
+  documentation metadata, not SSOT. The roadmap guide is not SSOT. It does not
+  add Git Ledger export runtime, Git writes, commit creation, branch creation,
+  tag creation, GitHub API calls, pull request creation, repository file
+  writes, DB read/write, routes, UI, durable Perspective state mutation,
+  Formation Receipt writes, promotion execution, proof/evidence writes,
+  claim/evidence writes, product-write, product ID allocation, provider calls,
+  prompt sending, retrieval/RAG execution, source fetch, browser log ingestion,
+  session log ingestion, raw conversation ingestion, telemetry ingestion,
+  Codex execution, or GitHub automation. Product-write remains parked by #686.
+
+  Boundary phrases: Git Ledger Export Contract v0.1; contract-only; ledger
+  packets are review/export candidates; ledger packets are not commits; ledger
+  packets are not truth; ledger packets are not proof; ledger packets are not
+  accepted evidence; ledger packets are not product-write; Git Ledger export
+  requires future explicit operator action; no Git Ledger export runtime; no
+  Git write; no commit creation; no branch creation; no tag creation; no
+  GitHub API call; no pull request creation; no repository file write; no DB
+  read/write; no route; no UI; no durable state mutation; no Formation Receipt
+  write; no promotion execution; no proof/evidence write; no claim/evidence
+  write; no product write; no product ID allocation; no provider/OpenAI call;
+  no prompt sending; no retrieval execution; no RAG answer generation; no
+  source fetch; no local/repository/uploaded file read as source input; no raw
+  conversation/browser/session/telemetry ingestion; no Codex execution; no
+  GitHub automation; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
