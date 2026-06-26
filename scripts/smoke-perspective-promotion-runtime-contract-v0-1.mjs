@@ -364,10 +364,11 @@ assertCountCovers(
 assertCountCovers(bundle.review_readiness_counts, requiredReviewReadiness, "review readiness coverage");
 assertCountCovers(bundle.privacy_class_counts, requiredPrivacyClasses, "privacy class coverage");
 assertCountCovers(bundle.redaction_status_counts, requiredRedactionStatuses, "redaction status coverage");
+assertArrayCovers(typeText, requiredReasonCodes, "type reason code coverage");
 assertArrayCovers(
-  [...fixture.reason_code_coverage, ...bundle.reason_codes, typeText, fixtureText],
+  collectParsedReasonCodes(bundle, fixture),
   requiredReasonCodes,
-  "reason code coverage",
+  "parsed fixture reason code coverage",
 );
 
 const eligibleFuturePromote = bundle.decision_contracts.find(
@@ -506,17 +507,21 @@ function assertAuthorityBoundary(boundary, label) {
 }
 
 function assertIndexCoverage() {
+  const indexBlock = extractIndexBlock(indexText, "Perspective Promotion Runtime Contract v0.1");
   for (const pointer of [
     docPath,
     typePath,
     fixturePath,
     "scripts/smoke-perspective-promotion-runtime-contract-v0-1.mjs",
   ]) {
-    assertIncludes(indexText, pointer, `index points to ${pointer}`);
+    assertIncludes(indexBlock, pointer, `index block points to ${pointer}`);
   }
-  const indexBlock = extractIndexBlock(indexText, "Perspective Promotion Runtime Contract v0.1");
   assertIncludes(indexBlock, "contract-only", "index mentions contract-only");
   assertIncludes(indexBlock, "future human-reviewed promotion", "index mentions future human-reviewed promotion");
+  assert(
+    !indexBlock.includes("RAG Context Preview v0.1"),
+    "index block stops before unrelated later top-level entries",
+  );
   for (const forbiddenImplication of [
     "promotion runtime was added",
     "decision store was added",
@@ -559,6 +564,25 @@ function assertArrayCovers(actual, expected, label) {
   for (const value of expected) assertIncludes(text, value, `${label} includes ${value}`);
 }
 
+function collectParsedReasonCodes(bundleValue, fixtureValue) {
+  return [
+    ...arrayOrEmpty(fixtureValue.reason_code_coverage),
+    ...arrayOrEmpty(bundleValue.reason_codes),
+    ...arrayOrEmpty(bundleValue.gate_reports).flatMap((report) => [
+      ...arrayOrEmpty(report.blocked_reason_codes),
+      ...arrayOrEmpty(report.basis_refs).flatMap((basis) => arrayOrEmpty(basis.reason_codes)),
+    ]),
+    ...arrayOrEmpty(bundleValue.decision_contracts).flatMap((decision) => [
+      ...arrayOrEmpty(decision.reason_codes),
+      ...arrayOrEmpty(decision.basis_refs).flatMap((basis) => arrayOrEmpty(basis.reason_codes)),
+    ]),
+  ];
+}
+
+function arrayOrEmpty(value) {
+  return Array.isArray(value) ? value : [];
+}
+
 function fingerprintWithoutField(value, field) {
   const clone = { ...value };
   delete clone[field];
@@ -581,7 +605,7 @@ function extractIndexBlock(text, heading) {
   const start = text.indexOf(`- ${heading}:`);
   assert(start >= 0, `index block exists for ${heading}`);
   const after = text.slice(start + 2);
-  const next = after.search(/\\n- [^\\n]+:/);
+  const next = after.search(/\n- [^\n]+:/);
   return next >= 0 ? after.slice(0, next) : after;
 }
 
