@@ -382,6 +382,7 @@ export function validateRuntimeAuditInputV01(
   }
   const value = input as Partial<RuntimeAuditInput>;
   const failures: string[] = [];
+  failures.push(...collectUnsafeObjectFailures(input, "input"));
 
   if (value.builder_version !== RUNTIME_AUDIT_MODEL_BUILDER_VERSION) {
     failures.push("builder_version_invalid");
@@ -415,6 +416,7 @@ export function validateRuntimeAuditInputItemV01(
   }
   const value = item as Partial<RuntimeAuditInputItem>;
   const failures: string[] = [];
+  failures.push(...collectUnsafeObjectFailures(item, "input_item"));
 
   failures.push(...validateSafeString(value.input_item_id, "input_item_id"));
   if (!RuntimeAuditSectionKinds.includes(value.section_kind as RuntimeAuditSectionKind)) {
@@ -839,6 +841,24 @@ function validateSafeString(value: unknown, field: string): string[] {
     return [`${field}_invalid_string`];
   }
   return unsafeStringFailureCodes(value, field);
+}
+
+function collectUnsafeObjectFailures(value: unknown, label: string): string[] {
+  if (typeof value === "string") {
+    return unsafeStringFailureCodes(value, label);
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) =>
+      collectUnsafeObjectFailures(item, `${label}_${index}`),
+    );
+  }
+  if (isRecord(value)) {
+    return Object.entries(value).flatMap(([key, nestedValue]) => [
+      ...unsafeStringFailureCodes(key, `${label}_${key}_key`),
+      ...collectUnsafeObjectFailures(nestedValue, `${label}_${key}`),
+    ]);
+  }
+  return [];
 }
 
 function unsafeStringFailureCodes(value: string, field: string): string[] {

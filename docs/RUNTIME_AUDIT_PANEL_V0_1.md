@@ -181,6 +181,10 @@ case-insensitively. Raw conversation markers are blocked. Hidden reasoning
 markers are blocked. Telemetry dump markers are blocked. Secret-like values,
 private URLs, and local private path markers are blocked.
 
+Unknown or extra input fields are also scanned for private/raw/secret-like markers.
+
+Unknown fields cannot be used to carry raw conversation, hidden reasoning, telemetry, secrets, private paths, or private URLs through the audit builder.
+
 Fixtures and examples use bounded summaries and public-safe symbolic refs only.
 They do not store raw source bodies, raw provider output, raw retrieval output,
 raw dogfooding payload, raw audit payload, raw conversations, hidden reasoning,

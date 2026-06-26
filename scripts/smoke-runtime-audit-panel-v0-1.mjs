@@ -67,6 +67,8 @@ const docsExactPhrases = [
   "Durable state apply is not product-write.",
   "Source refs are lineage pointers, not proof.",
   "Source refs must be public-safe symbolic refs.",
+  "Unknown or extra input fields are also scanned for private/raw/secret-like markers.",
+  "Unknown fields cannot be used to carry raw conversation, hidden reasoning, telemetry, secrets, private paths, or private URLs through the audit builder.",
   "roadmap guide is not SSOT",
 ];
 
@@ -241,6 +243,17 @@ function assertStaticFiles() {
   assertIncludes(helperText, "const normalizedValue = value.toLowerCase()", "case-insensitive values");
   assertIncludes(helperText, "marker.toLowerCase()", "case-insensitive markers");
   assertIncludes(helperText, "function includesMarker", "case-insensitive marker helper");
+  assertIncludes(helperText, "function collectUnsafeObjectFailures", "recursive unsafe object scan");
+  assertIncludes(
+    helperText,
+    "collectUnsafeObjectFailures(input, \"input\")",
+    "top-level recursive unsafe scan",
+  );
+  assertIncludes(
+    helperText,
+    "collectUnsafeObjectFailures(item, \"input_item\")",
+    "item-level recursive unsafe scan",
+  );
   for (const forbidden of [
     "from \"node:fs\"",
     "from 'node:fs'",
@@ -313,6 +326,27 @@ function assertHelperBehavior() {
     assert.equal(rejection.authority_boundary.durable_state_write_now, false, `${key} state write`);
     assert.equal(rejection.authority_boundary.proof_or_evidence_record_now, false, `${key} proof`);
   }
+  for (const { label, reasonCode, unsafeValue, apply } of unknownUnsafeCases()) {
+    const unsafeInput = cloneJson(fixture.expected_valid_input);
+    unsafeInput.audit_id = `runtime-audit:dynamic:${label}`;
+    apply(unsafeInput, unsafeValue);
+    const rejection = helper.buildRuntimeAuditModelV01(unsafeInput);
+    assert.equal(rejection.status, "blocked_private_or_raw_payload", `${label} status`);
+    assert.equal(rejection.all_items.length, 0, `${label} must not build items`);
+    assert.equal(rejection.sections.length, 0, `${label} must not build sections`);
+    assert.ok(rejection.reason_codes.includes(reasonCode), `${label} reason ${reasonCode}`);
+    assert.ok(
+      !JSON.stringify(rejection).includes(unsafeValue),
+      `${label} blocked output must not echo unsafe value`,
+    );
+    assert.equal(rejection.authority_boundary.product_write_now, false, `${label} product write`);
+    assert.equal(rejection.authority_boundary.durable_state_write_now, false, `${label} state`);
+    assert.equal(
+      rejection.authority_boundary.proof_or_evidence_record_now,
+      false,
+      `${label} proof`,
+    );
+  }
   assert.equal(
     fixture.expected_rejection_results.private_raw_payload.status,
     "blocked_private_or_raw_payload",
@@ -337,6 +371,23 @@ function assertHelperBehavior() {
     fixture.expected_rejection_results.forbidden_authority.status,
     "blocked_invalid_input",
   );
+  for (const [key, reasonCode] of Object.entries({
+    unknown_top_level_raw_conversation: "raw_conversation_blocked",
+    unknown_top_level_secret: "secret_like_pattern_blocked",
+    unknown_item_hidden_reasoning: "hidden_reasoning_blocked",
+    unknown_item_nested_telemetry: "telemetry_dump_blocked",
+    unknown_item_nested_array_secret: "secret_like_pattern_blocked",
+    unknown_authority_boundary_private_key: "secret_like_pattern_blocked",
+  })) {
+    const rejection = fixture.expected_rejection_results[key];
+    assert.equal(rejection.status, "blocked_private_or_raw_payload", `${key} status`);
+    assert.equal(rejection.sections.length, 0, `${key} sections`);
+    assert.equal(rejection.all_items.length, 0, `${key} all_items`);
+    assert.ok(rejection.reason_codes.includes(reasonCode), `${key} reason ${reasonCode}`);
+    assert.equal(rejection.authority_boundary.product_write_now, false, `${key} product write`);
+    assert.equal(rejection.authority_boundary.fetch_now, false, `${key} fetch`);
+    assert.equal(rejection.authority_boundary.db_query_or_write_now, false, `${key} db`);
+  }
 
   assert.ok(
     fixture.expected_rejection_results.raw_conversation_marker.reason_codes.includes(
@@ -491,6 +542,63 @@ function assertAuthorityBoundary(boundary, label) {
   ]) {
     assert.equal(boundary[field], false, `${label}.${field}`);
   }
+}
+
+function unknownUnsafeCases() {
+  return [
+    {
+      label: "unknown-top-level-raw-conversation",
+      unsafeValue: "Raw Conversation copied into audit input",
+      reasonCode: "raw_conversation_blocked",
+      apply(input, unsafeValue) {
+        input.extra_raw_payload = unsafeValue;
+      },
+    },
+    {
+      label: "unknown-top-level-secret",
+      unsafeValue: "Password: copied into audit input",
+      reasonCode: "secret_like_pattern_blocked",
+      apply(input, unsafeValue) {
+        input.extra_secret = unsafeValue;
+      },
+    },
+    {
+      label: "unknown-item-hidden-reasoning",
+      unsafeValue: "Hidden Reasoning copied into audit item",
+      reasonCode: "hidden_reasoning_blocked",
+      apply(input, unsafeValue) {
+        input.input_items[0].extra_hidden_reasoning = unsafeValue;
+      },
+    },
+    {
+      label: "unknown-item-nested-telemetry",
+      unsafeValue: "Telemetry Dump copied into audit item",
+      reasonCode: "telemetry_dump_blocked",
+      apply(input, unsafeValue) {
+        input.input_items[0].extra_nested = { telemetry: unsafeValue };
+      },
+    },
+    {
+      label: "unknown-item-nested-array-secret",
+      unsafeValue: "Secret: copied into audit item",
+      reasonCode: "secret_like_pattern_blocked",
+      apply(input, unsafeValue) {
+        input.input_items[0].extra_array = [unsafeValue];
+      },
+    },
+    {
+      label: "unknown-authority-boundary-private-key",
+      unsafeValue: "Private Key copied into audit boundary",
+      reasonCode: "secret_like_pattern_blocked",
+      apply(input, unsafeValue) {
+        input.authority_boundary = { nested: { secret: unsafeValue } };
+      },
+    },
+  ];
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 function readText(path) {
