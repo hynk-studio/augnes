@@ -222,6 +222,8 @@ const docsExactPhrases = [
   "This PR does not ingest telemetry.",
   "Source refs are lineage pointers, not proof.",
   "Source refs must be public-safe symbolic refs.",
+  "Records marked ready_for_future_ingestion must be public-safe and must not",
+  "Blocked raw/private examples must remain blocked and must not be marked",
   "roadmap guide is not SSOT",
 ];
 
@@ -259,6 +261,13 @@ const fixtureForbiddenMarkers = [
 const allowedFixturePlaceholders = [
   "raw dogfooding payload blocked by contract fixture",
   "secret-like dogfooding input blocked by contract fixture",
+];
+
+const blockedPrivateReasonCodes = [
+  "private_or_raw_payload_blocked",
+  "secret_like_pattern_blocked",
+  "local_path_blocked",
+  "private_url_blocked",
 ];
 
 const forbiddenPositiveAuthorityGrants = [
@@ -364,6 +373,7 @@ assertTypeCoverage();
 assertFixtureCoverage();
 assertAuthorityBoundaries();
 assertProductWriteCue();
+assertSemanticFixtureConsistency();
 assertFingerprints();
 assertDocsCoverage();
 assertIndexCoverage();
@@ -555,18 +565,189 @@ function assertAuthorityBoundaries() {
 }
 
 function assertProductWriteCue() {
-  const cues = fixture.expected_bundle.records.flatMap((record) => record.review_cues);
-  const cue = cues.find((candidate) => candidate.cue_kind === "product_write_reentry_request");
-  assert.ok(cue, "product_write_reentry_request cue must exist");
+  const recordAndCue = fixture.expected_bundle.records
+    .flatMap((record) => record.review_cues.map((cue) => ({ record, cue })))
+    .find(({ cue }) => cue.cue_kind === "product_write_reentry_request");
+  assert.ok(recordAndCue, "product_write_reentry_request cue must exist");
+  const { record, cue } = recordAndCue;
   assert.equal(cue.product_write_request_only, true);
   assert.equal(cue.product_write_executed, false);
+  assert.ok(
+    !record.status.includes("product_write"),
+    `${record.record_id}.status must not imply product write execution`,
+  );
   for (const code of [
     "product_write_request_recorded_as_review_cue_only",
     "product_write_not_executed",
     "product_write_denied",
   ]) {
     assert.ok(cue.reason_codes.includes(code), `product write cue reason ${code}`);
+    assert.ok(record.reason_codes.includes(code), `product write record reason ${code}`);
   }
+}
+
+function assertSemanticFixtureConsistency() {
+  for (const record of fixture.expected_bundle.records) {
+    assertBlockedMarkersStayNonIngestionReady(record);
+    if (record.status === "ready_for_future_ingestion") {
+      assertReadyForFutureIngestionRecord(record);
+    }
+    if (record.status.startsWith("blocked_")) {
+      assertBlockedRecordConsistency(record);
+    }
+  }
+}
+
+function assertBlockedMarkersStayNonIngestionReady(record) {
+  if (!recordHasBlockedMarker(record)) return;
+  assert.ok(
+    record.status.startsWith("blocked_") || record.status === "rejected",
+    `${record.record_id} has blocked markers but is ${record.status}`,
+  );
+  assert.notEqual(
+    record.status,
+    "ready_for_future_ingestion",
+    `${record.record_id} must not be ingestion-ready with blocked markers`,
+  );
+  assertRequiredBlockedReasonCodes(record, `${record.record_id}.reason_codes`);
+  assertRecordReasonCodesCoverBlockedSignals(record);
+  for (const signal of record.signals) {
+    if (
+      isBlockedClass(signal.privacy_class) ||
+      isBlockedClass(signal.redaction_status)
+    ) {
+      assert.equal(signal.public_safe, false, `${signal.signal_id}.public_safe`);
+      assertRequiredBlockedReasonCodes(signal, `${signal.signal_id}.reason_codes`);
+    }
+  }
+}
+
+function assertReadyForFutureIngestionRecord(record) {
+  assert.equal(record.public_safe, true, `${record.record_id}.public_safe`);
+  assertNotBlockedClass(record.privacy_class, `${record.record_id}.privacy_class`);
+  assertNotBlockedClass(record.redaction_status, `${record.record_id}.redaction_status`);
+  assertNoBlockedReasonCodes(record.reason_codes, `${record.record_id}.reason_codes`);
+  for (const signal of record.signals) {
+    assert.equal(signal.public_safe, true, `${signal.signal_id}.public_safe`);
+    assertNotBlockedClass(signal.privacy_class, `${signal.signal_id}.privacy_class`);
+    assertNotBlockedClass(signal.redaction_status, `${signal.signal_id}.redaction_status`);
+    assertNoBlockedReasonCodes(signal.reason_codes, `${signal.signal_id}.reason_codes`);
+  }
+  for (const cue of record.review_cues) {
+    assert.equal(cue.candidate_only, true, `${cue.review_cue_id}.candidate_only`);
+    assert.equal(cue.product_write_executed, false, `${cue.review_cue_id}.product_write`);
+  }
+}
+
+function assertBlockedRecordConsistency(record) {
+  assert.notEqual(
+    record.status,
+    "ready_for_future_ingestion",
+    `${record.record_id} must not be marked ingestion-ready`,
+  );
+  assertRequiredBlockedReasonCodes(record, `${record.record_id}.reason_codes`);
+  for (const signal of record.signals) {
+    if (
+      isBlockedClass(signal.privacy_class) ||
+      isBlockedClass(signal.redaction_status)
+    ) {
+      assert.equal(signal.public_safe, false, `${signal.signal_id}.public_safe`);
+      assertRequiredBlockedReasonCodes(signal, `${signal.signal_id}.reason_codes`);
+    }
+  }
+}
+
+function assertRequiredBlockedReasonCodes(entity, label) {
+  if (
+    entity.status === "blocked_private_or_raw_payload" ||
+    entity.privacy_class === "blocked_raw_private_payload" ||
+    entity.redaction_status === "blocked_raw_payload"
+  ) {
+    assert.ok(
+      entity.reason_codes.includes("private_or_raw_payload_blocked"),
+      `${label} must include private_or_raw_payload_blocked`,
+    );
+  }
+  if (
+    entity.privacy_class === "blocked_secret_like_payload" ||
+    entity.redaction_status === "blocked_secret_like_pattern"
+  ) {
+    assert.ok(
+      entity.reason_codes.includes("secret_like_pattern_blocked"),
+      `${label} must include secret_like_pattern_blocked`,
+    );
+  }
+  if (entity.redaction_status === "blocked_private_location") {
+    assert.ok(
+      entity.reason_codes.includes("local_path_blocked") ||
+        entity.reason_codes.includes("private_url_blocked"),
+      `${label} must include local_path_blocked or private_url_blocked`,
+    );
+  }
+}
+
+function assertRecordReasonCodesCoverBlockedSignals(record) {
+  if (
+    record.signals.some(
+      (signal) =>
+        signal.privacy_class === "blocked_raw_private_payload" ||
+        signal.redaction_status === "blocked_raw_payload",
+    )
+  ) {
+    assert.ok(
+      record.reason_codes.includes("private_or_raw_payload_blocked"),
+      `${record.record_id}.reason_codes must cover blocked raw/private signals`,
+    );
+  }
+  if (
+    record.signals.some(
+      (signal) =>
+        signal.privacy_class === "blocked_secret_like_payload" ||
+        signal.redaction_status === "blocked_secret_like_pattern",
+    )
+  ) {
+    assert.ok(
+      record.reason_codes.includes("secret_like_pattern_blocked"),
+      `${record.record_id}.reason_codes must cover blocked secret-like signals`,
+    );
+  }
+  if (
+    record.signals.some(
+      (signal) => signal.redaction_status === "blocked_private_location",
+    )
+  ) {
+    assert.ok(
+      record.reason_codes.includes("local_path_blocked") ||
+        record.reason_codes.includes("private_url_blocked"),
+      `${record.record_id}.reason_codes must cover blocked private-location signals`,
+    );
+  }
+}
+
+function recordHasBlockedMarker(record) {
+  return (
+    isBlockedClass(record.privacy_class) ||
+    isBlockedClass(record.redaction_status) ||
+    record.signals.some(
+      (signal) =>
+        isBlockedClass(signal.privacy_class) ||
+        isBlockedClass(signal.redaction_status),
+    )
+  );
+}
+
+function assertNoBlockedReasonCodes(reasonCodes, label) {
+  for (const code of blockedPrivateReasonCodes) {
+    assert.ok(!reasonCodes.includes(code), `${label} must not include ${code}`);
+  }
+}
+
+function assertNotBlockedClass(value, label) {
+  assert.ok(!isBlockedClass(value), `${label} must not be blocked: ${value}`);
+}
+
+function isBlockedClass(value) {
+  return typeof value === "string" && value.startsWith("blocked_");
 }
 
 function assertFingerprints() {

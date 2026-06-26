@@ -575,8 +575,8 @@
             "formation_receipt_refs": [],
             "durable_state_refs": [],
             "trajectory_refs": [],
-            "privacy_class": "blocked_raw_private_payload",
-            "redaction_status": "blocked_raw_payload",
+            "privacy_class": "public_safe_summary",
+            "redaction_status": "not_needed",
             "public_safe": true,
             "reason_codes": [
               "dogfooding_signal_present",
@@ -787,7 +787,7 @@
           "dogfooding_record_is_telemetry_dump": false,
           "product_write_authority": false
         },
-        "record_fingerprint": "7f57bca0c397230a709d5e11e71081284c5fb2a807ec7330fdf3541ad17f515a"
+        "record_fingerprint": "58913ee9c168b4686f1ab0c6240552c59a1a3489ecb00a5fba7885f9c618080b"
       },
       {
         "record_version": "dogfooding_record.v0.1",
@@ -797,7 +797,7 @@
         "record_id": "dogfooding-record:fixture:03",
         "operator_actor_ref": "operator-ref:dogfooding:fixture",
         "recorded_at": "2026-06-26T00:00:00.000Z",
-        "bounded_context_summary": "Contract-only dogfooding record fixture for ready for future ingestion coverage.",
+        "bounded_context_summary": "Contract-only dogfooding record fixture for public-safe future ingestion review coverage.",
         "signals": [
           {
             "signal_version": "dogfooding_signal.v0.1",
@@ -807,7 +807,7 @@
             "surface": "feedback_controls",
             "surface_ref": "surface-ref:dogfooding:feedback_controls",
             "severity": "critical",
-            "bounded_summary": "raw dogfooding payload blocked by contract fixture",
+            "bounded_summary": "Bounded dogfooding confusing label signal for feedback controls review.",
             "source_refs": [
               "source-ref:dogfooding:confusing_label"
             ],
@@ -820,13 +820,16 @@
             "formation_receipt_refs": [],
             "durable_state_refs": [],
             "trajectory_refs": [],
-            "privacy_class": "blocked_raw_private_payload",
-            "redaction_status": "blocked_raw_payload",
-            "public_safe": false,
+            "privacy_class": "public_safe_summary",
+            "redaction_status": "not_needed",
+            "public_safe": true,
             "reason_codes": [
               "dogfooding_signal_present",
+              "dogfooding_surface_present",
               "bounded_summary_present",
-              "private_or_raw_payload_blocked"
+              "source_ref_present",
+              "dogfooding_record_is_bounded_summary_only",
+              "ingestion_runtime_not_implemented"
             ],
             "authority_boundary": {
               "contract_only": true,
@@ -883,7 +886,7 @@
             "surface": "surfacing_preview",
             "surface_ref": "surface-ref:dogfooding:surfacing_preview",
             "severity": "unknown",
-            "bounded_summary": "secret-like dogfooding input blocked by contract fixture",
+            "bounded_summary": "Bounded dogfooding broken flow signal for surfacing preview review.",
             "source_refs": [
               "source-ref:dogfooding:broken_flow"
             ],
@@ -896,13 +899,16 @@
             "formation_receipt_refs": [],
             "durable_state_refs": [],
             "trajectory_refs": [],
-            "privacy_class": "blocked_secret_like_payload",
-            "redaction_status": "blocked_secret_like_pattern",
-            "public_safe": false,
+            "privacy_class": "private_ref_only",
+            "redaction_status": "redacted",
+            "public_safe": true,
             "reason_codes": [
               "dogfooding_signal_present",
+              "dogfooding_surface_present",
               "bounded_summary_present",
-              "secret_like_pattern_blocked"
+              "source_ref_present",
+              "dogfooding_record_is_bounded_summary_only",
+              "ingestion_runtime_not_implemented"
             ],
             "authority_boundary": {
               "contract_only": true,
@@ -1088,9 +1094,9 @@
             }
           }
         ],
-        "privacy_class": "blocked_raw_private_payload",
-        "redaction_status": "blocked_raw_payload",
-        "public_safe": false,
+        "privacy_class": "public_safe_summary",
+        "redaction_status": "not_needed",
+        "public_safe": true,
         "boundary_notes": [
           "Contract-only dogfooding record fixture.",
           "No ingestion runtime, route, DB write, state mutation, proof/evidence write, or product-write is represented."
@@ -1100,11 +1106,33 @@
           "dogfooding_record_contract_present",
           "dogfooding_signal_present",
           "review_cue_present",
+          "operator_actor_ref_present",
           "bounded_summary_present",
-          "private_or_raw_payload_blocked",
-          "secret_like_pattern_blocked",
+          "source_ref_present",
+          "dogfooding_record_is_not_truth",
+          "dogfooding_record_is_not_proof",
+          "dogfooding_record_is_not_promotion_readiness",
+          "dogfooding_record_is_not_raw_conversation",
+          "dogfooding_record_is_not_hidden_reasoning",
+          "dogfooding_record_is_not_telemetry_dump",
+          "dogfooding_record_is_bounded_summary_only",
           "ingestion_runtime_not_implemented",
-          "product_write_denied"
+          "dogfooding_write_not_implemented",
+          "dogfooding_route_not_implemented",
+          "db_write_not_executed",
+          "candidate_not_mutated",
+          "durable_state_not_mutated",
+          "proof_not_created",
+          "evidence_not_created",
+          "claim_evidence_not_written",
+          "product_write_denied",
+          "provider_call_not_executed",
+          "prompt_not_sent",
+          "retrieval_not_executed",
+          "rag_answer_not_generated",
+          "source_fetch_not_executed",
+          "file_read_not_executed",
+          "git_ledger_export_not_executed"
         ],
         "authority_boundary": {
           "contract_only": true,
@@ -1152,7 +1180,7 @@
           "dogfooding_record_is_telemetry_dump": false,
           "product_write_authority": false
         },
-        "record_fingerprint": "db889428eb61ff30dac370ea01af3b5fd6f58de00a7482abf90a71f6d3103423"
+        "record_fingerprint": "79e8d82d4e6d2834862626aa8a612078bbb9732cdab987f2740b8b1039fe2101"
       },
       {
         "record_version": "dogfooding_record.v0.1",
@@ -1162,7 +1190,7 @@
         "record_id": "dogfooding-record:fixture:04",
         "operator_actor_ref": "operator-ref:dogfooding:fixture",
         "recorded_at": "2026-06-26T00:00:00.000Z",
-        "bounded_context_summary": "Contract-only dogfooding record fixture for blocked private or raw payload coverage.",
+        "bounded_context_summary": "raw dogfooding payload blocked by contract fixture",
         "signals": [
           {
             "signal_version": "dogfooding_signal.v0.1",
@@ -1376,7 +1404,7 @@
           "dogfooding_record_is_telemetry_dump": false,
           "product_write_authority": false
         },
-        "record_fingerprint": "7ac1809fc8a0a50f8a99db4160a9de41fdfa3633aafd76960c8ee2bcb915cdf8"
+        "record_fingerprint": "578f67256d0d7aeb40f0b91ed129d7c56f75d771598a6908509f49022174ce99"
       },
       {
         "record_version": "dogfooding_record.v0.1",
@@ -1415,14 +1443,15 @@
             "trajectory_refs": [],
             "privacy_class": "blocked_raw_private_payload",
             "redaction_status": "redacted",
-            "public_safe": true,
+            "public_safe": false,
             "reason_codes": [
               "dogfooding_signal_present",
               "dogfooding_surface_present",
               "bounded_summary_present",
               "source_ref_present",
               "dogfooding_record_is_bounded_summary_only",
-              "ingestion_runtime_not_implemented"
+              "ingestion_runtime_not_implemented",
+              "private_or_raw_payload_blocked"
             ],
             "authority_boundary": {
               "contract_only": true,
@@ -1555,7 +1584,9 @@
           "dogfooding_surface_missing",
           "review_cue_present",
           "bounded_summary_present",
-          "product_write_denied"
+          "product_write_denied",
+          "private_or_raw_payload_blocked",
+          "local_path_blocked"
         ],
         "authority_boundary": {
           "contract_only": true,
@@ -1603,7 +1634,7 @@
           "dogfooding_record_is_telemetry_dump": false,
           "product_write_authority": false
         },
-        "record_fingerprint": "1df39fbf386fb9a428a34f54cdd3948b992bd776cd202b00cfba1a7911abfb3d"
+        "record_fingerprint": "51cc140b9e263b0232e1c030a287c0549dd9f5e128bc3d81c63a42367b7529fc"
       },
       {
         "record_version": "dogfooding_record.v0.1",
@@ -1638,14 +1669,16 @@
             "trajectory_refs": [],
             "privacy_class": "blocked_secret_like_payload",
             "redaction_status": "blocked_raw_payload",
-            "public_safe": true,
+            "public_safe": false,
             "reason_codes": [
               "dogfooding_signal_present",
               "dogfooding_surface_present",
               "bounded_summary_present",
               "source_ref_present",
               "dogfooding_record_is_bounded_summary_only",
-              "ingestion_runtime_not_implemented"
+              "ingestion_runtime_not_implemented",
+              "private_or_raw_payload_blocked",
+              "secret_like_pattern_blocked"
             ],
             "authority_boundary": {
               "contract_only": true,
@@ -1782,7 +1815,9 @@
           "source_ref_missing",
           "product_write_request_recorded_as_review_cue_only",
           "product_write_not_executed",
-          "product_write_denied"
+          "product_write_denied",
+          "private_or_raw_payload_blocked",
+          "secret_like_pattern_blocked"
         ],
         "authority_boundary": {
           "contract_only": true,
@@ -1830,7 +1865,7 @@
           "dogfooding_record_is_telemetry_dump": false,
           "product_write_authority": false
         },
-        "record_fingerprint": "547350fed4b6ddefb86e0c0acd0c82d262e5433de3737599e1f2eff88d418b4a"
+        "record_fingerprint": "419c1b4af63101aa875aca3c649771e567609159570ca83ce67dd38bc1878de2"
       },
       {
         "record_version": "dogfooding_record.v0.1",
@@ -1867,14 +1902,15 @@
             "trajectory_refs": [],
             "privacy_class": "public_safe_summary",
             "redaction_status": "blocked_secret_like_pattern",
-            "public_safe": true,
+            "public_safe": false,
             "reason_codes": [
               "dogfooding_signal_present",
               "dogfooding_surface_present",
               "bounded_summary_present",
               "source_ref_present",
               "dogfooding_record_is_bounded_summary_only",
-              "ingestion_runtime_not_implemented"
+              "ingestion_runtime_not_implemented",
+              "secret_like_pattern_blocked"
             ],
             "authority_boundary": {
               "contract_only": true,
@@ -1948,14 +1984,15 @@
             ],
             "privacy_class": "private_ref_only",
             "redaction_status": "blocked_private_location",
-            "public_safe": true,
+            "public_safe": false,
             "reason_codes": [
               "dogfooding_signal_present",
               "dogfooding_surface_present",
               "bounded_summary_present",
               "source_ref_present",
               "dogfooding_record_is_bounded_summary_only",
-              "ingestion_runtime_not_implemented"
+              "ingestion_runtime_not_implemented",
+              "local_path_blocked"
             ],
             "authority_boundary": {
               "contract_only": true,
@@ -2090,7 +2127,10 @@
           "formation_receipt_ref_present",
           "durable_state_ref_present",
           "trajectory_ref_present",
-          "product_write_denied"
+          "product_write_denied",
+          "private_or_raw_payload_blocked",
+          "secret_like_pattern_blocked",
+          "local_path_blocked"
         ],
         "authority_boundary": {
           "contract_only": true,
@@ -2138,7 +2178,7 @@
           "dogfooding_record_is_telemetry_dump": false,
           "product_write_authority": false
         },
-        "record_fingerprint": "0c05447fdc0b3b76f5ec05cc78dba2fe840a6937307f407aaea789becd5c1342"
+        "record_fingerprint": "545eaa014d53689c51945d6c2269fc3214db2219304b4c8669d7509e1b365084"
       },
       {
         "record_version": "dogfooding_record.v0.1",
@@ -2148,7 +2188,7 @@
         "record_id": "dogfooding-record:fixture:08",
         "operator_actor_ref": "operator-ref:dogfooding:fixture",
         "recorded_at": "2026-06-26T00:00:00.000Z",
-        "bounded_context_summary": "Contract-only dogfooding record fixture for rejected coverage.",
+        "bounded_context_summary": "secret-like dogfooding input blocked by contract fixture",
         "signals": [
           {
             "signal_version": "dogfooding_signal.v0.1",
@@ -2173,14 +2213,15 @@
             "trajectory_refs": [],
             "privacy_class": "blocked_raw_private_payload",
             "redaction_status": "not_needed",
-            "public_safe": true,
+            "public_safe": false,
             "reason_codes": [
               "dogfooding_signal_present",
               "dogfooding_surface_present",
               "bounded_summary_present",
               "source_ref_present",
               "dogfooding_record_is_bounded_summary_only",
-              "ingestion_runtime_not_implemented"
+              "ingestion_runtime_not_implemented",
+              "private_or_raw_payload_blocked"
             ],
             "authority_boundary": {
               "contract_only": true,
@@ -2250,12 +2291,13 @@
             "trajectory_refs": [],
             "privacy_class": "blocked_secret_like_payload",
             "redaction_status": "redacted",
-            "public_safe": true,
+            "public_safe": false,
             "reason_codes": [
               "dogfooding_signal_missing",
               "dogfooding_surface_missing",
               "bounded_summary_missing",
-              "review_cue_missing"
+              "review_cue_missing",
+              "secret_like_pattern_blocked"
             ],
             "authority_boundary": {
               "contract_only": true,
@@ -2308,7 +2350,7 @@
         "review_cues": [],
         "privacy_class": "blocked_secret_like_payload",
         "redaction_status": "blocked_secret_like_pattern",
-        "public_safe": true,
+        "public_safe": false,
         "boundary_notes": [
           "Contract-only dogfooding record fixture.",
           "No ingestion runtime, route, DB write, state mutation, proof/evidence write, or product-write is represented."
@@ -2322,7 +2364,9 @@
           "review_cue_missing",
           "product_write_request_recorded_as_review_cue_only",
           "product_write_not_executed",
-          "product_write_denied"
+          "product_write_denied",
+          "secret_like_pattern_blocked",
+          "private_or_raw_payload_blocked"
         ],
         "authority_boundary": {
           "contract_only": true,
@@ -2370,7 +2414,7 @@
           "dogfooding_record_is_telemetry_dump": false,
           "product_write_authority": false
         },
-        "record_fingerprint": "4a34bfe965e7dcd5d09c49bfc6048791793264b10223afdcbf74e33f15f31aa6"
+        "record_fingerprint": "0d23dbbe5f1c663b95c7e1b74e874b86daf9bccd164d453b1399714c2b582535"
       }
     ],
     "signal_kind_counts": {
@@ -2420,16 +2464,16 @@
       "unknown": 1
     },
     "privacy_class_counts": {
-      "public_safe_summary": 4,
-      "private_ref_only": 5,
-      "blocked_raw_private_payload": 7,
-      "blocked_secret_like_payload": 4
+      "public_safe_summary": 7,
+      "private_ref_only": 6,
+      "blocked_raw_private_payload": 4,
+      "blocked_secret_like_payload": 3
     },
     "redaction_status_counts": {
-      "not_needed": 5,
-      "redacted": 5,
-      "blocked_raw_payload": 4,
-      "blocked_secret_like_pattern": 3,
+      "not_needed": 8,
+      "redacted": 6,
+      "blocked_raw_payload": 1,
+      "blocked_secret_like_pattern": 2,
       "blocked_private_location": 3
     },
     "boundary_notes": [
@@ -2537,6 +2581,6 @@
       "dogfooding_record_is_telemetry_dump": false,
       "product_write_authority": false
     },
-    "bundle_fingerprint": "27a50bf57cb404ae8772b8b866e2a74ec26fec869231bd7fc65b1b0b451527b5"
+    "bundle_fingerprint": "4a2db322e2ec6bf3b9ca5ad34530e500e7cbd2ecf3108ac022f9ca31d3524d77"
   }
 }

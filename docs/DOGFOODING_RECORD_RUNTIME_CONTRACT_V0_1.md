@@ -179,6 +179,12 @@ blocked raw private payloads, and blocked secret-like payloads. Redaction
 statuses distinguish not-needed, redacted, blocked raw payload,
 blocked secret-like pattern, and blocked private location.
 
+Records marked ready_for_future_ingestion must be public-safe and must not
+contain blocked raw/private payload signals.
+
+Blocked raw/private examples must remain blocked and must not be marked
+ingestion-ready.
+
 ## 9. Authority boundary
 
 Every record, signal, review cue, and bundle includes an authority boundary with
