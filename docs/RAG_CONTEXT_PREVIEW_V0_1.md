@@ -78,6 +78,8 @@ Fixtures and runtime validation must not include real private URLs, local user p
 
 Blocked examples use bounded placeholder text only and do not include actual raw private payload.
 
+Blocked private/raw inputs are never echoed in preview output, including blocked envelopes and excluded context items. Excluded private/raw context items use bounded redacted placeholders.
+
 ## 13. Authority boundary
 
 Authority is preview-only context shaping over caller-provided bounded summaries and symbolic refs.

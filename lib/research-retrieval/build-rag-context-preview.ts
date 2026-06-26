@@ -25,6 +25,11 @@ const roadmapRef =
   "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md" as const;
 const retrievalContractRef = "types/research-retrieval-runtime-contract.ts" as const;
 const retrievalIndexRuntimeRef = "lib/research-retrieval/search-index.ts" as const;
+const blockedBoundedQuerySummary =
+  "blocked bounded query summary redacted by RAG context preview" as const;
+const blockedPreviewId = "blocked-rag-context-preview-id" as const;
+const blockedContextInputTitle = "Blocked RAG context input" as const;
+const blockedContextInputSummary = "blocked RAG context payload redacted by preview" as const;
 
 const inputKinds: RagContextInputKind[] = [
   "retrieval_search_result",
@@ -199,7 +204,7 @@ export function buildRagContextPreviewV01(
   if (!validation.passed) {
     return withFingerprint({
       ...baseEnvelope,
-      status: validation.failure_codes.some((code) => code.includes("forbidden"))
+      status: isPrivateOrRawValidationFailure(validation.failure_codes)
         ? "blocked_private_or_raw_payload"
         : "rejected",
       reason_codes: uniqueSorted([
@@ -269,6 +274,7 @@ export function validateRagContextPreviewInputV01(
   if (input.input_version !== inputVersion) failureCodes.push("input_version_invalid");
   if (input.scope !== scope) failureCodes.push("scope_invalid");
   if (!isNonEmptyString(input.preview_id)) failureCodes.push("preview_id_missing");
+  else if (containsForbiddenMarker(input.preview_id)) failureCodes.push("preview_id_forbidden_marker_present");
   if (!isNonEmptyString(input.requested_at)) failureCodes.push("requested_at_missing");
   if (input.roadmap_ref !== roadmapRef) failureCodes.push("roadmap_ref_invalid");
   if (input.retrieval_contract_ref !== retrievalContractRef) {
@@ -296,8 +302,20 @@ export function validateRagContextPreviewInputV01(
   for (const key of ["unresolved_tension_refs", "knowledge_gap_refs", "boundary_notes", "reason_codes"]) {
     if (!isStringArray(input[key])) failureCodes.push(`${key}_invalid`);
   }
+  if (
+    isStringArray(input.unresolved_tension_refs) &&
+    input.unresolved_tension_refs.some(containsForbiddenMarker)
+  ) {
+    failureCodes.push("unresolved_tension_refs_forbidden_marker_present");
+  }
+  if (isStringArray(input.knowledge_gap_refs) && input.knowledge_gap_refs.some(containsForbiddenMarker)) {
+    failureCodes.push("knowledge_gap_refs_forbidden_marker_present");
+  }
   if (isStringArray(input.boundary_notes) && input.boundary_notes.some(containsForbiddenMarker)) {
     failureCodes.push("boundary_notes_forbidden_marker_present");
+  }
+  if (isStringArray(input.reason_codes) && input.reason_codes.some(containsForbiddenMarker)) {
+    failureCodes.push("reason_codes_forbidden_marker_present");
   }
   if (!isRecord(input.authority_boundary)) failureCodes.push("authority_boundary_invalid");
   return { passed: failureCodes.length === 0, failure_codes: uniqueSorted(failureCodes) };
@@ -345,6 +363,7 @@ export function validateRagContextPreviewInputRefV01(
       ...(isStringArray(inputRef.review_memory_refs) ? inputRef.review_memory_refs : []),
       ...(isStringArray(inputRef.durable_summary_refs) ? inputRef.durable_summary_refs : []),
       ...(isStringArray(inputRef.feedback_refs) ? inputRef.feedback_refs : []),
+      ...(isStringArray(inputRef.reason_codes) ? inputRef.reason_codes : []),
     ].some((value) => typeof value === "string" && containsForbiddenMarker(value))
   ) {
     failureCodes.push("input_ref_forbidden_marker_present");
@@ -446,10 +465,9 @@ function createBaseEnvelope(
     envelope_version: envelopeVersion,
     preview_version: previewVersion,
     scope,
-    preview_id: typeof input?.preview_id === "string" ? input.preview_id : "",
+    preview_id: safeOutputString(input?.preview_id, blockedPreviewId),
     status: "preview_only",
-    bounded_query_summary:
-      typeof input?.bounded_query_summary === "string" ? input.bounded_query_summary : "",
+    bounded_query_summary: safeOutputString(input?.bounded_query_summary, blockedBoundedQuerySummary),
     included_context_items: [],
     excluded_context_items: [],
     source_refs: [],
@@ -457,12 +475,8 @@ function createBaseEnvelope(
     review_memory_refs: [],
     durable_summary_refs: [],
     feedback_refs: [],
-    unresolved_tension_refs: isStringArray(input?.unresolved_tension_refs)
-      ? uniqueSorted(input.unresolved_tension_refs)
-      : [],
-    knowledge_gap_refs: isStringArray(input?.knowledge_gap_refs)
-      ? uniqueSorted(input.knowledge_gap_refs)
-      : [],
+    unresolved_tension_refs: safeOutputStringArray(input?.unresolved_tension_refs),
+    knowledge_gap_refs: safeOutputStringArray(input?.knowledge_gap_refs),
     staleness_warnings: [],
     boundary_notes: [],
     rag_answer_generated: false,
@@ -516,6 +530,12 @@ function createContextItem(
     itemKind,
     duplicate: duplicateByInputRef || duplicateByContent,
   });
+  if (
+    inclusionStatus === "excluded_private_or_raw_payload" &&
+    isPrivateOrRawValidationFailure(validation.failure_codes)
+  ) {
+    return createRedactedPrivateRawContextItem(inputRef, input, index, validation, layer);
+  }
   const staleWarning = inputRef.freshness_status === "stale" && inclusionStatus !== "excluded_stale_without_warning";
   const item: RagContextPreviewContextItem = {
     item_version: itemVersion,
@@ -546,7 +566,7 @@ function createContextItem(
     retrieval_score_is_promotion_readiness: false,
     reason_codes: uniqueSorted([
       ...baseReasonCodes,
-      ...inputRef.reason_codes,
+      ...safeReasonCodes(inputRef.reason_codes),
       ...layerReasonCodes[layer],
       validation.passed ? "input_ref_present" : "context_item_excluded",
       inputRefValue ? "input_ref_present" : "input_ref_missing",
@@ -572,6 +592,51 @@ function createContextItem(
     ]),
   };
   return item;
+}
+
+function createRedactedPrivateRawContextItem(
+  inputRef: RagContextPreviewInputRef,
+  input: RagContextPreviewInput,
+  index: number,
+  validation: RagContextPreviewValidationResult,
+  layer: RagContextLayer,
+): RagContextPreviewContextItem {
+  const safeLayer = layers.includes(layer) ? layer : "unknown";
+  return {
+    item_version: itemVersion,
+    scope,
+    item_id: `rag-context-item:${String(index + 1).padStart(3, "0")}`,
+    item_kind: "excluded_context",
+    input_ref: `blocked-rag-context-input-ref:${index}`,
+    bounded_title: blockedContextInputTitle,
+    bounded_summary: truncateSummary(blockedContextInputSummary, input.max_summary_chars),
+    source_refs: [],
+    candidate_refs: [],
+    review_memory_refs: [],
+    durable_summary_refs: [],
+    feedback_refs: [],
+    layer: safeLayer,
+    inclusion_status: "excluded_private_or_raw_payload",
+    retrieval_score_hint:
+      typeof inputRef.retrieval_score_hint === "number" ? inputRef.retrieval_score_hint : 0,
+    retrieval_score_band: scoreBand(inputRef.retrieval_score_band),
+    stale_warning: false,
+    unresolved_tension_refs: [],
+    knowledge_gap_refs: [],
+    context_item_is_evidence: false,
+    retrieval_score_is_truth_score: false,
+    retrieval_score_is_promotion_readiness: false,
+    reason_codes: uniqueSorted([
+      ...baseReasonCodes,
+      ...layerReasonCodes[safeLayer],
+      "bounded_summary_present",
+      "context_item_excluded",
+      "private_or_raw_payload_blocked",
+      validation.failure_codes.includes("input_ref_forbidden_marker_present")
+        ? "secret_like_pattern_blocked"
+        : undefined,
+    ]),
+  };
 }
 
 function determineInclusionStatus(input: {
@@ -682,11 +747,17 @@ function createEnvelopeStatus(
 
 function failureCodesToReasonCodes(failureCodes: string[]): RagContextPreviewReasonCode[] {
   const reasonCodes: RagContextPreviewReasonCode[] = [];
-  if (failureCodes.some((code) => code.includes("forbidden"))) {
+  if (isPrivateOrRawValidationFailure(failureCodes)) {
     reasonCodes.push("private_or_raw_payload_blocked");
   }
   if (failureCodes.includes("input_refs_empty")) reasonCodes.push("bounded_summary_missing");
   return uniqueSorted(reasonCodes);
+}
+
+function isPrivateOrRawValidationFailure(failureCodes: string[]): boolean {
+  return failureCodes.some(
+    (code) => code.includes("forbidden") || code === "public_safe_required",
+  );
 }
 
 function compareContextItems(
@@ -729,6 +800,21 @@ function truncateSummary(value: string, maxSummaryChars: number): string {
 
 function containsForbiddenMarker(value: string): boolean {
   return forbiddenTextMarkers.some((marker) => value.includes(marker));
+}
+
+function safeOutputString(value: unknown, placeholder: string): string {
+  if (typeof value !== "string") return "";
+  return containsForbiddenMarker(value) ? placeholder : value;
+}
+
+function safeOutputStringArray(value: unknown): string[] {
+  if (!isStringArray(value)) return [];
+  return uniqueSorted(value.filter((item) => !containsForbiddenMarker(item)));
+}
+
+function safeReasonCodes(value: unknown): RagContextPreviewReasonCode[] {
+  if (!isStringArray(value)) return [];
+  return uniqueSorted(value.filter((item) => !containsForbiddenMarker(item))) as RagContextPreviewReasonCode[];
 }
 
 function scoreBand(value: string): "none" | "low" | "medium" | "high" {

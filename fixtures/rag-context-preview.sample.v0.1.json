@@ -1079,12 +1079,10 @@
         "scope": "project:augnes",
         "item_id": "rag-context-item:009",
         "item_kind": "excluded_context",
-        "input_ref": "private-raw-context:blocked-009",
-        "bounded_title": "Blocked private context",
-        "bounded_summary": "raw RAG context payload blocked by preview fixture",
-        "source_refs": [
-          "source-ref:rag-public-009"
-        ],
+        "input_ref": "blocked-rag-context-input-ref:8",
+        "bounded_title": "Blocked RAG context input",
+        "bounded_summary": "blocked RAG context payload redacted by preview",
+        "source_refs": [],
         "candidate_refs": [],
         "review_memory_refs": [],
         "durable_summary_refs": [],
@@ -1109,7 +1107,6 @@
           "evidence_not_created",
           "file_read_not_executed",
           "git_ledger_export_not_executed",
-          "input_ref_present",
           "private_or_raw_payload_blocked",
           "product_write_denied",
           "promotion_not_executed",
@@ -1122,7 +1119,6 @@
           "roadmap_file_present",
           "secret_like_pattern_blocked",
           "source_fetch_not_executed",
-          "source_ref_present",
           "vector_search_not_executed"
         ]
       },
@@ -1505,7 +1501,7 @@
       "retrieval_score_is_truth_score": false,
       "retrieval_score_is_promotion_readiness": false
     },
-    "preview_fingerprint": "efa2b68c1feec5558116fa913adcab4054f6c737545e12be68811910e6fdb46c"
+    "preview_fingerprint": "c626e908c9480b34ac7035f29fa39becff99081668eb5fd651496a16732c54a8"
   },
   "expected_bundle": {
     "bundle_version": "rag_context_preview_bundle.v0.1",
@@ -2375,12 +2371,10 @@
             "scope": "project:augnes",
             "item_id": "rag-context-item:009",
             "item_kind": "excluded_context",
-            "input_ref": "private-raw-context:blocked-009",
-            "bounded_title": "Blocked private context",
-            "bounded_summary": "raw RAG context payload blocked by preview fixture",
-            "source_refs": [
-              "source-ref:rag-public-009"
-            ],
+            "input_ref": "blocked-rag-context-input-ref:8",
+            "bounded_title": "Blocked RAG context input",
+            "bounded_summary": "blocked RAG context payload redacted by preview",
+            "source_refs": [],
             "candidate_refs": [],
             "review_memory_refs": [],
             "durable_summary_refs": [],
@@ -2405,7 +2399,6 @@
               "evidence_not_created",
               "file_read_not_executed",
               "git_ledger_export_not_executed",
-              "input_ref_present",
               "private_or_raw_payload_blocked",
               "product_write_denied",
               "promotion_not_executed",
@@ -2418,7 +2411,6 @@
               "roadmap_file_present",
               "secret_like_pattern_blocked",
               "source_fetch_not_executed",
-              "source_ref_present",
               "vector_search_not_executed"
             ]
           },
@@ -2801,7 +2793,7 @@
           "retrieval_score_is_truth_score": false,
           "retrieval_score_is_promotion_readiness": false
         },
-        "preview_fingerprint": "efa2b68c1feec5558116fa913adcab4054f6c737545e12be68811910e6fdb46c"
+        "preview_fingerprint": "c626e908c9480b34ac7035f29fa39becff99081668eb5fd651496a16732c54a8"
       }
     ],
     "item_kind_counts": {
@@ -2916,6 +2908,6 @@
       "retrieval_score_is_truth_score": false,
       "retrieval_score_is_promotion_readiness": false
     },
-    "bundle_fingerprint": "ea88d4a5f5618e3f5d4911e6b7b3e324c458be36cfdaf42b234b524dc30a74b1"
+    "bundle_fingerprint": "cac4ea1932de681e66a590f534a40ee4ca695bb0752de2b9a71c418cc858e03c"
   }
 }

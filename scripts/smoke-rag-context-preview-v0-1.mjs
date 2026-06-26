@@ -310,6 +310,22 @@ assert(
   ),
   "private/raw context payload input is blocked or excluded",
 );
+const privateRawItem = fixture.expected_envelope.excluded_context_items.find(
+  (item) => item.inclusion_status === "excluded_private_or_raw_payload",
+);
+assert(privateRawItem, "private/raw excluded item exists");
+assert.equal(privateRawItem.input_ref, "blocked-rag-context-input-ref:8");
+assert.equal(privateRawItem.bounded_title, "Blocked RAG context input");
+assert.equal(privateRawItem.bounded_summary, "blocked RAG context payload redacted by preview");
+assert.deepEqual(privateRawItem.source_refs, []);
+assert.deepEqual(privateRawItem.candidate_refs, []);
+assert.deepEqual(privateRawItem.review_memory_refs, []);
+assert.deepEqual(privateRawItem.durable_summary_refs, []);
+assert.deepEqual(privateRawItem.feedback_refs, []);
+assert(
+  !JSON.stringify(fixture.expected_envelope).includes("raw RAG context payload blocked by preview fixture"),
+  "expected envelope does not echo private/raw placeholder payload",
+);
 assert(
   fixture.expected_envelope.excluded_context_items.some((item) => item.inclusion_status === "excluded_duplicate"),
   "duplicate input is excluded",
@@ -352,6 +368,71 @@ async function assertHelperBehavior() {
   );
   assert.deepEqual(derivedRefs, fixture.derived_input_refs_from_search_result, "search result conversion matches fixture");
   assert(derivedRefs.length > 0, "search result conversion returns refs");
+  assertTopLevelUnsafeInputIsRedacted(helper, "bounded_query_summary", "/Users/private/query");
+  assertTopLevelUnsafeInputIsRedacted(helper, "unresolved_tension_refs", "/Users/private/tension");
+  assertTopLevelUnsafeInputIsRedacted(helper, "knowledge_gap_refs", "/Users/private/gap");
+  assertTopLevelUnsafeInputIsRedacted(helper, "boundary_notes", "/Users/private/boundary-note");
+  assertUnsafeInputRefIsRedacted(helper);
+}
+
+function assertTopLevelUnsafeInputIsRedacted(helper, field, unsafeMarker) {
+  const input = clone(fixture.sample_input);
+  if (field === "bounded_query_summary") input.bounded_query_summary = unsafeMarker;
+  else input[field] = [unsafeMarker];
+  const envelope = helper.buildRagContextPreviewV01(input);
+  const serializedEnvelope = JSON.stringify(envelope);
+  assert(
+    envelope.status === "blocked_private_or_raw_payload" || envelope.status === "rejected",
+    `${field} unsafe input returns blocked/rejected envelope`,
+  );
+  assert(envelope.reason_codes.includes("private_or_raw_payload_blocked"), `${field} maps to private/raw reason`);
+  assert(!serializedEnvelope.includes(unsafeMarker), `${field} unsafe marker is not echoed`);
+  if (field === "bounded_query_summary") {
+    assert.equal(
+      envelope.bounded_query_summary,
+      "blocked bounded query summary redacted by RAG context preview",
+      "unsafe bounded query summary is redacted",
+    );
+  }
+}
+
+function assertUnsafeInputRefIsRedacted(helper) {
+  const unsafeInputRef = "/Users/private/context-input-ref";
+  const unsafeTitle = "/Users/private/context-title";
+  const unsafeSummary = "/Users/private/context-summary";
+  const input = clone(fixture.sample_input);
+  input.input_refs = [
+    {
+      ...clone(fixture.sample_input.input_refs[0]),
+      input_ref: unsafeInputRef,
+      bounded_title: unsafeTitle,
+      bounded_summary: unsafeSummary,
+      source_refs: ["/Users/private/source-ref"],
+      candidate_refs: ["/Users/private/candidate-ref"],
+      review_memory_refs: ["/Users/private/review-ref"],
+      durable_summary_refs: ["/Users/private/durable-ref"],
+      feedback_refs: ["/Users/private/feedback-ref"],
+      public_safe: true,
+    },
+  ];
+  const envelope = helper.buildRagContextPreviewV01(input);
+  const serializedEnvelope = JSON.stringify(envelope);
+  const redactedItem = envelope.excluded_context_items.find(
+    (item) => item.inclusion_status === "excluded_private_or_raw_payload",
+  );
+  assert(redactedItem, "unsafe input ref returns excluded private/raw item");
+  assert.equal(redactedItem.input_ref, "blocked-rag-context-input-ref:0");
+  assert.equal(redactedItem.bounded_title, "Blocked RAG context input");
+  assert.equal(redactedItem.bounded_summary, "blocked RAG context payload redacted by preview");
+  assert.deepEqual(redactedItem.source_refs, []);
+  assert.deepEqual(redactedItem.candidate_refs, []);
+  assert.deepEqual(redactedItem.review_memory_refs, []);
+  assert.deepEqual(redactedItem.durable_summary_refs, []);
+  assert.deepEqual(redactedItem.feedback_refs, []);
+  assert(redactedItem.reason_codes.includes("private_or_raw_payload_blocked"), "redacted item has private/raw reason");
+  for (const unsafeValue of [unsafeInputRef, unsafeTitle, unsafeSummary]) {
+    assert(!serializedEnvelope.includes(unsafeValue), `unsafe input-ref field is not echoed: ${unsafeValue}`);
+  }
 }
 
 function assertEnvelopeShape(envelope) {
@@ -456,6 +537,10 @@ function assertNoAnswerOrPromptTextFields(value, path = "$") {
 
 function allContextItems(envelope) {
   return [...envelope.included_context_items, ...envelope.excluded_context_items];
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 function fingerprintWithoutField(value, field) {
