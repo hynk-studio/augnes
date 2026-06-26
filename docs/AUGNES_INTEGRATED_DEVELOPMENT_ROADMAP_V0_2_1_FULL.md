@@ -1827,7 +1827,7 @@ smoke pass is not proof
 smoke fail is diagnostic, not automatic rejection
 ```
 
-## PR 6.2: `dogfooding_ingestion_route_v0_1`
+## PR 6.2: `dogfooding_ingestion_runtime_v0_1`
 
 ### 예상 파일
 
@@ -2645,7 +2645,7 @@ automatic promotion
 | 29 | `feedback_controls_expansion_v0_1` | 5 | 중간 |
 | 30 | `feedback_influenced_surfacing_preview_v0_1` | 5 | 중간 |
 | 31 | `dogfooding_record_runtime_contract_v0_1` | 6 | 낮음 |
-| 32 | `dogfooding_ingestion_route_v0_1` | 6 | 중간 |
+| 32 | `dogfooding_ingestion_runtime_v0_1` | 6 | 중간 |
 | 33 | `authority_boundary_regression_ci_v0_1` | 6 | 중간 |
 | 34 | `codex_result_report_ingestion_v0_1` | 6 | 중간 |
 | 35 | `temporal_handoff_usefulness_experiment_v0_1` | 6 | 낮음 |

@@ -565,6 +565,7 @@
     "smoke:feedback-influenced-surfacing-preview-v0-1": "node scripts/smoke-feedback-influenced-surfacing-preview-v0-1.mjs",
     "browser:feedback-influenced-surfacing-preview-v0-1": "node scripts/browser-validate-feedback-influenced-surfacing-preview-v0-1.mjs",
     "smoke:dogfooding-record-runtime-contract-v0-1": "node scripts/smoke-dogfooding-record-runtime-contract-v0-1.mjs",
+    "smoke:dogfooding-ingestion-runtime-v0-1": "node scripts/smoke-dogfooding-ingestion-runtime-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs",
     "smoke:perspective-geometry-digest-contract-v0-1": "node scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",

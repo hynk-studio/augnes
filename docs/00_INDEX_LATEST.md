@@ -3933,6 +3933,39 @@ repo-local 색인이다.
   execution; no RAG answer generation; no source fetch; no
   local/repository/uploaded file read as source input; no Git Ledger export; no
   Codex execution; no GitHub automation; product-write remains parked by #686.
+- Dogfooding Ingestion Runtime v0.1:
+  `docs/DOGFOODING_INGESTION_RUNTIME_V0_1.md`,
+  `lib/dogfooding/dogfooding-ingestion-runtime.ts`,
+  `lib/dogfooding/dogfooding-record-store.ts`,
+  `app/api/dogfooding/records/route.ts`,
+  `fixtures/dogfooding-ingestion-runtime.sample.v0.1.json`, and
+  `scripts/smoke-dogfooding-ingestion-runtime-v0-1.mjs`
+  (`npm run smoke:dogfooding-ingestion-runtime-v0-1`) follows PR #795
+  Dogfooding Record Runtime Contract. This slice ingests bounded summaries only
+  after explicit operator action. This pointer is repo-local documentation
+  metadata, not SSOT. The roadmap guide is not SSOT. It does not ingest raw
+  conversations, hidden reasoning, telemetry dumps, browser logs, session logs,
+  private files, external analytics, raw source bodies, raw provider output, raw
+  retrieval output, raw feedback payloads, raw surfacing payloads, or raw
+  dogfooding payloads. It does not mutate durable Perspective state, write
+  Formation Receipts, execute promotion, create proof/evidence, write
+  claim/evidence records, execute product-write, allocate product IDs, call
+  providers, send prompts, execute retrieval/RAG, fetch sources, export Git
+  Ledger data, execute Codex, or automate GitHub. Product-write remains parked
+  by #686.
+
+  Boundary phrases: Dogfooding Ingestion Runtime v0.1; bounded summaries only;
+  explicit operator action required; dogfooding records are not truth;
+  dogfooding records are not proof; dogfooding records are not promotion
+  readiness; product-write requests are review cues only; product-write
+  requests do not execute product-write; no raw conversation ingestion; no
+  hidden reasoning ingestion; no telemetry ingestion; no browser log ingestion;
+  no session log ingestion; no private file read; no source fetch; no durable
+  state mutation; no Formation Receipt write; no promotion execution; no
+  proof/evidence write; no claim/evidence write; no product write; no product
+  ID allocation; no provider/OpenAI call; no prompt sending; no retrieval
+  execution; no RAG answer generation; no Git Ledger export; no Codex
+  execution; no GitHub automation; product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
