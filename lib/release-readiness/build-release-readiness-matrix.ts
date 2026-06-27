@@ -596,13 +596,17 @@ export function buildReleaseReadinessMatrixV01(
       product_write_executed: false,
       product_id_allocated: false,
       product_write_authority_granted: false,
-      reason_codes: uniqueSorted([
-        ...input.reason_codes,
-        ...inputReasonCodes(input),
-        ...defaultBoundaryReasonCodes(),
-        "release_readiness_matrix_present",
-        "operator_review_required",
-      ]),
+      reason_codes: normalizeNotReadyRequiredRefReasonCodesV01(
+        "not_ready",
+        [
+          ...input.reason_codes,
+          ...inputReasonCodes(input),
+          ...defaultBoundaryReasonCodes(),
+          "release_readiness_matrix_present",
+          "operator_review_required",
+        ],
+        input,
+      ),
       authority_boundary: createReleaseReadinessAuthorityBoundaryV01(),
     });
   }
@@ -663,16 +667,20 @@ export function buildReleaseReadinessMatrixV01(
     product_write_executed: false,
     product_id_allocated: false,
     product_write_authority_granted: false,
-    reason_codes: uniqueSorted([
-      ...input.reason_codes,
-      ...inputReasonCodes(input),
-      ...items.flatMap((item) => item.reason_codes),
-      ...categorySummaries.flatMap((summary) => summary.reason_codes),
-      ...reasonCodesForDecision(decision),
-      ...missingCategoryReasonCodes,
-      ...defaultBoundaryReasonCodes(),
-      "release_readiness_matrix_present",
-    ]),
+    reason_codes: normalizeNotReadyRequiredRefReasonCodesV01(
+      decision,
+      [
+        ...input.reason_codes,
+        ...inputReasonCodes(input),
+        ...items.flatMap((item) => item.reason_codes),
+        ...categorySummaries.flatMap((summary) => summary.reason_codes),
+        ...reasonCodesForDecision(decision, input),
+        ...missingCategoryReasonCodes,
+        ...defaultBoundaryReasonCodes(),
+        "release_readiness_matrix_present",
+      ],
+      input,
+    ),
     authority_boundary: authorityBoundary,
   });
 }
@@ -1017,6 +1025,7 @@ function isBlockingSeverity(severity: ReleaseReadinessSeverity): boolean {
 
 function reasonCodesForDecision(
   decision: ReleaseReadinessDecision,
+  input: ReleaseReadinessInput,
 ): ReleaseReadinessReasonCode[] {
   const reasonCodes: ReleaseReadinessReasonCode[] = [
     "release_readiness_is_review_only",
@@ -1032,12 +1041,7 @@ function reasonCodesForDecision(
     reasonCodes.push("blocking_item_present", "operator_review_required");
   }
   if (decision === "not_ready") {
-    reasonCodes.push(
-      "runtime_audit_ref_missing",
-      "product_write_reentry_ref_missing",
-      "git_ledger_contract_ref_missing",
-      "release_scope_missing",
-    );
+    reasonCodes.push(...missingRequiredRefReasonCodesForInputV01(input));
   }
   if (decision === "needs_operator_review") {
     reasonCodes.push("operator_review_required");
@@ -1046,6 +1050,70 @@ function reasonCodesForDecision(
     reasonCodes.push("release_candidate_review_not_release");
   }
   return uniqueSorted(reasonCodes);
+}
+
+function missingRequiredRefReasonCodesForInputV01(
+  input: ReleaseReadinessInput,
+): ReleaseReadinessReasonCode[] {
+  const reasonCodes: ReleaseReadinessReasonCode[] = [];
+  if (input.runtime_audit_refs.length === 0) {
+    reasonCodes.push("runtime_audit_ref_missing");
+  }
+  if (input.product_write_reentry_refs.length === 0) {
+    reasonCodes.push("product_write_reentry_ref_missing");
+  }
+  if (input.git_ledger_contract_refs.length === 0) {
+    reasonCodes.push("git_ledger_contract_ref_missing");
+  }
+  if (input.release_scope_refs.length === 0) {
+    reasonCodes.push("release_scope_missing");
+  }
+  return reasonCodes;
+}
+
+function normalizeNotReadyRequiredRefReasonCodesV01(
+  decision: ReleaseReadinessDecision,
+  reasonCodes: ReleaseReadinessReasonCode[],
+  input: ReleaseReadinessInput,
+): ReleaseReadinessReasonCode[] {
+  if (decision !== "not_ready") return uniqueSorted(reasonCodes);
+  const normalized = new Set(reasonCodes);
+  const refPairs: Array<{
+    hasRef: boolean;
+    present: ReleaseReadinessReasonCode;
+    missing: ReleaseReadinessReasonCode;
+  }> = [
+    {
+      hasRef: input.runtime_audit_refs.length > 0,
+      present: "runtime_audit_ref_present",
+      missing: "runtime_audit_ref_missing",
+    },
+    {
+      hasRef: input.product_write_reentry_refs.length > 0,
+      present: "product_write_reentry_ref_present",
+      missing: "product_write_reentry_ref_missing",
+    },
+    {
+      hasRef: input.git_ledger_contract_refs.length > 0,
+      present: "git_ledger_contract_ref_present",
+      missing: "git_ledger_contract_ref_missing",
+    },
+    {
+      hasRef: input.release_scope_refs.length > 0,
+      present: "release_scope_present",
+      missing: "release_scope_missing",
+    },
+  ];
+  for (const { hasRef, present, missing } of refPairs) {
+    if (hasRef) {
+      normalized.delete(missing);
+      normalized.add(present);
+    } else {
+      normalized.delete(present);
+      normalized.add(missing);
+    }
+  }
+  return uniqueSorted([...normalized]);
 }
 
 function warningsForDecision(decision: ReleaseReadinessDecision): string[] {

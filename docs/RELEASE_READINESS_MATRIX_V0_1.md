@@ -157,6 +157,9 @@ critical item is present.
 
 `not_ready` means required top-level refs are missing.
 
+`not_ready` reason codes identify only the required refs that are actually
+missing. Present refs are not also reported as missing.
+
 `needs_operator_review` means non-blocking review gaps remain.
 
 `ready_for_release_candidate_review` means all mandatory categories are present

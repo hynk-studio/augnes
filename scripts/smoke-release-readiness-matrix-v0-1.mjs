@@ -128,6 +128,8 @@ const exactDocsPhrases = [
   "Release readiness is not proof.",
   "Release readiness does not grant authority.",
   "Release candidate review is not release.",
+  "`not_ready` reason codes identify only the required refs that are actually\nmissing.",
+  "Present refs are not also reported as missing.",
   "This PR does not execute a release.",
   "This PR does not create release artifacts.",
   "This PR does not approve a release candidate.",
@@ -288,6 +290,14 @@ assert.ok(
   "helper must require all mandatory categories before readiness",
 );
 assert.ok(
+  helperSource.includes("missingRequiredRefReasonCodesForInputV01"),
+  "helper must compute missing required ref reason codes from actual input refs",
+);
+assert.ok(
+  helperSource.includes("normalizeNotReadyRequiredRefReasonCodesV01"),
+  "helper must normalize not_ready required ref present/missing reason codes",
+);
+assert.ok(
   !helperSource.includes('"sk-"') || !helperSource.includes('privateOrRawMarkers = [\\n  "sk-"'),
   "sk- must not be a bare privateOrRaw marker",
 );
@@ -379,17 +389,77 @@ assert.ok(
   "missing mandatory category must include mandatory_category_missing",
 );
 
-assert.equal(
-  fixture.expected_decision_results.missing_runtime_audit_refs_not_ready.decision,
-  "not_ready",
+assertNotReadyReasonCodesExact(
+  fixture.expected_decision_results.missing_only_release_scope_refs_not_ready,
+  ["release_scope_missing"],
+  [
+    "runtime_audit_ref_present",
+    "product_write_reentry_ref_present",
+    "git_ledger_contract_ref_present",
+  ],
+  [
+    "runtime_audit_ref_missing",
+    "product_write_reentry_ref_missing",
+    "git_ledger_contract_ref_missing",
+    "release_scope_present",
+  ],
 );
-assert.equal(
-  fixture.expected_decision_results.missing_product_write_reentry_refs_not_ready.decision,
-  "not_ready",
+assertNotReadyReasonCodesExact(
+  fixture.expected_decision_results.missing_only_runtime_audit_refs_not_ready,
+  ["runtime_audit_ref_missing"],
+  [
+    "product_write_reentry_ref_present",
+    "git_ledger_contract_ref_present",
+    "release_scope_present",
+  ],
+  [
+    "runtime_audit_ref_present",
+    "product_write_reentry_ref_missing",
+    "git_ledger_contract_ref_missing",
+    "release_scope_missing",
+  ],
 );
-assert.equal(
-  fixture.expected_decision_results.missing_git_ledger_contract_refs_not_ready.decision,
-  "not_ready",
+assertNotReadyReasonCodesExact(
+  fixture.expected_decision_results.missing_only_product_write_reentry_refs_not_ready,
+  ["product_write_reentry_ref_missing"],
+  ["runtime_audit_ref_present", "git_ledger_contract_ref_present", "release_scope_present"],
+  [
+    "runtime_audit_ref_missing",
+    "product_write_reentry_ref_present",
+    "git_ledger_contract_ref_missing",
+    "release_scope_missing",
+  ],
+);
+assertNotReadyReasonCodesExact(
+  fixture.expected_decision_results.missing_only_git_ledger_contract_refs_not_ready,
+  ["git_ledger_contract_ref_missing"],
+  [
+    "runtime_audit_ref_present",
+    "product_write_reentry_ref_present",
+    "release_scope_present",
+  ],
+  [
+    "runtime_audit_ref_missing",
+    "product_write_reentry_ref_missing",
+    "git_ledger_contract_ref_present",
+    "release_scope_missing",
+  ],
+);
+assertNotReadyReasonCodesExact(
+  fixture.expected_decision_results.missing_all_required_refs_not_ready,
+  [
+    "runtime_audit_ref_missing",
+    "product_write_reentry_ref_missing",
+    "git_ledger_contract_ref_missing",
+    "release_scope_missing",
+  ],
+  [],
+  [
+    "runtime_audit_ref_present",
+    "product_write_reentry_ref_present",
+    "git_ledger_contract_ref_present",
+    "release_scope_present",
+  ],
 );
 assert.equal(
   fixture.expected_decision_results.ready_for_release_candidate_review.decision,
@@ -528,6 +598,34 @@ function assertMatrixBoundary(result) {
       `summary ${summary.category}`,
     );
   }
+}
+
+function assertNotReadyReasonCodesExact(
+  result,
+  expectedMissingReasonCodes,
+  expectedPresentReasonCodes,
+  forbiddenReasonCodes,
+) {
+  assert.equal(result.decision, "not_ready", "case must be not_ready");
+  for (const reasonCode of expectedMissingReasonCodes) {
+    assert.ok(
+      result.reason_codes.includes(reasonCode),
+      `not_ready result must include ${reasonCode}`,
+    );
+  }
+  for (const reasonCode of expectedPresentReasonCodes) {
+    assert.ok(
+      result.reason_codes.includes(reasonCode),
+      `not_ready result must preserve present code ${reasonCode}`,
+    );
+  }
+  for (const reasonCode of forbiddenReasonCodes) {
+    assert.ok(
+      !result.reason_codes.includes(reasonCode),
+      `not_ready result must not include contradictory code ${reasonCode}`,
+    );
+  }
+  assertMatrixBoundary(result);
 }
 
 function assertAuthorityBoundary(boundary, label) {
