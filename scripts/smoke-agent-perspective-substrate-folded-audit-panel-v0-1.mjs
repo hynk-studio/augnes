@@ -134,6 +134,9 @@ const gitLedgerExportContractPackageScriptNames = [
 const productWriteReentryReviewPackageScriptNames = [
   "smoke:product-write-reentry-review-v0-1",
 ];
+const releaseReadinessMatrixPackageScriptNames = [
+  "smoke:release-readiness-matrix-v0-1",
+];
 const feedbackControlsExpansionDocsPath =
   "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const feedbackControlsExpansionComponentPath =
@@ -203,6 +206,14 @@ const productWriteReentryReviewFixturePath =
   "fixtures/product-write-reentry-review.sample.v0.1.json";
 const productWriteReentryReviewSmokePath =
   "scripts/smoke-product-write-reentry-review-v0-1.mjs";
+const releaseReadinessMatrixDocsPath =
+  "docs/RELEASE_READINESS_MATRIX_V0_1.md";
+const releaseReadinessMatrixHelperPath =
+  "lib/release-readiness/build-release-readiness-matrix.ts";
+const releaseReadinessMatrixFixturePath =
+  "fixtures/release-readiness-matrix.sample.v0.1.json";
+const releaseReadinessMatrixSmokePath =
+  "scripts/smoke-release-readiness-matrix-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -310,6 +321,15 @@ const productWriteReentryReviewChangedFiles = [
   productWriteReentryReviewHelperPath,
   productWriteReentryReviewFixturePath,
   productWriteReentryReviewSmokePath,
+  smokePath,
+  packagePath,
+  indexPath,
+];
+const releaseReadinessMatrixChangedFiles = [
+  releaseReadinessMatrixDocsPath,
+  releaseReadinessMatrixHelperPath,
+  releaseReadinessMatrixFixturePath,
+  releaseReadinessMatrixSmokePath,
   smokePath,
   packagePath,
   indexPath,
@@ -630,6 +650,7 @@ function assertPackageScript() {
       runtimeAuditPanelPackageScriptNames,
       gitLedgerExportContractPackageScriptNames,
       productWriteReentryReviewPackageScriptNames,
+      releaseReadinessMatrixPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include a recognized downstream slice package script set",
   );
@@ -642,6 +663,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (releaseReadinessMatrixSliceActive(changedFiles)) {
+    assertReleaseReadinessMatrixChangedFiles(changedFiles);
+    return;
+  }
   if (productWriteReentryReviewSliceActive(changedFiles)) {
     assertProductWriteReentryReviewChangedFiles(changedFiles);
     return;
@@ -827,6 +852,47 @@ function productWriteReentryReviewSliceActive(changedFiles) {
     productWriteReentryReviewFixturePath,
     productWriteReentryReviewSmokePath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function releaseReadinessMatrixSliceActive(changedFiles) {
+  return [
+    releaseReadinessMatrixDocsPath,
+    releaseReadinessMatrixHelperPath,
+    releaseReadinessMatrixFixturePath,
+    releaseReadinessMatrixSmokePath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertReleaseReadinessMatrixChangedFiles(changedFiles) {
+  for (const expectedFile of releaseReadinessMatrixChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      releaseReadinessMatrixChangedFiles.includes(changedFile),
+      `unexpected changed file in release readiness matrix slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)route\.(ts|tsx|js|mjs)$/,
+      "must not change route handlers",
+    );
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)actions?\.(ts|tsx|js|mjs)$/,
+      "must not change server actions",
+    );
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)(schema|migration|db|sql)\b/i,
+      "must not change schema/db/sql paths",
+    );
+  }
 }
 
 function assertProductWriteReentryReviewChangedFiles(changedFiles) {
