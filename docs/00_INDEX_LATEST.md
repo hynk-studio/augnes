@@ -4225,6 +4225,52 @@ repo-local 색인이다.
   generation; no source fetch; no Git Ledger export runtime; no Git write; no
   GitHub API call; no pull request creation; no repository file write; no
   Codex execution; no GitHub automation.
+- Product Write Target Contract v0.1:
+  `docs/PRODUCT_WRITE_TARGET_CONTRACT_V0_1.md`,
+  `types/product-write-target-contract.ts`,
+  `fixtures/product-write-target-contract.sample.v0.1.json`, and
+  `scripts/smoke-product-write-target-contract-v0-1.mjs`
+  (`npm run smoke:product-write-target-contract-v0-1`) implements
+  `product_write_target_contract_v0_1` from the integrated roadmap guide
+  v0.2.1 FULL. This slice is contract-only. It defines target groups,
+  owner/schema refs, allowed and forbidden future write intents, required
+  prerequisites, idempotency policy, transaction boundary, rollback policy,
+  audit trail policy, source refs policy, operator approval binding,
+  preview-to-write diff policy, and authority boundary. This pointer is
+  repo-local documentation metadata, not SSOT. The roadmap guide is not SSOT.
+  It does not execute product-write, enable product-write adapter, allocate
+  product IDs, persist products, open product routes/UI, execute SQL
+  transactions, query/write DB, write proof/evidence records, write
+  claim/evidence records, create work items, promote Perspective, write/apply
+  durable Perspective state, write Formation Receipts, call providers, send
+  prompts, fetch sources, execute retrieval/RAG, execute Git Ledger export
+  runtime, execute Git, call GitHub, write repository files, export/import
+  files, execute Codex, or grant product-write authority. Product-write remains
+  parked by #686. Candidate cannot be written as proof/evidence directly.
+  Provider output cannot be written as accepted evidence directly. Retrieval
+  result cannot be written as accepted evidence directly. Codex result cannot
+  be written as proof/evidence/state. Feedback cannot be written as truth.
+  Product write is impossible without promotion decision, Formation Receipt,
+  explicit operator approval, source refs, audit trail, idempotency, rollback,
+  and preview-to-write diff.
+
+  Boundary phrases: Product Write Target Contract v0.1; contract-only;
+  product-write remains parked by #686; product-write denied; product-write
+  execution is not implemented; product-write adapter is not enabled; product
+  IDs are not allocated; product persistence is not executed; product routes
+  are not opened; product UI is not opened; no SQL transaction; no DB
+  query/write; no proof/evidence write; no claim/evidence write; no work item
+  write; no promotion execution; no durable state write; no durable state
+  apply; no Formation Receipt write; no provider/OpenAI call; no prompt
+  sending; no source fetch; no retrieval execution; no RAG answer generation;
+  no Git Ledger export runtime; no Git write; no GitHub API call; no
+  repository file write; no local file export; no local file import; no Codex
+  execution; candidate cannot be written as proof/evidence directly; provider
+  output cannot be written as accepted evidence directly; retrieval result
+  cannot be written as accepted evidence directly; Codex result cannot be
+  written as proof/evidence/state; feedback cannot be written as truth;
+  preview-to-write diff is not write approval; smoke pass is not truth; CI
+  pass is not truth.
 - Release Readiness Matrix v0.1:
   `docs/RELEASE_READINESS_MATRIX_V0_1.md`,
   `lib/release-readiness/build-release-readiness-matrix.ts`,
