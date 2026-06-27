@@ -143,6 +143,9 @@ const disabledProductWriteAdapterHarnessPackageScriptNames = [
 const releaseCandidateOperatorReviewPackageScriptNames = [
   "smoke:release-candidate-operator-review-v0-1",
 ];
+const releaseNotesPublicSafeSummaryPackageScriptNames = [
+  "smoke:release-notes-public-safe-summary-v0-1",
+];
 const feedbackControlsExpansionDocsPath =
   "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const feedbackControlsExpansionComponentPath =
@@ -236,6 +239,14 @@ const releaseCandidateOperatorReviewFixturePath =
   "fixtures/release-candidate-operator-review.sample.v0.1.json";
 const releaseCandidateOperatorReviewSmokePath =
   "scripts/smoke-release-candidate-operator-review-v0-1.mjs";
+const releaseNotesPublicSafeSummaryDocsPath =
+  "docs/RELEASE_NOTES_PUBLIC_SAFE_SUMMARY_V0_1.md";
+const releaseNotesPublicSafeSummaryHelperPath =
+  "lib/release-readiness/release-notes-public-safe-summary.ts";
+const releaseNotesPublicSafeSummaryFixturePath =
+  "fixtures/release-notes-public-safe-summary.sample.v0.1.json";
+const releaseNotesPublicSafeSummarySmokePath =
+  "scripts/smoke-release-notes-public-safe-summary-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -371,6 +382,16 @@ const releaseCandidateOperatorReviewChangedFiles = [
   releaseCandidateOperatorReviewHelperPath,
   releaseCandidateOperatorReviewFixturePath,
   releaseCandidateOperatorReviewSmokePath,
+  smokePath,
+  packagePath,
+  indexPath,
+];
+const releaseNotesPublicSafeSummaryChangedFiles = [
+  "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+  releaseNotesPublicSafeSummaryDocsPath,
+  releaseNotesPublicSafeSummaryHelperPath,
+  releaseNotesPublicSafeSummaryFixturePath,
+  releaseNotesPublicSafeSummarySmokePath,
   smokePath,
   packagePath,
   indexPath,
@@ -694,6 +715,7 @@ function assertPackageScript() {
       releaseReadinessMatrixPackageScriptNames,
       disabledProductWriteAdapterHarnessPackageScriptNames,
       releaseCandidateOperatorReviewPackageScriptNames,
+      releaseNotesPublicSafeSummaryPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include a recognized downstream slice package script set",
   );
@@ -706,6 +728,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (releaseNotesPublicSafeSummarySliceActive(changedFiles)) {
+    assertReleaseNotesPublicSafeSummaryChangedFiles(changedFiles);
+    return;
+  }
   if (releaseCandidateOperatorReviewSliceActive(changedFiles)) {
     assertReleaseCandidateOperatorReviewChangedFiles(changedFiles);
     return;
@@ -930,6 +956,39 @@ function releaseCandidateOperatorReviewSliceActive(changedFiles) {
     releaseCandidateOperatorReviewFixturePath,
     releaseCandidateOperatorReviewSmokePath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function releaseNotesPublicSafeSummarySliceActive(changedFiles) {
+  return [
+    releaseNotesPublicSafeSummaryDocsPath,
+    releaseNotesPublicSafeSummaryHelperPath,
+    releaseNotesPublicSafeSummaryFixturePath,
+    releaseNotesPublicSafeSummarySmokePath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertReleaseNotesPublicSafeSummaryChangedFiles(changedFiles) {
+  for (const expectedFile of releaseNotesPublicSafeSummaryChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      releaseNotesPublicSafeSummaryChangedFiles.includes(changedFile),
+      `unexpected changed file in release notes public-safe summary slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)route\.(ts|tsx|js|mjs)$/,
+      "must not change route handlers",
+    );
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)actions?\.(ts|tsx|js|mjs)$/,
+      "must not change server actions",
+    );
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+  }
 }
 
 function assertReleaseCandidateOperatorReviewChangedFiles(changedFiles) {
