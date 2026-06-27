@@ -137,6 +137,9 @@ const productWriteReentryReviewPackageScriptNames = [
 const releaseReadinessMatrixPackageScriptNames = [
   "smoke:release-readiness-matrix-v0-1",
 ];
+const disabledProductWriteAdapterHarnessPackageScriptNames = [
+  "smoke:disabled-product-write-adapter-reentry-harness-v0-1",
+];
 const feedbackControlsExpansionDocsPath =
   "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const feedbackControlsExpansionComponentPath =
@@ -214,6 +217,14 @@ const releaseReadinessMatrixFixturePath =
   "fixtures/release-readiness-matrix.sample.v0.1.json";
 const releaseReadinessMatrixSmokePath =
   "scripts/smoke-release-readiness-matrix-v0-1.mjs";
+const disabledProductWriteAdapterHarnessDocsPath =
+  "docs/DISABLED_PRODUCT_WRITE_ADAPTER_REENTRY_HARNESS_V0_1.md";
+const disabledProductWriteAdapterHarnessHelperPath =
+  "lib/product-write/disabled-product-write-adapter-reentry-harness.ts";
+const disabledProductWriteAdapterHarnessFixturePath =
+  "fixtures/disabled-product-write-adapter-reentry-harness.sample.v0.1.json";
+const disabledProductWriteAdapterHarnessSmokePath =
+  "scripts/smoke-disabled-product-write-adapter-reentry-harness-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -330,6 +341,15 @@ const releaseReadinessMatrixChangedFiles = [
   releaseReadinessMatrixHelperPath,
   releaseReadinessMatrixFixturePath,
   releaseReadinessMatrixSmokePath,
+  smokePath,
+  packagePath,
+  indexPath,
+];
+const disabledProductWriteAdapterHarnessChangedFiles = [
+  disabledProductWriteAdapterHarnessDocsPath,
+  disabledProductWriteAdapterHarnessHelperPath,
+  disabledProductWriteAdapterHarnessFixturePath,
+  disabledProductWriteAdapterHarnessSmokePath,
   smokePath,
   packagePath,
   indexPath,
@@ -651,6 +671,7 @@ function assertPackageScript() {
       gitLedgerExportContractPackageScriptNames,
       productWriteReentryReviewPackageScriptNames,
       releaseReadinessMatrixPackageScriptNames,
+      disabledProductWriteAdapterHarnessPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include a recognized downstream slice package script set",
   );
@@ -663,6 +684,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (disabledProductWriteAdapterHarnessSliceActive(changedFiles)) {
+    assertDisabledProductWriteAdapterHarnessChangedFiles(changedFiles);
+    return;
+  }
   if (releaseReadinessMatrixSliceActive(changedFiles)) {
     assertReleaseReadinessMatrixChangedFiles(changedFiles);
     return;
@@ -861,6 +886,47 @@ function releaseReadinessMatrixSliceActive(changedFiles) {
     releaseReadinessMatrixFixturePath,
     releaseReadinessMatrixSmokePath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function disabledProductWriteAdapterHarnessSliceActive(changedFiles) {
+  return [
+    disabledProductWriteAdapterHarnessDocsPath,
+    disabledProductWriteAdapterHarnessHelperPath,
+    disabledProductWriteAdapterHarnessFixturePath,
+    disabledProductWriteAdapterHarnessSmokePath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertDisabledProductWriteAdapterHarnessChangedFiles(changedFiles) {
+  for (const expectedFile of disabledProductWriteAdapterHarnessChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      disabledProductWriteAdapterHarnessChangedFiles.includes(changedFile),
+      `unexpected changed file in disabled product write adapter harness slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)route\.(ts|tsx|js|mjs)$/,
+      "must not change route handlers",
+    );
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)actions?\.(ts|tsx|js|mjs)$/,
+      "must not change server actions",
+    );
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)(schema|migration|db|sql)\b/i,
+      "must not change schema/db/sql paths",
+    );
+  }
 }
 
 function assertReleaseReadinessMatrixChangedFiles(changedFiles) {
