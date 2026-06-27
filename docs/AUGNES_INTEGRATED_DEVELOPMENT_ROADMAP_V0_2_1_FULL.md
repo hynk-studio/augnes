@@ -2436,6 +2436,42 @@ no SQL execution
 no product ID allocation
 ```
 
+## PR 9.3.1: `release_candidate_operator_review_v0_1`
+
+### 개발 내용
+
+```text
+review-only release candidate operator packet
+release readiness review context
+disabled harness review context
+product-write reentry review context
+no release execution
+no release artifact generation
+no release candidate approval automation
+```
+
+### 금지
+
+```text
+release execution
+release artifact generation
+automatic release approval
+product write implementation
+adapter enablement
+product target contract creation
+product ID allocation
+DB write
+route/UI release action
+```
+
+### 수용 기준
+
+```text
+operator review packet is review-only
+release/product-write authority is not granted
+product-write remains parked by #686
+```
+
 ## PR 9.4: `product_write_minimal_runtime_v0_1`
 
 상태:
