@@ -4283,6 +4283,47 @@ repo-local 색인이다.
   creation; no repository file write; no provider/OpenAI call; no prompt sent;
   no retrieval execution; no RAG answer generation; no source fetch; no Codex
   execution; no GitHub automation.
+- Release Postmerge Observer Notes v0.1:
+  `docs/RELEASE_POSTMERGE_OBSERVER_NOTES_V0_1.md`,
+  `lib/release-readiness/release-postmerge-observer-notes.ts`,
+  `fixtures/release-postmerge-observer-notes.sample.v0.1.json`, and
+  `scripts/smoke-release-postmerge-observer-notes-v0-1.mjs`
+  (`npm run smoke:release-postmerge-observer-notes-v0-1`) follows PR #805
+  Release Candidate Freeze Manifest. This slice is review-only and
+  candidate-only. Product-write remains parked by #686, and release/product-write
+  authority is not granted. This pointer is repo-local documentation metadata,
+  not SSOT. The roadmap guide is not SSOT. It does not add actual postmerge
+  observation, merge execution, Git execution, GitHub calls, repository file
+  writes, release freeze execution, release notes publication, release
+  execution, release artifact creation, release approval automation,
+  product-write runtime, product-write adapter enablement, product-write target
+  contract authority, product ID allocation, product persistence, DB
+  read/write, routes, UI, durable Perspective state mutation, Formation Receipt
+  writes, promotion execution, proof/evidence writes, claim/evidence writes,
+  Git Ledger export runtime, provider calls, prompt sending, retrieval/RAG
+  execution, source fetch, browser log ingestion, session log ingestion, raw
+  conversation ingestion, telemetry ingestion, Codex execution, or GitHub
+  automation.
+
+  Boundary phrases: Release Postmerge Observer Notes v0.1; review-only;
+  candidate-only; not actual postmerge observation; does not perform merge; does
+  not execute Git; does not call GitHub; does not write repository files; does
+  not freeze a release; does not publish release notes; release notes are not
+  published; no actual postmerge observation; no merge execution; no Git
+  execution; no GitHub calls; no repository file writes; no release freeze
+  execution; no release notes publication; no release execution; no release
+  artifacts; no release authority; no release candidate approval; product-write
+  remains parked by #686; product-write authority is not granted; product-write
+  runtime is not implemented; product-write adapter is not enabled;
+  product-write target contract is not created; product IDs are not allocated;
+  products are not persisted; no product-write runtime; no product-write
+  adapter enabled; no product target contract; no product ID allocation; no
+  product persistence; no product route; no product UI; no DB read/write; no
+  route; no UI; no durable state mutation; no Formation Receipt write; no
+  promotion execution; no proof/evidence write; no claim/evidence write; no Git
+  Ledger export runtime; no provider/OpenAI call; no prompt sent; no retrieval
+  execution; no RAG answer generation; no source fetch; no Codex execution; no
+  GitHub automation.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

@@ -152,6 +152,9 @@ const releaseOperatorChecklistPackageScriptNames = [
 const releaseCandidateFreezeManifestPackageScriptNames = [
   "smoke:release-candidate-freeze-manifest-v0-1",
 ];
+const releasePostmergeObserverNotesPackageScriptNames = [
+  "smoke:release-postmerge-observer-notes-v0-1",
+];
 const feedbackControlsExpansionDocsPath =
   "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const feedbackControlsExpansionComponentPath =
@@ -269,6 +272,14 @@ const releaseCandidateFreezeManifestFixturePath =
   "fixtures/release-candidate-freeze-manifest.sample.v0.1.json";
 const releaseCandidateFreezeManifestSmokePath =
   "scripts/smoke-release-candidate-freeze-manifest-v0-1.mjs";
+const releasePostmergeObserverNotesDocsPath =
+  "docs/RELEASE_POSTMERGE_OBSERVER_NOTES_V0_1.md";
+const releasePostmergeObserverNotesHelperPath =
+  "lib/release-readiness/release-postmerge-observer-notes.ts";
+const releasePostmergeObserverNotesFixturePath =
+  "fixtures/release-postmerge-observer-notes.sample.v0.1.json";
+const releasePostmergeObserverNotesSmokePath =
+  "scripts/smoke-release-postmerge-observer-notes-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -434,6 +445,16 @@ const releaseCandidateFreezeManifestChangedFiles = [
   releaseCandidateFreezeManifestHelperPath,
   releaseCandidateFreezeManifestFixturePath,
   releaseCandidateFreezeManifestSmokePath,
+  smokePath,
+  packagePath,
+  indexPath,
+];
+const releasePostmergeObserverNotesChangedFiles = [
+  "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+  releasePostmergeObserverNotesDocsPath,
+  releasePostmergeObserverNotesHelperPath,
+  releasePostmergeObserverNotesFixturePath,
+  releasePostmergeObserverNotesSmokePath,
   smokePath,
   packagePath,
   indexPath,
@@ -760,6 +781,7 @@ function assertPackageScript() {
       releaseNotesPublicSafeSummaryPackageScriptNames,
       releaseOperatorChecklistPackageScriptNames,
       releaseCandidateFreezeManifestPackageScriptNames,
+      releasePostmergeObserverNotesPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include a recognized downstream slice package script set",
   );
@@ -772,6 +794,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (releasePostmergeObserverNotesSliceActive(changedFiles)) {
+    assertReleasePostmergeObserverNotesChangedFiles(changedFiles);
+    return;
+  }
   if (releaseCandidateFreezeManifestSliceActive(changedFiles)) {
     assertReleaseCandidateFreezeManifestChangedFiles(changedFiles);
     return;
@@ -1035,6 +1061,47 @@ function releaseCandidateFreezeManifestSliceActive(changedFiles) {
     releaseCandidateFreezeManifestFixturePath,
     releaseCandidateFreezeManifestSmokePath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function releasePostmergeObserverNotesSliceActive(changedFiles) {
+  return [
+    releasePostmergeObserverNotesDocsPath,
+    releasePostmergeObserverNotesHelperPath,
+    releasePostmergeObserverNotesFixturePath,
+    releasePostmergeObserverNotesSmokePath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertReleasePostmergeObserverNotesChangedFiles(changedFiles) {
+  for (const expectedFile of releasePostmergeObserverNotesChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      releasePostmergeObserverNotesChangedFiles.includes(changedFile),
+      `unexpected changed file in release postmerge observer notes slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)route\.(ts|tsx|js|mjs)$/,
+      "must not change route handlers",
+    );
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)actions?\.(ts|tsx|js|mjs)$/,
+      "must not change server actions",
+    );
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /^lib\/product-write\//,
+      "must not change product-write runtime files",
+    );
+  }
 }
 
 function assertReleaseCandidateFreezeManifestChangedFiles(changedFiles) {
