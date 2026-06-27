@@ -102,6 +102,19 @@ const authorityFalseFields = [
   "product_write_authority",
 ];
 
+const resultStyleAuthorityFields = [
+  "release_frozen",
+  "release_executed",
+  "release_artifact_created",
+  "release_notes_published",
+  "release_authority_granted",
+  "release_candidate_approved",
+  "product_write_executed",
+  "product_id_allocated",
+  "product_write_authority_granted",
+  "product_write_authority",
+];
+
 const exactDocsPhrases = [
   "Product-write remains parked by #686.",
   "Release Candidate Freeze Manifest is review-only.",
@@ -137,6 +150,9 @@ const exactDocsPhrases = [
   "Source refs must be public-safe symbolic refs.",
   "Smoke/CI pass is not truth.",
   "roadmap guide is not SSOT",
+  "Duplicate freeze manifest item IDs are rejected before manifest build.",
+  "Duplicate item IDs cannot hide excluded, warning, or blocking review signals.",
+  "Result-style release/product-write authority fields are rejected anywhere in input, not only inside authority_boundary.",
 ];
 
 const fixtureForbiddenMarkers = [
@@ -187,8 +203,13 @@ const allowedFixturePlaceholders = [
 ];
 
 const forbiddenPositiveAuthorityGrants = authorityFalseFields
+  .concat(resultStyleAuthorityFields)
   .map((field) => `${field}: true`)
-  .concat(authorityFalseFields.map((field) => `"${field}": true`));
+  .concat(
+    authorityFalseFields
+      .concat(resultStyleAuthorityFields)
+      .map((field) => `"${field}": true`),
+  );
 
 const roadmap = read(roadmapPath);
 const releaseOperatorChecklistDocs = read(releaseOperatorChecklistDocsPath);
@@ -261,6 +282,20 @@ assert.ok(
 assert.ok(
   helperSource.includes('collectForbiddenAuthorityObjectFailures(input, "item")'),
   "item validator must recursively scan forbidden authority fields",
+);
+for (const field of resultStyleAuthorityFields) {
+  assert.ok(
+    helperSource.includes(`"${field}"`),
+    `helper forbidden authority scan must include result-style field ${field}`,
+  );
+}
+assert.ok(
+  helperSource.includes("duplicateItemIdFailureCodes"),
+  "input validator must include duplicate item_id validation",
+);
+assert.ok(
+  helperSource.includes("duplicate_item_id"),
+  "duplicate item_id validation must expose a stable failure code",
 );
 assert.ok(
   helperSource.includes("includesTokenLikeMarker"),
@@ -445,6 +480,41 @@ assert.equal(
   fixture.expected_rejection_results.unknown_item_level_authority_true.status,
   "blocked_invalid_input",
 );
+for (const caseName of [
+  "unknown_top_level_release_frozen_true",
+  "unknown_top_level_release_executed_true",
+  "unknown_top_level_release_artifact_created_true",
+  "unknown_top_level_release_notes_published_true",
+  "unknown_top_level_release_authority_granted_true",
+  "unknown_top_level_release_candidate_approved_true",
+  "unknown_top_level_product_write_executed_true",
+  "unknown_top_level_product_id_allocated_true",
+  "unknown_top_level_product_write_authority_granted_true",
+  "unknown_item_release_frozen_true",
+  "unknown_nested_product_write_authority_granted_true",
+]) {
+  assert.equal(
+    fixture.expected_rejection_results[caseName].status,
+    "blocked_invalid_input",
+    `${caseName} must block result-style authority fields`,
+  );
+}
+for (const caseName of [
+  "duplicate_item_id_excluded_warning",
+  "duplicate_item_id_excluded_blocking",
+  "duplicate_item_id_included",
+]) {
+  assert.equal(
+    fixture.expected_rejection_results[caseName].status,
+    "blocked_invalid_input",
+    `${caseName} must reject duplicate item IDs before manifest build`,
+  );
+  assert.equal(
+    fixture.expected_rejection_results[caseName].decision,
+    "rejected",
+    `${caseName} must not produce freeze_manifest_candidate_only`,
+  );
+}
 
 const publicSafeHyphenInput = structuredClone(fixture.expected_valid_input);
 publicSafeHyphenInput.manifest_id = "release-candidate-freeze-manifest:hyphen-safe";

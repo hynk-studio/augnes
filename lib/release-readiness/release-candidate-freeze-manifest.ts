@@ -323,12 +323,21 @@ const forbiddenFalseAuthorityFields = [
   "release_notes_publish_now",
   "release_authority_granted_now",
   "release_candidate_approved_now",
+  "release_frozen",
+  "release_executed",
+  "release_artifact_created",
+  "release_notes_published",
+  "release_authority_granted",
+  "release_candidate_approved",
   "product_write_now",
   "product_write_runtime_now",
   "product_write_adapter_enabled_now",
   "product_write_target_contract_now",
   "product_id_allocation_now",
   "product_persistence_now",
+  "product_write_executed",
+  "product_id_allocated",
+  "product_write_authority_granted",
   "product_route_now",
   "product_ui_now",
   "db_query_or_write_now",
@@ -517,6 +526,7 @@ export function validateReleaseCandidateFreezeInputV01(
   if (!Array.isArray(value.input_items)) {
     failures.push("input_items_invalid_array");
   } else {
+    failures.push(...duplicateItemIdFailureCodes(value.input_items));
     for (const item of value.input_items) {
       failures.push(...validateReleaseCandidateFreezeInputItemV01(item).failure_codes);
     }
@@ -1094,6 +1104,16 @@ function dedupeItems(
     unique.push(item);
   }
   return unique;
+}
+
+function duplicateItemIdFailureCodes(items: unknown[]): string[] {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (!isRecord(item) || typeof item.item_id !== "string") continue;
+    if (seen.has(item.item_id)) return ["duplicate_item_id"];
+    seen.add(item.item_id);
+  }
+  return [];
 }
 
 function validateReasonCodes(value: unknown, field: string): string[] {

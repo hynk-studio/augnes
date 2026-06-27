@@ -186,6 +186,10 @@ release notes, execute a release, create release artifacts, approve release,
 grant release authority, grant product-write authority, enable product-write,
 or allocate product IDs.
 
+Duplicate freeze manifest item IDs are rejected before manifest build.
+
+Duplicate item IDs cannot hide excluded, warning, or blocking review signals.
+
 ## 8. Authority rules
 
 Release Candidate Freeze Manifest does not grant release authority.
@@ -196,6 +200,8 @@ Forbidden authority fields are rejected anywhere in the input object. Unknown
 fields cannot carry release, product-write, GitHub, DB, route, UI, provider,
 retrieval, RAG, state mutation, or automation authority. `authority_boundary`
 is not the only place where forbidden authority grants are checked.
+
+Result-style release/product-write authority fields are rejected anywhere in input, not only inside authority_boundary.
 
 The result always keeps `release_frozen: false`,
 `release_executed: false`, `release_artifact_created: false`,
