@@ -4271,6 +4271,41 @@ repo-local 색인이다.
   written as proof/evidence/state; feedback cannot be written as truth;
   preview-to-write diff is not write approval; smoke pass is not truth; CI
   pass is not truth.
+- Deterministic CRPF Variant Review v0.1:
+  `docs/DETERMINISTIC_CRPF_VARIANT_REVIEW_V0_1.md`,
+  `types/deterministic-crpf-variant-review.ts`,
+  `fixtures/deterministic-crpf-variant-review.sample.v0.1.json`, and
+  `scripts/smoke-deterministic-crpf-variant-review-v0-1.mjs`
+  (`npm run smoke:deterministic-crpf-variant-review-v0-1`) implements
+  `deterministic_crpf_variant_review_v0_1` from the integrated roadmap guide
+  v0.2.1 FULL. This slice is contract-only and fixture-only. It defines
+  deterministic fixed-seed CRPF variant review for evidence-strict,
+  tension-preserving, source-coverage-strict, handoff-minimal, and
+  operator-review-heavy variants. This pointer is repo-local documentation
+  metadata, not SSOT. The roadmap guide is not SSOT. It uses fixed seed refs
+  only and does not execute runtime randomness, call providers, send prompts,
+  fetch sources, execute retrieval/RAG, query/write DB, add routes/UI, create
+  proof/evidence, write claim/evidence records, promote Perspective,
+  write/apply durable Perspective state, write Formation Receipts, execute Git
+  Ledger export runtime, execute Git or call GitHub, execute Codex,
+  export/import files, product-write, allocate product IDs, or grant
+  product-write authority. Variants are review aids only; they are not truth,
+  proof, accepted evidence, promotion readiness, durable state, or
+  product-write. Product-write remains parked by #686.
+
+  Boundary phrases: Deterministic CRPF Variant Review v0.1; contract-only and
+  fixture-only; fixed seed refs only; no runtime randomness; no provider call;
+  no prompt sending; no source fetch; no retrieval execution; no RAG answer
+  generation; no DB query/write; no route; no UI; no proof/evidence write; no
+  claim/evidence write; no promotion execution; no durable state write; no
+  durable state apply; no Formation Receipt write; no Git Ledger export
+  runtime; no Git write; no GitHub API call; no repository file write; no
+  local file export; no local file import; no Codex execution; no
+  product-write; no product ID allocation; variant is review aid only; variant
+  is not truth; variant is not proof; variant is not accepted evidence; variant
+  is not promotion readiness; variant is not durable state; variant is not
+  product-write; smoke pass is not truth; CI pass is not truth; product-write
+  remains parked by #686.
 - Release Readiness Matrix v0.1:
   `docs/RELEASE_READINESS_MATRIX_V0_1.md`,
   `lib/release-readiness/build-release-readiness-matrix.ts`,
