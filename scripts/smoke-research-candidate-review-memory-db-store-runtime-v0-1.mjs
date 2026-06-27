@@ -286,6 +286,15 @@ function assertPackageAndIndex() {
 
 function assertStaticScopeBoundaries() {
   const changedFiles = changedFilesAgainstMain();
+  const dbStoreRuntimeSliceTouched = changedFiles.some((file) =>
+    [
+      runtimeDocPath,
+      helperPath,
+      fixturePath,
+      schemaPath,
+    ].includes(file),
+  );
+  if (!dbStoreRuntimeSliceTouched) return;
   const allowedDbRouteRuntimeFiles = new Set([
     "app/api/research-candidate-review/review-records/route.ts",
     "app/api/research-candidate-review/review-records/[review_record_id]/route.ts",

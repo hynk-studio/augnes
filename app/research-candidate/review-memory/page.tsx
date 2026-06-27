@@ -1,24 +1,24 @@
-import { ReviewMemoryClient } from "@/app/research-candidate/review-memory/review-memory-client";
+import { ResearchCandidateReviewMemoryDbPanel } from "@/components/research-candidate-review-memory-db-panel";
 
 export const metadata = {
-  title: "Research Candidate Review Memory",
+  title: "Research Candidate Review Memory DB UI",
 };
 
 export default function ResearchCandidateReviewMemoryPage() {
   return (
     <main style={pageShellStyle}>
       <header style={pageHeaderStyle}>
-        <p style={eyebrowStyle}>Research Candidate Review Memory UI v0.1</p>
+        <p style={eyebrowStyle}>Research Candidate Review Memory DB UI Runtime v0.1</p>
         <h1 style={headingStyle}>Review Memory Operator Panel</h1>
       </header>
-      <ReviewMemoryClient />
+      <ResearchCandidateReviewMemoryDbPanel />
     </main>
   );
 }
 
 const pageShellStyle = {
   minHeight: "100vh",
-  padding: "32px",
+  padding: "clamp(16px, 4vw, 32px)",
   background: "#f7f8fa",
   color: "#18212f",
 } as const;

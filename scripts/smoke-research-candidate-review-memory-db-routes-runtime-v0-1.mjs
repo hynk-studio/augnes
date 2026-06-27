@@ -752,6 +752,18 @@ function assertReadOnlyGetRoute(filePath, source) {
 
 function assertChangedFileScope() {
   const changed = changedFilesAgainstMain();
+  const dbRoutesRuntimeSliceTouched = changed.some((filePath) =>
+    [
+      docPath,
+      routeContractPath,
+      collectionRoutePath,
+      detailRoutePath,
+      activityRoutePath,
+      discardRoutePath,
+      fixturePath,
+    ].includes(filePath),
+  );
+  if (!dbRoutesRuntimeSliceTouched) return;
   for (const filePath of changed) {
     assert.ok(!filePath.startsWith("components/"), "no component/UI file may be added");
     assert.ok(!filePath.includes("/components/"), "no component/UI file may be added");

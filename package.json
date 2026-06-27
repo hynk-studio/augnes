@@ -628,6 +628,7 @@
     "smoke:research-candidate-review-memory-db-routes-runtime-v0-1": "node scripts/smoke-research-candidate-review-memory-db-routes-runtime-v0-1.mjs",
     "smoke:research-candidate-review-memory-routes-v0-1": "node scripts/smoke-research-candidate-review-memory-routes-v0-1.mjs",
     "smoke:research-candidate-review-memory-ui-v0-1": "node scripts/smoke-research-candidate-review-memory-ui-v0-1.mjs",
+    "smoke:research-candidate-review-memory-db-ui-runtime-v0-1": "node scripts/smoke-research-candidate-review-memory-db-ui-runtime-v0-1.mjs",
     "smoke:foundation-lifecycle-review-memory-readonly-ui-v0-1": "node scripts/smoke-foundation-lifecycle-review-memory-readonly-ui-v0-1.mjs",
     "smoke:bounded-source-intake-runtime-contract-v0-1": "node scripts/smoke-bounded-source-intake-runtime-contract-v0-1.mjs",
     "smoke:bounded-source-intake-runtime-v0-1": "node scripts/smoke-bounded-source-intake-runtime-v0-1.mjs",
