@@ -4148,6 +4148,50 @@ repo-local 색인이다.
   durable state write; no durable state apply; no Formation Receipt write; no
   Codex execution; no product-write; no product ID allocation; smoke pass is
   not truth; CI pass is not truth; product-write remains parked by #686.
+- GitHub Actuation Contract v0.1:
+  `docs/GITHUB_ACTUATION_CONTRACT_V0_1.md`,
+  `types/github-actuation-contract.ts`,
+  `fixtures/github-actuation-contract.sample.v0.1.json`, and
+  `scripts/smoke-github-actuation-contract-v0-1.mjs`
+  (`npm run smoke:github-actuation-contract-v0-1`) implements
+  `github_actuation_contract_v0_1` from the integrated roadmap guide v0.2.1
+  FULL. This slice is contract-only and dry-run-only. It defines permission
+  profiles, target repo/branch/file policy, explicit approval payload,
+  dry-run actuation plan, preview-to-action diff, rollback/abort,
+  idempotency, privacy/redaction, and authority boundary for possible future
+  operator-approved GitHub actuation. This pointer is repo-local documentation
+  metadata, not SSOT. The roadmap guide is not SSOT. It does not call GitHub,
+  execute Git, create branches, commits, tags, PRs, reviews, labels, checks,
+  releases, or merges, write repository files, grant contents write
+  permission, grant actions write permission, grant admin permission, read or
+  write secrets, export files locally, import files, query/write DB, add
+  routes/UI, call providers, send prompts, fetch sources, execute
+  retrieval/RAG, create proof/evidence, write claim/evidence records, promote
+  Perspective, write/apply durable Perspective state, write Formation
+  Receipts, execute Codex, product-write, or allocate product IDs. Approval
+  payload is not merge authority. Approval payload is not product-write.
+  Approval payload is not proof. Approval payload is not durable state. Git ref
+  is not authority. GitHub PR is not Core decision. Product-write remains
+  parked by #686. Any future GitHub actuation implementation requires a
+  separate explicitly approved PR.
+
+  Boundary phrases: GitHub Actuation Contract v0.1; contract-only and
+  dry-run-only; dry-run plan only; explicit operator approval required;
+  caller-provided refs only; no GitHub API call; no Git write; no commit
+  creation; no branch creation; no tag creation; no pull request creation; no
+  pull request merge; no review submission; no label write; no check write; no
+  release creation; no repository file write; no contents write permission; no
+  actions write permission; no admin permission; no secrets read/write; no
+  local file export; no local file import; no DB query/write; no route; no UI;
+  no provider/OpenAI call; no prompt sending; no source fetch; no retrieval
+  execution; no RAG answer generation; no proof/evidence write; no
+  claim/evidence write; no promotion execution; no durable state write; no
+  durable state apply; no Formation Receipt write; no Codex execution; no
+  product-write; no product ID allocation; approval payload is not merge
+  authority; approval payload is not product-write; approval payload is not
+  proof; approval payload is not durable state; Git ref is not authority;
+  GitHub PR is not Core decision; smoke pass is not truth; CI pass is not
+  truth; product-write remains parked by #686.
 - Product Write Reentry Review v0.1:
   `docs/PRODUCT_WRITE_REENTRY_REVIEW_V0_1.md`,
   `lib/product-write/product-write-reentry-review.ts`,
