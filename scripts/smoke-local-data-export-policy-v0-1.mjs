@@ -359,6 +359,10 @@ assert.ok(
   "fixture must contain an import preview example",
 );
 assert.ok(
+  fixture.safe_export_bundle_example,
+  "fixture must contain a safe export bundle example",
+);
+assert.ok(
   fixture.blocked_raw_private_example,
   "fixture must contain a blocked raw/private example",
 );
@@ -375,6 +379,20 @@ assert.equal(fixture.safe_export_manifest_example.contract_version, contractVers
 assert.equal(fixture.safe_export_manifest_example.scope, scope);
 assert.equal(fixture.import_preview_example.contract_version, contractVersion);
 assert.equal(fixture.import_preview_example.scope, scope);
+assert.equal(fixture.safe_export_bundle_example.bundle_version, bundleVersion);
+assert.equal(fixture.safe_export_bundle_example.contract_version, contractVersion);
+assert.equal(fixture.safe_export_bundle_example.scope, scope);
+assert.equal(fixture.safe_export_bundle_example.privacy_guard_ref, "privacy_redaction_runtime_guard_v0_1");
+assert.equal(
+  fixture.safe_export_bundle_example.roadmap_ref,
+  "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+);
+
+assert.equal(
+  fixtureText.includes("authority_boundary_ref"),
+  false,
+  "fixture must not use authority_boundary_ref aliases",
+);
 
 const manifestDataClasses = new Set(
   fixture.safe_export_manifest_example.sections.map((section) => section.data_class),
@@ -395,20 +413,42 @@ for (const importAction of importActions) {
   );
 }
 
-for (const allowedField of authorityAllowedTrueFields) {
-  assert.equal(
-    fixture.authority_boundary_sample[allowedField],
-    true,
-    `authority boundary allowed field must be true: ${allowedField}`,
+assertAuthorityBoundaryClosed(
+  fixture.authority_boundary_sample,
+  "fixture.authority_boundary_sample",
+);
+assertAuthorityBoundaryClosed(
+  fixture.safe_export_manifest_example.authority_boundary,
+  "fixture.safe_export_manifest_example.authority_boundary",
+);
+for (const [index, section] of fixture.safe_export_manifest_example.sections.entries()) {
+  assertAuthorityBoundaryClosed(
+    section.authority_boundary,
+    `fixture.safe_export_manifest_example.sections.${index}.authority_boundary`,
   );
 }
-for (const falseField of authorityFalseFields) {
-  assert.equal(
-    fixture.authority_boundary_sample[falseField],
-    false,
-    `authority boundary forbidden field must be false: ${falseField}`,
+assertAuthorityBoundaryClosed(
+  fixture.import_preview_example.authority_boundary,
+  "fixture.import_preview_example.authority_boundary",
+);
+assertAuthorityBoundaryClosed(
+  fixture.safe_export_bundle_example.authority_boundary,
+  "fixture.safe_export_bundle_example.authority_boundary",
+);
+assertAuthorityBoundaryClosed(
+  fixture.safe_export_bundle_example.export_manifest.authority_boundary,
+  "fixture.safe_export_bundle_example.export_manifest.authority_boundary",
+);
+for (const [index, section] of fixture.safe_export_bundle_example.export_manifest.sections.entries()) {
+  assertAuthorityBoundaryClosed(
+    section.authority_boundary,
+    `fixture.safe_export_bundle_example.export_manifest.sections.${index}.authority_boundary`,
   );
 }
+assertAuthorityBoundaryClosed(
+  fixture.safe_export_bundle_example.import_preview.authority_boundary,
+  "fixture.safe_export_bundle_example.import_preview.authority_boundary",
+);
 
 const safeMarkers = collectSafeMarkers(fixture);
 assert.deepEqual(
@@ -497,6 +537,24 @@ function collectSafeMarkers(value, prefix = "fixture") {
         visit(nested, `${currentPath}.${key}`);
       }
     }
+  }
+}
+
+function assertAuthorityBoundaryClosed(boundary, label) {
+  assert.ok(boundary && typeof boundary === "object", `${label} must exist`);
+  for (const allowedField of authorityAllowedTrueFields) {
+    assert.equal(
+      boundary[allowedField],
+      true,
+      `${label} allowed field must be true: ${allowedField}`,
+    );
+  }
+  for (const falseField of authorityFalseFields) {
+    assert.equal(
+      boundary[falseField],
+      false,
+      `${label} forbidden field must be false: ${falseField}`,
+    );
   }
 }
 
