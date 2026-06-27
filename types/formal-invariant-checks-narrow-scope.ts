@@ -258,6 +258,49 @@ export interface FormalInvariantNegativeCase {
   authority_boundary: FormalInvariantAuthorityBoundary;
 }
 
+export interface FormalInvariantRouteRefusalCase {
+  case_version: typeof FormalInvariantCaseVersion;
+  scope: typeof FormalInvariantScope;
+  case_id: string;
+  invariant_kind: FormalInvariantKind;
+  surface: FormalInvariantSurface;
+  check_mode: FormalInvariantCheckMode;
+  expected_result: "refused_route_payload";
+  expected_allowed: true;
+  statement: string;
+  reason_codes: FormalInvariantReasonCode[];
+  authority_boundary: FormalInvariantAuthorityBoundary;
+}
+
+export interface FormalInvariantProductWriteGateCase {
+  case_version: typeof FormalInvariantCaseVersion;
+  scope: typeof FormalInvariantScope;
+  case_id: string;
+  invariant_kind: "product_write_gate_required";
+  surface: FormalInvariantSurface;
+  check_mode: FormalInvariantCheckMode;
+  expected_result: "required_prerequisite_present";
+  expected_allowed: true;
+  statement: string;
+  required_prerequisites: string[];
+  reason_codes: FormalInvariantReasonCode[];
+  authority_boundary: FormalInvariantAuthorityBoundary;
+}
+
+export interface FormalInvariantPrivacyIdentifierCase {
+  case_version: typeof FormalInvariantCaseVersion;
+  scope: typeof FormalInvariantScope;
+  case_id: string;
+  invariant_kind: "private_identifier_not_canonical_label";
+  surface: FormalInvariantSurface;
+  check_mode: FormalInvariantCheckMode;
+  expected_result: "refused_route_payload" | "non_authority_phrase_present";
+  expected_allowed: true;
+  statement: string;
+  reason_codes: FormalInvariantReasonCode[];
+  authority_boundary: FormalInvariantAuthorityBoundary;
+}
+
 export interface FormalInvariantBundle {
   bundle_version: typeof FormalInvariantBundleVersion;
   contract_version: typeof FormalInvariantChecksNarrowScopeContractVersion;
@@ -269,9 +312,9 @@ export interface FormalInvariantBundle {
   invariant_specs: FormalInvariantSpec[];
   positive_boundary_cases: FormalInvariantPositiveCase[];
   negative_forbidden_claim_cases: FormalInvariantNegativeCase[];
-  route_refusal_contract_cases: FormalInvariantPositiveCase[];
-  product_write_gate_cases: FormalInvariantPositiveCase[];
-  privacy_identifier_cases: FormalInvariantPositiveCase[];
+  route_refusal_contract_cases: FormalInvariantRouteRefusalCase[];
+  product_write_gate_cases: FormalInvariantProductWriteGateCase[];
+  privacy_identifier_cases: FormalInvariantPrivacyIdentifierCase[];
   deterministic_fingerprint: string;
   boundary_notes: string[];
   reason_codes: FormalInvariantReasonCode[];

@@ -3511,8 +3511,8 @@
         "case_id": "formal-invariant-privacy-identifier:canonical-label:v0.1",
         "invariant_kind": "private_identifier_not_canonical_label",
         "surface": "privacy_redaction_guard",
-        "check_mode": "fixture_negative_case",
-        "expected_result": "blocked_positive_authority_claim",
+        "check_mode": "fixture_positive_boundary_case",
+        "expected_result": "non_authority_phrase_present",
         "expected_allowed": true,
         "statement": "Private/raw/provider/runtime identifiers cannot become canonical labels.",
         "reason_codes": [
@@ -7135,8 +7135,8 @@
       "case_id": "formal-invariant-privacy-identifier:canonical-label:v0.1",
       "invariant_kind": "private_identifier_not_canonical_label",
       "surface": "privacy_redaction_guard",
-      "check_mode": "fixture_negative_case",
-      "expected_result": "blocked_positive_authority_claim",
+      "check_mode": "fixture_positive_boundary_case",
+      "expected_result": "non_authority_phrase_present",
       "expected_allowed": true,
       "statement": "Private/raw/provider/runtime identifiers cannot become canonical labels.",
       "reason_codes": [

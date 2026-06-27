@@ -308,6 +308,9 @@ const requiredTypeExports = [
   "FormalInvariantSpec",
   "FormalInvariantPositiveCase",
   "FormalInvariantNegativeCase",
+  "FormalInvariantRouteRefusalCase",
+  "FormalInvariantProductWriteGateCase",
+  "FormalInvariantPrivacyIdentifierCase",
   "FormalInvariantBundle",
   "FormalInvariantValidationFinding",
 ];
@@ -352,6 +355,49 @@ const requiredNegativeCaseFields = [
   "expected_blocked",
   "statement_segments",
   "public_safe_summary",
+  "reason_codes",
+  "authority_boundary",
+];
+
+const requiredRouteRefusalCaseFields = [
+  "case_version",
+  "scope",
+  "case_id",
+  "invariant_kind",
+  "surface",
+  "check_mode",
+  "expected_result",
+  "expected_allowed",
+  "statement",
+  "reason_codes",
+  "authority_boundary",
+];
+
+const requiredProductWriteGateCaseFields = [
+  "case_version",
+  "scope",
+  "case_id",
+  "invariant_kind",
+  "surface",
+  "check_mode",
+  "expected_result",
+  "expected_allowed",
+  "statement",
+  "required_prerequisites",
+  "reason_codes",
+  "authority_boundary",
+];
+
+const requiredPrivacyIdentifierCaseFields = [
+  "case_version",
+  "scope",
+  "case_id",
+  "invariant_kind",
+  "surface",
+  "check_mode",
+  "expected_result",
+  "expected_allowed",
+  "statement",
   "reason_codes",
   "authority_boundary",
 ];
@@ -816,13 +862,18 @@ function assertRouteRefusalCases(cases, label) {
     assert.ok(routeKinds.has(invariantKind), `${label} must include ${invariantKind}`);
   }
   for (const testCase of cases) {
+    for (const field of requiredRouteRefusalCaseFields) {
+      assert.ok(testCase[field] !== undefined, `${label}.${testCase.case_id}.${field}`);
+    }
     assert.equal(testCase.case_version, caseVersion, `${label}.${testCase.case_id}`);
     assert.equal(testCase.scope, scope, `${label}.${testCase.case_id}.scope`);
+    assert.equal(testCase.expected_allowed, true, `${label}.${testCase.case_id}`);
     assert.equal(
       testCase.expected_result,
       "refused_route_payload",
       `${label}.${testCase.case_id}.expected_result`,
     );
+    assert.ok(testCase.statement, `${label}.${testCase.case_id}.statement`);
     assertAuthorityBoundary(
       testCase.authority_boundary,
       `${label}.${testCase.case_id}.authority_boundary`,
@@ -833,16 +884,23 @@ function assertRouteRefusalCases(cases, label) {
 function assertProductWriteGateCases(cases, label) {
   assert.ok(Array.isArray(cases) && cases.length > 0, `${label} must be non-empty`);
   for (const testCase of cases) {
+    for (const field of requiredProductWriteGateCaseFields) {
+      assert.ok(testCase[field] !== undefined, `${label}.${testCase.case_id}.${field}`);
+    }
+    assert.equal(testCase.case_version, caseVersion, `${label}.${testCase.case_id}`);
+    assert.equal(testCase.scope, scope, `${label}.${testCase.case_id}.scope`);
     assert.equal(
       testCase.invariant_kind,
       "product_write_gate_required",
       `${label}.${testCase.case_id}.invariant_kind`,
     );
+    assert.equal(testCase.expected_allowed, true, `${label}.${testCase.case_id}`);
     assert.equal(
       testCase.expected_result,
       "required_prerequisite_present",
       `${label}.${testCase.case_id}.expected_result`,
     );
+    assert.ok(testCase.statement, `${label}.${testCase.case_id}.statement`);
     assert.deepEqual(
       testCase.required_prerequisites,
       productWriteGatePrerequisites,
@@ -873,10 +931,27 @@ function assertProductWriteGateCases(cases, label) {
 function assertPrivacyIdentifierCases(cases, label) {
   assert.ok(Array.isArray(cases) && cases.length > 0, `${label} must be non-empty`);
   for (const testCase of cases) {
+    for (const field of requiredPrivacyIdentifierCaseFields) {
+      assert.ok(testCase[field] !== undefined, `${label}.${testCase.case_id}.${field}`);
+    }
+    assert.equal(testCase.case_version, caseVersion, `${label}.${testCase.case_id}`);
+    assert.equal(testCase.scope, scope, `${label}.${testCase.case_id}.scope`);
     assert.equal(
       testCase.invariant_kind,
       "private_identifier_not_canonical_label",
       `${label}.${testCase.case_id}.invariant_kind`,
+    );
+    assert.equal(testCase.expected_allowed, true, `${label}.${testCase.case_id}`);
+    assert.notEqual(
+      testCase.expected_result,
+      "blocked_positive_authority_claim",
+      `${label}.${testCase.case_id} must not combine blocked-positive expected_result with expected_allowed true`,
+    );
+    assert.ok(
+      ["refused_route_payload", "non_authority_phrase_present"].includes(
+        testCase.expected_result,
+      ),
+      `${label}.${testCase.case_id}.expected_result must be a positive/refusal boundary result`,
     );
     assert.ok(
       testCase.reason_codes.includes("privacy_guard_required"),
