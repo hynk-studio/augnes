@@ -573,6 +573,7 @@
     "smoke:release-readiness-matrix-v0-1": "node scripts/smoke-release-readiness-matrix-v0-1.mjs",
     "smoke:disabled-product-write-adapter-reentry-harness-v0-1": "node scripts/smoke-disabled-product-write-adapter-reentry-harness-v0-1.mjs",
     "smoke:release-candidate-operator-review-v0-1": "node scripts/smoke-release-candidate-operator-review-v0-1.mjs",
+    "smoke:release-notes-public-safe-summary-v0-1": "node scripts/smoke-release-notes-public-safe-summary-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs",
     "smoke:perspective-geometry-digest-contract-v0-1": "node scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",
