@@ -4430,6 +4430,44 @@ repo-local 색인이다.
   rejection; smoke pass is not truth; smoke pass is not proof; PR body is not
   authority; Git ref is not authority; GitHub PR is not Core decision;
   product-write remains parked by #686.
+- Codex Result Report Ingestion v0.1:
+  `docs/CODEX_RESULT_REPORT_INGESTION_V0_1.md`,
+  `lib/dogfooding/codex-result-report-normalizer.ts`,
+  `fixtures/codex-result-report-ingestion.sample.v0.1.json`,
+  `scripts/smoke-codex-result-report-ingestion-v0-1.mjs`, and
+  `components/codex-result-report-ingestion-panel.tsx`
+  (`npm run smoke:codex-result-report-ingestion-v0-1`) implements
+  `codex_result_report_ingestion_v0_1` from the integrated roadmap guide
+  v0.2.1 FULL. This slice normalizes caller-provided Codex result reports into
+  deterministic public-safe dogfooding candidate input for later operator
+  review. Codex result report is candidate input only. PR body is not
+  authority. Changed files are review cues only. Validation commands are
+  diagnostic only. CI pass is not truth. Smoke pass is not truth. Validation
+  pass is not approval. Validation failure is not automatic rejection.
+  Product-write remains parked by #686. This pointer is repo-local documentation
+  metadata, not SSOT. The roadmap guide is not SSOT. It does not execute Codex,
+  call GitHub, create branches/commits/PRs/merges, run validation commands, read
+  or write files, query/write DB, add routes, call providers, execute
+  retrieval/RAG, create proof/evidence, promote Perspective, write/apply durable
+  Perspective state, write Formation Receipts, execute Git Ledger export,
+  product-write, or allocate product IDs.
+
+  Boundary phrases: Codex Result Report Ingestion v0.1; caller-provided input
+  only; deterministic normalization; candidate-only; public-safe summary only;
+  Privacy Redaction Runtime Guard v0.1 aligned; Authority Boundary Regression
+  CI compatible; Local Data Export/Import Policy remains policy-only; Codex
+  report is not proof, not evidence, not durable state, and not execution
+  approval; GitHub branch/commit/PR refs are references only, not authority; no
+  Codex execution; no GitHub API call; no GitHub mutation; no branch creation;
+  no commit creation; no PR creation; no merge execution; no Git write; no
+  repository file write; no runtime state mutation; no DB query/write; no
+  route; no provider/OpenAI call; no prompt sent; no source fetch; no retrieval
+  execution; no RAG answer generation; no proof/evidence write; no
+  claim/evidence write; no promotion execution; no durable state write; no
+  durable state apply; no Formation Receipt write; no Git Ledger export
+  runtime; no export/import runtime; no product-write; no product ID
+  allocation; product-write remains parked by #686; smoke pass is not truth; CI
+  pass is not truth.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
