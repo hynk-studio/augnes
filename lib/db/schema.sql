@@ -1544,6 +1544,84 @@ CREATE INDEX IF NOT EXISTS idx_perspective_memory_items_validation
 CREATE INDEX IF NOT EXISTS idx_perspective_memory_items_source_candidate
   ON perspective_memory_items(source_candidate_draft_id);
 
+CREATE TABLE IF NOT EXISTS research_candidate_review_records (
+  review_record_id text primary key,
+  record_version text not null,
+  db_store_version text not null,
+  contract_version text not null,
+  scope text not null,
+  record_status text not null,
+  record_kind text not null,
+  lifecycle_state text not null,
+  review_decision text not null,
+  review_action text,
+  reviewer_actor_ref text not null,
+  bounded_summary text not null,
+  reviewer_note_summary text,
+  boundary_acknowledgements_json text not null,
+  privacy_report_json text not null,
+  authority_boundary_json text not null,
+  reason_codes_json text not null,
+  related_record_refs_json text not null,
+  created_at text not null,
+  updated_at text not null,
+  discard_reason text,
+  supersedes_record_ref text,
+  superseded_by_record_ref text,
+  record_fingerprint text not null
+);
+
+CREATE TABLE IF NOT EXISTS research_candidate_review_record_candidates (
+  id text primary key,
+  review_record_id text not null,
+  candidate_ref text not null,
+  created_at text not null,
+  foreign key (review_record_id) references research_candidate_review_records(review_record_id) on delete cascade
+);
+
+CREATE TABLE IF NOT EXISTS research_candidate_review_record_sources (
+  id text primary key,
+  review_record_id text not null,
+  source_surface text not null,
+  source_ref text not null,
+  source_version text,
+  public_safe integer not null,
+  created_at text not null,
+  foreign key (review_record_id) references research_candidate_review_records(review_record_id) on delete cascade
+);
+
+CREATE TABLE IF NOT EXISTS research_candidate_review_record_activity (
+  activity_id text primary key,
+  review_record_id text not null,
+  activity_kind text not null,
+  actor_ref text not null,
+  summary text not null,
+  reason_codes_json text not null,
+  created_at text not null,
+  foreign key (review_record_id) references research_candidate_review_records(review_record_id) on delete cascade
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_review_record_candidates_unique
+  ON research_candidate_review_record_candidates(review_record_id, candidate_ref);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_review_record_sources_unique
+  ON research_candidate_review_record_sources(review_record_id, source_surface, source_ref);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_review_records_lifecycle
+  ON research_candidate_review_records(scope, lifecycle_state, updated_at, review_record_id);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_review_records_decision
+  ON research_candidate_review_records(scope, review_decision, updated_at, review_record_id);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_review_record_candidates_ref
+  ON research_candidate_review_record_candidates(candidate_ref, review_record_id);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_review_record_sources_ref
+  ON research_candidate_review_record_sources(source_ref, review_record_id);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_review_record_activity_record
+  ON research_candidate_review_record_activity(review_record_id, created_at, activity_id);
+
 CREATE TABLE IF NOT EXISTS research_candidate_feedback_events (
   event_id TEXT PRIMARY KEY,
   event_version TEXT NOT NULL,
