@@ -2546,6 +2546,45 @@ release/product-write authority is not granted
 product-write remains parked by #686
 ```
 
+## PR 9.3.4: `release_candidate_freeze_manifest_v0_1`
+
+### 개발 내용
+
+```text
+review-only release candidate freeze manifest candidate builder
+release operator checklist review context
+release notes summary review context
+no release freeze execution
+no release notes publication
+no release execution
+no release artifact generation
+no release approval automation
+```
+
+### 금지
+
+```text
+release freeze execution
+release notes publication
+release execution
+release artifact generation
+automatic release approval
+product write implementation
+adapter enablement
+product target contract creation
+product ID allocation
+DB write
+route/UI release action
+```
+
+### 수용 기준
+
+```text
+release candidate freeze manifest is review-only and candidate-only
+release/product-write authority is not granted
+product-write remains parked by #686
+```
+
 ## PR 9.4: `product_write_minimal_runtime_v0_1`
 
 상태:
