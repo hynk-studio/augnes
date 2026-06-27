@@ -146,6 +146,9 @@ const releaseCandidateOperatorReviewPackageScriptNames = [
 const releaseNotesPublicSafeSummaryPackageScriptNames = [
   "smoke:release-notes-public-safe-summary-v0-1",
 ];
+const releaseOperatorChecklistPackageScriptNames = [
+  "smoke:release-operator-checklist-v0-1",
+];
 const feedbackControlsExpansionDocsPath =
   "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const feedbackControlsExpansionComponentPath =
@@ -247,6 +250,14 @@ const releaseNotesPublicSafeSummaryFixturePath =
   "fixtures/release-notes-public-safe-summary.sample.v0.1.json";
 const releaseNotesPublicSafeSummarySmokePath =
   "scripts/smoke-release-notes-public-safe-summary-v0-1.mjs";
+const releaseOperatorChecklistDocsPath =
+  "docs/RELEASE_OPERATOR_CHECKLIST_V0_1.md";
+const releaseOperatorChecklistHelperPath =
+  "lib/release-readiness/release-operator-checklist.ts";
+const releaseOperatorChecklistFixturePath =
+  "fixtures/release-operator-checklist.sample.v0.1.json";
+const releaseOperatorChecklistSmokePath =
+  "scripts/smoke-release-operator-checklist-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -392,6 +403,16 @@ const releaseNotesPublicSafeSummaryChangedFiles = [
   releaseNotesPublicSafeSummaryHelperPath,
   releaseNotesPublicSafeSummaryFixturePath,
   releaseNotesPublicSafeSummarySmokePath,
+  smokePath,
+  packagePath,
+  indexPath,
+];
+const releaseOperatorChecklistChangedFiles = [
+  "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+  releaseOperatorChecklistDocsPath,
+  releaseOperatorChecklistHelperPath,
+  releaseOperatorChecklistFixturePath,
+  releaseOperatorChecklistSmokePath,
   smokePath,
   packagePath,
   indexPath,
@@ -716,6 +737,7 @@ function assertPackageScript() {
       disabledProductWriteAdapterHarnessPackageScriptNames,
       releaseCandidateOperatorReviewPackageScriptNames,
       releaseNotesPublicSafeSummaryPackageScriptNames,
+      releaseOperatorChecklistPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include a recognized downstream slice package script set",
   );
@@ -728,6 +750,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (releaseOperatorChecklistSliceActive(changedFiles)) {
+    assertReleaseOperatorChecklistChangedFiles(changedFiles);
+    return;
+  }
   if (releaseNotesPublicSafeSummarySliceActive(changedFiles)) {
     assertReleaseNotesPublicSafeSummaryChangedFiles(changedFiles);
     return;
@@ -965,6 +991,47 @@ function releaseNotesPublicSafeSummarySliceActive(changedFiles) {
     releaseNotesPublicSafeSummaryFixturePath,
     releaseNotesPublicSafeSummarySmokePath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function releaseOperatorChecklistSliceActive(changedFiles) {
+  return [
+    releaseOperatorChecklistDocsPath,
+    releaseOperatorChecklistHelperPath,
+    releaseOperatorChecklistFixturePath,
+    releaseOperatorChecklistSmokePath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertReleaseOperatorChecklistChangedFiles(changedFiles) {
+  for (const expectedFile of releaseOperatorChecklistChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      releaseOperatorChecklistChangedFiles.includes(changedFile),
+      `unexpected changed file in release operator checklist slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)route\.(ts|tsx|js|mjs)$/,
+      "must not change route handlers",
+    );
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)actions?\.(ts|tsx|js|mjs)$/,
+      "must not change server actions",
+    );
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)(schema|migration|db|sql)\b/i,
+      "must not change schema/db/sql paths",
+    );
+  }
 }
 
 function assertReleaseNotesPublicSafeSummaryChangedFiles(changedFiles) {
