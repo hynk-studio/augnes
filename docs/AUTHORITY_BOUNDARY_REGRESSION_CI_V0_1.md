@@ -87,6 +87,11 @@ examples. It allows phrases such as:
 - Git ref is not authority.
 - Product-write remains parked by #686.
 
+Allowed negated/boundary phrases are match-local. The negation, forbidden
+shortcut label, blocked/denied marker, or boundary cue must govern the matched
+claim in its sentence, line, or bullet. Nearby unrelated negation does not allow
+a positive authority claim.
+
 ## GitHub Actions Workflow Boundary
 
 `.github/workflows/authority-boundary-smoke.yml` runs only:

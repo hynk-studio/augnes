@@ -122,6 +122,8 @@ const docsRequiredPhrases = [
   "GitHub PR is not Core decision.",
   "Product-write remains parked by #686.",
   "The roadmap guide is not SSOT.",
+  "Allowed negated/boundary phrases are match-local.",
+  "Nearby unrelated negation does not allow a positive authority claim.",
 ];
 
 const forbiddenWorkflowPatterns = [
@@ -361,17 +363,18 @@ function includesNormalized(source, phrase) {
 }
 
 function classifyAuthorityBoundaryClaims(text) {
-  const normalized = text.replace(/\s+/g, " ");
   const findings = [];
   for (const { category, pattern } of claimPatterns) {
     pattern.lastIndex = 0;
-    for (const match of normalized.matchAll(pattern)) {
-      if (isAllowedBoundaryContext(normalized, match.index ?? 0)) {
+    for (const match of text.matchAll(pattern)) {
+      const matchStart = match.index ?? 0;
+      const matchEnd = matchStart + match[0].length;
+      if (isAllowedBoundaryContext(text, matchStart, matchEnd)) {
         continue;
       }
       findings.push({
         category,
-        excerpt: buildExcerpt(normalized, match.index ?? 0),
+        excerpt: buildExcerpt(text, matchStart),
       });
     }
   }
@@ -384,31 +387,95 @@ function buildExcerpt(source, index) {
   return source.slice(start, end).trim();
 }
 
-function isAllowedBoundaryContext(source, index) {
-  const before = source.slice(Math.max(0, index - 700), index).toLowerCase();
-  const after = source.slice(index, Math.min(source.length, index + 700)).toLowerCase();
-  const context = `${before} ${after}`;
-  return [
-    /\bdo not treat\b/,
-    /\bdoes not treat\b/,
-    /\bmust not treat\b/,
-    /\bwithout treating\b/,
-    /\bnot treat\b/,
-    /\bnot\b/,
-    /\bno\b[^.]{0,700}$/,
-    /\bforbidden\b/,
-    /\bexplicitly forbidden\b/,
-    /\bblocked\b/,
-    /\bdenied\b/,
+function isAllowedBoundaryContext(source, matchStart, matchEnd) {
+  const sentenceContext = getSentenceContext(source, matchStart, matchEnd);
+  return (
+    hasLocalBoundaryCue(source, sentenceContext, matchStart, matchEnd) ||
+    isInBoundaryList(source, matchStart)
+  );
+}
+
+function getSentenceContext(source, matchStart, matchEnd) {
+  const before = source.slice(0, matchStart);
+  const after = source.slice(matchEnd);
+  const boundaryBefore = Math.max(
+    before.lastIndexOf("."),
+    before.lastIndexOf("!"),
+    before.lastIndexOf("?"),
+    before.lastIndexOf(";"),
+  );
+  const relativeAfter = after.search(/[.!?;]/);
+  const start = boundaryBefore === -1 ? 0 : boundaryBefore + 1;
+  const end = relativeAfter === -1 ? source.length : matchEnd + relativeAfter + 1;
+  return { text: source.slice(start, end), start, end };
+}
+
+function hasLocalBoundaryCue(source, sentenceContext, matchStart, matchEnd) {
+  const prefix = source.slice(sentenceContext.start, matchStart);
+  const suffix = source.slice(matchEnd, sentenceContext.end);
+  const sentence = sentenceContext.text;
+  const normalizedPrefix = prefix
+    .replace(/[{}()[\]"'`<>]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+  const normalizedSuffix = suffix
+    .replace(/[{}()[\]"'`<>]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+  const normalizedSentence = sentence
+    .replace(/[{}()[\]"'`<>]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+  const prefixAllows = [
+    /\bdo not (?:treat|use|promote)\b/,
+    /\bmust not (?:treat|use|promote)\b/,
+    /\bdoes not (?:treat|use|promote)\b/,
+    /\bwithout (?:treating|using|promoting)\b/,
+    /\bnot (?:treat|use|promote)\b/,
+    /\b(?:must\s+)?forbid\b/,
+    /\bforbidden shortcut\b/,
+    /\bassert\.doesnotmatch\b/,
+    /\bdoesnotmatch\b/,
+  ].some((pattern) => pattern.test(normalizedPrefix));
+
+  const suffixAllows = [
+    /\b(?:is|are)\s+(?:explicitly\s+)?forbidden\b/,
+    /\b(?:is|are)\s+blocked\b/,
+    /\b(?:is|are)\s+denied\b/,
+  ].some((pattern) => pattern.test(normalizedSuffix));
+
+  const sentenceAllows = [
+    /\bforbidden capabilities\b/,
+    /\bforbidden false fields\b/,
+    /\balways false\b/,
     /\bdisallowed_actions\b/,
     /\bforbidden_shortcuts\b/,
+    /^no\b.*\bis available here\b/,
+  ].some((pattern) => pattern.test(normalizedSentence));
+
+  return prefixAllows || suffixAllows || sentenceAllows;
+}
+
+function isInBoundaryList(source, matchStart) {
+  const beforeLines = source.slice(0, matchStart).split(/\r?\n/);
+  const currentLine = beforeLines.at(-1) ?? "";
+  if (!/^\s*(?:[-*]|\d+\.|["'])/.test(currentLine)) {
+    return false;
+  }
+  const nearbyIntro = beforeLines.slice(-12).join("\n").toLowerCase();
+  return [
     /\bforbidden capabilities\b/,
+    /\bforbidden false fields\b/,
+    /\bforbidden_shortcuts\b/,
+    /\bdisallowed_actions\b/,
+    /\bexplicitly_does_not_prove\b/,
+    /\bprohibited_in_this_lane\b/,
     /\balways false\b/,
-    /\bforbidden capabilities are always false\b/,
-    /\bno\b[^.]{0,700}\bis available here\b/,
-    /\bdoesnotmatch\b/,
-    /\bassert\.doesnotmatch\b/,
-  ].some((pattern) => pattern.test(context));
+  ].some((pattern) => pattern.test(nearbyIntro));
 }
 
 function assertAuthorityBoundaryClosed(boundary, label) {

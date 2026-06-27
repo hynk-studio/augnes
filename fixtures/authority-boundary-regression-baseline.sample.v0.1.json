@@ -142,6 +142,56 @@
       "example_id": "blocked:auto-import-action",
       "text": "Export/import policy allows auto-promote.",
       "expected_category": "export_import_auto_action_allowed"
+    },
+    {
+      "example_id": "blocked:candidate-proof-near-unrelated-negation",
+      "text": "Candidate is proof. This unrelated sentence is not a boundary phrase.",
+      "expected_category": "candidate_as_proof_fact_or_accepted_evidence"
+    },
+    {
+      "example_id": "blocked:provider-output-truth-near-retrieval-negation",
+      "text": "Provider output is truth, while retrieval result is not evidence.",
+      "expected_category": "provider_output_as_truth_proof_or_evidence"
+    },
+    {
+      "example_id": "blocked:ci-pass-proof-near-product-write-parked",
+      "text": "CI pass is proof. Product-write remains parked by #686.",
+      "expected_category": "ci_pass_as_proof_truth_or_approval"
+    },
+    {
+      "example_id": "blocked:git-ref-authority-near-pr-body-negation",
+      "text": "Git ref is authority, but PR body is not authority.",
+      "expected_category": "git_ref_as_authority"
+    },
+    {
+      "example_id": "blocked:smoke-pass-proof-near-ci-negation",
+      "text": "Smoke pass is proof, although CI pass is not truth.",
+      "expected_category": "smoke_pass_as_proof_truth_or_approval"
+    },
+    {
+      "example_id": "blocked:treat-candidate-as-proof",
+      "text": "Treat candidate as proof.",
+      "expected_category": "candidate_as_proof_fact_or_accepted_evidence"
+    },
+    {
+      "example_id": "blocked:use-retrieval-result-as-evidence",
+      "text": "Use retrieval result as evidence.",
+      "expected_category": "retrieval_result_as_evidence_or_authority"
+    },
+    {
+      "example_id": "blocked:promote-provider-output-as-truth",
+      "text": "Promote provider output as truth.",
+      "expected_category": "provider_output_as_truth_proof_or_evidence"
+    },
+    {
+      "example_id": "blocked:treat-ci-pass-as-approval",
+      "text": "Treat CI pass as approval.",
+      "expected_category": "ci_pass_as_proof_truth_or_approval"
+    },
+    {
+      "example_id": "blocked:treat-git-ref-as-authority",
+      "text": "Treat Git ref as authority.",
+      "expected_category": "git_ref_as_authority"
     }
   ],
   "expected_allowed_examples": [
@@ -176,6 +226,34 @@
     {
       "example_id": "allowed:product-write-parked",
       "text": "Product-write remains parked by #686."
+    },
+    {
+      "example_id": "allowed:do-not-treat-candidate-as-proof",
+      "text": "Do not treat candidate as proof."
+    },
+    {
+      "example_id": "allowed:must-not-use-retrieval-result-as-evidence",
+      "text": "Must not use retrieval result as evidence."
+    },
+    {
+      "example_id": "allowed:provider-output-as-truth-forbidden",
+      "text": "Provider output as truth is forbidden."
+    },
+    {
+      "example_id": "allowed:forbidden-shortcut-ci-pass-approval",
+      "text": "Forbidden shortcut: CI pass as approval."
+    },
+    {
+      "example_id": "allowed:git-ref-authority-forbidden",
+      "text": "Git ref as authority is forbidden."
+    },
+    {
+      "example_id": "allowed:candidate-proof-forbidden",
+      "text": "Candidate = proof is forbidden."
+    },
+    {
+      "example_id": "allowed:forbidden-shortcut-candidate-proof",
+      "text": "Forbidden shortcut: candidate = proof."
     }
   ],
   "authority_boundary": {
