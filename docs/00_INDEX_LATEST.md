@@ -4350,6 +4350,44 @@ repo-local 색인이다.
   is not training data unless a future explicit approval changes policy; smoke
   pass is not truth; CI pass is not truth; product-write remains parked by
   #686.
+- Formal Invariant Checks Narrow Scope v0.1:
+  `docs/FORMAL_INVARIANT_CHECKS_NARROW_SCOPE_V0_1.md`,
+  `types/formal-invariant-checks-narrow-scope.ts`,
+  `fixtures/formal-invariant-checks-narrow-scope.sample.v0.1.json`, and
+  `scripts/smoke-formal-invariant-checks-narrow-scope-v0-1.mjs`
+  (`npm run smoke:formal-invariant-checks-narrow-scope-v0-1`) implements
+  `formal_invariant_checks_narrow_scope_v0_1` from the integrated roadmap
+  guide v0.2.1 FULL. This slice is contract-only, fixture-only, static
+  invariant smoke only, and narrow scope only. It covers candidate/proof,
+  provider/evidence, retrieval/promotion, Codex/state, dataset/training,
+  feedback/truth, layout/authority, Git ref/authority, GitHub PR/Core
+  decision, CI/smoke truth, Git Ledger packet authority, product-write gates,
+  product ID allocation, and private identifier canonical-label invariants.
+  This pointer is repo-local documentation metadata, not SSOT. The roadmap
+  guide is not SSOT. It does not add theorem prover runtime, Lean dependency,
+  arbitrary natural-language proof, provider calls, prompt sending, source
+  fetch, retrieval/RAG, DB writes, routes/UI, proof/evidence writes,
+  Perspective promotion, durable state apply, Formation Receipt writes, Git
+  Ledger export runtime, Git/GitHub, Codex execution, export/import,
+  product-write, product ID allocation, or grant product-write authority.
+  Invariant pass is not truth, proof, approval, promotion, durable state,
+  product-write authority, or merge authority. Product-write remains parked by
+  #686.
+
+  Boundary phrases: Formal Invariant Checks Narrow Scope v0.1; contract-only
+  and fixture-only; static invariant smoke only; narrow scope only; no theorem
+  prover runtime; no Lean dependency; no arbitrary natural-language proof; no
+  provider call; no prompt sending; no source fetch; no retrieval execution;
+  no RAG answer generation; no DB query/write; no route; no UI; no
+  proof/evidence write; no claim/evidence write; no promotion execution; no
+  durable state write; no durable state apply; no Formation Receipt write; no
+  Git Ledger export runtime; no Git write; no GitHub API call; no repository
+  file write; no local file export; no local file import; no Codex execution;
+  no product-write; no product ID allocation; invariant pass is not truth;
+  invariant pass is not proof; invariant pass is not approval; invariant pass
+  is not promotion; invariant pass is not durable state; invariant pass is not
+  product-write authority; invariant pass is not merge authority; smoke pass is
+  not truth; CI pass is not truth; product-write remains parked by #686.
 - Release Readiness Matrix v0.1:
   `docs/RELEASE_READINESS_MATRIX_V0_1.md`,
   `lib/release-readiness/build-release-readiness-matrix.ts`,
