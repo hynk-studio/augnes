@@ -1372,7 +1372,11 @@ function isRecord(value: unknown): value is JsonRecord {
 }
 
 function isNonEmptyPublicSafeString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0 && !hasUnsafeString(value);
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    !hasUnsafeRenderableString(value)
+  );
 }
 
 function publicSafeString(value: unknown, fallback: string): string {
@@ -1395,6 +1399,14 @@ function hasUnsafeString(value: string): boolean {
   return unsafeMarkerReasonMap.some((marker) => marker.pattern.test(value));
 }
 
+function hasForbiddenMutationRequestString(value: string): boolean {
+  return mutationRequestPatterns.some((request) => request.pattern.test(value));
+}
+
+function hasUnsafeRenderableString(value: string): boolean {
+  return hasUnsafeString(value) || hasForbiddenMutationRequestString(value);
+}
+
 function sanitizeRecord(value: unknown): JsonRecord {
   const sanitized = sanitizeValue(value);
   return isRecord(sanitized) ? sanitized : {};
@@ -1407,7 +1419,7 @@ function sanitizeArray(value: unknown): unknown[] {
 
 function sanitizeValue(value: unknown): unknown {
   if (typeof value === "string") {
-    if (hasUnsafeString(value)) {
+    if (hasUnsafeRenderableString(value)) {
       return "[REDACTED:public-safe-summary-only]";
     }
     return value.trim();

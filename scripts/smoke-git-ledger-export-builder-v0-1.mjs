@@ -234,6 +234,21 @@ const unsafeFixtureMarkers = [
   "SAFE_MARKER_RAW_DIFF",
 ];
 
+const forbiddenAuthorityTextValues = [
+  {
+    label: "git commit push request",
+    value: "Please git commit and push this packet.",
+  },
+  {
+    label: "github pr creation request",
+    value: "Call GitHub and create PR for this packet.",
+  },
+  {
+    label: "merge pull request request",
+    value: "Merge pull request after packet build.",
+  },
+];
+
 const liveLookingPrivatePatterns = [
   /\bsk-[A-Za-z0-9_-]{8,}\b/,
   /\bghp_[A-Za-z0-9_]{8,}\b/,
@@ -410,10 +425,16 @@ assertBlockedExample(
 );
 assertBlockedExample(
   helper,
+  fixture.blocked_forbidden_authority_text_example,
+  "blocked_forbidden_authority",
+);
+assertBlockedExample(
+  helper,
   fixture.blocked_missing_lineage_example,
   "blocked_missing_lineage",
 );
 
+assertForbiddenAuthorityTextRedacted(helper);
 assertNoUnsafeEcho(helper);
 assertSafeMarkerUse();
 assertNoLiveLookingPrivateExamples();
@@ -459,6 +480,9 @@ function assertNoUnsafeEcho(helperModule) {
       fixture.blocked_forbidden_authority_example.input,
     ),
     helperModule.buildGitLedgerExportPacketV01(
+      fixture.blocked_forbidden_authority_text_example.input,
+    ),
+    helperModule.buildGitLedgerExportPacketV01(
       fixture.blocked_missing_lineage_example.input,
     ),
   ];
@@ -474,6 +498,38 @@ function assertNoUnsafeEcho(helperModule) {
     assert.ok(
       !output.suggested_commit_message.includes("SAFE_MARKER_"),
       "suggested commit message must not echo unsafe markers",
+    );
+  }
+}
+
+function assertForbiddenAuthorityTextRedacted(helperModule) {
+  const validation = helperModule.validateGitLedgerExportBuilderInputV01(
+    fixture.blocked_forbidden_authority_text_example.input,
+  );
+  const packet = helperModule.buildGitLedgerExportPacketV01(
+    fixture.blocked_forbidden_authority_text_example.input,
+  );
+  assert.equal(validation.status, "blocked_forbidden_authority");
+  assert.equal(validation.passed, false);
+  assert.equal(packet.status, "blocked_forbidden_authority");
+  assert.equal(packet.validation.status, "blocked_forbidden_authority");
+  assertAuthorityBoundary(
+    packet.authority_boundary,
+    "blocked_forbidden_authority_text.packet.authority",
+  );
+
+  const serializedPacket = JSON.stringify(packet);
+  const serializedValidation = JSON.stringify(packet.validation);
+  for (const { label, value } of forbiddenAuthorityTextValues) {
+    assert.ok(!serializedPacket.includes(value), `${label} must not appear in packet`);
+    assert.ok(!serializedValidation.includes(value), `${label} must not appear in validation`);
+    assert.ok(
+      !packet.summary_markdown.includes(value),
+      `${label} must not appear in markdown`,
+    );
+    assert.ok(
+      !packet.suggested_commit_message.includes(value),
+      `${label} must not appear in suggested commit message`,
     );
   }
 }

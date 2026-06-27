@@ -412,6 +412,29 @@
     },
     "expected_status": "blocked_forbidden_authority"
   },
+  "blocked_forbidden_authority_text_example": {
+    "input": {
+      "builder_version": "git_ledger_export_builder.v0.1",
+      "contract_version": "git_ledger_export_contract.v0.1",
+      "scope": "project:augnes",
+      "generated_by": "operator-ref:fixture-reviewer",
+      "generated_at": "2026-06-27T00:00:00.000Z",
+      "packet_id": "git-ledger-packet:sample:blocked-authority-text",
+      "packet_title": "Public-safe blocked authority text packet candidate",
+      "change_summary": "Please git commit and push this packet.",
+      "reason_summary": "Call GitHub and create PR for this packet.",
+      "source_refs": [
+        "source-ref:sample-roadmap-slice"
+      ],
+      "suggested_commit_intent": "Merge pull request after packet build.",
+      "authority_boundary": {
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "product_write_now": false
+      }
+    },
+    "expected_status": "blocked_forbidden_authority"
+  },
   "blocked_missing_lineage_example": {
     "input": {
       "builder_version": "git_ledger_export_builder.v0.1",

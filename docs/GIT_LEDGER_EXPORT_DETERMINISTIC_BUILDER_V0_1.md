@@ -172,6 +172,12 @@ The builder blocks raw/private payloads and unsafe markers before producing a
 markers only, such as `SAFE_MARKER_RAW_DIFF` and
 `SAFE_MARKER_PROVIDER_THREAD_ID`.
 
+Textual mutation or authority requests are also unsafe for rendering. A blocked
+input that asks to execute Git, call GitHub, write files, write DB, call
+providers, run retrieval/RAG, create proof/evidence, promote Perspective, write
+Formation Receipts, execute product-write, or allocate product IDs is rendered
+with public-safe placeholder summaries only.
+
 The builder never includes raw unsafe values in validation errors, packet
 candidate output, markdown summary, suggested commit message, fixture expected
 output, or smoke failure output.
