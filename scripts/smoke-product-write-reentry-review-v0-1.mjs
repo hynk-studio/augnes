@@ -49,6 +49,23 @@ const prerequisiteKinds = [
   "unknown",
 ];
 
+const mandatoryPrerequisiteKinds = [
+  "runtime_audit_complete",
+  "git_ledger_contract_present",
+  "release_readiness_matrix_present",
+  "disabled_adapter_harness_present",
+  "product_write_target_contract_present",
+  "operator_approval_present",
+  "privacy_boundary_reviewed",
+  "rollback_plan_present",
+  "idempotency_plan_present",
+  "failure_mode_reviewed",
+  "proof_boundary_reviewed",
+  "evidence_boundary_reviewed",
+  "state_mutation_boundary_reviewed",
+  "external_side_effect_boundary_reviewed",
+];
+
 const authorityFalseFields = [
   "product_write_now",
   "product_write_runtime_now",
@@ -118,6 +135,10 @@ const exactDocsPhrases = [
   "This PR does not call providers.",
   "This PR does not execute retrieval or RAG.",
   "Product-write authority is not granted by review context.",
+  "eligible_for_future_reentry_review requires every mandatory prerequisite kind to be present and satisfied.",
+  "Omitted mandatory prerequisites are treated as missing and blocking.",
+  "A caller cannot obtain eligible_for_future_reentry_review by supplying only a satisfied subset.",
+  "Even eligible_for_future_reentry_review does not grant product-write authority.",
   "Runtime audit is review context, not authority.",
   "Git Ledger packets are review/export candidates, not commits.",
   "Smoke/CI pass is not truth.",
@@ -257,6 +278,26 @@ assert.ok(
   helperSource.includes("tokenLikePatterns"),
   "helper must use token-like marker patterns",
 );
+assert.ok(
+  helperSource.includes("mandatoryProductWriteReentryPrerequisiteKindsV01"),
+  "helper must define mandatory prerequisite kinds",
+);
+assert.ok(
+  helperSource.includes("getMissingMandatoryPrerequisiteKindsV01"),
+  "helper must compute omitted mandatory prerequisite kinds",
+);
+assert.ok(
+  helperSource.includes("missingPrerequisiteRefForKindV01"),
+  "helper must create stable missing prerequisite refs",
+);
+assert.ok(
+  helperSource.includes("allMandatoryPrerequisitesSatisfiedV01"),
+  "helper must require all mandatory prerequisites before eligibility",
+);
+assert.ok(
+  !helperSource.includes("prerequisites.every((prerequisite) => prerequisite.satisfied)"),
+  "eligible gate must not be based only on the supplied prerequisite subset",
+);
 
 assertNoForbiddenPositiveAuthority(docs, "docs");
 assertNoForbiddenPositiveAuthority(index, "index");
@@ -343,11 +384,90 @@ assert.ok(
 );
 
 const allSatisfiedResult =
-  fixture.expected_decision_results.eligible_for_future_reentry_review;
+  fixture.expected_decision_results.all_mandatory_satisfied_eligible;
 assert.equal(allSatisfiedResult.gate.gate_decision, "eligible_for_future_reentry_review");
 assert.equal(allSatisfiedResult.product_write_authority_granted, false);
 assert.equal(allSatisfiedResult.gate.product_write_authority_granted, false);
 assert.equal(allSatisfiedResult.authority_boundary.product_write_authority, false);
+assert.deepEqual(allSatisfiedResult.missing_prerequisite_refs, []);
+assert.deepEqual(allSatisfiedResult.blocking_prerequisite_refs, []);
+
+const minimalSubsetResult =
+  fixture.expected_decision_results.minimal_satisfied_subset_blocked;
+assert.equal(minimalSubsetResult.gate.gate_decision, "blocked");
+assert.notEqual(
+  minimalSubsetResult.gate.gate_decision,
+  "eligible_for_future_reentry_review",
+);
+for (const kind of mandatoryPrerequisiteKinds.filter(
+  (kind) => !["runtime_audit_complete", "git_ledger_contract_present"].includes(kind),
+)) {
+  assert.ok(
+    minimalSubsetResult.missing_prerequisite_refs.includes(missingRef(kind)),
+    `minimal subset must include omitted mandatory missing ref for ${kind}`,
+  );
+  assert.ok(
+    minimalSubsetResult.blocking_prerequisite_refs.includes(missingRef(kind)),
+    `minimal subset must include omitted mandatory blocking ref for ${kind}`,
+  );
+}
+for (const reasonCode of [
+  "product_write_target_contract_missing",
+  "release_readiness_matrix_missing",
+  "operator_approval_missing",
+  "privacy_boundary_review_required",
+  "rollback_plan_missing",
+  "idempotency_plan_missing",
+  "failure_mode_review_missing",
+  "proof_boundary_review_required",
+  "evidence_boundary_review_required",
+  "state_mutation_boundary_review_required",
+  "external_side_effect_boundary_review_required",
+]) {
+  assert.ok(
+    minimalSubsetResult.reason_codes.includes(reasonCode),
+    `minimal subset must include reason code ${reasonCode}`,
+  );
+}
+assertReviewResultBoundary(minimalSubsetResult);
+
+const missingOperatorResult =
+  fixture.expected_decision_results.missing_operator_approval_blocked;
+assert.equal(missingOperatorResult.gate.gate_decision, "blocked");
+assert.ok(
+  missingOperatorResult.missing_prerequisite_refs.includes(
+    missingRef("operator_approval_present"),
+  ),
+  "missing operator approval must have a synthetic missing ref",
+);
+assert.ok(
+  missingOperatorResult.reason_codes.includes("operator_approval_missing"),
+  "missing operator approval must include operator_approval_missing",
+);
+assert.notEqual(
+  missingOperatorResult.gate.gate_decision,
+  "eligible_for_future_reentry_review",
+);
+
+const missingTargetContractResult =
+  fixture.expected_decision_results.missing_product_write_target_contract_blocked;
+assert.equal(missingTargetContractResult.gate.gate_decision, "blocked");
+assert.ok(
+  missingTargetContractResult.missing_prerequisite_refs.includes(
+    missingRef("product_write_target_contract_present"),
+  ),
+  "missing product-write target contract must have a synthetic missing ref",
+);
+assert.ok(
+  missingTargetContractResult.reason_codes.includes(
+    "product_write_target_contract_missing",
+  ),
+  "missing target contract must include product_write_target_contract_missing",
+);
+assert.notEqual(
+  missingTargetContractResult.gate.gate_decision,
+  "eligible_for_future_reentry_review",
+);
 
 for (const [name, input] of Object.entries(fixture.invalid_inputs)) {
   const actual = helper.buildProductWriteReentryReviewV01(input);
@@ -503,6 +623,10 @@ function assertBlockedOutputDoesNotEchoUnsafeValues(input, output, name) {
       `${name} blocked output must not echo unsafe value ${unsafeValue}`,
     );
   }
+}
+
+function missingRef(kind) {
+  return `product-write-prereq:missing:${kind}`;
 }
 
 function collectUnsafeFixtureStrings(value) {

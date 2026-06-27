@@ -53,6 +53,23 @@ export const ProductWritePrerequisiteKinds = [
 export type ProductWritePrerequisiteKind =
   (typeof ProductWritePrerequisiteKinds)[number];
 
+export const mandatoryProductWriteReentryPrerequisiteKindsV01 = [
+  "runtime_audit_complete",
+  "git_ledger_contract_present",
+  "release_readiness_matrix_present",
+  "disabled_adapter_harness_present",
+  "product_write_target_contract_present",
+  "operator_approval_present",
+  "privacy_boundary_reviewed",
+  "rollback_plan_present",
+  "idempotency_plan_present",
+  "failure_mode_reviewed",
+  "proof_boundary_reviewed",
+  "evidence_boundary_reviewed",
+  "state_mutation_boundary_reviewed",
+  "external_side_effect_boundary_reviewed",
+] as const satisfies readonly ProductWritePrerequisiteKind[];
+
 export const ProductWriteReentryReasonCodes = [
   "product_write_reentry_review_present",
   "product_write_remains_parked",
@@ -540,16 +557,26 @@ export function buildProductWriteReentryReviewV01(
       authority_boundary: authorityBoundary,
     }),
   );
+  const missingMandatoryPrerequisiteKinds =
+    getMissingMandatoryPrerequisiteKindsV01(prerequisites);
+  const missingMandatoryPrerequisiteRefs = missingMandatoryPrerequisiteKinds.map(
+    missingPrerequisiteRefForKindV01,
+  );
+  const missingMandatoryBlockingRefs = missingMandatoryPrerequisiteRefs;
+  const omittedMandatoryReasonCodes =
+    missingReasonCodesForOmittedMandatoryKindsV01(missingMandatoryPrerequisiteKinds);
   const satisfiedPrerequisiteRefs = prerequisites
     .filter((prerequisite) => prerequisite.satisfied)
     .map((prerequisite) => prerequisite.prerequisite_id);
   const missingPrerequisiteRefs = prerequisites
     .filter((prerequisite) => !prerequisite.satisfied)
-    .map((prerequisite) => prerequisite.prerequisite_id);
+    .map((prerequisite) => prerequisite.prerequisite_id)
+    .concat(missingMandatoryPrerequisiteRefs);
   const blockingPrerequisiteRefs = prerequisites
     .filter((prerequisite) => !prerequisite.satisfied && isBlockingPrerequisite(prerequisite))
-    .map((prerequisite) => prerequisite.prerequisite_id);
-  const gateDecision = decideGate(prerequisites, input);
+    .map((prerequisite) => prerequisite.prerequisite_id)
+    .concat(missingMandatoryBlockingRefs);
+  const gateDecision = decideGate(prerequisites, input, missingMandatoryPrerequisiteKinds);
   const gate: ProductWriteReentryGate = {
     gate_version: PRODUCT_WRITE_REENTRY_GATE_VERSION,
     scope,
@@ -564,8 +591,9 @@ export function buildProductWriteReentryReviewV01(
     product_write_authority_granted: false,
     reason_codes: uniqueSorted([
       ...defaultDenialReasonCodes(),
-      ...reasonCodesForGate(gateDecision),
+      ...reasonCodesForGate(gateDecision, missingMandatoryPrerequisiteKinds),
       ...inputReasonCodes(input),
+      ...omittedMandatoryReasonCodes,
     ]),
     authority_boundary: authorityBoundary,
   };
@@ -592,6 +620,7 @@ export function buildProductWriteReentryReviewV01(
       ...inputReasonCodes(input),
       ...prerequisites.flatMap((prerequisite) => prerequisite.reason_codes),
       ...gate.reason_codes,
+      ...omittedMandatoryReasonCodes,
       "product_write_reentry_review_present",
       "product_write_remains_parked",
       "product_write_authority_not_granted",
@@ -758,6 +787,8 @@ function missingReasonCodesForKind(
   kind: ProductWritePrerequisiteKind,
 ): ProductWriteReentryReasonCode[] {
   const map: Partial<Record<ProductWritePrerequisiteKind, ProductWriteReentryReasonCode[]>> = {
+    runtime_audit_complete: ["runtime_audit_ref_missing"],
+    git_ledger_contract_present: ["git_ledger_contract_ref_missing"],
     release_readiness_matrix_present: ["release_readiness_matrix_missing"],
     disabled_adapter_harness_present: ["disabled_adapter_harness_missing"],
     product_write_target_contract_present: ["product_write_target_contract_missing"],
@@ -776,8 +807,33 @@ function missingReasonCodesForKind(
   return map[kind] ?? [];
 }
 
+function getMissingMandatoryPrerequisiteKindsV01(
+  prerequisites: ProductWriteReentryPrerequisite[],
+): ProductWritePrerequisiteKind[] {
+  const presentKinds = new Set(
+    prerequisites.map((prerequisite) => prerequisite.prerequisite_kind),
+  );
+  return mandatoryProductWriteReentryPrerequisiteKindsV01
+    .filter((kind) => !presentKinds.has(kind))
+    .slice()
+    .sort();
+}
+
+function missingPrerequisiteRefForKindV01(
+  kind: ProductWritePrerequisiteKind,
+): string {
+  return `product-write-prereq:missing:${kind}`;
+}
+
+function missingReasonCodesForOmittedMandatoryKindsV01(
+  kinds: ProductWritePrerequisiteKind[],
+): ProductWriteReentryReasonCode[] {
+  return uniqueSorted(kinds.flatMap((kind) => missingReasonCodesForKind(kind)));
+}
+
 function reasonCodesForGate(
   gateDecision: ProductWriteGateDecision,
+  missingMandatoryPrerequisiteKinds: ProductWritePrerequisiteKind[],
 ): ProductWriteReentryReasonCode[] {
   const reasonCodes: ProductWriteReentryReasonCode[] = [
     "product_write_remains_parked",
@@ -785,10 +841,8 @@ function reasonCodesForGate(
     "product_write_not_executed",
     "product_write_authority_not_granted",
     "explicit_reentry_approval_required",
+    ...missingReasonCodesForOmittedMandatoryKindsV01(missingMandatoryPrerequisiteKinds),
   ];
-  if (gateDecision === "eligible_for_future_reentry_review") {
-    reasonCodes.push("product_write_target_contract_missing");
-  }
   if (gateDecision === "rejected") {
     reasonCodes.push("product_write_denied");
   }
@@ -833,6 +887,7 @@ function defaultDenialReasonCodes(): ProductWriteReentryReasonCode[] {
 function decideGate(
   prerequisites: ProductWriteReentryPrerequisite[],
   input: ProductWriteReentryInput,
+  missingMandatoryPrerequisiteKinds: ProductWritePrerequisiteKind[],
 ): ProductWriteGateDecision {
   if (prerequisites.some((prerequisite) => prerequisite.prerequisite_kind === "unknown")) {
     return "rejected";
@@ -840,11 +895,16 @@ function decideGate(
   if (input.runtime_audit_refs.length === 0 || input.git_ledger_contract_refs.length === 0) {
     return "remains_parked";
   }
-  if (prerequisites.every((prerequisite) => prerequisite.satisfied)) {
-    return "eligible_for_future_reentry_review";
-  }
-  if (prerequisites.some((prerequisite) => !prerequisite.satisfied && isBlockingPrerequisite(prerequisite))) {
+  if (
+    missingMandatoryPrerequisiteKinds.length > 0 ||
+    prerequisites.some(
+      (prerequisite) => !prerequisite.satisfied && isBlockingPrerequisite(prerequisite),
+    )
+  ) {
     return "blocked";
+  }
+  if (allMandatoryPrerequisitesSatisfiedV01(prerequisites)) {
+    return "eligible_for_future_reentry_review";
   }
   return "needs_explicit_reentry_approval";
 }
@@ -864,6 +924,12 @@ function gateSummary(gateDecision: ProductWriteGateDecision): string {
 function isBlockingPrerequisite(
   prerequisite: ProductWriteReentryPrerequisite,
 ): boolean {
+  return isBlockingPrerequisiteKindV01(prerequisite.prerequisite_kind);
+}
+
+function isBlockingPrerequisiteKindV01(
+  kind: ProductWritePrerequisiteKind,
+): boolean {
   return [
     "release_readiness_matrix_present",
     "disabled_adapter_harness_present",
@@ -877,7 +943,18 @@ function isBlockingPrerequisite(
     "evidence_boundary_reviewed",
     "state_mutation_boundary_reviewed",
     "external_side_effect_boundary_reviewed",
-  ].includes(prerequisite.prerequisite_kind);
+  ].includes(kind);
+}
+
+function allMandatoryPrerequisitesSatisfiedV01(
+  prerequisites: ProductWriteReentryPrerequisite[],
+): boolean {
+  return mandatoryProductWriteReentryPrerequisiteKindsV01.every((kind) =>
+    prerequisites.some(
+      (prerequisite) =>
+        prerequisite.prerequisite_kind === kind && prerequisite.satisfied === true,
+    ),
+  );
 }
 
 function dedupePrerequisites(

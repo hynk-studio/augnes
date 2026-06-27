@@ -145,12 +145,20 @@ required.
 `eligible_for_future_reentry_review` means supplied prerequisites are satisfied
 for review purposes only. It does not grant authority.
 
+eligible_for_future_reentry_review requires every mandatory prerequisite kind to be present and satisfied.
+
+Omitted mandatory prerequisites are treated as missing and blocking.
+
+A caller cannot obtain eligible_for_future_reentry_review by supplying only a satisfied subset.
+
 `rejected` means the supplied review context is not acceptable for a future
 reentry review.
 
 ## 8. Product-write authority rules
 
 Product-write authority is not granted by review context.
+
+Even eligible_for_future_reentry_review does not grant product-write authority.
 
 The review result always keeps `product_write_executed: false`,
 `product_id_allocated: false`, and `product_write_authority_granted: false`.
