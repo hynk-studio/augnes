@@ -4105,6 +4105,49 @@ repo-local 색인이다.
   Formation Receipt write; no export/import runtime; no Codex execution; no
   product-write; no product ID allocation; smoke pass is not truth; CI pass is
   not truth; product-write remains parked by #686.
+- Local Git Ledger Export v0.1:
+  `docs/LOCAL_GIT_LEDGER_EXPORT_V0_1.md`,
+  `lib/git-ledger/local-export.ts`,
+  `fixtures/local-git-ledger-export.sample.v0.1.json`, and
+  `scripts/smoke-local-git-ledger-export-v0-1.mjs`
+  (`npm run smoke:local-git-ledger-export-v0-1`) implements
+  `local_git_ledger_export_v0_1` from the integrated roadmap guide v0.2.1
+  FULL. This slice writes local export artifacts only to allowlisted output
+  directories under `tmp/git-ledger-export/` or `.tmp/git-ledger-export/` when
+  explicitly requested. It supports dry-run manifest mode without file writes
+  and writes only `packet.json`, `summary.md`, `source-refs.json`,
+  `evidence-refs.json`, `candidate-refs.json`, `privacy-report.json`,
+  `suggested-commit-message.txt`, `authority-boundary.json`, and
+  `manifest.json` in write mode. Suggested commit message artifact is not
+  approval. Manifest hash is not truth. Artifact hash is not authority. Git ref
+  is not authority. Exported packet is not commit, not proof, not accepted
+  evidence, not durable state, not promotion, and not product-write. This
+  pointer is repo-local documentation metadata, not SSOT. The roadmap guide is
+  not SSOT. It does not execute Git, create commits, branches, tags, PRs, or
+  merges, call GitHub, write repository source files, export outside
+  `tmp/git-ledger-export/` or `.tmp/git-ledger-export/`, import files,
+  query/write DB, add routes/UI, call providers, send prompts, fetch sources,
+  execute retrieval/RAG, create proof/evidence, write claim/evidence records,
+  promote Perspective, write/apply durable Perspective state, write Formation
+  Receipts, execute Codex, product-write, or allocate product IDs.
+  Product-write remains parked by #686.
+
+  Boundary phrases: Local Git Ledger Export v0.1; explicit local file export
+  gate; allowlisted output directory; dry-run manifest created; local export
+  written; local export helper only; caller-provided packet only; public-safe
+  summary only; suggested commit message artifact is not approval; manifest
+  hash is not truth; artifact hash is not authority; Git ref is not authority;
+  exported packet is not commit, not proof, not accepted evidence, not durable
+  state, not promotion, and not product-write; no Git Ledger export runtime
+  beyond local artifact writing; no Git write; no commit creation; no branch
+  creation; no tag creation; no GitHub API call; no pull request creation; no
+  merge execution; no repository source file write; no local file import; no
+  DB query/write; no route; no UI; no provider/OpenAI call; no prompt sending;
+  no source fetch; no retrieval execution; no RAG answer generation; no
+  proof/evidence write; no claim/evidence write; no promotion execution; no
+  durable state write; no durable state apply; no Formation Receipt write; no
+  Codex execution; no product-write; no product ID allocation; smoke pass is
+  not truth; CI pass is not truth; product-write remains parked by #686.
 - Product Write Reentry Review v0.1:
   `docs/PRODUCT_WRITE_REENTRY_REVIEW_V0_1.md`,
   `lib/product-write/product-write-reentry-review.ts`,
