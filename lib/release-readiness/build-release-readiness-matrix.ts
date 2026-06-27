@@ -885,19 +885,19 @@ function categoryContextReasonCodes(
   item: ReleaseReadinessInputItem,
 ): ReleaseReadinessReasonCode[] {
   const reasonCodes: ReleaseReadinessReasonCode[] = [];
-  if (item.runtime_audit_refs.length > 0 || item.category === "runtime_audit") {
+  if (item.category === "runtime_audit") {
     reasonCodes.push("runtime_audit_is_review_cue_only");
   }
-  if (item.git_ledger_refs.length > 0 || item.category === "git_ledger") {
+  if (item.category === "git_ledger") {
     reasonCodes.push(
       "git_ledger_packet_is_not_commit",
       "git_ledger_packet_is_not_product_write",
     );
   }
-  if (item.dogfooding_refs.length > 0 || item.category === "dogfooding") {
+  if (item.category === "dogfooding") {
     reasonCodes.push("dogfooding_record_is_review_signal");
   }
-  if (item.feedback_refs.length > 0 || item.category === "feedback") {
+  if (item.category === "feedback") {
     reasonCodes.push("feedback_is_advisory");
   }
   if (item.category === "privacy") reasonCodes.push("privacy_boundary_review_present");

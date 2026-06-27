@@ -132,6 +132,7 @@ const exactDocsPhrases = [
   "Present refs are not also reported as missing.",
   "`*_ref_present` reason codes are emitted only when matching refs are actually\nsupplied.",
   "Category labels alone do not create ref-present reason codes.",
+  "Category context codes may describe the review category, but they must not\nfabricate ref presence.",
   "This PR does not execute a release.",
   "This PR does not create release artifacts.",
   "This PR does not approve a release candidate.",
@@ -795,6 +796,22 @@ function assertNoForbiddenHelperImports() {
 }
 
 function assertNoCategoryOnlyRefPresentSourcePatterns() {
+  const forbiddenFallbackPairs = [
+    ["runtime_audit_refs", "runtime_audit"],
+    ["product_write_reentry_refs", "product_write_reentry"],
+    ["git_ledger_refs", "git_ledger"],
+    ["dogfooding_refs", "dogfooding"],
+    ["feedback_refs", "feedback"],
+    ["verification_refs", "verification"],
+  ];
+  for (const [refField, category] of forbiddenFallbackPairs) {
+    const snippet = `item.${refField}.length > 0 || item.category === "${category}"`;
+    assert.ok(
+      !helperSource.includes(snippet),
+      `helper must not contain category fallback for ref-present logic: ${snippet}`,
+    );
+  }
+
   const forbiddenPatterns = [
     /runtime_audit_refs\.length > 0\s*\|\|\s*item\.category === "runtime_audit"[\s\S]{0,160}runtime_audit_ref_present/,
     /product_write_reentry_refs\.length > 0\s*\|\|\s*item\.category === "product_write_reentry"[\s\S]{0,160}product_write_reentry_ref_present/,

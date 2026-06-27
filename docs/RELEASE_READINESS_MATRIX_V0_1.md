@@ -162,6 +162,8 @@ missing. Present refs are not also reported as missing.
 
 `*_ref_present` reason codes are emitted only when matching refs are actually
 supplied. Category labels alone do not create ref-present reason codes.
+Category context codes may describe the review category, but they must not
+fabricate ref presence.
 
 `needs_operator_review` means non-blocking review gaps remain.
 
