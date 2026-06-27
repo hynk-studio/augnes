@@ -1,0 +1,94 @@
+{
+  "fixture_version": "privacy_redaction_runtime_guard.sample.v0.1",
+  "guard_version": "privacy_redaction_runtime_guard.v0.1",
+  "scope": "project:augnes",
+  "examples": {
+    "safe_passed": {
+      "expected_status": "passed",
+      "input": {
+        "as_of": "2026-06-27T00:00:00.000Z",
+        "subject_ref": "privacy-redaction-fixture:safe-passed",
+        "canonical_label": "Public-safe release readiness note",
+        "bounded_summary": "Caller-provided bounded summary with symbolic refs only.",
+        "source_refs": [
+          "source-ref:public-safe-bounded-summary",
+          "review-memory-ref:public-safe-context"
+        ],
+        "authority_boundary": {
+          "provider_openai_call_now": false,
+          "product_write_authority": false,
+          "smoke_pass_is_truth": false
+        }
+      }
+    },
+    "redacted_with_warnings": {
+      "expected_status": "redacted_with_warnings",
+      "input": {
+        "as_of": "2026-06-27T00:00:00.000Z",
+        "subject_ref": "privacy-redaction-fixture:redacted-with-warnings",
+        "canonical_label": "Public-safe optional-context warning case",
+        "optional_context": {
+          "provider_internal_ref": "SAFE_MARKER_PROVIDER_INTERNAL_ID",
+          "provider_thread_ref": "SAFE_MARKER_PROVIDER_THREAD_ID",
+          "provider_run_ref": "SAFE_MARKER_PROVIDER_RUN_ID",
+          "provider_session_ref": "SAFE_MARKER_PROVIDER_SESSION_ID",
+          "private_link_summary": "SAFE_MARKER_PRIVATE_URL",
+          "local_path_summary": "SAFE_MARKER_LOCAL_PRIVATE_PATH",
+          "credential_notice": "SAFE_MARKER_CREDENTIAL",
+          "token_notice": "SAFE_MARKER_SECRET_TOKEN",
+          "secret_notice": "SAFE_MARKER_SECRET",
+          "cookie_notice": "SAFE_MARKER_COOKIE",
+          "key_notice": "SAFE_MARKER_PRIVATE_KEY",
+          "raw_source_body_summary": "SAFE_MARKER_RAW_SOURCE_BODY",
+          "raw_note_text_summary": "SAFE_MARKER_RAW_NOTE_TEXT",
+          "raw_provider_output_summary": "SAFE_MARKER_RAW_PROVIDER_OUTPUT",
+          "raw_retrieval_output_summary": "SAFE_MARKER_RAW_RETRIEVAL_OUTPUT",
+          "raw_db_row_summary": "SAFE_MARKER_RAW_DB_ROW",
+          "browser_dump_summary": "SAFE_MARKER_BROWSER_DUMP",
+          "hidden_reasoning_summary": "SAFE_MARKER_HIDDEN_REASONING",
+          "raw_conversation_summary": "SAFE_MARKER_RAW_CONVERSATION",
+          "connector_ref": "SAFE_MARKER_OPAQUE_CONNECTOR_ID",
+          "uploaded_file_ref": "SAFE_MARKER_UPLOADED_FILE_OPAQUE_ID"
+        },
+        "authority_boundary": {
+          "provider_openai_call_now": false,
+          "product_write_authority": false,
+          "ci_pass_is_truth": false
+        }
+      }
+    },
+    "blocked_private_or_raw_payload": {
+      "expected_status": "blocked_private_or_raw_payload",
+      "input": {
+        "as_of": "2026-06-27T00:00:00.000Z",
+        "subject_ref": "privacy-redaction-fixture:blocked-private-or-raw",
+        "canonical_label": "SAFE_MARKER_PROVIDER_THREAD_ID",
+        "canonical_name": "SAFE_MARKER_UPLOADED_FILE_OPAQUE_ID",
+        "optional_context": {
+          "raw_source_body_summary": "SAFE_MARKER_RAW_SOURCE_BODY"
+        },
+        "authority_boundary": {
+          "provider_openai_call_now": false,
+          "product_write_authority": false
+        }
+      }
+    },
+    "blocked_forbidden_authority": {
+      "expected_status": "blocked_forbidden_authority",
+      "input": {
+        "as_of": "2026-06-27T00:00:00.000Z",
+        "subject_ref": "privacy-redaction-fixture:blocked-forbidden-authority",
+        "canonical_label": "Public-safe authority stopline case",
+        "authority_boundary": {
+          "product_write_authority": true,
+          "github_api_call_now": true,
+          "codex_execution_authority": true,
+          "smoke_pass_is_truth": true
+        },
+        "future_product_write": {
+          "product_write_now": true
+        }
+      }
+    }
+  }
+}

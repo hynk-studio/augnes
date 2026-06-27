@@ -4324,6 +4324,41 @@ repo-local 색인이다.
   Ledger export runtime; no provider/OpenAI call; no prompt sent; no retrieval
   execution; no RAG answer generation; no source fetch; no Codex execution; no
   GitHub automation.
+- Privacy Redaction Runtime Guard v0.1:
+  `docs/PRIVACY_REDACTION_RUNTIME_GUARD_V0_1.md`,
+  `lib/privacy/redaction-guard.ts`,
+  `fixtures/privacy-redaction-guard.sample.v0.1.json`, and
+  `scripts/smoke-privacy-redaction-guard-v0-1.mjs`
+  (`npm run smoke:privacy-redaction-guard-v0-1`) implements
+  `privacy_redaction_runtime_guard_v0_1` from the integrated roadmap guide
+  v0.2.1 FULL. This slice is a deterministic public-safe redaction/runtime
+  guard over caller-provided objects, strings, and arrays only. Product-write
+  remains parked by #686. This pointer is repo-local documentation metadata,
+  not SSOT. The roadmap guide is not SSOT. It does not implement export/import,
+  Git Ledger export runtime, Git Ledger builder, canonical label creation,
+  raw/private payload persistence, raw source body storage, provider output
+  storage, provider thread/run/session ID canonicalization, private URL
+  canonicalization, local private path canonicalization, DB query/write, routes,
+  UI, source fetch, local/repository/uploaded-file reads, provider/OpenAI
+  calls, prompt sending, retrieval/RAG execution, proof/evidence writes,
+  claim/evidence writes, promotion execution, durable Perspective state writes,
+  Formation Receipt writes, Git writes, GitHub API calls, repository file
+  writes, Codex execution, GitHub automation, product-write, or product ID
+  allocation. Smoke/CI pass is not truth.
+
+  Boundary phrases: Privacy Redaction Runtime Guard v0.1; public-safe
+  deterministic report; caller-provided input only; no raw unsafe value echo;
+  no canonical labels from private identifiers; reference-only opaque connector
+  IDs; reference-only uploaded-file opaque IDs; no export/import runtime; no Git
+  Ledger export runtime; no Git Ledger builder; no provider/OpenAI call; no
+  prompt sent; no source fetch; no local file read; no repository file read; no
+  uploaded-file read; no retrieval execution; no RAG answer generation; no DB
+  query/write; no route; no UI; no proof/evidence write; no claim/evidence
+  write; no promotion execution; no durable state write; no Formation Receipt
+  write; no Git write; no GitHub API call; no repository file write; no Codex
+  execution; no GitHub automation; product-write remains parked by #686;
+  product-write authority is not granted; smoke pass is not truth; CI pass is
+  not truth.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
