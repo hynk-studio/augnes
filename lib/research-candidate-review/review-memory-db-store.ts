@@ -476,6 +476,25 @@ const forbiddenAuthorityFields = [
   "smoke_pass_is_truth",
   "ci_pass_is_truth",
 ] as const;
+const authorityLikeKeyPatterns = [
+  /_authority$/i,
+  /_write_now$/i,
+  /_call_now$/i,
+  /_execution_now$/i,
+  /_is_truth$/i,
+  /_is_proof$/i,
+  /_is_accepted_evidence$/i,
+  /_is_durable_state$/i,
+  /product_write/i,
+  /product_id_allocation/i,
+  /proof_or_evidence/i,
+  /claim_or_evidence/i,
+  /promotion_execution/i,
+  /durable_state_apply/i,
+  /formation_receipt_write/i,
+  /github_api_call/i,
+  /git_write/i,
+];
 const rawPrivacyBooleanFields = [
   "raw_conversation_included",
   "hidden_reasoning_included",
@@ -1103,20 +1122,9 @@ function normalizeCreateInput(
   for (const candidateRef of candidateRefs) {
     if (!isSafeString(candidateRef)) failureCodes.push("candidate_ref_invalid");
   }
-  const sourceRefs = normalizeSourceRefs(input.source_refs);
-  if (!Array.isArray(input.source_refs) || sourceRefs.length === 0) {
-    failureCodes.push("source_refs_required");
-  }
-  for (const sourceRef of sourceRefs) {
-    if (!allowedSourceSurfaces.includes(sourceRef.source_surface)) {
-      failureCodes.push("source_surface_invalid");
-    }
-    if (!isSafeString(sourceRef.source_ref)) failureCodes.push("source_ref_invalid");
-    if (sourceRef.source_version !== undefined && !isSafeString(sourceRef.source_version)) {
-      failureCodes.push("source_version_invalid");
-    }
-    if (typeof sourceRef.public_safe !== "boolean") failureCodes.push("source_public_safe_invalid");
-  }
+  const sourceRefsValidation = normalizeAndValidateSourceRefs(input.source_refs);
+  failureCodes.push(...sourceRefsValidation.failure_codes);
+  const sourceRefs = sourceRefsValidation.value ?? [];
   const relatedRecordRefs = uniqueSorted(arrayOfSafeStrings(input.related_record_refs));
   for (const relatedRecordRef of relatedRecordRefs) {
     if (relatedRecordRef === input.review_record_id) failureCodes.push("related_record_ref_self");
@@ -1318,7 +1326,14 @@ function validateAuthorityBoundary(boundary: unknown): string[] {
     }
   }
   for (const field of forbiddenAuthorityFields) {
-    if (value[field] === true) failureCodes.push(`authority_boundary_forbidden:${field}`);
+    if (hasForbiddenAuthorityGrant(field, value[field])) {
+      failureCodes.push(`authority_boundary_forbidden:${field}`);
+    }
+  }
+  for (const [key, nested] of Object.entries(value)) {
+    if (hasForbiddenAuthorityGrant(key, nested)) {
+      failureCodes.push(`authority_boundary_forbidden:${key}`);
+    }
   }
   return failureCodes;
 }
@@ -1343,7 +1358,7 @@ function validateRecursivePublicSafety(value: unknown, path: string): string[] {
   if (!value || typeof value !== "object") return [];
   return Object.entries(value).flatMap(([key, nested]) => {
     const failures = validateRecursivePublicSafety(nested, `${path}.${key}`);
-    if (forbiddenAuthorityFields.includes(key as (typeof forbiddenAuthorityFields)[number]) && nested === true) {
+    if (hasForbiddenAuthorityGrant(key, nested)) {
       failures.push(`authority_boundary_forbidden:${key}`);
     }
     return failures;
@@ -1757,22 +1772,60 @@ function createRecordFingerprint(record: ResearchCandidateReviewMemoryDbRecordV0
   return `sha256:${sha256(canonicalJson(record))}`;
 }
 
-function normalizeSourceRefs(value: unknown): ResearchCandidateReviewMemorySourceRefV01[] {
-  if (!Array.isArray(value)) return [];
+function normalizeAndValidateSourceRefs(
+  value: unknown,
+): ValidationResult<ResearchCandidateReviewMemorySourceRefV01[]> {
+  if (!Array.isArray(value)) {
+    return { passed: false, failure_codes: ["source_refs_required"], value: [] };
+  }
+  const failureCodes: string[] = [];
   const keyed = new Map<string, ResearchCandidateReviewMemorySourceRefV01>();
   for (const item of value) {
-    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      failureCodes.push("source_ref_invalid_object");
+      continue;
+    }
     const source = item as Partial<ResearchCandidateReviewMemorySourceRefV01>;
-    if (typeof source.source_surface !== "string" || typeof source.source_ref !== "string") continue;
+    const itemFailures: string[] = [];
+    if (
+      typeof source.source_surface !== "string" ||
+      !allowedSourceSurfaces.includes(source.source_surface as SourceSurface)
+    ) {
+      itemFailures.push("source_surface_invalid");
+    }
+    if (typeof source.source_ref !== "string" || source.source_ref.length === 0) {
+      itemFailures.push("source_ref_invalid");
+    } else if (hasUnsafeString(source.source_ref)) {
+      itemFailures.push("source_ref_invalid", "source_ref_unsafe_private_or_raw_marker");
+    }
+    if (source.source_version !== undefined) {
+      if (typeof source.source_version !== "string" || source.source_version.length === 0) {
+        itemFailures.push("source_version_invalid");
+      } else if (hasUnsafeString(source.source_version)) {
+        itemFailures.push("source_version_invalid", "source_version_unsafe_private_or_raw_marker");
+      }
+    }
+    if (typeof source.public_safe !== "boolean") {
+      itemFailures.push("source_public_safe_invalid");
+    } else if (source.public_safe !== true) {
+      itemFailures.push("source_public_safe_not_true");
+    }
+    failureCodes.push(...itemFailures);
+    if (itemFailures.length > 0) continue;
     const normalized: ResearchCandidateReviewMemorySourceRefV01 = {
       source_surface: source.source_surface as SourceSurface,
-      source_ref: source.source_ref,
+      source_ref: source.source_ref as string,
       ...(typeof source.source_version === "string" ? { source_version: source.source_version } : {}),
-      public_safe: source.public_safe === true,
+      public_safe: true,
     };
     keyed.set(`${normalized.source_surface}:${normalized.source_ref}`, normalized);
   }
-  return [...keyed.values()].sort(compareSourceRefs);
+  if (keyed.size === 0) failureCodes.push("source_refs_required");
+  return {
+    passed: failureCodes.length === 0,
+    failure_codes: uniqueSorted(failureCodes),
+    value: [...keyed.values()].sort(compareSourceRefs),
+  };
 }
 
 function compareSourceRefs(
@@ -1792,6 +1845,23 @@ function isSafeString(value: unknown): value is string {
 
 function hasUnsafeString(value: string): boolean {
   return unsafeStringPatterns.some((pattern) => pattern.test(value));
+}
+
+function isFalseLikeAuthorityValue(value: unknown): boolean {
+  return value === false || value === null || value === undefined;
+}
+
+function hasForbiddenAuthorityGrant(key: string, value: unknown): boolean {
+  if (allowedTrueAuthorityFields.includes(key as (typeof allowedTrueAuthorityFields)[number])) {
+    return false;
+  }
+  if (
+    !forbiddenAuthorityFields.includes(key as (typeof forbiddenAuthorityFields)[number]) &&
+    !authorityLikeKeyPatterns.some((pattern) => pattern.test(key))
+  ) {
+    return false;
+  }
+  return !isFalseLikeAuthorityValue(value);
 }
 
 function isIsoUtcTimestamp(value: unknown): value is string {

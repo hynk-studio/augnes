@@ -251,6 +251,9 @@ function assertFixtureCoverage() {
     "conflict_existing_record_example",
     "blocked_private_or_raw_payload_example",
     "blocked_forbidden_authority_example",
+    "blocked_forbidden_authority_non_false_example",
+    "invalid_non_public_safe_source_ref_example",
+    "invalid_malformed_source_ref_example",
     "invalid_missing_source_refs_example",
     "invalid_orphan_activity_example",
     "authority_boundary_sample",
@@ -438,25 +441,36 @@ async function assertTempDbRuntimeBehavior() {
       "review-memory-db-record-001",
     );
 
-    const privateResult = helper.createResearchCandidateReviewRecordV01(
+    assertCreateRejectedNoRows(
+      db,
       fixture.blocked_private_or_raw_payload_example,
-      db,
+      "blocked_private_or_raw_payload",
     );
-    assert.equal(privateResult.status, "blocked_private_or_raw_payload");
-    assertNoUnsafeEcho(privateResult);
-
-    const forbiddenAuthorityResult = helper.createResearchCandidateReviewRecordV01(
+    assertCreateRejectedNoRows(
+      db,
       fixture.blocked_forbidden_authority_example,
-      db,
+      "blocked_forbidden_authority",
     );
-    assert.equal(forbiddenAuthorityResult.status, "blocked_forbidden_authority");
-    assertNoUnsafeEcho(forbiddenAuthorityResult);
-
-    const missingSourceResult = helper.createResearchCandidateReviewRecordV01(
+    assertCreateRejectedNoRows(
+      db,
+      fixture.blocked_forbidden_authority_non_false_example,
+      "blocked_forbidden_authority",
+    );
+    assertCreateRejectedNoRows(
+      db,
+      fixture.invalid_non_public_safe_source_ref_example,
+      "blocked_invalid_input",
+    );
+    assertCreateRejectedNoRows(
+      db,
+      fixture.invalid_malformed_source_ref_example,
+      "blocked_invalid_input",
+    );
+    assertCreateRejectedNoRows(
+      db,
       fixture.invalid_missing_source_refs_example,
-      db,
+      "blocked_invalid_input",
     );
-    assert.equal(missingSourceResult.status, "blocked_invalid_input");
 
     const boundary = helper.createResearchCandidateReviewMemoryDbAuthorityBoundaryV01();
     assertAuthorityBoundary(boundary);
@@ -537,6 +551,17 @@ function assertNoUnsafeEcho(result) {
   for (const marker of safeMarkers) {
     assert.ok(!text.includes(marker), `result must not echo ${marker}`);
   }
+}
+
+function assertCreateRejectedNoRows(db, input, expectedStatus) {
+  const beforeCounts = countAllReviewMemoryRows(db);
+  const result = helper.createResearchCandidateReviewRecordV01(input, db);
+  assert.equal(result.status, expectedStatus);
+  assert.deepEqual(countAllReviewMemoryRows(db), beforeCounts);
+  assertNoUnsafeEcho(result);
+  assert.equal(result.record, null);
+  assert.deepEqual(result.records, []);
+  assert.deepEqual(result.activities, []);
 }
 
 function countAllReviewMemoryRows(db) {

@@ -49,7 +49,8 @@ The DB store persists bounded fields from
   record refs.
 
 Source refs are lineage pointers, not proof. Candidate refs are not facts.
-Candidate refs are review refs only.
+Candidate refs are review refs only. Persisted source refs must be public-safe
+symbolic refs with `public_safe === true`.
 
 ## Relationship to Review Memory Routes/UI follow-up completion
 
@@ -143,9 +144,13 @@ links are retained, self-supersede is rejected, and no record is hard deleted.
 
 ## Privacy/redaction policy
 
-Only public-safe summaries and symbolic refs are stored. Recursive validation
-blocks private/raw markers and forbidden authority grants before DB writes.
-Blocked inputs return bounded statuses without echoing unsafe strings.
+Only public-safe summaries and symbolic refs are stored. Source refs with
+`public_safe: false`, missing `public_safe`, non-boolean `public_safe`,
+malformed source-ref entries, or unsafe/private/raw markers are rejected before
+DB writes. Malformed source-ref entries are rejected, not silently dropped.
+Recursive validation blocks private/raw markers and forbidden authority grants
+before DB writes. Blocked inputs return bounded statuses without echoing unsafe
+strings.
 
 ## Authority boundary
 
@@ -164,6 +169,11 @@ promotion, durable state write/apply, Formation Receipt writes, Git Ledger
 export runtime, Git/GitHub, Codex execution, file export/import, product-write,
 product runtime writes, product persistence, product ID allocation, and truth or
 proof authority grants.
+
+Known forbidden authority fields fail closed for any non-false value. Absent,
+`false`, `null`, and `undefined` are allowed. `true`, strings, numbers, objects,
+arrays, and future authority-like keys with non-false values are blocked as
+forbidden authority grants.
 
 This slice does not call providers. This slice does not send prompts. This
 slice does not fetch sources. This slice does not execute retrieval/RAG. This
