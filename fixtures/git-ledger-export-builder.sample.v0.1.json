@@ -1,0 +1,513 @@
+{
+  "fixture_version": "git_ledger_export_builder.sample.v0.1",
+  "builder_version": "git_ledger_export_builder.v0.1",
+  "contract_version": "git_ledger_export_contract.v0.1",
+  "packet_version": "git_ledger_packet.v0.1",
+  "scope": "project:augnes",
+  "safe_builder_input_example": {
+    "builder_version": "git_ledger_export_builder.v0.1",
+    "contract_version": "git_ledger_export_contract.v0.1",
+    "scope": "project:augnes",
+    "generated_by": "operator-ref:fixture-reviewer",
+    "generated_at": "2026-06-27T00:00:00.000Z",
+    "packet_id": "git-ledger-packet:sample:deterministic-builder",
+    "packet_title": "Public-safe Git Ledger export packet candidate",
+    "change_summary": "Adds public-safe packet builder coverage for deterministic Git Ledger export candidates.",
+    "reason_summary": "Future operators need a deterministic packet preview before any explicit export runtime exists.",
+    "source_refs": [
+      {
+        "ref": "source-ref:sample-roadmap-slice",
+        "public_safe_summary": "Roadmap slice symbolic ref."
+      }
+    ],
+    "candidate_refs": [
+      "candidate-ref:sample-git-ledger-builder"
+    ],
+    "evidence_refs": [
+      "evidence-ref:public-safe-review-summary"
+    ],
+    "reviewer_note_refs": [
+      "reviewer-note-ref:sample-public-safe"
+    ],
+    "formation_receipt_refs": [
+      "formation-receipt-ref:sample-public-safe"
+    ],
+    "state_transition_refs": [
+      "state-transition-ref:sample-public-safe"
+    ],
+    "promotion_decision_refs": [
+      "promotion-decision-ref:sample-public-safe"
+    ],
+    "dogfooding_record_refs": [
+      "dogfooding-record-ref:sample-codex-report"
+    ],
+    "feedback_refs": [
+      "feedback-aggregate-ref:sample-public-safe"
+    ],
+    "runtime_audit_refs": [
+      "runtime-audit-ref:sample-public-safe"
+    ],
+    "retrieval_index_refs": [
+      "retrieval-index-ref:sample-metadata-only"
+    ],
+    "provider_extraction_refs": [
+      "provider-extraction-ref:sample-candidate-only"
+    ],
+    "public_safe_metadata": {
+      "packet_class": "sample",
+      "privacy": "public-safe-summary-only"
+    },
+    "privacy_report": {
+      "status": "passed",
+      "guard_ref": "privacy-redaction-runtime-guard:v0.1"
+    },
+    "suggested_file_layout": [
+      "git-ledger-packet-ref:sample-public-safe"
+    ],
+    "suggested_commit_intent": "Prepare public-safe Git Ledger packet candidate.",
+    "boundary_notes": [
+      "Packet candidate only; no Git execution.",
+      "Product-write remains parked by #686."
+    ],
+    "reason_codes": [
+      "contract_ref_present"
+    ],
+    "authority_boundary": {
+      "git_ledger_export_builder_now": true,
+      "deterministic_packet_builder_now": true,
+      "caller_provided_input_only": true,
+      "public_safe_packet_candidate_only": true,
+      "summary_markdown_render_now": true,
+      "suggested_commit_message_render_now": true,
+      "git_ledger_export_runtime_now": false,
+      "git_write_now": false,
+      "git_commit_now": false,
+      "git_branch_now": false,
+      "git_tag_now": false,
+      "github_api_call_now": false,
+      "pull_request_creation_now": false,
+      "github_merge_now": false,
+      "repository_file_write_now": false,
+      "local_file_export_now": false,
+      "local_file_import_now": false,
+      "db_query_or_write_now": false,
+      "route_now": false,
+      "ui_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "source_fetch_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "promotion_execution_now": false,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "export_import_runtime_now": false,
+      "codex_execution_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "product_write_authority": false,
+      "ledger_packet_is_commit": false,
+      "ledger_packet_is_truth": false,
+      "ledger_packet_is_proof": false,
+      "ledger_packet_is_accepted_evidence": false,
+      "ledger_packet_is_product_write": false,
+      "suggested_commit_message_is_approval": false,
+      "packet_hash_is_truth": false,
+      "idempotency_key_is_authority": false,
+      "git_ref_is_authority": false,
+      "smoke_pass_is_truth": false,
+      "ci_pass_is_truth": false
+    }
+  },
+  "safe_packet_candidate_example": {
+    "packet_version": "git_ledger_packet.v0.1",
+    "contract_version": "git_ledger_export_contract.v0.1",
+    "builder_version": "git_ledger_export_builder.v0.1",
+    "scope": "project:augnes",
+    "status": "packet_candidate_created",
+    "packet_id": "git-ledger-packet:sample:deterministic-builder",
+    "packet_title": "Public-safe Git Ledger export packet candidate",
+    "generated_by": "operator-ref:fixture-reviewer",
+    "generated_at": "2026-06-27T00:00:00.000Z",
+    "change_summary": "Adds public-safe packet builder coverage for deterministic Git Ledger export candidates.",
+    "reason_summary": "Future operators need a deterministic packet preview before any explicit export runtime exists.",
+    "lineage_refs": [
+      {
+        "lineage_ref_id": "candidate_ref:candidate-ref:sample-git-ledger-builder",
+        "lineage_ref_kind": "candidate_ref",
+        "ref": "candidate-ref:sample-git-ledger-builder",
+        "public_safe_summary": "Public-safe symbolic lineage ref.",
+        "source_path": "$.candidate_refs[0]"
+      },
+      {
+        "lineage_ref_id": "dogfooding_record:dogfooding-record-ref:sample-codex-report",
+        "lineage_ref_kind": "dogfooding_record",
+        "ref": "dogfooding-record-ref:sample-codex-report",
+        "public_safe_summary": "Public-safe symbolic lineage ref.",
+        "source_path": "$.dogfooding_record_refs[0]"
+      },
+      {
+        "lineage_ref_id": "evidence_ref:evidence-ref:public-safe-review-summary",
+        "lineage_ref_kind": "evidence_ref",
+        "ref": "evidence-ref:public-safe-review-summary",
+        "public_safe_summary": "Public-safe symbolic lineage ref.",
+        "source_path": "$.evidence_refs[0]"
+      },
+      {
+        "lineage_ref_id": "feedback_aggregate:feedback-aggregate-ref:sample-public-safe",
+        "lineage_ref_kind": "feedback_aggregate",
+        "ref": "feedback-aggregate-ref:sample-public-safe",
+        "public_safe_summary": "Public-safe symbolic lineage ref.",
+        "source_path": "$.feedback_refs[0]"
+      },
+      {
+        "lineage_ref_id": "formation_receipt_ref:formation-receipt-ref:sample-public-safe",
+        "lineage_ref_kind": "formation_receipt_ref",
+        "ref": "formation-receipt-ref:sample-public-safe",
+        "public_safe_summary": "Public-safe symbolic lineage ref.",
+        "source_path": "$.formation_receipt_refs[0]"
+      },
+      {
+        "lineage_ref_id": "promotion_decision_ref:promotion-decision-ref:sample-public-safe",
+        "lineage_ref_kind": "promotion_decision_ref",
+        "ref": "promotion-decision-ref:sample-public-safe",
+        "public_safe_summary": "Public-safe symbolic lineage ref.",
+        "source_path": "$.promotion_decision_refs[0]"
+      },
+      {
+        "lineage_ref_id": "provider_extraction:provider-extraction-ref:sample-candidate-only",
+        "lineage_ref_kind": "provider_extraction",
+        "ref": "provider-extraction-ref:sample-candidate-only",
+        "public_safe_summary": "Public-safe symbolic lineage ref.",
+        "source_path": "$.provider_extraction_refs[0]"
+      },
+      {
+        "lineage_ref_id": "retrieval_index:retrieval-index-ref:sample-metadata-only",
+        "lineage_ref_kind": "retrieval_index",
+        "ref": "retrieval-index-ref:sample-metadata-only",
+        "public_safe_summary": "Public-safe symbolic lineage ref.",
+        "source_path": "$.retrieval_index_refs[0]"
+      },
+      {
+        "lineage_ref_id": "reviewer_note_ref:reviewer-note-ref:sample-public-safe",
+        "lineage_ref_kind": "reviewer_note_ref",
+        "ref": "reviewer-note-ref:sample-public-safe",
+        "public_safe_summary": "Public-safe symbolic lineage ref.",
+        "source_path": "$.reviewer_note_refs[0]"
+      },
+      {
+        "lineage_ref_id": "runtime_audit:runtime-audit-ref:sample-public-safe",
+        "lineage_ref_kind": "runtime_audit",
+        "ref": "runtime-audit-ref:sample-public-safe",
+        "public_safe_summary": "Public-safe symbolic lineage ref.",
+        "source_path": "$.runtime_audit_refs[0]"
+      },
+      {
+        "lineage_ref_id": "source_ref:source-ref:sample-roadmap-slice",
+        "lineage_ref_kind": "source_ref",
+        "ref": "source-ref:sample-roadmap-slice",
+        "public_safe_summary": "Roadmap slice symbolic ref.",
+        "source_path": "$.source_refs[0]"
+      },
+      {
+        "lineage_ref_id": "state_transition_ref:state-transition-ref:sample-public-safe",
+        "lineage_ref_kind": "state_transition_ref",
+        "ref": "state-transition-ref:sample-public-safe",
+        "public_safe_summary": "Public-safe symbolic lineage ref.",
+        "source_path": "$.state_transition_refs[0]"
+      }
+    ],
+    "public_safe_metadata": {
+      "packet_class": "sample",
+      "privacy": "public-safe-summary-only"
+    },
+    "privacy_report": {
+      "guard_ref": "privacy-redaction-runtime-guard:v0.1",
+      "status": "passed"
+    },
+    "suggested_file_layout": [
+      "git-ledger-packet-ref:sample-public-safe"
+    ],
+    "suggested_commit_message": "docs: prepare Git Ledger packet git-ledger-packet:sample:deterministic-builder\n\nPacket candidate: Public-safe Git Ledger export packet candidate\nGit Ledger packet is not a commit, proof, accepted evidence, durable state, promotion, or product-write.",
+    "summary_markdown": "# Public-safe Git Ledger export packet candidate\n\nPacket ref: git-ledger-packet:sample:deterministic-builder\nStatus: packet_candidate_created\nGenerated by: operator-ref:fixture-reviewer\nGenerated at: 2026-06-27T00:00:00.000Z\n\n## Change Summary\nAdds public-safe packet builder coverage for deterministic Git Ledger export candidates.\n\n## Reason Summary\nFuture operators need a deterministic packet preview before any explicit export runtime exists.\n\n## Lineage Refs\n- candidate_ref: candidate-ref:sample-git-ledger-builder (Public-safe symbolic lineage ref.)\n- dogfooding_record: dogfooding-record-ref:sample-codex-report (Public-safe symbolic lineage ref.)\n- evidence_ref: evidence-ref:public-safe-review-summary (Public-safe symbolic lineage ref.)\n- feedback_aggregate: feedback-aggregate-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n- formation_receipt_ref: formation-receipt-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n- promotion_decision_ref: promotion-decision-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n- provider_extraction: provider-extraction-ref:sample-candidate-only (Public-safe symbolic lineage ref.)\n- retrieval_index: retrieval-index-ref:sample-metadata-only (Public-safe symbolic lineage ref.)\n- reviewer_note_ref: reviewer-note-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n- runtime_audit: runtime-audit-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n- source_ref: source-ref:sample-roadmap-slice (Roadmap slice symbolic ref.)\n- state_transition_ref: state-transition-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n\n## Authority Boundary\n- Packet candidate only.\n- Suggested commit message is not approval.\n- Packet hash is not truth.\n- Idempotency key is not authority.\n- Git ref is not authority.\n- Product-write remains parked by #686.",
+    "idempotency_key": "git-ledger-export-builder:v0.1:c6b6946fa87c31d7bdc5f25f",
+    "packet_hash": "db768ef19c8bccf5dcce63b3f9466e3ca887ddab1567dcdbaaff82aeb73ccf23",
+    "validation": {
+      "status": "packet_candidate_created",
+      "passed": true,
+      "findings": [],
+      "blocked_paths": [],
+      "reason_codes": [],
+      "public_safe_summary": "Git Ledger packet builder input is public-safe for packet candidate creation.",
+      "original_values_included": false
+    },
+    "boundary_notes": [
+      "Packet candidate only; no Git execution.",
+      "Product-write remains parked by #686."
+    ],
+    "reason_codes": [
+      "builder_input_validated",
+      "candidate_ref_present",
+      "ci_pass_not_truth",
+      "claim_evidence_not_written",
+      "codex_not_executed",
+      "contract_ref_present",
+      "db_write_not_executed",
+      "deterministic_idempotency_key_created",
+      "deterministic_packet_hash_created",
+      "durable_state_not_mutated",
+      "evidence_not_created",
+      "evidence_ref_present",
+      "export_import_runtime_not_executed",
+      "formation_receipt_not_written",
+      "formation_receipt_ref_present",
+      "git_branch_not_created",
+      "git_commit_not_created",
+      "git_export_runtime_not_implemented",
+      "git_ref_not_authority",
+      "git_tag_not_created",
+      "git_write_not_executed",
+      "github_api_not_called",
+      "ledger_packet_is_not_accepted_evidence",
+      "ledger_packet_is_not_commit",
+      "ledger_packet_is_not_product_write",
+      "ledger_packet_is_not_proof",
+      "ledger_packet_is_not_truth",
+      "lineage_ref_present",
+      "packet_candidate_created",
+      "privacy_guard_required",
+      "product_id_allocation_not_executed",
+      "product_write_denied",
+      "product_write_not_executed",
+      "promotion_decision_ref_present",
+      "promotion_not_executed",
+      "prompt_not_sent",
+      "proof_not_created",
+      "provider_call_not_executed",
+      "public_safe_summary_only",
+      "pull_request_not_created",
+      "rag_answer_not_generated",
+      "repository_file_not_written",
+      "retrieval_not_executed",
+      "roadmap_file_present",
+      "smoke_pass_not_truth",
+      "source_ref_present",
+      "state_transition_ref_present",
+      "suggested_commit_message_rendered",
+      "summary_markdown_rendered"
+    ],
+    "authority_boundary": {
+      "git_ledger_export_builder_now": true,
+      "deterministic_packet_builder_now": true,
+      "caller_provided_input_only": true,
+      "public_safe_packet_candidate_only": true,
+      "summary_markdown_render_now": true,
+      "suggested_commit_message_render_now": true,
+      "git_ledger_export_runtime_now": false,
+      "git_write_now": false,
+      "git_commit_now": false,
+      "git_branch_now": false,
+      "git_tag_now": false,
+      "github_api_call_now": false,
+      "pull_request_creation_now": false,
+      "github_merge_now": false,
+      "repository_file_write_now": false,
+      "local_file_export_now": false,
+      "local_file_import_now": false,
+      "db_query_or_write_now": false,
+      "route_now": false,
+      "ui_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "source_fetch_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "promotion_execution_now": false,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "export_import_runtime_now": false,
+      "codex_execution_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "product_write_authority": false,
+      "ledger_packet_is_commit": false,
+      "ledger_packet_is_truth": false,
+      "ledger_packet_is_proof": false,
+      "ledger_packet_is_accepted_evidence": false,
+      "ledger_packet_is_product_write": false,
+      "suggested_commit_message_is_approval": false,
+      "packet_hash_is_truth": false,
+      "idempotency_key_is_authority": false,
+      "git_ref_is_authority": false,
+      "smoke_pass_is_truth": false,
+      "ci_pass_is_truth": false
+    }
+  },
+  "validation_report_example": {
+    "status": "packet_candidate_created",
+    "passed": true,
+    "findings": [],
+    "blocked_paths": [],
+    "reason_codes": [],
+    "public_safe_summary": "Git Ledger packet builder input is public-safe for packet candidate creation.",
+    "original_values_included": false
+  },
+  "rendered_markdown_example": "# Public-safe Git Ledger export packet candidate\n\nPacket ref: git-ledger-packet:sample:deterministic-builder\nStatus: packet_candidate_created\nGenerated by: operator-ref:fixture-reviewer\nGenerated at: 2026-06-27T00:00:00.000Z\n\n## Change Summary\nAdds public-safe packet builder coverage for deterministic Git Ledger export candidates.\n\n## Reason Summary\nFuture operators need a deterministic packet preview before any explicit export runtime exists.\n\n## Lineage Refs\n- candidate_ref: candidate-ref:sample-git-ledger-builder (Public-safe symbolic lineage ref.)\n- dogfooding_record: dogfooding-record-ref:sample-codex-report (Public-safe symbolic lineage ref.)\n- evidence_ref: evidence-ref:public-safe-review-summary (Public-safe symbolic lineage ref.)\n- feedback_aggregate: feedback-aggregate-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n- formation_receipt_ref: formation-receipt-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n- promotion_decision_ref: promotion-decision-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n- provider_extraction: provider-extraction-ref:sample-candidate-only (Public-safe symbolic lineage ref.)\n- retrieval_index: retrieval-index-ref:sample-metadata-only (Public-safe symbolic lineage ref.)\n- reviewer_note_ref: reviewer-note-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n- runtime_audit: runtime-audit-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n- source_ref: source-ref:sample-roadmap-slice (Roadmap slice symbolic ref.)\n- state_transition_ref: state-transition-ref:sample-public-safe (Public-safe symbolic lineage ref.)\n\n## Authority Boundary\n- Packet candidate only.\n- Suggested commit message is not approval.\n- Packet hash is not truth.\n- Idempotency key is not authority.\n- Git ref is not authority.\n- Product-write remains parked by #686.",
+  "suggested_commit_message_example": "docs: prepare Git Ledger packet git-ledger-packet:sample:deterministic-builder\n\nPacket candidate: Public-safe Git Ledger export packet candidate\nGit Ledger packet is not a commit, proof, accepted evidence, durable state, promotion, or product-write.",
+  "blocked_private_or_raw_payload_example": {
+    "input": {
+      "builder_version": "git_ledger_export_builder.v0.1",
+      "contract_version": "git_ledger_export_contract.v0.1",
+      "scope": "project:augnes",
+      "generated_by": "operator-ref:fixture-reviewer",
+      "generated_at": "2026-06-27T00:00:00.000Z",
+      "packet_id": "git-ledger-packet:sample:blocked-private",
+      "packet_title": "Public-safe blocked private packet candidate",
+      "change_summary": "SAFE_MARKER_RAW_DIFF",
+      "reason_summary": "Blocked private/raw fixture uses safe placeholders only.",
+      "source_refs": [
+        "source-ref:sample-roadmap-slice"
+      ],
+      "privacy_report": {
+        "status": "blocked",
+        "marker": "SAFE_MARKER_PROVIDER_THREAD_ID"
+      },
+      "authority_boundary": {
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "product_write_now": false
+      }
+    },
+    "expected_status": "blocked_private_or_raw_payload"
+  },
+  "blocked_forbidden_authority_example": {
+    "input": {
+      "builder_version": "git_ledger_export_builder.v0.1",
+      "contract_version": "git_ledger_export_contract.v0.1",
+      "scope": "project:augnes",
+      "generated_by": "operator-ref:fixture-reviewer",
+      "generated_at": "2026-06-27T00:00:00.000Z",
+      "packet_id": "git-ledger-packet:sample:blocked-authority",
+      "packet_title": "Public-safe blocked authority packet candidate",
+      "change_summary": "Public-safe change summary.",
+      "reason_summary": "Forbidden authority fixture stays public-safe.",
+      "source_refs": [
+        "source-ref:sample-roadmap-slice"
+      ],
+      "authority_boundary": {
+        "git_write_now": true,
+        "github_api_call_now": false,
+        "product_write_now": false
+      }
+    },
+    "expected_status": "blocked_forbidden_authority"
+  },
+  "blocked_forbidden_authority_text_example": {
+    "input": {
+      "builder_version": "git_ledger_export_builder.v0.1",
+      "contract_version": "git_ledger_export_contract.v0.1",
+      "scope": "project:augnes",
+      "generated_by": "operator-ref:fixture-reviewer",
+      "generated_at": "2026-06-27T00:00:00.000Z",
+      "packet_id": "git-ledger-packet:sample:blocked-authority-text",
+      "packet_title": "Public-safe blocked authority text packet candidate",
+      "change_summary": "Please git commit and push this packet.",
+      "reason_summary": "Call GitHub and create PR for this packet.",
+      "source_refs": [
+        "source-ref:sample-roadmap-slice"
+      ],
+      "suggested_commit_intent": "Merge pull request after packet build.",
+      "authority_boundary": {
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "product_write_now": false
+      }
+    },
+    "expected_status": "blocked_forbidden_authority"
+  },
+  "blocked_missing_lineage_example": {
+    "input": {
+      "builder_version": "git_ledger_export_builder.v0.1",
+      "contract_version": "git_ledger_export_contract.v0.1",
+      "scope": "project:augnes",
+      "generated_by": "operator-ref:fixture-reviewer",
+      "generated_at": "2026-06-27T00:00:00.000Z",
+      "packet_id": "git-ledger-packet:sample:blocked-missing-lineage",
+      "packet_title": "Public-safe missing lineage packet candidate",
+      "change_summary": "Public-safe change summary.",
+      "reason_summary": "Missing lineage fixture has no lineage refs.",
+      "authority_boundary": {
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "product_write_now": false
+      }
+    },
+    "expected_status": "blocked_missing_lineage"
+  },
+  "deterministic_hash_repeatability_example": {
+    "repeated_packet_hash": "db768ef19c8bccf5dcce63b3f9466e3ca887ddab1567dcdbaaff82aeb73ccf23",
+    "repeated_idempotency_key": "git-ledger-export-builder:v0.1:c6b6946fa87c31d7bdc5f25f",
+    "changed_change_summary_packet_hash": "f763bc64fe6bf37e6f87c9ff94f26a178a3c5c392cf8bc18924e7c8ad1d00ed9"
+  },
+  "authority_boundary_sample": {
+    "git_ledger_export_builder_now": true,
+    "deterministic_packet_builder_now": true,
+    "caller_provided_input_only": true,
+    "public_safe_packet_candidate_only": true,
+    "summary_markdown_render_now": true,
+    "suggested_commit_message_render_now": true,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "git_commit_now": false,
+    "git_branch_now": false,
+    "git_tag_now": false,
+    "github_api_call_now": false,
+    "pull_request_creation_now": false,
+    "github_merge_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "db_query_or_write_now": false,
+    "route_now": false,
+    "ui_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "rag_answer_generation_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "export_import_runtime_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_now": false,
+    "product_id_allocation_now": false,
+    "product_write_authority": false,
+    "ledger_packet_is_commit": false,
+    "ledger_packet_is_truth": false,
+    "ledger_packet_is_proof": false,
+    "ledger_packet_is_accepted_evidence": false,
+    "ledger_packet_is_product_write": false,
+    "suggested_commit_message_is_approval": false,
+    "packet_hash_is_truth": false,
+    "idempotency_key_is_authority": false,
+    "git_ref_is_authority": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}

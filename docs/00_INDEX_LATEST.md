@@ -4032,6 +4032,41 @@ repo-local 색인이다.
   source fetch; no local/repository/uploaded file read as source input; no raw
   conversation/browser/session/telemetry ingestion; no Codex execution; no
   GitHub automation; product-write remains parked by #686.
+- Git Ledger Export Deterministic Builder v0.1:
+  `docs/GIT_LEDGER_EXPORT_DETERMINISTIC_BUILDER_V0_1.md`,
+  `lib/git-ledger/build-export-packet.ts`,
+  `fixtures/git-ledger-export-builder.sample.v0.1.json`, and
+  `scripts/smoke-git-ledger-export-builder-v0-1.mjs`
+  (`npm run smoke:git-ledger-export-builder-v0-1`) implements
+  `git_ledger_export_deterministic_builder_v0_1` from the integrated roadmap
+  guide v0.2.1 FULL. This slice builds packet candidates only and renders
+  bounded markdown and suggested commit message text only. Suggested commit
+  message is not approval. Packet hash is not truth. Idempotency key is not
+  authority. Git ref is not authority. This pointer is repo-local documentation
+  metadata, not SSOT. The roadmap guide is not SSOT. It does not execute Git,
+  create commits, branches, tags, PRs, or merges, call GitHub, write repository
+  files, export files locally, import files, query/write DB, add routes/UI, call
+  providers, send prompts, fetch sources, execute retrieval/RAG, create
+  proof/evidence, write claim/evidence records, promote Perspective, write/apply
+  durable Perspective state, write Formation Receipts, execute Codex,
+  product-write, or allocate product IDs. Product-write remains parked by #686.
+
+  Boundary phrases: Git Ledger Export Deterministic Builder v0.1; packet
+  candidate only; deterministic packet builder; caller-provided input only;
+  public-safe packet candidate only; suggested commit message is not approval;
+  packet hash is not truth; idempotency key is not authority; Git ref is not
+  authority; Git Ledger export packet is not commit, not proof, not accepted
+  evidence, not durable state, not promotion, and not product-write; no Git
+  Ledger export runtime; no Git write; no commit creation; no branch creation;
+  no tag creation; no GitHub API call; no pull request creation; no merge
+  execution; no repository file write; no local file export; no local file
+  import; no DB query/write; no route; no UI; no provider/OpenAI call; no
+  prompt sending; no source fetch; no retrieval execution; no RAG answer
+  generation; no proof/evidence write; no claim/evidence write; no promotion
+  execution; no durable state write; no durable state apply; no Formation
+  Receipt write; no export/import runtime; no Codex execution; no product-write;
+  no product ID allocation; smoke pass is not truth; CI pass is not truth;
+  product-write remains parked by #686.
 - Product Write Reentry Review v0.1:
   `docs/PRODUCT_WRITE_REENTRY_REVIEW_V0_1.md`,
   `lib/product-write/product-write-reentry-review.ts`,
