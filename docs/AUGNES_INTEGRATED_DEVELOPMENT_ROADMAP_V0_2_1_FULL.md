@@ -2585,6 +2585,54 @@ release/product-write authority is not granted
 product-write remains parked by #686
 ```
 
+## PR 9.3.5: `release_postmerge_observer_notes_v0_1`
+
+### 개발 내용
+
+```text
+review-only release postmerge observer notes candidate builder
+release candidate freeze manifest review context
+release operator checklist review context
+no actual postmerge observation
+no merge execution
+no Git execution
+no GitHub calls
+no repository file writes
+no release notes publication
+no release execution
+no release artifact generation
+no release approval automation
+```
+
+### 금지
+
+```text
+actual postmerge observation
+merge execution
+Git execution
+GitHub API calls
+repository file writes
+release freeze execution
+release notes publication
+release execution
+release artifact generation
+automatic release approval
+product write implementation
+adapter enablement
+product target contract creation
+product ID allocation
+DB write
+route/UI release action
+```
+
+### 수용 기준
+
+```text
+release postmerge observer notes is review-only and candidate-only
+release/product-write authority is not granted
+product-write remains parked by #686
+```
+
 ## PR 9.4: `product_write_minimal_runtime_v0_1`
 
 상태:
