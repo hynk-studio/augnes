@@ -168,6 +168,70 @@
     ],
     "report_fingerprint": "sha256:85db515845f9512f3542e1e5e6f3b6e786c5d3d82ca365c509f863917be7d77b"
   },
+  "malformed_public_safe_examples": [
+    {
+      "example_id": "missing_report_id",
+      "input": {
+        "input_version": "codex_result_report_input.v0.1",
+        "scope": "project:augnes",
+        "report_kind": "codex_pr_result",
+        "reported_at": "2026-06-27T08:20:00Z",
+        "operator_actor_ref": "operator-ref:sample-human-reviewer",
+        "codex_claimed_summary": "Public-safe malformed fixture without report id."
+      },
+      "expected_status": "rejected",
+      "expected_blocked_paths": [
+        "input.report_id"
+      ]
+    },
+    {
+      "example_id": "empty_reported_at",
+      "input": {
+        "input_version": "codex_result_report_input.v0.1",
+        "scope": "project:augnes",
+        "report_id": "codex-result-report:malformed-empty-reported-at",
+        "report_kind": "codex_validation_report",
+        "reported_at": "",
+        "operator_actor_ref": "operator-ref:sample-human-reviewer",
+        "codex_claimed_summary": "Public-safe malformed fixture without reported_at."
+      },
+      "expected_status": "rejected",
+      "expected_blocked_paths": [
+        "input.reported_at"
+      ]
+    },
+    {
+      "example_id": "missing_operator_actor_ref",
+      "input": {
+        "input_version": "codex_result_report_input.v0.1",
+        "scope": "project:augnes",
+        "report_id": "codex-result-report:malformed-missing-operator",
+        "report_kind": "codex_not_done_report",
+        "reported_at": "2026-06-27T08:25:00Z",
+        "codex_claimed_summary": "Public-safe malformed fixture without operator actor ref."
+      },
+      "expected_status": "rejected",
+      "expected_blocked_paths": [
+        "input.operator_actor_ref"
+      ]
+    },
+    {
+      "example_id": "invalid_report_kind",
+      "input": {
+        "input_version": "codex_result_report_input.v0.1",
+        "scope": "project:augnes",
+        "report_id": "codex-result-report:malformed-invalid-kind",
+        "report_kind": "not_a_supported_report_kind",
+        "reported_at": "2026-06-27T08:30:00Z",
+        "operator_actor_ref": "operator-ref:sample-human-reviewer",
+        "codex_claimed_summary": "Public-safe malformed fixture with invalid report kind."
+      },
+      "expected_status": "rejected",
+      "expected_blocked_paths": [
+        "input.report_kind"
+      ]
+    }
+  ],
   "blocked_private_or_raw_payload_example": {
     "input": {
       "input_version": "codex_result_report_input.v0.1",

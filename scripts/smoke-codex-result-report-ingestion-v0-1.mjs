@@ -286,6 +286,61 @@ assertNoUnsafeEcho(firstSafeRecord);
 
 const safeValidation = helper.validateCodexResultReportInputV01(fixture.safe_input_example);
 assert.equal(safeValidation.passed, true, "safe input must validate without blockers");
+const explicitUnknownKindValidation = helper.validateCodexResultReportInputV01({
+  ...fixture.safe_input_example,
+  report_id: "codex-result-report:explicit-unknown-kind",
+  report_kind: "unknown",
+});
+assert.equal(
+  explicitUnknownKindValidation.passed,
+  true,
+  "explicit unknown report_kind must validate as an allowed explicit kind",
+);
+
+assert.ok(
+  Array.isArray(fixture.malformed_public_safe_examples),
+  "fixture must include malformed public-safe validation examples",
+);
+assert.equal(
+  fixture.malformed_public_safe_examples.length,
+  4,
+  "fixture must cover the required malformed public-safe input cases",
+);
+for (const malformedExample of fixture.malformed_public_safe_examples) {
+  const validation = helper.validateCodexResultReportInputV01(malformedExample.input);
+  const record = helper.buildCodexResultReportIngestionRecordV01(malformedExample.input);
+  assert.equal(
+    validation.passed,
+    false,
+    `malformed public-safe input must fail validation: ${malformedExample.example_id}`,
+  );
+  assert.equal(
+    validation.status,
+    malformedExample.expected_status,
+    `validation must reject malformed public-safe input: ${malformedExample.example_id}`,
+  );
+  assert.equal(
+    record.status,
+    malformedExample.expected_status,
+    `builder must reject malformed public-safe input: ${malformedExample.example_id}`,
+  );
+  assert.equal(
+    validation.status,
+    record.status,
+    `validation and builder status must agree: ${malformedExample.example_id}`,
+  );
+  for (const expectedPath of malformedExample.expected_blocked_paths) {
+    assert.ok(
+      validation.blocked_paths.includes(expectedPath),
+      `validation blocked_paths must include ${expectedPath} for ${malformedExample.example_id}`,
+    );
+  }
+  assertAuthorityBoundaryClosed(
+    record.authority_boundary,
+    `malformed public-safe record authority boundary: ${malformedExample.example_id}`,
+  );
+  assertNoUnsafeEcho(record);
+}
 
 const blockedPrivateRecord = helper.buildCodexResultReportIngestionRecordV01(
   fixture.blocked_private_or_raw_payload_example.input,

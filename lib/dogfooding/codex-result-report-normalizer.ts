@@ -441,12 +441,15 @@ export function validateCodexResultReportInputV01(
   }
 
   if (input.input_version !== CodexResultReportInputVersionV01) {
-    reasonCodes.add("raw_private_payload_blocked");
     blockedPaths.push("input.input_version");
   }
   if (input.scope !== CodexResultReportIngestionScopeV01) {
-    reasonCodes.add("raw_private_payload_blocked");
     blockedPaths.push("input.scope");
+  }
+
+  const requiredFieldFailures = detectRequiredFieldFailures(input);
+  for (const failurePath of requiredFieldFailures) {
+    blockedPaths.push(failurePath);
   }
 
   const privacyFindings = detectPrivacyFindings(input);
@@ -461,8 +464,12 @@ export function validateCodexResultReportInputV01(
   const uniqueBlockedPaths = uniqueSorted(blockedPaths);
   const status = authorityFindings.length
     ? "blocked_forbidden_authority"
-    : privacyFindings.length || uniqueBlockedPaths.length
+    : privacyFindings.length
       ? "blocked_private_or_raw_payload"
+      : requiredFieldFailures.length > 0 ||
+          input.input_version !== CodexResultReportInputVersionV01 ||
+          input.scope !== CodexResultReportIngestionScopeV01
+        ? "rejected"
       : "candidate_only";
 
   return {
@@ -473,7 +480,9 @@ export function validateCodexResultReportInputV01(
     public_safe_summary:
       status === "candidate_only"
         ? "Caller-provided Codex result report input is public-safe enough for candidate normalization."
-        : "Caller-provided Codex result report input is blocked without echoing raw values.",
+        : status === "rejected"
+          ? "Caller-provided Codex result report input is rejected without echoing raw values."
+          : "Caller-provided Codex result report input is blocked without echoing raw values.",
   };
 }
 
@@ -560,19 +569,18 @@ function determineRecordStatus(
   privacyFindings: InternalFinding[],
   authorityFindings: InternalFinding[],
 ): CodexResultReportStatusV01 {
-  if (
-    input.input_version !== CodexResultReportInputVersionV01 ||
-    input.scope !== CodexResultReportIngestionScopeV01 ||
-    typeof input.report_id !== "string" ||
-    input.report_id.trim().length === 0
-  ) {
-    return "rejected";
-  }
   if (authorityFindings.length > 0) {
     return "blocked_forbidden_authority";
   }
   if (privacyFindings.length > 0) {
     return "blocked_private_or_raw_payload";
+  }
+  if (
+    input.input_version !== CodexResultReportInputVersionV01 ||
+    input.scope !== CodexResultReportIngestionScopeV01 ||
+    detectRequiredFieldFailures(input).length > 0
+  ) {
+    return "rejected";
   }
   const reviewCueInputs = [
     input.skipped_checks,
@@ -895,6 +903,38 @@ function normalizeReportKind(value: unknown): CodexResultReportKindV01 {
     CodexResultReportKindsV01.includes(value as CodexResultReportKindV01)
     ? (value as CodexResultReportKindV01)
     : "unknown";
+}
+
+function detectRequiredFieldFailures(input: JsonRecord): string[] {
+  const failures: string[] = [];
+  if (!isNonEmptyPublicSafeString(input.report_id)) {
+    failures.push("input.report_id");
+  }
+  if (!isAllowedExplicitReportKind(input.report_kind)) {
+    failures.push("input.report_kind");
+  }
+  if (!isNonEmptyPublicSafeString(input.reported_at)) {
+    failures.push("input.reported_at");
+  }
+  if (!isNonEmptyPublicSafeString(input.operator_actor_ref)) {
+    failures.push("input.operator_actor_ref");
+  }
+  return failures;
+}
+
+function isAllowedExplicitReportKind(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    CodexResultReportKindsV01.includes(value as CodexResultReportKindV01)
+  );
+}
+
+function isNonEmptyPublicSafeString(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    !containsUnsafeValue(value)
+  );
 }
 
 function normalizeStringRefs(value: unknown): string[] {

@@ -52,6 +52,9 @@ Inputs are caller-provided objects only. The expected shape includes:
 - optional `authority_boundary`
 
 The library does not read files. The library does not inspect repo state.
+Missing or invalid required fields are rejected without echoing raw input
+values. `report_kind` must be one of the declared kinds; `unknown` is allowed
+only when the caller explicitly supplies `"unknown"`.
 
 ## Output Record Shape
 
