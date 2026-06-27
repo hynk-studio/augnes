@@ -1,0 +1,282 @@
+{
+  "fixture_version": "research_candidate_review_memory_db_ui_runtime.sample.v0.1",
+  "ui_version": "research_candidate_review_memory_db_ui_runtime.v0.1",
+  "route_version": "research_candidate_review_memory_db_routes.v0.1",
+  "db_store_version": "research_candidate_review_memory_db_store.v0.1",
+  "contract_version": "research_candidate_review_memory_contract.v0.1",
+  "scope": "project:augnes",
+  "default_db_path": ".tmp/research-candidate-review-memory/ui/review-memory.sqlite",
+  "safe_db_path_examples": [
+    ".tmp/research-candidate-review-memory/ui/review-memory.sqlite",
+    "tmp/research-candidate-review-memory/operator/review-memory.db"
+  ],
+  "forbidden_legacy_primary_route_refs": [
+    "/api/research-candidate/review-memory"
+  ],
+  "ui_state_example": {
+    "db_path": ".tmp/research-candidate-review-memory/ui/review-memory.sqlite",
+    "selected_record_id": "ui-db-review-record-001",
+    "route_status": "ok",
+    "error_code": null,
+    "client_state_is_durable_state": false
+  },
+  "save_review_record_action_example": {
+    "operator_action": "save_review_record",
+    "method": "POST",
+    "route_path": "/api/research-candidate-review/review-records",
+    "body": {
+      "route_version": "research_candidate_review_memory_db_routes.v0.1",
+      "scope": "project:augnes",
+      "action": "create_review_record",
+      "db_path": ".tmp/research-candidate-review-memory/ui/review-memory.sqlite",
+      "input": {
+        "contract_version": "research_candidate_review_memory_contract.v0.1",
+        "scope": "project:augnes",
+        "status": "review_memory_db_record",
+        "review_record_id": "ui-db-review-record-001",
+        "record_kind": "operator_review_note",
+        "lifecycle_state": "active",
+        "review_decision": "keep_for_review",
+        "review_action": "save_review_note",
+        "candidate_ref": "candidate-ref:ui-db-001",
+        "candidate_refs": [
+          "candidate-ref:ui-db-001"
+        ],
+        "source_refs": [
+          {
+            "source_surface": "operator_note",
+            "source_ref": "source-ref:ui-db-001",
+            "public_safe": true
+          }
+        ],
+        "related_record_refs": [],
+        "reviewer_actor": "operator:review-memory-ui",
+        "operator_actor_ref": "operator:review-memory-ui",
+        "reviewer_note_summary": "Operator reviewed this candidate and kept bounded review memory only.",
+        "bounded_summary": "DB-backed UI sample saves public-safe review metadata through the review memory routes.",
+        "boundary_acknowledgements": [
+          "Product-write remains parked by #686.",
+          "Review memory is not truth, proof, accepted evidence, or durable Perspective state.",
+          "Candidate refs are review refs, not facts.",
+          "Source refs are lineage pointers, not proof.",
+          "Discard is lifecycle transition, not delete.",
+          "All persistence goes through DB-backed same-origin review memory routes."
+        ],
+        "privacy_report": {
+          "privacy_class": "public_safe",
+          "public_safe": true,
+          "raw_conversation_included": false,
+          "hidden_reasoning_included": false,
+          "raw_source_body_included": false,
+          "raw_candidate_payload_included": false,
+          "raw_provider_output_included": false,
+          "provider_thread_run_session_ids_included": false,
+          "private_urls_included": false,
+          "local_private_paths_included": false,
+          "secrets_included": false,
+          "raw_db_rows_included": false,
+          "raw_browser_dump_included": false,
+          "blocked_reason_codes": []
+        },
+        "reason_codes": [
+          "review_record_created",
+          "candidate_refs_are_review_refs_not_fact",
+          "source_refs_are_lineage_not_proof",
+          "review_memory_not_truth",
+          "review_memory_not_proof",
+          "review_memory_not_accepted_evidence",
+          "review_memory_not_durable_state",
+          "product_write_denied"
+        ],
+        "created_at": "2026-06-27T00:00:00.000Z",
+        "updated_at": "2026-06-27T00:00:00.000Z"
+      }
+    }
+  },
+  "list_review_records_action_example": {
+    "operator_action": "list_review_records",
+    "method": "GET",
+    "route_path": "/api/research-candidate-review/review-records",
+    "query": {
+      "route_version": "research_candidate_review_memory_db_routes.v0.1",
+      "scope": "project:augnes",
+      "db_path": ".tmp/research-candidate-review-memory/ui/review-memory.sqlite",
+      "include_discarded": "1",
+      "limit": "20"
+    }
+  },
+  "open_detail_action_example": {
+    "operator_action": "open_detail",
+    "method": "GET",
+    "route_path": "/api/research-candidate-review/review-records/ui-db-review-record-001",
+    "query": {
+      "route_version": "research_candidate_review_memory_db_routes.v0.1",
+      "scope": "project:augnes",
+      "db_path": ".tmp/research-candidate-review-memory/ui/review-memory.sqlite"
+    }
+  },
+  "append_activity_action_example": {
+    "operator_action": "append_activity",
+    "method": "POST",
+    "route_path": "/api/research-candidate-review/review-records/ui-db-review-record-001/activity",
+    "body": {
+      "route_version": "research_candidate_review_memory_db_routes.v0.1",
+      "scope": "project:augnes",
+      "action": "append_review_record_activity",
+      "db_path": ".tmp/research-candidate-review-memory/ui/review-memory.sqlite",
+      "input": {
+        "activity_id": "ui-db-review-record-001:activity:ui-note:20260627t000001000z",
+        "review_record_id": "ui-db-review-record-001",
+        "activity_kind": "review_record_activity_appended",
+        "actor_ref": "operator:review-memory-ui",
+        "summary": "Operator added a bounded reviewer note summary.",
+        "reason_codes": [
+          "review_record_activity_appended",
+          "review_memory_not_truth",
+          "review_memory_not_proof"
+        ],
+        "created_at": "2026-06-27T00:00:01.000Z"
+      }
+    }
+  },
+  "discard_with_reason_action_example": {
+    "operator_action": "discard_with_reason",
+    "method": "POST",
+    "route_path": "/api/research-candidate-review/review-records/ui-db-review-record-001/discard",
+    "body": {
+      "route_version": "research_candidate_review_memory_db_routes.v0.1",
+      "scope": "project:augnes",
+      "action": "discard_review_record",
+      "db_path": ".tmp/research-candidate-review-memory/ui/review-memory.sqlite",
+      "reason": "Operator discarded this review memory record as a lifecycle transition."
+    }
+  },
+  "bounded_error_display_examples": [
+    {
+      "error_code": "invalid_db_path",
+      "raw_value_echoed": false
+    },
+    {
+      "error_code": "db_missing",
+      "raw_value_echoed": false
+    },
+    {
+      "error_code": "schema_missing",
+      "raw_value_echoed": false
+    },
+    {
+      "error_code": "blocked_private_or_raw_payload",
+      "raw_value_echoed": false,
+      "blocked_marker_example": "SAFE_MARKER_RAW_SOURCE_BODY"
+    },
+    {
+      "error_code": "blocked_forbidden_authority",
+      "raw_value_echoed": false
+    },
+    {
+      "error_code": "conflict_existing_record",
+      "raw_value_echoed": false
+    },
+    {
+      "error_code": "not_found",
+      "raw_value_echoed": false
+    }
+  ],
+  "forbidden_control_examples": [
+    "Promote",
+    "Create proof",
+    "Create evidence",
+    "Create work item",
+    "Execute Codex",
+    "Product write",
+    "Create product",
+    "Allocate product ID",
+    "GitHub PR",
+    "Git commit"
+  ],
+  "expected_route_call_examples": [
+    {
+      "flow": "save",
+      "method": "POST",
+      "path": "/api/research-candidate-review/review-records"
+    },
+    {
+      "flow": "list",
+      "method": "GET",
+      "path": "/api/research-candidate-review/review-records"
+    },
+    {
+      "flow": "detail",
+      "method": "GET",
+      "path": "/api/research-candidate-review/review-records/[review_record_id]"
+    },
+    {
+      "flow": "activity_read",
+      "method": "GET",
+      "path": "/api/research-candidate-review/review-records/[review_record_id]/activity"
+    },
+    {
+      "flow": "activity_append",
+      "method": "POST",
+      "path": "/api/research-candidate-review/review-records/[review_record_id]/activity"
+    },
+    {
+      "flow": "discard",
+      "method": "POST",
+      "path": "/api/research-candidate-review/review-records/[review_record_id]/discard"
+    }
+  ],
+  "authority_boundary_sample": {
+    "review_memory_db_ui_now": true,
+    "db_backed_review_memory_routes_primary": true,
+    "explicit_operator_ui_action_only": true,
+    "same_origin_route_calls_only": true,
+    "review_record_save_ui_now": true,
+    "review_record_list_ui_now": true,
+    "review_record_detail_ui_now": true,
+    "review_record_activity_ui_now": true,
+    "review_record_discard_ui_now": true,
+    "direct_db_access_from_ui_now": false,
+    "direct_file_write_from_ui_now": false,
+    "legacy_json_route_primary_persistence_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "rag_answer_generation_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "github_pr_create_now": false,
+    "github_merge_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "review_memory_is_truth": false,
+    "review_memory_is_proof": false,
+    "review_memory_is_accepted_evidence": false,
+    "review_memory_is_durable_perspective_state": false,
+    "candidate_is_fact": false,
+    "candidate_is_proof": false,
+    "source_ref_is_proof": false,
+    "discard_is_delete": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}

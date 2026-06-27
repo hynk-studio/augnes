@@ -3689,6 +3689,29 @@ repo-local 색인이다.
   (`npm run smoke:research-candidate-review-memory-ui-v0-1`) implements Phase 2.4 from the integrated roadmap guide v0.2 as ui-route-client-only. It uses #771 routes for explicit load, create empty snapshot, upsert, discard, and supersede actions over review metadata. This pointer is repo-local documentation metadata, not SSOT, and does not implement new routes, DB migrations, DB query/write, provider calls, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation. It adds no direct file writes from UI components and no direct store helper writes from UI components. Product-write remains parked by #686.
 
   Boundary phrases: Research Candidate Review Memory UI v0.1; Phase 2.4; ui-route-client-only; uses #771 routes; follows the integrated roadmap guide v0.2; follows the #769 Review Memory Contract, #770 Review Memory Store, and #771 Review Memory Routes; Review memory is not truth; Candidate memory is not Perspective state; Discard is not deletion; Supersede preserves lineage; Source refs are lineage pointers, not proof; Source refs must be public-safe symbolic refs; Store paths remain constrained by the #771 route allowlist; UI actions are explicit operator actions, not automatic background writes; older proposal documents are background inputs already integrated into the roadmap guide; no new routes, DB migration, DB query/write, provider/OpenAI call, external source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Foundation/Lifecycle/Memory read-only UI, Bounded Source Intake Runtime Contract, Bounded Source Intake Runtime, Provider-Assisted Extraction candidate-only contract, and Provider-Assisted Extraction runtime.
+- Research Candidate Review Memory DB UI Runtime Completion v0.1:
+  `docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_DB_UI_RUNTIME_COMPLETION_V0_1.md`,
+  `fixtures/research-candidate-review.memory-db-ui-runtime.sample.v0.1.json`,
+  `components/research-candidate-review-memory-db-panel.tsx`,
+  `app/research-candidate/review-memory/page.tsx`,
+  and `scripts/smoke-research-candidate-review-memory-db-ui-runtime-v0-1.mjs`
+  (`npm run smoke:research-candidate-review-memory-db-ui-runtime-v0-1`)
+  implements `research_candidate_review_memory_db_ui_runtime_completion_v0_1`
+  as a runtime completion for the original Phase 2.4 DB-backed Review Memory UI
+  requirements. It binds the operator UI to DB-backed same-origin routes under
+  `/api/research-candidate-review/review-records` for save, list, detail,
+  activity, and discard flows. The earlier JSON/local-store-backed UI remains
+  legacy/compatible but is not the DB-backed UI completion. This pointer is
+  repo-local documentation metadata, not SSOT, and adds no new app/api routes,
+  DB schema/helper changes, provider calls, source fetch, retrieval/RAG
+  execution, proof/evidence write, claim/evidence write, Perspective promotion,
+  durable state write/apply, Formation Receipt write, Git Ledger export runtime,
+  Git/GitHub execution inside Augnes runtime, Codex execution, file
+  export/import, product write, product persistence, product runtime write,
+  product-write authority, or product ID allocation. Product-write remains
+  parked by #686.
+
+  Boundary phrases: Research Candidate Review Memory DB UI Runtime Completion v0.1; research_candidate_review_memory_db_ui_runtime_completion_v0_1; original Phase 2.4 DB-backed UI gap closed; DB-backed same-origin routes are primary; all persistence goes through DB-backed review memory routes; UI does not directly write DB; UI does not directly write files; legacy JSON route is not primary persistence; explicit operator UI action only; review memory is not truth; review memory is not proof; review memory is not accepted evidence; review memory is not durable Perspective state; candidate refs are not facts; source refs are lineage pointers, not proof; discard is lifecycle transition, not delete; smoke/CI pass is not truth; roadmap guide is not SSOT; no provider/OpenAI call, prompt sent, source fetch, retrieval/RAG execution, proof/evidence write, claim/evidence write, work item write, Perspective promotion, durable Perspective state write/apply, Formation Receipt write, Git Ledger export runtime, Git/GitHub execution, Codex execution, file export/import, product write, product persistence, product runtime write, product-write authority, or product ID allocation; product-write remains parked by #686; follow-up foundation/lifecycle/review memory consolidated UI should use this DB-backed UI or route binding.
 - Foundation/Lifecycle/Review Memory Read-only UI v0.1:
   `docs/FOUNDATION_LIFECYCLE_REVIEW_MEMORY_READONLY_UI_V0_1.md`,
   `app/research-candidate/foundation-lifecycle-review-memory/page.tsx`,
