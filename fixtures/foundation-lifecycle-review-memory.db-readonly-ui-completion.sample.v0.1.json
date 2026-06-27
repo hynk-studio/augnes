@@ -1,0 +1,262 @@
+{
+  "fixture_version": "foundation_lifecycle_review_memory_db_readonly_ui_completion.sample.v0.1",
+  "ui_version": "foundation_lifecycle_review_memory_db_readonly_ui_completion.v0.1",
+  "route_version": "research_candidate_review_memory_db_routes.v0.1",
+  "db_store_version": "research_candidate_review_memory_db_store.v0.1",
+  "scope": "project:augnes",
+  "default_db_path": ".tmp/research-candidate-review-memory/ui/review-memory.sqlite",
+  "read_only_sections": [
+    "Foundation completion summary",
+    "Rail status matrix",
+    "Runtime readiness matrix",
+    "Forbidden capability matrix",
+    "Product-write parked status",
+    "Next runtime slice pointer",
+    "Lifecycle summary",
+    "Review records list/detail",
+    "Activity history",
+    "Operator decision queue",
+    "Known warnings/skipped checks",
+    "Authority boundary"
+  ],
+  "foundation_summary_example": {
+    "status": "orientation_only",
+    "summary": "Foundation status orients the operator around completed rails and parked boundaries.",
+    "foundation_status_is_runtime_completion": false
+  },
+  "rail_status_matrix_example": [
+    {
+      "rail": "review_memory_contract",
+      "status": "complete",
+      "authority": "contract_only"
+    },
+    {
+      "rail": "review_memory_db_store",
+      "status": "runtime_complete",
+      "authority": "caller_injected_db_store"
+    },
+    {
+      "rail": "review_memory_db_routes",
+      "status": "runtime_complete",
+      "authority": "same_origin_db_routes"
+    },
+    {
+      "rail": "review_memory_db_ui",
+      "status": "runtime_complete",
+      "authority": "explicit_operator_ui_action"
+    },
+    {
+      "rail": "foundation_lifecycle_review_memory_db_readonly_ui",
+      "status": "read_visibility_completion",
+      "authority": "readonly_get_only"
+    }
+  ],
+  "runtime_readiness_matrix_example": [
+    {
+      "surface": "db_get_routes",
+      "status": "available",
+      "write_allowed_here": false
+    },
+    {
+      "surface": "db_write_routes",
+      "status": "available_elsewhere",
+      "write_allowed_here": false
+    },
+    {
+      "surface": "browser_validation",
+      "status": "tooling_dependent",
+      "write_allowed_here": false
+    }
+  ],
+  "forbidden_capability_matrix_example": [
+    {
+      "capability": "provider_openai_call_now",
+      "value": false
+    },
+    {
+      "capability": "retrieval_execution_now",
+      "value": false
+    },
+    {
+      "capability": "proof_or_evidence_record_now",
+      "value": false
+    },
+    {
+      "capability": "product_write_now",
+      "value": false
+    }
+  ],
+  "product_write_parked_status_example": {
+    "parked_by": "#686",
+    "product_write_now": false,
+    "product_write_authority": false,
+    "product_id_allocation_now": false
+  },
+  "next_runtime_slice_pointer_example": {
+    "pointer_kind": "deferred_runtime_lane",
+    "candidate_next_slices": [
+      "bounded_source_intake_runtime_contract_v0_1",
+      "bounded_source_intake_runtime_v0_1",
+      "provider_assisted_extraction_candidate_only_contract_v0_1"
+    ],
+    "pointer_is_authority": false
+  },
+  "lifecycle_summary_example": {
+    "status": "review_cue_only",
+    "needs_operator_review": 3,
+    "ready_with_tensions": 2,
+    "lifecycle_cue_is_execution_authority": false
+  },
+  "review_records_list_request_example": {
+    "method": "GET",
+    "route_path": "/api/research-candidate-review/review-records",
+    "query": {
+      "route_version": "research_candidate_review_memory_db_routes.v0.1",
+      "scope": "project:augnes",
+      "db_path": ".tmp/research-candidate-review-memory/ui/review-memory.sqlite",
+      "include_discarded": "1",
+      "limit": "25"
+    }
+  },
+  "review_record_detail_request_example": {
+    "method": "GET",
+    "route_path": "/api/research-candidate-review/review-records/review-record-ref:db-readonly-001",
+    "query": {
+      "route_version": "research_candidate_review_memory_db_routes.v0.1",
+      "scope": "project:augnes",
+      "db_path": ".tmp/research-candidate-review-memory/ui/review-memory.sqlite"
+    }
+  },
+  "review_record_activity_request_example": {
+    "method": "GET",
+    "route_path": "/api/research-candidate-review/review-records/review-record-ref:db-readonly-001/activity",
+    "query": {
+      "route_version": "research_candidate_review_memory_db_routes.v0.1",
+      "scope": "project:augnes",
+      "db_path": ".tmp/research-candidate-review-memory/ui/review-memory.sqlite"
+    }
+  },
+  "bounded_error_display_examples": [
+    {
+      "error_code": "invalid_db_path",
+      "raw_value_echoed": false
+    },
+    {
+      "error_code": "db_missing",
+      "raw_value_echoed": false
+    },
+    {
+      "error_code": "schema_missing",
+      "raw_value_echoed": false
+    },
+    {
+      "error_code": "blocked_private_or_raw_payload",
+      "raw_value_echoed": false,
+      "blocked_marker_example": "SAFE_MARKER_PRIVATE_URL"
+    },
+    {
+      "error_code": "same_origin_required",
+      "raw_value_echoed": false
+    }
+  ],
+  "forbidden_control_examples": [
+    "Save review record",
+    "Add reviewer note summary",
+    "Discard with reason",
+    "Promote",
+    "Create proof",
+    "Create evidence",
+    "Create work item",
+    "Execute Codex",
+    "Product write",
+    "Create product",
+    "Allocate product ID",
+    "GitHub PR",
+    "Git commit"
+  ],
+  "operator_decision_queue_example": [
+    {
+      "queue_ref": "decision-queue:review-memory-db-readonly-001",
+      "cue": "Inspect DB-backed review memory rows with missing source lineage.",
+      "layer": "review_memory",
+      "authority": "operator_review_only"
+    },
+    {
+      "queue_ref": "decision-queue:lifecycle-cue-001",
+      "cue": "Review active candidates with needs_more_evidence decisions.",
+      "layer": "lifecycle",
+      "authority": "review_cue_only"
+    }
+  ],
+  "known_warnings_skipped_checks_example": [
+    {
+      "item": "MODULE_TYPELESS_PACKAGE_JSON",
+      "status": "known_warning_when_ts_import_smokes_pass"
+    },
+    {
+      "item": "stripTypeScriptTypes",
+      "status": "known_experimental_warning_when_smokes_pass"
+    },
+    {
+      "item": "browser_validation",
+      "status": "tooling_dependent"
+    }
+  ],
+  "authority_boundary_sample": {
+    "foundation_lifecycle_review_memory_db_readonly_ui_now": true,
+    "readonly_ui_only": true,
+    "db_backed_review_memory_get_routes_primary": true,
+    "same_origin_route_calls_only": true,
+    "foundation_status_orientation_now": true,
+    "lifecycle_summary_review_cue_now": true,
+    "review_memory_record_read_now": true,
+    "review_memory_activity_read_now": true,
+    "product_write_parked_status_visible": true,
+    "review_memory_write_ui_now": false,
+    "review_memory_discard_ui_now": false,
+    "direct_db_access_from_ui_now": false,
+    "direct_file_write_from_ui_now": false,
+    "legacy_json_route_primary_persistence_now": false,
+    "post_route_call_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "rag_answer_generation_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "github_pr_create_now": false,
+    "github_merge_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "foundation_status_is_runtime_completion": false,
+    "lifecycle_cue_is_execution_authority": false,
+    "review_memory_is_truth": false,
+    "review_memory_is_proof": false,
+    "review_memory_is_accepted_evidence": false,
+    "review_memory_is_durable_perspective_state": false,
+    "candidate_is_fact": false,
+    "candidate_is_proof": false,
+    "source_ref_is_proof": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}

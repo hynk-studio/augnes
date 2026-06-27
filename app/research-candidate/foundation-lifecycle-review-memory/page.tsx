@@ -1,24 +1,24 @@
-import { FoundationLifecycleReviewMemoryClient } from "@/app/research-candidate/foundation-lifecycle-review-memory/foundation-lifecycle-review-memory-client";
+import { FoundationLifecycleReviewMemoryDbReadonlyPanel } from "@/components/foundation-lifecycle-review-memory-db-readonly-panel";
 
 export const metadata = {
-  title: "Foundation Lifecycle Review Memory",
+  title: "Foundation Lifecycle Review Memory DB Readonly UI",
 };
 
 export default function FoundationLifecycleReviewMemoryPage() {
   return (
     <main style={pageShellStyle}>
       <header style={pageHeaderStyle}>
-        <p style={eyebrowStyle}>Foundation/Lifecycle/Review Memory Read-only UI v0.1</p>
+        <p style={eyebrowStyle}>Foundation/Lifecycle/Review Memory DB Read-only UI v0.1</p>
         <h1 style={headingStyle}>Foundation Lifecycle Review Memory</h1>
       </header>
-      <FoundationLifecycleReviewMemoryClient />
+      <FoundationLifecycleReviewMemoryDbReadonlyPanel />
     </main>
   );
 }
 
 const pageShellStyle = {
   minHeight: "100vh",
-  padding: "32px",
+  padding: "clamp(16px, 4vw, 32px)",
   background: "#f7f8fa",
   color: "#18212f",
 } as const;

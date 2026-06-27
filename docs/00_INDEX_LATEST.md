@@ -3723,6 +3723,33 @@ repo-local 색인이다.
   (`npm run smoke:foundation-lifecycle-review-memory-readonly-ui-v0-1`) follows the integrated roadmap guide v0.2 as readonly-ui-only. It displays bounded read-only foundation status, lifecycle, calibration, logical shape, feedback-to-rule, temporal handoff, target-agent profile, and review memory summaries, with optional GET-only use of the #771 route for loading review-memory snapshot rows. This pointer is repo-local documentation metadata, not SSOT, and does not implement new routes, POST, write actions, DB migrations, DB query/write, provider calls, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation. Product-write remains parked by #686.
 
   Boundary phrases: Foundation/Lifecycle/Review Memory Read-only UI v0.1; readonly-ui-only; follows the integrated roadmap guide v0.2; follows #762 Lifecycle, #763 Calibration, #764 Logical Shape, #765/#766 Feedback-to-Rule, #767 Temporal Handoff, #768 Target-Agent Packet Profiles, #769 Contract, #770 Store, #771 Routes, and #772 Review Memory UI; Read-only UI; Review memory is not truth; Candidate memory is not Perspective state; Lifecycle status is derived review context, not source of truth; Calibration context is diagnostic, not readiness authority; Logical shape context is structure-only, not proof; Feedback-to-Rule context is candidate-only, not rule mutation; Temporal handoff context is diagnostic, not authority; Target-agent packet profile is advisory, not prompt execution; Discard is not deletion; Supersede preserves lineage; Source refs are lineage pointers, not proof; Source refs must be public-safe symbolic refs; Store paths remain constrained by the #771 route allowlist; UI is read-only and does not perform automatic background writes; older proposal documents are background inputs already integrated into the roadmap guide; no new routes, POST, write actions, DB migration, DB query/write, provider/OpenAI call, external source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Bounded Source Intake Runtime Contract, Bounded Source Intake Runtime, Provider-Assisted Extraction candidate-only contract, Provider-Assisted Extraction runtime, and Retrieval/RAG Runtime Contract.
+- Foundation/Lifecycle/Review Memory DB Readonly UI Completion v0.1:
+  `docs/FOUNDATION_LIFECYCLE_REVIEW_MEMORY_DB_READONLY_UI_COMPLETION_V0_1.md`,
+  `fixtures/foundation-lifecycle-review-memory.db-readonly-ui-completion.sample.v0.1.json`,
+  `components/foundation-lifecycle-review-memory-db-readonly-panel.tsx`,
+  `app/research-candidate/foundation-lifecycle-review-memory/page.tsx`,
+  and `scripts/smoke-foundation-lifecycle-review-memory-db-readonly-ui-completion-v0-1.mjs`
+  (`npm run smoke:foundation-lifecycle-review-memory-db-readonly-ui-completion-v0-1`)
+  implements `foundation_lifecycle_review_memory_db_readonly_ui_completion_v0_1`
+  as a runtime completion for original Phase 2.5 DB-backed read-only UI
+  requirements. It binds review memory visibility to DB-backed same-origin GET
+  routes under `/api/research-candidate-review/review-records` for list, detail,
+  and activity history while rendering Foundation completion summary, rail
+  status matrix, runtime readiness matrix, forbidden capability matrix,
+  product-write parked status, next runtime slice pointer, lifecycle summary,
+  operator decision queue, known warnings/skipped checks, and authority
+  boundary. This pointer is repo-local documentation metadata, not SSOT, and
+  adds no app/api routes, POST calls, review-memory writes, DB schema/helper
+  changes, direct DB/file writes from UI, provider calls, prompt sending,
+  source fetch, retrieval/RAG execution, proof/evidence write,
+  claim/evidence write, work item write, Perspective promotion, durable state
+  write/apply, Formation Receipt write, Git Ledger export runtime,
+  Git/GitHub execution inside Augnes runtime, Codex execution, file
+  export/import, product write, product persistence, product runtime write,
+  product-write authority, or product ID allocation. Product-write remains
+  parked by #686.
+
+  Boundary phrases: Foundation/Lifecycle/Review Memory DB Readonly UI Completion v0.1; foundation_lifecycle_review_memory_db_readonly_ui_completion_v0_1; original Phase 2.5 DB-backed read-only UI gap closed; DB-backed same-origin GET routes are primary for review memory visibility; UI is read-only; no POST routes; no review memory create/update/discard/supersede; no direct DB access from UI; no direct file write from UI; legacy JSON route is not primary review memory source; foundation status is orientation, not runtime completion; lifecycle is next review cue, not execution authority; review memory is explicit user-action record, not truth/proof/accepted evidence/durable state; candidate refs are not facts; source refs are lineage pointers, not proof; smoke/CI pass is not truth; roadmap guide is not SSOT; no provider/OpenAI call, prompt sent, source fetch, retrieval/RAG execution, proof/evidence write, claim/evidence write, work item write, Perspective promotion, durable Perspective state write/apply, Formation Receipt write, Git Ledger export runtime, Git/GitHub execution, Codex execution, file export/import, product write, product persistence, product runtime write, product-write authority, or product ID allocation; product-write remains parked by #686.
 - Bounded Source Intake Runtime Contract v0.1:
   `docs/BOUNDED_SOURCE_INTAKE_RUNTIME_CONTRACT_V0_1.md`,
   `types/bounded-source-intake-runtime-contract.ts`,
