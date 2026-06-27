@@ -4468,6 +4468,47 @@ repo-local 색인이다.
   runtime; no export/import runtime; no product-write; no product ID
   allocation; product-write remains parked by #686; smoke pass is not truth; CI
   pass is not truth.
+- Temporal Handoff Usefulness Experiment Plan v0.1:
+  `docs/TEMPORAL_HANDOFF_USEFULNESS_EXPERIMENT_PLAN_V0_1.md`,
+  `fixtures/temporal-handoff-usefulness-scenario.sample.v0.1.json`, and
+  `scripts/smoke-temporal-handoff-usefulness-experiment-plan-v0-1.mjs`
+  (`npm run smoke:temporal-handoff-usefulness-experiment-plan-v0-1`)
+  implements `temporal_handoff_usefulness_experiment_v0_1` from the integrated
+  roadmap guide v0.2.1 FULL. This slice is experiment-plan-only and
+  fixture-only. It defines ordinary Codex prompt vs existing
+  Perspective/Handoff Capsule vs Temporal Perspective enhanced handoff
+  comparison. It defines a scoring rubric and operator review protocol for
+  expected files/checks, unresolved tensions, authority boundary clarity,
+  source refs, not-done classification, expected/observed delta, decision hold
+  classification, and overconfident narrative guard. Product-write remains
+  parked by #686. This pointer is repo-local documentation metadata, not SSOT.
+  The roadmap guide is not SSOT. It does not execute experiments, call Codex,
+  call GitHub, create branches/commits/PRs/merges, run validation commands,
+  read/write files as runtime behavior, query/write DB, add routes/UI, ingest
+  telemetry, call providers, execute retrieval/RAG, create proof/evidence,
+  promote Perspective, write/apply durable state, write Formation Receipts,
+  execute Git Ledger export, product-write, or allocate product IDs.
+
+  Boundary phrases: Temporal Handoff Usefulness Experiment Plan v0.1;
+  plan-only; fixture-only; diagnostic-only; future operator experiment only;
+  caller-provided scenario only; Codex Result Report Ingestion compatible;
+  Authority Boundary Regression CI compatible; Privacy Redaction Runtime Guard
+  required before future runtime; Local Data Export/Import Policy remains
+  policy-only; Experiment result is not truth; Handoff score is not proof;
+  Better score is not approval; Worse score is not rejection; Codex result
+  report is candidate input only; PR body is not authority; CI pass is not
+  truth; Smoke pass is not truth; GitHub refs are references only, not
+  authority; no experiment runtime execution; no telemetry ingestion; no
+  analytics DB write; no Codex execution; no GitHub API call; no branch
+  creation; no commit creation; no PR creation; no merge execution; no Git
+  write; no repository file write as runtime behavior; no runtime state
+  mutation; no DB query/write; no route; no UI; no provider/OpenAI call; no
+  prompt sent; no source fetch; no retrieval execution; no RAG answer
+  generation; no proof/evidence write; no claim/evidence write; no promotion
+  execution; no durable state write; no durable state apply; no Formation
+  Receipt write; no Git Ledger export runtime; no export/import runtime; no
+  product-write; no product ID allocation; product-write remains parked by
+  #686; smoke pass is not truth; CI pass is not truth.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

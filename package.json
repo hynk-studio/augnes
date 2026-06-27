@@ -581,6 +581,7 @@
     "smoke:local-data-export-policy-v0-1": "node scripts/smoke-local-data-export-policy-v0-1.mjs",
     "smoke:authority-boundary-regression-v0-1": "node scripts/smoke-authority-boundary-regression-v0-1.mjs",
     "smoke:codex-result-report-ingestion-v0-1": "node scripts/smoke-codex-result-report-ingestion-v0-1.mjs",
+    "smoke:temporal-handoff-usefulness-experiment-plan-v0-1": "node scripts/smoke-temporal-handoff-usefulness-experiment-plan-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs",
     "smoke:perspective-geometry-digest-contract-v0-1": "node scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",
