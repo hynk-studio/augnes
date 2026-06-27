@@ -4135,6 +4135,42 @@ repo-local 색인이다.
   pull request creation; no repository file write; no provider/OpenAI call; no
   prompt sent; no retrieval execution; no RAG answer generation; no source
   fetch; no Codex execution; no GitHub automation.
+- Release Candidate Operator Review v0.1:
+  `docs/RELEASE_CANDIDATE_OPERATOR_REVIEW_V0_1.md`,
+  `lib/release-readiness/release-candidate-operator-review.ts`,
+  `fixtures/release-candidate-operator-review.sample.v0.1.json`, and
+  `scripts/smoke-release-candidate-operator-review-v0-1.mjs`
+  (`npm run smoke:release-candidate-operator-review-v0-1`) follows PR #800
+  Release Readiness Matrix and PR #801 Disabled Product Write Adapter Reentry
+  Harness. This slice is review-only. Product-write remains parked by #686,
+  and release/product-write authority is not granted. This pointer is
+  repo-local documentation metadata, not SSOT. The roadmap guide is not SSOT.
+  It does not add release execution, release artifact creation, release
+  approval automation, product-write runtime, product-write adapter enablement,
+  product-write target contract authority, product ID allocation, product
+  persistence, DB read/write, routes, UI, durable Perspective state mutation,
+  Formation Receipt writes, promotion execution, proof/evidence writes,
+  claim/evidence writes, Git Ledger export runtime, Git writes, GitHub API
+  calls, pull request creation, repository file writes, provider calls, prompt
+  sending, retrieval/RAG execution, source fetch, browser log ingestion,
+  session log ingestion, raw conversation ingestion, telemetry ingestion, Codex
+  execution, or GitHub automation.
+
+  Boundary phrases: Release Candidate Operator Review v0.1; review-only; not
+  release; not release approval; release authority is not granted;
+  product-write remains parked by #686; product-write authority is not granted;
+  product-write runtime is not implemented; product-write adapter is not
+  enabled; product-write target contract is not created; product IDs are not
+  allocated; products are not persisted; no release execution; no release
+  artifacts; no release authority; no release candidate approval; no
+  product-write runtime; no product-write adapter enabled; no product target
+  contract; no product ID allocation; no product persistence; no product route;
+  no product UI; no DB read/write; no route; no UI; no durable state mutation;
+  no Formation Receipt write; no promotion execution; no proof/evidence write;
+  no claim/evidence write; no Git Ledger export runtime; no Git write; no
+  GitHub API call; no pull request creation; no repository file write; no
+  provider/OpenAI call; no prompt sent; no retrieval execution; no RAG answer
+  generation; no source fetch; no Codex execution; no GitHub automation.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,

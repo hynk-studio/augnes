@@ -140,6 +140,9 @@ const releaseReadinessMatrixPackageScriptNames = [
 const disabledProductWriteAdapterHarnessPackageScriptNames = [
   "smoke:disabled-product-write-adapter-reentry-harness-v0-1",
 ];
+const releaseCandidateOperatorReviewPackageScriptNames = [
+  "smoke:release-candidate-operator-review-v0-1",
+];
 const feedbackControlsExpansionDocsPath =
   "docs/FEEDBACK_CONTROLS_EXPANSION_V0_1.md";
 const feedbackControlsExpansionComponentPath =
@@ -225,6 +228,14 @@ const disabledProductWriteAdapterHarnessFixturePath =
   "fixtures/disabled-product-write-adapter-reentry-harness.sample.v0.1.json";
 const disabledProductWriteAdapterHarnessSmokePath =
   "scripts/smoke-disabled-product-write-adapter-reentry-harness-v0-1.mjs";
+const releaseCandidateOperatorReviewDocsPath =
+  "docs/RELEASE_CANDIDATE_OPERATOR_REVIEW_V0_1.md";
+const releaseCandidateOperatorReviewHelperPath =
+  "lib/release-readiness/release-candidate-operator-review.ts";
+const releaseCandidateOperatorReviewFixturePath =
+  "fixtures/release-candidate-operator-review.sample.v0.1.json";
+const releaseCandidateOperatorReviewSmokePath =
+  "scripts/smoke-release-candidate-operator-review-v0-1.mjs";
 const anchorId = "agent-perspective-substrate-folded-audit-panel";
 const nextRecommendedSlice =
   "ai_context_packet_compiler_geometry_substrate_upgrade_v0_1";
@@ -350,6 +361,16 @@ const disabledProductWriteAdapterHarnessChangedFiles = [
   disabledProductWriteAdapterHarnessHelperPath,
   disabledProductWriteAdapterHarnessFixturePath,
   disabledProductWriteAdapterHarnessSmokePath,
+  smokePath,
+  packagePath,
+  indexPath,
+];
+const releaseCandidateOperatorReviewChangedFiles = [
+  "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+  releaseCandidateOperatorReviewDocsPath,
+  releaseCandidateOperatorReviewHelperPath,
+  releaseCandidateOperatorReviewFixturePath,
+  releaseCandidateOperatorReviewSmokePath,
   smokePath,
   packagePath,
   indexPath,
@@ -672,6 +693,7 @@ function assertPackageScript() {
       productWriteReentryReviewPackageScriptNames,
       releaseReadinessMatrixPackageScriptNames,
       disabledProductWriteAdapterHarnessPackageScriptNames,
+      releaseCandidateOperatorReviewPackageScriptNames,
     ].some((allowedNames) => arraysEqual(addedScriptNames, [...allowedNames].sort())),
     "package additions must only include a recognized downstream slice package script set",
   );
@@ -684,6 +706,10 @@ function assertPackageScript() {
 
 function assertStaticBoundary() {
   const changedFiles = readChangedFiles();
+  if (releaseCandidateOperatorReviewSliceActive(changedFiles)) {
+    assertReleaseCandidateOperatorReviewChangedFiles(changedFiles);
+    return;
+  }
   if (disabledProductWriteAdapterHarnessSliceActive(changedFiles)) {
     assertDisabledProductWriteAdapterHarnessChangedFiles(changedFiles);
     return;
@@ -895,6 +921,47 @@ function disabledProductWriteAdapterHarnessSliceActive(changedFiles) {
     disabledProductWriteAdapterHarnessFixturePath,
     disabledProductWriteAdapterHarnessSmokePath,
   ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function releaseCandidateOperatorReviewSliceActive(changedFiles) {
+  return [
+    releaseCandidateOperatorReviewDocsPath,
+    releaseCandidateOperatorReviewHelperPath,
+    releaseCandidateOperatorReviewFixturePath,
+    releaseCandidateOperatorReviewSmokePath,
+  ].every((filePath) => changedFiles.includes(filePath));
+}
+
+function assertReleaseCandidateOperatorReviewChangedFiles(changedFiles) {
+  for (const expectedFile of releaseCandidateOperatorReviewChangedFiles) {
+    assert.ok(changedFiles.includes(expectedFile), `changed files must include ${expectedFile}`);
+  }
+  for (const changedFile of changedFiles) {
+    assert.ok(
+      releaseCandidateOperatorReviewChangedFiles.includes(changedFile),
+      `unexpected changed file in release candidate operator review slice: ${changedFile}`,
+    );
+    assert.doesNotMatch(changedFile, /^app\/api\//, "must not change app/api routes");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)route\.(ts|tsx|js|mjs)$/,
+      "must not change route handlers",
+    );
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)actions?\.(ts|tsx|js|mjs)$/,
+      "must not change server actions",
+    );
+    assert.doesNotMatch(changedFile, /^components\//, "must not change components");
+    assert.notEqual(changedFile, "lib/db.ts", "must not change lib/db.ts");
+    assert.notEqual(changedFile, "lib/db/schema.sql", "must not change schema SQL");
+    assert.doesNotMatch(changedFile, /^migrations\//, "must not change migrations");
+    assert.doesNotMatch(
+      changedFile,
+      /(^|\/)(schema|migration|db|sql)\b/i,
+      "must not change schema/db/sql paths",
+    );
+  }
 }
 
 function assertDisabledProductWriteAdapterHarnessChangedFiles(changedFiles) {
