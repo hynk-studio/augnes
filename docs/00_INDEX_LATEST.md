@@ -4067,6 +4067,44 @@ repo-local 색인이다.
   Receipt write; no export/import runtime; no Codex execution; no product-write;
   no product ID allocation; smoke pass is not truth; CI pass is not truth;
   product-write remains parked by #686.
+- Git Ledger Export Readonly Preview v0.1:
+  `docs/GIT_LEDGER_EXPORT_READONLY_PREVIEW_V0_1.md`,
+  `components/git-ledger-export-readonly-preview-panel.tsx`,
+  `fixtures/git-ledger-export-readonly-preview.sample.v0.1.json`, and
+  `scripts/smoke-git-ledger-export-readonly-preview-v0-1.mjs`
+  (`npm run smoke:git-ledger-export-readonly-preview-v0-1`) implements
+  `git_ledger_export_readonly_preview_v0_1` from the integrated roadmap guide
+  v0.2.1 FULL. This slice is read-only preview only. It renders packet
+  candidates, markdown summary, privacy/validation report, authority boundary,
+  deterministic packet hash, idempotency key, and suggested commit message text
+  only. Suggested commit message is not approval. Packet hash is not truth.
+  Idempotency key is not authority. Git ref is not authority. This pointer is
+  repo-local documentation metadata, not SSOT. The roadmap guide is not SSOT. It
+  does not execute Git, execute Git Ledger export, create commits, branches,
+  tags, PRs, or merges, call GitHub, write repository files, export files
+  locally, import files, query/write DB, add routes, call providers, send
+  prompts, fetch sources, execute retrieval/RAG, create proof/evidence, write
+  claim/evidence records, promote Perspective, write/apply durable Perspective
+  state, write Formation Receipts, execute Codex, product-write, or allocate
+  product IDs. Product-write remains parked by #686.
+
+  Boundary phrases: Git Ledger Export Readonly Preview v0.1; read-only preview
+  only; packet candidate previewed; caller-provided packet only; public-safe
+  render only; suggested commit message text only; summary markdown text only;
+  suggested commit message is not approval; packet hash is not truth;
+  idempotency key is not authority; Git ref is not authority; Git Ledger export
+  packet is not commit, not proof, not accepted evidence, not durable state, not
+  promotion, and not product-write; no action controls present; no Git Ledger
+  export runtime; no Git Ledger builder mutation; no Git write; no commit
+  creation; no branch creation; no tag creation; no GitHub API call; no pull
+  request creation; no merge execution; no repository file write; no local file
+  export; no local file import; no DB query/write; no route; no provider/OpenAI
+  call; no prompt sending; no source fetch; no retrieval execution; no RAG
+  answer generation; no proof/evidence write; no claim/evidence write; no
+  promotion execution; no durable state write; no durable state apply; no
+  Formation Receipt write; no export/import runtime; no Codex execution; no
+  product-write; no product ID allocation; smoke pass is not truth; CI pass is
+  not truth; product-write remains parked by #686.
 - Product Write Reentry Review v0.1:
   `docs/PRODUCT_WRITE_REENTRY_REVIEW_V0_1.md`,
   `lib/product-write/product-write-reentry-review.ts`,
