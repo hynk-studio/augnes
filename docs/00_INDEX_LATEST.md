@@ -4397,6 +4397,39 @@ repo-local 색인이다.
   auto-proof/evidence write; no auto-durable-state apply; no auto-provider call;
   no auto-retrieval; no auto-Git/GitHub; smoke pass is not truth; CI pass is not
   truth.
+- Authority Boundary Regression CI v0.1:
+  `docs/AUTHORITY_BOUNDARY_REGRESSION_CI_V0_1.md`,
+  `fixtures/authority-boundary-regression-baseline.sample.v0.1.json`,
+  `scripts/smoke-authority-boundary-regression-v0-1.mjs`, and
+  `.github/workflows/authority-boundary-smoke.yml`
+  (`npm run smoke:authority-boundary-regression-v0-1`) implements
+  `authority_boundary_regression_ci_v0_1` from the integrated roadmap guide
+  v0.2.1 FULL. This slice is static-smoke-only and diagnostic-only. CI runs the
+  static smoke only with read-only workflow permissions. Product-write remains
+  parked by #686. This pointer is repo-local documentation metadata, not SSOT.
+  The roadmap guide is not SSOT. It does not add runtime routes or UI, DB
+  query/write, provider/OpenAI calls, prompt sending, source fetch,
+  retrieval/RAG execution, export/import runtime, Git Ledger export runtime,
+  Git writes, GitHub mutation APIs, Codex execution, proof/evidence writes,
+  claim/evidence writes, promotion execution, durable Perspective state writes
+  or apply, Formation Receipt writes, product-write, or product ID allocation.
+  CI pass is not truth, proof, approval, promotion, merge approval, release
+  approval, product-write authority, or durable state. CI failure is diagnostic,
+  not automatic rejection. Smoke pass is not truth.
+
+  Boundary phrases: Authority Boundary Regression CI v0.1; static-smoke-only;
+  diagnostic-only; read-only GitHub Actions permissions; selected repo text
+  scan only; no runtime mutation; no DB query/write; no route; no UI; no
+  provider/OpenAI call; no prompt sent; no source fetch; no retrieval execution;
+  no RAG answer generation; no export/import runtime; no Git Ledger export
+  runtime; no Git write; no GitHub mutation API; no Codex execution; no
+  proof/evidence write; no claim/evidence write; no promotion execution; no
+  durable state write; no durable state apply; no Formation Receipt write; no
+  product-write; no product ID allocation; CI pass is not truth; CI pass is not
+  proof; CI pass is not approval; CI failure is diagnostic, not automatic
+  rejection; smoke pass is not truth; smoke pass is not proof; PR body is not
+  authority; Git ref is not authority; GitHub PR is not Core decision;
+  product-write remains parked by #686.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
