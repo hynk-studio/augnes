@@ -1,0 +1,282 @@
+{
+  "fixture_version": "codex_result_report_ingestion.sample.v0.1",
+  "input_version": "codex_result_report_input.v0.1",
+  "record_version": "codex_result_report_ingestion_record.v0.1",
+  "scope": "project:augnes",
+  "safe_input_example": {
+    "input_version": "codex_result_report_input.v0.1",
+    "scope": "project:augnes",
+    "report_id": "codex-result-report:sample-safe",
+    "report_kind": "codex_pr_result",
+    "reported_at": "2026-06-27T08:00:00Z",
+    "operator_actor_ref": "operator-ref:sample-human-reviewer",
+    "pr_refs": [
+      "pr-ref:augnes#sample-codex-result-report"
+    ],
+    "branch_ref": "branch-ref:codex/codex-result-report-ingestion-v0-1",
+    "commit_refs": [
+      "commit-ref:sample-public-safe"
+    ],
+    "codex_claimed_summary": "Added a deterministic result report normalizer with docs, fixture, read-only panel, and smoke coverage.",
+    "expected_files": [
+      "lib/dogfooding/codex-result-report-normalizer.ts",
+      "fixtures/codex-result-report-ingestion.sample.v0.1.json",
+      "scripts/smoke-codex-result-report-ingestion-v0-1.mjs",
+      "components/codex-result-report-ingestion-panel.tsx",
+      "docs/CODEX_RESULT_REPORT_INGESTION_V0_1.md",
+      "package.json",
+      "docs/00_INDEX_LATEST.md"
+    ],
+    "observed_files": [
+      "lib/dogfooding/codex-result-report-normalizer.ts",
+      "fixtures/codex-result-report-ingestion.sample.v0.1.json",
+      "scripts/smoke-codex-result-report-ingestion-v0-1.mjs",
+      "components/codex-result-report-ingestion-panel.tsx",
+      "docs/CODEX_RESULT_REPORT_INGESTION_V0_1.md",
+      "package.json",
+      "docs/00_INDEX_LATEST.md"
+    ],
+    "expected_checks": [
+      "node --check scripts/smoke-codex-result-report-ingestion-v0-1.mjs",
+      "npm run smoke:codex-result-report-ingestion-v0-1",
+      "npm run smoke:authority-boundary-regression-v0-1",
+      "npm run typecheck"
+    ],
+    "observed_checks": [
+      {
+        "command": "node --check scripts/smoke-codex-result-report-ingestion-v0-1.mjs",
+        "status": "passed",
+        "summary": "syntax check completed"
+      },
+      {
+        "command": "npm run smoke:codex-result-report-ingestion-v0-1",
+        "status": "passed",
+        "summary": "slice smoke completed"
+      }
+    ],
+    "validation_commands": [
+      "node --check scripts/smoke-codex-result-report-ingestion-v0-1.mjs",
+      "npm run smoke:codex-result-report-ingestion-v0-1"
+    ],
+    "skipped_checks": [
+      {
+        "check_ref": "check-ref:browser-validation",
+        "reason": "No browser runtime is in scope for this read-only panel slice."
+      }
+    ],
+    "known_warnings": [
+      "warning-ref:strip-types-experimental-runtime-message"
+    ],
+    "changed_files_summary": [
+      "lib/dogfooding/codex-result-report-normalizer.ts",
+      "components/codex-result-report-ingestion-panel.tsx",
+      "docs/CODEX_RESULT_REPORT_INGESTION_V0_1.md"
+    ],
+    "not_done_items": [
+      "No DB ingestion runtime was added.",
+      "No GitHub automation was added."
+    ],
+    "expected_observed_delta": [
+      "delta-ref:none-for-expected-slice-files"
+    ],
+    "boundary_notes": [
+      "Codex result report is candidate input only.",
+      "PR body is not authority.",
+      "Product-write remains parked by #686."
+    ],
+    "source_refs": [
+      "roadmap-ref:codex_result_report_ingestion_v0_1",
+      "privacy-guard-ref:privacy_redaction_runtime_guard_v0_1",
+      "authority-regression-ref:authority_boundary_regression_ci_v0_1"
+    ],
+    "privacy_report": {
+      "guard_ref": "privacy_redaction_runtime_guard_v0_1",
+      "status": "passed",
+      "summary": "No unsafe fixture markers were present in the safe example."
+    },
+    "authority_boundary": {
+      "codex_result_report_ingestion_now": true,
+      "caller_provided_input_only": true,
+      "candidate_only": true,
+      "deterministic_normalization_now": true,
+      "codex_execution_now": false,
+      "codex_execution_authority": false,
+      "github_api_call_now": false,
+      "github_branch_create_now": false,
+      "github_commit_create_now": false,
+      "github_pr_create_now": false,
+      "github_merge_now": false,
+      "git_write_now": false,
+      "repository_file_write_now": false,
+      "runtime_state_mutation_now": false,
+      "db_query_or_write_now": false,
+      "route_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "source_fetch_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "promotion_execution_now": false,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "git_ledger_export_runtime_now": false,
+      "export_import_runtime_now": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "report_is_truth": false,
+      "report_is_proof": false,
+      "report_is_accepted_evidence": false,
+      "report_is_durable_state": false,
+      "pr_body_is_authority": false,
+      "ci_pass_is_truth": false,
+      "smoke_pass_is_truth": false,
+      "validation_pass_is_approval": false,
+      "validation_failure_is_rejection": false,
+      "github_ref_is_authority": false,
+      "product_write_authority": false
+    }
+  },
+  "normalized_record_example": {
+    "record_version": "codex_result_report_ingestion_record.v0.1",
+    "scope": "project:augnes",
+    "status": "needs_operator_review",
+    "report_id": "codex-result-report:sample-safe",
+    "report_kind": "codex_pr_result",
+    "reported_at": "2026-06-27T08:00:00Z",
+    "operator_actor_ref": "operator-ref:sample-human-reviewer",
+    "review_cue_kinds": [
+      "inspect_changed_files",
+      "verify_validation_command",
+      "inspect_skipped_check",
+      "review_known_warning",
+      "preserve_not_done_item",
+      "resolve_expected_observed_delta",
+      "check_authority_boundary"
+    ],
+    "boundary_notes": [
+      "Codex result report is candidate input only.",
+      "PR body is not authority.",
+      "Product-write remains parked by #686."
+    ],
+    "reason_codes": [
+      "codex_report_is_candidate_input",
+      "privacy_guard_applied",
+      "product_write_denied"
+    ],
+    "report_fingerprint": "sha256:85db515845f9512f3542e1e5e6f3b6e786c5d3d82ca365c509f863917be7d77b"
+  },
+  "blocked_private_or_raw_payload_example": {
+    "input": {
+      "input_version": "codex_result_report_input.v0.1",
+      "scope": "project:augnes",
+      "report_id": "codex-result-report:blocked-private",
+      "report_kind": "codex_validation_report",
+      "reported_at": "2026-06-27T08:05:00Z",
+      "operator_actor_ref": "operator-ref:sample-human-reviewer",
+      "codex_claimed_summary": "Blocked fixture markers are intentionally present for privacy guard coverage.",
+      "blocked_fixture_markers": [
+        "SAFE_MARKER_PRIVATE_URL",
+        "SAFE_MARKER_LOCAL_PRIVATE_PATH",
+        "SAFE_MARKER_SECRET_TOKEN",
+        "SAFE_MARKER_RAW_TERMINAL_LOG",
+        "SAFE_MARKER_RAW_GITHUB_PAYLOAD",
+        "SAFE_MARKER_RAW_PROVIDER_OUTPUT",
+        "SAFE_MARKER_RAW_RETRIEVAL_OUTPUT",
+        "SAFE_MARKER_PROVIDER_THREAD_ID",
+        "SAFE_MARKER_RAW_CONVERSATION",
+        "SAFE_MARKER_HIDDEN_REASONING"
+      ],
+      "authority_boundary": {
+        "product_write_authority": false,
+        "github_api_call_now": false,
+        "codex_execution_authority": false
+      }
+    },
+    "expected_status": "blocked_private_or_raw_payload"
+  },
+  "blocked_forbidden_authority_example": {
+    "input": {
+      "input_version": "codex_result_report_input.v0.1",
+      "scope": "project:augnes",
+      "report_id": "codex-result-report:blocked-authority",
+      "report_kind": "codex_pr_result",
+      "reported_at": "2026-06-27T08:10:00Z",
+      "operator_actor_ref": "operator-ref:sample-human-reviewer",
+      "codex_claimed_summary": "Forbidden authority claims are intentionally set for fail-closed coverage.",
+      "authority_boundary": {
+        "product_write_authority": "enabled",
+        "github_api_call_now": true,
+        "validation_pass_is_approval": 1,
+        "report_is_truth": {}
+      }
+    },
+    "expected_status": "blocked_forbidden_authority"
+  },
+  "read_only_panel_example": {
+    "component_ref": "components/codex-result-report-ingestion-panel.tsx",
+    "render_mode": "read_only_preview",
+    "display_fields": [
+      "status",
+      "normalized_summary",
+      "changed_file_refs",
+      "observed_check_refs",
+      "skipped_check_refs",
+      "known_warning_refs",
+      "not_done_refs",
+      "expected_observed_delta_refs",
+      "review_cues",
+      "boundary_notes"
+    ],
+    "boundary_notes": [
+      "No action controls are present.",
+      "Product-write remains parked by #686."
+    ]
+  },
+  "authority_boundary_sample": {
+    "codex_result_report_ingestion_now": true,
+    "caller_provided_input_only": true,
+    "candidate_only": true,
+    "deterministic_normalization_now": true,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_api_call_now": false,
+    "github_branch_create_now": false,
+    "github_commit_create_now": false,
+    "github_pr_create_now": false,
+    "github_merge_now": false,
+    "git_write_now": false,
+    "repository_file_write_now": false,
+    "runtime_state_mutation_now": false,
+    "db_query_or_write_now": false,
+    "route_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "rag_answer_generation_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "git_ledger_export_runtime_now": false,
+    "export_import_runtime_now": false,
+    "product_write_now": false,
+    "product_id_allocation_now": false,
+    "report_is_truth": false,
+    "report_is_proof": false,
+    "report_is_accepted_evidence": false,
+    "report_is_durable_state": false,
+    "pr_body_is_authority": false,
+    "ci_pass_is_truth": false,
+    "smoke_pass_is_truth": false,
+    "validation_pass_is_approval": false,
+    "validation_failure_is_rejection": false,
+    "github_ref_is_authority": false,
+    "product_write_authority": false
+  }
+}
