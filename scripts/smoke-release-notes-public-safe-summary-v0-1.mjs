@@ -236,6 +236,22 @@ assert.ok(
   "helper must recursively scan unknown fields",
 );
 assert.ok(
+  helperSource.includes("collectForbiddenAuthorityObjectFailures"),
+  "helper must recursively scan forbidden authority fields",
+);
+assert.ok(
+  helperSource.includes("hasTopLevelOperatorReviewGapV01"),
+  "helper must expose top-level operator review gap detection",
+);
+assert.ok(
+  helperSource.includes('collectForbiddenAuthorityObjectFailures(input, "input")'),
+  "input validator must recursively scan forbidden authority fields",
+);
+assert.ok(
+  helperSource.includes('collectForbiddenAuthorityObjectFailures(input, "section")'),
+  "section validator must recursively scan forbidden authority fields",
+);
+assert.ok(
   helperSource.includes("includesTokenLikeMarker"),
   "helper must use token-aware marker detection",
 );
@@ -342,6 +358,51 @@ assertDecisionCase(
   "release-notes-section:missing:release_boundary",
   "operator_review_required",
 );
+assertDecisionHasReason(
+  "missing_release_candidate_operator_refs_needs_review",
+  "needs_operator_review",
+  "release_candidate_operator_ref_missing",
+);
+assertDecisionHasReason(
+  "missing_release_candidate_operator_refs_needs_review",
+  "needs_operator_review",
+  "operator_review_required",
+);
+assertDecisionHasReason(
+  "missing_release_readiness_refs_needs_review",
+  "needs_operator_review",
+  "release_readiness_ref_missing",
+);
+assertDecisionHasReason(
+  "missing_release_readiness_refs_needs_review",
+  "needs_operator_review",
+  "operator_review_required",
+);
+assertDecisionHasReason(
+  "missing_both_top_level_refs_needs_review",
+  "needs_operator_review",
+  "release_candidate_operator_ref_missing",
+);
+assertDecisionHasReason(
+  "missing_both_top_level_refs_needs_review",
+  "needs_operator_review",
+  "release_readiness_ref_missing",
+);
+assert.equal(
+  fixture.expected_decision_results.all_required_sections_and_refs_summary_candidate_only
+    .decision,
+  "summary_candidate_only",
+);
+assert.equal(
+  fixture.expected_decision_results.harmless_unknown_boolean_allowed.status,
+  "built",
+  "harmless unknown booleans must not be blocked solely because they are unknown",
+);
+assert.equal(
+  fixture.expected_decision_results.harmless_unknown_boolean_allowed.decision,
+  "summary_candidate_only",
+  "harmless unknown booleans must preserve candidate-only behavior when all refs are present",
+);
 assert.equal(
   fixture.expected_decision_results.needs_operator_review.decision,
   "needs_operator_review",
@@ -392,6 +453,19 @@ assert.equal(
   fixture.expected_rejection_results.forbidden_authority.status,
   "blocked_invalid_input",
 );
+for (const caseName of [
+  "unknown_top_level_product_write_now_true",
+  "unknown_top_level_release_notes_publish_now_true",
+  "unknown_top_level_release_execution_now_true",
+  "unknown_section_product_write_authority_true",
+  "unknown_nested_github_api_call_now_true",
+]) {
+  assert.equal(
+    fixture.expected_rejection_results[caseName].status,
+    "blocked_invalid_input",
+    `${caseName} must be blocked as invalid input`,
+  );
+}
 
 const publicSafeHyphenInput = structuredClone(fixture.expected_valid_input);
 publicSafeHyphenInput.summary_id = "release-notes-public-safe-summary:hyphen-safe";
@@ -429,6 +503,16 @@ function assertDecisionCase(caseName, decision, missingRef, reasonCode) {
     result.missing_section_refs.includes(missingRef),
     `${caseName} must include ${missingRef}`,
   );
+  assert.ok(
+    result.reason_codes.includes(reasonCode),
+    `${caseName} must include ${reasonCode}`,
+  );
+  assertResultAuthorityClosed(result);
+}
+
+function assertDecisionHasReason(caseName, decision, reasonCode) {
+  const result = fixture.expected_decision_results[caseName];
+  assert.equal(result.decision, decision, `${caseName} decision`);
   assert.ok(
     result.reason_codes.includes(reasonCode),
     `${caseName} must include ${reasonCode}`,

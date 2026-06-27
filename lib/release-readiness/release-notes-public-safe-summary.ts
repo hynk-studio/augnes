@@ -447,6 +447,7 @@ export function validateReleaseNotesPublicSafeInputV01(
   const failures: string[] = [];
   failures.push(...collectUnsafeObjectFailures(input, "input"));
   failures.push(...collectPublicUnsafeFailures(input, "input"));
+  failures.push(...collectForbiddenAuthorityObjectFailures(input, "input"));
 
   if (value.input_version !== RELEASE_NOTES_PUBLIC_SAFE_INPUT_VERSION) {
     failures.push("input_version_invalid");
@@ -489,6 +490,7 @@ export function validateReleaseNotesPublicSafeInputSectionV01(
   const failures: string[] = [];
   failures.push(...collectUnsafeObjectFailures(input, "section"));
   failures.push(...collectPublicUnsafeFailures(input, "section"));
+  failures.push(...collectForbiddenAuthorityObjectFailures(input, "section"));
 
   failures.push(...validateSafeString(value.section_id, "section_id"));
   if (
@@ -600,7 +602,11 @@ export function buildReleaseNotesPublicSafeSummaryV01(
     }),
   );
   const missingSectionRefs = missingRequiredSectionRefs(sections);
-  const decision = decideSummary(sections, missingSectionRefs);
+  const decision = decideSummary(
+    sections,
+    missingSectionRefs,
+    hasTopLevelOperatorReviewGapV01(input),
+  );
 
   return finalizeResult({
     result_version: RELEASE_NOTES_PUBLIC_SAFE_RESULT_VERSION,
@@ -758,6 +764,15 @@ function inputReasonCodes(
   return uniqueSorted(reasonCodes);
 }
 
+export function hasTopLevelOperatorReviewGapV01(
+  input: ReleaseNotesPublicSafeInput,
+): boolean {
+  return (
+    input.release_candidate_operator_refs.length === 0 ||
+    input.release_readiness_refs.length === 0
+  );
+}
+
 function reasonCodesForSection(
   section: ReleaseNotesPublicSafeInputSection,
 ): ReleaseNotesPublicSafeReasonCode[] {
@@ -887,9 +902,11 @@ function missingRequiredSectionReasonCodes(
 function decideSummary(
   sections: ReleaseNotesPublicSafeSection[],
   missingSectionRefs: string[],
+  hasTopLevelOperatorReviewGap: boolean,
 ): ReleaseNotesPublicSafeDecision {
   if (sections.some((section) => section.section_kind === "unknown")) return "rejected";
   if (missingSectionRefs.length > 0) return "blocked";
+  if (hasTopLevelOperatorReviewGap) return "needs_operator_review";
   if (
     sections.some((section) =>
       section.reason_codes.includes("operator_review_required"),
@@ -1055,6 +1072,40 @@ function collectPublicUnsafeFailures(value: unknown, label: string): string[] {
       failures.push(`${label}_${key}_not_true`);
     }
     failures.push(...collectPublicUnsafeFailures(nestedValue, `${label}_${key}`));
+    return failures;
+  });
+}
+
+function collectForbiddenAuthorityObjectFailures(value: unknown, label: string): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) =>
+      collectForbiddenAuthorityObjectFailures(item, `${label}_${index}`),
+    );
+  }
+  if (!isRecord(value)) return [];
+  return Object.entries(value).flatMap(([key, nestedValue]) => {
+    const failures: string[] = [];
+    if (
+      forbiddenFalseAuthorityFields.includes(
+        key as (typeof forbiddenFalseAuthorityFields)[number],
+      ) &&
+      nestedValue !== false &&
+      nestedValue !== undefined
+    ) {
+      failures.push(`${label}_${key}_forbidden_authority`);
+    }
+    if (
+      requiredTrueAuthorityFields.includes(
+        key as (typeof requiredTrueAuthorityFields)[number],
+      ) &&
+      nestedValue !== true &&
+      nestedValue !== undefined
+    ) {
+      failures.push(`${label}_${key}_invalid_authority`);
+    }
+    failures.push(
+      ...collectForbiddenAuthorityObjectFailures(nestedValue, `${label}_${key}`),
+    );
     return failures;
   });
 }

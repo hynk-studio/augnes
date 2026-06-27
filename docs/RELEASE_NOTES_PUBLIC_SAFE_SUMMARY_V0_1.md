@@ -169,6 +169,12 @@ supplied.
 `summary_candidate_only` means required sections are present and the output is
 a public-safe candidate for future human/operator review only.
 
+`summary_candidate_only` requires required sections and top-level review refs to be present.
+
+Missing release candidate operator refs or release readiness refs require operator review.
+
+Missing top-level review context cannot produce `summary_candidate_only`.
+
 `summary_candidate_only` still does not publish release notes, execute a
 release, create release artifacts, approve release, grant release authority,
 grant product-write authority, enable product-write, or allocate product IDs.
@@ -191,6 +197,12 @@ Release Notes Public Safe Summary does not approve release.
 Release Notes Public Safe Summary does not grant release authority.
 
 Release Notes Public Safe Summary does not grant product-write authority.
+
+Forbidden authority fields are rejected anywhere in the input object.
+
+Unknown fields cannot carry release, product-write, GitHub, DB, route, UI, provider, retrieval, RAG, state mutation, or automation authority.
+
+`authority_boundary` is not the only place where forbidden authority grants are checked.
 
 The result always keeps `release_notes_published: false`,
 `release_executed: false`, `release_artifact_created: false`,
