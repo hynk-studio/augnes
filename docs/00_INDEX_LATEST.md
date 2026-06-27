@@ -4306,6 +4306,50 @@ repo-local 색인이다.
   is not promotion readiness; variant is not durable state; variant is not
   product-write; smoke pass is not truth; CI pass is not truth; product-write
   remains parked by #686.
+- Empirical Calibration Dataset v0.1:
+  `docs/EMPIRICAL_CALIBRATION_DATASET_V0_1.md`,
+  `types/empirical-calibration-dataset.ts`,
+  `fixtures/empirical-calibration-dataset.sample.v0.1.json`, and
+  `scripts/smoke-empirical-calibration-dataset-v0-1.mjs`
+  (`npm run smoke:empirical-calibration-dataset-v0-1`) implements
+  `empirical_calibration_dataset_v0_1` from the integrated roadmap guide
+  v0.2.1 FULL. This slice is contract-only and fixture-only. It defines an
+  offline empirical calibration dataset contract for candidate readiness,
+  diagnostic reason codes, feedback outcomes, handoff usage/outcomes, Codex
+  result review outcomes, not-done classification, validation results, later
+  review outcomes, Temporal Handoff experiment refs, and CRPF variant refs.
+  This pointer is repo-local documentation metadata, not SSOT. The roadmap
+  guide is not SSOT. calibration_training_allowed is false by default. Dataset
+  rows are offline diagnostics only; they are not truth, proof, accepted
+  evidence, training data, approval, rejection, promotion, durable state, or
+  product-write. It does not execute training, automatic learning, rule
+  mutation, prompt mutation, parser mutation, ranking mutation, surfacing
+  mutation, telemetry ingestion runtime, provider calls, prompt sending,
+  source fetch, retrieval/RAG, DB writes, routes/UI, proof/evidence writes,
+  Perspective promotion, durable state apply, Formation Receipt writes, Git
+  Ledger export runtime, Git/GitHub, Codex execution, export/import,
+  product-write, product ID allocation, or grant product-write authority.
+  Product-write remains parked by #686.
+
+  Boundary phrases: Empirical Calibration Dataset v0.1; contract-only and
+  fixture-only; offline diagnostic only; calibration_training_allowed is false
+  by default; no training runtime; no automatic learning; no rule mutation; no
+  prompt mutation; no parser mutation; no ranking mutation; no surfacing
+  mutation; no telemetry ingestion runtime; no provider call; no prompt
+  sending; no source fetch; no retrieval execution; no RAG answer generation;
+  no DB query/write; no route; no UI; no proof/evidence write; no
+  claim/evidence write; no promotion execution; no durable state write; no
+  durable state apply; no Formation Receipt write; no Git Ledger export
+  runtime; no Git write; no GitHub API call; no repository file write; no
+  local file export; no local file import; no Codex execution; no
+  product-write; no product ID allocation; feedback is not truth; readiness
+  label is not truth; diagnostic reason code is not truth; validation pass is
+  not truth; validation failure is not automatic rejection; Codex result is not
+  proof; handoff outcome is not approval; later review outcome is not truth;
+  dataset row is not proof; dataset row is not accepted evidence; dataset row
+  is not training data unless a future explicit approval changes policy; smoke
+  pass is not truth; CI pass is not truth; product-write remains parked by
+  #686.
 - Release Readiness Matrix v0.1:
   `docs/RELEASE_READINESS_MATRIX_V0_1.md`,
   `lib/release-readiness/build-release-readiness-matrix.ts`,

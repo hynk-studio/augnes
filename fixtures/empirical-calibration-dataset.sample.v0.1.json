@@ -1,0 +1,2242 @@
+{
+  "fixture_version": "empirical_calibration_dataset.sample.v0.1",
+  "contract_version": "empirical_calibration_dataset.v0.1",
+  "row_version": "empirical_calibration_dataset_row.v0.1",
+  "bundle_version": "empirical_calibration_dataset_bundle.v0.1",
+  "scope": "project:augnes",
+  "dataset_bundle_example": {
+    "bundle_version": "empirical_calibration_dataset_bundle.v0.1",
+    "contract_version": "empirical_calibration_dataset.v0.1",
+    "row_version": "empirical_calibration_dataset_row.v0.1",
+    "scope": "project:augnes",
+    "status": "offline_diagnostic_only",
+    "dataset_id": "empirical-calibration-dataset:sample-v0-1",
+    "dataset_title": "Public-safe empirical calibration fixture dataset v0.1",
+    "created_by_ref": "operator-ref:sample-calibration-reviewer",
+    "created_at_ref": "time-ref:sample-2026-06-27",
+    "rows": [
+      {
+        "row_version": "empirical_calibration_dataset_row.v0.1",
+        "dataset_version": "empirical_calibration_dataset.v0.1",
+        "scope": "project:augnes",
+        "row_id": "empirical-calibration-row:manual-note:v0-1",
+        "candidate_ref": "candidate-ref:manual-note-synthetic-a",
+        "candidate_family": "manual_note_candidate",
+        "initial_readiness_label": "medium",
+        "diagnostic_reason_codes": [
+          "readiness_label_not_truth",
+          "source_refs_required"
+        ],
+        "lifecycle_status_ref": "lifecycle-status-ref:manual-note-reviewable",
+        "feedback_event_refs": [
+          "feedback-event-ref:manual-note-operator-signal"
+        ],
+        "handoff_used": false,
+        "handoff_profile_ref": "handoff-profile-ref:not-used",
+        "handoff_outcome": "not_used",
+        "codex_result_report_ref": "codex-result-report-ref:not-used",
+        "codex_review_outcome": "inconclusive",
+        "not_done_classification": "not_applicable",
+        "validation_command_refs": [
+          "validation-command-ref:manual-note-smoke"
+        ],
+        "validation_skipped_refs": [],
+        "validation_warning_refs": [],
+        "validation_failure_refs": [],
+        "validation_pass_refs": [
+          "validation-pass-ref:manual-note-smoke"
+        ],
+        "later_review_outcome": "later_confirmed_useful",
+        "later_review_reason_codes": [
+          "later_review_outcome_not_truth"
+        ],
+        "expected_observed_delta_refs": [
+          "expected-observed-delta-ref:manual-note-none"
+        ],
+        "temporal_handoff_experiment_refs": [],
+        "deterministic_crpf_variant_refs": [],
+        "source_refs": [
+          "source-ref:manual-note-public-safe-a"
+        ],
+        "privacy_report": {
+          "status": "passed",
+          "report_ref": "privacy-report-ref:manual-note-passed",
+          "original_value_included": false
+        },
+        "calibration_training_allowed": false,
+        "boundary_notes": [
+          "Manual note candidate row is offline diagnostic only.",
+          "Dataset row is not training data."
+        ],
+        "reason_codes": [
+          "empirical_calibration_dataset_only",
+          "offline_diagnostic_only",
+          "calibration_training_disabled_by_default",
+          "feedback_not_truth",
+          "validation_pass_not_truth",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "empirical_calibration_dataset_contract_now": true,
+          "contract_only": true,
+          "fixture_only": true,
+          "offline_diagnostic_only": true,
+          "calibration_training_allowed_default_false": true,
+          "caller_provided_fixture_only": true,
+          "training_runtime_now": false,
+          "automatic_learning_now": false,
+          "rule_mutation_now": false,
+          "prompt_mutation_now": false,
+          "parser_mutation_now": false,
+          "ranking_mutation_now": false,
+          "surfacing_mutation_now": false,
+          "telemetry_ingestion_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "source_fetch_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "db_query_or_write_now": false,
+          "route_now": false,
+          "ui_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "promotion_execution_now": false,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "git_ledger_export_runtime_now": false,
+          "git_write_now": false,
+          "github_api_call_now": false,
+          "repository_file_write_now": false,
+          "local_file_export_now": false,
+          "local_file_import_now": false,
+          "codex_execution_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "product_write_now": false,
+          "product_write_runtime_now": false,
+          "product_write_adapter_enabled_now": false,
+          "product_id_allocation_now": false,
+          "product_persistence_now": false,
+          "product_write_authority": false,
+          "readiness_label_is_truth": false,
+          "diagnostic_reason_code_is_truth": false,
+          "validation_pass_is_truth": false,
+          "validation_failure_is_rejection": false,
+          "codex_result_is_proof": false,
+          "handoff_outcome_is_approval": false,
+          "later_review_outcome_is_truth": false,
+          "dataset_row_is_training_data": false,
+          "dataset_row_is_proof": false,
+          "dataset_row_is_accepted_evidence": false,
+          "smoke_pass_is_truth": false,
+          "ci_pass_is_truth": false
+        }
+      },
+      {
+        "row_version": "empirical_calibration_dataset_row.v0.1",
+        "dataset_version": "empirical_calibration_dataset.v0.1",
+        "scope": "project:augnes",
+        "row_id": "empirical-calibration-row:provider-extraction:v0-1",
+        "candidate_ref": "candidate-ref:provider-extraction-synthetic-a",
+        "candidate_family": "provider_extraction_candidate",
+        "initial_readiness_label": "needs_operator_review",
+        "diagnostic_reason_codes": [
+          "candidate_not_fact",
+          "candidate_not_accepted_evidence"
+        ],
+        "lifecycle_status_ref": "lifecycle-status-ref:provider-extraction-review",
+        "feedback_event_refs": [
+          "feedback-event-ref:provider-extraction-review-cue"
+        ],
+        "handoff_used": true,
+        "handoff_profile_ref": "handoff-profile-ref:source-coverage",
+        "handoff_outcome": "preserved_unresolved_tension",
+        "codex_result_report_ref": "codex-result-report-ref:provider-extraction-review",
+        "codex_review_outcome": "authority_boundary_issue",
+        "not_done_classification": "correctly_preserved",
+        "validation_command_refs": [
+          "validation-command-ref:provider-extraction-smoke"
+        ],
+        "validation_skipped_refs": [],
+        "validation_warning_refs": [
+          "validation-warning-ref:provider-output-candidate-only"
+        ],
+        "validation_failure_refs": [],
+        "validation_pass_refs": [
+          "validation-pass-ref:provider-extraction-smoke"
+        ],
+        "later_review_outcome": "later_needs_more_evidence",
+        "later_review_reason_codes": [
+          "later_review_outcome_not_truth",
+          "candidate_not_proof"
+        ],
+        "expected_observed_delta_refs": [
+          "expected-observed-delta-ref:provider-extraction-source-gap"
+        ],
+        "temporal_handoff_experiment_refs": [],
+        "deterministic_crpf_variant_refs": [],
+        "source_refs": [
+          "source-ref:provider-extraction-symbolic-a"
+        ],
+        "privacy_report": {
+          "status": "reference_only",
+          "report_ref": "privacy-report-ref:provider-extraction-reference-only",
+          "original_value_included": false
+        },
+        "calibration_training_allowed": false,
+        "boundary_notes": [
+          "Provider extraction candidate row is candidate context only.",
+          "Provider output is not truth."
+        ],
+        "reason_codes": [
+          "empirical_calibration_dataset_only",
+          "provider_call_not_executed",
+          "codex_result_not_proof",
+          "handoff_outcome_not_approval",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "empirical_calibration_dataset_contract_now": true,
+          "contract_only": true,
+          "fixture_only": true,
+          "offline_diagnostic_only": true,
+          "calibration_training_allowed_default_false": true,
+          "caller_provided_fixture_only": true,
+          "training_runtime_now": false,
+          "automatic_learning_now": false,
+          "rule_mutation_now": false,
+          "prompt_mutation_now": false,
+          "parser_mutation_now": false,
+          "ranking_mutation_now": false,
+          "surfacing_mutation_now": false,
+          "telemetry_ingestion_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "source_fetch_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "db_query_or_write_now": false,
+          "route_now": false,
+          "ui_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "promotion_execution_now": false,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "git_ledger_export_runtime_now": false,
+          "git_write_now": false,
+          "github_api_call_now": false,
+          "repository_file_write_now": false,
+          "local_file_export_now": false,
+          "local_file_import_now": false,
+          "codex_execution_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "product_write_now": false,
+          "product_write_runtime_now": false,
+          "product_write_adapter_enabled_now": false,
+          "product_id_allocation_now": false,
+          "product_persistence_now": false,
+          "product_write_authority": false,
+          "readiness_label_is_truth": false,
+          "diagnostic_reason_code_is_truth": false,
+          "validation_pass_is_truth": false,
+          "validation_failure_is_rejection": false,
+          "codex_result_is_proof": false,
+          "handoff_outcome_is_approval": false,
+          "later_review_outcome_is_truth": false,
+          "dataset_row_is_training_data": false,
+          "dataset_row_is_proof": false,
+          "dataset_row_is_accepted_evidence": false,
+          "smoke_pass_is_truth": false,
+          "ci_pass_is_truth": false
+        }
+      },
+      {
+        "row_version": "empirical_calibration_dataset_row.v0.1",
+        "dataset_version": "empirical_calibration_dataset.v0.1",
+        "scope": "project:augnes",
+        "row_id": "empirical-calibration-row:retrieval-context:v0-1",
+        "candidate_ref": "candidate-ref:retrieval-context-synthetic-a",
+        "candidate_family": "retrieval_context_candidate",
+        "initial_readiness_label": "blocked",
+        "diagnostic_reason_codes": [
+          "retrieval_not_executed",
+          "candidate_not_accepted_evidence"
+        ],
+        "lifecycle_status_ref": "lifecycle-status-ref:retrieval-context-blocked",
+        "feedback_event_refs": [],
+        "handoff_used": false,
+        "handoff_profile_ref": "handoff-profile-ref:not-used",
+        "handoff_outcome": "not_used",
+        "codex_result_report_ref": "codex-result-report-ref:not-used",
+        "codex_review_outcome": "inconclusive",
+        "not_done_classification": "not_applicable",
+        "validation_command_refs": [
+          "validation-command-ref:retrieval-contract-smoke"
+        ],
+        "validation_skipped_refs": [
+          "validation-skipped-ref:retrieval-runtime-not-executed"
+        ],
+        "validation_warning_refs": [
+          "validation-warning-ref:retrieval-result-not-evidence"
+        ],
+        "validation_failure_refs": [],
+        "validation_pass_refs": [],
+        "later_review_outcome": "later_deferred",
+        "later_review_reason_codes": [
+          "later_review_outcome_not_truth",
+          "retrieval_not_executed"
+        ],
+        "expected_observed_delta_refs": [
+          "expected-observed-delta-ref:retrieval-runtime-deferred"
+        ],
+        "temporal_handoff_experiment_refs": [],
+        "deterministic_crpf_variant_refs": [],
+        "source_refs": [
+          "source-ref:retrieval-context-symbolic-a"
+        ],
+        "privacy_report": {
+          "status": "passed",
+          "report_ref": "privacy-report-ref:retrieval-context-passed",
+          "original_value_included": false
+        },
+        "calibration_training_allowed": false,
+        "boundary_notes": [
+          "Retrieval context row is derived diagnostic context only.",
+          "Retrieval result is not evidence."
+        ],
+        "reason_codes": [
+          "empirical_calibration_dataset_only",
+          "retrieval_not_executed",
+          "rag_answer_not_generated",
+          "validation_failure_not_rejection",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "empirical_calibration_dataset_contract_now": true,
+          "contract_only": true,
+          "fixture_only": true,
+          "offline_diagnostic_only": true,
+          "calibration_training_allowed_default_false": true,
+          "caller_provided_fixture_only": true,
+          "training_runtime_now": false,
+          "automatic_learning_now": false,
+          "rule_mutation_now": false,
+          "prompt_mutation_now": false,
+          "parser_mutation_now": false,
+          "ranking_mutation_now": false,
+          "surfacing_mutation_now": false,
+          "telemetry_ingestion_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "source_fetch_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "db_query_or_write_now": false,
+          "route_now": false,
+          "ui_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "promotion_execution_now": false,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "git_ledger_export_runtime_now": false,
+          "git_write_now": false,
+          "github_api_call_now": false,
+          "repository_file_write_now": false,
+          "local_file_export_now": false,
+          "local_file_import_now": false,
+          "codex_execution_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "product_write_now": false,
+          "product_write_runtime_now": false,
+          "product_write_adapter_enabled_now": false,
+          "product_id_allocation_now": false,
+          "product_persistence_now": false,
+          "product_write_authority": false,
+          "readiness_label_is_truth": false,
+          "diagnostic_reason_code_is_truth": false,
+          "validation_pass_is_truth": false,
+          "validation_failure_is_rejection": false,
+          "codex_result_is_proof": false,
+          "handoff_outcome_is_approval": false,
+          "later_review_outcome_is_truth": false,
+          "dataset_row_is_training_data": false,
+          "dataset_row_is_proof": false,
+          "dataset_row_is_accepted_evidence": false,
+          "smoke_pass_is_truth": false,
+          "ci_pass_is_truth": false
+        }
+      },
+      {
+        "row_version": "empirical_calibration_dataset_row.v0.1",
+        "dataset_version": "empirical_calibration_dataset.v0.1",
+        "scope": "project:augnes",
+        "row_id": "empirical-calibration-row:feedback-to-rule:v0-1",
+        "candidate_ref": "candidate-ref:feedback-to-rule-synthetic-a",
+        "candidate_family": "feedback_to_rule_candidate",
+        "initial_readiness_label": "low",
+        "diagnostic_reason_codes": [
+          "feedback_not_truth",
+          "rule_mutation_not_executed"
+        ],
+        "lifecycle_status_ref": "lifecycle-status-ref:feedback-to-rule-candidate",
+        "feedback_event_refs": [
+          "feedback-event-ref:repeat-pattern-a",
+          "feedback-event-ref:repeat-pattern-b"
+        ],
+        "handoff_used": false,
+        "handoff_profile_ref": "handoff-profile-ref:not-used",
+        "handoff_outcome": "not_used",
+        "codex_result_report_ref": "codex-result-report-ref:not-used",
+        "codex_review_outcome": "inconclusive",
+        "not_done_classification": "ambiguous",
+        "validation_command_refs": [
+          "validation-command-ref:feedback-contract-smoke"
+        ],
+        "validation_skipped_refs": [],
+        "validation_warning_refs": [
+          "validation-warning-ref:rule-candidate-not-rule"
+        ],
+        "validation_failure_refs": [],
+        "validation_pass_refs": [
+          "validation-pass-ref:feedback-contract-smoke"
+        ],
+        "later_review_outcome": "later_corrected",
+        "later_review_reason_codes": [
+          "feedback_not_truth",
+          "later_review_outcome_not_truth"
+        ],
+        "expected_observed_delta_refs": [
+          "expected-observed-delta-ref:feedback-pattern-correction"
+        ],
+        "temporal_handoff_experiment_refs": [],
+        "deterministic_crpf_variant_refs": [],
+        "source_refs": [
+          "source-ref:feedback-symbolic-a"
+        ],
+        "privacy_report": {
+          "status": "passed",
+          "report_ref": "privacy-report-ref:feedback-to-rule-passed",
+          "original_value_included": false
+        },
+        "calibration_training_allowed": false,
+        "boundary_notes": [
+          "Feedback-to-rule row is diagnostic only.",
+          "Rule mutation is not executed."
+        ],
+        "reason_codes": [
+          "empirical_calibration_dataset_only",
+          "feedback_not_truth",
+          "rule_mutation_not_executed",
+          "learning_not_executed",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "empirical_calibration_dataset_contract_now": true,
+          "contract_only": true,
+          "fixture_only": true,
+          "offline_diagnostic_only": true,
+          "calibration_training_allowed_default_false": true,
+          "caller_provided_fixture_only": true,
+          "training_runtime_now": false,
+          "automatic_learning_now": false,
+          "rule_mutation_now": false,
+          "prompt_mutation_now": false,
+          "parser_mutation_now": false,
+          "ranking_mutation_now": false,
+          "surfacing_mutation_now": false,
+          "telemetry_ingestion_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "source_fetch_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "db_query_or_write_now": false,
+          "route_now": false,
+          "ui_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "promotion_execution_now": false,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "git_ledger_export_runtime_now": false,
+          "git_write_now": false,
+          "github_api_call_now": false,
+          "repository_file_write_now": false,
+          "local_file_export_now": false,
+          "local_file_import_now": false,
+          "codex_execution_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "product_write_now": false,
+          "product_write_runtime_now": false,
+          "product_write_adapter_enabled_now": false,
+          "product_id_allocation_now": false,
+          "product_persistence_now": false,
+          "product_write_authority": false,
+          "readiness_label_is_truth": false,
+          "diagnostic_reason_code_is_truth": false,
+          "validation_pass_is_truth": false,
+          "validation_failure_is_rejection": false,
+          "codex_result_is_proof": false,
+          "handoff_outcome_is_approval": false,
+          "later_review_outcome_is_truth": false,
+          "dataset_row_is_training_data": false,
+          "dataset_row_is_proof": false,
+          "dataset_row_is_accepted_evidence": false,
+          "smoke_pass_is_truth": false,
+          "ci_pass_is_truth": false
+        }
+      },
+      {
+        "row_version": "empirical_calibration_dataset_row.v0.1",
+        "dataset_version": "empirical_calibration_dataset.v0.1",
+        "scope": "project:augnes",
+        "row_id": "empirical-calibration-row:codex-result:v0-1",
+        "candidate_ref": "candidate-ref:codex-result-synthetic-a",
+        "candidate_family": "codex_result_candidate",
+        "initial_readiness_label": "needs_operator_review",
+        "diagnostic_reason_codes": [
+          "codex_result_not_proof",
+          "validation_pass_not_truth"
+        ],
+        "lifecycle_status_ref": "lifecycle-status-ref:codex-result-review",
+        "feedback_event_refs": [],
+        "handoff_used": true,
+        "handoff_profile_ref": "handoff-profile-ref:codex-implementation",
+        "handoff_outcome": "improved_missing_check_detection",
+        "codex_result_report_ref": "codex-result-report-ref:synthetic-review-a",
+        "codex_review_outcome": "requested_changes",
+        "not_done_classification": "incorrectly_claimed_done",
+        "validation_command_refs": [
+          "validation-command-ref:codex-result-smoke"
+        ],
+        "validation_skipped_refs": [
+          "validation-skipped-ref:release-readiness-deferred"
+        ],
+        "validation_warning_refs": [
+          "validation-warning-ref:known-node-warning"
+        ],
+        "validation_failure_refs": [
+          "validation-failure-ref:missing-expected-file"
+        ],
+        "validation_pass_refs": [
+          "validation-pass-ref:typecheck"
+        ],
+        "later_review_outcome": "later_corrected",
+        "later_review_reason_codes": [
+          "codex_result_not_proof",
+          "validation_failure_not_rejection"
+        ],
+        "expected_observed_delta_refs": [
+          "expected-observed-delta-ref:codex-missing-fixture"
+        ],
+        "temporal_handoff_experiment_refs": [],
+        "deterministic_crpf_variant_refs": [],
+        "source_refs": [
+          "source-ref:codex-result-symbolic-a"
+        ],
+        "privacy_report": {
+          "status": "passed",
+          "report_ref": "privacy-report-ref:codex-result-passed",
+          "original_value_included": false
+        },
+        "calibration_training_allowed": false,
+        "boundary_notes": [
+          "Codex result row is candidate input only.",
+          "Validation pass is not approval."
+        ],
+        "reason_codes": [
+          "empirical_calibration_dataset_only",
+          "codex_result_not_proof",
+          "codex_not_executed",
+          "validation_pass_not_truth",
+          "validation_failure_not_rejection",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "empirical_calibration_dataset_contract_now": true,
+          "contract_only": true,
+          "fixture_only": true,
+          "offline_diagnostic_only": true,
+          "calibration_training_allowed_default_false": true,
+          "caller_provided_fixture_only": true,
+          "training_runtime_now": false,
+          "automatic_learning_now": false,
+          "rule_mutation_now": false,
+          "prompt_mutation_now": false,
+          "parser_mutation_now": false,
+          "ranking_mutation_now": false,
+          "surfacing_mutation_now": false,
+          "telemetry_ingestion_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "source_fetch_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "db_query_or_write_now": false,
+          "route_now": false,
+          "ui_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "promotion_execution_now": false,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "git_ledger_export_runtime_now": false,
+          "git_write_now": false,
+          "github_api_call_now": false,
+          "repository_file_write_now": false,
+          "local_file_export_now": false,
+          "local_file_import_now": false,
+          "codex_execution_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "product_write_now": false,
+          "product_write_runtime_now": false,
+          "product_write_adapter_enabled_now": false,
+          "product_id_allocation_now": false,
+          "product_persistence_now": false,
+          "product_write_authority": false,
+          "readiness_label_is_truth": false,
+          "diagnostic_reason_code_is_truth": false,
+          "validation_pass_is_truth": false,
+          "validation_failure_is_rejection": false,
+          "codex_result_is_proof": false,
+          "handoff_outcome_is_approval": false,
+          "later_review_outcome_is_truth": false,
+          "dataset_row_is_training_data": false,
+          "dataset_row_is_proof": false,
+          "dataset_row_is_accepted_evidence": false,
+          "smoke_pass_is_truth": false,
+          "ci_pass_is_truth": false
+        }
+      },
+      {
+        "row_version": "empirical_calibration_dataset_row.v0.1",
+        "dataset_version": "empirical_calibration_dataset.v0.1",
+        "scope": "project:augnes",
+        "row_id": "empirical-calibration-row:temporal-handoff:v0-1",
+        "candidate_ref": "candidate-ref:temporal-handoff-synthetic-a",
+        "candidate_family": "temporal_handoff_candidate",
+        "initial_readiness_label": "high",
+        "diagnostic_reason_codes": [
+          "handoff_outcome_not_approval",
+          "temporal_handoff_experiment_ref_present"
+        ],
+        "lifecycle_status_ref": "lifecycle-status-ref:temporal-handoff-review",
+        "feedback_event_refs": [
+          "feedback-event-ref:handoff-usefulness-review"
+        ],
+        "handoff_used": true,
+        "handoff_profile_ref": "handoff-profile-ref:temporal-perspective-enhanced",
+        "handoff_outcome": "improved_missing_file_detection",
+        "codex_result_report_ref": "codex-result-report-ref:temporal-handoff-review",
+        "codex_review_outcome": "accepted_as_review_cue",
+        "not_done_classification": "correctly_preserved",
+        "validation_command_refs": [
+          "validation-command-ref:temporal-handoff-plan-smoke"
+        ],
+        "validation_skipped_refs": [],
+        "validation_warning_refs": [],
+        "validation_failure_refs": [],
+        "validation_pass_refs": [
+          "validation-pass-ref:temporal-handoff-plan-smoke"
+        ],
+        "later_review_outcome": "later_confirmed_useful",
+        "later_review_reason_codes": [
+          "handoff_outcome_not_approval",
+          "later_review_outcome_not_truth"
+        ],
+        "expected_observed_delta_refs": [
+          "expected-observed-delta-ref:temporal-handoff-missing-files"
+        ],
+        "temporal_handoff_experiment_refs": [
+          "temporal-handoff-experiment-ref:sample-v0-1"
+        ],
+        "deterministic_crpf_variant_refs": [],
+        "source_refs": [
+          "source-ref:temporal-handoff-symbolic-a"
+        ],
+        "privacy_report": {
+          "status": "passed",
+          "report_ref": "privacy-report-ref:temporal-handoff-passed",
+          "original_value_included": false
+        },
+        "calibration_training_allowed": false,
+        "boundary_notes": [
+          "Temporal handoff outcome is diagnostic only.",
+          "Handoff outcome is not approval."
+        ],
+        "reason_codes": [
+          "empirical_calibration_dataset_only",
+          "temporal_handoff_experiment_ref_present",
+          "handoff_outcome_not_approval",
+          "validation_pass_not_truth",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "empirical_calibration_dataset_contract_now": true,
+          "contract_only": true,
+          "fixture_only": true,
+          "offline_diagnostic_only": true,
+          "calibration_training_allowed_default_false": true,
+          "caller_provided_fixture_only": true,
+          "training_runtime_now": false,
+          "automatic_learning_now": false,
+          "rule_mutation_now": false,
+          "prompt_mutation_now": false,
+          "parser_mutation_now": false,
+          "ranking_mutation_now": false,
+          "surfacing_mutation_now": false,
+          "telemetry_ingestion_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "source_fetch_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "db_query_or_write_now": false,
+          "route_now": false,
+          "ui_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "promotion_execution_now": false,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "git_ledger_export_runtime_now": false,
+          "git_write_now": false,
+          "github_api_call_now": false,
+          "repository_file_write_now": false,
+          "local_file_export_now": false,
+          "local_file_import_now": false,
+          "codex_execution_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "product_write_now": false,
+          "product_write_runtime_now": false,
+          "product_write_adapter_enabled_now": false,
+          "product_id_allocation_now": false,
+          "product_persistence_now": false,
+          "product_write_authority": false,
+          "readiness_label_is_truth": false,
+          "diagnostic_reason_code_is_truth": false,
+          "validation_pass_is_truth": false,
+          "validation_failure_is_rejection": false,
+          "codex_result_is_proof": false,
+          "handoff_outcome_is_approval": false,
+          "later_review_outcome_is_truth": false,
+          "dataset_row_is_training_data": false,
+          "dataset_row_is_proof": false,
+          "dataset_row_is_accepted_evidence": false,
+          "smoke_pass_is_truth": false,
+          "ci_pass_is_truth": false
+        }
+      },
+      {
+        "row_version": "empirical_calibration_dataset_row.v0.1",
+        "dataset_version": "empirical_calibration_dataset.v0.1",
+        "scope": "project:augnes",
+        "row_id": "empirical-calibration-row:crpf-variant:v0-1",
+        "candidate_ref": "candidate-ref:crpf-variant-synthetic-a",
+        "candidate_family": "crpf_variant_candidate",
+        "initial_readiness_label": "needs_operator_review",
+        "diagnostic_reason_codes": [
+          "deterministic_crpf_variant_ref_present",
+          "candidate_not_proof"
+        ],
+        "lifecycle_status_ref": "lifecycle-status-ref:crpf-variant-review",
+        "feedback_event_refs": [
+          "feedback-event-ref:crpf-variant-review"
+        ],
+        "handoff_used": true,
+        "handoff_profile_ref": "handoff-profile-ref:operator-review-heavy",
+        "handoff_outcome": "reduced_overclaim",
+        "codex_result_report_ref": "codex-result-report-ref:crpf-variant-review",
+        "codex_review_outcome": "accepted_as_review_cue",
+        "not_done_classification": "correctly_preserved",
+        "validation_command_refs": [
+          "validation-command-ref:crpf-variant-smoke"
+        ],
+        "validation_skipped_refs": [],
+        "validation_warning_refs": [],
+        "validation_failure_refs": [],
+        "validation_pass_refs": [
+          "validation-pass-ref:crpf-variant-smoke"
+        ],
+        "later_review_outcome": "later_deferred",
+        "later_review_reason_codes": [
+          "deterministic_crpf_variant_ref_present",
+          "later_review_outcome_not_truth"
+        ],
+        "expected_observed_delta_refs": [
+          "expected-observed-delta-ref:crpf-variant-review"
+        ],
+        "temporal_handoff_experiment_refs": [],
+        "deterministic_crpf_variant_refs": [
+          "deterministic-crpf-variant:operator_review_heavy:v0.1"
+        ],
+        "source_refs": [
+          "source-ref:crpf-variant-symbolic-a"
+        ],
+        "privacy_report": {
+          "status": "passed",
+          "report_ref": "privacy-report-ref:crpf-variant-passed",
+          "original_value_included": false
+        },
+        "calibration_training_allowed": false,
+        "boundary_notes": [
+          "CRPF variant row is deterministic review context only.",
+          "Variant is not truth."
+        ],
+        "reason_codes": [
+          "empirical_calibration_dataset_only",
+          "deterministic_crpf_variant_ref_present",
+          "candidate_not_proof",
+          "training_not_executed",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "empirical_calibration_dataset_contract_now": true,
+          "contract_only": true,
+          "fixture_only": true,
+          "offline_diagnostic_only": true,
+          "calibration_training_allowed_default_false": true,
+          "caller_provided_fixture_only": true,
+          "training_runtime_now": false,
+          "automatic_learning_now": false,
+          "rule_mutation_now": false,
+          "prompt_mutation_now": false,
+          "parser_mutation_now": false,
+          "ranking_mutation_now": false,
+          "surfacing_mutation_now": false,
+          "telemetry_ingestion_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "source_fetch_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "db_query_or_write_now": false,
+          "route_now": false,
+          "ui_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "promotion_execution_now": false,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "git_ledger_export_runtime_now": false,
+          "git_write_now": false,
+          "github_api_call_now": false,
+          "repository_file_write_now": false,
+          "local_file_export_now": false,
+          "local_file_import_now": false,
+          "codex_execution_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "product_write_now": false,
+          "product_write_runtime_now": false,
+          "product_write_adapter_enabled_now": false,
+          "product_id_allocation_now": false,
+          "product_persistence_now": false,
+          "product_write_authority": false,
+          "readiness_label_is_truth": false,
+          "diagnostic_reason_code_is_truth": false,
+          "validation_pass_is_truth": false,
+          "validation_failure_is_rejection": false,
+          "codex_result_is_proof": false,
+          "handoff_outcome_is_approval": false,
+          "later_review_outcome_is_truth": false,
+          "dataset_row_is_training_data": false,
+          "dataset_row_is_proof": false,
+          "dataset_row_is_accepted_evidence": false,
+          "smoke_pass_is_truth": false,
+          "ci_pass_is_truth": false
+        }
+      },
+      {
+        "row_version": "empirical_calibration_dataset_row.v0.1",
+        "dataset_version": "empirical_calibration_dataset.v0.1",
+        "scope": "project:augnes",
+        "row_id": "empirical-calibration-row:unknown:v0-1",
+        "candidate_ref": "candidate-ref:unknown-family-synthetic-a",
+        "candidate_family": "unknown",
+        "initial_readiness_label": "unknown",
+        "diagnostic_reason_codes": [
+          "candidate_not_fact",
+          "source_refs_required"
+        ],
+        "lifecycle_status_ref": "lifecycle-status-ref:unknown-needs-review",
+        "feedback_event_refs": [],
+        "handoff_used": false,
+        "handoff_profile_ref": "handoff-profile-ref:not-used",
+        "handoff_outcome": "inconclusive",
+        "codex_result_report_ref": "codex-result-report-ref:not-used",
+        "codex_review_outcome": "inconclusive",
+        "not_done_classification": "ambiguous",
+        "validation_command_refs": [],
+        "validation_skipped_refs": [
+          "validation-skipped-ref:unknown-family-no-runtime"
+        ],
+        "validation_warning_refs": [
+          "validation-warning-ref:unknown-family-review-required"
+        ],
+        "validation_failure_refs": [],
+        "validation_pass_refs": [],
+        "later_review_outcome": "unknown",
+        "later_review_reason_codes": [
+          "later_review_outcome_not_truth"
+        ],
+        "expected_observed_delta_refs": [
+          "expected-observed-delta-ref:unknown-family-review"
+        ],
+        "temporal_handoff_experiment_refs": [],
+        "deterministic_crpf_variant_refs": [],
+        "source_refs": [
+          "source-ref:unknown-family-symbolic-a"
+        ],
+        "privacy_report": {
+          "status": "redacted_with_warnings",
+          "report_ref": "privacy-report-ref:unknown-family-warning",
+          "original_value_included": false
+        },
+        "calibration_training_allowed": false,
+        "boundary_notes": [
+          "Unknown family row is preserved for operator review.",
+          "Unknown does not grant training or write authority."
+        ],
+        "reason_codes": [
+          "empirical_calibration_dataset_only",
+          "offline_diagnostic_only",
+          "source_refs_required",
+          "privacy_guard_required",
+          "product_write_denied"
+        ],
+        "authority_boundary": {
+          "empirical_calibration_dataset_contract_now": true,
+          "contract_only": true,
+          "fixture_only": true,
+          "offline_diagnostic_only": true,
+          "calibration_training_allowed_default_false": true,
+          "caller_provided_fixture_only": true,
+          "training_runtime_now": false,
+          "automatic_learning_now": false,
+          "rule_mutation_now": false,
+          "prompt_mutation_now": false,
+          "parser_mutation_now": false,
+          "ranking_mutation_now": false,
+          "surfacing_mutation_now": false,
+          "telemetry_ingestion_now": false,
+          "provider_openai_call_now": false,
+          "prompt_sent_now": false,
+          "source_fetch_now": false,
+          "retrieval_execution_now": false,
+          "rag_answer_generation_now": false,
+          "db_query_or_write_now": false,
+          "route_now": false,
+          "ui_now": false,
+          "proof_or_evidence_record_now": false,
+          "claim_or_evidence_write_now": false,
+          "promotion_execution_now": false,
+          "durable_state_write_now": false,
+          "durable_state_apply_now": false,
+          "formation_receipt_write_now": false,
+          "git_ledger_export_runtime_now": false,
+          "git_write_now": false,
+          "github_api_call_now": false,
+          "repository_file_write_now": false,
+          "local_file_export_now": false,
+          "local_file_import_now": false,
+          "codex_execution_now": false,
+          "codex_execution_authority": false,
+          "github_automation_authority": false,
+          "product_write_now": false,
+          "product_write_runtime_now": false,
+          "product_write_adapter_enabled_now": false,
+          "product_id_allocation_now": false,
+          "product_persistence_now": false,
+          "product_write_authority": false,
+          "readiness_label_is_truth": false,
+          "diagnostic_reason_code_is_truth": false,
+          "validation_pass_is_truth": false,
+          "validation_failure_is_rejection": false,
+          "codex_result_is_proof": false,
+          "handoff_outcome_is_approval": false,
+          "later_review_outcome_is_truth": false,
+          "dataset_row_is_training_data": false,
+          "dataset_row_is_proof": false,
+          "dataset_row_is_accepted_evidence": false,
+          "smoke_pass_is_truth": false,
+          "ci_pass_is_truth": false
+        }
+      }
+    ],
+    "row_count": 8,
+    "candidate_families_covered": [
+      "manual_note_candidate",
+      "provider_extraction_candidate",
+      "retrieval_context_candidate",
+      "feedback_to_rule_candidate",
+      "codex_result_candidate",
+      "temporal_handoff_candidate",
+      "crpf_variant_candidate",
+      "unknown"
+    ],
+    "calibration_training_allowed_default": false,
+    "dataset_fingerprint": "empirical-calibration-fingerprint:sample-v0-1:001",
+    "boundary_notes": [
+      "Dataset bundle is offline diagnostic only.",
+      "Product-write remains parked by #686."
+    ],
+    "reason_codes": [
+      "empirical_calibration_dataset_only",
+      "offline_diagnostic_only",
+      "calibration_training_disabled_by_default",
+      "training_not_executed",
+      "learning_not_executed",
+      "product_write_denied"
+    ],
+    "authority_boundary": {
+      "empirical_calibration_dataset_contract_now": true,
+      "contract_only": true,
+      "fixture_only": true,
+      "offline_diagnostic_only": true,
+      "calibration_training_allowed_default_false": true,
+      "caller_provided_fixture_only": true,
+      "training_runtime_now": false,
+      "automatic_learning_now": false,
+      "rule_mutation_now": false,
+      "prompt_mutation_now": false,
+      "parser_mutation_now": false,
+      "ranking_mutation_now": false,
+      "surfacing_mutation_now": false,
+      "telemetry_ingestion_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "source_fetch_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "db_query_or_write_now": false,
+      "route_now": false,
+      "ui_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "promotion_execution_now": false,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "git_ledger_export_runtime_now": false,
+      "git_write_now": false,
+      "github_api_call_now": false,
+      "repository_file_write_now": false,
+      "local_file_export_now": false,
+      "local_file_import_now": false,
+      "codex_execution_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_now": false,
+      "product_write_runtime_now": false,
+      "product_write_adapter_enabled_now": false,
+      "product_id_allocation_now": false,
+      "product_persistence_now": false,
+      "product_write_authority": false,
+      "readiness_label_is_truth": false,
+      "diagnostic_reason_code_is_truth": false,
+      "validation_pass_is_truth": false,
+      "validation_failure_is_rejection": false,
+      "codex_result_is_proof": false,
+      "handoff_outcome_is_approval": false,
+      "later_review_outcome_is_truth": false,
+      "dataset_row_is_training_data": false,
+      "dataset_row_is_proof": false,
+      "dataset_row_is_accepted_evidence": false,
+      "smoke_pass_is_truth": false,
+      "ci_pass_is_truth": false
+    }
+  },
+  "rows": [
+    {
+      "row_version": "empirical_calibration_dataset_row.v0.1",
+      "dataset_version": "empirical_calibration_dataset.v0.1",
+      "scope": "project:augnes",
+      "row_id": "empirical-calibration-row:manual-note:v0-1",
+      "candidate_ref": "candidate-ref:manual-note-synthetic-a",
+      "candidate_family": "manual_note_candidate",
+      "initial_readiness_label": "medium",
+      "diagnostic_reason_codes": [
+        "readiness_label_not_truth",
+        "source_refs_required"
+      ],
+      "lifecycle_status_ref": "lifecycle-status-ref:manual-note-reviewable",
+      "feedback_event_refs": [
+        "feedback-event-ref:manual-note-operator-signal"
+      ],
+      "handoff_used": false,
+      "handoff_profile_ref": "handoff-profile-ref:not-used",
+      "handoff_outcome": "not_used",
+      "codex_result_report_ref": "codex-result-report-ref:not-used",
+      "codex_review_outcome": "inconclusive",
+      "not_done_classification": "not_applicable",
+      "validation_command_refs": [
+        "validation-command-ref:manual-note-smoke"
+      ],
+      "validation_skipped_refs": [],
+      "validation_warning_refs": [],
+      "validation_failure_refs": [],
+      "validation_pass_refs": [
+        "validation-pass-ref:manual-note-smoke"
+      ],
+      "later_review_outcome": "later_confirmed_useful",
+      "later_review_reason_codes": [
+        "later_review_outcome_not_truth"
+      ],
+      "expected_observed_delta_refs": [
+        "expected-observed-delta-ref:manual-note-none"
+      ],
+      "temporal_handoff_experiment_refs": [],
+      "deterministic_crpf_variant_refs": [],
+      "source_refs": [
+        "source-ref:manual-note-public-safe-a"
+      ],
+      "privacy_report": {
+        "status": "passed",
+        "report_ref": "privacy-report-ref:manual-note-passed",
+        "original_value_included": false
+      },
+      "calibration_training_allowed": false,
+      "boundary_notes": [
+        "Manual note candidate row is offline diagnostic only.",
+        "Dataset row is not training data."
+      ],
+      "reason_codes": [
+        "empirical_calibration_dataset_only",
+        "offline_diagnostic_only",
+        "calibration_training_disabled_by_default",
+        "feedback_not_truth",
+        "validation_pass_not_truth",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "empirical_calibration_dataset_contract_now": true,
+        "contract_only": true,
+        "fixture_only": true,
+        "offline_diagnostic_only": true,
+        "calibration_training_allowed_default_false": true,
+        "caller_provided_fixture_only": true,
+        "training_runtime_now": false,
+        "automatic_learning_now": false,
+        "rule_mutation_now": false,
+        "prompt_mutation_now": false,
+        "parser_mutation_now": false,
+        "ranking_mutation_now": false,
+        "surfacing_mutation_now": false,
+        "telemetry_ingestion_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "source_fetch_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "db_query_or_write_now": false,
+        "route_now": false,
+        "ui_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "promotion_execution_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "git_ledger_export_runtime_now": false,
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "repository_file_write_now": false,
+        "local_file_export_now": false,
+        "local_file_import_now": false,
+        "codex_execution_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "product_write_now": false,
+        "product_write_runtime_now": false,
+        "product_write_adapter_enabled_now": false,
+        "product_id_allocation_now": false,
+        "product_persistence_now": false,
+        "product_write_authority": false,
+        "readiness_label_is_truth": false,
+        "diagnostic_reason_code_is_truth": false,
+        "validation_pass_is_truth": false,
+        "validation_failure_is_rejection": false,
+        "codex_result_is_proof": false,
+        "handoff_outcome_is_approval": false,
+        "later_review_outcome_is_truth": false,
+        "dataset_row_is_training_data": false,
+        "dataset_row_is_proof": false,
+        "dataset_row_is_accepted_evidence": false,
+        "smoke_pass_is_truth": false,
+        "ci_pass_is_truth": false
+      }
+    },
+    {
+      "row_version": "empirical_calibration_dataset_row.v0.1",
+      "dataset_version": "empirical_calibration_dataset.v0.1",
+      "scope": "project:augnes",
+      "row_id": "empirical-calibration-row:provider-extraction:v0-1",
+      "candidate_ref": "candidate-ref:provider-extraction-synthetic-a",
+      "candidate_family": "provider_extraction_candidate",
+      "initial_readiness_label": "needs_operator_review",
+      "diagnostic_reason_codes": [
+        "candidate_not_fact",
+        "candidate_not_accepted_evidence"
+      ],
+      "lifecycle_status_ref": "lifecycle-status-ref:provider-extraction-review",
+      "feedback_event_refs": [
+        "feedback-event-ref:provider-extraction-review-cue"
+      ],
+      "handoff_used": true,
+      "handoff_profile_ref": "handoff-profile-ref:source-coverage",
+      "handoff_outcome": "preserved_unresolved_tension",
+      "codex_result_report_ref": "codex-result-report-ref:provider-extraction-review",
+      "codex_review_outcome": "authority_boundary_issue",
+      "not_done_classification": "correctly_preserved",
+      "validation_command_refs": [
+        "validation-command-ref:provider-extraction-smoke"
+      ],
+      "validation_skipped_refs": [],
+      "validation_warning_refs": [
+        "validation-warning-ref:provider-output-candidate-only"
+      ],
+      "validation_failure_refs": [],
+      "validation_pass_refs": [
+        "validation-pass-ref:provider-extraction-smoke"
+      ],
+      "later_review_outcome": "later_needs_more_evidence",
+      "later_review_reason_codes": [
+        "later_review_outcome_not_truth",
+        "candidate_not_proof"
+      ],
+      "expected_observed_delta_refs": [
+        "expected-observed-delta-ref:provider-extraction-source-gap"
+      ],
+      "temporal_handoff_experiment_refs": [],
+      "deterministic_crpf_variant_refs": [],
+      "source_refs": [
+        "source-ref:provider-extraction-symbolic-a"
+      ],
+      "privacy_report": {
+        "status": "reference_only",
+        "report_ref": "privacy-report-ref:provider-extraction-reference-only",
+        "original_value_included": false
+      },
+      "calibration_training_allowed": false,
+      "boundary_notes": [
+        "Provider extraction candidate row is candidate context only.",
+        "Provider output is not truth."
+      ],
+      "reason_codes": [
+        "empirical_calibration_dataset_only",
+        "provider_call_not_executed",
+        "codex_result_not_proof",
+        "handoff_outcome_not_approval",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "empirical_calibration_dataset_contract_now": true,
+        "contract_only": true,
+        "fixture_only": true,
+        "offline_diagnostic_only": true,
+        "calibration_training_allowed_default_false": true,
+        "caller_provided_fixture_only": true,
+        "training_runtime_now": false,
+        "automatic_learning_now": false,
+        "rule_mutation_now": false,
+        "prompt_mutation_now": false,
+        "parser_mutation_now": false,
+        "ranking_mutation_now": false,
+        "surfacing_mutation_now": false,
+        "telemetry_ingestion_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "source_fetch_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "db_query_or_write_now": false,
+        "route_now": false,
+        "ui_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "promotion_execution_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "git_ledger_export_runtime_now": false,
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "repository_file_write_now": false,
+        "local_file_export_now": false,
+        "local_file_import_now": false,
+        "codex_execution_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "product_write_now": false,
+        "product_write_runtime_now": false,
+        "product_write_adapter_enabled_now": false,
+        "product_id_allocation_now": false,
+        "product_persistence_now": false,
+        "product_write_authority": false,
+        "readiness_label_is_truth": false,
+        "diagnostic_reason_code_is_truth": false,
+        "validation_pass_is_truth": false,
+        "validation_failure_is_rejection": false,
+        "codex_result_is_proof": false,
+        "handoff_outcome_is_approval": false,
+        "later_review_outcome_is_truth": false,
+        "dataset_row_is_training_data": false,
+        "dataset_row_is_proof": false,
+        "dataset_row_is_accepted_evidence": false,
+        "smoke_pass_is_truth": false,
+        "ci_pass_is_truth": false
+      }
+    },
+    {
+      "row_version": "empirical_calibration_dataset_row.v0.1",
+      "dataset_version": "empirical_calibration_dataset.v0.1",
+      "scope": "project:augnes",
+      "row_id": "empirical-calibration-row:retrieval-context:v0-1",
+      "candidate_ref": "candidate-ref:retrieval-context-synthetic-a",
+      "candidate_family": "retrieval_context_candidate",
+      "initial_readiness_label": "blocked",
+      "diagnostic_reason_codes": [
+        "retrieval_not_executed",
+        "candidate_not_accepted_evidence"
+      ],
+      "lifecycle_status_ref": "lifecycle-status-ref:retrieval-context-blocked",
+      "feedback_event_refs": [],
+      "handoff_used": false,
+      "handoff_profile_ref": "handoff-profile-ref:not-used",
+      "handoff_outcome": "not_used",
+      "codex_result_report_ref": "codex-result-report-ref:not-used",
+      "codex_review_outcome": "inconclusive",
+      "not_done_classification": "not_applicable",
+      "validation_command_refs": [
+        "validation-command-ref:retrieval-contract-smoke"
+      ],
+      "validation_skipped_refs": [
+        "validation-skipped-ref:retrieval-runtime-not-executed"
+      ],
+      "validation_warning_refs": [
+        "validation-warning-ref:retrieval-result-not-evidence"
+      ],
+      "validation_failure_refs": [],
+      "validation_pass_refs": [],
+      "later_review_outcome": "later_deferred",
+      "later_review_reason_codes": [
+        "later_review_outcome_not_truth",
+        "retrieval_not_executed"
+      ],
+      "expected_observed_delta_refs": [
+        "expected-observed-delta-ref:retrieval-runtime-deferred"
+      ],
+      "temporal_handoff_experiment_refs": [],
+      "deterministic_crpf_variant_refs": [],
+      "source_refs": [
+        "source-ref:retrieval-context-symbolic-a"
+      ],
+      "privacy_report": {
+        "status": "passed",
+        "report_ref": "privacy-report-ref:retrieval-context-passed",
+        "original_value_included": false
+      },
+      "calibration_training_allowed": false,
+      "boundary_notes": [
+        "Retrieval context row is derived diagnostic context only.",
+        "Retrieval result is not evidence."
+      ],
+      "reason_codes": [
+        "empirical_calibration_dataset_only",
+        "retrieval_not_executed",
+        "rag_answer_not_generated",
+        "validation_failure_not_rejection",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "empirical_calibration_dataset_contract_now": true,
+        "contract_only": true,
+        "fixture_only": true,
+        "offline_diagnostic_only": true,
+        "calibration_training_allowed_default_false": true,
+        "caller_provided_fixture_only": true,
+        "training_runtime_now": false,
+        "automatic_learning_now": false,
+        "rule_mutation_now": false,
+        "prompt_mutation_now": false,
+        "parser_mutation_now": false,
+        "ranking_mutation_now": false,
+        "surfacing_mutation_now": false,
+        "telemetry_ingestion_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "source_fetch_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "db_query_or_write_now": false,
+        "route_now": false,
+        "ui_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "promotion_execution_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "git_ledger_export_runtime_now": false,
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "repository_file_write_now": false,
+        "local_file_export_now": false,
+        "local_file_import_now": false,
+        "codex_execution_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "product_write_now": false,
+        "product_write_runtime_now": false,
+        "product_write_adapter_enabled_now": false,
+        "product_id_allocation_now": false,
+        "product_persistence_now": false,
+        "product_write_authority": false,
+        "readiness_label_is_truth": false,
+        "diagnostic_reason_code_is_truth": false,
+        "validation_pass_is_truth": false,
+        "validation_failure_is_rejection": false,
+        "codex_result_is_proof": false,
+        "handoff_outcome_is_approval": false,
+        "later_review_outcome_is_truth": false,
+        "dataset_row_is_training_data": false,
+        "dataset_row_is_proof": false,
+        "dataset_row_is_accepted_evidence": false,
+        "smoke_pass_is_truth": false,
+        "ci_pass_is_truth": false
+      }
+    },
+    {
+      "row_version": "empirical_calibration_dataset_row.v0.1",
+      "dataset_version": "empirical_calibration_dataset.v0.1",
+      "scope": "project:augnes",
+      "row_id": "empirical-calibration-row:feedback-to-rule:v0-1",
+      "candidate_ref": "candidate-ref:feedback-to-rule-synthetic-a",
+      "candidate_family": "feedback_to_rule_candidate",
+      "initial_readiness_label": "low",
+      "diagnostic_reason_codes": [
+        "feedback_not_truth",
+        "rule_mutation_not_executed"
+      ],
+      "lifecycle_status_ref": "lifecycle-status-ref:feedback-to-rule-candidate",
+      "feedback_event_refs": [
+        "feedback-event-ref:repeat-pattern-a",
+        "feedback-event-ref:repeat-pattern-b"
+      ],
+      "handoff_used": false,
+      "handoff_profile_ref": "handoff-profile-ref:not-used",
+      "handoff_outcome": "not_used",
+      "codex_result_report_ref": "codex-result-report-ref:not-used",
+      "codex_review_outcome": "inconclusive",
+      "not_done_classification": "ambiguous",
+      "validation_command_refs": [
+        "validation-command-ref:feedback-contract-smoke"
+      ],
+      "validation_skipped_refs": [],
+      "validation_warning_refs": [
+        "validation-warning-ref:rule-candidate-not-rule"
+      ],
+      "validation_failure_refs": [],
+      "validation_pass_refs": [
+        "validation-pass-ref:feedback-contract-smoke"
+      ],
+      "later_review_outcome": "later_corrected",
+      "later_review_reason_codes": [
+        "feedback_not_truth",
+        "later_review_outcome_not_truth"
+      ],
+      "expected_observed_delta_refs": [
+        "expected-observed-delta-ref:feedback-pattern-correction"
+      ],
+      "temporal_handoff_experiment_refs": [],
+      "deterministic_crpf_variant_refs": [],
+      "source_refs": [
+        "source-ref:feedback-symbolic-a"
+      ],
+      "privacy_report": {
+        "status": "passed",
+        "report_ref": "privacy-report-ref:feedback-to-rule-passed",
+        "original_value_included": false
+      },
+      "calibration_training_allowed": false,
+      "boundary_notes": [
+        "Feedback-to-rule row is diagnostic only.",
+        "Rule mutation is not executed."
+      ],
+      "reason_codes": [
+        "empirical_calibration_dataset_only",
+        "feedback_not_truth",
+        "rule_mutation_not_executed",
+        "learning_not_executed",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "empirical_calibration_dataset_contract_now": true,
+        "contract_only": true,
+        "fixture_only": true,
+        "offline_diagnostic_only": true,
+        "calibration_training_allowed_default_false": true,
+        "caller_provided_fixture_only": true,
+        "training_runtime_now": false,
+        "automatic_learning_now": false,
+        "rule_mutation_now": false,
+        "prompt_mutation_now": false,
+        "parser_mutation_now": false,
+        "ranking_mutation_now": false,
+        "surfacing_mutation_now": false,
+        "telemetry_ingestion_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "source_fetch_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "db_query_or_write_now": false,
+        "route_now": false,
+        "ui_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "promotion_execution_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "git_ledger_export_runtime_now": false,
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "repository_file_write_now": false,
+        "local_file_export_now": false,
+        "local_file_import_now": false,
+        "codex_execution_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "product_write_now": false,
+        "product_write_runtime_now": false,
+        "product_write_adapter_enabled_now": false,
+        "product_id_allocation_now": false,
+        "product_persistence_now": false,
+        "product_write_authority": false,
+        "readiness_label_is_truth": false,
+        "diagnostic_reason_code_is_truth": false,
+        "validation_pass_is_truth": false,
+        "validation_failure_is_rejection": false,
+        "codex_result_is_proof": false,
+        "handoff_outcome_is_approval": false,
+        "later_review_outcome_is_truth": false,
+        "dataset_row_is_training_data": false,
+        "dataset_row_is_proof": false,
+        "dataset_row_is_accepted_evidence": false,
+        "smoke_pass_is_truth": false,
+        "ci_pass_is_truth": false
+      }
+    },
+    {
+      "row_version": "empirical_calibration_dataset_row.v0.1",
+      "dataset_version": "empirical_calibration_dataset.v0.1",
+      "scope": "project:augnes",
+      "row_id": "empirical-calibration-row:codex-result:v0-1",
+      "candidate_ref": "candidate-ref:codex-result-synthetic-a",
+      "candidate_family": "codex_result_candidate",
+      "initial_readiness_label": "needs_operator_review",
+      "diagnostic_reason_codes": [
+        "codex_result_not_proof",
+        "validation_pass_not_truth"
+      ],
+      "lifecycle_status_ref": "lifecycle-status-ref:codex-result-review",
+      "feedback_event_refs": [],
+      "handoff_used": true,
+      "handoff_profile_ref": "handoff-profile-ref:codex-implementation",
+      "handoff_outcome": "improved_missing_check_detection",
+      "codex_result_report_ref": "codex-result-report-ref:synthetic-review-a",
+      "codex_review_outcome": "requested_changes",
+      "not_done_classification": "incorrectly_claimed_done",
+      "validation_command_refs": [
+        "validation-command-ref:codex-result-smoke"
+      ],
+      "validation_skipped_refs": [
+        "validation-skipped-ref:release-readiness-deferred"
+      ],
+      "validation_warning_refs": [
+        "validation-warning-ref:known-node-warning"
+      ],
+      "validation_failure_refs": [
+        "validation-failure-ref:missing-expected-file"
+      ],
+      "validation_pass_refs": [
+        "validation-pass-ref:typecheck"
+      ],
+      "later_review_outcome": "later_corrected",
+      "later_review_reason_codes": [
+        "codex_result_not_proof",
+        "validation_failure_not_rejection"
+      ],
+      "expected_observed_delta_refs": [
+        "expected-observed-delta-ref:codex-missing-fixture"
+      ],
+      "temporal_handoff_experiment_refs": [],
+      "deterministic_crpf_variant_refs": [],
+      "source_refs": [
+        "source-ref:codex-result-symbolic-a"
+      ],
+      "privacy_report": {
+        "status": "passed",
+        "report_ref": "privacy-report-ref:codex-result-passed",
+        "original_value_included": false
+      },
+      "calibration_training_allowed": false,
+      "boundary_notes": [
+        "Codex result row is candidate input only.",
+        "Validation pass is not approval."
+      ],
+      "reason_codes": [
+        "empirical_calibration_dataset_only",
+        "codex_result_not_proof",
+        "codex_not_executed",
+        "validation_pass_not_truth",
+        "validation_failure_not_rejection",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "empirical_calibration_dataset_contract_now": true,
+        "contract_only": true,
+        "fixture_only": true,
+        "offline_diagnostic_only": true,
+        "calibration_training_allowed_default_false": true,
+        "caller_provided_fixture_only": true,
+        "training_runtime_now": false,
+        "automatic_learning_now": false,
+        "rule_mutation_now": false,
+        "prompt_mutation_now": false,
+        "parser_mutation_now": false,
+        "ranking_mutation_now": false,
+        "surfacing_mutation_now": false,
+        "telemetry_ingestion_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "source_fetch_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "db_query_or_write_now": false,
+        "route_now": false,
+        "ui_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "promotion_execution_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "git_ledger_export_runtime_now": false,
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "repository_file_write_now": false,
+        "local_file_export_now": false,
+        "local_file_import_now": false,
+        "codex_execution_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "product_write_now": false,
+        "product_write_runtime_now": false,
+        "product_write_adapter_enabled_now": false,
+        "product_id_allocation_now": false,
+        "product_persistence_now": false,
+        "product_write_authority": false,
+        "readiness_label_is_truth": false,
+        "diagnostic_reason_code_is_truth": false,
+        "validation_pass_is_truth": false,
+        "validation_failure_is_rejection": false,
+        "codex_result_is_proof": false,
+        "handoff_outcome_is_approval": false,
+        "later_review_outcome_is_truth": false,
+        "dataset_row_is_training_data": false,
+        "dataset_row_is_proof": false,
+        "dataset_row_is_accepted_evidence": false,
+        "smoke_pass_is_truth": false,
+        "ci_pass_is_truth": false
+      }
+    },
+    {
+      "row_version": "empirical_calibration_dataset_row.v0.1",
+      "dataset_version": "empirical_calibration_dataset.v0.1",
+      "scope": "project:augnes",
+      "row_id": "empirical-calibration-row:temporal-handoff:v0-1",
+      "candidate_ref": "candidate-ref:temporal-handoff-synthetic-a",
+      "candidate_family": "temporal_handoff_candidate",
+      "initial_readiness_label": "high",
+      "diagnostic_reason_codes": [
+        "handoff_outcome_not_approval",
+        "temporal_handoff_experiment_ref_present"
+      ],
+      "lifecycle_status_ref": "lifecycle-status-ref:temporal-handoff-review",
+      "feedback_event_refs": [
+        "feedback-event-ref:handoff-usefulness-review"
+      ],
+      "handoff_used": true,
+      "handoff_profile_ref": "handoff-profile-ref:temporal-perspective-enhanced",
+      "handoff_outcome": "improved_missing_file_detection",
+      "codex_result_report_ref": "codex-result-report-ref:temporal-handoff-review",
+      "codex_review_outcome": "accepted_as_review_cue",
+      "not_done_classification": "correctly_preserved",
+      "validation_command_refs": [
+        "validation-command-ref:temporal-handoff-plan-smoke"
+      ],
+      "validation_skipped_refs": [],
+      "validation_warning_refs": [],
+      "validation_failure_refs": [],
+      "validation_pass_refs": [
+        "validation-pass-ref:temporal-handoff-plan-smoke"
+      ],
+      "later_review_outcome": "later_confirmed_useful",
+      "later_review_reason_codes": [
+        "handoff_outcome_not_approval",
+        "later_review_outcome_not_truth"
+      ],
+      "expected_observed_delta_refs": [
+        "expected-observed-delta-ref:temporal-handoff-missing-files"
+      ],
+      "temporal_handoff_experiment_refs": [
+        "temporal-handoff-experiment-ref:sample-v0-1"
+      ],
+      "deterministic_crpf_variant_refs": [],
+      "source_refs": [
+        "source-ref:temporal-handoff-symbolic-a"
+      ],
+      "privacy_report": {
+        "status": "passed",
+        "report_ref": "privacy-report-ref:temporal-handoff-passed",
+        "original_value_included": false
+      },
+      "calibration_training_allowed": false,
+      "boundary_notes": [
+        "Temporal handoff outcome is diagnostic only.",
+        "Handoff outcome is not approval."
+      ],
+      "reason_codes": [
+        "empirical_calibration_dataset_only",
+        "temporal_handoff_experiment_ref_present",
+        "handoff_outcome_not_approval",
+        "validation_pass_not_truth",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "empirical_calibration_dataset_contract_now": true,
+        "contract_only": true,
+        "fixture_only": true,
+        "offline_diagnostic_only": true,
+        "calibration_training_allowed_default_false": true,
+        "caller_provided_fixture_only": true,
+        "training_runtime_now": false,
+        "automatic_learning_now": false,
+        "rule_mutation_now": false,
+        "prompt_mutation_now": false,
+        "parser_mutation_now": false,
+        "ranking_mutation_now": false,
+        "surfacing_mutation_now": false,
+        "telemetry_ingestion_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "source_fetch_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "db_query_or_write_now": false,
+        "route_now": false,
+        "ui_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "promotion_execution_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "git_ledger_export_runtime_now": false,
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "repository_file_write_now": false,
+        "local_file_export_now": false,
+        "local_file_import_now": false,
+        "codex_execution_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "product_write_now": false,
+        "product_write_runtime_now": false,
+        "product_write_adapter_enabled_now": false,
+        "product_id_allocation_now": false,
+        "product_persistence_now": false,
+        "product_write_authority": false,
+        "readiness_label_is_truth": false,
+        "diagnostic_reason_code_is_truth": false,
+        "validation_pass_is_truth": false,
+        "validation_failure_is_rejection": false,
+        "codex_result_is_proof": false,
+        "handoff_outcome_is_approval": false,
+        "later_review_outcome_is_truth": false,
+        "dataset_row_is_training_data": false,
+        "dataset_row_is_proof": false,
+        "dataset_row_is_accepted_evidence": false,
+        "smoke_pass_is_truth": false,
+        "ci_pass_is_truth": false
+      }
+    },
+    {
+      "row_version": "empirical_calibration_dataset_row.v0.1",
+      "dataset_version": "empirical_calibration_dataset.v0.1",
+      "scope": "project:augnes",
+      "row_id": "empirical-calibration-row:crpf-variant:v0-1",
+      "candidate_ref": "candidate-ref:crpf-variant-synthetic-a",
+      "candidate_family": "crpf_variant_candidate",
+      "initial_readiness_label": "needs_operator_review",
+      "diagnostic_reason_codes": [
+        "deterministic_crpf_variant_ref_present",
+        "candidate_not_proof"
+      ],
+      "lifecycle_status_ref": "lifecycle-status-ref:crpf-variant-review",
+      "feedback_event_refs": [
+        "feedback-event-ref:crpf-variant-review"
+      ],
+      "handoff_used": true,
+      "handoff_profile_ref": "handoff-profile-ref:operator-review-heavy",
+      "handoff_outcome": "reduced_overclaim",
+      "codex_result_report_ref": "codex-result-report-ref:crpf-variant-review",
+      "codex_review_outcome": "accepted_as_review_cue",
+      "not_done_classification": "correctly_preserved",
+      "validation_command_refs": [
+        "validation-command-ref:crpf-variant-smoke"
+      ],
+      "validation_skipped_refs": [],
+      "validation_warning_refs": [],
+      "validation_failure_refs": [],
+      "validation_pass_refs": [
+        "validation-pass-ref:crpf-variant-smoke"
+      ],
+      "later_review_outcome": "later_deferred",
+      "later_review_reason_codes": [
+        "deterministic_crpf_variant_ref_present",
+        "later_review_outcome_not_truth"
+      ],
+      "expected_observed_delta_refs": [
+        "expected-observed-delta-ref:crpf-variant-review"
+      ],
+      "temporal_handoff_experiment_refs": [],
+      "deterministic_crpf_variant_refs": [
+        "deterministic-crpf-variant:operator_review_heavy:v0.1"
+      ],
+      "source_refs": [
+        "source-ref:crpf-variant-symbolic-a"
+      ],
+      "privacy_report": {
+        "status": "passed",
+        "report_ref": "privacy-report-ref:crpf-variant-passed",
+        "original_value_included": false
+      },
+      "calibration_training_allowed": false,
+      "boundary_notes": [
+        "CRPF variant row is deterministic review context only.",
+        "Variant is not truth."
+      ],
+      "reason_codes": [
+        "empirical_calibration_dataset_only",
+        "deterministic_crpf_variant_ref_present",
+        "candidate_not_proof",
+        "training_not_executed",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "empirical_calibration_dataset_contract_now": true,
+        "contract_only": true,
+        "fixture_only": true,
+        "offline_diagnostic_only": true,
+        "calibration_training_allowed_default_false": true,
+        "caller_provided_fixture_only": true,
+        "training_runtime_now": false,
+        "automatic_learning_now": false,
+        "rule_mutation_now": false,
+        "prompt_mutation_now": false,
+        "parser_mutation_now": false,
+        "ranking_mutation_now": false,
+        "surfacing_mutation_now": false,
+        "telemetry_ingestion_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "source_fetch_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "db_query_or_write_now": false,
+        "route_now": false,
+        "ui_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "promotion_execution_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "git_ledger_export_runtime_now": false,
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "repository_file_write_now": false,
+        "local_file_export_now": false,
+        "local_file_import_now": false,
+        "codex_execution_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "product_write_now": false,
+        "product_write_runtime_now": false,
+        "product_write_adapter_enabled_now": false,
+        "product_id_allocation_now": false,
+        "product_persistence_now": false,
+        "product_write_authority": false,
+        "readiness_label_is_truth": false,
+        "diagnostic_reason_code_is_truth": false,
+        "validation_pass_is_truth": false,
+        "validation_failure_is_rejection": false,
+        "codex_result_is_proof": false,
+        "handoff_outcome_is_approval": false,
+        "later_review_outcome_is_truth": false,
+        "dataset_row_is_training_data": false,
+        "dataset_row_is_proof": false,
+        "dataset_row_is_accepted_evidence": false,
+        "smoke_pass_is_truth": false,
+        "ci_pass_is_truth": false
+      }
+    },
+    {
+      "row_version": "empirical_calibration_dataset_row.v0.1",
+      "dataset_version": "empirical_calibration_dataset.v0.1",
+      "scope": "project:augnes",
+      "row_id": "empirical-calibration-row:unknown:v0-1",
+      "candidate_ref": "candidate-ref:unknown-family-synthetic-a",
+      "candidate_family": "unknown",
+      "initial_readiness_label": "unknown",
+      "diagnostic_reason_codes": [
+        "candidate_not_fact",
+        "source_refs_required"
+      ],
+      "lifecycle_status_ref": "lifecycle-status-ref:unknown-needs-review",
+      "feedback_event_refs": [],
+      "handoff_used": false,
+      "handoff_profile_ref": "handoff-profile-ref:not-used",
+      "handoff_outcome": "inconclusive",
+      "codex_result_report_ref": "codex-result-report-ref:not-used",
+      "codex_review_outcome": "inconclusive",
+      "not_done_classification": "ambiguous",
+      "validation_command_refs": [],
+      "validation_skipped_refs": [
+        "validation-skipped-ref:unknown-family-no-runtime"
+      ],
+      "validation_warning_refs": [
+        "validation-warning-ref:unknown-family-review-required"
+      ],
+      "validation_failure_refs": [],
+      "validation_pass_refs": [],
+      "later_review_outcome": "unknown",
+      "later_review_reason_codes": [
+        "later_review_outcome_not_truth"
+      ],
+      "expected_observed_delta_refs": [
+        "expected-observed-delta-ref:unknown-family-review"
+      ],
+      "temporal_handoff_experiment_refs": [],
+      "deterministic_crpf_variant_refs": [],
+      "source_refs": [
+        "source-ref:unknown-family-symbolic-a"
+      ],
+      "privacy_report": {
+        "status": "redacted_with_warnings",
+        "report_ref": "privacy-report-ref:unknown-family-warning",
+        "original_value_included": false
+      },
+      "calibration_training_allowed": false,
+      "boundary_notes": [
+        "Unknown family row is preserved for operator review.",
+        "Unknown does not grant training or write authority."
+      ],
+      "reason_codes": [
+        "empirical_calibration_dataset_only",
+        "offline_diagnostic_only",
+        "source_refs_required",
+        "privacy_guard_required",
+        "product_write_denied"
+      ],
+      "authority_boundary": {
+        "empirical_calibration_dataset_contract_now": true,
+        "contract_only": true,
+        "fixture_only": true,
+        "offline_diagnostic_only": true,
+        "calibration_training_allowed_default_false": true,
+        "caller_provided_fixture_only": true,
+        "training_runtime_now": false,
+        "automatic_learning_now": false,
+        "rule_mutation_now": false,
+        "prompt_mutation_now": false,
+        "parser_mutation_now": false,
+        "ranking_mutation_now": false,
+        "surfacing_mutation_now": false,
+        "telemetry_ingestion_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "source_fetch_now": false,
+        "retrieval_execution_now": false,
+        "rag_answer_generation_now": false,
+        "db_query_or_write_now": false,
+        "route_now": false,
+        "ui_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "promotion_execution_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "git_ledger_export_runtime_now": false,
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "repository_file_write_now": false,
+        "local_file_export_now": false,
+        "local_file_import_now": false,
+        "codex_execution_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "product_write_now": false,
+        "product_write_runtime_now": false,
+        "product_write_adapter_enabled_now": false,
+        "product_id_allocation_now": false,
+        "product_persistence_now": false,
+        "product_write_authority": false,
+        "readiness_label_is_truth": false,
+        "diagnostic_reason_code_is_truth": false,
+        "validation_pass_is_truth": false,
+        "validation_failure_is_rejection": false,
+        "codex_result_is_proof": false,
+        "handoff_outcome_is_approval": false,
+        "later_review_outcome_is_truth": false,
+        "dataset_row_is_training_data": false,
+        "dataset_row_is_proof": false,
+        "dataset_row_is_accepted_evidence": false,
+        "smoke_pass_is_truth": false,
+        "ci_pass_is_truth": false
+      }
+    }
+  ],
+  "row_examples_by_candidate_family": {
+    "manual_note_candidate": "empirical-calibration-row:manual-note:v0-1",
+    "provider_extraction_candidate": "empirical-calibration-row:provider-extraction:v0-1",
+    "retrieval_context_candidate": "empirical-calibration-row:retrieval-context:v0-1",
+    "feedback_to_rule_candidate": "empirical-calibration-row:feedback-to-rule:v0-1",
+    "codex_result_candidate": "empirical-calibration-row:codex-result:v0-1",
+    "temporal_handoff_candidate": "empirical-calibration-row:temporal-handoff:v0-1",
+    "crpf_variant_candidate": "empirical-calibration-row:crpf-variant:v0-1",
+    "unknown": "empirical-calibration-row:unknown:v0-1"
+  },
+  "blocked_private_or_raw_payload_example": {
+    "status": "blocked_private_or_raw_payload",
+    "blocked_fixture_markers": [
+      "SAFE_MARKER_PRIVATE_URL",
+      "SAFE_MARKER_LOCAL_PRIVATE_PATH",
+      "SAFE_MARKER_SECRET_TOKEN",
+      "SAFE_MARKER_RAW_SOURCE_BODY",
+      "SAFE_MARKER_RAW_PROVIDER_OUTPUT",
+      "SAFE_MARKER_RAW_RETRIEVAL_OUTPUT",
+      "SAFE_MARKER_PROVIDER_THREAD_ID",
+      "SAFE_MARKER_RAW_CONVERSATION",
+      "SAFE_MARKER_HIDDEN_REASONING",
+      "SAFE_MARKER_RAW_DB_ROW",
+      "SAFE_MARKER_RAW_DIFF",
+      "SAFE_MARKER_TELEMETRY_DUMP"
+    ],
+    "finding": {
+      "finding_version": "empirical_calibration_dataset_validation_finding.v0.1",
+      "scope": "project:augnes",
+      "finding_id": "empirical-calibration-finding:private-raw",
+      "path": "$.blocked_fixture_markers",
+      "finding_kind": "private_or_raw_payload",
+      "severity": "critical",
+      "action": "blocked",
+      "reason_codes": [
+        "raw_private_payload_blocked",
+        "secret_like_pattern_blocked",
+        "provider_thread_run_session_id_blocked"
+      ],
+      "public_safe_summary": "Blocked private/raw fixture markers are represented by safe placeholders only.",
+      "original_value_included": false
+    }
+  },
+  "blocked_forbidden_authority_example": {
+    "status": "blocked_forbidden_authority",
+    "finding": {
+      "finding_version": "empirical_calibration_dataset_validation_finding.v0.1",
+      "scope": "project:augnes",
+      "finding_id": "empirical-calibration-finding:forbidden-authority",
+      "path": "$.authority_boundary.training_runtime_now",
+      "finding_kind": "forbidden_authority",
+      "severity": "critical",
+      "action": "blocked",
+      "reason_codes": [
+        "training_not_executed"
+      ],
+      "public_safe_summary": "Training runtime authority claim was blocked.",
+      "original_value_included": false
+    },
+    "authority_boundary": {
+      "empirical_calibration_dataset_contract_now": true,
+      "contract_only": true,
+      "fixture_only": true,
+      "offline_diagnostic_only": true,
+      "calibration_training_allowed_default_false": true,
+      "caller_provided_fixture_only": true,
+      "training_runtime_now": true,
+      "automatic_learning_now": false,
+      "rule_mutation_now": false,
+      "prompt_mutation_now": false,
+      "parser_mutation_now": false,
+      "ranking_mutation_now": false,
+      "surfacing_mutation_now": false,
+      "telemetry_ingestion_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "source_fetch_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "db_query_or_write_now": false,
+      "route_now": false,
+      "ui_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "promotion_execution_now": false,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "git_ledger_export_runtime_now": false,
+      "git_write_now": false,
+      "github_api_call_now": false,
+      "repository_file_write_now": false,
+      "local_file_export_now": false,
+      "local_file_import_now": false,
+      "codex_execution_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_now": false,
+      "product_write_runtime_now": false,
+      "product_write_adapter_enabled_now": false,
+      "product_id_allocation_now": false,
+      "product_persistence_now": false,
+      "product_write_authority": false,
+      "readiness_label_is_truth": false,
+      "diagnostic_reason_code_is_truth": false,
+      "validation_pass_is_truth": false,
+      "validation_failure_is_rejection": false,
+      "codex_result_is_proof": false,
+      "handoff_outcome_is_approval": false,
+      "later_review_outcome_is_truth": false,
+      "dataset_row_is_training_data": false,
+      "dataset_row_is_proof": false,
+      "dataset_row_is_accepted_evidence": false,
+      "smoke_pass_is_truth": false,
+      "ci_pass_is_truth": false
+    }
+  },
+  "training_disabled_example": {
+    "status": "offline_diagnostic_only",
+    "safe_rows_checked": 8,
+    "calibration_training_allowed": false,
+    "calibration_training_allowed_default": false,
+    "reason_codes": [
+      "calibration_training_disabled_by_default",
+      "training_not_executed",
+      "learning_not_executed"
+    ],
+    "public_safe_summary": "Every safe row keeps calibration_training_allowed false."
+  },
+  "deterministic_repeatability_example": {
+    "input_ref": "empirical-calibration-input:sample-v0-1",
+    "first_row_order": [
+      "empirical-calibration-row:manual-note:v0-1",
+      "empirical-calibration-row:provider-extraction:v0-1",
+      "empirical-calibration-row:retrieval-context:v0-1",
+      "empirical-calibration-row:feedback-to-rule:v0-1",
+      "empirical-calibration-row:codex-result:v0-1",
+      "empirical-calibration-row:temporal-handoff:v0-1",
+      "empirical-calibration-row:crpf-variant:v0-1",
+      "empirical-calibration-row:unknown:v0-1"
+    ],
+    "second_row_order": [
+      "empirical-calibration-row:manual-note:v0-1",
+      "empirical-calibration-row:provider-extraction:v0-1",
+      "empirical-calibration-row:retrieval-context:v0-1",
+      "empirical-calibration-row:feedback-to-rule:v0-1",
+      "empirical-calibration-row:codex-result:v0-1",
+      "empirical-calibration-row:temporal-handoff:v0-1",
+      "empirical-calibration-row:crpf-variant:v0-1",
+      "empirical-calibration-row:unknown:v0-1"
+    ],
+    "first_fingerprint": "empirical-calibration-fingerprint:sample-v0-1:001",
+    "second_fingerprint": "empirical-calibration-fingerprint:sample-v0-1:001",
+    "repeatability_summary": "Same fixture input produces same dataset row refs, order, and fingerprint."
+  },
+  "authority_boundary_sample": {
+    "empirical_calibration_dataset_contract_now": true,
+    "contract_only": true,
+    "fixture_only": true,
+    "offline_diagnostic_only": true,
+    "calibration_training_allowed_default_false": true,
+    "caller_provided_fixture_only": true,
+    "training_runtime_now": false,
+    "automatic_learning_now": false,
+    "rule_mutation_now": false,
+    "prompt_mutation_now": false,
+    "parser_mutation_now": false,
+    "ranking_mutation_now": false,
+    "surfacing_mutation_now": false,
+    "telemetry_ingestion_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "rag_answer_generation_now": false,
+    "db_query_or_write_now": false,
+    "route_now": false,
+    "ui_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "product_write_authority": false,
+    "readiness_label_is_truth": false,
+    "diagnostic_reason_code_is_truth": false,
+    "validation_pass_is_truth": false,
+    "validation_failure_is_rejection": false,
+    "codex_result_is_proof": false,
+    "handoff_outcome_is_approval": false,
+    "later_review_outcome_is_truth": false,
+    "dataset_row_is_training_data": false,
+    "dataset_row_is_proof": false,
+    "dataset_row_is_accepted_evidence": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}
