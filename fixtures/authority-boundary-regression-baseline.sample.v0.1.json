@@ -1,0 +1,243 @@
+{
+  "fixture_version": "authority_boundary_regression_baseline.sample.v0.1",
+  "smoke_version": "authority_boundary_regression_ci.v0.1",
+  "scope": "project:augnes",
+  "scanned_surface_examples": [
+    "docs",
+    "types",
+    "fixtures",
+    "scripts",
+    "components",
+    "app",
+    "lib"
+  ],
+  "forbidden_claim_patterns": [
+    "candidate_as_proof_fact_or_accepted_evidence",
+    "evidence_candidate_as_accepted_evidence",
+    "perspective_delta_candidate_as_committed_state",
+    "provider_output_as_truth_proof_or_evidence",
+    "provider_confidence_as_promotion_readiness",
+    "retrieval_result_as_evidence_or_authority",
+    "retrieval_score_as_truth_score_or_promotion_readiness",
+    "rag_context_as_truth",
+    "feedback_as_truth",
+    "dismiss_as_deletion",
+    "pin_as_promotion",
+    "layout_coordinate_as_truth_or_authority",
+    "salience_score_as_truth_score",
+    "codex_handoff_draft_as_execution_approval",
+    "codex_result_report_as_proof_evidence_or_state",
+    "pr_body_as_authority",
+    "ci_pass_as_proof_truth_or_approval",
+    "smoke_pass_as_proof_truth_or_approval",
+    "git_ref_as_authority",
+    "github_pr_as_core_decision_or_execution_authority",
+    "product_write_available_before_reentry",
+    "product_id_allocation_available_before_contract",
+    "raw_private_marker_allowed_as_canonical_label",
+    "export_import_auto_action_allowed"
+  ],
+  "allowed_boundary_phrases": [
+    "Candidate is not fact.",
+    "Candidate is not proof.",
+    "Candidate is not accepted evidence.",
+    "Evidence candidate is not accepted evidence.",
+    "Perspective delta candidate is not committed state.",
+    "Provider output is candidate-only.",
+    "Provider output is not truth.",
+    "Provider confidence is not promotion readiness.",
+    "Retrieval result is not evidence.",
+    "Retrieval result is not authority.",
+    "Retrieval score is not truth score.",
+    "Retrieval score is not promotion readiness.",
+    "RAG context is not truth.",
+    "Feedback is not truth.",
+    "Dismiss is not deletion.",
+    "Pin is not promotion.",
+    "Layout coordinate is not truth.",
+    "Layout coordinate is not authority.",
+    "Salience score is not truth score.",
+    "Codex handoff draft is not execution approval.",
+    "Codex result report is not proof/evidence/state.",
+    "PR body is not authority.",
+    "CI pass is not truth.",
+    "CI pass is not proof.",
+    "CI pass is not approval.",
+    "CI failure is diagnostic, not automatic rejection.",
+    "Smoke pass is not truth.",
+    "Smoke pass is not proof.",
+    "Git ref is not authority.",
+    "GitHub PR is not Core decision.",
+    "Product-write remains parked by #686.",
+    "Git Ledger export is not authority.",
+    "Export/import policy blocks auto-promote, auto-product-write, auto-proof/evidence-write, auto-durable-state-apply, auto-provider-call, auto-retrieval, and auto-Git/GitHub."
+  ],
+  "expected_blocked_examples": [
+    {
+      "example_id": "blocked:candidate-proof",
+      "text": "Candidate is proof.",
+      "expected_category": "candidate_as_proof_fact_or_accepted_evidence"
+    },
+    {
+      "example_id": "blocked:evidence-candidate-accepted",
+      "text": "Evidence candidate is accepted evidence.",
+      "expected_category": "evidence_candidate_as_accepted_evidence"
+    },
+    {
+      "example_id": "blocked:perspective-delta-committed",
+      "text": "Perspective delta candidate is committed state.",
+      "expected_category": "perspective_delta_candidate_as_committed_state"
+    },
+    {
+      "example_id": "blocked:provider-output-truth",
+      "text": "Provider output is truth.",
+      "expected_category": "provider_output_as_truth_proof_or_evidence"
+    },
+    {
+      "example_id": "blocked:retrieval-result-evidence",
+      "text": "Retrieval result is evidence.",
+      "expected_category": "retrieval_result_as_evidence_or_authority"
+    },
+    {
+      "example_id": "blocked:retrieval-score-readiness",
+      "text": "Retrieval score is promotion readiness.",
+      "expected_category": "retrieval_score_as_truth_score_or_promotion_readiness"
+    },
+    {
+      "example_id": "blocked:feedback-truth",
+      "text": "Feedback is truth.",
+      "expected_category": "feedback_as_truth"
+    },
+    {
+      "example_id": "blocked:codex-handoff-approval",
+      "text": "Codex handoff draft is execution approval.",
+      "expected_category": "codex_handoff_draft_as_execution_approval"
+    },
+    {
+      "example_id": "blocked:ci-pass-proof",
+      "text": "CI pass is proof.",
+      "expected_category": "ci_pass_as_proof_truth_or_approval"
+    },
+    {
+      "example_id": "blocked:smoke-pass-truth",
+      "text": "Smoke pass is truth.",
+      "expected_category": "smoke_pass_as_proof_truth_or_approval"
+    },
+    {
+      "example_id": "blocked:git-ref-authority",
+      "text": "Git ref is authority.",
+      "expected_category": "git_ref_as_authority"
+    },
+    {
+      "example_id": "blocked:product-write-available",
+      "text": "Product-write is available before explicit reentry.",
+      "expected_category": "product_write_available_before_reentry"
+    },
+    {
+      "example_id": "blocked:canonical-marker",
+      "text": "SAFE_MARKER_PROVIDER_THREAD_ID is allowed as canonical label.",
+      "expected_category": "raw_private_marker_allowed_as_canonical_label"
+    },
+    {
+      "example_id": "blocked:auto-import-action",
+      "text": "Export/import policy allows auto-promote.",
+      "expected_category": "export_import_auto_action_allowed"
+    }
+  ],
+  "expected_allowed_examples": [
+    {
+      "example_id": "allowed:candidate-not-proof",
+      "text": "Candidate is not proof."
+    },
+    {
+      "example_id": "allowed:provider-output-candidate-only",
+      "text": "Provider output is candidate-only."
+    },
+    {
+      "example_id": "allowed:retrieval-result-not-evidence",
+      "text": "Retrieval result is not evidence."
+    },
+    {
+      "example_id": "allowed:feedback-not-truth",
+      "text": "Feedback is not truth."
+    },
+    {
+      "example_id": "allowed:ci-diagnostic",
+      "text": "CI pass is not truth, proof, approval, promotion, merge approval, release approval, product-write authority, or durable state."
+    },
+    {
+      "example_id": "allowed:smoke-not-truth",
+      "text": "Smoke pass is not truth."
+    },
+    {
+      "example_id": "allowed:git-ref-not-authority",
+      "text": "Git ref is not authority."
+    },
+    {
+      "example_id": "allowed:product-write-parked",
+      "text": "Product-write remains parked by #686."
+    }
+  ],
+  "authority_boundary": {
+    "authority_boundary_regression_static_smoke_now": true,
+    "github_actions_static_smoke_now": true,
+    "diagnostic_only": true,
+    "caller_provided_repo_text_only": true,
+    "runtime_state_mutation_now": false,
+    "db_query_or_write_now": false,
+    "route_now": false,
+    "ui_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "rag_answer_generation_now": false,
+    "export_import_runtime_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "github_branch_create_now": false,
+    "github_commit_create_now": false,
+    "github_pr_create_now": false,
+    "github_merge_now": false,
+    "repository_file_write_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_id_allocation_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false,
+    "ci_pass_is_approval": false,
+    "ci_failure_is_rejection": false,
+    "pr_body_is_authority": false,
+    "git_ref_is_authority": false
+  },
+  "reason_codes": [
+    "candidate_not_fact",
+    "candidate_not_proof",
+    "provider_output_not_truth",
+    "retrieval_result_not_evidence",
+    "retrieval_score_not_truth_score",
+    "feedback_not_truth",
+    "layout_coordinate_not_authority",
+    "codex_handoff_not_execution_approval",
+    "pr_body_not_authority",
+    "ci_pass_not_truth",
+    "smoke_pass_not_truth",
+    "git_ref_not_authority",
+    "product_write_parked",
+    "product_write_denied",
+    "raw_private_marker_blocked",
+    "export_import_auto_action_blocked",
+    "static_smoke_only",
+    "diagnostic_only",
+    "no_runtime_mutation",
+    "no_github_mutation"
+  ]
+}
