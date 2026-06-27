@@ -380,6 +380,76 @@ const tokenLikePatterns = [
   /\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/,
 ] as const;
 
+const runtimeIdentifierPatternCategories: ReadonlyArray<{
+  pattern: RegExp;
+  category: UnsafeCategory;
+}> = [
+  {
+    pattern:
+      /\b(?:provider[-_:]?internal[-_:]?id|provider[-_:]?response[-_:]?id|provider[-_:]?internal[-_:]?ref|synthetic[-_:]?provider[-_:]?internal[-_:]?ref)[-_:][A-Za-z0-9][A-Za-z0-9_-]{7,}\b/i,
+    category: category(
+      "provider_internal_id",
+      "high",
+      "redacted",
+      "provider_internal_id_blocked",
+    ),
+  },
+  {
+    pattern: /\b(?:resp|response|msg|message|asst|assistant|cmpl|chatcmpl)_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b/i,
+    category: category(
+      "provider_internal_id",
+      "high",
+      "redacted",
+      "provider_internal_id_blocked",
+    ),
+  },
+  {
+    pattern:
+      /\b(?:thread|thr)_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b|\b(?:provider[-_:]?thread[-_:]?ref|synthetic[-_:]?provider[-_:]?thread[-_:]?ref)[-_:][A-Za-z0-9][A-Za-z0-9_-]{7,}\b/i,
+    category: category(
+      "provider_thread_id",
+      "high",
+      "redacted",
+      "provider_thread_id_blocked",
+    ),
+  },
+  {
+    pattern:
+      /\brun_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b|\b(?:provider[-_:]?run[-_:]?ref|synthetic[-_:]?provider[-_:]?run[-_:]?ref)[-_:][A-Za-z0-9][A-Za-z0-9_-]{7,}\b/i,
+    category: category("provider_run_id", "high", "redacted", "provider_run_id_blocked"),
+  },
+  {
+    pattern:
+      /\b(?:sess|session)_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b|\b(?:provider[-_:]?session[-_:]?ref|synthetic[-_:]?provider[-_:]?session[-_:]?ref)[-_:][A-Za-z0-9][A-Za-z0-9_-]{7,}\b/i,
+    category: category(
+      "provider_session_id",
+      "high",
+      "redacted",
+      "provider_session_id_blocked",
+    ),
+  },
+  {
+    pattern:
+      /\b(?:connector|conn)_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b|\b(?:opaque[-_:]?connector[-_:]?ref|connector[-_:]?opaque[-_:]?ref|synthetic[-_:]?connector[-_:]?opaque[-_:]?ref)[-_:][A-Za-z0-9][A-Za-z0-9_-]{7,}\b/i,
+    category: category(
+      "opaque_connector_id",
+      "warning",
+      "reference_only",
+      "opaque_connector_id_reference_only",
+    ),
+  },
+  {
+    pattern:
+      /\b(?:file|upload|uploaded_file)_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b|\b(?:uploaded[-_:]?file[-_:]?opaque[-_:]?ref|uploaded[-_:]?file[-_:]?ref|synthetic[-_:]?uploaded[-_:]?file[-_:]?ref)[-_:][A-Za-z0-9][A-Za-z0-9_-]{7,}\b/i,
+    category: category(
+      "uploaded_file_opaque_id",
+      "warning",
+      "reference_only",
+      "uploaded_file_opaque_id_reference_only",
+    ),
+  },
+];
+
 export function createPrivacyRedactionRuntimeGuardAuthorityBoundaryV01():
   PrivacyRedactionRuntimeGuardAuthorityBoundary {
   return {
@@ -613,6 +683,11 @@ function classifyUnsafeString(value: string): UnsafeCategory[] {
   for (const { marker, category: markerCategory } of safeMarkerCategories) {
     if (value.includes(marker)) {
       categories.push(markerCategory);
+    }
+  }
+  for (const { pattern, category: patternCategory } of runtimeIdentifierPatternCategories) {
+    if (pattern.test(value)) {
+      categories.push(patternCategory);
     }
   }
   if (privateUrlPatterns.some((pattern) => pattern.test(value))) {
@@ -850,13 +925,13 @@ function redactionPlaceholder(
 }
 
 function isForbiddenAuthorityClaim(key: string, value: unknown): boolean {
-  if (value !== true) {
+  if (isExplicitlyFalseOrUnset(value)) {
     return false;
   }
-  if (forbiddenAuthorityFieldSet.has(key)) {
+  const lower = key.toLowerCase();
+  if (forbiddenAuthorityFieldSet.has(lower)) {
     return true;
   }
-  const lower = key.toLowerCase();
   return (
     lower.endsWith("_authority") ||
     lower.endsWith("_authority_now") ||
@@ -865,6 +940,10 @@ function isForbiddenAuthorityClaim(key: string, value: unknown): boolean {
     lower.endsWith("_execution_now") ||
     lower.endsWith("_is_truth")
   );
+}
+
+function isExplicitlyFalseOrUnset(value: unknown): boolean {
+  return value === false || value === null || value === undefined;
 }
 
 function isCanonicalLabelPath(rawPath: string[]): boolean {

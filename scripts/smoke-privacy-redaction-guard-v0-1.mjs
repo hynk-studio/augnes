@@ -181,6 +181,14 @@ for (const reasonCode of requiredReasonCodes) {
     `helper must include required reason code ${reasonCode}`,
   );
 }
+assert.ok(
+  helperSource.includes("runtimeIdentifierPatternCategories"),
+  "helper must include synthetic runtime identifier pattern detection",
+);
+assert.ok(
+  helperSource.includes("isExplicitlyFalseOrUnset"),
+  "helper must fail closed on non-false forbidden authority values",
+);
 
 assertNoForbiddenHelperImports();
 assertNoRealLookingSecrets();
@@ -188,7 +196,12 @@ assertSliceFileScope();
 
 const helper = await importPrivacyRedactionGuardHelper();
 const markerValues = collectSafeMarkers(fixture);
+const unsafeEchoValues = collectUnsafeEchoValues(fixture);
 assert.ok(markerValues.length >= 20, "fixture must exercise safe placeholder markers");
+assert.ok(
+  unsafeEchoValues.length >= markerValues.length + 7,
+  "fixture must exercise safe markers and synthetic identifier patterns",
+);
 
 const safeExample = fixture.examples.safe_passed;
 const safeReport = helper.buildPrivacyRedactionRuntimeGuardReportV01(safeExample.input);
@@ -238,6 +251,128 @@ assert.ok(
 assertReportPublicSafe(blockedPayloadReport);
 assertReportAuthorityClosed(blockedPayloadReport);
 
+const syntheticPatternExample = fixture.examples.synthetic_runtime_identifier_patterns;
+const syntheticPatternReport = helper.buildPrivacyRedactionRuntimeGuardReportV01(
+  syntheticPatternExample.input,
+);
+assert.equal(syntheticPatternReport.status, syntheticPatternExample.expected_status);
+assertFinding(
+  syntheticPatternReport,
+  "input.optional_context.provider_internal_ref",
+  "provider_internal_id_blocked",
+  "redacted",
+);
+assertFinding(
+  syntheticPatternReport,
+  "input.optional_context.provider_response_ref",
+  "provider_internal_id_blocked",
+  "redacted",
+);
+assertFinding(
+  syntheticPatternReport,
+  "input.optional_context.provider_thread_ref",
+  "provider_thread_id_blocked",
+  "redacted",
+);
+assertFinding(
+  syntheticPatternReport,
+  "input.optional_context.provider_run_ref",
+  "provider_run_id_blocked",
+  "redacted",
+);
+assertFinding(
+  syntheticPatternReport,
+  "input.optional_context.provider_session_ref",
+  "provider_session_id_blocked",
+  "redacted",
+);
+assertFinding(
+  syntheticPatternReport,
+  "input.optional_context.connector_ref",
+  "opaque_connector_id_reference_only",
+  "reference_only",
+);
+assertFinding(
+  syntheticPatternReport,
+  "input.optional_context.uploaded_file_ref",
+  "uploaded_file_opaque_id_reference_only",
+  "reference_only",
+);
+assertReportPublicSafe(syntheticPatternReport);
+assertReportAuthorityClosed(syntheticPatternReport);
+
+const syntheticCanonicalExample =
+  fixture.examples.synthetic_runtime_identifier_canonical_block;
+const syntheticCanonicalReport = helper.buildPrivacyRedactionRuntimeGuardReportV01(
+  syntheticCanonicalExample.input,
+);
+assert.equal(syntheticCanonicalReport.status, syntheticCanonicalExample.expected_status);
+for (const blockedPath of [
+  "input.canonical_label",
+  "input.canonical_name",
+  "input.canonical_title",
+]) {
+  assert.ok(
+    syntheticCanonicalReport.blocked_paths.includes(blockedPath),
+    "synthetic identifier in canonical label path must block",
+  );
+}
+assert.ok(
+  syntheticCanonicalReport.reason_codes.includes(
+    "canonical_label_from_private_identifier_blocked",
+  ),
+  "synthetic canonical identifier report must include canonical-label reason code",
+);
+assertReportPublicSafe(syntheticCanonicalReport);
+assertReportAuthorityClosed(syntheticCanonicalReport);
+
+const falseAuthorityExample = fixture.examples.forbidden_authority_false_allowed;
+const falseAuthorityReport = helper.buildPrivacyRedactionRuntimeGuardReportV01(
+  falseAuthorityExample.input,
+);
+assert.equal(falseAuthorityReport.status, falseAuthorityExample.expected_status);
+assert.equal(
+  falseAuthorityReport.findings.length,
+  0,
+  "false forbidden authority fields must remain allowed",
+);
+assertReportPublicSafe(falseAuthorityReport);
+assertReportAuthorityClosed(falseAuthorityReport);
+
+const nonFalseAuthorityExample =
+  fixture.examples.blocked_forbidden_authority_non_false_values;
+const nonFalseAuthorityReport = helper.buildPrivacyRedactionRuntimeGuardReportV01(
+  nonFalseAuthorityExample.input,
+);
+assert.equal(nonFalseAuthorityReport.status, nonFalseAuthorityExample.expected_status);
+for (const blockedPath of [
+  "input.authority_boundary.ci_pass_is_truth",
+  "input.authority_boundary.github_api_call_now",
+  "input.authority_boundary.product_write_authority",
+  "input.authority_boundary.provider_openai_call_now",
+  "input.authority_boundary.route_now",
+  "input.authority_boundary.smoke_pass_is_truth",
+  "input.authority_boundary.ui_now",
+  "input.future_runtime_claim.future_call_now",
+  "input.future_runtime_claim.future_execution_now",
+  "input.future_runtime_claim.future_is_truth",
+  "input.future_runtime_claim.future_write_now",
+]) {
+  assert.ok(
+    nonFalseAuthorityReport.blocked_paths.includes(blockedPath),
+    "non-false forbidden authority claim must block",
+  );
+}
+for (const forbiddenEcho of ['"enabled"', '"yes"', '"true"']) {
+  assert.equal(
+    JSON.stringify(nonFalseAuthorityReport).includes(forbiddenEcho),
+    false,
+    "non-false authority string value must not be echoed",
+  );
+}
+assertReportPublicSafe(nonFalseAuthorityReport);
+assertReportAuthorityClosed(nonFalseAuthorityReport);
+
 const forbiddenAuthorityExample = fixture.examples.blocked_forbidden_authority;
 const forbiddenAuthorityReport = helper.buildPrivacyRedactionRuntimeGuardReportV01(
   forbiddenAuthorityExample.input,
@@ -265,6 +400,10 @@ for (const report of [
   safeReport,
   redactedReport,
   blockedPayloadReport,
+  syntheticPatternReport,
+  syntheticCanonicalReport,
+  falseAuthorityReport,
+  nonFalseAuthorityReport,
   forbiddenAuthorityReport,
   invalidReport,
 ]) {
@@ -307,11 +446,17 @@ console.log(
         safe_status: safeReport.status,
         redacted_status: redactedReport.status,
         blocked_private_or_raw_payload_status: blockedPayloadReport.status,
+        synthetic_pattern_status: syntheticPatternReport.status,
+        synthetic_canonical_status: syntheticCanonicalReport.status,
+        non_false_authority_status: nonFalseAuthorityReport.status,
         blocked_forbidden_authority_status: forbiddenAuthorityReport.status,
         fingerprints: [
           safeReport.guard_fingerprint,
           redactedReport.guard_fingerprint,
           blockedPayloadReport.guard_fingerprint,
+          syntheticPatternReport.guard_fingerprint,
+          syntheticCanonicalReport.guard_fingerprint,
+          nonFalseAuthorityReport.guard_fingerprint,
           forbiddenAuthorityReport.guard_fingerprint,
         ],
       },
@@ -354,10 +499,21 @@ function assertReportAuthorityClosed(report) {
   }
 }
 
+function assertFinding(report, findingPath, reasonCode, action) {
+  const finding = report.findings.find((item) => item.path === findingPath);
+  assert.ok(finding, "expected finding path must be present");
+  assert.ok(
+    finding.reason_codes.includes(reasonCode),
+    "expected finding reason code must be present",
+  );
+  assert.equal(finding.action, action, "expected finding action must match");
+  assert.equal(finding.original_value_included, false);
+}
+
 function assertNoUnsafeEcho(report) {
   const output = JSON.stringify(report);
-  for (const marker of markerValues) {
-    assert.equal(output.includes(marker), false, "report must not echo safe marker input");
+  for (const unsafeValue of unsafeEchoValues) {
+    assert.equal(output.includes(unsafeValue), false, "report must not echo unsafe fixture input");
   }
   for (const pattern of realLookingSecretPatterns) {
     assert.equal(pattern.test(output), false, "report must not echo real-looking secret");
@@ -429,6 +585,40 @@ function collectSafeMarkers(value) {
       for (const child of Object.values(item)) visit(child);
     }
   }
+}
+
+function collectUnsafeEchoValues(value) {
+  const values = new Set();
+  visit(value);
+  return [...values].sort();
+
+  function visit(item) {
+    if (typeof item === "string") {
+      if (item.startsWith("SAFE_MARKER_") || isSyntheticIdentifierFixtureValue(item)) {
+        values.add(item);
+      }
+      return;
+    }
+    if (Array.isArray(item)) {
+      for (const child of item) visit(child);
+      return;
+    }
+    if (item && typeof item === "object") {
+      for (const child of Object.values(item)) visit(child);
+    }
+  }
+}
+
+function isSyntheticIdentifierFixtureValue(value) {
+  return [
+    /\b(?:resp|response|msg|message|asst|assistant|cmpl|chatcmpl)_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b/i,
+    /\b(?:thread|thr)_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b/i,
+    /\brun_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b/i,
+    /\b(?:sess|session)_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b/i,
+    /\b(?:connector|conn)_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b/i,
+    /\b(?:file|upload|uploaded_file)_[A-Za-z0-9][A-Za-z0-9_-]{8,}\b/i,
+    /\bsynthetic[-_:]provider[-_:]internal[-_:]ref[-_:][A-Za-z0-9][A-Za-z0-9_-]{7,}\b/i,
+  ].some((pattern) => pattern.test(value));
 }
 
 async function importPrivacyRedactionGuardHelper() {

@@ -73,6 +73,81 @@
         }
       }
     },
+    "synthetic_runtime_identifier_patterns": {
+      "expected_status": "redacted_with_warnings",
+      "input": {
+        "as_of": "2026-06-27T00:00:00.000Z",
+        "subject_ref": "privacy-redaction-fixture:synthetic-runtime-patterns",
+        "canonical_label": "Public-safe synthetic runtime pattern warning case",
+        "optional_context": {
+          "provider_internal_ref": "synthetic-provider-internal-ref-alphaRuntime0001",
+          "provider_response_ref": "resp_syntheticProviderResponse0001",
+          "provider_thread_ref": "thread_syntheticProviderThread0001",
+          "provider_run_ref": "run_syntheticProviderRun0001",
+          "provider_session_ref": "session_syntheticProviderSession0001",
+          "connector_ref": "connector_syntheticConnectorOpaque0001",
+          "uploaded_file_ref": "file_syntheticUploadedFileOpaque0001"
+        },
+        "authority_boundary": {
+          "provider_openai_call_now": false,
+          "product_write_authority": false,
+          "smoke_pass_is_truth": false,
+          "ci_pass_is_truth": false
+        }
+      }
+    },
+    "synthetic_runtime_identifier_canonical_block": {
+      "expected_status": "blocked_private_or_raw_payload",
+      "input": {
+        "as_of": "2026-06-27T00:00:00.000Z",
+        "subject_ref": "privacy-redaction-fixture:synthetic-runtime-canonical-block",
+        "canonical_label": "thread_syntheticCanonicalThread0001",
+        "canonical_title": "connector_syntheticCanonicalConnector0001",
+        "canonical_name": "file_syntheticCanonicalUpload0001",
+        "authority_boundary": {
+          "provider_openai_call_now": false,
+          "product_write_authority": false
+        }
+      }
+    },
+    "forbidden_authority_false_allowed": {
+      "expected_status": "passed",
+      "input": {
+        "as_of": "2026-06-27T00:00:00.000Z",
+        "subject_ref": "privacy-redaction-fixture:forbidden-authority-false-allowed",
+        "canonical_label": "Public-safe false authority boundary case",
+        "authority_boundary": {
+          "product_write_authority": false,
+          "github_api_call_now": false,
+          "provider_openai_call_now": false,
+          "smoke_pass_is_truth": false,
+          "ci_pass_is_truth": false
+        }
+      }
+    },
+    "blocked_forbidden_authority_non_false_values": {
+      "expected_status": "blocked_forbidden_authority",
+      "input": {
+        "as_of": "2026-06-27T00:00:00.000Z",
+        "subject_ref": "privacy-redaction-fixture:blocked-forbidden-authority-non-false",
+        "canonical_label": "Public-safe non-false authority stopline case",
+        "authority_boundary": {
+          "product_write_authority": "enabled",
+          "github_api_call_now": "true",
+          "provider_openai_call_now": 1,
+          "smoke_pass_is_truth": "yes",
+          "ci_pass_is_truth": 1,
+          "route_now": {},
+          "ui_now": []
+        },
+        "future_runtime_claim": {
+          "future_write_now": {},
+          "future_call_now": [],
+          "future_execution_now": "enabled",
+          "future_is_truth": "yes"
+        }
+      }
+    },
     "blocked_forbidden_authority": {
       "expected_status": "blocked_forbidden_authority",
       "input": {
