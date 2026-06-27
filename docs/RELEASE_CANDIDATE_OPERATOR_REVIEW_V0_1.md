@@ -170,6 +170,10 @@ Decisions can be `blocked`, `needs_operator_review`,
 `blocked` means mandatory context refs are missing, mandatory review item kinds
 are missing, or an unsatisfied blocking or critical item exists.
 
+Empty review item lists are blocked and report every missing mandatory review
+item kind. Empty review results do not fabricate review items; they expose
+stable missing refs.
+
 `needs_operator_review` means non-blocking review gaps remain.
 
 `ready_for_future_operator_review` means mandatory top-level refs are present

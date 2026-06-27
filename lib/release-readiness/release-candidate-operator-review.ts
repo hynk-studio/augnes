@@ -547,6 +547,8 @@ export function buildReleaseCandidateOperatorReviewV01(
   }
 
   if (input.review_items.length === 0) {
+    const missingContextRefs = missingContextRefsForEmptyReviewV01(input);
+
     return finalizeResult({
       result_version: RELEASE_CANDIDATE_OPERATOR_RESULT_VERSION,
       review_version: RELEASE_CANDIDATE_OPERATOR_REVIEW_VERSION,
@@ -556,8 +558,8 @@ export function buildReleaseCandidateOperatorReviewV01(
       decision: "blocked",
       as_of: input.as_of,
       review_items: [],
-      missing_context_refs: missingContextRefsForInput(input),
-      blocking_item_refs: [],
+      missing_context_refs: missingContextRefs,
+      blocking_item_refs: missingContextRefs,
       warnings: ["No release candidate operator review items were supplied."],
       release_executed: false,
       release_artifact_created: false,
@@ -932,6 +934,15 @@ function missingContextRefsForInput(
     refs.push("release-candidate-context:missing:runtime_audit_refs");
   }
   return uniqueSorted(refs);
+}
+
+function missingContextRefsForEmptyReviewV01(
+  input: ReleaseCandidateOperatorReviewInput,
+): string[] {
+  return uniqueSorted([
+    ...missingContextRefsForInput(input),
+    ...missingMandatoryItemKindRefs([]),
+  ]);
 }
 
 function missingMandatoryItemKindRefs(

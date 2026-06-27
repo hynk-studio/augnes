@@ -45,6 +45,30 @@ const itemKinds = [
   "operator_notes",
   "unknown",
 ];
+const mandatoryItemKinds = [
+  "release_readiness",
+  "disabled_product_write_harness",
+  "product_write_reentry",
+  "git_ledger_contract",
+  "runtime_audit",
+  "dogfooding",
+  "feedback",
+  "verification",
+  "privacy",
+  "rollback",
+  "idempotency",
+  "failure_modes",
+];
+const missingMandatoryItemKindRefs = mandatoryItemKinds.map(
+  (kind) => `release-candidate-item-kind:missing:${kind}`,
+);
+const missingTopLevelContextRefs = [
+  "release-candidate-context:missing:disabled_harness_refs",
+  "release-candidate-context:missing:git_ledger_contract_refs",
+  "release-candidate-context:missing:product_write_reentry_refs",
+  "release-candidate-context:missing:release_readiness_refs",
+  "release-candidate-context:missing:runtime_audit_refs",
+];
 const severities = ["info", "warning", "blocking", "critical", "unknown"];
 const statuses = [
   "reviewed",
@@ -262,6 +286,22 @@ assert.ok(
   helperSource.includes("validateReleaseCandidateOperatorReviewInputV01"),
   "helper must export input validator",
 );
+assert.ok(
+  helperSource.includes("function missingContextRefsForEmptyReviewV01"),
+  "helper must combine empty-review missing context refs",
+);
+assert.ok(
+  helperSource.includes("...missingMandatoryItemKindRefs([])"),
+  "empty review helper must include all missing mandatory item-kind refs",
+);
+const emptyBranchStart = helperSource.indexOf("if (input.review_items.length === 0)");
+const emptyBranchEnd = helperSource.indexOf("const authorityBoundary", emptyBranchStart);
+assert.ok(emptyBranchStart >= 0 && emptyBranchEnd > emptyBranchStart);
+const emptyBranchSource = helperSource.slice(emptyBranchStart, emptyBranchEnd);
+assert.ok(
+  !emptyBranchSource.includes("blocking_item_refs: []"),
+  "empty review branch must not drop blocking item refs",
+);
 
 assertNoForbiddenPositiveAuthority(docs, "docs");
 assertNoForbiddenPositiveAuthority(index, "index");
@@ -298,6 +338,11 @@ assert.deepEqual(
 assert.equal(fixture.expected_empty_result.status, "empty");
 assert.equal(fixture.expected_empty_result.decision, "blocked");
 assertResultAuthorityClosed(fixture.expected_empty_result);
+assertEmptyResultHasMissingRefs(
+  fixture.expected_empty_result,
+  [...missingTopLevelContextRefs, ...missingMandatoryItemKindRefs],
+  "expected_empty_result",
+);
 
 const observedDecisions = new Set([fixture.expected_result.decision]);
 for (const [caseName, input] of Object.entries(fixture.decision_coverage_inputs)) {
@@ -358,6 +403,25 @@ assertDecisionCase(
   "blocked",
   "release-candidate-context:missing:runtime_audit_refs",
   "runtime_audit_ref_missing",
+);
+assertEmptyResultHasMissingRefs(
+  fixture.expected_decision_results
+    .empty_all_top_level_refs_present_blocked_missing_item_kinds,
+  missingMandatoryItemKindRefs,
+  "empty_all_top_level_refs_present_blocked_missing_item_kinds",
+);
+assert.ok(
+  fixture.expected_decision_results
+    .empty_all_top_level_refs_present_blocked_missing_item_kinds.missing_context_refs.every(
+      (ref) => !ref.startsWith("release-candidate-context:missing:"),
+    ),
+  "empty all-top-level-refs-present case must not invent top-level missing refs",
+);
+assertEmptyResultHasMissingRefs(
+  fixture.expected_decision_results
+    .empty_missing_top_level_refs_and_missing_item_kinds,
+  [...missingTopLevelContextRefs, ...missingMandatoryItemKindRefs],
+  "empty_missing_top_level_refs_and_missing_item_kinds",
 );
 assert.equal(
   fixture.expected_decision_results.needs_operator_review.decision,
@@ -451,6 +515,27 @@ function assertDecisionCase(caseName, decision, missingRef, reasonCode) {
     result.reason_codes.includes(reasonCode),
     `${caseName} must include ${reasonCode}`,
   );
+  assertResultAuthorityClosed(result);
+}
+
+function assertEmptyResultHasMissingRefs(result, missingRefs, label) {
+  assert.equal(result.status, "empty", `${label} status`);
+  assert.equal(result.decision, "blocked", `${label} decision`);
+  assert.deepEqual(result.review_items, [], `${label} must not fabricate review items`);
+  assert.ok(
+    result.reason_codes.includes("mandatory_review_context_missing"),
+    `${label} must include mandatory_review_context_missing`,
+  );
+  for (const missingRef of missingRefs) {
+    assert.ok(
+      result.missing_context_refs.includes(missingRef),
+      `${label} missing_context_refs must include ${missingRef}`,
+    );
+    assert.ok(
+      result.blocking_item_refs.includes(missingRef),
+      `${label} blocking_item_refs must include ${missingRef}`,
+    );
+  }
   assertResultAuthorityClosed(result);
 }
 
