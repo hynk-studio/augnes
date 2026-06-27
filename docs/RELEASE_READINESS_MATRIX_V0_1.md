@@ -160,6 +160,9 @@ critical item is present.
 `not_ready` reason codes identify only the required refs that are actually
 missing. Present refs are not also reported as missing.
 
+`*_ref_present` reason codes are emitted only when matching refs are actually
+supplied. Category labels alone do not create ref-present reason codes.
+
 `needs_operator_review` means non-blocking review gaps remain.
 
 `ready_for_release_candidate_review` means all mandatory categories are present

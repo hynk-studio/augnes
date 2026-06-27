@@ -835,7 +835,10 @@ function reasonCodesForItem(
     "source_refs_are_lineage_not_proof",
   ];
   if (!item.satisfied) reasonCodes.push(...missingReasonCodesForCategory(item.category));
-  reasonCodes.push(...presentReasonCodesForCategory(item));
+  reasonCodes.push(
+    ...presentRefReasonCodesForItemRefs(item),
+    ...categoryContextReasonCodes(item),
+  );
   if (item.severity === "blocking" || item.severity === "critical") {
     reasonCodes.push("blocking_item_present");
   }
@@ -853,34 +856,49 @@ function reasonCodesForItem(
   return uniqueSorted(reasonCodes);
 }
 
-function presentReasonCodesForCategory(
+function presentRefReasonCodesForItemRefs(
+  item: ReleaseReadinessInputItem,
+): ReleaseReadinessReasonCode[] {
+  const reasonCodes: ReleaseReadinessReasonCode[] = [];
+  if (item.runtime_audit_refs.length > 0) {
+    reasonCodes.push("runtime_audit_ref_present");
+  }
+  if (item.product_write_reentry_refs.length > 0) {
+    reasonCodes.push("product_write_reentry_ref_present");
+  }
+  if (item.git_ledger_refs.length > 0) {
+    reasonCodes.push("git_ledger_contract_ref_present");
+  }
+  if (item.dogfooding_refs.length > 0) {
+    reasonCodes.push("dogfooding_ref_present");
+  }
+  if (item.feedback_refs.length > 0) {
+    reasonCodes.push("feedback_ref_present");
+  }
+  if (item.verification_refs.length > 0) {
+    reasonCodes.push("verification_ref_present");
+  }
+  return reasonCodes;
+}
+
+function categoryContextReasonCodes(
   item: ReleaseReadinessInputItem,
 ): ReleaseReadinessReasonCode[] {
   const reasonCodes: ReleaseReadinessReasonCode[] = [];
   if (item.runtime_audit_refs.length > 0 || item.category === "runtime_audit") {
-    reasonCodes.push("runtime_audit_ref_present", "runtime_audit_is_review_cue_only");
-  }
-  if (
-    item.product_write_reentry_refs.length > 0 ||
-    item.category === "product_write_reentry"
-  ) {
-    reasonCodes.push("product_write_reentry_ref_present");
+    reasonCodes.push("runtime_audit_is_review_cue_only");
   }
   if (item.git_ledger_refs.length > 0 || item.category === "git_ledger") {
     reasonCodes.push(
-      "git_ledger_contract_ref_present",
       "git_ledger_packet_is_not_commit",
       "git_ledger_packet_is_not_product_write",
     );
   }
   if (item.dogfooding_refs.length > 0 || item.category === "dogfooding") {
-    reasonCodes.push("dogfooding_ref_present", "dogfooding_record_is_review_signal");
+    reasonCodes.push("dogfooding_record_is_review_signal");
   }
   if (item.feedback_refs.length > 0 || item.category === "feedback") {
-    reasonCodes.push("feedback_ref_present", "feedback_is_advisory");
-  }
-  if (item.verification_refs.length > 0 || item.category === "verification") {
-    reasonCodes.push("verification_ref_present");
+    reasonCodes.push("feedback_is_advisory");
   }
   if (item.category === "privacy") reasonCodes.push("privacy_boundary_review_present");
   if (item.category === "rollback") reasonCodes.push("rollback_plan_present");

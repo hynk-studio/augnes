@@ -130,6 +130,8 @@ const exactDocsPhrases = [
   "Release candidate review is not release.",
   "`not_ready` reason codes identify only the required refs that are actually\nmissing.",
   "Present refs are not also reported as missing.",
+  "`*_ref_present` reason codes are emitted only when matching refs are actually\nsupplied.",
+  "Category labels alone do not create ref-present reason codes.",
   "This PR does not execute a release.",
   "This PR does not create release artifacts.",
   "This PR does not approve a release candidate.",
@@ -298,6 +300,15 @@ assert.ok(
   "helper must normalize not_ready required ref present/missing reason codes",
 );
 assert.ok(
+  helperSource.includes("presentRefReasonCodesForItemRefs"),
+  "helper must split actual ref-present reason codes from category context",
+);
+assert.ok(
+  helperSource.includes("categoryContextReasonCodes"),
+  "helper must keep non-ref category context reason codes separate",
+);
+assertNoCategoryOnlyRefPresentSourcePatterns();
+assert.ok(
   !helperSource.includes('"sk-"') || !helperSource.includes('privateOrRawMarkers = [\\n  "sk-"'),
   "sk- must not be a bare privateOrRaw marker",
 );
@@ -460,6 +471,40 @@ assertNotReadyReasonCodesExact(
     "git_ledger_contract_ref_present",
     "release_scope_present",
   ],
+);
+assertCategoryOnlyNoRefPresentCode(
+  fixture.expected_decision_results.category_only_runtime_audit_no_ref_no_present_code,
+  "runtime_audit",
+  "runtime_audit_ref_present",
+  "runtime_audit_ref_missing",
+);
+assertCategoryOnlyNoRefPresentCode(
+  fixture.expected_decision_results.category_only_product_write_reentry_no_ref_no_present_code,
+  "product_write_reentry",
+  "product_write_reentry_ref_present",
+);
+assertCategoryOnlyNoRefPresentCode(
+  fixture.expected_decision_results.category_only_git_ledger_no_ref_no_present_code,
+  "git_ledger",
+  "git_ledger_contract_ref_present",
+);
+assertCategoryOnlyNoRefPresentCode(
+  fixture.expected_decision_results.category_only_dogfooding_no_ref_no_present_code,
+  "dogfooding",
+  "dogfooding_ref_present",
+);
+assertCategoryOnlyNoRefPresentCode(
+  fixture.expected_decision_results.category_only_feedback_no_ref_no_present_code,
+  "feedback",
+  "feedback_ref_present",
+);
+assertCategoryOnlyNoRefPresentCode(
+  fixture.expected_decision_results.category_only_verification_no_ref_no_present_code,
+  "verification",
+  "verification_ref_present",
+);
+assertActualRefsEmitPresentCodes(
+  fixture.expected_decision_results.actual_refs_emit_present_codes,
 );
 assert.equal(
   fixture.expected_decision_results.ready_for_release_candidate_review.decision,
@@ -628,6 +673,65 @@ function assertNotReadyReasonCodesExact(
   assertMatrixBoundary(result);
 }
 
+function assertCategoryOnlyNoRefPresentCode(
+  result,
+  category,
+  presentReasonCode,
+  expectedResultMissingReasonCode,
+) {
+  const item = result.items.find((candidate) => candidate.category === category);
+  const summary = result.category_summaries.find(
+    (candidate) => candidate.category === category,
+  );
+  assert.ok(item, `category-only case must include item for ${category}`);
+  assert.ok(summary, `category-only case must include summary for ${category}`);
+  assert.ok(
+    !item.reason_codes.includes(presentReasonCode),
+    `${category} item must not include ${presentReasonCode} without actual refs`,
+  );
+  assert.ok(
+    !summary.reason_codes.includes(presentReasonCode),
+    `${category} summary must not inherit ${presentReasonCode} without actual refs`,
+  );
+  if (expectedResultMissingReasonCode) {
+    assert.equal(result.decision, "not_ready");
+    assert.ok(
+      result.reason_codes.includes(expectedResultMissingReasonCode),
+      `${category} result must include ${expectedResultMissingReasonCode}`,
+    );
+  }
+  assertMatrixBoundary(result);
+}
+
+function assertActualRefsEmitPresentCodes(result) {
+  const expectedByCategory = {
+    runtime_audit: "runtime_audit_ref_present",
+    product_write_reentry: "product_write_reentry_ref_present",
+    git_ledger: "git_ledger_contract_ref_present",
+    dogfooding: "dogfooding_ref_present",
+    feedback: "feedback_ref_present",
+    verification: "verification_ref_present",
+  };
+  assert.equal(result.decision, "ready_for_release_candidate_review");
+  for (const [category, presentReasonCode] of Object.entries(expectedByCategory)) {
+    const item = result.items.find((candidate) => candidate.category === category);
+    const summary = result.category_summaries.find(
+      (candidate) => candidate.category === category,
+    );
+    assert.ok(item, `actual-ref case must include item for ${category}`);
+    assert.ok(summary, `actual-ref case must include summary for ${category}`);
+    assert.ok(
+      item.reason_codes.includes(presentReasonCode),
+      `${category} item must include ${presentReasonCode} when refs exist`,
+    );
+    assert.ok(
+      summary.reason_codes.includes(presentReasonCode),
+      `${category} summary must include ${presentReasonCode} when refs exist`,
+    );
+  }
+  assertMatrixBoundary(result);
+}
+
 function assertAuthorityBoundary(boundary, label) {
   assert.equal(
     boundary.release_readiness_matrix_now,
@@ -687,6 +791,23 @@ function assertNoForbiddenHelperImports() {
     "product-write adapter",
   ]) {
     assert.ok(!helperSource.includes(marker), `helper must not contain ${marker}`);
+  }
+}
+
+function assertNoCategoryOnlyRefPresentSourcePatterns() {
+  const forbiddenPatterns = [
+    /runtime_audit_refs\.length > 0\s*\|\|\s*item\.category === "runtime_audit"[\s\S]{0,160}runtime_audit_ref_present/,
+    /product_write_reentry_refs\.length > 0\s*\|\|\s*item\.category === "product_write_reentry"[\s\S]{0,160}product_write_reentry_ref_present/,
+    /git_ledger_refs\.length > 0\s*\|\|\s*item\.category === "git_ledger"[\s\S]{0,160}git_ledger_contract_ref_present/,
+    /dogfooding_refs\.length > 0\s*\|\|\s*item\.category === "dogfooding"[\s\S]{0,160}dogfooding_ref_present/,
+    /feedback_refs\.length > 0\s*\|\|\s*item\.category === "feedback"[\s\S]{0,160}feedback_ref_present/,
+    /verification_refs\.length > 0\s*\|\|\s*item\.category === "verification"[\s\S]{0,160}verification_ref_present/,
+  ];
+  for (const pattern of forbiddenPatterns) {
+    assert.ok(
+      !pattern.test(helperSource),
+      `helper must not emit ref-present codes by category alone: ${pattern}`,
+    );
   }
 }
 
