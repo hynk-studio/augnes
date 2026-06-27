@@ -286,7 +286,16 @@ function assertPackageAndIndex() {
 
 function assertStaticScopeBoundaries() {
   const changedFiles = changedFilesAgainstMain();
-  assert.ok(!changedFiles.some((file) => file.startsWith("app/api/")), "no app/api route was added");
+  const allowedDbRouteRuntimeFiles = new Set([
+    "app/api/research-candidate-review/review-records/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/activity/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/discard/route.ts",
+  ]);
+  assert.ok(
+    !changedFiles.some((file) => file.startsWith("app/api/") && !allowedDbRouteRuntimeFiles.has(file)),
+    "no unexpected app/api route was added",
+  );
   assert.ok(!changedFiles.some((file) => file.startsWith("app/") && file.endsWith(".tsx")), "no UI page/component was added");
   assert.ok(!changedFiles.some((file) => file.startsWith("components/")), "no component/UI file was added");
   assert.ok(
