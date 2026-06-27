@@ -3620,6 +3620,22 @@ repo-local 색인이다.
   #686.
 
   Boundary phrases: Research Candidate Review Memory Store v0.1; Phase 2.2; local-store-only; follows the integrated roadmap guide v0.2; follows the #769 Review Memory Contract; explicit caller-provided file write only; review memory is not truth; candidate memory is not Perspective state; discard is not deletion; supersede preserves lineage; source refs are lineage pointers, not proof; source refs must be public-safe symbolic refs; older proposal documents are background inputs already integrated into the roadmap guide; no runtime route, UI, DB migration, DB query/write, provider/OpenAI call, source fetch, retrieval/RAG execution, proof/evidence write, Perspective promotion, durable Perspective state write, work mutation, Codex execution, GitHub automation, Git Ledger export, product write, or product ID allocation; product-write remains parked by #686; next recommended slices are Research Candidate Review Memory routes, Research Candidate Review Memory UI, Foundation/Lifecycle/Memory read-only UI, Bounded Source Intake Runtime Contract, and Bounded Source Intake Runtime.
+- Research Candidate Review Memory DB Store Runtime Completion v0.1:
+  `docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_DB_STORE_RUNTIME_COMPLETION_V0_1.md`,
+  `lib/research-candidate-review/review-memory-db-store.ts`,
+  `lib/db/schema.sql`,
+  `fixtures/research-candidate-review.memory-db-store-runtime.sample.v0.1.json`,
+  and `scripts/smoke-research-candidate-review-memory-db-store-runtime-v0-1.mjs`
+  (`npm run smoke:research-candidate-review-memory-db-store-runtime-v0-1`)
+  implement `research_candidate_review_memory_db_store_runtime_completion_v0_1`
+  as a runtime completion for the original Phase 2.2 DB-backed review memory
+  store requirements. It closes the gap left by the earlier local-store-only
+  JSON helper implementation with caller-injected SQLite helpers, schema,
+  public-safe fixture, temp DB smoke, and create/read/list/activity/discard/
+  supersede behavior. This pointer is repo-local documentation metadata, not
+  SSOT, and adds no routes or UI. Product-write remains parked by #686.
+
+  Boundary phrases: Research Candidate Review Memory DB Store Runtime Completion v0.1; research_candidate_review_memory_db_store_runtime_completion_v0_1; original Phase 2.2 DB-backed store gap closed; caller-injected DB only; temp DB smoke only; DB writes allowed only for review memory records, candidate link rows, source link rows, and activity rows; local-store-only JSON helper remains valid but insufficient for the DB-backed acceptance criteria; review memory is not truth; review memory is not proof; review memory is not accepted evidence; review memory is not durable Perspective state; candidate refs are not facts; source refs are lineage pointers, not proof; discard is lifecycle transition, not delete; supersede preserves lineage; smoke/CI pass is not truth; roadmap guide is not SSOT; no routes, UI, provider/OpenAI call, prompt sent, source fetch, retrieval/RAG execution, proof/evidence write, claim/evidence write, Perspective promotion, durable Perspective state write/apply, Formation Receipt write, Git Ledger export runtime, Git/GitHub execution, Codex execution, file export/import, product write, product persistence, product runtime write, product-write authority, or product ID allocation; product-write remains parked by #686; follow-up route/UI completion should bind to this DB-backed store rather than only the JSON local-store helper.
 - Research Candidate Review Memory Routes v0.1:
   `docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_ROUTES_V0_1.md`,
   `app/api/research-candidate/review-memory/route.ts`,
