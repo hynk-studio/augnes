@@ -1,0 +1,435 @@
+{
+  "fixture_version": "integrated_roadmap_v0_2_1_completion_closeout.sample.v0.1",
+  "closeout_version": "integrated_roadmap_v0_2_1_completion_closeout.v0.1",
+  "scope": "project:augnes",
+  "roadmap_ref": "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+  "closeout_status": "closeout_review_only",
+  "phase_summary": [
+    {
+      "phase_ref": "phase:0-foundation",
+      "summary": "Foundation and sequencing review artifacts are represented in roadmap and latest-index lineage.",
+      "category": "completed_release_readiness_review"
+    },
+    {
+      "phase_ref": "phase:1-to-3-research-runtime-boundaries",
+      "summary": "Research candidate lifecycle, calibration, source intake, provider candidate, retrieval, and RAG boundaries are represented by merged contracts, guards, or runtime rails.",
+      "category": "completed_runtime_guard"
+    },
+    {
+      "phase_ref": "phase:4-perspective-state",
+      "summary": "Promotion decision, Formation Receipt, durable state, and trajectory work remain bounded by existing merged contracts and runtime slices.",
+      "category": "completed_runtime_write_surface"
+    },
+    {
+      "phase_ref": "phase:5-layout-feedback",
+      "summary": "Layout, feedback, and surfacing rails are represented by explicitly merged runtime or preview artifacts.",
+      "category": "completed_runtime_write_surface"
+    },
+    {
+      "phase_ref": "phase:6-dogfooding-hardening",
+      "summary": "Dogfooding, authority regression, Codex result ingestion, and temporal handoff planning are represented by static or candidate-only rails.",
+      "category": "completed_static_smoke"
+    },
+    {
+      "phase_ref": "phase:7-privacy-export-release",
+      "summary": "Privacy redaction, local data export/import policy, runtime audit, and release readiness rails are represented without opening product-write.",
+      "category": "completed_runtime_guard"
+    },
+    {
+      "phase_ref": "phase:8-git-ledger-github-boundary",
+      "summary": "Git Ledger packet, preview, and local export rails exist; GitHub actuation implementation remains separately approval-gated.",
+      "category": "completed_local_export_helper"
+    },
+    {
+      "phase_ref": "phase:9-product-write-reentry",
+      "summary": "Product-write reentry review, target contract, and disabled harness exist; product_write_minimal_runtime_v0_1 remains parked.",
+      "category": "parked_pending_explicit_approval"
+    },
+    {
+      "phase_ref": "phase:10-research-calibration-invariants",
+      "summary": "Deterministic CRPF, empirical calibration, target-agent profiles, and formal invariant checks are represented as contract, fixture, helper, or static-smoke artifacts.",
+      "category": "completed_static_smoke"
+    }
+  ],
+  "slice_inventory": [
+    {
+      "slice_id": "privacy_redaction_runtime_guard_v0_1",
+      "category": "completed_runtime_guard",
+      "artifact_refs": [
+        "docs/PRIVACY_REDACTION_RUNTIME_GUARD_V0_1.md",
+        "lib/privacy/redaction-guard.ts",
+        "fixtures/privacy-redaction-guard.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:privacy-redaction-guard-v0-1",
+      "closeout_note": "Runtime guard blocks/redacts private/raw/provider/runtime identifiers from public-safe surfaces."
+    },
+    {
+      "slice_id": "local_data_export_import_policy_v0_1",
+      "category": "completed_contract_only",
+      "artifact_refs": [
+        "docs/LOCAL_DATA_EXPORT_IMPORT_POLICY_V0_1.md",
+        "types/local-data-export.ts",
+        "fixtures/local-data-export.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:local-data-export-policy-v0-1",
+      "closeout_note": "Policy and contract only; no export/import runtime."
+    },
+    {
+      "slice_id": "authority_boundary_regression_ci_v0_1",
+      "category": "completed_static_smoke",
+      "artifact_refs": [
+        "docs/AUTHORITY_BOUNDARY_REGRESSION_CI_V0_1.md",
+        "fixtures/authority-boundary-regression-baseline.sample.v0.1.json",
+        "scripts/smoke-authority-boundary-regression-v0-1.mjs"
+      ],
+      "verification_script_ref": "smoke:authority-boundary-regression-v0-1",
+      "closeout_note": "Static authority-boundary regression smoke with diagnostic-only CI workflow."
+    },
+    {
+      "slice_id": "codex_result_report_ingestion_v0_1",
+      "category": "completed_local_helper",
+      "artifact_refs": [
+        "docs/CODEX_RESULT_REPORT_INGESTION_V0_1.md",
+        "lib/dogfooding/codex-result-report-normalizer.ts",
+        "fixtures/codex-result-report-ingestion.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:codex-result-report-ingestion-v0-1",
+      "closeout_note": "Deterministic candidate-only normalization for caller-provided Codex result reports."
+    },
+    {
+      "slice_id": "temporal_handoff_usefulness_experiment_v0_1",
+      "category": "completed_fixture_only",
+      "artifact_refs": [
+        "docs/TEMPORAL_HANDOFF_USEFULNESS_EXPERIMENT_PLAN_V0_1.md",
+        "fixtures/temporal-handoff-usefulness-scenario.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:temporal-handoff-usefulness-experiment-plan-v0-1",
+      "closeout_note": "Experiment plan and fixture only; no experiment runtime."
+    },
+    {
+      "slice_id": "git_ledger_export_contract_v0_1",
+      "category": "completed_contract_only",
+      "artifact_refs": [
+        "docs/GIT_LEDGER_EXPORT_CONTRACT_V0_1.md",
+        "types/git-ledger-export-contract.ts"
+      ],
+      "verification_script_ref": "smoke:git-ledger-export-contract-v0-1",
+      "closeout_note": "Contract for Git Ledger export packet refs; not Git execution."
+    },
+    {
+      "slice_id": "git_ledger_export_deterministic_builder_v0_1",
+      "category": "completed_local_helper",
+      "artifact_refs": [
+        "docs/GIT_LEDGER_EXPORT_DETERMINISTIC_BUILDER_V0_1.md",
+        "lib/git-ledger/build-export-packet.ts",
+        "fixtures/git-ledger-export-builder.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:git-ledger-export-builder-v0-1",
+      "closeout_note": "Builds packet candidates and text previews only; no Git/GitHub execution."
+    },
+    {
+      "slice_id": "git_ledger_export_readonly_preview_v0_1",
+      "category": "completed_readonly_preview",
+      "artifact_refs": [
+        "docs/GIT_LEDGER_EXPORT_READONLY_PREVIEW_V0_1.md",
+        "components/git-ledger-export-readonly-preview-panel.tsx",
+        "fixtures/git-ledger-export-readonly-preview.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:git-ledger-export-readonly-preview-v0-1",
+      "closeout_note": "Readonly public-safe packet preview panel with no action controls."
+    },
+    {
+      "slice_id": "local_git_ledger_export_v0_1",
+      "category": "completed_local_export_helper",
+      "artifact_refs": [
+        "docs/LOCAL_GIT_LEDGER_EXPORT_V0_1.md",
+        "lib/git-ledger/local-export.ts",
+        "fixtures/local-git-ledger-export.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:local-git-ledger-export-v0-1",
+      "closeout_note": "Allowlisted local artifact export helper; not Git/GitHub actuation."
+    },
+    {
+      "slice_id": "github_actuation_contract_v0_1",
+      "category": "completed_contract_only",
+      "artifact_refs": [
+        "docs/GITHUB_ACTUATION_CONTRACT_V0_1.md",
+        "types/github-actuation-contract.ts",
+        "fixtures/github-actuation-contract.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:github-actuation-contract-v0-1",
+      "closeout_note": "Dry-run-only actuation contract; implementation remains separately approval-gated."
+    },
+    {
+      "slice_id": "product_write_reentry_review_v0_1",
+      "category": "completed_release_readiness_review",
+      "artifact_refs": [
+        "docs/PRODUCT_WRITE_REENTRY_REVIEW_V0_1.md"
+      ],
+      "verification_script_ref": "smoke:product-write-reentry-review-v0-1",
+      "closeout_note": "Review-only reentry artifact; product-write remains parked by #686."
+    },
+    {
+      "slice_id": "product_write_target_contract_v0_1",
+      "category": "completed_contract_only",
+      "artifact_refs": [
+        "docs/PRODUCT_WRITE_TARGET_CONTRACT_V0_1.md",
+        "types/product-write-target-contract.ts",
+        "fixtures/product-write-target-contract.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:product-write-target-contract-v0-1",
+      "closeout_note": "Target contract only; product-write runtime not approved."
+    },
+    {
+      "slice_id": "disabled_product_write_adapter_reentry_harness_v0_1",
+      "category": "completed_static_smoke",
+      "artifact_refs": [
+        "docs/DISABLED_PRODUCT_WRITE_ADAPTER_REENTRY_HARNESS_V0_1.md"
+      ],
+      "verification_script_ref": "smoke:disabled-product-write-adapter-reentry-harness-v0-1",
+      "closeout_note": "Disabled harness only; adapter enablement remains parked."
+    },
+    {
+      "slice_id": "deterministic_crpf_variant_review_v0_1",
+      "category": "completed_fixture_only",
+      "artifact_refs": [
+        "docs/DETERMINISTIC_CRPF_VARIANT_REVIEW_V0_1.md",
+        "types/deterministic-crpf-variant-review.ts",
+        "fixtures/deterministic-crpf-variant-review.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:deterministic-crpf-variant-review-v0-1",
+      "closeout_note": "Deterministic fixed-seed review aid only; no runtime randomness."
+    },
+    {
+      "slice_id": "empirical_calibration_dataset_v0_1",
+      "category": "completed_fixture_only",
+      "artifact_refs": [
+        "docs/EMPIRICAL_CALIBRATION_DATASET_V0_1.md",
+        "types/empirical-calibration-dataset.ts",
+        "fixtures/empirical-calibration-dataset.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:empirical-calibration-dataset-v0-1",
+      "closeout_note": "Offline diagnostic dataset contract; calibration training disabled by default."
+    },
+    {
+      "slice_id": "target_agent_ai_context_packet_profiles_v0_1",
+      "category": "completed_local_helper",
+      "artifact_refs": [
+        "docs/TARGET_AGENT_AI_CONTEXT_PACKET_PROFILES_V0_1.md",
+        "types/target-agent-ai-context-packet-profiles.ts",
+        "fixtures/research-candidate-review.target-agent-ai-context-packet-profiles.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:target-agent-ai-context-packet-profiles-v0-1",
+      "closeout_note": "Target-agent packet profile shaping only; not authority or execution approval."
+    },
+    {
+      "slice_id": "formal_invariant_checks_narrow_scope_v0_1",
+      "category": "completed_static_smoke",
+      "artifact_refs": [
+        "docs/FORMAL_INVARIANT_CHECKS_NARROW_SCOPE_V0_1.md",
+        "types/formal-invariant-checks-narrow-scope.ts",
+        "fixtures/formal-invariant-checks-narrow-scope.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:formal-invariant-checks-narrow-scope-v0-1",
+      "closeout_note": "Narrow static invariant smoke only; no theorem prover runtime or Lean dependency."
+    },
+    {
+      "slice_id": "release_readiness_matrix_v0_1",
+      "category": "completed_release_readiness_review",
+      "artifact_refs": [
+        "docs/RELEASE_READINESS_MATRIX_V0_1.md",
+        "fixtures/release-readiness-matrix.sample.v0.1.json"
+      ],
+      "verification_script_ref": "smoke:release-readiness-matrix-v0-1",
+      "closeout_note": "Review-only release readiness rail; not release approval."
+    },
+    {
+      "slice_id": "release_candidate_operator_review_v0_1",
+      "category": "completed_release_readiness_review",
+      "artifact_refs": [
+        "docs/RELEASE_CANDIDATE_OPERATOR_REVIEW_V0_1.md"
+      ],
+      "verification_script_ref": "smoke:release-candidate-operator-review-v0-1",
+      "closeout_note": "Operator review rail; not merge or release authority."
+    },
+    {
+      "slice_id": "release_candidate_freeze_manifest_v0_1",
+      "category": "completed_release_readiness_review",
+      "artifact_refs": [
+        "docs/RELEASE_CANDIDATE_FREEZE_MANIFEST_V0_1.md"
+      ],
+      "verification_script_ref": "smoke:release-candidate-freeze-manifest-v0-1",
+      "closeout_note": "Freeze manifest review rail; not runtime freeze execution."
+    },
+    {
+      "slice_id": "release_postmerge_observer_notes_v0_1",
+      "category": "completed_release_readiness_review",
+      "artifact_refs": [
+        "docs/RELEASE_POSTMERGE_OBSERVER_NOTES_V0_1.md"
+      ],
+      "verification_script_ref": "smoke:release-postmerge-observer-notes-v0-1",
+      "closeout_note": "Observer notes are candidate/review context only."
+    }
+  ],
+  "verification_script_inventory": [
+    "smoke:integrated-roadmap-v0-2-1-completion-closeout-v0-1",
+    "smoke:formal-invariant-checks-narrow-scope-v0-1",
+    "smoke:empirical-calibration-dataset-v0-1",
+    "smoke:deterministic-crpf-variant-review-v0-1",
+    "smoke:product-write-target-contract-v0-1",
+    "smoke:github-actuation-contract-v0-1",
+    "smoke:local-git-ledger-export-v0-1",
+    "smoke:git-ledger-export-readonly-preview-v0-1",
+    "smoke:git-ledger-export-builder-v0-1",
+    "smoke:git-ledger-export-contract-v0-1",
+    "smoke:authority-boundary-regression-v0-1",
+    "smoke:privacy-redaction-guard-v0-1",
+    "smoke:local-data-export-policy-v0-1",
+    "smoke:codex-result-report-ingestion-v0-1",
+    "smoke:temporal-handoff-usefulness-experiment-plan-v0-1",
+    "smoke:release-postmerge-observer-notes-v0-1",
+    "smoke:release-readiness-matrix-v0-1"
+  ],
+  "warning_baseline": [
+    {
+      "warning_ref": "node-strip-types-experimental-warning",
+      "summary": "Some existing smokes may emit Node ExperimentalWarning for stripTypeScriptTypes while exiting 0.",
+      "status": "known_warning_exits_zero",
+      "non_authority_note": "Warning baseline is diagnostic only and not truth, proof, approval, release approval, or product-write authority."
+    }
+  ],
+  "parked_work": [
+    {
+      "work_id": "product_write_minimal_runtime_v0_1",
+      "status": "parked_pending_explicit_approval",
+      "reason": "Product-write remains parked by #686 and is not approved by this closeout."
+    },
+    {
+      "work_id": "github_actuation_implementation",
+      "status": "parked_pending_explicit_approval",
+      "reason": "GitHub actuation implementation requires a separate explicitly approved PR."
+    },
+    {
+      "work_id": "product_write_adapter_enablement",
+      "status": "parked_pending_explicit_approval",
+      "reason": "Actual product-write adapter enablement is not approved."
+    },
+    {
+      "work_id": "product_id_allocation",
+      "status": "parked_pending_explicit_approval",
+      "reason": "Product ID allocation is not approved."
+    },
+    {
+      "work_id": "actual_proof_evidence_product_persistence_writes_beyond_existing_merged_surfaces",
+      "status": "parked_pending_explicit_approval",
+      "reason": "Actual proof, evidence, and product persistence writes require explicit future approval."
+    }
+  ],
+  "approval_gates": [
+    {
+      "gate_id": "future_product_write_runtime",
+      "required_approval": "separate_explicitly_approved_pr",
+      "required_refs": [
+        "product_write_reentry_review_ref",
+        "product_write_target_contract_ref",
+        "promotion_decision_ref",
+        "formation_receipt_ref",
+        "operator_approval_ref",
+        "source_refs",
+        "audit_trail_ref",
+        "idempotency_key_ref",
+        "rollback_policy_ref",
+        "preview_to_write_diff_ref"
+      ]
+    },
+    {
+      "gate_id": "future_github_actuation_implementation",
+      "required_approval": "separate_explicitly_approved_pr",
+      "required_refs": [
+        "github_actuation_contract_ref",
+        "explicit_operator_approval_ref",
+        "preview_to_action_diff_ref",
+        "rollback_or_abort_plan_ref"
+      ]
+    }
+  ],
+  "product_write_stopline": {
+    "status": "parked_pending_explicit_approval",
+    "issue_ref": "#686",
+    "statement": "Product-write remains parked by #686.",
+    "minimal_runtime_approval": "not_approved",
+    "product_write_authority_granted": false
+  },
+  "github_actuation_stopline": {
+    "status": "parked_pending_explicit_approval",
+    "statement": "GitHub actuation implementation is not approved by this closeout.",
+    "github_actuation_authority_granted": false
+  },
+  "authority_boundary": {
+    "integrated_roadmap_closeout_now": true,
+    "closeout_review_only": true,
+    "public_safe_inventory_only": true,
+    "operator_decision_required_for_next_runtime": true,
+    "product_write_reentry_requires_explicit_approval": true,
+    "github_actuation_requires_separate_approval": true,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "sql_transaction_now": false,
+    "db_query_or_write_now": false,
+    "route_now": false,
+    "ui_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "rag_answer_generation_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "github_pr_create_now": false,
+    "github_merge_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "closeout_is_release_approval": false,
+    "closeout_is_product_write_approval": false,
+    "closeout_is_merge_authority": false,
+    "closeout_is_truth": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  },
+  "reason_codes": [
+    "integrated_roadmap_closeout_review_only",
+    "public_safe_inventory_only",
+    "roadmap_guide_not_ssot",
+    "slice_contracts_are_local_authority",
+    "verification_rails_listed",
+    "warning_baseline_recorded",
+    "product_write_remains_parked",
+    "product_write_minimal_runtime_not_approved",
+    "github_actuation_implementation_not_approved",
+    "future_runtime_requires_operator_decision",
+    "product_write_denied",
+    "github_actuation_requires_separate_approval",
+    "closeout_not_release_approval",
+    "closeout_not_product_write_approval",
+    "closeout_not_merge_authority",
+    "closeout_not_truth",
+    "smoke_pass_not_truth",
+    "ci_pass_not_truth"
+  ]
+}

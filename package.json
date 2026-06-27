@@ -590,6 +590,7 @@
     "smoke:deterministic-crpf-variant-review-v0-1": "node scripts/smoke-deterministic-crpf-variant-review-v0-1.mjs",
     "smoke:empirical-calibration-dataset-v0-1": "node scripts/smoke-empirical-calibration-dataset-v0-1.mjs",
     "smoke:formal-invariant-checks-narrow-scope-v0-1": "node scripts/smoke-formal-invariant-checks-narrow-scope-v0-1.mjs",
+    "smoke:integrated-roadmap-v0-2-1-completion-closeout-v0-1": "node scripts/smoke-integrated-roadmap-v0-2-1-completion-closeout-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-implementation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-implementation-v0-1.mjs",
     "smoke:project-constellation-runtime-layout-browser-validation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-layout-browser-validation-v0-1.mjs",
     "smoke:perspective-geometry-digest-contract-v0-1": "node scripts/smoke-perspective-geometry-digest-contract-v0-1.mjs",

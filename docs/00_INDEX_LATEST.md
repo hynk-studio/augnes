@@ -4388,6 +4388,42 @@ repo-local 색인이다.
   is not promotion; invariant pass is not durable state; invariant pass is not
   product-write authority; invariant pass is not merge authority; smoke pass is
   not truth; CI pass is not truth; product-write remains parked by #686.
+- Integrated Roadmap v0.2.1 Completion Closeout v0.1:
+  `docs/INTEGRATED_ROADMAP_V0_2_1_COMPLETION_CLOSEOUT_V0_1.md`,
+  `fixtures/integrated-roadmap-v0-2-1-completion-closeout.sample.v0.1.json`,
+  and `scripts/smoke-integrated-roadmap-v0-2-1-completion-closeout-v0-1.mjs`
+  (`npm run smoke:integrated-roadmap-v0-2-1-completion-closeout-v0-1`)
+  implements `integrated_roadmap_v0_2_1_completion_closeout_v0_1` as a
+  closeout review only and public-safe inventory only. It summarizes
+  implemented roadmap phases/slices, verification rails, warning baseline,
+  parked work, product-write stopline, and GitHub actuation stopline. This
+  pointer is repo-local documentation metadata, not SSOT. The roadmap guide is
+  not SSOT. It does not approve `product_write_minimal_runtime_v0_1`. It does
+  not approve GitHub actuation implementation. It does not execute
+  product-write, enable product-write adapter, allocate product IDs, persist
+  products, execute SQL transactions, query/write DB, add routes/UI, call
+  providers, send prompts, fetch sources, execute retrieval/RAG, create
+  proof/evidence, create work items, promote Perspective, write/apply durable
+  state, write Formation Receipts, execute Git Ledger export runtime, execute
+  Git, call GitHub, create/merge PRs, write repository files, export/import
+  files, execute Codex, or grant product-write authority. Product-write
+  remains parked by #686. Future product-write or GitHub actuation work
+  requires a separate explicitly approved PR.
+
+  Boundary phrases: Integrated Roadmap v0.2.1 Completion Closeout v0.1;
+  closeout review only; public-safe inventory only; no product-write runtime;
+  no product-write adapter enablement; no product ID allocation; no product
+  persistence; no SQL transaction; no DB query/write; no route; no UI; no
+  provider call; no prompt sending; no source fetch; no retrieval execution;
+  no RAG answer generation; no proof/evidence write; no claim/evidence write;
+  no work item write; no promotion execution; no durable state write; no
+  durable state apply; no Formation Receipt write; no Git Ledger export
+  runtime; no Git write; no GitHub API call; no GitHub PR creation; no GitHub
+  merge; no repository file write; no local file export; no local file import;
+  no Codex execution; closeout is not release approval; closeout is not
+  product-write approval; closeout is not merge authority; closeout is not
+  truth; smoke pass is not truth; CI pass is not truth; product-write remains
+  parked by #686.
 - Release Readiness Matrix v0.1:
   `docs/RELEASE_READINESS_MATRIX_V0_1.md`,
   `lib/release-readiness/build-release-readiness-matrix.ts`,
