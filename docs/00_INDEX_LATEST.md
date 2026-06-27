@@ -4359,6 +4359,44 @@ repo-local 색인이다.
   execution; no GitHub automation; product-write remains parked by #686;
   product-write authority is not granted; smoke pass is not truth; CI pass is
   not truth.
+- Local Data Export/Import Policy v0.1:
+  `docs/LOCAL_DATA_EXPORT_IMPORT_POLICY_V0_1.md`,
+  `types/local-data-export.ts`,
+  `fixtures/local-data-export.sample.v0.1.json`, and
+  `scripts/smoke-local-data-export-policy-v0-1.mjs`
+  (`npm run smoke:local-data-export-policy-v0-1`) implements
+  `local_data_export_import_policy_v0_1` from the integrated roadmap guide
+  v0.2.1 FULL. This slice is policy-only and contract-only. Privacy Redaction
+  Runtime Guard v0.1 is required before any future export/import runtime.
+  Product-write remains parked by #686. This pointer is repo-local
+  documentation metadata, not SSOT. The roadmap guide is not SSOT. It defines a
+  public-safe export/import policy only and does not implement export/import
+  runtime, file writes, file reads as export/import input, DB query/write,
+  routes, UI, provider/OpenAI calls, prompt sending, retrieval/RAG execution,
+  proof/evidence writes, claim/evidence writes, promotion execution, durable
+  Perspective state writes or apply, Formation Receipt writes, Git Ledger export
+  runtime, GitHub API calls, Git execution, Codex execution, product-write, or
+  product ID allocation. Imports are preview/validate only unless a future
+  explicit operator-gated runtime slice is approved. Smoke/CI pass is not truth.
+
+  Boundary phrases: Local Data Export/Import Policy v0.1; policy-only;
+  contract-only; privacy_redaction_runtime_guard_v0_1 dependency; public-safe
+  summary only; symbolic refs only; reference-only deferred refs; source refs
+  are lineage pointers, not proof; candidates are not facts; review records are
+  not durable state; feedback is not truth; retrieval index metadata is derived;
+  provider extraction outputs are candidate-only; Git Ledger export refs are
+  future/deferred refs only; product-write refs are parked/blocked refs only;
+  product-write remains parked by #686; product-write authority is not granted;
+  no export/import runtime; no file write; no file read as export/import input;
+  no DB query/write; no route; no UI; no provider/OpenAI call; no prompt sent;
+  no retrieval execution; no RAG answer generation; no proof/evidence write; no
+  claim/evidence write; no promotion execution; no durable state write; no
+  durable state apply; no Formation Receipt write; no Git Ledger export runtime;
+  no GitHub API call; no Git execution; no Codex execution; no product-write; no
+  product ID allocation; no auto-promote; no auto-product-write; no
+  auto-proof/evidence write; no auto-durable-state apply; no auto-provider call;
+  no auto-retrieval; no auto-Git/GitHub; smoke pass is not truth; CI pass is not
+  truth.
 - Research Candidate AI Context Packet preview:
   `types/research-candidate-ai-context-packet.ts`,
   `lib/research-candidate-review/ai-context-packet.ts`,
