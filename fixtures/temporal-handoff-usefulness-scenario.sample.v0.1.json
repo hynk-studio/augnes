@@ -1,0 +1,370 @@
+{
+  "fixture_version": "temporal_handoff_usefulness_scenario.sample.v0.1",
+  "experiment_version": "temporal_handoff_usefulness_experiment.v0.1",
+  "scope": "project:augnes",
+  "status": "ready_for_future_operator_experiment",
+  "roadmap_ref": "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md#temporal_handoff_usefulness_experiment_v0_1",
+  "scenario_id": "temporal-handoff-usefulness-scenario:sample-maintenance-001",
+  "scenario_title": "Public-safe maintenance handoff comparison for bounded Augnes slice work",
+  "experiment_groups": [
+    {
+      "group_id": "ordinary_codex_prompt",
+      "public_safe_summary": "Ordinary Codex prompt from user request and repo instructions only.",
+      "input_refs": [
+        "prompt-ref:ordinary-codex-sample",
+        "repo-ref:augnes-main-symbolic"
+      ],
+      "reason_codes": [
+        "comparison_groups_defined",
+        "operator_review_required"
+      ]
+    },
+    {
+      "group_id": "existing_perspective_handoff_capsule",
+      "public_safe_summary": "Existing Perspective/Handoff Capsule prompt with current bounded context.",
+      "input_refs": [
+        "handoff-capsule-ref:sample-existing-perspective",
+        "source-ref:sample-capsule-context"
+      ],
+      "reason_codes": [
+        "comparison_groups_defined",
+        "operator_review_required"
+      ]
+    },
+    {
+      "group_id": "temporal_perspective_enhanced_handoff",
+      "public_safe_summary": "Temporal Perspective enhanced handoff with expected/observed deltas, decision holds, not-done classification, unresolved tensions, and authority warnings.",
+      "input_refs": [
+        "temporal-handoff-ref:sample-enhanced",
+        "source-ref:sample-temporal-diagnostic-sections"
+      ],
+      "reason_codes": [
+        "comparison_groups_defined",
+        "operator_review_required"
+      ]
+    }
+  ],
+  "evaluation_dimensions": [
+    "expected_files_missing_detection",
+    "expected_checks_missing_detection",
+    "unresolved_tension_preservation",
+    "authority_boundary_clarity",
+    "source_refs_coverage",
+    "not_done_classification_quality",
+    "overconfident_narrative_warning_quality",
+    "expected_observed_delta_clarity",
+    "decision_hold_classification_quality",
+    "single_event_baseline_rewrite_prevention",
+    "privacy_boundary_preservation",
+    "product_write_stopline_clarity"
+  ],
+  "scenario_inputs": {
+    "scenario_input_id": "scenario-input:sample-temporal-maintenance",
+    "task_summary": "Add a bounded docs/fixture/smoke/package/index slice without runtime behavior.",
+    "expected_files": [
+      "docs/SAMPLE_TEMPORAL_PLAN.md",
+      "fixtures/sample-temporal-scenario.json",
+      "scripts/smoke-sample-temporal.mjs",
+      "package.json",
+      "docs/00_INDEX_LATEST.md"
+    ],
+    "forbidden_files": [
+      "app/api/sample-temporal/route.ts",
+      "components/sample-temporal-execution-panel.tsx",
+      "lib/sample-temporal-runtime.ts",
+      "db/migrations/sample-temporal.sql"
+    ],
+    "expected_checks": [
+      "node --check scripts/smoke-sample-temporal.mjs",
+      "npm run smoke:sample-temporal",
+      "npm run typecheck"
+    ],
+    "source_refs": [
+      "source-ref:roadmap-pr-6-5",
+      "source-ref:temporal-diagnostic-sections",
+      "source-ref:codex-result-report-ingestion"
+    ],
+    "pr_refs": [
+      "pr-ref:sample-temporal-handoff"
+    ],
+    "boundary_notes": [
+      "Product-write remains parked by #686.",
+      "Experiment result is not truth.",
+      "Handoff score is not proof."
+    ]
+  },
+  "expected_outputs_by_group": [
+    {
+      "group_id": "ordinary_codex_prompt",
+      "expected_strengths": [
+        "Can follow explicit expected file list.",
+        "Can report validation commands when prompted."
+      ],
+      "expected_risks": [
+        "May omit unresolved tension preservation.",
+        "May under-classify not-done items.",
+        "May flatten expected/observed deltas into a success summary."
+      ],
+      "expected_review_cues": [
+        "review-cue:inspect-missing-tensions",
+        "review-cue:check-not-done-classification"
+      ]
+    },
+    {
+      "group_id": "existing_perspective_handoff_capsule",
+      "expected_strengths": [
+        "Should preserve source refs and existing scope boundaries.",
+        "Should reduce expected file and check omissions."
+      ],
+      "expected_risks": [
+        "May not preserve temporal decision holds.",
+        "May not distinguish single-event baseline from trajectory context."
+      ],
+      "expected_review_cues": [
+        "review-cue:inspect-decision-hold",
+        "review-cue:inspect-baseline-rewrite-risk"
+      ]
+    },
+    {
+      "group_id": "temporal_perspective_enhanced_handoff",
+      "expected_strengths": [
+        "Should preserve expected/observed deltas, unresolved tensions, decision holds, and not-done classifications.",
+        "Should make overconfident narrative risk easier to review."
+      ],
+      "expected_risks": [
+        "May be more verbose than necessary.",
+        "May require operator review to distinguish useful temporal context from extra review load."
+      ],
+      "expected_review_cues": [
+        "review-cue:score-temporal-delta-clarity",
+        "review-cue:score-authority-boundary-clarity"
+      ]
+    }
+  ],
+  "expected_observed_delta_examples": [
+    {
+      "delta_id": "delta:missing-expected-doc",
+      "delta_kind": "missing_expected_file",
+      "expected_ref": "docs/SAMPLE_TEMPORAL_PLAN.md",
+      "observed_ref": "observed-ref:not-present",
+      "public_safe_summary": "Expected plan doc was not observed in the candidate output.",
+      "reason_codes": [
+        "expected_observed_delta_preserved"
+      ]
+    },
+    {
+      "delta_id": "delta:skipped-smoke",
+      "delta_kind": "missing_expected_check",
+      "expected_ref": "npm run smoke:sample-temporal",
+      "observed_ref": "observed-check-ref:not-run",
+      "public_safe_summary": "Expected smoke command was not observed and needs an explicit skipped reason.",
+      "reason_codes": [
+        "expected_observed_delta_preserved"
+      ]
+    }
+  ],
+  "not_done_classification_examples": [
+    {
+      "item_id": "not-done:runtime-execution",
+      "classification": "out_of_scope",
+      "public_safe_summary": "Runtime experiment execution is intentionally deferred.",
+      "reason_codes": [
+        "not_done_classification_required"
+      ]
+    },
+    {
+      "item_id": "not-done:operator-comparison-run",
+      "classification": "needs_operator_review",
+      "public_safe_summary": "Future operator must run comparisons before outcome review.",
+      "reason_codes": [
+        "not_done_classification_required",
+        "operator_review_required"
+      ]
+    }
+  ],
+  "decision_hold_classification_examples": [
+    {
+      "hold_id": "decision-hold:missing-source-refs",
+      "hold_mode": "operator_decision_required",
+      "public_safe_summary": "Missing source refs require operator review before scoring.",
+      "reason_codes": [
+        "decision_hold_classification_required"
+      ]
+    },
+    {
+      "hold_id": "decision-hold:unresolved-tension",
+      "hold_mode": "anticipatory_stop",
+      "public_safe_summary": "Unresolved tension must remain visible rather than becoming a success claim.",
+      "reason_codes": [
+        "decision_hold_classification_required",
+        "unresolved_tension_preserved"
+      ]
+    }
+  ],
+  "unresolved_tension_examples": [
+    {
+      "tension_id": "tension:closed-slice-vs-new-defect",
+      "public_safe_summary": "Prior slice may be closed, but a concrete review finding can still require a narrow follow-up.",
+      "source_refs": [
+        "source-ref:review-comment-symbolic"
+      ],
+      "reason_codes": [
+        "unresolved_tension_preserved"
+      ]
+    },
+    {
+      "tension_id": "tension:temporal-context-vs-review-load",
+      "public_safe_summary": "Temporal context may improve recall while increasing operator review load.",
+      "source_refs": [
+        "source-ref:operator-review-protocol"
+      ],
+      "reason_codes": [
+        "unresolved_tension_preserved"
+      ]
+    }
+  ],
+  "overconfident_narrative_warning_examples": [
+    {
+      "warning_id": "warning:summary-overstates-completion",
+      "public_safe_summary": "Completion narrative must preserve skipped checks and not-done items.",
+      "reason_codes": [
+        "overconfident_narrative_guard_required"
+      ]
+    },
+    {
+      "warning_id": "warning:score-overstates-authority",
+      "public_safe_summary": "Higher score must remain review context and must not become approval.",
+      "reason_codes": [
+        "overconfident_narrative_guard_required",
+        "better_score_not_approval"
+      ]
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "score": "0_missing",
+      "public_safe_summary": "Dimension omitted or collapsed into confidence.",
+      "authority_note": "Experiment result is not truth."
+    },
+    {
+      "score": "1_weak",
+      "public_safe_summary": "Dimension mentioned without concrete symbolic refs.",
+      "authority_note": "Handoff score is not proof."
+    },
+    {
+      "score": "2_adequate",
+      "public_safe_summary": "Dimension preserved with bounded public-safe refs.",
+      "authority_note": "Better score is not approval."
+    },
+    {
+      "score": "3_strong",
+      "public_safe_summary": "Dimension preserved with review risk and no authority drift.",
+      "authority_note": "Worse score is not rejection."
+    },
+    {
+      "score": "blocked",
+      "public_safe_summary": "Missing operator-provided input prevents scoring.",
+      "authority_note": "Decision hold is review context only."
+    }
+  ],
+  "operator_review_packet": {
+    "packet_id": "operator-review-packet:sample-temporal-handoff-usefulness",
+    "review_questions": [
+      "Did the group detect missing expected files?",
+      "Did the group detect missing expected checks?",
+      "Did the group preserve unresolved tensions?",
+      "Did the group preserve source refs?",
+      "Did the group classify not-done items?",
+      "Did the group preserve product-write stopline clarity?"
+    ],
+    "required_review_refs": [
+      "source-ref:roadmap-pr-6-5",
+      "source-ref:authority-boundary-regression-ci",
+      "source-ref:privacy-redaction-runtime-guard",
+      "source-ref:codex-result-report-ingestion"
+    ],
+    "result_capture_policy": "Bounded public-safe summaries only; no telemetry dump and no raw conversation.",
+    "reason_codes": [
+      "operator_review_required",
+      "codex_result_report_candidate_only",
+      "authority_boundary_regression_compatible"
+    ]
+  },
+  "authority_boundary": {
+    "temporal_handoff_usefulness_experiment_plan_now": true,
+    "fixture_only": true,
+    "diagnostic_only": true,
+    "future_operator_experiment_only": true,
+    "caller_provided_scenario_only": true,
+    "experiment_runtime_execution_now": false,
+    "telemetry_ingestion_now": false,
+    "analytics_db_write_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_api_call_now": false,
+    "github_branch_create_now": false,
+    "github_commit_create_now": false,
+    "github_pr_create_now": false,
+    "github_merge_now": false,
+    "git_write_now": false,
+    "repository_file_write_now": false,
+    "runtime_state_mutation_now": false,
+    "db_query_or_write_now": false,
+    "route_now": false,
+    "ui_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "rag_answer_generation_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "git_ledger_export_runtime_now": false,
+    "export_import_runtime_now": false,
+    "product_write_now": false,
+    "product_id_allocation_now": false,
+    "experiment_result_is_truth": false,
+    "handoff_score_is_proof": false,
+    "better_score_is_approval": false,
+    "worse_score_is_rejection": false,
+    "pr_body_is_authority": false,
+    "ci_pass_is_truth": false,
+    "smoke_pass_is_truth": false,
+    "github_ref_is_authority": false,
+    "product_write_authority": false
+  },
+  "reason_codes": [
+    "temporal_handoff_experiment_plan_only",
+    "comparison_groups_defined",
+    "evaluation_dimensions_defined",
+    "scoring_rubric_defined",
+    "operator_review_required",
+    "expected_observed_delta_preserved",
+    "not_done_classification_required",
+    "decision_hold_classification_required",
+    "unresolved_tension_preserved",
+    "overconfident_narrative_guard_required",
+    "privacy_guard_required",
+    "codex_result_report_candidate_only",
+    "authority_boundary_regression_compatible",
+    "experiment_result_not_truth",
+    "handoff_score_not_proof",
+    "better_score_not_approval",
+    "worse_score_not_rejection",
+    "ci_pass_not_truth",
+    "smoke_pass_not_truth",
+    "pr_body_not_authority",
+    "github_ref_not_authority",
+    "provider_call_not_executed",
+    "codex_not_executed",
+    "git_github_not_executed",
+    "db_write_not_executed",
+    "telemetry_not_ingested",
+    "retrieval_not_executed",
+    "product_write_denied"
+  ]
+}
