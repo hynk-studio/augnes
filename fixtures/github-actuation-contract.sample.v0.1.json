@@ -1,0 +1,605 @@
+{
+  "fixture_version": "github_actuation_contract.sample.v0.1",
+  "contract_version": "github_actuation_contract.v0.1",
+  "plan_version": "github_actuation_plan.v0.1",
+  "approval_payload_version": "github_actuation_approval_payload.v0.1",
+  "scope": "project:augnes",
+  "safe_dry_run_plan_example": {
+    "plan_version": "github_actuation_plan.v0.1",
+    "contract_version": "github_actuation_contract.v0.1",
+    "scope": "project:augnes",
+    "status": "dry_run_plan_only",
+    "plan_id": "github-actuation-plan:sample-dry-run",
+    "planned_at": "2026-06-27T00:00:00.000Z",
+    "requested_by": "operator-ref:fixture-reviewer",
+    "target_repo_ref": "repo-ref:hynk-studio/augnes",
+    "base_branch_ref": "branch-ref:main",
+    "head_branch_ref": "branch-ref:future-github-actuation-sample",
+    "action_kinds": [
+      "dry_run_branch_plan",
+      "dry_run_commit_plan",
+      "dry_run_pull_request_plan",
+      "dry_run_review_comment_plan",
+      "dry_run_label_plan",
+      "dry_run_check_summary_plan"
+    ],
+    "permission_profiles": [
+      "read_only_metadata",
+      "contents_read_only",
+      "pull_request_read_only",
+      "dry_run_planning_only",
+      "future_contents_write_requires_explicit_approval",
+      "future_pull_request_write_requires_explicit_approval"
+    ],
+    "target_file_refs": [
+      {
+        "target_file_ref_version": "github_actuation_target_file_ref.v0.1",
+        "scope": "project:augnes",
+        "file_ref": "file-ref:docs-github-actuation-contract",
+        "target_path_ref": "docs/GITHUB_ACTUATION_CONTRACT_V0_1.md",
+        "target_file_policy": "allowlisted_public_safe_doc_ref",
+        "public_safe_summary": "Public-safe docs target ref for future operator review.",
+        "public_safe": true,
+        "reason_codes": [
+          "target_file_allowlist_required"
+        ]
+      },
+      {
+        "target_file_ref_version": "github_actuation_target_file_ref.v0.1",
+        "scope": "project:augnes",
+        "file_ref": "file-ref:types-github-actuation-contract",
+        "target_path_ref": "types/github-actuation-contract.ts",
+        "target_file_policy": "allowlisted_public_safe_type_ref",
+        "public_safe_summary": "Public-safe type target ref for future operator review.",
+        "public_safe": true,
+        "reason_codes": [
+          "target_file_allowlist_required"
+        ]
+      }
+    ],
+    "forbidden_target_refs": [
+      "forbidden-target-ref:secret-paths",
+      "forbidden-target-ref:product-write-paths",
+      "forbidden-target-ref:db-migrations"
+    ],
+    "git_ledger_packet_refs": [
+      "git-ledger-packet-ref:sample-local-export"
+    ],
+    "local_export_manifest_refs": [
+      "local-export-manifest-ref:sample-dry-run"
+    ],
+    "audit_packet_refs": [
+      "runtime-audit-ref:sample-github-actuation-boundary"
+    ],
+    "preview_to_action_diff_ref": "preview-to-action-diff-ref:sample-dry-run",
+    "rollback_or_abort_plan_ref": "rollback-plan-ref:sample-abort-only",
+    "idempotency_key_ref": "idempotency-ref:github-actuation-contract-sample",
+    "boundary_notes": [
+      "Dry-run plan only; no GitHub API call.",
+      "No Git execution, branch creation, commit creation, PR creation, or merge.",
+      "Product-write remains parked by #686."
+    ],
+    "reason_codes": [
+      "github_actuation_contract_only",
+      "dry_run_plan_only",
+      "explicit_operator_approval_required",
+      "github_api_not_called",
+      "git_write_not_executed",
+      "product_write_denied"
+    ],
+    "authority_boundary": {
+      "github_actuation_contract_now": true,
+      "dry_run_contract_only": true,
+      "future_operator_approval_required": true,
+      "caller_provided_refs_only": true,
+      "github_api_call_now": false,
+      "git_write_now": false,
+      "git_commit_now": false,
+      "git_branch_now": false,
+      "git_tag_now": false,
+      "github_pr_create_now": false,
+      "github_pr_merge_now": false,
+      "github_review_submit_now": false,
+      "github_label_write_now": false,
+      "github_check_write_now": false,
+      "github_release_create_now": false,
+      "repository_file_write_now": false,
+      "contents_write_now": false,
+      "actions_write_now": false,
+      "packages_write_now": false,
+      "deployments_write_now": false,
+      "secrets_read_or_write_now": false,
+      "admin_permission_now": false,
+      "local_file_export_now": false,
+      "local_file_import_now": false,
+      "db_query_or_write_now": false,
+      "route_now": false,
+      "ui_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "source_fetch_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "promotion_execution_now": false,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "codex_execution_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "product_write_authority": false,
+      "approval_is_merge_authority": false,
+      "approval_is_product_write": false,
+      "approval_is_proof": false,
+      "approval_is_durable_state": false,
+      "git_ref_is_authority": false,
+      "github_pr_is_core_decision": false,
+      "smoke_pass_is_truth": false,
+      "ci_pass_is_truth": false
+    }
+  },
+  "explicit_approval_payload_example": {
+    "approval_payload_version": "github_actuation_approval_payload.v0.1",
+    "scope": "project:augnes",
+    "approval_id": "github-actuation-approval:sample-explicit-operator-review",
+    "operator_actor_ref": "operator-ref:fixture-reviewer",
+    "approved_at": "2026-06-27T00:00:00.000Z",
+    "approved_action_kinds": [
+      "dry_run_branch_plan",
+      "dry_run_commit_plan",
+      "dry_run_pull_request_plan"
+    ],
+    "approved_target_repo_ref": "repo-ref:hynk-studio/augnes",
+    "approved_base_branch_ref": "branch-ref:main",
+    "approved_head_branch_ref": "branch-ref:future-github-actuation-sample",
+    "approved_file_refs": [
+      "file-ref:docs-github-actuation-contract",
+      "file-ref:types-github-actuation-contract"
+    ],
+    "approved_git_ledger_packet_refs": [
+      "git-ledger-packet-ref:sample-local-export"
+    ],
+    "approved_local_export_manifest_refs": [
+      "local-export-manifest-ref:sample-dry-run"
+    ],
+    "preview_to_action_diff_ref": "preview-to-action-diff-ref:sample-dry-run",
+    "rollback_or_abort_plan_ref": "rollback-plan-ref:sample-abort-only",
+    "authority_boundary_acknowledgements": [
+      "approval_not_merge_authority",
+      "approval_not_product_write",
+      "approval_not_proof",
+      "approval_not_durable_state",
+      "github_api_not_called",
+      "git_write_not_executed"
+    ],
+    "product_write_acknowledgement": false,
+    "approval_is_not_product_write": true,
+    "approval_is_not_proof": true,
+    "approval_is_not_durable_state": true,
+    "authority_boundary": {
+      "github_actuation_contract_now": true,
+      "dry_run_contract_only": true,
+      "future_operator_approval_required": true,
+      "caller_provided_refs_only": true,
+      "github_api_call_now": false,
+      "git_write_now": false,
+      "git_commit_now": false,
+      "git_branch_now": false,
+      "git_tag_now": false,
+      "github_pr_create_now": false,
+      "github_pr_merge_now": false,
+      "github_review_submit_now": false,
+      "github_label_write_now": false,
+      "github_check_write_now": false,
+      "github_release_create_now": false,
+      "repository_file_write_now": false,
+      "contents_write_now": false,
+      "actions_write_now": false,
+      "packages_write_now": false,
+      "deployments_write_now": false,
+      "secrets_read_or_write_now": false,
+      "admin_permission_now": false,
+      "local_file_export_now": false,
+      "local_file_import_now": false,
+      "db_query_or_write_now": false,
+      "route_now": false,
+      "ui_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "source_fetch_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "promotion_execution_now": false,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "codex_execution_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "product_write_authority": false,
+      "approval_is_merge_authority": false,
+      "approval_is_product_write": false,
+      "approval_is_proof": false,
+      "approval_is_durable_state": false,
+      "git_ref_is_authority": false,
+      "github_pr_is_core_decision": false,
+      "smoke_pass_is_truth": false,
+      "ci_pass_is_truth": false
+    }
+  },
+  "target_file_policy_example": {
+    "allowed_path_examples": [
+      {
+        "path_ref": "docs/GITHUB_ACTUATION_CONTRACT_V0_1.md",
+        "policy": "allowlisted_public_safe_doc_ref"
+      },
+      {
+        "path_ref": "types/github-actuation-contract.ts",
+        "policy": "allowlisted_public_safe_type_ref"
+      },
+      {
+        "path_ref": "fixtures/github-actuation-contract.sample.v0.1.json",
+        "policy": "allowlisted_public_safe_fixture_ref"
+      },
+      {
+        "path_ref": "scripts/smoke-github-actuation-contract-v0-1.mjs",
+        "policy": "allowlisted_public_safe_script_ref"
+      }
+    ],
+    "forbidden_path_examples": [
+      {
+        "path_ref": ".env",
+        "policy": "forbidden_secret_path"
+      },
+      {
+        "path_ref": "config/secrets.sample",
+        "policy": "forbidden_secret_path"
+      },
+      {
+        "path_ref": "credentials/runtime.sample",
+        "policy": "forbidden_credential_path"
+      },
+      {
+        "path_ref": "keys/private-key.sample",
+        "policy": "forbidden_private_key_path"
+      },
+      {
+        "path_ref": "package-lock.json",
+        "policy": "forbidden_unapproved_lockfile_path"
+      },
+      {
+        "path_ref": ".github/workflows/future-actuation.yml",
+        "policy": "forbidden_unapproved_workflow_path"
+      },
+      {
+        "path_ref": "docs/00_INDEX_LATEST.md",
+        "policy": "forbidden_unapproved_index_pointer_path"
+      },
+      {
+        "path_ref": "lib/product-write/future-product-write.ts",
+        "policy": "forbidden_product_write_path"
+      },
+      {
+        "path_ref": "db/migrations/future-migration.sql",
+        "policy": "forbidden_db_migration_path"
+      },
+      {
+        "path_ref": "app/api/future-mutation/route.ts",
+        "policy": "forbidden_state_mutating_route_path"
+      },
+      {
+        "path_ref": "config/provider-secret.sample",
+        "policy": "forbidden_provider_secret_config_path"
+      }
+    ]
+  },
+  "blocked_missing_explicit_approval_example": {
+    "status": "blocked_missing_explicit_approval",
+    "plan_ref": "github-actuation-plan:missing-approval",
+    "findings": [
+      {
+        "finding_version": "github_actuation_validation_finding.v0.1",
+        "scope": "project:augnes",
+        "finding_id": "github-actuation-finding:missing-approval",
+        "path": "$.explicit_approval_payload",
+        "finding_kind": "missing_explicit_approval",
+        "severity": "critical",
+        "action": "blocked",
+        "reason_codes": [
+          "explicit_operator_approval_required"
+        ],
+        "public_safe_summary": "Explicit operator approval payload is required for any future actuation.",
+        "original_value_included": false
+      }
+    ]
+  },
+  "blocked_forbidden_target_example": {
+    "status": "blocked_forbidden_target",
+    "target_path_ref": ".env",
+    "findings": [
+      {
+        "finding_version": "github_actuation_validation_finding.v0.1",
+        "scope": "project:augnes",
+        "finding_id": "github-actuation-finding:forbidden-target",
+        "path": "$.target_file_refs[0].target_path_ref",
+        "finding_kind": "forbidden_target",
+        "severity": "critical",
+        "action": "blocked",
+        "reason_codes": [
+          "forbidden_target_blocked",
+          "forbidden_file_path_blocked"
+        ],
+        "public_safe_summary": "Forbidden target file path was blocked.",
+        "original_value_included": false
+      }
+    ]
+  },
+  "blocked_forbidden_authority_example": {
+    "status": "blocked_forbidden_authority",
+    "authority_boundary": {
+      "github_actuation_contract_now": true,
+      "dry_run_contract_only": true,
+      "future_operator_approval_required": true,
+      "caller_provided_refs_only": true,
+      "github_api_call_now": true,
+      "git_write_now": false,
+      "git_commit_now": false,
+      "git_branch_now": false,
+      "git_tag_now": false,
+      "github_pr_create_now": false,
+      "github_pr_merge_now": false,
+      "github_review_submit_now": false,
+      "github_label_write_now": false,
+      "github_check_write_now": false,
+      "github_release_create_now": false,
+      "repository_file_write_now": false,
+      "contents_write_now": false,
+      "actions_write_now": false,
+      "packages_write_now": false,
+      "deployments_write_now": false,
+      "secrets_read_or_write_now": false,
+      "admin_permission_now": false,
+      "local_file_export_now": false,
+      "local_file_import_now": false,
+      "db_query_or_write_now": false,
+      "route_now": false,
+      "ui_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "source_fetch_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "promotion_execution_now": false,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "codex_execution_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "product_write_authority": false,
+      "approval_is_merge_authority": false,
+      "approval_is_product_write": false,
+      "approval_is_proof": false,
+      "approval_is_durable_state": false,
+      "git_ref_is_authority": false,
+      "github_pr_is_core_decision": false,
+      "smoke_pass_is_truth": false,
+      "ci_pass_is_truth": false
+    },
+    "findings": [
+      {
+        "finding_version": "github_actuation_validation_finding.v0.1",
+        "scope": "project:augnes",
+        "finding_id": "github-actuation-finding:forbidden-authority",
+        "path": "$.authority_boundary.github_api_call_now",
+        "finding_kind": "forbidden_authority",
+        "severity": "critical",
+        "action": "blocked",
+        "reason_codes": [
+          "github_api_not_called"
+        ],
+        "public_safe_summary": "Forbidden GitHub API authority claim was blocked.",
+        "original_value_included": false
+      }
+    ]
+  },
+  "blocked_private_or_raw_payload_example": {
+    "status": "blocked_private_or_raw_payload",
+    "blocked_fixture_markers": [
+      "SAFE_MARKER_GITHUB_TOKEN",
+      "SAFE_MARKER_PRIVATE_URL",
+      "SAFE_MARKER_LOCAL_PRIVATE_PATH",
+      "SAFE_MARKER_SECRET_TOKEN",
+      "SAFE_MARKER_RAW_SOURCE_BODY",
+      "SAFE_MARKER_RAW_PROVIDER_OUTPUT",
+      "SAFE_MARKER_RAW_RETRIEVAL_OUTPUT",
+      "SAFE_MARKER_PROVIDER_THREAD_ID",
+      "SAFE_MARKER_RAW_CONVERSATION",
+      "SAFE_MARKER_HIDDEN_REASONING",
+      "SAFE_MARKER_RAW_DIFF"
+    ],
+    "findings": [
+      {
+        "finding_version": "github_actuation_validation_finding.v0.1",
+        "scope": "project:augnes",
+        "finding_id": "github-actuation-finding:private-raw",
+        "path": "$.blocked_fixture_markers",
+        "finding_kind": "private_or_raw_payload",
+        "severity": "critical",
+        "action": "blocked",
+        "reason_codes": [
+          "raw_private_payload_blocked",
+          "github_token_blocked",
+          "secret_like_pattern_blocked"
+        ],
+        "public_safe_summary": "Blocked private/raw fixture markers are represented by safe placeholders only.",
+        "original_value_included": false
+      }
+    ]
+  },
+  "dry_run_result_example": {
+    "dry_run_result_version": "github_actuation_dry_run_result.v0.1",
+    "contract_version": "github_actuation_contract.v0.1",
+    "plan_version": "github_actuation_plan.v0.1",
+    "scope": "project:augnes",
+    "status": "dry_run_plan_only",
+    "plan_ref": "github-actuation-plan:sample-dry-run",
+    "approval_payload_ref": "github-actuation-approval:sample-explicit-operator-review",
+    "would_request_permissions": [
+      "read_only_metadata",
+      "contents_read_only",
+      "pull_request_read_only",
+      "dry_run_planning_only"
+    ],
+    "would_plan_action_kinds": [
+      "dry_run_branch_plan",
+      "dry_run_commit_plan",
+      "dry_run_pull_request_plan"
+    ],
+    "would_target_file_refs": [
+      "file-ref:docs-github-actuation-contract",
+      "file-ref:types-github-actuation-contract"
+    ],
+    "blocked_action_kinds": [
+      "blocked_branch_create",
+      "blocked_commit_create",
+      "blocked_pull_request_create",
+      "blocked_merge",
+      "blocked_repository_file_write",
+      "blocked_product_write"
+    ],
+    "preview_to_action_diff_ref": "preview-to-action-diff-ref:sample-dry-run",
+    "rollback_or_abort_plan_ref": "rollback-plan-ref:sample-abort-only",
+    "boundary_notes": [
+      "Dry-run result only; no GitHub call, Git execution, repository write, or product-write.",
+      "GitHub PR is not Core decision."
+    ],
+    "reason_codes": [
+      "dry_run_plan_only",
+      "github_api_not_called",
+      "git_write_not_executed",
+      "pull_request_not_created",
+      "product_write_denied"
+    ],
+    "authority_boundary": {
+      "github_actuation_contract_now": true,
+      "dry_run_contract_only": true,
+      "future_operator_approval_required": true,
+      "caller_provided_refs_only": true,
+      "github_api_call_now": false,
+      "git_write_now": false,
+      "git_commit_now": false,
+      "git_branch_now": false,
+      "git_tag_now": false,
+      "github_pr_create_now": false,
+      "github_pr_merge_now": false,
+      "github_review_submit_now": false,
+      "github_label_write_now": false,
+      "github_check_write_now": false,
+      "github_release_create_now": false,
+      "repository_file_write_now": false,
+      "contents_write_now": false,
+      "actions_write_now": false,
+      "packages_write_now": false,
+      "deployments_write_now": false,
+      "secrets_read_or_write_now": false,
+      "admin_permission_now": false,
+      "local_file_export_now": false,
+      "local_file_import_now": false,
+      "db_query_or_write_now": false,
+      "route_now": false,
+      "ui_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "source_fetch_now": false,
+      "retrieval_execution_now": false,
+      "rag_answer_generation_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "promotion_execution_now": false,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "codex_execution_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "product_write_authority": false,
+      "approval_is_merge_authority": false,
+      "approval_is_product_write": false,
+      "approval_is_proof": false,
+      "approval_is_durable_state": false,
+      "git_ref_is_authority": false,
+      "github_pr_is_core_decision": false,
+      "smoke_pass_is_truth": false,
+      "ci_pass_is_truth": false
+    }
+  },
+  "authority_boundary_sample": {
+    "github_actuation_contract_now": true,
+    "dry_run_contract_only": true,
+    "future_operator_approval_required": true,
+    "caller_provided_refs_only": true,
+    "github_api_call_now": false,
+    "git_write_now": false,
+    "git_commit_now": false,
+    "git_branch_now": false,
+    "git_tag_now": false,
+    "github_pr_create_now": false,
+    "github_pr_merge_now": false,
+    "github_review_submit_now": false,
+    "github_label_write_now": false,
+    "github_check_write_now": false,
+    "github_release_create_now": false,
+    "repository_file_write_now": false,
+    "contents_write_now": false,
+    "actions_write_now": false,
+    "packages_write_now": false,
+    "deployments_write_now": false,
+    "secrets_read_or_write_now": false,
+    "admin_permission_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "db_query_or_write_now": false,
+    "route_now": false,
+    "ui_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "rag_answer_generation_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_now": false,
+    "product_id_allocation_now": false,
+    "product_write_authority": false,
+    "approval_is_merge_authority": false,
+    "approval_is_product_write": false,
+    "approval_is_proof": false,
+    "approval_is_durable_state": false,
+    "git_ref_is_authority": false,
+    "github_pr_is_core_decision": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}
