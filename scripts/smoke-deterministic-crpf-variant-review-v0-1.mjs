@@ -81,6 +81,23 @@ const selectionCriteria = [
   "overclaim_risk",
 ];
 
+const requiredVariantFields = [
+  "fixed_seed_ref",
+  "selection_policy",
+  "candidate_inclusion_policy",
+  "evidence_requirement_policy",
+  "unresolved_tension_policy",
+  "source_coverage_policy",
+  "handoff_policy",
+  "operator_review_policy",
+  "expected_benefits",
+  "risk_notes",
+  "review_cues",
+  "non_authority_notes",
+  "reason_codes",
+  "authority_boundary",
+];
+
 const reasonCodes = [
   "deterministic_crpf_review_only",
   "fixed_seed_required",
@@ -370,43 +387,56 @@ assertAuthorityBoundary(
   fixture.comparison_bundle_example.authority_boundary,
   "$.comparison_bundle_example.authority_boundary",
 );
-assert.deepEqual(
-  fixture.variants.map((variant) => variant.variant_label).sort(),
-  [...variantLabels].sort(),
-  "fixture must contain all five variants exactly once",
+assert.equal(
+  Object.prototype.hasOwnProperty.call(
+    fixture.comparison_bundle_example,
+    "variant_refs",
+  ),
+  false,
+  "comparison_bundle_example.variant_refs must be absent; bundle embeds full variants",
 );
+assert.ok(
+  Array.isArray(fixture.comparison_bundle_example.variants),
+  "comparison_bundle_example.variants must be an array",
+);
+assertVariantLabelSet(fixture.variants, "fixture.variants");
 for (const variant of fixture.variants) {
-  assert.equal(variant.variant_version, variantVersion);
-  assert.equal(variant.contract_version, contractVersion);
-  assert.equal(variant.scope, scope);
-  for (const requiredField of [
-    "fixed_seed_ref",
-    "selection_policy",
-    "candidate_inclusion_policy",
-    "evidence_requirement_policy",
-    "unresolved_tension_policy",
-    "source_coverage_policy",
-    "handoff_policy",
-    "operator_review_policy",
-    "expected_benefits",
-    "risk_notes",
-    "review_cues",
-    "non_authority_notes",
-    "reason_codes",
-    "authority_boundary",
-  ]) {
-    assert.ok(variant[requiredField] !== undefined, `${variant.variant_label} missing ${requiredField}`);
-  }
-  assert.equal(variant.fixed_seed_ref, fixture.fixed_seed_ref);
-  assert.ok(variant.selection_policy.includes("fixed_seed_ref_required"));
-  assert.ok(variant.selection_policy.includes("fixture_backed_variant_only"));
-  assert.ok(variant.review_cues.length > 0);
-  assert.ok(variant.non_authority_notes.join(" ").includes("review aid only"));
-  assertAuthorityBoundary(
-    variant.authority_boundary,
-    `$.variants.${variant.variant_label}.authority_boundary`,
+  assertVariantContractShape(variant, `$.variants.${variant.variant_label}`);
+}
+assertVariantLabelSet(
+  fixture.comparison_bundle_example.variants,
+  "comparison_bundle_example.variants",
+);
+for (const variant of fixture.comparison_bundle_example.variants) {
+  assertVariantContractShape(
+    variant,
+    `$.comparison_bundle_example.variants.${variant.variant_label}`,
   );
 }
+assertEmbeddedBundleVariantsMatchTopLevel();
+assert.ok(
+  fixture.expected_output_shape.includes("authority_boundary"),
+  "expected output shape must include authority boundary",
+);
+assert.ok(
+  fixture.comparison_bundle_example.expected_output_shape.includes("authority_boundary"),
+  "bundle expected output shape must include authority boundary",
+);
+assert.ok(
+  fixture.comparison_bundle_example.expected_output_shape.includes("variant_id"),
+  "bundle expected output shape must include variant id",
+);
+assert.ok(
+  fixture.comparison_bundle_example.variants.every(
+    (variant) => variant.fixed_seed_ref === fixture.fixed_seed_ref,
+  ),
+  "embedded bundle variants must use fixture fixed seed ref",
+);
+assert.deepEqual(
+  fixture.comparison_bundle_example.variants.map((variant) => variant.variant_id),
+  fixture.variants.map((variant) => variant.variant_id),
+  "embedded bundle variants must preserve top-level variant order",
+);
 
 const repeatability = fixture.deterministic_repeatability_example;
 assert.deepEqual(
@@ -472,6 +502,70 @@ function assertAuthorityBoundary(boundary, label) {
   }
   for (const field of authorityFalseFields) {
     assert.equal(boundary[field], false, `${label}.${field} must be false`);
+  }
+}
+
+function assertVariantLabelSet(variants, label) {
+  assert.ok(Array.isArray(variants), `${label} must be an array`);
+  assert.deepEqual(
+    variants.map((variant) => variant.variant_label).sort(),
+    [...variantLabels].sort(),
+    `${label} must contain all five variants exactly once`,
+  );
+  assert.equal(
+    new Set(variants.map((variant) => variant.variant_label)).size,
+    variantLabels.length,
+    `${label} must not contain duplicate variant labels`,
+  );
+}
+
+function assertVariantContractShape(variant, label) {
+  assert.equal(variant.variant_version, variantVersion, `${label}.variant_version`);
+  assert.equal(variant.contract_version, contractVersion, `${label}.contract_version`);
+  assert.equal(variant.scope, scope, `${label}.scope`);
+  for (const requiredField of requiredVariantFields) {
+    assert.ok(
+      variant[requiredField] !== undefined,
+      `${label} missing ${requiredField}`,
+    );
+  }
+  assert.equal(variant.fixed_seed_ref, fixture.fixed_seed_ref, `${label}.fixed_seed_ref`);
+  assert.ok(
+    variant.selection_policy.includes("fixed_seed_ref_required"),
+    `${label}.selection_policy must require fixed seed refs`,
+  );
+  assert.ok(
+    variant.selection_policy.includes("fixture_backed_variant_only"),
+    `${label}.selection_policy must be fixture-backed only`,
+  );
+  assert.ok(variant.review_cues.length > 0, `${label}.review_cues must not be empty`);
+  assert.ok(
+    variant.non_authority_notes.join(" ").includes("review aid only"),
+    `${label}.non_authority_notes must preserve review-aid boundary`,
+  );
+  assertAuthorityBoundary(variant.authority_boundary, `${label}.authority_boundary`);
+}
+
+function assertEmbeddedBundleVariantsMatchTopLevel() {
+  const topLevelById = new Map(
+    fixture.variants.map((variant) => [variant.variant_id, variant]),
+  );
+  for (const embeddedVariant of fixture.comparison_bundle_example.variants) {
+    const topLevelVariant = topLevelById.get(embeddedVariant.variant_id);
+    assert.ok(
+      topLevelVariant,
+      `embedded bundle variant must match top-level variant id: ${embeddedVariant.variant_id}`,
+    );
+    assert.equal(
+      embeddedVariant.variant_label,
+      topLevelVariant.variant_label,
+      `${embeddedVariant.variant_id} label must match top-level variant`,
+    );
+    assert.equal(
+      embeddedVariant.fixed_seed_ref,
+      topLevelVariant.fixed_seed_ref,
+      `${embeddedVariant.variant_id} fixed seed ref must match top-level variant`,
+    );
   }
 }
 
