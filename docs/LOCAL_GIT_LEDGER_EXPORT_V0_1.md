@@ -126,6 +126,10 @@ This slice does not write repository source files.
 This slice does not export outside `tmp/git-ledger-export/` or
 `.tmp/git-ledger-export/`.
 
+Symlink output directories are rejected.
+
+Real/canonical paths are checked before writing.
+
 ## Artifact Layout
 
 Write mode emits exactly these artifact names:
@@ -143,6 +147,8 @@ Write mode emits exactly these artifact names:
 The artifacts are local export artifacts only. They are not Git commits, Git
 refs, GitHub PRs, proof/evidence records, durable state, promotion, approval,
 authority, product-write, or product ID allocation.
+
+Symlink artifact paths are rejected.
 
 ## Dry-Run Policy
 
@@ -170,6 +176,11 @@ This slice does not call GitHub.
 The manifest includes artifact names, artifact count, artifact hashes,
 manifest hash, packet ref, packet hash, idempotency key, privacy report
 summary, authority boundary, boundary notes, reason codes, and status.
+
+Artifact hashes are actual artifact content hashes. The returned manifest
+includes `artifact_hashes["manifest.json"]` as the hash of the written
+`manifest.json` content. The written `manifest.json` omits its own self-hash
+field to avoid a circular hash dependency.
 
 Manifest hash is not truth.
 

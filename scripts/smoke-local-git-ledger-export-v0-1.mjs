@@ -3,10 +3,13 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
   existsSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   rmSync,
   statSync,
+  symlinkSync,
+  writeFileSync,
 } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import path from "node:path";
@@ -242,6 +245,10 @@ const requiredDocsPhrases = [
   "This slice does not write Formation Receipts.",
   "This slice does not execute Codex.",
   "This slice does not product-write or allocate product IDs.",
+  "Symlink output directories are rejected.",
+  "Symlink artifact paths are rejected.",
+  "Real/canonical paths are checked before writing.",
+  "Artifact hashes are actual artifact content hashes.",
   "Suggested commit message artifact is not approval.",
   "Manifest hash is not truth.",
   "Artifact hash is not authority.",
@@ -417,6 +424,7 @@ assert.equal(
 
 assertDryRunDoesNotWrite(helper);
 assertWriteModeArtifacts(helper);
+const symlinkEscapeProtection = assertSymlinkEscapeProtection(helper);
 assertBlockedExample(helper, fixture.blocked_unsafe_output_dir_example, "blocked_unsafe_output_dir");
 assertBlockedExample(
   helper,
@@ -442,6 +450,7 @@ console.log(
       dry_run_manifest_hash: dryManifest.manifest_hash,
       write_manifest_hash: writeManifest.manifest_hash,
       artifact_count: expectedArtifactNames.length,
+      symlink_escape_protection: symlinkEscapeProtection,
     },
     null,
     2,
@@ -527,13 +536,24 @@ function assertWriteModeArtifacts(helperModule) {
         JSON.parse(firstContents[artifactName]);
       }
     }
-    for (const artifactName of expectedArtifactNames.filter((name) => name !== "manifest.json")) {
+    for (const artifactName of expectedArtifactNames) {
       assert.equal(
         sha256Text(firstContents[artifactName]),
         first.manifest.artifact_hashes[artifactName],
         `${artifactName} hash must match content`,
       );
     }
+    const manifestArtifact = JSON.parse(firstContents["manifest.json"]);
+    assert.equal(
+      manifestArtifact.artifact_hashes["manifest.json"],
+      undefined,
+      "written manifest artifact omits its own self-hash",
+    );
+    assert.equal(
+      first.manifest.artifact_hashes["manifest.json"],
+      sha256Text(firstContents["manifest.json"]),
+      "returned manifest hash for manifest.json must match written manifest content",
+    );
 
     const second = helperModule.writeLocalGitLedgerExportArtifactsV01(request);
     const secondContents = readArtifacts(outputDir);
@@ -542,6 +562,106 @@ function assertWriteModeArtifacts(helperModule) {
     assert.deepEqual(secondContents, firstContents);
   } finally {
     rmSync(outputDir, { recursive: true, force: true });
+  }
+}
+
+function assertSymlinkEscapeProtection(helperModule) {
+  const rootDir = ".tmp/git-ledger-export";
+  const outsideDir = ".tmp/local-git-ledger-export-symlink-target";
+  const outputSymlinkDir = `${rootDir}/smoke-symlink-output-dir`;
+  const artifactSymlinkDir = `${rootDir}/smoke-artifact-symlink-dir`;
+  const outsideFile = ".tmp/local-git-ledger-export-outside-file.txt";
+  rmSync(outputSymlinkDir, { recursive: true, force: true });
+  rmSync(artifactSymlinkDir, { recursive: true, force: true });
+  rmSync(outsideDir, { recursive: true, force: true });
+  rmSync(outsideFile, { force: true });
+  mkdirSync(rootDir, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  try {
+    try {
+      symlinkSync("../local-git-ledger-export-symlink-target", outputSymlinkDir, "dir");
+    } catch (error) {
+      const reason = `symlink creation unavailable: ${String(error?.code ?? error?.name ?? "unknown")}`;
+      console.warn(
+        JSON.stringify(
+          {
+            ok: true,
+            smoke: "local-git-ledger-export-v0-1",
+            symlink_escape_tests_skipped: true,
+            reason,
+          },
+          null,
+          2,
+        ),
+      );
+      return `skipped:${reason}`;
+    }
+
+    const symlinkOutputResult = helperModule.writeLocalGitLedgerExportArtifactsV01({
+      ...fixture.safe_write_request_example,
+      export_id: "local-git-ledger-export:smoke-symlink-output-dir",
+      output_dir: outputSymlinkDir,
+      dry_run: false,
+    });
+    assert.equal(symlinkOutputResult.status, "blocked_unsafe_output_dir");
+    assert.equal(symlinkOutputResult.written, false);
+    assert.deepEqual(symlinkOutputResult.artifact_paths, []);
+    assert.deepEqual(
+      readdirSync(outsideDir),
+      [],
+      "symlink output target must not receive artifacts",
+    );
+
+    mkdirSync(artifactSymlinkDir, { recursive: true });
+    writeFileSync(outsideFile, "outside-file-original\n", "utf8");
+    try {
+      symlinkSync(
+        "../../local-git-ledger-export-outside-file.txt",
+        path.join(artifactSymlinkDir, "packet.json"),
+        "file",
+      );
+    } catch (error) {
+      const reason = `artifact symlink creation unavailable: ${String(error?.code ?? error?.name ?? "unknown")}`;
+      console.warn(
+        JSON.stringify(
+          {
+            ok: true,
+            smoke: "local-git-ledger-export-v0-1",
+            artifact_symlink_escape_test_skipped: true,
+            reason,
+          },
+          null,
+          2,
+        ),
+      );
+      return `partial:${reason}`;
+    }
+
+    const artifactSymlinkResult = helperModule.writeLocalGitLedgerExportArtifactsV01({
+      ...fixture.safe_write_request_example,
+      export_id: "local-git-ledger-export:smoke-artifact-symlink",
+      output_dir: artifactSymlinkDir,
+      dry_run: false,
+    });
+    assert.equal(artifactSymlinkResult.status, "blocked_unsafe_output_dir");
+    assert.equal(artifactSymlinkResult.written, false);
+    assert.deepEqual(artifactSymlinkResult.artifact_paths, []);
+    assert.equal(
+      readFileSync(outsideFile, "utf8"),
+      "outside-file-original\n",
+      "artifact symlink target must not be modified",
+    );
+    assert.deepEqual(
+      readdirSync(artifactSymlinkDir).sort(),
+      ["packet.json"],
+      "artifact symlink preflight must block before writing any other artifact",
+    );
+    return "passed";
+  } finally {
+    rmSync(outputSymlinkDir, { recursive: true, force: true });
+    rmSync(artifactSymlinkDir, { recursive: true, force: true });
+    rmSync(outsideDir, { recursive: true, force: true });
+    rmSync(outsideFile, { force: true });
   }
 }
 

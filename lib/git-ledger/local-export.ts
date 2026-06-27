@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 
 export const LOCAL_GIT_LEDGER_EXPORT_REQUEST_VERSION_V01 =
@@ -256,7 +262,18 @@ export interface LocalGitLedgerExportWriteResultV01 {
 
 type JsonRecord = Record<string, unknown>;
 type FindingDraft = Omit<LocalGitLedgerExportFindingV01, "finding_id">;
-type ExportMode = "dry_run" | "write";
+type ExportMode = "dry_run" | "write" | "blocked";
+
+interface PreparedOutputDirectory {
+  absolute_output_dir: string;
+  real_output_dir: string;
+  real_export_root: string;
+}
+
+interface FilesystemSafetyFailure {
+  path: string;
+  public_safe_summary: string;
+}
 
 const requiredRequestStringFields = [
   "export_id",
@@ -708,8 +725,11 @@ export function buildLocalGitLedgerExportManifestV01(
 ): LocalGitLedgerExportManifestV01 {
   const validation = validateLocalGitLedgerExportRequestV01(input);
   const inputRecord = isRecord(input) ? input : {};
-  const mode: ExportMode =
-    validation.passed && inputRecord.dry_run !== true ? "write" : "dry_run";
+  const mode: ExportMode = validation.passed
+    ? inputRecord.dry_run === true
+      ? "dry_run"
+      : "write"
+    : "blocked";
   const status: LocalGitLedgerExportStatusV01 = validation.passed
     ? mode === "write"
       ? "local_export_written"
@@ -816,16 +836,7 @@ export function buildLocalGitLedgerExportManifestV01(
     reason_codes: reasonCodes,
     status,
   };
-  const manifestHash = createLocalGitLedgerExportManifestHashV01(manifestWithoutHash);
-  const manifest = {
-    ...manifestWithoutHash,
-    artifact_hashes: {
-      ...artifactHashes,
-      "manifest.json": manifestHash,
-    },
-    manifest_hash: manifestHash,
-  };
-  return manifest;
+  return finalizeManifestHashes(manifestWithoutHash);
 }
 
 export function writeLocalGitLedgerExportArtifactsV01(
@@ -845,16 +856,40 @@ export function writeLocalGitLedgerExportArtifactsV01(
   }
 
   const outputDir = String(input.output_dir).trim();
+  const preparedOutputDir = prepareSafeOutputDirectory(outputDir);
+  if ("path" in preparedOutputDir) {
+    const blockedValidation = validationWithFilesystemSafetyFailure(preparedOutputDir);
+    return {
+      status: blockedValidation.status,
+      manifest: manifestWithValidationStatus(manifest, blockedValidation),
+      validation: blockedValidation,
+      artifact_names: [...LocalGitLedgerExportArtifactNamesV01],
+      artifact_paths: [],
+      written: false,
+    };
+  }
+
+  const artifactSafety = verifyArtifactTargets(preparedOutputDir);
+  if (artifactSafety) {
+    const blockedValidation = validationWithFilesystemSafetyFailure(artifactSafety);
+    return {
+      status: blockedValidation.status,
+      manifest: manifestWithValidationStatus(manifest, blockedValidation),
+      validation: blockedValidation,
+      artifact_names: [...LocalGitLedgerExportArtifactNamesV01],
+      artifact_paths: [],
+      written: false,
+    };
+  }
+
   const artifactContents = buildArtifactContents(input, manifest.status, "write", manifest);
-  const absoluteOutputDir = path.resolve(process.cwd(), outputDir);
-  mkdirSync(absoluteOutputDir, { recursive: true });
 
   const writtenPaths: string[] = [];
   for (const artifactName of LocalGitLedgerExportArtifactNamesV01) {
-    const absoluteArtifactPath = path.resolve(absoluteOutputDir, artifactName);
-    if (!isPathInside(absoluteOutputDir, absoluteArtifactPath)) {
-      throw new Error("Local Git Ledger export artifact path escaped output directory.");
-    }
+    const absoluteArtifactPath = path.resolve(
+      preparedOutputDir.absolute_output_dir,
+      artifactName,
+    );
     writeFileSync(absoluteArtifactPath, artifactContents[artifactName], "utf8");
     writtenPaths.push(path.posix.join(outputDir, artifactName));
   }
@@ -873,6 +908,89 @@ export function createLocalGitLedgerExportManifestHashV01(
   manifest: unknown,
 ): string {
   return sha256Stable(stripVolatileManifestKeys(manifest));
+}
+
+function finalizeManifestHashes(
+  manifestWithoutHash: LocalGitLedgerExportManifestV01,
+): LocalGitLedgerExportManifestV01 {
+  const manifestWithoutSelfHash = {
+    ...manifestWithoutHash,
+    artifact_hashes: {
+      ...manifestWithoutHash.artifact_hashes,
+      "manifest.json": "",
+    },
+    manifest_hash: "",
+  };
+  const manifestHash = createLocalGitLedgerExportManifestHashV01(
+    manifestWithoutSelfHash,
+  );
+  const manifestWithHash = {
+    ...manifestWithoutSelfHash,
+    manifest_hash: manifestHash,
+  };
+  return {
+    ...manifestWithHash,
+    artifact_hashes: {
+      ...manifestWithHash.artifact_hashes,
+      "manifest.json": sha256Text(stableStringify(manifestJsonArtifactValue(manifestWithHash))),
+    },
+  };
+}
+
+function manifestJsonArtifactValue(manifest: unknown): unknown {
+  if (!isRecord(manifest)) {
+    return manifest;
+  }
+  const artifactHashes = isRecord(manifest.artifact_hashes)
+    ? Object.fromEntries(
+        Object.entries(manifest.artifact_hashes)
+          .filter(([artifactName]) => artifactName !== "manifest.json")
+          .sort(([left], [right]) => left.localeCompare(right)),
+      )
+    : manifest.artifact_hashes;
+  return {
+    ...manifest,
+    artifact_hashes: artifactHashes,
+  };
+}
+
+function manifestWithValidationStatus(
+  manifest: LocalGitLedgerExportManifestV01,
+  validation: LocalGitLedgerExportValidationReportV01,
+): LocalGitLedgerExportManifestV01 {
+  return finalizeManifestHashes({
+    ...manifest,
+    status: validation.status,
+    authority_boundary: createLocalGitLedgerExportAuthorityBoundaryV01("blocked"),
+    reason_codes: dedupeSortedReasonCodes([
+      ...manifest.reason_codes,
+      ...validation.reason_codes,
+      "unsafe_output_dir_blocked",
+    ]),
+    manifest_hash: "",
+    artifact_hashes: {
+      ...manifest.artifact_hashes,
+      "manifest.json": "",
+    },
+  });
+}
+
+function validationWithFilesystemSafetyFailure(
+  failure: FilesystemSafetyFailure,
+): LocalGitLedgerExportValidationReportV01 {
+  return finalizeValidation(
+    [
+      finding(
+        failure.path,
+        "unsafe_output_dir",
+        "critical",
+        "blocked",
+        ["unsafe_output_dir_blocked"],
+        failure.public_safe_summary,
+      ),
+    ],
+    false,
+  );
 }
 
 function buildArtifactContents(
@@ -912,8 +1030,141 @@ function buildArtifactContents(
     "privacy-report.json": stableStringify(privacyReport),
     "suggested-commit-message.txt": `${suggestedCommitMessage}\n`,
     "authority-boundary.json": stableStringify(boundary),
-    "manifest.json": stableStringify(manifestValue),
+    "manifest.json": stableStringify(manifestJsonArtifactValue(manifestValue)),
   };
+}
+
+function prepareSafeOutputDirectory(
+  outputDir: string,
+): PreparedOutputDirectory | FilesystemSafetyFailure {
+  const normalizedOutputDir = path.posix.normalize(outputDir.trim());
+  const exportRoot = normalizedOutputDir.startsWith("tmp/git-ledger-export/")
+    ? "tmp/git-ledger-export"
+    : ".tmp/git-ledger-export";
+  const absoluteExportRoot = path.resolve(process.cwd(), exportRoot);
+  const absoluteOutputDir = path.resolve(process.cwd(), normalizedOutputDir);
+  if (!isPathInside(absoluteExportRoot, absoluteOutputDir)) {
+    return {
+      path: "$.output_dir",
+      public_safe_summary: "Output directory escaped the allowlisted export root.",
+    };
+  }
+
+  const rootPreparation = ensureDirectoryPathWithoutSymlinks(exportRoot, "$.output_dir");
+  if (rootPreparation) {
+    return rootPreparation;
+  }
+  const outputPreparation = ensureDirectoryPathWithoutSymlinks(
+    normalizedOutputDir,
+    "$.output_dir",
+  );
+  if (outputPreparation) {
+    return outputPreparation;
+  }
+
+  const outputStat = lstatSync(absoluteOutputDir);
+  if (outputStat.isSymbolicLink() || !outputStat.isDirectory()) {
+    return {
+      path: "$.output_dir",
+      public_safe_summary: "Output directory must be a real directory, not a symlink.",
+    };
+  }
+
+  const realExportRoot = realpathSync(absoluteExportRoot);
+  const realOutputDir = realpathSync(absoluteOutputDir);
+  if (!isPathInsideOrEqual(realExportRoot, realOutputDir)) {
+    return {
+      path: "$.output_dir",
+      public_safe_summary:
+        "Canonical output directory escaped the canonical allowlisted export root.",
+    };
+  }
+
+  return {
+    absolute_output_dir: absoluteOutputDir,
+    real_output_dir: realOutputDir,
+    real_export_root: realExportRoot,
+  };
+}
+
+function ensureDirectoryPathWithoutSymlinks(
+  relativeDir: string,
+  failurePath: string,
+): FilesystemSafetyFailure | null {
+  let currentPath = process.cwd();
+  for (const segment of relativeDir.split("/")) {
+    currentPath = path.join(currentPath, segment);
+    if (existsSync(currentPath)) {
+      const stat = lstatSync(currentPath);
+      if (stat.isSymbolicLink()) {
+        return {
+          path: failurePath,
+          public_safe_summary:
+            "Output directory path component is a symlink and was blocked.",
+        };
+      }
+      if (!stat.isDirectory()) {
+        return {
+          path: failurePath,
+          public_safe_summary:
+            "Output directory path component is not a directory and was blocked.",
+        };
+      }
+      continue;
+    }
+    mkdirSync(currentPath);
+    const createdStat = lstatSync(currentPath);
+    if (createdStat.isSymbolicLink() || !createdStat.isDirectory()) {
+      return {
+        path: failurePath,
+        public_safe_summary:
+          "Created output directory path component failed real-directory verification.",
+      };
+    }
+  }
+  return null;
+}
+
+function verifyArtifactTargets(
+  preparedOutputDir: PreparedOutputDirectory,
+): FilesystemSafetyFailure | null {
+  for (const artifactName of LocalGitLedgerExportArtifactNamesV01) {
+    const absoluteArtifactPath = path.resolve(
+      preparedOutputDir.absolute_output_dir,
+      artifactName,
+    );
+    if (!isPathInside(preparedOutputDir.absolute_output_dir, absoluteArtifactPath)) {
+      return {
+        path: `$.artifacts.${artifactName}`,
+        public_safe_summary: "Artifact path escaped the output directory.",
+      };
+    }
+    const realArtifactParent = realpathSync(path.dirname(absoluteArtifactPath));
+    if (!isPathInsideOrEqual(preparedOutputDir.real_output_dir, realArtifactParent)) {
+      return {
+        path: `$.artifacts.${artifactName}`,
+        public_safe_summary:
+          "Canonical artifact parent escaped the canonical output directory.",
+      };
+    }
+    if (existsSync(absoluteArtifactPath)) {
+      const artifactStat = lstatSync(absoluteArtifactPath);
+      if (artifactStat.isSymbolicLink()) {
+        return {
+          path: `$.artifacts.${artifactName}`,
+          public_safe_summary: "Existing artifact path is a symlink and was blocked.",
+        };
+      }
+      if (!artifactStat.isFile()) {
+        return {
+          path: `$.artifacts.${artifactName}`,
+          public_safe_summary:
+            "Existing artifact path is not a regular file and was blocked.",
+        };
+      }
+    }
+  }
+  return null;
 }
 
 function validatePacket(packet: unknown, findings: FindingDraft[]): void {
@@ -1345,6 +1596,14 @@ function stripVolatileManifestKeys(value: unknown): unknown {
 function isPathInside(parent: string, child: string): boolean {
   const relative = path.relative(parent, child);
   return relative.length > 0 && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
+function isPathInsideOrEqual(parent: string, child: string): boolean {
+  const relative = path.relative(parent, child);
+  return (
+    relative.length === 0 ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
 }
 
 function sha256Text(value: string): string {

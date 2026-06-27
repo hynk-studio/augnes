@@ -130,7 +130,7 @@
       "privacy-report.json": "23b18012b706a3aebe812b0b7792bf0fb9a1d9792981f161d02773ca0b4c5477",
       "suggested-commit-message.txt": "98b9d089d5add01cd2133dad3afa70486291aed89605d44916bb3f68631d723f",
       "authority-boundary.json": "683d1fcedb9d9edc57bb02349eb93facd58f5ebc2f6db9ebb724fecafa1c4cc9",
-      "manifest.json": "dd09a97e6ee793568ec9af0f32d68b93dc8d280d764fcefacd21a83cf0906c8e"
+      "manifest.json": "6202001fc5aa9adfb332ece9703a4ce694efd3e912ea39da369a6df8f73cb454"
     },
     "manifest_hash": "dd09a97e6ee793568ec9af0f32d68b93dc8d280d764fcefacd21a83cf0906c8e",
     "packet_ref": "git-ledger-packet:sample:deterministic-builder",
@@ -369,7 +369,7 @@
       "privacy-report.json": "23b18012b706a3aebe812b0b7792bf0fb9a1d9792981f161d02773ca0b4c5477",
       "suggested-commit-message.txt": "98b9d089d5add01cd2133dad3afa70486291aed89605d44916bb3f68631d723f",
       "authority-boundary.json": "a1a23dc39a0e9b07ff52334e2d528567acf3e89c4957d052df5655855d4ed60a",
-      "manifest.json": "6b3d28775bebcb78bd0af678d7d4f96f054af68206f9f10d4f7229947b078bc4"
+      "manifest.json": "e8b987c6e1bec8e815948e7cb07ed7dde036b9f3f0b7a576f66248a2a81e21ff"
     },
     "manifest_hash": "6b3d28775bebcb78bd0af678d7d4f96f054af68206f9f10d4f7229947b078bc4",
     "packet_ref": "git-ledger-packet:sample:deterministic-builder",
