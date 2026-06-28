@@ -496,7 +496,8 @@ function assertChangedFileScope() {
 	      !isRetrievalIndexRuntimeCompletionFile(filePath) &&
 	      !isRagContextPreviewRuntimeCompletionFile(filePath) &&
 	      !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) &&
-	      !isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath),
+	      !isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath) &&
+	      !isFinalRagAnswerCandidateReviewRuntimeV01File(filePath),
 	    ),
 	    "no provider/retrieval/Git/GitHub/Codex/product-write/product ID files were added",
 	  );
@@ -573,6 +574,21 @@ function isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath) {
     "lib/product-write/accepted-evidence-ref-store.ts",
     "scripts/smoke-product-write-accepted-evidence-ref-runtime-v0-1.mjs",
     "types/product-write-accepted-evidence-ref.ts",
+  ].includes(filePath);
+}
+
+function isFinalRagAnswerCandidateReviewRuntimeV01File(filePath) {
+  return [
+    "app/api/research-retrieval/final-rag-answer/route.ts",
+    "docs/FINAL_RAG_ANSWER_GENERATION_CANDIDATE_REVIEW_V0_1.md",
+    "fixtures/final-rag-answer-generation-candidate-review.sample.v0.1.json",
+    "lib/research-retrieval/build-final-rag-answer-candidate.ts",
+    "lib/research-retrieval/final-rag-answer-provider-boundary.ts",
+    "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
+    "scripts/smoke-bounded-source-intake-runtime-completion-v0-1.mjs",
+    "types/final-rag-answer-candidate-review.ts",
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
   ].includes(filePath);
 }
 

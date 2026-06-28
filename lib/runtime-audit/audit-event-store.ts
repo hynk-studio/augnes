@@ -35,6 +35,7 @@ export type RuntimeAuditEventSurfaceV01 =
   | "provider_extraction_runtime"
   | "retrieval_index_runtime"
   | "rag_context_preview_runtime"
+  | "final_rag_answer_candidate_review_runtime"
   | "constellation_runtime_ui"
   | "manual_anchors_runtime"
   | "feedback_event_write_runtime"
@@ -192,6 +193,7 @@ const eventSurfaces: RuntimeAuditEventSurfaceV01[] = [
   "provider_extraction_runtime",
   "retrieval_index_runtime",
   "rag_context_preview_runtime",
+  "final_rag_answer_candidate_review_runtime",
   "constellation_runtime_ui",
   "manual_anchors_runtime",
   "feedback_event_write_runtime",
