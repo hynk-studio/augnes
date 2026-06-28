@@ -599,7 +599,8 @@ function assertChangedFileScope() {
         !isManualAnchorRuntimeCompletionFile(filePath) &&
         !isFeedbackEventAggregationRuntimeCompletionFile(filePath) &&
         !isFeedbackControlsExpansionRuntimeCompletionFile(filePath) &&
-        !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath),
+        !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) &&
+        !isRuntimeAuditPanelRuntimeCompletionFile(filePath),
     ),
     "no new app/api route was added",
   );
@@ -614,7 +615,8 @@ function assertChangedFileScope() {
         !isExpectedCompletionFile(filePath) &&
         !isFeedbackEventAggregationRuntimeCompletionFile(filePath) &&
         !isFeedbackControlsExpansionRuntimeCompletionFile(filePath) &&
-        !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath),
+        !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) &&
+        !isRuntimeAuditPanelRuntimeCompletionFile(filePath),
     ),
     "no provider/retrieval-index-write/Git/GitHub/Codex/product-write/product ID files were added",
   );
@@ -726,6 +728,21 @@ function isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) {
     "docs/FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_V0_1.md",
     "fixtures/feedback-influenced-surfacing-preview-runtime-completion.sample.v0.1.json",
     "scripts/smoke-feedback-influenced-surfacing-preview-runtime-completion-v0-1.mjs",
+    packagePath,
+    indexPath,
+  ].includes(filePath);
+}
+
+function isRuntimeAuditPanelRuntimeCompletionFile(filePath) {
+  return [
+    "lib/runtime-audit/audit-event-store.ts",
+    "lib/runtime-audit/build-runtime-audit-model.ts",
+    "app/api/runtime-audit/events/route.ts",
+    "components/runtime-audit-panel.tsx",
+    "docs/RUNTIME_AUDIT_PANEL_RUNTIME_COMPLETION_V0_1.md",
+    "fixtures/runtime-audit-panel-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-runtime-audit-panel-runtime-completion-v0-1.mjs",
+    "scripts/smoke-runtime-audit-panel-v0-1.mjs",
     packagePath,
     indexPath,
   ].includes(filePath);

@@ -224,6 +224,108 @@ export interface RuntimeAuditModel {
   audit_fingerprint: string;
 }
 
+export interface RuntimeAuditPanelEventV01 {
+  audit_event_id: string;
+  scope: typeof scope;
+  event_kind: string;
+  event_surface: string;
+  event_action: string;
+  event_status: string;
+  subject_ref: string;
+  related_refs: string[];
+  route_ref?: string;
+  runtime_slice_ref: string;
+  created_by: string;
+  created_at: string;
+  bounded_summary: string;
+  bounded_error_code?: string;
+  reason_codes: string[];
+  event_fingerprint?: string;
+}
+
+export interface RuntimeAuditPanelModelSummaryV01 {
+  event_count: number;
+  status_counts: Record<string, number>;
+  kind_counts: Record<string, number>;
+  surface_counts: Record<string, number>;
+  last_event_at: string | null;
+  bounded_error_count: number;
+}
+
+export interface RuntimeAuditPanelSurfaceGroupV01 {
+  event_surface: string;
+  event_count: number;
+  status_counts: Record<string, number>;
+  latest_event_at: string | null;
+  event_refs: string[];
+}
+
+export interface RuntimeAuditPanelRuntimeModelV01 {
+  model_version: "runtime_audit_panel_runtime_model.v0.1";
+  scope: typeof scope;
+  audit_id: string;
+  status: "built" | "empty";
+  as_of: string;
+  events: RuntimeAuditPanelEventV01[];
+  summary: RuntimeAuditPanelModelSummaryV01;
+  grouped_by_surface: RuntimeAuditPanelSurfaceGroupV01[];
+  bounded_errors: string[];
+  authority_boundary: RuntimeAuditPanelRuntimeAuthorityBoundaryV01;
+  reason_codes: string[];
+}
+
+export interface RuntimeAuditPanelRuntimeAuthorityBoundaryV01 {
+  runtime_audit_panel_runtime_completion_now: true;
+  runtime_audit_event_persistence_now: false;
+  runtime_audit_event_read_now: true;
+  caller_injected_db_only: true;
+  same_origin_audit_route_now: true;
+  audit_model_readonly_now: true;
+  bounded_summary_only: true;
+  raw_request_body_stored_now: false;
+  raw_response_body_stored_now: false;
+  raw_terminal_log_stored_now: false;
+  browser_dump_ingested_now: false;
+  hidden_reasoning_stored_now: false;
+  raw_provider_output_stored_now: false;
+  raw_retrieval_output_stored_now: false;
+  provider_openai_call_now: false;
+  prompt_sent_now: false;
+  source_fetch_now: false;
+  retrieval_execution_now: false;
+  retrieval_index_write_now: false;
+  rag_answer_generation_now: false;
+  proof_or_evidence_record_now: false;
+  claim_or_evidence_write_now: false;
+  work_item_write_now: false;
+  promotion_execution_now: false;
+  durable_state_write_now: false;
+  durable_state_apply_now: false;
+  formation_receipt_write_now: false;
+  product_write_now: false;
+  product_write_runtime_now: false;
+  product_write_adapter_enabled_now: false;
+  product_id_allocation_now: false;
+  product_persistence_now: false;
+  git_ledger_export_runtime_now: false;
+  git_write_now: false;
+  github_api_call_now: false;
+  repository_file_write_now: false;
+  local_file_export_now: false;
+  local_file_import_now: false;
+  codex_execution_now: false;
+  codex_execution_authority: false;
+  github_automation_authority: false;
+  product_write_authority: false;
+  audit_event_is_truth: false;
+  audit_event_is_proof: false;
+  audit_event_is_approval: false;
+  audit_event_is_durable_state: false;
+  audit_event_is_product_write_authority: false;
+  smoke_pass_is_truth: false;
+  ci_pass_is_truth: false;
+}
+
 export interface RuntimeAuditValidationResult {
   passed: boolean;
   failure_codes: string[];
@@ -608,10 +710,149 @@ export function buildRuntimeAuditModelV01(input: RuntimeAuditInput): RuntimeAudi
   });
 }
 
+export function createRuntimeAuditModelAuthorityBoundaryV01():
+  RuntimeAuditPanelRuntimeAuthorityBoundaryV01 {
+  return {
+    runtime_audit_panel_runtime_completion_now: true,
+    runtime_audit_event_persistence_now: false,
+    runtime_audit_event_read_now: true,
+    caller_injected_db_only: true,
+    same_origin_audit_route_now: true,
+    audit_model_readonly_now: true,
+    bounded_summary_only: true,
+    raw_request_body_stored_now: false,
+    raw_response_body_stored_now: false,
+    raw_terminal_log_stored_now: false,
+    browser_dump_ingested_now: false,
+    hidden_reasoning_stored_now: false,
+    raw_provider_output_stored_now: false,
+    raw_retrieval_output_stored_now: false,
+    provider_openai_call_now: false,
+    prompt_sent_now: false,
+    source_fetch_now: false,
+    retrieval_execution_now: false,
+    retrieval_index_write_now: false,
+    rag_answer_generation_now: false,
+    proof_or_evidence_record_now: false,
+    claim_or_evidence_write_now: false,
+    work_item_write_now: false,
+    promotion_execution_now: false,
+    durable_state_write_now: false,
+    durable_state_apply_now: false,
+    formation_receipt_write_now: false,
+    product_write_now: false,
+    product_write_runtime_now: false,
+    product_write_adapter_enabled_now: false,
+    product_id_allocation_now: false,
+    product_persistence_now: false,
+    git_ledger_export_runtime_now: false,
+    git_write_now: false,
+    github_api_call_now: false,
+    repository_file_write_now: false,
+    local_file_export_now: false,
+    local_file_import_now: false,
+    codex_execution_now: false,
+    codex_execution_authority: false,
+    github_automation_authority: false,
+    product_write_authority: false,
+    audit_event_is_truth: false,
+    audit_event_is_proof: false,
+    audit_event_is_approval: false,
+    audit_event_is_durable_state: false,
+    audit_event_is_product_write_authority: false,
+    smoke_pass_is_truth: false,
+    ci_pass_is_truth: false,
+  };
+}
+
+export function summarizeRuntimeAuditEventsV01(
+  events: RuntimeAuditPanelEventV01[],
+): RuntimeAuditPanelModelSummaryV01 {
+  const sorted = sortRuntimeAuditEventsV01(events);
+  return {
+    event_count: sorted.length,
+    status_counts: countBy(sorted, (event) => event.event_status),
+    kind_counts: countBy(sorted, (event) => event.event_kind),
+    surface_counts: countBy(sorted, (event) => event.event_surface),
+    last_event_at: sorted[0]?.created_at ?? null,
+    bounded_error_count: sorted.filter((event) => event.bounded_error_code).length,
+  };
+}
+
+export function groupRuntimeAuditEventsBySurfaceV01(
+  events: RuntimeAuditPanelEventV01[],
+): RuntimeAuditPanelSurfaceGroupV01[] {
+  const groups = new Map<string, RuntimeAuditPanelEventV01[]>();
+  for (const event of sortRuntimeAuditEventsV01(events)) {
+    const surfaceEvents = groups.get(event.event_surface) ?? [];
+    surfaceEvents.push(event);
+    groups.set(event.event_surface, surfaceEvents);
+  }
+  return [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([eventSurface, surfaceEvents]) => ({
+      event_surface: eventSurface,
+      event_count: surfaceEvents.length,
+      status_counts: countBy(surfaceEvents, (event) => event.event_status),
+      latest_event_at: surfaceEvents[0]?.created_at ?? null,
+      event_refs: surfaceEvents.map((event) => event.audit_event_id).sort(),
+    }));
+}
+
+export function buildRuntimeAuditPanelModelV01(
+  events: RuntimeAuditPanelEventV01[],
+  options: { audit_id?: string; as_of?: string; bounded_errors?: string[] } = {},
+): RuntimeAuditPanelRuntimeModelV01 {
+  const sorted = sortRuntimeAuditEventsV01(events);
+  return {
+    model_version: "runtime_audit_panel_runtime_model.v0.1",
+    scope,
+    audit_id: options.audit_id ?? "runtime-audit:db-backed-panel",
+    status: sorted.length > 0 ? "built" : "empty",
+    as_of: options.as_of ?? sorted[0]?.created_at ?? new Date(0).toISOString(),
+    events: sorted,
+    summary: summarizeRuntimeAuditEventsV01(sorted),
+    grouped_by_surface: groupRuntimeAuditEventsBySurfaceV01(sorted),
+    bounded_errors: uniqueSorted(options.bounded_errors ?? []),
+    authority_boundary: createRuntimeAuditModelAuthorityBoundaryV01(),
+    reason_codes: uniqueSorted([
+      "runtime_audit_panel_runtime_completion",
+      "runtime_audit_event_read_now",
+      "audit_model_readonly_now",
+      "bounded_summary_only",
+      "audit_event_is_not_truth",
+      "audit_event_is_not_proof",
+      "audit_event_is_not_approval",
+      "audit_event_is_not_durable_state",
+      "product_write_denied",
+      ...sorted.flatMap((event) => event.reason_codes),
+    ]),
+  };
+}
+
 export function createRuntimeAuditFingerprintV01(modelWithoutFingerprint: unknown): string {
   return createHash("sha256")
     .update(canonicalJson(modelWithoutFingerprint))
     .digest("hex");
+}
+
+function sortRuntimeAuditEventsV01(
+  events: RuntimeAuditPanelEventV01[],
+): RuntimeAuditPanelEventV01[] {
+  return events.slice().sort((left, right) => {
+    const timeCompare = right.created_at.localeCompare(left.created_at);
+    if (timeCompare !== 0) return timeCompare;
+    return left.audit_event_id.localeCompare(right.audit_event_id);
+  });
+}
+
+function countBy<T>(items: T[], getKey: (item: T) => string): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of items) {
+    const key = getKey(item) || "unknown";
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return Object.fromEntries(Object.entries(counts).sort(([left], [right]) => left.localeCompare(right)));
 }
 
 function createRuntimeAuditItemIdV01(

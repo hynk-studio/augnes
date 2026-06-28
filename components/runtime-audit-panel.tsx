@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   RuntimeAuditItem,
   RuntimeAuditModel,
+  RuntimeAuditPanelRuntimeModelV01,
   RuntimeAuditSection,
 } from "@/lib/runtime-audit/build-runtime-audit-model";
 
@@ -12,6 +13,12 @@ export type RuntimeAuditPanelProps = {
   selectedItemId?: string;
   onSelectedItemIdChange?: (itemId: string) => void;
   className?: string;
+  runtimeMode?: "props_only" | "route_backed";
+  dbPath?: string;
+  eventSurface?: string;
+  eventStatus?: string;
+  subjectRef?: string;
+  limit?: number;
 };
 
 export function RuntimeAuditPanel({
@@ -19,14 +26,71 @@ export function RuntimeAuditPanel({
   selectedItemId,
   onSelectedItemIdChange,
   className,
+  runtimeMode = "props_only",
+  dbPath = ".tmp/runtime-audit/ui/runtime-audit.sqlite",
+  eventSurface,
+  eventStatus,
+  subjectRef,
+  limit = 50,
 }: RuntimeAuditPanelProps) {
   const [localSelectedItemId, setLocalSelectedItemId] = useState<string | undefined>(
     model.all_items[0]?.item_id,
   );
+  const [runtimeAuditModel, setRuntimeAuditModel] =
+    useState<RuntimeAuditPanelRuntimeModelV01 | null>(null);
+  const [runtimeAuditError, setRuntimeAuditError] = useState<string | null>(null);
+  const [runtimeAuditLoading, setRuntimeAuditLoading] = useState(false);
   const activeItemId = selectedItemId ?? localSelectedItemId;
   const selectedItem = useMemo(() => {
     return model.all_items.find((item) => item.item_id === activeItemId) ?? model.all_items[0];
   }, [activeItemId, model.all_items]);
+
+  useEffect(() => {
+    if (runtimeMode !== "route_backed") return;
+
+    const abortController = new AbortController();
+    const params = new URLSearchParams({
+      db_path: dbPath,
+      limit: String(Math.max(1, Math.min(limit, 200))),
+    });
+    if (eventSurface) params.set("event_surface", eventSurface);
+    if (eventStatus) params.set("event_status", eventStatus);
+    if (subjectRef) params.set("subject_ref", subjectRef);
+
+    setRuntimeAuditLoading(true);
+    setRuntimeAuditError(null);
+    fetch(`/api/runtime-audit/events?${params.toString()}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: abortController.signal,
+    })
+      .then(async (response) => {
+        const payload = (await response.json()) as {
+          audit_model?: RuntimeAuditPanelRuntimeModelV01;
+          error_code?: string | null;
+          status?: string;
+        };
+        if (!response.ok || payload.status === "error") {
+          setRuntimeAuditModel(null);
+          setRuntimeAuditError(payload.error_code ?? `runtime_audit_http_${response.status}`);
+          return;
+        }
+        setRuntimeAuditModel(payload.audit_model ?? null);
+        setRuntimeAuditError(null);
+      })
+      .catch((error: unknown) => {
+        if (abortController.signal.aborted) return;
+        setRuntimeAuditModel(null);
+        setRuntimeAuditError(
+          error instanceof Error ? "runtime_audit_route_unavailable" : "runtime_audit_fetch_failed",
+        );
+      })
+      .finally(() => {
+        if (!abortController.signal.aborted) setRuntimeAuditLoading(false);
+      });
+
+    return () => abortController.abort();
+  }, [dbPath, eventSurface, eventStatus, limit, runtimeMode, subjectRef]);
 
   function handleSelection(itemId: string) {
     setLocalSelectedItemId(itemId);
@@ -51,7 +115,9 @@ export function RuntimeAuditPanel({
         </div>
         <div className="perspective-constellation-shell-status">
           <span className="status-pill">{model.status}</span>
-          <span className="status-pill">props-only</span>
+          <span className="status-pill">
+            {runtimeMode === "route_backed" ? "route-backed read" : "props-only"}
+          </span>
           <span className="status-pill">review surface</span>
         </div>
       </div>
@@ -127,6 +193,15 @@ export function RuntimeAuditPanel({
         </>
       )}
 
+      {runtimeMode === "route_backed" ? (
+        <RuntimeAuditRouteBackedReadModel
+          dbPath={dbPath}
+          loading={runtimeAuditLoading}
+          errorCode={runtimeAuditError}
+          runtimeModel={runtimeAuditModel}
+        />
+      ) : null}
+
       <section className="perspective-inspector-section">
         <h4>Authority boundary</h4>
         <dl className="perspective-authority-grid">
@@ -140,6 +215,117 @@ export function RuntimeAuditPanel({
             ))}
         </dl>
       </section>
+    </section>
+  );
+}
+
+function RuntimeAuditRouteBackedReadModel({
+  dbPath,
+  loading,
+  errorCode,
+  runtimeModel,
+}: {
+  dbPath: string;
+  loading: boolean;
+  errorCode: string | null;
+  runtimeModel: RuntimeAuditPanelRuntimeModelV01 | null;
+}) {
+  return (
+    <section className="perspective-inspector-section" data-runtime-audit-route-backed-read="true">
+      <h4>DB-backed audit event read model</h4>
+      <p>Audit events are bounded review records only.</p>
+      <p>Audit event is not truth, proof, approval, durable state, or product-write authority.</p>
+      <p>Product-write remains parked by #686.</p>
+      <dl className="perspective-authority-grid">
+        <div>
+          <dt>db_path</dt>
+          <dd>{dbPath}</dd>
+        </div>
+        <div>
+          <dt>route</dt>
+          <dd>/api/runtime-audit/events</dd>
+        </div>
+        <div>
+          <dt>request</dt>
+          <dd>GET only from this panel</dd>
+        </div>
+        <div>
+          <dt>status</dt>
+          <dd>{loading ? "loading" : errorCode ?? runtimeModel?.status ?? "empty"}</dd>
+        </div>
+      </dl>
+      {errorCode ? (
+        <div className="compact-list">
+          <p>
+            bounded_error <code>{errorCode}</code>
+          </p>
+        </div>
+      ) : null}
+      {runtimeModel ? (
+        <>
+          <dl className="perspective-authority-grid">
+            <div>
+              <dt>events</dt>
+              <dd>{runtimeModel.summary.event_count}</dd>
+            </div>
+            <div>
+              <dt>bounded errors</dt>
+              <dd>{runtimeModel.summary.bounded_error_count}</dd>
+            </div>
+            <div>
+              <dt>surfaces</dt>
+              <dd>{runtimeModel.grouped_by_surface.length}</dd>
+            </div>
+            <div>
+              <dt>last event</dt>
+              <dd>{runtimeModel.summary.last_event_at ?? "none"}</dd>
+            </div>
+          </dl>
+          <section className="perspective-inspector-section">
+            <h5>Grouped surface rows</h5>
+            <div className="compact-list">
+              {runtimeModel.grouped_by_surface.map((group) => (
+                <article key={group.event_surface}>
+                  <strong>{group.event_surface}</strong>
+                  <p>
+                    events <code>{group.event_count}</code> latest{" "}
+                    <code>{group.latest_event_at ?? "none"}</code>
+                  </p>
+                  <ReasonCodes reasonCodes={Object.keys(group.status_counts)} />
+                </article>
+              ))}
+            </div>
+          </section>
+          <section className="perspective-inspector-section">
+            <h5>Bounded audit events</h5>
+            <div className="compact-list">
+              {runtimeModel.events.slice(0, 8).map((event) => (
+                <article key={event.audit_event_id}>
+                  <strong>{event.event_surface}</strong>
+                  <p>{event.bounded_summary}</p>
+                  <p>
+                    <code>{event.event_kind}</code> <code>{event.event_status}</code>{" "}
+                    <code>{event.subject_ref}</code>
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
+          <section className="perspective-inspector-section">
+            <h5>Runtime authority boundary</h5>
+            <dl className="perspective-authority-grid">
+              {Object.entries(runtimeModel.authority_boundary)
+                .sort(([left], [right]) => left.localeCompare(right))
+                .map(([field, value]) => (
+                  <div key={field}>
+                    <dt>{field}</dt>
+                    <dd>{String(value)}</dd>
+                  </div>
+                ))}
+            </dl>
+          </section>
+        </>
+      ) : null}
     </section>
   );
 }

@@ -4209,6 +4209,28 @@ repo-local 색인이다.
   retrieval/RAG execution, source fetch, browser log ingestion, session log
   ingestion, raw conversation ingestion, telemetry ingestion, Git Ledger export,
   Codex execution, or GitHub automation. Product-write remains parked by #686.
+- Runtime Audit Panel Runtime Completion v0.1:
+  `docs/RUNTIME_AUDIT_PANEL_RUNTIME_COMPLETION_V0_1.md`,
+  `lib/runtime-audit/audit-event-store.ts`,
+  `lib/runtime-audit/build-runtime-audit-model.ts`,
+  `app/api/runtime-audit/events/route.ts`,
+  `components/runtime-audit-panel.tsx`,
+  `fixtures/runtime-audit-panel-runtime-completion.sample.v0.1.json`, and
+  `scripts/smoke-runtime-audit-panel-runtime-completion-v0-1.mjs`
+  (`npm run smoke:runtime-audit-panel-runtime-completion-v0-1`) implements
+  `runtime_audit_panel_runtime_completion_v0_1` as DB-backed bounded audit
+  event persistence/read plus read-only panel binding. It closes the earlier
+  caller-provided audit-items-only gap while keeping audit events as bounded
+  review records only. Audit events are not truth, proof, approval, durable
+  state, or product-write authority. This slice does not store raw request
+  bodies, raw response bodies, terminal logs, browser dumps, hidden reasoning,
+  raw provider output, or raw retrieval output. It does not call providers, send
+  prompts, fetch sources, execute retrieval/RAG, write retrieval indexes,
+  generate RAG answers, create proof/evidence, write claim/evidence records,
+  create work items, promote Perspective, write/apply durable Perspective state,
+  write Formation Receipts, execute Git/GitHub, execute Codex, product-write, or
+  allocate product IDs. Product-write remains parked by #686. Smoke/CI pass is
+  not truth. The roadmap guide is not SSOT.
 
   Boundary phrases: Runtime Audit Panel v0.1; read-only audit panel; audit is
   review cue not truth; audit is not proof; audit is not authority;
