@@ -14,6 +14,7 @@ const legacyRouteDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_ROUTES_V0_1.md
 const dbStoreDocPath = "docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_DB_STORE_RUNTIME_COMPLETION_V0_1.md";
 const dbStoreHelperPath = "lib/research-candidate-review/review-memory-db-store.ts";
 const routeContractPath = "lib/research-candidate-review/review-memory-db-route-contract.ts";
+const routeAuditInstrumentationHelperPath = "lib/runtime-audit/route-audit-instrumentation.ts";
 const collectionRoutePath = "app/api/research-candidate-review/review-records/route.ts";
 const detailRoutePath =
   "app/api/research-candidate-review/review-records/[review_record_id]/route.ts";
@@ -721,6 +722,31 @@ async function importMaterializedRoute(sourcePath, targetPath) {
   mkdirSync(dirname(targetPath), { recursive: true });
   const contractUrl = pathToFileURL(resolve(routeContractPath)).href;
   const storeUrl = pathToFileURL(resolve(dbStoreHelperPath)).href;
+  const auditStubPath = `${dirname(targetPath)}/route-audit-instrumentation-stub.ts`;
+  writeFileSync(
+    auditStubPath,
+    `export type RuntimeRouteAuditInstrumentationResultV01 = ReturnType<typeof maybeWriteRuntimeRouteAuditEventV01>;
+export function maybeWriteRuntimeRouteAuditEventV01() {
+  return {
+    instrumentation_version: "runtime_audit_selected_route_instrumentation.v0.1",
+    scope: "project:augnes",
+    status: "audit_not_requested",
+    audit_event_ref: null,
+    audit_event_id: null,
+    audit_event_persisted: false,
+    reason_codes: ["runtime_audit_selected_route_instrumentation", "audit_db_path_absent"],
+    authority_boundary: {
+      audit_event_is_truth: false,
+      audit_event_is_proof: false,
+      audit_event_is_approval: false,
+      audit_event_is_durable_state: false,
+      audit_event_is_product_write_authority: false,
+    },
+  };
+}
+`,
+  );
+  const auditInstrumentationUrl = pathToFileURL(resolve(auditStubPath)).href;
   const transformed = readText(sourcePath)
     .replaceAll('from "next/server"', 'from "next/server.js"')
     .replace(
@@ -730,6 +756,10 @@ async function importMaterializedRoute(sourcePath, targetPath) {
     .replace(
       /from\s+"[^"]*review-memory-db-store";/g,
       `from "${storeUrl}";`,
+    )
+    .replace(
+      /from\s+"[^"]*route-audit-instrumentation";/g,
+      `from "${auditInstrumentationUrl}";`,
     );
   writeFileSync(targetPath, transformed);
   return import(pathToFileURL(resolve(targetPath)).href);
@@ -752,6 +782,32 @@ function assertReadOnlyGetRoute(filePath, source) {
 
 function assertChangedFileScope() {
   const changed = changedFilesAgainstMain();
+  if (runtimeAuditSelectedRouteInstrumentationV03SliceTouched(changed)) {
+    const allowed = new Set([
+      collectionRoutePath,
+      detailRoutePath,
+      activityRoutePath,
+      discardRoutePath,
+      "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_3.md",
+      "fixtures/runtime-audit-selected-route-instrumentation.v0.3.sample.json",
+      "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-3.mjs",
+      "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-1.mjs",
+      "scripts/smoke-research-candidate-review-memory-db-routes-runtime-v0-1.mjs",
+      "scripts/smoke-research-candidate-review-memory-db-ui-runtime-v0-1.mjs",
+      "scripts/smoke-foundation-lifecycle-review-memory-db-readonly-ui-completion-v0-1.mjs",
+      "scripts/smoke-project-constellation-runtime-ui-completion-v0-1.mjs",
+      "package.json",
+      "docs/00_INDEX_LATEST.md",
+    ]);
+    for (const filePath of changed) {
+      assert.ok(allowed.has(filePath), `unexpected v0.3 audit instrumentation changed file: ${filePath}`);
+      assert.ok(!filePath.startsWith("components/"), "no component/UI file may be added");
+      assert.ok(!filePath.includes("/components/"), "no component/UI file may be added");
+      assert.ok(!filePath.startsWith("app/research-candidate/"), "no UI app route may be added");
+      assert.ok(!/provider|retrieval|rag|git-ledger|github|codex|product-write|product-id/i.test(filePath));
+    }
+    return;
+  }
   const dbRoutesRuntimeSliceTouched = changed.some((filePath) =>
     [
       docPath,
@@ -782,6 +838,16 @@ function assertChangedFileScope() {
   ]) {
     assert.ok(changed.includes(expected), `changed files must include ${expected}`);
   }
+}
+
+function runtimeAuditSelectedRouteInstrumentationV03SliceTouched(changed) {
+  return changed.some((filePath) =>
+    [
+      "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_3.md",
+      "fixtures/runtime-audit-selected-route-instrumentation.v0.3.sample.json",
+      "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-3.mjs",
+    ].includes(filePath),
+  );
 }
 
 function assertAuthorityBoundary(boundary) {
@@ -859,7 +925,9 @@ function changedFilesAgainstMain() {
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
-    return [...new Set([...diffFiles, ...untrackedFiles])].sort();
+    return [...new Set([...diffFiles, ...untrackedFiles])]
+      .filter((filePath) => !filePath.startsWith(".tmp/"))
+      .sort();
   } catch {
     return [];
   }

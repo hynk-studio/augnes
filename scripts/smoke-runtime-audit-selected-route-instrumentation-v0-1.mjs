@@ -494,6 +494,8 @@ const feedbackNoAuditResponse = await feedbackRoute.POST(
 assert.equal(feedbackNoAuditResponse.status, 201);
 assert.equal((await feedbackNoAuditResponse.json()).audit_event_result.status, "audit_not_requested");
 
+rmSync(".tmp", { recursive: true, force: true });
+
 for (const command of [
   "smoke:runtime-audit-panel-runtime-completion-v0-1",
   "smoke:bounded-source-intake-runtime-completion-v0-1",

@@ -1,0 +1,131 @@
+{
+  "fixture_version": "runtime_audit_selected_route_instrumentation.sample.v0.3",
+  "instrumentation_version": "runtime_audit_selected_route_instrumentation.v0.3",
+  "previous_instrumentation_versions": [
+    "runtime_audit_selected_route_instrumentation.v0.1",
+    "runtime_audit_selected_route_instrumentation.v0.2"
+  ],
+  "audit_event_store_version": "runtime_audit_event_store.v0.1",
+  "scope": "project:augnes",
+  "selected_routes": [
+    "app/api/research-candidate-review/review-records/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/activity/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/discard/route.ts"
+  ],
+  "review_memory_list_audit_example": {
+    "route_ref": "route:/api/research-candidate-review/review-records",
+    "runtime_slice_ref": "runtime_audit_selected_route_instrumentation_v0_3",
+    "event_surface": "review_memory_db_routes",
+    "event_kind": "route_response",
+    "event_action": "review_memory_records_listed",
+    "event_status": "listed",
+    "subject_ref": "review-memory:list",
+    "primary_result_ref": "review-memory:list:1:review-record:runtime-audit:v0-3",
+    "bounded_summary": "Review memory route returned bounded list result."
+  },
+  "review_memory_create_audit_example": {
+    "route_ref": "route:/api/research-candidate-review/review-records",
+    "runtime_slice_ref": "runtime_audit_selected_route_instrumentation_v0_3",
+    "event_surface": "review_memory_db_routes",
+    "event_kind": "route_response",
+    "event_action": "review_memory_record_created",
+    "event_status": "created",
+    "subject_ref": "review-record:runtime-audit:v0-3",
+    "primary_result_ref": "review-record:runtime-audit:v0-3",
+    "bounded_summary": "Review memory route created bounded review record."
+  },
+  "review_memory_detail_audit_example": {
+    "route_ref": "route:/api/research-candidate-review/review-records/[review_record_id]",
+    "runtime_slice_ref": "runtime_audit_selected_route_instrumentation_v0_3",
+    "event_surface": "review_memory_db_routes",
+    "event_kind": "route_response",
+    "event_action": "review_memory_record_read",
+    "event_status": "read",
+    "subject_ref": "review-record:runtime-audit:v0-3",
+    "primary_result_ref": "review-record:runtime-audit:v0-3",
+    "bounded_summary": "Review memory detail route returned bounded record result."
+  },
+  "review_memory_activity_list_audit_example": {
+    "route_ref": "route:/api/research-candidate-review/review-records/[review_record_id]/activity",
+    "runtime_slice_ref": "runtime_audit_selected_route_instrumentation_v0_3",
+    "event_surface": "review_memory_db_routes",
+    "event_kind": "route_response",
+    "event_action": "review_memory_activity_listed",
+    "event_status": "read",
+    "subject_ref": "review-record:runtime-audit:v0-3",
+    "primary_result_ref": "review-record:runtime-audit:v0-3:activity:1:review-record:runtime-audit:v0-3:activity:created",
+    "bounded_summary": "Review memory activity route returned bounded activity result."
+  },
+  "review_memory_activity_append_audit_example": {
+    "route_ref": "route:/api/research-candidate-review/review-records/[review_record_id]/activity",
+    "runtime_slice_ref": "runtime_audit_selected_route_instrumentation_v0_3",
+    "event_surface": "review_memory_db_routes",
+    "event_kind": "route_response",
+    "event_action": "review_memory_activity_appended",
+    "event_status": "activity_appended",
+    "subject_ref": "review-record:runtime-audit:v0-3",
+    "primary_result_ref": "activity:runtime-audit:v0-3",
+    "bounded_summary": "Review memory activity route returned bounded activity result."
+  },
+  "review_memory_discard_audit_example": {
+    "route_ref": "route:/api/research-candidate-review/review-records/[review_record_id]/discard",
+    "runtime_slice_ref": "runtime_audit_selected_route_instrumentation_v0_3",
+    "event_surface": "review_memory_db_routes",
+    "event_kind": "route_response",
+    "event_action": "review_memory_record_discarded",
+    "event_status": "discarded",
+    "subject_ref": "review-record:runtime-audit:v0-3",
+    "primary_result_ref": "review-record:runtime-audit:v0-3",
+    "bounded_summary": "Review memory discard route returned bounded lifecycle transition result."
+  },
+  "audit_not_requested_example": {
+    "status": "audit_not_requested",
+    "audit_event_persisted": false,
+    "primary_route_behavior_unchanged": true
+  },
+  "audit_skipped_invalid_db_path_example": {
+    "status": "audit_skipped_invalid_db_path",
+    "audit_event_persisted": false,
+    "unsafe_path_echoed": false
+  },
+  "authority_boundary_sample": {
+    "runtime_audit_selected_route_instrumentation_now": true,
+    "runtime_audit_event_persistence_now": true,
+    "selected_route_subset_only": true,
+    "audit_db_path_optional": true,
+    "primary_route_failure_from_audit_now": false,
+    "raw_request_body_stored_now": false,
+    "raw_response_body_stored_now": false,
+    "raw_terminal_log_stored_now": false,
+    "browser_dump_ingested_now": false,
+    "hidden_reasoning_stored_now": false,
+    "raw_provider_output_stored_now": false,
+    "raw_retrieval_output_stored_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "audit_event_is_truth": false,
+    "audit_event_is_proof": false,
+    "audit_event_is_approval": false,
+    "audit_event_is_durable_state": false,
+    "audit_event_is_product_write_authority": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}

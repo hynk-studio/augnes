@@ -16,7 +16,12 @@ import {
 import {
   discardResearchCandidateReviewRecordV01,
   ensureResearchCandidateReviewMemoryDbSchemaV01,
+  type ResearchCandidateReviewMemoryDbStoreResultV01,
 } from "../../../../../../lib/research-candidate-review/review-memory-db-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "../../../../../../lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -59,9 +64,29 @@ export async function POST(
       validation.body.reason as string,
       db,
     );
+    const statusCode = researchCandidateReviewMemoryDbRouteStoreResultHttpStatusV01(result);
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: (body as { audit_db_path?: unknown }).audit_db_path,
+      route_ref: "route:/api/research-candidate-review/review-records/[review_record_id]/discard",
+      runtime_slice_ref: "runtime_audit_selected_route_instrumentation_v0_3",
+      event_surface: "review_memory_db_routes",
+      event_kind: "route_response",
+      event_action: "review_memory_record_discarded",
+      event_status: result.status,
+      subject_ref: reviewRecordId,
+      related_refs: [
+        reviewRecordId,
+        ...result.records.map((record) => record.review_record_id),
+        ...result.activities.map((activity) => activity.activity_id),
+      ],
+      primary_result_status: result.status,
+      primary_result_ref: result.record?.review_record_id ?? reviewRecordId,
+      bounded_summary: "Review memory discard route returned bounded lifecycle transition result.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
     return jsonResponse(
-      createResearchCandidateReviewMemoryDbRouteStoreResponseV01("discard_review_record", result),
-      researchCandidateReviewMemoryDbRouteStoreResultHttpStatusV01(result),
+      createRouteStoreResponseWithAudit("discard_review_record", result, auditEventResult),
+      statusCode,
     );
   } finally {
     db.close();
@@ -85,4 +110,15 @@ function decodeRouteParam(value: string): string {
 
 function jsonResponse(response: unknown, status = 200) {
   return NextResponse.json(response, { status });
+}
+
+function createRouteStoreResponseWithAudit(
+  action: Parameters<typeof createResearchCandidateReviewMemoryDbRouteStoreResponseV01>[0],
+  result: ResearchCandidateReviewMemoryDbStoreResultV01,
+  auditEventResult: RuntimeRouteAuditInstrumentationResultV01,
+) {
+  return {
+    ...createResearchCandidateReviewMemoryDbRouteStoreResponseV01(action, result),
+    audit_event_result: auditEventResult,
+  };
 }

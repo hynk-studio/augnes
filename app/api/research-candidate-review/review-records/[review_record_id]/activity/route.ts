@@ -20,7 +20,12 @@ import {
   readResearchCandidateReviewRecordV01,
   researchCandidateReviewMemoryDbSchemaExistsV01,
   type ResearchCandidateReviewMemoryDbActivityInputV01,
+  type ResearchCandidateReviewMemoryDbStoreResultV01,
 } from "../../../../../../lib/research-candidate-review/review-memory-db-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "../../../../../../lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -38,6 +43,7 @@ export async function GET(
   }
 
   const url = new URL(request.url);
+  const auditDbPath = url.searchParams.get("audit_db_path");
   const identityError = validateResearchCandidateReviewMemoryDbRouteQueryIdentityV01(url);
   if (identityError) {
     return jsonResponse(createResearchCandidateReviewMemoryDbRouteErrorResponseV01(identityError, "list_review_record_activity"), 400);
@@ -61,9 +67,25 @@ export async function GET(
       return jsonResponse(createResearchCandidateReviewMemoryDbRouteErrorResponseV01("schema_missing", "list_review_record_activity"), 400);
     }
     const result = readResearchCandidateReviewRecordV01(reviewRecordId, db);
+    const statusCode = researchCandidateReviewMemoryDbRouteStoreResultHttpStatusV01(result);
+    const firstActivityId = result.activities[0]?.activity_id ?? "empty";
+    const auditEventResult = writeReviewMemoryActivityRouteAuditEvent({
+      audit_db_path: auditDbPath,
+      event_action: "review_memory_activity_listed",
+      event_status: result.status,
+      subject_ref: reviewRecordId,
+      related_refs: [
+        reviewRecordId,
+        ...result.activities.map((activity) => activity.activity_id),
+      ],
+      primary_result_status: result.status,
+      primary_result_ref: `${reviewRecordId}:activity:${result.activities.length}:${firstActivityId}`,
+      bounded_summary: "Review memory activity route returned bounded activity result.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
     return jsonResponse(
-      createResearchCandidateReviewMemoryDbRouteStoreResponseV01("list_review_record_activity", result),
-      researchCandidateReviewMemoryDbRouteStoreResultHttpStatusV01(result),
+      createRouteStoreResponseWithAudit("list_review_record_activity", result, auditEventResult),
+      statusCode,
     );
   } finally {
     db.close();
@@ -111,9 +133,25 @@ export async function POST(
       validation.body.input as ResearchCandidateReviewMemoryDbActivityInputV01,
       db,
     );
+    const statusCode = researchCandidateReviewMemoryDbRouteStoreResultHttpStatusV01(result);
+    const activityRef = result.activities[0]?.activity_id ?? reviewRecordId;
+    const auditEventResult = writeReviewMemoryActivityRouteAuditEvent({
+      audit_db_path: (body as { audit_db_path?: unknown }).audit_db_path,
+      event_action: "review_memory_activity_appended",
+      event_status: result.status,
+      subject_ref: reviewRecordId,
+      related_refs: [
+        reviewRecordId,
+        ...result.activities.map((activity) => activity.activity_id),
+      ],
+      primary_result_status: result.status,
+      primary_result_ref: activityRef,
+      bounded_summary: "Review memory activity route returned bounded activity result.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
     return jsonResponse(
-      createResearchCandidateReviewMemoryDbRouteStoreResponseV01("append_review_record_activity", result),
-      researchCandidateReviewMemoryDbRouteStoreResultHttpStatusV01(result),
+      createRouteStoreResponseWithAudit("append_review_record_activity", result, auditEventResult),
+      statusCode,
     );
   } finally {
     db.close();
@@ -148,4 +186,43 @@ function decodeRouteParam(value: string): string {
 
 function jsonResponse(response: unknown, status = 200) {
   return NextResponse.json(response, { status });
+}
+
+function createRouteStoreResponseWithAudit(
+  action: Parameters<typeof createResearchCandidateReviewMemoryDbRouteStoreResponseV01>[0],
+  result: ResearchCandidateReviewMemoryDbStoreResultV01,
+  auditEventResult: RuntimeRouteAuditInstrumentationResultV01,
+) {
+  return {
+    ...createResearchCandidateReviewMemoryDbRouteStoreResponseV01(action, result),
+    audit_event_result: auditEventResult,
+  };
+}
+
+function writeReviewMemoryActivityRouteAuditEvent(input: {
+  audit_db_path?: unknown;
+  event_action: string;
+  event_status: string;
+  subject_ref: string;
+  related_refs?: string[];
+  primary_result_status: string;
+  primary_result_ref: string;
+  bounded_summary: string;
+  bounded_error_code?: string | null;
+}) {
+  return maybeWriteRuntimeRouteAuditEventV01({
+    audit_db_path: input.audit_db_path,
+    route_ref: "route:/api/research-candidate-review/review-records/[review_record_id]/activity",
+    runtime_slice_ref: "runtime_audit_selected_route_instrumentation_v0_3",
+    event_surface: "review_memory_db_routes",
+    event_kind: "route_response",
+    event_action: input.event_action,
+    event_status: input.event_status,
+    subject_ref: input.subject_ref,
+    related_refs: input.related_refs,
+    primary_result_status: input.primary_result_status,
+    primary_result_ref: input.primary_result_ref,
+    bounded_summary: input.bounded_summary,
+    bounded_error_code: input.bounded_error_code,
+  });
 }

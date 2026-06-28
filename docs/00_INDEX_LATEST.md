@@ -4297,6 +4297,31 @@ repo-local 색인이다.
   execute Git/GitHub, execute Codex, product-write, allocate product IDs, or
   grant product-write authority. Product-write remains parked by #686.
   Smoke/CI pass is not truth. The roadmap guide is not SSOT.
+- Runtime Audit Selected Route Instrumentation v0.3:
+  `docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_3.md`,
+  `app/api/research-candidate-review/review-records/route.ts`,
+  `app/api/research-candidate-review/review-records/[review_record_id]/route.ts`,
+  `app/api/research-candidate-review/review-records/[review_record_id]/activity/route.ts`,
+  `app/api/research-candidate-review/review-records/[review_record_id]/discard/route.ts`,
+  `fixtures/runtime-audit-selected-route-instrumentation.v0.3.sample.json`,
+  and `scripts/smoke-runtime-audit-selected-route-instrumentation-v0-3.mjs`
+  (`npm run smoke:runtime-audit-selected-route-instrumentation-v0-3`)
+  implements `runtime_audit_selected_route_instrumentation_v0_3` as a third
+  narrow instrumentation pass after v0.1 and v0.2. Review Memory DB create,
+  list, detail, activity, and discard routes optionally emit bounded audit
+  events when `audit_db_path` is supplied. Missing `audit_db_path` leaves
+  primary route behavior unchanged. Audit write failure does not fail the
+  primary route. Audit events are bounded review records only; they are not
+  truth, proof, approval, durable state, or product-write authority. Review
+  memory is not truth, proof, accepted evidence, or durable Perspective state.
+  Candidate refs are not facts; source refs are lineage pointers, not proof.
+  This slice does not store raw request/response bodies, terminal logs, browser
+  dumps, hidden reasoning, raw provider output, or raw retrieval output. It
+  does not create proof/evidence, write claim/evidence records, create work
+  items, promote Perspective, write/apply durable Perspective state, write
+  Formation Receipts, execute Git/GitHub, execute Codex, product-write,
+  allocate product IDs, or grant product-write authority. Product-write remains
+  parked by #686. Smoke/CI pass is not truth. The roadmap guide is not SSOT.
 - Git Ledger Export Contract v0.1:
   `docs/GIT_LEDGER_EXPORT_CONTRACT_V0_1.md`,
   `types/git-ledger-export-contract.ts`,
