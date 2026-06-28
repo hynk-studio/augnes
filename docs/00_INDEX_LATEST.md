@@ -5688,6 +5688,46 @@ Boundary 요약: readiness packet은 diagnostic이며 promotion, proof, evidence
 accepted evidence, durable state, Formation Receipt, product-write, product,
 approval, or smoke/CI truth가 아니다.
 
+### Final RAG answer Review Memory operator browser validation v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add product authority.
+`final_rag_answer_review_memory_operator_browser_validation_v0_1` validates
+the browser/operator-facing side of already merged final answer candidate
+Review Memory read/display UI behavior against a temporary public-safe Review
+Memory DB.
+
+- `docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_OPERATOR_BROWSER_VALIDATION_V0_1.md`:
+  documents the browser validation target, artifact paths, request
+  allow/deny list, no-new-authority boundary, and browser availability policy.
+- `fixtures/final-rag-answer-review-memory-operator-browser-validation.sample.v0.1.json`:
+  public-safe fixture for the seeded Review Memory record summary, visible
+  boundary notes, allowed GET routes, forbidden routes, no-authority flags, and
+  `/tmp` artifact paths.
+- `scripts/browser-validate-final-rag-answer-review-memory-operator-path-v0-1.mjs`:
+  launches the existing local Augnes dev server, seeds temporary Review Memory
+  DB data as test setup only, drives the existing UI page through a real
+  browser via Chrome DevTools Protocol, captures desktop/mobile screenshots
+  under `/tmp`, writes a report under `/tmp`, and fails on forbidden browser
+  requests.
+- `scripts/smoke-final-rag-answer-review-memory-operator-browser-validation-v0-1.mjs`:
+  static smoke for docs, fixture, browser validation script, package scripts,
+  latest pointer, public-safe fixture policy, route allow/deny assertions, and
+  exact changed-file scope.
+- `npm run browser:validate-final-rag-answer-review-memory-operator-path-v0-1`:
+  browser-backed validation command. It must not be marked passed unless a real
+  browser launches and screenshots/report are created.
+- `npm run smoke:final-rag-answer-review-memory-operator-browser-validation-v0-1`:
+  focused static smoke for this validation slice.
+
+Boundary summary: this validation adds no API routes, UI behavior, DB schema,
+Review Memory writes from UI, POST calls from UI, final answer generation,
+provider calls, prompt sending, retrieval execution, source fetching, retrieval
+index writes, promotion execution, promotion decision writes/store usage,
+proof/evidence creation, Formation Receipts, durable state mutation,
+product-write, accepted evidence ref writes, product IDs, Git/GitHub
+actuation, release execution, or automatic answer-to-product conversion.
+Browser pass is not truth.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)

@@ -85,6 +85,10 @@ const expectedChangedFiles = new Set([
   "docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_END_TO_END_OPERATOR_PATH_V0_1.md",
   "fixtures/final-rag-answer-review-memory-end-to-end-operator-path.sample.v0.1.json",
   "scripts/smoke-final-rag-answer-review-memory-end-to-end-operator-path-v0-1.mjs",
+  "docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_OPERATOR_BROWSER_VALIDATION_V0_1.md",
+  "fixtures/final-rag-answer-review-memory-operator-browser-validation.sample.v0.1.json",
+  "scripts/browser-validate-final-rag-answer-review-memory-operator-path-v0-1.mjs",
+  "scripts/smoke-final-rag-answer-review-memory-operator-browser-validation-v0-1.mjs",
   "lib/runtime-audit/audit-event-store.ts",
 ]);
 

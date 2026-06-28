@@ -1,0 +1,123 @@
+{
+  "validation_version": "final_rag_answer_review_memory_operator_browser_validation.v0.1",
+  "scope": "project:augnes",
+  "page_path": "/research-retrieval/final-rag-answer/review-memory",
+  "expected_panel_marker": "final-answer-candidate-review-ui-binding",
+  "seeded_review_memory_record_summary": {
+    "record_kind": "candidate_review_snapshot",
+    "lifecycle_state": "active",
+    "review_decision": "keep_for_review",
+    "review_action": "save_review_note",
+    "review_record_ref": "review-memory:final-rag-answer:operator-browser-validation-v0-1",
+    "candidate_refs": [
+      "final-rag-answer-candidate:operator-browser-validation-v0-1",
+      "answer-request:operator-browser-validation-v0-1",
+      "rag-context-preview:operator-browser-validation-v0-1"
+    ],
+    "source_refs": [
+      {
+        "source_surface": "manual_source_ref",
+        "source_ref": "source-ref:operator-browser-validation-public-source-v0-1",
+        "source_version": "final_rag_answer_generation_candidate_review.v0.1",
+        "public_safe": true
+      }
+    ],
+    "boundary_acknowledgements": [
+      "final_answer_candidate_not_truth",
+      "final_answer_candidate_not_proof",
+      "final_answer_candidate_not_accepted_evidence",
+      "final_answer_candidate_not_promotion",
+      "final_answer_candidate_not_product",
+      "review_memory_not_truth",
+      "review_memory_not_proof",
+      "review_memory_not_accepted_evidence",
+      "review_memory_not_durable_state",
+      "source_refs_are_lineage_not_proof",
+      "product_write_not_executed"
+    ],
+    "seed_write_is_test_setup_only": true
+  },
+  "expected_visible_boundary_notes": [
+    "Review Memory is not truth.",
+    "Review Memory is not proof.",
+    "Review Memory is not accepted evidence.",
+    "Review Memory is not durable Perspective state.",
+    "Final answer candidate remains candidate-only.",
+    "Source refs are lineage pointers, not proof.",
+    "This UI is read/display only.",
+    "Smoke/CI pass is not truth."
+  ],
+  "expected_allowed_routes": [
+    "GET /api/research-candidate-review/review-records",
+    "GET /api/research-candidate-review/review-records/[review_record_id]",
+    "GET /api/research-candidate-review/review-records/[review_record_id]/activity"
+  ],
+  "expected_forbidden_routes": [
+    "POST route from UI",
+    "/api/research-retrieval/final-rag-answer",
+    "/api/research-retrieval/final-rag-answer/review-memory",
+    "/api/perspective/promotion/readiness-packet",
+    "/api/product-write",
+    "provider extraction routes",
+    "retrieval rebuild/search routes",
+    "source fetch routes",
+    "GitHub routes",
+    "release routes",
+    "external non-localhost URLs"
+  ],
+  "expected_public_safe_refs": {
+    "candidate_ref": "final-rag-answer-candidate:operator-browser-validation-v0-1",
+    "review_memory_ref": "review-memory:final-rag-answer:operator-browser-validation-v0-1",
+    "source_ref": "source-ref:operator-browser-validation-public-source-v0-1",
+    "operator_ref": "operator:browser-validation"
+  },
+  "expected_no_authority_flags": {
+    "review_memory_write_from_ui": false,
+    "post_route_call_from_ui": false,
+    "final_answer_generation_from_ui": false,
+    "provider_call_from_ui": false,
+    "prompt_sent_from_ui": false,
+    "retrieval_execution_from_ui": false,
+    "source_fetch_from_ui": false,
+    "retrieval_index_write_from_ui": false,
+    "promotion_execution_from_ui": false,
+    "promotion_decision_write_from_ui": false,
+    "promotion_decision_store_write_from_ui": false,
+    "proof_or_evidence_creation_from_ui": false,
+    "claim_or_evidence_write_from_ui": false,
+    "durable_state_mutation_from_ui": false,
+    "formation_receipt_write_from_ui": false,
+    "product_write_from_ui": false,
+    "accepted_evidence_ref_write_from_ui": false,
+    "product_id_allocation_from_ui": false,
+    "github_or_release_execution_from_ui": false,
+    "browser_pass_is_truth": false
+  },
+  "expected_artifact_paths": {
+    "artifact_dir": "/tmp/augnes-final-rag-answer-review-memory-operator-browser-validation-v0-1",
+    "report_json": "/tmp/augnes-final-rag-answer-review-memory-operator-browser-validation-v0-1/report.json",
+    "desktop_screenshot": "/tmp/augnes-final-rag-answer-review-memory-operator-browser-validation-v0-1/desktop.png",
+    "mobile_screenshot": "/tmp/augnes-final-rag-answer-review-memory-operator-browser-validation-v0-1/mobile-390.png"
+  },
+  "public_safe_fixture_policy": {
+    "public_safe_symbolic_refs_only": true,
+    "real_secrets_allowed": false,
+    "provider_keys_allowed": false,
+    "private_urls_allowed": false,
+    "local_private_paths_allowed": false,
+    "raw_prompt_payloads_allowed": false,
+    "raw_provider_outputs_allowed": false,
+    "raw_retrieval_outputs_allowed": false,
+    "raw_source_bodies_allowed": false,
+    "raw_db_rows_allowed": false,
+    "raw_conversations_allowed": false,
+    "hidden_reasoning_allowed": false,
+    "chain_of_thought_allowed": false,
+    "telemetry_dumps_allowed": false,
+    "raw_diffs_allowed": false,
+    "terminal_logs_allowed": false,
+    "github_payloads_allowed": false,
+    "browser_or_session_dumps_allowed": false,
+    "smoke_or_ci_or_browser_pass_is_truth": false
+  }
+}
