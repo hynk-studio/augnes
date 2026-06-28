@@ -796,7 +796,8 @@ function assertNoForbiddenFilesAdded() {
       !filePath.startsWith("components/") ||
         isRagContextPreviewRuntimeCompletionFile(filePath) ||
         isConstellationRuntimeUiCompletionFile(filePath) ||
-        isFeedbackControlsExpansionRuntimeCompletionFile(filePath),
+        isFeedbackControlsExpansionRuntimeCompletionFile(filePath) ||
+        isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath),
       `${filePath} must not add UI outside an approved runtime UI completion display`,
     );
     assert.ok(!filePath.startsWith("lib/db/"), `${filePath} must not add DB schema`);
@@ -843,6 +844,19 @@ function isFeedbackControlsExpansionRuntimeCompletionFile(filePath) {
     "fixtures/feedback-controls-expansion-runtime-completion.sample.v0.1.json",
     "scripts/smoke-feedback-controls-expansion-runtime-completion-v0-1.mjs",
     "scripts/smoke-feedback-controls-expanded-v0-1.mjs",
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
+  ].includes(filePath);
+}
+
+function isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) {
+  return [
+    "components/feedback-influenced-surfacing-preview-panel.tsx",
+    "lib/research-candidate-review/feedback-influenced-surfacing-preview.ts",
+    "app/api/research-candidate/feedback-events/surfacing-preview/route.ts",
+    "docs/FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_V0_1.md",
+    "fixtures/feedback-influenced-surfacing-preview-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-feedback-influenced-surfacing-preview-runtime-completion-v0-1.mjs",
     "package.json",
     "docs/00_INDEX_LATEST.md",
   ].includes(filePath);

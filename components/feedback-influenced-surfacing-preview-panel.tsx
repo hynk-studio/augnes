@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 import type {
+  FeedbackInfluencedSurfacingPreviewRuntimeCompletionResultV01,
   FeedbackInfluencedSurfacingItem,
   FeedbackInfluencedSurfacingResult,
 } from "@/lib/research-candidate-review/feedback-influenced-surfacing-preview";
 
 export type FeedbackInfluencedSurfacingPreviewPanelProps = {
   result: FeedbackInfluencedSurfacingResult;
+  runtimeCompletionResult?: FeedbackInfluencedSurfacingPreviewRuntimeCompletionResultV01;
   selectedCandidateRef?: string;
   onSelectedCandidateRefChange?: (candidateRef: string) => void;
   className?: string;
@@ -35,6 +37,7 @@ const warningLabels: Array<{
 
 export function FeedbackInfluencedSurfacingPreviewPanel({
   result,
+  runtimeCompletionResult,
   selectedCandidateRef,
   onSelectedCandidateRefChange,
   className,
@@ -81,6 +84,9 @@ export function FeedbackInfluencedSurfacingPreviewPanel({
 
       <div className="perspective-workbench-status-row">
         <span>Preview items {result.items.length}</span>
+        {runtimeCompletionResult ? (
+          <span>DB-backed preview {runtimeCompletionResult.status}</span>
+        ) : null}
         <span>No candidate mutation</span>
         <span>No rule mutation</span>
         <span>No parser mutation</span>
@@ -170,6 +176,39 @@ export function FeedbackInfluencedSurfacingPreviewPanel({
           ) : null}
         </>
       )}
+
+      {runtimeCompletionResult ? (
+        <section className="perspective-inspector-section">
+          <h4>DB-backed aggregation surfacing preview</h4>
+          <p>Advisory surfacing preview only</p>
+          <p>Priority hint is not ranking mutation</p>
+          <p>Surfacing preview is not surfacing mutation</p>
+          <p>Invalidate is not source suppression</p>
+          <p>Dismiss is not delete</p>
+          <p>Pin is not promotion</p>
+          <div className="perspective-workbench-status-row">
+            <span>status {runtimeCompletionResult.status}</span>
+            <span>aggregation {runtimeCompletionResult.aggregation_status}</span>
+            <span>items {runtimeCompletionResult.surfaced_items.length}</span>
+          </div>
+          <div className="compact-list">
+            {runtimeCompletionResult.surfaced_items.map((item) => (
+              <article key={item.surfaced_item_ref}>
+                <strong>{item.target_ref}</strong>
+                <p>
+                  bucket <code>{item.preview_rank_bucket}</code> / priority{" "}
+                  <code>{item.current_surface_priority_hint}</code>
+                </p>
+                <p>
+                  target <code>{item.target_layer}</code> / source visibility preserved{" "}
+                  <code>{String(item.source_visibility_preserved)}</code>
+                </p>
+                <ReasonCodes reasonCodes={item.reason_codes} />
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="perspective-inspector-section">
         <h4>Authority boundary</h4>

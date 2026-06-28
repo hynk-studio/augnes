@@ -598,7 +598,8 @@ function assertChangedFileScope() {
         filePath.startsWith("app/api/") &&
         !isManualAnchorRuntimeCompletionFile(filePath) &&
         !isFeedbackEventAggregationRuntimeCompletionFile(filePath) &&
-        !isFeedbackControlsExpansionRuntimeCompletionFile(filePath),
+        !isFeedbackControlsExpansionRuntimeCompletionFile(filePath) &&
+        !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath),
     ),
     "no new app/api route was added",
   );
@@ -612,7 +613,8 @@ function assertChangedFileScope() {
         /provider|retrieval-index-write|github|git-ledger|codex-execution|product-write|product-id/i.test(filePath) &&
         !isExpectedCompletionFile(filePath) &&
         !isFeedbackEventAggregationRuntimeCompletionFile(filePath) &&
-        !isFeedbackControlsExpansionRuntimeCompletionFile(filePath),
+        !isFeedbackControlsExpansionRuntimeCompletionFile(filePath) &&
+        !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath),
     ),
     "no provider/retrieval-index-write/Git/GitHub/Codex/product-write/product ID files were added",
   );
@@ -711,6 +713,19 @@ function isFeedbackControlsExpansionRuntimeCompletionFile(filePath) {
     "fixtures/feedback-controls-expansion-runtime-completion.sample.v0.1.json",
     "scripts/smoke-feedback-controls-expansion-runtime-completion-v0-1.mjs",
     "scripts/smoke-feedback-controls-expanded-v0-1.mjs",
+    packagePath,
+    indexPath,
+  ].includes(filePath);
+}
+
+function isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) {
+  return [
+    "lib/research-candidate-review/feedback-influenced-surfacing-preview.ts",
+    "app/api/research-candidate/feedback-events/surfacing-preview/route.ts",
+    "components/feedback-influenced-surfacing-preview-panel.tsx",
+    "docs/FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_V0_1.md",
+    "fixtures/feedback-influenced-surfacing-preview-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-feedback-influenced-surfacing-preview-runtime-completion-v0-1.mjs",
     packagePath,
     indexPath,
   ].includes(filePath);

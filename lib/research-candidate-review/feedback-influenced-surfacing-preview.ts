@@ -7,6 +7,20 @@ export const FEEDBACK_INFLUENCED_SURFACING_RESULT_VERSION =
 export const FEEDBACK_INFLUENCED_SURFACING_ITEM_VERSION =
   "feedback_influenced_surfacing_item.v0.1" as const;
 
+export const FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_VERSION =
+  "feedback_influenced_surfacing_preview_runtime_completion.v0.1" as const;
+export const FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_REQUEST_VERSION =
+  "feedback_influenced_surfacing_preview_runtime_completion_request.v0.1" as const;
+export const FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_RESULT_VERSION =
+  "feedback_influenced_surfacing_preview_runtime_completion_result.v0.1" as const;
+export const FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_ROUTE_VERSION =
+  "feedback_influenced_surfacing_preview_runtime_completion_route.v0.1" as const;
+
+const FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION =
+  "feedback_event_aggregation_runtime_completion.v0.1" as const;
+const FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_REQUEST_VERSION =
+  "feedback_event_aggregation_runtime_completion_request.v0.1" as const;
+
 const scope = "project:augnes" as const;
 const blockedPreviewId = "feedback-influenced-surfacing-preview:blocked" as const;
 
@@ -268,6 +282,283 @@ export interface FeedbackInfluencedSurfacingValidationResult {
   failure_codes: string[];
 }
 
+export type FeedbackEventAggregationRuntimeCompletionKindV01 =
+  | "pin"
+  | "dismiss"
+  | "correct"
+  | "invalidate"
+  | "needs_more_evidence"
+  | "scope_overreach"
+  | "not_relevant_now"
+  | "mark_useful"
+  | "mark_wrong";
+
+export type FeedbackEventAggregationRuntimeCompletionTargetLayerV01 =
+  | "candidate"
+  | "review_memory"
+  | "durable_perspective_state"
+  | "source_ref"
+  | "provider_candidate"
+  | "retrieval_context"
+  | "layout_surface"
+  | "unknown";
+
+export interface FeedbackEventAggregationRuntimeCompletionRuleFailureCandidateV01 {
+  rule_failure_candidate_ref: string;
+  affected_surface: string;
+  observed_pattern: string;
+  proposed_rule_change_summary: string;
+  expected_benefit: string;
+  risk_note: string;
+  review_required: true;
+  rule_mutation_executed: false;
+  authority_boundary: unknown;
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionSourceVisibilityWarningV01 {
+  warning_ref: string;
+  target_ref: string;
+  source_refs: string[];
+  feedback_event_refs: string[];
+  warning_summary: string;
+  source_visibility_preserved: true;
+  invalidate_is_source_suppression: false;
+  authority_boundary: unknown;
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionBoundaryNoteV01 {
+  note_ref: string;
+  target_ref: string;
+  target_layer: FeedbackEventAggregationRuntimeCompletionTargetLayerV01;
+  candidate_ref: string | null;
+  durable_ref: string | null;
+  boundary_summary: string;
+  candidate_durable_distinction_preserved: true;
+  authority_boundary: unknown;
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionAggregateV01 {
+  aggregation_version: typeof FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION;
+  scope: typeof scope;
+  target_ref: string;
+  target_kind: string;
+  target_layer: FeedbackEventAggregationRuntimeCompletionTargetLayerV01;
+  pin_count: number;
+  dismiss_count: number;
+  correct_count: number;
+  invalidate_count: number;
+  needs_more_evidence_count: number;
+  scope_overreach_count: number;
+  not_relevant_now_count: number;
+  mark_useful_count: number;
+  mark_wrong_count: number;
+  last_feedback_at: string;
+  feedback_event_refs: string[];
+  current_surface_priority_hint: string;
+  rule_failure_candidates: FeedbackEventAggregationRuntimeCompletionRuleFailureCandidateV01[];
+  source_visibility_warnings: FeedbackEventAggregationRuntimeCompletionSourceVisibilityWarningV01[];
+  candidate_durable_boundary_notes: FeedbackEventAggregationRuntimeCompletionBoundaryNoteV01[];
+  advisory_only: true;
+  feedback_is_truth: false;
+  pin_is_promotion: false;
+  dismiss_is_delete: false;
+  invalidate_is_source_suppression: false;
+  rule_failure_candidate_is_rule_mutation: false;
+  product_write_executed: false;
+  authority_boundary: unknown;
+  reason_codes: string[];
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionInputV01 {
+  request_version: typeof FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_REQUEST_VERSION;
+  aggregation_version: typeof FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION;
+  scope: typeof scope;
+  aggregation_request_id: string;
+  requested_by: string;
+  requested_at: string;
+  db_path?: string;
+  filters?: {
+    target_ref?: string;
+    target_kind?: string;
+    target_layer?: FeedbackEventAggregationRuntimeCompletionTargetLayerV01;
+    feedback_kind?: FeedbackEventAggregationRuntimeCompletionKindV01;
+    limit?: number;
+  };
+  authority_boundary?: Record<string, unknown>;
+  reason_codes: string[];
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionResultV01 {
+  aggregation_version: typeof FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION;
+  scope: typeof scope;
+  aggregation_request_id: string;
+  status: string;
+  aggregations: FeedbackEventAggregationRuntimeCompletionAggregateV01[];
+  feedback_event_refs: string[];
+  rule_failure_candidates: FeedbackEventAggregationRuntimeCompletionRuleFailureCandidateV01[];
+  source_visibility_warnings: FeedbackEventAggregationRuntimeCompletionSourceVisibilityWarningV01[];
+  candidate_durable_boundary_notes: FeedbackEventAggregationRuntimeCompletionBoundaryNoteV01[];
+  advisory_only: true;
+  feedback_is_truth: false;
+  pin_is_promotion: false;
+  dismiss_is_delete: false;
+  invalidate_is_source_suppression: false;
+  rule_failure_candidate_is_rule_mutation: false;
+  product_write_executed: false;
+  authority_boundary: unknown;
+  reason_codes: string[];
+}
+
+export type FeedbackInfluencedSurfacingPreviewRuntimeCompletionStatusV01 =
+  | "preview_created"
+  | "empty"
+  | "db_missing"
+  | "schema_missing"
+  | "blocked_private_or_raw_payload"
+  | "blocked_forbidden_authority"
+  | "blocked_invalid_input"
+  | "rejected";
+
+export type FeedbackInfluencedSurfacingPreviewRuntimeCompletionRankBucketV01 =
+  | "raise_for_review"
+  | "keep_visible"
+  | "lower_but_visible"
+  | "needs_more_evidence"
+  | "needs_operator_review"
+  | "blocked_from_auto_surfacing"
+  | "no_change";
+
+export interface FeedbackInfluencedSurfacingPreviewRuntimeCompletionRequestV01 {
+  request_version: typeof FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_REQUEST_VERSION;
+  preview_version: typeof FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_VERSION;
+  aggregation_version: typeof FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION;
+  scope: typeof scope;
+  surfacing_preview_request_id: string;
+  requested_by: string;
+  requested_at: string;
+  db_path: string;
+  target_filters?: {
+    target_ref?: string;
+    target_kind?: string;
+    target_layer?: FeedbackEventAggregationRuntimeCompletionTargetLayerV01;
+    feedback_kind?: FeedbackEventAggregationRuntimeCompletionKindV01;
+    limit?: number;
+  };
+  surfacing_policy: string[];
+  limit: number;
+  include_blocked: boolean;
+  authority_boundary?: Record<string, unknown>;
+  reason_codes: string[];
+}
+
+export interface FeedbackInfluencedSurfacingPreviewRuntimeCompletionItemV01 {
+  surfaced_item_ref: string;
+  target_ref: string;
+  target_kind: string;
+  target_layer: FeedbackEventAggregationRuntimeCompletionTargetLayerV01;
+  candidate_ref: string | null;
+  durable_ref: string | null;
+  source_refs: string[];
+  pin_count: number;
+  dismiss_count: number;
+  correct_count: number;
+  invalidate_count: number;
+  needs_more_evidence_count: number;
+  scope_overreach_count: number;
+  current_surface_priority_hint: string;
+  preview_rank_bucket: FeedbackInfluencedSurfacingPreviewRuntimeCompletionRankBucketV01;
+  review_required: boolean;
+  source_visibility_preserved: true;
+  candidate_durable_distinction_preserved: true;
+  feedback_is_truth: false;
+  priority_hint_is_ranking_mutation: false;
+  surfacing_preview_is_surfacing_mutation: false;
+  reason_codes: string[];
+  authority_boundary: FeedbackInfluencedSurfacingPreviewRuntimeCompletionAuthorityBoundaryV01;
+}
+
+export interface FeedbackInfluencedSurfacingPreviewRuntimeCompletionAuthorityBoundaryV01 {
+  feedback_influenced_surfacing_preview_runtime_now: true;
+  db_backed_feedback_aggregation_read_now: true;
+  explicit_operator_preview_only: true;
+  same_origin_preview_route_now: true;
+  advisory_preview_only: true;
+  source_visibility_preserved: true;
+  candidate_durable_boundary_visible: true;
+  rule_failure_candidates_review_only: true;
+  rule_mutation_now: false;
+  parser_mutation_now: false;
+  prompt_mutation_now: false;
+  ranking_mutation_now: false;
+  surfacing_mutation_now: false;
+  source_suppression_now: false;
+  candidate_delete_now: false;
+  proof_or_evidence_record_now: false;
+  claim_or_evidence_write_now: false;
+  work_item_write_now: false;
+  promotion_execution_now: false;
+  durable_state_write_now: false;
+  durable_state_apply_now: false;
+  formation_receipt_write_now: false;
+  provider_openai_call_now: false;
+  prompt_sent_now: false;
+  source_fetch_now: false;
+  retrieval_execution_now: false;
+  retrieval_index_write_now: false;
+  rag_answer_generation_now: false;
+  product_write_now: false;
+  product_write_runtime_now: false;
+  product_write_adapter_enabled_now: false;
+  product_id_allocation_now: false;
+  product_persistence_now: false;
+  git_ledger_export_runtime_now: false;
+  git_write_now: false;
+  github_api_call_now: false;
+  repository_file_write_now: false;
+  local_file_export_now: false;
+  local_file_import_now: false;
+  codex_execution_now: false;
+  codex_execution_authority: false;
+  github_automation_authority: false;
+  product_write_authority: false;
+  feedback_is_truth: false;
+  priority_hint_is_truth: false;
+  priority_hint_is_ranking_mutation: false;
+  surfacing_preview_is_surfacing_mutation: false;
+  invalidate_is_source_suppression: false;
+  dismiss_is_delete: false;
+  pin_is_promotion: false;
+  smoke_pass_is_truth: false;
+  ci_pass_is_truth: false;
+}
+
+export interface FeedbackInfluencedSurfacingPreviewRuntimeCompletionResultV01 {
+  result_version: typeof FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_RESULT_VERSION;
+  preview_version: typeof FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_VERSION;
+  scope: typeof scope;
+  status: FeedbackInfluencedSurfacingPreviewRuntimeCompletionStatusV01;
+  surfacing_preview_request_id: string;
+  aggregation_status: string;
+  surfaced_items: FeedbackInfluencedSurfacingPreviewRuntimeCompletionItemV01[];
+  source_visibility_warnings: FeedbackEventAggregationRuntimeCompletionSourceVisibilityWarningV01[];
+  rule_failure_candidates: FeedbackEventAggregationRuntimeCompletionRuleFailureCandidateV01[];
+  candidate_durable_boundary_notes: FeedbackEventAggregationRuntimeCompletionBoundaryNoteV01[];
+  priority_hint_summary: Record<
+    FeedbackInfluencedSurfacingPreviewRuntimeCompletionRankBucketV01,
+    number
+  >;
+  advisory_only: true;
+  feedback_is_truth: false;
+  priority_hint_is_ranking_mutation: false;
+  surfacing_preview_is_surfacing_mutation: false;
+  source_suppression_executed: false;
+  candidate_deleted: false;
+  rule_mutation_executed: false;
+  product_write_executed: false;
+  authority_boundary: FeedbackInfluencedSurfacingPreviewRuntimeCompletionAuthorityBoundaryV01;
+  reason_codes: string[];
+}
+
 type FeedbackLink = {
   aggregateRefs: string[];
   ruleFailureRefs: string[];
@@ -464,6 +755,67 @@ const compatibleRuleFailureReviewStatuses = [
 
 const unsafeTextPattern =
   /(\/Users\/|\/home\/|file:\/\/|sk-|ghp_|OPENAI_API_KEY|GITHUB_TOKEN|password:|secret:|private key|raw provider output|raw retrieval output|raw feedback payload|raw surfacing payload|raw surfacing preview payload|raw conversation|hidden reasoning|raw DB row|raw_db_row|browser dump|raw browser dump|raw source body|actual prompt:|provider response:|actual query:|embedding vector:|vector index dump:|secret-like surfacing preview input)/i;
+
+const runtimeUnsafePattern =
+  /(SAFE_MARKER_|\/Users\/|\/home\/|file:\/\/|https:\/\/localhost|http:\/\/localhost|sk-|ghp_|OPENAI_API_KEY|GITHUB_TOKEN|password:|secret:|private key|raw provider output|raw retrieval output|raw feedback payload|raw feedback aggregation payload|raw surfacing payload|raw surfacing preview payload|raw conversation|hidden reasoning|raw DB row|raw_db_row|browser dump|raw browser dump|raw source body|actual prompt:|provider response:|actual query:|embedding vector:|vector index dump|telemetry dump|raw diff)/i;
+
+const runtimeAllowedTrueAuthorityFields = new Set([
+  "feedback_influenced_surfacing_preview_runtime_now",
+  "db_backed_feedback_aggregation_read_now",
+  "explicit_operator_preview_only",
+  "same_origin_preview_route_now",
+  "advisory_preview_only",
+  "source_visibility_preserved",
+  "candidate_durable_boundary_visible",
+  "rule_failure_candidates_review_only",
+]);
+
+const runtimeForbiddenAuthorityFields = new Set([
+  "rule_mutation_now",
+  "parser_mutation_now",
+  "prompt_mutation_now",
+  "ranking_mutation_now",
+  "surfacing_mutation_now",
+  "source_suppression_now",
+  "candidate_delete_now",
+  "proof_or_evidence_record_now",
+  "claim_or_evidence_write_now",
+  "work_item_write_now",
+  "promotion_execution_now",
+  "durable_state_write_now",
+  "durable_state_apply_now",
+  "formation_receipt_write_now",
+  "provider_openai_call_now",
+  "prompt_sent_now",
+  "source_fetch_now",
+  "retrieval_execution_now",
+  "retrieval_index_write_now",
+  "rag_answer_generation_now",
+  "product_write_now",
+  "product_write_runtime_now",
+  "product_write_adapter_enabled_now",
+  "product_id_allocation_now",
+  "product_persistence_now",
+  "git_ledger_export_runtime_now",
+  "git_write_now",
+  "github_api_call_now",
+  "repository_file_write_now",
+  "local_file_export_now",
+  "local_file_import_now",
+  "codex_execution_now",
+  "codex_execution_authority",
+  "github_automation_authority",
+  "product_write_authority",
+  "feedback_is_truth",
+  "priority_hint_is_truth",
+  "priority_hint_is_ranking_mutation",
+  "surfacing_preview_is_surfacing_mutation",
+  "invalidate_is_source_suppression",
+  "dismiss_is_delete",
+  "pin_is_promotion",
+  "smoke_pass_is_truth",
+  "ci_pass_is_truth",
+]);
 
 export function buildFeedbackInfluencedSurfacingPreviewV01(
   input: FeedbackInfluencedSurfacingInput,
@@ -680,6 +1032,275 @@ export function createFeedbackInfluencedSurfacingItemIdV01(
     stableSlug(candidate.target_surface_ref),
     stableSlug(candidate.candidate_ref),
   ].join(":");
+}
+
+export function isSafeFeedbackInfluencedSurfacingPreviewRuntimeDbPathV01(
+  value: unknown,
+): boolean {
+  if (typeof value !== "string") return false;
+  if (value.length === 0 || value.length > 220) return false;
+  if (!value.endsWith(".sqlite") && !value.endsWith(".db")) return false;
+  if (!/^(tmp|\.tmp)\/feedback-event-aggregation\/[A-Za-z0-9._/-]+$/.test(value)) {
+    return false;
+  }
+  if (
+    value.startsWith("/") ||
+    value.includes("..") ||
+    value.includes("\\") ||
+    value.includes("\0") ||
+    /^[a-z][a-z0-9+.-]*:/i.test(value) ||
+    runtimeUnsafePattern.test(value)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function createFeedbackInfluencedSurfacingPreviewRuntimeCompletionAuthorityBoundaryV01(): FeedbackInfluencedSurfacingPreviewRuntimeCompletionAuthorityBoundaryV01 {
+  return {
+    feedback_influenced_surfacing_preview_runtime_now: true,
+    db_backed_feedback_aggregation_read_now: true,
+    explicit_operator_preview_only: true,
+    same_origin_preview_route_now: true,
+    advisory_preview_only: true,
+    source_visibility_preserved: true,
+    candidate_durable_boundary_visible: true,
+    rule_failure_candidates_review_only: true,
+    rule_mutation_now: false,
+    parser_mutation_now: false,
+    prompt_mutation_now: false,
+    ranking_mutation_now: false,
+    surfacing_mutation_now: false,
+    source_suppression_now: false,
+    candidate_delete_now: false,
+    proof_or_evidence_record_now: false,
+    claim_or_evidence_write_now: false,
+    work_item_write_now: false,
+    promotion_execution_now: false,
+    durable_state_write_now: false,
+    durable_state_apply_now: false,
+    formation_receipt_write_now: false,
+    provider_openai_call_now: false,
+    prompt_sent_now: false,
+    source_fetch_now: false,
+    retrieval_execution_now: false,
+    retrieval_index_write_now: false,
+    rag_answer_generation_now: false,
+    product_write_now: false,
+    product_write_runtime_now: false,
+    product_write_adapter_enabled_now: false,
+    product_id_allocation_now: false,
+    product_persistence_now: false,
+    git_ledger_export_runtime_now: false,
+    git_write_now: false,
+    github_api_call_now: false,
+    repository_file_write_now: false,
+    local_file_export_now: false,
+    local_file_import_now: false,
+    codex_execution_now: false,
+    codex_execution_authority: false,
+    github_automation_authority: false,
+    product_write_authority: false,
+    feedback_is_truth: false,
+    priority_hint_is_truth: false,
+    priority_hint_is_ranking_mutation: false,
+    surfacing_preview_is_surfacing_mutation: false,
+    invalidate_is_source_suppression: false,
+    dismiss_is_delete: false,
+    pin_is_promotion: false,
+    smoke_pass_is_truth: false,
+    ci_pass_is_truth: false,
+  };
+}
+
+export function validateFeedbackInfluencedSurfacingPreviewRuntimeCompletionRequestV01(
+  input: unknown,
+): FeedbackInfluencedSurfacingValidationResult {
+  const failureCodes: string[] = [];
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return { passed: false, failure_codes: ["input_not_object"] };
+  }
+  const value = input as Partial<FeedbackInfluencedSurfacingPreviewRuntimeCompletionRequestV01>;
+  if (
+    value.request_version !==
+    FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_REQUEST_VERSION
+  ) {
+    failureCodes.push("request_version_invalid");
+  }
+  if (
+    value.preview_version !==
+    FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_VERSION
+  ) {
+    failureCodes.push("preview_version_invalid");
+  }
+  if (value.aggregation_version !== FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION) {
+    failureCodes.push("aggregation_version_invalid");
+  }
+  if (value.scope !== scope) failureCodes.push("scope_invalid");
+  validateRuntimePublicString(value.surfacing_preview_request_id, "surfacing_preview_request_id", failureCodes);
+  validateRuntimePublicString(value.requested_by, "requested_by", failureCodes);
+  validateRuntimePublicString(value.requested_at, "requested_at", failureCodes);
+  validateRuntimeReasonCodes(value.reason_codes, "reason_codes", failureCodes);
+  if (!isSafeFeedbackInfluencedSurfacingPreviewRuntimeDbPathV01(value.db_path)) {
+    failureCodes.push("db_path_invalid");
+  }
+  validateSurfacingRuntimePolicies(value.surfacing_policy, failureCodes);
+  if (!Number.isInteger(value.limit) || (value.limit ?? 0) < 1 || (value.limit ?? 0) > 200) {
+    failureCodes.push("limit_invalid");
+  }
+  if (value.include_blocked !== true && value.include_blocked !== false) {
+    failureCodes.push("include_blocked_invalid");
+  }
+  if (value.target_filters !== undefined) {
+    validateSurfacingRuntimeFilters(value.target_filters, failureCodes);
+  }
+  collectRuntimeUnsafeFailures(value, "input", failureCodes);
+  collectRuntimeAuthorityFailuresDeep(value, "input", failureCodes);
+  return { passed: failureCodes.length === 0, failure_codes: uniqueSorted(failureCodes) };
+}
+
+export function buildFeedbackInfluencedSurfacingPreviewRuntimeCompletionV01(
+  input: FeedbackInfluencedSurfacingPreviewRuntimeCompletionRequestV01,
+  aggregationResult: FeedbackEventAggregationRuntimeCompletionResultV01,
+): FeedbackInfluencedSurfacingPreviewRuntimeCompletionResultV01 {
+  const validation = validateFeedbackInfluencedSurfacingPreviewRuntimeCompletionRequestV01(input);
+  if (!validation.passed) {
+    return blockedRuntimeCompletionResult(
+      runtimeStatusFromFailureCodes(validation.failure_codes),
+      safeRuntimePreviewRequestId(input),
+      aggregationResult.status ?? "not_run",
+      runtimeReasonCodesFromFailures(validation.failure_codes),
+    );
+  }
+
+  if (
+    aggregationResult.status === "blocked_forbidden_authority" ||
+    aggregationResult.status === "blocked_private_or_raw_payload" ||
+    aggregationResult.status === "blocked_invalid_input" ||
+    aggregationResult.status === "rejected"
+  ) {
+    return blockedRuntimeCompletionResult(
+      aggregationResult.status,
+      input.surfacing_preview_request_id,
+      aggregationResult.status,
+      aggregationResult.reason_codes,
+    );
+  }
+
+  const aggregates = [...aggregationResult.aggregations]
+    .sort(compareRuntimeAggregates)
+    .slice(0, input.limit);
+  const surfacedItems = aggregates
+    .map((aggregate) => buildRuntimeSurfacingItem(aggregate))
+    .filter((item) => input.include_blocked || item.preview_rank_bucket !== "blocked_from_auto_surfacing");
+  const priorityHintSummary = summarizeRuntimeRankBuckets(surfacedItems);
+
+  return {
+    result_version: FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_RESULT_VERSION,
+    preview_version: FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_VERSION,
+    scope,
+    status: surfacedItems.length > 0 ? "preview_created" : "empty",
+    surfacing_preview_request_id: input.surfacing_preview_request_id,
+    aggregation_status: aggregationResult.status,
+    surfaced_items: surfacedItems,
+    source_visibility_warnings: aggregationResult.source_visibility_warnings,
+    rule_failure_candidates: aggregationResult.rule_failure_candidates,
+    candidate_durable_boundary_notes: aggregationResult.candidate_durable_boundary_notes,
+    priority_hint_summary: priorityHintSummary,
+    advisory_only: true,
+    feedback_is_truth: false,
+    priority_hint_is_ranking_mutation: false,
+    surfacing_preview_is_surfacing_mutation: false,
+    source_suppression_executed: false,
+    candidate_deleted: false,
+    rule_mutation_executed: false,
+    product_write_executed: false,
+    authority_boundary:
+      createFeedbackInfluencedSurfacingPreviewRuntimeCompletionAuthorityBoundaryV01(),
+    reason_codes: uniqueSorted([
+      "db_backed_feedback_aggregation_read",
+      "advisory_surfacing_preview_only",
+      "feedback_is_not_truth",
+      "priority_hint_is_not_ranking_mutation",
+      "surfacing_preview_is_not_surfacing_mutation",
+      "source_visibility_preserved",
+      "candidate_durable_boundary_visible",
+      "rule_failure_candidates_review_only",
+      "product_write_denied",
+      ...aggregationResult.reason_codes,
+    ]),
+  };
+}
+
+export function runFeedbackInfluencedSurfacingPreviewRuntimeCompletionV01(
+  input: FeedbackInfluencedSurfacingPreviewRuntimeCompletionRequestV01,
+  options: {
+    aggregateFeedbackEvents?: (
+      aggregationInput: FeedbackEventAggregationRuntimeCompletionInputV01,
+    ) => FeedbackEventAggregationRuntimeCompletionResultV01;
+  } = {},
+): FeedbackInfluencedSurfacingPreviewRuntimeCompletionResultV01 {
+  const validation = validateFeedbackInfluencedSurfacingPreviewRuntimeCompletionRequestV01(input);
+  if (!validation.passed) {
+    return blockedRuntimeCompletionResult(
+      runtimeStatusFromFailureCodes(validation.failure_codes),
+      safeRuntimePreviewRequestId(input),
+      "not_run",
+      runtimeReasonCodesFromFailures(validation.failure_codes),
+    );
+  }
+
+  const aggregationInput: FeedbackEventAggregationRuntimeCompletionInputV01 = {
+    request_version: FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_REQUEST_VERSION,
+    aggregation_version: FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION,
+    scope,
+    aggregation_request_id: `feedback-surfacing-preview-aggregation:${stableSlug(input.surfacing_preview_request_id)}`,
+    requested_by: input.requested_by,
+    requested_at: input.requested_at,
+    db_path: input.db_path,
+    filters: input.target_filters,
+    authority_boundary: {},
+    reason_codes: uniqueSorted([
+      "feedback_influenced_surfacing_preview_runtime_completion",
+      "db_backed_feedback_aggregation_read",
+      ...input.reason_codes,
+    ]),
+  };
+  if (!options.aggregateFeedbackEvents) {
+    return blockedRuntimeCompletionResult(
+      "rejected",
+      input.surfacing_preview_request_id,
+      "not_run",
+      ["aggregation_runtime_not_injected"],
+    );
+  }
+  const aggregationResult = options.aggregateFeedbackEvents(aggregationInput);
+  return buildFeedbackInfluencedSurfacingPreviewRuntimeCompletionV01(
+    input,
+    aggregationResult,
+  );
+}
+
+export function createFeedbackInfluencedSurfacingPreviewRuntimeItemRefV01(
+  aggregate: Pick<
+    FeedbackEventAggregationRuntimeCompletionAggregateV01,
+    "target_ref" | "target_kind" | "target_layer"
+  >,
+): string {
+  return [
+    "feedback-surfacing-preview-item",
+    stableSlug(aggregate.target_layer),
+    stableSlug(aggregate.target_kind),
+    stableSlug(aggregate.target_ref),
+  ].join(":");
+}
+
+export function createFeedbackInfluencedSurfacingPreviewRuntimeBlockedResultV01(
+  status: FeedbackInfluencedSurfacingPreviewRuntimeCompletionStatusV01,
+  requestId = "feedback-surfacing-preview-runtime:blocked",
+  reasonCodesForResult: string[] = [status],
+): FeedbackInfluencedSurfacingPreviewRuntimeCompletionResultV01 {
+  return blockedRuntimeCompletionResult(status, requestId, "not_run", reasonCodesForResult);
 }
 
 function buildSurfacingItem(
@@ -1410,6 +2031,297 @@ function compareRuleFailureCandidates(
     ) ||
     compareStrings(left.rule_failure_candidate_id ?? "", right.rule_failure_candidate_id ?? "")
   );
+}
+
+function buildRuntimeSurfacingItem(
+  aggregate: FeedbackEventAggregationRuntimeCompletionAggregateV01,
+): FeedbackInfluencedSurfacingPreviewRuntimeCompletionItemV01 {
+  const rankBucket = rankBucketForPriorityHint(aggregate.current_surface_priority_hint);
+  const boundaryNote = aggregate.candidate_durable_boundary_notes[0];
+  const sourceRefs = uniqueSorted(
+    aggregate.source_visibility_warnings.flatMap((warning) => warning.source_refs),
+  );
+  const reviewRequired =
+    aggregate.invalidate_count > 0 ||
+    aggregate.needs_more_evidence_count > 0 ||
+    aggregate.scope_overreach_count > 0 ||
+    aggregate.correct_count > 0 ||
+    aggregate.mark_wrong_count > 0 ||
+    aggregate.rule_failure_candidates.length > 0;
+  return {
+    surfaced_item_ref: createFeedbackInfluencedSurfacingPreviewRuntimeItemRefV01(aggregate),
+    target_ref: aggregate.target_ref,
+    target_kind: aggregate.target_kind,
+    target_layer: aggregate.target_layer,
+    candidate_ref: boundaryNote?.candidate_ref ?? null,
+    durable_ref: boundaryNote?.durable_ref ?? null,
+    source_refs: sourceRefs,
+    pin_count: aggregate.pin_count,
+    dismiss_count: aggregate.dismiss_count,
+    correct_count: aggregate.correct_count,
+    invalidate_count: aggregate.invalidate_count,
+    needs_more_evidence_count: aggregate.needs_more_evidence_count,
+    scope_overreach_count: aggregate.scope_overreach_count,
+    current_surface_priority_hint: aggregate.current_surface_priority_hint,
+    preview_rank_bucket: rankBucket,
+    review_required: reviewRequired,
+    source_visibility_preserved: true,
+    candidate_durable_distinction_preserved: true,
+    feedback_is_truth: false,
+    priority_hint_is_ranking_mutation: false,
+    surfacing_preview_is_surfacing_mutation: false,
+    reason_codes: uniqueSorted([
+      "advisory_surfacing_preview_only",
+      "feedback_is_not_truth",
+      "priority_hint_is_not_ranking_mutation",
+      "surfacing_preview_is_not_surfacing_mutation",
+      "source_visibility_preserved",
+      "candidate_durable_boundary_visible",
+      `rank_bucket:${rankBucket}`,
+      ...aggregate.reason_codes,
+    ]),
+    authority_boundary:
+      createFeedbackInfluencedSurfacingPreviewRuntimeCompletionAuthorityBoundaryV01(),
+  };
+}
+
+function rankBucketForPriorityHint(
+  hint: string,
+): FeedbackInfluencedSurfacingPreviewRuntimeCompletionRankBucketV01 {
+  if (hint === "raise_priority_for_review") return "raise_for_review";
+  if (hint === "keep_visible") return "keep_visible";
+  if (hint === "lower_priority") return "lower_but_visible";
+  if (hint === "needs_more_evidence") return "needs_more_evidence";
+  if (hint === "needs_operator_review") return "needs_operator_review";
+  if (hint === "blocked") return "blocked_from_auto_surfacing";
+  return "no_change";
+}
+
+function summarizeRuntimeRankBuckets(
+  items: FeedbackInfluencedSurfacingPreviewRuntimeCompletionItemV01[],
+): Record<FeedbackInfluencedSurfacingPreviewRuntimeCompletionRankBucketV01, number> {
+  const summary: Record<FeedbackInfluencedSurfacingPreviewRuntimeCompletionRankBucketV01, number> =
+    {
+      raise_for_review: 0,
+      keep_visible: 0,
+      lower_but_visible: 0,
+      needs_more_evidence: 0,
+      needs_operator_review: 0,
+      blocked_from_auto_surfacing: 0,
+      no_change: 0,
+    };
+  for (const item of items) summary[item.preview_rank_bucket] += 1;
+  return summary;
+}
+
+function blockedRuntimeCompletionResult(
+  status: FeedbackInfluencedSurfacingPreviewRuntimeCompletionStatusV01,
+  requestId: string,
+  aggregationStatus: string,
+  reasonCodesForResult: string[],
+): FeedbackInfluencedSurfacingPreviewRuntimeCompletionResultV01 {
+  return {
+    result_version: FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_RESULT_VERSION,
+    preview_version: FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_VERSION,
+    scope,
+    status,
+    surfacing_preview_request_id: requestId,
+    aggregation_status: aggregationStatus,
+    surfaced_items: [],
+    source_visibility_warnings: [],
+    rule_failure_candidates: [],
+    candidate_durable_boundary_notes: [],
+    priority_hint_summary: summarizeRuntimeRankBuckets([]),
+    advisory_only: true,
+    feedback_is_truth: false,
+    priority_hint_is_ranking_mutation: false,
+    surfacing_preview_is_surfacing_mutation: false,
+    source_suppression_executed: false,
+    candidate_deleted: false,
+    rule_mutation_executed: false,
+    product_write_executed: false,
+    authority_boundary:
+      createFeedbackInfluencedSurfacingPreviewRuntimeCompletionAuthorityBoundaryV01(),
+    reason_codes: uniqueSorted([
+      "advisory_surfacing_preview_only",
+      "feedback_is_not_truth",
+      "priority_hint_is_not_ranking_mutation",
+      "surfacing_preview_is_not_surfacing_mutation",
+      "source_visibility_preserved",
+      "candidate_durable_boundary_visible",
+      "product_write_denied",
+      ...reasonCodesForResult,
+    ]),
+  };
+}
+
+function runtimeStatusFromFailureCodes(
+  failureCodes: string[],
+): FeedbackInfluencedSurfacingPreviewRuntimeCompletionStatusV01 {
+  if (failureCodes.some((code) => code.includes("forbidden_authority"))) {
+    return "blocked_forbidden_authority";
+  }
+  if (failureCodes.some((code) => /private|raw|secret|local_path|private_url/.test(code))) {
+    return "blocked_private_or_raw_payload";
+  }
+  return "blocked_invalid_input";
+}
+
+function runtimeReasonCodesFromFailures(failureCodes: string[]): string[] {
+  const status = runtimeStatusFromFailureCodes(failureCodes);
+  if (status === "blocked_forbidden_authority") return ["forbidden_authority_blocked"];
+  if (status === "blocked_private_or_raw_payload") return ["private_or_raw_payload_blocked"];
+  return ["invalid_surfacing_preview_request"];
+}
+
+function safeRuntimePreviewRequestId(input: unknown): string {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return "feedback-surfacing-preview-runtime:blocked";
+  }
+  const value = (input as { surfacing_preview_request_id?: unknown })
+    .surfacing_preview_request_id;
+  if (typeof value === "string" && value.length > 0 && !runtimeUnsafePattern.test(value)) {
+    return value;
+  }
+  return "feedback-surfacing-preview-runtime:blocked";
+}
+
+function compareRuntimeAggregates(
+  left: FeedbackEventAggregationRuntimeCompletionAggregateV01,
+  right: FeedbackEventAggregationRuntimeCompletionAggregateV01,
+): number {
+  return (
+    compareStrings(left.current_surface_priority_hint, right.current_surface_priority_hint) ||
+    compareStrings(left.target_layer, right.target_layer) ||
+    compareStrings(left.target_kind, right.target_kind) ||
+    compareStrings(left.target_ref, right.target_ref)
+  );
+}
+
+function validateSurfacingRuntimePolicies(value: unknown, failureCodes: string[]): void {
+  const requiredPolicies = [
+    "advisory_only",
+    "preserve_source_visibility",
+    "preserve_candidate_durable_boundary",
+    "no_mutation",
+    "operator_review_required_for_rule_failure_candidates",
+  ];
+  if (!Array.isArray(value)) {
+    failureCodes.push("surfacing_policy_not_array");
+    return;
+  }
+  const policies = new Set(value);
+  for (const policy of requiredPolicies) {
+    if (!policies.has(policy)) failureCodes.push(`surfacing_policy_${policy}_missing`);
+  }
+  value.forEach((item, index) =>
+    validateRuntimePublicString(item, `surfacing_policy.${index}`, failureCodes),
+  );
+}
+
+function validateSurfacingRuntimeFilters(value: unknown, failureCodes: string[]): void {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    failureCodes.push("target_filters_invalid");
+    return;
+  }
+  const filters = value as FeedbackInfluencedSurfacingPreviewRuntimeCompletionRequestV01["target_filters"];
+  if (filters?.target_ref !== undefined) {
+    validateRuntimePublicString(filters.target_ref, "target_filters.target_ref", failureCodes);
+  }
+  if (filters?.target_kind !== undefined) {
+    validateRuntimePublicString(filters.target_kind, "target_filters.target_kind", failureCodes);
+  }
+  if (filters?.target_layer !== undefined) {
+    validateRuntimePublicString(filters.target_layer, "target_filters.target_layer", failureCodes);
+  }
+  if (filters?.feedback_kind !== undefined) {
+    validateRuntimePublicString(filters.feedback_kind, "target_filters.feedback_kind", failureCodes);
+  }
+  if (
+    filters?.limit !== undefined &&
+    (!Number.isInteger(filters.limit) || filters.limit < 1 || filters.limit > 200)
+  ) {
+    failureCodes.push("target_filters.limit_invalid");
+  }
+}
+
+function validateRuntimePublicString(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+): void {
+  if (typeof value !== "string") {
+    failureCodes.push(`${label}_not_string`);
+    return;
+  }
+  if (value.trim().length === 0 || value.length > 1000) {
+    failureCodes.push(`${label}_invalid`);
+    return;
+  }
+  if (runtimeUnsafePattern.test(value)) failureCodes.push(`${label}_private_or_raw_payload`);
+}
+
+function validateRuntimeReasonCodes(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+): void {
+  if (!Array.isArray(value)) {
+    failureCodes.push(`${label}_not_array`);
+    return;
+  }
+  value.forEach((item, index) =>
+    validateRuntimePublicString(item, `${label}.${index}`, failureCodes),
+  );
+}
+
+function collectRuntimeUnsafeFailures(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+): void {
+  const serialized = safeSerialize(value);
+  if (!serialized) return;
+  if (/\/Users\/|\/home\//.test(serialized)) failureCodes.push(`${label}_local_path_blocked`);
+  if (/file:\/\//i.test(serialized)) failureCodes.push(`${label}_private_url_blocked`);
+  if (/sk-|ghp_|OPENAI_API_KEY|GITHUB_TOKEN|password:|secret:|private key/i.test(serialized)) {
+    failureCodes.push(`${label}_secret_like_pattern_blocked`);
+  }
+  if (runtimeUnsafePattern.test(serialized)) failureCodes.push(`${label}_private_or_raw_payload`);
+}
+
+function collectRuntimeAuthorityFailuresDeep(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+  seen = new WeakSet<object>(),
+): void {
+  if (!value || typeof value !== "object") return;
+  if (seen.has(value)) return;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      collectRuntimeAuthorityFailuresDeep(item, `${label}.${index}`, failureCodes, seen),
+    );
+    return;
+  }
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (hasRuntimeForbiddenAuthorityGrant(key, nestedValue)) {
+      failureCodes.push(`${label}.${key}_forbidden_authority`);
+    }
+    collectRuntimeAuthorityFailuresDeep(nestedValue, `${label}.${key}`, failureCodes, seen);
+  }
+}
+
+function hasRuntimeForbiddenAuthorityGrant(key: string, value: unknown): boolean {
+  if (runtimeAllowedTrueAuthorityFields.has(key)) return false;
+  if (!isRuntimeAuthorityKey(key)) return false;
+  return !(value === false || value === null || value === undefined);
+}
+
+function isRuntimeAuthorityKey(key: string): boolean {
+  if (runtimeForbiddenAuthorityFields.has(key)) return true;
+  return /(_authority|_write_now|_call_now|_execution_now|_is_truth|_is_proof|product_write|product_id_allocation|proof_or_evidence|claim_or_evidence|promotion_execution|durable_state_apply|formation_receipt_write|github_api_call|git_write|source_suppression|candidate_delete|rule_mutation|parser_mutation|prompt_mutation|ranking_mutation|surfacing_mutation)/.test(key);
 }
 
 function compareStrings(left: string, right: string) {
