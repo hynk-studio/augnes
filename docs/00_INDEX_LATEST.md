@@ -4101,6 +4101,30 @@ repo-local 색인이다.
   execution; no RAG answer generation; no source fetch; no
   local/repository/uploaded file read as source input; no Git Ledger export; no
   Codex execution; no GitHub automation; product-write remains parked by #686.
+- Feedback Influenced Surfacing Preview Runtime Completion v0.1:
+  `docs/FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_V0_1.md`,
+  `lib/research-candidate-review/feedback-influenced-surfacing-preview.ts`,
+  `app/api/research-candidate/feedback-events/surfacing-preview/route.ts`,
+  `components/feedback-influenced-surfacing-preview-panel.tsx`,
+  `fixtures/feedback-influenced-surfacing-preview-runtime-completion.sample.v0.1.json`,
+  and
+  `scripts/smoke-feedback-influenced-surfacing-preview-runtime-completion-v0-1.mjs`
+  (`npm run smoke:feedback-influenced-surfacing-preview-runtime-completion-v0-1`)
+  implements `feedback_influenced_surfacing_preview_runtime_completion_v0_1`
+  as the runtime completion for original Phase 5.7. It closes the earlier
+  non-DB-backed surfacing preview gap by reading DB-backed feedback aggregation
+  output and producing advisory surfacing previews only. Feedback is not truth.
+  Priority hint is not ranking mutation. Surfacing preview is not surfacing
+  mutation. Pin is not promotion. Dismiss is not delete. Invalidate is not
+  source suppression. Rule failure candidate is review-only and not rule
+  mutation. It does not mutate rules, parsers, prompts, ranking, surfacing,
+  suppress sources, delete candidates, create proof/evidence, write
+  claim/evidence, create work items, promote Perspective, write/apply durable
+  state, write Formation Receipts, call providers, send prompts, fetch sources,
+  execute retrieval/RAG, write retrieval indexes, generate RAG answers, execute
+  Git/GitHub, execute Codex, product-write, allocate product IDs, or grant
+  product-write authority. Product-write remains parked by #686. Smoke/CI pass
+  is not truth. The roadmap guide is not SSOT.
 - Dogfooding Record Runtime Contract v0.1:
   `docs/DOGFOODING_RECORD_RUNTIME_CONTRACT_V0_1.md`,
   `types/dogfooding-record-runtime-contract.ts`,

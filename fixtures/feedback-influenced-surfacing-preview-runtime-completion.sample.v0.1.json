@@ -1,0 +1,375 @@
+{
+  "fixture_version": "feedback_influenced_surfacing_preview_runtime_completion.sample.v0.1",
+  "preview_version": "feedback_influenced_surfacing_preview_runtime_completion.v0.1",
+  "route_version": "feedback_influenced_surfacing_preview_runtime_completion_route.v0.1",
+  "request_version": "feedback_influenced_surfacing_preview_runtime_completion_request.v0.1",
+  "aggregation_version": "feedback_event_aggregation_runtime_completion.v0.1",
+  "scope": "project:augnes",
+  "safe_db_path_examples": [
+    ".tmp/feedback-event-aggregation/ui/feedback-events.sqlite",
+    "tmp/feedback-event-aggregation/smoke-feedback-events.db"
+  ],
+  "unsafe_db_path_examples": [
+    "blocked:absolute-private-path.sqlite",
+    "blocked:parent-directory-feedback-events.sqlite",
+    "blocked:url-feedback-events.sqlite",
+    "blocked:token-looking-feedback-events.sqlite"
+  ],
+  "safe_surfacing_preview_request_example": {
+    "request_version": "feedback_influenced_surfacing_preview_runtime_completion_request.v0.1",
+    "preview_version": "feedback_influenced_surfacing_preview_runtime_completion.v0.1",
+    "aggregation_version": "feedback_event_aggregation_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "surfacing_preview_request_id": "feedback-surfacing-preview-runtime:fixture:001",
+    "requested_by": "operator:surfacing-preview-runtime",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/feedback-event-aggregation/ui/feedback-events.sqlite",
+    "target_filters": {
+      "limit": 50
+    },
+    "surfacing_policy": [
+      "advisory_only",
+      "preserve_source_visibility",
+      "preserve_candidate_durable_boundary",
+      "no_mutation",
+      "operator_review_required_for_rule_failure_candidates"
+    ],
+    "limit": 50,
+    "include_blocked": true,
+    "authority_boundary": {
+      "feedback_influenced_surfacing_preview_runtime_now": true,
+      "db_backed_feedback_aggregation_read_now": true,
+      "explicit_operator_preview_only": true,
+      "same_origin_preview_route_now": true,
+      "advisory_preview_only": true,
+      "source_visibility_preserved": true,
+      "candidate_durable_boundary_visible": true,
+      "rule_failure_candidates_review_only": true
+    },
+    "reason_codes": [
+      "fixture_public_safe",
+      "db_backed_feedback_aggregation_read",
+      "advisory_surfacing_preview_only"
+    ]
+  },
+  "seed_feedback_events_example": [
+    {
+      "request_version": "feedback_event_write_runtime_request.v0.1",
+      "event_version": "feedback_event_write_runtime_event.v0.1",
+      "scope": "project:augnes",
+      "feedback_event_id": "feedback-event:surfacing-preview-runtime:pin:001",
+      "feedback_kind": "pin",
+      "target_ref": "candidate:surfacing-preview-runtime:positive",
+      "target_kind": "research_candidate_review",
+      "target_layer": "candidate",
+      "target_fingerprint": "target-fingerprint:surfacing-preview-runtime:positive",
+      "source_refs": [
+        "source-ref:surfacing-preview-runtime:positive"
+      ],
+      "candidate_ref": "candidate:surfacing-preview-runtime:positive",
+      "feedback_summary": "Operator pinned this candidate for follow-up review.",
+      "created_by": "operator:surfacing-preview-runtime",
+      "created_at": "2026-06-28T00:00:00.000Z",
+      "idempotency_key": "feedback-idempotency:surfacing-preview-runtime:pin:001",
+      "authority_boundary": {},
+      "reason_codes": [
+        "feedback_event_seed",
+        "advisory_signal_only"
+      ]
+    },
+    {
+      "request_version": "feedback_event_write_runtime_request.v0.1",
+      "event_version": "feedback_event_write_runtime_event.v0.1",
+      "scope": "project:augnes",
+      "feedback_event_id": "feedback-event:surfacing-preview-runtime:dismiss:001",
+      "feedback_kind": "dismiss",
+      "target_ref": "source-ref:surfacing-preview-runtime:lower",
+      "target_kind": "source_ref",
+      "target_layer": "source_ref",
+      "source_refs": [
+        "source-ref:surfacing-preview-runtime:lower"
+      ],
+      "feedback_summary": "Operator lowered this source context for current review but kept visibility.",
+      "reason": "Not relevant to this review pass.",
+      "created_by": "operator:surfacing-preview-runtime",
+      "created_at": "2026-06-28T00:01:00.000Z",
+      "idempotency_key": "feedback-idempotency:surfacing-preview-runtime:dismiss:001",
+      "authority_boundary": {},
+      "reason_codes": [
+        "feedback_event_seed",
+        "source_visibility_preserved"
+      ]
+    },
+    {
+      "request_version": "feedback_event_write_runtime_request.v0.1",
+      "event_version": "feedback_event_write_runtime_event.v0.1",
+      "scope": "project:augnes",
+      "feedback_event_id": "feedback-event:surfacing-preview-runtime:invalidate:001",
+      "feedback_kind": "invalidate",
+      "target_ref": "source-ref:surfacing-preview-runtime:warning",
+      "target_kind": "source_ref",
+      "target_layer": "source_ref",
+      "source_refs": [
+        "source-ref:surfacing-preview-runtime:warning"
+      ],
+      "feedback_summary": "Operator marked this context for source visibility warning.",
+      "reason": "Needs source visibility warning.",
+      "created_by": "operator:surfacing-preview-runtime",
+      "created_at": "2026-06-28T00:02:00.000Z",
+      "idempotency_key": "feedback-idempotency:surfacing-preview-runtime:invalidate:001",
+      "authority_boundary": {},
+      "reason_codes": [
+        "feedback_event_seed",
+        "invalidate_is_not_source_suppression"
+      ]
+    },
+    {
+      "request_version": "feedback_event_write_runtime_request.v0.1",
+      "event_version": "feedback_event_write_runtime_event.v0.1",
+      "scope": "project:augnes",
+      "feedback_event_id": "feedback-event:surfacing-preview-runtime:evidence:001",
+      "feedback_kind": "needs_more_evidence",
+      "target_ref": "candidate:surfacing-preview-runtime:evidence",
+      "target_kind": "research_candidate_review",
+      "target_layer": "candidate",
+      "candidate_ref": "candidate:surfacing-preview-runtime:evidence",
+      "feedback_summary": "Operator requested more evidence before surfacing.",
+      "reason": "Needs more evidence before review confidence changes.",
+      "created_by": "operator:surfacing-preview-runtime",
+      "created_at": "2026-06-28T00:03:00.000Z",
+      "idempotency_key": "feedback-idempotency:surfacing-preview-runtime:evidence:001",
+      "authority_boundary": {},
+      "reason_codes": [
+        "feedback_event_seed",
+        "needs_more_evidence_review_signal"
+      ]
+    },
+    {
+      "request_version": "feedback_event_write_runtime_request.v0.1",
+      "event_version": "feedback_event_write_runtime_event.v0.1",
+      "scope": "project:augnes",
+      "feedback_event_id": "feedback-event:surfacing-preview-runtime:scope:001",
+      "feedback_kind": "scope_overreach",
+      "target_ref": "candidate:surfacing-preview-runtime:scope",
+      "target_kind": "research_candidate_review",
+      "target_layer": "candidate",
+      "candidate_ref": "candidate:surfacing-preview-runtime:scope",
+      "feedback_summary": "Operator marked scope overreach for review-only rule failure candidate.",
+      "reason": "Surface rule may be too broad.",
+      "created_by": "operator:surfacing-preview-runtime",
+      "created_at": "2026-06-28T00:04:00.000Z",
+      "idempotency_key": "feedback-idempotency:surfacing-preview-runtime:scope:001",
+      "authority_boundary": {},
+      "reason_codes": [
+        "feedback_event_seed",
+        "rule_failure_candidate_review_only"
+      ]
+    }
+  ],
+  "seed_aggregation_result_example": {
+    "status": "aggregated",
+    "aggregation_version": "feedback_event_aggregation_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "aggregation_request_id": "feedback-surfacing-preview-aggregation:fixture:001",
+    "feedback_event_refs": [
+      "feedback-event:surfacing-preview-runtime:pin:001",
+      "feedback-event:surfacing-preview-runtime:dismiss:001"
+    ],
+    "advisory_only": true,
+    "feedback_is_truth": false,
+    "pin_is_promotion": false,
+    "dismiss_is_delete": false,
+    "invalidate_is_source_suppression": false,
+    "rule_failure_candidate_is_rule_mutation": false,
+    "product_write_executed": false
+  },
+  "expected_surfacing_preview_result_example": {
+    "status": "preview_created",
+    "aggregation_status": "aggregated",
+    "advisory_only": true,
+    "feedback_is_truth": false,
+    "priority_hint_is_ranking_mutation": false,
+    "surfacing_preview_is_surfacing_mutation": false,
+    "source_suppression_executed": false,
+    "candidate_deleted": false,
+    "rule_mutation_executed": false,
+    "product_write_executed": false,
+    "expected_rank_buckets": [
+      "raise_for_review",
+      "lower_but_visible",
+      "needs_operator_review",
+      "needs_more_evidence"
+    ]
+  },
+  "preview_rank_bucket_examples": {
+    "raise_priority_for_review": "raise_for_review",
+    "keep_visible": "keep_visible",
+    "lower_priority": "lower_but_visible",
+    "needs_more_evidence": "needs_more_evidence",
+    "needs_operator_review": "needs_operator_review",
+    "blocked": "blocked_from_auto_surfacing",
+    "no_change": "no_change"
+  },
+  "source_visibility_warning_examples": [
+    {
+      "warning_ref": "feedback-source-visibility-warning:fixture:001",
+      "target_ref": "source-ref:surfacing-preview-runtime:warning",
+      "source_refs": [
+        "source-ref:surfacing-preview-runtime:warning"
+      ],
+      "warning_summary": "Invalidation creates source visibility warning but no source suppression.",
+      "source_visibility_preserved": true,
+      "invalidate_is_source_suppression": false
+    }
+  ],
+  "candidate_durable_boundary_examples": [
+    {
+      "note_ref": "feedback-boundary-note:fixture:candidate",
+      "target_ref": "candidate:surfacing-preview-runtime:positive",
+      "target_layer": "candidate",
+      "candidate_ref": "candidate:surfacing-preview-runtime:positive",
+      "durable_ref": null,
+      "candidate_durable_distinction_preserved": true
+    },
+    {
+      "note_ref": "feedback-boundary-note:fixture:durable",
+      "target_ref": "durable-state:surfacing-preview-runtime:readout",
+      "target_layer": "durable_perspective_state",
+      "candidate_ref": null,
+      "durable_ref": "durable-state:surfacing-preview-runtime:readout",
+      "candidate_durable_distinction_preserved": true
+    }
+  ],
+  "rule_failure_candidate_examples": [
+    {
+      "rule_failure_candidate_ref": "feedback-rule-failure-candidate:fixture:scope",
+      "affected_surface": "research_candidate_review",
+      "observed_pattern": "scope_overreach_feedback_present",
+      "proposed_rule_change_summary": "Review whether the future surface rule is too broad.",
+      "review_required": true,
+      "rule_mutation_executed": false
+    }
+  ],
+  "blocked_private_or_raw_payload_example": {
+    "request_version": "feedback_influenced_surfacing_preview_runtime_completion_request.v0.1",
+    "preview_version": "feedback_influenced_surfacing_preview_runtime_completion.v0.1",
+    "aggregation_version": "feedback_event_aggregation_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "surfacing_preview_request_id": "feedback-surfacing-preview-runtime:fixture:blocked-private",
+    "requested_by": "operator:surfacing-preview-runtime",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/feedback-event-aggregation/ui/feedback-events.sqlite",
+    "target_filters": {
+      "target_ref": "SAFE_MARKER_RAW_SOURCE_BODY"
+    },
+    "surfacing_policy": [
+      "advisory_only",
+      "preserve_source_visibility",
+      "preserve_candidate_durable_boundary",
+      "no_mutation",
+      "operator_review_required_for_rule_failure_candidates"
+    ],
+    "limit": 50,
+    "include_blocked": true,
+    "authority_boundary": {},
+    "reason_codes": [
+      "blocked_private_or_raw_payload"
+    ]
+  },
+  "blocked_forbidden_authority_example": {
+    "request_version": "feedback_influenced_surfacing_preview_runtime_completion_request.v0.1",
+    "preview_version": "feedback_influenced_surfacing_preview_runtime_completion.v0.1",
+    "aggregation_version": "feedback_event_aggregation_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "surfacing_preview_request_id": "feedback-surfacing-preview-runtime:fixture:blocked-authority",
+    "requested_by": "operator:surfacing-preview-runtime",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/feedback-event-aggregation/ui/feedback-events.sqlite",
+    "target_filters": {
+      "limit": 50
+    },
+    "surfacing_policy": [
+      "advisory_only",
+      "preserve_source_visibility",
+      "preserve_candidate_durable_boundary",
+      "no_mutation",
+      "operator_review_required_for_rule_failure_candidates"
+    ],
+    "limit": 50,
+    "include_blocked": true,
+    "authority_boundary": {},
+    "surfacing_mutation_now": true,
+    "nested": {
+      "source_suppression_now": {
+        "enabled": true
+      }
+    },
+    "reason_codes": [
+      "blocked_forbidden_authority"
+    ]
+  },
+  "invalid_db_path_example": {
+    "db_path": "blocked:parent-directory-feedback-events.sqlite",
+    "expected_error_code": "invalid_db_path"
+  },
+  "invalid_filter_example": {
+    "target_filters": {
+      "limit": 0
+    },
+    "expected_status": "blocked_invalid_input"
+  },
+  "authority_boundary_sample": {
+    "feedback_influenced_surfacing_preview_runtime_now": true,
+    "db_backed_feedback_aggregation_read_now": true,
+    "explicit_operator_preview_only": true,
+    "same_origin_preview_route_now": true,
+    "advisory_preview_only": true,
+    "source_visibility_preserved": true,
+    "candidate_durable_boundary_visible": true,
+    "rule_failure_candidates_review_only": true,
+    "rule_mutation_now": false,
+    "parser_mutation_now": false,
+    "prompt_mutation_now": false,
+    "ranking_mutation_now": false,
+    "surfacing_mutation_now": false,
+    "source_suppression_now": false,
+    "candidate_delete_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "retrieval_index_write_now": false,
+    "rag_answer_generation_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "feedback_is_truth": false,
+    "priority_hint_is_truth": false,
+    "priority_hint_is_ranking_mutation": false,
+    "surfacing_preview_is_surfacing_mutation": false,
+    "invalidate_is_source_suppression": false,
+    "dismiss_is_delete": false,
+    "pin_is_promotion": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}
