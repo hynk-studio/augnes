@@ -1,0 +1,326 @@
+{
+  "fixture_version": "final_rag_answer_review_memory_binding.sample.v0.1",
+  "runtime_version": "final_rag_answer_review_memory_binding.v0.1",
+  "request_version": "final_rag_answer_review_memory_binding_request.v0.1",
+  "result_version": "final_rag_answer_review_memory_binding_result.v0.1",
+  "route_version": "final_rag_answer_review_memory_binding_route.v0.1",
+  "scope": "project:augnes",
+  "v0_4_remaining_gap_audit_ref": "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_4.md",
+  "final_rag_answer_candidate_review_runtime_ref": "docs/FINAL_RAG_ANSWER_GENERATION_CANDIDATE_REVIEW_V0_1.md",
+  "review_memory_db_store_runtime_ref": "docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_DB_STORE_RUNTIME_COMPLETION_V0_1.md",
+  "review_memory_db_routes_runtime_ref": "docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_DB_ROUTES_RUNTIME_COMPLETION_V0_1.md",
+  "valid_binding_request": {
+    "request_version": "final_rag_answer_review_memory_binding_request.v0.1",
+    "runtime_version": "final_rag_answer_review_memory_binding.v0.1",
+    "scope": "project:augnes",
+    "binding_request_id": "final-rag-review-memory-binding:calibration-review",
+    "requested_by": "operator:final-rag-review-memory-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "review_memory_db_path": ".tmp/research-candidate-review-memory/final-rag-answer-review-memory-binding-smoke.sqlite",
+    "idempotency_key": "review-memory-binding:final-rag-answer:calibration-review",
+    "final_answer_candidate_result": {
+      "result_version": "final_rag_answer_generation_candidate_review_result.v0.1",
+      "runtime_version": "final_rag_answer_generation_candidate_review.v0.1",
+      "scope": "project:augnes",
+      "status": "final_answer_candidate_created",
+      "answer_request_id": "final-rag-answer-request:calibration-review",
+      "provider_mode": "mock_provider",
+      "provider_status": "mock_provider_completed",
+      "rag_context_preview_ref": "rag-context-preview:calibration-review",
+      "retrieved_refs": [
+        "retrieval-result:calibration-review-001",
+        "retrieval-result:calibration-review-002"
+      ],
+      "cited_source_refs": [
+        "source-ref:calibration-review-001",
+        "source-ref:calibration-review-002"
+      ],
+      "answer_candidate_ref": "final-rag-answer-candidate:calibration-review",
+      "bounded_answer": "Candidate answer for operator review based on bounded context. Treat this as candidate-only Review Memory material and not truth, proof, accepted evidence, promotion readiness, durable state, Formation Receipt, product-write, or product output.",
+      "bounded_citation_notes": [
+        {
+          "source_ref": "source-ref:calibration-review-001",
+          "context_refs": [
+            "context-ref:calibration-review-001"
+          ],
+          "bounded_note": "Lineage pointer for bounded context summary one."
+        },
+        {
+          "source_ref": "source-ref:calibration-review-002",
+          "context_refs": [
+            "context-ref:calibration-review-002"
+          ],
+          "bounded_note": "Lineage pointer for bounded context summary two."
+        }
+      ],
+      "omitted_context_reasons": [
+        {
+          "source_result_ref": "retrieval-result:calibration-review-003",
+          "context_ref": "context-ref:calibration-review-003",
+          "reason": "max_context_items_exceeded",
+          "bounded_title": "Omitted bounded context summary"
+        }
+      ],
+      "answer_review_state": "candidate_only",
+      "no_truth_claim": true,
+      "no_proof_claim": true,
+      "no_accepted_evidence_claim": true,
+      "no_promotion_claim": true,
+      "no_product_write_claim": true,
+      "provider_call_executed": true,
+      "prompt_sent": true,
+      "retrieval_executed": true,
+      "rag_answer_generated": true,
+      "final_answer_candidate_generated": true,
+      "db_write_executed": false,
+      "retrieval_index_write_executed": false,
+      "source_fetch_executed": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "review_memory_written": false,
+      "promotion_executed": false,
+      "durable_state_written": false,
+      "durable_state_applied": false,
+      "formation_receipt_written": false,
+      "product_write_executed": false,
+      "product_id_allocated": false,
+      "github_api_called": false,
+      "git_write_executed": false,
+      "release_executed": false,
+      "authority_boundary": {
+        "final_rag_answer_generation_candidate_review_now": true,
+        "explicit_operator_answer_generation_only": true,
+        "same_origin_post_route_now": true,
+        "db_backed_rag_context_preview_now": true,
+        "retrieval_execution_via_context_preview_now": true,
+        "bounded_prompt_descriptor_now": true,
+        "answer_provider_adapter_boundary_now": true,
+        "mock_answer_provider_now": true,
+        "configured_provider_missing_key_refusal_now": false,
+        "final_answer_candidate_generated_now": true,
+        "answer_review_state_candidate_only": true,
+        "citation_source_refs_visible": true,
+        "no_truth_language_required": true,
+        "no_proof_language_required": true,
+        "raw_prompt_non_persistent": true,
+        "raw_provider_output_non_persistent": true,
+        "provider_call_on_load_now": false,
+        "background_provider_call_now": false,
+        "hidden_provider_call_now": false,
+        "raw_prompt_stored_now": false,
+        "raw_provider_output_stored_now": false,
+        "raw_retrieval_output_stored_now": false,
+        "raw_source_body_stored_now": false,
+        "hidden_reasoning_stored_now": false,
+        "chain_of_thought_stored_now": false,
+        "provider_thread_run_session_id_canonicalized_now": false,
+        "source_fetch_now": false,
+        "automatic_crawling_now": false,
+        "retrieval_index_write_now": false,
+        "embedding_created_now": false,
+        "vector_search_now": false,
+        "final_answer_is_truth": false,
+        "final_answer_is_proof": false,
+        "final_answer_is_accepted_evidence": false,
+        "final_answer_is_promotion_readiness": false,
+        "final_answer_is_product": false,
+        "retrieval_result_is_evidence": false,
+        "retrieval_score_is_truth_score": false,
+        "retrieval_score_is_promotion_readiness": false,
+        "source_ref_is_proof": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "review_memory_write_now": false,
+        "promotion_execution_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "product_write_now": false,
+        "product_write_runtime_now": false,
+        "product_write_accepted_evidence_ref_write_now": false,
+        "product_write_adapter_enabled_now": false,
+        "product_id_allocation_now": false,
+        "broad_product_persistence_now": false,
+        "product_persistence_now": false,
+        "github_api_call_now": false,
+        "git_write_now": false,
+        "repository_file_write_now": false,
+        "release_execution_now": false,
+        "codex_execution_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "product_write_authority": false,
+        "smoke_pass_is_truth": false,
+        "ci_pass_is_truth": false
+      },
+      "reason_codes": [
+        "final_rag_answer_generation_candidate_review_v0_1",
+        "candidate_only_output_now",
+        "source_refs_are_lineage_not_proof"
+      ]
+    },
+    "operator_review_payload": {
+      "payload_version": "final_rag_answer_review_memory_binding_operator_review.v0.1",
+      "operator_actor_ref": "operator:final-rag-review-memory-smoke",
+      "review_decision": "keep_for_review",
+      "review_action": "save_review_note",
+      "reviewer_note_summary": "Keep this bounded final answer candidate as Review Memory for later operator review.",
+      "authority_boundary_acknowledged": true
+    },
+    "authority_boundary": {
+      "final_rag_answer_review_memory_binding_now": true,
+      "explicit_operator_review_memory_binding_only": true,
+      "same_origin_post_route_now": true,
+      "caller_injected_review_memory_db_only": true,
+      "db_query_or_write_now": true,
+      "review_memory_db_store_now": true,
+      "review_record_persistence_now": true,
+      "review_record_activity_persistence_now": true,
+      "final_answer_candidate_input_required": true,
+      "answer_review_state_candidate_only_required": true,
+      "bounded_review_memory_snapshot_now": true,
+      "source_refs_lineage_only": true,
+      "no_truth_language_required": true,
+      "no_proof_language_required": true,
+      "product_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "promotion_execution_now": false,
+      "durable_state_apply_now": false,
+      "review_memory_is_truth": false,
+      "review_memory_is_proof": false,
+      "review_memory_is_accepted_evidence": false,
+      "review_memory_is_durable_perspective_state": false,
+      "smoke_pass_is_truth": false,
+      "ci_pass_is_truth": false
+    },
+    "reason_codes": [
+      "final_rag_answer_candidate_review_memory_binding_v0_1",
+      "explicit_operator_review_memory_binding_only"
+    ]
+  },
+  "expected_success": {
+    "status": "created",
+    "idempotent_status": "idempotent_existing",
+    "conflict_status": "conflict_existing_record",
+    "record_kind": "candidate_review_snapshot",
+    "lifecycle_state": "active",
+    "review_memory_written": true,
+    "provider_call_executed": false,
+    "prompt_sent": false,
+    "retrieval_executed": false,
+    "rag_answer_generated": false,
+    "source_fetch_executed": false,
+    "retrieval_index_write_executed": false,
+    "proof_or_evidence_created": false,
+    "claim_or_evidence_written": false,
+    "promotion_executed": false,
+    "durable_state_written": false,
+    "durable_state_applied": false,
+    "formation_receipt_written": false,
+    "product_write_executed": false,
+    "accepted_evidence_ref_write_executed": false,
+    "product_id_allocated": false,
+    "github_api_called": false,
+    "git_write_executed": false,
+    "release_executed": false
+  },
+  "rejection_cases": {
+    "missing_answer_candidate_ref_status": "blocked_invalid_input",
+    "no_truth_claim_false_status": "blocked_invalid_input",
+    "proof_or_evidence_created_true_status": "blocked_invalid_input",
+    "product_write_executed_true_status": "blocked_invalid_input",
+    "empty_cited_source_refs_status": "blocked_invalid_input",
+    "unsafe_cited_source_ref_status": "blocked_private_or_raw_payload",
+    "citation_note_source_not_cited_status": "blocked_invalid_input"
+  },
+  "forbidden_authority_cases": [
+    {
+      "field": "product_write_now",
+      "value_kind": "string_true",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "proof_or_evidence_record_now",
+      "value_kind": "numeric_one",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "promotion_execution_now",
+      "value_kind": "object_enabled",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "durable_state_apply_now",
+      "value_kind": "array_enabled",
+      "expected_status": "blocked_forbidden_authority"
+    }
+  ],
+  "private_raw_key_blocked_cases": [
+    {
+      "blocked_key": "raw_provider_output",
+      "bounded_looking_value": "bounded-looking placeholder",
+      "expected_status": "blocked_private_or_raw_payload"
+    },
+    {
+      "blocked_key": "raw_candidate_payload",
+      "bounded_looking_value": "bounded-looking placeholder",
+      "expected_status": "blocked_private_or_raw_payload"
+    },
+    {
+      "blocked_key": "hidden_reasoning",
+      "bounded_looking_value": "bounded-looking placeholder",
+      "expected_status": "blocked_private_or_raw_payload"
+    }
+  ],
+  "invalid_db_path_case": {
+    "db_path": "../review-memory-binding.sqlite",
+    "expected_status": "invalid_db_path"
+  },
+  "audit_cases": {
+    "expected_event_surface": "final_rag_answer_review_memory_binding_runtime",
+    "missing_audit_db_path_status": "audit_not_requested",
+    "invalid_audit_db_path_status": "audit_skipped_invalid_db_path"
+  },
+  "no_create_db_cases": [
+    "invalid payload does not create DB",
+    "forbidden payload does not create DB",
+    "private/raw payload does not create DB",
+    "missing prerequisite payload does not create DB"
+  ],
+  "boundary_acknowledgements": [
+    "final_answer_candidate_not_truth",
+    "final_answer_candidate_not_proof",
+    "final_answer_candidate_not_accepted_evidence",
+    "final_answer_candidate_not_promotion",
+    "final_answer_candidate_not_product",
+    "review_memory_not_truth",
+    "review_memory_not_proof",
+    "review_memory_not_accepted_evidence",
+    "review_memory_not_durable_state",
+    "source_refs_are_lineage_not_proof",
+    "product_write_not_executed"
+  ],
+  "public_safe_fixture_policy": {
+    "symbolic_refs_only": true,
+    "raw_prompt_allowed": false,
+    "raw_provider_output_allowed": false,
+    "raw_retrieval_output_allowed": false,
+    "raw_source_body_allowed": false,
+    "raw_candidate_payload_allowed": false,
+    "raw_db_rows_allowed": false,
+    "raw_conversations_allowed": false,
+    "hidden_reasoning_allowed": false,
+    "chain_of_thought_allowed": false,
+    "telemetry_dumps_allowed": false,
+    "raw_diffs_allowed": false,
+    "terminal_logs_allowed": false,
+    "github_payloads_allowed": false,
+    "browser_dumps_allowed": false,
+    "private_paths_allowed": false,
+    "private_urls_allowed": false,
+    "secrets_allowed": false,
+    "provider_keys_allowed": false,
+    "provider_internal_ids_allowed": false,
+    "real_product_ids_allowed": false
+  }
+}

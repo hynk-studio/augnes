@@ -3873,6 +3873,30 @@ repo-local 색인이다.
   (`npm run smoke:final-rag-answer-generation-candidate-review-v0-1`) implements `final_rag_answer_generation_candidate_review_v0_1` as the explicitly approved final RAG answer candidate/review layer. It uses existing DB-backed RAG context preview results, builds a bounded prompt descriptor, invokes only a bounded answer-provider adapter under explicit operator action, supports deterministic mock-provider smoke behavior, and returns a candidate-only final answer artifact for operator review. This pointer is repo-local documentation metadata, not SSOT. The slice does not create proof/evidence records, claim/evidence writes, Review Memory, durable Perspective state, Formation Receipts, accepted evidence refs, product-write, product IDs, retrieval index writes, source fetches, crawling, Git/GitHub actuation, release work, or automatic answer-to-product conversion. RAG context remains a review aid; retrieval result is not evidence; retrieval score is not truth or promotion readiness; provider output is candidate-only; Smoke/CI pass is not truth.
 
   Boundary phrases: Final RAG Answer Generation Candidate Review v0.1; `final_rag_answer_generation_candidate_review_v0_1`; explicitly approved final RAG answer candidate/review slice; same-origin POST route only; no GET provider execution route; bounded prompt descriptor; raw prompt non-persistent; raw provider output non-persistent; no chain-of-thought storage; deterministic mock provider; configured provider missing-key refusal; answer review state candidate-only; final answer candidate is not truth; final answer candidate is not proof; final answer candidate is not accepted evidence; final answer candidate is not promotion readiness; final answer candidate is not product; retrieval result is not evidence; retrieval score is not truth score; retrieval score is not promotion readiness; source refs are lineage pointers, not proof; product-write remains limited to the already merged accepted evidence ref runtime from #842; no product-write, accepted evidence ref write, product ID allocation, broad product persistence, proof/evidence record creation, claim/evidence write, Review Memory write, durable Perspective state write/apply, Formation Receipt write, retrieval index write, source fetch, crawling, background provider call, provider call on load, hidden provider call, Git/GitHub execution, release execution, or automatic product generation.
+- Final RAG Answer Review Memory Binding v0.1:
+  `docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_BINDING_V0_1.md`,
+  `types/final-rag-answer-review-memory-binding.ts`,
+  `lib/research-retrieval/final-rag-answer-review-memory-binding.ts`,
+  `app/api/research-retrieval/final-rag-answer/review-memory/route.ts`,
+  `fixtures/final-rag-answer-review-memory-binding.sample.v0.1.json`,
+  and `scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs`
+  (`npm run smoke:final-rag-answer-review-memory-binding-v0-1`) implements
+  `final_rag_answer_candidate_review_memory_binding_v0_1` as the explicitly
+  approved final RAG answer candidate to Review Memory binding slice only. It
+  binds already generated bounded final answer candidates into bounded Review
+  Memory DB records for operator review by using the existing Review Memory DB
+  store helper. This pointer is repo-local documentation metadata, not SSOT.
+  This slice does not generate final answers, call providers, send prompts,
+  execute retrieval, fetch sources, write retrieval indexes, create
+  proof/evidence, write claim/evidence records outside Review Memory, promote
+  Perspective, write/apply durable Perspective state, write Formation
+  Receipts, product-write, write accepted evidence refs, allocate product IDs,
+  enable a product-write adapter, execute Git/GitHub/release work, or perform
+  automatic answer-to-product conversion. Review Memory is not truth, proof,
+  accepted evidence, durable Perspective state, promotion, Formation Receipt,
+  product-write, or product authority. Final answer candidate remains
+  candidate-only. Source refs are lineage pointers, not proof. Smoke/CI pass
+  is not truth.
 - Perspective Promotion Runtime Contract v0.1:
   `docs/PERSPECTIVE_PROMOTION_RUNTIME_V0_1.md`,
   `types/perspective-promotion-runtime-contract.ts`,
