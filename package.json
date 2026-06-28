@@ -585,6 +585,7 @@
     "smoke:v0-2-1-remaining-runtime-gap-audit-v0-1": "node scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-1.mjs",
     "smoke:v0-2-1-remaining-runtime-gap-audit-v0-2": "node scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-2.mjs",
     "smoke:v0-2-1-remaining-runtime-gap-audit-v0-3": "node scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-3.mjs",
+    "smoke:v0-2-1-remaining-runtime-gap-audit-v0-4": "node scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-4.mjs",
     "smoke:disabled-product-write-adapter-reentry-harness-v0-1": "node scripts/smoke-disabled-product-write-adapter-reentry-harness-v0-1.mjs",
     "smoke:release-candidate-operator-review-v0-1": "node scripts/smoke-release-candidate-operator-review-v0-1.mjs",
     "smoke:release-notes-public-safe-summary-v0-1": "node scripts/smoke-release-notes-public-safe-summary-v0-1.mjs",

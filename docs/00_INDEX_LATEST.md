@@ -4424,6 +4424,32 @@ repo-local 색인이다.
   slice because the remaining visible work is approval-gated, explicitly
   future/deferred, or contract/fixture/offline-only. Product-write remains
   parked by #686. Smoke/CI pass is not truth. The roadmap guide is not SSOT.
+- v0.2.1 Remaining Runtime Gap Audit v0.4:
+  `docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_4.md`,
+  `fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.4.json`, and
+  `scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-4.mjs`
+  (`npm run smoke:v0-2-1-remaining-runtime-gap-audit-v0-4`) implements
+  `v0_2_1_remaining_runtime_gap_audit_v0_4` as a static postmerge grounding
+  audit after merged PR #844 and
+  `final_rag_answer_generation_candidate_review_v0_1`. It confirms #844 as
+  final RAG answer candidate/review runtime only: same-origin POST route,
+  bounded final-answer builder, final-answer provider boundary, deterministic
+  mock-provider path, configured-provider missing-key refusal, optional bounded
+  audit emission, context-backed provider citation enforcement, unbacked
+  provider citation rejection, private/raw key and value blocking, and the
+  `final_rag_answer_candidate_review_runtime` audit surface. This does not
+  implement new runtime beyond audit/grounding docs, fixture, and smoke, and
+  it does not grant proof/evidence, promotion, durable state, Formation
+  Receipt, product-write, accepted evidence ref write, product ID, GitHub
+  actuation, release, live provider, source-fetching, or retrieval-index write
+  authority. Final answer candidates are not truth, proof, accepted evidence,
+  promotion, or product. Provider output remains candidate-only. Retrieval
+  result remains non-authoritative. Retrieval score is not truth or promotion
+  readiness. Context preview remains a review aid. Product-write remains
+  limited to the already merged accepted evidence ref first target only. It
+  names `none_without_explicit_approval` as the next recommended
+  implementation slice. Smoke/CI pass is not truth. The roadmap guide is not
+  SSOT.
 - v0.2.1 Remaining Runtime Gap Audit v0.3:
   `docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_3.md`,
   `fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.3.json`, and
