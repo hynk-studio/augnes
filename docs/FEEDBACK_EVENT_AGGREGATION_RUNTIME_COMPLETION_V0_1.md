@@ -136,6 +136,8 @@ Completion requests use `route_version: feedback_event_aggregation_runtime_compl
 
 The route is same-origin only. It reads a caller-injected DB path only when provided and safe. It does not create schema on aggregation reads. Missing DB and missing schema return bounded errors.
 
+Runtime completion input validation runs before filesystem and schema checks. Private/raw payloads, forbidden authority claims, and invalid input are returned as bounded blocked statuses before `db_missing` or `schema_missing` can be reported.
+
 ## DB Path Policy
 
 Allowed DB paths are relative paths under:
@@ -212,6 +214,8 @@ Forbidden false fields:
 - `ci_pass_is_truth`
 
 Forbidden authority fields fail closed for non-false values.
+
+Forbidden authority scanning is recursive across the full request and each feedback event object, not only `authority_boundary`. Authority-like future fields such as product-write, rule mutation, candidate deletion, surfacing mutation, proof/evidence, promotion, Git/GitHub, Codex, and product ID allocation fail closed unless they are absent, `false`, `null`, or `undefined`.
 
 ## Explicit Non-Goals
 

@@ -140,13 +140,23 @@ function handleRuntimeCompletionBody(body: {
     return jsonResponse(completionErrorResponse("invalid_db_path"), 400);
   }
 
+  const preflightResult = aggregateFeedbackEventsRuntimeCompletionV01(input);
+  if (isCompletionBlockingInputResult(preflightResult)) {
+    return jsonResponse(
+      completionAggregationResponse(preflightResult),
+      completionResultHttpStatus(preflightResult),
+    );
+  }
+
   if (!input.db_path) {
-    const result = aggregateFeedbackEventsRuntimeCompletionV01(input);
-    return jsonResponse(completionAggregationResponse(result), completionResultHttpStatus(result));
+    return jsonResponse(
+      completionAggregationResponse(preflightResult),
+      completionResultHttpStatus(preflightResult),
+    );
   }
 
   if (!existsSync(input.db_path)) {
-    const result = aggregateFeedbackEventsRuntimeCompletionV01(input);
+    const result = preflightResult;
     result.status = "db_missing";
     result.reason_codes = ["db_missing", ...result.reason_codes];
     return jsonResponse(completionAggregationResponse(result), 404);
@@ -156,7 +166,7 @@ function handleRuntimeCompletionBody(body: {
   try {
     db = new SqliteDatabase(input.db_path, { readonly: true, fileMustExist: true });
   } catch {
-    const result = aggregateFeedbackEventsRuntimeCompletionV01(input);
+    const result = preflightResult;
     result.status = "db_missing";
     result.reason_codes = ["db_missing", ...result.reason_codes];
     return jsonResponse(completionAggregationResponse(result), 404);
@@ -179,6 +189,17 @@ function handleRuntimeCompletionBody(body: {
   } finally {
     db.close();
   }
+}
+
+function isCompletionBlockingInputResult(
+  result: FeedbackEventAggregationRuntimeCompletionResultV01,
+): boolean {
+  return (
+    result.status === "blocked_private_or_raw_payload" ||
+    result.status === "blocked_forbidden_authority" ||
+    result.status === "blocked_invalid_input" ||
+    result.status === "rejected"
+  );
 }
 
 function aggregationResponse(result: FeedbackEventAggregationResult) {

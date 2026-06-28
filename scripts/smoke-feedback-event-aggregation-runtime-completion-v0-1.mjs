@@ -279,6 +279,22 @@ async function assertRuntimeBehavior() {
   assert.equal(blockedAuthority.status, "blocked_forbidden_authority");
   assertNoUnsafeEcho(blockedAuthority, "blocked authority result");
 
+  const blockedAuthorityOutsideEvent = helper.aggregateFeedbackEventsRuntimeCompletionV01({
+    ...baseCompletionInput(),
+    aggregation_request_id: "feedback-aggregation-request:blocked-authority-outside-event",
+    feedback_events: [fixture.blocked_forbidden_authority_outside_boundary_example],
+  });
+  assert.equal(blockedAuthorityOutsideEvent.status, "blocked_forbidden_authority");
+  assertNoUnsafeEcho(blockedAuthorityOutsideEvent, "blocked outside-event authority result");
+
+  const blockedAuthorityOutsideInput =
+    helper.aggregateFeedbackEventsRuntimeCompletionV01({
+      ...fixture.blocked_forbidden_authority_input_outside_boundary_example,
+      feedback_events: runtimeEvents(),
+    });
+  assert.equal(blockedAuthorityOutsideInput.status, "blocked_forbidden_authority");
+  assertNoUnsafeEcho(blockedAuthorityOutsideInput, "blocked outside-input authority result");
+
   const invalid = helper.aggregateFeedbackEventsRuntimeCompletionV01({
     ...baseCompletionInput(),
     aggregation_request_id: "feedback-aggregation-request:invalid-event",
@@ -352,6 +368,79 @@ async function assertRouteBehavior() {
   assert.equal(invalidDbPath.body.error_code, "invalid_db_path");
   assertNoUnsafeEcho(invalidDbPath.body, "invalid DB path response");
 
+  const missingDbForbiddenAuthority = await postRoute({
+    route_version: routeVersion,
+    scope,
+    action: "aggregate_feedback_events",
+    db_path: missingDbPath,
+    input: {
+      ...baseCompletionInput(),
+      aggregation_request_id: "feedback-aggregation-request:missing-db-forbidden-authority",
+      db_path: missingDbPath,
+      feedback_events: [fixture.blocked_forbidden_authority_example],
+    },
+  });
+  assert.equal(missingDbForbiddenAuthority.statusCode, 403);
+  assert.equal(missingDbForbiddenAuthority.body.error_code, "blocked_forbidden_authority");
+  assert.equal(missingDbForbiddenAuthority.body.result.status, "blocked_forbidden_authority");
+  assert.equal(existsSync(missingDbPath), false, "blocked missing-DB request does not create DB");
+  assertNoUnsafeEcho(missingDbForbiddenAuthority.body, "missing DB forbidden response");
+
+  const missingDbForbiddenAuthorityOutsideEvent = await postRoute({
+    route_version: routeVersion,
+    scope,
+    action: "aggregate_feedback_events",
+    db_path: missingDbPath,
+    input: {
+      ...baseCompletionInput(),
+      aggregation_request_id: "feedback-aggregation-request:missing-db-forbidden-authority-outside-event",
+      db_path: missingDbPath,
+      feedback_events: [fixture.blocked_forbidden_authority_outside_boundary_example],
+    },
+  });
+  assert.equal(missingDbForbiddenAuthorityOutsideEvent.statusCode, 403);
+  assert.equal(
+    missingDbForbiddenAuthorityOutsideEvent.body.error_code,
+    "blocked_forbidden_authority",
+  );
+  assert.equal(existsSync(missingDbPath), false, "outside-event blocked request does not create DB");
+
+  const missingDbForbiddenAuthorityOutsideInput = await postRoute({
+    route_version: routeVersion,
+    scope,
+    action: "aggregate_feedback_events",
+    db_path: missingDbPath,
+    input: {
+      ...fixture.blocked_forbidden_authority_input_outside_boundary_example,
+      db_path: missingDbPath,
+      feedback_events: runtimeEvents(),
+    },
+  });
+  assert.equal(missingDbForbiddenAuthorityOutsideInput.statusCode, 403);
+  assert.equal(
+    missingDbForbiddenAuthorityOutsideInput.body.error_code,
+    "blocked_forbidden_authority",
+  );
+  assert.equal(existsSync(missingDbPath), false, "outside-input blocked request does not create DB");
+
+  const missingDbPrivateRaw = await postRoute({
+    route_version: routeVersion,
+    scope,
+    action: "aggregate_feedback_events",
+    db_path: missingDbPath,
+    input: {
+      ...baseCompletionInput(),
+      aggregation_request_id: "feedback-aggregation-request:missing-db-private-raw",
+      db_path: missingDbPath,
+      feedback_events: [fixture.blocked_private_or_raw_payload_example],
+    },
+  });
+  assert.equal(missingDbPrivateRaw.statusCode, 400);
+  assert.equal(missingDbPrivateRaw.body.error_code, "blocked_private_or_raw_payload");
+  assert.equal(missingDbPrivateRaw.body.result.status, "blocked_private_or_raw_payload");
+  assert.equal(existsSync(missingDbPath), false, "blocked private/raw request does not create DB");
+  assertNoUnsafeEcho(missingDbPrivateRaw.body, "missing DB private/raw response");
+
   const missingDb = await postRoute({
     route_version: routeVersion,
     scope,
@@ -368,6 +457,52 @@ async function assertRouteBehavior() {
 
   const schemaDb = new Database(schemaMissingPath);
   schemaDb.close();
+
+  const schemaMissingForbiddenAuthority = await postRoute({
+    route_version: routeVersion,
+    scope,
+    action: "aggregate_feedback_events",
+    db_path: schemaMissingPath,
+    input: {
+      ...baseCompletionInput(),
+      aggregation_request_id: "feedback-aggregation-request:schema-missing-forbidden-authority",
+      db_path: schemaMissingPath,
+      feedback_events: [fixture.blocked_forbidden_authority_example],
+    },
+  });
+  assert.equal(schemaMissingForbiddenAuthority.statusCode, 403);
+  assert.equal(schemaMissingForbiddenAuthority.body.error_code, "blocked_forbidden_authority");
+  assertNoUnsafeEcho(schemaMissingForbiddenAuthority.body, "schema missing forbidden response");
+  const schemaCheckAfterForbidden = new Database(schemaMissingPath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    assert.equal(
+      helper.feedbackEventAggregationRuntimeCompletionSchemaExistsV01(schemaCheckAfterForbidden),
+      false,
+      "blocked schema-missing forbidden request does not create schema",
+    );
+  } finally {
+    schemaCheckAfterForbidden.close();
+  }
+
+  const schemaMissingPrivateRaw = await postRoute({
+    route_version: routeVersion,
+    scope,
+    action: "aggregate_feedback_events",
+    db_path: schemaMissingPath,
+    input: {
+      ...baseCompletionInput(),
+      aggregation_request_id: "feedback-aggregation-request:schema-missing-private-raw",
+      db_path: schemaMissingPath,
+      feedback_events: [fixture.blocked_private_or_raw_payload_example],
+    },
+  });
+  assert.equal(schemaMissingPrivateRaw.statusCode, 400);
+  assert.equal(schemaMissingPrivateRaw.body.error_code, "blocked_private_or_raw_payload");
+  assertNoUnsafeEcho(schemaMissingPrivateRaw.body, "schema missing private/raw response");
+
   const schemaMissing = await postRoute({
     route_version: routeVersion,
     scope,

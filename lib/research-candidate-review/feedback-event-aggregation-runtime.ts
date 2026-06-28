@@ -1841,6 +1841,7 @@ export function validateFeedbackEventAggregationRuntimeCompletionInputV01(
   validateRuntimeCompletionPublicStringV01(value.requested_at, "requested_at", failureCodes);
   validateRuntimeCompletionReasonCodesV01(value.reason_codes, "reason_codes", failureCodes);
   collectRuntimeCompletionUnsafeFailuresV01(value, "input", failureCodes);
+  collectRuntimeCompletionAuthorityFailuresDeepV01(value, "input", failureCodes);
   collectRuntimeCompletionAuthorityFailuresV01(value.authority_boundary, "authority_boundary", failureCodes);
   if (value.db_path !== undefined && !isSafeFeedbackEventAggregationRuntimeDbPathV01(value.db_path)) {
     failureCodes.push("db_path_invalid");
@@ -1898,6 +1899,7 @@ export function validateFeedbackEventAggregationRuntimeCompletionEventV01(
   }
   validateRuntimeCompletionReasonCodesV01(value.reason_codes, "reason_codes", failureCodes);
   collectRuntimeCompletionUnsafeFailuresV01(value, "feedback_event", failureCodes);
+  collectRuntimeCompletionAuthorityFailuresDeepV01(value, "feedback_event", failureCodes);
   collectRuntimeCompletionAuthorityFailuresV01(value.authority_boundary, "authority_boundary", failureCodes);
   return { passed: failureCodes.length === 0, failure_codes: failureCodes };
 }
@@ -2339,6 +2341,52 @@ function collectRuntimeCompletionAuthorityFailuresV01(
         failureCodes,
       );
     }
+  }
+}
+
+function collectRuntimeCompletionAuthorityFailuresDeepV01(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+): void {
+  collectRuntimeCompletionAuthorityFailuresDeepInnerV01(
+    value,
+    label,
+    failureCodes,
+    new WeakSet<object>(),
+  );
+}
+
+function collectRuntimeCompletionAuthorityFailuresDeepInnerV01(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+  seen: WeakSet<object>,
+): void {
+  if (!value || typeof value !== "object") return;
+  if (seen.has(value)) return;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      collectRuntimeCompletionAuthorityFailuresDeepInnerV01(
+        item,
+        `${label}.${index}`,
+        failureCodes,
+        seen,
+      ),
+    );
+    return;
+  }
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (hasRuntimeCompletionForbiddenAuthorityGrantV01(key, nestedValue)) {
+      failureCodes.push(`${label}.${key}_forbidden_authority`);
+    }
+    collectRuntimeCompletionAuthorityFailuresDeepInnerV01(
+      nestedValue,
+      `${label}.${key}`,
+      failureCodes,
+      seen,
+    );
   }
 }
 

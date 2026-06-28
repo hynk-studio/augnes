@@ -185,6 +185,45 @@
     },
     "reason_codes": ["blocked_fixture"]
   },
+  "blocked_forbidden_authority_outside_boundary_example": {
+    "feedback_event_id": "feedback-event:blocked:authority-outside-boundary",
+    "scope": "project:augnes",
+    "target_ref": "candidate:feedback-runtime:blocked-authority-outside",
+    "target_kind": "research_candidate_review_object",
+    "target_layer": "candidate",
+    "feedback_kind": "pin",
+    "feedback_summary": "Operator feedback with forbidden authority-like fields outside authority boundary is blocked.",
+    "candidate_ref": "candidate:feedback-runtime:blocked-authority-outside",
+    "created_by": "operator:feedback-runtime",
+    "created_at": "2026-06-28T01:31:30.000Z",
+    "product_write_now": true,
+    "rule_mutation_now": "enabled",
+    "candidate_delete_now": 1,
+    "nested": {
+      "surfacing_mutation_now": {
+        "enabled": true
+      }
+    },
+    "reason_codes": ["blocked_fixture"]
+  },
+  "blocked_forbidden_authority_input_outside_boundary_example": {
+    "request_version": "feedback_event_aggregation_runtime_completion_request.v0.1",
+    "aggregation_version": "feedback_event_aggregation_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "aggregation_request_id": "feedback-aggregation-request:blocked-authority-outside-input",
+    "requested_by": "operator:feedback-runtime",
+    "requested_at": "2026-06-28T01:31:45.000Z",
+    "feedback_events": [],
+    "product_write_now": true,
+    "rule_mutation_now": "enabled",
+    "candidate_delete_now": 1,
+    "nested": {
+      "surfacing_mutation_now": {
+        "enabled": true
+      }
+    },
+    "reason_codes": ["blocked_fixture"]
+  },
   "invalid_feedback_event_example": {
     "feedback_event_id": "feedback-event:invalid:missing-target",
     "scope": "project:augnes",
