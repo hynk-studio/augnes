@@ -633,6 +633,7 @@
     "smoke:foundation-lifecycle-review-memory-db-readonly-ui-completion-v0-1": "node scripts/smoke-foundation-lifecycle-review-memory-db-readonly-ui-completion-v0-1.mjs",
     "smoke:bounded-source-intake-runtime-contract-v0-1": "node scripts/smoke-bounded-source-intake-runtime-contract-v0-1.mjs",
     "smoke:bounded-source-intake-runtime-v0-1": "node scripts/smoke-bounded-source-intake-runtime-v0-1.mjs",
+    "smoke:bounded-source-intake-runtime-completion-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-bounded-source-intake-runtime-completion-v0-1.mjs",
     "smoke:provider-assisted-extraction-candidate-only-contract-v0-1": "node scripts/smoke-provider-assisted-extraction-candidate-only-contract-v0-1.mjs",
     "smoke:provider-assisted-extraction-runtime-v0-1": "node scripts/smoke-provider-assisted-extraction-runtime-v0-1.mjs",
     "smoke:research-retrieval-runtime-contract-v0-1": "node scripts/smoke-research-retrieval-runtime-contract-v0-1.mjs",
