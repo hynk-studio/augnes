@@ -795,7 +795,8 @@ function assertNoForbiddenFilesAdded() {
     assert.ok(
       !filePath.startsWith("components/") ||
         isRagContextPreviewRuntimeCompletionFile(filePath) ||
-        isConstellationRuntimeUiCompletionFile(filePath),
+        isConstellationRuntimeUiCompletionFile(filePath) ||
+        isFeedbackControlsExpansionRuntimeCompletionFile(filePath),
       `${filePath} must not add UI outside an approved runtime UI completion display`,
     );
     assert.ok(!filePath.startsWith("lib/db/"), `${filePath} must not add DB schema`);
@@ -830,6 +831,20 @@ function isConstellationRuntimeUiCompletionFile(filePath) {
     "docs/PROJECT_CONSTELLATION_RUNTIME_UI_COMPLETION_V0_1.md",
     "fixtures/project-constellation-runtime-ui-completion.sample.v0.1.json",
     "scripts/smoke-project-constellation-runtime-ui-completion-v0-1.mjs",
+  ].includes(filePath);
+}
+
+function isFeedbackControlsExpansionRuntimeCompletionFile(filePath) {
+  return [
+    "components/feedback-event-expanded-controls.tsx",
+    "app/api/research-candidate/feedback-events/route.ts",
+    "lib/research-candidate-review/feedback-event-write-runtime.ts",
+    "docs/FEEDBACK_CONTROLS_EXPANSION_RUNTIME_COMPLETION_V0_1.md",
+    "fixtures/feedback-controls-expansion-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-feedback-controls-expansion-runtime-completion-v0-1.mjs",
+    "scripts/smoke-feedback-controls-expanded-v0-1.mjs",
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
   ].includes(filePath);
 }
 

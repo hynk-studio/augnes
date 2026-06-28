@@ -1,4 +1,20 @@
+import { existsSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+
+import SqliteDatabase from "better-sqlite3";
+import { NextResponse } from "next/server";
+
 import { openDatabase } from "@/lib/db";
+import {
+  FEEDBACK_EVENT_WRITE_RUNTIME_ROUTE_VERSION,
+  createFeedbackEventWriteRuntimeAuthorityBoundaryV01,
+  createFeedbackEventWriteRuntimeBlockedResultV01,
+  isSafeFeedbackEventWriteRuntimeDbPathV01,
+  validateFeedbackEventWriteRuntimeInputV01,
+  writeFeedbackEventRuntimeV01,
+  type FeedbackEventWriteRuntimeInputV01,
+  type FeedbackEventWriteRuntimeResultV01,
+} from "@/lib/research-candidate-review/feedback-event-write-runtime";
 import {
   buildFeedbackEventStoreEvent,
   getFeedbackEventStoreAuthorityBoundary,
@@ -23,7 +39,6 @@ import type {
   FeedbackEventStoreListRouteRefusal,
   FeedbackEventStoreListRouteRefusalCode,
 } from "@/types/feedback-event-store-list-route-contract";
-import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -408,6 +423,17 @@ export async function POST(request: Request) {
     return NextResponse.json(refusalResponse("invalid_json_body"), { status: 400 });
   }
 
+  if (isFeedbackControlsRuntimeCompletionBody(body)) {
+    if (!requestHasSameOriginBoundary(request)) {
+      return NextResponse.json(
+        feedbackControlsRuntimeCompletionErrorResponse("same_origin_required"),
+        { status: 403 },
+      );
+    }
+    const response = handleFeedbackControlsRuntimeCompletionBody(body);
+    return NextResponse.json(response, { status: feedbackControlsRuntimeHttpStatus(response) });
+  }
+
   const response = handleFeedbackEventWriteRouteRequest({
     body,
     db: () => openDatabase() as unknown as FeedbackEventWriteRouteDb,
@@ -421,6 +447,200 @@ export async function GET(request: Request) {
     db: () => openDatabase() as unknown as FeedbackEventWriteRouteDb,
   });
   return NextResponse.json(response, { status: response.accepted ? 200 : 400 });
+}
+
+type FeedbackControlsRuntimeCompletionRouteErrorCode =
+  | "same_origin_required"
+  | "invalid_json_body"
+  | "invalid_json_object"
+  | "invalid_route_request"
+  | "invalid_db_path"
+  | FeedbackEventWriteRuntimeResultV01["status"];
+
+interface FeedbackControlsRuntimeCompletionRouteResponse {
+  route_version: typeof FEEDBACK_EVENT_WRITE_RUNTIME_ROUTE_VERSION;
+  scope: "project:augnes";
+  status: "ok" | "error";
+  error_code: FeedbackControlsRuntimeCompletionRouteErrorCode | null;
+  result: FeedbackEventWriteRuntimeResultV01 | null;
+  feedback_event_persisted: boolean;
+  aggregation_executed: false;
+  rule_mutation_executed: false;
+  parser_mutation_executed: false;
+  prompt_mutation_executed: false;
+  ranking_mutation_executed: false;
+  surfacing_mutation_executed: false;
+  source_suppression_executed: false;
+  candidate_deleted: false;
+  proof_or_evidence_created: false;
+  claim_or_evidence_written: false;
+  product_write_executed: false;
+  authority_boundary: ReturnType<typeof createFeedbackEventWriteRuntimeAuthorityBoundaryV01>;
+}
+
+function isFeedbackControlsRuntimeCompletionBody(
+  body: unknown,
+): body is {
+  route_version?: unknown;
+  scope?: unknown;
+  action?: unknown;
+  db_path?: unknown;
+  input?: unknown;
+} {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
+  const value = body as Record<string, unknown>;
+  return (
+    value.route_version === FEEDBACK_EVENT_WRITE_RUNTIME_ROUTE_VERSION ||
+    value.action === "create_feedback_event" ||
+    (value.input !== undefined &&
+      typeof value.input === "object" &&
+      value.input !== null &&
+      !Array.isArray(value.input) &&
+      "event_version" in value.input)
+  );
+}
+
+function handleFeedbackControlsRuntimeCompletionBody(body: {
+  route_version?: unknown;
+  scope?: unknown;
+  action?: unknown;
+  db_path?: unknown;
+  input?: unknown;
+}): FeedbackControlsRuntimeCompletionRouteResponse {
+  if (
+    body.route_version !== FEEDBACK_EVENT_WRITE_RUNTIME_ROUTE_VERSION ||
+    body.scope !== "project:augnes" ||
+    body.action !== "create_feedback_event" ||
+    !body.input ||
+    typeof body.input !== "object" ||
+    Array.isArray(body.input)
+  ) {
+    return feedbackControlsRuntimeCompletionErrorResponse("invalid_route_request");
+  }
+
+  if (!isSafeFeedbackEventWriteRuntimeDbPathV01(body.db_path)) {
+    return feedbackControlsRuntimeCompletionErrorResponse("invalid_db_path");
+  }
+
+  const input = body.input as FeedbackEventWriteRuntimeInputV01;
+  const validation = validateFeedbackEventWriteRuntimeInputV01(input);
+  if (!validation.passed) {
+    return feedbackControlsRuntimeCompletionResponse(
+      createFeedbackEventWriteRuntimeBlockedResultV01(input, validation.failure_codes),
+    );
+  }
+
+  const dbPath = body.db_path as string;
+  const dbDirectory = dirname(dbPath);
+  if (!existsSync(dbDirectory)) {
+    mkdirSync(dbDirectory, { recursive: true });
+  }
+
+  let db: SqliteDatabase.Database | null = null;
+  try {
+    db = new SqliteDatabase(dbPath);
+    const result = writeFeedbackEventRuntimeV01(
+      input,
+      db as unknown as Parameters<typeof writeFeedbackEventRuntimeV01>[1],
+    );
+    return feedbackControlsRuntimeCompletionResponse(result);
+  } catch {
+    return feedbackControlsRuntimeCompletionErrorResponse("rejected");
+  } finally {
+    db?.close();
+  }
+}
+
+function requestHasSameOriginBoundary(request: Request): boolean {
+  const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase() ?? null;
+  if (fetchSite && !["same-origin", "same-site", "none"].includes(fetchSite)) return false;
+
+  const origin = request.headers.get("origin");
+  const host =
+    request.headers.get("x-forwarded-host") ??
+    request.headers.get("host") ??
+    new URL(request.url).host;
+  if (!host) return false;
+  if (!origin) return fetchSite ? true : isLocalTestHost(host);
+
+  try {
+    return new URL(origin).host.toLowerCase() === host.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+function isLocalTestHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase();
+  return (
+    /^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(normalized) ||
+    /^\[::1\](:\d+)?$/.test(normalized)
+  );
+}
+
+function feedbackControlsRuntimeCompletionResponse(
+  result: FeedbackEventWriteRuntimeResultV01,
+): FeedbackControlsRuntimeCompletionRouteResponse {
+  const ok =
+    result.status === "feedback_event_created" || result.status === "idempotent_existing";
+  return {
+    route_version: FEEDBACK_EVENT_WRITE_RUNTIME_ROUTE_VERSION,
+    scope: "project:augnes",
+    status: ok ? "ok" : "error",
+    error_code: ok ? null : result.status,
+    result,
+    feedback_event_persisted: result.feedback_event_persisted,
+    aggregation_executed: false,
+    rule_mutation_executed: false,
+    parser_mutation_executed: false,
+    prompt_mutation_executed: false,
+    ranking_mutation_executed: false,
+    surfacing_mutation_executed: false,
+    source_suppression_executed: false,
+    candidate_deleted: false,
+    proof_or_evidence_created: false,
+    claim_or_evidence_written: false,
+    product_write_executed: false,
+    authority_boundary: result.authority_boundary,
+  };
+}
+
+function feedbackControlsRuntimeCompletionErrorResponse(
+  errorCode: FeedbackControlsRuntimeCompletionRouteErrorCode,
+): FeedbackControlsRuntimeCompletionRouteResponse {
+  return {
+    route_version: FEEDBACK_EVENT_WRITE_RUNTIME_ROUTE_VERSION,
+    scope: "project:augnes",
+    status: "error",
+    error_code: errorCode,
+    result: null,
+    feedback_event_persisted: false,
+    aggregation_executed: false,
+    rule_mutation_executed: false,
+    parser_mutation_executed: false,
+    prompt_mutation_executed: false,
+    ranking_mutation_executed: false,
+    surfacing_mutation_executed: false,
+    source_suppression_executed: false,
+    candidate_deleted: false,
+    proof_or_evidence_created: false,
+    claim_or_evidence_written: false,
+    product_write_executed: false,
+    authority_boundary: createFeedbackEventWriteRuntimeAuthorityBoundaryV01(),
+  };
+}
+
+function feedbackControlsRuntimeHttpStatus(
+  response: FeedbackControlsRuntimeCompletionRouteResponse,
+): number {
+  const status = response.result?.status ?? response.error_code;
+  if (status === "feedback_event_created") return 201;
+  if (status === "idempotent_existing") return 200;
+  if (status === "conflict_existing_feedback_event") return 409;
+  if (status === "blocked_forbidden_authority" || status === "same_origin_required") {
+    return 403;
+  }
+  return 400;
 }
 
 export function handleFeedbackEventWriteRouteRequest({

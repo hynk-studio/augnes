@@ -196,6 +196,9 @@ const fixture = readJson(fixturePath);
 const fixtureText = readText(fixturePath);
 const packageJson = readJson(packagePath);
 const index = readText(indexPath);
+const routeBackedRuntimeCompletionActive =
+  controls.includes("feedback_controls_expansion_runtime_completion.v0.1") &&
+  controls.includes("persistenceMode === \"route_backed\"");
 
 assertIncludes(roadmap, "feedback_controls_expansion_v0_1", roadmapPath);
 assertIncludes(
@@ -288,6 +291,11 @@ for (const [source, label] of [
   [expandedAuditPanel, expandedAuditPanelPath],
 ]) {
   for (const pattern of componentForbiddenPatterns) {
+    const routeBackedPatternAllowed =
+      routeBackedRuntimeCompletionActive &&
+      label === controlsPath &&
+      ["/fetch\\s*\\(/", "/\\bPOST\\b/", "/\\/api\\//"].includes(String(pattern));
+    if (routeBackedPatternAllowed) continue;
     assert.ok(!pattern.test(source), `${label} matched forbidden pattern ${pattern}`);
   }
 }

@@ -1,0 +1,275 @@
+{
+  "fixture_version": "feedback_controls_expansion_runtime_completion.sample.v0.1",
+  "ui_version": "feedback_controls_expansion_runtime_completion.v0.1",
+  "route_version": "feedback_controls_expansion_runtime_completion_route.v0.1",
+  "write_runtime_version": "feedback_event_write_runtime.v0.1",
+  "scope": "project:augnes",
+  "safe_db_path_examples": [
+    ".tmp/feedback-event-aggregation/ui/feedback-events.sqlite",
+    "tmp/feedback-event-aggregation/smoke/feedback-events.db"
+  ],
+  "unsafe_db_path_examples": [
+    "../feedback-events.sqlite",
+    "tmp/feedback-event-aggregation/../escape.sqlite",
+    "tmp/feedback-event-aggregation/private\\feedback.sqlite",
+    "https://example.invalid/feedback-events.sqlite",
+    "tmp/feedback-event-aggregation/secret-token-feedback.sqlite"
+  ],
+  "feedback_control_action_examples": [
+    {
+      "control_kind": "pin_preview",
+      "feedback_kind": "pin",
+      "operator_action_required": true,
+      "advisory_signal_only": true
+    },
+    {
+      "control_kind": "dismiss_preview",
+      "feedback_kind": "dismiss",
+      "reason_required": true,
+      "dismiss_is_delete": false
+    },
+    {
+      "control_kind": "correct_preview",
+      "feedback_kind": "correct",
+      "correction_text_required": true,
+      "rule_mutation_executed": false
+    },
+    {
+      "control_kind": "invalidate_preview",
+      "feedback_kind": "invalidate",
+      "reason_required": true,
+      "invalidate_is_source_suppression": false
+    },
+    {
+      "control_kind": "needs_more_evidence",
+      "feedback_kind": "needs_more_evidence",
+      "review_signal_only": true
+    },
+    {
+      "control_kind": "scope_overreach",
+      "feedback_kind": "scope_overreach",
+      "review_signal_only": true
+    },
+    {
+      "control_kind": "not_relevant_now",
+      "feedback_kind": "not_relevant_now",
+      "advisory_signal_only": true
+    },
+    {
+      "control_kind": "mark_useful",
+      "feedback_kind": "mark_useful",
+      "pin_is_promotion": false
+    },
+    {
+      "control_kind": "mark_wrong",
+      "feedback_kind": "mark_wrong",
+      "correction_text_required": true,
+      "candidate_deleted": false
+    }
+  ],
+  "route_backed_ui_state_example": {
+    "persistenceMode": "route_backed",
+    "dbPath": ".tmp/feedback-event-aggregation/ui/feedback-events.sqlite",
+    "route_path": "/api/research-candidate/feedback-events",
+    "last_route_status": "feedback_event_created",
+    "authority_boundary_visible": true,
+    "advisory_only_note_visible": true,
+    "product_write_parked_by_686_visible": true
+  },
+  "callback_compatibility_state_example": {
+    "persistenceMode": "callback_only",
+    "persists_feedback": false,
+    "route_call_executed": false,
+    "db_write_executed": false,
+    "callback_compatibility_preserved": true
+  },
+  "safe_create_feedback_event_request_example": {
+    "route_version": "feedback_controls_expansion_runtime_completion_route.v0.1",
+    "scope": "project:augnes",
+    "action": "create_feedback_event",
+    "db_path": ".tmp/feedback-event-aggregation/ui/feedback-events.sqlite",
+    "input": {
+      "request_version": "feedback_event_write_runtime_request.v0.1",
+      "event_version": "feedback_event_write_runtime_event.v0.1",
+      "scope": "project:augnes",
+      "feedback_event_id": "feedback-event:runtime-completion:pin:001",
+      "feedback_kind": "pin",
+      "target_ref": "candidate:feedback-controls-runtime:001",
+      "target_kind": "research_candidate_review",
+      "target_layer": "candidate",
+      "target_fingerprint": "target-fingerprint:feedback-controls-runtime:001",
+      "source_refs": [
+        "source-ref:feedback-controls-runtime:public-summary"
+      ],
+      "candidate_ref": "candidate:feedback-controls-runtime:001",
+      "feedback_summary": "Operator pinned this candidate for follow-up review.",
+      "created_by": "operator:feedback-controls-runtime",
+      "created_at": "2026-06-28T00:00:00.000Z",
+      "idempotency_key": "feedback-event-idempotency:runtime-completion:pin:001",
+      "authority_boundary": {
+        "feedback_controls_runtime_completion_now": true,
+        "explicit_operator_feedback_action_only": true,
+        "same_origin_post_route_now": true,
+        "caller_injected_db_only": true,
+        "feedback_event_write_now": true,
+        "feedback_event_persistence_now": true,
+        "advisory_signal_only": true,
+        "callback_compatibility_preserved": true,
+        "automatic_feedback_write_on_load_now": false,
+        "hidden_feedback_write_now": false,
+        "feedback_is_truth": false,
+        "pin_is_promotion": false,
+        "dismiss_is_delete": false,
+        "invalidate_is_source_suppression": false,
+        "rule_mutation_now": false,
+        "parser_mutation_now": false,
+        "prompt_mutation_now": false,
+        "ranking_mutation_now": false,
+        "surfacing_mutation_now": false,
+        "source_suppression_now": false,
+        "candidate_delete_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false
+      },
+      "reason_codes": [
+        "feedback_controls_runtime_completion",
+        "explicit_operator_feedback_action",
+        "advisory_signal_only"
+      ]
+    }
+  },
+  "expected_created_response_example": {
+    "route_version": "feedback_controls_expansion_runtime_completion_route.v0.1",
+    "scope": "project:augnes",
+    "status": "ok",
+    "error_code": null,
+    "result": {
+      "status": "feedback_event_created",
+      "feedback_event_persisted": true,
+      "aggregation_executed": false,
+      "rule_mutation_executed": false,
+      "parser_mutation_executed": false,
+      "prompt_mutation_executed": false,
+      "ranking_mutation_executed": false,
+      "surfacing_mutation_executed": false,
+      "source_suppression_executed": false,
+      "candidate_deleted": false,
+      "proof_or_evidence_created": false,
+      "claim_or_evidence_written": false,
+      "product_write_executed": false
+    }
+  },
+  "idempotent_existing_example": {
+    "status": "idempotent_existing",
+    "feedback_event_persisted": false,
+    "reason_codes": [
+      "idempotent_existing",
+      "feedback_event_not_duplicated"
+    ]
+  },
+  "conflict_existing_feedback_event_example": {
+    "status": "conflict_existing_feedback_event",
+    "feedback_event_persisted": false,
+    "reason_codes": [
+      "idempotency_key_conflict",
+      "no_partial_write"
+    ]
+  },
+  "blocked_private_or_raw_payload_example": {
+    "input": {
+      "feedback_summary": "SAFE_MARKER_RAW_SOURCE_BODY",
+      "source_refs": [
+        "source-ref:feedback-controls-runtime:public-summary"
+      ]
+    },
+    "expected_status": "blocked_private_or_raw_payload"
+  },
+  "blocked_forbidden_authority_example": {
+    "input": {
+      "feedback_event_id": "feedback-event:runtime-completion:blocked-authority",
+      "scope": "project:augnes",
+      "product_write_now": true,
+      "nested": {
+        "candidate_delete_now": {
+          "enabled": true
+        }
+      }
+    },
+    "expected_status": "blocked_forbidden_authority"
+  },
+  "invalid_feedback_event_example": {
+    "input": {
+      "feedback_event_id": "feedback-event:runtime-completion:invalid",
+      "feedback_kind": "dismiss",
+      "reason": ""
+    },
+    "expected_status": "blocked_invalid_input"
+  },
+  "forbidden_control_examples": [
+    "Promote",
+    "Create proof",
+    "Create evidence",
+    "Delete candidate",
+    "Suppress source",
+    "Apply rule",
+    "Mutate parser",
+    "Product write",
+    "Allocate product ID",
+    "GitHub PR",
+    "Git commit",
+    "Execute Codex"
+  ],
+  "authority_boundary_sample": {
+    "feedback_controls_runtime_completion_now": true,
+    "explicit_operator_feedback_action_only": true,
+    "same_origin_post_route_now": true,
+    "caller_injected_db_only": true,
+    "feedback_event_write_now": true,
+    "feedback_event_persistence_now": true,
+    "advisory_signal_only": true,
+    "callback_compatibility_preserved": true,
+    "automatic_feedback_write_on_load_now": false,
+    "hidden_feedback_write_now": false,
+    "feedback_is_truth": false,
+    "pin_is_promotion": false,
+    "dismiss_is_delete": false,
+    "invalidate_is_source_suppression": false,
+    "rule_mutation_now": false,
+    "parser_mutation_now": false,
+    "prompt_mutation_now": false,
+    "ranking_mutation_now": false,
+    "surfacing_mutation_now": false,
+    "source_suppression_now": false,
+    "candidate_delete_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "retrieval_index_write_now": false,
+    "rag_answer_generation_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}
