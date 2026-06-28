@@ -1,0 +1,665 @@
+{
+  "fixture_version": "v0_2_1_remaining_runtime_gap_audit.sample.v0.2",
+  "audit_version": "v0_2_1_remaining_runtime_gap_audit_v0_2",
+  "previous_audit_version": "v0_2_1_remaining_runtime_gap_audit_v0_1",
+  "scope": "project:augnes",
+  "roadmap_ref": "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+  "release_readiness_grounding_ref": "docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md",
+  "remaining_work_exists": true,
+  "ungated_implementation_gap_exists": false,
+  "no_remaining_work_claim": false,
+  "phase_inventory": [
+    {
+      "item_ref": "phase_2_review_memory_runtime",
+      "roadmap_phase": "Phase 2",
+      "expected_acceptance_summary": "Review Memory contract, DB store, same-origin routes, UI binding, and foundation lifecycle read-only UI without treating review records as durable Perspective state.",
+      "observed_repo_refs": [
+        "docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_DB_STORE_RUNTIME_COMPLETION_V0_1.md",
+        "docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_DB_ROUTES_RUNTIME_COMPLETION_V0_1.md",
+        "docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_DB_UI_RUNTIME_COMPLETION_V0_1.md",
+        "docs/FOUNDATION_LIFECYCLE_REVIEW_MEMORY_DB_READONLY_UI_COMPLETION_V0_1.md",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_3.md"
+      ],
+      "status_category": "runtime_complete_with_selected_audit",
+      "evidence_refs": [
+        "fixtures/release-readiness-runtime-grounding-update.sample.v0.1.json",
+        "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-3.mjs"
+      ],
+      "remaining_gap": "No Phase 2 runtime implementation gap found for the original v0.2.1 acceptance.",
+      "gate_required": false,
+      "next_action": "No immediate Phase 2 implementation slice recommended."
+    },
+    {
+      "item_ref": "phase_3_source_provider_retrieval_runtime",
+      "roadmap_phase": "Phase 3",
+      "expected_acceptance_summary": "Bounded source intake, provider-assisted extraction, rebuildable non-authoritative retrieval index, and RAG context preview runtime while keeping candidate-only boundaries.",
+      "observed_repo_refs": [
+        "docs/BOUNDED_SOURCE_INTAKE_RUNTIME_COMPLETION_V0_1.md",
+        "docs/PROVIDER_ASSISTED_EXTRACTION_RUNTIME_COMPLETION_V0_1.md",
+        "docs/REBUILDABLE_RETRIEVAL_INDEX_RUNTIME_COMPLETION_V0_1.md",
+        "docs/RAG_CONTEXT_PREVIEW_RUNTIME_COMPLETION_V0_1.md",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_1.md",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_2.md"
+      ],
+      "status_category": "runtime_complete_with_selected_audit",
+      "evidence_refs": [
+        "fixtures/release-readiness-runtime-grounding-update.sample.v0.1.json",
+        "scripts/smoke-rag-context-preview-runtime-completion-v0-1.mjs"
+      ],
+      "remaining_gap": "Final RAG answer generation remains deferred and unapproved; the implemented roadmap acceptance is context preview.",
+      "gate_required": true,
+      "next_action": "Do not implement final RAG answer generation without separate explicit provider/retrieval/RAG approval."
+    },
+    {
+      "item_ref": "phase_4_promotion_durable_state_chain",
+      "roadmap_phase": "Phase 4",
+      "expected_acceptance_summary": "Human-reviewed promotion decision storage, Formation Receipt durable write, durable Perspective state apply/read, and read-only trajectory reconstruction.",
+      "observed_repo_refs": [
+        "docs/PROMOTION_DECISION_STORE_ROUTE_V0_1.md",
+        "docs/FORMATION_RECEIPT_DURABLE_WRITE_V0_1.md",
+        "docs/DURABLE_PERSPECTIVE_STATE_APPLY_V0_1.md",
+        "docs/PERSPECTIVE_TRAJECTORY_BUILDER_V0_1.md",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md"
+      ],
+      "status_category": "runtime_complete_with_selected_audit",
+      "evidence_refs": [
+        "fixtures/runtime-audit-selected-route-instrumentation.v0.4.phase-4-promotion-state.sample.json",
+        "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-4-phase-4-promotion-state-v0-1.mjs"
+      ],
+      "remaining_gap": "The v0.1 audit's Phase 4 selected audit instrumentation gap is closed by v0.4. No selected Phase 4 runtime route from that slice remains uninstrumented.",
+      "gate_required": false,
+      "next_action": "No additional Phase 4 implementation slice recommended by this audit."
+    },
+    {
+      "item_ref": "phase_5_layout_feedback_runtime",
+      "roadmap_phase": "Phase 5",
+      "expected_acceptance_summary": "Constellation layout/runtime UI, manual anchors, feedback controls, aggregation, and feedback-influenced surfacing preview with advisory-only semantics.",
+      "observed_repo_refs": [
+        "docs/PROJECT_CONSTELLATION_RUNTIME_UI_COMPLETION_V0_1.md",
+        "docs/PROJECT_CONSTELLATION_MANUAL_ANCHORS_RUNTIME_COMPLETION_V0_1.md",
+        "docs/FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_V0_1.md",
+        "docs/FEEDBACK_CONTROLS_EXPANSION_RUNTIME_COMPLETION_V0_1.md",
+        "docs/FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_V0_1.md"
+      ],
+      "status_category": "runtime_complete_with_selected_audit",
+      "evidence_refs": [
+        "fixtures/release-readiness-runtime-grounding-update.sample.v0.1.json",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_1.md",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_2.md"
+      ],
+      "remaining_gap": "Feedback event writes and feedback surfacing preview are selected-instrumented. Feedback aggregation is advisory read-model aggregation, not a write-capable route, and is not promoted here as the next selected route pass.",
+      "gate_required": false,
+      "next_action": "Do not start a new Phase 5 selected audit pass unless runtime audit coverage is separately reopened."
+    },
+    {
+      "item_ref": "phase_6_7_operational_hardening_runtime",
+      "roadmap_phase": "Phase 6/7",
+      "expected_acceptance_summary": "Privacy/redaction guard, runtime audit panel, selected route instrumentation, local data export/import policy, and release readiness review surfaces.",
+      "observed_repo_refs": [
+        "docs/PRIVACY_REDACTION_RUNTIME_GUARD_V0_1.md",
+        "docs/RUNTIME_AUDIT_PANEL_RUNTIME_COMPLETION_V0_1.md",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md",
+        "docs/LOCAL_DATA_EXPORT_IMPORT_POLICY_V0_1.md",
+        "docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md"
+      ],
+      "status_category": "runtime_complete_with_selected_audit",
+      "evidence_refs": [
+        "scripts/smoke-privacy-redaction-guard-v0-1.mjs",
+        "scripts/smoke-runtime-audit-panel-runtime-completion-v0-1.mjs",
+        "scripts/smoke-local-data-export-policy-v0-1.mjs"
+      ],
+      "remaining_gap": "Broad all-route instrumentation remains deferred. Local data export/import is policy-only in current acceptance.",
+      "gate_required": true,
+      "next_action": "Do not implement broad all-route instrumentation or broad local export/import runtime from this audit."
+    },
+    {
+      "item_ref": "phase_8_git_ledger_local_export",
+      "roadmap_phase": "Phase 8",
+      "expected_acceptance_summary": "Git Ledger contract, deterministic builder, read-only preview, local export helper, and GitHub actuation contract while keeping Git/GitHub mutation excluded.",
+      "observed_repo_refs": [
+        "docs/GIT_LEDGER_EXPORT_CONTRACT_V0_1.md",
+        "docs/GIT_LEDGER_EXPORT_DETERMINISTIC_BUILDER_V0_1.md",
+        "docs/GIT_LEDGER_EXPORT_READONLY_PREVIEW_V0_1.md",
+        "docs/LOCAL_GIT_LEDGER_EXPORT_V0_1.md",
+        "docs/GITHUB_ACTUATION_CONTRACT_V0_1.md"
+      ],
+      "status_category": "runtime_complete",
+      "evidence_refs": [
+        "scripts/smoke-local-git-ledger-export-v0-1.mjs",
+        "scripts/smoke-github-actuation-contract-v0-1.mjs"
+      ],
+      "remaining_gap": "No non-GitHub, non-product-write local Git Ledger export runtime gap found. GitHub actuation implementation remains gated.",
+      "gate_required": true,
+      "next_action": "Do not implement GitHub actuation without explicit approval."
+    },
+    {
+      "item_ref": "phase_9_release_and_product_write_reentry",
+      "roadmap_phase": "Phase 9",
+      "expected_acceptance_summary": "Product-write reentry review, target contract, disabled adapter harness, release operator/release notes/freeze/postmerge review artifacts, and product-write minimal runtime only after explicit approval.",
+      "observed_repo_refs": [
+        "docs/PRODUCT_WRITE_REENTRY_REVIEW_V0_1.md",
+        "docs/PRODUCT_WRITE_TARGET_CONTRACT_V0_1.md",
+        "docs/DISABLED_PRODUCT_WRITE_ADAPTER_REENTRY_HARNESS_V0_1.md",
+        "docs/RELEASE_CANDIDATE_OPERATOR_REVIEW_V0_1.md",
+        "docs/RELEASE_OPERATOR_CHECKLIST_V0_1.md",
+        "docs/RELEASE_CANDIDATE_FREEZE_MANIFEST_V0_1.md",
+        "docs/RELEASE_POSTMERGE_OBSERVER_NOTES_V0_1.md"
+      ],
+      "status_category": "contract_only",
+      "evidence_refs": [
+        "scripts/smoke-product-write-target-contract-v0-1.mjs",
+        "scripts/smoke-release-postmerge-observer-notes-v0-1.mjs"
+      ],
+      "remaining_gap": "Product-write minimal runtime, adapter enablement, product persistence, product ID allocation, release execution, and release publication remain explicit-approval work.",
+      "gate_required": true,
+      "next_action": "Keep product-write parked by #686 and do not execute release work from this audit."
+    },
+    {
+      "item_ref": "phase_10_research_backlog",
+      "roadmap_phase": "Phase 10",
+      "expected_acceptance_summary": "Deterministic CRPF review, empirical calibration dataset, target-agent packet profiles, and narrow formal invariant checks without runtime randomness, learning mutation, provider calls, retrieval, DB writes, or promotion.",
+      "observed_repo_refs": [
+        "docs/DETERMINISTIC_CRPF_VARIANT_REVIEW_V0_1.md",
+        "docs/EMPIRICAL_CALIBRATION_DATASET_V0_1.md",
+        "docs/TARGET_AGENT_AI_CONTEXT_PACKET_PROFILES_V0_1.md",
+        "docs/FORMAL_INVARIANT_CHECKS_NARROW_SCOPE_V0_1.md"
+      ],
+      "status_category": "contract_only",
+      "evidence_refs": [
+        "scripts/smoke-deterministic-crpf-variant-review-v0-1.mjs",
+        "scripts/smoke-empirical-calibration-dataset-v0-1.mjs",
+        "scripts/smoke-target-agent-ai-context-packet-profiles-v0-1.mjs",
+        "scripts/smoke-formal-invariant-checks-narrow-scope-v0-1.mjs"
+      ],
+      "remaining_gap": "The roadmap states Phase 10 is not opened as runtime now; no immediate ungated runtime implementation is visible.",
+      "gate_required": false,
+      "next_action": "No Phase 10 runtime implementation slice recommended by this audit."
+    }
+  ],
+  "runtime_surface_inventory": [
+    {
+      "item_ref": "promotion_decision_store_v0_1",
+      "roadmap_phase": "Phase 4",
+      "expected_acceptance_summary": "Store explicit operator promotion decisions without applying durable state.",
+      "observed_repo_refs": [
+        "docs/PROMOTION_DECISION_STORE_ROUTE_V0_1.md",
+        "app/api/perspective/promotion-decisions/route.ts",
+        "app/api/perspective/promotion-decisions/[promotion_decision_id]/route.ts",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md"
+      ],
+      "status_category": "runtime_complete_with_selected_audit",
+      "evidence_refs": [
+        "scripts/smoke-perspective-promotion-decision-store-v0-1.mjs",
+        "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-4-phase-4-promotion-state-v0-1.mjs"
+      ],
+      "remaining_gap": "No selected Phase 4 promotion decision route audit gap remains after v0.4.",
+      "gate_required": false,
+      "next_action": "No promotion decision instrumentation slice recommended."
+    },
+    {
+      "item_ref": "formation_receipt_durable_write_v0_1",
+      "roadmap_phase": "Phase 4",
+      "expected_acceptance_summary": "Write public-safe Formation Receipt records after explicit operator-reviewed promotion decisions.",
+      "observed_repo_refs": [
+        "docs/FORMATION_RECEIPT_DURABLE_WRITE_V0_1.md",
+        "app/api/perspective/formation-receipts/route.ts",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md"
+      ],
+      "status_category": "runtime_complete_with_selected_audit",
+      "evidence_refs": [
+        "scripts/smoke-formation-receipt-durable-write-v0-1.mjs",
+        "fixtures/runtime-audit-selected-route-instrumentation.v0.4.phase-4-promotion-state.sample.json"
+      ],
+      "remaining_gap": "No selected Formation Receipt route audit gap remains after v0.4.",
+      "gate_required": false,
+      "next_action": "No Formation Receipt instrumentation slice recommended."
+    },
+    {
+      "item_ref": "durable_perspective_state_apply_v0_1",
+      "roadmap_phase": "Phase 4",
+      "expected_acceptance_summary": "Apply Formation-Receipt-backed Perspective deltas into durable Perspective state and expose bounded state reads.",
+      "observed_repo_refs": [
+        "docs/DURABLE_PERSPECTIVE_STATE_APPLY_V0_1.md",
+        "app/api/perspective/state/apply-delta/route.ts",
+        "app/api/perspective/state/[perspective_id]/route.ts",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md"
+      ],
+      "status_category": "runtime_complete_with_selected_audit",
+      "evidence_refs": [
+        "scripts/smoke-durable-perspective-state-apply-v0-1.mjs",
+        "fixtures/runtime-audit-selected-route-instrumentation.v0.4.phase-4-promotion-state.sample.json"
+      ],
+      "remaining_gap": "No selected durable Perspective state apply/read audit gap remains after v0.4.",
+      "gate_required": false,
+      "next_action": "No durable Perspective state instrumentation slice recommended."
+    },
+    {
+      "item_ref": "perspective_trajectory_v0_1",
+      "roadmap_phase": "Phase 4",
+      "expected_acceptance_summary": "Reconstruct read-only trajectory from durable state and apply-event lineage.",
+      "observed_repo_refs": [
+        "docs/PERSPECTIVE_TRAJECTORY_BUILDER_V0_1.md",
+        "app/api/perspective/state/[perspective_id]/trajectory/route.ts",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md"
+      ],
+      "status_category": "runtime_complete_with_selected_audit",
+      "evidence_refs": [
+        "scripts/smoke-perspective-trajectory-v0-1.mjs",
+        "fixtures/runtime-audit-selected-route-instrumentation.v0.4.phase-4-promotion-state.sample.json"
+      ],
+      "remaining_gap": "No selected trajectory route audit gap remains after v0.4.",
+      "gate_required": false,
+      "next_action": "No trajectory instrumentation slice recommended."
+    },
+    {
+      "item_ref": "runtime_audit_selected_route_instrumentation_v0_4_phase_4_promotion_state_v0_1",
+      "roadmap_phase": "Phase 4 and Phase 7",
+      "expected_acceptance_summary": "Add bounded optional runtime audit events to selected Phase 4 promotion/state routes without changing domain behavior.",
+      "observed_repo_refs": [
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md",
+        "fixtures/runtime-audit-selected-route-instrumentation.v0.4.phase-4-promotion-state.sample.json",
+        "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-4-phase-4-promotion-state-v0-1.mjs"
+      ],
+      "status_category": "runtime_complete_with_selected_audit",
+      "evidence_refs": [
+        "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_1.md",
+        "fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.1.json"
+      ],
+      "remaining_gap": "The v0.1 audit recommendation has been implemented and merged into main.",
+      "gate_required": false,
+      "next_action": "Supersede the v0.1 next-slice recommendation with this v0.2 audit."
+    },
+    {
+      "item_ref": "feedback_aggregation_route_selected_audit",
+      "roadmap_phase": "Phase 5 and Phase 7",
+      "expected_acceptance_summary": "Determine whether advisory feedback aggregation route audit instrumentation is required as a selected route pass.",
+      "observed_repo_refs": [
+        "docs/FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_V0_1.md",
+        "app/api/research-candidate/feedback-events/aggregation/route.ts",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_1.md"
+      ],
+      "status_category": "not_applicable",
+      "evidence_refs": [
+        "docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md",
+        "fixtures/release-readiness-runtime-grounding-update.sample.v0.1.json"
+      ],
+      "remaining_gap": "The aggregation route is advisory read-model aggregation and does not write feedback, rules, parser state, ranking, surfacing, durable state, proof/evidence, claims/evidence, or product state. Feedback event writes are already selected-instrumented.",
+      "gate_required": false,
+      "next_action": "Do not treat this as the next required implementation slice unless selected audit coverage is explicitly reopened."
+    },
+    {
+      "item_ref": "runtime_audit_selected_instrumentation_v0_1_to_v0_4",
+      "roadmap_phase": "Phase 7",
+      "expected_acceptance_summary": "Selected route audit instrumentation exists across source/provider/RAG/feedback preview, retrieval/manual anchors/runtime audit list, Review Memory DB routes, and selected Phase 4 promotion/state routes.",
+      "observed_repo_refs": [
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_1.md",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_2.md",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_3.md",
+        "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md"
+      ],
+      "status_category": "runtime_complete_with_selected_audit",
+      "evidence_refs": [
+        "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-1.mjs",
+        "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-2.mjs",
+        "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-3.mjs",
+        "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-4-phase-4-promotion-state-v0-1.mjs"
+      ],
+      "remaining_gap": "Broad all-route instrumentation remains deferred; no additional selected route pass is clearly required by original v0.2.1 acceptance after v0.4.",
+      "gate_required": true,
+      "next_action": "Keep broad/additional route instrumentation out of this audit unless separately scoped."
+    },
+    {
+      "item_ref": "local_data_export_import_policy_v0_1",
+      "roadmap_phase": "Phase 7",
+      "expected_acceptance_summary": "Define policy and contract boundary for future public-safe local export/import without implementing runtime export/import.",
+      "observed_repo_refs": [
+        "docs/LOCAL_DATA_EXPORT_IMPORT_POLICY_V0_1.md",
+        "fixtures/local-data-export.sample.v0.1.json",
+        "scripts/smoke-local-data-export-policy-v0-1.mjs"
+      ],
+      "status_category": "contract_only",
+      "evidence_refs": [
+        "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+        "docs/LOCAL_GIT_LEDGER_EXPORT_V0_1.md"
+      ],
+      "remaining_gap": "The roadmap item is a policy slice. Broad export/import runtime is future explicit work, not a hidden current acceptance gap.",
+      "gate_required": true,
+      "next_action": "Do not invent a broad local export/import runtime slice from this audit."
+    },
+    {
+      "item_ref": "local_git_ledger_export_v0_1",
+      "roadmap_phase": "Phase 8",
+      "expected_acceptance_summary": "Allowlisted local Git Ledger packet artifact export without Git/GitHub mutation.",
+      "observed_repo_refs": [
+        "docs/LOCAL_GIT_LEDGER_EXPORT_V0_1.md",
+        "lib/git-ledger/local-export.ts",
+        "fixtures/local-git-ledger-export.sample.v0.1.json"
+      ],
+      "status_category": "runtime_complete",
+      "evidence_refs": [
+        "scripts/smoke-local-git-ledger-export-v0-1.mjs",
+        "docs/GITHUB_ACTUATION_CONTRACT_V0_1.md"
+      ],
+      "remaining_gap": "No non-GitHub, non-product-write local Git Ledger export runtime gap remains visible.",
+      "gate_required": false,
+      "next_action": "No local Git Ledger implementation slice recommended."
+    },
+    {
+      "item_ref": "github_actuation_contract_v0_1",
+      "roadmap_phase": "Phase 8",
+      "expected_acceptance_summary": "Dry-run-only GitHub actuation contract without branch, commit, PR, review, label, check, release, or merge implementation.",
+      "observed_repo_refs": [
+        "docs/GITHUB_ACTUATION_CONTRACT_V0_1.md",
+        "fixtures/github-actuation-contract.sample.v0.1.json",
+        "scripts/smoke-github-actuation-contract-v0-1.mjs"
+      ],
+      "status_category": "contract_only",
+      "evidence_refs": [
+        "docs/LOCAL_GIT_LEDGER_EXPORT_V0_1.md",
+        "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md"
+      ],
+      "remaining_gap": "Contract exists only. GitHub actuation implementation remains explicitly out of roadmap scope unless separately approved.",
+      "gate_required": true,
+      "next_action": "Do not implement GitHub actuation without explicit approval."
+    },
+    {
+      "item_ref": "final_rag_answer_generation",
+      "roadmap_phase": "Phase 3",
+      "expected_acceptance_summary": "Classify final RAG answer generation according to roadmap wording.",
+      "observed_repo_refs": [
+        "docs/RAG_CONTEXT_PREVIEW_RUNTIME_COMPLETION_V0_1.md",
+        "docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md",
+        "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md"
+      ],
+      "status_category": "gated_requires_explicit_approval",
+      "evidence_refs": [
+        "scripts/smoke-rag-context-preview-runtime-completion-v0-1.mjs",
+        "fixtures/release-readiness-runtime-grounding-update.sample.v0.1.json"
+      ],
+      "remaining_gap": "The implemented acceptance is context preview; final answer generation remains deferred and unapproved.",
+      "gate_required": true,
+      "next_action": "Do not implement final RAG answer generation from this audit."
+    },
+    {
+      "item_ref": "deterministic_crpf_variant_review_v0_1",
+      "roadmap_phase": "Phase 10",
+      "expected_acceptance_summary": "Review deterministic CRPF variants as fixed-seed fixture-only review aids without runtime randomness.",
+      "observed_repo_refs": [
+        "docs/DETERMINISTIC_CRPF_VARIANT_REVIEW_V0_1.md",
+        "fixtures/deterministic-crpf-variant-review.sample.v0.1.json",
+        "scripts/smoke-deterministic-crpf-variant-review-v0-1.mjs"
+      ],
+      "status_category": "fixture_only",
+      "evidence_refs": [
+        "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+        "docs/FORMAL_INVARIANT_CHECKS_NARROW_SCOPE_V0_1.md"
+      ],
+      "remaining_gap": "Phase 10 is not opened as runtime now; this remains fixture-only review aid work.",
+      "gate_required": false,
+      "next_action": "No CRPF runtime implementation slice recommended."
+    },
+    {
+      "item_ref": "empirical_calibration_dataset_v0_1",
+      "roadmap_phase": "Phase 10",
+      "expected_acceptance_summary": "Offline diagnostic calibration dataset with training disabled by default.",
+      "observed_repo_refs": [
+        "docs/EMPIRICAL_CALIBRATION_DATASET_V0_1.md",
+        "fixtures/empirical-calibration-dataset.sample.v0.1.json",
+        "scripts/smoke-empirical-calibration-dataset-v0-1.mjs"
+      ],
+      "status_category": "fixture_only",
+      "evidence_refs": [
+        "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+        "docs/FORMAL_INVARIANT_CHECKS_NARROW_SCOPE_V0_1.md"
+      ],
+      "remaining_gap": "No online learning, mutation, telemetry ingestion, provider call, retrieval, DB write, or promotion runtime is expected by current acceptance.",
+      "gate_required": false,
+      "next_action": "No calibration runtime implementation slice recommended."
+    },
+    {
+      "item_ref": "target_agent_ai_context_packet_profiles_v0_1",
+      "roadmap_phase": "Phase 10",
+      "expected_acceptance_summary": "Target-agent packet profiles that change compression and section selection only.",
+      "observed_repo_refs": [
+        "docs/TARGET_AGENT_AI_CONTEXT_PACKET_PROFILES_V0_1.md",
+        "fixtures/research-candidate-review.target-agent-ai-context-packet-profiles.sample.v0.1.json",
+        "scripts/smoke-target-agent-ai-context-packet-profiles-v0-1.mjs"
+      ],
+      "status_category": "contract_only",
+      "evidence_refs": [
+        "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+        "docs/FORMAL_INVARIANT_CHECKS_NARROW_SCOPE_V0_1.md"
+      ],
+      "remaining_gap": "Profiles are not authority, execution approval, provider triggers, or retrieval triggers.",
+      "gate_required": false,
+      "next_action": "No target-agent runtime implementation slice recommended."
+    },
+    {
+      "item_ref": "formal_invariant_checks_narrow_scope_v0_1",
+      "roadmap_phase": "Phase 10",
+      "expected_acceptance_summary": "Narrow static invariant checks for route refusal and authority boundaries without theorem prover runtime.",
+      "observed_repo_refs": [
+        "docs/FORMAL_INVARIANT_CHECKS_NARROW_SCOPE_V0_1.md",
+        "fixtures/formal-invariant-checks-narrow-scope.sample.v0.1.json",
+        "scripts/smoke-formal-invariant-checks-narrow-scope-v0-1.mjs"
+      ],
+      "status_category": "contract_only",
+      "evidence_refs": [
+        "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+        "scripts/smoke-authority-boundary-regression-v0-1.mjs"
+      ],
+      "remaining_gap": "The checks are static fixture contracts and smoke assertions only.",
+      "gate_required": false,
+      "next_action": "No theorem prover or invariant runtime implementation slice recommended."
+    }
+  ],
+  "remaining_gap_inventory": [],
+  "gated_work_inventory": [
+    {
+      "item_ref": "product_write_minimal_runtime_v0_1",
+      "roadmap_phase": "Phase 9.4",
+      "expected_acceptance_summary": "Product-write minimal runtime may open only if explicitly approved.",
+      "observed_repo_refs": [
+        "docs/PRODUCT_WRITE_REENTRY_REVIEW_V0_1.md",
+        "docs/PRODUCT_WRITE_TARGET_CONTRACT_V0_1.md",
+        "docs/DISABLED_PRODUCT_WRITE_ADAPTER_REENTRY_HARNESS_V0_1.md"
+      ],
+      "status_category": "gated_requires_explicit_approval",
+      "evidence_refs": [
+        "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+        "scripts/smoke-product-write-target-contract-v0-1.mjs"
+      ],
+      "remaining_gap": "Product-write remains parked by #686.",
+      "gate_required": true,
+      "next_action": "Do not implement without explicit product-write approval."
+    },
+    {
+      "item_ref": "product_write_adapter_enablement",
+      "roadmap_phase": "Phase 9",
+      "expected_acceptance_summary": "Enable product-write adapter only after explicit reentry approval.",
+      "observed_repo_refs": [
+        "docs/DISABLED_PRODUCT_WRITE_ADAPTER_REENTRY_HARNESS_V0_1.md",
+        "lib/product-write/disabled-product-write-adapter-reentry-harness.ts",
+        "docs/PRODUCT_WRITE_TARGET_CONTRACT_V0_1.md"
+      ],
+      "status_category": "gated_requires_explicit_approval",
+      "evidence_refs": [
+        "scripts/smoke-disabled-product-write-adapter-reentry-harness-v0-1.mjs",
+        "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md"
+      ],
+      "remaining_gap": "Adapter runtime remains disabled and approval-gated.",
+      "gate_required": true,
+      "next_action": "Do not enable adapter runtime from this audit."
+    },
+    {
+      "item_ref": "product_id_allocation",
+      "roadmap_phase": "Phase 9",
+      "expected_acceptance_summary": "Allocate product IDs only inside future approved product-write runtime.",
+      "observed_repo_refs": [
+        "docs/PRODUCT_WRITE_TARGET_CONTRACT_V0_1.md",
+        "docs/FORMAL_INVARIANT_CHECKS_NARROW_SCOPE_V0_1.md"
+      ],
+      "status_category": "gated_requires_explicit_approval",
+      "evidence_refs": [
+        "scripts/smoke-product-write-target-contract-v0-1.mjs",
+        "scripts/smoke-formal-invariant-checks-narrow-scope-v0-1.mjs"
+      ],
+      "remaining_gap": "Product ID allocation remains disabled before explicit product-write runtime approval.",
+      "gate_required": true,
+      "next_action": "Do not allocate product IDs from this audit."
+    },
+    {
+      "item_ref": "product_persistence",
+      "roadmap_phase": "Phase 9",
+      "expected_acceptance_summary": "Persist product records only after explicit product-write approval.",
+      "observed_repo_refs": [
+        "docs/PRODUCT_WRITE_TARGET_CONTRACT_V0_1.md",
+        "docs/PRODUCT_WRITE_REENTRY_REVIEW_V0_1.md"
+      ],
+      "status_category": "gated_requires_explicit_approval",
+      "evidence_refs": [
+        "scripts/smoke-product-write-target-contract-v0-1.mjs",
+        "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md"
+      ],
+      "remaining_gap": "Product persistence remains parked with product-write.",
+      "gate_required": true,
+      "next_action": "Do not persist product records from this audit."
+    },
+    {
+      "item_ref": "github_actuation_implementation",
+      "roadmap_phase": "Phase 8.6+",
+      "expected_acceptance_summary": "Branch/commit/PR/review/label/check/release/merge implementation is out of this roadmap unless separately approved.",
+      "observed_repo_refs": [
+        "docs/GITHUB_ACTUATION_CONTRACT_V0_1.md",
+        "fixtures/github-actuation-contract.sample.v0.1.json",
+        "scripts/smoke-github-actuation-contract-v0-1.mjs"
+      ],
+      "status_category": "gated_requires_explicit_approval",
+      "evidence_refs": [
+        "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+        "docs/LOCAL_GIT_LEDGER_EXPORT_V0_1.md"
+      ],
+      "remaining_gap": "Contract exists only. GitHub actuation implementation remains gated_requires_explicit_approval.",
+      "gate_required": true,
+      "next_action": "Do not implement GitHub actuation without explicit approval."
+    },
+    {
+      "item_ref": "final_rag_answer_generation",
+      "roadmap_phase": "Phase 3",
+      "expected_acceptance_summary": "Final RAG answer generation is outside the implemented context-preview acceptance.",
+      "observed_repo_refs": [
+        "docs/RAG_CONTEXT_PREVIEW_RUNTIME_COMPLETION_V0_1.md",
+        "docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md"
+      ],
+      "status_category": "gated_requires_explicit_approval",
+      "evidence_refs": [
+        "fixtures/release-readiness-runtime-grounding-update.sample.v0.1.json",
+        "scripts/smoke-rag-context-preview-runtime-completion-v0-1.mjs"
+      ],
+      "remaining_gap": "Final RAG answer generation remains deferred and unapproved.",
+      "gate_required": true,
+      "next_action": "Do not implement final RAG answer generation without explicit approval."
+    },
+    {
+      "item_ref": "release_execution_or_publication",
+      "roadmap_phase": "Phase 9 release follow-up",
+      "expected_acceptance_summary": "Release execution, release notes publication, tagging, merge, or public artifact publication require explicit release approval.",
+      "observed_repo_refs": [
+        "docs/RELEASE_READINESS_MATRIX_V0_1.md",
+        "docs/RELEASE_CANDIDATE_OPERATOR_REVIEW_V0_1.md",
+        "docs/RELEASE_NOTES_PUBLIC_SAFE_SUMMARY_V0_1.md",
+        "docs/RELEASE_OPERATOR_CHECKLIST_V0_1.md",
+        "docs/RELEASE_CANDIDATE_FREEZE_MANIFEST_V0_1.md",
+        "docs/RELEASE_POSTMERGE_OBSERVER_NOTES_V0_1.md"
+      ],
+      "status_category": "gated_requires_explicit_approval",
+      "evidence_refs": [
+        "scripts/smoke-release-postmerge-observer-notes-v0-1.mjs",
+        "scripts/smoke-release-readiness-matrix-v0-1.mjs"
+      ],
+      "remaining_gap": "Review artifacts exist, but release approval and execution are not granted.",
+      "gate_required": true,
+      "next_action": "Do not execute or publish release artifacts from this audit."
+    }
+  ],
+  "next_recommended_implementation_slice": {
+    "item_ref": "none_without_explicit_approval",
+    "roadmap_phase": "post_v0_4_remaining_runtime_gap_review",
+    "expected_acceptance_summary": "After the v0.4 Phase 4 selected audit instrumentation pass, no concrete ungated implementation slice is visible from the current repo and original v0.2.1 FULL acceptance.",
+    "observed_repo_refs": [
+      "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_1.md",
+      "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md",
+      "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md"
+    ],
+    "status_category": "gated_requires_explicit_approval",
+    "evidence_refs": [
+      "fixtures/runtime-audit-selected-route-instrumentation.v0.4.phase-4-promotion-state.sample.json",
+      "docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md"
+    ],
+    "remaining_gap": "Remaining visible implementation work is product-write approval-gated, GitHub actuation approval-gated, release approval/execution-gated, final RAG approval-gated, or explicitly future/deferred/offline/contract-only.",
+    "gate_required": true,
+    "next_action": "Request explicit approval for product-write, GitHub actuation, release execution/publication, final RAG generation, or a newly scoped runtime audit coverage pass before implementing more runtime behavior."
+  },
+  "evidence_refs": [
+    "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+    "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_1.md",
+    "fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.1.json",
+    "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md",
+    "fixtures/runtime-audit-selected-route-instrumentation.v0.4.phase-4-promotion-state.sample.json",
+    "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-4-phase-4-promotion-state-v0-1.mjs",
+    "docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md",
+    "fixtures/release-readiness-runtime-grounding-update.sample.v0.1.json"
+  ],
+  "authority_boundary": {
+    "remaining_runtime_gap_audit_now": true,
+    "static_repo_grounded_audit_only": true,
+    "next_slice_recommendation_now": true,
+    "public_safe_inventory_only": true,
+    "roadmap_completion_declared_now": false,
+    "release_approval_now": false,
+    "release_execution_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "github_actuation_implementation_now": false,
+    "github_api_call_now": false,
+    "git_write_now": false,
+    "db_query_or_write_now": false,
+    "route_now": false,
+    "ui_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "rag_answer_generation_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "audit_is_completion_claim": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  },
+  "reason_codes": [
+    "v0_1_next_slice_completed_by_v0_4",
+    "phase_4_no_longer_runtime_complete_without_audit",
+    "no_selected_phase_4_route_uninstrumented",
+    "feedback_aggregation_is_advisory_read_model_not_write_route",
+    "broad_all_route_instrumentation_deferred",
+    "local_data_export_import_policy_contract_only",
+    "local_git_ledger_export_runtime_present",
+    "github_actuation_implementation_gated",
+    "product_write_parked_by_686",
+    "final_rag_answer_generation_deferred_unapproved",
+    "phase_10_not_runtime_now"
+  ]
+}
