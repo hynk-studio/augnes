@@ -75,6 +75,9 @@ const expectedChangedFiles = new Set([
   "docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_BINDING_V0_1.md",
   "fixtures/final-rag-answer-review-memory-binding.sample.v0.1.json",
   "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
+  "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_5.md",
+  "fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.5.json",
+  "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-5.mjs",
   packagePath,
   latestIndexPath,
 ]);
