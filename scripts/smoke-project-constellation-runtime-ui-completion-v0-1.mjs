@@ -601,7 +601,8 @@ function assertChangedFileScope() {
         !isFeedbackControlsExpansionRuntimeCompletionFile(filePath) &&
         !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) &&
         !isRuntimeAuditPanelRuntimeCompletionFile(filePath) &&
-        !isRuntimeAuditSelectedRouteInstrumentationV02File(filePath),
+        !isRuntimeAuditSelectedRouteInstrumentationV02File(filePath) &&
+        !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath),
     ),
     "no new app/api route was added",
   );
@@ -618,7 +619,8 @@ function assertChangedFileScope() {
         !isFeedbackControlsExpansionRuntimeCompletionFile(filePath) &&
         !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) &&
         !isRuntimeAuditPanelRuntimeCompletionFile(filePath) &&
-        !isRuntimeAuditSelectedRouteInstrumentationV02File(filePath),
+        !isRuntimeAuditSelectedRouteInstrumentationV02File(filePath) &&
+        !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath),
     ),
     "no provider/retrieval-index-write/Git/GitHub/Codex/product-write/product ID files were added",
   );
@@ -760,6 +762,24 @@ function isRuntimeAuditSelectedRouteInstrumentationV02File(filePath) {
     "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_2.md",
     "fixtures/runtime-audit-selected-route-instrumentation.v0.2.sample.json",
     "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-2.mjs",
+    packagePath,
+    indexPath,
+  ].includes(filePath);
+}
+
+function isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) {
+  return [
+    "app/api/research-candidate-review/review-records/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/activity/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/discard/route.ts",
+    "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_3.md",
+    "fixtures/runtime-audit-selected-route-instrumentation.v0.3.sample.json",
+    "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-3.mjs",
+    "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-memory-db-routes-runtime-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-memory-db-ui-runtime-v0-1.mjs",
+    "scripts/smoke-foundation-lifecycle-review-memory-db-readonly-ui-completion-v0-1.mjs",
     packagePath,
     indexPath,
   ].includes(filePath);

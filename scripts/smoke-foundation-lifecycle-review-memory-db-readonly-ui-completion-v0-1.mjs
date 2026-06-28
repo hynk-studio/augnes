@@ -485,8 +485,9 @@ function assertChangedFileScope() {
   assert.ok(
     !changed.some(
       (filePath) =>
-        filePath.startsWith("app/api/research-candidate-review/review-records/") ||
-        filePath === "app/api/research-candidate/review-memory/route.ts",
+        (filePath.startsWith("app/api/research-candidate-review/review-records/") ||
+          filePath === "app/api/research-candidate/review-memory/route.ts") &&
+        !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath),
     ),
     "no review-memory app/api route was added for this slice",
   );
@@ -499,10 +500,30 @@ function assertChangedFileScope() {
 	    !changed.some((filePath) =>
 	      /provider|retrieval|rag|github|git-ledger|codex-execution|product-write|product-id/i.test(filePath) &&
 	      !isProviderExtractionRuntimeCompletionFile(filePath) &&
-	      !isRetrievalIndexRuntimeCompletionFile(filePath),
+	      !isRetrievalIndexRuntimeCompletionFile(filePath) &&
+	      !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath),
 	    ),
 	    "no provider/retrieval/Git/GitHub/Codex/product-write/product ID files were added",
 	  );
+}
+
+function isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) {
+  return [
+    "app/api/research-candidate-review/review-records/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/activity/route.ts",
+    "app/api/research-candidate-review/review-records/[review_record_id]/discard/route.ts",
+    "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_3.md",
+    "fixtures/runtime-audit-selected-route-instrumentation.v0.3.sample.json",
+    "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-3.mjs",
+    "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-memory-db-routes-runtime-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-memory-db-ui-runtime-v0-1.mjs",
+    "scripts/smoke-foundation-lifecycle-review-memory-db-readonly-ui-completion-v0-1.mjs",
+    "scripts/smoke-project-constellation-runtime-ui-completion-v0-1.mjs",
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
+  ].includes(filePath);
 }
 
 function isProviderExtractionRuntimeCompletionFile(filePath) {

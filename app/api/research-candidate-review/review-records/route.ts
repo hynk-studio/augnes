@@ -20,7 +20,12 @@ import {
   listResearchCandidateReviewRecordsV01,
   researchCandidateReviewMemoryDbSchemaExistsV01,
   type ResearchCandidateReviewMemoryDbCreateInputV01,
+  type ResearchCandidateReviewMemoryDbStoreResultV01,
 } from "../../../../lib/research-candidate-review/review-memory-db-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "../../../../lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -30,6 +35,7 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
+  const auditDbPath = url.searchParams.get("audit_db_path");
   const identityError = validateResearchCandidateReviewMemoryDbRouteQueryIdentityV01(url);
   if (identityError) {
     return jsonResponse(createResearchCandidateReviewMemoryDbRouteErrorResponseV01(identityError, "list_review_records"), 400);
@@ -56,9 +62,21 @@ export async function GET(request: Request) {
       parseResearchCandidateReviewMemoryDbRouteListFiltersV01(url),
       db,
     );
+    const statusCode = researchCandidateReviewMemoryDbRouteStoreResultHttpStatusV01(result);
+    const auditEventResult = writeReviewMemoryRouteAuditEvent({
+      audit_db_path: auditDbPath,
+      event_action: "review_memory_records_listed",
+      event_status: result.status,
+      subject_ref: "review-memory:list",
+      related_refs: result.records.map((record) => record.review_record_id),
+      primary_result_status: result.status,
+      primary_result_ref: `review-memory:list:${result.records.length}:${result.records[0]?.review_record_id ?? "empty"}`,
+      bounded_summary: "Review memory route returned bounded list result.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
     return jsonResponse(
-      createResearchCandidateReviewMemoryDbRouteStoreResponseV01("list_review_records", result),
-      researchCandidateReviewMemoryDbRouteStoreResultHttpStatusV01(result),
+      createRouteStoreResponseWithAudit("list_review_records", result, auditEventResult),
+      statusCode,
     );
   } finally {
     db.close();
@@ -94,9 +112,24 @@ export async function POST(request: Request) {
       validation.body.input as ResearchCandidateReviewMemoryDbCreateInputV01,
       db,
     );
+    const statusCode = researchCandidateReviewMemoryDbRouteStoreResultHttpStatusV01(result, 201);
+    const auditEventResult = writeReviewMemoryRouteAuditEvent({
+      audit_db_path: (body as { audit_db_path?: unknown }).audit_db_path,
+      event_action: "review_memory_record_created",
+      event_status: result.status,
+      subject_ref: result.record?.review_record_id ?? "review-memory:create",
+      related_refs: [
+        result.record?.review_record_id ?? "",
+        ...result.records.map((record) => record.review_record_id),
+      ].filter(Boolean),
+      primary_result_status: result.status,
+      primary_result_ref: result.record?.review_record_id ?? "review-memory:create",
+      bounded_summary: "Review memory route created bounded review record.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
     return jsonResponse(
-      createResearchCandidateReviewMemoryDbRouteStoreResponseV01("create_review_record", result),
-      researchCandidateReviewMemoryDbRouteStoreResultHttpStatusV01(result, 201),
+      createRouteStoreResponseWithAudit("create_review_record", result, auditEventResult),
+      statusCode,
     );
   } finally {
     db.close();
@@ -123,4 +156,43 @@ function openWriteLocalDb(dbPath: string) {
 
 function jsonResponse(response: unknown, status = 200) {
   return NextResponse.json(response, { status });
+}
+
+function createRouteStoreResponseWithAudit(
+  action: Parameters<typeof createResearchCandidateReviewMemoryDbRouteStoreResponseV01>[0],
+  result: ResearchCandidateReviewMemoryDbStoreResultV01,
+  auditEventResult: RuntimeRouteAuditInstrumentationResultV01,
+) {
+  return {
+    ...createResearchCandidateReviewMemoryDbRouteStoreResponseV01(action, result),
+    audit_event_result: auditEventResult,
+  };
+}
+
+function writeReviewMemoryRouteAuditEvent(input: {
+  audit_db_path?: unknown;
+  event_action: string;
+  event_status: string;
+  subject_ref: string;
+  related_refs?: string[];
+  primary_result_status: string;
+  primary_result_ref: string;
+  bounded_summary: string;
+  bounded_error_code?: string | null;
+}) {
+  return maybeWriteRuntimeRouteAuditEventV01({
+    audit_db_path: input.audit_db_path,
+    route_ref: "route:/api/research-candidate-review/review-records",
+    runtime_slice_ref: "runtime_audit_selected_route_instrumentation_v0_3",
+    event_surface: "review_memory_db_routes",
+    event_kind: "route_response",
+    event_action: input.event_action,
+    event_status: input.event_status,
+    subject_ref: input.subject_ref,
+    related_refs: input.related_refs,
+    primary_result_status: input.primary_result_status,
+    primary_result_ref: input.primary_result_ref,
+    bounded_summary: input.bounded_summary,
+    bounded_error_code: input.bounded_error_code,
+  });
 }
