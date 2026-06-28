@@ -83,6 +83,9 @@ const expectedChangedFiles = new Set([
   "docs/FINAL_ANSWER_CANDIDATE_REVIEW_UI_BINDING_V0_1.md",
   "fixtures/final-answer-candidate-review-ui-binding.sample.v0.1.json",
   "scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
+  "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_6.md",
+  "fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.6.json",
+  "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-6.mjs",
   packagePath,
   latestIndexPath,
 ]);

@@ -73,6 +73,9 @@ const expectedChangedFiles = new Set([
   "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
   "scripts/smoke-research-candidate-review-memory-db-ui-runtime-v0-1.mjs",
   "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-5.mjs",
+  "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_6.md",
+  "fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.6.json",
+  "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-6.mjs",
 ]);
 
 const allowedTrueBoundaryFields = [

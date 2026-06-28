@@ -4474,6 +4474,37 @@ repo-local 색인이다.
   slice because the remaining visible work is approval-gated, explicitly
   future/deferred, or contract/fixture/offline-only. Product-write remains
   parked by #686. Smoke/CI pass is not truth. The roadmap guide is not SSOT.
+- v0.2.1 Remaining Runtime Gap Audit v0.6:
+  `docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_6.md`,
+  `fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.6.json`, and
+  `scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-6.mjs`
+  (`npm run smoke:v0-2-1-remaining-runtime-gap-audit-v0-6`) implements
+  `v0_2_1_remaining_runtime_gap_audit_v0_6` as a static postmerge grounding
+  audit after merged PR #848 and
+  `final_answer_candidate_review_ui_binding_v0_1`. It confirms #848 as final
+  answer candidate Review Memory read/display-only UI binding only: existing Review
+  Memory DB GET routes only, no POST calls, no write controls, bounded
+  record/detail/activity projection display, bounded copied packet, invalid DB
+  path and private/raw filter blocking before fetch, private URL/path/token/
+  provider/internal ID variant blocking in input/display/copy surfaces, broad
+  private/internal/intranet/corp/.local URL host blocking, public-safe symbolic
+  refs display, and no raw JSON blob or route response body wholesale
+  rendering. This does not implement new runtime beyond audit/grounding docs,
+  fixture, and smoke, and it does not grant Review Memory write, POST, final
+  answer generation, provider, retrieval, source fetch, proof/evidence,
+  claim/evidence, promotion, durable state, Formation Receipt, product-write,
+  accepted evidence ref, GitHub actuation, release, live provider, retrieval
+  index write, background job, automatic answer-to-product, or product ID
+  authority. Review Memory is not truth, proof, accepted evidence, or durable
+  Perspective state. Final answer candidate remains candidate-only. Source
+  refs are lineage pointers, not proof. Operator review note is not promotion
+  or product-write authority. Read/display UI is not write authority. Copied
+  packet is not proof/evidence/promotion/product-write/approval. It names
+  `none_without_explicit_approval` as the next recommended implementation
+  slice while preserving
+  `promotion_readiness_packet_from_review_memory_v0_1` only as a possible
+  future separately classified readiness-packet slice. Smoke/CI pass is not
+  truth. The roadmap guide is not SSOT.
 - v0.2.1 Remaining Runtime Gap Audit v0.5:
   `docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_5.md`,
   `fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.5.json`, and
