@@ -592,8 +592,14 @@ function assertNoForbiddenRuntimeCode() {
 
 function assertChangedFileScope() {
   const changed = changedFilesAgainstMain();
-  assert.ok(!changed.some((filePath) => filePath.startsWith("app/api/")), "no new app/api route was added");
-  assert.ok(!changed.includes("lib/db/schema.sql"), "DB schema must not be modified");
+  assert.ok(
+    !changed.some((filePath) => filePath.startsWith("app/api/") && !isManualAnchorRuntimeCompletionFile(filePath)),
+    "no new app/api route was added",
+  );
+  assert.ok(
+    !changed.includes("lib/db/schema.sql") || isManualAnchorRuntimeCompletionFile("lib/db/schema.sql"),
+    "DB schema must not be modified outside manual anchor runtime completion",
+  );
   assert.ok(
     !changed.some(
       (filePath) =>
@@ -658,6 +664,19 @@ function isExpectedCompletionFile(filePath) {
     inspectorPath,
     globalsPath,
     "scripts/smoke-project-constellation-runtime-ui-completion-v0-1.mjs",
+    packagePath,
+    indexPath,
+  ].includes(filePath);
+}
+
+function isManualAnchorRuntimeCompletionFile(filePath) {
+  return [
+    "lib/perspective/layout/manual-anchor-store.ts",
+    "app/api/perspective/layout/manual-anchors/route.ts",
+    "lib/db/schema.sql",
+    "docs/PROJECT_CONSTELLATION_MANUAL_ANCHORS_RUNTIME_COMPLETION_V0_1.md",
+    "fixtures/project-constellation-manual-anchors-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-project-constellation-manual-anchors-runtime-completion-v0-1.mjs",
     packagePath,
     indexPath,
   ].includes(filePath);

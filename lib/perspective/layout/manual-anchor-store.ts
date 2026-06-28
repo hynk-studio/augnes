@@ -16,6 +16,8 @@ export type ManualAnchorStoreStatus =
 
 export type ManualAnchorActivityKind =
   | "manual_anchor_created"
+  | "manual_anchor_updated"
+  | "manual_anchor_upsert_idempotent"
   | "manual_anchor_read"
   | "manual_anchor_listed"
   | "manual_anchor_discarded"
@@ -30,6 +32,11 @@ export type ManualAnchorStoreReasonCode =
   | "manual_anchor_not_proof"
   | "manual_anchor_not_evidence_strength"
   | "manual_anchor_not_promotion_readiness"
+  | "layout_persistence_manual_anchors_runtime_completion"
+  | "manual_anchor_upserted"
+  | "manual_anchor_updated"
+  | "manual_anchor_upsert_idempotent"
+  | "manual_anchor_discarded"
   | "layout_persistence_executed_for_anchor_only"
   | "durable_state_not_mutated"
   | "proof_not_created"
@@ -57,9 +64,20 @@ export type ManualAnchorStoreReasonCode =
   | "forbidden_authority_blocked";
 
 export interface ManualAnchorAuthorityBoundary {
+  manual_anchor_persistence_runtime_now: true;
+  explicit_operator_anchor_action_only: true;
+  same_origin_route_now: boolean;
+  caller_injected_db_only: true;
+  manual_anchor_write_now: boolean;
+  manual_anchor_read_now: boolean;
+  display_hint_only: true;
   manual_anchor_persistence_now: true;
   layout_persistence_now: true;
   manual_anchor_display_hint_only: true;
+  coordinate_is_truth: false;
+  anchor_is_promotion_readiness: false;
+  anchor_is_evidence_strength: false;
+  anchor_is_source_authority: false;
   durable_state_write_now: false;
   durable_state_apply_now: false;
   formation_receipt_write_now: false;
@@ -67,11 +85,16 @@ export interface ManualAnchorAuthorityBoundary {
   promotion_decision_record_write_now: false;
   proof_or_evidence_record_now: false;
   claim_or_evidence_write_now: false;
+  work_item_write_now: false;
   product_write_now: false;
+  product_write_runtime_now: false;
+  product_write_adapter_enabled_now: false;
   product_id_allocation_now: false;
+  product_persistence_now: false;
   work_mutation_now: false;
   db_query_or_write_now: true;
   source_fetch_now: false;
+  retrieval_index_write_now: false;
   local_file_read_now: false;
   repository_file_read_now: false;
   uploaded_file_read_now: false;
@@ -82,18 +105,26 @@ export interface ManualAnchorAuthorityBoundary {
   embedding_created_now: false;
   vector_search_now: false;
   git_ledger_export_now: false;
+  git_ledger_export_runtime_now: false;
+  git_write_now: false;
+  github_api_call_now: false;
+  repository_file_write_now: false;
+  local_file_export_now: false;
+  local_file_import_now: false;
+  codex_execution_now: false;
   codex_execution_authority: false;
   github_automation_authority: false;
+  product_write_authority: false;
   manual_anchor_is_authority: false;
   manual_anchor_is_truth: false;
   manual_anchor_is_proof: false;
   manual_anchor_is_evidence_strength: false;
   manual_anchor_is_promotion_readiness: false;
-  coordinate_is_truth: false;
   coordinate_is_proof: false;
   coordinate_is_evidence_strength: false;
   coordinate_is_promotion_readiness: false;
-  product_write_authority: false;
+  smoke_pass_is_truth: false;
+  ci_pass_is_truth: false;
 }
 
 export interface ManualAnchorPosition {
@@ -117,6 +148,7 @@ export interface ManualAnchorCreateInput {
   anchor_position: ManualAnchorPosition;
   anchor_reason: string;
   created_by_ref: string;
+  created_by?: string;
   applies_to_layout_scope: string;
   explicit_operator_action_required: true;
   persistence_now: true;
@@ -181,7 +213,9 @@ export interface ManualAnchorListFilters {
   layout_id?: string;
   perspective_id?: string;
   node_ref?: string;
+  applies_to_layout_scope?: string;
   include_discarded?: boolean;
+  limit?: number;
 }
 
 export interface ManualAnchorStoreResult {
@@ -259,6 +293,11 @@ const allowedReasonCodes = [
   "manual_anchor_not_proof",
   "manual_anchor_not_evidence_strength",
   "manual_anchor_not_promotion_readiness",
+  "layout_persistence_manual_anchors_runtime_completion",
+  "manual_anchor_upserted",
+  "manual_anchor_updated",
+  "manual_anchor_upsert_idempotent",
+  "manual_anchor_discarded",
   "layout_persistence_executed_for_anchor_only",
   "durable_state_not_mutated",
   "proof_not_created",
@@ -288,6 +327,8 @@ const allowedReasonCodes = [
 
 const allowedActivityKinds = [
   "manual_anchor_created",
+  "manual_anchor_updated",
+  "manual_anchor_upsert_idempotent",
   "manual_anchor_read",
   "manual_anchor_listed",
   "manual_anchor_discarded",
@@ -335,6 +376,8 @@ CREATE INDEX IF NOT EXISTS idx_project_constellation_manual_anchors_perspective
   ON project_constellation_manual_anchors(perspective_id, discarded_at);
 CREATE INDEX IF NOT EXISTS idx_project_constellation_manual_anchors_node
   ON project_constellation_manual_anchors(node_ref, discarded_at);
+CREATE INDEX IF NOT EXISTS idx_project_constellation_manual_anchors_layout_scope
+  ON project_constellation_manual_anchors(applies_to_layout_scope, discarded_at);
 CREATE INDEX IF NOT EXISTS idx_project_constellation_manual_anchor_activity_anchor
   ON project_constellation_manual_anchor_activity(anchor_id, created_at);
 `;
@@ -371,9 +414,25 @@ const privateRawMarkers = [
   "actual query:",
   "embedding vector:",
   "vector index dump:",
+  "SAFE_MARKER_PRIVATE_URL",
+  "SAFE_MARKER_LOCAL_PRIVATE_PATH",
+  "SAFE_MARKER_SECRET_TOKEN",
+  "SAFE_MARKER_RAW_SOURCE_BODY",
+  "SAFE_MARKER_RAW_PROVIDER_OUTPUT",
+  "SAFE_MARKER_RAW_RETRIEVAL_OUTPUT",
+  "SAFE_MARKER_PROVIDER_THREAD_ID",
+  "SAFE_MARKER_RAW_CONVERSATION",
+  "SAFE_MARKER_HIDDEN_REASONING",
+  "SAFE_MARKER_RAW_DB_ROW",
+  "SAFE_MARKER_RAW_DIFF",
+  "SAFE_MARKER_TELEMETRY_DUMP",
 ] as const;
 
 const forbiddenAuthorityTrueKeys = [
+  "coordinate_is_truth",
+  "anchor_is_promotion_readiness",
+  "anchor_is_evidence_strength",
+  "anchor_is_source_authority",
   "durable_state_write_now",
   "durable_state_apply_now",
   "formation_receipt_write_now",
@@ -381,10 +440,15 @@ const forbiddenAuthorityTrueKeys = [
   "promotion_decision_record_write_now",
   "proof_or_evidence_record_now",
   "claim_or_evidence_write_now",
+  "work_item_write_now",
   "product_write_now",
+  "product_write_runtime_now",
+  "product_write_adapter_enabled_now",
   "product_id_allocation_now",
+  "product_persistence_now",
   "work_mutation_now",
   "source_fetch_now",
+  "retrieval_index_write_now",
   "local_file_read_now",
   "repository_file_read_now",
   "uploaded_file_read_now",
@@ -395,8 +459,16 @@ const forbiddenAuthorityTrueKeys = [
   "embedding_created_now",
   "vector_search_now",
   "git_ledger_export_now",
+  "git_ledger_export_runtime_now",
+  "git_write_now",
+  "github_api_call_now",
+  "repository_file_write_now",
+  "local_file_export_now",
+  "local_file_import_now",
+  "codex_execution_now",
   "codex_execution_authority",
   "github_automation_authority",
+  "product_write_authority",
   "manual_anchor_is_authority",
   "manual_anchor_is_truth",
   "manual_anchor_is_proof",
@@ -406,14 +478,55 @@ const forbiddenAuthorityTrueKeys = [
   "coordinate_is_proof",
   "coordinate_is_evidence_strength",
   "coordinate_is_promotion_readiness",
-  "product_write_authority",
+  "smoke_pass_is_truth",
+  "ci_pass_is_truth",
 ] as const;
 
-export function createManualAnchorAuthorityBoundaryV01(): ManualAnchorAuthorityBoundary {
+const allowedAuthorityKeys = [
+  "manual_anchor_persistence_runtime_now",
+  "explicit_operator_anchor_action_only",
+  "same_origin_route_now",
+  "caller_injected_db_only",
+  "manual_anchor_write_now",
+  "manual_anchor_read_now",
+  "display_hint_only",
+  "manual_anchor_persistence_now",
+  "layout_persistence_now",
+  "manual_anchor_display_hint_only",
+  "db_query_or_write_now",
+] as const;
+
+const forbiddenManualAnchorFieldKeys = new Set([
+  "truth_score",
+  "promotion_readiness",
+  "evidence_strength",
+  "source_authority",
+]);
+
+interface ManualAnchorAuthorityBoundaryOptions {
+  same_origin_route_now?: boolean;
+  manual_anchor_write_now?: boolean;
+  manual_anchor_read_now?: boolean;
+}
+
+export function createManualAnchorAuthorityBoundaryV01(
+  options: ManualAnchorAuthorityBoundaryOptions = {},
+): ManualAnchorAuthorityBoundary {
   return {
+    manual_anchor_persistence_runtime_now: true,
+    explicit_operator_anchor_action_only: true,
+    same_origin_route_now: options.same_origin_route_now === true,
+    caller_injected_db_only: true,
+    manual_anchor_write_now: options.manual_anchor_write_now === true,
+    manual_anchor_read_now: options.manual_anchor_read_now === true,
+    display_hint_only: true,
     manual_anchor_persistence_now: true,
     layout_persistence_now: true,
     manual_anchor_display_hint_only: true,
+    coordinate_is_truth: false,
+    anchor_is_promotion_readiness: false,
+    anchor_is_evidence_strength: false,
+    anchor_is_source_authority: false,
     durable_state_write_now: false,
     durable_state_apply_now: false,
     formation_receipt_write_now: false,
@@ -421,11 +534,16 @@ export function createManualAnchorAuthorityBoundaryV01(): ManualAnchorAuthorityB
     promotion_decision_record_write_now: false,
     proof_or_evidence_record_now: false,
     claim_or_evidence_write_now: false,
+    work_item_write_now: false,
     product_write_now: false,
+    product_write_runtime_now: false,
+    product_write_adapter_enabled_now: false,
     product_id_allocation_now: false,
+    product_persistence_now: false,
     work_mutation_now: false,
     db_query_or_write_now: true,
     source_fetch_now: false,
+    retrieval_index_write_now: false,
     local_file_read_now: false,
     repository_file_read_now: false,
     uploaded_file_read_now: false,
@@ -436,24 +554,34 @@ export function createManualAnchorAuthorityBoundaryV01(): ManualAnchorAuthorityB
     embedding_created_now: false,
     vector_search_now: false,
     git_ledger_export_now: false,
+    git_ledger_export_runtime_now: false,
+    git_write_now: false,
+    github_api_call_now: false,
+    repository_file_write_now: false,
+    local_file_export_now: false,
+    local_file_import_now: false,
+    codex_execution_now: false,
     codex_execution_authority: false,
     github_automation_authority: false,
+    product_write_authority: false,
     manual_anchor_is_authority: false,
     manual_anchor_is_truth: false,
     manual_anchor_is_proof: false,
     manual_anchor_is_evidence_strength: false,
     manual_anchor_is_promotion_readiness: false,
-    coordinate_is_truth: false,
     coordinate_is_proof: false,
     coordinate_is_evidence_strength: false,
     coordinate_is_promotion_readiness: false,
-    product_write_authority: false,
+    smoke_pass_is_truth: false,
+    ci_pass_is_truth: false,
   };
 }
 
 export function ensureManualAnchorStoreSchemaV01(db: ManualAnchorDbLike): void {
   db.exec(manualAnchorStoreSchemaSqlV01);
 }
+
+export const ensureProjectConstellationManualAnchorSchemaV01 = ensureManualAnchorStoreSchemaV01;
 
 export function manualAnchorStoreSchemaExistsV01(db: ManualAnchorDbLike): boolean {
   const requiredTables = [
@@ -470,6 +598,8 @@ export function manualAnchorStoreSchemaExistsV01(db: ManualAnchorDbLike): boolea
   return requiredTables.every((tableName) => tableNames.has(tableName));
 }
 
+export const projectConstellationManualAnchorSchemaExistsV01 = manualAnchorStoreSchemaExistsV01;
+
 export function validateManualAnchorCreateInputV01(input: unknown): ManualAnchorValidationResult {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return { passed: false, failure_codes: ["input_invalid_object"] };
@@ -484,8 +614,11 @@ export function validateManualAnchorCreateInputV01(input: unknown): ManualAnchor
   if (!isSafeString(value.perspective_id)) failureCodes.push("perspective_id_invalid");
   if (!isSafeString(value.state_version_ref)) failureCodes.push("state_version_ref_invalid");
   if (!isSafeString(value.node_ref)) failureCodes.push("node_ref_missing");
-  if (!isSafeString(value.anchor_reason)) failureCodes.push("anchor_reason_invalid");
-  if (!isSafeString(value.created_by_ref)) failureCodes.push("created_by_ref_invalid");
+  if (!isSafeString(value.anchor_reason) || value.anchor_reason.length > 320) {
+    failureCodes.push("anchor_reason_invalid");
+  }
+  const createdByRef = value.created_by_ref ?? value.created_by;
+  if (!isSafeString(createdByRef)) failureCodes.push("created_by_ref_invalid");
   if (!isSafeString(value.applies_to_layout_scope)) failureCodes.push("applies_to_layout_scope_invalid");
   if (value.explicit_operator_action_required !== true) {
     failureCodes.push("explicit_operator_action_required_invalid");
@@ -496,7 +629,7 @@ export function validateManualAnchorCreateInputV01(input: unknown): ManualAnchor
   failureCodes.push(...validateReasonCodeArray(value.reason_codes, "reason_codes"));
   failureCodes.push(...validateStringArray(value.boundary_notes, "boundary_notes"));
   failureCodes.push(...validateAuthorityBoundary(value.authority_boundary));
-  failureCodes.push(...privateRawFailures(JSON.stringify(value), "input"));
+  failureCodes.push(...validateRecursiveManualAnchorSafety(value, "input"));
   if (value.created_at !== undefined && !isSafeString(value.created_at)) failureCodes.push("created_at_invalid");
   if (value.updated_at !== undefined && !isSafeString(value.updated_at)) failureCodes.push("updated_at_invalid");
   return { passed: failureCodes.length === 0, failure_codes: uniqueSortedStrings(failureCodes) };
@@ -537,13 +670,14 @@ export function createManualAnchorRecordV01(
     return result("stored", record, [record], [activity], [
       "explicit_operator_action_required",
       "manual_anchor_display_hint_only",
+      "layout_persistence_manual_anchors_runtime_completion",
       "layout_persistence_executed_for_anchor_only",
       "durable_state_not_mutated",
       "proof_not_created",
       "evidence_not_created",
       "claim_evidence_not_written",
       "product_write_denied",
-    ]);
+    ], { manual_anchor_write_now: true });
   } catch {
     if (transactionStarted) {
       try {
@@ -556,27 +690,155 @@ export function createManualAnchorRecordV01(
   }
 }
 
+export function createOrUpdateProjectConstellationManualAnchorV01(
+  input: ManualAnchorCreateInput,
+  db: ManualAnchorDbLike,
+): ManualAnchorStoreResult {
+  const validation = validateManualAnchorCreateInputV01(input);
+  if (!validation.passed) {
+    return blockedResult(statusForValidationFailures(validation.failure_codes), undefined, {
+      manual_anchor_write_now: true,
+    });
+  }
+
+  const incoming = normalizeCreateInputToRecord(input);
+  ensureManualAnchorStoreSchemaV01(db);
+  let transactionStarted = false;
+  try {
+    db.prepare("BEGIN IMMEDIATE").run();
+    transactionStarted = true;
+    const existing = readAnchorById(db, incoming.anchor_id);
+    if (!existing) {
+      insertManualAnchorRecord(db, incoming);
+      const createdActivity = normalizeActivityInput({
+        activity_id: `${incoming.anchor_id}:activity:created`,
+        anchor_id: incoming.anchor_id,
+        activity_kind: "manual_anchor_created",
+        actor_ref: incoming.created_by_ref,
+        summary: "Manual anchor upsert created a display hint only.",
+        reason_codes: [
+          "explicit_operator_action_required",
+          "manual_anchor_display_hint_only",
+          "manual_anchor_upserted",
+          "layout_persistence_executed_for_anchor_only",
+          "durable_state_not_mutated",
+          "product_write_denied",
+        ],
+        created_at: incoming.created_at,
+      });
+      insertManualAnchorActivityRecord(db, createdActivity);
+      db.prepare("COMMIT").run();
+      transactionStarted = false;
+      return result("stored", incoming, [incoming], [createdActivity], [
+        "explicit_operator_action_required",
+        "manual_anchor_display_hint_only",
+        "manual_anchor_upserted",
+        "layout_persistence_manual_anchors_runtime_completion",
+        "durable_state_not_mutated",
+        "product_write_denied",
+      ], { manual_anchor_write_now: true });
+    }
+
+    if (isIdempotentManualAnchorUpsert(existing, incoming)) {
+      const activities = listActivitiesForAnchor(db, incoming.anchor_id);
+      db.prepare("COMMIT").run();
+      transactionStarted = false;
+      return result("stored", existing, [existing], activities, [
+        "explicit_operator_action_required",
+        "manual_anchor_display_hint_only",
+        "manual_anchor_upsert_idempotent",
+        "layout_persistence_manual_anchors_runtime_completion",
+        "durable_state_not_mutated",
+        "product_write_denied",
+      ], { manual_anchor_write_now: true });
+    }
+
+    const updatedRecord: ManualAnchorRecord = {
+      ...incoming,
+      created_at: existing.created_at,
+      updated_at: incoming.updated_at,
+      discarded_at: null,
+      discard_reason: null,
+    };
+    updateManualAnchorRecord(db, updatedRecord);
+    const updatedActivity = normalizeActivityInput({
+      activity_id: `${updatedRecord.anchor_id}:activity:updated:${stableActivitySuffix(updatedRecord.updated_at)}`,
+      anchor_id: updatedRecord.anchor_id,
+      activity_kind: "manual_anchor_updated",
+      actor_ref: updatedRecord.created_by_ref,
+      summary: "Manual anchor upsert updated a display hint only.",
+      reason_codes: [
+        "explicit_operator_action_required",
+        "manual_anchor_display_hint_only",
+        "manual_anchor_updated",
+        "layout_persistence_executed_for_anchor_only",
+        "durable_state_not_mutated",
+        "product_write_denied",
+      ],
+      created_at: updatedRecord.updated_at,
+    });
+    insertManualAnchorActivityRecord(db, updatedActivity);
+    db.prepare("COMMIT").run();
+    transactionStarted = false;
+    return result("stored", updatedRecord, [updatedRecord], [updatedActivity], [
+      "explicit_operator_action_required",
+      "manual_anchor_display_hint_only",
+      "manual_anchor_updated",
+      "layout_persistence_manual_anchors_runtime_completion",
+      "durable_state_not_mutated",
+      "product_write_denied",
+    ], { manual_anchor_write_now: true });
+  } catch {
+    if (transactionStarted) {
+      try {
+        db.prepare("ROLLBACK").run();
+      } catch {
+        // Bounded result below covers rollback failure.
+      }
+    }
+    return blockedResult("blocked_invalid_input", undefined, { manual_anchor_write_now: true });
+  }
+}
+
 export function readManualAnchorRecordV01(
   anchorId: string,
   db: ManualAnchorDbLike,
 ): ManualAnchorStoreResult {
-  if (!isSafeString(anchorId)) return blockedResult("blocked_private_or_raw_payload");
+  if (!isSafeString(anchorId)) {
+    return blockedResult("blocked_private_or_raw_payload", undefined, { manual_anchor_read_now: true });
+  }
   const record = readAnchorById(db, anchorId);
-  if (!record) return result("not_found", null, [], [], ["manual_anchor_display_hint_only"]);
+  if (!record) {
+    return result("not_found", null, [], [], ["manual_anchor_display_hint_only"], {
+      manual_anchor_read_now: true,
+    });
+  }
   return result(record.discarded_at ? "discarded" : "stored", record, [record], listActivitiesForAnchor(db, anchorId), [
     "manual_anchor_display_hint_only",
     "manual_anchor_not_authority",
     "durable_state_not_mutated",
     "product_write_denied",
-  ]);
+  ], { manual_anchor_read_now: true });
 }
+
+export const readProjectConstellationManualAnchorV01 = readManualAnchorRecordV01;
 
 export function listManualAnchorRecordsV01(
   filters: ManualAnchorListFilters,
   db: ManualAnchorDbLike,
 ): ManualAnchorStoreResult {
-  for (const value of [filters.layout_id, filters.perspective_id, filters.node_ref]) {
-    if (value !== undefined && !isSafeString(value)) return blockedResult("blocked_private_or_raw_payload");
+  for (const value of [
+    filters.layout_id,
+    filters.perspective_id,
+    filters.node_ref,
+    filters.applies_to_layout_scope,
+  ]) {
+    if (value !== undefined && !isSafeString(value)) {
+      return blockedResult("blocked_private_or_raw_payload", undefined, { manual_anchor_read_now: true });
+    }
+  }
+  if (filters.limit !== undefined && (!Number.isInteger(filters.limit) || filters.limit < 1 || filters.limit > 100)) {
+    return blockedResult("blocked_invalid_input", undefined, { manual_anchor_read_now: true });
   }
   const clauses = ["scope = ?"];
   const params: unknown[] = [scope];
@@ -592,22 +854,30 @@ export function listManualAnchorRecordsV01(
     clauses.push("node_ref = ?");
     params.push(filters.node_ref);
   }
+  if (filters.applies_to_layout_scope) {
+    clauses.push("applies_to_layout_scope = ?");
+    params.push(filters.applies_to_layout_scope);
+  }
   if (!filters.include_discarded) clauses.push("discarded_at IS NULL");
+  const limit = filters.limit ?? 100;
   const rows = db
     .prepare(
       `SELECT * FROM project_constellation_manual_anchors
        WHERE ${clauses.join(" AND ")}
-       ORDER BY created_at ASC, anchor_id ASC`,
+       ORDER BY updated_at DESC, anchor_id ASC
+       LIMIT ?`,
     )
-    .all(...params) as ManualAnchorRow[];
+    .all(...params, limit) as ManualAnchorRow[];
   const records = rows.map(rowToRecord);
   return result("stored", records[0] ?? null, records, [], [
     "manual_anchor_display_hint_only",
     "manual_anchor_not_authority",
     "durable_state_not_mutated",
     "product_write_denied",
-  ]);
+  ], { manual_anchor_read_now: true });
 }
+
+export const listProjectConstellationManualAnchorsV01 = listManualAnchorRecordsV01;
 
 export function discardManualAnchorRecordV01(
   anchorId: string,
@@ -615,11 +885,15 @@ export function discardManualAnchorRecordV01(
   db: ManualAnchorDbLike,
 ): ManualAnchorStoreResult {
   if (!isSafeString(anchorId) || !isSafeString(reason)) {
-    return blockedResult("blocked_private_or_raw_payload");
+    return blockedResult("blocked_private_or_raw_payload", undefined, { manual_anchor_write_now: true });
   }
   ensureManualAnchorStoreSchemaV01(db);
   const record = readAnchorById(db, anchorId);
-  if (!record) return result("not_found", null, [], [], ["manual_anchor_display_hint_only"]);
+  if (!record) {
+    return result("not_found", null, [], [], ["manual_anchor_display_hint_only"], {
+      manual_anchor_write_now: true,
+    });
+  }
   const discardedAt = record.discarded_at ?? record.updated_at;
   db.prepare(
     `UPDATE project_constellation_manual_anchors
@@ -636,6 +910,7 @@ export function discardManualAnchorRecordV01(
       reason_codes: [
         "manual_anchor_display_hint_only",
         "manual_anchor_not_proof",
+        "manual_anchor_discarded",
         "durable_state_not_mutated",
         "product_write_denied",
       ],
@@ -649,9 +924,12 @@ export function discardManualAnchorRecordV01(
     discarded,
     discarded ? [discarded] : [],
     activityResult.activities.length > 0 ? activityResult.activities : listActivitiesForAnchor(db, anchorId),
-    ["manual_anchor_display_hint_only", "durable_state_not_mutated", "product_write_denied"],
+    ["manual_anchor_display_hint_only", "manual_anchor_discarded", "durable_state_not_mutated", "product_write_denied"],
+    { manual_anchor_write_now: true },
   );
 }
+
+export const discardProjectConstellationManualAnchorV01 = discardManualAnchorRecordV01;
 
 export function appendManualAnchorActivityV01(
   input: ManualAnchorActivityInput,
@@ -665,22 +943,26 @@ export function appendManualAnchorActivityV01(
   if (!isSafeString(input.summary)) failureCodes.push("summary_invalid");
   if (input.created_at !== undefined && !isSafeString(input.created_at)) failureCodes.push("created_at_invalid");
   failureCodes.push(...validateReasonCodeArray(input.reason_codes, "reason_codes"));
-  if (failureCodes.length > 0) return blockedResult(statusForValidationFailures(failureCodes));
+  if (failureCodes.length > 0) {
+    return blockedResult(statusForValidationFailures(failureCodes), undefined, { manual_anchor_write_now: true });
+  }
 
   ensureManualAnchorStoreSchemaV01(db);
   if (!manualAnchorExists(db, input.anchor_id)) {
-    return result("not_found", null, [], [], ["manual_anchor_display_hint_only"]);
+    return result("not_found", null, [], [], ["manual_anchor_display_hint_only"], {
+      manual_anchor_write_now: true,
+    });
   }
   const activity = normalizeActivityInput(input);
   try {
     insertManualAnchorActivityRecord(db, activity);
   } catch {
-    return blockedResult("blocked_invalid_input");
+    return blockedResult("blocked_invalid_input", undefined, { manual_anchor_write_now: true });
   }
   return result("stored", null, [], [activity], [
     "manual_anchor_display_hint_only",
     "layout_persistence_executed_for_anchor_only",
-  ]);
+  ], { manual_anchor_write_now: true });
 }
 
 export function isSafeManualAnchorRouteDbPathV01(value: unknown): value is string {
@@ -694,8 +976,14 @@ export function isSafeManualAnchorRouteDbPathV01(value: unknown): value is strin
   return !hasUnsafeString(value);
 }
 
+export const createProjectConstellationManualAnchorAuthorityBoundaryV01 =
+  createManualAnchorAuthorityBoundaryV01;
+
+export const isSafeProjectConstellationManualAnchorDbPathV01 = isSafeManualAnchorRouteDbPathV01;
+
 function normalizeCreateInputToRecord(input: ManualAnchorCreateInput): ManualAnchorRecord {
   const createdAt = input.created_at ?? new Date(0).toISOString();
+  const createdByRef = input.created_by_ref ?? input.created_by ?? "";
   return {
     record_version: MANUAL_ANCHOR_RECORD_VERSION,
     store_version: MANUAL_ANCHOR_STORE_VERSION,
@@ -710,14 +998,14 @@ function normalizeCreateInputToRecord(input: ManualAnchorCreateInput): ManualAnc
       reason_codes: uniqueSortedReasonCodes(input.anchor_position.reason_codes),
     },
     anchor_reason: input.anchor_reason,
-    created_by_ref: input.created_by_ref,
+    created_by_ref: createdByRef,
     applies_to_layout_scope: input.applies_to_layout_scope,
     explicit_operator_action_required: true,
     persistence_now: true,
     display_hint_only: true,
     reason_codes: uniqueSortedReasonCodes(input.reason_codes),
     boundary_notes: uniqueSortedStrings(input.boundary_notes),
-    authority_boundary: createManualAnchorAuthorityBoundaryV01(),
+    authority_boundary: createManualAnchorAuthorityBoundaryV01({ manual_anchor_write_now: true }),
     created_at: createdAt,
     updated_at: input.updated_at ?? createdAt,
     discarded_at: null,
@@ -737,7 +1025,7 @@ function normalizeActivityInput(input: ManualAnchorActivityInput): ManualAnchorA
     summary: input.summary,
     reason_codes: uniqueSortedReasonCodes(input.reason_codes),
     created_at: input.created_at ?? new Date(0).toISOString(),
-    authority_boundary: createManualAnchorAuthorityBoundaryV01(),
+    authority_boundary: createManualAnchorAuthorityBoundaryV01({ manual_anchor_write_now: true }),
   };
 }
 
@@ -786,6 +1074,51 @@ function insertManualAnchorRecord(db: ManualAnchorDbLike, record: ManualAnchorRe
     record.updated_at,
     record.discarded_at,
     record.discard_reason,
+  );
+}
+
+function updateManualAnchorRecord(db: ManualAnchorDbLike, record: ManualAnchorRecord): void {
+  db.prepare(
+    `UPDATE project_constellation_manual_anchors
+     SET scope = ?,
+         layout_id = ?,
+         perspective_id = ?,
+         state_version_ref = ?,
+         node_ref = ?,
+         anchor_position_json = ?,
+         anchor_reason = ?,
+         created_by_ref = ?,
+         applies_to_layout_scope = ?,
+         explicit_operator_action_required = ?,
+         persistence_now = ?,
+         display_hint_only = ?,
+         authority_boundary_json = ?,
+         reason_codes_json = ?,
+         boundary_notes_json = ?,
+         updated_at = ?,
+         discarded_at = ?,
+         discard_reason = ?
+     WHERE anchor_id = ?`,
+  ).run(
+    record.scope,
+    record.layout_id,
+    record.perspective_id,
+    record.state_version_ref,
+    record.node_ref,
+    JSON.stringify(record.anchor_position),
+    record.anchor_reason,
+    record.created_by_ref,
+    record.applies_to_layout_scope,
+    1,
+    1,
+    1,
+    JSON.stringify(record.authority_boundary),
+    JSON.stringify(record.reason_codes),
+    JSON.stringify(record.boundary_notes),
+    record.updated_at,
+    record.discarded_at,
+    record.discard_reason,
+    record.anchor_id,
   );
 }
 
@@ -855,7 +1188,10 @@ function rowToRecord(row: ManualAnchorRow): ManualAnchorRecord {
     display_hint_only: true,
     reason_codes: parseJson(row.reason_codes_json, []),
     boundary_notes: parseJson(row.boundary_notes_json, []),
-    authority_boundary: parseJson(row.authority_boundary_json, createManualAnchorAuthorityBoundaryV01()),
+    authority_boundary: normalizeStoredAuthorityBoundary(
+      parseJson(row.authority_boundary_json, {}),
+      { manual_anchor_read_now: true },
+    ),
     created_at: row.created_at,
     updated_at: row.updated_at,
     discarded_at: row.discarded_at,
@@ -875,7 +1211,7 @@ function rowToActivity(row: ManualAnchorActivityRow): ManualAnchorActivityRecord
     summary: row.summary,
     reason_codes: parseJson(row.reason_codes_json, []),
     created_at: row.created_at,
-    authority_boundary: createManualAnchorAuthorityBoundaryV01(),
+    authority_boundary: createManualAnchorAuthorityBoundaryV01({ manual_anchor_read_now: true }),
   };
 }
 
@@ -885,6 +1221,7 @@ function result(
   records: ManualAnchorRecord[],
   activities: ManualAnchorActivityRecord[],
   reasonCodes: ManualAnchorStoreReasonCode[],
+  authorityOptions: ManualAnchorAuthorityBoundaryOptions = {},
 ): ManualAnchorStoreResult {
   const errorCode = status.startsWith("blocked") || status === "not_found" ? status : null;
   return {
@@ -902,15 +1239,16 @@ function result(
     proof_or_evidence_created: false,
     claim_or_evidence_written: false,
     product_write_executed: false,
-    authority_boundary: createManualAnchorAuthorityBoundaryV01(),
+    authority_boundary: createManualAnchorAuthorityBoundaryV01(authorityOptions),
   };
 }
 
 function blockedResult(
   status: Exclude<ManualAnchorStoreStatus, "stored" | "discarded" | "not_found">,
   reasonCodes: ManualAnchorStoreReasonCode[] = statusToReasonCodes(status),
+  authorityOptions: ManualAnchorAuthorityBoundaryOptions = {},
 ): ManualAnchorStoreResult {
-  return result(status, null, [], [], reasonCodes);
+  return result(status, null, [], [], reasonCodes, authorityOptions);
 }
 
 function statusToReasonCodes(status: ManualAnchorStoreStatus): ManualAnchorStoreReasonCode[] {
@@ -943,10 +1281,13 @@ function validateAnchorPosition(value: unknown): string[] {
   if (!value || typeof value !== "object" || Array.isArray(value)) return ["anchor_position_missing"];
   const position = value as Partial<ManualAnchorPosition>;
   const failureCodes: string[] = [];
-  for (const axis of ["x", "y", "z"] as const) {
+  for (const axis of ["x", "y"] as const) {
     if (typeof position[axis] !== "number" || !Number.isFinite(position[axis])) {
       failureCodes.push(`anchor_position_${axis}_invalid`);
     }
+  }
+  if (position.z !== undefined && (typeof position.z !== "number" || !Number.isFinite(position.z))) {
+    failureCodes.push("anchor_position_z_invalid");
   }
   if (position.coordinate_authority !== "manual_anchor_hint") {
     failureCodes.push("anchor_position_coordinate_authority_invalid");
@@ -985,10 +1326,110 @@ function validateAuthorityBoundary(value: unknown): string[] {
   if (!value || typeof value !== "object" || Array.isArray(value)) return ["authority_boundary_invalid"];
   const boundary = value as Record<string, unknown>;
   const failureCodes: string[] = [];
-  for (const key of forbiddenAuthorityTrueKeys) {
-    if (boundary[key] === true) failureCodes.push(`${key}_forbidden_authority`);
+  for (const [key, nested] of Object.entries(boundary)) {
+    if (hasForbiddenAuthorityGrant(key, nested)) failureCodes.push(`${key}_forbidden_authority`);
   }
   return failureCodes;
+}
+
+function validateRecursiveManualAnchorSafety(value: unknown, path: string): string[] {
+  const failureCodes: string[] = [];
+  if (typeof value === "string") {
+    failureCodes.push(...privateRawFailures(value, path));
+    return failureCodes;
+  }
+  if (!value || typeof value !== "object") return failureCodes;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      failureCodes.push(...validateRecursiveManualAnchorSafety(item, `${path}.${index}`));
+    });
+    return failureCodes;
+  }
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    const normalizedKey = key.toLowerCase();
+    if (forbiddenManualAnchorFieldKeys.has(normalizedKey)) {
+      failureCodes.push(`${path}.${key}_forbidden_authority`);
+    }
+    failureCodes.push(...validateRecursiveManualAnchorSafety(nested, `${path}.${key}`));
+  }
+  return failureCodes;
+}
+
+function hasForbiddenAuthorityGrant(key: string, value: unknown): boolean {
+  const normalizedKey = key.toLowerCase();
+  const isKnownForbidden = forbiddenAuthorityTrueKeys.includes(
+    normalizedKey as (typeof forbiddenAuthorityTrueKeys)[number],
+  );
+  const isKnownAllowed = allowedAuthorityKeys.includes(
+    normalizedKey as (typeof allowedAuthorityKeys)[number],
+  );
+  const looksAuthorityLike = looksForbiddenAuthorityLikeKey(normalizedKey);
+  return (isKnownForbidden || (looksAuthorityLike && !isKnownAllowed)) && !isFalseLikeAuthorityValue(value);
+}
+
+function isFalseLikeAuthorityValue(value: unknown): boolean {
+  return value === false || value === null || value === undefined;
+}
+
+function looksForbiddenAuthorityLikeKey(key: string): boolean {
+  return (
+    key.endsWith("_authority") ||
+    key.endsWith("_write_now") ||
+    key.endsWith("_call_now") ||
+    key.endsWith("_execution_now") ||
+    key.endsWith("_is_truth") ||
+    key.endsWith("_is_proof") ||
+    key.includes("product_write") ||
+    key.includes("product_id_allocation") ||
+    key.includes("proof_or_evidence") ||
+    key.includes("claim_or_evidence") ||
+    key.includes("promotion_execution") ||
+    key.includes("durable_state_apply") ||
+    key.includes("formation_receipt_write") ||
+    key.includes("github_api_call") ||
+    key.includes("git_write")
+  );
+}
+
+function normalizeStoredAuthorityBoundary(
+  value: unknown,
+  options: ManualAnchorAuthorityBoundaryOptions,
+): ManualAnchorAuthorityBoundary {
+  return {
+    ...createManualAnchorAuthorityBoundaryV01(options),
+    ...(value && typeof value === "object" && !Array.isArray(value) ? value : {}),
+  } as ManualAnchorAuthorityBoundary;
+}
+
+function isIdempotentManualAnchorUpsert(existing: ManualAnchorRecord, incoming: ManualAnchorRecord): boolean {
+  return existing.discarded_at === null && manualAnchorPayloadFingerprint(existing) === manualAnchorPayloadFingerprint(incoming);
+}
+
+function manualAnchorPayloadFingerprint(record: ManualAnchorRecord): string {
+  return JSON.stringify({
+    scope: record.scope,
+    layout_id: record.layout_id,
+    perspective_id: record.perspective_id,
+    state_version_ref: record.state_version_ref,
+    node_ref: record.node_ref,
+    anchor_position: {
+      ...record.anchor_position,
+      z: record.anchor_position.z ?? 0,
+      reason_codes: uniqueSortedReasonCodes(record.anchor_position.reason_codes),
+    },
+    anchor_reason: record.anchor_reason,
+    created_by_ref: record.created_by_ref,
+    applies_to_layout_scope: record.applies_to_layout_scope,
+    explicit_operator_action_required: true,
+    persistence_now: true,
+    display_hint_only: true,
+    reason_codes: uniqueSortedReasonCodes(record.reason_codes),
+    boundary_notes: uniqueSortedStrings(record.boundary_notes),
+  });
+}
+
+function stableActivitySuffix(value: string): string {
+  return value.replace(/[^A-Za-z0-9:-]/g, "_");
 }
 
 function isSafeString(value: unknown): value is string {
@@ -1006,8 +1447,10 @@ function privateRawFailures(value: string, field: string): string[] {
 }
 
 function markerFailureCode(marker: string): ManualAnchorStoreReasonCode {
-  if (marker === "/Users/" || marker === "/home/") return "local_path_blocked";
-  if (marker === "file://") return "private_url_blocked";
+  if (marker === "/Users/" || marker === "/home/" || marker === "SAFE_MARKER_LOCAL_PRIVATE_PATH") {
+    return "local_path_blocked";
+  }
+  if (marker === "file://" || marker === "SAFE_MARKER_PRIVATE_URL") return "private_url_blocked";
   if (
     marker === "sk-" ||
     marker === "ghp_" ||
@@ -1015,7 +1458,8 @@ function markerFailureCode(marker: string): ManualAnchorStoreReasonCode {
     marker === "GITHUB_TOKEN" ||
     marker === "password:" ||
     marker === "secret:" ||
-    marker === "private key"
+    marker === "private key" ||
+    marker === "SAFE_MARKER_SECRET_TOKEN"
   ) {
     return "secret_like_pattern_blocked";
   }
