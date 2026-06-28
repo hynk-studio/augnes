@@ -28,6 +28,34 @@ const runtimeRef = "final_answer_candidate_review_ui_binding_v0_1";
 const uiVersion = "final_answer_candidate_review_ui_binding.v0.1";
 const bindingRuntimeRef = "final_rag_answer_candidate_review_memory_binding_v0_1";
 const reviewMemoryGetRoute = "/api/research-candidate-review/review-records";
+const requiredSanitizerMarkers = [
+  "/Users/",
+  "/home/",
+  "file://",
+  "https://internal.example",
+  "https://corp.example",
+  "https://example.local",
+  "github_pat_",
+  "OPENAI_API_KEY",
+  "GITHUB_TOKEN",
+  "provider_thread_id",
+  "provider_run_id",
+  "provider_session_id",
+  "thread_",
+  "run_",
+  "session_",
+  "connector_id",
+  "uploaded_file_id",
+  "raw-db-row",
+  "github-payload",
+];
+const allowedPublicSafeSymbolicRefs = [
+  "final-rag-answer-candidate:",
+  "review-memory:",
+  "source-ref:",
+  "rag-context-preview:",
+  "operator:",
+];
 const expectedChangedFiles = new Set([
   componentPath,
   pagePath,
@@ -273,6 +301,28 @@ function assertInputAndDisplaySafety() {
     "packet_kind: final_answer_candidate_review_memory_read_only",
   ]) {
     assertIncludes(component, phrase, `component safety/projection marker ${phrase}`);
+  }
+  for (const marker of requiredSanitizerMarkers) {
+    assertIncludes(component, marker, `component sanitizer marker ${marker}`);
+  }
+  for (const phrase of [
+    "explicitUnsafeDisplayTextMarkers",
+    "explicitUnsafeDisplayTextPatterns",
+    "escapeRegExp",
+    "https?:\\/\\/",
+    "localhost",
+    "127\\.0\\.0\\.1",
+    "0\\.0\\.0\\.0",
+    "private|internal|intranet|corp|\\.local",
+    "raw[\\s_-]?db[\\s_-]?row:?",
+    "github[\\s_-]?payload",
+    "connector[\\s_-]?id",
+    "uploaded[\\s_-]?file[\\s_-]?id",
+  ]) {
+    assertIncludes(component, phrase, `component sanitizer pattern ${phrase}`);
+  }
+  for (const refPrefix of allowedPublicSafeSymbolicRefs) {
+    assertIncludes(fixtureText, refPrefix, `fixture keeps public-safe symbolic ref ${refPrefix}`);
   }
   for (const forbidden of [
     "localStorage",

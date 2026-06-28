@@ -94,6 +94,43 @@ const boundedRouteErrorCodes = [
   "route_request_failed",
 ] as const;
 
+const explicitUnsafeDisplayTextMarkers = [
+  "/Users/",
+  "/home/",
+  "file://",
+  "http://localhost",
+  "https://localhost",
+  "http://127.0.0.1",
+  "https://127.0.0.1",
+  "http://0.0.0.0",
+  "https://0.0.0.0",
+  "https://internal.example",
+  "https://corp.example",
+  "https://example.local",
+  "github_pat_",
+  "OPENAI_API_KEY",
+  "GITHUB_TOKEN",
+  "provider_thread_id",
+  "provider_run_id",
+  "provider_session_id",
+  "thread_",
+  "run_",
+  "session_",
+  "connector_id",
+  "uploaded_file_id",
+  "raw DB row",
+  "raw_db_row",
+  "raw-db-row",
+  "raw db row:",
+  "github_payload",
+  "GitHub payload",
+  "github-payload",
+] as const;
+
+const explicitUnsafeDisplayTextPatterns = explicitUnsafeDisplayTextMarkers.map(
+  (marker) => new RegExp(escapeRegExp(marker), "i"),
+);
+
 type RouteResponse = {
   route_version?: unknown;
   status?: "ok" | "error";
@@ -644,33 +681,45 @@ function isSafeDisplayText(value: unknown): boolean {
   if (typeof value !== "string") return true;
   if (value.length > 1200) return false;
   return ![
+    ...explicitUnsafeDisplayTextPatterns,
     /SAFE_MARKER_/i,
+    /\/Users\//i,
+    /\/home\//i,
+    /file:\/\//i,
+    /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?(?:[/?#]|$)/i,
+    /https?:\/\/[^/\s]*(?:private|internal|intranet|corp|\.local)(?=[:/?#\s]|$)/i,
+    /github_pat_/i,
+    /OPENAI_API_KEY/i,
+    /GITHUB_TOKEN/i,
     /private[_ ]?url/i,
     /local[_ ]?private[_ ]?path/i,
-    /raw[_ ]?prompt/i,
-    /raw[_ ]?source[_ ]?body/i,
-    /raw[_ ]?provider[_ ]?output/i,
-    /raw[_ ]?retrieval[_ ]?output/i,
-    /raw[_ ]?candidate[_ ]?payload/i,
-    /raw[_ ]?conversation/i,
-    /hidden[_ ]?reasoning/i,
-    /chain[_ ]?of[_ ]?thought/i,
-    /raw[_ ]?db[_ ]?row/i,
-    /telemetry[_ ]?dump/i,
-    /raw[_ ]?diff/i,
-    /terminal[_ ]?log/i,
-    /browser[_ ]?dump/i,
-    /github[_ ]?payload/i,
-    /provider[_ ]?thread[_ ]?id/i,
-    /provider[_ ]?run[_ ]?id/i,
-    /provider[_ ]?session[_ ]?id/i,
-    /connector[_ ]?id/i,
-    /uploaded[_ ]?file[_ ]?id/i,
+    /raw[\s_-]?prompt/i,
+    /raw[\s_-]?source[\s_-]?body/i,
+    /raw[\s_-]?provider[\s_-]?output/i,
+    /raw[\s_-]?retrieval[\s_-]?output/i,
+    /raw[\s_-]?candidate[\s_-]?payload/i,
+    /raw[\s_-]?conversation/i,
+    /hidden[\s_-]?reasoning/i,
+    /chain[\s_-]?of[\s_-]?thought/i,
+    /raw[\s_-]?db[\s_-]?row:?/i,
+    /telemetry[\s_-]?dump/i,
+    /raw[\s_-]?diff/i,
+    /terminal[\s_-]?log/i,
+    /browser[\s_-]?dump/i,
+    /github[\s_-]?payload/i,
+    /provider[\s_-]?thread[\s_-]?id/i,
+    /provider[\s_-]?run[\s_-]?id/i,
+    /provider[\s_-]?session[\s_-]?id/i,
+    /\bthread_[A-Za-z0-9_-]*/i,
+    /\brun_[A-Za-z0-9_-]*/i,
+    /\bsession_[A-Za-z0-9_-]*/i,
+    /connector[\s_-]?id/i,
+    /uploaded[\s_-]?file[\s_-]?id/i,
     /\btoken\b/i,
     /\bsecret\b/i,
-    /api[_ ]?key/i,
+    /api[\s_-]?key/i,
     /password/i,
-    /private[_ ]?key/i,
+    /private[\s_-]?key/i,
     /sk-[A-Za-z0-9]/i,
     /ghp_[A-Za-z0-9]/i,
   ].some((pattern) => pattern.test(value));
@@ -700,6 +749,10 @@ function buildUiErrorResponse(errorCode: string): RouteResponse {
     boundary_notes: [...boundaryNotes],
     authority_boundary: uiAuthorityBoundary,
   };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 const surfaceStyle: CSSProperties = {
