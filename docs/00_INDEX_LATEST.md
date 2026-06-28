@@ -5650,6 +5650,40 @@ read-only runtime slice다.
   changed-file scope, and no-promotion/no-write boundaries.
 - Audit surface: `promotion_readiness_packet_from_review_memory_runtime`.
 
+### Final RAG answer Review Memory end-to-end operator path v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add product authority.
+`final_rag_answer_review_memory_end_to_end_operator_path_v0_1` validates one
+bounded operator path across already merged surfaces: final RAG answer
+candidate, Review Memory binding, Review Memory read/display surface, and
+promotion readiness packet.
+
+- `docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_END_TO_END_OPERATOR_PATH_V0_1.md`:
+  documents the E2E operator path, route-handler sequence, no-new-authority
+  boundary, Review Memory boundary, UI read/display boundary, and readiness
+  packet boundary.
+- `fixtures/final-rag-answer-review-memory-end-to-end-operator-path.sample.v0.1.json`:
+  public-safe fixture for expected runtime sequence, candidate-only boundary,
+  Review Memory boundary, read/display-only UI boundary, readiness boundary,
+  no-authority flags, and skipped/degraded route-stage policy.
+- `scripts/smoke-final-rag-answer-review-memory-end-to-end-operator-path-v0-1.mjs`:
+  focused smoke that seeds only temporary fixture DBs, calls existing route
+  handlers for the final RAG answer candidate, Review Memory binding, Review
+  Memory GET read/display surface, and promotion readiness packet, and asserts
+  the path remains candidate/review/readiness-only.
+- `npm run smoke:final-rag-answer-review-memory-end-to-end-operator-path-v0-1`:
+  focused smoke for docs, fixture, package script, latest pointer, referenced
+  merged surfaces, public-safe route-level E2E behavior, exact changed-file
+  scope, and no-promotion/no-write boundaries.
+
+Boundary summary: this validation path does not add API routes, UI behavior, DB
+schema, proof/evidence, promotion execution, promotion decision writes,
+promotion decision store writes, Formation Receipts, durable Perspective state
+writes/applies, product-write, accepted evidence ref writes, product IDs, live
+provider calls, source fetches, Git/GitHub actuation, release execution, or
+automatic answer-to-product conversion. `ready_for_operator_promotion_review`
+means future human review readiness only. Smoke/CI pass is not truth.
+
 Boundary 요약: readiness packet은 diagnostic이며 promotion, proof, evidence,
 accepted evidence, durable state, Formation Receipt, product-write, product,
 approval, or smoke/CI truth가 아니다.
