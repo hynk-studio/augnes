@@ -1,0 +1,434 @@
+{
+  "fixture_version": "project_constellation_runtime_ui_completion.sample.v0.1",
+  "ui_version": "constellation_runtime_ui_runtime_completion.v0.1",
+  "view_model_version": "constellation_runtime_ui_view_model.v0.1",
+  "scope": "project:augnes",
+  "runtime_data_source_examples": {
+    "durable_state_read": {
+      "method": "GET",
+      "route": "/api/perspective/state/[perspective_id]",
+      "db_path": ".tmp/perspective-state/constellation-runtime-ui/state.sqlite"
+    },
+    "trajectory_read": {
+      "method": "GET",
+      "route": "/api/perspective/state/[perspective_id]/trajectory",
+      "db_path": ".tmp/perspective-state/constellation-runtime-ui/state.sqlite"
+    },
+    "manual_anchor_read": {
+      "method": "GET",
+      "route": "/api/perspective/layout/manual-anchors",
+      "db_path": ".tmp/project-constellation-manual-anchors/constellation-runtime-ui/manual-anchors.sqlite"
+    },
+    "rag_context_preview": {
+      "method": "POST",
+      "route": "/api/research-retrieval/rag-context-preview",
+      "db_path": ".tmp/research-retrieval/constellation-runtime-ui/retrieval.sqlite",
+      "read_only_preview": true
+    }
+  },
+  "view_model_example": {
+    "view_model_version": "constellation_runtime_ui_view_model.v0.1",
+    "ui_version": "constellation_runtime_ui_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "perspective_id": "perspective:constellation-runtime-ui:001",
+    "state_version_ref": "state-version:constellation-runtime-ui:001",
+    "durable_nodes": [
+      {
+        "node_ref": "node-ref:durable:constellation-runtime-ui:001",
+        "bounded_label": "Durable calibration thesis",
+        "layer": "durable_graph",
+        "source_refs": ["source-ref:constellation-runtime-ui:001"]
+      }
+    ],
+    "candidate_overlay_nodes": [
+      {
+        "node_ref": "node-ref:candidate:constellation-runtime-ui:001",
+        "bounded_label": "Candidate calibration overlay",
+        "layer": "candidate_overlay",
+        "source_refs": ["source-ref:constellation-runtime-ui:002"]
+      }
+    ],
+    "edges": [
+      {
+        "edge_ref": "edge-ref:constellation-runtime-ui:001",
+        "edge_kind": "supports_ref",
+        "from_node_ref": "node-ref:candidate:constellation-runtime-ui:001",
+        "to_node_ref": "node-ref:durable:constellation-runtime-ui:001"
+      }
+    ],
+    "source_provenance_refs": [
+      "source-ref:constellation-runtime-ui:001",
+      "source-ref:constellation-runtime-ui:002"
+    ],
+    "tension_markers": ["marker:tension:constellation-runtime-ui:001"],
+    "gap_markers": ["marker:gap:constellation-runtime-ui:001"],
+    "stale_markers": ["marker:stale:constellation-runtime-ui:001"],
+    "bridge_markers": ["marker:bridge:constellation-runtime-ui:001"],
+    "manual_anchor_previews": [
+      {
+        "anchor_id": "anchor:constellation-runtime-ui:001",
+        "node_ref": "node-ref:durable:constellation-runtime-ui:001",
+        "display_hint_only": true,
+        "manual_anchor_is_truth": false
+      }
+    ],
+    "layout_diagnostics": [
+      {
+        "diagnostic_id": "diagnostic:constellation-runtime-ui:source-balance",
+        "diagnostic_kind": "source_balance",
+        "bounded_summary": "Source balance is advisory only."
+      }
+    ],
+    "selected_node_trajectory_preview": {
+      "selected_node_ref": "node-ref:candidate:constellation-runtime-ui:001",
+      "event_count": 1,
+      "events": [
+        {
+          "event_id": "trajectory:event:constellation-runtime-ui:001",
+          "event_kind": "review_record_saved",
+          "bounded_summary": "Selected candidate had bounded review memory before context preview."
+        }
+      ]
+    },
+    "selected_node_rag_context_preview": {
+      "selected_node_ref": "node-ref:candidate:constellation-runtime-ui:001",
+      "status": "context_preview_created",
+      "context_item_count": 1,
+      "included_context_summaries": [
+        {
+          "context_ref": "rag-context:constellation-runtime-ui:001",
+          "source_ref_id": "source-ref:constellation-runtime-ui:002",
+          "bounded_title": "Candidate context",
+          "candidate_or_durable_marker": "candidate_context",
+          "retrieval_score_is_truth": false,
+          "retrieval_result_is_evidence": false
+        }
+      ]
+    },
+    "bounded_errors": [],
+    "authority_boundary": {
+      "constellation_runtime_ui_completion_now": true,
+      "readonly_runtime_ui_now": true,
+      "durable_graph_layer_visible": true,
+      "candidate_overlay_layer_visible": true,
+      "source_provenance_inspector_visible": true,
+      "tension_gap_stale_bridge_markers_visible": true,
+      "manual_anchor_preview_visible": true,
+      "layout_diagnostics_visible": true,
+      "selected_node_trajectory_preview_visible": true,
+      "selected_node_context_preview_visible": true,
+      "same_origin_runtime_reads_only": true,
+      "coordinate_edit_write_now": false,
+      "manual_anchor_write_now": false,
+      "direct_db_access_from_ui_now": false,
+      "direct_file_write_from_ui_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "source_fetch_now": false,
+      "retrieval_index_write_now": false,
+      "rag_answer_generation_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "work_item_write_now": false,
+      "promotion_execution_now": false,
+      "durable_state_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "product_write_now": false,
+      "product_write_runtime_now": false,
+      "product_write_adapter_enabled_now": false,
+      "product_id_allocation_now": false,
+      "product_persistence_now": false,
+      "git_ledger_export_runtime_now": false,
+      "git_write_now": false,
+      "github_api_call_now": false,
+      "github_pr_create_now": false,
+      "github_merge_now": false,
+      "repository_file_write_now": false,
+      "local_file_export_now": false,
+      "local_file_import_now": false,
+      "codex_execution_now": false,
+      "codex_execution_authority": false,
+      "github_automation_authority": false,
+      "product_write_authority": false,
+      "layout_coordinate_is_truth": false,
+      "manual_anchor_is_truth": false,
+      "salience_score_is_truth": false,
+      "layout_view_is_promotion": false,
+      "candidate_overlay_is_durable_state": false,
+      "rag_context_is_truth": false,
+      "retrieval_result_is_evidence": false,
+      "source_ref_is_proof": false,
+      "smoke_pass_is_truth": false,
+      "ci_pass_is_truth": false
+    },
+    "reason_codes": [
+      "constellation_runtime_ui_runtime_completion",
+      "bounded_runtime_read_source",
+      "product_write_denied"
+    ]
+  },
+  "durable_graph_layer_example": {
+    "label": "durable graph layer",
+    "node_ref": "node-ref:durable:constellation-runtime-ui:001",
+    "layout_coordinate_is_truth": false
+  },
+  "candidate_overlay_layer_example": {
+    "label": "candidate overlay layer",
+    "node_ref": "node-ref:candidate:constellation-runtime-ui:001",
+    "candidate_overlay_is_durable_state": false
+  },
+  "source_provenance_inspector_example": {
+    "label": "source provenance inspector",
+    "source_refs": [
+      "source-ref:constellation-runtime-ui:001",
+      "source-ref:constellation-runtime-ui:002"
+    ],
+    "source_ref_is_proof": false
+  },
+  "tension_gap_stale_bridge_marker_examples": {
+    "tension": "marker:tension:constellation-runtime-ui:001",
+    "gap": "marker:gap:constellation-runtime-ui:001",
+    "stale": "marker:stale:constellation-runtime-ui:001",
+    "bridge": "marker:bridge:constellation-runtime-ui:001"
+  },
+  "manual_anchor_preview_example": {
+    "anchor_id": "anchor:constellation-runtime-ui:001",
+    "node_ref": "node-ref:durable:constellation-runtime-ui:001",
+    "manual_anchor_is_truth": false,
+    "display_hint_only": true
+  },
+  "layout_diagnostics_example": {
+    "diagnostic_id": "diagnostic:constellation-runtime-ui:source-balance",
+    "bounded_summary": "Layout diagnostics are advisory only."
+  },
+  "selected_node_trajectory_preview_example": {
+    "selected_node_ref": "node-ref:candidate:constellation-runtime-ui:001",
+    "event_ref": "trajectory:event:constellation-runtime-ui:001",
+    "read_only": true
+  },
+  "selected_node_rag_context_preview_example": {
+    "selected_node_ref": "node-ref:candidate:constellation-runtime-ui:001",
+    "context_ref": "rag-context:constellation-runtime-ui:001",
+    "rag_context_is_truth": false,
+    "retrieval_result_is_evidence": false
+  },
+  "mounted_cockpit_layout_seed_example": {
+    "surface": "components/augnes-cockpit.tsx",
+    "seed_fixture": "fixtures/project-constellation-runtime-ui.sample.v0.1.json",
+    "seed_path": "expected_props.layoutResult",
+    "durable_nodes_min": 1,
+    "candidate_overlay_nodes_min": 1,
+    "layout_coordinate_is_truth": false,
+    "display_read_model_only": true
+  },
+  "no_layout_runtime_response_fallback_example": {
+    "input": {
+      "layout_result": null,
+      "durable_state_read_response": {
+        "status": "ok",
+        "error_code": null,
+        "result": {
+          "state": {
+            "perspective_id": "perspective:runtime-fallback:001",
+            "state_version": "state-version:runtime-fallback:001",
+            "current_thesis": "Runtime fallback state is display context only.",
+            "active_claims": [
+              {
+                "claim_ref": "claim-ref:runtime-fallback:001",
+                "bounded_summary": "Bounded durable claim summary for read-model display.",
+                "source_refs": ["source-ref:runtime-fallback:001"]
+              }
+            ],
+            "open_tensions": [
+              {
+                "tension_ref": "tension-ref:runtime-fallback:001",
+                "bounded_summary": "Bounded unresolved tension marker for read-model display.",
+                "source_refs": ["source-ref:runtime-fallback:001"]
+              }
+            ],
+            "knowledge_gaps": [
+              {
+                "knowledge_gap_ref": "knowledge-gap-ref:runtime-fallback:001",
+                "bounded_summary": "Bounded knowledge gap marker for read-model display.",
+                "source_refs": ["source-ref:runtime-fallback:002"]
+              }
+            ]
+          }
+        }
+      },
+      "trajectory_response": {
+        "status": "ok",
+        "error_code": null,
+        "trajectory": {
+          "events": [
+            {
+              "event_id": "trajectory:event:runtime-fallback:001",
+              "event_kind": "state_summary",
+              "layer": "durable_state",
+              "occurred_at": "2026-06-28T00:00:00.000Z",
+              "subject_ref": "perspective:runtime-fallback:001",
+              "bounded_summary": "Runtime fallback trajectory event is read-only.",
+              "source_refs": ["source-ref:runtime-fallback:001"],
+              "reason_codes": ["trajectory_is_read_only"]
+            }
+          ]
+        }
+      },
+      "manual_anchor_response": {
+        "status": "ok",
+        "error_code": null,
+        "result": {
+          "records": [
+            {
+              "anchor_id": "anchor:runtime-fallback:001",
+              "node_ref": "perspective:runtime-fallback:001",
+              "anchor_reason": "Display hint only for runtime fallback.",
+              "anchor_position": { "x": 120, "y": 150, "z": 0 }
+            }
+          ]
+        }
+      },
+      "rag_context_preview_response": {
+        "status": "ok",
+        "error_code": null,
+        "result": {
+          "status": "context_preview_created",
+          "context_item_count": 1,
+          "context_char_count": 96,
+          "retrieved_refs": ["source-ref:runtime-fallback:002"],
+          "included_context_summaries": [
+            {
+              "context_ref": "rag-context:runtime-fallback:001",
+              "source_result_ref": "search-result-ref:runtime-fallback:001",
+              "index_entry_id": "index-entry:runtime-fallback:001",
+              "source_surface": "candidate_summary",
+              "source_record_ref": "source-record-ref:runtime-fallback:001",
+              "source_ref_id": "source-ref:runtime-fallback:002",
+              "candidate_ref": "candidate-ref:runtime-fallback:001",
+              "review_record_ref": null,
+              "promotion_decision_ref": null,
+              "formation_receipt_ref": null,
+              "perspective_id": "perspective:runtime-fallback:001",
+              "feedback_ref": null,
+              "provider_extraction_ref": null,
+              "bounded_source_intake_ref": null,
+              "bounded_title": "Runtime fallback candidate context",
+              "bounded_context_summary": "Bounded candidate context creates a candidate overlay display node.",
+              "inclusion_reason_codes": ["candidate_context_included"],
+              "stale_marker": "fresh",
+              "candidate_or_durable_marker": "candidate_context",
+              "retrieval_score": 3,
+              "retrieval_score_is_truth": false,
+              "retrieval_score_is_promotion_readiness": false,
+              "retrieval_result_is_evidence": false,
+              "source_refs_are_lineage": true
+            }
+          ],
+          "excluded_context_reasons": [],
+          "candidate_vs_durable_markers": [],
+          "staleness_warnings": ["Staleness warning is display-only when present."],
+          "unresolved_tensions": ["Runtime fallback tension marker remains visible."],
+          "knowledge_gaps": ["Runtime fallback knowledge gap marker remains visible."]
+        }
+      }
+    },
+    "expected_output": {
+      "durable_nodes_min": 1,
+      "candidate_overlay_nodes_min": 1,
+      "source_provenance_refs_min": 1,
+      "selected_node_trajectory_event_count_min": 1,
+      "selected_node_context_item_count_min": 1,
+      "display_read_model_only": true,
+      "layout_coordinate_is_truth": false,
+      "candidate_overlay_is_durable_state": false,
+      "rag_context_is_truth": false,
+      "retrieval_result_is_evidence": false
+    }
+  },
+  "bounded_error_examples": {
+    "invalid_db_path": {
+      "error_code": "invalid_db_path",
+      "bounded_summary": "Route rejected unsafe DB path without echoing it.",
+      "blocked_value": "SAFE_MARKER_LOCAL_PRIVATE_PATH"
+    },
+    "blocked_private_or_raw_payload": {
+      "error_code": "blocked_private_or_raw_payload",
+      "bounded_summary": "Runtime read model rejected unsafe source text.",
+      "blocked_value": "SAFE_MARKER_RAW_RETRIEVAL_OUTPUT"
+    }
+  },
+  "forbidden_control_examples": [
+    "Edit coordinates",
+    "Save coordinates",
+    "Save anchor",
+    "Promote",
+    "Create proof",
+    "Create evidence",
+    "Delete evidence",
+    "Hide tension",
+    "Create work item",
+    "Execute Codex",
+    "Product write",
+    "Create product",
+    "Allocate product ID",
+    "GitHub PR",
+    "Git commit"
+  ],
+  "authority_boundary_sample": {
+    "constellation_runtime_ui_completion_now": true,
+    "readonly_runtime_ui_now": true,
+    "durable_graph_layer_visible": true,
+    "candidate_overlay_layer_visible": true,
+    "source_provenance_inspector_visible": true,
+    "tension_gap_stale_bridge_markers_visible": true,
+    "manual_anchor_preview_visible": true,
+    "layout_diagnostics_visible": true,
+    "selected_node_trajectory_preview_visible": true,
+    "selected_node_context_preview_visible": true,
+    "same_origin_runtime_reads_only": true,
+    "coordinate_edit_write_now": false,
+    "manual_anchor_write_now": false,
+    "direct_db_access_from_ui_now": false,
+    "direct_file_write_from_ui_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_index_write_now": false,
+    "rag_answer_generation_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "github_pr_create_now": false,
+    "github_merge_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "layout_coordinate_is_truth": false,
+    "manual_anchor_is_truth": false,
+    "salience_score_is_truth": false,
+    "layout_view_is_promotion": false,
+    "candidate_overlay_is_durable_state": false,
+    "rag_context_is_truth": false,
+    "retrieval_result_is_evidence": false,
+    "source_ref_is_proof": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}

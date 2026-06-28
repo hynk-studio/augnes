@@ -4,12 +4,14 @@ import type {
   ProjectConstellationLayoutNode,
   ProjectConstellationRuntimeLayoutContract,
 } from "@/types/project-constellation-runtime-layout-contract";
+import type { ConstellationRuntimeUiCompletionViewModelV01 } from "@/lib/perspective/layout/build-runtime-constellation-view-model";
 
 type ConstellationInspectorProps = {
   selectedNode?: ProjectConstellationLayoutNode | null;
   selectedEdge?: ProjectConstellationLayoutEdge | null;
   layout?: ProjectConstellationRuntimeLayoutContract | null;
   diagnostics?: ProjectConstellationLayoutDiagnostic[];
+  runtimeViewModel?: ConstellationRuntimeUiCompletionViewModelV01 | null;
 };
 
 export function ConstellationInspector({
@@ -17,6 +19,7 @@ export function ConstellationInspector({
   selectedEdge,
   layout,
   diagnostics = [],
+  runtimeViewModel,
 }: ConstellationInspectorProps) {
   const selectedLabel =
     selectedNode?.bounded_label ?? selectedEdge?.bounded_label ?? "No selection";
@@ -32,6 +35,7 @@ export function ConstellationInspector({
       {selectedEdge ? <EdgeDetails edge={selectedEdge} /> : null}
       {layout ? <LayoutDetails layout={layout} /> : null}
       <DiagnosticsDetails diagnostics={diagnostics} />
+      {runtimeViewModel ? <RuntimeViewModelDetails viewModel={runtimeViewModel} /> : null}
       {layout ? <AuthorityBoundaryDetails layout={layout} /> : null}
     </aside>
   );
@@ -130,6 +134,73 @@ function DiagnosticsDetails({
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function RuntimeViewModelDetails({
+  viewModel,
+}: {
+  viewModel: ConstellationRuntimeUiCompletionViewModelV01;
+}) {
+  return (
+    <section>
+      <h4>Runtime source provenance inspector</h4>
+      <p>Selected node trajectory/context preview is read-only.</p>
+      <p>RAG context is not truth and retrieval result is not evidence.</p>
+      <dl>
+        <dt>Durable graph layer</dt>
+        <dd>{viewModel.durable_nodes.length}</dd>
+        <dt>Candidate overlay layer</dt>
+        <dd>{viewModel.candidate_overlay_nodes.length}</dd>
+        <dt>Source provenance refs</dt>
+        <dd>{formatList(viewModel.source_provenance_refs)}</dd>
+        <dt>Tension/gap/stale/bridge markers</dt>
+        <dd>
+          {[
+            viewModel.tension_markers.length,
+            viewModel.gap_markers.length,
+            viewModel.stale_markers.length,
+            viewModel.bridge_markers.length,
+          ].join(" / ")}
+        </dd>
+        <dt>Manual anchor preview</dt>
+        <dd>
+          {viewModel.manual_anchor_previews.length > 0
+            ? viewModel.manual_anchor_previews
+                .map((anchor) => `${anchor.anchor_id} -> ${anchor.node_ref}`)
+                .join(", ")
+            : "none"}
+        </dd>
+        <dt>Selected trajectory preview</dt>
+        <dd>
+          {viewModel.selected_node_trajectory_preview.events
+            .map((event) => `${event.event_kind}: ${event.bounded_summary}`)
+            .join(" | ") || "none"}
+        </dd>
+        <dt>Selected context preview</dt>
+        <dd>
+          {viewModel.selected_node_rag_context_preview.included_context_summaries
+            .map((item) => `${item.candidate_or_durable_marker}: ${item.bounded_title}`)
+            .join(" | ") || "none"}
+        </dd>
+        <dt>Bounded route errors</dt>
+        <dd>
+          {viewModel.bounded_errors
+            .map((error) => `${error.source}:${error.error_code}`)
+            .join(", ") || "none"}
+        </dd>
+      </dl>
+
+      <h4>Runtime UI completion authority boundary</h4>
+      <dl>
+        {Object.entries(viewModel.authority_boundary).map(([key, value]) => (
+          <div key={key}>
+            <dt>{key}</dt>
+            <dd>{String(value)}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }

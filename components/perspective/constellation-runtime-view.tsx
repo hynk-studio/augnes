@@ -6,6 +6,7 @@ import { CandidateOverlayToggle } from "@/components/perspective/candidate-overl
 import { ConstellationEdge } from "@/components/perspective/constellation-edge";
 import { ConstellationInspector } from "@/components/perspective/constellation-inspector";
 import { ConstellationNode } from "@/components/perspective/constellation-node";
+import type { ConstellationRuntimeUiCompletionViewModelV01 } from "@/lib/perspective/layout/build-runtime-constellation-view-model";
 import type { SeededConstellationLayoutResult } from "@/lib/perspective/layout/seeded-layout";
 import type {
   ProjectConstellationLayoutEdge,
@@ -26,6 +27,7 @@ type ConstellationRuntimeViewProps = {
   showCandidateOverlay?: boolean;
   selectedRef?: string | null;
   onSelectedRefChange?: (ref: string | null) => void;
+  runtimeViewModel?: ConstellationRuntimeUiCompletionViewModelV01 | null;
   className?: string;
 };
 
@@ -90,6 +92,7 @@ export function ConstellationRuntimeView({
   showCandidateOverlay,
   selectedRef,
   onSelectedRefChange,
+  runtimeViewModel,
   className,
 }: ConstellationRuntimeViewProps) {
   const layout = layoutProp ?? layoutResult?.layout ?? null;
@@ -153,6 +156,7 @@ export function ConstellationRuntimeView({
         <h2>No layout available</h2>
         <p>Coordinates are display hints</p>
         <p>Candidate overlay is not durable graph</p>
+        <p>Runtime read model is read-only</p>
         <p>No state mutation</p>
         <p>Product-write remains parked</p>
       </section>
@@ -170,6 +174,7 @@ export function ConstellationRuntimeView({
           <h2>Project constellation</h2>
           <p>Coordinates are display hints</p>
           <p>Candidate overlay is not durable graph</p>
+          <p>Runtime read model is read-only</p>
           <p>No state mutation</p>
           <p>Product-write remains parked</p>
         </div>
@@ -253,10 +258,12 @@ export function ConstellationRuntimeView({
           selectedEdge={selectedEdge}
           layout={layout}
           diagnostics={diagnostics}
+          runtimeViewModel={runtimeViewModel}
         />
       </div>
 
       <MarkerSummary layout={layout} />
+      {runtimeViewModel ? <RuntimeViewModelSummary viewModel={runtimeViewModel} /> : null}
     </section>
   );
 }
@@ -286,6 +293,34 @@ function MarkerSummary({
       ))}
       <span>Source balance is advisory</span>
     </footer>
+  );
+}
+
+function RuntimeViewModelSummary({
+  viewModel,
+}: {
+  viewModel: ConstellationRuntimeUiCompletionViewModelV01;
+}) {
+  return (
+    <section className="constellation-runtime-view__runtime-summary">
+      <p className="panel-eyebrow">Runtime read-only layers</p>
+      <div className="constellation-runtime-view__markers">
+        <span>durable graph layer {viewModel.durable_nodes.length}</span>
+        <span>candidate overlay layer {viewModel.candidate_overlay_nodes.length}</span>
+        <span>source provenance inspector {viewModel.source_provenance_refs.length}</span>
+        <span>tension/gap/stale/bridge markers visible</span>
+        <span>manual anchor preview {viewModel.manual_anchor_previews.length}</span>
+        <span>layout diagnostics {viewModel.layout_diagnostics.length}</span>
+        <span>
+          selected node trajectory preview{" "}
+          {viewModel.selected_node_trajectory_preview.event_count}
+        </span>
+        <span>
+          selected node context preview{" "}
+          {viewModel.selected_node_rag_context_preview.context_item_count}
+        </span>
+      </div>
+    </section>
   );
 }
 
