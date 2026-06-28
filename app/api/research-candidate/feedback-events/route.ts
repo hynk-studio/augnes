@@ -21,6 +21,10 @@ import {
   insertFeedbackEvent,
   listFeedbackEvents,
 } from "@/lib/research-candidate-review/feedback-event-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "@/lib/runtime-audit/route-audit-instrumentation";
 import type {
   FeedbackEventStoreAuthorityBoundary,
   FeedbackEventStoreEvent,
@@ -476,6 +480,7 @@ interface FeedbackControlsRuntimeCompletionRouteResponse {
   claim_or_evidence_written: false;
   product_write_executed: false;
   authority_boundary: ReturnType<typeof createFeedbackEventWriteRuntimeAuthorityBoundaryV01>;
+  audit_event_result?: RuntimeRouteAuditInstrumentationResultV01;
 }
 
 function isFeedbackControlsRuntimeCompletionBody(
@@ -485,6 +490,7 @@ function isFeedbackControlsRuntimeCompletionBody(
   scope?: unknown;
   action?: unknown;
   db_path?: unknown;
+  audit_db_path?: unknown;
   input?: unknown;
 } {
   if (!body || typeof body !== "object" || Array.isArray(body)) return false;
@@ -505,6 +511,7 @@ function handleFeedbackControlsRuntimeCompletionBody(body: {
   scope?: unknown;
   action?: unknown;
   db_path?: unknown;
+  audit_db_path?: unknown;
   input?: unknown;
 }): FeedbackControlsRuntimeCompletionRouteResponse {
   if (
@@ -543,7 +550,37 @@ function handleFeedbackControlsRuntimeCompletionBody(body: {
       input,
       db as unknown as Parameters<typeof writeFeedbackEventRuntimeV01>[1],
     );
-    return feedbackControlsRuntimeCompletionResponse(result);
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: body.audit_db_path,
+      route_ref: "route:/api/research-candidate/feedback-events",
+      runtime_slice_ref: "feedback_controls_expansion_runtime_completion_v0_1",
+      event_surface: "feedback_event_write_runtime",
+      event_kind: "route_response",
+      event_action: "feedback_event_write_completed",
+      event_status: result.status,
+      subject_ref:
+        typeof input.target_ref === "string"
+          ? input.target_ref
+          : result.feedback_event_id ?? "feedback-event-write:result",
+      related_refs: [
+        result.feedback_event_ref ?? "",
+        result.feedback_event_id ?? "",
+        typeof input.candidate_ref === "string" ? input.candidate_ref : "",
+        typeof input.durable_ref === "string" ? input.durable_ref : "",
+        ...(Array.isArray(input.source_refs) ? input.source_refs.filter((ref): ref is string => typeof ref === "string") : []),
+      ].filter(Boolean),
+      primary_result_status: result.status,
+      primary_result_ref: result.feedback_event_ref ?? result.feedback_event_id ?? "feedback-event-write:result",
+      bounded_summary:
+        result.status === "feedback_event_created"
+          ? "Feedback event write route persisted bounded feedback signal."
+          : "Feedback event write route returned bounded status.",
+      bounded_error_code:
+        result.status === "feedback_event_created" || result.status === "idempotent_existing"
+          ? null
+          : result.status,
+    });
+    return feedbackControlsRuntimeCompletionResponse(result, auditEventResult);
   } catch {
     return feedbackControlsRuntimeCompletionErrorResponse("rejected");
   } finally {
@@ -580,6 +617,7 @@ function isLocalTestHost(host: string): boolean {
 
 function feedbackControlsRuntimeCompletionResponse(
   result: FeedbackEventWriteRuntimeResultV01,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
 ): FeedbackControlsRuntimeCompletionRouteResponse {
   const ok =
     result.status === "feedback_event_created" || result.status === "idempotent_existing";
@@ -602,6 +640,7 @@ function feedbackControlsRuntimeCompletionResponse(
     claim_or_evidence_written: false,
     product_write_executed: false,
     authority_boundary: result.authority_boundary,
+    audit_event_result: auditEventResult,
   };
 }
 
