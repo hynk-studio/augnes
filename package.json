@@ -572,6 +572,7 @@
     "smoke:dogfooding-record-runtime-contract-v0-1": "node scripts/smoke-dogfooding-record-runtime-contract-v0-1.mjs",
     "smoke:dogfooding-ingestion-runtime-v0-1": "node scripts/smoke-dogfooding-ingestion-runtime-v0-1.mjs",
     "smoke:runtime-audit-selected-route-instrumentation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-selected-route-instrumentation-v0-1.mjs",
+    "smoke:runtime-audit-selected-route-instrumentation-v0-2": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-selected-route-instrumentation-v0-2.mjs",
     "smoke:runtime-audit-panel-runtime-completion-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-panel-runtime-completion-v0-1.mjs",
     "smoke:runtime-audit-panel-v0-1": "node scripts/smoke-runtime-audit-panel-v0-1.mjs",
     "browser:runtime-audit-panel-v0-1": "node scripts/browser-validate-runtime-audit-panel-v0-1.mjs",

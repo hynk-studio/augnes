@@ -20,6 +20,10 @@ import {
   isSafeResearchRetrievalDbPathV01,
   rebuildableRetrievalIndexRuntimeDerivedStoreV01,
 } from "@/lib/research-retrieval/index-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "@/lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -73,7 +77,13 @@ export async function POST(request: Request) {
 }
 
 function handleCompletionRebuildRoute(body: Record<string, unknown>) {
-  const inputBody = body as { route_version?: unknown; scope?: unknown; db_path?: unknown; input?: unknown };
+  const inputBody = body as {
+    route_version?: unknown;
+    scope?: unknown;
+    db_path?: unknown;
+    audit_db_path?: unknown;
+    input?: unknown;
+  };
   if (
     inputBody.route_version !== completionRebuildRouteVersion ||
     inputBody.scope !== "project:augnes" ||
@@ -96,7 +106,25 @@ function handleCompletionRebuildRoute(body: Record<string, unknown>) {
   try {
     const result = rebuildResearchRetrievalIndexV01(input, db);
     const statusCode = completionRebuildHttpStatus(result);
-    return jsonResponse(completionRebuildResponse(result, statusCode), statusCode);
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: inputBody.audit_db_path,
+      route_ref: "route:/api/research-retrieval/rebuild",
+      runtime_slice_ref: "rebuildable_retrieval_index_runtime_completion_v0_1",
+      event_surface: "retrieval_index_runtime",
+      event_kind: "route_response",
+      event_action: "retrieval_index_rebuild_completed",
+      event_status: result.status,
+      subject_ref: result.rebuild_request_id || result.index_version || "retrieval-index-rebuild:result",
+      related_refs: [result.rebuild_request_id, result.index_version].filter(Boolean),
+      primary_result_status: result.status,
+      primary_result_ref: result.rebuild_request_id || result.index_version || "retrieval-index-rebuild:result",
+      bounded_summary:
+        result.status === "rebuilt"
+          ? "Retrieval rebuild route wrote derived index rows."
+          : "Retrieval rebuild route returned bounded status.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
+    return jsonResponse(completionRebuildResponse(result, statusCode, auditEventResult), statusCode);
   } finally {
     db.close();
   }
@@ -126,6 +154,7 @@ function completionRebuildHttpStatus(result: ResearchRetrievalIndexRebuildResult
 function completionRebuildResponse(
   result: ResearchRetrievalIndexRebuildResultV01,
   statusCode: number,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
 ) {
   return {
     route_version: completionRebuildRouteVersion,
@@ -148,6 +177,7 @@ function completionRebuildResponse(
     product_write_executed: false,
     product_id_allocated: false,
     authority_boundary: result.authority_boundary,
+    audit_event_result: auditEventResult,
   };
 }
 
