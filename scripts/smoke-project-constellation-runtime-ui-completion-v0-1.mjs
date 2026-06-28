@@ -593,7 +593,12 @@ function assertNoForbiddenRuntimeCode() {
 function assertChangedFileScope() {
   const changed = changedFilesAgainstMain();
   assert.ok(
-    !changed.some((filePath) => filePath.startsWith("app/api/") && !isManualAnchorRuntimeCompletionFile(filePath)),
+    !changed.some(
+      (filePath) =>
+        filePath.startsWith("app/api/") &&
+        !isManualAnchorRuntimeCompletionFile(filePath) &&
+        !isFeedbackEventAggregationRuntimeCompletionFile(filePath),
+    ),
     "no new app/api route was added",
   );
   assert.ok(
@@ -604,7 +609,8 @@ function assertChangedFileScope() {
     !changed.some(
       (filePath) =>
         /provider|retrieval-index-write|github|git-ledger|codex-execution|product-write|product-id/i.test(filePath) &&
-        !isExpectedCompletionFile(filePath),
+        !isExpectedCompletionFile(filePath) &&
+        !isFeedbackEventAggregationRuntimeCompletionFile(filePath),
     ),
     "no provider/retrieval-index-write/Git/GitHub/Codex/product-write/product ID files were added",
   );
@@ -677,6 +683,18 @@ function isManualAnchorRuntimeCompletionFile(filePath) {
     "docs/PROJECT_CONSTELLATION_MANUAL_ANCHORS_RUNTIME_COMPLETION_V0_1.md",
     "fixtures/project-constellation-manual-anchors-runtime-completion.sample.v0.1.json",
     "scripts/smoke-project-constellation-manual-anchors-runtime-completion-v0-1.mjs",
+    packagePath,
+    indexPath,
+  ].includes(filePath);
+}
+
+function isFeedbackEventAggregationRuntimeCompletionFile(filePath) {
+  return [
+    "lib/research-candidate-review/feedback-event-aggregation-runtime.ts",
+    "app/api/research-candidate/feedback-events/aggregation/route.ts",
+    "docs/FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_V0_1.md",
+    "fixtures/feedback-event-aggregation-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-feedback-event-aggregation-runtime-completion-v0-1.mjs",
     packagePath,
     indexPath,
   ].includes(filePath);

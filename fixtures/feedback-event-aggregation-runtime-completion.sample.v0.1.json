@@ -1,0 +1,292 @@
+{
+  "fixture_version": "feedback_event_aggregation_runtime_completion.sample.v0.1",
+  "aggregation_version": "feedback_event_aggregation_runtime_completion.v0.1",
+  "route_version": "feedback_event_aggregation_runtime_completion_route.v0.1",
+  "scope": "project:augnes",
+  "safe_feedback_events_example": [
+    {
+      "feedback_event_id": "feedback-event:runtime:pin",
+      "scope": "project:augnes",
+      "target_ref": "candidate:feedback-runtime:alpha",
+      "target_kind": "research_candidate_review_object",
+      "target_layer": "candidate",
+      "feedback_kind": "pin",
+      "feedback_summary": "Operator pinned this candidate for bounded review.",
+      "source_ref": "source-ref:feedback-runtime:alpha",
+      "candidate_ref": "candidate:feedback-runtime:alpha",
+      "created_by": "operator:feedback-runtime",
+      "created_at": "2026-06-28T01:00:00.000Z",
+      "authority_boundary": {
+        "product_write_now": false,
+        "rule_mutation_now": false
+      },
+      "reason_codes": ["fixture_feedback_event"]
+    },
+    {
+      "feedback_event_id": "feedback-event:runtime:invalidate",
+      "scope": "project:augnes",
+      "target_ref": "candidate:feedback-runtime:alpha",
+      "target_kind": "research_candidate_review_object",
+      "target_layer": "candidate",
+      "feedback_kind": "invalidate",
+      "feedback_summary": "Operator invalidated the candidate for review without suppressing sources.",
+      "source_ref": "source-ref:feedback-runtime:alpha",
+      "candidate_ref": "candidate:feedback-runtime:alpha",
+      "created_by": "operator:feedback-runtime",
+      "created_at": "2026-06-28T01:05:00.000Z",
+      "authority_boundary": {
+        "product_write_now": false,
+        "source_suppression_now": false
+      },
+      "reason_codes": ["fixture_feedback_event"]
+    },
+    {
+      "feedback_event_id": "feedback-event:runtime:evidence",
+      "scope": "project:augnes",
+      "target_ref": "candidate:feedback-runtime:beta",
+      "target_kind": "provider_candidate",
+      "target_layer": "provider_candidate",
+      "feedback_kind": "needs_more_evidence",
+      "feedback_summary": "Operator marked this provider candidate as needing more evidence.",
+      "source_ref": "source-ref:feedback-runtime:beta",
+      "candidate_ref": "candidate:feedback-runtime:beta",
+      "created_by": "operator:feedback-runtime",
+      "created_at": "2026-06-28T01:10:00.000Z",
+      "authority_boundary": {
+        "proof_or_evidence_record_now": false,
+        "promotion_execution_now": false
+      },
+      "reason_codes": ["fixture_feedback_event"]
+    },
+    {
+      "feedback_event_id": "feedback-event:runtime:scope",
+      "scope": "project:augnes",
+      "target_ref": "durable-state:feedback-runtime:gamma",
+      "target_kind": "durable_perspective_state",
+      "target_layer": "durable_perspective_state",
+      "feedback_kind": "scope_overreach",
+      "feedback_summary": "Operator marked a durable-state readout as scope overreach for review.",
+      "source_ref": "source-ref:feedback-runtime:gamma",
+      "durable_ref": "durable-state:feedback-runtime:gamma",
+      "created_by": "operator:feedback-runtime",
+      "created_at": "2026-06-28T01:15:00.000Z",
+      "authority_boundary": {
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false
+      },
+      "reason_codes": ["fixture_feedback_event"]
+    }
+  ],
+  "safe_aggregation_request_example": {
+    "request_version": "feedback_event_aggregation_runtime_completion_request.v0.1",
+    "aggregation_version": "feedback_event_aggregation_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "aggregation_request_id": "feedback-aggregation-request:runtime-completion",
+    "requested_by": "operator:feedback-runtime",
+    "requested_at": "2026-06-28T01:20:00.000Z",
+    "db_path": ".tmp/feedback-event-aggregation/fixture-runtime.sqlite",
+    "filters": {
+      "limit": 50
+    },
+    "reason_codes": ["feedback_event_aggregation_runtime_completion"]
+  },
+  "expected_aggregation_result_example": {
+    "status": "aggregated",
+    "advisory_only": true,
+    "feedback_is_truth": false,
+    "pin_is_promotion": false,
+    "dismiss_is_delete": false,
+    "invalidate_is_source_suppression": false,
+    "rule_failure_candidate_is_rule_mutation": false,
+    "product_write_executed": false
+  },
+  "grouped_aggregation_result_example": {
+    "target_ref": "candidate:feedback-runtime:alpha",
+    "pin_count": 1,
+    "invalidate_count": 1,
+    "last_feedback_at": "2026-06-28T01:05:00.000Z",
+    "current_surface_priority_hint": "needs_operator_review"
+  },
+  "priority_hint_examples": [
+    {
+      "feedback_kind": "pin",
+      "current_surface_priority_hint": "raise_priority_for_review"
+    },
+    {
+      "feedback_kind": "dismiss",
+      "current_surface_priority_hint": "lower_priority"
+    },
+    {
+      "feedback_kind": "needs_more_evidence",
+      "current_surface_priority_hint": "needs_more_evidence"
+    },
+    {
+      "feedback_kind": "invalidate",
+      "current_surface_priority_hint": "needs_operator_review"
+    }
+  ],
+  "rule_failure_candidate_examples": [
+    {
+      "rule_failure_candidate_ref": "feedback-rule-failure-candidate:fixture",
+      "affected_surface": "durable_perspective_state",
+      "observed_pattern": "scope_overreach_feedback_present",
+      "proposed_rule_change_summary": "Scope-overreach feedback may indicate an overly broad surface rule.",
+      "expected_benefit": "Operator review can decide whether a future rule change is warranted.",
+      "risk_note": "Candidate-only preview. No rule mutation is executed.",
+      "review_required": true,
+      "rule_mutation_executed": false
+    }
+  ],
+  "source_visibility_warning_examples": [
+    {
+      "warning_ref": "feedback-source-visibility-warning:fixture",
+      "target_ref": "candidate:feedback-runtime:alpha",
+      "source_refs": ["source-ref:feedback-runtime:alpha"],
+      "source_visibility_preserved": true,
+      "invalidate_is_source_suppression": false
+    }
+  ],
+  "candidate_durable_boundary_examples": [
+    {
+      "target_ref": "durable-state:feedback-runtime:gamma",
+      "target_layer": "durable_perspective_state",
+      "candidate_ref": null,
+      "durable_ref": "durable-state:feedback-runtime:gamma",
+      "candidate_durable_distinction_preserved": true
+    }
+  ],
+  "blocked_private_or_raw_payload_example": {
+    "feedback_event_id": "feedback-event:blocked:raw",
+    "scope": "project:augnes",
+    "target_ref": "candidate:feedback-runtime:blocked",
+    "target_kind": "research_candidate_review_object",
+    "target_layer": "candidate",
+    "feedback_kind": "pin",
+    "feedback_summary": "SAFE_MARKER_RAW_SOURCE_BODY",
+    "candidate_ref": "candidate:feedback-runtime:blocked",
+    "created_by": "operator:feedback-runtime",
+    "created_at": "2026-06-28T01:30:00.000Z",
+    "reason_codes": ["blocked_fixture"]
+  },
+  "blocked_forbidden_authority_example": {
+    "feedback_event_id": "feedback-event:blocked:authority",
+    "scope": "project:augnes",
+    "target_ref": "candidate:feedback-runtime:blocked-authority",
+    "target_kind": "research_candidate_review_object",
+    "target_layer": "candidate",
+    "feedback_kind": "pin",
+    "feedback_summary": "Operator feedback with forbidden authority claim is blocked.",
+    "candidate_ref": "candidate:feedback-runtime:blocked-authority",
+    "created_by": "operator:feedback-runtime",
+    "created_at": "2026-06-28T01:31:00.000Z",
+    "authority_boundary": {
+      "product_write_now": "enabled",
+      "rule_mutation_now": 1
+    },
+    "reason_codes": ["blocked_fixture"]
+  },
+  "blocked_forbidden_authority_outside_boundary_example": {
+    "feedback_event_id": "feedback-event:blocked:authority-outside-boundary",
+    "scope": "project:augnes",
+    "target_ref": "candidate:feedback-runtime:blocked-authority-outside",
+    "target_kind": "research_candidate_review_object",
+    "target_layer": "candidate",
+    "feedback_kind": "pin",
+    "feedback_summary": "Operator feedback with forbidden authority-like fields outside authority boundary is blocked.",
+    "candidate_ref": "candidate:feedback-runtime:blocked-authority-outside",
+    "created_by": "operator:feedback-runtime",
+    "created_at": "2026-06-28T01:31:30.000Z",
+    "product_write_now": true,
+    "rule_mutation_now": "enabled",
+    "candidate_delete_now": 1,
+    "nested": {
+      "surfacing_mutation_now": {
+        "enabled": true
+      }
+    },
+    "reason_codes": ["blocked_fixture"]
+  },
+  "blocked_forbidden_authority_input_outside_boundary_example": {
+    "request_version": "feedback_event_aggregation_runtime_completion_request.v0.1",
+    "aggregation_version": "feedback_event_aggregation_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "aggregation_request_id": "feedback-aggregation-request:blocked-authority-outside-input",
+    "requested_by": "operator:feedback-runtime",
+    "requested_at": "2026-06-28T01:31:45.000Z",
+    "feedback_events": [],
+    "product_write_now": true,
+    "rule_mutation_now": "enabled",
+    "candidate_delete_now": 1,
+    "nested": {
+      "surfacing_mutation_now": {
+        "enabled": true
+      }
+    },
+    "reason_codes": ["blocked_fixture"]
+  },
+  "invalid_feedback_event_example": {
+    "feedback_event_id": "feedback-event:invalid:missing-target",
+    "scope": "project:augnes",
+    "target_ref": "",
+    "target_kind": "research_candidate_review_object",
+    "target_layer": "candidate",
+    "feedback_kind": "pin",
+    "feedback_summary": "Missing target ref is invalid.",
+    "created_by": "operator:feedback-runtime",
+    "created_at": "2026-06-28T01:32:00.000Z",
+    "reason_codes": ["invalid_fixture"]
+  },
+  "invalid_db_path_example": "SAFE_MARKER_LOCAL_PRIVATE_PATH",
+  "authority_boundary_sample": {
+    "feedback_event_aggregation_runtime_now": true,
+    "explicit_operator_aggregation_only": true,
+    "caller_injected_db_only": true,
+    "db_query_now": true,
+    "aggregation_read_now": true,
+    "advisory_result_only": true,
+    "rule_failure_candidate_preview_now": true,
+    "candidate_durable_boundary_visible": true,
+    "source_visibility_warning_visible": true,
+    "feedback_is_truth": false,
+    "pin_is_promotion": false,
+    "dismiss_is_delete": false,
+    "invalidate_is_source_suppression": false,
+    "rule_mutation_now": false,
+    "parser_mutation_now": false,
+    "prompt_mutation_now": false,
+    "ranking_mutation_now": false,
+    "surfacing_mutation_now": false,
+    "source_suppression_now": false,
+    "candidate_delete_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "retrieval_index_write_now": false,
+    "rag_answer_generation_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}

@@ -1174,3 +1174,1304 @@ function safeSerialize(value: unknown): string {
     return "";
   }
 }
+
+export const FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION =
+  "feedback_event_aggregation_runtime_completion.v0.1" as const;
+export const FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_REQUEST_VERSION =
+  "feedback_event_aggregation_runtime_completion_request.v0.1" as const;
+export const FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_ROUTE_VERSION =
+  "feedback_event_aggregation_runtime_completion_route.v0.1" as const;
+
+export type FeedbackEventAggregationRuntimeCompletionStatusV01 =
+  | "aggregated"
+  | "empty"
+  | "db_missing"
+  | "schema_missing"
+  | "blocked_private_or_raw_payload"
+  | "blocked_forbidden_authority"
+  | "blocked_invalid_input"
+  | "rejected";
+
+export type FeedbackEventAggregationRuntimeCompletionKindV01 =
+  | "pin"
+  | "dismiss"
+  | "correct"
+  | "invalidate"
+  | "needs_more_evidence"
+  | "scope_overreach"
+  | "not_relevant_now"
+  | "mark_useful"
+  | "mark_wrong";
+
+export type FeedbackEventAggregationRuntimeCompletionTargetLayerV01 =
+  | "candidate"
+  | "review_memory"
+  | "durable_perspective_state"
+  | "source_ref"
+  | "provider_candidate"
+  | "retrieval_context"
+  | "layout_surface"
+  | "unknown";
+
+export type FeedbackEventAggregationRuntimeCompletionPriorityHintV01 =
+  | "keep_visible"
+  | "lower_priority"
+  | "raise_priority_for_review"
+  | "needs_more_evidence"
+  | "needs_operator_review"
+  | "no_change"
+  | "blocked";
+
+interface FeedbackEventAggregationStatementV01 {
+  get?: (...values: unknown[]) => unknown;
+  all?: (...values: unknown[]) => unknown[];
+  run?: (...values: unknown[]) => { changes?: number };
+}
+
+export interface FeedbackEventAggregationSqliteLikeV01 {
+  exec?: (sql: string) => unknown;
+  prepare(sql: string): FeedbackEventAggregationStatementV01;
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionEventRecordV01 {
+  feedback_event_id: string;
+  scope: typeof scope;
+  target_ref: string;
+  target_kind: string;
+  target_layer: FeedbackEventAggregationRuntimeCompletionTargetLayerV01;
+  feedback_kind: FeedbackEventAggregationRuntimeCompletionKindV01;
+  feedback_value?: string;
+  feedback_summary: string;
+  source_ref?: string;
+  source_refs?: string[];
+  candidate_ref?: string;
+  durable_ref?: string;
+  created_by: string;
+  created_at: string;
+  authority_boundary?: Record<string, unknown>;
+  reason_codes: string[];
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionInputV01 {
+  request_version: typeof FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_REQUEST_VERSION;
+  aggregation_version: typeof FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION;
+  scope: typeof scope;
+  aggregation_request_id: string;
+  requested_by: string;
+  requested_at: string;
+  db_path?: string;
+  filters?: {
+    target_ref?: string;
+    target_kind?: string;
+    target_layer?: FeedbackEventAggregationRuntimeCompletionTargetLayerV01;
+    feedback_kind?: FeedbackEventAggregationRuntimeCompletionKindV01;
+    limit?: number;
+  };
+  feedback_events?: FeedbackEventAggregationRuntimeCompletionEventRecordV01[];
+  authority_boundary?: Record<string, unknown>;
+  reason_codes: string[];
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionRuleFailureCandidateV01 {
+  rule_failure_candidate_ref: string;
+  affected_surface: string;
+  observed_pattern: string;
+  proposed_rule_change_summary: string;
+  expected_benefit: string;
+  risk_note: string;
+  review_required: true;
+  rule_mutation_executed: false;
+  authority_boundary: FeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01;
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionSourceVisibilityWarningV01 {
+  warning_ref: string;
+  target_ref: string;
+  source_refs: string[];
+  feedback_event_refs: string[];
+  warning_summary: string;
+  source_visibility_preserved: true;
+  invalidate_is_source_suppression: false;
+  authority_boundary: FeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01;
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionBoundaryNoteV01 {
+  note_ref: string;
+  target_ref: string;
+  target_layer: FeedbackEventAggregationRuntimeCompletionTargetLayerV01;
+  candidate_ref: string | null;
+  durable_ref: string | null;
+  boundary_summary: string;
+  candidate_durable_distinction_preserved: true;
+  authority_boundary: FeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01;
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionAggregateV01 {
+  aggregation_version: typeof FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION;
+  scope: typeof scope;
+  target_ref: string;
+  target_kind: string;
+  target_layer: FeedbackEventAggregationRuntimeCompletionTargetLayerV01;
+  pin_count: number;
+  dismiss_count: number;
+  correct_count: number;
+  invalidate_count: number;
+  needs_more_evidence_count: number;
+  scope_overreach_count: number;
+  not_relevant_now_count: number;
+  mark_useful_count: number;
+  mark_wrong_count: number;
+  last_feedback_at: string;
+  feedback_event_refs: string[];
+  current_surface_priority_hint: FeedbackEventAggregationRuntimeCompletionPriorityHintV01;
+  rule_failure_candidates: FeedbackEventAggregationRuntimeCompletionRuleFailureCandidateV01[];
+  source_visibility_warnings: FeedbackEventAggregationRuntimeCompletionSourceVisibilityWarningV01[];
+  candidate_durable_boundary_notes: FeedbackEventAggregationRuntimeCompletionBoundaryNoteV01[];
+  advisory_only: true;
+  feedback_is_truth: false;
+  pin_is_promotion: false;
+  dismiss_is_delete: false;
+  invalidate_is_source_suppression: false;
+  rule_failure_candidate_is_rule_mutation: false;
+  product_write_executed: false;
+  authority_boundary: FeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01;
+  reason_codes: string[];
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionResultV01 {
+  aggregation_version: typeof FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION;
+  scope: typeof scope;
+  aggregation_request_id: string;
+  status: FeedbackEventAggregationRuntimeCompletionStatusV01;
+  aggregations: FeedbackEventAggregationRuntimeCompletionAggregateV01[];
+  feedback_event_refs: string[];
+  rule_failure_candidates: FeedbackEventAggregationRuntimeCompletionRuleFailureCandidateV01[];
+  source_visibility_warnings: FeedbackEventAggregationRuntimeCompletionSourceVisibilityWarningV01[];
+  candidate_durable_boundary_notes: FeedbackEventAggregationRuntimeCompletionBoundaryNoteV01[];
+  advisory_only: true;
+  feedback_is_truth: false;
+  pin_is_promotion: false;
+  dismiss_is_delete: false;
+  invalidate_is_source_suppression: false;
+  rule_failure_candidate_is_rule_mutation: false;
+  product_write_executed: false;
+  authority_boundary: FeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01;
+  reason_codes: string[];
+}
+
+export interface FeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01 {
+  feedback_event_aggregation_runtime_now: true;
+  explicit_operator_aggregation_only: true;
+  caller_injected_db_only: true;
+  db_query_now: boolean;
+  aggregation_read_now: true;
+  advisory_result_only: true;
+  rule_failure_candidate_preview_now: true;
+  candidate_durable_boundary_visible: true;
+  source_visibility_warning_visible: true;
+  feedback_is_truth: false;
+  pin_is_promotion: false;
+  dismiss_is_delete: false;
+  invalidate_is_source_suppression: false;
+  rule_mutation_now: false;
+  parser_mutation_now: false;
+  prompt_mutation_now: false;
+  ranking_mutation_now: false;
+  surfacing_mutation_now: false;
+  source_suppression_now: false;
+  candidate_delete_now: false;
+  proof_or_evidence_record_now: false;
+  claim_or_evidence_write_now: false;
+  work_item_write_now: false;
+  promotion_execution_now: false;
+  durable_state_write_now: false;
+  durable_state_apply_now: false;
+  formation_receipt_write_now: false;
+  provider_openai_call_now: false;
+  prompt_sent_now: false;
+  source_fetch_now: false;
+  retrieval_execution_now: false;
+  retrieval_index_write_now: false;
+  rag_answer_generation_now: false;
+  product_write_now: false;
+  product_write_runtime_now: false;
+  product_write_adapter_enabled_now: false;
+  product_id_allocation_now: false;
+  product_persistence_now: false;
+  git_ledger_export_runtime_now: false;
+  git_write_now: false;
+  github_api_call_now: false;
+  repository_file_write_now: false;
+  local_file_export_now: false;
+  local_file_import_now: false;
+  codex_execution_now: false;
+  codex_execution_authority: false;
+  github_automation_authority: false;
+  product_write_authority: false;
+  smoke_pass_is_truth: false;
+  ci_pass_is_truth: false;
+}
+
+const completionFeedbackKinds: FeedbackEventAggregationRuntimeCompletionKindV01[] = [
+  "pin",
+  "dismiss",
+  "correct",
+  "invalidate",
+  "needs_more_evidence",
+  "scope_overreach",
+  "not_relevant_now",
+  "mark_useful",
+  "mark_wrong",
+];
+
+const completionTargetLayers: FeedbackEventAggregationRuntimeCompletionTargetLayerV01[] = [
+  "candidate",
+  "review_memory",
+  "durable_perspective_state",
+  "source_ref",
+  "provider_candidate",
+  "retrieval_context",
+  "layout_surface",
+  "unknown",
+];
+
+const completionForbiddenAuthorityFields = new Set([
+  "feedback_is_truth",
+  "pin_is_promotion",
+  "dismiss_is_delete",
+  "invalidate_is_source_suppression",
+  "rule_mutation_now",
+  "parser_mutation_now",
+  "prompt_mutation_now",
+  "ranking_mutation_now",
+  "surfacing_mutation_now",
+  "source_suppression_now",
+  "candidate_delete_now",
+  "proof_or_evidence_record_now",
+  "claim_or_evidence_write_now",
+  "work_item_write_now",
+  "promotion_execution_now",
+  "durable_state_write_now",
+  "durable_state_apply_now",
+  "formation_receipt_write_now",
+  "provider_openai_call_now",
+  "prompt_sent_now",
+  "source_fetch_now",
+  "retrieval_execution_now",
+  "retrieval_index_write_now",
+  "rag_answer_generation_now",
+  "product_write_now",
+  "product_write_runtime_now",
+  "product_write_adapter_enabled_now",
+  "product_id_allocation_now",
+  "product_persistence_now",
+  "git_ledger_export_runtime_now",
+  "git_write_now",
+  "github_api_call_now",
+  "repository_file_write_now",
+  "local_file_export_now",
+  "local_file_import_now",
+  "codex_execution_now",
+  "codex_execution_authority",
+  "github_automation_authority",
+  "product_write_authority",
+  "smoke_pass_is_truth",
+  "ci_pass_is_truth",
+]);
+
+const completionUnsafePattern =
+  /(SAFE_MARKER_|\/Users\/|\/home\/|file:\/\/|https:\/\/localhost|http:\/\/localhost|sk-|ghp_|OPENAI_API_KEY|GITHUB_TOKEN|password:|secret:|private key|raw provider output|raw retrieval output|raw feedback payload|raw feedback aggregation payload|raw conversation|hidden reasoning|raw DB row|raw_db_row|browser dump|raw browser dump|raw source body|actual prompt:|provider response:|actual query:|embedding vector:|vector index dump:|telemetry dump|raw diff)/i;
+
+const feedbackEventAggregationStoreTableNameV01 = "research_candidate_feedback_events";
+
+export const feedbackEventAggregationRuntimeCompletionSchemaSqlV01 = `
+CREATE TABLE IF NOT EXISTS research_candidate_feedback_events (
+  event_id TEXT PRIMARY KEY,
+  event_version TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  target_kind TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  target_fingerprint TEXT,
+  source_ref_ids_json TEXT NOT NULL,
+  operator_note TEXT,
+  correction_text TEXT,
+  reason TEXT,
+  created_at TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  authority_boundary_json TEXT NOT NULL,
+  event_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_feedback_events_event_type
+  ON research_candidate_feedback_events(event_type);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_feedback_events_target
+  ON research_candidate_feedback_events(target_kind, target_id);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_feedback_events_created_at
+  ON research_candidate_feedback_events(created_at);
+`.trim();
+
+export function createFeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01(
+  options: { dbQueryNow?: boolean } = {},
+): FeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01 {
+  return {
+    feedback_event_aggregation_runtime_now: true,
+    explicit_operator_aggregation_only: true,
+    caller_injected_db_only: true,
+    db_query_now: options.dbQueryNow === true,
+    aggregation_read_now: true,
+    advisory_result_only: true,
+    rule_failure_candidate_preview_now: true,
+    candidate_durable_boundary_visible: true,
+    source_visibility_warning_visible: true,
+    feedback_is_truth: false,
+    pin_is_promotion: false,
+    dismiss_is_delete: false,
+    invalidate_is_source_suppression: false,
+    rule_mutation_now: false,
+    parser_mutation_now: false,
+    prompt_mutation_now: false,
+    ranking_mutation_now: false,
+    surfacing_mutation_now: false,
+    source_suppression_now: false,
+    candidate_delete_now: false,
+    proof_or_evidence_record_now: false,
+    claim_or_evidence_write_now: false,
+    work_item_write_now: false,
+    promotion_execution_now: false,
+    durable_state_write_now: false,
+    durable_state_apply_now: false,
+    formation_receipt_write_now: false,
+    provider_openai_call_now: false,
+    prompt_sent_now: false,
+    source_fetch_now: false,
+    retrieval_execution_now: false,
+    retrieval_index_write_now: false,
+    rag_answer_generation_now: false,
+    product_write_now: false,
+    product_write_runtime_now: false,
+    product_write_adapter_enabled_now: false,
+    product_id_allocation_now: false,
+    product_persistence_now: false,
+    git_ledger_export_runtime_now: false,
+    git_write_now: false,
+    github_api_call_now: false,
+    repository_file_write_now: false,
+    local_file_export_now: false,
+    local_file_import_now: false,
+    codex_execution_now: false,
+    codex_execution_authority: false,
+    github_automation_authority: false,
+    product_write_authority: false,
+    smoke_pass_is_truth: false,
+    ci_pass_is_truth: false,
+  };
+}
+
+export function ensureFeedbackEventAggregationRuntimeCompletionSchemaV01(
+  db: FeedbackEventAggregationSqliteLikeV01,
+): void {
+  db.exec?.(feedbackEventAggregationRuntimeCompletionSchemaSqlV01);
+}
+
+export function feedbackEventAggregationRuntimeCompletionSchemaExistsV01(
+  db: FeedbackEventAggregationSqliteLikeV01,
+): boolean {
+  const row = db
+    .prepare(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
+    )
+    .get?.(feedbackEventAggregationStoreTableNameV01);
+  return Boolean(row);
+}
+
+export function isSafeFeedbackEventAggregationRuntimeDbPathV01(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  if (value.length === 0 || value.length > 220) return false;
+  if (!value.endsWith(".sqlite") && !value.endsWith(".db")) return false;
+  if (!/^(tmp|\.tmp)\/feedback-event-aggregation\/[A-Za-z0-9._/-]+$/.test(value)) {
+    return false;
+  }
+  if (
+    value.startsWith("/") ||
+    value.includes("..") ||
+    value.includes("\\") ||
+    value.includes("\0") ||
+    /^[a-z][a-z0-9+.-]*:/i.test(value) ||
+    completionUnsafePattern.test(value)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function insertFeedbackEventAggregationRuntimeCompletionEventV01(
+  event: FeedbackEventAggregationRuntimeCompletionEventRecordV01,
+  db: FeedbackEventAggregationSqliteLikeV01,
+): { status: "inserted" | "idempotent_existing" | "blocked"; failure_codes: string[] } {
+  const validation = validateFeedbackEventAggregationRuntimeCompletionEventV01(event);
+  if (!validation.passed) return { status: "blocked", failure_codes: validation.failure_codes };
+  const sourceRefs = normalizeCompletionSourceRefs(event);
+  const idempotencyKey = `feedback_event_aggregation:${hashStable(event)}`;
+  db
+    .prepare(
+      `INSERT OR IGNORE INTO ${feedbackEventAggregationStoreTableNameV01} (
+        event_id,
+        event_version,
+        event_type,
+        target_kind,
+        target_id,
+        target_fingerprint,
+        source_ref_ids_json,
+        operator_note,
+        correction_text,
+        reason,
+        created_at,
+        idempotency_key,
+        authority_boundary_json,
+        event_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run?.(
+      event.feedback_event_id,
+      "feedback_event_aggregation_runtime_completion_event.v0.1",
+      event.feedback_kind,
+      event.target_kind,
+      event.target_ref,
+      event.candidate_ref ?? event.durable_ref ?? null,
+      JSON.stringify(sourceRefs),
+      event.feedback_summary,
+      event.feedback_kind === "correct" ? event.feedback_value ?? null : null,
+      event.feedback_value ?? null,
+      event.created_at,
+      idempotencyKey,
+      JSON.stringify(event.authority_boundary ?? {}),
+      stableStringify(event),
+    );
+  const row = db
+    .prepare(
+      `SELECT event_id FROM ${feedbackEventAggregationStoreTableNameV01}
+       WHERE event_id = ? LIMIT 1`,
+    )
+    .get?.(event.feedback_event_id);
+  return {
+    status: row ? "inserted" : "idempotent_existing",
+    failure_codes: [],
+  };
+}
+
+export function listFeedbackEventAggregationRuntimeCompletionEventsV01(
+  filters: FeedbackEventAggregationRuntimeCompletionInputV01["filters"] | undefined,
+  db: FeedbackEventAggregationSqliteLikeV01,
+): FeedbackEventAggregationRuntimeCompletionEventRecordV01[] {
+  const clauses: string[] = [];
+  const values: unknown[] = [];
+  if (filters?.target_ref) {
+    clauses.push("target_id = ?");
+    values.push(filters.target_ref);
+  }
+  if (filters?.target_kind) {
+    clauses.push("target_kind = ?");
+    values.push(filters.target_kind);
+  }
+  if (filters?.feedback_kind) {
+    clauses.push("event_type = ?");
+    values.push(filters.feedback_kind);
+  }
+  const limit =
+    typeof filters?.limit === "number" && Number.isInteger(filters.limit)
+      ? Math.min(Math.max(filters.limit, 1), 200)
+      : 100;
+  const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+  const rows =
+    db
+      .prepare(
+        `SELECT event_json, event_id, event_type, target_kind, target_id,
+                source_ref_ids_json, operator_note, correction_text, reason, created_at
+         FROM ${feedbackEventAggregationStoreTableNameV01}
+         ${where}
+         ORDER BY created_at ASC, event_id ASC
+         LIMIT ?`,
+      )
+      .all?.(...values, limit) ?? [];
+  return rows
+    .map((row) => runtimeCompletionEventFromRowV01(row))
+    .filter((event): event is FeedbackEventAggregationRuntimeCompletionEventRecordV01 => {
+      if (!event) return false;
+      if (filters?.target_layer && event.target_layer !== filters.target_layer) return false;
+      return true;
+    });
+}
+
+export function aggregateFeedbackEventsRuntimeCompletionV01(
+  input: FeedbackEventAggregationRuntimeCompletionInputV01,
+  options: {
+    db?: FeedbackEventAggregationSqliteLikeV01;
+    persisted_events?: FeedbackEventAggregationRuntimeCompletionEventRecordV01[];
+  } = {},
+): FeedbackEventAggregationRuntimeCompletionResultV01 {
+  const validation = validateFeedbackEventAggregationRuntimeCompletionInputV01(input);
+  if (!validation.passed) {
+    const status = validation.failure_codes.some((code) => code.includes("forbidden_authority"))
+      ? "blocked_forbidden_authority"
+      : validation.failure_codes.some((code) => /private|raw|secret|local_path|private_url/.test(code))
+        ? "blocked_private_or_raw_payload"
+        : "blocked_invalid_input";
+    return emptyRuntimeCompletionResultV01(
+      status,
+      safeRuntimeCompletionAggregationIdV01(input),
+      status === "blocked_forbidden_authority"
+        ? ["forbidden_authority_blocked"]
+        : status === "blocked_private_or_raw_payload"
+          ? ["private_or_raw_payload_blocked"]
+          : ["invalid_feedback_event"],
+      Boolean(options.db || input.db_path),
+    );
+  }
+
+  let events = input.feedback_events ?? options.persisted_events ?? [];
+  if (options.db) {
+    if (!feedbackEventAggregationRuntimeCompletionSchemaExistsV01(options.db)) {
+      return emptyRuntimeCompletionResultV01(
+        "schema_missing",
+        input.aggregation_request_id,
+        ["schema_missing"],
+        true,
+      );
+    }
+    events = listFeedbackEventAggregationRuntimeCompletionEventsV01(input.filters, options.db);
+  }
+
+  const eventValidationFailures = events.flatMap((event, index) =>
+    validateFeedbackEventAggregationRuntimeCompletionEventV01(event).failure_codes.map(
+      (code) => `feedback_events.${index}.${code}`,
+    ),
+  );
+  if (eventValidationFailures.length > 0) {
+    const status = eventValidationFailures.some((code) => code.includes("forbidden_authority"))
+      ? "blocked_forbidden_authority"
+      : eventValidationFailures.some((code) => /private|raw|secret|local_path|private_url/.test(code))
+        ? "blocked_private_or_raw_payload"
+        : "blocked_invalid_input";
+    return emptyRuntimeCompletionResultV01(
+      status,
+      input.aggregation_request_id,
+      status === "blocked_forbidden_authority"
+        ? ["forbidden_authority_blocked"]
+        : status === "blocked_private_or_raw_payload"
+          ? ["private_or_raw_payload_blocked"]
+          : ["invalid_feedback_event"],
+      Boolean(options.db || input.db_path),
+    );
+  }
+
+  const normalizedEvents = events
+    .map((event) => normalizeFeedbackEventAggregationRuntimeCompletionEventV01(event))
+    .sort((left, right) => compareStrings(left.created_at, right.created_at) || compareStrings(left.feedback_event_id, right.feedback_event_id));
+  if (normalizedEvents.length === 0) {
+    return emptyRuntimeCompletionResultV01(
+      "empty",
+      input.aggregation_request_id,
+      ["feedback_event_missing"],
+      Boolean(options.db || input.db_path),
+    );
+  }
+
+  const aggregations = buildRuntimeCompletionAggregationsV01(normalizedEvents).sort((left, right) =>
+    compareStrings(left.target_ref, right.target_ref) ||
+    compareStrings(left.target_kind, right.target_kind) ||
+    compareStrings(left.target_layer, right.target_layer),
+  );
+
+  return {
+    aggregation_version: FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION,
+    scope,
+    aggregation_request_id: input.aggregation_request_id,
+    status: "aggregated",
+    aggregations,
+    feedback_event_refs: uniqueSorted(normalizedEvents.map((event) => event.feedback_event_id)),
+    rule_failure_candidates: aggregations.flatMap((aggregate) => aggregate.rule_failure_candidates),
+    source_visibility_warnings: aggregations.flatMap((aggregate) => aggregate.source_visibility_warnings),
+    candidate_durable_boundary_notes: aggregations.flatMap(
+      (aggregate) => aggregate.candidate_durable_boundary_notes,
+    ),
+    advisory_only: true,
+    feedback_is_truth: false,
+    pin_is_promotion: false,
+    dismiss_is_delete: false,
+    invalidate_is_source_suppression: false,
+    rule_failure_candidate_is_rule_mutation: false,
+    product_write_executed: false,
+    authority_boundary: createFeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01({
+      dbQueryNow: Boolean(options.db || input.db_path),
+    }),
+    reason_codes: uniqueSorted([
+      "feedback_event_present",
+      "aggregation_is_advisory",
+      "feedback_is_not_truth",
+      "pin_is_not_promotion",
+      "dismiss_is_not_delete",
+      "invalidate_is_not_source_suppression",
+      "rule_failure_candidate_is_not_rule_mutation",
+      "candidate_durable_boundary_visible",
+      "source_visibility_warning_visible",
+      "product_write_denied",
+    ]),
+  };
+}
+
+export function validateFeedbackEventAggregationRuntimeCompletionInputV01(
+  input: unknown,
+): { passed: boolean; failure_codes: string[] } {
+  const failureCodes: string[] = [];
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return { passed: false, failure_codes: ["input_not_object"] };
+  }
+  const value = input as Partial<FeedbackEventAggregationRuntimeCompletionInputV01>;
+  if (value.request_version !== FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_REQUEST_VERSION) {
+    failureCodes.push("request_version_invalid");
+  }
+  if (value.aggregation_version !== FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION) {
+    failureCodes.push("aggregation_version_invalid");
+  }
+  if (value.scope !== scope) failureCodes.push("scope_invalid");
+  validateRuntimeCompletionPublicStringV01(value.aggregation_request_id, "aggregation_request_id", failureCodes);
+  validateRuntimeCompletionPublicStringV01(value.requested_by, "requested_by", failureCodes);
+  validateRuntimeCompletionPublicStringV01(value.requested_at, "requested_at", failureCodes);
+  validateRuntimeCompletionReasonCodesV01(value.reason_codes, "reason_codes", failureCodes);
+  collectRuntimeCompletionUnsafeFailuresV01(value, "input", failureCodes);
+  collectRuntimeCompletionAuthorityFailuresDeepV01(value, "input", failureCodes);
+  collectRuntimeCompletionAuthorityFailuresV01(value.authority_boundary, "authority_boundary", failureCodes);
+  if (value.db_path !== undefined && !isSafeFeedbackEventAggregationRuntimeDbPathV01(value.db_path)) {
+    failureCodes.push("db_path_invalid");
+  }
+  if (value.filters !== undefined) validateRuntimeCompletionFiltersV01(value.filters, failureCodes);
+  if (value.feedback_events !== undefined) {
+    if (!Array.isArray(value.feedback_events)) {
+      failureCodes.push("feedback_events_not_array");
+    } else {
+      value.feedback_events.forEach((event, index) => {
+        validateFeedbackEventAggregationRuntimeCompletionEventV01(event).failure_codes.forEach(
+          (code) => failureCodes.push(`feedback_events.${index}.${code}`),
+        );
+      });
+    }
+  }
+  return { passed: failureCodes.length === 0, failure_codes: failureCodes };
+}
+
+export function validateFeedbackEventAggregationRuntimeCompletionEventV01(
+  event: unknown,
+): { passed: boolean; failure_codes: string[] } {
+  const failureCodes: string[] = [];
+  if (!event || typeof event !== "object" || Array.isArray(event)) {
+    return { passed: false, failure_codes: ["feedback_event_invalid"] };
+  }
+  const value = event as Partial<FeedbackEventAggregationRuntimeCompletionEventRecordV01>;
+  if (value.scope !== scope) failureCodes.push("scope_invalid");
+  validateRuntimeCompletionPublicStringV01(value.feedback_event_id, "feedback_event_id", failureCodes);
+  validateRuntimeCompletionPublicStringV01(value.target_ref, "target_ref", failureCodes);
+  validateRuntimeCompletionPublicStringV01(value.target_kind, "target_kind", failureCodes);
+  if (!completionTargetLayers.includes(value.target_layer as FeedbackEventAggregationRuntimeCompletionTargetLayerV01)) {
+    failureCodes.push("target_layer_invalid");
+  }
+  if (!completionFeedbackKinds.includes(value.feedback_kind as FeedbackEventAggregationRuntimeCompletionKindV01)) {
+    failureCodes.push("feedback_kind_invalid");
+  }
+  validateRuntimeCompletionPublicStringV01(value.feedback_summary, "feedback_summary", failureCodes);
+  validateRuntimeCompletionPublicStringV01(value.created_by, "created_by", failureCodes);
+  validateRuntimeCompletionPublicStringV01(value.created_at, "created_at", failureCodes);
+  if (value.feedback_value !== undefined) {
+    validateRuntimeCompletionPublicStringV01(value.feedback_value, "feedback_value", failureCodes);
+  }
+  if (value.source_ref !== undefined) {
+    validateRuntimeCompletionPublicStringV01(value.source_ref, "source_ref", failureCodes);
+  }
+  if (value.candidate_ref !== undefined) {
+    validateRuntimeCompletionPublicStringV01(value.candidate_ref, "candidate_ref", failureCodes);
+  }
+  if (value.durable_ref !== undefined) {
+    validateRuntimeCompletionPublicStringV01(value.durable_ref, "durable_ref", failureCodes);
+  }
+  if (value.source_refs !== undefined) {
+    validateRuntimeCompletionPublicStringArrayV01(value.source_refs, "source_refs", failureCodes);
+  }
+  validateRuntimeCompletionReasonCodesV01(value.reason_codes, "reason_codes", failureCodes);
+  collectRuntimeCompletionUnsafeFailuresV01(value, "feedback_event", failureCodes);
+  collectRuntimeCompletionAuthorityFailuresDeepV01(value, "feedback_event", failureCodes);
+  collectRuntimeCompletionAuthorityFailuresV01(value.authority_boundary, "authority_boundary", failureCodes);
+  return { passed: failureCodes.length === 0, failure_codes: failureCodes };
+}
+
+function buildRuntimeCompletionAggregationsV01(
+  events: FeedbackEventAggregationRuntimeCompletionEventRecordV01[],
+): FeedbackEventAggregationRuntimeCompletionAggregateV01[] {
+  const groups = new Map<string, FeedbackEventAggregationRuntimeCompletionEventRecordV01[]>();
+  for (const event of events) {
+    const key = `${event.target_ref}\u0000${event.target_kind}\u0000${event.target_layer}`;
+    groups.set(key, [...(groups.get(key) ?? []), event]);
+  }
+  return [...groups.values()].map((groupEventsForTarget) => {
+    const counts = countRuntimeCompletionEventsV01(groupEventsForTarget);
+    const target = groupEventsForTarget[0]!;
+    const feedbackEventRefs = uniqueSorted(groupEventsForTarget.map((event) => event.feedback_event_id));
+    const sourceRefs = uniqueSorted(groupEventsForTarget.flatMap(normalizeCompletionSourceRefs));
+    const priorityHint = determineRuntimeCompletionPriorityHintV01(counts);
+    const authorityBoundary = createFeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01({
+      dbQueryNow: true,
+    });
+    const ruleFailureCandidates = buildRuntimeCompletionRuleFailureCandidatesV01(
+      target,
+      counts,
+      feedbackEventRefs,
+    );
+    const sourceVisibilityWarnings = buildRuntimeCompletionSourceVisibilityWarningsV01(
+      target,
+      counts,
+      sourceRefs,
+      feedbackEventRefs,
+    );
+    const boundaryNotes = buildRuntimeCompletionBoundaryNotesV01(target);
+    return {
+      aggregation_version: FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION,
+      scope,
+      target_ref: target.target_ref,
+      target_kind: target.target_kind,
+      target_layer: target.target_layer,
+      pin_count: counts.pin_count,
+      dismiss_count: counts.dismiss_count,
+      correct_count: counts.correct_count,
+      invalidate_count: counts.invalidate_count,
+      needs_more_evidence_count: counts.needs_more_evidence_count,
+      scope_overreach_count: counts.scope_overreach_count,
+      not_relevant_now_count: counts.not_relevant_now_count,
+      mark_useful_count: counts.mark_useful_count,
+      mark_wrong_count: counts.mark_wrong_count,
+      last_feedback_at: maxString(groupEventsForTarget.map((event) => event.created_at)),
+      feedback_event_refs: feedbackEventRefs,
+      current_surface_priority_hint: priorityHint,
+      rule_failure_candidates: ruleFailureCandidates,
+      source_visibility_warnings: sourceVisibilityWarnings,
+      candidate_durable_boundary_notes: boundaryNotes,
+      advisory_only: true,
+      feedback_is_truth: false,
+      pin_is_promotion: false,
+      dismiss_is_delete: false,
+      invalidate_is_source_suppression: false,
+      rule_failure_candidate_is_rule_mutation: false,
+      product_write_executed: false,
+      authority_boundary: authorityBoundary,
+      reason_codes: uniqueSorted([
+        "aggregation_is_advisory",
+        "feedback_is_not_truth",
+        "candidate_durable_boundary_visible",
+        counts.pin_count > 0 ? "pin_counted" : "",
+        counts.dismiss_count > 0 ? "dismiss_counted" : "",
+        counts.correct_count > 0 ? "correct_counted" : "",
+        counts.invalidate_count > 0 ? "invalidate_counted" : "",
+        counts.needs_more_evidence_count > 0 ? "needs_more_evidence_counted" : "",
+        counts.scope_overreach_count > 0 ? "scope_overreach_counted" : "",
+      ].filter(Boolean)),
+    };
+  });
+}
+
+function countRuntimeCompletionEventsV01(
+  events: FeedbackEventAggregationRuntimeCompletionEventRecordV01[],
+): Omit<CountState, "unknown_count"> {
+  const counts = {
+    pin_count: 0,
+    dismiss_count: 0,
+    correct_count: 0,
+    invalidate_count: 0,
+    needs_more_evidence_count: 0,
+    scope_overreach_count: 0,
+    not_relevant_now_count: 0,
+    mark_useful_count: 0,
+    mark_wrong_count: 0,
+  };
+  for (const event of events) {
+    counts[`${event.feedback_kind}_count` as keyof typeof counts] += 1;
+  }
+  return counts;
+}
+
+function determineRuntimeCompletionPriorityHintV01(
+  counts: Omit<CountState, "unknown_count">,
+): FeedbackEventAggregationRuntimeCompletionPriorityHintV01 {
+  if (counts.invalidate_count > 0 || counts.scope_overreach_count > 0) {
+    return "needs_operator_review";
+  }
+  if (counts.needs_more_evidence_count > 0) return "needs_more_evidence";
+  if (counts.pin_count > 0 || counts.mark_useful_count > 0 || counts.correct_count > 0) {
+    return "raise_priority_for_review";
+  }
+  if (counts.dismiss_count > 0 || counts.not_relevant_now_count > 0 || counts.mark_wrong_count > 0) {
+    return "lower_priority";
+  }
+  return "no_change";
+}
+
+function buildRuntimeCompletionRuleFailureCandidatesV01(
+  target: FeedbackEventAggregationRuntimeCompletionEventRecordV01,
+  counts: Omit<CountState, "unknown_count">,
+  feedbackEventRefs: string[],
+): FeedbackEventAggregationRuntimeCompletionRuleFailureCandidateV01[] {
+  const candidates: FeedbackEventAggregationRuntimeCompletionRuleFailureCandidateV01[] = [];
+  const maybePush = (observedPattern: string, reason: string) => {
+    candidates.push({
+      rule_failure_candidate_ref: `feedback-rule-failure-candidate:${hashStable({
+        observedPattern,
+        target_ref: target.target_ref,
+        feedbackEventRefs,
+      })}`,
+      affected_surface: target.target_kind,
+      observed_pattern: observedPattern,
+      proposed_rule_change_summary: reason,
+      expected_benefit: "Operator review can decide whether a future rule change is warranted.",
+      risk_note: "Candidate-only preview. No rule mutation is executed.",
+      review_required: true,
+      rule_mutation_executed: false,
+      authority_boundary: createFeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01({
+        dbQueryNow: true,
+      }),
+    });
+  };
+  if (counts.correct_count > 0) maybePush("correction_feedback_present", "Correction feedback may indicate a candidate display or parser mismatch.");
+  if (counts.scope_overreach_count > 0) maybePush("scope_overreach_feedback_present", "Scope-overreach feedback may indicate an overly broad surface rule.");
+  if (counts.mark_wrong_count > 0) maybePush("wrong_mark_feedback_present", "Wrong-mark feedback may indicate a candidate quality rule failure.");
+  if (counts.needs_more_evidence_count > 0) maybePush("needs_more_evidence_feedback_present", "Needs-more-evidence feedback may indicate an evidence coverage gap.");
+  return candidates.sort((left, right) =>
+    compareStrings(left.rule_failure_candidate_ref, right.rule_failure_candidate_ref),
+  );
+}
+
+function buildRuntimeCompletionSourceVisibilityWarningsV01(
+  target: FeedbackEventAggregationRuntimeCompletionEventRecordV01,
+  counts: Omit<CountState, "unknown_count">,
+  sourceRefs: string[],
+  feedbackEventRefs: string[],
+): FeedbackEventAggregationRuntimeCompletionSourceVisibilityWarningV01[] {
+  if (sourceRefs.length === 0) return [];
+  if (counts.invalidate_count === 0 && counts.dismiss_count === 0 && counts.not_relevant_now_count === 0) {
+    return [];
+  }
+  return [
+    {
+      warning_ref: `feedback-source-visibility-warning:${hashStable({
+        target_ref: target.target_ref,
+        sourceRefs,
+        feedbackEventRefs,
+      })}`,
+      target_ref: target.target_ref,
+      source_refs: sourceRefs,
+      feedback_event_refs: feedbackEventRefs,
+      warning_summary: "Feedback can lower priority or request review, but it cannot silently suppress source visibility.",
+      source_visibility_preserved: true,
+      invalidate_is_source_suppression: false,
+      authority_boundary: createFeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01({
+        dbQueryNow: true,
+      }),
+    },
+  ];
+}
+
+function buildRuntimeCompletionBoundaryNotesV01(
+  event: FeedbackEventAggregationRuntimeCompletionEventRecordV01,
+): FeedbackEventAggregationRuntimeCompletionBoundaryNoteV01[] {
+  return [
+    {
+      note_ref: `feedback-boundary-note:${hashStable({
+        target_ref: event.target_ref,
+        target_layer: event.target_layer,
+        candidate_ref: event.candidate_ref ?? null,
+        durable_ref: event.durable_ref ?? null,
+      })}`,
+      target_ref: event.target_ref,
+      target_layer: event.target_layer,
+      candidate_ref: event.candidate_ref ?? null,
+      durable_ref: event.durable_ref ?? null,
+      boundary_summary:
+        event.target_layer === "durable_perspective_state"
+          ? "Feedback on durable state is a review signal only and does not mutate durable state."
+          : "Feedback preserves candidate/durable separation and remains advisory.",
+      candidate_durable_distinction_preserved: true,
+      authority_boundary: createFeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01({
+        dbQueryNow: true,
+      }),
+    },
+  ];
+}
+
+function runtimeCompletionEventFromRowV01(
+  row: unknown,
+): FeedbackEventAggregationRuntimeCompletionEventRecordV01 | null {
+  if (!row || typeof row !== "object") return null;
+  const record = row as Record<string, unknown>;
+  if (typeof record.event_json === "string") {
+    const parsed = safeParseJsonRecordV01(record.event_json);
+    const normalized = normalizePersistedFeedbackEventRecordV01(parsed);
+    if (normalized) return normalized;
+  }
+  return normalizePersistedFeedbackEventRecordV01(record);
+}
+
+function normalizePersistedFeedbackEventRecordV01(
+  value: unknown,
+): FeedbackEventAggregationRuntimeCompletionEventRecordV01 | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.feedback_event_id === "string" &&
+    typeof record.feedback_kind === "string"
+  ) {
+    return normalizeFeedbackEventAggregationRuntimeCompletionEventV01(
+      record as unknown as FeedbackEventAggregationRuntimeCompletionEventRecordV01,
+    );
+  }
+  const eventType = normalizeCompletionFeedbackKindV01(record.event_type);
+  const targetKind = typeof record.target_kind === "string" ? record.target_kind : "unknown";
+  const targetRef = typeof record.target_id === "string" ? record.target_id : "";
+  const sourceRefs = Array.isArray(record.source_ref_ids)
+    ? record.source_ref_ids.filter((sourceRef): sourceRef is string => typeof sourceRef === "string")
+    : typeof record.source_ref_ids_json === "string"
+      ? parseStringArrayV01(record.source_ref_ids_json)
+      : [];
+  if (!eventType || !targetRef) return null;
+  const summary =
+    firstPublicStringV01(record.operator_note, record.correction_text, record.reason) ??
+    "Feedback event summary is bounded and operator-provided.";
+  return normalizeFeedbackEventAggregationRuntimeCompletionEventV01({
+    feedback_event_id:
+      typeof record.event_id === "string" ? record.event_id : `feedback-event:${hashStable(record)}`,
+    scope,
+    target_ref: targetRef,
+    target_kind: targetKind,
+    target_layer: deriveRuntimeCompletionTargetLayerV01(targetKind, targetRef),
+    feedback_kind: eventType,
+    feedback_value: firstPublicStringV01(record.correction_text, record.reason),
+    feedback_summary: summary,
+    source_refs: sourceRefs,
+    source_ref: sourceRefs[0],
+    candidate_ref: targetRef.includes("candidate") ? targetRef : undefined,
+    durable_ref: targetKind.includes("durable") || targetRef.includes("durable") ? targetRef : undefined,
+    created_by: "operator:feedback-event-store",
+    created_at: typeof record.created_at === "string" ? record.created_at : "1970-01-01T00:00:00.000Z",
+    authority_boundary:
+      record.authority_boundary && typeof record.authority_boundary === "object"
+        ? (record.authority_boundary as Record<string, unknown>)
+        : {},
+    reason_codes: ["persisted_feedback_event_read"],
+  });
+}
+
+function normalizeFeedbackEventAggregationRuntimeCompletionEventV01(
+  event: FeedbackEventAggregationRuntimeCompletionEventRecordV01,
+): FeedbackEventAggregationRuntimeCompletionEventRecordV01 {
+  const sourceRefs = normalizeCompletionSourceRefs(event);
+  return {
+    ...event,
+    feedback_value: event.feedback_value ?? undefined,
+    source_refs: sourceRefs,
+    source_ref: event.source_ref ?? sourceRefs[0],
+    candidate_ref:
+      event.candidate_ref ??
+      (event.target_layer === "candidate" || event.target_layer === "provider_candidate"
+        ? event.target_ref
+        : undefined),
+    durable_ref:
+      event.durable_ref ??
+      (event.target_layer === "durable_perspective_state" ? event.target_ref : undefined),
+    reason_codes: uniqueSorted(event.reason_codes ?? []),
+  };
+}
+
+function normalizeCompletionFeedbackKindV01(
+  value: unknown,
+): FeedbackEventAggregationRuntimeCompletionKindV01 | null {
+  if (value === "pin_preview" || value === "pin") return "pin";
+  if (value === "dismiss_preview" || value === "dismiss") return "dismiss";
+  if (value === "correct_preview" || value === "correct") return "correct";
+  if (value === "invalidate_preview" || value === "invalidate") return "invalidate";
+  if (completionFeedbackKinds.includes(value as FeedbackEventAggregationRuntimeCompletionKindV01)) {
+    return value as FeedbackEventAggregationRuntimeCompletionKindV01;
+  }
+  return null;
+}
+
+function deriveRuntimeCompletionTargetLayerV01(
+  targetKind: string,
+  targetRef: string,
+): FeedbackEventAggregationRuntimeCompletionTargetLayerV01 {
+  const value = `${targetKind} ${targetRef}`.toLowerCase();
+  if (value.includes("review")) return "review_memory";
+  if (value.includes("durable") || value.includes("perspective_state")) {
+    return "durable_perspective_state";
+  }
+  if (value.includes("source")) return "source_ref";
+  if (value.includes("provider")) return "provider_candidate";
+  if (value.includes("retrieval") || value.includes("rag")) return "retrieval_context";
+  if (value.includes("layout") || value.includes("constellation") || value.includes("geometry")) {
+    return "layout_surface";
+  }
+  if (value.includes("candidate")) return "candidate";
+  return "unknown";
+}
+
+function normalizeCompletionSourceRefs(
+  event: FeedbackEventAggregationRuntimeCompletionEventRecordV01,
+): string[] {
+  return uniqueSorted([...(event.source_refs ?? []), event.source_ref ?? ""].filter(Boolean));
+}
+
+function validateRuntimeCompletionFiltersV01(value: unknown, failureCodes: string[]): void {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    failureCodes.push("filters_invalid");
+    return;
+  }
+  const filters = value as FeedbackEventAggregationRuntimeCompletionInputV01["filters"];
+  if (filters?.target_ref !== undefined) {
+    validateRuntimeCompletionPublicStringV01(filters.target_ref, "filters.target_ref", failureCodes);
+  }
+  if (filters?.target_kind !== undefined) {
+    validateRuntimeCompletionPublicStringV01(filters.target_kind, "filters.target_kind", failureCodes);
+  }
+  if (
+    filters?.target_layer !== undefined &&
+    !completionTargetLayers.includes(filters.target_layer)
+  ) {
+    failureCodes.push("filters.target_layer_invalid");
+  }
+  if (
+    filters?.feedback_kind !== undefined &&
+    !completionFeedbackKinds.includes(filters.feedback_kind)
+  ) {
+    failureCodes.push("filters.feedback_kind_invalid");
+  }
+  if (
+    filters?.limit !== undefined &&
+    (!Number.isInteger(filters.limit) || filters.limit < 1 || filters.limit > 200)
+  ) {
+    failureCodes.push("filters.limit_invalid");
+  }
+}
+
+function validateRuntimeCompletionPublicStringV01(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+): void {
+  if (typeof value !== "string") {
+    failureCodes.push(`${label}_not_string`);
+    return;
+  }
+  if (value.trim().length === 0 || value.length > 1000) {
+    failureCodes.push(`${label}_invalid`);
+    return;
+  }
+  if (completionUnsafePattern.test(value)) {
+    failureCodes.push(`${label}_private_or_raw_payload`);
+  }
+}
+
+function validateRuntimeCompletionPublicStringArrayV01(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+): void {
+  if (!Array.isArray(value)) {
+    failureCodes.push(`${label}_not_array`);
+    return;
+  }
+  value.forEach((item, index) =>
+    validateRuntimeCompletionPublicStringV01(item, `${label}.${index}`, failureCodes),
+  );
+}
+
+function validateRuntimeCompletionReasonCodesV01(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+): void {
+  if (!Array.isArray(value)) {
+    failureCodes.push(`${label}_not_array`);
+    return;
+  }
+  value.forEach((item, index) => {
+    if (typeof item !== "string" || item.length === 0 || completionUnsafePattern.test(item)) {
+      failureCodes.push(`${label}.${index}_invalid`);
+    }
+  });
+}
+
+function collectRuntimeCompletionUnsafeFailuresV01(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+): void {
+  const serialized = safeSerialize(value);
+  if (!serialized) return;
+  if (/\/Users\/|\/home\//.test(serialized)) failureCodes.push(`${label}_local_path_blocked`);
+  if (/file:\/\//i.test(serialized)) failureCodes.push(`${label}_private_url_blocked`);
+  if (/sk-|ghp_|OPENAI_API_KEY|GITHUB_TOKEN|password:|secret:|private key/i.test(serialized)) {
+    failureCodes.push(`${label}_secret_like_pattern_blocked`);
+  }
+  if (completionUnsafePattern.test(serialized)) failureCodes.push(`${label}_private_or_raw_payload`);
+}
+
+function collectRuntimeCompletionAuthorityFailuresV01(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+): void {
+  if (value === undefined) return;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    failureCodes.push(`${label}_not_object`);
+    return;
+  }
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (hasRuntimeCompletionForbiddenAuthorityGrantV01(key, nestedValue)) {
+      failureCodes.push(`${label}.${key}_forbidden_authority`);
+    }
+    if (nestedValue && typeof nestedValue === "object") {
+      collectRuntimeCompletionAuthorityFailuresV01(
+        nestedValue,
+        `${label}.${key}`,
+        failureCodes,
+      );
+    }
+  }
+}
+
+function collectRuntimeCompletionAuthorityFailuresDeepV01(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+): void {
+  collectRuntimeCompletionAuthorityFailuresDeepInnerV01(
+    value,
+    label,
+    failureCodes,
+    new WeakSet<object>(),
+  );
+}
+
+function collectRuntimeCompletionAuthorityFailuresDeepInnerV01(
+  value: unknown,
+  label: string,
+  failureCodes: string[],
+  seen: WeakSet<object>,
+): void {
+  if (!value || typeof value !== "object") return;
+  if (seen.has(value)) return;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      collectRuntimeCompletionAuthorityFailuresDeepInnerV01(
+        item,
+        `${label}.${index}`,
+        failureCodes,
+        seen,
+      ),
+    );
+    return;
+  }
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (hasRuntimeCompletionForbiddenAuthorityGrantV01(key, nestedValue)) {
+      failureCodes.push(`${label}.${key}_forbidden_authority`);
+    }
+    collectRuntimeCompletionAuthorityFailuresDeepInnerV01(
+      nestedValue,
+      `${label}.${key}`,
+      failureCodes,
+      seen,
+    );
+  }
+}
+
+function hasRuntimeCompletionForbiddenAuthorityGrantV01(key: string, value: unknown): boolean {
+  if (!isRuntimeCompletionAuthorityKeyV01(key)) return false;
+  return !(value === false || value === null || value === undefined);
+}
+
+function isRuntimeCompletionAuthorityKeyV01(key: string): boolean {
+  if (completionForbiddenAuthorityFields.has(key)) return true;
+  return /(_authority|_write_now|_call_now|_execution_now|_is_truth|_is_proof|product_write|product_id_allocation|proof_or_evidence|claim_or_evidence|promotion_execution|durable_state_apply|formation_receipt_write|github_api_call|git_write|source_suppression|candidate_delete|rule_mutation|parser_mutation|prompt_mutation|ranking_mutation|surfacing_mutation)/.test(key);
+}
+
+function emptyRuntimeCompletionResultV01(
+  status: FeedbackEventAggregationRuntimeCompletionStatusV01,
+  aggregationRequestId: string,
+  reasonCodesForResult: string[],
+  dbQueryNow: boolean,
+): FeedbackEventAggregationRuntimeCompletionResultV01 {
+  return {
+    aggregation_version: FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_VERSION,
+    scope,
+    aggregation_request_id: aggregationRequestId,
+    status,
+    aggregations: [],
+    feedback_event_refs: [],
+    rule_failure_candidates: [],
+    source_visibility_warnings: [],
+    candidate_durable_boundary_notes: [],
+    advisory_only: true,
+    feedback_is_truth: false,
+    pin_is_promotion: false,
+    dismiss_is_delete: false,
+    invalidate_is_source_suppression: false,
+    rule_failure_candidate_is_rule_mutation: false,
+    product_write_executed: false,
+    authority_boundary: createFeedbackEventAggregationRuntimeCompletionAuthorityBoundaryV01({
+      dbQueryNow,
+    }),
+    reason_codes: uniqueSorted([
+      "aggregation_is_advisory",
+      "feedback_is_not_truth",
+      "product_write_denied",
+      ...reasonCodesForResult,
+    ]),
+  };
+}
+
+function safeRuntimeCompletionAggregationIdV01(
+  input: FeedbackEventAggregationRuntimeCompletionInputV01,
+): string {
+  return typeof input?.aggregation_request_id === "string" &&
+    input.aggregation_request_id.length > 0 &&
+    !completionUnsafePattern.test(input.aggregation_request_id)
+    ? input.aggregation_request_id
+    : "feedback-aggregation-runtime-completion:blocked";
+}
+
+function safeParseJsonRecordV01(value: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseStringArrayV01(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function firstPublicStringV01(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0 && !completionUnsafePattern.test(value)) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
