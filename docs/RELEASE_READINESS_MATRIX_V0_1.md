@@ -227,7 +227,16 @@ inputs.
 - Product write runtime only after explicit reentry approval
 - Release candidate operator review
 
-## 12. Verification expectations
+## 12. Runtime grounding addendum
+
+`docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md` is the
+runtime-grounded addendum after selected audit instrumentation v0.3. It updates
+the review context with actual runtime completion and selected audit
+instrumentation inventory. It is not roadmap completion closeout, release
+approval, release execution, product-write approval, or GitHub actuation
+approval.
+
+## 13. Verification expectations
 
 Verification should run the Release Readiness Matrix smoke, Product Write
 Reentry Review downstream smoke, Git Ledger downstream smoke, Runtime Audit
@@ -241,7 +250,7 @@ public-safe hyphenated text, forbidden authority rejection, release/product
 flags remaining false, docs/index pointers, package script, privacy boundaries,
 no forbidden imports, and absence of positive authority grants.
 
-## 13. Next recommended slices
+## 14. Next recommended slices
 
 1. disabled_product_write_adapter_reentry_harness_v0_1 only after explicit reentry approval
 2. product_write_target_contract_v0_1 only after explicit reentry approval

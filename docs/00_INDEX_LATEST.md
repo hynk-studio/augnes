@@ -4322,6 +4322,28 @@ repo-local 색인이다.
   Formation Receipts, execute Git/GitHub, execute Codex, product-write,
   allocate product IDs, or grant product-write authority. Product-write remains
   parked by #686. Smoke/CI pass is not truth. The roadmap guide is not SSOT.
+- Release Readiness Runtime Grounding Update v0.1:
+  `docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md`,
+  `fixtures/release-readiness-runtime-grounding-update.sample.v0.1.json`, and
+  `scripts/smoke-release-readiness-runtime-grounding-update-v0-1.mjs`
+  (`npm run smoke:release-readiness-runtime-grounding-update-v0-1`)
+  implements `release_readiness_runtime_grounding_update_v0_1` as release
+  readiness grounding only after runtime audit selected route instrumentation
+  v0.3. It updates release readiness/operator review/freeze surfaces with the
+  actual runtime completion and audit instrumentation inventory through
+  `runtime_audit_selected_route_instrumentation_v0_3`. This is not roadmap
+  completion closeout, release approval, release execution, product-write
+  approval, or GitHub actuation approval. It does not create version tags,
+  execute Git/GitHub, query/write DB, add routes/UI, call providers, execute
+  retrieval/RAG, create proof/evidence, promote Perspective, write/apply
+  durable state, write Formation Receipts, execute Codex, product-write,
+  allocate product IDs, or grant product-write authority. It does not approve
+  `product_write_minimal_runtime_v0_1` or GitHub actuation implementation.
+  Future product-write or GitHub actuation work requires separate explicit
+  approval. Product-write remains parked by #686. Readiness is not release
+  approval. Readiness is not truth. Freeze manifest addendum is not release
+  execution. Operator review is not merge authority. Smoke/CI pass is not
+  truth. The roadmap guide is not SSOT.
 - Git Ledger Export Contract v0.1:
   `docs/GIT_LEDGER_EXPORT_CONTRACT_V0_1.md`,
   `types/git-ledger-export-contract.ts`,

@@ -275,7 +275,16 @@ inputs.
 - Product write runtime only after explicit reentry approval
 - Release retrospective review packet
 
-## 11. Verification expectations
+## 11. Runtime grounding addendum
+
+`docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md` is the
+runtime-grounded observer addendum after selected audit instrumentation v0.3.
+It updates observer review context with actual runtime completion and selected
+audit instrumentation inventory. It is not roadmap completion closeout, actual
+postmerge observation, release approval, release execution, product-write
+approval, or GitHub actuation approval.
+
+## 12. Verification expectations
 
 Expected verification includes:
 
@@ -288,7 +297,7 @@ Expected verification includes:
 
 Smoke/CI pass is not truth. Verification is a review signal only.
 
-## 12. Next recommended slices
+## 13. Next recommended slices
 
 1. release_retrospective_review_packet_v0_1
 2. release_public_artifact_contract_v0_1 only after explicit release approval
