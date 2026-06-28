@@ -495,13 +495,14 @@ function assertChangedFileScope() {
     "DB store helper must not be modified for this slice",
   );
   assert.ok(!changed.includes("lib/db/schema.sql"), "DB schema must not be modified for this slice");
-  assert.ok(
-    !changed.some((filePath) =>
-      /provider|retrieval|rag|github|git-ledger|codex-execution|product-write|product-id/i.test(filePath) &&
-      !isProviderExtractionRuntimeCompletionFile(filePath),
-    ),
-    "no provider/retrieval/Git/GitHub/Codex/product-write/product ID files were added",
-  );
+	  assert.ok(
+	    !changed.some((filePath) =>
+	      /provider|retrieval|rag|github|git-ledger|codex-execution|product-write|product-id/i.test(filePath) &&
+	      !isProviderExtractionRuntimeCompletionFile(filePath) &&
+	      !isRetrievalIndexRuntimeCompletionFile(filePath),
+	    ),
+	    "no provider/retrieval/Git/GitHub/Codex/product-write/product ID files were added",
+	  );
 }
 
 function isProviderExtractionRuntimeCompletionFile(filePath) {
@@ -519,6 +520,19 @@ function isProviderExtractionRuntimeCompletionFile(filePath) {
     "app/api/research-candidate-review/provider-extraction/route.ts",
     "fixtures/provider-assisted-extraction-runtime-completion.sample.v0.1.json",
     "scripts/smoke-provider-assisted-extraction-runtime-completion-v0-1.mjs",
+	  ].includes(filePath);
+}
+
+function isRetrievalIndexRuntimeCompletionFile(filePath) {
+  return [
+    "docs/REBUILDABLE_RETRIEVAL_INDEX_RUNTIME_COMPLETION_V0_1.md",
+    "lib/research-retrieval/index-store.ts",
+    "lib/research-retrieval/rebuild-index.ts",
+    "lib/research-retrieval/search-index.ts",
+    "app/api/research-retrieval/rebuild/route.ts",
+    "app/api/research-retrieval/search/route.ts",
+    "fixtures/research-retrieval-index-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-research-retrieval-index-runtime-completion-v0-1.mjs",
   ].includes(filePath);
 }
 

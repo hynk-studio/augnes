@@ -1,16 +1,31 @@
+import { existsSync } from "node:fs";
+
+import Database from "better-sqlite3";
 import { NextResponse } from "next/server";
 
 import {
   createRebuildableRetrievalIndexRuntimeBoundaryV01,
   validateRebuildableRetrievalIndexV01,
 } from "@/lib/research-retrieval/rebuild-index";
-import { rebuildableRetrievalIndexRuntimeDerivedStoreV01 } from "@/lib/research-retrieval/index-store";
 import {
+  createResearchRetrievalIndexAuthorityBoundaryV01,
+  isSafeResearchRetrievalDbPathV01,
+  rebuildableRetrievalIndexRuntimeDerivedStoreV01,
+  researchRetrievalIndexSchemaExistsV01,
+} from "@/lib/research-retrieval/index-store";
+import {
+  RESEARCH_RETRIEVAL_INDEX_RUNTIME_COMPLETION_SEARCH_VERSION_V01,
+  searchResearchRetrievalIndexV01,
+  type ResearchRetrievalIndexSearchInputV01,
+  type ResearchRetrievalIndexSearchRuntimeResultV01,
   searchRebuildableRetrievalIndexV01,
   validateResearchRetrievalIndexSearchRequestV01,
 } from "@/lib/research-retrieval/search-index";
 
 export const runtime = "nodejs";
+
+const completionSearchRouteVersion =
+  "rebuildable_retrieval_index_runtime_completion_search_route.v0.1" as const;
 
 export async function POST(request: Request) {
   if (!requestHasSameOriginBoundary(request)) {
@@ -26,6 +41,10 @@ export async function POST(request: Request) {
 
   if (!isRecord(body)) {
     return jsonResponse(errorResponse("json_object_required"), 400);
+  }
+
+  if (isCompletionSearchRouteBody(body)) {
+    return handleCompletionSearchRoute(body);
   }
 
   const searchRequest = body.search_request;
@@ -116,4 +135,116 @@ function jsonResponse(response: unknown, status = 200) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function handleCompletionSearchRoute(body: Record<string, unknown>) {
+  const inputBody = body as { route_version?: unknown; scope?: unknown; db_path?: unknown; input?: unknown };
+  if (
+    inputBody.route_version !== completionSearchRouteVersion ||
+    inputBody.scope !== "project:augnes" ||
+    !isRecord(inputBody.input)
+  ) {
+    return jsonResponse(completionErrorResponse("invalid_route_request"), 400);
+  }
+  if (!isSafeResearchRetrievalDbPathV01(inputBody.db_path)) {
+    return jsonResponse(completionErrorResponse("invalid_db_path"), 400);
+  }
+  if (!existsSync(inputBody.db_path)) {
+    return jsonResponse(completionErrorResponse("db_missing"), 404);
+  }
+  const input = {
+    ...inputBody.input,
+    db_path: inputBody.db_path,
+  } as ResearchRetrievalIndexSearchInputV01;
+  if (input.search_version !== RESEARCH_RETRIEVAL_INDEX_RUNTIME_COMPLETION_SEARCH_VERSION_V01) {
+    return jsonResponse(completionErrorResponse("invalid_route_request"), 400);
+  }
+
+  let db: Database.Database;
+  try {
+    db = new Database(inputBody.db_path, { readonly: true, fileMustExist: true });
+  } catch {
+    return jsonResponse(completionErrorResponse("db_missing"), 404);
+  }
+  try {
+    if (!researchRetrievalIndexSchemaExistsV01(db)) {
+      return jsonResponse(completionErrorResponse("schema_missing"), 400);
+    }
+    const result = searchResearchRetrievalIndexV01(input, db);
+    const statusCode = completionSearchHttpStatus(result);
+    return jsonResponse(completionSearchResponse(result, statusCode), statusCode);
+  } finally {
+    db.close();
+  }
+}
+
+function isCompletionSearchRouteBody(body: Record<string, unknown>): boolean {
+  if (body.route_version === completionSearchRouteVersion) return true;
+  return (
+    isRecord(body.input) &&
+    body.input.search_version === RESEARCH_RETRIEVAL_INDEX_RUNTIME_COMPLETION_SEARCH_VERSION_V01
+  );
+}
+
+function completionSearchHttpStatus(result: ResearchRetrievalIndexSearchRuntimeResultV01): number {
+  if (result.status === "blocked_forbidden_authority") return 403;
+  if (result.status === "schema_missing") return 400;
+  if (result.status === "blocked_private_or_raw_payload" || result.status === "blocked_invalid_input") {
+    return 400;
+  }
+  return 200;
+}
+
+function completionSearchResponse(
+  result: ResearchRetrievalIndexSearchRuntimeResultV01,
+  statusCode: number,
+) {
+  return {
+    route_version: completionSearchRouteVersion,
+    scope: "project:augnes",
+    status: statusCode >= 400 ? "error" : "ok",
+    error_code: statusCode >= 400 ? result.status : null,
+    result,
+    provider_call_executed: false,
+    prompt_sent: false,
+    source_fetch_executed: false,
+    live_crawling_executed: false,
+    embedding_created: false,
+    vector_search_executed: false,
+    rag_answer_generated: false,
+    proof_or_evidence_created: false,
+    claim_or_evidence_written: false,
+    promotion_executed: false,
+    durable_state_written: false,
+    formation_receipt_written: false,
+    product_write_executed: false,
+    product_id_allocated: false,
+    authority_boundary: result.authority_boundary,
+  };
+}
+
+function completionErrorResponse(errorCode: string) {
+  return {
+    route_version: completionSearchRouteVersion,
+    scope: "project:augnes",
+    status: "error",
+    error_code: errorCode,
+    provider_call_executed: false,
+    prompt_sent: false,
+    source_fetch_executed: false,
+    live_crawling_executed: false,
+    embedding_created: false,
+    vector_search_executed: false,
+    rag_answer_generated: false,
+    proof_or_evidence_created: false,
+    claim_or_evidence_written: false,
+    promotion_executed: false,
+    durable_state_written: false,
+    formation_receipt_written: false,
+    product_write_executed: false,
+    product_id_allocated: false,
+    authority_boundary: createResearchRetrievalIndexAuthorityBoundaryV01({
+      derived_index_search_now: false,
+    }),
+  };
 }

@@ -1,0 +1,350 @@
+{
+  "fixture_version": "research_retrieval_index_runtime_completion_fixture.v0.1",
+  "rebuild_version": "research_retrieval_index_runtime_completion_rebuild.v0.1",
+  "search_version": "research_retrieval_index_runtime_completion_search.v0.1",
+  "index_version": "research_retrieval_index_runtime_completion_index.v0.1",
+  "scope": "project:augnes",
+  "safe_db_path_examples": [
+    "tmp/research-retrieval/review-index.sqlite",
+    ".tmp/research-retrieval/review-index.db"
+  ],
+  "unsafe_db_path_examples": [
+    "../research-retrieval/review-index.sqlite",
+    "tmp/research-retrieval/review-index.txt",
+    "tmp\\research-retrieval\\review-index.sqlite",
+    "url-scheme://research-retrieval/review-index.sqlite"
+  ],
+  "safe_rebuild_input_example": {
+    "rebuild_version": "research_retrieval_index_runtime_completion_rebuild.v0.1",
+    "scope": "project:augnes",
+    "rebuild_request_id": "retrieval-rebuild-request:sample-v0-1",
+    "requested_by": "operator:review-runtime-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/research-retrieval/review-index.sqlite",
+    "index_version": "research_retrieval_index_runtime_completion_index.v0.1",
+    "rebuild_policy": "replace_scope_index_version",
+    "stale_policy": "preserve_entry_stale_markers",
+    "entries": [
+      {
+        "source_surface": "bounded_source_intake_summary",
+        "source_record_ref": "bounded-source-intake:calibration-note",
+        "source_ref_id": "source-ref:calibration-note",
+        "candidate_ref": "candidate-ref:calibration-claim",
+        "bounded_source_intake_ref": "bounded-source-intake:calibration-note",
+        "bounded_title": "Calibration source intake summary",
+        "bounded_summary": "Public-safe bounded summary for a calibration source that supports retrieval smoke search terms.",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z",
+        "reason_codes": [
+          "bounded_source_intake_summary_indexed",
+          "source_refs_are_lineage_not_proof"
+        ]
+      },
+      {
+        "source_surface": "provider_extraction_candidate_summary",
+        "source_record_ref": "provider-extraction:calibration-candidate",
+        "source_ref_id": "source-ref:calibration-note",
+        "candidate_ref": "candidate-ref:calibration-claim",
+        "provider_extraction_ref": "provider-extraction:calibration-candidate",
+        "bounded_title": "Provider candidate summary",
+        "bounded_summary": "Candidate-only provider extraction summary for calibration review with low grounding warning.",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z",
+        "reason_codes": [
+          "provider_output_not_truth",
+          "candidate_is_not_fact"
+        ]
+      },
+      {
+        "source_surface": "review_note_summary",
+        "source_record_ref": "review-record:calibration-review",
+        "review_record_ref": "review-record:calibration-review",
+        "candidate_ref": "candidate-ref:calibration-claim",
+        "bounded_title": "Review note summary",
+        "bounded_summary": "Operator review note summary requesting more evidence before promotion can be considered.",
+        "public_safe": true,
+        "stale_marker": "stale",
+        "source_updated_at": "2026-06-27T00:00:00.000Z",
+        "reason_codes": [
+          "review_memory_not_truth",
+          "stale_marker_visible"
+        ]
+      },
+      {
+        "source_surface": "promotion_decision_summary",
+        "source_record_ref": "promotion-decision:deferred-calibration",
+        "promotion_decision_ref": "promotion-decision:deferred-calibration",
+        "candidate_ref": "candidate-ref:calibration-claim",
+        "bounded_title": "Deferred promotion decision summary",
+        "bounded_summary": "Promotion decision summary remains deferred and cannot be inferred from retrieval score.",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z",
+        "reason_codes": [
+          "retrieval_score_not_promotion_readiness"
+        ]
+      },
+      {
+        "source_surface": "formation_receipt_summary",
+        "source_record_ref": "formation-receipt:orientation-only",
+        "formation_receipt_ref": "formation-receipt:orientation-only",
+        "bounded_title": "Formation receipt summary",
+        "bounded_summary": "Formation Receipt summary is a lineage reference and is not written by retrieval rebuild.",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z",
+        "reason_codes": [
+          "formation_receipt_not_written"
+        ]
+      },
+      {
+        "source_surface": "durable_perspective_state_summary",
+        "source_record_ref": "perspective-state:orientation",
+        "perspective_id": "perspective:orientation",
+        "bounded_title": "Durable state summary pointer",
+        "bounded_summary": "Durable Perspective state summary is indexed as a derived public-safe pointer only.",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z",
+        "reason_codes": [
+          "durable_state_not_mutated"
+        ]
+      },
+      {
+        "source_surface": "feedback_summary",
+        "source_record_ref": "feedback:operator-cue",
+        "feedback_ref": "feedback:operator-cue",
+        "bounded_title": "Feedback summary",
+        "bounded_summary": "Feedback summary provides an operator cue for retrieval review without creating evidence.",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z",
+        "reason_codes": [
+          "feedback_summary_indexed"
+        ]
+      }
+    ],
+    "authority_boundary": {
+      "rebuildable_retrieval_index_runtime_now": true,
+      "explicit_operator_rebuild_only": true,
+      "caller_injected_db_only": true,
+      "derived_index_write_now": true,
+      "provider_openai_call_now": false,
+      "rag_answer_generation_now": false,
+      "proof_or_evidence_record_now": false,
+      "product_write_now": false
+    },
+    "reason_codes": [
+      "rebuildable_retrieval_index_runtime_completion",
+      "index_is_derived",
+      "index_is_rebuildable"
+    ]
+  },
+  "safe_index_entries_example": [
+    {
+      "source_surface": "bounded_source_intake_summary",
+      "source_record_ref": "bounded-source-intake:calibration-note",
+      "source_ref_id": "source-ref:calibration-note",
+      "bounded_title": "Calibration source intake summary",
+      "bounded_summary": "Public-safe bounded summary for retrieval index search.",
+      "public_safe": true,
+      "stale_marker": "fresh",
+      "source_updated_at": "2026-06-28T00:00:00.000Z"
+    }
+  ],
+  "safe_search_input_example": {
+    "search_version": "research_retrieval_index_runtime_completion_search.v0.1",
+    "scope": "project:augnes",
+    "search_request_id": "retrieval-search-request:sample-v0-1",
+    "requested_by": "operator:review-runtime-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/research-retrieval/review-index.sqlite",
+    "query": "calibration evidence review",
+    "filters": {
+      "candidate_ref": "candidate-ref:calibration-claim"
+    },
+    "limit": 10,
+    "include_stale": true,
+    "authority_boundary": {
+      "rebuildable_retrieval_index_runtime_now": true,
+      "explicit_operator_search_only": true,
+      "caller_injected_db_only": true,
+      "derived_index_search_now": true,
+      "retrieval_result_is_evidence": false,
+      "retrieval_score_is_truth": false,
+      "retrieval_score_is_promotion_readiness": false
+    },
+    "reason_codes": [
+      "derived_index_search_now",
+      "retrieval_result_not_evidence"
+    ]
+  },
+  "expected_rebuild_result_example": {
+    "status": "rebuilt",
+    "entry_count": 7,
+    "stale_count": 1,
+    "derived_index_write_now": true,
+    "provider_call_executed": false,
+    "rag_answer_generated": false,
+    "proof_or_evidence_created": false,
+    "product_write_executed": false
+  },
+  "expected_search_result_example": {
+    "status": "searched",
+    "result_count": 3,
+    "results": [
+      {
+        "result_ref": "retrieval-search-result:sample",
+        "index_entry_id": "retrieval-index-entry:sample",
+        "source_surface": "bounded_source_intake_summary",
+        "source_record_ref": "bounded-source-intake:calibration-note",
+        "source_ref_id": "source-ref:calibration-note",
+        "candidate_ref": "candidate-ref:calibration-claim",
+        "bounded_title": "Calibration source intake summary",
+        "bounded_snippet": "Public-safe bounded summary for a calibration source.",
+        "score": 2,
+        "score_is_truth": false,
+        "score_is_promotion_readiness": false,
+        "retrieval_result_is_evidence": false,
+        "source_refs_are_lineage": true,
+        "stale_marker": "fresh"
+      }
+    ]
+  },
+  "stale_entry_example": {
+    "source_surface": "review_note_summary",
+    "source_record_ref": "review-record:calibration-review",
+    "review_record_ref": "review-record:calibration-review",
+    "bounded_title": "Stale review note summary",
+    "bounded_summary": "Stale review note remains visible as a review aid only.",
+    "public_safe": true,
+    "stale_marker": "stale",
+    "source_updated_at": "2026-06-27T00:00:00.000Z"
+  },
+  "blocked_private_or_raw_payload_example": {
+    "rebuild_version": "research_retrieval_index_runtime_completion_rebuild.v0.1",
+    "scope": "project:augnes",
+    "rebuild_request_id": "retrieval-rebuild-request:blocked-private",
+    "requested_by": "operator:review-runtime-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/research-retrieval/review-index.sqlite",
+    "index_version": "research_retrieval_index_runtime_completion_index.v0.1",
+    "entries": [
+      {
+        "source_surface": "bounded_source_intake_summary",
+        "source_record_ref": "bounded-source-intake:blocked-private",
+        "bounded_title": "Blocked raw source body marker",
+        "bounded_summary": "SAFE_MARKER_RAW_SOURCE_BODY",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z"
+      }
+    ],
+    "authority_boundary": {},
+    "reason_codes": [
+      "raw_source_body_blocked"
+    ]
+  },
+  "blocked_forbidden_authority_example": {
+    "search_version": "research_retrieval_index_runtime_completion_search.v0.1",
+    "scope": "project:augnes",
+    "search_request_id": "retrieval-search-request:blocked-authority",
+    "requested_by": "operator:review-runtime-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/research-retrieval/review-index.sqlite",
+    "query": "calibration",
+    "filters": {},
+    "limit": 5,
+    "include_stale": true,
+    "authority_boundary": {
+      "provider_openai_call_now": true,
+      "product_write_authority": "enabled"
+    },
+    "reason_codes": [
+      "forbidden_authority_blocked"
+    ]
+  },
+  "invalid_db_path_example": {
+    "db_path": "../research-retrieval/review-index.sqlite",
+    "expected_error_code": "invalid_db_path"
+  },
+  "invalid_query_example": {
+    "search_version": "research_retrieval_index_runtime_completion_search.v0.1",
+    "scope": "project:augnes",
+    "search_request_id": "retrieval-search-request:invalid-query",
+    "requested_by": "operator:review-runtime-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/research-retrieval/review-index.sqlite",
+    "query": "",
+    "filters": {},
+    "limit": 5,
+    "include_stale": true,
+    "authority_boundary": {},
+    "reason_codes": [
+      "blocked_invalid_input"
+    ]
+  },
+  "invalid_raw_source_body_entry_example": {
+    "source_surface": "bounded_source_intake_summary",
+    "source_record_ref": "bounded-source-intake:raw-body",
+    "bounded_title": "Blocked raw body entry",
+    "bounded_summary": "SAFE_MARKER_RAW_SOURCE_BODY",
+    "public_safe": true,
+    "stale_marker": "fresh",
+    "source_updated_at": "2026-06-28T00:00:00.000Z"
+  },
+  "authority_boundary_sample": {
+    "rebuildable_retrieval_index_runtime_now": true,
+    "explicit_operator_rebuild_only": true,
+    "explicit_operator_search_only": true,
+    "caller_injected_db_only": true,
+    "db_query_or_write_now": true,
+    "derived_index_write_now": true,
+    "derived_index_search_now": true,
+    "public_safe_derived_entries_only": true,
+    "stale_marker_visible": true,
+    "backrefs_visible": true,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "live_crawling_now": false,
+    "embedding_created_now": false,
+    "vector_search_now": false,
+    "rag_answer_generation_now": false,
+    "raw_source_body_indexed_now": false,
+    "raw_provider_output_indexed_now": false,
+    "raw_retrieval_output_stored_now": false,
+    "hidden_reasoning_stored_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "retrieval_result_is_evidence": false,
+    "retrieval_result_is_truth": false,
+    "retrieval_score_is_truth": false,
+    "retrieval_score_is_promotion_readiness": false,
+    "rag_context_is_truth": false,
+    "source_ref_is_proof": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}
