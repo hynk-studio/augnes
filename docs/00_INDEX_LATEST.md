@@ -4448,6 +4448,34 @@ repo-local 색인이다.
   slice because the remaining visible work is approval-gated, explicitly
   future/deferred, or contract/fixture/offline-only. Product-write remains
   parked by #686. Smoke/CI pass is not truth. The roadmap guide is not SSOT.
+- v0.2.1 Remaining Runtime Gap Audit v0.5:
+  `docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_5.md`,
+  `fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.5.json`, and
+  `scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-5.mjs`
+  (`npm run smoke:v0-2-1-remaining-runtime-gap-audit-v0-5`) implements
+  `v0_2_1_remaining_runtime_gap_audit_v0_5` as a static postmerge grounding
+  audit after merged PR #846 and
+  `final_rag_answer_candidate_review_memory_binding_v0_1`. It confirms #846
+  as final RAG answer candidate Review Memory binding only: same-origin POST
+  route, no GET route, existing Review Memory DB store helper usage, final
+  answer candidate to `candidate_review_snapshot` mapping, schema ensure/write
+  only after preflight, DB-free preflight before Review Memory DB open,
+  invalid/forbidden/private/missing-prerequisite no-create behavior,
+  idempotent replay, material payload conflict rejection, and the
+  `final_rag_answer_review_memory_binding_runtime` audit surface. This does
+  not implement new runtime beyond audit/grounding docs, fixture, and smoke,
+  and it does not grant UI, proof/evidence, claim/evidence outside Review
+  Memory, promotion, durable state, Formation Receipt, product-write, accepted
+  evidence ref write, product ID, GitHub actuation, release, live provider,
+  source-fetching, provider-call, prompt-sending, retrieval-execution, or
+  retrieval-index write authority. Review Memory is not truth, proof, accepted
+  evidence, or durable Perspective state. Final answer candidates remain
+  candidate-only. Source refs are lineage pointers, not proof. Operator review
+  notes are review memory, not promotion or product-write authority. Product
+  write remains limited to the already merged accepted evidence ref first
+  target only. UI binding is not implemented by this audit. It names
+  `none_without_explicit_approval` as the next recommended implementation
+  slice. Smoke/CI pass is not truth. The roadmap guide is not SSOT.
 - v0.2.1 Remaining Runtime Gap Audit v0.4:
   `docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_4.md`,
   `fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.4.json`, and
