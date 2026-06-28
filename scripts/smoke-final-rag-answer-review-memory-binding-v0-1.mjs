@@ -84,6 +84,9 @@ const expectedChangedFiles = new Set([
   "docs/PROMOTION_READINESS_PACKET_FROM_REVIEW_MEMORY_V0_1.md",
   "fixtures/promotion-readiness-packet-from-review-memory.sample.v0.1.json",
   "scripts/smoke-promotion-readiness-packet-from-review-memory-v0-1.mjs",
+  "docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_END_TO_END_OPERATOR_PATH_V0_1.md",
+  "fixtures/final-rag-answer-review-memory-end-to-end-operator-path.sample.v0.1.json",
+  "scripts/smoke-final-rag-answer-review-memory-end-to-end-operator-path-v0-1.mjs",
 ]);
 const falseExecutionFlags = [
   "provider_call_executed",
