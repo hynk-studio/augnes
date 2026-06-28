@@ -1,0 +1,245 @@
+{
+  "fixture_version": "final_rag_answer_review_memory_operator_path_usability_audit.sample.v0.1",
+  "scope": "project:augnes",
+  "validated_path": [
+    "final_rag_answer_generation_candidate_review_v0_1",
+    "final_rag_answer_candidate_review_memory_binding_v0_1",
+    "final_answer_candidate_review_ui_binding_v0_1",
+    "promotion_readiness_packet_from_review_memory_v0_1",
+    "final_rag_answer_review_memory_end_to_end_operator_path_v0_1",
+    "final_rag_answer_review_memory_operator_browser_validation_v0_1"
+  ],
+  "browser_validation_summary": {
+    "validation_ref": "final_rag_answer_review_memory_operator_browser_validation_v0_1",
+    "final_status": "pass",
+    "forbidden_request_count": 0,
+    "external_request_count": 0,
+    "relevant_console_error_count": 0,
+    "pageerror_count": 0,
+    "failed_request_count": 0,
+    "ignored_local_favicon_404_console_message": 1,
+    "browser_observed_request_boundaries_only": true,
+    "server_side_outbound_instrumentation": false,
+    "artifacts_remain_outside_repo_under_tmp": true
+  },
+  "route_validation_summary": {
+    "validation_ref": "final_rag_answer_review_memory_end_to_end_operator_path_v0_1",
+    "final_status": "pass",
+    "execution_mode": "direct_route_handlers",
+    "route_stages": [
+      "final_rag_answer_candidate_post_mock_provider",
+      "review_memory_binding_post",
+      "review_memory_get_read_display",
+      "promotion_readiness_packet_post"
+    ],
+    "temporary_fixture_dbs_only": true,
+    "deterministic_mock_provider_candidate_stage_only": true,
+    "ready_for_operator_promotion_review_means": "future_human_review_readiness_only",
+    "live_provider_validation_skipped": true,
+    "browser_visual_validation_analyzed_from_pr_852": true,
+    "raw_route_responses_copied": false
+  },
+  "operator_friction_points": [
+    {
+      "id": "broad_dogfood_repeatability_blocked_without_runbook",
+      "classification": "blocking",
+      "summary": "Broad dogfood repeatability is blocked until a manual QA runbook exists.",
+      "recommended_handling": "Create operator_path_manual_qa_runbook_v0_1 before adding more UI behavior."
+    },
+    {
+      "id": "readiness_packet_not_visible_in_ui",
+      "classification": "high",
+      "summary": "Promotion readiness packet is not visible in the UI yet.",
+      "recommended_handling": "Keep deferred unless separately approved; document the current handoff in a runbook first."
+    },
+    {
+      "id": "operator_jumps_between_page_route_validation_and_packet_output",
+      "classification": "high",
+      "summary": "Operator may need to jump between page, route validation, and readiness packet output.",
+      "recommended_handling": "Give a human a single ordered manual QA runbook."
+    },
+    {
+      "id": "manual_db_path_entry",
+      "classification": "medium",
+      "summary": "DB path entry is still manual.",
+      "recommended_handling": "Document exact safe temp/local DB path expectations and pass/fail states."
+    },
+    {
+      "id": "seeded_temp_db_not_long_lived_operator_data",
+      "classification": "medium",
+      "summary": "Browser validation uses seeded temp DB, not long-lived operator data.",
+      "recommended_handling": "Manual QA should separate seeded fixture DB behavior from operator DB behavior."
+    },
+    {
+      "id": "browser_validation_not_server_outbound_proof",
+      "classification": "medium",
+      "summary": "Browser validation confirms no forbidden route calls but does not prove full server-side outbound network absence.",
+      "recommended_handling": "Keep browser validation wording limited to browser-observed request boundaries."
+    },
+    {
+      "id": "scripted_visual_validation_not_full_human_review",
+      "classification": "medium",
+      "summary": "Browser visual validation is limited to generated screenshots and scripted assertions, not a full human UX review.",
+      "recommended_handling": "Manual QA should capture human comprehension and friction observations."
+    },
+    {
+      "id": "read_display_only_no_fix_or_annotate",
+      "classification": "low",
+      "summary": "UI is read/display-only and cannot fix or annotate records.",
+      "recommended_handling": "Preserve the no-write boundary unless a separate write slice is explicitly approved."
+    },
+    {
+      "id": "review_memory_write_path_exists_elsewhere_not_ui",
+      "classification": "low",
+      "summary": "Review Memory write path exists elsewhere, but UI intentionally does not write.",
+      "recommended_handling": "Document binding and display as separate surfaces."
+    },
+    {
+      "id": "no_promotion_decision_write",
+      "classification": "deferred",
+      "summary": "No promotion decision write is available, intentionally.",
+      "recommended_handling": "Keep promotion decisions gated until explicit approval."
+    }
+  ],
+  "ux_risk_register": [
+    {
+      "id": "readiness_misread_as_authority",
+      "classification": "high",
+      "risk": "Operator may mistake readiness packet output for promotion authority.",
+      "current_mitigation": "Docs and smokes state readiness is diagnostic only.",
+      "residual_risk": "Runbook must repeat the stopline at the readiness step."
+    },
+    {
+      "id": "stage_context_loss",
+      "classification": "high",
+      "risk": "Operator may lose stage context while moving between UI and command output.",
+      "current_mitigation": "Merged docs name the validated sequence.",
+      "residual_risk": "Current path is not a polished single operator workflow."
+    },
+    {
+      "id": "wrong_db_path",
+      "classification": "medium",
+      "risk": "Manual DB path entry can produce empty, stale, or invalid reads.",
+      "current_mitigation": "UI validates path shape before fetch and avoids unsafe echo.",
+      "residual_risk": "Manual entry remains error-prone."
+    },
+    {
+      "id": "browser_pass_overclaim",
+      "classification": "medium",
+      "risk": "Browser validation can be overinterpreted as full network proof.",
+      "current_mitigation": "Browser docs state it is browser/page observation only.",
+      "residual_risk": "Server-side outbound absence remains outside this validation."
+    },
+    {
+      "id": "fixture_vs_operator_data_confusion",
+      "classification": "medium",
+      "risk": "Fixture success can be mistaken for long-lived operator data success.",
+      "current_mitigation": "Fixture policy marks temp seeded data as public-safe setup only.",
+      "residual_risk": "Manual QA should call out fixture-vs-operator data explicitly."
+    },
+    {
+      "id": "read_only_ui_feels_incomplete",
+      "classification": "low",
+      "risk": "Read/display-only UI can feel incomplete because records cannot be fixed there.",
+      "current_mitigation": "No write controls prevents accidental authority expansion.",
+      "residual_risk": "Future annotation/write behavior requires separate approval."
+    },
+    {
+      "id": "one_click_promotion_pressure",
+      "classification": "deferred",
+      "risk": "Operator may ask for one-click promotion after readiness.",
+      "current_mitigation": "No promotion controls or decision writes exist.",
+      "residual_risk": "Any promotion flow remains approval-gated."
+    }
+  ],
+  "validated_authority_boundaries": {
+    "no_new_runtime_authority": true,
+    "no_new_api_routes": true,
+    "no_ui_behavior_changes": true,
+    "no_db_schema_or_migrations": true,
+    "review_memory_write_from_ui": false,
+    "post_route_call_from_ui": false,
+    "final_answer_generation_now": false,
+    "provider_call_now": false,
+    "prompt_sent_now": false,
+    "retrieval_execution_now": false,
+    "source_fetch_now": false,
+    "retrieval_index_write_now": false,
+    "promotion_execution_now": false,
+    "promotion_decision_write_now": false,
+    "promotion_decision_store_write_now": false,
+    "proof_or_evidence_creation_now": false,
+    "claim_or_evidence_write_now": false,
+    "durable_state_mutation_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "accepted_evidence_ref_write_now": false,
+    "product_id_allocation_now": false,
+    "github_or_release_authority_now": false,
+    "smoke_ci_browser_pass_is_truth": false
+  },
+  "still_forbidden": [
+    "new_api_routes",
+    "ui_behavior_changes",
+    "review_memory_writes_from_ui",
+    "post_calls_from_ui",
+    "final_answer_generation_expansion",
+    "provider_calls",
+    "prompt_sending",
+    "retrieval_execution",
+    "source_fetching",
+    "retrieval_index_writes",
+    "promotion_execution",
+    "promotion_decision_record_writes",
+    "promotion_decision_store_writes",
+    "proof_or_evidence_creation",
+    "claim_or_evidence_writes",
+    "durable_perspective_state_apply",
+    "formation_receipt_writes",
+    "product_write",
+    "accepted_evidence_ref_write_from_final_answer",
+    "product_id_allocation",
+    "github_actuation",
+    "release_execution",
+    "automatic_answer_to_product_conversion"
+  ],
+  "next_recommended_slice": {
+    "option": "operator_path_manual_qa_runbook_v0_1",
+    "option_label": "Option A",
+    "recommendation": "Add a docs/fixture/smoke manual QA runbook before adding more UI behavior.",
+    "separate_explicit_approval_required_for_this_slice": true,
+    "adds_runtime": false,
+    "adds_ui_changes": false,
+    "adds_api_routes": false,
+    "reason": "The path is browser-validated but still not easy for a human to repeat safely."
+  },
+  "manual_qa_readiness": {
+    "bounded_manual_qa_safe_now": true,
+    "broad_dogfood_ready_now": false,
+    "one_more_bounded_docs_runbook_recommended_first": true,
+    "polished_operator_workflow_ready_now": false
+  },
+  "public_safe_fixture_policy": {
+    "public_safe_symbolic_refs_only": true,
+    "summary_counts_only": true,
+    "raw_browser_reports_allowed": false,
+    "screenshots_embedded_in_repo_allowed": false,
+    "raw_route_responses_allowed": false,
+    "raw_db_rows_allowed": false,
+    "raw_provider_output_allowed": false,
+    "raw_prompt_text_allowed": false,
+    "raw_retrieval_output_allowed": false,
+    "raw_source_bodies_allowed": false,
+    "hidden_reasoning_allowed": false,
+    "terminal_logs_allowed": false,
+    "private_paths_allowed": false,
+    "browser_session_dumps_allowed": false,
+    "real_secrets_allowed": false,
+    "real_provider_ids_allowed": false,
+    "real_product_ids_allowed": false,
+    "github_payloads_allowed": false,
+    "browser_artifact_paths_symbolic_tmp_only": true,
+    "browser_artifact_contents_copied": false,
+    "smoke_ci_browser_pass_is_truth": false
+  }
+}
