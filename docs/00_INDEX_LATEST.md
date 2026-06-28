@@ -3897,6 +3897,32 @@ repo-local 색인이다.
   product-write, or product authority. Final answer candidate remains
   candidate-only. Source refs are lineage pointers, not proof. Smoke/CI pass
   is not truth.
+- Final Answer Candidate Review UI Binding v0.1:
+  `docs/FINAL_ANSWER_CANDIDATE_REVIEW_UI_BINDING_V0_1.md`,
+  `components/final-rag-answer-review-memory-panel.tsx`,
+  `app/research-retrieval/final-rag-answer/review-memory/page.tsx`,
+  `fixtures/final-answer-candidate-review-ui-binding.sample.v0.1.json`,
+  and `scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs`
+  (`npm run smoke:final-answer-candidate-review-ui-binding-v0-1`) implements
+  `final_answer_candidate_review_ui_binding_v0_1` as the explicitly approved
+  read/display-only UI binding for final RAG answer candidate Review Memory
+  records created by `final_rag_answer_candidate_review_memory_binding_v0_1`.
+  It reads only from existing Review Memory DB GET routes, displays bounded
+  record/detail/activity projections, candidate refs, source refs, lifecycle
+  state, review decision, boundary acknowledgements, and non-authority notes,
+  and can copy a bounded read-only review packet. This pointer is repo-local
+  documentation metadata, not SSOT. This slice does not write Review Memory,
+  generate final answers, call providers, send prompts, execute retrieval,
+  fetch sources, write retrieval indexes, create proof/evidence, write
+  claim/evidence records, promote Perspective, write/apply durable state,
+  write Formation Receipts, product-write, write accepted evidence refs,
+  allocate product IDs, enable a product-write adapter, add broad product
+  persistence, execute Git/GitHub/release work, or perform automatic
+  answer-to-product conversion. Review Memory is not truth, proof, accepted
+  evidence, or durable Perspective state. Final answer candidate remains
+  candidate-only. Source refs are lineage pointers, not proof. Operator review
+  note is review memory, not promotion or product-write authority. Smoke/CI
+  pass is not truth.
 - Perspective Promotion Runtime Contract v0.1:
   `docs/PERSPECTIVE_PROMOTION_RUNTIME_V0_1.md`,
   `types/perspective-promotion-runtime-contract.ts`,
