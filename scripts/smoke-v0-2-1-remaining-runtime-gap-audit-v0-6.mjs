@@ -56,6 +56,13 @@ const expectedChangedFiles = new Set([
   packagePath,
   indexPath,
   ...exactOlderSmokeCompatibilityFiles,
+  "types/promotion-readiness-packet-from-review-memory.ts",
+  "lib/perspective/promotion/promotion-readiness-packet-from-review-memory.ts",
+  "app/api/perspective/promotion/readiness-packet/route.ts",
+  "docs/PROMOTION_READINESS_PACKET_FROM_REVIEW_MEMORY_V0_1.md",
+  "fixtures/promotion-readiness-packet-from-review-memory.sample.v0.1.json",
+  "scripts/smoke-promotion-readiness-packet-from-review-memory-v0-1.mjs",
+  "lib/runtime-audit/audit-event-store.ts",
 ]);
 
 for (const filePath of [

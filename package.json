@@ -663,6 +663,7 @@
     "smoke:final-rag-answer-generation-candidate-review-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-binding-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
     "smoke:final-answer-candidate-review-ui-binding-v0-1": "node scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
+    "smoke:promotion-readiness-packet-from-review-memory-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-promotion-readiness-packet-from-review-memory-v0-1.mjs",
     "smoke:perspective-promotion-runtime-contract-v0-1": "node scripts/smoke-perspective-promotion-runtime-contract-v0-1.mjs",
     "smoke:perspective-promotion-decision-store-v0-1": "node scripts/smoke-perspective-promotion-decision-store-v0-1.mjs",
     "smoke:formation-receipt-durable-write-v0-1": "node scripts/smoke-formation-receipt-durable-write-v0-1.mjs",

@@ -37,6 +37,7 @@ export type RuntimeAuditEventSurfaceV01 =
   | "rag_context_preview_runtime"
   | "final_rag_answer_candidate_review_runtime"
   | "final_rag_answer_review_memory_binding_runtime"
+  | "promotion_readiness_packet_from_review_memory_runtime"
   | "constellation_runtime_ui"
   | "manual_anchors_runtime"
   | "feedback_event_write_runtime"
@@ -196,6 +197,7 @@ const eventSurfaces: RuntimeAuditEventSurfaceV01[] = [
   "rag_context_preview_runtime",
   "final_rag_answer_candidate_review_runtime",
   "final_rag_answer_review_memory_binding_runtime",
+  "promotion_readiness_packet_from_review_memory_runtime",
   "constellation_runtime_ui",
   "manual_anchors_runtime",
   "feedback_event_write_runtime",
