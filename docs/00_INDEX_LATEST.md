@@ -5618,6 +5618,42 @@ runtime-disabled sequence fixture 확인에 한정된다. 이 포인터들은
 controls, Augnes Core authority, runtime sequence behavior, 또는 Sidecar e_t
 placeholder status를 변경하지 않는다.
 
+### Promotion readiness packet from Review Memory v0.1 포인터 (repo-local, non-SSOT)
+
+이 포인터는 Active set을 늘리거나 새 권위를 만들지 않는다.
+`promotion_readiness_packet_from_review_memory_v0_1`은 existing Review
+Memory DB records에서 bounded diagnostic readiness packet만 만드는
+read-only runtime slice다.
+
+- `docs/PROMOTION_READINESS_PACKET_FROM_REVIEW_MEMORY_V0_1.md`: 승인된
+  readiness packet boundary, read-only Review Memory DB access, no promotion
+  decision store write, no proof/evidence, no durable state, no Formation
+  Receipt, no product-write, no provider/retrieval/source-fetch boundary를
+  정리한다.
+- `types/promotion-readiness-packet-from-review-memory.ts`: bounded request,
+  policy, result, authority boundary contract다.
+- `lib/perspective/promotion/promotion-readiness-packet-from-review-memory.ts`:
+  DB-free preflight와 caller-injected read-only Review Memory record packet
+  builder다.
+- `app/api/perspective/promotion/readiness-packet/route.ts`: same-origin POST
+  route다. It opens existing Review Memory DB files read-only and does not
+  create DB files, directories, schema, Review Memory rows, promotion decision
+  records, Formation Receipts, durable state, proof/evidence, accepted evidence
+  refs, product state, or product IDs.
+- `fixtures/promotion-readiness-packet-from-review-memory.sample.v0.1.json`:
+  public-safe fixture for ready, degraded, blocked, missing DB/schema, invalid
+  path, audit, forbidden authority, and private/raw-key cases.
+- `scripts/smoke-promotion-readiness-packet-from-review-memory-v0-1.mjs`:
+  focused smoke implementation for this slice.
+- `npm run smoke:promotion-readiness-packet-from-review-memory-v0-1`: focused
+  smoke for the runtime, docs, fixture, package script, latest pointer, exact
+  changed-file scope, and no-promotion/no-write boundaries.
+- Audit surface: `promotion_readiness_packet_from_review_memory_runtime`.
+
+Boundary 요약: readiness packet은 diagnostic이며 promotion, proof, evidence,
+accepted evidence, durable state, Formation Receipt, product-write, product,
+approval, or smoke/CI truth가 아니다.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)

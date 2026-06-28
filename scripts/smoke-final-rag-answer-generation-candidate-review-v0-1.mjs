@@ -86,6 +86,13 @@ const expectedChangedFiles = new Set([
   "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_6.md",
   "fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.6.json",
   "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-6.mjs",
+  "types/promotion-readiness-packet-from-review-memory.ts",
+  "lib/perspective/promotion/promotion-readiness-packet-from-review-memory.ts",
+  "app/api/perspective/promotion/readiness-packet/route.ts",
+  "docs/PROMOTION_READINESS_PACKET_FROM_REVIEW_MEMORY_V0_1.md",
+  "fixtures/promotion-readiness-packet-from-review-memory.sample.v0.1.json",
+  "scripts/smoke-promotion-readiness-packet-from-review-memory-v0-1.mjs",
+  "lib/runtime-audit/audit-event-store.ts",
   packagePath,
   latestIndexPath,
 ]);

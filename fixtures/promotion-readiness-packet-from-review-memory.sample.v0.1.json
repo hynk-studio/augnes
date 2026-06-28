@@ -1,0 +1,233 @@
+{
+  "fixture_version": "promotion_readiness_packet_from_review_memory.sample.v0.1",
+  "runtime_version": "promotion_readiness_packet_from_review_memory.v0.1",
+  "request_version": "promotion_readiness_packet_from_review_memory_request.v0.1",
+  "result_version": "promotion_readiness_packet_from_review_memory_result.v0.1",
+  "route_version": "promotion_readiness_packet_from_review_memory_route.v0.1",
+  "scope": "project:augnes",
+  "v0_6_remaining_gap_audit_ref": "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_6.md",
+  "final_answer_candidate_review_ui_binding_ref": "docs/FINAL_ANSWER_CANDIDATE_REVIEW_UI_BINDING_V0_1.md",
+  "final_rag_answer_review_memory_binding_ref": "docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_BINDING_V0_1.md",
+  "review_memory_db_store_runtime_ref": "docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_DB_STORE_RUNTIME_COMPLETION_V0_1.md",
+  "review_memory_db_routes_runtime_ref": "docs/RESEARCH_CANDIDATE_REVIEW_MEMORY_DB_ROUTES_RUNTIME_COMPLETION_V0_1.md",
+  "promotion_runtime_contract_ref": "docs/PERSPECTIVE_PROMOTION_RUNTIME_V0_1.md",
+  "promotion_decision_store_ref": "lib/perspective/promotion/promotion-decision-store.ts",
+  "valid_request": {
+    "request_version": "promotion_readiness_packet_from_review_memory_request.v0.1",
+    "runtime_version": "promotion_readiness_packet_from_review_memory.v0.1",
+    "scope": "project:augnes",
+    "readiness_packet_request_id": "promotion-readiness-request:final-answer-candidate-review-smoke",
+    "requested_by": "operator:promotion-readiness-smoke",
+    "requested_at": "2026-06-29T00:00:00.000Z",
+    "review_memory_db_path": ".tmp/research-candidate-review-memory/promotion-readiness-packet-smoke.sqlite",
+    "review_record_id": "review-memory:final-answer-candidate-review-smoke",
+    "include_activity": true,
+    "max_activity_items": 5,
+    "max_summary_chars": 900,
+    "readiness_policy": {
+      "require_review_record": true,
+      "require_candidate_review_snapshot": true,
+      "require_candidate_refs": true,
+      "require_source_refs": true,
+      "require_boundary_acknowledgements": true,
+      "require_no_truth_claims": true,
+      "require_no_proof_claims": true,
+      "require_no_product_write": true,
+      "unresolved_tension_policy": "preserve_or_flag",
+      "knowledge_gap_policy": "preserve_or_flag",
+      "formation_receipt_policy": "required_later_not_written_now",
+      "promotion_decision_policy": "operator_decision_required_later_not_written_now"
+    },
+    "authority_boundary": {
+      "promotion_readiness_packet_from_review_memory_now": true,
+      "explicit_operator_readiness_packet_only": true,
+      "same_origin_post_route_now": true,
+      "read_only_review_memory_db_query_now": true,
+      "review_memory_record_read_now": true,
+      "bounded_readiness_packet_now": true,
+      "gate_report_diagnostic_now": true,
+      "source_refs_lineage_only": true,
+      "final_answer_candidate_input_supported": true,
+      "no_truth_language_required": true,
+      "no_proof_language_required": true,
+      "promotion_execution_now": false,
+      "promotion_decision_record_write_now": false,
+      "promotion_decision_store_write_now": false,
+      "proof_or_evidence_record_now": false,
+      "claim_or_evidence_write_now": false,
+      "durable_state_apply_now": false,
+      "formation_receipt_write_now": false,
+      "product_write_now": false,
+      "accepted_evidence_ref_write_now": false,
+      "product_id_allocation_now": false,
+      "review_memory_write_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "retrieval_execution_now": false,
+      "source_fetch_now": false,
+      "retrieval_index_write_now": false,
+      "github_api_call_now": false,
+      "git_write_now": false,
+      "release_execution_now": false,
+      "readiness_packet_is_promotion": false,
+      "readiness_packet_is_proof": false,
+      "readiness_packet_is_evidence": false,
+      "review_memory_is_truth": false,
+      "review_memory_is_proof": false,
+      "source_ref_is_proof": false,
+      "smoke_pass_is_truth": false,
+      "ci_pass_is_truth": false
+    },
+    "reason_codes": [
+      "promotion_readiness_packet_from_review_memory_v0_1",
+      "explicit_operator_readiness_packet_only",
+      "readiness_packet_is_not_promotion"
+    ]
+  },
+  "expected_ready_packet": {
+    "status": "ready_for_operator_promotion_review",
+    "readiness_state": "ready_for_operator_promotion_review",
+    "readiness_packet_ref_prefix": "promotion-readiness-packet:",
+    "review_record_ref": "review-memory:final-answer-candidate-review-smoke",
+    "candidate_refs": [
+      "final-rag-answer-candidate:promotion-readiness-smoke",
+      "final-rag-answer-request:promotion-readiness-smoke",
+      "rag-context-preview:promotion-readiness-smoke"
+    ],
+    "source_refs": [
+      "source-ref:promotion-readiness-001",
+      "source-ref:promotion-readiness-002"
+    ],
+    "non_authority_notes": [
+      "Readiness packet is diagnostic and not promotion.",
+      "Review Memory is not truth, proof, accepted evidence, or durable Perspective state.",
+      "Source refs are lineage pointers, not proof."
+    ],
+    "promotion_executed": false,
+    "promotion_decision_written": false,
+    "promotion_decision_store_written": false,
+    "proof_or_evidence_created": false,
+    "claim_or_evidence_written": false,
+    "durable_state_written": false,
+    "durable_state_applied": false,
+    "formation_receipt_written": false,
+    "product_write_executed": false,
+    "accepted_evidence_ref_write_executed": false,
+    "product_id_allocated": false,
+    "provider_call_executed": false,
+    "prompt_sent": false,
+    "retrieval_executed": false,
+    "source_fetch_executed": false,
+    "retrieval_index_write_executed": false,
+    "review_memory_written": false,
+    "github_api_called": false,
+    "git_write_executed": false,
+    "release_executed": false
+  },
+  "expected_bounded_cases": {
+    "needs_more_evidence_case": "discarded review records are not ready for operator promotion review",
+    "blocked_missing_source_refs": "source refs are required for readiness",
+    "blocked_boundary_acknowledgements": "boundary acknowledgements are required for readiness",
+    "db_missing_no_create": true,
+    "schema_missing_no_create": true,
+    "not_found_bounded": true,
+    "invalid_db_path_does_not_echo_raw_path": true,
+    "missing_audit_db_path_non_failing": true,
+    "invalid_audit_db_path_non_failing": true
+  },
+  "blocked_authority_cases": [
+    {
+      "field": "promotion_execution_now",
+      "blocked_value_label": "string_true",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "promotion_decision_record_write_now",
+      "blocked_value_label": "numeric_one",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "proof_or_evidence_record_now",
+      "blocked_value_label": "object_enabled",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "durable_state_apply_now",
+      "blocked_value_label": "array_enabled",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "product_write_now",
+      "blocked_value_label": "string_enabled",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "raw_provider_output_stored_now",
+      "blocked_value_label": "boolean_true",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "raw_prompt_stored_now",
+      "blocked_value_label": "string_true",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "raw_db_rows_included",
+      "blocked_value_label": "boolean_true",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "raw_provider_output_included",
+      "blocked_value_label": "numeric_one",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "provider_thread_run_session_ids_included",
+      "blocked_value_label": "object_enabled",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "hidden_reasoning_included",
+      "blocked_value_label": "array_enabled",
+      "expected_status": "blocked_forbidden_authority"
+    }
+  ],
+  "blocked_private_raw_key_cases": [
+    {
+      "blocked_key": "raw_provider_output",
+      "expected_status": "blocked_private_or_raw_payload"
+    },
+    {
+      "blocked_key": "raw_db_row",
+      "expected_status": "blocked_private_or_raw_payload"
+    },
+    {
+      "blocked_key": "hidden_reasoning",
+      "expected_status": "blocked_private_or_raw_payload"
+    },
+    {
+      "blocked_key": "github_payload",
+      "expected_status": "blocked_private_or_raw_payload"
+    }
+  ],
+  "public_safe_fixture_policy": {
+    "public_safe_symbolic_refs_only": true,
+    "raw_private_provider_retrieval_db_conversation_hidden_reasoning_telemetry_raw_diff_terminal_github_payloads_blocked": true,
+    "raw_prompt_allowed": false,
+    "raw_provider_output_allowed": false,
+    "raw_retrieval_output_allowed": false,
+    "raw_source_body_allowed": false,
+    "raw_db_rows_allowed": false,
+    "raw_conversation_allowed": false,
+    "hidden_reasoning_allowed": false,
+    "telemetry_dump_allowed": false,
+    "raw_diff_allowed": false,
+    "terminal_log_allowed": false,
+    "github_payloads_allowed": false,
+    "provider_internal_ids_allowed": false,
+    "private_urls_allowed": false,
+    "local_private_paths_allowed": false,
+    "secrets_allowed": false,
+    "smoke_or_ci_pass_is_truth": false
+  }
+}
