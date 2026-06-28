@@ -1,0 +1,249 @@
+{
+  "fixture_version": "project_constellation_manual_anchors_runtime_completion.sample.v0.1",
+  "store_version": "project_constellation_manual_anchor_store.v0.1",
+  "route_version": "project_constellation_manual_anchor_route.v0.1",
+  "scope": "project:augnes",
+  "safe_db_path_examples": [
+    ".tmp/project-constellation-manual-anchors/runtime-completion/manual-anchors.sqlite",
+    "tmp/project-constellation-manual-anchors/runtime-completion/manual-anchors.db"
+  ],
+  "unsafe_db_path_examples": [
+    "private-local-path/manual-anchors.sqlite",
+    "https://example.invalid/manual-anchors.sqlite",
+    ".tmp/project-constellation-manual-anchors/../manual-anchors.sqlite",
+    ".tmp/project-constellation-manual-anchors/manual-anchors.txt"
+  ],
+  "safe_anchor_upsert_request_example": {
+    "request_version": "project_constellation_manual_anchor_runtime_completion_request.v0.1",
+    "scope": "project:augnes",
+    "db_path": ".tmp/project-constellation-manual-anchors/runtime-completion/manual-anchors.sqlite",
+    "action": "upsert_anchor",
+    "input": {
+      "store_version": "project_constellation_manual_anchor_store.v0.1",
+      "record_version": "project_constellation_manual_anchor_record.v0.1",
+      "scope": "project:augnes",
+      "anchor_id": "manual-anchor:runtime-completion:001",
+      "layout_id": "layout:constellation-runtime-completion:001",
+      "perspective_id": "perspective:constellation-runtime-completion:001",
+      "state_version_ref": "state-version:constellation-runtime-completion:001",
+      "node_ref": "node-ref:durable:constellation-runtime-completion:001",
+      "anchor_position": {
+        "x": 144,
+        "y": 208,
+        "z": 0,
+        "coordinate_authority": "manual_anchor_hint",
+        "display_hint_only": true,
+        "reason_codes": [
+          "manual_anchor_display_hint_only",
+          "manual_anchor_not_truth",
+          "manual_anchor_not_evidence_strength",
+          "manual_anchor_not_promotion_readiness"
+        ]
+      },
+      "anchor_reason": "Operator pinned the node for display continuity.",
+      "created_by_ref": "operator:constellation-runtime-completion:001",
+      "applies_to_layout_scope": "project-constellation:runtime-completion:display",
+      "explicit_operator_action_required": true,
+      "persistence_now": true,
+      "display_hint_only": true,
+      "reason_codes": [
+        "layout_persistence_manual_anchors_runtime_completion",
+        "explicit_operator_action_required",
+        "manual_anchor_display_hint_only",
+        "manual_anchor_not_truth",
+        "layout_persistence_executed_for_anchor_only",
+        "durable_state_not_mutated",
+        "product_write_denied"
+      ],
+      "boundary_notes": [
+        "manual anchor is display hint only",
+        "product-write remains parked by #686"
+      ],
+      "authority_boundary": {
+        "manual_anchor_persistence_runtime_now": true,
+        "explicit_operator_anchor_action_only": true,
+        "caller_injected_db_only": true,
+        "db_query_or_write_now": true,
+        "display_hint_only": true,
+        "manual_anchor_is_truth": false,
+        "coordinate_is_truth": false,
+        "anchor_is_promotion_readiness": false,
+        "anchor_is_evidence_strength": false,
+        "anchor_is_source_authority": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "promotion_execution_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "source_fetch_now": false,
+        "retrieval_execution_now": false,
+        "retrieval_index_write_now": false,
+        "rag_answer_generation_now": false,
+        "product_write_now": false,
+        "product_id_allocation_now": false,
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "codex_execution_now": false,
+        "product_write_authority": false
+      },
+      "created_at": "2026-06-28T00:00:00.000Z",
+      "updated_at": "2026-06-28T00:00:00.000Z"
+    }
+  },
+  "safe_anchor_upsert_result_example": {
+    "status": "stored",
+    "anchor_id": "manual-anchor:runtime-completion:001",
+    "manual_anchor_write_now": true,
+    "display_hint_only": true,
+    "coordinate_is_truth": false,
+    "manual_anchor_is_truth": false,
+    "product_write_executed": false
+  },
+  "safe_anchor_list_result_example": {
+    "status": "stored",
+    "filters": {
+      "perspective_id": "perspective:constellation-runtime-completion:001",
+      "applies_to_layout_scope": "project-constellation:runtime-completion:display",
+      "include_discarded": false,
+      "limit": 10
+    },
+    "anchor_ids": [
+      "manual-anchor:runtime-completion:001"
+    ],
+    "manual_anchor_read_now": true
+  },
+  "safe_anchor_discard_request_example": {
+    "request_version": "project_constellation_manual_anchor_runtime_completion_request.v0.1",
+    "scope": "project:augnes",
+    "db_path": ".tmp/project-constellation-manual-anchors/runtime-completion/manual-anchors.sqlite",
+    "action": "discard_anchor",
+    "input": {
+      "anchor_id": "manual-anchor:runtime-completion:001",
+      "reason": "operator cleared display hint"
+    }
+  },
+  "safe_anchor_discard_result_example": {
+    "status": "discarded",
+    "anchor_id": "manual-anchor:runtime-completion:001",
+    "discard_reason": "operator cleared display hint",
+    "manual_anchor_write_now": true,
+    "hard_deleted": false
+  },
+  "idempotent_upsert_example": {
+    "status": "stored",
+    "reason_codes": [
+      "manual_anchor_upsert_idempotent"
+    ],
+    "anchor_row_count_after_repeat": 1,
+    "activity_row_count_after_repeat": 1
+  },
+  "update_anchor_position_example": {
+    "action": "upsert_anchor",
+    "anchor_id": "manual-anchor:runtime-completion:001",
+    "anchor_position": {
+      "x": 188,
+      "y": 244,
+      "z": 0
+    },
+    "anchor_reason": "Operator adjusted display hint after layout review.",
+    "expected_reason_codes": [
+      "manual_anchor_updated"
+    ],
+    "hard_deleted": false
+  },
+  "blocked_truth_score_example": {
+    "truth_score": 0.91,
+    "expected_status": "blocked_forbidden_authority"
+  },
+  "blocked_promotion_readiness_example": {
+    "promotion_readiness": "ready",
+    "expected_status": "blocked_forbidden_authority"
+  },
+  "blocked_evidence_strength_example": {
+    "evidence_strength": "strong",
+    "expected_status": "blocked_forbidden_authority"
+  },
+  "blocked_source_authority_example": {
+    "source_authority": "canonical",
+    "expected_status": "blocked_forbidden_authority"
+  },
+  "blocked_private_or_raw_payload_example": {
+    "anchor_reason": "SAFE_MARKER_RAW_SOURCE_BODY",
+    "expected_status": "blocked_private_or_raw_payload"
+  },
+  "blocked_forbidden_authority_example": {
+    "authority_boundary": {
+      "product_write_now": "enabled",
+      "product_write_authority": "granted",
+      "proof_or_evidence_record_now": 1,
+      "durable_state_apply_now": {
+        "enabled": true
+      }
+    },
+    "expected_status": "blocked_forbidden_authority"
+  },
+  "invalid_db_path_example": {
+    "db_path": "SAFE_MARKER_LOCAL_PRIVATE_PATH",
+    "expected_error_code": "invalid_db_path"
+  },
+  "invalid_anchor_position_example": {
+    "anchor_position": {
+      "x": "not-finite",
+      "y": 10,
+      "coordinate_authority": "manual_anchor_hint",
+      "display_hint_only": true,
+      "reason_codes": [
+        "manual_anchor_display_hint_only"
+      ]
+    },
+    "expected_status": "blocked_invalid_input"
+  },
+  "authority_boundary_sample": {
+    "manual_anchor_persistence_runtime_now": true,
+    "explicit_operator_anchor_action_only": true,
+    "same_origin_route_now": true,
+    "caller_injected_db_only": true,
+    "db_query_or_write_now": true,
+    "manual_anchor_write_now": true,
+    "manual_anchor_read_now": true,
+    "display_hint_only": true,
+    "coordinate_is_truth": false,
+    "manual_anchor_is_truth": false,
+    "anchor_is_promotion_readiness": false,
+    "anchor_is_evidence_strength": false,
+    "anchor_is_source_authority": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "retrieval_index_write_now": false,
+    "rag_answer_generation_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}
