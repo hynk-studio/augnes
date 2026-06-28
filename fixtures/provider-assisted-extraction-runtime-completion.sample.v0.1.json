@@ -1,0 +1,411 @@
+{
+  "fixture_version": "provider_assisted_extraction_runtime_completion.sample.v0.1",
+  "runtime_version": "provider_assisted_extraction_runtime_completion.v0.1",
+  "request_version": "provider_assisted_extraction_runtime_completion_request.v0.1",
+  "result_version": "provider_assisted_extraction_runtime_completion_result.v0.1",
+  "route_version": "provider_assisted_extraction_runtime_completion_route.v0.1",
+  "scope": "project:augnes",
+  "safe_mock_provider_request_example": {
+    "request_version": "provider_assisted_extraction_runtime_completion_request.v0.1",
+    "runtime_version": "provider_assisted_extraction_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "extraction_request_id": "provider-extraction-request:runtime-completion-safe-001",
+    "requested_by": "operator-ref:runtime-completion-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "provider_mode": "mock_provider",
+    "provider_ref": "provider-ref:mock-bounded-extraction",
+    "model_or_tool_ref": "model-ref:mock-bounded-extraction",
+    "source_ref_id": "source-ref:bounded-intake:public-safe-provider-extraction",
+    "source_locator_ref": "url-locator-ref:public-safe-provider-extraction",
+    "bounded_source_excerpt": "Public-safe bounded excerpt about a roadmap slice needing operator-reviewed candidate extraction.",
+    "bounded_source_summary": "Public-safe bounded summary for provider-assisted extraction runtime completion.",
+    "extraction_goal": "Extract candidate-only claim and source summary candidates for operator review.",
+    "candidate_family_allowlist": [
+      "claim_candidate",
+      "source_summary_candidate",
+      "knowledge_gap_candidate",
+      "unsupported_candidate"
+    ],
+    "max_candidates": 3,
+    "max_source_excerpt_chars": 600,
+    "max_output_chars": 1800,
+    "quote_limit_policy": "bounded_quote_refs_only",
+    "copyright_boundary": "bounded_excerpt_only",
+    "no_chain_of_thought_storage": true,
+    "raw_source_body_storage_policy": "non_persistent",
+    "raw_provider_output_storage_policy": "non_persistent",
+    "authority_boundary": {
+      "provider_assisted_extraction_runtime_now": true,
+      "explicit_operator_provider_action_only": true,
+      "same_origin_post_route_now": true,
+      "normalized_candidate_bundle_now": true,
+      "candidate_only_output_now": true,
+      "source_ref_required": true,
+      "bounded_source_excerpt_required": true,
+      "raw_source_body_non_persistent_by_default": true,
+      "raw_provider_output_non_persistent_by_default": true,
+      "provider_output_is_truth": false,
+      "provider_output_is_proof": false,
+      "product_write_now": false
+    },
+    "reason_codes": [
+      "provider_assisted_extraction_runtime_completion",
+      "explicit_operator_provider_action_only"
+    ]
+  },
+  "safe_missing_key_configured_provider_request_example": {
+    "request_version": "provider_assisted_extraction_runtime_completion_request.v0.1",
+    "runtime_version": "provider_assisted_extraction_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "extraction_request_id": "provider-extraction-request:runtime-completion-configured-001",
+    "requested_by": "operator-ref:runtime-completion-smoke",
+    "requested_at": "2026-06-28T00:01:00.000Z",
+    "provider_mode": "configured_provider",
+    "provider_ref": "provider-ref:configured-runtime-provider",
+    "model_or_tool_ref": "model-ref:configured-runtime-tool",
+    "source_ref_id": "source-ref:bounded-intake:public-safe-configured-provider",
+    "source_locator_ref": "url-locator-ref:public-safe-configured-provider",
+    "bounded_source_excerpt": "Public-safe bounded excerpt for configured provider missing-key refusal.",
+    "bounded_source_summary": "Public-safe configured-provider summary.",
+    "extraction_goal": "Extract candidate-only review cues when provider configuration is available.",
+    "candidate_family_allowlist": [
+      "claim_candidate",
+      "knowledge_gap_candidate"
+    ],
+    "max_candidates": 2,
+    "max_source_excerpt_chars": 600,
+    "max_output_chars": 1200,
+    "quote_limit_policy": "bounded_quote_refs_only",
+    "copyright_boundary": "bounded_excerpt_only",
+    "no_chain_of_thought_storage": true,
+    "raw_source_body_storage_policy": "non_persistent",
+    "raw_provider_output_storage_policy": "non_persistent",
+    "authority_boundary": {
+      "provider_assisted_extraction_runtime_now": true,
+      "explicit_operator_provider_action_only": true,
+      "same_origin_post_route_now": true,
+      "configured_provider_missing_key_refusal_now": true,
+      "normalized_candidate_bundle_now": true,
+      "candidate_only_output_now": true,
+      "source_ref_required": true,
+      "bounded_source_excerpt_required": true,
+      "raw_source_body_non_persistent_by_default": true,
+      "raw_provider_output_non_persistent_by_default": true,
+      "provider_output_is_truth": false,
+      "product_write_now": false
+    },
+    "reason_codes": [
+      "configured_provider_missing_key_refusal_now"
+    ]
+  },
+  "mock_provider_output_example": {
+    "status": "ok",
+    "provider_request_ref": "provider-request-ref:mock-public-safe-001",
+    "provider_response_ref": "provider-response-ref:mock-public-safe-001",
+    "provider_latency_ms": 7,
+    "output_items": [
+      {
+        "candidate_family": "claim_candidate",
+        "bounded_claim_summary": "The bounded source suggests a candidate runtime gap is now explicitly routed through provider extraction.",
+        "bounded_support_summary": "Support is limited to the supplied bounded excerpt and requires operator review.",
+        "quote_refs": [
+          "quote-ref:public-safe-provider-extraction-a"
+        ],
+        "confidence_label": "medium",
+        "warnings": [
+          "candidate_only_output_now"
+        ],
+        "reason_codes": [
+          "mock_provider_adapter_now",
+          "normalized_candidate_bundle_now"
+        ]
+      },
+      {
+        "candidate_family": "source_summary_candidate",
+        "bounded_claim_summary": "The source can be summarized as a public-safe runtime completion cue.",
+        "bounded_support_summary": "The summary is not truth and remains bounded to the provided source ref.",
+        "quote_refs": [
+          "quote-ref:public-safe-provider-extraction-b"
+        ],
+        "confidence_label": "low",
+        "warnings": [
+          "low_grounding_warning"
+        ],
+        "reason_codes": [
+          "provider_confidence_not_promotion_readiness"
+        ]
+      }
+    ],
+    "warnings": [
+      "mock_provider_adapter_now"
+    ],
+    "reason_codes": [
+      "mock_provider_adapter_now",
+      "provider_adapter_invoked"
+    ]
+  },
+  "normalized_candidate_bundle_example": {
+    "bundle_version": "provider_assisted_extraction_candidate_bundle.v0.1",
+    "runtime_version": "provider_assisted_extraction_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "source_ref_id": "source-ref:bounded-intake:public-safe-provider-extraction",
+    "candidate_refs": [
+      "provider-candidate-ref:claim_candidate:public-safe-example"
+    ],
+    "provider_output_is_truth": false,
+    "provider_output_is_proof": false,
+    "provider_output_is_accepted_evidence": false,
+    "provider_confidence_is_truth": false,
+    "provider_confidence_is_promotion_readiness": false,
+    "candidate_is_fact": false,
+    "candidate_is_proof": false,
+    "candidate_is_accepted_evidence": false
+  },
+  "expected_candidate_bundle_result_example": {
+    "status": "candidate_bundle_created",
+    "provider_call_executed": true,
+    "raw_source_body_stored": false,
+    "raw_provider_output_stored": false,
+    "hidden_reasoning_stored": false,
+    "retrieval_indexed": false,
+    "proof_or_evidence_created": false,
+    "promotion_executed": false,
+    "product_write_executed": false,
+    "reason_codes": [
+      "candidate_bundle_created",
+      "normalized_candidate_bundle_now"
+    ]
+  },
+  "provider_unavailable_result_example": {
+    "status": "provider_missing_key",
+    "provider_call_executed": false,
+    "warnings": [
+      "provider_missing_key"
+    ],
+    "reason_codes": [
+      "configured_provider_missing_key_refusal_now",
+      "live_provider_validation_skipped_missing_key"
+    ]
+  },
+  "unsupported_extraction_result_example": {
+    "status": "unsupported_extraction",
+    "warnings": [
+      "unsupported_extraction"
+    ],
+    "reason_codes": [
+      "unsupported_extraction"
+    ]
+  },
+  "low_grounding_warning_example": {
+    "status": "candidate_bundle_created",
+    "warnings": [
+      "low_grounding_warning"
+    ],
+    "confidence_label": "low",
+    "provider_confidence_is_promotion_readiness": false
+  },
+  "blocked_private_or_raw_payload_example": {
+    "request_version": "provider_assisted_extraction_runtime_completion_request.v0.1",
+    "runtime_version": "provider_assisted_extraction_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "extraction_request_id": "provider-extraction-request:blocked-private-001",
+    "requested_by": "operator-ref:runtime-completion-smoke",
+    "requested_at": "2026-06-28T00:02:00.000Z",
+    "provider_mode": "mock_provider",
+    "provider_ref": "provider-ref:mock-bounded-extraction",
+    "model_or_tool_ref": "model-ref:mock-bounded-extraction",
+    "source_ref_id": "source-ref:bounded-intake:blocked-private",
+    "bounded_source_excerpt": "SAFE_MARKER_RAW_SOURCE_BODY",
+    "extraction_goal": "Extract candidate-only output from blocked payload.",
+    "candidate_family_allowlist": [
+      "claim_candidate"
+    ],
+    "max_candidates": 1,
+    "max_source_excerpt_chars": 600,
+    "max_output_chars": 800,
+    "no_chain_of_thought_storage": true,
+    "raw_source_body_storage_policy": "non_persistent",
+    "raw_provider_output_storage_policy": "non_persistent"
+  },
+  "blocked_forbidden_authority_example": {
+    "request_version": "provider_assisted_extraction_runtime_completion_request.v0.1",
+    "runtime_version": "provider_assisted_extraction_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "extraction_request_id": "provider-extraction-request:blocked-authority-001",
+    "requested_by": "operator-ref:runtime-completion-smoke",
+    "requested_at": "2026-06-28T00:03:00.000Z",
+    "provider_mode": "mock_provider",
+    "provider_ref": "provider-ref:mock-bounded-extraction",
+    "model_or_tool_ref": "model-ref:mock-bounded-extraction",
+    "source_ref_id": "source-ref:bounded-intake:blocked-authority",
+    "bounded_source_excerpt": "Public-safe bounded excerpt.",
+    "extraction_goal": "Extract candidate-only output from blocked authority request.",
+    "candidate_family_allowlist": [
+      "claim_candidate"
+    ],
+    "max_candidates": 1,
+    "max_source_excerpt_chars": 600,
+    "max_output_chars": 800,
+    "no_chain_of_thought_storage": true,
+    "raw_source_body_storage_policy": "non_persistent",
+    "raw_provider_output_storage_policy": "non_persistent",
+    "authority_boundary": {
+      "product_write_now": "true",
+      "proof_or_evidence_record_now": 1,
+      "provider_output_is_truth": {
+        "enabled": true
+      }
+    }
+  },
+  "blocked_missing_source_ref_example": {
+    "request_version": "provider_assisted_extraction_runtime_completion_request.v0.1",
+    "runtime_version": "provider_assisted_extraction_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "extraction_request_id": "provider-extraction-request:missing-source-ref-001",
+    "requested_by": "operator-ref:runtime-completion-smoke",
+    "requested_at": "2026-06-28T00:04:00.000Z",
+    "provider_mode": "mock_provider",
+    "provider_ref": "provider-ref:mock-bounded-extraction",
+    "model_or_tool_ref": "model-ref:mock-bounded-extraction",
+    "bounded_source_excerpt": "Public-safe bounded excerpt.",
+    "extraction_goal": "Extract candidate-only output from missing source ref request.",
+    "candidate_family_allowlist": [
+      "claim_candidate"
+    ],
+    "max_candidates": 1,
+    "max_source_excerpt_chars": 600,
+    "max_output_chars": 800,
+    "no_chain_of_thought_storage": true,
+    "raw_source_body_storage_policy": "non_persistent",
+    "raw_provider_output_storage_policy": "non_persistent"
+  },
+  "blocked_missing_bounded_excerpt_example": {
+    "request_version": "provider_assisted_extraction_runtime_completion_request.v0.1",
+    "runtime_version": "provider_assisted_extraction_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "extraction_request_id": "provider-extraction-request:missing-excerpt-001",
+    "requested_by": "operator-ref:runtime-completion-smoke",
+    "requested_at": "2026-06-28T00:05:00.000Z",
+    "provider_mode": "mock_provider",
+    "provider_ref": "provider-ref:mock-bounded-extraction",
+    "model_or_tool_ref": "model-ref:mock-bounded-extraction",
+    "source_ref_id": "source-ref:bounded-intake:missing-excerpt",
+    "extraction_goal": "Extract candidate-only output from missing excerpt request.",
+    "candidate_family_allowlist": [
+      "claim_candidate"
+    ],
+    "max_candidates": 1,
+    "max_source_excerpt_chars": 600,
+    "max_output_chars": 800,
+    "no_chain_of_thought_storage": true,
+    "raw_source_body_storage_policy": "non_persistent",
+    "raw_provider_output_storage_policy": "non_persistent"
+  },
+  "blocked_raw_provider_output_storage_request_example": {
+    "request_version": "provider_assisted_extraction_runtime_completion_request.v0.1",
+    "runtime_version": "provider_assisted_extraction_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "extraction_request_id": "provider-extraction-request:raw-provider-storage-001",
+    "requested_by": "operator-ref:runtime-completion-smoke",
+    "requested_at": "2026-06-28T00:06:00.000Z",
+    "provider_mode": "mock_provider",
+    "provider_ref": "provider-ref:mock-bounded-extraction",
+    "model_or_tool_ref": "model-ref:mock-bounded-extraction",
+    "source_ref_id": "source-ref:bounded-intake:raw-provider-storage",
+    "bounded_source_excerpt": "Public-safe bounded excerpt.",
+    "extraction_goal": "Extract candidate-only output from raw provider storage request.",
+    "candidate_family_allowlist": [
+      "claim_candidate"
+    ],
+    "max_candidates": 1,
+    "max_source_excerpt_chars": 600,
+    "max_output_chars": 800,
+    "no_chain_of_thought_storage": true,
+    "raw_source_body_storage_policy": "non_persistent",
+    "raw_provider_output_storage_policy": "persistent"
+  },
+  "blocked_chain_of_thought_storage_request_example": {
+    "request_version": "provider_assisted_extraction_runtime_completion_request.v0.1",
+    "runtime_version": "provider_assisted_extraction_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "extraction_request_id": "provider-extraction-request:chain-storage-001",
+    "requested_by": "operator-ref:runtime-completion-smoke",
+    "requested_at": "2026-06-28T00:07:00.000Z",
+    "provider_mode": "mock_provider",
+    "provider_ref": "provider-ref:mock-bounded-extraction",
+    "model_or_tool_ref": "model-ref:mock-bounded-extraction",
+    "source_ref_id": "source-ref:bounded-intake:chain-storage",
+    "bounded_source_excerpt": "Public-safe bounded excerpt.",
+    "extraction_goal": "Extract candidate-only output from SAFE_MARKER_CHAIN_OF_THOUGHT storage request.",
+    "candidate_family_allowlist": [
+      "claim_candidate"
+    ],
+    "max_candidates": 1,
+    "max_source_excerpt_chars": 600,
+    "max_output_chars": 800,
+    "no_chain_of_thought_storage": false,
+    "raw_source_body_storage_policy": "non_persistent",
+    "raw_provider_output_storage_policy": "non_persistent"
+  },
+  "authority_boundary_sample": {
+    "provider_assisted_extraction_runtime_now": true,
+    "explicit_operator_provider_action_only": true,
+    "same_origin_post_route_now": true,
+    "provider_adapter_invocation_now": true,
+    "mock_provider_adapter_now": true,
+    "configured_provider_missing_key_refusal_now": false,
+    "normalized_candidate_bundle_now": true,
+    "candidate_only_output_now": true,
+    "source_ref_required": true,
+    "bounded_source_excerpt_required": true,
+    "raw_source_body_non_persistent_by_default": true,
+    "raw_provider_output_non_persistent_by_default": true,
+    "provider_call_on_load_now": false,
+    "background_provider_call_now": false,
+    "hidden_provider_call_now": false,
+    "raw_prompt_stored_now": false,
+    "prompt_sent_without_operator_action_now": false,
+    "hidden_reasoning_stored_now": false,
+    "chain_of_thought_stored_now": false,
+    "raw_source_body_stored_now": false,
+    "raw_provider_output_stored_now": false,
+    "provider_thread_run_session_id_canonicalized_now": false,
+    "retrieval_index_write_now": false,
+    "retrieval_execution_now": false,
+    "rag_answer_generation_now": false,
+    "db_query_or_write_now": false,
+    "route_get_provider_execution_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "provider_output_is_truth": false,
+    "provider_output_is_proof": false,
+    "provider_output_is_accepted_evidence": false,
+    "provider_confidence_is_truth": false,
+    "provider_confidence_is_promotion_readiness": false,
+    "candidate_is_fact": false,
+    "candidate_is_proof": false,
+    "candidate_is_accepted_evidence": false,
+    "source_ref_is_proof": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}
