@@ -557,6 +557,7 @@
     "smoke:project-constellation-runtime-layout-contract-v0-1": "node scripts/smoke-project-constellation-runtime-layout-contract-v0-1.mjs",
     "smoke:project-constellation-seeded-layout-v0-1": "node scripts/smoke-project-constellation-seeded-layout-v0-1.mjs",
     "smoke:project-constellation-runtime-ui-v0-1": "node scripts/smoke-project-constellation-runtime-ui-v0-1.mjs",
+    "smoke:project-constellation-runtime-ui-completion-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-project-constellation-runtime-ui-completion-v0-1.mjs",
     "browser:project-constellation-runtime-ui-v0-1": "node scripts/browser-validate-project-constellation-runtime-ui-v0-1.mjs",
     "smoke:project-constellation-manual-anchors-v0-1": "node scripts/smoke-project-constellation-manual-anchors-v0-1.mjs",
     "smoke:feedback-event-aggregation-runtime-v0-1": "node scripts/smoke-feedback-event-aggregation-runtime-v0-1.mjs",

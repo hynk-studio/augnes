@@ -8,9 +8,12 @@ import researchCandidateReviewManualNoteConstellationOverlayFixture from "@/fixt
 import researchCandidateReviewManualNoteFormationReceiptFixture from "@/fixtures/research-candidate-review.manual-note-formation-receipt.sample.v0.1.json";
 import researchCandidateReviewParserOutputFixture from "@/fixtures/research-candidate-review.manual-note-preview.sample.v0.1.json";
 import researchCandidateReviewFixture from "@/fixtures/research-candidate-review.sample.v0.1.json";
+import projectConstellationRuntimeUiFixture from "@/fixtures/project-constellation-runtime-ui.sample.v0.1.json";
+import type { SeededConstellationLayoutResult } from "@/lib/perspective/layout/seeded-layout";
 import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import type { ManualResearchNoteParserResult } from "@/lib/research-candidate-review/manual-note-parser";
 import { AgentPerspectiveSubstrateFoldedAuditPanel } from "@/components/agent-perspective-substrate-folded-audit-panel";
+import { ConstellationRuntimeDataPanel } from "@/components/perspective/constellation-runtime-data-panel";
 import { ResearchCandidateAIContextPacketPreview } from "@/components/research-candidate-ai-context-packet-preview";
 import { ResearchCandidateConstellationOverlayPreview } from "@/components/research-candidate-constellation-overlay-preview";
 import { ResearchCandidateFormationReceiptPreview } from "@/components/research-candidate-formation-receipt-preview";
@@ -125,6 +128,10 @@ const researchCandidateReviewFormationReceiptPreview =
   researchCandidateReviewFormationReceiptFixture as ResearchCandidateFormationReceipt;
 const researchCandidateReviewManualNoteFormationReceiptPreview =
   researchCandidateReviewManualNoteFormationReceiptFixture as ResearchCandidateFormationReceipt;
+const projectConstellationRuntimeUiLayoutResult =
+  (projectConstellationRuntimeUiFixture as {
+    expected_props: { layoutResult: SeededConstellationLayoutResult };
+  }).expected_props.layoutResult;
 const CONSTELLATION_ROUTE_PREVIEW_REQUEST_PATH =
   "/api/augnes/read/constellation-preview?scope=project:augnes";
 const CONSTELLATION_ROUTE_PREVIEW_HEADERS = {
@@ -11688,6 +11695,19 @@ function PerspectiveTab({
               description="Fail-closed display state with no ingest constellation payload."
             />
           )}
+        </section>
+
+        <section
+          className="cockpit-surface-card perspective-section project-constellation-runtime-ui-completion-section"
+          id="perspective-constellation-runtime-ui-completion"
+          aria-label="Project Constellation runtime UI completion read-only source binding"
+          data-augnes-diagnostics-group="constellation-runtime-ui-completion"
+        >
+          <ConstellationRuntimeDataPanel
+            layoutResult={projectConstellationRuntimeUiLayoutResult}
+            initialPerspectiveId="perspective:constellation-runtime-ui"
+            initialSelectedNodeRef="state:project-constellation-runtime-ui"
+          />
         </section>
 
         <section

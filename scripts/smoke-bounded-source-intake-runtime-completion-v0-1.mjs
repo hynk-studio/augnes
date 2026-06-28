@@ -793,8 +793,10 @@ function assertNoForbiddenFilesAdded() {
   const changedFiles = changedFilesFromGit();
   for (const filePath of changedFiles) {
     assert.ok(
-      !filePath.startsWith("components/") || isRagContextPreviewRuntimeCompletionFile(filePath),
-      `${filePath} must not add UI outside the RAG context preview runtime completion display`,
+      !filePath.startsWith("components/") ||
+        isRagContextPreviewRuntimeCompletionFile(filePath) ||
+        isConstellationRuntimeUiCompletionFile(filePath),
+      `${filePath} must not add UI outside an approved runtime UI completion display`,
     );
     assert.ok(!filePath.startsWith("lib/db/"), `${filePath} must not add DB schema`);
     assert.ok(
@@ -816,6 +818,18 @@ function isRagContextPreviewRuntimeCompletionFile(filePath) {
     "app/api/research-retrieval/rag-context-preview/route.ts",
     "fixtures/rag-context-preview-runtime-completion.sample.v0.1.json",
     "scripts/smoke-rag-context-preview-runtime-completion-v0-1.mjs",
+  ].includes(filePath);
+}
+
+function isConstellationRuntimeUiCompletionFile(filePath) {
+  return [
+    "components/perspective/constellation-runtime-view.tsx",
+    "components/perspective/constellation-inspector.tsx",
+    "components/perspective/constellation-runtime-data-panel.tsx",
+    "components/augnes-cockpit.tsx",
+    "docs/PROJECT_CONSTELLATION_RUNTIME_UI_COMPLETION_V0_1.md",
+    "fixtures/project-constellation-runtime-ui-completion.sample.v0.1.json",
+    "scripts/smoke-project-constellation-runtime-ui-completion-v0-1.mjs",
   ].includes(filePath);
 }
 

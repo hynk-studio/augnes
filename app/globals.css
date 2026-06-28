@@ -233,6 +233,70 @@
   font-size: 0.78rem;
 }
 
+.constellation-runtime-data-panel,
+.constellation-runtime-readout,
+.constellation-runtime-view__runtime-summary {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.constellation-runtime-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.constellation-runtime-form label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.constellation-runtime-form input {
+  min-width: 0;
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: #172235;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+
+.constellation-runtime-readout {
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.constellation-runtime-readout h3 {
+  margin: 0 0 6px;
+  color: #1f2b3d;
+  font-size: 0.9rem;
+}
+
+.constellation-runtime-readout dl,
+.constellation-runtime-readout ul {
+  margin: 0;
+}
+
+.constellation-runtime-readout dl {
+  display: grid;
+  gap: 5px;
+}
+
+.constellation-runtime-readout dt,
+.constellation-runtime-readout dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .constellation-runtime-view__workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 0.42fr);
@@ -405,6 +469,10 @@
 
   .constellation-overlay-toggle {
     width: 100%;
+  }
+
+  .constellation-runtime-form {
+    grid-template-columns: 1fr;
   }
 }
 
