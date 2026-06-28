@@ -1,0 +1,198 @@
+{
+  "fixture_version": "runtime_audit_selected_route_instrumentation.v0.4.phase_4_promotion_state.sample.v0.1",
+  "instrumentation_version": "runtime_audit_selected_route_instrumentation.v0.4.phase_4_promotion_state.v0.1",
+  "previous_instrumentation_versions": [
+    "runtime_audit_selected_route_instrumentation.v0.1",
+    "runtime_audit_selected_route_instrumentation.v0.2",
+    "runtime_audit_selected_route_instrumentation.v0.3"
+  ],
+  "audit_event_store_version": "runtime_audit_event_store.v0.1",
+  "scope": "project:augnes",
+  "selected_routes": [
+    {
+      "route_ref": "route:/api/perspective/promotion-decisions",
+      "file_ref": "app/api/perspective/promotion-decisions/route.ts",
+      "methods": ["GET", "POST"],
+      "event_surface": "promotion_decision_store",
+      "actions": ["promotion_decisions_listed", "promotion_decision_created"]
+    },
+    {
+      "route_ref": "route:/api/perspective/promotion-decisions/[promotion_decision_id]",
+      "file_ref": "app/api/perspective/promotion-decisions/[promotion_decision_id]/route.ts",
+      "methods": ["GET"],
+      "event_surface": "promotion_decision_store",
+      "actions": ["promotion_decision_read"]
+    },
+    {
+      "route_ref": "route:/api/perspective/formation-receipts",
+      "file_ref": "app/api/perspective/formation-receipts/route.ts",
+      "methods": ["GET", "POST"],
+      "event_surface": "formation_receipt_runtime",
+      "actions": ["formation_receipts_listed", "formation_receipt_created"]
+    },
+    {
+      "route_ref": "route:/api/perspective/state/apply-delta",
+      "file_ref": "app/api/perspective/state/apply-delta/route.ts",
+      "methods": ["POST"],
+      "event_surface": "durable_perspective_state_runtime",
+      "actions": ["durable_perspective_state_delta_applied"]
+    },
+    {
+      "route_ref": "route:/api/perspective/state/[perspective_id]",
+      "file_ref": "app/api/perspective/state/[perspective_id]/route.ts",
+      "methods": ["GET"],
+      "event_surface": "durable_perspective_state_runtime",
+      "actions": ["durable_perspective_state_read"]
+    },
+    {
+      "route_ref": "route:/api/perspective/state/[perspective_id]/trajectory",
+      "file_ref": "app/api/perspective/state/[perspective_id]/trajectory/route.ts",
+      "methods": ["GET"],
+      "event_surface": "perspective_trajectory_runtime",
+      "actions": ["perspective_trajectory_read"]
+    }
+  ],
+  "promotion_decision_list_audit_example": {
+    "event_surface": "promotion_decision_store",
+    "event_kind": "route_response",
+    "event_action": "promotion_decisions_listed",
+    "event_status": "stored",
+    "subject_ref": "promotion-decision:list",
+    "primary_result_ref": "promotion-decision:list:1:promotion-decision:runtime-audit-v0-4:001",
+    "bounded_summary": "Promotion decisions route returned bounded list result."
+  },
+  "promotion_decision_create_audit_example": {
+    "event_surface": "promotion_decision_store",
+    "event_kind": "route_response",
+    "event_action": "promotion_decision_created",
+    "event_status": "stored",
+    "subject_ref": "promotion-decision:runtime-audit-v0-4:001",
+    "primary_result_ref": "promotion-decision:runtime-audit-v0-4:001",
+    "bounded_summary": "Promotion decision route created bounded decision record."
+  },
+  "promotion_decision_detail_audit_example": {
+    "event_surface": "promotion_decision_store",
+    "event_kind": "route_response",
+    "event_action": "promotion_decision_read",
+    "event_status": "stored",
+    "subject_ref": "promotion-decision:runtime-audit-v0-4:001",
+    "primary_result_ref": "promotion-decision:runtime-audit-v0-4:001",
+    "bounded_summary": "Promotion decision detail route returned bounded decision result."
+  },
+  "formation_receipt_create_audit_example": {
+    "event_surface": "formation_receipt_runtime",
+    "event_kind": "route_response",
+    "event_action": "formation_receipt_created",
+    "event_status": "written",
+    "subject_ref": "formation-receipt:runtime-audit-v0-4:001",
+    "primary_result_ref": "formation-receipt:runtime-audit-v0-4:001",
+    "bounded_summary": "Formation Receipt route returned bounded receipt result."
+  },
+  "formation_receipt_list_audit_example": {
+    "event_surface": "formation_receipt_runtime",
+    "event_kind": "route_response",
+    "event_action": "formation_receipts_listed",
+    "event_status": "written",
+    "subject_ref": "formation-receipt:list",
+    "primary_result_ref": "formation-receipt:list:1:formation-receipt:runtime-audit-v0-4:001",
+    "bounded_summary": "Formation Receipt route returned bounded receipt result."
+  },
+  "durable_state_apply_audit_example": {
+    "event_surface": "durable_perspective_state_runtime",
+    "event_kind": "route_response",
+    "event_action": "durable_perspective_state_delta_applied",
+    "event_status": "applied",
+    "subject_ref": "perspective:runtime-audit-v0-4:001",
+    "primary_result_ref": "durable-state-apply:event:runtime-audit-v0-4:001",
+    "bounded_summary": "Durable Perspective state apply route returned bounded apply result."
+  },
+  "durable_state_read_audit_example": {
+    "event_surface": "durable_perspective_state_runtime",
+    "event_kind": "route_response",
+    "event_action": "durable_perspective_state_read",
+    "event_status": "applied",
+    "subject_ref": "perspective:runtime-audit-v0-4:001",
+    "primary_result_ref": "state-fingerprint:runtime-audit-v0-4:001",
+    "bounded_summary": "Durable Perspective state read route returned bounded state result."
+  },
+  "perspective_trajectory_read_audit_example": {
+    "event_surface": "perspective_trajectory_runtime",
+    "event_kind": "route_response",
+    "event_action": "perspective_trajectory_read",
+    "event_status": "built",
+    "subject_ref": "perspective:runtime-audit-v0-4:001",
+    "primary_result_ref": "trajectory-fingerprint:runtime-audit-v0-4:001",
+    "bounded_summary": "Perspective trajectory route returned bounded trajectory result."
+  },
+  "audit_not_requested_example": {
+    "status": "audit_not_requested",
+    "audit_event_persisted": false,
+    "reason_codes": [
+      "audit_db_path_absent",
+      "primary_route_behavior_unchanged"
+    ],
+    "bounded_note": "Missing audit_db_path leaves the selected Phase 4 route behavior unchanged."
+  },
+  "audit_skipped_invalid_db_path_example": {
+    "status": "audit_skipped_invalid_db_path",
+    "audit_event_persisted": false,
+    "unsafe_value_not_echoed": true,
+    "blocked_marker_examples": [
+      "SAFE_MARKER_LOCAL_PRIVATE_PATH",
+      "SAFE_MARKER_PRIVATE_URL",
+      "SAFE_MARKER_SECRET_TOKEN",
+      "SAFE_MARKER_RAW_REQUEST_BODY",
+      "SAFE_MARKER_RAW_RESPONSE_BODY",
+      "SAFE_MARKER_RAW_TERMINAL_LOG",
+      "SAFE_MARKER_BROWSER_DUMP",
+      "SAFE_MARKER_HIDDEN_REASONING",
+      "SAFE_MARKER_RAW_PROVIDER_OUTPUT",
+      "SAFE_MARKER_RAW_RETRIEVAL_OUTPUT",
+      "SAFE_MARKER_PROVIDER_THREAD_ID",
+      "SAFE_MARKER_RAW_CONVERSATION",
+      "SAFE_MARKER_RAW_DB_ROW",
+      "SAFE_MARKER_RAW_DIFF",
+      "SAFE_MARKER_TELEMETRY_DUMP"
+    ],
+    "bounded_note": "Invalid audit_db_path skips audit without echoing unsafe values."
+  },
+  "authority_boundary_sample": {
+    "runtime_audit_selected_route_instrumentation_now": true,
+    "runtime_audit_event_persistence_now": true,
+    "selected_route_subset_only": true,
+    "audit_db_path_optional": true,
+    "primary_route_failure_from_audit_now": false,
+    "raw_request_body_stored_now": false,
+    "raw_response_body_stored_now": false,
+    "raw_terminal_log_stored_now": false,
+    "browser_dump_ingested_now": false,
+    "hidden_reasoning_stored_now": false,
+    "raw_provider_output_stored_now": false,
+    "raw_retrieval_output_stored_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "formation_receipt_write_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "audit_event_is_truth": false,
+    "audit_event_is_proof": false,
+    "audit_event_is_approval": false,
+    "audit_event_is_durable_state": false,
+    "audit_event_is_product_write_authority": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}

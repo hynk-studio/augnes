@@ -42,6 +42,10 @@ export type RuntimeAuditEventSurfaceV01 =
   | "feedback_surfacing_preview_runtime"
   | "runtime_audit_panel"
   | "dogfooding_ingestion_runtime"
+  | "promotion_decision_store"
+  | "formation_receipt_runtime"
+  | "durable_perspective_state_runtime"
+  | "perspective_trajectory_runtime"
   | "product_write_gate"
   | "unknown";
 
@@ -195,6 +199,10 @@ const eventSurfaces: RuntimeAuditEventSurfaceV01[] = [
   "feedback_surfacing_preview_runtime",
   "runtime_audit_panel",
   "dogfooding_ingestion_runtime",
+  "promotion_decision_store",
+  "formation_receipt_runtime",
+  "durable_perspective_state_runtime",
+  "perspective_trajectory_runtime",
   "product_write_gate",
   "unknown",
 ];

@@ -28,6 +28,17 @@ const expectedChangedFiles = new Set([
   smokePath,
   packagePath,
   indexPath,
+  "app/api/perspective/promotion-decisions/route.ts",
+  "app/api/perspective/promotion-decisions/[promotion_decision_id]/route.ts",
+  "app/api/perspective/formation-receipts/route.ts",
+  "app/api/perspective/state/apply-delta/route.ts",
+  "app/api/perspective/state/[perspective_id]/route.ts",
+  "app/api/perspective/state/[perspective_id]/trajectory/route.ts",
+  "lib/runtime-audit/audit-event-store.ts",
+  "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md",
+  "fixtures/runtime-audit-selected-route-instrumentation.v0.4.phase-4-promotion-state.sample.json",
+  "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-4-phase-4-promotion-state-v0-1.mjs",
+  "scripts/smoke-project-constellation-runtime-ui-completion-v0-1.mjs",
 ]);
 
 const allowedTrueFields = [

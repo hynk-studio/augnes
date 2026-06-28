@@ -13,6 +13,10 @@ import {
   readPromotionDecisionRecordV01,
   type PromotionDecisionStoreResult,
 } from "../../../../../lib/perspective/promotion/promotion-decision-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "../../../../../lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -26,6 +30,7 @@ export async function GET(
   const { promotion_decision_id } = await params;
   const url = new URL(request.url);
   const dbPath = url.searchParams.get("db_path") ?? "";
+  const auditDbPath = url.searchParams.get("audit_db_path");
   if (!isSafePromotionDecisionRouteDbPathV01(dbPath)) {
     return jsonResponse(errorResponse("invalid_db_path"), 400);
   }
@@ -39,11 +44,28 @@ export async function GET(
     if (!promotionDecisionStoreSchemaExistsV01(db)) {
       return jsonResponse(errorResponse("schema_missing"), 400);
     }
+    const decodedPromotionDecisionId = decodeURIComponent(promotion_decision_id);
     const result = readPromotionDecisionRecordV01(
-      decodeURIComponent(promotion_decision_id),
+      decodedPromotionDecisionId,
       db,
     );
-    return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result));
+    const statusCode = storeResultHttpStatus(result);
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: auditDbPath,
+      route_ref: "route:/api/perspective/promotion-decisions/[promotion_decision_id]",
+      runtime_slice_ref: "runtime_audit_selected_route_instrumentation_v0_4_phase_4_promotion_state_v0_1",
+      event_surface: "promotion_decision_store",
+      event_kind: "route_response",
+      event_action: "promotion_decision_read",
+      event_status: result.status,
+      subject_ref: decodedPromotionDecisionId,
+      related_refs: [decodedPromotionDecisionId, result.record?.review_record_ref ?? ""].filter(Boolean),
+      primary_result_status: result.status,
+      primary_result_ref: result.record?.promotion_decision_id ?? decodedPromotionDecisionId,
+      bounded_summary: "Promotion decision detail route returned bounded decision result.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
+    return jsonResponse(storeResultResponse(result, auditEventResult), statusCode);
   } finally {
     db.close();
   }
@@ -139,7 +161,10 @@ function storeResultHttpStatus(result: PromotionDecisionStoreResult, okStatus = 
   return okStatus;
 }
 
-function storeResultResponse(result: PromotionDecisionStoreResult) {
+function storeResultResponse(
+  result: PromotionDecisionStoreResult,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
+) {
   const errorCode = result.status.startsWith("blocked") || result.status === "not_found"
     ? result.status
     : null;
@@ -156,6 +181,7 @@ function storeResultResponse(result: PromotionDecisionStoreResult) {
     claim_or_evidence_written: false,
     product_write_executed: false,
     authority_boundary: createPromotionDecisionAuthorityBoundaryV01({ routeNow: true }),
+    audit_event_result: auditEventResult,
   };
 }
 

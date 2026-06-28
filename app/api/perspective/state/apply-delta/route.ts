@@ -12,6 +12,10 @@ import {
   type DurablePerspectiveStateApplyInput,
   type DurablePerspectiveStateApplyResult,
 } from "../../../../../lib/perspective/state/state-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "../../../../../lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -33,7 +37,7 @@ export async function POST(request: Request) {
     return jsonResponse(errorResponse("invalid_json_object"), 400);
   }
 
-  const inputBody = body as { action?: unknown; db_path?: unknown; input?: unknown };
+  const inputBody = body as { action?: unknown; db_path?: unknown; audit_db_path?: unknown; input?: unknown };
   if (!isSafeDurablePerspectiveStateRouteDbPathV01(inputBody.db_path)) {
     return jsonResponse(errorResponse("invalid_db_path"), 400);
   }
@@ -48,7 +52,34 @@ export async function POST(request: Request) {
   const db = openWriteLocalDb(inputBody.db_path);
   try {
     const result = applyDurablePerspectiveStateV01(applyInput, db);
-    return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result, 201));
+    const statusCode = storeResultHttpStatus(result, 201);
+    const primaryResultRef =
+      result.apply_event?.apply_event_id ??
+      result.state?.state_fingerprint ??
+      applyInput.apply_event_id ??
+      applyInput.formation_receipt_id ??
+      applyInput.perspective_id;
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: inputBody.audit_db_path,
+      route_ref: "route:/api/perspective/state/apply-delta",
+      runtime_slice_ref: "runtime_audit_selected_route_instrumentation_v0_4_phase_4_promotion_state_v0_1",
+      event_surface: "durable_perspective_state_runtime",
+      event_kind: "route_response",
+      event_action: "durable_perspective_state_delta_applied",
+      event_status: result.status,
+      subject_ref: applyInput.perspective_id,
+      related_refs: [
+        applyInput.perspective_id,
+        result.apply_event?.apply_event_id ?? applyInput.apply_event_id,
+        result.apply_event?.formation_receipt_id ?? applyInput.formation_receipt_id,
+        result.apply_event?.promotion_decision_id ?? applyInput.promotion_decision_id,
+      ].filter(Boolean),
+      primary_result_status: result.status,
+      primary_result_ref: primaryResultRef,
+      bounded_summary: "Durable Perspective state apply route returned bounded apply result.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
+    return jsonResponse(storeResultResponse(result, auditEventResult), statusCode);
   } finally {
     db.close();
   }
@@ -92,7 +123,10 @@ function storeResultHttpStatus(result: DurablePerspectiveStateApplyResult, okSta
   return okStatus;
 }
 
-function storeResultResponse(result: DurablePerspectiveStateApplyResult) {
+function storeResultResponse(
+  result: DurablePerspectiveStateApplyResult,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
+) {
   const errorCode = result.status.startsWith("blocked") || result.status === "not_found"
     ? result.status
     : null;
@@ -109,6 +143,7 @@ function storeResultResponse(result: DurablePerspectiveStateApplyResult) {
     claim_or_evidence_written: false,
     product_write_executed: false,
     authority_boundary: createDurablePerspectiveStateAuthorityBoundaryV01(),
+    audit_event_result: auditEventResult,
   };
 }
 

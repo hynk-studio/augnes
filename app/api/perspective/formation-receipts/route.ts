@@ -16,6 +16,10 @@ import {
   type FormationReceiptListFilters,
   type FormationReceiptStoreResult,
 } from "../../../../lib/perspective/formation-receipt/formation-receipt-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "../../../../lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -25,6 +29,7 @@ const routeVersion = "formation_receipt_durable_write_route.v0.1" as const;
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const dbPath = url.searchParams.get("db_path") ?? "";
+  const auditDbPath = url.searchParams.get("audit_db_path");
   if (!isSafeFormationReceiptRouteDbPathV01(dbPath)) {
     return jsonResponse(errorResponse("invalid_db_path"), 400);
   }
@@ -45,7 +50,24 @@ export async function GET(request: Request) {
       return jsonResponse(errorResponse("schema_missing"), 400);
     }
     const result = listFormationReceiptsV01(filters, db);
-    return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result));
+    const statusCode = storeResultHttpStatus(result);
+    const firstId = result.records[0]?.receipt_id ?? "";
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: auditDbPath,
+      route_ref: "route:/api/perspective/formation-receipts",
+      runtime_slice_ref: "runtime_audit_selected_route_instrumentation_v0_4_phase_4_promotion_state_v0_1",
+      event_surface: "formation_receipt_runtime",
+      event_kind: "route_response",
+      event_action: "formation_receipts_listed",
+      event_status: result.status,
+      subject_ref: "formation-receipt:list",
+      related_refs: result.records.slice(0, 10).map((record) => record.receipt_id),
+      primary_result_status: result.status,
+      primary_result_ref: `formation-receipt:list:${result.records.length}:${firstId}`,
+      bounded_summary: "Formation Receipt route returned bounded receipt result.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
+    return jsonResponse(storeResultResponse(result, auditEventResult), statusCode);
   } finally {
     db.close();
   }
@@ -69,6 +91,7 @@ export async function POST(request: Request) {
   const inputBody = body as {
     action?: unknown;
     db_path?: unknown;
+    audit_db_path?: unknown;
     input?: unknown;
     receipt_id?: unknown;
     reason?: unknown;
@@ -107,7 +130,28 @@ export async function POST(request: Request) {
       return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result));
     }
     const result = createFormationReceiptV01(createInput!, db);
-    return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result, 201));
+    const statusCode = storeResultHttpStatus(result, 201);
+    const subjectRef = result.record?.receipt_id ?? createInput!.receipt_id;
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: inputBody.audit_db_path,
+      route_ref: "route:/api/perspective/formation-receipts",
+      runtime_slice_ref: "runtime_audit_selected_route_instrumentation_v0_4_phase_4_promotion_state_v0_1",
+      event_surface: "formation_receipt_runtime",
+      event_kind: "route_response",
+      event_action: "formation_receipt_created",
+      event_status: result.status,
+      subject_ref: subjectRef,
+      related_refs: [
+        subjectRef,
+        result.record?.promotion_decision_id ?? createInput!.promotion_decision_id,
+        result.record?.review_record_ref ?? createInput!.review_record_ref,
+      ].filter(Boolean),
+      primary_result_status: result.status,
+      primary_result_ref: subjectRef,
+      bounded_summary: "Formation Receipt route returned bounded receipt result.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
+    return jsonResponse(storeResultResponse(result, auditEventResult), statusCode);
   } finally {
     db.close();
   }
@@ -162,7 +206,10 @@ function storeResultHttpStatus(result: FormationReceiptStoreResult, okStatus = 2
   return okStatus;
 }
 
-function storeResultResponse(result: FormationReceiptStoreResult) {
+function storeResultResponse(
+  result: FormationReceiptStoreResult,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
+) {
   const errorCode = result.status.startsWith("blocked") || result.status === "not_found"
     ? result.status
     : null;
@@ -179,6 +226,7 @@ function storeResultResponse(result: FormationReceiptStoreResult) {
     claim_or_evidence_written: false,
     product_write_executed: false,
     authority_boundary: createFormationReceiptAuthorityBoundaryV01(),
+    audit_event_result: auditEventResult,
   };
 }
 
