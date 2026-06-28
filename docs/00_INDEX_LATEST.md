@@ -4393,6 +4393,26 @@ repo-local 색인이다.
   Git/GitHub, execute Codex, product-write, allocate product IDs, or grant
   product-write authority. Product-write remains parked by #686. Smoke/CI pass
   is not truth. The roadmap guide is not SSOT.
+- v0.2.1 Remaining Runtime Gap Audit v0.2:
+  `docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_2.md`,
+  `fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.2.json`, and
+  `scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-2.mjs`
+  (`npm run smoke:v0-2-1-remaining-runtime-gap-audit-v0-2`)
+  implements `v0_2_1_remaining_runtime_gap_audit_v0_2` as a static
+  repo-grounded audit of the original v0.2.1 FULL roadmap after
+  `runtime_audit_selected_route_instrumentation_v0_4_phase_4_promotion_state_v0_1`.
+  It updates the prior v0.1 recommendation now that selected Phase 4
+  promotion/state routes have bounded audit instrumentation. This is not
+  roadmap completion closeout, release approval, release execution,
+  product-write approval, or GitHub actuation approval. It does not implement
+  runtime behavior, query/write DB, add routes/UI, call providers, execute
+  retrieval/RAG, create proof/evidence, promote Perspective, write/apply
+  durable state, write Formation Receipts, execute Git/GitHub, execute Codex,
+  product-write, allocate product IDs, or grant product-write authority. It
+  names `none_without_explicit_approval` as the next recommended implementation
+  slice because the remaining visible work is approval-gated, explicitly
+  future/deferred, or contract/fixture/offline-only. Product-write remains
+  parked by #686. Smoke/CI pass is not truth. The roadmap guide is not SSOT.
 - Git Ledger Export Contract v0.1:
   `docs/GIT_LEDGER_EXPORT_CONTRACT_V0_1.md`,
   `types/git-ledger-export-contract.ts`,
