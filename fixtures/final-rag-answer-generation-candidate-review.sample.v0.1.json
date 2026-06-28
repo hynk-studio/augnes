@@ -125,6 +125,32 @@
     "case_ref": "blocked-case:private-raw-provider-output",
     "expected_status": "blocked_private_or_raw_payload"
   },
+  "provider_cited_unbacked_source_ref_rejection_case": {
+    "case_ref": "blocked-case:provider-cited-unbacked-source-ref",
+    "provider_output_status": "answered",
+    "unbacked_source_ref": "source-ref:not-in-context",
+    "expected_status": "rejected",
+    "expected_reason_code": "provider_cited_unbacked_source_ref",
+    "expected_final_answer_candidate_generated": false
+  },
+  "raw_provider_output_key_blocked_case": {
+    "case_ref": "blocked-case:raw-provider-output-key",
+    "blocked_key": "raw_provider_output",
+    "bounded_looking_value": "bounded-looking text",
+    "expected_status": "blocked_private_or_raw_payload"
+  },
+  "nested_raw_retrieval_output_key_blocked_case": {
+    "case_ref": "blocked-case:nested-raw-retrieval-output-key",
+    "blocked_key": "raw_retrieval_output",
+    "bounded_looking_value": "bounded-looking text",
+    "expected_status": "blocked_private_or_raw_payload"
+  },
+  "provider_output_raw_provider_output_key_blocked_case": {
+    "case_ref": "blocked-case:provider-output-raw-provider-output-key",
+    "blocked_key": "raw_provider_output",
+    "bounded_looking_value": "bounded-looking text",
+    "expected_status": "blocked_private_or_raw_payload"
+  },
   "db_missing_case": {
     "db_path": ".tmp/research-retrieval/final-rag-answer-missing.sqlite",
     "expected_status": "db_missing"
@@ -138,6 +164,7 @@
     "expected_error_code": "blocked_invalid_input"
   },
   "audit_cases": {
+    "expected_event_surface": "final_rag_answer_candidate_review_runtime",
     "missing_audit_db_path_status": "audit_not_requested",
     "invalid_audit_db_path_status": "audit_skipped_invalid_db_path"
   },

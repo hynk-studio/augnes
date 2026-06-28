@@ -34,6 +34,7 @@ const providerExtractionRoutePath = "app/api/research-candidate-review/provider-
 const providerExtractionRuntimePath = "lib/research-extraction/provider-extract-candidates.ts";
 const providerExtractionBoundaryPath = "lib/research-extraction/provider-boundary.ts";
 const providerNormalizePath = "lib/research-extraction/normalize-provider-output.ts";
+const runtimeAuditStorePath = "lib/runtime-audit/audit-event-store.ts";
 
 const packageScriptName = "smoke:final-rag-answer-generation-candidate-review-v0-1";
 const packageScriptValue =
@@ -58,6 +59,7 @@ const expectedChangedFiles = new Set([
   builderPath,
   providerBoundaryPath,
   routePath,
+  runtimeAuditStorePath,
   docsPath,
   fixturePath,
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
@@ -170,6 +172,7 @@ for (const filePath of [
   productWriteTargetContractDocPath,
   privacyGuardDocPath,
   runtimeAuditDocPath,
+  runtimeAuditStorePath,
   ragContextRoutePath,
   ragContextBuilderPath,
   retrievalStorePath,
@@ -196,6 +199,7 @@ const typeSource = readText(typePath);
 const builderSource = readText(builderPath);
 const providerBoundarySource = readText(providerBoundaryPath);
 const routeSource = readText(routePath);
+const runtimeAuditStoreSource = readText(runtimeAuditStorePath);
 const ragContextFixture = JSON.parse(readText(ragContextFixturePath));
 
 const builder = await import(pathToFileURL(builderPath).href);
@@ -256,6 +260,11 @@ function assertDocsCoverage() {
     "Context preview remains a review aid",
     "Retrieval result remains non-authoritative",
     "Provider output remains candidate-only",
+    "Provider cited source refs must be a subset of context-preview source refs",
+    "Provider citation notes must reference context-backed source refs only",
+    "Unbacked provider citations reject candidate generation",
+    "Private/raw markers are blocked in keys as well as values",
+    "final_rag_answer_candidate_review_runtime",
     "operator review before any future evidence, promotion, or product-write path",
     "Smoke/CI pass is not truth",
   ]) {
@@ -304,6 +313,10 @@ function assertFixtureCoverage() {
     "empty_no_context_case",
     "forbidden_authority_cases",
     "private_raw_payload_blocked_case",
+    "provider_cited_unbacked_source_ref_rejection_case",
+    "raw_provider_output_key_blocked_case",
+    "nested_raw_retrieval_output_key_blocked_case",
+    "provider_output_raw_provider_output_key_blocked_case",
     "db_missing_case",
     "schema_missing_case",
     "invalid_db_path_case",
@@ -323,6 +336,14 @@ function assertFixtureCoverage() {
   assert.equal(fixture.valid_mock_provider_request.raw_prompt_storage_policy, "non_persistent");
   assert.equal(fixture.valid_mock_provider_request.raw_provider_output_storage_policy, "non_persistent");
   assert.equal(fixture.valid_mock_provider_request.no_chain_of_thought_storage, true);
+  assert.equal(
+    fixture.provider_cited_unbacked_source_ref_rejection_case.expected_reason_code,
+    "provider_cited_unbacked_source_ref",
+  );
+  assert.equal(fixture.raw_provider_output_key_blocked_case.blocked_key, "raw_provider_output");
+  assert.equal(fixture.nested_raw_retrieval_output_key_blocked_case.blocked_key, "raw_retrieval_output");
+  assert.equal(fixture.provider_output_raw_provider_output_key_blocked_case.blocked_key, "raw_provider_output");
+  assert.equal(fixture.audit_cases.expected_event_surface, "final_rag_answer_candidate_review_runtime");
   assert.deepEqual(
     fixture.forbidden_authority_cases.map((item) => `${item.field}:${item.value_kind}`).sort(),
     [
@@ -353,6 +374,7 @@ function assertLibraryAndRouteExports() {
     assert.equal(typeof providerBoundary[name], "function", `${name} must be exported`);
   }
   assert.equal(typeof route.POST, "function", "route must export POST");
+  assert.equal(typeof route.createFinalRagAnswerCandidateReviewPostHandlerV01, "function");
   assert.equal(route.GET, undefined, "route must not export GET provider execution");
 }
 
@@ -362,6 +384,8 @@ function assertStaticBoundaries() {
   assert.ok(!routeSource.includes("export async function GET"), "route must not expose GET");
   assert.ok(routeSource.includes("fileMustExist: true"), "route opens existing DB only");
   assert.ok(routeSource.includes("readonly: true"), "route opens retrieval DB read-only");
+  assert.ok(routeSource.includes("final_rag_answer_candidate_review_runtime"));
+  assert.ok(runtimeAuditStoreSource.includes("\"final_rag_answer_candidate_review_runtime\""));
   assert.ok(routeSource.indexOf("preflightFinalRagAnswerCandidateReviewRuntimeV01") < routeSource.indexOf("new Database"));
   assert.ok(!routeSource.includes("ensureResearchRetrievalIndexSchemaV01"), "route must not create retrieval schema");
   assert.ok(!routeSource.includes("rebuildResearchRetrievalIndexV01"), "route must not rebuild retrieval index");
@@ -602,6 +626,145 @@ async function assertRouteRuntime() {
   assert.equal(existsSync(blockedFreshDbPath), false, "private/raw payload must not create DB file");
   assertNoUnsafeEcho(privateBody, "private blocked response");
 
+  const rawProviderOutputKeyResponse = await route.POST(
+    localPostRequest({
+      route_version: routeVersion,
+      scope,
+      input: validInput({
+        answer_request_id: "final-rag-answer-request:raw-provider-output-key",
+        raw_provider_output: fixture.raw_provider_output_key_blocked_case.bounded_looking_value,
+        rag_context_preview_request: {
+          ...fixture.valid_mock_provider_request.rag_context_preview_request,
+          db_path: blockedFreshDbPath,
+        },
+      }),
+    }),
+  );
+  const rawProviderOutputKeyBody = await rawProviderOutputKeyResponse.json();
+  assert.equal(rawProviderOutputKeyResponse.status, 400);
+  assert.equal(rawProviderOutputKeyBody.error_code, fixture.raw_provider_output_key_blocked_case.expected_status);
+  assert.equal(rawProviderOutputKeyBody.result.status, fixture.raw_provider_output_key_blocked_case.expected_status);
+  assert.equal(existsSync(blockedFreshDbPath), false, "raw provider output key must not create DB file");
+  assertNoUnsafeEcho(rawProviderOutputKeyBody, "raw provider output key response");
+
+  const nestedRawRetrievalOutputKeyResponse = await route.POST(
+    localPostRequest({
+      route_version: routeVersion,
+      scope,
+      input: validInput({
+        answer_request_id: "final-rag-answer-request:nested-raw-retrieval-output-key",
+        rag_context_preview_request: {
+          ...fixture.valid_mock_provider_request.rag_context_preview_request,
+          db_path: blockedFreshDbPath,
+          raw_retrieval_output: fixture.nested_raw_retrieval_output_key_blocked_case.bounded_looking_value,
+        },
+      }),
+    }),
+  );
+  const nestedRawRetrievalOutputKeyBody = await nestedRawRetrievalOutputKeyResponse.json();
+  assert.equal(nestedRawRetrievalOutputKeyResponse.status, 400);
+  assert.equal(
+    nestedRawRetrievalOutputKeyBody.error_code,
+    fixture.nested_raw_retrieval_output_key_blocked_case.expected_status,
+  );
+  assert.equal(
+    nestedRawRetrievalOutputKeyBody.result.status,
+    fixture.nested_raw_retrieval_output_key_blocked_case.expected_status,
+  );
+  assert.equal(existsSync(blockedFreshDbPath), false, "nested raw retrieval output key must not create DB file");
+  assertNoUnsafeEcho(nestedRawRetrievalOutputKeyBody, "nested raw retrieval output key response");
+
+  const unbackedProviderHandler = route.createFinalRagAnswerCandidateReviewPostHandlerV01({
+    providerAdapter: () => ({
+      status: "answered",
+      bounded_answer: "Safe candidate answer for operator review with unbacked citation rejection.",
+      cited_source_refs: [fixture.provider_cited_unbacked_source_ref_rejection_case.unbacked_source_ref],
+      bounded_citation_notes: [
+        {
+          source_ref: fixture.provider_cited_unbacked_source_ref_rejection_case.unbacked_source_ref,
+          bounded_note: "Public-safe citation note for an unbacked source ref.",
+        },
+      ],
+      reason_codes: ["mock_answer_provider_now"],
+    }),
+  });
+  const beforeUnbackedProvider = dbCounts(dbPath);
+  const unbackedProviderResponse = await unbackedProviderHandler(
+    localPostRequest({
+      route_version: routeVersion,
+      scope,
+      input: validInput({ answer_request_id: "final-rag-answer-request:unbacked-provider-citation" }),
+    }),
+  );
+  const unbackedProviderBody = await unbackedProviderResponse.json();
+  assert.equal(unbackedProviderResponse.status, 400);
+  assert.equal(unbackedProviderBody.result.status, fixture.provider_cited_unbacked_source_ref_rejection_case.expected_status);
+  assert.equal(unbackedProviderBody.result.provider_call_executed, true);
+  assert.equal(unbackedProviderBody.result.prompt_sent, true);
+  assert.equal(unbackedProviderBody.result.final_answer_candidate_generated, false);
+  assert.equal(unbackedProviderBody.result.rag_answer_generated, false);
+  assert.equal(unbackedProviderBody.result.answer_candidate_ref, null);
+  assert.ok(
+    unbackedProviderBody.result.failure_codes.includes(
+      fixture.provider_cited_unbacked_source_ref_rejection_case.expected_reason_code,
+    ),
+  );
+  assert.ok(
+    unbackedProviderBody.result.reason_codes.includes(
+      fixture.provider_cited_unbacked_source_ref_rejection_case.expected_reason_code,
+    ),
+  );
+  assert.equal(
+    unbackedProviderBody.result.cited_source_refs.includes(
+      fixture.provider_cited_unbacked_source_ref_rejection_case.unbacked_source_ref,
+    ),
+    false,
+  );
+  assert.equal(
+    unbackedProviderBody.result.bounded_citation_notes.some(
+      (note) => note.source_ref === fixture.provider_cited_unbacked_source_ref_rejection_case.unbacked_source_ref,
+    ),
+    false,
+  );
+  assertFalseExecutionFlags(unbackedProviderBody);
+  assertFalseExecutionFlags(unbackedProviderBody.result);
+  assert.deepEqual(dbCounts(dbPath), beforeUnbackedProvider, "unbacked citation rejection must not write DB rows");
+  assertNoUnsafeEcho(unbackedProviderBody, "unbacked provider citation response");
+
+  const rawProviderOutputHandler = route.createFinalRagAnswerCandidateReviewPostHandlerV01({
+    providerAdapter: () => ({
+      status: "answered",
+      bounded_answer: "Safe candidate answer for operator review with unsafe key rejection.",
+      cited_source_refs: ["source-ref:calibration-runtime"],
+      bounded_citation_notes: [
+        {
+          source_ref: "source-ref:calibration-runtime",
+          bounded_note: "Public-safe citation note for context-backed source ref.",
+        },
+      ],
+      raw_provider_output: fixture.provider_output_raw_provider_output_key_blocked_case.bounded_looking_value,
+      reason_codes: ["mock_answer_provider_now"],
+    }),
+  });
+  const rawProviderOutputResponse = await rawProviderOutputHandler(
+    localPostRequest({
+      route_version: routeVersion,
+      scope,
+      input: validInput({ answer_request_id: "final-rag-answer-request:provider-output-raw-key" }),
+    }),
+  );
+  const rawProviderOutputBody = await rawProviderOutputResponse.json();
+  assert.equal(rawProviderOutputResponse.status, 400);
+  assert.equal(rawProviderOutputBody.result.status, fixture.provider_output_raw_provider_output_key_blocked_case.expected_status);
+  assert.equal(rawProviderOutputBody.result.provider_call_executed, true);
+  assert.equal(rawProviderOutputBody.result.prompt_sent, true);
+  assert.equal(rawProviderOutputBody.result.final_answer_candidate_generated, false);
+  assert.equal(rawProviderOutputBody.result.rag_answer_generated, false);
+  assert.equal(rawProviderOutputBody.result.answer_candidate_ref, null);
+  assertFalseExecutionFlags(rawProviderOutputBody);
+  assertFalseExecutionFlags(rawProviderOutputBody.result);
+  assertNoUnsafeEcho(rawProviderOutputBody, "provider output raw key response");
+
   const missingDbResponse = await route.POST(
     localPostRequest({
       route_version: routeVersion,
@@ -699,6 +862,24 @@ function assertBuilderAndProviderBoundary() {
   });
   assert.equal(unsafe.passed, false);
   assert.equal(unsafe.status, "blocked_private_or_raw_payload");
+  const unsafeKey = builder.validateFinalRagAnswerCandidateReviewInputV01({
+    ...safeInput,
+    raw_provider_output: "bounded-looking text",
+  });
+  assert.equal(unsafeKey.passed, false);
+  assert.equal(unsafeKey.status, "blocked_private_or_raw_payload");
+  assert.equal(
+    providerBoundary.containsUnsafeFinalRagAnswerRuntimeTextV01({ raw_provider_output: "bounded-looking text" }),
+    true,
+  );
+  assert.equal(
+    providerBoundary.containsUnsafeFinalRagAnswerRuntimeTextV01({
+      raw_provider_output_storage_policy: "non_persistent",
+      raw_prompt_storage_policy: "non_persistent",
+      no_chain_of_thought_storage: true,
+    }),
+    false,
+  );
   const mockAdapter = providerBoundary.createMockFinalRagAnswerProviderAdapterV01();
   const output = mockAdapter({
     provider_ref: "provider:mock",
@@ -750,7 +931,10 @@ function assertAuditPublicSafe() {
   try {
     const rows = db.prepare("SELECT * FROM runtime_audit_events").all();
     assert.ok(rows.length >= 1, "audit event row should exist");
-    for (const row of rows) assertNoUnsafeEcho(row, "audit event row");
+    for (const row of rows) {
+      assert.equal(row.event_surface, fixture.audit_cases.expected_event_surface);
+      assertNoUnsafeEcho(row, "audit event row");
+    }
   } finally {
     db.close();
   }

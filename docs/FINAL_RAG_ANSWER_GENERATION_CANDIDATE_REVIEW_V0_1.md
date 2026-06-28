@@ -105,6 +105,12 @@ provider validation.
 Raw prompts are non-persistent. Raw provider output is non-persistent. Hidden
 reasoning and chain-of-thought are not stored.
 
+Provider cited source refs must be a subset of context-preview source refs.
+The allowed citation set is built from context preview `source_ref_id` and
+`source_record_ref` values only. Provider citation notes must reference
+context-backed source refs only. Unbacked provider citations reject candidate
+generation and do not create an answer candidate ref.
+
 Provider output remains candidate-only. Final answer candidate requires
 operator review before any future evidence, promotion, or product-write path.
 
@@ -194,6 +200,12 @@ bodies, raw provider output, raw retrieval output, raw DB rows, raw
 conversations, hidden reasoning, chain-of-thought, telemetry dumps, raw diffs,
 terminal logs, GitHub payloads, and browser/session dumps.
 
+Private/raw markers are blocked in keys as well as values. Keys such as
+`raw_provider_output`, `raw_retrieval_output`, `hidden_reasoning`,
+`chain_of_thought`, provider internal ID keys, connector/upload keys, token
+keys, API key markers, password markers, and private-key markers are rejected
+even when their values look bounded.
+
 The route response and audit event must not echo unsafe payloads.
 
 ## Audit Behavior
@@ -206,6 +218,10 @@ Missing `audit_db_path` does not fail the primary route.
 Invalid `audit_db_path` does not fail the primary route.
 
 Audit write failure does not fail the primary route.
+
+Final answer route audit events use the
+`final_rag_answer_candidate_review_runtime` event surface. The existing RAG
+context preview route keeps its own `rag_context_preview_runtime` surface.
 
 Audit events are bounded route-status records only. Audit event is not truth,
 proof, approval, durable state, or product authority.

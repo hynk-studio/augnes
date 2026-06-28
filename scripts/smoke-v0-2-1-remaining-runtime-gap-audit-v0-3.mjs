@@ -42,6 +42,7 @@ const expectedChangedFiles = new Set([
   "app/api/research-retrieval/final-rag-answer/route.ts",
   "docs/FINAL_RAG_ANSWER_GENERATION_CANDIDATE_REVIEW_V0_1.md",
   "fixtures/final-rag-answer-generation-candidate-review.sample.v0.1.json",
+  "lib/runtime-audit/audit-event-store.ts",
   "lib/research-retrieval/build-final-rag-answer-candidate.ts",
   "lib/research-retrieval/final-rag-answer-provider-boundary.ts",
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",

@@ -151,6 +151,48 @@ const unsafeTextPatterns = [
   /-----BEGIN OPENSSH PRIVATE KEY-----/i,
 ] as const;
 
+const safePolicyKeyExceptions = new Set([
+  "raw_prompt_storage_policy",
+  "raw_provider_output_storage_policy",
+  "raw_prompt_non_persistent",
+  "raw_provider_output_non_persistent",
+  "no_chain_of_thought_storage",
+]);
+
+const unsafeKeyExactMatches = new Set([
+  "raw_prompt",
+  "raw_provider_output",
+  "raw_retrieval_output",
+  "raw_source_body",
+  "raw_db_row",
+  "raw_conversation",
+  "hidden_reasoning",
+  "chain_of_thought",
+  "telemetry_dump",
+  "raw_diff",
+  "terminal_log",
+  "browser_dump",
+  "github_payload",
+  "provider_thread_id",
+  "provider_run_id",
+  "provider_session_id",
+  "connector_id",
+  "uploaded_file_id",
+  "secret",
+  "token",
+  "api_key",
+  "password",
+  "private_key",
+]);
+
+const unsafeKeyPatterns = [
+  /(?:^|_)(raw_prompt|raw_provider_output|raw_retrieval_output|raw_source_body|raw_db_row|raw_conversation)(?:_|$)/i,
+  /(?:^|_)(hidden_reasoning|chain_of_thought|telemetry_dump|raw_diff|terminal_log|browser_dump|github_payload)(?:_|$)/i,
+  /(?:^|_)provider_(thread|run|session)_id(?:_|$)/i,
+  /(?:^|_)(connector_id|uploaded_file_id)(?:_|$)/i,
+  /(?:^|_)(secret|token|api_key|password|private_key)(?:_|$)/i,
+] as const;
+
 export function createFinalRagAnswerCandidateAuthorityBoundaryV01(options: {
   retrievalExecutionViaContextPreviewNow?: boolean;
   mockAnswerProviderNow?: boolean;
@@ -267,11 +309,20 @@ export function containsUnsafeFinalRagAnswerRuntimeTextV01(input: unknown): bool
   if (typeof input === "string") return unsafeTextPatterns.some((pattern) => pattern.test(input));
   if (Array.isArray(input)) return input.some((item) => containsUnsafeFinalRagAnswerRuntimeTextV01(item));
   if (input && typeof input === "object") {
-    return Object.values(input as Record<string, unknown>).some((item) =>
+    return Object.entries(input as Record<string, unknown>).some(([key, item]) =>
+      isUnsafeFinalRagAnswerRuntimeKeyV01(key) ||
       containsUnsafeFinalRagAnswerRuntimeTextV01(item),
     );
   }
   return false;
+}
+
+export function isUnsafeFinalRagAnswerRuntimeKeyV01(key: unknown): boolean {
+  if (typeof key !== "string") return false;
+  const normalized = key.trim().replace(/[-\s]+/g, "_").toLowerCase();
+  if (safePolicyKeyExceptions.has(normalized)) return false;
+  return unsafeKeyExactMatches.has(normalized) ||
+    unsafeKeyPatterns.some((pattern) => pattern.test(normalized));
 }
 
 export function isSafeFinalRagAnswerPublicTextV01(value: unknown, maxChars = 1200): value is string {

@@ -254,7 +254,7 @@ function maybeAuditResult(input: {
     audit_db_path: input.auditDbPath,
     route_ref: routeRef,
     runtime_slice_ref: runtimeSliceRef,
-    event_surface: "rag_context_preview_runtime",
+    event_surface: "final_rag_answer_candidate_review_runtime",
     event_kind: "route_response",
     event_action: input.action,
     event_status: input.result.status,

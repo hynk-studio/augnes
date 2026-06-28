@@ -278,6 +278,32 @@ export async function runFinalRagAnswerCandidateReviewRuntimeV01(
       failureCodes: ["private_or_raw_payload_detected"],
     });
   }
+  const unbackedProviderCitationRefs = collectUnbackedProviderCitationRefs(providerOutput, contextPreview);
+  if (unbackedProviderCitationRefs.length > 0) {
+    return createResult({
+      input,
+      status: "rejected",
+      providerStatus:
+        providerOutput.status === "provider_missing_key" || providerOutput.status === "provider_unavailable"
+          ? providerOutput.status
+          : providerStatusForModeV01(input.provider_mode),
+      ragContextPreview: contextPreview,
+      providerOutput,
+      providerCallExecuted: true,
+      promptSent: true,
+      retrievalExecuted: contextPreview.retrieval_executed,
+      finalAnswerCandidateGenerated: false,
+      reasonCodes: uniqueSorted([
+        ...contextPreview.reason_codes,
+        "provider_cited_unbacked_source_ref",
+        "final_answer_candidate_rejected",
+      ]),
+      failureCodes: [
+        "provider_cited_unbacked_source_ref",
+        ...unbackedProviderCitationRefs.map((sourceRef) => `unbacked_source_ref:${sourceRef}`),
+      ],
+    });
+  }
   if (providerOutput.status === "provider_missing_key" || providerOutput.status === "provider_unavailable") {
     return createResult({
       input,
@@ -402,13 +428,14 @@ function createResult(input: {
       ? request.provider_mode
       : null;
   const contextPreview = input.ragContextPreview;
-  const sourceRefs = uniqueSorted(
-    input.providerOutput?.cited_source_refs ??
-      contextPreview?.included_context_summaries
-        .map((item) => item.source_ref_id ?? item.source_record_ref)
-        .filter((value): value is string => typeof value === "string" && value.length > 0) ??
-      [],
-  );
+  const contextSourceRefs = contextBackedSourceRefs(contextPreview);
+  const allowedContextSourceRefs = new Set(contextSourceRefs);
+  const providerCitedSourceRefs = Array.isArray(input.providerOutput?.cited_source_refs)
+    ? input.providerOutput.cited_source_refs.filter((value): value is string => typeof value === "string")
+    : [];
+  const sourceRefs = providerCitedSourceRefs.length > 0
+    ? uniqueSorted(providerCitedSourceRefs.filter((sourceRef) => allowedContextSourceRefs.has(sourceRef)))
+    : contextSourceRefs;
   const answerCandidateRef =
     answerRequestId && contextPreview && input.finalAnswerCandidateGenerated
       ? createFinalRagAnswerCandidateRefV01({
@@ -525,6 +552,30 @@ function contextRefsForSource(contextPreview: RagContextPreviewRuntimeResultV01 
     .filter((item) => item.source_ref_id === sourceRef || item.source_record_ref === sourceRef)
     .map((item) => item.context_ref)
     .slice(0, 8);
+}
+
+function collectUnbackedProviderCitationRefs(
+  providerOutput: FinalRagAnswerProviderAdapterOutputV01,
+  contextPreview: RagContextPreviewRuntimeResultV01,
+): string[] {
+  const allowedContextSourceRefs = new Set(contextBackedSourceRefs(contextPreview));
+  const citedSourceRefs = Array.isArray(providerOutput.cited_source_refs)
+    ? providerOutput.cited_source_refs.filter((sourceRef): sourceRef is string => typeof sourceRef === "string")
+    : [];
+  const noteSourceRefs = Array.isArray(providerOutput.bounded_citation_notes)
+    ? providerOutput.bounded_citation_notes
+        .map((note) => note.source_ref)
+        .filter((sourceRef): sourceRef is string => typeof sourceRef === "string")
+    : [];
+  return uniqueSorted([...citedSourceRefs, ...noteSourceRefs].filter((sourceRef) => !allowedContextSourceRefs.has(sourceRef)));
+}
+
+function contextBackedSourceRefs(contextPreview: RagContextPreviewRuntimeResultV01 | null): string[] {
+  return uniqueSorted(
+    (contextPreview?.included_context_summaries ?? [])
+      .flatMap((item) => [item.source_ref_id, item.source_record_ref])
+      .filter((value): value is string => typeof value === "string" && value.length > 0),
+  );
 }
 
 function normalizeBoundedAnswer(
