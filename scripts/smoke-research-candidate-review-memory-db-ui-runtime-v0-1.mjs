@@ -489,18 +489,20 @@ function assertChangedFileScope() {
     "DB store helper must not be modified for this slice",
   );
   assert.ok(!changed.includes("lib/db/schema.sql"), "DB schema must not be modified for this slice");
-	  assert.ok(
-	    !changed.some((filePath) =>
-	      /provider|retrieval|rag|github|git-ledger|codex-execution|product-write|product-id/i.test(filePath) &&
-	      !isProviderExtractionRuntimeCompletionFile(filePath) &&
-	      !isRetrievalIndexRuntimeCompletionFile(filePath) &&
-	      !isRagContextPreviewRuntimeCompletionFile(filePath) &&
-	      !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) &&
-	      !isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath) &&
-	      !isFinalRagAnswerCandidateReviewRuntimeV01File(filePath),
-	    ),
-	    "no provider/retrieval/Git/GitHub/Codex/product-write/product ID files were added",
-	  );
+  assert.ok(
+    !changed.some(
+      (filePath) =>
+        /provider|retrieval|rag|github|git-ledger|codex-execution|product-write|product-id/i.test(filePath) &&
+        !isProviderExtractionRuntimeCompletionFile(filePath) &&
+        !isRetrievalIndexRuntimeCompletionFile(filePath) &&
+        !isRagContextPreviewRuntimeCompletionFile(filePath) &&
+        !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) &&
+        !isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath) &&
+        !isFinalRagAnswerCandidateReviewRuntimeV01File(filePath) &&
+        !isFinalAnswerCandidateReviewUiBindingV01File(filePath),
+    ),
+    "no provider/retrieval/Git/GitHub/Codex/product-write/product ID files were added",
+  );
 }
 
 function isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) {
@@ -587,6 +589,22 @@ function isFinalRagAnswerCandidateReviewRuntimeV01File(filePath) {
     "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
     "scripts/smoke-bounded-source-intake-runtime-completion-v0-1.mjs",
     "types/final-rag-answer-candidate-review.ts",
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
+  ].includes(filePath);
+}
+
+function isFinalAnswerCandidateReviewUiBindingV01File(filePath) {
+  return [
+    "components/final-rag-answer-review-memory-panel.tsx",
+    "app/research-retrieval/final-rag-answer/review-memory/page.tsx",
+    "docs/FINAL_ANSWER_CANDIDATE_REVIEW_UI_BINDING_V0_1.md",
+    "fixtures/final-answer-candidate-review-ui-binding.sample.v0.1.json",
+    "scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
+    "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
+    "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
+    "scripts/smoke-research-candidate-review-memory-db-ui-runtime-v0-1.mjs",
+    "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-5.mjs",
     "package.json",
     "docs/00_INDEX_LATEST.md",
   ].includes(filePath);
@@ -701,7 +719,12 @@ function extractIndexBlock(source, heading) {
 
 function changedFilesAgainstMain() {
   try {
-    const diffFiles = execFileSync("git", ["diff", "--name-only", "main"], { encoding: "utf8" })
+    const diffFiles = readGitLines(["diff", "--name-only", "origin/main...HEAD"]);
+    const fallbackDiffFiles =
+      diffFiles ?? readGitLines(["diff", "--name-only", "main...HEAD"]) ?? [];
+    const workingTreeDiffFiles = execFileSync("git", ["diff", "--name-only"], {
+      encoding: "utf8",
+    })
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
@@ -711,9 +734,20 @@ function changedFilesAgainstMain() {
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
-    return [...new Set([...diffFiles, ...untrackedFiles])].sort();
+    return [...new Set([...fallbackDiffFiles, ...workingTreeDiffFiles, ...untrackedFiles])].sort();
   } catch {
     return [];
+  }
+}
+
+function readGitLines(args) {
+  try {
+    return execFileSync("git", args, { encoding: "utf8" })
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  } catch {
+    return null;
   }
 }
 

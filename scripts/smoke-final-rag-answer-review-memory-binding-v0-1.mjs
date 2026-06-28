@@ -69,6 +69,12 @@ const expectedChangedFiles = new Set([
   "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_5.md",
   "fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.5.json",
   "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-5.mjs",
+  "components/final-rag-answer-review-memory-panel.tsx",
+  "app/research-retrieval/final-rag-answer/review-memory/page.tsx",
+  "docs/FINAL_ANSWER_CANDIDATE_REVIEW_UI_BINDING_V0_1.md",
+  "fixtures/final-answer-candidate-review-ui-binding.sample.v0.1.json",
+  "scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-memory-db-ui-runtime-v0-1.mjs",
 ]);
 const falseExecutionFlags = [
   "provider_call_executed",

@@ -1,0 +1,259 @@
+{
+  "fixture_version": "final_answer_candidate_review_ui_binding.sample.v0.1",
+  "ui_version": "final_answer_candidate_review_ui_binding.v0.1",
+  "scope": "project:augnes",
+  "sample_db_path": ".tmp/research-candidate-review-memory/final-answer-review-ui/review-memory.sqlite",
+  "sample_list_response": {
+    "route_version": "research_candidate_review_memory_db_routes.v0.1",
+    "scope": "project:augnes",
+    "status": "ok",
+    "action": "list_review_records",
+    "error_code": null,
+    "result": {
+      "status": "records_listed",
+      "records": [
+        {
+          "review_record_id": "review-memory:final-answer-candidate:001",
+          "record_kind": "candidate_review_snapshot",
+          "lifecycle_state": "active",
+          "review_decision": "keep_for_review",
+          "review_action": "save_review_note",
+          "candidate_refs": [
+            "final-rag-answer-candidate:001",
+            "answer-request:public-safe-001",
+            "rag-context-preview:public-safe-001"
+          ],
+          "source_refs": [
+            {
+              "source_surface": "manual_source_ref",
+              "source_ref": "source-ref:public-safe-001",
+              "source_version": "final_rag_answer_generation_candidate_review.v0.1",
+              "public_safe": true
+            }
+          ],
+          "reviewer_actor": "operator:final-answer-review-ui",
+          "reviewer_note_summary": "Operator kept the bounded candidate for review memory inspection only.",
+          "bounded_summary": "Answer candidate ref final-rag-answer-candidate:001 with public-safe source refs and candidate-only boundary.",
+          "boundary_acknowledgements": [
+            "final_answer_candidate_not_truth",
+            "final_answer_candidate_not_proof",
+            "final_answer_candidate_not_accepted_evidence",
+            "final_answer_candidate_not_promotion",
+            "final_answer_candidate_not_product",
+            "review_memory_not_truth",
+            "review_memory_not_proof",
+            "review_memory_not_accepted_evidence",
+            "review_memory_not_durable_state",
+            "source_refs_are_lineage_not_proof",
+            "product_write_not_executed"
+          ],
+          "reason_codes": [
+            "final_rag_answer_candidate_review_memory_binding_v0_1",
+            "bounded_review_memory_snapshot_now",
+            "source_refs_are_lineage_not_proof"
+          ]
+        }
+      ],
+      "activities": []
+    }
+  },
+  "sample_detail_response": {
+    "route_version": "research_candidate_review_memory_db_routes.v0.1",
+    "scope": "project:augnes",
+    "status": "ok",
+    "action": "read_review_record",
+    "error_code": null,
+    "result": {
+      "status": "record_read",
+      "record": {
+        "review_record_id": "review-memory:final-answer-candidate:001",
+        "record_kind": "candidate_review_snapshot",
+        "lifecycle_state": "active",
+        "review_decision": "keep_for_review",
+        "review_action": "save_review_note",
+        "candidate_refs": [
+          "final-rag-answer-candidate:001",
+          "answer-request:public-safe-001",
+          "rag-context-preview:public-safe-001"
+        ],
+        "source_refs": [
+          {
+            "source_surface": "manual_source_ref",
+            "source_ref": "source-ref:public-safe-001",
+            "source_version": "final_rag_answer_generation_candidate_review.v0.1",
+            "public_safe": true
+          }
+        ],
+        "reviewer_actor": "operator:final-answer-review-ui",
+        "reviewer_note_summary": "Operator kept the bounded candidate for review memory inspection only.",
+        "bounded_summary": "Answer candidate ref final-rag-answer-candidate:001 with public-safe source refs and candidate-only boundary.",
+        "boundary_acknowledgements": [
+          "final_answer_candidate_not_truth",
+          "review_memory_not_truth",
+          "review_memory_not_proof",
+          "review_memory_not_accepted_evidence",
+          "review_memory_not_durable_state"
+        ],
+        "reason_codes": [
+          "final_rag_answer_candidate_review_memory_binding_v0_1"
+        ]
+      }
+    }
+  },
+  "sample_activity_response": {
+    "route_version": "research_candidate_review_memory_db_routes.v0.1",
+    "scope": "project:augnes",
+    "status": "ok",
+    "action": "list_review_record_activity",
+    "error_code": null,
+    "result": {
+      "status": "activities_listed",
+      "activities": [
+        {
+          "activity_id": "review-memory:activity:public-safe-001",
+          "review_record_id": "review-memory:final-answer-candidate:001",
+          "activity_kind": "review_memory_record_created",
+          "actor_ref": "operator:final-answer-review-ui",
+          "summary": "Bounded candidate review memory record created for operator review.",
+          "reason_codes": [
+            "review_memory_not_truth",
+            "source_refs_are_lineage_not_proof"
+          ]
+        }
+      ]
+    }
+  },
+  "expected_ui_projection": {
+    "review_record_id": "review-memory:final-answer-candidate:001",
+    "record_kind": "candidate_review_snapshot",
+    "lifecycle_state": "active",
+    "review_decision": "keep_for_review",
+    "review_action": "save_review_note",
+    "reviewer_actor": "operator:final-answer-review-ui",
+    "bounded_summary_excerpt": "Answer candidate ref final-rag-answer-candidate:001 with public-safe source refs and candidate-only boundary.",
+    "reviewer_note_summary_excerpt": "Operator kept the bounded candidate for review memory inspection only.",
+    "candidate_refs": [
+      "final-rag-answer-candidate:001",
+      "answer-request:public-safe-001",
+      "rag-context-preview:public-safe-001"
+    ],
+    "source_refs": [
+      "source-ref:public-safe-001"
+    ],
+    "badge": "final answer candidate review memory",
+    "non_authority_notes": [
+      "Review Memory is not truth.",
+      "Review Memory is not proof.",
+      "Review Memory is not accepted evidence.",
+      "Review Memory is not durable Perspective state.",
+      "Final answer candidate remains candidate-only.",
+      "Source refs are lineage pointers, not proof."
+    ]
+  },
+  "expected_copied_packet": {
+    "packet_kind": "final_answer_candidate_review_memory_read_only",
+    "bounded": true,
+    "non_authoritative": true,
+    "contains_raw_json": false,
+    "review_memory_write_now": false,
+    "product_write_now": false,
+    "accepted_evidence_ref_write_now": false,
+    "smoke_pass_is_truth": false
+  },
+  "expected_authority_boundary": {
+    "final_answer_candidate_review_ui_binding_now": true,
+    "read_display_only_ui_now": true,
+    "explicit_operator_read_action_only": true,
+    "same_origin_get_route_calls_only": true,
+    "db_backed_review_memory_routes_primary": true,
+    "review_memory_db_read_now": true,
+    "final_answer_candidate_review_memory_display_now": true,
+    "bounded_review_memory_record_display_now": true,
+    "bounded_activity_display_now": true,
+    "source_refs_lineage_only": true,
+    "no_truth_language_required": true,
+    "no_proof_language_required": true,
+    "post_route_call_now": false,
+    "review_memory_write_now": false,
+    "review_record_create_now": false,
+    "review_record_activity_write_now": false,
+    "review_record_discard_now": false,
+    "final_answer_generation_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "retrieval_index_write_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "accepted_evidence_ref_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "broad_product_persistence_now": false,
+    "product_persistence_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "repository_file_write_now": false,
+    "release_execution_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "review_memory_is_truth": false,
+    "review_memory_is_proof": false,
+    "review_memory_is_accepted_evidence": false,
+    "review_memory_is_durable_perspective_state": false,
+    "final_answer_candidate_is_truth": false,
+    "final_answer_candidate_is_proof": false,
+    "final_answer_candidate_is_accepted_evidence": false,
+    "final_answer_candidate_is_promotion": false,
+    "final_answer_candidate_is_product": false,
+    "source_ref_is_proof": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  },
+  "invalid_db_path_case": {
+    "input_label": "blocked_invalid_db_path",
+    "raw_value_not_echoed": true,
+    "expected_status": "invalid_db_path"
+  },
+  "private_raw_filter_blocked_case": {
+    "input_label": "blocked_private_raw_filter",
+    "safe_marker": "SAFE_MARKER_RAW_PROVIDER_OUTPUT",
+    "expected_status": "blocked_private_or_raw_payload",
+    "raw_value_not_echoed": true
+  },
+  "public_safe_fixture_policy": {
+    "repo_relative_refs_only": true,
+    "symbolic_refs_only": true,
+    "blocks_raw_private_provider_retrieval_db_conversation_hidden_reasoning_telemetry_raw_diff_terminal_github_payloads": true,
+    "raw_prompt_allowed": false,
+    "raw_provider_output_allowed": false,
+    "raw_retrieval_output_allowed": false,
+    "raw_source_body_allowed": false,
+    "raw_candidate_payload_allowed": false,
+    "raw_db_rows_allowed": false,
+    "raw_conversations_allowed": false,
+    "hidden_reasoning_allowed": false,
+    "chain_of_thought_allowed": false,
+    "telemetry_dumps_allowed": false,
+    "raw_diffs_allowed": false,
+    "terminal_logs_allowed": false,
+    "github_payloads_allowed": false,
+    "browser_dumps_allowed": false,
+    "private_paths_allowed": false,
+    "private_urls_allowed": false,
+    "secrets_allowed": false,
+    "provider_keys_allowed": false,
+    "connector_ids_allowed": false,
+    "uploaded_file_ids_allowed": false,
+    "provider_internal_ids_allowed": false,
+    "real_product_ids_allowed": false
+  }
+}
