@@ -476,8 +476,12 @@ function assertChangedFileScope() {
   const changed = changedFilesAgainstMain();
   if (changed.length === 0) return;
   assert.ok(
-    !changed.some((filePath) => filePath.startsWith("app/api/")),
-    "no app/api route was added for this slice",
+    !changed.some(
+      (filePath) =>
+        filePath.startsWith("app/api/research-candidate-review/review-records/") ||
+        filePath === "app/api/research-candidate/review-memory/route.ts",
+    ),
+    "no review-memory app/api route was added for this slice",
   );
   assert.ok(
     !changed.some((filePath) => filePath === "lib/research-candidate-review/review-memory-db-store.ts"),

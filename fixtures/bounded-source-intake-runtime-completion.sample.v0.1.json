@@ -1,0 +1,367 @@
+{
+  "fixture_version": "bounded_source_intake_runtime_completion.sample.v0.1",
+  "runtime_version": "bounded_source_intake_runtime_completion.v0.1",
+  "request_version": "bounded_source_intake_runtime_completion_request.v0.1",
+  "result_version": "bounded_source_intake_runtime_completion_result.v0.1",
+  "route_version": "bounded_source_intake_runtime_completion_route.v0.1",
+  "scope": "project:augnes",
+  "safe_url_request_example": {
+    "request_version": "bounded_source_intake_runtime_completion_request.v0.1",
+    "runtime_version": "bounded_source_intake_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "source_intake_request_id": "source-intake-request:url-public-001",
+    "requested_by": "operator",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "input_kind": "url",
+    "user_provided": true,
+    "source_locator": "https://example.invalid/bounded-source-intake/public-source-001",
+    "source_label": "Public bounded source URL",
+    "fetch_policy": {
+      "mode": "mock",
+      "automatic_follow_up_crawling": false,
+      "background_fetch": false,
+      "automatic_web_discovery": false,
+      "provider_extraction": false,
+      "retrieval_index_write": false
+    },
+    "size_limit_bytes": 2048,
+    "timeout_ms": 500,
+    "content_type_allowlist": [
+      "text/plain",
+      "text/html",
+      "application/json"
+    ],
+    "raw_body_storage_policy": "non_persistent",
+    "redaction_policy": "public_safe_summary_only",
+    "failure_to_gap_policy": "create_gap_metadata",
+    "authority_boundary": {
+      "automatic_crawling_now": false,
+      "background_fetch_now": false,
+      "provider_extraction_now": false,
+      "retrieval_index_write_now": false,
+      "product_write_now": false
+    },
+    "reason_codes": [
+      "explicit_user_provided_source_only",
+      "temp_mock_fetch_only",
+      "raw_body_non_persistent_by_default"
+    ]
+  },
+  "safe_manual_text_summary_request_example": {
+    "request_version": "bounded_source_intake_runtime_completion_request.v0.1",
+    "runtime_version": "bounded_source_intake_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "source_intake_request_id": "source-intake-request:manual-summary-001",
+    "requested_by": "operator",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "input_kind": "manual_text_summary",
+    "user_provided": true,
+    "source_locator": "manual-summary-ref:operator-public-summary-001",
+    "source_label": "Operator bounded summary",
+    "bounded_summary": "Public-safe operator summary for bounded intake validation.",
+    "fetch_policy": {
+      "mode": "no_fetch"
+    },
+    "size_limit_bytes": 2048,
+    "timeout_ms": 500,
+    "content_type_allowlist": [
+      "text/plain"
+    ],
+    "raw_body_storage_policy": "non_persistent",
+    "redaction_policy": "public_safe_summary_only",
+    "failure_to_gap_policy": "create_gap_metadata",
+    "authority_boundary": {
+      "automatic_crawling_now": false,
+      "background_fetch_now": false,
+      "provider_extraction_now": false,
+      "retrieval_index_write_now": false,
+      "product_write_now": false
+    },
+    "reason_codes": [
+      "manual_text_summary_bounded",
+      "raw_body_non_persistent_by_default"
+    ]
+  },
+  "safe_file_ref_request_example": {
+    "request_version": "bounded_source_intake_runtime_completion_request.v0.1",
+    "runtime_version": "bounded_source_intake_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "source_intake_request_id": "source-intake-request:file-ref-001",
+    "requested_by": "operator",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "input_kind": "file_ref",
+    "user_provided": true,
+    "source_locator": "file-ref:public-symbolic-source-001",
+    "source_label": "Symbolic public file reference",
+    "fetch_policy": {
+      "mode": "no_fetch"
+    },
+    "size_limit_bytes": 2048,
+    "timeout_ms": 500,
+    "content_type_allowlist": [
+      "text/plain"
+    ],
+    "raw_body_storage_policy": "non_persistent",
+    "redaction_policy": "public_safe_summary_only",
+    "failure_to_gap_policy": "create_gap_metadata",
+    "authority_boundary": {
+      "local_file_read_now": false,
+      "repository_file_write_now": false,
+      "product_write_now": false
+    },
+    "reason_codes": [
+      "file_ref_symbolic_only",
+      "local_file_read_not_executed"
+    ]
+  },
+  "safe_note_ref_request_example": {
+    "request_version": "bounded_source_intake_runtime_completion_request.v0.1",
+    "runtime_version": "bounded_source_intake_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "source_intake_request_id": "source-intake-request:note-ref-001",
+    "requested_by": "operator",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "input_kind": "note_ref",
+    "user_provided": true,
+    "source_locator": "note-ref:public-symbolic-note-001",
+    "source_label": "Symbolic public note reference",
+    "fetch_policy": {
+      "mode": "no_fetch"
+    },
+    "size_limit_bytes": 2048,
+    "timeout_ms": 500,
+    "content_type_allowlist": [
+      "text/plain"
+    ],
+    "raw_body_storage_policy": "non_persistent",
+    "redaction_policy": "public_safe_summary_only",
+    "failure_to_gap_policy": "create_gap_metadata",
+    "authority_boundary": {
+      "provider_extraction_now": false,
+      "retrieval_index_write_now": false,
+      "product_write_now": false
+    },
+    "reason_codes": [
+      "note_ref_symbolic_only",
+      "raw_private_note_text_not_stored"
+    ]
+  },
+  "mock_fetch_success_example": {
+    "status": "ok",
+    "http_status": 200,
+    "content_type": "text/plain; charset=utf-8",
+    "byte_length": 120,
+    "elapsed_ms": 12,
+    "bounded_summary": "Mock public source summary for bounded intake.",
+    "source_title": "Mock Public Source",
+    "reason_codes": [
+      "mock_fetch_success",
+      "bounded_fetch_limits_enforced"
+    ]
+  },
+  "mock_fetch_unsupported_content_type_example": {
+    "status": "ok",
+    "http_status": 200,
+    "content_type": "application/octet-stream",
+    "byte_length": 120,
+    "elapsed_ms": 12,
+    "bounded_summary": "Unsupported content type example summary is ignored.",
+    "reason_codes": [
+      "mock_fetch_unsupported_content_type"
+    ]
+  },
+  "mock_fetch_missing_content_type_example": {
+    "status": "ok",
+    "http_status": 200,
+    "byte_length": 120,
+    "elapsed_ms": 12,
+    "bounded_summary": "Missing content type example summary is ignored.",
+    "reason_codes": [
+      "mock_fetch_missing_content_type"
+    ]
+  },
+  "mock_fetch_content_too_large_example": {
+    "status": "ok",
+    "http_status": 200,
+    "content_type": "text/plain",
+    "byte_length": 4096,
+    "elapsed_ms": 12,
+    "bounded_summary": "Oversized source example summary is ignored.",
+    "reason_codes": [
+      "mock_fetch_content_too_large"
+    ]
+  },
+  "mock_fetch_timeout_example": {
+    "status": "timeout",
+    "elapsed_ms": 700,
+    "failure_kind": "timeout",
+    "reason_codes": [
+      "mock_fetch_timeout"
+    ]
+  },
+  "mock_fetch_failure_to_gap_example": {
+    "status": "fetch_failed",
+    "failure_kind": "fetch_failed",
+    "elapsed_ms": 12,
+    "reason_codes": [
+      "mock_fetch_failed",
+      "failure_to_gap_candidate_metadata_now"
+    ]
+  },
+  "live_fetch_redirect_blocked_example": {
+    "status": "source_unavailable",
+    "http_status": 302,
+    "failure_kind": "source_unavailable",
+    "reason_codes": [
+      "redirect_not_followed",
+      "source_unavailable"
+    ]
+  },
+  "live_fetch_content_length_too_large_example": {
+    "status": "content_too_large",
+    "http_status": 200,
+    "content_type": "text/plain",
+    "byte_length": 4096,
+    "failure_kind": "content_too_large",
+    "reason_codes": [
+      "content_length_too_large",
+      "content_too_large"
+    ]
+  },
+  "live_fetch_stream_too_large_example": {
+    "status": "content_too_large",
+    "http_status": 200,
+    "content_type": "text/plain",
+    "byte_length": 192,
+    "failure_kind": "content_too_large",
+    "reason_codes": [
+      "stream_size_limit_exceeded",
+      "content_too_large"
+    ]
+  },
+  "expected_source_ref_metadata_example": {
+    "source_ref_id": "source-ref:bounded-intake:deterministic-public-safe-example",
+    "source_locator_ref": "url-locator-ref:deterministic-public-safe",
+    "input_kind": "url",
+    "source_label": "Public bounded source URL",
+    "status": "accepted_bounded_summary",
+    "failure_kind": null,
+    "raw_body_stored": false,
+    "source_ref_is_proof": false,
+    "source_summary_is_truth": false
+  },
+  "expected_result_envelope_example": {
+    "result_version": "bounded_source_intake_runtime_completion_result.v0.1",
+    "runtime_version": "bounded_source_intake_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "status": "accepted_bounded_summary",
+    "input_kind": "url",
+    "source_ref_id": "source-ref:bounded-intake:deterministic-public-safe-example",
+    "source_locator_ref": "url-locator-ref:deterministic-public-safe",
+    "source_label": "Public bounded source URL",
+    "bounded_summary": "Mock public source summary for bounded intake.",
+    "raw_body_stored": false,
+    "provider_extraction_started": false,
+    "retrieval_indexed": false,
+    "proof_or_evidence_created": false,
+    "product_write_executed": false,
+    "failure_kind": null,
+    "gap_candidate_ref": null
+  },
+  "blocked_user_provided_false_example": {
+    "request_version": "bounded_source_intake_runtime_completion_request.v0.1",
+    "runtime_version": "bounded_source_intake_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "source_intake_request_id": "source-intake-request:user-provided-false-001",
+    "requested_by": "operator",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "input_kind": "url",
+    "user_provided": false,
+    "source_locator": "https://example.invalid/bounded-source-intake/public-source-002",
+    "raw_body_storage_policy": "non_persistent"
+  },
+  "blocked_private_or_raw_payload_example": {
+    "request_version": "bounded_source_intake_runtime_completion_request.v0.1",
+    "runtime_version": "bounded_source_intake_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "source_intake_request_id": "source-intake-request:blocked-private-001",
+    "requested_by": "operator",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "input_kind": "url",
+    "user_provided": true,
+    "source_locator": "SAFE_MARKER_PRIVATE_URL",
+    "source_label": "Blocked placeholder",
+    "raw_body_storage_policy": "non_persistent"
+  },
+  "blocked_forbidden_authority_example": {
+    "request_version": "bounded_source_intake_runtime_completion_request.v0.1",
+    "runtime_version": "bounded_source_intake_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "source_intake_request_id": "source-intake-request:blocked-authority-001",
+    "requested_by": "operator",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "input_kind": "url",
+    "user_provided": true,
+    "source_locator": "https://example.invalid/bounded-source-intake/public-source-003",
+    "raw_body_storage_policy": "non_persistent",
+    "authority_boundary": {
+      "product_write_now": true,
+      "provider_extraction_now": "enabled"
+    }
+  },
+  "blocked_raw_body_storage_request_example": {
+    "request_version": "bounded_source_intake_runtime_completion_request.v0.1",
+    "runtime_version": "bounded_source_intake_runtime_completion.v0.1",
+    "scope": "project:augnes",
+    "source_intake_request_id": "source-intake-request:blocked-raw-storage-001",
+    "requested_by": "operator",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "input_kind": "manual_text_summary",
+    "user_provided": true,
+    "source_locator": "manual-summary-ref:blocked-raw-storage-001",
+    "bounded_summary": "Public-safe summary cannot request raw body persistence.",
+    "raw_body_storage_policy": "persistent"
+  },
+  "authority_boundary_sample": {
+    "bounded_source_intake_runtime_now": true,
+    "explicit_user_provided_source_only": true,
+    "same_origin_post_route_now": true,
+    "bounded_fetch_abstraction_now": true,
+    "source_ref_metadata_now": true,
+    "raw_body_non_persistent_by_default": true,
+    "failure_to_gap_candidate_metadata_now": true,
+    "automatic_crawling_now": false,
+    "background_fetch_now": false,
+    "automatic_web_discovery_now": false,
+    "provider_extraction_now": false,
+    "retrieval_index_write_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "repository_file_write_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "raw_source_body_persisted_now": false,
+    "raw_private_payload_persisted_now": false,
+    "raw_provider_output_stored_now": false,
+    "raw_retrieval_output_stored_now": false,
+    "source_ref_is_proof": false,
+    "source_summary_is_truth": false,
+    "failure_gap_is_fact": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}
