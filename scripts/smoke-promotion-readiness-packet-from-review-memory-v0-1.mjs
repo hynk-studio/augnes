@@ -452,18 +452,31 @@ async function assertRouteRuntimeBehavior() {
   assert.equal(notFound.result.status, "not_found");
 
   for (const testCase of fixture.blocked_authority_cases) {
+    const blockedDbPath = `${tempRoot}/forbidden-${testCase.field}/review-memory.sqlite`;
+    const blockedDbDir = dirname(blockedDbPath);
     const response = await callJson(
       route.POST(localPostRequest(routeBody(validInput({
         authority_boundary: {
           ...fixture.valid_request.authority_boundary,
           [testCase.field]: valueForBlockedLabel(testCase.blocked_value_label),
         },
-        review_memory_db_path: `${tempRoot}/forbidden-${testCase.field}/review-memory.sqlite`,
+        review_memory_db_path: blockedDbPath,
       })))),
       403,
     );
     assert.equal(response.result.status, testCase.expected_status);
-    assert.equal(existsSync(`${tempRoot}/forbidden-${testCase.field}`), false);
+    assert.ok(
+      response.result.reason_codes.some((code) => code.includes("blocked_forbidden_authority") || code.includes("blocked_authority")),
+      `${testCase.field} reason code must name blocked authority`,
+    );
+    assert.ok(
+      response.result.failure_codes.some((code) => code.includes("blocked_forbidden_authority") || code.includes(testCase.field)),
+      `${testCase.field} failure code must name blocked authority`,
+    );
+    assertFalseExecutionFlags(response);
+    assertFalseExecutionFlags(response.result);
+    assert.equal(existsSync(blockedDbPath), false, `${testCase.field} must not create DB file`);
+    assert.equal(existsSync(blockedDbDir), false, `${testCase.field} must not create DB directory`);
   }
 
   for (const testCase of fixture.blocked_private_raw_key_cases) {
@@ -633,6 +646,7 @@ async function callJson(responseOrPromise, expectedStatus = 200) {
 }
 
 function valueForBlockedLabel(label) {
+  if (label === "boolean_true") return true;
   if (label === "string_true") return "true";
   if (label === "numeric_one") return 1;
   if (label === "object_enabled") return { enabled: true };

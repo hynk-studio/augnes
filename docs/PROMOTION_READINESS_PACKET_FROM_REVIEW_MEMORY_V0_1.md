@@ -222,6 +222,17 @@ Forbidden fields remain false:
 Forbidden authority validation is fail-closed. Only absent, `false`, `null`,
 and `undefined` are allowed for forbidden authority fields.
 
+Raw/private stored or included policy flags are fail-closed too. Keys such as
+`raw_prompt_stored_now`, `raw_provider_output_stored_now`,
+`raw_retrieval_output_stored_now`, `raw_source_body_stored_now`,
+`hidden_reasoning_stored_now`, `raw_provider_output_included`,
+`raw_retrieval_output_included`, `raw_source_body_included`,
+`raw_candidate_payload_included`, `raw_conversation_included`,
+`raw_db_rows_included`, `hidden_reasoning_included`, and
+`provider_thread_run_session_ids_included` are allowed only when absent,
+`false`, `null`, or `undefined`. Non-false values for these raw/private
+stored/included flags are blocked as forbidden authority drift.
+
 ## Privacy and Redaction
 
 The runtime blocks private/raw/secret-like material in keys and values,

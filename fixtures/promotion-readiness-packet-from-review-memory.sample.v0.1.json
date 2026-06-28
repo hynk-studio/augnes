@@ -160,6 +160,36 @@
       "field": "product_write_now",
       "blocked_value_label": "string_enabled",
       "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "raw_provider_output_stored_now",
+      "blocked_value_label": "boolean_true",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "raw_prompt_stored_now",
+      "blocked_value_label": "string_true",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "raw_db_rows_included",
+      "blocked_value_label": "boolean_true",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "raw_provider_output_included",
+      "blocked_value_label": "numeric_one",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "provider_thread_run_session_ids_included",
+      "blocked_value_label": "object_enabled",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "hidden_reasoning_included",
+      "blocked_value_label": "array_enabled",
+      "expected_status": "blocked_forbidden_authority"
     }
   ],
   "blocked_private_raw_key_cases": [

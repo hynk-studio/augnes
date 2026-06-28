@@ -101,6 +101,8 @@ const authorityLikePatterns = [
   /_enabled_now$/i,
   /_runtime_now$/i,
   /_persistence_now$/i,
+  /_stored_now$/i,
+  /_included$/i,
   /_is_truth$/i,
   /_is_proof$/i,
   /_is_evidence$/i,
@@ -177,11 +179,6 @@ const unsafeKeyExactMatches = new Set([
   "private_key",
 ]);
 const safePolicyKeyExceptions = new Set([
-  "require_no_truth_claims",
-  "require_no_proof_claims",
-  "require_no_product_write",
-  "no_truth_language_required",
-  "no_proof_language_required",
   "raw_request_body_stored_now",
   "raw_response_body_stored_now",
   "raw_provider_output_stored_now",
@@ -854,6 +851,11 @@ function collectForbiddenAuthorityFields(input: unknown): string[] {
   const blocked: string[] = [];
   visitJson(input, (key, value) => {
     if (!key) return;
+    const normalizedKey = normalizeRuntimeKey(key);
+    if (safePolicyKeyExceptions.has(normalizedKey)) {
+      if (!isFalseLikeAuthorityValue(value)) blocked.push(normalizedKey);
+      return;
+    }
     if (allowedTrueAuthorityFields.has(key)) return;
     if (forbiddenAuthorityFields.has(key) || authorityLikePatterns.some((pattern) => pattern.test(key))) {
       if (!isFalseLikeAuthorityValue(value)) blocked.push(key);
@@ -875,10 +877,14 @@ function containsUnsafeRuntimePayload(input: unknown): boolean {
 
 function isUnsafeRuntimeKey(key: unknown): boolean {
   if (typeof key !== "string") return false;
-  const normalized = key.trim().replace(/[-\s]+/g, "_").toLowerCase();
+  const normalized = normalizeRuntimeKey(key);
   if (safePolicyKeyExceptions.has(normalized)) return false;
   return unsafeKeyExactMatches.has(normalized) ||
     unsafeKeyPatterns.some((pattern) => pattern.test(normalized));
+}
+
+function normalizeRuntimeKey(key: string): string {
+  return key.trim().replace(/[-\s]+/g, "_").toLowerCase();
 }
 
 function validateStringArray(value: unknown, label: string): string[] {
