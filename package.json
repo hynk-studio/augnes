@@ -668,6 +668,7 @@
     "browser:validate-final-rag-answer-review-memory-operator-path-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/browser-validate-final-rag-answer-review-memory-operator-path-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-operator-browser-validation-v0-1": "node scripts/smoke-final-rag-answer-review-memory-operator-browser-validation-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-operator-path-usability-audit-v0-1": "node scripts/smoke-final-rag-answer-review-memory-operator-path-usability-audit-v0-1.mjs",
+    "smoke:operator-path-manual-qa-runbook-v0-1": "node scripts/smoke-operator-path-manual-qa-runbook-v0-1.mjs",
     "smoke:perspective-promotion-runtime-contract-v0-1": "node scripts/smoke-perspective-promotion-runtime-contract-v0-1.mjs",
     "smoke:perspective-promotion-decision-store-v0-1": "node scripts/smoke-perspective-promotion-decision-store-v0-1.mjs",
     "smoke:formation-receipt-durable-write-v0-1": "node scripts/smoke-formation-receipt-durable-write-v0-1.mjs",

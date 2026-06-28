@@ -5763,6 +5763,42 @@ Recommended next slice is `operator_path_manual_qa_runbook_v0_1`: a
 docs/fixture/smoke manual QA runbook with no new runtime and no UI changes.
 Smoke/CI/browser pass is not truth.
 
+### Operator path manual QA runbook v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add product authority.
+`operator_path_manual_qa_runbook_v0_1` gives a human operator a public-safe,
+repeatable manual QA procedure for the already validated final RAG answer
+candidate -> Review Memory -> UI -> promotion readiness path.
+
+- `docs/OPERATOR_PATH_MANUAL_QA_RUNBOOK_V0_1.md`:
+  manual QA runbook covering purpose, scope, prerequisites, setup, static
+  validation, route-level E2E validation, browser validation, manual UI
+  inspection, seeded Review Memory DB path handling, pass/fail criteria,
+  evidence policy, troubleshooting, stop conditions, and next recommendation.
+- `fixtures/operator-path-manual-qa-runbook.sample.v0.1.json`:
+  public-safe fixture for the runbook ref, validated path, required command
+  groups, manual page path, symbolic browser artifact paths, boundary notes,
+  pass/fail criteria, evidence policy, troubleshooting items, forbidden
+  actions, and the next recommendation.
+- `scripts/smoke-operator-path-manual-qa-runbook-v0-1.mjs`:
+  static smoke for docs, fixture, package script, latest pointer, #851/#852/#853
+  references, command groups, manual page path, symbolic artifact paths,
+  public-safe policy, no embedded screenshots/raw browser artifacts, exact
+  changed-file scope, and no-new-authority boundaries.
+- `npm run smoke:operator-path-manual-qa-runbook-v0-1`:
+  focused static smoke for this runbook slice.
+
+Boundary summary: this runbook adds no runtime authority, API routes, UI
+behavior changes, DB schema, Review Memory writes from UI, final answer
+generation expansion, live provider calls, prompt sending expansion, retrieval
+execution expansion, source fetching, retrieval index writes, promotion
+execution, promotion decision writes/store usage, proof/evidence creation,
+durable state mutation, Formation Receipt writes, product-write, accepted
+evidence ref writes, product IDs, GitHub actuation, release execution, or
+automatic answer-to-product conversion. The next recommendation after merge is
+`manual_qa_execution_report_v0_1` only after a human actually runs the runbook.
+Smoke/CI/browser pass is not truth.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)
