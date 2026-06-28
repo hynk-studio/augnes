@@ -40,6 +40,13 @@ const expectedChangedFiles = new Set([
   indexPath,
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
   "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-3.mjs",
+  "types/final-rag-answer-review-memory-binding.ts",
+  "lib/research-retrieval/final-rag-answer-review-memory-binding.ts",
+  "app/api/research-retrieval/final-rag-answer/review-memory/route.ts",
+  "docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_BINDING_V0_1.md",
+  "fixtures/final-rag-answer-review-memory-binding.sample.v0.1.json",
+  "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
+  "lib/runtime-audit/audit-event-store.ts",
 ]);
 
 for (const filePath of [
