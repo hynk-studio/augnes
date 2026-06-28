@@ -340,7 +340,10 @@ Expected verification:
 
 - `node --check scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-1.mjs`
 - `npm run smoke:v0-2-1-remaining-runtime-gap-audit-v0-1`
-- `npm run smoke:release-readiness-runtime-grounding-update-v0-1`
+- static existence and marker checks for release readiness runtime grounding
+  docs, fixture, smoke script, and package script
+- optional external `npm run smoke:release-readiness-runtime-grounding-update-v0-1`
+  only when that older slice-scoped smoke accepts this audit slice diff
 - selected runtime completion and authority smokes listed in the PR body
 - `npm run typecheck`
 - `git diff --check`

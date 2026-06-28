@@ -9,6 +9,7 @@ const roadmapPath = "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md";
 const groundingDocsPath = "docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md";
 const groundingFixturePath =
   "fixtures/release-readiness-runtime-grounding-update.sample.v0.1.json";
+const groundingSmokePath = "scripts/smoke-release-readiness-runtime-grounding-update-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 
@@ -17,6 +18,9 @@ const auditVersion = "v0_2_1_remaining_runtime_gap_audit_v0_1";
 const scope = "project:augnes";
 const packageScriptName = "smoke:v0-2-1-remaining-runtime-gap-audit-v0-1";
 const packageScriptValue = "node scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-1.mjs";
+const groundingPackageScriptName = "smoke:release-readiness-runtime-grounding-update-v0-1";
+const groundingPackageScriptValue =
+  "node scripts/smoke-release-readiness-runtime-grounding-update-v0-1.mjs";
 
 const expectedChangedFiles = new Set([
   docsPath,
@@ -127,6 +131,7 @@ for (const filePath of [
   roadmapPath,
   groundingDocsPath,
   groundingFixturePath,
+  groundingSmokePath,
   packagePath,
   indexPath,
 ]) {
@@ -155,6 +160,11 @@ assertIncludes(
 );
 
 assert.equal(packageJson.scripts?.[packageScriptName], packageScriptValue);
+assert.equal(
+  packageJson.scripts?.[groundingPackageScriptName],
+  groundingPackageScriptValue,
+  "release readiness grounding package script",
+);
 assertIncludes(indexText, docsPath, "latest index docs pointer");
 assertIncludes(indexText, fixturePath, "latest index fixture pointer");
 assertIncludes(indexText, smokePath, "latest index smoke pointer");
@@ -232,11 +242,6 @@ assertAuthorityBoundary(fixture.authority_boundary);
 assertNoLiveLookingPayloads(docsText, docsPath);
 assertNoLiveLookingPayloads(fixtureText, fixturePath);
 assertChangedFileScope();
-
-execFileSync("npm", ["run", "smoke:release-readiness-runtime-grounding-update-v0-1"], {
-  cwd: process.cwd(),
-  stdio: "pipe",
-});
 
 console.log(
   JSON.stringify(
