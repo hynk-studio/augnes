@@ -809,7 +809,10 @@ function assertNoForbiddenFilesAdded() {
     assert.ok(!filePath.includes("retrieval-index-write"), `${filePath} must not add retrieval indexing`);
     assert.ok(!filePath.includes("github"), `${filePath} must not add GitHub runtime`);
     assert.ok(!filePath.includes("codex-execution"), `${filePath} must not add Codex runtime`);
-    assert.ok(!filePath.includes("product-write"), `${filePath} must not add product-write runtime`);
+    assert.ok(
+      !filePath.includes("product-write") || isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath),
+      `${filePath} must not add product-write runtime outside approved accepted evidence ref runtime`,
+    );
     assert.ok(!filePath.includes("product-id"), `${filePath} must not add product ID allocation`);
   }
 }
@@ -875,6 +878,19 @@ function isRuntimeAuditPanelRuntimeCompletionFile(filePath) {
     "scripts/smoke-runtime-audit-panel-v0-1.mjs",
     "package.json",
     "docs/00_INDEX_LATEST.md",
+  ].includes(filePath);
+}
+
+function isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath) {
+  if (filePath === "app/api/product-write/" || filePath === "lib/product-write/") return true;
+  return [
+    "app/api/product-write/accepted-evidence-refs/route.ts",
+    "docs/PRODUCT_WRITE_ACCEPTED_EVIDENCE_REF_RUNTIME_V0_1.md",
+    "fixtures/product-write-accepted-evidence-ref-runtime.sample.v0.1.json",
+    "lib/product-write/accepted-evidence-ref-runtime.ts",
+    "lib/product-write/accepted-evidence-ref-store.ts",
+    "scripts/smoke-product-write-accepted-evidence-ref-runtime-v0-1.mjs",
+    "types/product-write-accepted-evidence-ref.ts",
   ].includes(filePath);
 }
 

@@ -603,7 +603,8 @@ function assertChangedFileScope() {
         !isRuntimeAuditPanelRuntimeCompletionFile(filePath) &&
         !isRuntimeAuditSelectedRouteInstrumentationV02File(filePath) &&
         !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) &&
-        !isRuntimeAuditSelectedRouteInstrumentationV04Phase4File(filePath),
+        !isRuntimeAuditSelectedRouteInstrumentationV04Phase4File(filePath) &&
+        !isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath),
     ),
     "no new app/api route was added",
   );
@@ -622,7 +623,8 @@ function assertChangedFileScope() {
         !isRuntimeAuditPanelRuntimeCompletionFile(filePath) &&
         !isRuntimeAuditSelectedRouteInstrumentationV02File(filePath) &&
         !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) &&
-        !isRuntimeAuditSelectedRouteInstrumentationV04Phase4File(filePath),
+        !isRuntimeAuditSelectedRouteInstrumentationV04Phase4File(filePath) &&
+        !isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath),
     ),
     "no provider/retrieval-index-write/Git/GitHub/Codex/product-write/product ID files were added",
   );
@@ -801,6 +803,19 @@ function isRuntimeAuditSelectedRouteInstrumentationV04Phase4File(filePath) {
     "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-4-phase-4-promotion-state-v0-1.mjs",
     packagePath,
     indexPath,
+  ].includes(filePath);
+}
+
+function isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath) {
+  if (filePath === "app/api/product-write/" || filePath === "lib/product-write/") return true;
+  return [
+    "app/api/product-write/accepted-evidence-refs/route.ts",
+    "docs/PRODUCT_WRITE_ACCEPTED_EVIDENCE_REF_RUNTIME_V0_1.md",
+    "fixtures/product-write-accepted-evidence-ref-runtime.sample.v0.1.json",
+    "lib/product-write/accepted-evidence-ref-runtime.ts",
+    "lib/product-write/accepted-evidence-ref-store.ts",
+    "scripts/smoke-product-write-accepted-evidence-ref-runtime-v0-1.mjs",
+    "types/product-write-accepted-evidence-ref.ts",
   ].includes(filePath);
 }
 
