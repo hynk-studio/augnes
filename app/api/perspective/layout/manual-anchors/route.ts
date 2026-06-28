@@ -18,6 +18,10 @@ import {
   type ManualAnchorListFilters,
   type ManualAnchorStoreResult,
 } from "../../../../../lib/perspective/layout/manual-anchor-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "../../../../../lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -31,6 +35,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const dbPath = url.searchParams.get("db_path") ?? "";
+  const auditDbPath = url.searchParams.get("audit_db_path");
   if (!isSafeManualAnchorRouteDbPathV01(dbPath)) {
     return jsonResponse(errorResponse("invalid_db_path", { manual_anchor_read_now: true }), 400);
   }
@@ -49,7 +54,33 @@ export async function GET(request: Request) {
     const result = anchorId
       ? readManualAnchorRecordV01(anchorId, db)
       : listManualAnchorRecordsV01(createFilters(url), db);
-    return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result));
+    const statusCode = storeResultHttpStatus(result);
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: auditDbPath,
+      route_ref: "route:/api/perspective/layout/manual-anchors",
+      runtime_slice_ref: "layout_persistence_manual_anchors_runtime_completion_v0_1",
+      event_surface: "manual_anchors_runtime",
+      event_kind: "route_response",
+      event_action: "manual_anchor_list_completed",
+      event_status: result.status,
+      subject_ref:
+        result.record?.anchor_id ??
+        result.records[0]?.perspective_id ??
+        url.searchParams.get("perspective_id") ??
+        "manual-anchors:list",
+      related_refs: [
+        result.record?.anchor_id ?? "",
+        ...result.records.map((record) => record.anchor_id),
+        url.searchParams.get("perspective_id") ?? "",
+        url.searchParams.get("node_ref") ?? "",
+      ].filter(Boolean),
+      primary_result_status: result.status,
+      primary_result_ref:
+        result.record?.anchor_id ?? result.records[0]?.anchor_id ?? url.searchParams.get("perspective_id") ?? "manual-anchors:list",
+      bounded_summary: "Manual anchors route returned bounded runtime result.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
+    return jsonResponse(storeResultResponse(result, auditEventResult), statusCode);
   } finally {
     db.close();
   }
@@ -73,6 +104,7 @@ export async function POST(request: Request) {
   const inputBody = body as {
     action?: unknown;
     db_path?: unknown;
+    audit_db_path?: unknown;
     input?: unknown;
     anchor_id?: unknown;
     reason?: unknown;
@@ -115,12 +147,48 @@ export async function POST(request: Request) {
   try {
     if (isDiscardAction) {
       const result = discardManualAnchorRecordV01(discardAnchorId!, discardReason!, db);
-      return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result));
+      const statusCode = storeResultHttpStatus(result);
+      const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+        audit_db_path: inputBody.audit_db_path,
+        route_ref: "route:/api/perspective/layout/manual-anchors",
+        runtime_slice_ref: "layout_persistence_manual_anchors_runtime_completion_v0_1",
+        event_surface: "manual_anchors_runtime",
+        event_kind: "route_response",
+        event_action: "manual_anchor_discard_completed",
+        event_status: result.status,
+        subject_ref: discardAnchorId!,
+        related_refs: [discardAnchorId!, result.record?.perspective_id ?? "", result.record?.node_ref ?? ""].filter(Boolean),
+        primary_result_status: result.status,
+        primary_result_ref: result.record?.anchor_id ?? discardAnchorId!,
+        bounded_summary: "Manual anchors route returned bounded runtime result.",
+        bounded_error_code: statusCode >= 400 ? result.status : null,
+      });
+      return jsonResponse(storeResultResponse(result, auditEventResult), statusCode);
     }
     const result = isUpsertAction
       ? createOrUpdateProjectConstellationManualAnchorV01(createInput!, db)
       : createManualAnchorRecordV01(createInput!, db);
-    return jsonResponse(storeResultResponse(result), storeResultHttpStatus(result, 201));
+    const statusCode = storeResultHttpStatus(result, 201);
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: inputBody.audit_db_path,
+      route_ref: "route:/api/perspective/layout/manual-anchors",
+      runtime_slice_ref: "layout_persistence_manual_anchors_runtime_completion_v0_1",
+      event_surface: "manual_anchors_runtime",
+      event_kind: "route_response",
+      event_action: "manual_anchor_upsert_completed",
+      event_status: result.status,
+      subject_ref: result.record?.anchor_id ?? createInput?.anchor_id ?? "manual-anchor:result",
+      related_refs: [
+        result.record?.anchor_id ?? createInput?.anchor_id ?? "",
+        result.record?.perspective_id ?? createInput?.perspective_id ?? "",
+        result.record?.node_ref ?? createInput?.node_ref ?? "",
+      ].filter(Boolean),
+      primary_result_status: result.status,
+      primary_result_ref: result.record?.anchor_id ?? createInput?.anchor_id ?? "manual-anchor:result",
+      bounded_summary: "Manual anchors route returned bounded runtime result.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
+    return jsonResponse(storeResultResponse(result, auditEventResult), statusCode);
   } finally {
     db.close();
   }
@@ -192,7 +260,10 @@ function storeResultHttpStatus(result: ManualAnchorStoreResult, okStatus = 200):
   return okStatus;
 }
 
-function storeResultResponse(result: ManualAnchorStoreResult) {
+function storeResultResponse(
+  result: ManualAnchorStoreResult,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
+) {
   const errorCode = result.status.startsWith("blocked") || result.status === "not_found"
     ? result.status
     : null;
@@ -211,6 +282,7 @@ function storeResultResponse(result: ManualAnchorStoreResult) {
       manual_anchor_read_now: result.authority_boundary.manual_anchor_read_now,
       manual_anchor_write_now: result.authority_boundary.manual_anchor_write_now,
     }),
+    audit_event_result: auditEventResult,
   };
 }
 

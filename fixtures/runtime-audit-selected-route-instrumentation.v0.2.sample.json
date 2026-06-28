@@ -1,0 +1,138 @@
+{
+  "fixture_version": "runtime_audit_selected_route_instrumentation.sample.v0.2",
+  "instrumentation_version": "runtime_audit_selected_route_instrumentation.v0.2",
+  "previous_instrumentation_version": "runtime_audit_selected_route_instrumentation.v0.1",
+  "audit_event_store_version": "runtime_audit_event_store.v0.1",
+  "scope": "project:augnes",
+  "selected_routes": [
+    "app/api/research-retrieval/rebuild/route.ts",
+    "app/api/research-retrieval/search/route.ts",
+    "app/api/perspective/layout/manual-anchors/route.ts",
+    "app/api/runtime-audit/events/route.ts"
+  ],
+  "retrieval_rebuild_audit_example": {
+    "route_ref": "route:/api/research-retrieval/rebuild",
+    "runtime_slice_ref": "rebuildable_retrieval_index_runtime_completion_v0_1",
+    "event_surface": "retrieval_index_runtime",
+    "event_kind": "route_response",
+    "event_action": "retrieval_index_rebuild_completed",
+    "event_status": "rebuilt",
+    "subject_ref": "retrieval-rebuild-request:sample-v0-2",
+    "primary_result_ref": "retrieval-rebuild-request:sample-v0-2",
+    "bounded_summary": "Retrieval rebuild route wrote derived index rows."
+  },
+  "retrieval_search_audit_example": {
+    "route_ref": "route:/api/research-retrieval/search",
+    "runtime_slice_ref": "rebuildable_retrieval_index_runtime_completion_v0_1",
+    "event_surface": "retrieval_index_runtime",
+    "event_kind": "route_response",
+    "event_action": "retrieval_index_search_completed",
+    "event_status": "searched",
+    "subject_ref": "retrieval-search-request:sample-v0-2",
+    "primary_result_ref": "retrieval-search-request:sample-v0-2",
+    "bounded_summary": "Retrieval search route returned bounded search results."
+  },
+  "manual_anchor_list_audit_example": {
+    "route_ref": "route:/api/perspective/layout/manual-anchors",
+    "runtime_slice_ref": "layout_persistence_manual_anchors_runtime_completion_v0_1",
+    "event_surface": "manual_anchors_runtime",
+    "event_kind": "route_response",
+    "event_action": "manual_anchor_list_completed",
+    "event_status": "stored",
+    "subject_ref": "perspective:manual-anchor:v0-2",
+    "primary_result_ref": "manual-anchor:runtime-audit:v0-2",
+    "bounded_summary": "Manual anchors route returned bounded runtime result."
+  },
+  "manual_anchor_upsert_audit_example": {
+    "route_ref": "route:/api/perspective/layout/manual-anchors",
+    "runtime_slice_ref": "layout_persistence_manual_anchors_runtime_completion_v0_1",
+    "event_surface": "manual_anchors_runtime",
+    "event_kind": "route_response",
+    "event_action": "manual_anchor_upsert_completed",
+    "event_status": "stored",
+    "subject_ref": "manual-anchor:runtime-audit:v0-2",
+    "primary_result_ref": "manual-anchor:runtime-audit:v0-2",
+    "bounded_summary": "Manual anchors route returned bounded runtime result."
+  },
+  "manual_anchor_discard_audit_example": {
+    "route_ref": "route:/api/perspective/layout/manual-anchors",
+    "runtime_slice_ref": "layout_persistence_manual_anchors_runtime_completion_v0_1",
+    "event_surface": "manual_anchors_runtime",
+    "event_kind": "route_response",
+    "event_action": "manual_anchor_discard_completed",
+    "event_status": "discarded",
+    "subject_ref": "manual-anchor:runtime-audit:v0-2",
+    "primary_result_ref": "manual-anchor:runtime-audit:v0-2",
+    "bounded_summary": "Manual anchors route returned bounded runtime result."
+  },
+  "runtime_audit_list_audit_example": {
+    "route_ref": "route:/api/runtime-audit/events",
+    "runtime_slice_ref": "runtime_audit_panel_runtime_completion_v0_1",
+    "event_surface": "runtime_audit_panel",
+    "event_kind": "route_response",
+    "event_action": "runtime_audit_events_listed",
+    "event_status": "audit_events_listed",
+    "subject_ref": "runtime-audit:list",
+    "primary_result_ref": "runtime-audit:list:bounded",
+    "bounded_summary": "Runtime audit route returned bounded audit event result."
+  },
+  "audit_not_requested_example": {
+    "status": "audit_not_requested",
+    "audit_event_persisted": false,
+    "primary_route_behavior_unchanged": true
+  },
+  "audit_skipped_invalid_db_path_example": {
+    "status": "audit_skipped_invalid_db_path",
+    "audit_event_persisted": false,
+    "unsafe_path_echoed": false
+  },
+  "self_audit_recursion_policy_example": {
+    "runtime_audit_get_list_instrumented": true,
+    "runtime_audit_post_create_self_audit": false,
+    "recursive_audit_write_now": false,
+    "reason_codes": [
+      "runtime_audit_get_list_only",
+      "post_create_self_audit_deferred",
+      "no_recursive_audit_write"
+    ]
+  },
+  "authority_boundary_sample": {
+    "runtime_audit_selected_route_instrumentation_now": true,
+    "runtime_audit_event_persistence_now": true,
+    "selected_route_subset_only": true,
+    "audit_db_path_optional": true,
+    "primary_route_failure_from_audit_now": false,
+    "raw_request_body_stored_now": false,
+    "raw_response_body_stored_now": false,
+    "raw_terminal_log_stored_now": false,
+    "browser_dump_ingested_now": false,
+    "hidden_reasoning_stored_now": false,
+    "raw_provider_output_stored_now": false,
+    "raw_retrieval_output_stored_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "audit_event_is_truth": false,
+    "audit_event_is_proof": false,
+    "audit_event_is_approval": false,
+    "audit_event_is_durable_state": false,
+    "audit_event_is_product_write_authority": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}

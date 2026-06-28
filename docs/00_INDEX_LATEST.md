@@ -4272,6 +4272,31 @@ repo-local 색인이다.
   ingestion; no local/repository/uploaded file read as source input; no Git
   Ledger export; no Codex execution; no GitHub automation; product-write
   remains parked by #686.
+
+- Runtime Audit Selected Route Instrumentation v0.2:
+  `docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_2.md`,
+  `app/api/research-retrieval/rebuild/route.ts`,
+  `app/api/research-retrieval/search/route.ts`,
+  `app/api/perspective/layout/manual-anchors/route.ts`,
+  `app/api/runtime-audit/events/route.ts`,
+  `fixtures/runtime-audit-selected-route-instrumentation.v0.2.sample.json`,
+  and `scripts/smoke-runtime-audit-selected-route-instrumentation-v0-2.mjs`
+  (`npm run smoke:runtime-audit-selected-route-instrumentation-v0-2`)
+  implements `runtime_audit_selected_route_instrumentation_v0_2` as a second
+  narrow instrumentation pass after v0.1. Retrieval rebuild/search, manual
+  anchors, and runtime audit GET list optionally emit bounded audit events when
+  `audit_db_path` is supplied. Runtime audit POST create self-audit is deferred
+  to prevent recursive audit writes. Missing `audit_db_path` leaves primary
+  route behavior unchanged. Audit write failure does not fail the primary route.
+  Audit events are bounded review records only; they are not truth, proof,
+  approval, durable state, or product-write authority. This slice does not store
+  raw request/response bodies, terminal logs, browser dumps, hidden reasoning,
+  raw provider output, or raw retrieval output. It does not create
+  proof/evidence, write claim/evidence records, create work items, promote
+  Perspective, write/apply durable Perspective state, write Formation Receipts,
+  execute Git/GitHub, execute Codex, product-write, allocate product IDs, or
+  grant product-write authority. Product-write remains parked by #686.
+  Smoke/CI pass is not truth. The roadmap guide is not SSOT.
 - Git Ledger Export Contract v0.1:
   `docs/GIT_LEDGER_EXPORT_CONTRACT_V0_1.md`,
   `types/git-ledger-export-contract.ts`,

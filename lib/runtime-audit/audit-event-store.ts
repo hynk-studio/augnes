@@ -40,6 +40,7 @@ export type RuntimeAuditEventSurfaceV01 =
   | "feedback_event_write_runtime"
   | "feedback_aggregation_runtime"
   | "feedback_surfacing_preview_runtime"
+  | "runtime_audit_panel"
   | "dogfooding_ingestion_runtime"
   | "product_write_gate"
   | "unknown";
@@ -192,6 +193,7 @@ const eventSurfaces: RuntimeAuditEventSurfaceV01[] = [
   "feedback_event_write_runtime",
   "feedback_aggregation_runtime",
   "feedback_surfacing_preview_runtime",
+  "runtime_audit_panel",
   "dogfooding_ingestion_runtime",
   "product_write_gate",
   "unknown",

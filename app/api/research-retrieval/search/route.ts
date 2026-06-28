@@ -21,6 +21,10 @@ import {
   searchRebuildableRetrievalIndexV01,
   validateResearchRetrievalIndexSearchRequestV01,
 } from "@/lib/research-retrieval/search-index";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "@/lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -138,7 +142,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function handleCompletionSearchRoute(body: Record<string, unknown>) {
-  const inputBody = body as { route_version?: unknown; scope?: unknown; db_path?: unknown; input?: unknown };
+  const inputBody = body as {
+    route_version?: unknown;
+    scope?: unknown;
+    db_path?: unknown;
+    audit_db_path?: unknown;
+    input?: unknown;
+  };
   if (
     inputBody.route_version !== completionSearchRouteVersion ||
     inputBody.scope !== "project:augnes" ||
@@ -172,7 +182,29 @@ function handleCompletionSearchRoute(body: Record<string, unknown>) {
     }
     const result = searchResearchRetrievalIndexV01(input, db);
     const statusCode = completionSearchHttpStatus(result);
-    return jsonResponse(completionSearchResponse(result, statusCode), statusCode);
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: inputBody.audit_db_path,
+      route_ref: "route:/api/research-retrieval/search",
+      runtime_slice_ref: "rebuildable_retrieval_index_runtime_completion_v0_1",
+      event_surface: "retrieval_index_runtime",
+      event_kind: "route_response",
+      event_action: "retrieval_index_search_completed",
+      event_status: result.status,
+      subject_ref: result.search_request_id || "retrieval-index-search:result",
+      related_refs: [
+        result.search_request_id,
+        ...result.results.map((item) => item.result_ref),
+        ...result.results.map((item) => item.index_entry_id),
+      ].filter(Boolean),
+      primary_result_status: result.status,
+      primary_result_ref: result.search_request_id || "retrieval-index-search:result",
+      bounded_summary:
+        result.status === "searched" || result.status === "not_found"
+          ? "Retrieval search route returned bounded search results."
+          : "Retrieval search route returned bounded status.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
+    return jsonResponse(completionSearchResponse(result, statusCode, auditEventResult), statusCode);
   } finally {
     db.close();
   }
@@ -198,6 +230,7 @@ function completionSearchHttpStatus(result: ResearchRetrievalIndexSearchRuntimeR
 function completionSearchResponse(
   result: ResearchRetrievalIndexSearchRuntimeResultV01,
   statusCode: number,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
 ) {
   return {
     route_version: completionSearchRouteVersion,
@@ -220,6 +253,7 @@ function completionSearchResponse(
     product_write_executed: false,
     product_id_allocated: false,
     authority_boundary: result.authority_boundary,
+    audit_event_result: auditEventResult,
   };
 }
 

@@ -600,7 +600,8 @@ function assertChangedFileScope() {
         !isFeedbackEventAggregationRuntimeCompletionFile(filePath) &&
         !isFeedbackControlsExpansionRuntimeCompletionFile(filePath) &&
         !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) &&
-        !isRuntimeAuditPanelRuntimeCompletionFile(filePath),
+        !isRuntimeAuditPanelRuntimeCompletionFile(filePath) &&
+        !isRuntimeAuditSelectedRouteInstrumentationV02File(filePath),
     ),
     "no new app/api route was added",
   );
@@ -616,7 +617,8 @@ function assertChangedFileScope() {
         !isFeedbackEventAggregationRuntimeCompletionFile(filePath) &&
         !isFeedbackControlsExpansionRuntimeCompletionFile(filePath) &&
         !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) &&
-        !isRuntimeAuditPanelRuntimeCompletionFile(filePath),
+        !isRuntimeAuditPanelRuntimeCompletionFile(filePath) &&
+        !isRuntimeAuditSelectedRouteInstrumentationV02File(filePath),
     ),
     "no provider/retrieval-index-write/Git/GitHub/Codex/product-write/product ID files were added",
   );
@@ -743,6 +745,21 @@ function isRuntimeAuditPanelRuntimeCompletionFile(filePath) {
     "fixtures/runtime-audit-panel-runtime-completion.sample.v0.1.json",
     "scripts/smoke-runtime-audit-panel-runtime-completion-v0-1.mjs",
     "scripts/smoke-runtime-audit-panel-v0-1.mjs",
+    packagePath,
+    indexPath,
+  ].includes(filePath);
+}
+
+function isRuntimeAuditSelectedRouteInstrumentationV02File(filePath) {
+  return [
+    "app/api/research-retrieval/rebuild/route.ts",
+    "app/api/research-retrieval/search/route.ts",
+    "app/api/perspective/layout/manual-anchors/route.ts",
+    "app/api/runtime-audit/events/route.ts",
+    "lib/runtime-audit/audit-event-store.ts",
+    "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_2.md",
+    "fixtures/runtime-audit-selected-route-instrumentation.v0.2.sample.json",
+    "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-2.mjs",
     packagePath,
     indexPath,
   ].includes(filePath);

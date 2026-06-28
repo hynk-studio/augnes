@@ -24,6 +24,9 @@ import {
   type RuntimeAuditEventWriteStatusV01,
   type RuntimeAuditSqliteLikeV01,
 } from "@/lib/runtime-audit/audit-event-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+} from "@/lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +40,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const dbPath = url.searchParams.get("db_path") ?? "";
+  const auditDbPath = url.searchParams.get("audit_db_path");
   if (!isSafeRuntimeAuditDbPathV01(dbPath)) {
     return jsonResponse(errorResponse("invalid_db_path", false), 400);
   }
@@ -70,6 +74,22 @@ export async function GET(request: Request) {
       audit_id: "runtime-audit:db-backed-route-list",
       as_of: events[0]?.created_at,
     });
+    const listResultRef = `runtime-audit:list:${events.length}:${events[0]?.audit_event_id ?? "empty"}`;
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: auditDbPath,
+      route_ref: "route:/api/runtime-audit/events",
+      runtime_slice_ref: "runtime_audit_panel_runtime_completion_v0_1",
+      event_surface: "runtime_audit_panel",
+      event_kind: "route_response",
+      event_action: "runtime_audit_events_listed",
+      event_status: "audit_events_listed",
+      subject_ref: "runtime-audit:list",
+      related_refs: events.slice(0, 10).map((event) => event.audit_event_id),
+      primary_result_status: "audit_events_listed",
+      primary_result_ref: listResultRef,
+      bounded_summary: "Runtime audit route returned bounded audit event result.",
+      bounded_error_code: null,
+    });
     return jsonResponse({
       route_version: RUNTIME_AUDIT_EVENT_ROUTE_VERSION,
       store_version: RUNTIME_AUDIT_EVENT_STORE_VERSION,
@@ -90,6 +110,7 @@ export async function GET(request: Request) {
       raw_response_body_stored_now: false,
       product_write_executed: false,
       authority_boundary: createRuntimeAuditEventAuthorityBoundaryV01({ readNow: true }),
+      audit_event_result: auditEventResult,
     });
   } finally {
     db.close();
