@@ -602,7 +602,8 @@ function assertChangedFileScope() {
         !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) &&
         !isRuntimeAuditPanelRuntimeCompletionFile(filePath) &&
         !isRuntimeAuditSelectedRouteInstrumentationV02File(filePath) &&
-        !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath),
+        !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) &&
+        !isRuntimeAuditSelectedRouteInstrumentationV04Phase4File(filePath),
     ),
     "no new app/api route was added",
   );
@@ -620,7 +621,8 @@ function assertChangedFileScope() {
         !isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) &&
         !isRuntimeAuditPanelRuntimeCompletionFile(filePath) &&
         !isRuntimeAuditSelectedRouteInstrumentationV02File(filePath) &&
-        !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath),
+        !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) &&
+        !isRuntimeAuditSelectedRouteInstrumentationV04Phase4File(filePath),
     ),
     "no provider/retrieval-index-write/Git/GitHub/Codex/product-write/product ID files were added",
   );
@@ -780,6 +782,23 @@ function isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) {
     "scripts/smoke-research-candidate-review-memory-db-routes-runtime-v0-1.mjs",
     "scripts/smoke-research-candidate-review-memory-db-ui-runtime-v0-1.mjs",
     "scripts/smoke-foundation-lifecycle-review-memory-db-readonly-ui-completion-v0-1.mjs",
+    packagePath,
+    indexPath,
+  ].includes(filePath);
+}
+
+function isRuntimeAuditSelectedRouteInstrumentationV04Phase4File(filePath) {
+  return [
+    "app/api/perspective/promotion-decisions/route.ts",
+    "app/api/perspective/promotion-decisions/[promotion_decision_id]/route.ts",
+    "app/api/perspective/formation-receipts/route.ts",
+    "app/api/perspective/state/apply-delta/route.ts",
+    "app/api/perspective/state/[perspective_id]/route.ts",
+    "app/api/perspective/state/[perspective_id]/trajectory/route.ts",
+    "lib/runtime-audit/audit-event-store.ts",
+    "docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md",
+    "fixtures/runtime-audit-selected-route-instrumentation.v0.4.phase-4-promotion-state.sample.json",
+    "scripts/smoke-runtime-audit-selected-route-instrumentation-v0-4-phase-4-promotion-state-v0-1.mjs",
     packagePath,
     indexPath,
   ].includes(filePath);

@@ -16,6 +16,10 @@ import {
   readDurablePerspectiveStateV01,
   type DurablePerspectiveStateApplyResult,
 } from "../../../../../../lib/perspective/state/state-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "../../../../../../lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -29,6 +33,7 @@ export async function GET(
   const { perspective_id } = await params;
   const url = new URL(request.url);
   const dbPath = url.searchParams.get("db_path") ?? "";
+  const auditDbPath = url.searchParams.get("audit_db_path");
   if (!isSafeDurablePerspectiveStateRouteDbPathV01(dbPath)) {
     return jsonResponse(errorResponse("invalid_db_path"), 400);
   }
@@ -45,11 +50,47 @@ export async function GET(
     const decodedPerspectiveId = decodeURIComponent(perspective_id);
     const stateResult = readDurablePerspectiveStateV01(decodedPerspectiveId, db);
     if (stateResult.status !== "applied" || !stateResult.state) {
-      return jsonResponse(storeResultResponse(stateResult), storeResultHttpStatus(stateResult));
+      const statusCode = storeResultHttpStatus(stateResult);
+      const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+        audit_db_path: auditDbPath,
+        route_ref: "route:/api/perspective/state/[perspective_id]/trajectory",
+        runtime_slice_ref: "runtime_audit_selected_route_instrumentation_v0_4_phase_4_promotion_state_v0_1",
+        event_surface: "perspective_trajectory_runtime",
+        event_kind: "route_response",
+        event_action: "perspective_trajectory_read",
+        event_status: stateResult.status,
+        subject_ref: decodedPerspectiveId,
+        related_refs: [decodedPerspectiveId, stateResult.state?.state_fingerprint ?? ""].filter(Boolean),
+        primary_result_status: stateResult.status,
+        primary_result_ref: stateResult.state?.state_fingerprint ?? decodedPerspectiveId,
+        bounded_summary: "Perspective trajectory route returned bounded trajectory result.",
+        bounded_error_code: statusCode >= 400 ? stateResult.status : null,
+      });
+      return jsonResponse(storeResultResponse(stateResult, auditEventResult), statusCode);
     }
     const applyEvents = listDurablePerspectiveApplyEventsV01({ perspective_id: decodedPerspectiveId }, db);
     if (applyEvents.status.startsWith("blocked") || applyEvents.status === "not_found") {
-      return jsonResponse(storeResultResponse(applyEvents), storeResultHttpStatus(applyEvents));
+      const statusCode = storeResultHttpStatus(applyEvents);
+      const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+        audit_db_path: auditDbPath,
+        route_ref: "route:/api/perspective/state/[perspective_id]/trajectory",
+        runtime_slice_ref: "runtime_audit_selected_route_instrumentation_v0_4_phase_4_promotion_state_v0_1",
+        event_surface: "perspective_trajectory_runtime",
+        event_kind: "route_response",
+        event_action: "perspective_trajectory_read",
+        event_status: applyEvents.status,
+        subject_ref: decodedPerspectiveId,
+        related_refs: [
+          decodedPerspectiveId,
+          stateResult.state.state_fingerprint,
+          ...applyEvents.apply_events.slice(0, 10).map((event) => event.apply_event_id),
+        ],
+        primary_result_status: applyEvents.status,
+        primary_result_ref: stateResult.state.state_fingerprint,
+        bounded_summary: "Perspective trajectory route returned bounded trajectory result.",
+        bounded_error_code: statusCode >= 400 ? applyEvents.status : null,
+      });
+      return jsonResponse(storeResultResponse(applyEvents, auditEventResult), statusCode);
     }
     const input = createPerspectiveTrajectoryInputFromDurableStateV01({
       state: stateResult.state,
@@ -57,7 +98,28 @@ export async function GET(
       as_of: url.searchParams.get("as_of") ?? stateResult.state.updated_at,
     });
     const trajectory = buildPerspectiveTrajectoryV01(input);
-    return jsonResponse(trajectoryResponse(trajectory), trajectoryHttpStatus(trajectory));
+    const statusCode = trajectoryHttpStatus(trajectory);
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: auditDbPath,
+      route_ref: "route:/api/perspective/state/[perspective_id]/trajectory",
+      runtime_slice_ref: "runtime_audit_selected_route_instrumentation_v0_4_phase_4_promotion_state_v0_1",
+      event_surface: "perspective_trajectory_runtime",
+      event_kind: "route_response",
+      event_action: "perspective_trajectory_read",
+      event_status: trajectory.status,
+      subject_ref: decodedPerspectiveId,
+      related_refs: [
+        decodedPerspectiveId,
+        stateResult.state.state_fingerprint,
+        trajectory.trajectory_fingerprint,
+        ...applyEvents.apply_events.slice(0, 10).map((event) => event.apply_event_id),
+      ],
+      primary_result_status: trajectory.status,
+      primary_result_ref: trajectory.trajectory_fingerprint,
+      bounded_summary: "Perspective trajectory route returned bounded trajectory result.",
+      bounded_error_code: statusCode >= 400 ? trajectory.status : null,
+    });
+    return jsonResponse(trajectoryResponse(trajectory, auditEventResult), statusCode);
   } finally {
     db.close();
   }
@@ -88,7 +150,10 @@ function trajectoryHttpStatus(trajectory: PerspectiveTrajectory): number {
   return 200;
 }
 
-function storeResultResponse(result: DurablePerspectiveStateApplyResult) {
+function storeResultResponse(
+  result: DurablePerspectiveStateApplyResult,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
+) {
   const errorCode = result.status.startsWith("blocked") || result.status === "not_found"
     ? result.status
     : null;
@@ -100,10 +165,14 @@ function storeResultResponse(result: DurablePerspectiveStateApplyResult) {
     result,
     trajectory: null,
     authority_boundary: createPerspectiveTrajectoryAuthorityBoundaryV01(),
+    audit_event_result: auditEventResult,
   };
 }
 
-function trajectoryResponse(trajectory: PerspectiveTrajectory) {
+function trajectoryResponse(
+  trajectory: PerspectiveTrajectory,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
+) {
   const errorCode = trajectory.status.startsWith("blocked") ? trajectory.status : null;
   return {
     route_version: routeVersion,
@@ -112,6 +181,7 @@ function trajectoryResponse(trajectory: PerspectiveTrajectory) {
     error_code: errorCode,
     trajectory,
     authority_boundary: createPerspectiveTrajectoryAuthorityBoundaryV01(),
+    audit_event_result: auditEventResult,
   };
 }
 

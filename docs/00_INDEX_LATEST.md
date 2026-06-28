@@ -4364,6 +4364,35 @@ repo-local 색인이다.
   instrumentation v0.1-v0.3. Product-write remains parked by #686. GitHub
   actuation implementation remains gated and contract-only. Smoke/CI pass is not
   truth. The roadmap guide is not SSOT.
+- Runtime Audit Selected Route Instrumentation v0.4 Phase 4 Promotion/State:
+  `docs/RUNTIME_AUDIT_SELECTED_ROUTE_INSTRUMENTATION_V0_4_PHASE_4_PROMOTION_STATE_V0_1.md`,
+  `app/api/perspective/promotion-decisions/route.ts`,
+  `app/api/perspective/promotion-decisions/[promotion_decision_id]/route.ts`,
+  `app/api/perspective/formation-receipts/route.ts`,
+  `app/api/perspective/state/apply-delta/route.ts`,
+  `app/api/perspective/state/[perspective_id]/route.ts`,
+  `app/api/perspective/state/[perspective_id]/trajectory/route.ts`,
+  `lib/runtime-audit/audit-event-store.ts`,
+  `fixtures/runtime-audit-selected-route-instrumentation.v0.4.phase-4-promotion-state.sample.json`,
+  and
+  `scripts/smoke-runtime-audit-selected-route-instrumentation-v0-4-phase-4-promotion-state-v0-1.mjs`
+  (`npm run smoke:runtime-audit-selected-route-instrumentation-v0-4-phase-4-promotion-state-v0-1`)
+  implements `runtime_audit_selected_route_instrumentation_v0_4_phase_4_promotion_state_v0_1`
+  as the next ungated implementation slice named by the remaining runtime gap
+  audit. Selected Phase 4 promotion decision, Formation Receipt, durable
+  Perspective state, and trajectory routes optionally emit bounded audit events
+  when `audit_db_path` is supplied. Missing `audit_db_path` leaves primary route
+  behavior unchanged. Audit write failure does not fail the primary route.
+  Audit events are bounded review records only; they are not truth, proof,
+  approval, durable state, promotion authority, Formation Receipt authority, or
+  product-write authority. This slice does not store raw request/response
+  bodies, terminal logs, browser dumps, hidden reasoning, raw provider output,
+  or raw retrieval output. It does not create proof/evidence, write
+  claim/evidence records, create work items, alter promotion semantics, alter
+  Formation Receipt semantics, alter durable state semantics, execute
+  Git/GitHub, execute Codex, product-write, allocate product IDs, or grant
+  product-write authority. Product-write remains parked by #686. Smoke/CI pass
+  is not truth. The roadmap guide is not SSOT.
 - Git Ledger Export Contract v0.1:
   `docs/GIT_LEDGER_EXPORT_CONTRACT_V0_1.md`,
   `types/git-ledger-export-contract.ts`,
