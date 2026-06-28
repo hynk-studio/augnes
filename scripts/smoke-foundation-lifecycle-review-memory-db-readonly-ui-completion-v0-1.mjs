@@ -497,12 +497,29 @@ function assertChangedFileScope() {
   assert.ok(!changed.includes("lib/db/schema.sql"), "DB schema must not be modified for this slice");
   assert.ok(
     !changed.some((filePath) =>
-      /provider|retrieval|rag|github|git-ledger|codex-execution|product-write|product-id/i.test(
-        filePath,
-      ),
+      /provider|retrieval|rag|github|git-ledger|codex-execution|product-write|product-id/i.test(filePath) &&
+      !isProviderExtractionRuntimeCompletionFile(filePath),
     ),
     "no provider/retrieval/Git/GitHub/Codex/product-write/product ID files were added",
   );
+}
+
+function isProviderExtractionRuntimeCompletionFile(filePath) {
+  if (
+    filePath === "app/api/research-candidate-review/provider-extraction/" ||
+    filePath === "lib/research-extraction/"
+  ) {
+    return true;
+  }
+  return [
+    "docs/PROVIDER_ASSISTED_EXTRACTION_RUNTIME_COMPLETION_V0_1.md",
+    "lib/research-extraction/provider-extract-candidates.ts",
+    "lib/research-extraction/normalize-provider-output.ts",
+    "lib/research-extraction/provider-boundary.ts",
+    "app/api/research-candidate-review/provider-extraction/route.ts",
+    "fixtures/provider-assisted-extraction-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-provider-assisted-extraction-runtime-completion-v0-1.mjs",
+  ].includes(filePath);
 }
 
 function assertExistingSmokesPass() {

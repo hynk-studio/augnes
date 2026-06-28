@@ -794,13 +794,34 @@ function assertNoForbiddenFilesAdded() {
   for (const filePath of changedFiles) {
     assert.ok(!filePath.startsWith("components/"), `${filePath} must not add UI`);
     assert.ok(!filePath.startsWith("lib/db/"), `${filePath} must not add DB schema`);
-    assert.ok(!filePath.includes("provider"), `${filePath} must not add provider runtime`);
+    assert.ok(
+      !filePath.includes("provider") || isProviderExtractionRuntimeCompletionFile(filePath),
+      `${filePath} must not add provider runtime outside provider extraction runtime completion`,
+    );
     assert.ok(!filePath.includes("retrieval-index-write"), `${filePath} must not add retrieval indexing`);
     assert.ok(!filePath.includes("github"), `${filePath} must not add GitHub runtime`);
     assert.ok(!filePath.includes("codex-execution"), `${filePath} must not add Codex runtime`);
     assert.ok(!filePath.includes("product-write"), `${filePath} must not add product-write runtime`);
     assert.ok(!filePath.includes("product-id"), `${filePath} must not add product ID allocation`);
   }
+}
+
+function isProviderExtractionRuntimeCompletionFile(filePath) {
+  if (
+    filePath === "app/api/research-candidate-review/provider-extraction/" ||
+    filePath === "lib/research-extraction/"
+  ) {
+    return true;
+  }
+  return [
+    "docs/PROVIDER_ASSISTED_EXTRACTION_RUNTIME_COMPLETION_V0_1.md",
+    "lib/research-extraction/provider-extract-candidates.ts",
+    "lib/research-extraction/normalize-provider-output.ts",
+    "lib/research-extraction/provider-boundary.ts",
+    "app/api/research-candidate-review/provider-extraction/route.ts",
+    "fixtures/provider-assisted-extraction-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-provider-assisted-extraction-runtime-completion-v0-1.mjs",
+  ].includes(filePath);
 }
 
 function changedFilesFromGit() {
