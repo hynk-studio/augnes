@@ -104,9 +104,21 @@ The fetch abstraction enforces:
 - byte size limit
 - timeout limit
 - bounded result metadata only
+- no automatic redirect following
+- content-type check before body read
+- content-length check before body read when present
+- bounded body stream reading that stops when the size limit is exceeded
 
 This slice does not crawl. This slice does not perform background fetch. This
 slice does not perform automatic web discovery.
+
+If live fetch is explicitly enabled, it does not follow redirects automatically.
+Redirect responses become bounded failure metadata with `redirect_not_followed`.
+Content type is checked before the body is read.
+Missing or unsupported content type fails closed as `unsupported_content_type`.
+When `content-length` is present, it is checked before the body is read.
+The body stream is read incrementally and is stopped/aborted once
+`size_limit_bytes` is exceeded. The raw body is never returned or persisted.
 
 ## File/Note Ref Symbolic-only Policy
 
@@ -129,6 +141,8 @@ dumps, real GitHub payloads, real PR payloads, and raw diffs.
 
 The default size limit is bounded, and callers may only request limits up to
 the hard maximum. The current hard maximum is 65,536 bytes.
+Live fetch checks `content-length` before body read when present and also
+enforces the limit while reading the stream.
 
 ## Content-type Allowlist
 
@@ -139,6 +153,7 @@ Allowed content types are:
 - `application/json`
 
 Unsupported content types return `unsupported_content_type`.
+Missing content type also returns `unsupported_content_type`.
 
 ## Timeout Policy
 

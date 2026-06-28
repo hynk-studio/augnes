@@ -170,6 +170,16 @@
       "mock_fetch_unsupported_content_type"
     ]
   },
+  "mock_fetch_missing_content_type_example": {
+    "status": "ok",
+    "http_status": 200,
+    "byte_length": 120,
+    "elapsed_ms": 12,
+    "bounded_summary": "Missing content type example summary is ignored.",
+    "reason_codes": [
+      "mock_fetch_missing_content_type"
+    ]
+  },
   "mock_fetch_content_too_large_example": {
     "status": "ok",
     "http_status": 200,
@@ -196,6 +206,37 @@
     "reason_codes": [
       "mock_fetch_failed",
       "failure_to_gap_candidate_metadata_now"
+    ]
+  },
+  "live_fetch_redirect_blocked_example": {
+    "status": "source_unavailable",
+    "http_status": 302,
+    "failure_kind": "source_unavailable",
+    "reason_codes": [
+      "redirect_not_followed",
+      "source_unavailable"
+    ]
+  },
+  "live_fetch_content_length_too_large_example": {
+    "status": "content_too_large",
+    "http_status": 200,
+    "content_type": "text/plain",
+    "byte_length": 4096,
+    "failure_kind": "content_too_large",
+    "reason_codes": [
+      "content_length_too_large",
+      "content_too_large"
+    ]
+  },
+  "live_fetch_stream_too_large_example": {
+    "status": "content_too_large",
+    "http_status": 200,
+    "content_type": "text/plain",
+    "byte_length": 192,
+    "failure_kind": "content_too_large",
+    "reason_codes": [
+      "stream_size_limit_exceeded",
+      "content_too_large"
     ]
   },
   "expected_source_ref_metadata_example": {

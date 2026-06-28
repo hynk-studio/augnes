@@ -75,9 +75,13 @@ const requiredFixtureKeys = [
   "safe_note_ref_request_example",
   "mock_fetch_success_example",
   "mock_fetch_unsupported_content_type_example",
+  "mock_fetch_missing_content_type_example",
   "mock_fetch_content_too_large_example",
   "mock_fetch_timeout_example",
   "mock_fetch_failure_to_gap_example",
+  "live_fetch_redirect_blocked_example",
+  "live_fetch_content_length_too_large_example",
+  "live_fetch_stream_too_large_example",
   "expected_source_ref_metadata_example",
   "expected_result_envelope_example",
   "blocked_user_provided_false_example",
@@ -121,6 +125,7 @@ assertFixtureVersions();
 assertDocsAndIndexCoverage();
 assertRoadmapCoverage();
 assertLibraryExports();
+assertBoundedLiveFetchSource();
 assertRouteShape();
 
 const successFetcher = fetchRuntime.createMockBoundedSourceFetcherV01([
@@ -211,6 +216,14 @@ assert.equal(unsupportedRoute.response.status, 415);
 assert.equal(unsupportedRoute.body.error_code, "unsupported_content_type");
 assert.equal(unsupportedRoute.body.result.failure_kind, "unsupported_content_type");
 
+const missingContentTypeRoute = await postWithFetcher(
+  fixture.safe_url_request_example,
+  fixture.mock_fetch_missing_content_type_example,
+);
+assert.equal(missingContentTypeRoute.response.status, 415);
+assert.equal(missingContentTypeRoute.body.error_code, "unsupported_content_type");
+assert.equal(missingContentTypeRoute.body.result.failure_kind, "unsupported_content_type");
+
 const tooLargeRequest = {
   ...fixture.safe_url_request_example,
   source_intake_request_id: "source-intake-request:url-too-large-001",
@@ -255,6 +268,12 @@ assert.equal(successRoute.body.proof_or_evidence_created, false);
 assert.equal(successRoute.body.product_write_executed, false);
 assertAuthorityBoundary(successRoute.body.authority_boundary, "route response authority boundary");
 assertNoRawBodyEcho(successRoute.body, "success route body");
+
+await assertLiveFetchRedirectRejected();
+await assertLiveFetchMissingContentTypeRejected();
+await assertLiveFetchContentLengthLimitBeforeRead();
+await assertLiveFetchStreamLimit();
+await assertLiveFetchBoundedSuccess();
 
 const crossSiteResponse = await routeModule.POST(
   new Request("http://localhost:3000/api/research-source/intake", {
@@ -366,6 +385,11 @@ function assertDocsAndIndexCoverage() {
     "Source refs are lineage pointers, not proof.",
     "Bounded source summary is not truth.",
     "Failed fetch creates gap metadata, not hallucinated summary.",
+    "If live fetch is explicitly enabled, it does not follow redirects automatically.",
+    "Content type is checked before the body is read.",
+    "When `content-length` is present, it is checked before the body is read.",
+    "The body stream is read incrementally and is stopped/aborted once",
+    "Missing content type also returns `unsupported_content_type`.",
     "Smoke/CI pass is not truth.",
     "The roadmap guide is not SSOT.",
   ]) {
@@ -431,6 +455,17 @@ function assertLibraryExports() {
   }
 }
 
+function assertBoundedLiveFetchSource() {
+  assert.ok(fetchSource.includes('redirect: "manual"'), "live fetch must use manual redirects");
+  assert.ok(fetchSource.includes("redirect_not_followed"), "live fetch must reject redirects");
+  assert.ok(fetchSource.includes("content_length_too_large"), "live fetch must check content-length");
+  assert.ok(fetchSource.includes("readBoundedResponseBody"), "live fetch must stream bounded body reads");
+  assert.ok(fetchSource.includes("stream_size_limit_exceeded"), "live fetch must stop oversized streams");
+  assert.ok(fetchSource.includes("missing_content_type"), "live fetch must fail closed on missing content type");
+  assert.ok(!fetchSource.includes(".arrayBuffer()"), "live fetch must not use arrayBuffer");
+  assert.ok(!fetchSource.includes('redirect: "follow"'), "live fetch must not follow redirects");
+}
+
 function assertRouteShape() {
   assert.equal(typeof routeModule.POST, "function", "route exports POST");
   assert.equal(
@@ -472,6 +507,216 @@ function sameOriginHeaders() {
     origin: "http://localhost:3000",
     "sec-fetch-site": "same-origin",
     "content-type": "application/json",
+  };
+}
+
+async function assertLiveFetchRedirectRejected() {
+  let bodyRead = false;
+  let observedRedirectMode = null;
+  const result = await withStubbedFetch(async (_sourceLocator, init) => {
+    observedRedirectMode = init?.redirect ?? null;
+    return fakeFetchResponse({
+      status: fixture.live_fetch_redirect_blocked_example.http_status,
+      headers: {
+        location: "https://example.invalid/bounded-source-intake/redirect-target",
+      },
+      body: new ReadableStream(),
+      onBodyAccess: () => {
+        bodyRead = true;
+      },
+    });
+  }, () =>
+    fetchRuntime.fetchBoundedSourceV01(createLiveFetchRequest(fixture.safe_url_request_example), {
+      allow_live_fetch: true,
+    }),
+  );
+
+  assert.equal(observedRedirectMode, "manual", "live fetch must not follow redirects");
+  assert.equal(result.status, fixture.live_fetch_redirect_blocked_example.status);
+  assert.equal(result.failure_kind, fixture.live_fetch_redirect_blocked_example.failure_kind);
+  assert.ok(result.reason_codes.includes("redirect_not_followed"));
+  assert.equal(bodyRead, false, "redirect body must not be read");
+}
+
+async function assertLiveFetchMissingContentTypeRejected() {
+  let bodyRead = false;
+  const result = await withStubbedFetch(async () => {
+    return fakeFetchResponse({
+      status: 200,
+      body: new ReadableStream({
+        pull(controller) {
+          controller.close();
+        },
+      }),
+      onBodyAccess: () => {
+        bodyRead = true;
+      },
+    });
+  }, () =>
+    fetchRuntime.fetchBoundedSourceV01(createLiveFetchRequest(fixture.safe_url_request_example), {
+      allow_live_fetch: true,
+    }),
+  );
+
+  assert.equal(result.status, "unsupported_content_type");
+  assert.equal(result.failure_kind, "unsupported_content_type");
+  assert.ok(result.reason_codes.includes("missing_content_type"));
+  assert.equal(bodyRead, false, "missing content-type body must not be read");
+}
+
+async function assertLiveFetchContentLengthLimitBeforeRead() {
+  let bodyRead = false;
+  const result = await withStubbedFetch(async () => {
+    return fakeFetchResponse({
+      status: fixture.live_fetch_content_length_too_large_example.http_status,
+      headers: {
+        "content-type": fixture.live_fetch_content_length_too_large_example.content_type,
+        "content-length": String(fixture.live_fetch_content_length_too_large_example.byte_length),
+      },
+      body: new ReadableStream({
+        pull(controller) {
+          controller.enqueue(new Uint8Array(16));
+          controller.close();
+        },
+      }),
+      onBodyAccess: () => {
+        bodyRead = true;
+      },
+    });
+  }, () =>
+    fetchRuntime.fetchBoundedSourceV01(
+      createLiveFetchRequest(fixture.safe_url_request_example, { size_limit_bytes: 128 }),
+      { allow_live_fetch: true },
+    ),
+  );
+
+  assert.equal(result.status, fixture.live_fetch_content_length_too_large_example.status);
+  assert.equal(result.failure_kind, fixture.live_fetch_content_length_too_large_example.failure_kind);
+  assert.ok(result.reason_codes.includes("content_length_too_large"));
+  assert.equal(bodyRead, false, "content-length oversized body must not be read");
+}
+
+async function assertLiveFetchStreamLimit() {
+  let chunkReads = 0;
+  const result = await withStubbedFetch(async () => {
+    return new Response(
+      new ReadableStream({
+        pull(controller) {
+          chunkReads += 1;
+          if (chunkReads <= 3) {
+            controller.enqueue(new Uint8Array(64));
+            return;
+          }
+          controller.close();
+        },
+      }),
+      {
+        status: fixture.live_fetch_stream_too_large_example.http_status,
+        headers: {
+          "content-type": fixture.live_fetch_stream_too_large_example.content_type,
+        },
+      },
+    );
+  }, () =>
+    fetchRuntime.fetchBoundedSourceV01(
+      createLiveFetchRequest(fixture.safe_url_request_example, { size_limit_bytes: 128 }),
+      { allow_live_fetch: true },
+    ),
+  );
+
+  assert.equal(result.status, fixture.live_fetch_stream_too_large_example.status);
+  assert.equal(result.failure_kind, fixture.live_fetch_stream_too_large_example.failure_kind);
+  assert.ok(result.reason_codes.includes("stream_size_limit_exceeded"));
+  assert.equal(result.bounded_summary, undefined);
+  assert.ok(chunkReads >= 3, "stream should be read only until the limit is exceeded");
+  assertNoRawBodyEcho(result, "stream-too-large live result");
+}
+
+async function assertLiveFetchBoundedSuccess() {
+  const rawBodyText = "public bounded body that is never returned";
+  const result = await withStubbedFetch(async () => {
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(rawBodyText));
+          controller.close();
+        },
+      }),
+      {
+        status: 200,
+        headers: {
+          "content-type": "text/plain; charset=utf-8",
+          "content-length": String(new TextEncoder().encode(rawBodyText).byteLength),
+        },
+      },
+    );
+  }, () =>
+    fetchRuntime.fetchBoundedSourceV01(
+      createLiveFetchRequest(fixture.safe_url_request_example, { size_limit_bytes: 256 }),
+      { allow_live_fetch: true },
+    ),
+  );
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.failure_kind, undefined);
+  assert.equal(
+    result.bounded_summary,
+    `Bounded fetch completed for ${createLiveFetchRequest(fixture.safe_url_request_example).source_locator_ref}.`,
+  );
+  assert.ok(!JSON.stringify(result).includes(rawBodyText), "live success must not echo raw body");
+  assertNoRawBodyEcho(result, "bounded live success result");
+}
+
+function fakeFetchResponse({ status, headers = {}, body = null, onBodyAccess }) {
+  const normalizedHeaders = new Map(
+    Object.entries(headers).map(([key, value]) => [key.toLowerCase(), String(value)]),
+  );
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    headers: {
+      get(name) {
+        return normalizedHeaders.get(String(name).toLowerCase()) ?? null;
+      },
+    },
+    get body() {
+      onBodyAccess?.();
+      return body;
+    },
+  };
+}
+
+async function withStubbedFetch(stubFetch, run) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = stubFetch;
+  try {
+    return await run();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+function createLiveFetchRequest(input, limitOverrides = {}) {
+  const sanitized = sanitizeRuntime.sanitizeSourceLocatorV01({
+    input_kind: input.input_kind,
+    source_locator: input.source_locator,
+  });
+  assert.equal(sanitized.status, "ok", "live fetch test source locator must sanitize");
+  return {
+    input_kind: input.input_kind,
+    source_locator: input.source_locator,
+    source_locator_ref: sanitized.source_locator_ref,
+    source_ref_id: intakeRuntime.createBoundedSourceRefIdV01(input),
+    limits: {
+      size_limit_bytes: input.size_limit_bytes ?? 2048,
+      timeout_ms: input.timeout_ms ?? 500,
+      content_type_allowlist: input.content_type_allowlist ?? [
+        "text/plain",
+        "text/html",
+        "application/json",
+      ],
+      ...limitOverrides,
+    },
   };
 }
 

@@ -82,28 +82,94 @@ export async function fetchBoundedSourceV01(
   try {
     const response = await fetch(request.source_locator, {
       method: "GET",
-      redirect: "follow",
+      redirect: "manual",
       signal: controller.signal,
       headers: {
         accept: request.limits.content_type_allowlist.join(", "),
       },
     });
-    const contentType = response.headers.get("content-type") ?? "application/octet-stream";
-    const bytes = Buffer.from(await response.arrayBuffer());
-    return enforceBoundedSourceFetchLimitsV01(
-      {
-        status: response.ok ? "ok" : "source_unavailable",
+
+    const contentType = response.headers.get("content-type") ?? "";
+    const elapsedMs = Date.now() - startedAt;
+    if (isRedirectStatus(response.status)) {
+      return {
+        status: "source_unavailable",
+        failure_kind: "source_unavailable",
+        http_status: response.status,
+        content_type: contentType || undefined,
+        elapsed_ms: elapsedMs,
+        reason_codes: [
+          "redirect_not_followed",
+          "source_unavailable",
+          "failure_to_gap_candidate_metadata_now",
+        ],
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        status: "source_unavailable",
+        failure_kind: "source_unavailable",
+        http_status: response.status,
+        content_type: contentType || undefined,
+        elapsed_ms: elapsedMs,
+        reason_codes: ["source_unavailable", "failure_to_gap_candidate_metadata_now"],
+      };
+    }
+
+    const normalizedContentType = normalizeContentType(contentType);
+    if (!normalizedContentType || !isAllowedContentType(normalizedContentType, request.limits)) {
+      return {
+        status: "unsupported_content_type",
+        failure_kind: "unsupported_content_type",
+        http_status: response.status,
+        content_type: contentType || undefined,
+        elapsed_ms: elapsedMs,
+        reason_codes: uniqueSorted([
+          normalizedContentType ? "unsupported_content_type" : "missing_content_type",
+          "unsupported_content_type",
+        ]),
+      };
+    }
+
+    const contentLength = parseContentLength(response.headers.get("content-length"));
+    if (contentLength !== null && contentLength > request.limits.size_limit_bytes) {
+      return {
+        status: "content_too_large",
+        failure_kind: "content_too_large",
         http_status: response.status,
         content_type: contentType,
-        byte_length: bytes.length,
+        byte_length: contentLength,
+        elapsed_ms: elapsedMs,
+        reason_codes: ["content_length_too_large", "content_too_large"],
+      };
+    }
+
+    const boundedRead = await readBoundedResponseBody(response.body, {
+      controller,
+      size_limit_bytes: request.limits.size_limit_bytes,
+    });
+    if (boundedRead.too_large) {
+      return {
+        status: "content_too_large",
+        failure_kind: "content_too_large",
+        http_status: response.status,
+        content_type: contentType,
+        byte_length: boundedRead.byte_length,
         elapsed_ms: Date.now() - startedAt,
-        bounded_summary: response.ok
-          ? `Bounded fetch completed for ${request.source_locator_ref}.`
-          : undefined,
-        failure_kind: response.ok ? undefined : "source_unavailable",
-        reason_codes: response.ok
-          ? ["bounded_fetch_completed", "raw_body_non_persistent_by_default"]
-          : ["source_unavailable", "failure_to_gap_candidate_metadata_now"],
+        reason_codes: ["stream_size_limit_exceeded", "content_too_large"],
+      };
+    }
+
+    return enforceBoundedSourceFetchLimitsV01(
+      {
+        status: "ok",
+        http_status: response.status,
+        content_type: contentType,
+        byte_length: boundedRead.byte_length,
+        elapsed_ms: Date.now() - startedAt,
+        bounded_summary: `Bounded fetch completed for ${request.source_locator_ref}.`,
+        reason_codes: ["bounded_fetch_completed", "raw_body_non_persistent_by_default"],
       },
       request.limits,
     );
@@ -172,12 +238,21 @@ export function enforceBoundedSourceFetchLimitsV01(
   }
 
   const normalizedContentType = normalizeContentType(response.content_type);
+  if (response.status === "ok" && !normalizedContentType) {
+    return {
+      ...boundedFailure(response),
+      status: "unsupported_content_type",
+      failure_kind: "unsupported_content_type",
+      reason_codes: uniqueSorted([
+        ...response.reason_codes,
+        "missing_content_type",
+        "unsupported_content_type",
+      ]),
+    };
+  }
   if (
     response.status === "ok" &&
-    normalizedContentType &&
-    !limits.content_type_allowlist.some((allowed) =>
-      normalizedContentType.startsWith(allowed.toLowerCase()),
-    )
+    !isAllowedContentType(normalizedContentType, limits)
   ) {
     return {
       ...boundedFailure(response),
@@ -234,6 +309,60 @@ function boundedFailure(response: BoundedSourceFetchResponseV01): BoundedSourceF
 
 function normalizeContentType(value: string | undefined): string {
   return (value ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+}
+
+function isAllowedContentType(
+  normalizedContentType: string,
+  limits: BoundedSourceFetchLimitsV01,
+): boolean {
+  return limits.content_type_allowlist.some((allowed) =>
+    normalizedContentType.startsWith(allowed.toLowerCase()),
+  );
+}
+
+function isRedirectStatus(status: number): boolean {
+  return status >= 300 && status < 400;
+}
+
+function parseContentLength(value: string | null): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
+async function readBoundedResponseBody(
+  body: ReadableStream<Uint8Array> | null,
+  options: {
+    controller: AbortController;
+    size_limit_bytes: number;
+  },
+): Promise<{ byte_length: number; too_large: boolean }> {
+  if (!body) {
+    return { byte_length: 0, too_large: false };
+  }
+
+  const reader = body.getReader();
+  let byteLength = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      byteLength += value?.byteLength ?? 0;
+      if (byteLength > options.size_limit_bytes) {
+        options.controller.abort();
+        try {
+          await reader.cancel();
+        } catch {
+          // The abort already closes the live fetch boundary.
+        }
+        return { byte_length: byteLength, too_large: true };
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return { byte_length: byteLength, too_large: false };
 }
 
 function uniqueSorted(values: string[]): string[] {
