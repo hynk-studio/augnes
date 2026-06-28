@@ -4344,6 +4344,26 @@ repo-local 색인이다.
   approval. Readiness is not truth. Freeze manifest addendum is not release
   execution. Operator review is not merge authority. Smoke/CI pass is not
   truth. The roadmap guide is not SSOT.
+- v0.2.1 Remaining Runtime Gap Audit v0.1:
+  `docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_1.md`,
+  `fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.1.json`, and
+  `scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-1.mjs`
+  (`npm run smoke:v0-2-1-remaining-runtime-gap-audit-v0-1`)
+  implements `v0_2_1_remaining_runtime_gap_audit_v0_1` as a static
+  repo-grounded audit of the original v0.2.1 FULL roadmap after runtime
+  completion and selected audit instrumentation through
+  `release_readiness_runtime_grounding_update_v0_1`. This is not roadmap
+  completion closeout, release approval, or release execution. It does not
+  implement runtime behavior, query/write DB, add routes/UI, call providers,
+  execute retrieval/RAG, create proof/evidence, promote Perspective, write/apply
+  durable state, write Formation Receipts, execute Git/GitHub, execute Codex,
+  product-write, allocate product IDs, or grant product-write authority. It
+  identifies `runtime_audit_selected_route_instrumentation_v0_4_phase_4_promotion_state_v0_1`
+  as the next ungated implementation slice because Phase 4 promotion/receipt/
+  state routes are real runtime surfaces but are not covered by selected audit
+  instrumentation v0.1-v0.3. Product-write remains parked by #686. GitHub
+  actuation implementation remains gated and contract-only. Smoke/CI pass is not
+  truth. The roadmap guide is not SSOT.
 - Git Ledger Export Contract v0.1:
   `docs/GIT_LEDGER_EXPORT_CONTRACT_V0_1.md`,
   `types/git-ledger-export-contract.ts`,
