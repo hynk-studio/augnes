@@ -39,6 +39,15 @@ const expectedChangedFiles = new Set([
   smokePath,
   packagePath,
   indexPath,
+  "app/api/research-retrieval/final-rag-answer/route.ts",
+  "docs/FINAL_RAG_ANSWER_GENERATION_CANDIDATE_REVIEW_V0_1.md",
+  "fixtures/final-rag-answer-generation-candidate-review.sample.v0.1.json",
+  "lib/research-retrieval/build-final-rag-answer-candidate.ts",
+  "lib/research-retrieval/final-rag-answer-provider-boundary.ts",
+  "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
+  "scripts/smoke-bounded-source-intake-runtime-completion-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-memory-db-ui-runtime-v0-1.mjs",
+  "types/final-rag-answer-candidate-review.ts",
 ]);
 
 const requiredFiles = [
@@ -473,7 +482,11 @@ function assertChangedFileScope() {
   }
 
   const unexpected = [...changed].filter((filePath) => !expectedChangedFiles.has(filePath)).sort();
-  assert.deepEqual(unexpected, [], "changed-file scope limited to v0.3 docs/fixture/smoke/package/index files");
+  assert.deepEqual(
+    unexpected,
+    [],
+    "changed-file scope limited to v0.3 docs/fixture/smoke/package/index files plus exact final RAG answer candidate-review compatibility exceptions",
+  );
 }
 
 function isTempSmokeArtifact(filePath) {

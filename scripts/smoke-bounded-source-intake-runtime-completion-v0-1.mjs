@@ -803,7 +803,9 @@ function assertNoForbiddenFilesAdded() {
     );
     assert.ok(!filePath.startsWith("lib/db/"), `${filePath} must not add DB schema`);
     assert.ok(
-      !filePath.includes("provider") || isProviderExtractionRuntimeCompletionFile(filePath),
+      !filePath.includes("provider") ||
+        isProviderExtractionRuntimeCompletionFile(filePath) ||
+        isFinalRagAnswerCandidateReviewProviderBoundaryFile(filePath),
       `${filePath} must not add provider runtime outside provider extraction runtime completion`,
     );
     assert.ok(!filePath.includes("retrieval-index-write"), `${filePath} must not add retrieval indexing`);
@@ -910,6 +912,10 @@ function isProviderExtractionRuntimeCompletionFile(filePath) {
     "fixtures/provider-assisted-extraction-runtime-completion.sample.v0.1.json",
     "scripts/smoke-provider-assisted-extraction-runtime-completion-v0-1.mjs",
   ].includes(filePath);
+}
+
+function isFinalRagAnswerCandidateReviewProviderBoundaryFile(filePath) {
+  return filePath === "lib/research-retrieval/final-rag-answer-provider-boundary.ts";
 }
 
 function changedFilesFromGit() {

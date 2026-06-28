@@ -1,0 +1,191 @@
+{
+  "fixture_version": "final_rag_answer_generation_candidate_review.sample.v0.1",
+  "runtime_version": "final_rag_answer_generation_candidate_review.v0.1",
+  "request_version": "final_rag_answer_generation_candidate_review_request.v0.1",
+  "result_version": "final_rag_answer_generation_candidate_review_result.v0.1",
+  "route_version": "final_rag_answer_generation_candidate_review_route.v0.1",
+  "scope": "project:augnes",
+  "v0_3_remaining_gap_audit_ref": "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_3.md",
+  "rag_context_preview_runtime_ref": "docs/RAG_CONTEXT_PREVIEW_RUNTIME_COMPLETION_V0_1.md",
+  "product_write_accepted_evidence_ref_runtime_ref": "docs/PRODUCT_WRITE_ACCEPTED_EVIDENCE_REF_RUNTIME_V0_1.md",
+  "valid_mock_provider_request": {
+    "request_version": "final_rag_answer_generation_candidate_review_request.v0.1",
+    "runtime_version": "final_rag_answer_generation_candidate_review.v0.1",
+    "scope": "project:augnes",
+    "answer_request_id": "final-rag-answer-request:calibration-review",
+    "requested_by": "operator:final-rag-answer-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "provider_mode": "mock_provider",
+    "provider_ref": "provider:mock-final-answer",
+    "model_or_tool_ref": "model:deterministic-final-answer",
+    "rag_context_preview_request": {
+      "request_version": "rag_context_preview_runtime_completion_request.v0.1",
+      "preview_version": "rag_context_preview_runtime_completion.v0.1",
+      "search_version": "research_retrieval_index_runtime_completion_search.v0.1",
+      "scope": "project:augnes",
+      "preview_request_id": "rag-context-preview-request:final-answer-candidate",
+      "requested_by": "operator:final-rag-answer-smoke",
+      "requested_at": "2026-06-28T00:00:00.000Z",
+      "db_path": ".tmp/research-retrieval/final-rag-answer-candidate-review.sqlite",
+      "query": "calibration tension knowledge gap durable review",
+      "search_filters": {},
+      "include_stale": true,
+      "max_search_results": 10,
+      "max_context_items": 5,
+      "max_context_chars": 1400,
+      "include_candidate_context": true,
+      "include_durable_context": true,
+      "include_tension_markers": true,
+      "include_gap_markers": true,
+      "authority_boundary": {
+        "rag_context_preview_runtime_now": true,
+        "db_backed_retrieval_search_now": true,
+        "explicit_operator_preview_only": true,
+        "same_origin_post_route_now": true,
+        "read_only_db_search_now": true,
+        "context_preview_created_now": true,
+        "rag_answer_generation_now": false,
+        "final_answer_generation_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "retrieval_index_write_now": false,
+        "db_write_now": false,
+        "product_write_now": false
+      },
+      "reason_codes": [
+        "rag_context_preview_runtime_completion",
+        "db_backed_retrieval_search_now"
+      ]
+    },
+    "max_answer_chars": 900,
+    "max_context_items": 5,
+    "citation_policy": "source_ref_lineage_citations_only",
+    "no_truth_language_required": true,
+    "no_proof_language_required": true,
+    "raw_prompt_storage_policy": "non_persistent",
+    "raw_provider_output_storage_policy": "non_persistent",
+    "no_chain_of_thought_storage": true,
+    "authority_boundary": {
+      "final_rag_answer_generation_candidate_review_now": true,
+      "explicit_operator_answer_generation_only": true,
+      "same_origin_post_route_now": true,
+      "db_backed_rag_context_preview_now": true,
+      "bounded_prompt_descriptor_now": true,
+      "answer_provider_adapter_boundary_now": true,
+      "answer_review_state_candidate_only": true,
+      "no_truth_language_required": true,
+      "no_proof_language_required": true,
+      "raw_prompt_non_persistent": true,
+      "raw_provider_output_non_persistent": true,
+      "final_answer_is_truth": false,
+      "final_answer_is_proof": false,
+      "product_write_now": false,
+      "product_id_allocation_now": false,
+      "proof_or_evidence_record_now": false,
+      "durable_state_apply_now": false
+    },
+    "reason_codes": [
+      "final_rag_answer_generation_candidate_review_v0_1",
+      "explicit_operator_answer_generation_only"
+    ]
+  },
+  "configured_provider_missing_key_request": {
+    "provider_mode": "configured_provider",
+    "provider_ref": "provider:configured-final-answer",
+    "model_or_tool_ref": "model:configured-final-answer",
+    "expected_status": "provider_missing_key"
+  },
+  "empty_no_context_case": {
+    "query": "nomatch-symbolic-query",
+    "expected_status": "context_preview_empty"
+  },
+  "forbidden_authority_cases": [
+    {
+      "field": "final_answer_is_truth",
+      "value_kind": "string_true",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "product_write_now",
+      "value_kind": "numeric_one",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "proof_or_evidence_record_now",
+      "value_kind": "object_enabled",
+      "expected_status": "blocked_forbidden_authority"
+    },
+    {
+      "field": "durable_state_apply_now",
+      "value_kind": "array_enabled",
+      "expected_status": "blocked_forbidden_authority"
+    }
+  ],
+  "private_raw_payload_blocked_case": {
+    "case_ref": "blocked-case:private-raw-provider-output",
+    "expected_status": "blocked_private_or_raw_payload"
+  },
+  "db_missing_case": {
+    "db_path": ".tmp/research-retrieval/final-rag-answer-missing.sqlite",
+    "expected_status": "db_missing"
+  },
+  "schema_missing_case": {
+    "db_path": ".tmp/research-retrieval/final-rag-answer-schema-missing.sqlite",
+    "expected_status": "schema_missing"
+  },
+  "invalid_db_path_case": {
+    "db_path": "../final-rag-answer.sqlite",
+    "expected_error_code": "blocked_invalid_input"
+  },
+  "audit_cases": {
+    "missing_audit_db_path_status": "audit_not_requested",
+    "invalid_audit_db_path_status": "audit_skipped_invalid_db_path"
+  },
+  "expected_success": {
+    "status": "final_answer_candidate_created",
+    "provider_status": "mock_provider_completed",
+    "answer_review_state": "candidate_only",
+    "no_truth_claim": true,
+    "no_proof_claim": true,
+    "no_accepted_evidence_claim": true,
+    "no_promotion_claim": true,
+    "no_product_write_claim": true,
+    "provider_call_executed": true,
+    "prompt_sent": true,
+    "retrieval_executed": true,
+    "rag_answer_generated": true,
+    "final_answer_candidate_generated": true,
+    "db_write_executed": false,
+    "retrieval_index_write_executed": false,
+    "source_fetch_executed": false,
+    "proof_or_evidence_created": false,
+    "claim_or_evidence_written": false,
+    "review_memory_written": false,
+    "promotion_executed": false,
+    "durable_state_written": false,
+    "durable_state_applied": false,
+    "formation_receipt_written": false,
+    "product_write_executed": false,
+    "product_id_allocated": false,
+    "github_api_called": false,
+    "git_write_executed": false,
+    "release_executed": false
+  },
+  "public_safe_fixture_policy": {
+    "symbolic_refs_only": true,
+    "raw_prompt_allowed": false,
+    "raw_provider_output_allowed": false,
+    "raw_retrieval_output_allowed": false,
+    "raw_source_body_allowed": false,
+    "raw_db_rows_allowed": false,
+    "raw_conversations_allowed": false,
+    "hidden_reasoning_allowed": false,
+    "telemetry_dumps_allowed": false,
+    "raw_diffs_allowed": false,
+    "terminal_logs_allowed": false,
+    "github_payloads_allowed": false,
+    "private_paths_allowed": false,
+    "private_urls_allowed": false,
+    "secrets_allowed": false
+  }
+}
