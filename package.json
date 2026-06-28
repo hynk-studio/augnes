@@ -641,6 +641,7 @@
     "smoke:research-retrieval-index-runtime-v0-1": "node scripts/smoke-research-retrieval-index-runtime-v0-1.mjs",
     "smoke:research-retrieval-index-runtime-completion-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-research-retrieval-index-runtime-completion-v0-1.mjs",
     "smoke:rag-context-preview-v0-1": "node scripts/smoke-rag-context-preview-v0-1.mjs",
+    "smoke:rag-context-preview-runtime-completion-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-rag-context-preview-runtime-completion-v0-1.mjs",
     "smoke:perspective-promotion-runtime-contract-v0-1": "node scripts/smoke-perspective-promotion-runtime-contract-v0-1.mjs",
     "smoke:perspective-promotion-decision-store-v0-1": "node scripts/smoke-perspective-promotion-decision-store-v0-1.mjs",
     "smoke:formation-receipt-durable-write-v0-1": "node scripts/smoke-formation-receipt-durable-write-v0-1.mjs",

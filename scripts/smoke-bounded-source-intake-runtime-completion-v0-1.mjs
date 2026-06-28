@@ -792,7 +792,10 @@ function assertPackageScript() {
 function assertNoForbiddenFilesAdded() {
   const changedFiles = changedFilesFromGit();
   for (const filePath of changedFiles) {
-    assert.ok(!filePath.startsWith("components/"), `${filePath} must not add UI`);
+    assert.ok(
+      !filePath.startsWith("components/") || isRagContextPreviewRuntimeCompletionFile(filePath),
+      `${filePath} must not add UI outside the RAG context preview runtime completion display`,
+    );
     assert.ok(!filePath.startsWith("lib/db/"), `${filePath} must not add DB schema`);
     assert.ok(
       !filePath.includes("provider") || isProviderExtractionRuntimeCompletionFile(filePath),
@@ -804,6 +807,16 @@ function assertNoForbiddenFilesAdded() {
     assert.ok(!filePath.includes("product-write"), `${filePath} must not add product-write runtime`);
     assert.ok(!filePath.includes("product-id"), `${filePath} must not add product ID allocation`);
   }
+}
+
+function isRagContextPreviewRuntimeCompletionFile(filePath) {
+  return [
+    "components/rag-context-preview-panel.tsx",
+    "docs/RAG_CONTEXT_PREVIEW_RUNTIME_COMPLETION_V0_1.md",
+    "app/api/research-retrieval/rag-context-preview/route.ts",
+    "fixtures/rag-context-preview-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-rag-context-preview-runtime-completion-v0-1.mjs",
+  ].includes(filePath);
 }
 
 function isProviderExtractionRuntimeCompletionFile(filePath) {
