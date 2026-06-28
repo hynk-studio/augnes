@@ -1,0 +1,134 @@
+{
+  "fixture_version": "runtime_audit_selected_route_instrumentation.sample.v0.1",
+  "instrumentation_version": "runtime_audit_selected_route_instrumentation.v0.1",
+  "audit_event_store_version": "runtime_audit_event_store.v0.1",
+  "scope": "project:augnes",
+  "selected_routes": [
+    "app/api/research-source/intake/route.ts",
+    "app/api/research-candidate-review/provider-extraction/route.ts",
+    "app/api/research-retrieval/rag-context-preview/route.ts",
+    "app/api/research-candidate/feedback-events/route.ts",
+    "app/api/research-candidate/feedback-events/surfacing-preview/route.ts"
+  ],
+  "safe_audit_db_path_examples": [
+    ".tmp/runtime-audit/selected-routes/runtime-audit.sqlite",
+    "tmp/runtime-audit/selected-routes/runtime-audit.db"
+  ],
+  "unsafe_audit_db_path_examples": [
+    "blocked-parent-traversal-runtime-audit.sqlite",
+    "blocked-url-runtime-audit.sqlite",
+    "blocked-secret-token-runtime-audit.sqlite"
+  ],
+  "source_intake_audit_example": {
+    "route_ref": "route:/api/research-source/intake",
+    "runtime_slice_ref": "bounded_source_intake_runtime_completion_v0_1",
+    "event_surface": "source_intake_runtime",
+    "event_kind": "route_response",
+    "event_action": "source_intake_completed",
+    "event_status": "accepted_bounded_summary",
+    "subject_ref": "source-ref:bounded-intake:sample",
+    "bounded_summary": "Bounded source intake route returned source_ref metadata."
+  },
+  "provider_extraction_audit_example": {
+    "route_ref": "route:/api/research-candidate-review/provider-extraction",
+    "runtime_slice_ref": "provider_assisted_extraction_runtime_completion_v0_1",
+    "event_surface": "provider_extraction_runtime",
+    "event_kind": "route_response",
+    "event_action": "provider_extraction_completed",
+    "event_status": "candidate_bundle_created",
+    "subject_ref": "source-ref:provider-extraction:sample",
+    "bounded_summary": "Provider extraction route returned candidate-only bundle."
+  },
+  "rag_context_preview_audit_example": {
+    "route_ref": "route:/api/research-retrieval/rag-context-preview",
+    "runtime_slice_ref": "rag_context_preview_runtime_completion_v0_1",
+    "event_surface": "rag_context_preview_runtime",
+    "event_kind": "route_response",
+    "event_action": "rag_context_preview_completed",
+    "event_status": "context_preview_created",
+    "subject_ref": "rag-preview-request:sample",
+    "bounded_summary": "RAG context preview route returned context preview."
+  },
+  "feedback_event_write_audit_example": {
+    "route_ref": "route:/api/research-candidate/feedback-events",
+    "runtime_slice_ref": "feedback_controls_expansion_runtime_completion_v0_1",
+    "event_surface": "feedback_event_write_runtime",
+    "event_kind": "route_response",
+    "event_action": "feedback_event_write_completed",
+    "event_status": "feedback_event_created",
+    "subject_ref": "candidate:feedback-target:sample",
+    "bounded_summary": "Feedback event write route persisted bounded feedback signal."
+  },
+  "feedback_surfacing_preview_audit_example": {
+    "route_ref": "route:/api/research-candidate/feedback-events/surfacing-preview",
+    "runtime_slice_ref": "feedback_influenced_surfacing_preview_runtime_completion_v0_1",
+    "event_surface": "feedback_surfacing_preview_runtime",
+    "event_kind": "route_response",
+    "event_action": "feedback_surfacing_preview_completed",
+    "event_status": "preview_created",
+    "subject_ref": "feedback-surfacing-preview:sample",
+    "bounded_summary": "Feedback surfacing preview route returned advisory preview."
+  },
+  "audit_not_requested_example": {
+    "status": "audit_not_requested",
+    "audit_event_persisted": false
+  },
+  "audit_skipped_invalid_db_path_example": {
+    "status": "audit_skipped_invalid_db_path",
+    "audit_db_path": "SAFE_MARKER_LOCAL_PRIVATE_PATH"
+  },
+  "audit_skipped_private_or_raw_payload_example": {
+    "status": "audit_skipped_private_or_raw_payload",
+    "blocked_value": "SAFE_MARKER_RAW_REQUEST_BODY"
+  },
+  "audit_skipped_forbidden_authority_example": {
+    "status": "audit_skipped_forbidden_authority",
+    "authority_boundary": {
+      "product_write_now": true
+    }
+  },
+  "audit_write_failed_bounded_example": {
+    "status": "audit_write_failed_bounded",
+    "audit_event_persisted": false,
+    "primary_route_failed": false
+  },
+  "authority_boundary_sample": {
+    "runtime_audit_selected_route_instrumentation_now": true,
+    "runtime_audit_event_persistence_now": true,
+    "selected_route_subset_only": true,
+    "audit_db_path_optional": true,
+    "primary_route_failure_from_audit_now": false,
+    "raw_request_body_stored_now": false,
+    "raw_response_body_stored_now": false,
+    "raw_terminal_log_stored_now": false,
+    "browser_dump_ingested_now": false,
+    "hidden_reasoning_stored_now": false,
+    "raw_provider_output_stored_now": false,
+    "raw_retrieval_output_stored_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "audit_event_is_truth": false,
+    "audit_event_is_proof": false,
+    "audit_event_is_approval": false,
+    "audit_event_is_durable_state": false,
+    "audit_event_is_product_write_authority": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}

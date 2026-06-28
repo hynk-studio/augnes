@@ -18,6 +18,10 @@ import {
   feedbackEventAggregationRuntimeCompletionSchemaExistsV01,
   type FeedbackEventAggregationSqliteLikeV01,
 } from "@/lib/research-candidate-review/feedback-event-aggregation-runtime";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "@/lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +49,7 @@ export async function POST(request: Request) {
     request_version?: unknown;
     scope?: unknown;
     db_path?: unknown;
+    audit_db_path?: unknown;
     input?: unknown;
   };
   if (
@@ -137,7 +142,32 @@ export async function POST(request: Request) {
       aggregateFeedbackEvents: (aggregationInput) =>
         aggregateFeedbackEventsRuntimeCompletionV01(aggregationInput, { db: sqliteLike }),
     });
-    return jsonResponse(completionResponse(result), completionResultHttpStatus(result));
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: routeBody.audit_db_path,
+      route_ref: "route:/api/research-candidate/feedback-events/surfacing-preview",
+      runtime_slice_ref: "feedback_influenced_surfacing_preview_runtime_completion_v0_1",
+      event_surface: "feedback_surfacing_preview_runtime",
+      event_kind: "route_response",
+      event_action: "feedback_surfacing_preview_completed",
+      event_status: result.status,
+      subject_ref: result.surfacing_preview_request_id,
+      related_refs: [
+        ...result.surfaced_items.map((item) => item.surfaced_item_ref),
+        ...result.source_visibility_warnings.flatMap((warning) => warning.source_refs),
+        ...result.rule_failure_candidates.map((candidate) => candidate.rule_failure_candidate_ref),
+      ],
+      primary_result_status: result.status,
+      primary_result_ref: result.surfacing_preview_request_id,
+      bounded_summary:
+        result.status === "preview_created"
+          ? "Feedback surfacing preview route returned advisory preview."
+          : "Feedback surfacing preview route returned bounded status.",
+      bounded_error_code: completionResultHttpStatus(result) >= 400 ? result.status : null,
+    });
+    return jsonResponse(
+      completionResponse(result, auditEventResult),
+      completionResultHttpStatus(result),
+    );
   } finally {
     db.close();
   }
@@ -188,6 +218,7 @@ function completionResultHttpStatus(
 
 function completionResponse(
   result: FeedbackInfluencedSurfacingPreviewRuntimeCompletionResultV01,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
 ) {
   const isBlocked =
     result.status.startsWith("blocked") ||
@@ -216,6 +247,7 @@ function completionResponse(
     claim_or_evidence_written: false,
     product_write_executed: false,
     authority_boundary: result.authority_boundary,
+    audit_event_result: auditEventResult,
   };
 }
 

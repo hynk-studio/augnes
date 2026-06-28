@@ -7,6 +7,10 @@ import {
   type ProviderAssistedExtractionRuntimeResultV01,
   type ProviderExtractionAdapterV01,
 } from "../../../../lib/research-extraction/provider-extract-candidates";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "../../../../lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -40,6 +44,7 @@ export interface ProviderAssistedExtractionRouteResponseV01 {
   product_write_executed: false;
   boundary_notes: string[];
   authority_boundary: ReturnType<typeof createProviderAssistedExtractionRuntimeAuthorityBoundaryV01>;
+  audit_event_result?: RuntimeRouteAuditInstrumentationResultV01;
 }
 
 export function createProviderAssistedExtractionRuntimeCompletionPostHandlerV01(options?: {
@@ -60,7 +65,12 @@ export function createProviderAssistedExtractionRuntimeCompletionPostHandlerV01(
       return jsonResponse(errorResponse("invalid_json_object"), 400);
     }
 
-    const routeBody = body as { route_version?: unknown; scope?: unknown; input?: unknown };
+    const routeBody = body as {
+      route_version?: unknown;
+      scope?: unknown;
+      input?: unknown;
+      audit_db_path?: unknown;
+    };
     if (
       routeBody.route_version !== PROVIDER_ASSISTED_EXTRACTION_RUNTIME_COMPLETION_ROUTE_VERSION_V01 ||
       routeBody.scope !== scope ||
@@ -75,7 +85,30 @@ export function createProviderAssistedExtractionRuntimeCompletionPostHandlerV01(
       providerAdapter: options?.providerAdapter,
     });
     const statusCode = runtimeResultHttpStatus(result);
-    return jsonResponse(runtimeResultResponse(result, statusCode), statusCode);
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: routeBody.audit_db_path,
+      route_ref: "route:/api/research-candidate-review/provider-extraction",
+      runtime_slice_ref: "provider_assisted_extraction_runtime_completion_v0_1",
+      event_surface: "provider_extraction_runtime",
+      event_kind: "route_response",
+      event_action: "provider_extraction_completed",
+      event_status: result.status,
+      subject_ref: result.source_ref_id ?? result.extraction_request_id ?? "provider-extraction:result",
+      related_refs: [
+        result.source_ref_id ?? "",
+        result.extraction_request_id ?? "",
+        result.provider_request_ref ?? "",
+        ...result.candidate_refs,
+      ].filter(Boolean),
+      primary_result_status: result.status,
+      primary_result_ref: result.extraction_request_id ?? result.source_ref_id ?? "provider-extraction:result",
+      bounded_summary:
+        result.status === "candidate_bundle_created"
+          ? "Provider extraction route returned candidate-only bundle."
+          : "Provider extraction route returned bounded status.",
+      bounded_error_code: statusCode >= 400 ? routeErrorCodeForResult(result) : null,
+    });
+    return jsonResponse(runtimeResultResponse(result, statusCode, auditEventResult), statusCode);
   };
 }
 
@@ -97,6 +130,7 @@ function runtimeResultHttpStatus(result: ProviderAssistedExtractionRuntimeResult
 function runtimeResultResponse(
   result: ProviderAssistedExtractionRuntimeResultV01,
   statusCode: number,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
 ): ProviderAssistedExtractionRouteResponseV01 {
   return {
     route_version: PROVIDER_ASSISTED_EXTRACTION_RUNTIME_COMPLETION_ROUTE_VERSION_V01,
@@ -113,6 +147,7 @@ function runtimeResultResponse(
     product_write_executed: false,
     boundary_notes: boundaryNotes(),
     authority_boundary: result.authority_boundary,
+    audit_event_result: auditEventResult,
   };
 }
 

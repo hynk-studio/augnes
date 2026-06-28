@@ -15,6 +15,10 @@ import {
   isSafeResearchRetrievalDbPathV01,
   researchRetrievalIndexSchemaExistsV01,
 } from "@/lib/research-retrieval/index-store";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "@/lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -36,7 +40,12 @@ export async function POST(request: Request) {
     return jsonResponse(errorResponse("invalid_json_object"), 400);
   }
 
-  const routeBody = body as { route_version?: unknown; scope?: unknown; input?: unknown };
+  const routeBody = body as {
+    route_version?: unknown;
+    scope?: unknown;
+    input?: unknown;
+    audit_db_path?: unknown;
+  };
   if (
     routeBody.route_version !== routeVersion ||
     routeBody.scope !== scope ||
@@ -70,7 +79,25 @@ export async function POST(request: Request) {
     }
     const result = buildRagContextPreviewRuntimeCompletionV01(input, db);
     const statusCode = resultHttpStatus(result);
-    return jsonResponse(resultResponse(result, statusCode), statusCode);
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: routeBody.audit_db_path,
+      route_ref: "route:/api/research-retrieval/rag-context-preview",
+      runtime_slice_ref: "rag_context_preview_runtime_completion_v0_1",
+      event_surface: "rag_context_preview_runtime",
+      event_kind: "route_response",
+      event_action: "rag_context_preview_completed",
+      event_status: result.status,
+      subject_ref: result.preview_request_id,
+      related_refs: [result.query_ref, result.search_request_ref, ...result.retrieved_refs],
+      primary_result_status: result.status,
+      primary_result_ref: result.preview_request_id,
+      bounded_summary:
+        result.status === "context_preview_created"
+          ? "RAG context preview route returned context preview."
+          : "RAG context preview route returned bounded status.",
+      bounded_error_code: statusCode >= 400 ? result.status : null,
+    });
+    return jsonResponse(resultResponse(result, statusCode, auditEventResult), statusCode);
   } finally {
     db.close();
   }
@@ -90,7 +117,11 @@ function resultHttpStatus(result: RagContextPreviewRuntimeResultV01): number {
   return 200;
 }
 
-function resultResponse(result: RagContextPreviewRuntimeResultV01, statusCode: number) {
+function resultResponse(
+  result: RagContextPreviewRuntimeResultV01,
+  statusCode: number,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
+) {
   return {
     route_version: routeVersion,
     scope,
@@ -117,6 +148,7 @@ function resultResponse(result: RagContextPreviewRuntimeResultV01, statusCode: n
     product_write_executed: false,
     product_id_allocated: false,
     authority_boundary: result.authority_boundary,
+    audit_event_result: auditEventResult,
   };
 }
 

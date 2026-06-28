@@ -4,6 +4,10 @@ import {
   runBoundedSourceIntakeRuntimeV01,
   type BoundedSourceIntakeRuntimeResultV01,
 } from "../../../../lib/research-source/intake-runtime";
+import {
+  maybeWriteRuntimeRouteAuditEventV01,
+  type RuntimeRouteAuditInstrumentationResultV01,
+} from "../../../../lib/runtime-audit/route-audit-instrumentation";
 
 export const runtime = "nodejs";
 
@@ -39,6 +43,7 @@ export interface BoundedSourceIntakeRouteResponseV01 {
   product_write_executed: false;
   boundary_notes: string[];
   authority_boundary: ReturnType<typeof createBoundedSourceIntakeRuntimeAuthorityBoundaryV01>;
+  audit_event_result?: RuntimeRouteAuditInstrumentationResultV01;
 }
 
 export function createBoundedSourceIntakeRuntimeCompletionPostHandlerV01(options?: {
@@ -60,7 +65,12 @@ export function createBoundedSourceIntakeRuntimeCompletionPostHandlerV01(options
       return jsonResponse(errorResponse("invalid_json_object"), 400);
     }
 
-    const routeBody = body as { route_version?: unknown; scope?: unknown; input?: unknown };
+    const routeBody = body as {
+      route_version?: unknown;
+      scope?: unknown;
+      input?: unknown;
+      audit_db_path?: unknown;
+    };
     if (
       routeBody.route_version !== BOUNDED_SOURCE_INTAKE_RUNTIME_COMPLETION_ROUTE_VERSION_V01 ||
       routeBody.scope !== scope ||
@@ -76,7 +86,29 @@ export function createBoundedSourceIntakeRuntimeCompletionPostHandlerV01(options
       allow_live_fetch: options?.allow_live_fetch,
     });
     const statusCode = runtimeResultHttpStatus(result);
-    return jsonResponse(runtimeResultResponse(result, statusCode), statusCode);
+    const auditEventResult = maybeWriteRuntimeRouteAuditEventV01({
+      audit_db_path: routeBody.audit_db_path,
+      route_ref: "route:/api/research-source/intake",
+      runtime_slice_ref: "bounded_source_intake_runtime_completion_v0_1",
+      event_surface: "source_intake_runtime",
+      event_kind: "route_response",
+      event_action: "source_intake_completed",
+      event_status: result.status,
+      subject_ref: result.source_ref_id ?? result.gap_candidate_ref ?? "source-intake:result",
+      related_refs: [
+        result.source_ref_id ?? "",
+        result.source_locator_ref ?? "",
+        result.gap_candidate_ref ?? "",
+      ].filter(Boolean),
+      primary_result_status: result.status,
+      primary_result_ref: result.source_ref_id ?? result.gap_candidate_ref ?? "source-intake:result",
+      bounded_summary:
+        result.status === "accepted_bounded_summary"
+          ? "Bounded source intake route returned source_ref metadata."
+          : "Bounded source intake route returned bounded status.",
+      bounded_error_code: statusCode >= 400 ? routeErrorCodeForResult(result) : null,
+    });
+    return jsonResponse(runtimeResultResponse(result, statusCode, auditEventResult), statusCode);
   };
 }
 
@@ -95,6 +127,7 @@ function runtimeResultHttpStatus(result: BoundedSourceIntakeRuntimeResultV01): n
 function runtimeResultResponse(
   result: BoundedSourceIntakeRuntimeResultV01,
   statusCode: number,
+  auditEventResult?: RuntimeRouteAuditInstrumentationResultV01,
 ): BoundedSourceIntakeRouteResponseV01 {
   return {
     route_version: BOUNDED_SOURCE_INTAKE_RUNTIME_COMPLETION_ROUTE_VERSION_V01,
@@ -109,6 +142,7 @@ function runtimeResultResponse(
     product_write_executed: false,
     boundary_notes: boundaryNotes(),
     authority_boundary: createBoundedSourceIntakeRuntimeAuthorityBoundaryV01(),
+    audit_event_result: auditEventResult,
   };
 }
 
