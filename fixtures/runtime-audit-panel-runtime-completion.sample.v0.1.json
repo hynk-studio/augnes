@@ -1,0 +1,242 @@
+{
+  "fixture_version": "runtime_audit_panel_runtime_completion.sample.v0.1",
+  "store_version": "runtime_audit_event_store.v0.1",
+  "route_version": "runtime_audit_event_route.v0.1",
+  "model_version": "runtime_audit_panel_runtime_model.v0.1",
+  "event_version": "runtime_audit_event.v0.1",
+  "request_version": "runtime_audit_event_request.v0.1",
+  "scope": "project:augnes",
+  "safe_db_path_examples": [
+    ".tmp/runtime-audit/ui/runtime-audit.sqlite",
+    "tmp/runtime-audit/smoke/runtime-audit.db"
+  ],
+  "unsafe_db_path_examples": [
+    "blocked-parent-traversal-runtime-audit.sqlite",
+    "blocked-url-runtime-audit.sqlite",
+    "blocked-token-runtime-audit.sqlite",
+    "blocked-non-sqlite-runtime-audit.txt"
+  ],
+  "safe_audit_event_create_request_example": {
+    "route_version": "runtime_audit_event_route.v0.1",
+    "scope": "project:augnes",
+    "action": "create_audit_event",
+    "db_path": ".tmp/runtime-audit/ui/runtime-audit.sqlite",
+    "input": {
+      "request_version": "runtime_audit_event_request.v0.1",
+      "event_version": "runtime_audit_event.v0.1",
+      "scope": "project:augnes",
+      "audit_event_id": "audit:event:feedback-surfacing-preview:001",
+      "event_kind": "route_response",
+      "event_surface": "feedback_surfacing_preview_runtime",
+      "event_action": "surfacing_preview_created",
+      "event_status": "ok",
+      "subject_ref": "feedback-target:source-summary-001",
+      "related_refs": [
+        "feedback-event:pin-001",
+        "feedback-aggregation:target-001"
+      ],
+      "route_ref": "route:/api/research-candidate/feedback-events/surfacing-preview",
+      "runtime_slice_ref": "feedback_influenced_surfacing_preview_runtime_completion_v0_1",
+      "created_by": "operator:runtime-audit-smoke",
+      "created_at": "2026-06-28T00:00:00.000Z",
+      "bounded_summary": "Feedback surfacing preview returned advisory priority hints without mutation.",
+      "bounded_error_code": "none",
+      "authority_boundary": {
+        "runtime_audit_panel_runtime_completion_now": true,
+        "runtime_audit_event_persistence_now": true,
+        "runtime_audit_event_read_now": false,
+        "caller_injected_db_only": true,
+        "same_origin_audit_route_now": true,
+        "audit_model_readonly_now": true,
+        "bounded_summary_only": true,
+        "raw_request_body_stored_now": false,
+        "raw_response_body_stored_now": false,
+        "raw_terminal_log_stored_now": false,
+        "browser_dump_ingested_now": false,
+        "hidden_reasoning_stored_now": false,
+        "raw_provider_output_stored_now": false,
+        "raw_retrieval_output_stored_now": false,
+        "provider_openai_call_now": false,
+        "prompt_sent_now": false,
+        "source_fetch_now": false,
+        "retrieval_execution_now": false,
+        "retrieval_index_write_now": false,
+        "rag_answer_generation_now": false,
+        "proof_or_evidence_record_now": false,
+        "claim_or_evidence_write_now": false,
+        "work_item_write_now": false,
+        "promotion_execution_now": false,
+        "durable_state_write_now": false,
+        "durable_state_apply_now": false,
+        "formation_receipt_write_now": false,
+        "product_write_now": false,
+        "product_write_runtime_now": false,
+        "product_write_adapter_enabled_now": false,
+        "product_id_allocation_now": false,
+        "product_persistence_now": false,
+        "git_ledger_export_runtime_now": false,
+        "git_write_now": false,
+        "github_api_call_now": false,
+        "repository_file_write_now": false,
+        "local_file_export_now": false,
+        "local_file_import_now": false,
+        "codex_execution_now": false,
+        "codex_execution_authority": false,
+        "github_automation_authority": false,
+        "product_write_authority": false,
+        "audit_event_is_truth": false,
+        "audit_event_is_proof": false,
+        "audit_event_is_approval": false,
+        "audit_event_is_durable_state": false,
+        "audit_event_is_product_write_authority": false,
+        "smoke_pass_is_truth": false,
+        "ci_pass_is_truth": false
+      },
+      "privacy_report": {
+        "bounded_summary_only": true,
+        "raw_payload_excluded": true
+      },
+      "reason_codes": [
+        "runtime_audit_panel_runtime_completion",
+        "bounded_summary_only",
+        "audit_event_is_not_truth",
+        "product_write_denied"
+      ]
+    }
+  },
+  "safe_audit_event_result_example": {
+    "status": "audit_event_created",
+    "audit_event_id": "audit:event:feedback-surfacing-preview:001",
+    "audit_event_persisted": true,
+    "raw_request_body_stored_now": false,
+    "raw_response_body_stored_now": false,
+    "product_write_executed": false
+  },
+  "safe_audit_event_list_result_example": {
+    "status": "ok",
+    "event_count": 1,
+    "events": [
+      {
+        "audit_event_id": "audit:event:feedback-surfacing-preview:001",
+        "event_kind": "route_response",
+        "event_surface": "feedback_surfacing_preview_runtime",
+        "event_status": "ok",
+        "bounded_summary": "Feedback surfacing preview returned advisory priority hints without mutation."
+      }
+    ]
+  },
+  "audit_model_summary_example": {
+    "event_count": 1,
+    "status_counts": {
+      "ok": 1
+    },
+    "kind_counts": {
+      "route_response": 1
+    },
+    "surface_counts": {
+      "feedback_surfacing_preview_runtime": 1
+    },
+    "last_event_at": "2026-06-28T00:00:00.000Z",
+    "bounded_error_count": 0
+  },
+  "grouped_by_surface_example": [
+    {
+      "event_surface": "feedback_surfacing_preview_runtime",
+      "event_count": 1,
+      "latest_event_at": "2026-06-28T00:00:00.000Z",
+      "event_refs": [
+        "audit:event:feedback-surfacing-preview:001"
+      ]
+    }
+  ],
+  "blocked_private_or_raw_payload_example": {
+    "status": "blocked_private_or_raw_payload",
+    "blocked_value": "SAFE_MARKER_PRIVATE_URL"
+  },
+  "blocked_forbidden_authority_example": {
+    "status": "blocked_forbidden_authority",
+    "input": {
+      "product_write_now": true,
+      "nested": {
+        "provider_openai_call_now": "enabled"
+      }
+    }
+  },
+  "invalid_db_path_example": {
+    "status": "invalid_db_path",
+    "blocked_path": "SAFE_MARKER_LOCAL_PRIVATE_PATH"
+  },
+  "invalid_raw_request_body_example": {
+    "status": "blocked_private_or_raw_payload",
+    "raw_request_body": "SAFE_MARKER_RAW_REQUEST_BODY"
+  },
+  "invalid_raw_response_body_example": {
+    "status": "blocked_private_or_raw_payload",
+    "raw_response_body": "SAFE_MARKER_RAW_RESPONSE_BODY"
+  },
+  "invalid_hidden_reasoning_example": {
+    "status": "blocked_private_or_raw_payload",
+    "hidden_reasoning": "SAFE_MARKER_HIDDEN_REASONING"
+  },
+  "idempotent_existing_example": {
+    "status": "idempotent_existing",
+    "audit_event_id": "audit:event:feedback-surfacing-preview:001",
+    "audit_event_persisted": false
+  },
+  "conflict_existing_audit_event_example": {
+    "status": "conflict_existing_audit_event",
+    "audit_event_id": "audit:event:feedback-surfacing-preview:001",
+    "audit_event_persisted": false
+  },
+  "authority_boundary_sample": {
+    "runtime_audit_panel_runtime_completion_now": true,
+    "runtime_audit_event_persistence_now": false,
+    "runtime_audit_event_read_now": true,
+    "caller_injected_db_only": true,
+    "same_origin_audit_route_now": true,
+    "audit_model_readonly_now": true,
+    "bounded_summary_only": true,
+    "raw_request_body_stored_now": false,
+    "raw_response_body_stored_now": false,
+    "raw_terminal_log_stored_now": false,
+    "browser_dump_ingested_now": false,
+    "hidden_reasoning_stored_now": false,
+    "raw_provider_output_stored_now": false,
+    "raw_retrieval_output_stored_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "retrieval_execution_now": false,
+    "retrieval_index_write_now": false,
+    "rag_answer_generation_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "work_item_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "audit_event_is_truth": false,
+    "audit_event_is_proof": false,
+    "audit_event_is_approval": false,
+    "audit_event_is_durable_state": false,
+    "audit_event_is_product_write_authority": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}

@@ -472,9 +472,6 @@ function assertComponentStaticChecks() {
     assertIncludes(componentText, label, `${componentPath} label ${label}`);
   }
   for (const forbidden of [
-    "fetch(",
-    "/api/",
-    "POST",
     "localStorage",
     "sessionStorage",
     "NextResponse",
@@ -491,6 +488,19 @@ function assertComponentStaticChecks() {
   ]) {
     assertNotIncludes(componentText, forbidden, `${componentPath} forbidden marker ${forbidden}`);
   }
+  assertIncludes(
+    componentText,
+    "/api/runtime-audit/events",
+    `${componentPath} exact route-backed runtime audit read route`,
+  );
+  assertIncludes(componentText, "method: \"GET\"", `${componentPath} GET-only audit route read`);
+  assertNotIncludes(componentText, "method: \"POST\"", `${componentPath} no audit write route`);
+  const apiPathMatches = componentText.match(/\/api\/[A-Za-z0-9/_-]+/g) ?? [];
+  assert.deepEqual(
+    [...new Set(apiPathMatches)].sort(),
+    ["/api/runtime-audit/events"],
+    `${componentPath} only runtime audit route path`,
+  );
 }
 
 function assertDocsCoverage() {

@@ -797,7 +797,8 @@ function assertNoForbiddenFilesAdded() {
         isRagContextPreviewRuntimeCompletionFile(filePath) ||
         isConstellationRuntimeUiCompletionFile(filePath) ||
         isFeedbackControlsExpansionRuntimeCompletionFile(filePath) ||
-        isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath),
+        isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) ||
+        isRuntimeAuditPanelRuntimeCompletionFile(filePath),
       `${filePath} must not add UI outside an approved runtime UI completion display`,
     );
     assert.ok(!filePath.startsWith("lib/db/"), `${filePath} must not add DB schema`);
@@ -857,6 +858,21 @@ function isFeedbackInfluencedSurfacingPreviewRuntimeCompletionFile(filePath) {
     "docs/FEEDBACK_INFLUENCED_SURFACING_PREVIEW_RUNTIME_COMPLETION_V0_1.md",
     "fixtures/feedback-influenced-surfacing-preview-runtime-completion.sample.v0.1.json",
     "scripts/smoke-feedback-influenced-surfacing-preview-runtime-completion-v0-1.mjs",
+    "package.json",
+    "docs/00_INDEX_LATEST.md",
+  ].includes(filePath);
+}
+
+function isRuntimeAuditPanelRuntimeCompletionFile(filePath) {
+  return [
+    "components/runtime-audit-panel.tsx",
+    "lib/runtime-audit/audit-event-store.ts",
+    "lib/runtime-audit/build-runtime-audit-model.ts",
+    "app/api/runtime-audit/events/route.ts",
+    "docs/RUNTIME_AUDIT_PANEL_RUNTIME_COMPLETION_V0_1.md",
+    "fixtures/runtime-audit-panel-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-runtime-audit-panel-runtime-completion-v0-1.mjs",
+    "scripts/smoke-runtime-audit-panel-v0-1.mjs",
     "package.json",
     "docs/00_INDEX_LATEST.md",
   ].includes(filePath);
