@@ -1,3 +1,14 @@
+import { createHash } from "node:crypto";
+
+import {
+  createResearchRetrievalIndexAuthorityBoundaryV01,
+  researchRetrievalIndexSchemaExistsV01,
+  type ResearchRetrievalIndexAuthorityBoundaryV01,
+  type ResearchRetrievalIndexDbLikeV01,
+// @ts-ignore Direct Node smoke imports TS modules and requires explicit extension.
+} from "./index-store.ts";
+// @ts-ignore Direct Node smoke imports TS modules and requires explicit extension.
+import { tokenizeResearchRetrievalTextV01 } from "./rebuild-index.ts";
 import type {
   RebuildableRetrievalIndex,
   RebuildableRetrievalIndexEntry,
@@ -11,6 +22,8 @@ export const RESEARCH_RETRIEVAL_INDEX_SEARCH_REQUEST_VERSION =
   "research_retrieval_index_search_request.v0.1" as const;
 export const RESEARCH_RETRIEVAL_INDEX_SEARCH_RESULT_VERSION =
   "research_retrieval_index_search_result.v0.1" as const;
+export const RESEARCH_RETRIEVAL_INDEX_RUNTIME_COMPLETION_SEARCH_VERSION_V01 =
+  "research_retrieval_index_runtime_completion_search.v0.1" as const;
 
 const runtimeVersion = "rebuildable_retrieval_index_runtime.v0.1" as const;
 const contractVersion = "research_retrieval_runtime_contract.v0.1" as const;
@@ -146,6 +159,102 @@ export interface ResearchRetrievalIndexSearchResult {
   authority_boundary: RebuildableRetrievalIndexRuntimeBoundary;
 }
 
+export type ResearchRetrievalIndexDbSearchStatusV01 =
+  | "searched"
+  | "not_found"
+  | "schema_missing"
+  | "blocked_private_or_raw_payload"
+  | "blocked_forbidden_authority"
+  | "blocked_invalid_input"
+  | "rejected";
+
+export interface ResearchRetrievalIndexSearchInputV01 {
+  search_version: typeof RESEARCH_RETRIEVAL_INDEX_RUNTIME_COMPLETION_SEARCH_VERSION_V01;
+  scope: typeof scope;
+  search_request_id: string;
+  requested_by: string;
+  requested_at: string;
+  db_path?: string;
+  query: string;
+  filters?: {
+    source_surface?: string;
+    source_ref_id?: string;
+    source_ref?: string;
+    candidate_ref?: string;
+    review_record_ref?: string;
+    promotion_decision_ref?: string;
+    formation_receipt_ref?: string;
+    perspective_id?: string;
+    feedback_ref?: string;
+    provider_extraction_ref?: string;
+    bounded_source_intake_ref?: string;
+  };
+  limit?: number;
+  include_stale?: boolean;
+  authority_boundary?: Record<string, unknown>;
+  reason_codes?: string[];
+}
+
+export interface ResearchRetrievalIndexSearchResultItemV01 {
+  result_ref: string;
+  index_entry_id: string;
+  source_surface: string;
+  source_record_ref: string;
+  source_ref_id: string | null;
+  candidate_ref: string | null;
+  review_record_ref: string | null;
+  promotion_decision_ref: string | null;
+  formation_receipt_ref: string | null;
+  perspective_id: string | null;
+  feedback_ref: string | null;
+  provider_extraction_ref: string | null;
+  bounded_source_intake_ref: string | null;
+  bounded_title: string;
+  bounded_snippet: string;
+  score: number;
+  score_is_truth: false;
+  score_is_promotion_readiness: false;
+  retrieval_result_is_evidence: false;
+  source_refs_are_lineage: true;
+  stale_marker: "fresh" | "stale" | "unknown";
+  reason_codes: string[];
+  authority_boundary: ResearchRetrievalIndexAuthorityBoundaryV01;
+}
+
+export interface ResearchRetrievalIndexSearchRuntimeResultV01 {
+  search_version: typeof RESEARCH_RETRIEVAL_INDEX_RUNTIME_COMPLETION_SEARCH_VERSION_V01;
+  scope: typeof scope;
+  status: ResearchRetrievalIndexDbSearchStatusV01;
+  search_request_id: string;
+  result_count: number;
+  results: ResearchRetrievalIndexSearchResultItemV01[];
+  retrieval_executed: boolean;
+  rag_answer_generated: false;
+  provider_call_executed: false;
+  prompt_sent: false;
+  source_fetch_executed: false;
+  embedding_created: false;
+  vector_search_executed: false;
+  proof_or_evidence_created: false;
+  claim_or_evidence_written: false;
+  promotion_executed: false;
+  durable_state_written: false;
+  formation_receipt_written: false;
+  product_write_executed: false;
+  product_id_allocated: false;
+  authority_boundary: ResearchRetrievalIndexAuthorityBoundaryV01;
+  reason_codes: string[];
+  failure_codes?: string[];
+}
+
+export interface ResearchRetrievalIndexSearchValidationResultV01 {
+  passed: boolean;
+  status: Exclude<ResearchRetrievalIndexDbSearchStatusV01, "searched" | "not_found" | "schema_missing"> | "valid";
+  failure_codes: string[];
+  reason_codes: string[];
+  authority_boundary: ResearchRetrievalIndexAuthorityBoundaryV01;
+}
+
 const supportedModes: ResearchRetrievalIndexSearchMode[] = [
   "metadata_lookup",
   "lexical_candidate_retrieval",
@@ -182,6 +291,524 @@ const freshnessStatuses: RebuildableRetrievalIndexFreshnessStatus[] = [
   "stale",
   "unknown",
 ];
+
+const runtimeCompletionForbiddenTextMarkers = [
+  "/Users/",
+  "/home/",
+  "file://",
+  "sk-",
+  "ghp_",
+  "OPENAI_API_KEY",
+  "GITHUB_TOKEN",
+  "password:",
+  "secret:",
+  "private key",
+  "raw source body",
+  "raw provider output",
+  "raw retrieval output",
+  "raw conversation",
+  "hidden reasoning",
+  "raw DB row",
+  "SAFE_MARKER_PRIVATE_URL",
+  "SAFE_MARKER_LOCAL_PRIVATE_PATH",
+  "SAFE_MARKER_SECRET_TOKEN",
+  "SAFE_MARKER_RAW_SOURCE_BODY",
+  "SAFE_MARKER_RAW_PROVIDER_OUTPUT",
+  "SAFE_MARKER_RAW_RETRIEVAL_OUTPUT",
+  "SAFE_MARKER_PROVIDER_THREAD_ID",
+  "SAFE_MARKER_RAW_CONVERSATION",
+  "SAFE_MARKER_HIDDEN_REASONING",
+  "SAFE_MARKER_RAW_DB_ROW",
+  "SAFE_MARKER_RAW_DIFF",
+  "SAFE_MARKER_TELEMETRY_DUMP",
+];
+
+const runtimeCompletionForbiddenAuthorityFields = [
+  "provider_openai_call_now",
+  "prompt_sent_now",
+  "source_fetch_now",
+  "live_crawling_now",
+  "embedding_created_now",
+  "vector_search_now",
+  "rag_answer_generation_now",
+  "raw_source_body_indexed_now",
+  "raw_provider_output_indexed_now",
+  "raw_retrieval_output_stored_now",
+  "hidden_reasoning_stored_now",
+  "proof_or_evidence_record_now",
+  "claim_or_evidence_write_now",
+  "promotion_execution_now",
+  "durable_state_write_now",
+  "durable_state_apply_now",
+  "formation_receipt_write_now",
+  "product_write_now",
+  "product_write_runtime_now",
+  "product_write_adapter_enabled_now",
+  "product_id_allocation_now",
+  "product_persistence_now",
+  "git_ledger_export_runtime_now",
+  "git_write_now",
+  "github_api_call_now",
+  "repository_file_write_now",
+  "local_file_export_now",
+  "local_file_import_now",
+  "codex_execution_now",
+  "codex_execution_authority",
+  "github_automation_authority",
+  "product_write_authority",
+  "retrieval_result_is_evidence",
+  "retrieval_result_is_truth",
+  "retrieval_score_is_truth",
+  "retrieval_score_is_promotion_readiness",
+  "rag_context_is_truth",
+  "source_ref_is_proof",
+  "smoke_pass_is_truth",
+  "ci_pass_is_truth",
+];
+
+const runtimeCompletionAllowedAuthorityFields = [
+  "rebuildable_retrieval_index_runtime_now",
+  "explicit_operator_rebuild_only",
+  "explicit_operator_search_only",
+  "caller_injected_db_only",
+  "db_query_or_write_now",
+  "derived_index_write_now",
+  "derived_index_search_now",
+  "public_safe_derived_entries_only",
+  "stale_marker_visible",
+  "backrefs_visible",
+];
+
+const runtimeCompletionAuthorityLikeKeyPatterns = [
+  "_authority",
+  "_write_now",
+  "_call_now",
+  "_execution_now",
+  "_is_truth",
+  "_is_proof",
+  "_is_accepted_evidence",
+  "_is_durable_state",
+  "product_write",
+  "product_id_allocation",
+  "proof_or_evidence",
+  "claim_or_evidence",
+  "promotion_execution",
+  "durable_state_apply",
+  "formation_receipt_write",
+  "github_api_call",
+  "git_write",
+];
+
+export function validateResearchRetrievalSearchInputV01(
+  input: unknown,
+): ResearchRetrievalIndexSearchValidationResultV01 {
+  const authorityBoundary = createResearchRetrievalIndexAuthorityBoundaryV01({
+    derived_index_search_now: true,
+  });
+  const failureCodes: string[] = [];
+  const reasonCodes = [
+    "rebuildable_retrieval_index_runtime_completion",
+    "explicit_operator_search_only",
+    "derived_index_search_now",
+    "retrieval_result_not_evidence",
+    "retrieval_score_not_truth",
+    "retrieval_score_not_promotion_readiness",
+    "rag_answer_not_generated",
+    "provider_call_not_executed",
+    "prompt_not_sent",
+    "source_fetch_not_executed",
+    "embedding_not_created",
+    "vector_search_not_executed",
+    "proof_not_created",
+    "evidence_not_created",
+    "promotion_not_executed",
+    "product_write_denied",
+  ];
+  if (!isRecord(input)) {
+    return {
+      passed: false,
+      status: "blocked_invalid_input",
+      failure_codes: ["input_not_object"],
+      reason_codes: uniqueSorted([...reasonCodes, "blocked_invalid_input"]),
+      authority_boundary: authorityBoundary,
+    };
+  }
+  if (input.search_version !== RESEARCH_RETRIEVAL_INDEX_RUNTIME_COMPLETION_SEARCH_VERSION_V01) {
+    failureCodes.push("search_version_invalid");
+  }
+  if (input.scope !== scope) failureCodes.push("scope_invalid");
+  if (!isNonEmptyString(input.search_request_id)) failureCodes.push("search_request_id_missing");
+  if (!isNonEmptyString(input.requested_by)) failureCodes.push("requested_by_missing");
+  if (!isNonEmptyString(input.requested_at)) failureCodes.push("requested_at_missing");
+  if (!isNonEmptyString(input.query)) failureCodes.push("query_missing");
+  if (typeof input.query === "string" && input.query.length > 300) failureCodes.push("query_too_large");
+  if (input.db_path !== undefined && typeof input.db_path !== "string") failureCodes.push("db_path_invalid");
+  if (input.limit !== undefined && (!Number.isInteger(input.limit) || Number(input.limit) < 1)) {
+    failureCodes.push("limit_invalid");
+  }
+  if (input.filters !== undefined) {
+    if (!isRecord(input.filters)) failureCodes.push("filters_invalid");
+    else {
+      for (const [key, value] of Object.entries(input.filters)) {
+        if (value !== undefined && value !== null && typeof value !== "string") {
+          failureCodes.push(`filter_${key}_invalid`);
+        }
+      }
+    }
+  }
+  if (!Array.isArray(input.reason_codes)) failureCodes.push("reason_codes_invalid");
+  if (containsUnsafeRuntimeCompletionValue(input)) failureCodes.push("private_or_raw_payload_present");
+  if (containsForbiddenAuthorityGrantRuntimeCompletion(input)) {
+    failureCodes.push("forbidden_authority_present");
+  }
+
+  const status = chooseRuntimeCompletionSearchStatus(failureCodes);
+  return {
+    passed: failureCodes.length === 0,
+    status: failureCodes.length === 0 ? "valid" : status,
+    failure_codes: uniqueSorted(failureCodes),
+    reason_codes: uniqueSorted([
+      ...reasonCodes,
+      ...(failureCodes.length === 0 ? ["search_input_valid"] : [status]),
+      ...(failureCodes.includes("private_or_raw_payload_present")
+        ? ["private_or_raw_payload_blocked"]
+        : []),
+      ...(failureCodes.includes("forbidden_authority_present") ? ["forbidden_authority_blocked"] : []),
+    ]),
+    authority_boundary: authorityBoundary,
+  };
+}
+
+export function searchResearchRetrievalIndexV01(
+  input: ResearchRetrievalIndexSearchInputV01,
+  db: ResearchRetrievalIndexDbLikeV01,
+): ResearchRetrievalIndexSearchRuntimeResultV01 {
+  const validation = validateResearchRetrievalSearchInputV01(input);
+  const authorityBoundary = createResearchRetrievalIndexAuthorityBoundaryV01({
+    derived_index_search_now: validation.passed,
+  });
+  if (!validation.passed) {
+    return createDbSearchResult({
+      input,
+      status: validation.status === "valid" ? "rejected" : validation.status,
+      results: [],
+      retrievalExecuted: false,
+      authorityBoundary,
+      reasonCodes: validation.reason_codes,
+      failureCodes: validation.failure_codes,
+    });
+  }
+  if (!researchRetrievalIndexSchemaExistsV01(db)) {
+    return createDbSearchResult({
+      input,
+      status: "schema_missing",
+      results: [],
+      retrievalExecuted: false,
+      authorityBoundary,
+      reasonCodes: uniqueSorted([...validation.reason_codes, "schema_missing"]),
+      failureCodes: ["schema_missing"],
+    });
+  }
+
+  const queryTerms = tokenizeResearchRetrievalTextV01(input.query).slice(0, 12);
+  if (queryTerms.length === 0) {
+    return createDbSearchResult({
+      input,
+      status: "blocked_invalid_input",
+      results: [],
+      retrievalExecuted: false,
+      authorityBoundary,
+      reasonCodes: uniqueSorted([...validation.reason_codes, "query_terms_missing"]),
+      failureCodes: ["query_terms_missing"],
+    });
+  }
+
+  const limit = Math.min(Math.max(Number(input.limit ?? 10), 1), 20);
+  const rows = queryDbIndexRows(db, input, queryTerms, limit);
+  const results = rows.map((row) => rowToSearchResultItem(row, input, queryTerms));
+  return createDbSearchResult({
+    input,
+    status: results.length > 0 ? "searched" : "not_found",
+    results,
+    retrievalExecuted: true,
+    authorityBoundary,
+    reasonCodes: uniqueSorted([
+      ...validation.reason_codes,
+      "derived_index_search_now",
+      "search_result_not_evidence",
+      "retrieval_score_not_truth",
+      "retrieval_score_not_promotion_readiness",
+      ...(results.some((result) => result.stale_marker === "stale") ? ["stale_marker_visible"] : []),
+      ...(results.length > 0 ? ["backrefs_visible"] : []),
+    ]),
+  });
+}
+
+export function createResearchRetrievalSearchResultFingerprintV01(
+  result: unknown,
+): string {
+  return createHash("sha256").update(JSON.stringify(canonicalJson(result))).digest("hex");
+}
+
+interface ResearchRetrievalIndexDbSearchRowV01 {
+  index_entry_id: string;
+  source_surface: string;
+  source_record_ref: string;
+  source_ref_id: string | null;
+  candidate_ref: string | null;
+  review_record_ref: string | null;
+  promotion_decision_ref: string | null;
+  formation_receipt_ref: string | null;
+  perspective_id: string | null;
+  feedback_ref: string | null;
+  provider_extraction_ref: string | null;
+  bounded_source_intake_ref: string | null;
+  bounded_title: string;
+  bounded_summary: string;
+  stale_marker: "fresh" | "stale" | "unknown";
+  score: number;
+}
+
+function queryDbIndexRows(
+  db: ResearchRetrievalIndexDbLikeV01,
+  input: ResearchRetrievalIndexSearchInputV01,
+  queryTerms: string[],
+  limit: number,
+): ResearchRetrievalIndexDbSearchRowV01[] {
+  const filters = input.filters ?? {};
+  const clauses = [
+    "e.scope = ?",
+    `t.term IN (${queryTerms.map(() => "?").join(", ")})`,
+  ];
+  const params: unknown[] = [input.scope, ...queryTerms];
+  if (!input.include_stale) clauses.push("e.stale_marker != 'stale'");
+  const filterMappings: Array<[string, string | undefined]> = [
+    ["e.source_surface", filters.source_surface],
+    ["e.source_ref_id", filters.source_ref_id ?? filters.source_ref],
+    ["e.candidate_ref", filters.candidate_ref],
+    ["e.review_record_ref", filters.review_record_ref],
+    ["e.promotion_decision_ref", filters.promotion_decision_ref],
+    ["e.formation_receipt_ref", filters.formation_receipt_ref],
+    ["e.perspective_id", filters.perspective_id],
+    ["e.feedback_ref", filters.feedback_ref],
+    ["e.provider_extraction_ref", filters.provider_extraction_ref],
+    ["e.bounded_source_intake_ref", filters.bounded_source_intake_ref],
+  ];
+  for (const [column, value] of filterMappings) {
+    if (typeof value === "string" && value.length > 0) {
+      clauses.push(`${column} = ?`);
+      params.push(value);
+    }
+  }
+  params.push(limit);
+  return db
+    .prepare(
+      `SELECT
+        e.index_entry_id AS index_entry_id,
+        e.source_surface AS source_surface,
+        e.source_record_ref AS source_record_ref,
+        e.source_ref_id AS source_ref_id,
+        e.candidate_ref AS candidate_ref,
+        e.review_record_ref AS review_record_ref,
+        e.promotion_decision_ref AS promotion_decision_ref,
+        e.formation_receipt_ref AS formation_receipt_ref,
+        e.perspective_id AS perspective_id,
+        e.feedback_ref AS feedback_ref,
+        e.provider_extraction_ref AS provider_extraction_ref,
+        e.bounded_source_intake_ref AS bounded_source_intake_ref,
+        e.bounded_title AS bounded_title,
+        e.bounded_summary AS bounded_summary,
+        e.stale_marker AS stale_marker,
+        SUM(t.term_count) AS score
+       FROM research_retrieval_index_entries e
+       JOIN research_retrieval_index_terms t ON t.index_entry_id = e.index_entry_id
+       WHERE ${clauses.join(" AND ")}
+       GROUP BY e.index_entry_id
+       ORDER BY score DESC, e.index_entry_id ASC
+       LIMIT ?`,
+    )
+    .all(...params) as ResearchRetrievalIndexDbSearchRowV01[];
+}
+
+function rowToSearchResultItem(
+  row: ResearchRetrievalIndexDbSearchRowV01,
+  input: ResearchRetrievalIndexSearchInputV01,
+  queryTerms: string[],
+): ResearchRetrievalIndexSearchResultItemV01 {
+  const authorityBoundary = createResearchRetrievalIndexAuthorityBoundaryV01({
+    derived_index_search_now: true,
+  });
+  const boundedSnippet = createBoundedSnippet(row.bounded_summary, queryTerms);
+  const resultWithoutRef = {
+    search_request_id: input.search_request_id,
+    index_entry_id: row.index_entry_id,
+    score: Number(row.score ?? 0),
+  };
+  return {
+    result_ref: `retrieval-search-result:${createResearchRetrievalSearchResultFingerprintV01(resultWithoutRef).slice(0, 24)}`,
+    index_entry_id: row.index_entry_id,
+    source_surface: row.source_surface,
+    source_record_ref: row.source_record_ref,
+    source_ref_id: row.source_ref_id,
+    candidate_ref: row.candidate_ref,
+    review_record_ref: row.review_record_ref,
+    promotion_decision_ref: row.promotion_decision_ref,
+    formation_receipt_ref: row.formation_receipt_ref,
+    perspective_id: row.perspective_id,
+    feedback_ref: row.feedback_ref,
+    provider_extraction_ref: row.provider_extraction_ref,
+    bounded_source_intake_ref: row.bounded_source_intake_ref,
+    bounded_title: row.bounded_title,
+    bounded_snippet: boundedSnippet,
+    score: Number(row.score ?? 0),
+    score_is_truth: false,
+    score_is_promotion_readiness: false,
+    retrieval_result_is_evidence: false,
+    source_refs_are_lineage: true,
+    stale_marker: row.stale_marker,
+    reason_codes: uniqueSorted([
+      "derived_index_search_now",
+      "retrieval_result_not_evidence",
+      "retrieval_score_not_truth",
+      "retrieval_score_not_promotion_readiness",
+      "source_refs_are_lineage_not_proof",
+      ...(row.stale_marker === "stale" ? ["stale_marker_visible"] : []),
+    ]),
+    authority_boundary: authorityBoundary,
+  };
+}
+
+function createDbSearchResult(input: {
+  input: ResearchRetrievalIndexSearchInputV01;
+  status: ResearchRetrievalIndexDbSearchStatusV01;
+  results: ResearchRetrievalIndexSearchResultItemV01[];
+  retrievalExecuted: boolean;
+  authorityBoundary: ResearchRetrievalIndexAuthorityBoundaryV01;
+  reasonCodes: string[];
+  failureCodes?: string[];
+}): ResearchRetrievalIndexSearchRuntimeResultV01 {
+  return {
+    search_version: RESEARCH_RETRIEVAL_INDEX_RUNTIME_COMPLETION_SEARCH_VERSION_V01,
+    scope,
+    status: input.status,
+    search_request_id:
+      isRecord(input.input) && typeof input.input.search_request_id === "string"
+        ? input.input.search_request_id
+        : "",
+    result_count: input.results.length,
+    results: input.results,
+    retrieval_executed: input.retrievalExecuted,
+    rag_answer_generated: false,
+    provider_call_executed: false,
+    prompt_sent: false,
+    source_fetch_executed: false,
+    embedding_created: false,
+    vector_search_executed: false,
+    proof_or_evidence_created: false,
+    claim_or_evidence_written: false,
+    promotion_executed: false,
+    durable_state_written: false,
+    formation_receipt_written: false,
+    product_write_executed: false,
+    product_id_allocated: false,
+    authority_boundary: input.authorityBoundary,
+    reason_codes: uniqueSorted([
+      ...input.reasonCodes,
+      "retrieval_result_not_evidence",
+      "retrieval_score_not_truth",
+      "retrieval_score_not_promotion_readiness",
+      "rag_answer_not_generated",
+      "provider_call_not_executed",
+      "prompt_not_sent",
+      "source_fetch_not_executed",
+      "embedding_not_created",
+      "vector_search_not_executed",
+      "proof_not_created",
+      "evidence_not_created",
+      "promotion_not_executed",
+      "product_write_denied",
+    ]),
+    ...(input.failureCodes ? { failure_codes: uniqueSorted(input.failureCodes) } : {}),
+  };
+}
+
+function createBoundedSnippet(summary: string, queryTerms: string[]): string {
+  const normalizedSummary = summary.replace(/\s+/g, " ").trim();
+  const lowerSummary = normalizedSummary.toLowerCase();
+  const firstTerm = queryTerms.find((term) => lowerSummary.includes(term));
+  if (!firstTerm) return normalizedSummary.slice(0, 220);
+  const matchIndex = lowerSummary.indexOf(firstTerm);
+  const start = Math.max(0, matchIndex - 60);
+  return normalizedSummary.slice(start, start + 220);
+}
+
+function chooseRuntimeCompletionSearchStatus(
+  failureCodes: string[],
+): Exclude<ResearchRetrievalIndexDbSearchStatusV01, "searched" | "not_found" | "schema_missing"> {
+  if (failureCodes.includes("forbidden_authority_present")) return "blocked_forbidden_authority";
+  if (
+    failureCodes.includes("private_or_raw_payload_present") ||
+    failureCodes.some((code) => code.endsWith("_unsafe"))
+  ) {
+    return "blocked_private_or_raw_payload";
+  }
+  if (failureCodes.length > 0) return "blocked_invalid_input";
+  return "rejected";
+}
+
+function isSafeRuntimeCompletionText(value: string): boolean {
+  const normalized = value.normalize("NFKC");
+  if (normalized.includes("\0")) return false;
+  if (normalized.length > 2000) return false;
+  return !runtimeCompletionForbiddenTextMarkers.some((marker) =>
+    normalized.toLowerCase().includes(marker.toLowerCase()),
+  );
+}
+
+function containsUnsafeRuntimeCompletionValue(value: unknown): boolean {
+  if (typeof value === "string") return !isSafeRuntimeCompletionText(value);
+  if (Array.isArray(value)) return value.some((item) => containsUnsafeRuntimeCompletionValue(item));
+  if (isRecord(value)) {
+    return Object.values(value).some((item) => containsUnsafeRuntimeCompletionValue(item));
+  }
+  return false;
+}
+
+function isFalseLikeAuthorityValue(value: unknown): boolean {
+  return value === false || value === null || value === undefined;
+}
+
+function containsForbiddenAuthorityGrantRuntimeCompletion(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some((item) => containsForbiddenAuthorityGrantRuntimeCompletion(item));
+  if (!isRecord(value)) return false;
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (isRuntimeCompletionForbiddenAuthorityKey(key) && !isFalseLikeAuthorityValue(nestedValue)) {
+      return true;
+    }
+    if (containsForbiddenAuthorityGrantRuntimeCompletion(nestedValue)) return true;
+  }
+  return false;
+}
+
+function isRuntimeCompletionForbiddenAuthorityKey(key: string): boolean {
+  if (runtimeCompletionAllowedAuthorityFields.includes(key)) return false;
+  return (
+    runtimeCompletionForbiddenAuthorityFields.includes(key) ||
+    runtimeCompletionAuthorityLikeKeyPatterns.some((pattern) => key.includes(pattern))
+  );
+}
+
+function canonicalJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalJson);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonicalJson((value as Record<string, unknown>)[key])]),
+    );
+  }
+  return value;
+}
 
 export function searchRebuildableRetrievalIndexV01(
   index: RebuildableRetrievalIndex,
