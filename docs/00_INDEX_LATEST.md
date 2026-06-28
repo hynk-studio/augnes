@@ -4684,6 +4684,51 @@ repo-local 색인이다.
   written as proof/evidence/state; feedback cannot be written as truth;
   preview-to-write diff is not write approval; smoke pass is not truth; CI
   pass is not truth.
+- Product Write Accepted Evidence Ref Runtime v0.1:
+  `docs/PRODUCT_WRITE_ACCEPTED_EVIDENCE_REF_RUNTIME_V0_1.md`,
+  `types/product-write-accepted-evidence-ref.ts`,
+  `lib/product-write/accepted-evidence-ref-store.ts`,
+  `lib/product-write/accepted-evidence-ref-runtime.ts`,
+  `app/api/product-write/accepted-evidence-refs/route.ts`,
+  `fixtures/product-write-accepted-evidence-ref-runtime.sample.v0.1.json`, and
+  `scripts/smoke-product-write-accepted-evidence-ref-runtime-v0-1.mjs`
+  (`npm run smoke:product-write-accepted-evidence-ref-runtime-v0-1`)
+  implements `product_write_accepted_evidence_ref_runtime_v0_1` as the first
+  explicitly approved gated product-write minimal runtime target only. It
+  writes bounded accepted evidence ref records for the
+  `accepted_evidence_records` target group after validating promotion decision,
+  Formation Receipt, review record, public-safe source refs, accepted evidence
+  refs, product-write reentry review, product-write target contract,
+  preview-to-write diff, rollback or abort plan, stable idempotency key, and
+  explicit operator approval payload. This pointer is repo-local documentation
+  metadata, not SSOT. The roadmap guide is not SSOT. This narrow runtime does
+  not enable a product-write adapter, allocate product IDs, persist product
+  objects/profiles/publications, create proof, write claim/evidence records,
+  create work items, promote Perspective, mutate durable Perspective state,
+  write Formation Receipts, call providers, send prompts, fetch sources,
+  execute retrieval/RAG, generate final RAG answers, execute Git/GitHub, run
+  releases, or grant product-write authority beyond this accepted evidence ref
+  write path. Missing audit_db_path does not fail the primary route. Audit
+  write failure does not fail the primary route.
+
+  Boundary phrases: Product Write Accepted Evidence Ref Runtime v0.1; first
+  approved product-write minimal runtime target only; accepted evidence ref
+  write is not proof; accepted evidence ref write is not truth; accepted
+  evidence ref write is not durable Perspective state; accepted evidence ref
+  write is not product ID allocation; accepted evidence ref write is not broad
+  product persistence; operator approval is required but is not proof;
+  preview-to-write diff is required but is not write approval by itself; source
+  refs are lineage pointers, not proof; promotion decision is a prerequisite,
+  not an automatic execution command; Formation Receipt is a prerequisite, not
+  product-write authority by itself; audit event is not truth, proof, approval,
+  state, or product authority; no product-write adapter enabled; no product ID
+  allocation; no broad product persistence; no product object/profile creation;
+  no product publication; no release execution; no GitHub actuation; no GitHub
+  API call; no Git write; no provider/OpenAI call; no prompt sending; no source
+  fetch; no retrieval execution; no RAG answer generation; no proof creation;
+  no work item creation; no durable Perspective state mutation from
+  product-write; no Formation Receipt write; no automatic product generation;
+  smoke pass is not truth; CI pass is not truth.
 - Deterministic CRPF Variant Review v0.1:
   `docs/DETERMINISTIC_CRPF_VARIANT_REVIEW_V0_1.md`,
   `types/deterministic-crpf-variant-review.ts`,

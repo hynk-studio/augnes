@@ -495,7 +495,8 @@ function assertChangedFileScope() {
 	      !isProviderExtractionRuntimeCompletionFile(filePath) &&
 	      !isRetrievalIndexRuntimeCompletionFile(filePath) &&
 	      !isRagContextPreviewRuntimeCompletionFile(filePath) &&
-	      !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath),
+	      !isRuntimeAuditSelectedRouteInstrumentationV03File(filePath) &&
+	      !isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath),
 	    ),
 	    "no provider/retrieval/Git/GitHub/Codex/product-write/product ID files were added",
 	  );
@@ -559,6 +560,19 @@ function isRagContextPreviewRuntimeCompletionFile(filePath) {
     "components/rag-context-preview-panel.tsx",
     "fixtures/rag-context-preview-runtime-completion.sample.v0.1.json",
     "scripts/smoke-rag-context-preview-runtime-completion-v0-1.mjs",
+  ].includes(filePath);
+}
+
+function isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath) {
+  if (filePath === "app/api/product-write/" || filePath === "lib/product-write/") return true;
+  return [
+    "app/api/product-write/accepted-evidence-refs/route.ts",
+    "docs/PRODUCT_WRITE_ACCEPTED_EVIDENCE_REF_RUNTIME_V0_1.md",
+    "fixtures/product-write-accepted-evidence-ref-runtime.sample.v0.1.json",
+    "lib/product-write/accepted-evidence-ref-runtime.ts",
+    "lib/product-write/accepted-evidence-ref-store.ts",
+    "scripts/smoke-product-write-accepted-evidence-ref-runtime-v0-1.mjs",
+    "types/product-write-accepted-evidence-ref.ts",
   ].includes(filePath);
 }
 

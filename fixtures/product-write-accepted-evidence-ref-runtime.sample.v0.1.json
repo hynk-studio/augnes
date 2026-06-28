@@ -1,0 +1,144 @@
+{
+  "fixture_version": "product_write_accepted_evidence_ref_runtime.sample.v0.1",
+  "runtime_version": "product_write_accepted_evidence_ref_runtime.v0.1",
+  "request_version": "product_write_accepted_evidence_ref_request.v0.1",
+  "record_version": "product_write_accepted_evidence_ref_record.v0.1",
+  "store_version": "product_write_accepted_evidence_ref_store.v0.1",
+  "route_version": "product_write_accepted_evidence_ref_route.v0.1",
+  "operator_approval_payload_version": "product_write_accepted_evidence_ref_operator_approval_payload.v0.1",
+  "scope": "project:augnes",
+  "target_group": "accepted_evidence_records",
+  "runtime_slice_ref": "product_write_accepted_evidence_ref_runtime_v0_1",
+  "as_of": "2026-06-28T00:00:00.000Z",
+  "lineage_seed_refs": {
+    "promotion_decision_ref": "promotion-decision:accepted-evidence-ref-runtime:v0.1:sample",
+    "formation_receipt_ref": "formation-receipt:accepted-evidence-ref-runtime:v0.1:sample",
+    "review_record_ref": "review-record:accepted-evidence-ref-runtime:v0.1:sample",
+    "operator_actor_ref": "operator:augnes:accepted-evidence-ref-runtime:v0.1:sample",
+    "public_safe_source_refs": [
+      "source:bounded-public:accepted-evidence-ref-runtime:v0.1:sample-a",
+      "source:bounded-public:accepted-evidence-ref-runtime:v0.1:sample-b"
+    ],
+    "accepted_evidence_refs": [
+      "accepted-evidence-ref:runtime:v0.1:sample-a"
+    ]
+  },
+  "valid_create_input": {
+    "request_version": "product_write_accepted_evidence_ref_request.v0.1",
+    "runtime_version": "product_write_accepted_evidence_ref_runtime.v0.1",
+    "scope": "project:augnes",
+    "target_group": "accepted_evidence_records",
+    "idempotency_key": "product-write-accepted-evidence-ref:v0.1:accepted_evidence_records:ab3d6f0e87fde01efe722ce2",
+    "promotion_decision_ref": "promotion-decision:accepted-evidence-ref-runtime:v0.1:sample",
+    "formation_receipt_ref": "formation-receipt:accepted-evidence-ref-runtime:v0.1:sample",
+    "review_record_ref": "review-record:accepted-evidence-ref-runtime:v0.1:sample",
+    "public_safe_source_refs": [
+      "source:bounded-public:accepted-evidence-ref-runtime:v0.1:sample-a",
+      "source:bounded-public:accepted-evidence-ref-runtime:v0.1:sample-b"
+    ],
+    "accepted_evidence_refs": [
+      "accepted-evidence-ref:runtime:v0.1:sample-a"
+    ],
+    "product_write_reentry_review_ref": "docs/PRODUCT_WRITE_REENTRY_REVIEW_V0_1.md",
+    "product_write_target_contract_ref": "docs/PRODUCT_WRITE_TARGET_CONTRACT_V0_1.md",
+    "preview_to_write_diff_ref": "preview-to-write-diff:accepted-evidence-ref-runtime:v0.1:sample",
+    "rollback_or_abort_plan_ref": "rollback-or-abort-plan:accepted-evidence-ref-runtime:v0.1:sample",
+    "operator_approval_payload": {
+      "payload_version": "product_write_accepted_evidence_ref_operator_approval_payload.v0.1",
+      "approval_ref": "operator-approval:accepted-evidence-ref-runtime:v0.1:sample",
+      "approved": true,
+      "approved_at": "2026-06-28T00:00:00.000Z",
+      "approved_target_group": "accepted_evidence_records",
+      "approved_runtime_slice": "product_write_accepted_evidence_ref_runtime_v0_1",
+      "operator_actor_ref": "operator:augnes:accepted-evidence-ref-runtime:v0.1:sample",
+      "promotion_decision_ref": "promotion-decision:accepted-evidence-ref-runtime:v0.1:sample",
+      "formation_receipt_ref": "formation-receipt:accepted-evidence-ref-runtime:v0.1:sample",
+      "preview_to_write_diff_ref": "preview-to-write-diff:accepted-evidence-ref-runtime:v0.1:sample",
+      "rollback_or_abort_plan_ref": "rollback-or-abort-plan:accepted-evidence-ref-runtime:v0.1:sample",
+      "bounded_summary": "Operator approved the accepted evidence ref write target only.",
+      "authority_boundary_acknowledged": true
+    },
+    "reason_codes": [
+      "promotion_decision_ref_present",
+      "formation_receipt_ref_present",
+      "review_record_ref_present",
+      "public_safe_source_refs_present",
+      "accepted_evidence_refs_present",
+      "operator_approval_present",
+      "product_write_reentry_review_ref_present",
+      "product_write_target_contract_ref_present",
+      "preview_to_write_diff_ref_present",
+      "rollback_or_abort_plan_ref_present",
+      "idempotency_key_present"
+    ],
+    "boundary_notes": [
+      "accepted evidence ref write is not proof",
+      "accepted evidence ref write is not truth",
+      "accepted evidence ref write is not durable Perspective state",
+      "accepted evidence ref write is not product ID allocation",
+      "accepted evidence ref write is not broad product persistence"
+    ],
+    "authority_boundary": {
+      "product_write_accepted_evidence_ref_runtime_now": true,
+      "product_write_minimal_runtime_first_target_only": true,
+      "accepted_evidence_records_target_group_only": true,
+      "caller_injected_db_only": true,
+      "product_write_adapter_enabled_now": false,
+      "product_id_allocation_now": false,
+      "broad_product_persistence_now": false,
+      "proof_creation_now": false,
+      "durable_perspective_state_mutation_from_product_write_now": false,
+      "provider_openai_call_now": false,
+      "retrieval_execution_now": false,
+      "github_api_call_now": false,
+      "git_write_now": false
+    },
+    "created_at": "2026-06-28T00:00:00.000Z"
+  },
+  "expected_record_ref": "accepted-evidence-ref-write:v0.1:43c718cb262772aee0778575",
+  "expected_statuses": {
+    "first_write": "written",
+    "same_payload_replay": "idempotent_existing",
+    "same_key_different_payload": "conflict_existing_idempotency_key",
+    "missing_promotion_decision_ref": "blocked_missing_prerequisite",
+    "missing_formation_receipt_ref": "blocked_missing_prerequisite",
+    "missing_review_record_ref": "blocked_missing_prerequisite",
+    "missing_public_safe_source_refs": "blocked_missing_prerequisite",
+    "missing_operator_approval": "blocked_missing_prerequisite",
+    "missing_preview_to_write_diff_ref": "blocked_missing_prerequisite",
+    "missing_rollback_or_abort_plan_ref": "blocked_missing_prerequisite",
+    "missing_idempotency_key": "blocked_missing_prerequisite",
+    "forbidden_authority": "blocked_forbidden_authority",
+    "private_or_raw_payload": "blocked_private_or_raw_payload",
+    "missing_lineage_schema": "blocked_schema_missing"
+  },
+  "authority_boundary": {
+    "accepted_evidence_ref_write_is_not_proof": true,
+    "accepted_evidence_ref_write_is_not_truth": true,
+    "accepted_evidence_ref_write_is_not_durable_perspective_state": true,
+    "accepted_evidence_ref_write_is_not_product_id_allocation": true,
+    "operator_approval_is_not_proof": true,
+    "preview_to_write_diff_is_not_write_approval": true,
+    "source_refs_are_lineage_pointers_not_proof": true,
+    "promotion_decision_is_prerequisite_not_command": true,
+    "formation_receipt_is_prerequisite_not_product_write_authority": true,
+    "audit_event_is_not_product_authority": true
+  },
+  "public_safe_fixture_policy": {
+    "symbolic_refs_only": true,
+    "raw_source_bodies": false,
+    "raw_provider_outputs": false,
+    "raw_retrieval_outputs": false,
+    "raw_db_rows": false,
+    "raw_conversations": false,
+    "hidden_reasoning": false,
+    "telemetry_dumps": false,
+    "raw_diffs": false,
+    "secret_like_values": false,
+    "private_urls": false,
+    "local_private_paths": false,
+    "product_ids": false,
+    "product_objects": false,
+    "product_profiles": false
+  }
+}

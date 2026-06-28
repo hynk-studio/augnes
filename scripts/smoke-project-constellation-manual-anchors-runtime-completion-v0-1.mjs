@@ -656,9 +656,25 @@ function assertNoForbiddenFilesAdded() {
       "product-write",
       "product-id",
     ]) {
+      if (forbidden === "product-write" && isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath)) {
+        continue;
+      }
       assert(!filePath.includes(forbidden), `changed file ${filePath} does not add ${forbidden} runtime`);
     }
   }
+}
+
+function isProductWriteAcceptedEvidenceRefRuntimeV01File(filePath) {
+  if (filePath === "app/api/product-write/" || filePath === "lib/product-write/") return true;
+  return [
+    "app/api/product-write/accepted-evidence-refs/route.ts",
+    "docs/PRODUCT_WRITE_ACCEPTED_EVIDENCE_REF_RUNTIME_V0_1.md",
+    "fixtures/product-write-accepted-evidence-ref-runtime.sample.v0.1.json",
+    "lib/product-write/accepted-evidence-ref-runtime.ts",
+    "lib/product-write/accepted-evidence-ref-store.ts",
+    "scripts/smoke-product-write-accepted-evidence-ref-runtime-v0-1.mjs",
+    "types/product-write-accepted-evidence-ref.ts",
+  ].includes(filePath);
 }
 
 function runExistingSmoke(scriptName) {
