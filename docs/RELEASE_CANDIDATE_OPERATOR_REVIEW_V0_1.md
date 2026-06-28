@@ -243,7 +243,16 @@ inputs.
 - Release notes public safe summary
 - Release operator checklist
 
-## 11. Verification expectations
+## 11. Runtime grounding addendum
+
+`docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md` is the
+runtime-grounded operator review addendum after selected audit instrumentation
+v0.3. It updates the checklist context with actual runtime completion and
+selected audit instrumentation inventory. It is not roadmap completion
+closeout, release approval, release execution, product-write approval, GitHub
+actuation approval, or merge authority.
+
+## 12. Verification expectations
 
 Verification should run the Release Candidate Operator Review smoke, Disabled
 Product Write Adapter Reentry Harness downstream smoke, Release Readiness
@@ -260,7 +269,7 @@ forbidden authority rejection, release/product-write flags remaining false,
 docs/index pointers, package script, privacy boundaries, no forbidden imports,
 and absence of positive authority grants.
 
-## 12. Next recommended slices
+## 13. Next recommended slices
 
 1. release_notes_public_safe_summary_v0_1
 2. release_operator_checklist_v0_1

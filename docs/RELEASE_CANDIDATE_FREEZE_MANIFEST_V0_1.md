@@ -262,7 +262,16 @@ inputs.
 - Product write runtime only after explicit reentry approval
 - Release postmerge observer notes
 
-## 11. Verification expectations
+## 11. Runtime grounding addendum
+
+`docs/RELEASE_READINESS_RUNTIME_GROUNDING_UPDATE_V0_1.md` is the
+runtime-grounded freeze manifest addendum after selected audit instrumentation
+v0.3. It updates freeze review context with actual runtime completion and
+selected audit instrumentation inventory. It is not roadmap completion
+closeout, release freeze, release approval, release execution, product-write
+approval, or GitHub actuation approval.
+
+## 12. Verification expectations
 
 Verification should run the Release Candidate Freeze Manifest smoke, Release
 Operator Checklist downstream smoke, Release Notes Public Safe Summary
@@ -282,7 +291,7 @@ in the input object, harmless unknown booleans, release/product-write flags
 remaining false, docs/index pointers, package script, privacy boundaries, no
 forbidden imports, and absence of positive authority grants.
 
-## 12. Next recommended slices
+## 13. Next recommended slices
 
 1. release_postmerge_observer_notes_v0_1
 2. release_public_artifact_contract_v0_1 only after explicit release approval

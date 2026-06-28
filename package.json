@@ -580,6 +580,7 @@
     "smoke:git-ledger-export-contract-v0-1": "node scripts/smoke-git-ledger-export-contract-v0-1.mjs",
     "smoke:product-write-reentry-review-v0-1": "node scripts/smoke-product-write-reentry-review-v0-1.mjs",
     "smoke:release-readiness-matrix-v0-1": "node scripts/smoke-release-readiness-matrix-v0-1.mjs",
+    "smoke:release-readiness-runtime-grounding-update-v0-1": "node scripts/smoke-release-readiness-runtime-grounding-update-v0-1.mjs",
     "smoke:disabled-product-write-adapter-reentry-harness-v0-1": "node scripts/smoke-disabled-product-write-adapter-reentry-harness-v0-1.mjs",
     "smoke:release-candidate-operator-review-v0-1": "node scripts/smoke-release-candidate-operator-review-v0-1.mjs",
     "smoke:release-notes-public-safe-summary-v0-1": "node scripts/smoke-release-notes-public-safe-summary-v0-1.mjs",
