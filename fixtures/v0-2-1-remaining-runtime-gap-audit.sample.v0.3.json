@@ -1,0 +1,204 @@
+{
+  "fixture_version": "v0_2_1_remaining_runtime_gap_audit.sample.v0.3",
+  "audit_version": "v0_2_1_remaining_runtime_gap_audit_v0_3",
+  "previous_audit_version": "v0_2_1_remaining_runtime_gap_audit_v0_2",
+  "scope": "project:augnes",
+  "roadmap_ref": "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+  "product_write_accepted_evidence_ref_runtime_ref": "docs/PRODUCT_WRITE_ACCEPTED_EVIDENCE_REF_RUNTIME_V0_1.md",
+  "remaining_work_exists": true,
+  "ungated_implementation_gap_exists": false,
+  "no_remaining_work_claim": false,
+  "product_write_state_after_842": {
+    "completed": [
+      "product_write_accepted_evidence_ref_runtime_v0_1",
+      "accepted_evidence_records first target only",
+      "caller-injected SQLite accepted evidence ref write store",
+      "runtime validation and idempotency",
+      "same-origin POST/GET route",
+      "optional bounded audit event emission",
+      "fail-closed forbidden authority validation for non-false-like values",
+      "DB-free preflight before product DB open",
+      "no product DB creation for invalid/forbidden/private/missing-prerequisite/missing-lineage attempts",
+      "GET same-origin boundary"
+    ],
+    "still_gated": [
+      "product ID allocation",
+      "broad product persistence",
+      "product object/profile/publication creation",
+      "product-write adapter enablement",
+      "additional product-write target groups",
+      "proof records",
+      "work items",
+      "durable Perspective state mutation from product-write",
+      "GitHub actuation",
+      "release execution/publication",
+      "final RAG answer generation",
+      "provider calls",
+      "retrieval/RAG execution",
+      "source fetching",
+      "automatic product generation"
+    ]
+  },
+  "completed_first_product_write_target": {
+    "item_ref": "product_write_accepted_evidence_ref_runtime_v0_1",
+    "target_group": "accepted_evidence_records",
+    "first_target_only": true,
+    "classification": "runtime_complete_first_target_only",
+    "backing_refs_required": [
+      "promotion decision ref",
+      "Formation Receipt ref",
+      "review record ref",
+      "public-safe source refs",
+      "accepted evidence refs",
+      "product-write reentry review ref",
+      "product-write target contract ref",
+      "preview-to-write diff ref",
+      "rollback or abort plan ref",
+      "stable idempotency key",
+      "explicit operator approval payload"
+    ],
+    "completed_boundaries": [
+      "string true blocked",
+      "numeric one blocked",
+      "object enabled blocked",
+      "array enabled blocked",
+      "no product DB creation before preflight",
+      "missing lineage DB no-create behavior",
+      "GET same-origin boundary"
+    ],
+    "evidence_refs": [
+      "docs/PRODUCT_WRITE_ACCEPTED_EVIDENCE_REF_RUNTIME_V0_1.md",
+      "fixtures/product-write-accepted-evidence-ref-runtime.sample.v0.1.json",
+      "scripts/smoke-product-write-accepted-evidence-ref-runtime-v0-1.mjs",
+      "app/api/product-write/accepted-evidence-refs/route.ts",
+      "lib/product-write/accepted-evidence-ref-runtime.ts",
+      "lib/product-write/accepted-evidence-ref-store.ts",
+      "types/product-write-accepted-evidence-ref.ts"
+    ]
+  },
+  "gated_work_items": [
+    {
+      "item_ref": "product_id_allocation",
+      "classification": "approval_gated",
+      "opened_by_842": false,
+      "next_action": "Do not implement product ID allocation without separate explicit approval."
+    },
+    {
+      "item_ref": "broad_product_persistence",
+      "classification": "approval_gated",
+      "opened_by_842": false,
+      "next_action": "Do not implement broad product persistence without separate explicit approval."
+    },
+    {
+      "item_ref": "product_write_adapter_enablement",
+      "classification": "approval_gated",
+      "opened_by_842": false,
+      "next_action": "Do not enable a product-write adapter without separate explicit approval."
+    },
+    {
+      "item_ref": "product_object_profile_publication_creation",
+      "classification": "approval_gated",
+      "opened_by_842": false,
+      "next_action": "Do not create product objects, profiles, or publications without separate explicit approval."
+    },
+    {
+      "item_ref": "github_actuation",
+      "classification": "approval_gated",
+      "opened_by_842": false,
+      "next_action": "Do not implement GitHub actuation without separate explicit approval."
+    },
+    {
+      "item_ref": "release_execution_publication",
+      "classification": "approval_gated",
+      "opened_by_842": false,
+      "next_action": "Do not execute or publish releases without separate explicit approval."
+    },
+    {
+      "item_ref": "final_rag_answer_generation",
+      "classification": "approval_gated",
+      "opened_by_842": false,
+      "next_action": "Do not generate final RAG answers without separate explicit approval."
+    },
+    {
+      "item_ref": "proof_work_item_creation",
+      "classification": "not_opened_by_842",
+      "opened_by_842": false,
+      "next_action": "Do not create proof records or work items from this audit."
+    },
+    {
+      "item_ref": "durable_perspective_state_mutation_from_product_write",
+      "classification": "not_opened_by_842",
+      "opened_by_842": false,
+      "next_action": "Do not mutate durable Perspective state from product-write without separate explicit approval."
+    }
+  ],
+  "ungated_implementation_gaps": [],
+  "next_recommended_implementation_slice": {
+    "item_ref": "none_without_explicit_approval",
+    "reason": "No concrete ungated post-842 implementation gap is visible from repo evidence.",
+    "requires_operator_approval_for_next_product_write_target": true
+  },
+  "authority_boundary": {
+    "remaining_runtime_gap_audit_now": true,
+    "static_repo_grounded_audit_only": true,
+    "postmerge_grounding_after_842": true,
+    "docs_fixture_smoke_package_index_only": true,
+    "new_runtime_capability_now": false,
+    "route_now": false,
+    "ui_now": false,
+    "db_query_or_write_now": false,
+    "product_write_target_opened_now": false,
+    "additional_product_write_authority_granted_now": false,
+    "product_id_allocation_now": false,
+    "broad_product_persistence_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_object_creation_now": false,
+    "product_profile_creation_now": false,
+    "product_publication_now": false,
+    "github_actuation_now": false,
+    "github_api_call_now": false,
+    "release_execution_now": false,
+    "release_publication_now": false,
+    "final_rag_answer_generation_now": false,
+    "proof_record_creation_now": false,
+    "work_item_creation_now": false,
+    "durable_perspective_state_mutation_from_product_write_now": false,
+    "provider_call_now": false,
+    "prompt_sent_now": false,
+    "retrieval_rag_execution_now": false,
+    "source_fetch_now": false,
+    "background_job_now": false,
+    "automatic_product_generation_now": false,
+    "roadmap_completion_claim_now": false,
+    "release_approval_now": false,
+    "broad_product_write_approval_now": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  },
+  "public_safe_fixture_policy": {
+    "repo_relative_refs_only": true,
+    "blocks_raw_private_provider_retrieval_db_conversation_hidden_reasoning_telemetry_raw_diff_payloads": true,
+    "raw_source_bodies_allowed": false,
+    "raw_provider_output_allowed": false,
+    "raw_retrieval_output_allowed": false,
+    "raw_db_rows_allowed": false,
+    "raw_conversations_allowed": false,
+    "hidden_reasoning_allowed": false,
+    "telemetry_dumps_allowed": false,
+    "raw_diffs_allowed": false,
+    "private_paths_allowed": false,
+    "private_urls_allowed": false,
+    "secrets_allowed": false
+  },
+  "evidence_refs": [
+    "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_2.md",
+    "fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.2.json",
+    "docs/PRODUCT_WRITE_ACCEPTED_EVIDENCE_REF_RUNTIME_V0_1.md",
+    "fixtures/product-write-accepted-evidence-ref-runtime.sample.v0.1.json",
+    "scripts/smoke-product-write-accepted-evidence-ref-runtime-v0-1.mjs",
+    "docs/PRODUCT_WRITE_TARGET_CONTRACT_V0_1.md",
+    "docs/PRODUCT_WRITE_REENTRY_REVIEW_V0_1.md",
+    "docs/DISABLED_PRODUCT_WRITE_ADAPTER_REENTRY_HARNESS_V0_1.md",
+    "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md"
+  ]
+}
