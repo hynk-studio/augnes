@@ -182,11 +182,12 @@ real provider IDs, real product IDs, and raw DB rows.
 
 The sanitizer blocks private URL/path/token/provider/internal ID variants in
 inputs and display surfaces, including local user paths such as `/Users/` and
-`/home/`, `file://` URLs, localhost loopback URLs, private/internal/intranet/
-corp/`.local` host markers, `github_pat_`, `OPENAI_API_KEY`, `GITHUB_TOKEN`,
-provider thread/run/session markers, connector/upload IDs, raw DB row spelling
-variants, and GitHub payload spelling variants. Public-safe symbolic refs such
-as `final-rag-answer-candidate:`, `review-memory:`, `source-ref:`,
+`/home/`, `file://` URLs, localhost loopback URLs, any `http` or `https` URL
+host containing `private`, `internal`, `intranet`, `corp`, or `.local`,
+`github_pat_`, `OPENAI_API_KEY`, `GITHUB_TOKEN`, provider thread/run/session
+markers, connector/upload IDs, raw DB row spelling variants, and GitHub payload
+spelling variants. Public-safe symbolic refs such as
+`final-rag-answer-candidate:`, `review-memory:`, `source-ref:`,
 `rag-context-preview:`, and `operator:` remain displayable.
 
 Unsafe display text is replaced with a bounded blocked marker instead of being
