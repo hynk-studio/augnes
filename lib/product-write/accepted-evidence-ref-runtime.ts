@@ -203,12 +203,13 @@ const unsafeStringPatterns = [
   /BEGIN OPENSSH PRIVATE KEY/i,
 ];
 
-export function createAcceptedEvidenceRefRuntimeV01(
-  input: ProductWriteAcceptedEvidenceRefCreateInput,
-  db: ProductWriteAcceptedEvidenceRefDbLike,
-): ProductWriteAcceptedEvidenceRefResult {
+export function preflightAcceptedEvidenceRefRuntimeV01(
+  input: unknown,
+): ProductWriteAcceptedEvidenceRefResult | null {
   const payloadValidation = validatePayloadShapeV01(input);
-  if (!payloadValidation.passed) return blockedResult(payloadValidation.status, payloadValidation.reason_codes);
+  if (!payloadValidation.passed) {
+    return blockedResult(payloadValidation.status, payloadValidation.reason_codes);
+  }
 
   const forbiddenAuthorityValidation = validateForbiddenAuthorityV01(input);
   if (!forbiddenAuthorityValidation.passed) {
@@ -220,10 +221,26 @@ export function createAcceptedEvidenceRefRuntimeV01(
     return blockedResult(privateRawValidation.status, privateRawValidation.reason_codes);
   }
 
-  const prerequisiteValidation = validatePrerequisitesV01(input);
+  const prerequisiteValidation = validatePrerequisitesV01(
+    input as ProductWriteAcceptedEvidenceRefCreateInput,
+  );
   if (!prerequisiteValidation.passed) {
     return blockedResult(prerequisiteValidation.status, prerequisiteValidation.reason_codes);
   }
+
+  return null;
+}
+
+export function createAcceptedEvidenceRefDbMissingResultV01(): ProductWriteAcceptedEvidenceRefResult {
+  return blockedResult("blocked_schema_missing", ["db_schema_missing"]);
+}
+
+export function createAcceptedEvidenceRefRuntimeV01(
+  input: ProductWriteAcceptedEvidenceRefCreateInput,
+  db: ProductWriteAcceptedEvidenceRefDbLike,
+): ProductWriteAcceptedEvidenceRefResult {
+  const preflightBlockedResult = preflightAcceptedEvidenceRefRuntimeV01(input);
+  if (preflightBlockedResult) return preflightBlockedResult;
 
   const dbValidation = validateDbLineageV01(input, db);
   if (!dbValidation.passed) return blockedResult(dbValidation.status, dbValidation.reason_codes);
@@ -951,9 +968,15 @@ function readFormationReceiptSourceRefsV01(
 function collectForbiddenAuthorityFields(input: unknown): string[] {
   const blocked: string[] = [];
   visitJson(input, (key, value) => {
-    if (key && forbiddenAuthorityFields.has(key) && value === true) blocked.push(key);
+    if (key && forbiddenAuthorityFields.has(key) && !isFalseLikeAuthorityValue(value)) {
+      blocked.push(key);
+    }
   });
   return [...new Set(blocked)].sort();
+}
+
+function isFalseLikeAuthorityValue(value: unknown): boolean {
+  return value === false || value === null || value === undefined;
 }
 
 function collectPrivateRawFailureCodes(input: unknown): ProductWriteAcceptedEvidenceRefReasonCode[] {

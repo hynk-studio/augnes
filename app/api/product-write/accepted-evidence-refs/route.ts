@@ -1,14 +1,15 @@
-import { existsSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync } from "node:fs";
 
 import Database from "better-sqlite3";
 import { NextResponse } from "next/server";
 
 import {
   createAcceptedEvidenceRefAuthorityBoundaryV01,
+  createAcceptedEvidenceRefDbMissingResultV01,
   createAcceptedEvidenceRefRuntimeV01,
   isSafeAcceptedEvidenceRefRouteDbPathV01,
   listAcceptedEvidenceRefRuntimeV01,
+  preflightAcceptedEvidenceRefRuntimeV01,
   readAcceptedEvidenceRefByIdempotencyKeyRuntimeV01,
   readAcceptedEvidenceRefRuntimeV01,
   type ProductWriteAcceptedEvidenceRefDbLike,
@@ -31,6 +32,10 @@ export const runtime = "nodejs";
 const routeRef = "route:/api/product-write/accepted-evidence-refs" as const;
 
 export async function GET(request: Request) {
+  if (!requestHasSameOriginBoundary(request)) {
+    return jsonResponse(errorResponse("same_origin_required"), 403);
+  }
+
   const url = new URL(request.url);
   const dbPath = url.searchParams.get("db_path") ?? "";
   const auditDbPath = url.searchParams.get("audit_db_path");
@@ -103,11 +108,39 @@ export async function POST(request: Request) {
     return jsonResponse(errorResponse("invalid_input"), 400);
   }
 
-  const db = openWriteLocalDb(inputBody.db_path);
+  const preflightResult = preflightAcceptedEvidenceRefRuntimeV01(inputBody.input);
+  if (preflightResult) {
+    const statusCode = storeResultHttpStatus(preflightResult, 201);
+    const auditEventResult = maybeAuditResult({
+      auditDbPath: inputBody.audit_db_path,
+      result: preflightResult,
+      action: "accepted_evidence_ref_write_rejected",
+      fallbackSubjectRef: rejectedAttemptSubjectRef(preflightResult),
+      boundedSummary: "Accepted evidence ref route rejected bounded write attempt before product DB open.",
+      statusCode,
+    });
+    return jsonResponse(storeResultResponse(preflightResult, auditEventResult), statusCode);
+  }
+
+  const opened = openExistingWriteLocalDb(inputBody.db_path);
+  if ("errorCode" in opened) {
+    const result = createAcceptedEvidenceRefDbMissingResultV01();
+    const statusCode = storeResultHttpStatus(result, 201);
+    const auditEventResult = maybeAuditResult({
+      auditDbPath: inputBody.audit_db_path,
+      result,
+      action: "accepted_evidence_ref_write_rejected",
+      fallbackSubjectRef: "aer-write:attempt:db_schema_missing",
+      boundedSummary: "Accepted evidence ref route rejected bounded write attempt because the lineage DB was missing.",
+      statusCode,
+    });
+    return jsonResponse(storeResultResponse(result, auditEventResult), statusCode);
+  }
+
   try {
     const result = createAcceptedEvidenceRefRuntimeV01(
       inputBody.input as ProductWriteAcceptedEvidenceRefCreateInput,
-      db as unknown as ProductWriteAcceptedEvidenceRefDbLike,
+      opened.db as unknown as ProductWriteAcceptedEvidenceRefDbLike,
     );
     const statusCode = storeResultHttpStatus(result, 201);
     const auditEventResult = maybeAuditResult({
@@ -124,7 +157,7 @@ export async function POST(request: Request) {
     });
     return jsonResponse(storeResultResponse(result, auditEventResult), statusCode);
   } finally {
-    db.close();
+    opened.db.close();
   }
 }
 
@@ -163,10 +196,14 @@ function openReadOnlyLocalDb(dbPath: string):
   }
 }
 
-function openWriteLocalDb(dbPath: unknown) {
-  const safeDbPath = dbPath as string;
-  mkdirSync(dirname(safeDbPath), { recursive: true });
-  return new Database(safeDbPath);
+function openExistingWriteLocalDb(dbPath: string):
+  | { db: Database.Database }
+  | { errorCode: "db_missing"; status: 404 } {
+  try {
+    return { db: new Database(dbPath, { fileMustExist: true }) };
+  } catch {
+    return { errorCode: "db_missing", status: 404 };
+  }
 }
 
 function storeResultHttpStatus(result: ProductWriteAcceptedEvidenceRefResult, okStatus = 200): number {

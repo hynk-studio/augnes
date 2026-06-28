@@ -44,6 +44,29 @@ const dbPath = `.tmp/perspective-promotion-decisions/product-write-accepted-evid
 const auditDbPath = `.tmp/runtime-audit/product-write-accepted-evidence-ref-${process.pid}.sqlite`;
 const schemaMissingDbPath = `.tmp/product-write-accepted-evidence-refs/schema-missing-${process.pid}.sqlite`;
 const noAuditDbPath = `.tmp/runtime-audit/product-write-accepted-evidence-ref-no-audit-${process.pid}.sqlite`;
+const noCreateAuditDbPath = `.tmp/runtime-audit/product-write-accepted-evidence-ref-no-create-${process.pid}.sqlite`;
+const forbiddenStringNoCreateDbPath =
+  `.tmp/product-write-accepted-evidence-refs/no-create-forbidden-string-${process.pid}/record.sqlite`;
+const forbiddenNumberNoCreateDbPath =
+  `.tmp/product-write-accepted-evidence-refs/no-create-forbidden-number-${process.pid}/record.sqlite`;
+const forbiddenObjectNoCreateDbPath =
+  `.tmp/product-write-accepted-evidence-refs/no-create-forbidden-object-${process.pid}/record.sqlite`;
+const forbiddenEnabledNoCreateDbPath =
+  `.tmp/product-write-accepted-evidence-refs/no-create-forbidden-enabled-${process.pid}/record.sqlite`;
+const forbiddenArrayNoCreateDbPath =
+  `.tmp/product-write-accepted-evidence-refs/no-create-forbidden-array-${process.pid}/record.sqlite`;
+const privateRawNoCreateDbPath =
+  `.tmp/product-write-accepted-evidence-refs/no-create-private-raw-${process.pid}/record.sqlite`;
+const missingPrerequisiteNoCreateDbPath =
+  `.tmp/product-write-accepted-evidence-refs/no-create-missing-prerequisite-${process.pid}/record.sqlite`;
+const invalidPayloadNoCreateDbPath =
+  `.tmp/product-write-accepted-evidence-refs/no-create-invalid-payload-${process.pid}/record.sqlite`;
+const missingLineageNoCreateDbPath =
+  `.tmp/product-write-accepted-evidence-refs/no-create-missing-lineage-${process.pid}/record.sqlite`;
+const crossOriginGetNoCreateDbPath =
+  `.tmp/product-write-accepted-evidence-refs/no-create-cross-origin-get-${process.pid}/record.sqlite`;
+const headerlessNonLocalGetNoCreateDbPath =
+  `.tmp/product-write-accepted-evidence-refs/no-create-headerless-get-${process.pid}/record.sqlite`;
 const invalidAuditDbPath = "../runtime-audit-product-write-accepted-evidence-ref.sqlite";
 
 for (const filePath of [
@@ -122,6 +145,10 @@ for (const phrase of [
   "Promotion decision is a prerequisite, not an automatic execution command.",
   "Formation Receipt is a prerequisite, not product-write authority by itself.",
   "Audit event is not truth, proof, approval, state, or product authority.",
+  "POST and GET are same-origin bounded.",
+  "Product DB files and directories are not created for invalid, forbidden-authority, private/raw, or missing-prerequisite attempts.",
+  "Product DB files and directories are not created when the lineage DB path is missing.",
+  "Forbidden authority fields fail closed: only absent, false, null, and undefined are allowed.",
   "Missing `audit_db_path` does not fail the primary route.",
   "Audit write failure does not fail the primary route.",
   "Smoke/CI pass is not truth.",
@@ -161,6 +188,9 @@ for (const marker of [
 
 assertValidationOrder(runtimeText);
 assertRouteBoundaries(routeText);
+assertIncludes(runtimeText, "isFalseLikeAuthorityValue", "false-like authority helper");
+assertIncludes(routeText, "preflightAcceptedEvidenceRefRuntimeV01(inputBody.input)", "route preflight before DB open");
+assertIncludes(routeText, "openExistingWriteLocalDb(inputBody.db_path)", "route existing DB open");
 
 const runtimeModule = await import(pathToFileURL(`${process.cwd()}/${runtimePath}`).href);
 const promotionStore = await import(pathToFileURL(`${process.cwd()}/${promotionStorePath}`).href);
@@ -184,6 +214,112 @@ rmSync(dbPath, { force: true });
 rmSync(auditDbPath, { force: true });
 rmSync(schemaMissingDbPath, { force: true });
 rmSync(noAuditDbPath, { force: true });
+rmSync(noCreateAuditDbPath, { force: true });
+for (const path of [
+  forbiddenStringNoCreateDbPath,
+  forbiddenNumberNoCreateDbPath,
+  forbiddenObjectNoCreateDbPath,
+  forbiddenEnabledNoCreateDbPath,
+  forbiddenArrayNoCreateDbPath,
+  privateRawNoCreateDbPath,
+  missingPrerequisiteNoCreateDbPath,
+  invalidPayloadNoCreateDbPath,
+  missingLineageNoCreateDbPath,
+  crossOriginGetNoCreateDbPath,
+  headerlessNonLocalGetNoCreateDbPath,
+]) {
+  rmSync(dirname(path), { recursive: true, force: true });
+}
+
+await assertRejectedWithoutProductDb(acceptedRoute, {
+  dbPath: invalidPayloadNoCreateDbPath,
+  auditDbPath: noCreateAuditDbPath,
+  input: {
+    request_version: "wrong-version",
+  },
+  expectedHttpStatus: 400,
+  expectedStatus: "blocked_invalid_payload",
+});
+
+for (const authorityCase of [
+  {
+    dbPath: forbiddenStringNoCreateDbPath,
+    field: "product_id_allocation_now",
+    value: "true",
+  },
+  {
+    dbPath: forbiddenNumberNoCreateDbPath,
+    field: "broad_product_persistence_now",
+    value: 1,
+  },
+  {
+    dbPath: forbiddenObjectNoCreateDbPath,
+    field: "github_api_call_now",
+    value: { enabled: true },
+  },
+  {
+    dbPath: forbiddenEnabledNoCreateDbPath,
+    field: "proof_creation_now",
+    value: "enabled",
+  },
+  {
+    dbPath: forbiddenArrayNoCreateDbPath,
+    field: "durable_perspective_state_mutation_from_product_write_now",
+    value: ["enabled"],
+  },
+]) {
+  await assertRejectedWithoutProductDb(acceptedRoute, {
+    dbPath: authorityCase.dbPath,
+    auditDbPath: noCreateAuditDbPath,
+    input: withAuthorityOverride(fixture.valid_create_input, authorityCase.field, authorityCase.value),
+    expectedHttpStatus: 403,
+    expectedStatus: "blocked_forbidden_authority",
+  });
+}
+
+await assertRejectedWithoutProductDb(acceptedRoute, {
+  dbPath: privateRawNoCreateDbPath,
+  auditDbPath: noCreateAuditDbPath,
+  input: {
+    ...clone(fixture.valid_create_input),
+    preview_to_write_diff_ref: "diff --git marker for no-create blocked fixture runtime check",
+  },
+  expectedHttpStatus: 400,
+  expectedStatus: "blocked_private_or_raw_payload",
+});
+
+await assertRejectedWithoutProductDb(acceptedRoute, {
+  dbPath: missingPrerequisiteNoCreateDbPath,
+  auditDbPath: noCreateAuditDbPath,
+  input: withoutKey(fixture.valid_create_input, "promotion_decision_ref"),
+  expectedHttpStatus: 400,
+  expectedStatus: "blocked_missing_prerequisite",
+});
+
+await assertRejectedWithoutProductDb(acceptedRoute, {
+  dbPath: missingLineageNoCreateDbPath,
+  auditDbPath: noCreateAuditDbPath,
+  input: fixture.valid_create_input,
+  expectedHttpStatus: 400,
+  expectedStatus: "blocked_schema_missing",
+});
+
+await assertGetRejectedWithoutProductDb({
+  route: acceptedRoute,
+  request: crossOriginGetRequest(
+    `/api/product-write/accepted-evidence-refs?${queryString({ db_path: crossOriginGetNoCreateDbPath })}`,
+  ),
+  dbPath: crossOriginGetNoCreateDbPath,
+});
+
+await assertGetRejectedWithoutProductDb({
+  route: acceptedRoute,
+  request: headerlessNonLocalGetRequest(
+    `/api/product-write/accepted-evidence-refs?${queryString({ db_path: headerlessNonLocalGetNoCreateDbPath })}`,
+  ),
+  dbPath: headerlessNonLocalGetNoCreateDbPath,
+});
+
 mkdirSync(dirname(dbPath), { recursive: true });
 
 seedPromotionAndFormation({
@@ -349,6 +485,7 @@ await assertRejected(acceptedRoute, {
 });
 
 mkdirSync(dirname(schemaMissingDbPath), { recursive: true });
+new Database(schemaMissingDbPath).close();
 const schemaMissing = await acceptedRoute.POST(
   postRequest("/api/product-write/accepted-evidence-refs", {
     db_path: schemaMissingDbPath,
@@ -360,6 +497,7 @@ assert.equal(schemaMissing.status, 400);
 const schemaMissingBody = await schemaMissing.json();
 assert.equal(schemaMissingBody.result.status, "blocked_schema_missing");
 assert.equal(schemaMissingBody.audit_event_result.status, "audit_event_created");
+assert.equal(tableExists(schemaMissingDbPath, "product_write_accepted_evidence_ref_writes"), false);
 
 const auditEvents = readAuditEvents(auditDbPath);
 assert.ok(auditEvents.length >= 6, "success and rejection audit events recorded");
@@ -379,6 +517,22 @@ for (const event of auditEvents) {
 rmSync(dbPath, { force: true });
 rmSync(auditDbPath, { force: true });
 rmSync(schemaMissingDbPath, { force: true });
+rmSync(noCreateAuditDbPath, { force: true });
+for (const path of [
+  forbiddenStringNoCreateDbPath,
+  forbiddenNumberNoCreateDbPath,
+  forbiddenObjectNoCreateDbPath,
+  forbiddenEnabledNoCreateDbPath,
+  forbiddenArrayNoCreateDbPath,
+  privateRawNoCreateDbPath,
+  missingPrerequisiteNoCreateDbPath,
+  invalidPayloadNoCreateDbPath,
+  missingLineageNoCreateDbPath,
+  crossOriginGetNoCreateDbPath,
+  headerlessNonLocalGetNoCreateDbPath,
+]) {
+  rmSync(dirname(path), { recursive: true, force: true });
+}
 
 console.log("product_write_accepted_evidence_ref_runtime_v0_1 smoke passed");
 
@@ -452,6 +606,27 @@ async function assertRejected(route, input) {
   assert.equal(body.proof_created, false);
 }
 
+async function assertRejectedWithoutProductDb(route, input) {
+  rmSync(dirname(input.dbPath), { recursive: true, force: true });
+  assert.equal(existsSync(input.dbPath), false, `${input.dbPath} starts absent`);
+  assert.equal(existsSync(dirname(input.dbPath)), false, `${dirname(input.dbPath)} starts absent`);
+  await assertRejected(route, input);
+  assert.equal(existsSync(input.dbPath), false, `${input.dbPath} was not created`);
+  assert.equal(existsSync(dirname(input.dbPath)), false, `${dirname(input.dbPath)} was not created`);
+}
+
+async function assertGetRejectedWithoutProductDb(input) {
+  rmSync(dirname(input.dbPath), { recursive: true, force: true });
+  assert.equal(existsSync(input.dbPath), false, `${input.dbPath} starts absent`);
+  assert.equal(existsSync(dirname(input.dbPath)), false, `${dirname(input.dbPath)} starts absent`);
+  const response = await input.route.GET(input.request);
+  assert.equal(response.status, 403);
+  const body = await response.json();
+  assert.equal(body.error_code, "same_origin_required");
+  assert.equal(existsSync(input.dbPath), false, `${input.dbPath} was not created`);
+  assert.equal(existsSync(dirname(input.dbPath)), false, `${dirname(input.dbPath)} was not created`);
+}
+
 function postRequest(path, body) {
   return new Request(`http://localhost${path}`, {
     method: "POST",
@@ -476,12 +651,44 @@ function getRequest(path) {
   });
 }
 
+function crossOriginGetRequest(path) {
+  return new Request(`http://localhost${path}`, {
+    method: "GET",
+    headers: {
+      host: "localhost",
+      origin: "http://cross-origin.example",
+      "sec-fetch-site": "cross-site",
+    },
+  });
+}
+
+function headerlessNonLocalGetRequest(path) {
+  return new Request(`http://example.test${path}`, {
+    method: "GET",
+    headers: {
+      host: "example.test",
+    },
+  });
+}
+
 function queryString(values) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(values)) {
     if (value !== undefined && value !== null) params.set(key, String(value));
   }
   return params.toString();
+}
+
+function tableExists(path, tableName) {
+  const db = new Database(path, { readonly: true, fileMustExist: true });
+  try {
+    const row = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .get(tableName);
+    return row?.name === tableName;
+  } finally {
+    db.close();
+  }
 }
 
 function countAuditEvents(path) {
@@ -529,7 +736,7 @@ function assertValidationOrder(text) {
     "validatePayloadShapeV01(input)",
     "validateForbiddenAuthorityV01(input)",
     "validatePrivateRawPayloadV01(input)",
-    "validatePrerequisitesV01(input)",
+    "const prerequisiteValidation = validatePrerequisitesV01(",
     "validateDbLineageV01(input, db)",
     "writeAcceptedEvidenceRefRecordV01(record, db)",
   ];
@@ -636,5 +843,14 @@ function clone(value) {
 function withoutKey(value, key) {
   const cloned = clone(value);
   delete cloned[key];
+  return cloned;
+}
+
+function withAuthorityOverride(value, key, authorityValue) {
+  const cloned = clone(value);
+  cloned.authority_boundary = {
+    ...(cloned.authority_boundary ?? {}),
+    [key]: authorityValue,
+  };
   return cloned;
 }

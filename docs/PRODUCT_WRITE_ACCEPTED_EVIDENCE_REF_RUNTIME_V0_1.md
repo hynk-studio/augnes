@@ -41,7 +41,9 @@ Implemented files:
 - `fixtures/product-write-accepted-evidence-ref-runtime.sample.v0.1.json`
 - `scripts/smoke-product-write-accepted-evidence-ref-runtime-v0-1.mjs`
 
-The route is same-origin only for POST and exposes only:
+POST and GET are same-origin bounded.
+
+The route exposes only:
 
 - POST bounded accepted evidence ref write attempt
 - GET bounded accepted evidence ref write read/list
@@ -87,6 +89,22 @@ diff refs, missing rollback or abort plan refs, missing idempotency keys,
 private/raw/secret-like refs or payloads, raw source bodies, raw provider
 output, raw retrieval output, raw DB rows, raw conversations, hidden reasoning,
 telemetry dumps, and raw diffs.
+
+Forbidden authority fields fail closed: only absent, false, null, and undefined
+are allowed. Any present non-false-like value is rejected as
+`blocked_forbidden_authority`, including true, non-empty strings, nonzero
+numbers, arrays, and objects.
+
+Product DB files and directories are not created for invalid,
+forbidden-authority, private/raw, or missing-prerequisite attempts.
+
+Product DB files and directories are not created when the lineage DB path is
+missing. After route-level preflight passes, POST opens only an existing
+caller-injected lineage DB; if that DB is missing the request is rejected before
+the accepted evidence ref write table can be created.
+
+The accepted evidence ref write table is created only after payload,
+forbidden-authority, private/raw, prerequisite, and lineage DB validation pass.
 
 ## Idempotency
 
@@ -238,9 +256,11 @@ provider IDs, connector IDs, terminal logs, or GitHub payloads.
 
 `npm run smoke:product-write-accepted-evidence-ref-runtime-v0-1` verifies docs,
 fixture, type/runtime/store/route/schema files, package/index pointers,
-validation order markers, public-safe fixture boundaries, same-origin route
-shape, optional audit behavior, idempotent replay, idempotency conflict, missing
-audit DB path behavior, invalid audit DB path behavior, and rejected payload
+validation order markers, public-safe fixture boundaries, same-origin POST and
+GET route shape, optional audit behavior, idempotent replay, idempotency
+conflict, missing audit DB path behavior, invalid audit DB path behavior,
+fail-closed forbidden authority values, no product DB creation before preflight,
+no product DB creation when the lineage DB path is missing, and rejected payload
 cases for missing prerequisites, forbidden authority, private/raw content, and
 missing lineage schema.
 
