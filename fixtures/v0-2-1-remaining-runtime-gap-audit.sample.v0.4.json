@@ -1,0 +1,291 @@
+{
+  "fixture_version": "v0_2_1_remaining_runtime_gap_audit.sample.v0.4",
+  "audit_version": "v0_2_1_remaining_runtime_gap_audit_v0_4",
+  "previous_audit_version": "v0_2_1_remaining_runtime_gap_audit_v0_3",
+  "scope": "project:augnes",
+  "roadmap_ref": "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md",
+  "previous_audit_ref": "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_3.md",
+  "final_rag_answer_candidate_review_runtime_ref": "docs/FINAL_RAG_ANSWER_GENERATION_CANDIDATE_REVIEW_V0_1.md",
+  "product_write_accepted_evidence_ref_runtime_ref": "docs/PRODUCT_WRITE_ACCEPTED_EVIDENCE_REF_RUNTIME_V0_1.md",
+  "remaining_work_exists": true,
+  "no_remaining_work_claim": false,
+  "ungated_implementation_gap_exists": false,
+  "final_rag_state_after_844": {
+    "completed": [
+      "final_rag_answer_generation_candidate_review_v0_1",
+      "candidate/review layer only",
+      "same-origin POST route",
+      "bounded prompt descriptor",
+      "deterministic mock provider path",
+      "configured provider missing-key graceful refusal",
+      "context-backed provider citation enforcement",
+      "unbacked provider citations reject candidate generation",
+      "private/raw keys and values blocked",
+      "final_rag_answer_candidate_review_runtime audit surface",
+      "no GET provider execution route",
+      "no raw prompt storage",
+      "no raw provider output storage",
+      "no hidden reasoning storage",
+      "no source fetch",
+      "no retrieval index write",
+      "no product-write",
+      "no proof/evidence write",
+      "no promotion",
+      "no durable state mutation"
+    ],
+    "still_gated": [
+      "proof/evidence creation",
+      "claim/evidence writes",
+      "Review Memory writes",
+      "promotion",
+      "durable Perspective state write/apply",
+      "Formation Receipt writes",
+      "product-write from final answer",
+      "accepted evidence ref write from final answer",
+      "product ID allocation",
+      "product-write adapter enablement",
+      "broad product persistence",
+      "product object/profile/publication creation",
+      "GitHub actuation",
+      "release execution/publication",
+      "live provider validation",
+      "source fetching",
+      "retrieval index write",
+      "automatic answer-to-product conversion"
+    ],
+    "non_authoritative_boundaries": [
+      "final answer candidate is not truth",
+      "final answer candidate is not proof",
+      "final answer candidate is not accepted evidence",
+      "final answer candidate is not promotion",
+      "final answer candidate is not product",
+      "provider output remains candidate-only",
+      "retrieval result remains non-authoritative",
+      "retrieval score remains not truth/promotion readiness",
+      "context preview remains review aid"
+    ],
+    "runtime_boundary_markers": [
+      "context-backed provider citation enforcement",
+      "unbacked provider citation rejection",
+      "private/raw key blocking",
+      "final_rag_answer_candidate_review_runtime audit surface"
+    ]
+  },
+  "product_write_state_after_844": {
+    "completed_first_target_remains": "product_write_accepted_evidence_ref_runtime_v0_1 remains completed first target only",
+    "did_not_add_product_write_target": true,
+    "did_not_write_accepted_evidence_refs": true,
+    "did_not_allocate_product_ids": true,
+    "did_not_enable_product_write_adapter": true,
+    "did_not_add_broad_product_persistence": true,
+    "still_limited_to_842_first_target_only": true
+  },
+  "completed_runtime_surfaces_after_844": [
+    {
+      "item_ref": "product_write_accepted_evidence_ref_runtime_v0_1",
+      "classification": "runtime_complete_first_target_only",
+      "scope_note": "accepted_evidence_records first target only",
+      "opened_by_pr": 842
+    },
+    {
+      "item_ref": "final_rag_answer_generation_candidate_review_v0_1",
+      "classification": "runtime_complete_candidate_review_layer_only",
+      "scope_note": "bounded final RAG answer candidates for operator review only",
+      "opened_by_pr": 844
+    }
+  ],
+  "gated_work_items": [
+    {
+      "item_ref": "proof_evidence_creation",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not create proof/evidence records without separate explicit approval."
+    },
+    {
+      "item_ref": "claim_evidence_writes",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not write claim/evidence records without separate explicit approval."
+    },
+    {
+      "item_ref": "review_memory_writes",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not write Review Memory without separate explicit approval."
+    },
+    {
+      "item_ref": "promotion",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not promote Perspective without separate explicit approval."
+    },
+    {
+      "item_ref": "durable_perspective_state_write_apply",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not write or apply durable Perspective state without separate explicit approval."
+    },
+    {
+      "item_ref": "formation_receipt_writes",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not write Formation Receipts without separate explicit approval."
+    },
+    {
+      "item_ref": "product_write_from_final_answer",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not product-write from final answer candidates without separate explicit approval."
+    },
+    {
+      "item_ref": "accepted_evidence_ref_write_from_final_answer",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not write accepted evidence refs from final answer candidates without separate explicit approval."
+    },
+    {
+      "item_ref": "product_id_allocation",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not allocate product IDs without separate explicit approval."
+    },
+    {
+      "item_ref": "product_write_adapter_enablement",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not enable a product-write adapter without separate explicit approval."
+    },
+    {
+      "item_ref": "broad_product_persistence",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not add broad product persistence without separate explicit approval."
+    },
+    {
+      "item_ref": "github_actuation",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not implement GitHub actuation in Augnes runtime without separate explicit approval."
+    },
+    {
+      "item_ref": "release_execution_publication",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not execute or publish releases without separate explicit approval."
+    },
+    {
+      "item_ref": "live_provider_validation",
+      "classification": "deferred",
+      "opened_by_844": false,
+      "next_action": "Do not add live provider validation without a safe configured-provider adapter/key and explicit approval."
+    },
+    {
+      "item_ref": "source_fetching",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not fetch sources without separate explicit approval."
+    },
+    {
+      "item_ref": "retrieval_index_write",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not write retrieval indexes without separate explicit approval."
+    },
+    {
+      "item_ref": "automatic_answer_to_product_conversion",
+      "classification": "approval_gated",
+      "opened_by_844": false,
+      "next_action": "Do not convert final answer candidates into products without separate explicit approval."
+    }
+  ],
+  "ungated_implementation_gaps": [],
+  "next_recommended_implementation_slice": {
+    "item_ref": "none_without_explicit_approval",
+    "reason": "No concrete ungated post-844 implementation gap is visible from repo evidence.",
+    "requires_operator_approval_for_next_runtime_slice": true
+  },
+  "authority_boundary": {
+    "remaining_runtime_gap_audit_now": true,
+    "static_repo_grounded_audit_only": true,
+    "postmerge_grounding_after_844": true,
+    "docs_fixture_smoke_package_index_only": true,
+    "new_runtime_capability_now": false,
+    "route_now": false,
+    "ui_now": false,
+    "db_query_or_write_now": false,
+    "provider_call_now": false,
+    "prompt_sent_now": false,
+    "live_provider_validation_now": false,
+    "proof_evidence_creation_now": false,
+    "claim_evidence_write_now": false,
+    "review_memory_write_now": false,
+    "promotion_now": false,
+    "durable_perspective_state_write_now": false,
+    "durable_perspective_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "accepted_evidence_ref_write_now": false,
+    "product_id_allocation_now": false,
+    "product_write_adapter_enabled_now": false,
+    "broad_product_persistence_now": false,
+    "github_actuation_now": false,
+    "github_api_call_now": false,
+    "git_write_now": false,
+    "release_execution_now": false,
+    "release_publication_now": false,
+    "source_fetch_now": false,
+    "retrieval_index_write_now": false,
+    "background_job_now": false,
+    "automatic_answer_to_product_conversion_now": false,
+    "roadmap_completion_claim_now": false,
+    "release_approval_now": false,
+    "broad_product_write_approval_now": false,
+    "product_id_allocation_claim_now": false,
+    "proof_evidence_creation_claim_now": false,
+    "promotion_completion_claim_now": false,
+    "durable_state_mutation_claim_now": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  },
+  "public_safe_fixture_policy": {
+    "repo_relative_refs_only": true,
+    "symbolic_refs_only": true,
+    "blocks_raw_private_provider_retrieval_db_conversation_hidden_reasoning_telemetry_raw_diff_terminal_github_payloads": true,
+    "raw_prompt_allowed": false,
+    "raw_source_bodies_allowed": false,
+    "raw_provider_output_allowed": false,
+    "raw_retrieval_output_allowed": false,
+    "raw_db_rows_allowed": false,
+    "raw_conversations_allowed": false,
+    "hidden_reasoning_allowed": false,
+    "chain_of_thought_allowed": false,
+    "telemetry_dumps_allowed": false,
+    "raw_diffs_allowed": false,
+    "terminal_logs_allowed": false,
+    "github_payloads_allowed": false,
+    "browser_dumps_allowed": false,
+    "private_paths_allowed": false,
+    "private_urls_allowed": false,
+    "secrets_allowed": false,
+    "provider_keys_allowed": false,
+    "connector_ids_allowed": false,
+    "uploaded_file_ids_allowed": false,
+    "provider_internal_ids_allowed": false
+  },
+  "evidence_refs": [
+    "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_3.md",
+    "fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.3.json",
+    "docs/FINAL_RAG_ANSWER_GENERATION_CANDIDATE_REVIEW_V0_1.md",
+    "fixtures/final-rag-answer-generation-candidate-review.sample.v0.1.json",
+    "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
+    "app/api/research-retrieval/final-rag-answer/route.ts",
+    "lib/research-retrieval/build-final-rag-answer-candidate.ts",
+    "lib/research-retrieval/final-rag-answer-provider-boundary.ts",
+    "types/final-rag-answer-candidate-review.ts",
+    "docs/RAG_CONTEXT_PREVIEW_RUNTIME_COMPLETION_V0_1.md",
+    "docs/REBUILDABLE_RETRIEVAL_INDEX_RUNTIME_COMPLETION_V0_1.md",
+    "docs/PROVIDER_ASSISTED_EXTRACTION_RUNTIME_COMPLETION_V0_1.md",
+    "docs/PRODUCT_WRITE_ACCEPTED_EVIDENCE_REF_RUNTIME_V0_1.md",
+    "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md"
+  ]
+}

@@ -66,6 +66,9 @@ const expectedChangedFiles = new Set([
   "scripts/smoke-bounded-source-intake-runtime-completion-v0-1.mjs",
   "scripts/smoke-research-candidate-review-memory-db-ui-runtime-v0-1.mjs",
   "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-3.mjs",
+  "docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_4.md",
+  "fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.4.json",
+  "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-4.mjs",
   packagePath,
   latestIndexPath,
 ]);
