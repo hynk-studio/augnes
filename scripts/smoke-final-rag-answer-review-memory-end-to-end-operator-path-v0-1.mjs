@@ -106,6 +106,9 @@ const expectedChangedFiles = new Set([
   "fixtures/final-rag-answer-review-memory-operator-browser-validation.sample.v0.1.json",
   "scripts/browser-validate-final-rag-answer-review-memory-operator-path-v0-1.mjs",
   "scripts/smoke-final-rag-answer-review-memory-operator-browser-validation-v0-1.mjs",
+  "docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_OPERATOR_PATH_USABILITY_AUDIT_V0_1.md",
+  "fixtures/final-rag-answer-review-memory-operator-path-usability-audit.sample.v0.1.json",
+  "scripts/smoke-final-rag-answer-review-memory-operator-path-usability-audit-v0-1.mjs",
 ]);
 
 const requiredExistingFiles = [

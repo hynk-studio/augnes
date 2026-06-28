@@ -70,6 +70,9 @@ const expectedChangedFiles = new Set([
   "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
   "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-6.mjs",
+  "docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_OPERATOR_PATH_USABILITY_AUDIT_V0_1.md",
+  "fixtures/final-rag-answer-review-memory-operator-path-usability-audit.sample.v0.1.json",
+  "scripts/smoke-final-rag-answer-review-memory-operator-path-usability-audit-v0-1.mjs",
 ]);
 
 const requiredExistingFiles = [

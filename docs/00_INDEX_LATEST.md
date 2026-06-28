@@ -5728,6 +5728,41 @@ product-write, accepted evidence ref writes, product IDs, Git/GitHub
 actuation, release execution, or automatic answer-to-product conversion.
 Browser pass is not truth.
 
+### Final RAG answer Review Memory operator path usability audit v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add product authority.
+`final_rag_answer_review_memory_operator_path_usability_audit_v0_1` analyzes
+the already merged route-level E2E validation and browser validation for the
+final RAG answer candidate -> Review Memory -> UI -> promotion readiness
+operator path.
+
+- `docs/FINAL_RAG_ANSWER_REVIEW_MEMORY_OPERATOR_PATH_USABILITY_AUDIT_V0_1.md`:
+  public-safe usability/friction audit covering the validated path, remaining
+  operator friction, UX risks, manual QA readiness, dogfood readiness, authority
+  boundaries, privacy/redaction boundaries, and the next recommended slice.
+- `fixtures/final-rag-answer-review-memory-operator-path-usability-audit.sample.v0.1.json`:
+  public-safe fixture for validated path names, route/browser validation
+  summaries, friction points, UX risks, no-authority boundaries, still-forbidden
+  capabilities, and the recommended next slice.
+- `scripts/smoke-final-rag-answer-review-memory-operator-path-usability-audit-v0-1.mjs`:
+  static smoke for docs, fixture, package script, latest pointer, referenced
+  #851/#852 validation files, public-safe fixture policy, no raw browser
+  artifact copying, no embedded screenshots, exact changed-file scope, and
+  no-new-authority boundaries.
+- `npm run smoke:final-rag-answer-review-memory-operator-path-usability-audit-v0-1`:
+  focused static smoke for this audit slice.
+
+Boundary summary: this audit adds no runtime authority, API routes, UI behavior
+changes, DB schema, Review Memory writes, POST calls from UI, final answer
+generation, provider calls, prompt sending, retrieval execution, source
+fetching, retrieval index writes, promotion execution, promotion decision
+writes/store usage, proof/evidence creation, durable state mutation, Formation
+Receipt writes, product-write, accepted evidence ref writes, product IDs,
+GitHub actuation, release execution, or automatic answer-to-product conversion.
+Recommended next slice is `operator_path_manual_qa_runbook_v0_1`: a
+docs/fixture/smoke manual QA runbook with no new runtime and no UI changes.
+Smoke/CI/browser pass is not truth.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)
