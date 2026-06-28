@@ -4413,6 +4413,31 @@ repo-local 색인이다.
   slice because the remaining visible work is approval-gated, explicitly
   future/deferred, or contract/fixture/offline-only. Product-write remains
   parked by #686. Smoke/CI pass is not truth. The roadmap guide is not SSOT.
+- v0.2.1 Remaining Runtime Gap Audit v0.3:
+  `docs/V0_2_1_REMAINING_RUNTIME_GAP_AUDIT_V0_3.md`,
+  `fixtures/v0-2-1-remaining-runtime-gap-audit.sample.v0.3.json`, and
+  `scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-3.mjs`
+  (`npm run smoke:v0-2-1-remaining-runtime-gap-audit-v0-3`) implements
+  `v0_2_1_remaining_runtime_gap_audit_v0_3` as a static postmerge grounding
+  audit after merged PR #842 and
+  `product_write_accepted_evidence_ref_runtime_v0_1`. It confirms #842 as the
+  first completed `accepted_evidence_records` product-write target only:
+  operator-approved accepted evidence ref write records backed by promotion
+  decision, Formation Receipt, review record, public-safe source refs, accepted
+  evidence refs, product-write reentry review, product-write target contract,
+  preview-to-write diff, rollback or abort plan, stable idempotency key, and
+  explicit operator approval payload. This does not implement new runtime
+  beyond audit/grounding docs, fixture, and smoke, and it does not grant
+  additional product-write authority. Product ID allocation, broad product
+  persistence, product object/profile/publication creation, product-write
+  adapter enablement, additional product-write target groups, proof records,
+  work items, durable Perspective state mutation from product-write, GitHub
+  actuation, release execution/publication, final RAG answer generation,
+  provider calls, prompt sending, retrieval/RAG execution, source fetching,
+  background jobs, and automatic product generation remain gated or deferred.
+  It names `none_without_explicit_approval` as the next recommended
+  implementation slice. Smoke/CI pass is not truth. The roadmap guide is not
+  SSOT.
 - Git Ledger Export Contract v0.1:
   `docs/GIT_LEDGER_EXPORT_CONTRACT_V0_1.md`,
   `types/git-ledger-export-contract.ts`,
