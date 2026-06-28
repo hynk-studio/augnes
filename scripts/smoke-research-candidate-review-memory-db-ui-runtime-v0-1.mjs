@@ -492,7 +492,8 @@ function assertChangedFileScope() {
 	    !changed.some((filePath) =>
 	      /provider|retrieval|rag|github|git-ledger|codex-execution|product-write|product-id/i.test(filePath) &&
 	      !isProviderExtractionRuntimeCompletionFile(filePath) &&
-	      !isRetrievalIndexRuntimeCompletionFile(filePath),
+	      !isRetrievalIndexRuntimeCompletionFile(filePath) &&
+	      !isRagContextPreviewRuntimeCompletionFile(filePath),
 	    ),
 	    "no provider/retrieval/Git/GitHub/Codex/product-write/product ID files were added",
 	  );
@@ -526,6 +527,18 @@ function isRetrievalIndexRuntimeCompletionFile(filePath) {
     "app/api/research-retrieval/search/route.ts",
     "fixtures/research-retrieval-index-runtime-completion.sample.v0.1.json",
     "scripts/smoke-research-retrieval-index-runtime-completion-v0-1.mjs",
+  ].includes(filePath);
+}
+
+function isRagContextPreviewRuntimeCompletionFile(filePath) {
+  return [
+    "docs/RAG_CONTEXT_PREVIEW_RUNTIME_COMPLETION_V0_1.md",
+    "lib/research-retrieval/build-rag-context-preview.ts",
+    "app/api/research-retrieval/rag-context-preview/",
+    "app/api/research-retrieval/rag-context-preview/route.ts",
+    "components/rag-context-preview-panel.tsx",
+    "fixtures/rag-context-preview-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-rag-context-preview-runtime-completion-v0-1.mjs",
   ].includes(filePath);
 }
 

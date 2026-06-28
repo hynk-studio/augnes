@@ -1,0 +1,352 @@
+{
+  "fixture_version": "rag_context_preview_runtime_completion_fixture.v0.1",
+  "preview_version": "rag_context_preview_runtime_completion.v0.1",
+  "request_version": "rag_context_preview_runtime_completion_request.v0.1",
+  "result_version": "rag_context_preview_runtime_completion_result.v0.1",
+  "search_version": "research_retrieval_index_runtime_completion_search.v0.1",
+  "scope": "project:augnes",
+  "safe_preview_request_example": {
+    "request_version": "rag_context_preview_runtime_completion_request.v0.1",
+    "preview_version": "rag_context_preview_runtime_completion.v0.1",
+    "search_version": "research_retrieval_index_runtime_completion_search.v0.1",
+    "scope": "project:augnes",
+    "preview_request_id": "rag-context-preview-request:runtime-sample",
+    "requested_by": "operator:rag-context-preview-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/research-retrieval/rag-context-preview-runtime.sqlite",
+    "query": "calibration tension knowledge gap durable review",
+    "search_filters": {},
+    "include_stale": true,
+    "max_search_results": 10,
+    "max_context_items": 5,
+    "max_context_chars": 1400,
+    "include_candidate_context": true,
+    "include_durable_context": true,
+    "include_tension_markers": true,
+    "include_gap_markers": true,
+    "authority_boundary": {
+      "rag_context_preview_runtime_now": true,
+      "db_backed_retrieval_search_now": true,
+      "explicit_operator_preview_only": true,
+      "same_origin_post_route_now": true,
+      "read_only_db_search_now": true,
+      "context_preview_created_now": true,
+      "rag_answer_generation_now": false,
+      "final_answer_generation_now": false,
+      "provider_openai_call_now": false,
+      "prompt_sent_now": false,
+      "retrieval_index_write_now": false,
+      "db_write_now": false,
+      "product_write_now": false
+    },
+    "reason_codes": [
+      "rag_context_preview_runtime_completion",
+      "db_backed_retrieval_search_now"
+    ]
+  },
+  "safe_search_seed_rebuild_input_example": {
+    "rebuild_version": "research_retrieval_index_runtime_completion_rebuild.v0.1",
+    "scope": "project:augnes",
+    "rebuild_request_id": "retrieval-rebuild-request:rag-context-preview-seed",
+    "requested_by": "operator:rag-context-preview-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/research-retrieval/rag-context-preview-runtime.sqlite",
+    "index_version": "research_retrieval_index_runtime_completion_index.v0.1",
+    "rebuild_policy": "replace_scope_index_version",
+    "stale_policy": "preserve_entry_stale_markers",
+    "entries": [
+      {
+        "source_surface": "provider_extraction_candidate_summary",
+        "source_record_ref": "provider-extraction:calibration-tension",
+        "source_ref_id": "source-ref:calibration-runtime",
+        "candidate_ref": "candidate-ref:calibration-runtime",
+        "provider_extraction_ref": "provider-extraction:calibration-tension",
+        "bounded_title": "Calibration tension candidate",
+        "bounded_summary": "Provider candidate summary preserves an unresolved tension for calibration review without creating proof.",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z",
+        "reason_codes": [
+          "unresolved_tension_preserved",
+          "candidate_is_not_fact"
+        ]
+      },
+      {
+        "source_surface": "durable_perspective_state_summary",
+        "source_record_ref": "perspective-state:calibration-durable",
+        "source_ref_id": "source-ref:durable-calibration-runtime",
+        "perspective_id": "perspective:calibration-durable",
+        "bounded_title": "Durable calibration context",
+        "bounded_summary": "Durable Perspective summary is a lineage context pointer for calibration and not promotion readiness.",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z",
+        "reason_codes": [
+          "durable_state_not_mutated"
+        ]
+      },
+      {
+        "source_surface": "review_note_summary",
+        "source_record_ref": "review-record:calibration-stale",
+        "source_ref_id": "source-ref:review-calibration-runtime",
+        "review_record_ref": "review-record:calibration-stale",
+        "candidate_ref": "candidate-ref:calibration-runtime",
+        "bounded_title": "Stale calibration review note",
+        "bounded_summary": "Stale review memory summary asks for calibration evidence before any final answer or promotion.",
+        "public_safe": true,
+        "stale_marker": "stale",
+        "source_updated_at": "2026-06-27T00:00:00.000Z",
+        "reason_codes": [
+          "stale_context_warning",
+          "review_memory_not_truth"
+        ]
+      },
+      {
+        "source_surface": "feedback_summary",
+        "source_record_ref": "feedback:calibration-gap",
+        "source_ref_id": "source-ref:feedback-calibration-runtime",
+        "feedback_ref": "feedback:calibration-gap",
+        "bounded_title": "Calibration knowledge gap",
+        "bounded_summary": "Feedback summary records a knowledge gap for calibration review and remains candidate-only context.",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z",
+        "reason_codes": [
+          "knowledge_gap_preserved"
+        ]
+      },
+      {
+        "source_surface": "candidate_summary",
+        "source_record_ref": "candidate-summary:missing-source-ref",
+        "candidate_ref": "candidate-ref:missing-source",
+        "bounded_title": "Missing source ref context",
+        "bounded_summary": "Candidate summary is intentionally missing a source ref and must be excluded from context preview.",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z",
+        "reason_codes": [
+          "source_ref_missing"
+        ]
+      },
+      {
+        "source_surface": "provider_extraction_candidate_summary",
+        "source_record_ref": "provider-extraction:calibration-duplicate",
+        "source_ref_id": "source-ref:calibration-runtime",
+        "candidate_ref": "candidate-ref:calibration-runtime",
+        "provider_extraction_ref": "provider-extraction:calibration-duplicate",
+        "bounded_title": "Duplicate calibration candidate",
+        "bounded_summary": "Duplicate candidate context shares the same backref and should be excluded after one matching item is included.",
+        "public_safe": true,
+        "stale_marker": "fresh",
+        "source_updated_at": "2026-06-28T00:00:00.000Z",
+        "reason_codes": [
+          "duplicate_context_excluded"
+        ]
+      }
+    ],
+    "authority_boundary": {
+      "rebuildable_retrieval_index_runtime_now": true,
+      "explicit_operator_rebuild_only": true,
+      "caller_injected_db_only": true,
+      "derived_index_write_now": true,
+      "provider_openai_call_now": false,
+      "rag_answer_generation_now": false,
+      "proof_or_evidence_record_now": false,
+      "product_write_now": false
+    },
+    "reason_codes": [
+      "rebuildable_retrieval_index_runtime_completion",
+      "rag_context_preview_seed"
+    ]
+  },
+  "safe_search_results_example": {
+    "status": "searched",
+    "result_count": 4,
+    "results": [
+      {
+        "result_ref": "retrieval-search-result:calibration-runtime",
+        "index_entry_id": "retrieval-index-entry:calibration-runtime",
+        "source_surface": "provider_extraction_candidate_summary",
+        "source_record_ref": "provider-extraction:calibration-tension",
+        "source_ref_id": "source-ref:calibration-runtime",
+        "candidate_ref": "candidate-ref:calibration-runtime",
+        "review_record_ref": null,
+        "promotion_decision_ref": null,
+        "formation_receipt_ref": null,
+        "perspective_id": null,
+        "feedback_ref": null,
+        "provider_extraction_ref": "provider-extraction:calibration-tension",
+        "bounded_source_intake_ref": null,
+        "bounded_title": "Calibration tension candidate",
+        "bounded_snippet": "Provider candidate summary preserves an unresolved tension for calibration review.",
+        "score": 3,
+        "score_is_truth": false,
+        "score_is_promotion_readiness": false,
+        "retrieval_result_is_evidence": false,
+        "source_refs_are_lineage": true,
+        "stale_marker": "fresh"
+      }
+    ]
+  },
+  "expected_context_preview_result_example": {
+    "status": "context_preview_created",
+    "search_status": "searched",
+    "retrieval_executed": true,
+    "rag_answer_generated": false,
+    "provider_call_executed": false,
+    "prompt_sent": false,
+    "source_fetch_executed": false,
+    "embedding_created": false,
+    "vector_search_executed": false,
+    "proof_or_evidence_created": false,
+    "candidate_mutation_executed": false,
+    "product_write_executed": false
+  },
+  "no_results_preview_example": {
+    "query": "nomatch-symbolic-query",
+    "expected_status": "no_retrieval_results"
+  },
+  "stale_exclusion_example": {
+    "include_stale": false,
+    "expected_exclusion_reason": "stale_excluded"
+  },
+  "max_items_exclusion_example": {
+    "max_context_items": 1,
+    "expected_exclusion_reason": "max_context_items_exceeded"
+  },
+  "max_chars_exclusion_example": {
+    "max_context_chars": 120,
+    "expected_exclusion_reason": "max_context_chars_exceeded"
+  },
+  "candidate_vs_durable_marker_examples": [
+    "provider_candidate_context",
+    "durable_state_context",
+    "review_memory_context",
+    "feedback_context",
+    "source_context"
+  ],
+  "unresolved_tension_examples": [
+    "unresolved tension marker retained"
+  ],
+  "knowledge_gap_examples": [
+    "knowledge gap marker retained"
+  ],
+  "blocked_private_or_raw_payload_example": {
+    "request_version": "rag_context_preview_runtime_completion_request.v0.1",
+    "preview_version": "rag_context_preview_runtime_completion.v0.1",
+    "search_version": "research_retrieval_index_runtime_completion_search.v0.1",
+    "scope": "project:augnes",
+    "preview_request_id": "rag-context-preview-request:blocked-private",
+    "requested_by": "operator:rag-context-preview-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/research-retrieval/rag-context-preview-runtime.sqlite",
+    "query": "SAFE_MARKER_RAW_RETRIEVAL_OUTPUT",
+    "search_filters": {},
+    "include_stale": true,
+    "max_search_results": 5,
+    "max_context_items": 3,
+    "max_context_chars": 600,
+    "include_candidate_context": true,
+    "include_durable_context": true,
+    "include_tension_markers": true,
+    "include_gap_markers": true,
+    "authority_boundary": {},
+    "reason_codes": [
+      "private_or_raw_payload_blocked"
+    ]
+  },
+  "blocked_forbidden_authority_example": {
+    "request_version": "rag_context_preview_runtime_completion_request.v0.1",
+    "preview_version": "rag_context_preview_runtime_completion.v0.1",
+    "search_version": "research_retrieval_index_runtime_completion_search.v0.1",
+    "scope": "project:augnes",
+    "preview_request_id": "rag-context-preview-request:blocked-authority",
+    "requested_by": "operator:rag-context-preview-smoke",
+    "requested_at": "2026-06-28T00:00:00.000Z",
+    "db_path": ".tmp/research-retrieval/rag-context-preview-runtime.sqlite",
+    "query": "calibration",
+    "search_filters": {},
+    "include_stale": true,
+    "max_search_results": 5,
+    "max_context_items": 3,
+    "max_context_chars": 600,
+    "include_candidate_context": true,
+    "include_durable_context": true,
+    "include_tension_markers": true,
+    "include_gap_markers": true,
+    "authority_boundary": {
+      "rag_answer_generation_now": true,
+      "product_write_authority": "enabled"
+    },
+    "reason_codes": [
+      "forbidden_authority_blocked"
+    ]
+  },
+  "invalid_db_path_example": {
+    "db_path": "../research-retrieval/rag-context-preview-runtime.sqlite",
+    "expected_error_code": "invalid_db_path"
+  },
+  "invalid_query_example": {
+    "query": "",
+    "expected_status": "blocked_invalid_input"
+  },
+  "authority_boundary_sample": {
+    "rag_context_preview_runtime_now": true,
+    "db_backed_retrieval_search_now": true,
+    "explicit_operator_preview_only": true,
+    "same_origin_post_route_now": true,
+    "read_only_db_search_now": true,
+    "context_preview_created_now": true,
+    "candidate_vs_durable_markers_visible": true,
+    "staleness_warnings_visible": true,
+    "unresolved_tension_markers_visible": true,
+    "knowledge_gap_markers_visible": true,
+    "rag_answer_generation_now": false,
+    "final_answer_generation_now": false,
+    "provider_openai_call_now": false,
+    "prompt_sent_now": false,
+    "source_fetch_now": false,
+    "live_crawling_now": false,
+    "embedding_created_now": false,
+    "vector_search_now": false,
+    "retrieval_index_write_now": false,
+    "db_write_now": false,
+    "raw_source_body_included_now": false,
+    "raw_provider_output_included_now": false,
+    "raw_retrieval_output_stored_now": false,
+    "hidden_reasoning_stored_now": false,
+    "proof_or_evidence_record_now": false,
+    "claim_or_evidence_write_now": false,
+    "candidate_mutation_now": false,
+    "review_memory_write_now": false,
+    "promotion_execution_now": false,
+    "durable_state_write_now": false,
+    "durable_state_apply_now": false,
+    "formation_receipt_write_now": false,
+    "product_write_now": false,
+    "product_write_runtime_now": false,
+    "product_write_adapter_enabled_now": false,
+    "product_id_allocation_now": false,
+    "product_persistence_now": false,
+    "git_ledger_export_runtime_now": false,
+    "git_write_now": false,
+    "github_api_call_now": false,
+    "repository_file_write_now": false,
+    "local_file_export_now": false,
+    "local_file_import_now": false,
+    "codex_execution_now": false,
+    "codex_execution_authority": false,
+    "github_automation_authority": false,
+    "product_write_authority": false,
+    "rag_context_is_truth": false,
+    "rag_context_is_proof": false,
+    "rag_context_is_accepted_evidence": false,
+    "rag_context_is_promotion_readiness": false,
+    "retrieval_result_is_evidence": false,
+    "retrieval_score_is_truth": false,
+    "retrieval_score_is_promotion_readiness": false,
+    "source_ref_is_proof": false,
+    "smoke_pass_is_truth": false,
+    "ci_pass_is_truth": false
+  }
+}
