@@ -347,6 +347,47 @@ async function assertRouteRuntimeBehavior() {
   assert.equal(response.status, 404);
   assert.equal(body.error_code, "db_missing");
   assert(!existsSync(missingDbPath), "GET missing DB does not create file");
+  assert.equal(body.error_code, "db_missing", "local/test host without Origin still passes boundary");
+
+  response = await route.GET(
+    makeGetRequest(
+      `https://augnes.local.test/api/perspective/layout/manual-anchors?db_path=${encodeURIComponent(missingDbPath)}`,
+      { "sec-fetch-site": "same-origin" },
+    ),
+  );
+  body = await response.json();
+  assert.equal(response.status, 404);
+  assert.equal(body.error_code, "db_missing", "same-origin fetch metadata without Origin reaches DB logic");
+  assert(!existsSync(missingDbPath), "same-origin metadata GET missing DB does not create file");
+
+  response = await route.GET(
+    makeGetRequest(
+      `https://augnes.local.test/api/perspective/layout/manual-anchors?db_path=${encodeURIComponent(missingDbPath)}`,
+      { "sec-fetch-site": "same-site" },
+    ),
+  );
+  body = await response.json();
+  assert.equal(response.status, 404);
+  assert.equal(body.error_code, "db_missing", "same-site fetch metadata without Origin reaches DB logic");
+
+  response = await route.GET(
+    makeGetRequest(
+      `https://augnes.local.test/api/perspective/layout/manual-anchors?db_path=${encodeURIComponent(missingDbPath)}`,
+      { "sec-fetch-site": "cross-site" },
+    ),
+  );
+  body = await response.json();
+  assert.equal(response.status, 403);
+  assert.equal(body.error_code, "same_origin_required", "cross-site fetch metadata rejected");
+
+  response = await route.GET(
+    makeGetRequest(
+      `https://augnes.local.test/api/perspective/layout/manual-anchors?db_path=${encodeURIComponent(missingDbPath)}`,
+    ),
+  );
+  body = await response.json();
+  assert.equal(response.status, 403);
+  assert.equal(body.error_code, "same_origin_required", "headerless non-local request rejected");
 
   mkdirSync(dirname(dbPath), { recursive: true });
   new Database(dbPath).close();
@@ -470,6 +511,10 @@ async function assertRouteRuntimeBehavior() {
   body = await response.json();
   assert.equal(response.status, 400);
   assert.equal(body.error_code, "invalid_json_body");
+}
+
+function makeGetRequest(url, headers = {}) {
+  return new Request(url, { headers });
 }
 
 function makePostRequest(body) {

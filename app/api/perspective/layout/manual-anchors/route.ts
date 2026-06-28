@@ -144,13 +144,13 @@ function parseLimit(value: string | null): number | undefined {
 }
 
 function requestHasSameOriginBoundary(request: Request): boolean {
-  const fetchSite = request.headers.get("sec-fetch-site");
+  const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase() ?? null;
   if (fetchSite && !["same-origin", "same-site", "none"].includes(fetchSite)) return false;
 
   const origin = request.headers.get("origin");
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? new URL(request.url).host;
   if (!host) return false;
-  if (!origin) return isLocalTestHost(host);
+  if (!origin) return fetchSite ? true : isLocalTestHost(host);
 
   try {
     return new URL(origin).host.toLowerCase() === host.toLowerCase();
