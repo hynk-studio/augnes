@@ -45,6 +45,8 @@ The instrumentation helper builds audit events with bounded metadata only:
 - bounded error code
 - primary result status/ref
 
+Audit event IDs include the selected route, action, subject, status, and a route-result discriminator. When `primary_result_ref` is present, the ID includes a public-safe part plus deterministic bounded hash of that result ref. When `primary_result_ref` is absent, the ID includes a deterministic short fingerprint over bounded public-safe audit fields. Exact repeated audit writes for the same route result remain idempotent, while distinct route results for the same subject and status do not collapse into conflicts.
+
 Audit events are bounded review records only. Audit events are not truth. Audit events are not proof. Audit events are not approval. Audit events are not durable state. Audit events are not product-write authority.
 
 ## No-op policy
@@ -77,7 +79,7 @@ The fixture uses public-safe symbolic refs only. Safe markers appear only inside
 
 ## Verification expectations
 
-Smoke verifies helper exports, no-op behavior, invalid path skip, private/raw skip, forbidden authority skip, successful audit writes, idempotency, bounded write failure, selected route instrumentation, route behavior without audit path, and audit panel store listing of emitted events.
+Smoke verifies helper exports, no-op behavior, invalid path skip, private/raw skip, forbidden authority skip, successful audit writes, idempotency, distinct route-result IDs for the same subject/status, bounded write failure, selected route instrumentation, route behavior without audit path, feedback route repeated target audit persistence, and audit panel store listing of emitted events.
 
 ## Deferred broader instrumentation
 

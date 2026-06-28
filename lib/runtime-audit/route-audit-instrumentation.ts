@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
@@ -193,7 +194,22 @@ export function createRuntimeRouteAuditEventIdV01(
   const actionPart = safeIdPart(input.event_action);
   const subjectPart = safeIdPart(input.subject_ref);
   const statusPart = safeIdPart(input.event_status);
-  return `audit:event:${routePart}:${actionPart}:${subjectPart}:${statusPart}`;
+  const primaryResultRef =
+    typeof input.primary_result_ref === "string" ? input.primary_result_ref.trim() : "";
+  const resultPart =
+    primaryResultRef.length > 0
+      ? `${safeIdPart(primaryResultRef)}-${shortHash(primaryResultRef)}`
+      : `fingerprint-${shortHash({
+          route_ref: input.route_ref,
+          event_action: input.event_action,
+          event_status: input.event_status,
+          subject_ref: input.subject_ref,
+          related_refs: input.related_refs ?? [],
+          bounded_summary: sanitizeRuntimeRouteAuditSummaryV01(input.bounded_summary),
+          bounded_error_code: input.bounded_error_code ?? null,
+          created_at: input.created_at ?? null,
+        })}`;
+  return `audit:event:${routePart}:${actionPart}:${subjectPart}:${statusPart}:${resultPart}`;
 }
 
 export function sanitizeRuntimeRouteAuditSummaryV01(input: unknown): string {
@@ -327,4 +343,23 @@ function safeIdPart(value: unknown): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 48);
   return cleaned || "unknown";
+}
+
+function shortHash(value: unknown): string {
+  return createHash("sha256").update(stableStringify(value)).digest("hex").slice(0, 16);
+}
+
+function stableStringify(value: unknown): string {
+  if (value === undefined) return "null";
+  if (value === null) return "null";
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .filter((key) => record[key] !== undefined)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
 }

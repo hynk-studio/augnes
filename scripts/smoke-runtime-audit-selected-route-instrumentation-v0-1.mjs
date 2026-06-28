@@ -30,6 +30,7 @@ const scope = "project:augnes";
 const routeVersion = "bounded_source_intake_runtime_completion_route.v0.1";
 const feedbackRouteVersion = "feedback_controls_expansion_runtime_completion_route.v0.1";
 const auditDbPath = `.tmp/runtime-audit/selected-route-smoke-${process.pid}.sqlite`;
+const distinctAuditDbPath = `.tmp/runtime-audit/selected-route-distinct-${process.pid}.sqlite`;
 const sourceAuditDbPath = `.tmp/runtime-audit/source-route-smoke-${process.pid}.sqlite`;
 const feedbackDbPath = `.tmp/feedback-event-aggregation/selected-route-feedback-${process.pid}.sqlite`;
 const feedbackAuditDbPath = `.tmp/runtime-audit/feedback-route-smoke-${process.pid}.sqlite`;
@@ -338,6 +339,31 @@ const repeated = helper.maybeWriteRuntimeRouteAuditEventV01(baseAuditInput());
 assert.equal(repeated.status, "idempotent_existing");
 assert.equal(countAuditEvents(auditDbPath), 1);
 
+rmSync(distinctAuditDbPath, { force: true });
+const distinctFirstInput = baseAuditInput({
+  audit_db_path: distinctAuditDbPath,
+  subject_ref: "source-ref:bounded-intake:same-subject",
+  primary_result_ref: "source-ref:bounded-intake:route-result:001",
+});
+const distinctSecondInput = baseAuditInput({
+  audit_db_path: distinctAuditDbPath,
+  subject_ref: "source-ref:bounded-intake:same-subject",
+  primary_result_ref: "source-ref:bounded-intake:route-result:002",
+});
+const distinctFirst = helper.maybeWriteRuntimeRouteAuditEventV01(distinctFirstInput);
+const distinctSecond = helper.maybeWriteRuntimeRouteAuditEventV01(distinctSecondInput);
+assert.equal(distinctFirst.status, "audit_event_created");
+assert.equal(distinctSecond.status, "audit_event_created");
+assert.notEqual(
+  distinctFirst.audit_event_id,
+  distinctSecond.audit_event_id,
+  "different primary_result_ref values create distinct audit ids",
+);
+assert.equal(countAuditEvents(distinctAuditDbPath), 2);
+const distinctFirstRepeat = helper.maybeWriteRuntimeRouteAuditEventV01(distinctFirstInput);
+assert.equal(distinctFirstRepeat.status, "idempotent_existing");
+assert.equal(countAuditEvents(distinctAuditDbPath), 2);
+
 const writeFailurePath = `.tmp/runtime-audit/write-failure-${process.pid}.sqlite`;
 rmSync(writeFailurePath, { recursive: true, force: true });
 mkdirSync(writeFailurePath, { recursive: true });
@@ -413,15 +439,44 @@ assert.equal(feedbackWithAudit.result.status, "feedback_event_created");
 assert.equal(feedbackWithAudit.audit_event_result.status, "audit_event_created");
 assert.equal(countAuditEvents(feedbackAuditDbPath), 1);
 
+const secondFeedbackWithAuditResponse = await feedbackRoute.POST(
+  request("/api/research-candidate/feedback-events", {
+    route_version: feedbackRouteVersion,
+    scope,
+    action: "create_feedback_event",
+    db_path: feedbackDbPath,
+    audit_db_path: feedbackAuditDbPath,
+    input: feedbackInput({
+      feedback_event_id: "feedback-event:audit-instrumentation:pin:002",
+      idempotency_key: "feedback-event-idempotency:audit-instrumentation:pin:002",
+      feedback_summary: "Operator pinned the same target again for distinct audit result smoke.",
+    }),
+  }),
+);
+assert.equal(secondFeedbackWithAuditResponse.status, 201);
+const secondFeedbackWithAudit = await secondFeedbackWithAuditResponse.json();
+assert.equal(secondFeedbackWithAudit.result.status, "feedback_event_created");
+assert.equal(secondFeedbackWithAudit.audit_event_result.status, "audit_event_created");
+assert.notEqual(
+  feedbackWithAudit.audit_event_result.audit_event_id,
+  secondFeedbackWithAudit.audit_event_result.audit_event_id,
+  "same feedback target/status with different feedback_event_id produces distinct audit ids",
+);
+assert.equal(countAuditEvents(feedbackAuditDbPath), 2);
+
 const emitted = readAuditEvents(feedbackAuditDbPath);
-assert.equal(emitted.length, 1);
-assert.equal(emitted[0].event_surface, "feedback_event_write_runtime");
-assert.equal(emitted[0].bounded_summary, "Feedback event write route persisted bounded feedback signal.");
-assert.equal(emitted[0].authority_boundary.audit_event_is_truth, false);
-assert.equal(emitted[0].authority_boundary.audit_event_is_proof, false);
-assert.equal(emitted[0].authority_boundary.audit_event_is_approval, false);
-assert.equal(emitted[0].authority_boundary.audit_event_is_durable_state, false);
-assert.equal(emitted[0].authority_boundary.audit_event_is_product_write_authority, false);
+assert.equal(emitted.length, 2);
+const emittedIds = new Set(emitted.map((event) => event.audit_event_id));
+assert.equal(emittedIds.size, 2, "feedback route emits two distinct audit events");
+for (const event of emitted) {
+  assert.equal(event.event_surface, "feedback_event_write_runtime");
+  assert.equal(event.bounded_summary, "Feedback event write route persisted bounded feedback signal.");
+  assert.equal(event.authority_boundary.audit_event_is_truth, false);
+  assert.equal(event.authority_boundary.audit_event_is_proof, false);
+  assert.equal(event.authority_boundary.audit_event_is_approval, false);
+  assert.equal(event.authority_boundary.audit_event_is_durable_state, false);
+  assert.equal(event.authority_boundary.audit_event_is_product_write_authority, false);
+}
 assertNoUnsafeEcho(emitted, "emitted audit events");
 
 const feedbackNoAuditResponse = await feedbackRoute.POST(
@@ -431,8 +486,8 @@ const feedbackNoAuditResponse = await feedbackRoute.POST(
     action: "create_feedback_event",
     db_path: feedbackDbPath,
     input: feedbackInput({
-      feedback_event_id: "feedback-event:audit-instrumentation:pin:002",
-      idempotency_key: "feedback-event-idempotency:audit-instrumentation:pin:002",
+      feedback_event_id: "feedback-event:audit-instrumentation:pin:003",
+      idempotency_key: "feedback-event-idempotency:audit-instrumentation:pin:003",
     }),
   }),
 );

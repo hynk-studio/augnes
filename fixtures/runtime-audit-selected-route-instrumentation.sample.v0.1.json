@@ -59,6 +59,24 @@
     "subject_ref": "candidate:feedback-target:sample",
     "bounded_summary": "Feedback event write route persisted bounded feedback signal."
   },
+  "distinct_same_subject_audit_events_example": [
+    {
+      "route_ref": "route:/api/research-candidate/feedback-events",
+      "event_action": "feedback_event_write_completed",
+      "event_status": "feedback_event_created",
+      "subject_ref": "candidate:feedback-target:sample",
+      "primary_result_ref": "feedback-event:sample:001",
+      "expected_collision": false
+    },
+    {
+      "route_ref": "route:/api/research-candidate/feedback-events",
+      "event_action": "feedback_event_write_completed",
+      "event_status": "feedback_event_created",
+      "subject_ref": "candidate:feedback-target:sample",
+      "primary_result_ref": "feedback-event:sample:002",
+      "expected_collision": false
+    }
+  ],
   "feedback_surfacing_preview_audit_example": {
     "route_ref": "route:/api/research-candidate/feedback-events/surfacing-preview",
     "runtime_slice_ref": "feedback_influenced_surfacing_preview_runtime_completion_v0_1",
