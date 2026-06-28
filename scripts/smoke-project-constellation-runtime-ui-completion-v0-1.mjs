@@ -597,7 +597,8 @@ function assertChangedFileScope() {
       (filePath) =>
         filePath.startsWith("app/api/") &&
         !isManualAnchorRuntimeCompletionFile(filePath) &&
-        !isFeedbackEventAggregationRuntimeCompletionFile(filePath),
+        !isFeedbackEventAggregationRuntimeCompletionFile(filePath) &&
+        !isFeedbackControlsExpansionRuntimeCompletionFile(filePath),
     ),
     "no new app/api route was added",
   );
@@ -610,7 +611,8 @@ function assertChangedFileScope() {
       (filePath) =>
         /provider|retrieval-index-write|github|git-ledger|codex-execution|product-write|product-id/i.test(filePath) &&
         !isExpectedCompletionFile(filePath) &&
-        !isFeedbackEventAggregationRuntimeCompletionFile(filePath),
+        !isFeedbackEventAggregationRuntimeCompletionFile(filePath) &&
+        !isFeedbackControlsExpansionRuntimeCompletionFile(filePath),
     ),
     "no provider/retrieval-index-write/Git/GitHub/Codex/product-write/product ID files were added",
   );
@@ -695,6 +697,20 @@ function isFeedbackEventAggregationRuntimeCompletionFile(filePath) {
     "docs/FEEDBACK_EVENT_AGGREGATION_RUNTIME_COMPLETION_V0_1.md",
     "fixtures/feedback-event-aggregation-runtime-completion.sample.v0.1.json",
     "scripts/smoke-feedback-event-aggregation-runtime-completion-v0-1.mjs",
+    packagePath,
+    indexPath,
+  ].includes(filePath);
+}
+
+function isFeedbackControlsExpansionRuntimeCompletionFile(filePath) {
+  return [
+    "components/feedback-event-expanded-controls.tsx",
+    "app/api/research-candidate/feedback-events/route.ts",
+    "lib/research-candidate-review/feedback-event-write-runtime.ts",
+    "docs/FEEDBACK_CONTROLS_EXPANSION_RUNTIME_COMPLETION_V0_1.md",
+    "fixtures/feedback-controls-expansion-runtime-completion.sample.v0.1.json",
+    "scripts/smoke-feedback-controls-expansion-runtime-completion-v0-1.mjs",
+    "scripts/smoke-feedback-controls-expanded-v0-1.mjs",
     packagePath,
     indexPath,
   ].includes(filePath);

@@ -4023,6 +4023,46 @@ repo-local 색인이다.
   execution; no RAG answer generation; no source fetch; no
   local/repository/uploaded file read as source input; no Git Ledger export; no
   Codex execution; no GitHub automation; product-write remains parked by #686.
+- Feedback Controls Expansion Runtime Completion v0.1:
+  `docs/FEEDBACK_CONTROLS_EXPANSION_RUNTIME_COMPLETION_V0_1.md`,
+  `lib/research-candidate-review/feedback-event-write-runtime.ts`,
+  `app/api/research-candidate/feedback-events/route.ts`,
+  `components/feedback-event-expanded-controls.tsx`,
+  `fixtures/feedback-controls-expansion-runtime-completion.sample.v0.1.json`,
+  and `scripts/smoke-feedback-controls-expansion-runtime-completion-v0-1.mjs`
+  (`npm run smoke:feedback-controls-expansion-runtime-completion-v0-1`)
+  implements `feedback_controls_expansion_runtime_completion_v0_1` as the
+  original Phase 5.6 feedback controls runtime completion. It closes the gap
+  left by callback-only controls by adding route-backed feedback event
+  persistence through same-origin `POST /api/research-candidate/feedback-events`
+  with an allowlisted caller-injected SQLite DB path. Callback-only mode remains
+  compatible. Feedback controls write bounded feedback events only after
+  explicit operator action. Feedback is not truth. Pin is not promotion. Dismiss
+  is not delete. Invalidate is not source suppression. Correct does not mutate
+  parser/rules. Scope-overreach and needs-more-evidence create review signals
+  only. This slice does not mutate rules, parsers, prompts, ranking, or
+  surfacing; suppress sources; delete candidates; create proof/evidence; write
+  claim/evidence; create work items; promote Perspective; write/apply durable
+  state; write Formation Receipts; call providers; send prompts; fetch sources;
+  execute retrieval/RAG; write retrieval indexes; generate RAG answers; execute
+  Git/GitHub; execute Codex; product-write; allocate product IDs; or grant
+  product-write authority. Product-write remains parked by #686. Smoke/CI pass
+  is not truth.
+
+  Boundary phrases: Feedback Controls Expansion Runtime Completion v0.1;
+  `feedback_controls_expansion_runtime_completion_v0_1`; route-backed feedback
+  event persistence; same-origin POST only; explicit operator feedback action
+  only; caller-injected DB only; callback compatibility preserved; advisory
+  signal only; feedback is not truth; pin is not promotion; dismiss is not
+  delete; invalidate is not source suppression; correct does not mutate parser
+  or rules; no rule mutation, parser mutation, prompt mutation, ranking
+  mutation, surfacing mutation, source suppression, candidate deletion,
+  proof/evidence write, claim/evidence write, work item write, Perspective
+  promotion, durable state write/apply, Formation Receipt write, provider call,
+  prompt sending, source fetch, retrieval/RAG execution, retrieval index write,
+  RAG answer generation, Git/GitHub execution, Codex execution, product write,
+  product ID allocation, or product-write authority; Product-write remains
+  parked by #686; Smoke/CI pass is not truth.
 - Feedback Influenced Surfacing Preview v0.1:
   `docs/FEEDBACK_INFLUENCED_SURFACING_PREVIEW_V0_1.md`,
   `lib/research-candidate-review/feedback-influenced-surfacing-preview.ts`,
