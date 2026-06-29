@@ -6106,6 +6106,73 @@ next read/display usability slice or pause for human spot review.
 
 ---
 
+### Promotion readiness packet review hub read/display v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add promotion/product/release
+authority. `promotion_readiness_packet_review_hub_read_display_v0_1` is a
+read/display-only usability slice for a promotion readiness review hub at
+`/perspective/promotion`, with one navigation-only link to the existing
+read/display readiness packet route
+`/perspective/promotion/readiness-packet`. Current basis: #856, #857, #858,
+#859, #860, and #861.
+
+- `app/perspective/promotion/page.tsx`:
+  route page for `/perspective/promotion`; it renders the read/display-only
+  promotion readiness review hub and does not call an API route.
+- `components/promotion-readiness-packet-review-hub.tsx`:
+  read/display-only hub component with required status flags, basis refs,
+  available read/display surfaces, blocked authority actions, next
+  non-authority review steps, what-this-hub-cannot-do content, and one
+  navigation-only link to `/perspective/promotion/readiness-packet`.
+- `docs/PROMOTION_READINESS_PACKET_REVIEW_HUB_READ_DISPLAY_V0_1.md`:
+  documentation for the review hub purpose, route added, linked route,
+  UI sections, navigation affordance policy, no-action-controls policy,
+  network/request boundary, screenshot/artifact policy, authority boundary,
+  human signoff status, human review status, and final recommendation.
+- `fixtures/promotion-readiness-packet-review-hub-read-display.sample.v0.1.json`:
+  public-safe fixture for `basis_prs: [856, 857, 858, 859, 860, 861]`, route
+  added, linked route, hub sections, safe navigation affordance, read/display
+  and no-action flags, authority boundary, forbidden capabilities, and final
+  status.
+- `scripts/browser-validate-promotion-readiness-packet-review-hub-read-display-v0-1.mjs`:
+  local browser/CDP validator that starts a loopback Next dev server, opens
+  `/perspective/promotion`, verifies required visible copy and sections,
+  verifies the single safe read/display navigation link, navigates through it
+  to `/perspective/promotion/readiness-packet`, verifies destination
+  read/display copy, observes request metadata only, fails on forbidden
+  methods, `/api` calls, forbidden routes, and non-loopback external requests,
+  emits a public-safe JSON summary, and writes the public-safe browser report.
+- `scripts/smoke-promotion-readiness-packet-review-hub-read-display-v0-1.mjs`:
+  static smoke for docs, fixture, component, page, browser validator, smoke,
+  package scripts, latest index pointers, browser report, #856/#857/#858/
+  #859/#860/#861 basis, route references, navigation safety, human
+  signoff/review flags, readiness/validation boundaries, public-safe artifact
+  policy, forbidden capabilities, final recommendation, and bounded
+  changed-file scope.
+- `reports/browser/2026-06-29-promotion-readiness-packet-review-hub-read-display.md`:
+  public-safe browser validation report for the read/display-only review hub.
+- `npm run browser:promotion-readiness-packet-review-hub-read-display-v0-1`:
+  browser/CDP static validation for this read/display-only hub.
+- `npm run smoke:promotion-readiness-packet-review-hub-read-display-v0-1`:
+  focused static smoke for this review hub read/display slice.
+
+Boundary summary: this hub performs no human review and claims no human
+signoff. It does not execute promotion, write promotion decisions, use/write
+the promotion decision store, create proof/evidence, apply durable Perspective
+state, write Formation Receipts, product-write, write accepted evidence refs,
+allocate product IDs, add GitHub actuation, execute release work, call live
+providers, fetch sources, expand retrieval execution, add broad all-route audit
+instrumentation, add API write routes, add DB schema/migrations, copy raw
+artifacts, embed screenshots, or include private local paths. Readiness is not
+promotion, validation pass is not truth/proof/approval/product readiness, and
+browser validation is not human review. The readiness packet link is
+navigation only, not approval or promotion. The final recommendation is
+browser/static validation of this hub; once browser/static validation complete,
+continue only to the next read/display usability slice or a pause for human
+spot review. Do not recommend promotion execution, product-write, or release.
+
+---
+
 ## 업로드 권장 파일 목록 (Active set)
 
 1) `SSOT_CANONICAL.md` — 의미/정책 SSOT (SSOT-2)  
