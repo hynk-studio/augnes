@@ -6173,6 +6173,76 @@ spot review. Do not recommend promotion execution, product-write, or release.
 
 ---
 
+### Promotion readiness review hub cockpit entrypoint v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add promotion/product/release
+authority. `promotion_readiness_review_hub_cockpit_entrypoint_v0_1` is a
+read/display-only home/cockpit entrypoint slice for discovering the existing
+promotion readiness review hub at `/perspective/promotion` from the main
+Augnes home route `/`. The downstream readiness packet route remains
+`/perspective/promotion/readiness-packet`. Current basis: #856, #857, #858,
+#859, #860, #861, and #862.
+
+- `app/page.tsx`:
+  home route page for `/`; it renders the read/display-only cockpit entrypoint
+  above the existing Augnes cockpit and does not add a new route.
+- `components/promotion-readiness-review-hub-cockpit-entrypoint.tsx`:
+  read/display-only scoped entrypoint component with required status flags,
+  basis refs, blocked authority actions, what-this-entrypoint-cannot-do
+  content, and one navigation-only link to `/perspective/promotion`.
+- `docs/PROMOTION_READINESS_REVIEW_HUB_COCKPIT_ENTRYPOINT_V0_1.md`:
+  documentation for the cockpit entrypoint purpose, home/cockpit route touched
+  and tested, linked route, downstream route, UI sections, navigation
+  affordance policy, no-action-controls policy, network/request boundary,
+  screenshot/artifact policy, authority boundary, human signoff status, human
+  review status, and final recommendation.
+- `fixtures/promotion-readiness-review-hub-cockpit-entrypoint.sample.v0.1.json`:
+  public-safe fixture for `basis_prs: [856, 857, 858, 859, 860, 861, 862]`,
+  home route, linked route, downstream readiness packet route, entrypoint
+  sections, safe navigation affordance, read/display and no-action flags,
+  authority boundary, forbidden capabilities, and final status.
+- `scripts/browser-validate-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs`:
+  local browser/CDP validator that starts a loopback Next dev server, opens
+  `/`, verifies required visible copy and sections inside the scoped
+  entrypoint container, verifies the single safe read/display navigation link,
+  navigates through it to `/perspective/promotion`, validates destination
+  read/display copy, optionally validates the downstream readiness packet route,
+  observes request metadata only, fails on forbidden methods, forbidden route
+  families, and non-loopback external requests, emits a public-safe JSON
+  summary, and writes the public-safe browser report.
+- `scripts/smoke-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs`:
+  static smoke for docs, fixture, component, home page integration, browser
+  validator, smoke, package scripts, latest index pointers, browser report,
+  #856/#857/#858/#859/#860/#861/#862 basis, route references, navigation
+  safety, human signoff/review flags, readiness/validation boundaries,
+  public-safe artifact policy, forbidden capabilities, final recommendation,
+  and bounded changed-file scope.
+- `reports/browser/2026-06-29-promotion-readiness-review-hub-cockpit-entrypoint.md`:
+  public-safe browser validation report for the read/display-only cockpit
+  entrypoint.
+- `npm run browser:promotion-readiness-review-hub-cockpit-entrypoint-v0-1`:
+  browser/CDP static validation for this read/display-only cockpit entrypoint.
+- `npm run smoke:promotion-readiness-review-hub-cockpit-entrypoint-v0-1`:
+  focused static smoke for this cockpit entrypoint slice.
+
+Boundary summary: this entrypoint performs no human review and claims no human
+signoff. It does not execute promotion, write promotion decisions, use/write
+the promotion decision store, create proof/evidence, apply durable Perspective
+state, write Formation Receipts, product-write, write accepted evidence refs,
+allocate product IDs, add GitHub actuation, execute release work, call live
+providers, fetch sources, expand retrieval execution, add broad all-route audit
+instrumentation, add API write routes, add new API routes, add DB
+schema/migrations, copy raw artifacts, embed screenshots, or include private
+local paths. Readiness is not promotion, validation pass is not
+truth/proof/approval/product readiness, and browser validation is not human
+review. The `/perspective/promotion` link is navigation only, not approval,
+promotion, write, or release. The final recommendation is browser/static
+validation of this cockpit entrypoint; once browser/static validation complete,
+continue only to the next read/display usability slice or a pause for human
+spot review. Do not recommend promotion execution, product-write, or release.
+
+---
+
 ## 업로드 권장 파일 목록 (Active set)
 
 1) `SSOT_CANONICAL.md` — 의미/정책 SSOT (SSOT-2)  
