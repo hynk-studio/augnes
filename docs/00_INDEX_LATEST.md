@@ -4297,6 +4297,36 @@ repo-local 색인이다.
   ID allocation; no provider/OpenAI call; no prompt sending; no retrieval
   execution; no RAG answer generation; no Git Ledger export; no Codex
   execution; no GitHub automation; product-write remains parked by #686.
+- Dogfooding Research Record Runtime v0.1:
+  `docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md`,
+  `types/dogfooding-research-record-runtime-contract.ts`,
+  `lib/dogfooding/dogfooding-record-store.ts`,
+  `app/api/dogfooding/research-records/route.ts`,
+  `fixtures/dogfooding-research-record-runtime.sample.v0.1.json`, and
+  `scripts/smoke-dogfooding-research-record-runtime-v0-1.mjs`
+  (`npm run smoke:dogfooding-research-record-runtime-v0-1`) implements the
+  post-#870 selected non-UI slice
+  `dogfooding_record_runtime_store_route_v0_1`. PR #868 remains the frozen web
+  baseline for `/`, `/perspective`, and `/workbench`. This slice adds no UI.
+  Dogfooding research records are candidate-only review material. PR body is
+  not truth. Changed files are not proof. Validation pass is not approval.
+  Validation failure is not automatic rejection. Smoke pass is not evidence.
+  Smoke failure is diagnostic, not automatic rejection. CI pass is not
+  authority. CI failure is diagnostic, not automatic rejection. Codex result is
+  not execution approval. Git refs and GitHub PR refs are references only.
+  Product-write remains parked by #686.
+
+  Boundary phrases: same-origin POST only; caller-injected local test DB only;
+  GET is read-only; no UI; no components; no Cockpit change; no public-surface
+  change; no route model change for `/`, `/perspective`, or `/workbench`; no
+  browser-validation-only work; no provider/OpenAI call; no prompt sent; no
+  source fetch; no retrieval execution; no retrieval index write; no
+  proof/evidence creation; no claim/evidence write; no promotion execution; no
+  Formation Receipt write; no durable Perspective state apply; no
+  product-write; no product ID allocation; no Codex execution from Augnes
+  runtime; no GitHub API call from Augnes runtime; no Git/GitHub actuation from
+  Augnes runtime; no release, deploy, or publish behavior. Next recommended
+  slice: `codex_result_report_to_dogfooding_record_binding_v0_1`.
 - Runtime Audit Panel v0.1:
   `docs/RUNTIME_AUDIT_PANEL_V0_1.md`,
   `lib/runtime-audit/build-runtime-audit-model.ts`,
