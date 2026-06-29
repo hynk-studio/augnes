@@ -1,14 +1,10 @@
-# SUPERSEDED AFTER PR #868 - HISTORICAL COMPATIBILITY REFERENCE ONLY
+# ARCHIVED SUPERSEDED DOCUMENT - HISTORICAL COMPATIBILITY REFERENCE ONLY
 
+This is a historical archive of the pre-#868 integrated roadmap v0.2.1 FULL.
 Superseded after PR #868.
 
-This is the superseded live compatibility copy of the pre-#868 integrated
-roadmap v0.2.1 FULL. It is historical / compatibility reference only. The old
-content is preserved below for older docs, fixtures, types, and smoke scripts
-that cite specific historical slice anchors.
-
-It is not current PR sequencing authority.
-Do not use this file for new slice selection.
+It is preserved for provenance for older slices. It is not current PR sequencing
+authority. Do not use this file for new slice selection.
 
 Current post-#868 posture/guardrail note:
 
@@ -25,12 +21,6 @@ first, Web last.
 New slice selection must come from explicit operator task prompts, not from
 this file or roadmap tables.
 
-The archived copy is preserved at:
-
-```text
-docs/archive/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL_SUPERSEDED_2026_06_30.md
-```
-
 Post-#868 route model:
 
 ```text
@@ -39,7 +29,7 @@ Post-#868 route model:
 /workbench = cockpit/workbench
 ```
 
-This live compatibility copy remains at:
+The live compatibility copy remains at:
 
 ```text
 docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md
