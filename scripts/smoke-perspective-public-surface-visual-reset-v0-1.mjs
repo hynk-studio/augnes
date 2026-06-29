@@ -25,6 +25,7 @@ const component = readText(componentPath);
 const home = readText(homePath);
 const packageJson = JSON.parse(readText(packagePath));
 const publicSource = `${page}\n${component}`;
+const renderedSource = extractBetween(component, "return (", "\n  );\n}");
 
 assert.equal(
   packageJson.scripts?.[packageScriptName],
@@ -45,23 +46,31 @@ const headerSource = extractBetween(
   '<header className="perspective-public-header">',
   "</header>",
 );
-assertBefore(headerSource, "Perspective", "Project constellation");
+assertContainsAll(headerSource, [
+  "Augnes",
+  "<h1 id=\"perspective-public-title\">Perspective</h1>",
+  "A public view of the current project shape, tensions, and review surfaces.",
+  "Open cockpit workbench",
+  'href="/"',
+]);
+assert(!headerSource.includes("<h1 id=\"perspective-public-title\">Project constellation</h1>"));
+assertBefore(renderedSource, "<h1 id=\"perspective-public-title\">Perspective</h1>", "Project constellation");
 assertContainsAll(publicSource, [
-  "Augnes shows the current project shape, tensions, and review surfaces.",
+  "A public view of the current project shape, tensions, and review surfaces.",
   "Current project shape",
+  "Start with the constellation: it shows the current project shape before you open review surfaces.",
   "Tensions",
   "Next review surfaces",
   "review prep, not approval",
   "Human review still required",
-  "Workbench details",
-  "Detailed agent and diagnostic material remains in the cockpit workbench.",
+  "Open cockpit workbench",
+  "Detailed workbench view remains in the cockpit.",
 ]);
 
-assertBefore(component, "Current project shape", "Promotion readiness");
-assertBefore(component, "Constellation surface", "Promotion readiness");
+assertBefore(component, "Project constellation", "Promotion readiness");
 
 assertNoElementsOrHandlers(publicSource);
-assertForbiddenPublicSourceAbsent(publicSource);
+assertForbiddenPublicSourceAbsent(renderedSource);
 assertCompactPromotionReadiness(component);
 assertWorkbenchPointer(component);
 assertChangedFilesWithinScope();
@@ -78,6 +87,8 @@ console.log(
       package_script_checked: true,
       public_surface_testid_checked: true,
       no_augnes_cockpit_import_on_perspective: true,
+      page_h1_checked: "Perspective",
+      cockpit_workbench_anchor_checked: true,
       no_action_controls_checked: true,
       static_fixture_backed: true,
       changed_file_scope_checked: true,
@@ -177,6 +188,10 @@ function assertForbiddenPublicSourceAbsent(text) {
     "DB path",
     "route names",
     "raw fixture dump",
+    "fixture",
+    "smoke",
+    "diagnostic",
+    "machine-readable",
     "non-authoritative",
     "Codex execution",
     "same-origin runtime",
@@ -213,15 +228,20 @@ function assertCompactPromotionReadiness(text) {
 }
 
 function assertWorkbenchPointer(text) {
-  const workbenchIndex = text.indexOf("Workbench details");
-  assert(workbenchIndex > 0, "Workbench details pointer must be present");
+  const firstWorkbenchIndex = text.indexOf("Open cockpit workbench");
+  const lowerWorkbenchIndex = text.lastIndexOf("Open cockpit workbench");
+  assert(firstWorkbenchIndex > 0, "Open cockpit workbench pointer must be present");
   assert(
-    text.indexOf("Workbench details") === text.lastIndexOf("Workbench details"),
-    "Workbench details should appear once",
+    text.includes('href="/"'),
+    "Open cockpit workbench must use a normal internal anchor to /",
   );
   assert(
-    workbenchIndex > text.indexOf("Next review surfaces"),
-    "Workbench details must be after the public review surface sections",
+    firstWorkbenchIndex !== lowerWorkbenchIndex,
+    "Open cockpit workbench should appear in the page header and lower context",
+  );
+  assert(
+    lowerWorkbenchIndex > text.indexOf("Next review surfaces"),
+    "Lower cockpit workbench pointer must be after the public review surface sections",
   );
 }
 

@@ -441,6 +441,13 @@
   align-items: end;
 }
 
+.perspective-public-header-rail {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+  min-width: 0;
+}
+
 .perspective-public-kicker,
 .perspective-public-section-heading p {
   margin: 0;
@@ -465,6 +472,16 @@
   color: #405168;
   font-size: 1rem;
   line-height: 1.45;
+}
+
+.perspective-public-cockpit-link {
+  width: fit-content;
+  color: #37465c;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-decoration-color: rgba(55, 70, 92, 0.34);
+  text-underline-offset: 3px;
 }
 
 .perspective-public-counts {
@@ -512,6 +529,15 @@
   color: #172235;
   font-size: 1.05rem;
   line-height: 1.22;
+}
+
+.perspective-public-section-heading span {
+  display: block;
+  max-width: 620px;
+  margin-top: 4px;
+  color: #48576b;
+  font-size: 0.84rem;
+  line-height: 1.32;
 }
 
 .perspective-public-map-canvas {
@@ -701,6 +727,10 @@
   .perspective-public-header,
   .perspective-public-grid {
     grid-template-columns: 1fr;
+  }
+
+  .perspective-public-header-rail {
+    justify-items: start;
   }
 
   .perspective-public-counts {

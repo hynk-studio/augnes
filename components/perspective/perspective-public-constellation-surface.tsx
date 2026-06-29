@@ -130,20 +130,25 @@ export function PerspectivePublicConstellationSurface() {
       <section className="perspective-public-first-screen" aria-labelledby="perspective-public-title">
         <header className="perspective-public-header">
           <div>
-            <p className="perspective-public-kicker">Perspective</p>
-            <h1 id="perspective-public-title">Project constellation</h1>
-            <p>Augnes shows the current project shape, tensions, and review surfaces.</p>
+            <p className="perspective-public-kicker">Augnes</p>
+            <h1 id="perspective-public-title">Perspective</h1>
+            <p>A public view of the current project shape, tensions, and review surfaces.</p>
           </div>
-          <div className="perspective-public-counts" aria-label="Constellation counts">
-            <span>
-              <strong>{nodes.length}</strong> nodes
-            </span>
-            <span>
-              <strong>{relationships.length}</strong> relationships
-            </span>
-            <span>
-              <strong>{tensions.length}</strong> tensions
-            </span>
+          <div className="perspective-public-header-rail">
+            <a className="perspective-public-cockpit-link" href="/">
+              Open cockpit workbench
+            </a>
+            <div className="perspective-public-counts" aria-label="Constellation counts">
+              <span>
+                <strong>{nodes.length}</strong> nodes
+              </span>
+              <span>
+                <strong>{relationships.length}</strong> relationships
+              </span>
+              <span>
+                <strong>{tensions.length}</strong> tensions
+              </span>
+            </div>
           </div>
         </header>
 
@@ -151,7 +156,8 @@ export function PerspectivePublicConstellationSurface() {
           <section className="perspective-public-map" aria-labelledby="perspective-public-shape">
             <div className="perspective-public-section-heading">
               <p>Current project shape</p>
-              <h2 id="perspective-public-shape">Constellation surface</h2>
+              <h2 id="perspective-public-shape">Project constellation</h2>
+              <span>Start with the constellation: it shows the current project shape before you open review surfaces.</span>
             </div>
 
             <div className="perspective-public-map-canvas" aria-label="Project nodes and relationships">
@@ -231,8 +237,8 @@ export function PerspectivePublicConstellationSurface() {
             </section>
 
             <p className="perspective-public-workbench-note">
-              <a href="/">Workbench details</a>
-              <span>Detailed agent and diagnostic material remains in the cockpit workbench.</span>
+              <a href="/">Open cockpit workbench</a>
+              <span>Detailed workbench view remains in the cockpit.</span>
             </p>
           </aside>
         </div>
