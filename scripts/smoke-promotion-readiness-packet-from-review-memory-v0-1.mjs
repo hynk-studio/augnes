@@ -86,6 +86,9 @@ const expectedChangedFiles = new Set([
   "docs/OPERATOR_PATH_HUMAN_REVIEW_PACKET_V0_1.md",
   "fixtures/operator-path-human-review-packet.sample.v0.1.json",
   "scripts/smoke-operator-path-human-review-packet-v0-1.mjs",
+  "docs/OPERATOR_PATH_BACKEND_REMAINING_GAP_INVENTORY_V0_1.md",
+  "fixtures/operator-path-backend-remaining-gap-inventory.sample.v0.1.json",
+  "scripts/smoke-operator-path-backend-remaining-gap-inventory-v0-1.mjs",
 ]);
 const falseExecutionFlags = [
   "provider_call_executed",
