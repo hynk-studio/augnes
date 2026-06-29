@@ -1,0 +1,227 @@
+{
+  "fixture_version": "dogfooding_research_record_runtime.sample.v0.1",
+  "runtime_version": "dogfooding_research_record_runtime.v0.1",
+  "input_version": "dogfooding_research_record_input.v0.1",
+  "record_version": "dogfooding_research_record.v0.1",
+  "store_version": "dogfooding_research_record_store.v0.1",
+  "route_version": "dogfooding_research_records_route.v0.1",
+  "scope": "project:augnes",
+  "selected_slice": "dogfooding_record_runtime_store_route_v0_1",
+  "post_868_boundary": {
+    "pr_868_is_frozen_web_baseline": true,
+    "routes_frozen": {
+      "/": "public Augnes surface",
+      "/perspective": "Perspective detail",
+      "/workbench": "cockpit/workbench"
+    },
+    "web_last": true,
+    "ui_in_scope": false
+  },
+  "safe_input_example": {
+    "input_version": "dogfooding_research_record_input.v0.1",
+    "scope": "project:augnes",
+    "record_id": "dogfooding-research-record:sample-pr-870-closeout",
+    "record_kind": "codex_result_report",
+    "created_at": "2026-06-30T00:00:00Z",
+    "updated_at": "2026-06-30T00:00:00Z",
+    "operator_actor_ref": "operator-ref:codex-local",
+    "source_refs": [
+      "post-868-reconciliation-ref:dogfooding_record_runtime_store_route_v0_1",
+      "privacy-guard-ref:privacy_redaction_runtime_guard_v0_1"
+    ],
+    "pr_refs": [
+      "github-pr-ref:870"
+    ],
+    "branch_refs": [
+      "branch-ref:codex/dogfooding-record-runtime-store-route-v0-1"
+    ],
+    "commit_refs": [
+      "commit-ref:3f2c3f33"
+    ],
+    "changed_file_refs": [
+      "types/dogfooding-research-record-runtime-contract.ts",
+      "lib/dogfooding/dogfooding-record-store.ts",
+      "app/api/dogfooding/research-records/route.ts",
+      "fixtures/dogfooding-research-record-runtime.sample.v0.1.json",
+      "scripts/smoke-dogfooding-research-record-runtime-v0-1.mjs",
+      "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md",
+      "package.json",
+      "docs/00_INDEX_LATEST.md"
+    ],
+    "validation_refs": [
+      "validation-ref:node-check-smoke:pending",
+      "validation-ref:npm-smoke:pending",
+      "validation-ref:typecheck:pending",
+      "validation-ref:ci-pass-diagnostic-only",
+      "validation-ref:ci-failure-diagnostic-only"
+    ],
+    "skipped_check_refs": [
+      "skipped-check-ref:browser-validation:not-in-scope"
+    ],
+    "known_warning_refs": [
+      "warning-ref:actions-node-runtime-deprecation"
+    ],
+    "not_done_refs": [
+      "not-done-ref:detail-route-remains-deferred",
+      "not-done-ref:codex-result-report-binding-next"
+    ],
+    "expected_observed_delta_refs": [
+      "delta-ref:expected-route-added-observed-route-added",
+      "delta-ref:validation-pass-not-approval",
+      "delta-ref:validation-failure-not-rejection"
+    ],
+    "normalized_summary": "Candidate-only dogfooding research record preserves PR, Codex, CI, validation, warning, skipped-check, not-done, and delta material for later operator review.",
+    "review_cues": [
+      "review-cue:inspect-changed-files",
+      "review-cue:verify-validation-commands",
+      "review-cue:preserve-not-done-items"
+    ],
+    "boundary_notes": [
+      "Dogfooding research record is candidate-only review material.",
+      "PR body is not truth.",
+      "Changed files are review cues only.",
+      "Validation commands are diagnostic only.",
+      "CI result is diagnostic only.",
+      "Smoke result is diagnostic only.",
+      "Git and GitHub refs are references only.",
+      "Product-write remains blocked."
+    ],
+    "authority_boundary": {
+      "product_write_now": false,
+      "promotion_execution_now": false,
+      "proof_or_evidence_record_now": false,
+      "durable_state_apply_now": false,
+      "github_api_call_now": false,
+      "provider_openai_call_now": false,
+      "retrieval_execution_now": false,
+      "source_fetch_now": false,
+      "release_deploy_publish_now": false
+    },
+    "codex_result_report_input": {
+      "input_version": "codex_result_report_input.v0.1",
+      "scope": "project:augnes",
+      "report_id": "codex-result-report:sample-pr-870-closeout",
+      "report_kind": "codex_pr_result",
+      "reported_at": "2026-06-30T00:00:00Z",
+      "operator_actor_ref": "operator-ref:codex-local",
+      "pr_refs": [
+        "github-pr-ref:870"
+      ],
+      "branch_ref": "branch-ref:codex/dogfooding-record-runtime-store-route-v0-1",
+      "commit_refs": [
+        "commit-ref:3f2c3f33"
+      ],
+      "codex_claimed_summary": "Candidate-only closeout summary for the dogfooding research record runtime slice.",
+      "expected_files": [
+        "types/dogfooding-research-record-runtime-contract.ts",
+        "lib/dogfooding/dogfooding-record-store.ts",
+        "app/api/dogfooding/research-records/route.ts"
+      ],
+      "observed_files": [
+        "types/dogfooding-research-record-runtime-contract.ts",
+        "lib/dogfooding/dogfooding-record-store.ts",
+        "app/api/dogfooding/research-records/route.ts"
+      ],
+      "validation_commands": [
+        "node --check scripts/smoke-dogfooding-research-record-runtime-v0-1.mjs",
+        "npm run smoke:dogfooding-research-record-runtime-v0-1"
+      ],
+      "skipped_checks": [
+        "browser validation not in scope"
+      ],
+      "known_warnings": [
+        "GitHub Actions dependency deprecation warning"
+      ],
+      "changed_files_summary": [
+        "new research record contract/store/route/docs/fixture/smoke"
+      ],
+      "not_done_items": [
+        "detail route deferred"
+      ],
+      "expected_observed_delta": [
+        "no UI files expected and no UI files observed"
+      ],
+      "boundary_notes": [
+        "Codex result report is candidate input only.",
+        "Product-write remains blocked."
+      ],
+      "source_refs": [
+        "post-868-reconciliation-ref:dogfooding_record_runtime_store_route_v0_1"
+      ],
+      "authority_boundary": {
+        "product_write_authority": false,
+        "github_api_call_now": false,
+        "codex_execution_authority": false
+      }
+    }
+  },
+  "invalid_shape_example": {
+    "input_version": "dogfooding_research_record_input.v0.1",
+    "scope": "project:augnes",
+    "record_id": "dogfooding-research-record:invalid-shape",
+    "created_at": "2026-06-30T00:05:00Z",
+    "operator_actor_ref": "operator-ref:codex-local",
+    "normalized_summary": "Missing record kind."
+  },
+  "blocked_private_or_raw_payload_example": {
+    "input_version": "dogfooding_research_record_input.v0.1",
+    "scope": "project:augnes",
+    "record_id": "dogfooding-research-record:blocked-private-marker",
+    "record_kind": "operator_review_note",
+    "created_at": "2026-06-30T00:10:00Z",
+    "operator_actor_ref": "operator-ref:codex-local",
+    "source_refs": [
+      "SAFE_MARKER_HIDDEN_REASONING"
+    ],
+    "normalized_summary": "Blocked safe marker fixture for privacy guard coverage."
+  },
+  "blocked_forbidden_authority_example": {
+    "input_version": "dogfooding_research_record_input.v0.1",
+    "scope": "project:augnes",
+    "record_id": "dogfooding-research-record:blocked-authority",
+    "record_kind": "operator_review_note",
+    "created_at": "2026-06-30T00:15:00Z",
+    "operator_actor_ref": "operator-ref:codex-local",
+    "normalized_summary": "Blocked authority field fixture.",
+    "authority_boundary": {
+      "product_write_now": true
+    }
+  },
+  "expected": {
+    "valid_record_lifecycle_state": "candidate_only",
+    "valid_record_kind": "codex_result_report",
+    "valid_preserved_review_cue_kinds": [
+      "inspect_pr_body",
+      "inspect_changed_files",
+      "verify_validation_command",
+      "inspect_skipped_check",
+      "review_known_warning",
+      "preserve_not_done_item",
+      "resolve_expected_observed_delta",
+      "check_authority_boundary"
+    ],
+    "invalid_shape_status": "rejected",
+    "blocked_private_status": "blocked_private_or_raw_payload",
+    "blocked_authority_status": "blocked_forbidden_authority",
+    "duplicate_status": "duplicate_record",
+    "safe_db_prefixes": [
+      ".tmp/dogfooding-research-records/",
+      "tmp/dogfooding-research-records/"
+    ],
+    "forbidden_execution_flags_false": [
+      "product_write_executed",
+      "promotion_executed",
+      "proof_or_evidence_created",
+      "claim_or_evidence_written",
+      "formation_receipt_written",
+      "durable_state_mutated",
+      "review_memory_written",
+      "github_git_actuated",
+      "provider_called",
+      "retrieval_executed",
+      "source_fetched",
+      "release_deploy_publish_executed"
+    ]
+  },
+  "next_recommended_slice": "codex_result_report_to_dogfooding_record_binding_v0_1"
+}
