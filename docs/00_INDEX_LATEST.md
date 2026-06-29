@@ -5799,6 +5799,51 @@ automatic answer-to-product conversion. The next recommendation after merge is
 `manual_qa_execution_report_v0_1` only after a human actually runs the runbook.
 Smoke/CI/browser pass is not truth.
 
+### Operator path assisted manual QA execution report v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add product authority.
+`operator_path_assisted_manual_qa_execution_report_v0_1` runs the
+machine-checkable portions of `operator_path_manual_qa_runbook_v0_1` with
+Codex/CDP/browser assistance and records a public-safe assisted execution report
+without claiming human QA signoff.
+
+- `docs/OPERATOR_PATH_ASSISTED_MANUAL_QA_EXECUTION_REPORT_V0_1.md`:
+  assisted execution report covering what Codex/CDP executed, what remains human
+  judgment, browser validation rerun summary, public-safe artifact policy,
+  authority boundaries, known warnings, final assisted status, and next
+  recommendation.
+- `fixtures/operator-path-assisted-manual-qa-execution-report.sample.v0.1.json`:
+  public-safe fixture for expected report refs, symbolic `/tmp` browser artifact
+  paths, expected browser summary, command groups, human signoff status,
+  preserved authority boundaries, forbidden capabilities, and next
+  recommendation.
+- `scripts/assisted-execute-operator-path-manual-qa-v0-1.mjs`:
+  assisted execution script that reads the runbook, reruns the machine-checkable
+  command groups and browser validation, checks `/tmp` report/screenshot
+  artifacts, parses only browser validation summary fields, and writes a
+  public-safe assisted report under `/tmp`.
+- `scripts/smoke-operator-path-assisted-manual-qa-execution-report-v0-1.mjs`:
+  static smoke for docs, fixture, package scripts, latest pointer, assisted
+  script shape, public-safe policy, human-signoff boundary, no-new-authority
+  boundaries, and exact changed-file scope.
+- `npm run assisted:operator-path-manual-qa-v0-1`:
+  runs the assisted mechanical/browser execution and writes the public-safe
+  report under `/tmp`.
+- `npm run smoke:operator-path-assisted-manual-qa-execution-report-v0-1`:
+  focused static smoke for this assisted execution report slice.
+
+Boundary summary: this assisted execution report adds no runtime authority, API
+routes, UI behavior changes, DB schema, Review Memory writes from UI, final
+answer generation expansion, live provider calls, prompt sending expansion,
+retrieval execution expansion, source fetching, retrieval index writes,
+promotion execution, promotion decision writes/store usage, proof/evidence
+creation, durable state mutation, Formation Receipt writes, product-write,
+accepted evidence ref writes, product IDs, GitHub actuation, release execution,
+human signoff, or automatic answer-to-product conversion. It executes
+machine-checkable QA only; smoke/CI/browser pass is not truth. The next
+recommendation after a passing assisted execution is
+`human_spot_review_of_assisted_manual_qa_v0_1`.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)
