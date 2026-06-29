@@ -82,6 +82,9 @@ const exactOldSmokeCompatibilityFiles = [
   "docs/OPERATOR_PATH_BACKEND_SAFETY_VALIDATION_BUNDLE_V0_1.md",
   "fixtures/operator-path-backend-safety-validation-bundle.sample.v0.1.json",
   "scripts/smoke-operator-path-backend-safety-validation-bundle-v0-1.mjs",
+  "docs/OPERATOR_PATH_HUMAN_REVIEW_PACKET_V0_1.md",
+  "fixtures/operator-path-human-review-packet.sample.v0.1.json",
+  "scripts/smoke-operator-path-human-review-packet-v0-1.mjs",
 ];
 
 const expectedChangedFiles = new Set([

@@ -104,6 +104,9 @@ const exactOldSmokeCompatibilityFiles = [
   "scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
+  "docs/OPERATOR_PATH_HUMAN_REVIEW_PACKET_V0_1.md",
+  "fixtures/operator-path-human-review-packet.sample.v0.1.json",
+  "scripts/smoke-operator-path-human-review-packet-v0-1.mjs",
 ];
 
 const optionalAuditInstrumentationPaths = new Set([
