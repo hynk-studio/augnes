@@ -112,6 +112,11 @@ const expectedChangedFiles = new Set([
   "docs/OPERATOR_PATH_PUBLIC_SAFE_ARTIFACT_INDEX_V0_1.md",
   "fixtures/operator-path-public-safe-artifact-index.sample.v0.1.json",
   "scripts/smoke-operator-path-public-safe-artifact-index-v0-1.mjs",
+  "components/promotion-readiness-packet-panel.tsx",
+  "app/perspective/promotion/readiness-packet/page.tsx",
+  "docs/PROMOTION_READINESS_PACKET_UI_READ_DISPLAY_BINDING_V0_1.md",
+  "fixtures/promotion-readiness-packet-ui-read-display-binding.sample.v0.1.json",
+  "scripts/smoke-promotion-readiness-packet-ui-read-display-binding-v0-1.mjs",
   "scripts/smoke-operator-path-backend-safety-validation-bundle-v0-1.mjs",
 ]);
 const falseExecutionFlags = [
