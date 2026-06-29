@@ -103,7 +103,6 @@ const expectedChangedFiles = new Set([
   smokePath,
   packagePath,
   indexPath,
-  "scripts/smoke-promotion-readiness-packet-from-review-memory-v0-1.mjs",
   "scripts/smoke-operator-path-public-safe-artifact-index-v0-1.mjs",
   "scripts/smoke-operator-path-backend-remaining-gap-inventory-v0-1.mjs",
   "scripts/smoke-operator-path-human-review-packet-v0-1.mjs",
