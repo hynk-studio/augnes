@@ -6051,6 +6051,61 @@ validation of this read/display UI or a narrow usability follow-up.
 
 ---
 
+### Promotion readiness packet UI browser static validation v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add promotion/product/release
+authority. `promotion_readiness_packet_ui_browser_static_validation_v0_1` is a
+browser/CDP static validation slice for the already merged read/display-only
+promotion readiness packet UI route
+`/perspective/promotion/readiness-packet`. Current basis: #856, #857, #858,
+#859, and #860.
+
+- `docs/PROMOTION_READINESS_PACKET_UI_BROWSER_STATIC_VALIDATION_V0_1.md`:
+  documentation for the browser/CDP static validation purpose, route tested,
+  visible copy assertions, no-action-controls policy, network/request
+  boundary, screenshot/artifact policy, public-safe report policy, authority
+  boundary, human signoff status, human review status, and final
+  recommendation.
+- `fixtures/promotion-readiness-packet-ui-browser-static-validation.sample.v0.1.json`:
+  public-safe fixture for `basis_prs: [856, 857, 858, 859, 860]`, route tested,
+  browser validation metadata, visible assertions, no-action-controls policy,
+  network boundary, forbidden methods, forbidden routes, screenshot policy,
+  report path, authority boundary, forbidden capabilities, and final status.
+- `scripts/browser-validate-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs`:
+  local browser/CDP validator that starts a loopback Next dev server, opens
+  `/perspective/promotion/readiness-packet`, verifies required visible copy,
+  verifies no action controls or action-like affordances, observes request
+  metadata only, fails on forbidden methods, `/api` calls, forbidden routes,
+  and non-loopback external requests, emits a public-safe JSON summary, and
+  writes the public-safe browser report.
+- `scripts/smoke-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs`:
+  static smoke for docs, fixture, browser validator, smoke, package scripts,
+  latest index pointers, browser report, #856/#857/#858/#859/#860 basis,
+  route references, human signoff/review flags, readiness/validation
+  boundaries, public-safe artifact policy, forbidden capabilities, final
+  recommendation, and bounded changed-file scope.
+- `reports/browser/2026-06-29-promotion-readiness-packet-ui-browser-static-validation.md`:
+  public-safe browser validation report for the static read/display-only UI.
+- `npm run browser:promotion-readiness-packet-ui-browser-static-validation-v0-1`:
+  browser/CDP static validation for this read/display-only UI.
+- `npm run smoke:promotion-readiness-packet-ui-browser-static-validation-v0-1`:
+  focused static smoke for this browser/static validation slice.
+
+Boundary summary: this validation performs no human review and claims no human
+signoff. It does not execute promotion, write promotion decisions, use/write
+the promotion decision store, create proof/evidence, apply durable Perspective
+state, write Formation Receipts, product-write, write accepted evidence refs,
+allocate product IDs, add GitHub actuation, execute release work, call live
+providers, fetch sources, expand retrieval execution, add broad all-route audit
+instrumentation, add API write routes, add DB schema/migrations, copy raw
+artifacts, embed screenshots, or include private local paths. Readiness is not
+promotion, and validation pass is not truth/proof/approval/product readiness.
+The final recommendation is a narrow usability follow-up only if browser
+validation finds readability/comprehension issues; otherwise proceed to the
+next read/display usability slice or pause for human spot review.
+
+---
+
 ## 업로드 권장 파일 목록 (Active set)
 
 1) `SSOT_CANONICAL.md` — 의미/정책 SSOT (SSOT-2)  
