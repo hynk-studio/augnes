@@ -55,6 +55,24 @@ PR #868 is merged. Current route planning starts from:
   smoke for the superseded live roadmap banner, archived roadmap,
   post-#868 posture note, latest-index preference, and current-planning
   authority boundary.
+- `docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md`: repo-grounded
+  post-#868 non-UI runtime gap reconciliation. It treats PR #868 as the frozen
+  web baseline, keeps `/`, `/perspective`, and `/workbench` as the route model
+  baseline, classifies v0.2.1 slice anchors into done, done_but_ui_excluded,
+  still_valid, blocked, and superseded, moves UI/Cockpit/browser/public-surface
+  work to Web last backlog, records completed runtime/store/helper no-repeat
+  surfaces, keeps forbidden capabilities blocked, and selects exactly one next
+  non-UI implementation slice: `dogfooding_record_runtime_store_route_v0_1`.
+- `fixtures/post-868-non-ui-runtime-gap-reconciliation.sample.v0.1.json`:
+  deterministic public-safe fixture mirroring the post-#868 reconciliation
+  classifications, blocked capabilities, Web last backlog, no-repeat surfaces,
+  authority boundary, and selected next slice.
+- `scripts/smoke-post-868-non-ui-runtime-gap-reconciliation-v0-1.mjs`
+  (`npm run smoke:post-868-non-ui-runtime-gap-reconciliation-v0-1`): focused
+  static smoke for required classification categories, blocked capabilities,
+  selected next slice, Web last boundary, no web-priority inversion wording,
+  no opened product-write/GitHub/live-provider/release capability, and exact
+  changed-file scope.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
