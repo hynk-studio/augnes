@@ -3,54 +3,25 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
-const docsPath = "docs/OPERATOR_PATH_BACKEND_REMAINING_GAP_INVENTORY_V0_1.md";
-const fixturePath =
-  "fixtures/operator-path-backend-remaining-gap-inventory.sample.v0.1.json";
-const smokePath =
-  "scripts/smoke-operator-path-backend-remaining-gap-inventory-v0-1.mjs";
+const docsPath = "docs/OPERATOR_PATH_PUBLIC_SAFE_ARTIFACT_INDEX_V0_1.md";
+const fixturePath = "fixtures/operator-path-public-safe-artifact-index.sample.v0.1.json";
+const smokePath = "scripts/smoke-operator-path-public-safe-artifact-index-v0-1.mjs";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 
-const sliceName = "operator_path_backend_remaining_gap_inventory_v0_1";
-const packageScriptName = "smoke:operator-path-backend-remaining-gap-inventory-v0-1";
+const sliceName = "operator_path_public_safe_artifact_index_v0_1";
+const packageScriptName = "smoke:operator-path-public-safe-artifact-index-v0-1";
 const packageScriptValue =
-  "node scripts/smoke-operator-path-backend-remaining-gap-inventory-v0-1.mjs";
+  "node scripts/smoke-operator-path-public-safe-artifact-index-v0-1.mjs";
 
-const checkedSurfaces = [
-  "route:/api/research-retrieval/final-rag-answer",
-  "route:/api/research-retrieval/final-rag-answer/review-memory",
-  "route:/api/research-candidate-review/review-records",
-  "route:/api/research-candidate-review/review-records/[review_record_id]",
-  "route:/api/research-candidate-review/review-records/[review_record_id]/activity",
-  "route:/api/perspective/promotion/readiness-packet",
-];
-
-const boundaryCategories = [
-  "no-external-IO coverage",
-  "DB path rejection coverage",
-  "missing DB response behavior",
-  "schema_missing response behavior",
-  "read-only GET route behavior",
-  "Review Memory write isolation",
-  "promotion readiness read-only behavior",
-  "runtime audit event coverage",
-  "runtime audit invalid path nonfatal behavior",
-  "raw data redaction/public-safety boundary",
-  "selected-route audit coverage",
-  "changed-file guard / allowlist consistency",
-  "existing validation command coverage",
-  "known backend warnings that should not be confused with failure",
-  "remaining backend work that can proceed without human review",
-  "backend work that must remain blocked until human review because it crosses authority",
-];
-
-const findingClassifications = [
-  "no_remaining_gap_observed",
-  "docs_or_fixture_gap",
-  "smoke_coverage_gap",
-  "backend_runtime_gap",
-  "deferred_authority_gap",
-  "human_judgment_gap",
+const artifactClasses = [
+  "assisted manual QA execution report artifact",
+  "browser validation report artifact",
+  "desktop screenshot artifact",
+  "mobile screenshot artifact",
+  "backend safety validation bundle summary artifact",
+  "human review packet summary artifact",
+  "backend remaining gap inventory summary artifact",
 ];
 
 const deniedCapabilities = [
@@ -71,8 +42,7 @@ const deniedCapabilities = [
   "broad all-route audit instrumentation",
   "UI behavior",
   "API routes",
-  "DB schema",
-  "migrations",
+  "DB schema/migrations",
 ];
 
 const forbiddenCapabilityKeys = [
@@ -103,6 +73,7 @@ const expectedChangedFiles = new Set([
   smokePath,
   packagePath,
   indexPath,
+  "scripts/smoke-operator-path-backend-remaining-gap-inventory-v0-1.mjs",
   "scripts/smoke-operator-path-human-review-packet-v0-1.mjs",
   "scripts/smoke-operator-path-backend-safety-validation-bundle-v0-1.mjs",
   "scripts/smoke-operator-path-assisted-manual-qa-execution-report-v0-1.mjs",
@@ -114,9 +85,6 @@ const expectedChangedFiles = new Set([
   "scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
-  "docs/OPERATOR_PATH_PUBLIC_SAFE_ARTIFACT_INDEX_V0_1.md",
-  "fixtures/operator-path-public-safe-artifact-index.sample.v0.1.json",
-  "scripts/smoke-operator-path-public-safe-artifact-index-v0-1.mjs",
 ]);
 
 for (const filePath of [docsPath, fixturePath, smokePath, packagePath, indexPath]) {
@@ -131,9 +99,9 @@ const packageJson = JSON.parse(readText(packagePath));
 const index = readText(indexPath);
 
 assertPointers();
-assertBasisAndGatePolicy();
-assertSurfacesAndCategories();
-assertFindings();
+assertBasis();
+assertArtifactIndex();
+assertPolicies();
 assertHumanStatus();
 assertAuthorityBoundary();
 assertPublicSafe();
@@ -143,10 +111,9 @@ assertChangedFileScope();
 console.log(
   JSON.stringify(
     {
-      smoke: "operator-path-backend-remaining-gap-inventory-v0-1",
+      smoke: "operator-path-public-safe-artifact-index-v0-1",
       final_status: "pass",
       slice_name: sliceName,
-      backend_runtime_gap_found: false,
       human_signoff_completed: false,
       human_review_still_required: true,
       final_recommendation: fixture.final_recommendation,
@@ -158,87 +125,98 @@ console.log(
 
 function assertPointers() {
   assert.equal(fixture.slice_name, sliceName);
-  assert.equal(fixture.version, "operator_path_backend_remaining_gap_inventory.v0.1");
-  assert.equal(fixture.packet_type, "backend_remaining_gap_inventory");
-  assert.deepEqual(fixture.basis_prs, [856, 857]);
+  assert.equal(fixture.version, "operator_path_public_safe_artifact_index.v0.1");
+  assert.equal(fixture.packet_type, "public_safe_artifact_index");
+  assert.deepEqual(fixture.basis_prs, [856, 857, 858]);
   assert.equal(packageJson.scripts?.[packageScriptName], packageScriptValue);
   for (const pointer of [docsPath, fixturePath, smokePath, packageScriptName, sliceName]) {
-    assertIncludes(index, pointer, `index pointer ${pointer}`);
+    assertIncludes(index, pointer, `latest index pointer ${pointer}`);
   }
 }
 
-function assertBasisAndGatePolicy() {
+function assertBasis() {
   for (const phrase of [
     "Current basis: PR #856",
     "PR #857",
-    "Human review is not a global gate for non-authority backend work.",
-    "Human review remains required before authority-increasing transitions.",
-    "does not perform human review",
-    "does not claim human signoff",
+    "PR #858",
+    "PR #858 found no backend runtime gap",
+    "Purpose: public-safe symbolic artifact index only",
   ]) {
-    assertIncludes(rawDocs, phrase, `basis/gate phrase ${phrase}`);
+    assertIncludes(docs, normalize(phrase), `basis phrase ${phrase}`);
   }
-  assert.equal(
-    fixture.gate_policy.human_review_is_not_global_gate_for_non_authority_backend_work,
-    true,
-  );
-  assert.equal(
-    fixture.gate_policy.human_review_required_before_authority_increasing_transitions,
-    true,
-  );
 }
 
-function assertSurfacesAndCategories() {
-  for (const surface of checkedSurfaces) {
-    assertIncludes(rawDocs, surface, `doc surface ${surface}`);
-    assert.ok(fixture.checked_surfaces.includes(surface), `fixture surface ${surface}`);
-  }
-  for (const category of boundaryCategories) {
-    assertIncludes(rawDocs, category, `doc boundary category ${category}`);
-    assert.ok(fixture.boundary_categories.includes(category), `fixture category ${category}`);
-  }
-  for (const classification of findingClassifications) {
-    assertIncludes(rawDocs, classification, `doc classification ${classification}`);
+function assertArtifactIndex() {
+  assert.ok(Array.isArray(fixture.artifact_classes), "artifact_classes must be an array");
+  assert.ok(Array.isArray(fixture.artifact_index), "artifact_index must be an array");
+  assert.equal(fixture.artifact_index.length, artifactClasses.length);
+  for (const artifactClass of artifactClasses) {
+    assertIncludes(rawDocs, artifactClass, `doc artifact class ${artifactClass}`);
     assert.ok(
-      fixture.finding_classifications.includes(classification),
-      `fixture classification ${classification}`,
+      fixture.artifact_classes.includes(artifactClass),
+      `fixture artifact class ${artifactClass}`,
+    );
+    assert.ok(
+      fixture.artifact_index.some((entry) => entry.artifact_class === artifactClass),
+      `fixture artifact entry ${artifactClass}`,
     );
   }
-}
-
-function assertFindings() {
-  assert.ok(Array.isArray(fixture.findings), "fixture findings must be an array");
-  assert.ok(fixture.findings.length >= 6, "fixture includes bounded findings");
-  for (const finding of fixture.findings) {
+  for (const entry of fixture.artifact_index) {
     for (const field of [
-      "finding_id",
-      "category",
-      "surface",
-      "evidence_source",
-      "proposed_next_slice",
+      "artifact_id",
+      "artifact_class",
+      "produced_by",
+      "symbolic_location",
+      "expected_reader",
+      "public_safe_summary",
+      "raw_copy_allowed",
+      "screenshot_embedded",
       "authority_risk",
-      "may_proceed_before_human_review",
     ]) {
-      assert.ok(Object.hasOwn(finding, field), `finding ${finding.finding_id} has ${field}`);
+      assert.ok(Object.hasOwn(entry, field), `artifact ${entry.artifact_id} has ${field}`);
     }
-    assert.ok(
-      findingClassifications.includes(finding.category),
-      `finding category is bounded: ${finding.category}`,
+    assert.match(
+      entry.symbolic_location,
+      /^<[A-Z0-9_]+>$/,
+      `symbolic location ${entry.symbolic_location}`,
     );
-    assert.equal(typeof finding.may_proceed_before_human_review, "boolean");
-    assertNoUnsafeText(JSON.stringify(finding), `finding ${finding.finding_id}`);
+    assert.equal(entry.raw_copy_allowed, false, `${entry.artifact_id} raw_copy_allowed`);
+    assert.equal(entry.screenshot_embedded, false, `${entry.artifact_id} screenshot_embedded`);
+    assertNoUnsafeText(JSON.stringify(entry), `artifact ${entry.artifact_id}`);
   }
   for (const fieldName of [
-    "finding_id",
-    "category",
-    "surface",
-    "evidence_source",
-    "proposed_next_slice",
+    "artifact_id",
+    "artifact_class",
+    "produced_by",
+    "symbolic_location",
+    "expected_reader",
+    "public_safe_summary",
+    "raw_copy_allowed",
+    "screenshot_embedded",
     "authority_risk",
-    "may_proceed_before_human_review",
   ]) {
-    assertIncludes(rawDocs, fieldName, `doc finding field ${fieldName}`);
+    assertIncludes(rawDocs, fieldName, `doc table field ${fieldName}`);
   }
+}
+
+function assertPolicies() {
+  assertIncludes(rawDocs, "This index does not copy raw artifacts into the repo.", "raw copy");
+  assertIncludes(
+    rawDocs,
+    "Screenshot paths are symbolic only and screenshots are not embedded.",
+    "screenshot policy",
+  );
+  assertIncludes(rawDocs, "Private local paths must not be included.", "private path policy");
+  assertIncludes(rawDocs, "Artifact freshness caveat", "freshness caveat");
+  assert.equal(fixture.raw_copy_policy.raw_copy_allowed, false);
+  assert.equal(fixture.raw_copy_policy.raw_artifacts_copied_into_repo, false);
+  assert.equal(fixture.raw_copy_policy.symbolic_locations_only, true);
+  assert.equal(fixture.screenshot_policy.screenshot_embedded, false);
+  assert.equal(fixture.screenshot_policy.screenshots_copied_into_repo, false);
+  assert.equal(fixture.screenshot_policy.screenshot_paths_symbolic_only, true);
+  assert.equal(fixture.private_path_policy.private_local_paths_included, false);
+  assert.equal(fixture.private_path_policy.symbolic_placeholders_only, true);
+  assert.ok(fixture.freshness_caveat.includes("freshness matters"));
 }
 
 function assertHumanStatus() {
@@ -258,6 +236,14 @@ function assertAuthorityBoundary() {
       `fixture forbids ${capability}`,
     );
     assert.equal(fixture.authority_boundary[capability], false, `authority ${capability}`);
+  }
+  for (const field of [
+    "validation_pass_is_truth",
+    "validation_pass_is_proof",
+    "validation_pass_is_approval",
+    "validation_pass_is_product_readiness",
+  ]) {
+    assert.equal(fixture.authority_boundary[field], false, field);
   }
   for (const phrase of [
     "does not create proof/evidence",
@@ -279,15 +265,7 @@ function assertAuthorityBoundary() {
     "does not add API routes",
     "does not add DB schema or migrations",
   ]) {
-    assertIncludes(docs, normalize(phrase), `doc boundary ${phrase}`);
-  }
-  for (const field of [
-    "validation_pass_is_truth",
-    "validation_pass_is_proof",
-    "validation_pass_is_approval",
-    "validation_pass_is_product_readiness",
-  ]) {
-    assert.equal(fixture.authority_boundary[field], false, field);
+    assertIncludes(docs, normalize(phrase), `authority phrase ${phrase}`);
   }
 }
 
@@ -309,60 +287,27 @@ function assertPublicSafe() {
     "GitHub payloads",
     "release payloads",
   ]) {
-    assertIncludes(docs, normalize(phrase), `public-safe doc phrase ${phrase}`);
+    assertIncludes(docs, normalize(phrase), `public-safe phrase ${phrase}`);
   }
   assert.doesNotMatch(rawDocs, /!\[[^\]]*]\([^)]*\)/, "doc must not embed images");
-  for (const [key, value] of Object.entries(fixture.public_safe_policy)) {
-    if (key === "summary_labels_only" || key === "symbolic_refs_only") {
-      assert.equal(value, true, `public_safe_policy.${key}`);
-    } else {
-      assert.equal(value, false, `public_safe_policy.${key}`);
-    }
-  }
   assertNoUnsafeText(rawDocs, "doc");
   assertNoUnsafeText(fixtureText, "fixture");
 }
 
 function assertRecommendation() {
-  assert.ok(Array.isArray(fixture.machine_safe_next_slices));
-  assert.ok(
-    fixture.machine_safe_next_slices.includes("operator_path_public_safe_artifact_index_v0_1"),
-    "machine safe next slice includes artifact index",
+  assert.match(
+    fixture.final_recommendation,
+    /^operator_path_(known_warning_registry|docs_fixture_consistency_audit)_v0_1$/,
+    "final recommendation is a non-authority cleanup slice",
   );
-  for (const nextSlice of fixture.machine_safe_next_slices) {
-    assert.doesNotMatch(
-      nextSlice,
-      /promotion|product-write|release|write_authority/i,
-      `machine safe next slice is non-authority: ${nextSlice}`,
-    );
-  }
-  for (const blocked of [
-    "promotion execution",
-    "promotion decision write",
-    "promotion decision store usage/write",
-    "product-write",
-    "accepted evidence ref write",
-    "product ID allocation",
-    "proof/evidence creation",
-    "durable Perspective state apply",
-    "Formation Receipt write",
-    "GitHub actuation",
-    "release execution/publication",
-  ]) {
-    assert.ok(
-      fixture.blocked_until_human_review.includes(blocked),
-      `blocked until human review ${blocked}`,
-    );
-  }
-  assert.equal(fixture.final_recommendation, "operator_path_public_safe_artifact_index_v0_1");
   assert.doesNotMatch(
     fixture.final_recommendation,
-    /promotion execution|product-write|release/i,
+    /promotion execution|promotion|product-write|release/i,
     "final recommendation must not be promotion/product/release",
   );
   assertIncludes(
     rawDocs,
-    "Proceed to\n`operator_path_public_safe_artifact_index_v0_1`.",
+    "Proceed to `operator_path_known_warning_registry_v0_1` or",
     "doc final recommendation",
   );
   assertIncludes(rawDocs, "Do not recommend promotion execution, product-write, or release.", "not next");
@@ -377,6 +322,7 @@ function assertChangedFileScope() {
 function assertNoUnsafeText(value, label) {
   for (const pattern of [
     /\/Users\/[^/\s]+/i,
+    /\/tmp\/[^\s)"']+/i,
     /sk-[A-Za-z0-9_-]{12,}/,
     /BEGIN (?:RSA |OPENSSH |EC |)PRIVATE KEY/,
     /browserSessionDump/i,
