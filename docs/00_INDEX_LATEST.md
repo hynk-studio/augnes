@@ -5880,6 +5880,44 @@ selected-route audit coverage gap and changes no route files. Server-side pass
 is not truth and is not full OS-level egress proof. The next recommendation
 remains `human_spot_review_of_assisted_manual_qa_v0_1`.
 
+### Operator path human review packet v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add product authority.
+`operator_path_human_review_packet_v0_1` is a public-safe one-page review
+packet for a later human spot review. It compresses the already merged #851
+route-level E2E validation, #852 browser/CDP validation, #855 assisted manual
+QA execution report, and #856 backend safety validation bundle.
+
+- `docs/OPERATOR_PATH_HUMAN_REVIEW_PACKET_V0_1.md`:
+  public-safe review packet with compressed #851/#852/#855/#856 summaries,
+  symbolic artifact and screenshot path lists, artifact freshness caveat,
+  remaining human judgment checklist, next authority candidates and risk notes,
+  and explicit human-review/no-authority boundaries.
+- `fixtures/operator-path-human-review-packet.sample.v0.1.json`:
+  public-safe fixture for `source_prs: [851, 852, 855, 856]`, included
+  summaries, symbolic artifact/screenshot indexes, forbidden capabilities,
+  remaining human judgment checklist, next recommendation, and final status.
+- `scripts/smoke-operator-path-human-review-packet-v0-1.mjs`:
+  static smoke for docs, fixture, package script, latest pointer, source PR
+  summaries, human signoff status, public-safe symbolic-only policy,
+  no-authority boundaries, no embedded raw artifacts/screenshots, and exact
+  changed-file scope.
+- `npm run smoke:operator-path-human-review-packet-v0-1`:
+  focused static smoke for this public-safe human review packet.
+
+Boundary summary: this packet performs no human QA and claims no human signoff.
+It adds no runtime authority, API routes, UI behavior, DB schema, migrations,
+Review Memory writes, final answer generation, live provider validation, source
+fetching, retrieval execution expansion, broad all-route audit instrumentation,
+promotion execution, promotion decision writes/store usage, proof/evidence
+creation, durable Perspective state apply, Formation Receipt writes,
+product-write, accepted evidence ref writes, product IDs, GitHub actuation,
+release execution, or automatic answer-to-product conversion. It is not
+approval, proof, evidence, product readiness, promotion, durable state,
+Formation Receipt, product-write, GitHub authority, or release authority.
+Smoke/CI/browser/server-side pass is not truth. The next recommendation remains
+human review / human spot review of the assisted manual QA artifacts.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)
