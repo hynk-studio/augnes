@@ -75,6 +75,10 @@ const exactOldSmokeCompatibilityFiles = [
   "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
   "scripts/smoke-v0-2-1-remaining-runtime-gap-audit-v0-6.mjs",
+  "docs/OPERATOR_PATH_ASSISTED_MANUAL_QA_EXECUTION_REPORT_V0_1.md",
+  "fixtures/operator-path-assisted-manual-qa-execution-report.sample.v0.1.json",
+  "scripts/assisted-execute-operator-path-manual-qa-v0-1.mjs",
+  "scripts/smoke-operator-path-assisted-manual-qa-execution-report-v0-1.mjs",
 ];
 
 const expectedChangedFiles = new Set([

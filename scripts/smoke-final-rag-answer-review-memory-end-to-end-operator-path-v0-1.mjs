@@ -112,6 +112,10 @@ const expectedChangedFiles = new Set([
   "docs/OPERATOR_PATH_MANUAL_QA_RUNBOOK_V0_1.md",
   "fixtures/operator-path-manual-qa-runbook.sample.v0.1.json",
   "scripts/smoke-operator-path-manual-qa-runbook-v0-1.mjs",
+  "docs/OPERATOR_PATH_ASSISTED_MANUAL_QA_EXECUTION_REPORT_V0_1.md",
+  "fixtures/operator-path-assisted-manual-qa-execution-report.sample.v0.1.json",
+  "scripts/assisted-execute-operator-path-manual-qa-v0-1.mjs",
+  "scripts/smoke-operator-path-assisted-manual-qa-execution-report-v0-1.mjs",
 ]);
 
 const requiredExistingFiles = [
