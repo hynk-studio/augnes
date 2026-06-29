@@ -98,6 +98,13 @@ const exactOldSmokeCompatibilityFiles = [
   "reports/browser/2026-06-29-promotion-readiness-packet-review-hub-read-display.md",
   "scripts/browser-validate-promotion-readiness-packet-review-hub-read-display-v0-1.mjs",
   "scripts/smoke-promotion-readiness-packet-review-hub-read-display-v0-1.mjs",
+  "app/page.tsx",
+  "components/promotion-readiness-review-hub-cockpit-entrypoint.tsx",
+  "docs/PROMOTION_READINESS_REVIEW_HUB_COCKPIT_ENTRYPOINT_V0_1.md",
+  "fixtures/promotion-readiness-review-hub-cockpit-entrypoint.sample.v0.1.json",
+  "reports/browser/2026-06-29-promotion-readiness-review-hub-cockpit-entrypoint.md",
+  "scripts/browser-validate-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs",
+  "scripts/smoke-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs",
 ];
 
 const expectedChangedFiles = new Set([

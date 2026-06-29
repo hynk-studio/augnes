@@ -4,38 +4,43 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
 const docsPath =
-  "docs/PROMOTION_READINESS_PACKET_REVIEW_HUB_READ_DISPLAY_V0_1.md";
+  "docs/PROMOTION_READINESS_REVIEW_HUB_COCKPIT_ENTRYPOINT_V0_1.md";
 const fixturePath =
-  "fixtures/promotion-readiness-packet-review-hub-read-display.sample.v0.1.json";
+  "fixtures/promotion-readiness-review-hub-cockpit-entrypoint.sample.v0.1.json";
 const componentPath =
-  "components/promotion-readiness-packet-review-hub.tsx";
-const pagePath = "app/perspective/promotion/page.tsx";
+  "components/promotion-readiness-review-hub-cockpit-entrypoint.tsx";
+const pagePath = "app/page.tsx";
 const browserScriptPath =
-  "scripts/browser-validate-promotion-readiness-packet-review-hub-read-display-v0-1.mjs";
+  "scripts/browser-validate-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs";
 const smokePath =
-  "scripts/smoke-promotion-readiness-packet-review-hub-read-display-v0-1.mjs";
+  "scripts/smoke-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs";
 const reportPath =
-  "reports/browser/2026-06-29-promotion-readiness-packet-review-hub-read-display.md";
+  "reports/browser/2026-06-29-promotion-readiness-review-hub-cockpit-entrypoint.md";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 
-const sliceName = "promotion_readiness_packet_review_hub_read_display_v0_1";
-const routeAdded = "/perspective/promotion";
-const linkedRoute = "/perspective/promotion/readiness-packet";
+const sliceName = "promotion_readiness_review_hub_cockpit_entrypoint_v0_1";
+const homeRoute = "/";
+const linkedRoute = "/perspective/promotion";
+const downstreamRoute = "/perspective/promotion/readiness-packet";
+const entrypointTestId = "promotion-readiness-review-hub-cockpit-entrypoint";
+const navigationLabel = "Open read/display promotion review hub";
 const packageBrowserScriptName =
-  "browser:promotion-readiness-packet-review-hub-read-display-v0-1";
+  "browser:promotion-readiness-review-hub-cockpit-entrypoint-v0-1";
 const packageBrowserScriptValue =
-  "node scripts/browser-validate-promotion-readiness-packet-review-hub-read-display-v0-1.mjs";
+  "node scripts/browser-validate-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs";
 const packageSmokeScriptName =
-  "smoke:promotion-readiness-packet-review-hub-read-display-v0-1";
+  "smoke:promotion-readiness-review-hub-cockpit-entrypoint-v0-1";
 const packageSmokeScriptValue =
-  "node scripts/smoke-promotion-readiness-packet-review-hub-read-display-v0-1.mjs";
+  "node scripts/smoke-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs";
 
-const requiredBasisPrs = [856, 857, 858, 859, 860, 861];
+const requiredBasisPrs = [856, 857, 858, 859, 860, 861, 862];
 
 const requiredVisibleCopy = [
-  "Promotion readiness review hub",
+  "Promotion readiness review",
   "Read/display-only",
+  navigationLabel,
+  linkedRoute,
   "Readiness is not promotion",
   "Validation pass is not truth/proof/approval/product readiness",
   "Browser validation is not human review",
@@ -58,13 +63,11 @@ const requiredVisibleCopy = [
   "PR #859",
   "PR #860",
   "PR #861",
-  "Existing readiness packet route",
-  linkedRoute,
-  "Open read/display readiness packet",
-  "Available read/display surfaces",
+  "PR #862",
+  "Promotion readiness review entrypoint",
   "Blocked authority actions",
-  "Next non-authority review steps",
-  "What this hub cannot do",
+  "Allowed read/display navigation",
+  "What this entrypoint cannot do",
 ];
 
 const deniedCapabilityPhrases = [
@@ -122,7 +125,7 @@ const reportRequiredSections = [
   "Visible Copy Assertions Summary",
   "Navigation Link Assertion Summary",
   "Destination Navigation Result",
-  "No-Action-Controls Result",
+  "Scoped No-Action-Controls Result",
   "Network/Request Boundary Summary",
   "Forbidden Method Summary",
   "Forbidden Route Summary",
@@ -169,13 +172,7 @@ const expectedChangedFiles = new Set([
   reportPath,
   packagePath,
   indexPath,
-  "app/page.tsx",
-  "components/promotion-readiness-review-hub-cockpit-entrypoint.tsx",
-  "docs/PROMOTION_READINESS_REVIEW_HUB_COCKPIT_ENTRYPOINT_V0_1.md",
-  "fixtures/promotion-readiness-review-hub-cockpit-entrypoint.sample.v0.1.json",
-  "reports/browser/2026-06-29-promotion-readiness-review-hub-cockpit-entrypoint.md",
-  "scripts/browser-validate-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs",
-  "scripts/smoke-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs",
+  "scripts/smoke-promotion-readiness-packet-review-hub-read-display-v0-1.mjs",
   "scripts/smoke-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs",
   "scripts/smoke-promotion-readiness-packet-ui-read-display-binding-v0-1.mjs",
   "scripts/smoke-promotion-readiness-packet-from-review-memory-v0-1.mjs",
@@ -213,7 +210,6 @@ const fixtureText = readText(fixturePath);
 const fixture = JSON.parse(fixtureText);
 const component = readText(componentPath);
 const page = readText(pagePath);
-const componentAndPage = `${component}\n${page}`;
 const browserScript = readText(browserScriptPath);
 const rawReport = readText(reportPath);
 const report = normalize(rawReport);
@@ -232,11 +228,12 @@ assertChangedFileScope();
 console.log(
   JSON.stringify(
     {
-      smoke: "promotion-readiness-packet-review-hub-read-display-v0-1",
+      smoke: "promotion-readiness-review-hub-cockpit-entrypoint-v0-1",
       final_status: "pass",
       slice_name: sliceName,
-      route_added: routeAdded,
+      home_route: homeRoute,
       linked_route: linkedRoute,
+      downstream_route: downstreamRoute,
       browser_validator: browserScriptPath,
       report_path: reportPath,
       human_signoff_completed: false,
@@ -249,10 +246,11 @@ console.log(
 
 function assertDocsFixturePackageAndIndex() {
   assert.equal(fixture.slice_name, sliceName);
-  assert.equal(fixture.version, "promotion_readiness_packet_review_hub_read_display.v0.1");
-  assert.equal(fixture.packet_type, "promotion_readiness_packet_review_hub_read_display");
-  assert.equal(fixture.route_added, routeAdded);
+  assert.equal(fixture.version, "promotion_readiness_review_hub_cockpit_entrypoint.v0.1");
+  assert.equal(fixture.packet_type, "promotion_readiness_review_hub_cockpit_entrypoint");
+  assert.equal(fixture.home_route, homeRoute);
   assert.equal(fixture.linked_route, linkedRoute);
+  assert.equal(fixture.downstream_readiness_packet_route, downstreamRoute);
   assert.deepEqual(fixture.basis_prs, requiredBasisPrs);
   assert.equal(fixture.read_display_only, true);
   assert.equal(fixture.no_action_controls, true);
@@ -277,24 +275,25 @@ function assertDocsFixturePackageAndIndex() {
     assertIncludes(index, pointer, `latest index pointer ${pointer}`);
   }
   for (const phrase of [
-    "this hub does not perform human review",
-    "this hub does not claim human signoff",
-    "this hub does not execute promotion",
-    "this hub does not write promotion decisions",
-    "this hub does not create proof/evidence",
-    "this hub does not product-write",
+    "this entrypoint does not perform human review",
+    "this entrypoint does not claim human signoff",
+    "this entrypoint does not execute promotion",
+    "this entrypoint does not write promotion decisions",
+    "this entrypoint does not create proof/evidence",
+    "this entrypoint does not product-write",
     "readiness is not promotion",
     "validation pass is not truth/proof/approval/product readiness",
     "browser validation is not human review",
-    "the readiness packet link is navigation only, not approval or promotion",
-    routeAdded,
+    "the /perspective/promotion link is navigation only, not approval, promotion, write, or release",
+    "home/cockpit route touched/tested: `/`",
     linkedRoute,
-    "available read/display surfaces",
+    downstreamRoute,
+    "promotion readiness review entrypoint",
+    "allowed read/display navigation",
     "basis refs",
     "status flags",
     "blocked authority actions",
-    "next non-authority review steps",
-    "what this hub cannot do",
+    "what this entrypoint cannot do",
     "navigation affordance policy",
     "no-action-controls policy",
     "network and request boundary",
@@ -307,37 +306,47 @@ function assertDocsFixturePackageAndIndex() {
 }
 
 function assertComponentAndPage() {
-  assertIncludes(page, componentPath.replace("components/", "@/components/").replace(".tsx", ""), "page component import");
-  assertIncludes(page, "Promotion readiness review hub", "page heading");
+  assertIncludes(
+    page,
+    "@/components/promotion-readiness-review-hub-cockpit-entrypoint",
+    "page imports entrypoint component",
+  );
+  assertIncludes(
+    page,
+    "<PromotionReadinessReviewHubCockpitEntrypoint />",
+    "page renders entrypoint component",
+  );
+  assertIncludes(
+    component,
+    `data-testid="${entrypointTestId}"`,
+    "component stable scope marker",
+  );
+  assertIncludes(component, `const linkedRoute = "${linkedRoute}"`, "linked route const");
+  assertIncludes(component, `href={linkedRoute}`, "normal navigation link href");
+  assertIncludes(component, navigationLabel, "navigation link label");
   for (const phrase of requiredVisibleCopy) {
-    assertIncludes(
-      normalize(componentAndPage),
-      normalize(phrase),
-      `component/page visible copy ${phrase}`,
-    );
+    assertIncludes(normalize(component), normalize(phrase), `component visible copy ${phrase}`);
   }
-  assertIncludes(component, `const readinessPacketRoute = "${linkedRoute}"`, "linked route const");
-  assertIncludes(component, `href={readinessPacketRoute}`, "normal navigation link href");
-  assertIncludes(component, "Open read/display readiness packet", "navigation link label");
-  for (const [label, text] of [
-    ["component", component],
-    ["page", page],
-  ]) {
-    assert.doesNotMatch(text, /<button\b/i, `${label} must not include button elements`);
-    assert.doesNotMatch(text, /<form\b/i, `${label} must not include form elements`);
-    assert.doesNotMatch(text, /<input\b/i, `${label} must not include input elements`);
-    assert.doesNotMatch(text, /\bonClick\s*=/i, `${label} must not include onClick handlers`);
-    assert.doesNotMatch(text, /\bfetch\s*\(/i, `${label} must not include fetch calls`);
-    assert.doesNotMatch(text, /["'`]\/api(?:\/|["'`])/i, `${label} must not include /api calls`);
-    assert.doesNotMatch(text, /\b(?:POST|PUT|PATCH|DELETE)\b/, `${label} must not include write methods`);
-    assert.doesNotMatch(text, /href\s*=\s*["']https?:\/\//i, `${label} must not include external hrefs`);
-    assert.doesNotMatch(text, /role\s*=\s*["']button["']/i, `${label} must not include role=button`);
-  }
+  assert.doesNotMatch(component, /<button\b/i, "component must not include button elements");
+  assert.doesNotMatch(component, /<form\b/i, "component must not include form elements");
+  assert.doesNotMatch(component, /<input\b/i, "component must not include input elements");
+  assert.doesNotMatch(component, /\bonClick\s*=/i, "component must not include onClick handlers");
+  assert.doesNotMatch(component, /\bfetch\s*\(/i, "component must not include fetch calls");
+  assert.doesNotMatch(component, /["'`]\/api(?:\/|["'`])/i, "component must not include /api calls");
+  assert.doesNotMatch(component, /\b(?:POST|PUT|PATCH|DELETE)\b/, "component must not include write methods");
+  assert.doesNotMatch(component, /href\s*=\s*["']https?:\/\//i, "component must not include external hrefs");
+  assert.doesNotMatch(component, /role\s*=\s*["']button["']/i, "component must not include role=button");
+  assert.doesNotMatch(
+    navigationLabel,
+    /\b(?:approve|promote|publish|release|write|commit|accept|send)\b/i,
+    "component link label must avoid action wording",
+  );
 }
 
 function assertReport() {
-  assertIncludes(report, routeAdded, "report route");
+  assertIncludes(rawReport, "Home/cockpit route tested: `/`", "report home route");
   assertIncludes(report, linkedRoute, "report linked route");
+  assertIncludes(report, downstreamRoute, "report downstream route");
   assertIncludes(report, "human_signoff_completed: false", "report human signoff false");
   assertIncludes(report, "human_review_still_required: true", "report human review true");
   assertIncludes(report, "readiness is not promotion", "report readiness boundary");
@@ -353,8 +362,10 @@ function assertReport() {
 
 function assertBrowserValidator() {
   for (const phrase of [
-    routeAdded,
+    homeRoute,
     linkedRoute,
+    downstreamRoute,
+    entrypointTestId,
     "Page.enable",
     "Runtime.enable",
     "Network.enable",
@@ -363,17 +374,17 @@ function assertBrowserValidator() {
     "requiredVisibleCopy",
     "requiredSections",
     "destinationRequiredCopy",
-    "readNavigationLinks",
-    "readActionControls",
+    "downstreamRequiredCopy",
+    "readEntrypointLinks",
+    "readScopedActionControls",
     "allowedNavigationLabel",
-    "Open read/display readiness packet",
+    navigationLabel,
     "forbiddenMethods",
     "POST",
     "PUT",
     "PATCH",
     "DELETE",
-    "pathName.startsWith(\"/api/\")",
-    "api_route_call_from_static_hub_ui",
+    "api_target",
     "external_non_loopback_request",
     "promotion_decision_or_execution_route",
     "product_write_route",
@@ -430,6 +441,17 @@ function assertAuthorityBoundary() {
   assert.equal(fixture.human_signoff_completed, false);
   assert.equal(fixture.human_review_still_required, true);
   assert.equal(fixture.authority_boundary.readiness_is_promotion, false);
+  const nav = fixture.navigation_affordances?.[0];
+  assert.equal(nav.label, navigationLabel);
+  assert.equal(nav.href, linkedRoute);
+  assert.equal(nav.affordance_type, "navigation_link");
+  assert.equal(nav.external, false);
+  assert.equal(nav.role_button, false);
+  assert.equal(nav.write_action, false);
+  assert.equal(nav.promotion_action, false);
+  assert.equal(nav.proof_or_evidence_action, false);
+  assert.equal(nav.product_write_action, false);
+  assert.equal(nav.release_action, false);
 }
 
 function assertPublicSafe() {
@@ -439,7 +461,6 @@ function assertPublicSafe() {
     ["report", rawReport],
     ["browser validator", browserScript],
     ["component", component],
-    ["page", page],
   ]) {
     for (const pattern of unsafeArtifactPatterns) {
       assert.doesNotMatch(text, pattern, `${label} must not contain ${pattern}`);
