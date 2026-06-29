@@ -39,34 +39,30 @@ const systemBrowserExecutableCandidates = [
 
 const requiredVisibleCopy = [
   "Promotion readiness review",
-  "Read/display-only",
+  "Read/display-only review-prep lane",
+  "Secondary Perspective cockpit lane",
+  "primary Augnes surface",
   "Open read/display promotion review hub",
   "/perspective/promotion",
+  "/perspective/promotion/readiness-packet",
   "Readiness is not promotion",
   "Validation pass is not truth/proof/approval/product readiness",
   "Browser validation is not human review",
   "human_signoff_completed: false",
   "human_review_still_required: true",
-  "promotion_execution: false",
-  "promotion_decision_write: false",
-  "product_write: false",
-  "proof_or_evidence_creation: false",
-  "durable_state_apply: false",
-  "formation_receipt_write: false",
-  "accepted_evidence_ref_write: false",
-  "product_id_allocation: false",
-  "Basis refs: PR #856, PR #857, PR #858, PR #859, PR #860, PR #861, PR #862",
-  "Promotion readiness review entrypoint",
-  "Blocked authority actions",
-  "Allowed read/display navigation",
-  "What this entrypoint cannot do",
+  "Human review prep",
+  "Read/display-only",
+  "Not promotion approval",
+  "No action controls",
+  "Navigation-only route",
+  "packet route",
 ];
 
 const requiredSections = [
-  "Promotion readiness review entrypoint",
-  "Allowed read/display navigation",
-  "Blocked authority actions",
-  "What this entrypoint cannot do",
+  "Read/display-only review-prep lane",
+  "Promotion readiness review",
+  "No action controls",
+  "Navigation-only route",
 ];
 
 const destinationRequiredCopy = [

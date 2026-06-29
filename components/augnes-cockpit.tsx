@@ -14,6 +14,7 @@ import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import type { ManualResearchNoteParserResult } from "@/lib/research-candidate-review/manual-note-parser";
 import { AgentPerspectiveSubstrateFoldedAuditPanel } from "@/components/agent-perspective-substrate-folded-audit-panel";
 import { ConstellationRuntimeDataPanel } from "@/components/perspective/constellation-runtime-data-panel";
+import { PromotionReadinessReviewHubCockpitEntrypoint } from "@/components/promotion-readiness-review-hub-cockpit-entrypoint";
 import { ResearchCandidateAIContextPacketPreview } from "@/components/research-candidate-ai-context-packet-preview";
 import { ResearchCandidateConstellationOverlayPreview } from "@/components/research-candidate-constellation-overlay-preview";
 import { ResearchCandidateFormationReceiptPreview } from "@/components/research-candidate-formation-receipt-preview";
@@ -6581,10 +6582,21 @@ function PerspectiveTab({
         description="Local graph preview for reviewing relationships, tensions, and next steps."
       />
 
+      <PromotionReadinessReviewHubCockpitEntrypoint />
+
       <nav
         className="perspective-section-nav"
         aria-label="Perspective static preview anchors"
       >
+        <a href="#perspective-constellation-runtime-ui-completion">
+          Project constellation
+        </a>
+        <a href="#perspective-constellation-preview">
+          Constellation preview
+        </a>
+        <a href="#promotion-readiness-review-hub-cockpit-entrypoint">
+          Promotion readiness review
+        </a>
         <a href="#research-candidate-review-preview">
           Research candidate review
         </a>

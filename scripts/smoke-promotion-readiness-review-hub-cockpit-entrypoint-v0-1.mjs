@@ -10,6 +10,7 @@ const fixturePath =
 const componentPath =
   "components/promotion-readiness-review-hub-cockpit-entrypoint.tsx";
 const pagePath = "app/page.tsx";
+const cockpitPath = "components/augnes-cockpit.tsx";
 const browserScriptPath =
   "scripts/browser-validate-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs";
 const smokePath =
@@ -56,7 +57,6 @@ const requiredVisibleCopy = [
   "formation_receipt_write",
   "accepted_evidence_ref_write",
   "product_id_allocation",
-  "Basis refs",
   "PR #856",
   "PR #857",
   "PR #858",
@@ -64,10 +64,11 @@ const requiredVisibleCopy = [
   "PR #860",
   "PR #861",
   "PR #862",
-  "Promotion readiness review entrypoint",
-  "Blocked authority actions",
-  "Allowed read/display navigation",
-  "What this entrypoint cannot do",
+  "Read/display-only review-prep lane",
+  "Secondary Perspective cockpit lane",
+  "Status and boundary",
+  "Navigation-only route",
+  "No action controls",
 ];
 
 const deniedCapabilityPhrases = [
@@ -167,6 +168,7 @@ const expectedChangedFiles = new Set([
   fixturePath,
   componentPath,
   pagePath,
+  cockpitPath,
   browserScriptPath,
   smokePath,
   reportPath,
@@ -196,6 +198,7 @@ const expectedChangedFiles = new Set([
   "reports/browser/2026-06-29-promotion-readiness-copy-ia-clarity.md",
   "scripts/browser-validate-promotion-readiness-copy-ia-clarity-v0-1.mjs",
   "scripts/smoke-promotion-readiness-copy-ia-clarity-v0-1.mjs",
+  "scripts/smoke-perspective-cockpit-surface-recovery-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs",
@@ -206,6 +209,7 @@ for (const filePath of [
   fixturePath,
   componentPath,
   pagePath,
+  cockpitPath,
   browserScriptPath,
   smokePath,
   reportPath,
@@ -221,6 +225,7 @@ const fixtureText = readText(fixturePath);
 const fixture = JSON.parse(fixtureText);
 const component = readText(componentPath);
 const page = readText(pagePath);
+const cockpit = readText(cockpitPath);
 const browserScript = readText(browserScriptPath);
 const rawReport = readText(reportPath);
 const report = normalize(rawReport);
@@ -318,14 +323,24 @@ function assertDocsFixturePackageAndIndex() {
 
 function assertComponentAndPage() {
   assertIncludes(
-    page,
+    cockpit,
     "@/components/promotion-readiness-review-hub-cockpit-entrypoint",
-    "page imports entrypoint component",
+    "cockpit imports entrypoint component",
+  );
+  assertIncludes(
+    cockpit,
+    "<PromotionReadinessReviewHubCockpitEntrypoint />",
+    "cockpit renders entrypoint component",
   );
   assertIncludes(
     page,
-    "<PromotionReadinessReviewHubCockpitEntrypoint />",
-    "page renders entrypoint component",
+    "return <AugnesCockpit />",
+    "page renders the cockpit as the primary home surface",
+  );
+  assert.doesNotMatch(
+    page,
+    /PromotionReadinessReviewHubCockpitEntrypoint/,
+    "page must not place promotion readiness above cockpit",
   );
   assertIncludes(
     component,

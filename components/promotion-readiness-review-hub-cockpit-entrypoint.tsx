@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 const sliceName = "promotion_readiness_review_hub_cockpit_entrypoint_v0_1";
 const linkedRoute = "/perspective/promotion";
 const downstreamReadinessPacketRoute = "/perspective/promotion/readiness-packet";
@@ -66,107 +64,58 @@ const clarityItems = [
 export function PromotionReadinessReviewHubCockpitEntrypoint() {
   return (
     <section
+      id="promotion-readiness-review-hub-cockpit-entrypoint"
       aria-labelledby="promotion-readiness-cockpit-entrypoint-title"
       data-testid="promotion-readiness-review-hub-cockpit-entrypoint"
       style={entrypointStyle}
     >
       <div style={headerStyle}>
-        <p style={eyebrowStyle}>Read/display-only</p>
-        <h2 id="promotion-readiness-cockpit-entrypoint-title" style={titleStyle}>
-          Promotion readiness review
-        </h2>
-        <div aria-label="Promotion readiness cockpit entrypoint warnings" style={warningGridStyle}>
-          <strong style={warningStyle}>Readiness is not promotion</strong>
-          <strong style={warningStyle}>
-            Validation pass is not truth/proof/approval/product readiness
-          </strong>
-          <strong style={warningStyle}>Browser validation is not human review</strong>
+        <div>
+          <p style={eyebrowStyle}>Read/display-only review-prep lane</p>
+          <h2 id="promotion-readiness-cockpit-entrypoint-title" style={titleStyle}>
+            Promotion readiness review
+          </h2>
+          <p style={bodyTextStyle}>
+            Secondary Perspective cockpit lane for reviewing existing promotion
+            readiness surfaces. It keeps the hub discoverable without becoming
+            the primary Augnes surface.
+          </p>
         </div>
-        <div aria-label="Promotion readiness cockpit entrypoint clarity" style={clarityGridStyle}>
-          {clarityItems.map(([label, value]) => (
-            <div key={label} style={clarityItemStyle}>
-              <strong style={clarityLabelStyle}>{label}</strong>
-              <span>{value}</span>
-            </div>
-          ))}
-        </div>
+        <a href={linkedRoute} style={navigationLinkStyle}>
+          Open read/display promotion review hub
+        </a>
       </div>
 
-      <div style={statusGridStyle} aria-label="Promotion readiness cockpit entrypoint status flags">
-        {authorityFlags.map(([label, value]) => (
-          <div key={label} style={statusItemStyle}>
-            <span style={statusLabelStyle}>{label}: </span>
-            <code style={statusValueStyle}>{value}</code>
-          </div>
+      <div aria-label="Promotion readiness cockpit entrypoint boundary badges" style={badgeRailStyle}>
+        <strong style={warningStyle}>Readiness is not promotion</strong>
+        <strong style={warningStyle}>
+          Validation pass is not truth/proof/approval/product readiness
+        </strong>
+        <strong style={warningStyle}>Browser validation is not human review</strong>
+        {clarityItems.map(([label]) => (
+          <strong key={label} style={clarityBadgeStyle}>
+            {label}
+          </strong>
         ))}
       </div>
 
-      <div style={contentGridStyle}>
-        <EntrypointBlock title="Promotion readiness review entrypoint">
-          <p style={bodyTextStyle}>
-            Static home/cockpit entrypoint for the promotion readiness review hub.
-          </p>
-          <p style={bodyTextStyle}>Basis refs: {basisRefs.join(", ")}</p>
-        </EntrypointBlock>
-
-        <EntrypointBlock title="Allowed read/display navigation">
-          <p style={bodyTextStyle}>
-            Linked route: <code>{linkedRoute}</code>
-          </p>
-          <p style={bodyTextStyle}>
-            Downstream readiness packet route: <code>{downstreamReadinessPacketRoute}</code>
-          </p>
-          <p style={calloutTextStyle}>
-            Human review prep path. Read/display-only. Not promotion approval.
-          </p>
-          <a href={linkedRoute} style={navigationLinkStyle}>
-            Open read/display promotion review hub
-          </a>
-        </EntrypointBlock>
-
-        <EntrypointBlock title="Blocked authority actions">
-          <SimpleList items={blockedAuthorityActions} />
-        </EntrypointBlock>
-
-        <EntrypointBlock title="What this entrypoint cannot do">
-          <SimpleList items={cannotDoItems} />
-        </EntrypointBlock>
-      </div>
-
-      <footer style={footerStyle}>
-        <strong>No action controls</strong>
+      <div
+        style={statusGridStyle}
+        aria-label="Promotion readiness cockpit entrypoint status and boundary"
+      >
+        {authorityFlags.slice(0, 2).map(([label, value]) => (
+          <span key={label} style={statusItemStyle}>
+            <span style={statusLabelStyle}>{label}: </span>
+            <code style={statusValueStyle}>{value}</code>
+          </span>
+        ))}
+        <strong style={compactBoundaryStyle}>No action controls</strong>
         <span>
-          This entrypoint is static, read/display-only, and exposes one internal navigation
-          link to the existing promotion readiness review hub.
+          Navigation-only route <code>{linkedRoute}</code>; packet route{" "}
+          <code>{downstreamReadinessPacketRoute}</code>.
         </span>
-        <span>Slice name: {sliceName}</span>
-      </footer>
+      </div>
     </section>
-  );
-}
-
-function EntrypointBlock({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section style={blockStyle}>
-      <h3 style={blockTitleStyle}>{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-function SimpleList({ items }: { items: readonly string[] }) {
-  return (
-    <ul style={listStyle}>
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
   );
 }
 
@@ -175,6 +124,9 @@ export const promotionReadinessReviewHubCockpitEntrypointMetadata = {
   home_route: "/",
   linked_route: linkedRoute,
   downstream_readiness_packet_route: downstreamReadinessPacketRoute,
+  basis_refs: basisRefs,
+  blocked_authority_actions: blockedAuthorityActions,
+  cannot_do_items: cannotDoItems,
   read_display_only: true,
   no_action_controls: true,
   human_signoff_completed: false,
@@ -182,19 +134,23 @@ export const promotionReadinessReviewHubCockpitEntrypointMetadata = {
 } as const;
 
 const entrypointStyle = {
-  maxWidth: "1180px",
-  margin: "0 auto 20px",
+  maxWidth: "100%",
+  margin: "0 0 18px",
   border: "1px solid #cfd6df",
   borderRadius: "8px",
-  background: "#ffffff",
-  boxShadow: "0 12px 30px rgba(30, 42, 58, 0.08)",
+  background: "#fbfcfe",
+  boxShadow: "none",
   overflow: "hidden",
 } as const;
 
 const headerStyle = {
-  padding: "24px",
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  alignItems: "start",
+  gap: "14px",
+  padding: "16px",
   borderBottom: "1px solid #d9e0e8",
-  background: "#eef4f8",
+  background: "#f6f8fb",
 } as const;
 
 const eyebrowStyle = {
@@ -207,65 +163,63 @@ const eyebrowStyle = {
 } as const;
 
 const titleStyle = {
-  margin: "0 0 16px",
+  margin: "0 0 8px",
   color: "#17212f",
-  fontSize: "28px",
+  fontSize: "20px",
   lineHeight: 1.18,
   letterSpacing: "0",
 } as const;
 
-const warningGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-  gap: "10px",
+const badgeRailStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "8px",
+  padding: "12px 16px 0",
 } as const;
 
 const warningStyle = {
-  display: "block",
-  padding: "12px",
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "7px 9px",
   border: "1px solid #c6a15b",
-  borderRadius: "8px",
+  borderRadius: "6px",
   background: "#fff7e3",
   color: "#44320d",
-  fontSize: "14px",
+  fontSize: "13px",
   lineHeight: 1.35,
 } as const;
 
-const clarityGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: "10px",
-  marginTop: "14px",
-} as const;
-
-const clarityItemStyle = {
-  display: "grid",
-  gap: "5px",
-  padding: "12px",
+const clarityBadgeStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "7px 9px",
   border: "1px solid #cfd6df",
-  borderRadius: "8px",
+  borderRadius: "6px",
   background: "#ffffff",
-  color: "#243244",
-  fontSize: "14px",
-  lineHeight: 1.38,
-} as const;
-
-const clarityLabelStyle = {
   color: "#17212f",
-  fontSize: "14px",
-  lineHeight: 1.25,
+  fontSize: "13px",
+  lineHeight: 1.35,
 } as const;
 
 const statusGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-  gap: "1px",
-  background: "#d9e0e8",
-  borderBottom: "1px solid #d9e0e8",
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: "8px",
+  padding: "12px 16px 14px",
+  background: "transparent",
+  color: "#2d3b4a",
+  fontSize: "13px",
+  lineHeight: 1.45,
 } as const;
 
 const statusItemStyle = {
-  padding: "14px 16px",
+  display: "inline-flex",
+  gap: "4px",
+  alignItems: "baseline",
+  padding: "7px 9px",
+  border: "1px solid #d9e0e8",
+  borderRadius: "6px",
   background: "#f8fafc",
   minWidth: 0,
 } as const;
@@ -285,25 +239,13 @@ const statusValueStyle = {
   overflowWrap: "anywhere",
 } as const;
 
-const contentGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-  gap: "1px",
-  background: "#d9e0e8",
-} as const;
-
-const blockStyle = {
-  padding: "20px",
+const compactBoundaryStyle = {
+  padding: "7px 9px",
+  border: "1px solid #cfd6df",
+  borderRadius: "6px",
   background: "#ffffff",
-  minWidth: 0,
-} as const;
-
-const blockTitleStyle = {
-  margin: "0 0 12px",
   color: "#17212f",
-  fontSize: "17px",
-  lineHeight: 1.25,
-  letterSpacing: "0",
+  fontSize: "13px",
 } as const;
 
 const bodyTextStyle = {
@@ -314,41 +256,13 @@ const bodyTextStyle = {
   overflowWrap: "anywhere",
 } as const;
 
-const calloutTextStyle = {
-  margin: "0 0 12px",
-  color: "#17212f",
-  fontSize: "14px",
-  fontWeight: 700,
-  lineHeight: 1.45,
-  overflowWrap: "anywhere",
-} as const;
-
 const navigationLinkStyle = {
   display: "inline-block",
   margin: "0",
   color: "#0f5d7a",
   fontSize: "14px",
   fontWeight: 700,
+  justifySelf: "start",
   textDecoration: "underline",
   textUnderlineOffset: "3px",
-} as const;
-
-const listStyle = {
-  margin: 0,
-  paddingLeft: "18px",
-  color: "#2d3b4a",
-  fontSize: "14px",
-  lineHeight: 1.55,
-  overflowWrap: "anywhere",
-} as const;
-
-const footerStyle = {
-  display: "grid",
-  gap: "6px",
-  padding: "18px 24px",
-  borderTop: "1px solid #d9e0e8",
-  background: "#f8fafc",
-  color: "#2d3b4a",
-  fontSize: "14px",
-  lineHeight: 1.45,
 } as const;
