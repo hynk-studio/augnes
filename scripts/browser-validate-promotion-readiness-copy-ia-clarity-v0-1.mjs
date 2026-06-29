@@ -42,12 +42,13 @@ const scopedSurfaces = [
     selector: '[data-testid="promotion-readiness-review-hub-cockpit-entrypoint"]',
     requiredCopy: [
       "Promotion readiness review",
-      "Human review prep",
+      "Secondary review prep",
+      "Promotion readiness is secondary review prep, not approval",
+      "Human review still required",
       "Read/display-only",
-      "Not promotion approval",
+      "Readiness is not promotion",
+      "No action controls",
       "Open read/display promotion review hub",
-      "human_signoff_completed: false",
-      "human_review_still_required: true",
     ],
     allowedLinks: [
       {

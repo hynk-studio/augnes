@@ -14,6 +14,7 @@ import type { PerspectiveSnapshot } from "@/lib/perspective/snapshot";
 import type { ManualResearchNoteParserResult } from "@/lib/research-candidate-review/manual-note-parser";
 import { AgentPerspectiveSubstrateFoldedAuditPanel } from "@/components/agent-perspective-substrate-folded-audit-panel";
 import { ConstellationRuntimeDataPanel } from "@/components/perspective/constellation-runtime-data-panel";
+import { PromotionReadinessReviewHubCockpitEntrypoint } from "@/components/promotion-readiness-review-hub-cockpit-entrypoint";
 import { ResearchCandidateAIContextPacketPreview } from "@/components/research-candidate-ai-context-packet-preview";
 import { ResearchCandidateConstellationOverlayPreview } from "@/components/research-candidate-constellation-overlay-preview";
 import { ResearchCandidateFormationReceiptPreview } from "@/components/research-candidate-formation-receipt-preview";
@@ -6577,14 +6578,150 @@ function PerspectiveTab({
     >
       <PageHeader
         eyebrow="AUGNES / Perspective"
-        title="Perspective"
-        description="Local graph preview for reviewing relationships, tensions, and next steps."
+        title="Perspective / Project constellation"
+        description="Augnes shows the current project shape, tensions, and review surfaces."
       />
+
+      <section
+        className="cockpit-surface-card perspective-section perspective-public-surface"
+        id="perspective-public-surface"
+        aria-label="Perspective public project constellation surface"
+        data-augnes-region="perspective-public-surface-mode"
+      >
+        <div className="perspective-constellation-shell-header">
+          <div>
+            <p className="panel-eyebrow">Start with the constellation</p>
+            <h2>Current project shape</h2>
+            <p>
+              Augnes shows the current project shape, tensions, and review
+              surfaces.
+            </p>
+          </div>
+          <div className="perspective-constellation-shell-status">
+            <span className="status-pill">
+              {constellationPreview.nodes.length} nodes
+            </span>
+            <span className="status-pill">
+              {constellationPreview.edges.length} relationships
+            </span>
+            <span className="status-pill">
+              {
+                [
+                  ...constellationPreview.cluster.unresolvedTensions,
+                  ...constellationPreview.nodes.flatMap(
+                    (node) => node.unresolvedTensions,
+                  ),
+                ].length
+              }{" "}
+              tensions
+            </span>
+          </div>
+        </div>
+
+        <div className="perspective-frame-summary">
+          <article>
+            <h3>{constellationPreview.cluster.label}</h3>
+            <p>{constellationPreview.cluster.thesis}</p>
+          </article>
+          <article>
+            <h3>Next review surfaces</h3>
+            <p>
+              Review the constellation shape, inspect current tensions, then
+              choose the next read/display surface.
+            </p>
+          </article>
+        </div>
+
+        <div className="perspective-tension-grid" aria-label="Project constellation public summary">
+          <TensionList
+            title="Current project shape"
+            items={constellationPreview.nodes.map((node) => ({
+              key: node.id,
+              label: node.label,
+              detail: node.summary,
+              metaChips: [node.type],
+            }))}
+            maxItems={4}
+            emptyLabel="No Project Constellation sample nodes"
+          />
+          <TensionList
+            title="Tensions"
+            items={[
+              ...constellationPreview.cluster.unresolvedTensions.map(
+                (tension) => ({
+                  key: `cluster:${tension}`,
+                  label: "Cluster tension",
+                  detail: tension,
+                  metaChips: [constellationPreview.cluster.id],
+                }),
+              ),
+              ...constellationPreview.nodes.flatMap((node) =>
+                node.unresolvedTensions.map((tension) => ({
+                  key: `${node.id}:tension:${tension}`,
+                  label: node.label,
+                  detail: tension,
+                  metaChips: [node.type],
+                })),
+              ),
+            ]}
+            maxItems={4}
+            emptyLabel="No Project Constellation unresolved tensions"
+          />
+          <TensionList
+            title="Next review surfaces"
+            items={[
+              {
+                key: "project-constellation-preview",
+                label: "Project constellation preview",
+                detail: "Open the full fixture-backed constellation surface.",
+                metaChips: ["constellation"],
+              },
+              {
+                key: "research-candidate-review",
+                label: "Research candidate review",
+                detail: "Inspect candidate-only review material below.",
+                metaChips: ["review surface"],
+              },
+              {
+                key: "promotion-readiness",
+                label: "Promotion readiness",
+                detail:
+                  "Promotion readiness is secondary review prep, not approval.",
+                metaChips: ["secondary", "Human review still required"],
+              },
+              {
+                key: "agent-workbench-details",
+                label: "Agent workbench details are below",
+                detail:
+                  "Detailed machine-readable workbench panels remain available after the public surface.",
+                metaChips: ["supporting detail"],
+              },
+            ]}
+            maxItems={4}
+            emptyLabel="No next review surfaces"
+          />
+        </div>
+      </section>
 
       <nav
         className="perspective-section-nav"
         aria-label="Perspective static preview anchors"
       >
+        <a href="#perspective-public-surface">
+          Perspective / Project constellation
+        </a>
+        <a href="#perspective-constellation-preview">
+          Project constellation preview
+        </a>
+        <a href="#perspective-constellation-runtime-ui-completion">
+          Runtime constellation view
+        </a>
+        <a href="#promotion-readiness-review-hub-cockpit-entrypoint">
+          Promotion readiness
+        </a>
+        <a href="#perspective-agent-workbench-details">
+          Agent workbench details
+        </a>
         <a href="#research-candidate-review-preview">
           Research candidate review
         </a>
@@ -6607,6 +6744,26 @@ function PerspectiveTab({
           Substrate folded audit
         </a>
       </nav>
+
+      <PromotionReadinessReviewHubCockpitEntrypoint />
+
+      <section
+        className="cockpit-surface-card perspective-section perspective-agent-workbench-details"
+        id="perspective-agent-workbench-details"
+        aria-label="Agent workbench details"
+        data-augnes-region="secondary-machine-readable-workbench"
+      >
+        <div className="perspective-constellation-shell-header">
+          <div>
+            <p className="panel-eyebrow">Agent workbench details</p>
+            <h2>Detailed machine-readable workbench</h2>
+            <p>
+              The sections below keep agent, diagnostic, fixture, and validation
+              detail available after the public project-shape surface.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Research Candidate Review Cockpit Preview Start */}
       <section

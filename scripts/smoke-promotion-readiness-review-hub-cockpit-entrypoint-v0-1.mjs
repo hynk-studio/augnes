@@ -10,10 +10,13 @@ const fixturePath =
 const componentPath =
   "components/promotion-readiness-review-hub-cockpit-entrypoint.tsx";
 const pagePath = "app/page.tsx";
+const cockpitPath = "components/augnes-cockpit.tsx";
 const browserScriptPath =
   "scripts/browser-validate-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs";
 const smokePath =
   "scripts/smoke-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs";
+const publicSurfaceSmokePath =
+  "scripts/smoke-perspective-public-surface-mode-v0-1.mjs";
 const reportPath =
   "reports/browser/2026-06-29-promotion-readiness-review-hub-cockpit-entrypoint.md";
 const packagePath = "package.json";
@@ -42,12 +45,10 @@ const requiredVisibleCopy = [
   navigationLabel,
   linkedRoute,
   "Readiness is not promotion",
-  "Validation pass is not truth/proof/approval/product readiness",
-  "Browser validation is not human review",
-  "human_signoff_completed",
-  "false",
-  "human_review_still_required",
-  "true",
+  "Promotion readiness is secondary review prep, not approval",
+  "Human review still required",
+  "No action controls",
+  "Secondary review prep",
   "promotion_execution",
   "promotion_decision_write",
   "product_write",
@@ -56,7 +57,6 @@ const requiredVisibleCopy = [
   "formation_receipt_write",
   "accepted_evidence_ref_write",
   "product_id_allocation",
-  "Basis refs",
   "PR #856",
   "PR #857",
   "PR #858",
@@ -64,10 +64,6 @@ const requiredVisibleCopy = [
   "PR #860",
   "PR #861",
   "PR #862",
-  "Promotion readiness review entrypoint",
-  "Blocked authority actions",
-  "Allowed read/display navigation",
-  "What this entrypoint cannot do",
 ];
 
 const deniedCapabilityPhrases = [
@@ -167,8 +163,10 @@ const expectedChangedFiles = new Set([
   fixturePath,
   componentPath,
   pagePath,
+  cockpitPath,
   browserScriptPath,
   smokePath,
+  publicSurfaceSmokePath,
   reportPath,
   packagePath,
   indexPath,
@@ -194,8 +192,10 @@ const expectedChangedFiles = new Set([
   "docs/PROMOTION_READINESS_COPY_IA_CLARITY_V0_1.md",
   "fixtures/promotion-readiness-copy-ia-clarity.sample.v0.1.json",
   "reports/browser/2026-06-29-promotion-readiness-copy-ia-clarity.md",
+  "scripts/browser-validate-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs",
   "scripts/browser-validate-promotion-readiness-copy-ia-clarity-v0-1.mjs",
   "scripts/smoke-promotion-readiness-copy-ia-clarity-v0-1.mjs",
+  "scripts/smoke-perspective-public-surface-mode-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs",
@@ -221,6 +221,7 @@ const fixtureText = readText(fixturePath);
 const fixture = JSON.parse(fixtureText);
 const component = readText(componentPath);
 const page = readText(pagePath);
+const cockpit = readText(cockpitPath);
 const browserScript = readText(browserScriptPath);
 const rawReport = readText(reportPath);
 const report = normalize(rawReport);
@@ -318,14 +319,24 @@ function assertDocsFixturePackageAndIndex() {
 
 function assertComponentAndPage() {
   assertIncludes(
-    page,
+    cockpit,
     "@/components/promotion-readiness-review-hub-cockpit-entrypoint",
-    "page imports entrypoint component",
+    "cockpit imports entrypoint component",
+  );
+  assertIncludes(
+    cockpit,
+    "<PromotionReadinessReviewHubCockpitEntrypoint />",
+    "cockpit renders entrypoint component",
   );
   assertIncludes(
     page,
-    "<PromotionReadinessReviewHubCockpitEntrypoint />",
-    "page renders entrypoint component",
+    "return <AugnesCockpit />",
+    "page renders cockpit directly",
+  );
+  assert.doesNotMatch(
+    page,
+    /PromotionReadinessReviewHubCockpitEntrypoint/,
+    "page must not render promotion readiness above the cockpit",
   );
   assertIncludes(
     component,

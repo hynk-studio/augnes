@@ -673,6 +673,7 @@
     "smoke:promotion-readiness-review-hub-cockpit-entrypoint-v0-1": "node scripts/smoke-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs",
     "browser:promotion-readiness-copy-ia-clarity-v0-1": "node scripts/browser-validate-promotion-readiness-copy-ia-clarity-v0-1.mjs",
     "smoke:promotion-readiness-copy-ia-clarity-v0-1": "node scripts/smoke-promotion-readiness-copy-ia-clarity-v0-1.mjs",
+    "smoke:perspective-public-surface-mode-v0-1": "node scripts/smoke-perspective-public-surface-mode-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-end-to-end-operator-path-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-final-rag-answer-review-memory-end-to-end-operator-path-v0-1.mjs",
     "browser:validate-final-rag-answer-review-memory-operator-path-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/browser-validate-final-rag-answer-review-memory-operator-path-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-operator-browser-validation-v0-1": "node scripts/smoke-final-rag-answer-review-memory-operator-browser-validation-v0-1.mjs",

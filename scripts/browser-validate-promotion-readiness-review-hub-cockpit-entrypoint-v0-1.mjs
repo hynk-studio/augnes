@@ -12,6 +12,8 @@ const homeRouteTested = "/";
 const linkedRouteTested = "/perspective/promotion";
 const downstreamRouteTested = "/perspective/promotion/readiness-packet";
 const entrypointTestId = "promotion-readiness-review-hub-cockpit-entrypoint";
+const publicSurfaceSelector = "#perspective-public-surface";
+const workbenchDetailsSelector = "#perspective-agent-workbench-details";
 const allowedNavigationLabel = "Open read/display promotion review hub";
 const reportPath =
   "reports/browser/2026-06-29-promotion-readiness-review-hub-cockpit-entrypoint.md";
@@ -41,32 +43,29 @@ const requiredVisibleCopy = [
   "Promotion readiness review",
   "Read/display-only",
   "Open read/display promotion review hub",
-  "/perspective/promotion",
   "Readiness is not promotion",
-  "Validation pass is not truth/proof/approval/product readiness",
-  "Browser validation is not human review",
-  "human_signoff_completed: false",
-  "human_review_still_required: true",
-  "promotion_execution: false",
-  "promotion_decision_write: false",
-  "product_write: false",
-  "proof_or_evidence_creation: false",
-  "durable_state_apply: false",
-  "formation_receipt_write: false",
-  "accepted_evidence_ref_write: false",
-  "product_id_allocation: false",
-  "Basis refs: PR #856, PR #857, PR #858, PR #859, PR #860, PR #861, PR #862",
-  "Promotion readiness review entrypoint",
-  "Blocked authority actions",
-  "Allowed read/display navigation",
-  "What this entrypoint cannot do",
+  "Promotion readiness is secondary review prep, not approval",
+  "Human review still required",
+  "No action controls",
+  "Secondary review prep",
 ];
 
 const requiredSections = [
-  "Promotion readiness review entrypoint",
-  "Allowed read/display navigation",
-  "Blocked authority actions",
-  "What this entrypoint cannot do",
+  "Promotion readiness review",
+  "Secondary review prep",
+  "No action controls",
+];
+
+const requiredPublicSurfaceCopy = [
+  "Perspective / Project constellation",
+  "Augnes shows the current project shape, tensions, and review surfaces.",
+  "Start with the constellation",
+  "Current project shape",
+  "Tensions",
+  "Next review surfaces",
+  "Promotion readiness is secondary review prep, not approval",
+  "Human review still required",
+  "Agent workbench details are below",
 ];
 
 const destinationRequiredCopy = [
@@ -343,9 +342,53 @@ async function validateCockpitEntrypoint() {
   await runPhase("home_page_load", async () => {
     await setViewport({ width: 1440, height: 1200, mobile: false });
     await navigate(`${appOrigin}${homeRouteTested}`);
+    await waitForSelector(publicSurfaceSelector, "Perspective public surface");
     await waitForEntrypoint();
     state.page_loaded = true;
-    recordAssertion("page_load", true, "Home route loaded and entrypoint container was visible.");
+    recordAssertion(
+      "page_load",
+      true,
+      "Home route loaded and public Perspective surface plus entrypoint container were visible.",
+    );
+  });
+
+  await runPhase("public_surface_order", async () => {
+    const publicSurfaceSummary = await readPublicSurfaceOrder();
+    const publicVisibleText = normalizeForSearch(publicSurfaceSummary.visible_text ?? "");
+    const missingPublicCopy = requiredPublicSurfaceCopy.filter(
+      (phrase) => !publicVisibleText.includes(normalizeForSearch(phrase)),
+    );
+    recordAssertion(
+      "public_surface_required_copy",
+      missingPublicCopy.length === 0,
+      "The public Perspective surface exposes project-shape, tensions, and next review surfaces before promotion readiness.",
+      { required_count: requiredPublicSurfaceCopy.length, missing: missingPublicCopy },
+    );
+    recordAssertion(
+      "public_surface_before_promotion_entrypoint",
+      publicSurfaceSummary.public_before_entrypoint === true,
+      "The public Perspective surface appears before the promotion readiness entrypoint in DOM order.",
+      publicSurfaceSummary,
+    );
+    recordAssertion(
+      "project_constellation_before_promotion_copy",
+      publicSurfaceSummary.constellation_copy_before_promotion_copy === true,
+      "Project constellation copy appears before promotion readiness copy in visible reading order.",
+      publicSurfaceSummary,
+    );
+    recordAssertion(
+      "workbench_details_below_public_and_promotion",
+      publicSurfaceSummary.public_before_workbench === true &&
+        publicSurfaceSummary.entrypoint_before_workbench === true,
+      "Agent/diagnostic/workbench material is structurally below the public constellation surface and secondary promotion card.",
+      publicSurfaceSummary,
+    );
+    recordAssertion(
+      "public_surface_not_boundary_wall",
+      publicSurfaceSummary.public_surface_boundary_word_count <= 2,
+      "The first public Perspective surface is not dominated by authority-boundary copy.",
+      publicSurfaceSummary,
+    );
   });
 
   await runPhase("entrypoint_visible_copy", async () => {
@@ -532,6 +575,45 @@ async function waitForEntrypoint() {
     defaultTimeoutMs,
     "promotion readiness cockpit entrypoint container",
   );
+}
+
+async function waitForSelector(selector, description) {
+  await waitForCondition(
+    `Boolean(document.querySelector(${JSON.stringify(selector)}))`,
+    defaultTimeoutMs,
+    description,
+  );
+}
+
+async function readPublicSurfaceOrder() {
+  return evaluateJson(`(() => {
+    const publicSurface = document.querySelector(${JSON.stringify(publicSurfaceSelector)});
+    const entrypoint = document.querySelector('[data-testid=${JSON.stringify(entrypointTestId)}]');
+    const workbench = document.querySelector(${JSON.stringify(workbenchDetailsSelector)});
+    const bodyText = (document.body?.innerText || "").replace(/\\s+/g, " ").trim();
+    const publicSurfaceText = (publicSurface?.innerText || "").replace(/\\s+/g, " ").trim();
+    const compareBefore = (first, second) =>
+      Boolean(first && second && (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING));
+    const textIndex = (phrase) => bodyText.toLowerCase().indexOf(phrase.toLowerCase());
+    const constellationIndex = textIndex("Perspective / Project constellation");
+    const promotionIndex = textIndex("Promotion readiness review");
+    const boundaryWordMatches = publicSurfaceText.match(/authority|boundary|proof|validation|human_signoff_completed|human_review_still_required/gi) || [];
+    return {
+      public_surface_exists: Boolean(publicSurface),
+      entrypoint_exists: Boolean(entrypoint),
+      workbench_details_exists: Boolean(workbench),
+      visible_text: bodyText,
+      public_surface_text: publicSurfaceText,
+      public_before_entrypoint: compareBefore(publicSurface, entrypoint),
+      public_before_workbench: compareBefore(publicSurface, workbench),
+      entrypoint_before_workbench: compareBefore(entrypoint, workbench),
+      constellation_copy_index: constellationIndex,
+      promotion_copy_index: promotionIndex,
+      constellation_copy_before_promotion_copy:
+        constellationIndex >= 0 && promotionIndex >= 0 && constellationIndex < promotionIndex,
+      public_surface_boundary_word_count: boundaryWordMatches.length,
+    };
+  })()`);
 }
 
 async function entrypointText() {
