@@ -418,6 +418,334 @@
   font-size: 0.78rem;
 }
 
+.perspective-public-surface {
+  min-height: 100vh;
+  padding: clamp(18px, 3vw, 34px);
+  background:
+    linear-gradient(180deg, #f7faf9 0%, #edf3f1 100%);
+  color: #162033;
+}
+
+.perspective-public-first-screen {
+  display: grid;
+  gap: 14px;
+  width: min(1320px, 100%);
+  min-height: calc(100vh - clamp(36px, 6vw, 68px));
+  margin: 0 auto;
+}
+
+.perspective-public-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: end;
+}
+
+.perspective-public-kicker,
+.perspective-public-section-heading p {
+  margin: 0;
+  color: #657184;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.perspective-public-header h1 {
+  margin: 4px 0 0;
+  color: #111827;
+  font-size: clamp(2rem, 4.35vw, 4.8rem);
+  line-height: 0.96;
+  letter-spacing: 0;
+}
+
+.perspective-public-header p:not(.perspective-public-kicker) {
+  max-width: 620px;
+  margin: 10px 0 0;
+  color: #405168;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.perspective-public-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(86px, 1fr));
+  gap: 8px;
+}
+
+.perspective-public-counts span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(31, 41, 55, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.74);
+  color: #556274;
+  font-size: 0.72rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.perspective-public-counts strong {
+  color: #162033;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.perspective-public-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.7fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.perspective-public-map,
+.perspective-public-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.perspective-public-section-heading h2 {
+  margin: 3px 0 0;
+  color: #172235;
+  font-size: 1.05rem;
+  line-height: 1.22;
+}
+
+.perspective-public-map-canvas {
+  position: relative;
+  min-height: clamp(330px, 46vh, 430px);
+  overflow: hidden;
+  border: 1px solid rgba(40, 93, 159, 0.16);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at center, rgba(19, 121, 91, 0.11) 0 1px, transparent 2px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(249, 252, 252, 0.96));
+  background-size: 34px 34px, auto;
+  box-shadow: 0 18px 34px rgba(25, 37, 50, 0.06);
+}
+
+.perspective-public-map-edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.perspective-public-map-edges line {
+  stroke: rgba(61, 75, 92, 0.32);
+  stroke-width: 0.38;
+  vector-effect: non-scaling-stroke;
+}
+
+.perspective-public-map-nodes {
+  position: absolute;
+  inset: 0;
+}
+
+.perspective-public-node {
+  position: absolute;
+  width: 150px;
+  min-height: 78px;
+  padding: 9px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(31, 41, 55, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 22px rgba(18, 27, 42, 0.08);
+}
+
+.perspective-public-node::before {
+  display: block;
+  width: 28px;
+  height: 3px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  background: #13795b;
+  content: "";
+}
+
+.perspective-public-node--source::before {
+  background: #285d9f;
+}
+
+.perspective-public-node--sample::before {
+  background: #7a5a15;
+}
+
+.perspective-public-node--review::before {
+  background: #5b6f7f;
+}
+
+.perspective-public-node--check::before {
+  background: #24633e;
+}
+
+.perspective-public-node--decision::before {
+  background: #8a4d5a;
+}
+
+.perspective-public-node span,
+.perspective-public-review-cards strong {
+  display: block;
+  color: #142033;
+  font-size: 0.86rem;
+  font-weight: 820;
+  line-height: 1.18;
+}
+
+.perspective-public-node p,
+.perspective-public-review-cards p {
+  margin: 5px 0 0;
+  color: #46566c;
+  font-size: 0.74rem;
+  line-height: 1.32;
+}
+
+.perspective-public-relationships {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.perspective-public-relationships p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(40, 93, 159, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+  color: #425169;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.perspective-public-relationships em {
+  color: #13795b;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.perspective-public-review-column {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.perspective-public-panel {
+  padding: 10px;
+  border: 1px solid rgba(31, 41, 55, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.perspective-public-tensions {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.perspective-public-tensions li {
+  padding: 5px 0 5px 9px;
+  border-left: 3px solid rgba(165, 102, 24, 0.52);
+  color: #334155;
+  font-size: 0.78rem;
+  line-height: 1.28;
+}
+
+.perspective-public-review-cards {
+  display: grid;
+  gap: 7px;
+}
+
+.perspective-public-review-cards article {
+  padding: 8px;
+  border: 1px solid rgba(40, 93, 159, 0.14);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.perspective-public-review-cards .perspective-public-secondary-card {
+  background: #f8fbfa;
+}
+
+.perspective-public-workbench-note {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 2px 4px;
+  color: #687487;
+  font-size: 0.74rem;
+  line-height: 1.24;
+}
+
+.perspective-public-workbench-note a {
+  width: fit-content;
+  color: #37465c;
+  font-weight: 800;
+  text-decoration-color: rgba(55, 70, 92, 0.32);
+}
+
+@media (max-width: 980px) {
+  .perspective-public-first-screen {
+    min-height: auto;
+  }
+
+  .perspective-public-header,
+  .perspective-public-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .perspective-public-counts {
+    width: 100%;
+  }
+
+  .perspective-public-map-canvas {
+    min-height: auto;
+    overflow: visible;
+    padding: 14px;
+  }
+
+  .perspective-public-map-edges {
+    display: none;
+  }
+
+  .perspective-public-map-nodes {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .perspective-public-node {
+    position: relative;
+    left: auto !important;
+    top: auto !important;
+    width: auto;
+    min-height: 0;
+    transform: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .perspective-public-surface {
+    padding: 14px;
+  }
+
+  .perspective-public-counts,
+  .perspective-public-map-nodes,
+  .perspective-public-relationships {
+    grid-template-columns: 1fr;
+  }
+}
+
 .constellation-inspector {
   display: grid;
   gap: 10px;
