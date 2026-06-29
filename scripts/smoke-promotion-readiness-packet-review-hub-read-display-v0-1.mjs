@@ -4,30 +4,68 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
 const docsPath =
-  "docs/PROMOTION_READINESS_PACKET_UI_BROWSER_STATIC_VALIDATION_V0_1.md";
+  "docs/PROMOTION_READINESS_PACKET_REVIEW_HUB_READ_DISPLAY_V0_1.md";
 const fixturePath =
-  "fixtures/promotion-readiness-packet-ui-browser-static-validation.sample.v0.1.json";
+  "fixtures/promotion-readiness-packet-review-hub-read-display.sample.v0.1.json";
+const componentPath =
+  "components/promotion-readiness-packet-review-hub.tsx";
+const pagePath = "app/perspective/promotion/page.tsx";
 const browserScriptPath =
-  "scripts/browser-validate-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs";
+  "scripts/browser-validate-promotion-readiness-packet-review-hub-read-display-v0-1.mjs";
 const smokePath =
-  "scripts/smoke-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs";
+  "scripts/smoke-promotion-readiness-packet-review-hub-read-display-v0-1.mjs";
 const reportPath =
-  "reports/browser/2026-06-29-promotion-readiness-packet-ui-browser-static-validation.md";
+  "reports/browser/2026-06-29-promotion-readiness-packet-review-hub-read-display.md";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 
-const sliceName = "promotion_readiness_packet_ui_browser_static_validation_v0_1";
-const routeTested = "/perspective/promotion/readiness-packet";
+const sliceName = "promotion_readiness_packet_review_hub_read_display_v0_1";
+const routeAdded = "/perspective/promotion";
+const linkedRoute = "/perspective/promotion/readiness-packet";
 const packageBrowserScriptName =
-  "browser:promotion-readiness-packet-ui-browser-static-validation-v0-1";
+  "browser:promotion-readiness-packet-review-hub-read-display-v0-1";
 const packageBrowserScriptValue =
-  "node scripts/browser-validate-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs";
+  "node scripts/browser-validate-promotion-readiness-packet-review-hub-read-display-v0-1.mjs";
 const packageSmokeScriptName =
-  "smoke:promotion-readiness-packet-ui-browser-static-validation-v0-1";
+  "smoke:promotion-readiness-packet-review-hub-read-display-v0-1";
 const packageSmokeScriptValue =
-  "node scripts/smoke-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs";
+  "node scripts/smoke-promotion-readiness-packet-review-hub-read-display-v0-1.mjs";
 
-const requiredBasisPrs = [856, 857, 858, 859, 860];
+const requiredBasisPrs = [856, 857, 858, 859, 860, 861];
+
+const requiredVisibleCopy = [
+  "Promotion readiness review hub",
+  "Read/display-only",
+  "Readiness is not promotion",
+  "Validation pass is not truth/proof/approval/product readiness",
+  "Browser validation is not human review",
+  "human_signoff_completed",
+  "false",
+  "human_review_still_required",
+  "true",
+  "promotion_execution",
+  "promotion_decision_write",
+  "product_write",
+  "proof_or_evidence_creation",
+  "durable_state_apply",
+  "formation_receipt_write",
+  "accepted_evidence_ref_write",
+  "product_id_allocation",
+  "Basis refs",
+  "PR #856",
+  "PR #857",
+  "PR #858",
+  "PR #859",
+  "PR #860",
+  "PR #861",
+  "Existing readiness packet route",
+  linkedRoute,
+  "Open read/display readiness packet",
+  "Available read/display surfaces",
+  "Blocked authority actions",
+  "Next non-authority review steps",
+  "What this hub cannot do",
+];
 
 const deniedCapabilityPhrases = [
   "product authority",
@@ -82,6 +120,8 @@ const forbiddenCapabilityKeys = [
 const reportRequiredSections = [
   "Page Load Result",
   "Visible Copy Assertions Summary",
+  "Navigation Link Assertion Summary",
+  "Destination Navigation Result",
   "No-Action-Controls Result",
   "Network/Request Boundary Summary",
   "Forbidden Method Summary",
@@ -122,18 +162,14 @@ const unsafeArtifactPatterns = [
 const expectedChangedFiles = new Set([
   docsPath,
   fixturePath,
+  componentPath,
+  pagePath,
   browserScriptPath,
   smokePath,
   reportPath,
   packagePath,
   indexPath,
-  "app/perspective/promotion/page.tsx",
-  "components/promotion-readiness-packet-review-hub.tsx",
-  "docs/PROMOTION_READINESS_PACKET_REVIEW_HUB_READ_DISPLAY_V0_1.md",
-  "fixtures/promotion-readiness-packet-review-hub-read-display.sample.v0.1.json",
-  "reports/browser/2026-06-29-promotion-readiness-packet-review-hub-read-display.md",
-  "scripts/browser-validate-promotion-readiness-packet-review-hub-read-display-v0-1.mjs",
-  "scripts/smoke-promotion-readiness-packet-review-hub-read-display-v0-1.mjs",
+  "scripts/smoke-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs",
   "scripts/smoke-promotion-readiness-packet-ui-read-display-binding-v0-1.mjs",
   "scripts/smoke-promotion-readiness-packet-from-review-memory-v0-1.mjs",
   "scripts/smoke-operator-path-public-safe-artifact-index-v0-1.mjs",
@@ -153,6 +189,8 @@ const expectedChangedFiles = new Set([
 for (const filePath of [
   docsPath,
   fixturePath,
+  componentPath,
+  pagePath,
   browserScriptPath,
   smokePath,
   reportPath,
@@ -166,6 +204,9 @@ const rawDocs = readText(docsPath);
 const docs = normalize(rawDocs);
 const fixtureText = readText(fixturePath);
 const fixture = JSON.parse(fixtureText);
+const component = readText(componentPath);
+const page = readText(pagePath);
+const componentAndPage = `${component}\n${page}`;
 const browserScript = readText(browserScriptPath);
 const rawReport = readText(reportPath);
 const report = normalize(rawReport);
@@ -173,6 +214,7 @@ const packageJson = JSON.parse(readText(packagePath));
 const index = readText(indexPath);
 
 assertDocsFixturePackageAndIndex();
+assertComponentAndPage();
 assertReport();
 assertBrowserValidator();
 assertAuthorityBoundary();
@@ -183,10 +225,11 @@ assertChangedFileScope();
 console.log(
   JSON.stringify(
     {
-      smoke: "promotion-readiness-packet-ui-browser-static-validation-v0-1",
+      smoke: "promotion-readiness-packet-review-hub-read-display-v0-1",
       final_status: "pass",
       slice_name: sliceName,
-      route_tested: routeTested,
+      route_added: routeAdded,
+      linked_route: linkedRoute,
       browser_validator: browserScriptPath,
       report_path: reportPath,
       human_signoff_completed: false,
@@ -199,10 +242,13 @@ console.log(
 
 function assertDocsFixturePackageAndIndex() {
   assert.equal(fixture.slice_name, sliceName);
-  assert.equal(fixture.version, "promotion_readiness_packet_ui_browser_static_validation.v0.1");
-  assert.equal(fixture.packet_type, "promotion_readiness_packet_ui_browser_static_validation");
-  assert.equal(fixture.route_tested, routeTested);
+  assert.equal(fixture.version, "promotion_readiness_packet_review_hub_read_display.v0.1");
+  assert.equal(fixture.packet_type, "promotion_readiness_packet_review_hub_read_display");
+  assert.equal(fixture.route_added, routeAdded);
+  assert.equal(fixture.linked_route, linkedRoute);
   assert.deepEqual(fixture.basis_prs, requiredBasisPrs);
+  assert.equal(fixture.read_display_only, true);
+  assert.equal(fixture.no_action_controls, true);
   assert.equal(packageJson.scripts?.[packageBrowserScriptName], packageBrowserScriptValue);
   assert.equal(packageJson.scripts?.[packageSmokeScriptName], packageSmokeScriptValue);
 
@@ -212,6 +258,8 @@ function assertDocsFixturePackageAndIndex() {
   for (const pointer of [
     docsPath,
     fixturePath,
+    componentPath,
+    pagePath,
     browserScriptPath,
     smokePath,
     reportPath,
@@ -222,21 +270,28 @@ function assertDocsFixturePackageAndIndex() {
     assertIncludes(index, pointer, `latest index pointer ${pointer}`);
   }
   for (const phrase of [
-    "this validation does not perform human review",
-    "this validation does not claim human signoff",
-    "this validation does not execute promotion",
-    "this validation does not write promotion decisions",
-    "this validation does not create proof/evidence",
-    "this validation does not product-write",
+    "this hub does not perform human review",
+    "this hub does not claim human signoff",
+    "this hub does not execute promotion",
+    "this hub does not write promotion decisions",
+    "this hub does not create proof/evidence",
+    "this hub does not product-write",
     "readiness is not promotion",
     "validation pass is not truth/proof/approval/product readiness",
     "browser validation is not human review",
-    routeTested,
-    "browser assertions",
-    "network and request boundary",
+    "the readiness packet link is navigation only, not approval or promotion",
+    routeAdded,
+    linkedRoute,
+    "available read/display surfaces",
+    "basis refs",
+    "status flags",
+    "blocked authority actions",
+    "next non-authority review steps",
+    "what this hub cannot do",
+    "navigation affordance policy",
     "no-action-controls policy",
+    "network and request boundary",
     "screenshot and artifact policy",
-    "public-safe",
     "human_signoff_completed: false",
     "human_review_still_required: true",
   ]) {
@@ -244,8 +299,38 @@ function assertDocsFixturePackageAndIndex() {
   }
 }
 
+function assertComponentAndPage() {
+  assertIncludes(page, componentPath.replace("components/", "@/components/").replace(".tsx", ""), "page component import");
+  assertIncludes(page, "Promotion readiness review hub", "page heading");
+  for (const phrase of requiredVisibleCopy) {
+    assertIncludes(
+      normalize(componentAndPage),
+      normalize(phrase),
+      `component/page visible copy ${phrase}`,
+    );
+  }
+  assertIncludes(component, `const readinessPacketRoute = "${linkedRoute}"`, "linked route const");
+  assertIncludes(component, `href={readinessPacketRoute}`, "normal navigation link href");
+  assertIncludes(component, "Open read/display readiness packet", "navigation link label");
+  for (const [label, text] of [
+    ["component", component],
+    ["page", page],
+  ]) {
+    assert.doesNotMatch(text, /<button\b/i, `${label} must not include button elements`);
+    assert.doesNotMatch(text, /<form\b/i, `${label} must not include form elements`);
+    assert.doesNotMatch(text, /<input\b/i, `${label} must not include input elements`);
+    assert.doesNotMatch(text, /\bonClick\s*=/i, `${label} must not include onClick handlers`);
+    assert.doesNotMatch(text, /\bfetch\s*\(/i, `${label} must not include fetch calls`);
+    assert.doesNotMatch(text, /["'`]\/api(?:\/|["'`])/i, `${label} must not include /api calls`);
+    assert.doesNotMatch(text, /\b(?:POST|PUT|PATCH|DELETE)\b/, `${label} must not include write methods`);
+    assert.doesNotMatch(text, /href\s*=\s*["']https?:\/\//i, `${label} must not include external hrefs`);
+    assert.doesNotMatch(text, /role\s*=\s*["']button["']/i, `${label} must not include role=button`);
+  }
+}
+
 function assertReport() {
-  assertIncludes(report, routeTested, "report route");
+  assertIncludes(report, routeAdded, "report route");
+  assertIncludes(report, linkedRoute, "report linked route");
   assertIncludes(report, "human_signoff_completed: false", "report human signoff false");
   assertIncludes(report, "human_review_still_required: true", "report human review true");
   assertIncludes(report, "readiness is not promotion", "report readiness boundary");
@@ -261,21 +346,27 @@ function assertReport() {
 
 function assertBrowserValidator() {
   for (const phrase of [
-    routeTested,
+    routeAdded,
+    linkedRoute,
     "Page.enable",
     "Runtime.enable",
     "Network.enable",
     "Log.enable",
     "request metadata only",
     "requiredVisibleCopy",
-    "No action controls",
+    "requiredSections",
+    "destinationRequiredCopy",
+    "readNavigationLinks",
+    "readActionControls",
+    "allowedNavigationLabel",
+    "Open read/display readiness packet",
     "forbiddenMethods",
     "POST",
     "PUT",
     "PATCH",
     "DELETE",
     "pathName.startsWith(\"/api/\")",
-    "api_route_call_from_static_ui",
+    "api_route_call_from_static_hub_ui",
     "external_non_loopback_request",
     "promotion_decision_or_execution_route",
     "product_write_route",
@@ -318,21 +409,20 @@ function assertAuthorityBoundary() {
     assert.equal(fixture.authority_boundary[capability], false, `authority ${capability}`);
   }
   for (const field of [
+    "human_review_performed",
+    "human_signoff_claimed",
     "validation_pass_is_truth",
     "validation_pass_is_proof",
     "validation_pass_is_approval",
     "validation_pass_is_product_readiness",
+    "browser_validation_is_human_review",
+    "new_api_routes",
   ]) {
     assert.equal(fixture.authority_boundary[field], false, field);
   }
   assert.equal(fixture.human_signoff_completed, false);
   assert.equal(fixture.human_review_still_required, true);
-  assert.equal(fixture.browser_validation.browser_validation_is_human_review, false);
-  assert.equal(fixture.browser_validation.readiness_is_not_promotion, true);
-  assert.equal(
-    fixture.browser_validation.validation_pass_is_not_truth_proof_approval_product_readiness,
-    true,
-  );
+  assert.equal(fixture.authority_boundary.readiness_is_promotion, false);
 }
 
 function assertPublicSafe() {
@@ -341,25 +431,21 @@ function assertPublicSafe() {
     ["fixture", fixtureText],
     ["report", rawReport],
     ["browser validator", browserScript],
+    ["component", component],
+    ["page", page],
   ]) {
     for (const pattern of unsafeArtifactPatterns) {
       assert.doesNotMatch(text, pattern, `${label} must not contain ${pattern}`);
     }
   }
-  assert.equal(fixture.screenshot_policy.screenshots_committed, false);
-  assert.equal(fixture.screenshot_policy.screenshots_embedded, false);
-  assert.equal(fixture.browser_validation.raw_browser_dump_included, false);
-  assert.equal(fixture.browser_validation.raw_request_bodies_included, false);
-  assert.equal(fixture.browser_validation.raw_response_bodies_included, false);
-  assert.equal(fixture.browser_validation.raw_route_output_included, false);
 }
 
 function assertFinalRecommendation() {
   const recommendation = JSON.stringify(fixture.final_recommendation);
   for (const allowed of [
-    "narrow usability follow-up",
+    "browser/static validation complete",
     "next read/display usability slice",
-    "pause for human spot review",
+    "human spot review",
   ]) {
     assertIncludes(recommendation, allowed, `fixture recommendation ${allowed}`);
     assertIncludes(docs, normalize(allowed), `doc recommendation ${allowed}`);
@@ -370,12 +456,12 @@ function assertFinalRecommendation() {
   }
   assert.doesNotMatch(
     rawDocs.match(/## Final Recommendation[\s\S]*$/)?.[0] ?? "",
-    /(?:^|\n)\s*(?:recommend|proceed to)\s+(?:promotion execution|product-write|release)/i,
+    /(?:^|\n)\s*(?:recommend|proceed to|continue to)\s+(?:promotion execution|product-write|release)/i,
     "doc final recommendation must not recommend authority action",
   );
   assert.doesNotMatch(
     rawReport.match(/## Final Recommendation[\s\S]*?## Final Status/s)?.[0] ?? "",
-    /(?:^|\n)\s*(?:recommend|proceed to)\s+(?:promotion execution|product-write|release)/i,
+    /(?:^|\n)\s*(?:recommend|proceed to|continue to)\s+(?:promotion execution|product-write|release)/i,
     "report final recommendation must not recommend authority action",
   );
 }
