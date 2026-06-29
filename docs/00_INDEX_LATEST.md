@@ -29,6 +29,33 @@
 이 포인터들은 Active set을 늘리거나 새 권위를 만들지 않는다. 최근
 Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이다.
 
+### Post-#868 development posture pointer (repo-local, non-SSOT)
+
+PR #868 is merged. Current route planning starts from:
+
+```text
+/ = public Augnes surface
+/perspective = Perspective detail
+/workbench = cockpit/workbench
+```
+
+- `docs/POST_868_DEVELOPMENT_POSTURE.md`: short non-authority posture /
+  guardrail note. It is not a roadmap, not SSOT, and not PR sequencing
+  authority. New slices must come from explicit operator task prompts, not from
+  mining old or new roadmap docs. Current posture is Core first, Handoff first,
+  Conversation first, Web last.
+- `docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md`: superseded
+  historical roadmap content preserved with a prominent live compatibility
+  banner. v0.2.1 FULL is superseded for current PR sequencing and must not be
+  used for new slice selection.
+- `docs/archive/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL_SUPERSEDED_2026_06_30.md`:
+  archived historical v0.2.1 FULL content for older slice provenance only.
+- `scripts/smoke-post-868-roadmap-supersession-cleanup-v0-1.mjs`
+  (`npm run smoke:post-868-roadmap-supersession-cleanup-v0-1`): focused static
+  smoke for the superseded live roadmap banner, archived roadmap,
+  post-#868 posture note, latest-index preference, and current-planning
+  authority boundary.
+
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
 - `PERSPECTIVE_SNAPSHOT_V0_1.md`: `PerspectiveSnapshot` v0.1 read model,
