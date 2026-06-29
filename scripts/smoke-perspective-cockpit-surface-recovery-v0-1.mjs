@@ -28,6 +28,7 @@ const packageJson = JSON.parse(read(paths.packageJson));
 
 assertHomeHierarchy();
 assertPerspectiveCockpitIntegration();
+assertHumanFirstPerspectiveOverview();
 assertEntrypointCompactBoundary();
 assertPromotionChainStillReadDisplayOnly();
 assertChangedFileScope();
@@ -45,8 +46,8 @@ function assertHomeHierarchy() {
 }
 
 function assertPerspectiveCockpitIntegration() {
-  const navStart = cockpit.indexOf('className="perspective-section-nav"');
-  const navEnd = cockpit.indexOf("{/* Research Candidate Review Cockpit Preview Start */");
+  const navStart = cockpit.indexOf('aria-label="Perspective static preview anchors"');
+  const navEnd = cockpit.indexOf("<PromotionReadinessReviewHubCockpitEntrypoint />");
   assert.ok(navStart >= 0, "Perspective nav block must exist");
   assert.ok(navEnd > navStart, "Perspective nav block end must follow nav start");
   const perspectiveNav = cockpit.slice(navStart, navEnd);
@@ -62,17 +63,21 @@ function assertPerspectiveCockpitIntegration() {
       'className="cockpit-tab-nav"',
       "<PerspectiveTab",
       "<PageHeader",
-      "<PromotionReadinessReviewHubCockpitEntrypoint />",
+      'id="perspective-human-overview"',
       'className="perspective-section-nav"',
+      "<PromotionReadinessReviewHubCockpitEntrypoint />",
+      'id="perspective-agent-diagnostic-workbench"',
     ],
     "cockpit hierarchy",
   );
   assertOrdered(
     perspectiveNav,
     [
+      "Perspective overview",
       "Project constellation",
       "Constellation preview",
       "Promotion readiness review",
+      "Agent / diagnostic workbench",
       "Research candidate review",
     ],
     "Perspective nav priority",
@@ -87,6 +92,69 @@ function assertPerspectiveCockpitIntegration() {
     'href="#perspective-constellation-preview"',
     "Constellation preview anchor",
   );
+}
+
+function assertHumanFirstPerspectiveOverview() {
+  const pageHeaderIndex = cockpit.indexOf("<PageHeader");
+  const overviewIndex = cockpit.indexOf('id="perspective-human-overview"');
+  const entrypointIndex = cockpit.indexOf("<PromotionReadinessReviewHubCockpitEntrypoint />");
+  const workbenchIndex = cockpit.indexOf('id="perspective-agent-diagnostic-workbench"');
+  const researchIndex = cockpit.indexOf("{/* Research Candidate Review Cockpit Preview Start */");
+  assert.ok(pageHeaderIndex >= 0, "Perspective PageHeader must exist");
+  assert.ok(overviewIndex > pageHeaderIndex, "Human overview must follow PageHeader");
+  assert.ok(entrypointIndex > overviewIndex, "Promotion readiness must follow human overview");
+  assert.ok(workbenchIndex > entrypointIndex, "Workbench intro must follow promotion lane");
+  assert.ok(researchIndex > workbenchIndex, "Dense research workbench must follow workbench intro");
+
+  const beforeOverview = cockpit.slice(pageHeaderIndex, overviewIndex);
+  for (const forbidden of [
+    "Research Candidate Review",
+    "Advanced diagnostics",
+    "Detailed machine-readable work surface",
+    "Promotion readiness review",
+  ]) {
+    assertDoesNotInclude(
+      beforeOverview,
+      forbidden,
+      `dense or secondary material before human overview ${forbidden}`,
+    );
+  }
+
+  const overviewSegment = cockpit.slice(overviewIndex, entrypointIndex);
+  for (const phrase of [
+    "Perspective overview",
+    "Perspective / Constellation overview",
+    "Augnes is showing the current project shape",
+    "Start with the constellation: it shows the current project shape",
+    "Detailed agent and diagnostic panels are supporting workbench",
+    "material, not the first human reading path",
+    "not the first human reading path",
+    "Promotion readiness is a secondary read/display review-prep lane",
+    "not approval. Human review still required.",
+    "Human review still required",
+  ]) {
+    assertIncludes(overviewSegment, phrase, `human overview copy ${phrase}`);
+  }
+  assertOrdered(
+    overviewSegment,
+    [
+      "Project constellation",
+      "Constellation preview",
+      "Promotion readiness review",
+      "Agent / diagnostic workbench",
+    ],
+    "human overview primary path order",
+  );
+
+  const workbenchIntro = cockpit.slice(workbenchIndex, researchIndex);
+  for (const phrase of [
+    "Agent / diagnostic workbench",
+    "Detailed machine-readable work surface",
+    "supporting agent, diagnostic, validation",
+    "not the first human reading path",
+  ]) {
+    assertIncludes(workbenchIntro, phrase, `workbench intro copy ${phrase}`);
+  }
 }
 
 function assertEntrypointCompactBoundary() {

@@ -6582,12 +6582,83 @@ function PerspectiveTab({
         description="Local graph preview for reviewing relationships, tensions, and next steps."
       />
 
-      <PromotionReadinessReviewHubCockpitEntrypoint />
+      <section
+        className="cockpit-surface-card perspective-section perspective-human-overview"
+        id="perspective-human-overview"
+        aria-label="Perspective overview"
+        data-augnes-region="human-first-orientation"
+      >
+        <div className="perspective-constellation-shell-header">
+          <div>
+            <p className="panel-eyebrow">Perspective overview</p>
+            <h2>Perspective / Constellation overview</h2>
+            <p>
+              Augnes is showing the current project shape: relationships,
+              tensions, and the next review surfaces.
+            </p>
+          </div>
+          <div className="perspective-constellation-shell-status">
+            <span className="status-pill">Human review still required</span>
+            <span className="status-pill">read/display-only</span>
+            <span className="status-pill">no action controls</span>
+          </div>
+        </div>
+
+        <div className="perspective-frame-summary">
+          <article>
+            <h3>Start here</h3>
+            <p>
+              Start with the constellation: it shows the current project shape,
+              tensions, and next review surfaces.
+            </p>
+          </article>
+          <article>
+            <h3>Constellation view</h3>
+            <p>
+              Use the constellation view to read how project nodes relate before
+              opening detailed workbench panels.
+            </p>
+          </article>
+          <article>
+            <h3>Workbench detail</h3>
+            <p>
+              Detailed agent and diagnostic panels are supporting workbench
+              material, not the first human reading path.
+            </p>
+          </article>
+          <article>
+            <h3>Blocked boundary</h3>
+            <p>
+              Promotion readiness is a secondary read/display review-prep lane,
+              not approval. Human review still required.
+            </p>
+          </article>
+        </div>
+
+        <nav
+          className="perspective-section-nav"
+          aria-label="Perspective overview primary reading path"
+        >
+          <a href="#perspective-constellation-runtime-ui-completion">
+            Project constellation
+          </a>
+          <a href="#perspective-constellation-preview">
+            Constellation preview
+          </a>
+          <a href="#promotion-readiness-review-hub-cockpit-entrypoint">
+            Promotion readiness review
+          </a>
+          <a href="#perspective-agent-diagnostic-workbench">
+            Agent / diagnostic workbench
+          </a>
+        </nav>
+      </section>
 
       <nav
         className="perspective-section-nav"
         aria-label="Perspective static preview anchors"
       >
+        <a href="#perspective-human-overview">Perspective overview</a>
         <a href="#perspective-constellation-runtime-ui-completion">
           Project constellation
         </a>
@@ -6596,6 +6667,9 @@ function PerspectiveTab({
         </a>
         <a href="#promotion-readiness-review-hub-cockpit-entrypoint">
           Promotion readiness review
+        </a>
+        <a href="#perspective-agent-diagnostic-workbench">
+          Agent / diagnostic workbench
         </a>
         <a href="#research-candidate-review-preview">
           Research candidate review
@@ -6619,6 +6693,31 @@ function PerspectiveTab({
           Substrate folded audit
         </a>
       </nav>
+
+      <PromotionReadinessReviewHubCockpitEntrypoint />
+
+      <section
+        className="cockpit-surface-card perspective-section perspective-agent-workbench-intro"
+        id="perspective-agent-diagnostic-workbench"
+        aria-label="Agent diagnostic workbench"
+        data-augnes-region="agent-diagnostic-workbench"
+      >
+        <div className="perspective-constellation-shell-header">
+          <div>
+            <p className="panel-eyebrow">Agent / diagnostic workbench</p>
+            <h2>Detailed machine-readable work surface</h2>
+            <p>
+              The sections below are supporting agent, diagnostic, validation,
+              and fixture panels. They are useful for inspection, but they are
+              not the first human reading path.
+            </p>
+          </div>
+          <div className="perspective-constellation-shell-status">
+            <span className="status-pill">supporting detail</span>
+            <span className="status-pill">read-only display</span>
+          </div>
+        </div>
+      </section>
 
       {/* Research Candidate Review Cockpit Preview Start */}
       <section

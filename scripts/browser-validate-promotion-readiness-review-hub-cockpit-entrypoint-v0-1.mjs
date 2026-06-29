@@ -12,6 +12,8 @@ const homeRouteTested = "/";
 const linkedRouteTested = "/perspective/promotion";
 const downstreamRouteTested = "/perspective/promotion/readiness-packet";
 const entrypointTestId = "promotion-readiness-review-hub-cockpit-entrypoint";
+const perspectiveOverviewSelector = "#perspective-human-overview";
+const workbenchIntroSelector = "#perspective-agent-diagnostic-workbench";
 const allowedNavigationLabel = "Open read/display promotion review hub";
 const reportPath =
   "reports/browser/2026-06-29-promotion-readiness-review-hub-cockpit-entrypoint.md";
@@ -63,6 +65,19 @@ const requiredSections = [
   "Promotion readiness review",
   "No action controls",
   "Navigation-only route",
+];
+
+const requiredHumanOverviewCopy = [
+  "Perspective overview",
+  "Perspective / Constellation overview",
+  "Augnes is showing the current project shape",
+  "Start with the constellation: it shows the current project shape, tensions, and next review surfaces.",
+  "Detailed agent and diagnostic panels are supporting workbench material, not the first human reading path.",
+  "Promotion readiness is a secondary read/display review-prep lane, not approval.",
+  "Human review still required",
+  "Project constellation",
+  "Constellation preview",
+  "Agent / diagnostic workbench",
 ];
 
 const destinationRequiredCopy = [
@@ -339,9 +354,47 @@ async function validateCockpitEntrypoint() {
   await runPhase("home_page_load", async () => {
     await setViewport({ width: 1440, height: 1200, mobile: false });
     await navigate(`${appOrigin}${homeRouteTested}`);
+    await waitForSelector(perspectiveOverviewSelector, "Perspective human overview");
     await waitForEntrypoint();
     state.page_loaded = true;
-    recordAssertion("page_load", true, "Home route loaded and entrypoint container was visible.");
+    recordAssertion(
+      "page_load",
+      true,
+      "Home route loaded and Perspective overview plus entrypoint containers were visible.",
+    );
+  });
+
+  await runPhase("human_overview_order", async () => {
+    const orderSummary = await readHumanOverviewOrder();
+    const overviewText = normalizeForSearch(orderSummary.overview_text ?? "");
+    const missingOverviewCopy = requiredHumanOverviewCopy.filter(
+      (phrase) => !overviewText.includes(normalizeForSearch(phrase)),
+    );
+    recordAssertion(
+      "human_overview_required_copy",
+      missingOverviewCopy.length === 0,
+      "Human-facing Perspective overview copy was visible before the promotion readiness entrypoint.",
+      { required_count: requiredHumanOverviewCopy.length, missing: missingOverviewCopy },
+    );
+    recordAssertion(
+      "human_overview_before_promotion_entrypoint",
+      orderSummary.overview_before_entrypoint === true,
+      "Perspective overview appears before the promotion readiness entrypoint in DOM order.",
+      orderSummary,
+    );
+    recordAssertion(
+      "constellation_copy_before_promotion_copy",
+      orderSummary.constellation_copy_before_promotion_copy === true,
+      "Constellation orientation copy appears before promotion readiness copy in reading order.",
+      orderSummary,
+    );
+    recordAssertion(
+      "workbench_intro_below_human_orientation",
+      orderSummary.overview_before_workbench === true &&
+        orderSummary.entrypoint_before_workbench === true,
+      "Agent/diagnostic workbench material is structurally below the human orientation layer and secondary promotion lane.",
+      orderSummary,
+    );
   });
 
   await runPhase("entrypoint_visible_copy", async () => {
@@ -528,6 +581,41 @@ async function waitForEntrypoint() {
     defaultTimeoutMs,
     "promotion readiness cockpit entrypoint container",
   );
+}
+
+async function waitForSelector(selector, description) {
+  await waitForCondition(
+    `Boolean(document.querySelector(${JSON.stringify(selector)}))`,
+    defaultTimeoutMs,
+    description,
+  );
+}
+
+async function readHumanOverviewOrder() {
+  return evaluateJson(`(() => {
+    const overview = document.querySelector(${JSON.stringify(perspectiveOverviewSelector)});
+    const entrypoint = document.querySelector('[data-testid=${JSON.stringify(entrypointTestId)}]');
+    const workbench = document.querySelector(${JSON.stringify(workbenchIntroSelector)});
+    const bodyText = (document.body?.innerText || "").replace(/\\s+/g, " ").trim();
+    const compareBefore = (first, second) =>
+      Boolean(first && second && (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING));
+    const textIndex = (phrase) => bodyText.toLowerCase().indexOf(phrase.toLowerCase());
+    const constellationIndex = textIndex("Start with the constellation");
+    const promotionIndex = textIndex("Promotion readiness review");
+    return {
+      overview_exists: Boolean(overview),
+      entrypoint_exists: Boolean(entrypoint),
+      workbench_intro_exists: Boolean(workbench),
+      overview_text: (overview?.innerText || "").replace(/\\s+/g, " ").trim(),
+      overview_before_entrypoint: compareBefore(overview, entrypoint),
+      overview_before_workbench: compareBefore(overview, workbench),
+      entrypoint_before_workbench: compareBefore(entrypoint, workbench),
+      constellation_copy_index: constellationIndex,
+      promotion_copy_index: promotionIndex,
+      constellation_copy_before_promotion_copy:
+        constellationIndex >= 0 && promotionIndex >= 0 && constellationIndex < promotionIndex,
+    };
+  })()`);
 }
 
 async function entrypointText() {
