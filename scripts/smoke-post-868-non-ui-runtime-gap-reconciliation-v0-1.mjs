@@ -121,9 +121,27 @@ const expectedChangedFiles = new Set([
   docsPath,
   fixturePath,
   smokePath,
+  "scripts/smoke-authority-boundary-regression-v0-1.mjs",
   packagePath,
   indexPath,
 ]);
+
+const forbiddenOpenedCapabilityPhrases = [
+  ["product-write", "is open"],
+  ["product write", "is open"],
+  ["GitHub actuation", "is open"],
+  ["Git actuation", "is open"],
+  ["live provider validation", "is open"],
+  ["release execution", "is open"],
+  ["release deploy publish", "is open"],
+  ["provider output", "is truth"],
+  ["retrieval score", "is truth"],
+  ["CI pass", "is proof"],
+  ["smoke pass", "is proof"],
+  ["PR body", "is authority"],
+  ["Git ref", "is authority"],
+  ["GitHub PR", "is Core decision"],
+].map(([subject, predicate]) => `${subject} ${predicate}`);
 
 for (const filePath of [docsPath, fixturePath, smokePath, packagePath, indexPath]) {
   assert.ok(existsSync(filePath), `${filePath} must exist`);
@@ -310,22 +328,7 @@ function assertNoWebFirstDrift() {
 
 function assertNoOpenedForbiddenCapabilities() {
   const normalized = normalize(joinedText);
-  for (const phrase of [
-    "product-write is open",
-    "product write is open",
-    "GitHub actuation is open",
-    "Git actuation is open",
-    "live provider validation is open",
-    "release execution is open",
-    "release deploy publish is open",
-    "provider output is truth",
-    "retrieval score is truth",
-    "CI pass is proof",
-    "smoke pass is proof",
-    "PR body is authority",
-    "Git ref is authority",
-    "GitHub PR is Core decision",
-  ]) {
+  for (const phrase of forbiddenOpenedCapabilityPhrases) {
     assert.ok(
       !normalized.toLowerCase().includes(phrase.toLowerCase()),
       `must not open forbidden capability wording: ${phrase}`

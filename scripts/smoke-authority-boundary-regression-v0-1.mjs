@@ -15,6 +15,9 @@ const workflowPath = ".github/workflows/authority-boundary-smoke.yml";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const roadmapPath = "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md";
+const archivedSupersededRoadmapPaths = [
+  "docs/archive/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL_SUPERSEDED_2026_06_30.md",
+];
 const privacyDocsPath = "docs/PRIVACY_REDACTION_RUNTIME_GUARD_V0_1.md";
 const exportPolicyDocsPath = "docs/LOCAL_DATA_EXPORT_IMPORT_POLICY_V0_1.md";
 
@@ -296,6 +299,8 @@ const workflow = read(workflowPath);
 const packageJson = JSON.parse(read(packagePath));
 const index = read(indexPath);
 const roadmap = read(roadmapPath);
+
+assertArchivedSupersededRoadmapExclusions();
 
 assert.equal(fixture.fixture_version, fixtureVersion);
 assert.equal(fixture.smoke_version, smokeVersion);
@@ -596,6 +601,28 @@ function assertStaticRepoScan() {
   );
 }
 
+function assertArchivedSupersededRoadmapExclusions() {
+  assert.deepEqual(
+    archivedSupersededRoadmapPaths,
+    [
+      "docs/archive/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL_SUPERSEDED_2026_06_30.md",
+    ],
+    "archived superseded roadmap exclusion must stay exact",
+  );
+  for (const filePath of archivedSupersededRoadmapPaths) {
+    const normalized = filePath.replaceAll(path.sep, "/");
+    assert.ok(
+      normalized.startsWith("docs/archive/"),
+      `archived superseded roadmap exclusion must stay under docs/archive/: ${filePath}`,
+    );
+    assert.ok(
+      path.posix.basename(normalized).includes("SUPERSEDED"),
+      `archived superseded roadmap exclusion filename must contain SUPERSEDED: ${filePath}`,
+    );
+    assert.ok(existsSync(filePath), `archived superseded roadmap exclusion must exist: ${filePath}`);
+  }
+}
+
 function collectScannableRepoFiles() {
   const roots = ["docs", "types", "fixtures", "scripts", "components", "app", "lib"];
   const files = [];
@@ -616,6 +643,7 @@ function shouldScanFile(filePath) {
   const normalized = filePath.replaceAll(path.sep, "/");
   if (
     normalized === roadmapPath ||
+    archivedSupersededRoadmapPaths.includes(normalized) ||
     normalized === fixturePath ||
     normalized.endsWith("package-lock.json")
   ) {
