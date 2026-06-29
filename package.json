@@ -671,6 +671,7 @@
     "smoke:operator-path-manual-qa-runbook-v0-1": "node scripts/smoke-operator-path-manual-qa-runbook-v0-1.mjs",
     "assisted:operator-path-manual-qa-v0-1": "node scripts/assisted-execute-operator-path-manual-qa-v0-1.mjs",
     "smoke:operator-path-assisted-manual-qa-execution-report-v0-1": "node scripts/smoke-operator-path-assisted-manual-qa-execution-report-v0-1.mjs",
+    "smoke:operator-path-backend-safety-validation-bundle-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-operator-path-backend-safety-validation-bundle-v0-1.mjs",
     "smoke:perspective-promotion-runtime-contract-v0-1": "node scripts/smoke-perspective-promotion-runtime-contract-v0-1.mjs",
     "smoke:perspective-promotion-decision-store-v0-1": "node scripts/smoke-perspective-promotion-decision-store-v0-1.mjs",
     "smoke:formation-receipt-durable-write-v0-1": "node scripts/smoke-formation-receipt-durable-write-v0-1.mjs",

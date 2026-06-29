@@ -5844,6 +5844,42 @@ machine-checkable QA only; smoke/CI/browser pass is not truth. The next
 recommendation after a passing assisted execution is
 `human_spot_review_of_assisted_manual_qa_v0_1`.
 
+### Operator path backend safety validation bundle v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add product authority.
+`operator_path_backend_safety_validation_bundle_v0_1` validates the
+already-merged final RAG answer operator path for server-side no-external-IO,
+backend read-only store/schema/path health, and selected-route audit coverage.
+
+- `docs/OPERATOR_PATH_BACKEND_SAFETY_VALIDATION_BUNDLE_V0_1.md`:
+  backend safety validation bundle covering #852 browser-validation limitation,
+  #855 assisted manual QA relationship, server-side no-external-IO validation,
+  read-only store healthcheck, selected-route audit coverage, audit boundaries,
+  authority boundaries, privacy/redaction boundaries, known limitations, and
+  next recommendation.
+- `fixtures/operator-path-backend-safety-validation-bundle.sample.v0.1.json`:
+  public-safe fixture for checked surfaces, expected guarded primitives,
+  forbidden/allowed IO, read-only store expectations, selected-route audit
+  coverage expectations, no-authority flags, audit boundaries, known
+  limitations, and next recommendation.
+- `scripts/smoke-operator-path-backend-safety-validation-bundle-v0-1.mjs`:
+  smoke that exercises the selected backend route-handler path under a bounded
+  Node-process external-IO guard, checks read-only DB path/schema behavior, and
+  validates selected-route audit coverage with public-safe JSON output.
+- `npm run smoke:operator-path-backend-safety-validation-bundle-v0-1`:
+  focused smoke for this backend safety validation bundle.
+
+Boundary summary: this validation bundle adds no product behavior, broad
+all-route audit instrumentation, global middleware, raw telemetry capture, new
+API routes, UI behavior changes, Review Memory writes from UI, live provider
+calls, source fetching, GitHub/release calls, promotion execution, promotion
+decision writes/store usage, proof/evidence creation, durable state mutation,
+Formation Receipt writes, product-write, accepted evidence ref writes, product
+IDs, human signoff, or automatic answer-to-product conversion. It found no
+selected-route audit coverage gap and changes no route files. Server-side pass
+is not truth and is not full OS-level egress proof. The next recommendation
+remains `human_spot_review_of_assisted_manual_qa_v0_1`.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)
