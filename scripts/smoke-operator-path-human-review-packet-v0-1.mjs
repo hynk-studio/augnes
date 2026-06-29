@@ -28,6 +28,9 @@ const expectedChangedFiles = new Set([
   "scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
+  "docs/OPERATOR_PATH_BACKEND_REMAINING_GAP_INVENTORY_V0_1.md",
+  "fixtures/operator-path-backend-remaining-gap-inventory.sample.v0.1.json",
+  "scripts/smoke-operator-path-backend-remaining-gap-inventory-v0-1.mjs",
 ]);
 
 for (const filePath of [docsPath, fixturePath, smokePath, packagePath, indexPath]) {

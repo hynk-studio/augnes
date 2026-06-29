@@ -5918,6 +5918,44 @@ Formation Receipt, product-write, GitHub authority, or release authority.
 Smoke/CI/browser/server-side pass is not truth. The next recommendation remains
 human review / human spot review of the assisted manual QA artifacts.
 
+### Operator path backend remaining gap inventory v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add product authority.
+`operator_path_backend_remaining_gap_inventory_v0_1` is a public-safe backend
+remaining gap inventory for the already merged final RAG answer operator path.
+It uses #856 backend safety validation and #857 human review packet as its
+current basis.
+
+- `docs/OPERATOR_PATH_BACKEND_REMAINING_GAP_INVENTORY_V0_1.md`:
+  public-safe backend remaining gap inventory covering the selected operator
+  path backend surfaces, backend boundary categories, classified findings,
+  machine-safe next slices, human-review-blocked authority transitions, and the
+  no-truth/no-proof/no-approval/no-product-readiness stopline.
+- `fixtures/operator-path-backend-remaining-gap-inventory.sample.v0.1.json`:
+  public-safe fixture for `basis_prs: [856, 857]`, checked surfaces, boundary
+  categories, findings, machine-safe next slices, blocked-until-human-review
+  items, authority boundaries, forbidden capabilities, and final status.
+- `scripts/smoke-operator-path-backend-remaining-gap-inventory-v0-1.mjs`:
+  static smoke for docs, fixture, package script, latest pointer, #856/#857
+  basis, backend surfaces, boundary categories, finding shape, human-signoff
+  status, public-safe policy, authority boundaries, next recommendation, and
+  changed-file scope.
+- `npm run smoke:operator-path-backend-remaining-gap-inventory-v0-1`:
+  focused static smoke for this backend remaining gap inventory.
+
+Boundary summary: this inventory performs no human review and claims no human
+signoff. Human review is not a global gate for non-authority backend work, and
+human review remains required before authority-increasing transitions. This
+inventory adds no runtime behavior, API routes, UI behavior, DB schema,
+migrations, live provider validation, source fetching, retrieval execution
+expansion, broad all-route audit instrumentation, promotion execution,
+promotion decision writes/store usage, proof/evidence creation, durable
+Perspective state apply, Formation Receipt writes, product-write, accepted
+evidence ref writes, product IDs, GitHub actuation, release execution, or
+release authority. Validation pass is not truth, proof, approval, or product
+readiness. The final recommendation is
+`operator_path_public_safe_artifact_index_v0_1`.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)
