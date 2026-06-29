@@ -99,6 +99,9 @@ const expectedChangedFiles = new Set([
   "fixtures/operator-path-assisted-manual-qa-execution-report.sample.v0.1.json",
   "scripts/assisted-execute-operator-path-manual-qa-v0-1.mjs",
   "scripts/smoke-operator-path-assisted-manual-qa-execution-report-v0-1.mjs",
+  "docs/OPERATOR_PATH_BACKEND_SAFETY_VALIDATION_BUNDLE_V0_1.md",
+  "fixtures/operator-path-backend-safety-validation-bundle.sample.v0.1.json",
+  "scripts/smoke-operator-path-backend-safety-validation-bundle-v0-1.mjs",
   "lib/runtime-audit/audit-event-store.ts",
 ]);
 
