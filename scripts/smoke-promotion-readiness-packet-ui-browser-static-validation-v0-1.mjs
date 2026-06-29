@@ -141,8 +141,6 @@ const expectedChangedFiles = new Set([
   "scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
-  "scripts/smoke-privacy-redaction-guard-v0-1.mjs",
-  "scripts/smoke-authority-boundary-regression-v0-1.mjs",
 ]);
 
 for (const filePath of [
