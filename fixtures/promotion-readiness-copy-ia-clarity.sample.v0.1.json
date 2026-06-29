@@ -1,0 +1,107 @@
+{
+  "slice_name": "promotion_readiness_copy_ia_clarity_v0_1",
+  "version": "promotion_readiness_copy_ia_clarity.v0.1",
+  "packet_type": "promotion_readiness_copy_ia_clarity",
+  "basis_prs": [856, 857, 858, 859, 860, 861, 862, 863],
+  "human_spot_review_classification": "pass_with_copy_risk",
+  "observed_issues": [
+    {
+      "area": "home_entrypoint",
+      "finding": "Home entrypoint discoverability FAIL"
+    },
+    {
+      "area": "promotion_review_hub",
+      "finding": "Hub hierarchy/blocked authority visibility RISK"
+    },
+    {
+      "area": "readiness_packet",
+      "finding": "Static/symbolic preview meaning RISK"
+    },
+    {
+      "area": "readiness_packet",
+      "finding": "Validation warning density RISK"
+    }
+  ],
+  "copy_ia_changes": [
+    "home entrypoint clarity",
+    "hub first-judgment hierarchy",
+    "readiness packet static/symbolic preview clarity",
+    "dense boundary copy kept but summarized"
+  ],
+  "routes_touched_or_validated": [
+    "/",
+    "/perspective/promotion",
+    "/perspective/promotion/readiness-packet"
+  ],
+  "no_action_controls": true,
+  "read_display_only": true,
+  "copy_ia_only": true,
+  "human_signoff_completed": false,
+  "human_review_still_required": true,
+  "authority_boundary": {
+    "human_review_execution": false,
+    "human_signoff_claim": false,
+    "product_authority": false,
+    "promotion_execution": false,
+    "promotion_decision_write": false,
+    "promotion_decision_store_usage_or_write": false,
+    "promotion_decision_controls": false,
+    "proof_evidence_creation": false,
+    "durable_perspective_state_apply": false,
+    "formation_receipt_write": false,
+    "product_write": false,
+    "accepted_evidence_ref_write": false,
+    "product_id_allocation": false,
+    "github_actuation": false,
+    "release_execution": false,
+    "release_authority": false,
+    "live_provider_validation": false,
+    "source_fetching_retrieval_expansion": false,
+    "broad_all_route_audit_instrumentation": false,
+    "api_write_routes": false,
+    "db_schema_or_migrations": false,
+    "raw_artifact_copying": false,
+    "screenshot_embedding": false,
+    "private_local_path_inclusion": false,
+    "validation_pass_is_truth": false,
+    "validation_pass_is_proof": false,
+    "validation_pass_is_approval": false,
+    "validation_pass_is_product_readiness": false,
+    "readiness_is_promotion": false,
+    "static_symbolic_preview_is_live_promotion_readiness": false,
+    "browser_validation_is_human_review": false
+  },
+  "forbidden_capabilities": [
+    "product_authority",
+    "promotion_execution",
+    "promotion_decision_write",
+    "promotion_decision_store_usage_or_write",
+    "promotion_decision_controls",
+    "proof_evidence_creation",
+    "durable_perspective_state_apply",
+    "formation_receipt_write",
+    "product_write",
+    "accepted_evidence_ref_write",
+    "product_id_allocation",
+    "github_actuation",
+    "release_execution",
+    "release_authority",
+    "live_provider_validation",
+    "source_fetching_retrieval_expansion",
+    "broad_all_route_audit_instrumentation",
+    "api_write_routes",
+    "db_schema_or_migrations",
+    "raw_artifact_copying",
+    "screenshot_embedding",
+    "private_local_path_inclusion"
+  ],
+  "final_recommendation": {
+    "next": "rerun human spot review on copy clarity",
+    "not_recommended": [
+      "promotion execution",
+      "product-write",
+      "release"
+    ]
+  },
+  "final_status": "copy_ia_clarity_ready_for_human_spot_review_rerun"
+}

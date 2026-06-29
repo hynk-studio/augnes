@@ -6241,6 +6241,61 @@ validation of this cockpit entrypoint; once browser/static validation complete,
 continue only to the next read/display usability slice or a pause for human
 spot review. Do not recommend promotion execution, product-write, or release.
 
+## Promotion Readiness Copy IA Clarity v0.1
+
+Non-SSOT pointer for the copy/IA-only clarity follow-up after human spot review
+classified the route chain as `pass_with_copy_risk`. Current basis: #856,
+#857, #858, #859, #860, #861, #862, and #863. The route chain remains `/` ->
+`/perspective/promotion` -> `/perspective/promotion/readiness-packet`.
+
+- `components/promotion-readiness-review-hub-cockpit-entrypoint.tsx`:
+  home/cockpit entrypoint copy updated to foreground `Human review prep`,
+  `Read/display-only`, `Not promotion approval`, the safe read/display link,
+  and the required human review status flags.
+- `components/promotion-readiness-packet-review-hub.tsx`:
+  promotion review hub copy updated with first-judgment hierarchy for what the
+  hub is, what is safe to do, what cannot happen there, and why no
+  approval/promotion action control appears.
+- `components/promotion-readiness-packet-panel.tsx`:
+  readiness packet copy updated to foreground `Static/symbolic read-display
+  preview`, `This is not live promotion readiness`, and human-review-prep
+  usage before dense boundary text.
+- `docs/PROMOTION_READINESS_COPY_IA_CLARITY_V0_1.md`:
+  copy/IA-only slice documentation with human spot review basis, observed
+  issues, changes made, authority boundary, artifact policy, human signoff
+  status, human review status, and final recommendation.
+- `fixtures/promotion-readiness-copy-ia-clarity.sample.v0.1.json`:
+  public-safe fixture for the copy/IA-only clarity slice, basis PRs, observed
+  issues, routes touched/validated, copy changes, false authority flags,
+  forbidden capabilities, and final status.
+- `scripts/browser-validate-promotion-readiness-copy-ia-clarity-v0-1.mjs`:
+  browser/CDP validator for the route chain; it verifies improved copy on the
+  home entrypoint, promotion review hub, and readiness packet, checks allowed
+  navigation anchors, scopes no-action-controls checks to promotion readiness
+  surfaces, observes request metadata only, and writes the public-safe browser
+  report.
+- `scripts/smoke-promotion-readiness-copy-ia-clarity-v0-1.mjs`:
+  static smoke for expected docs, fixture, browser validator, smoke script,
+  browser report, package scripts, latest index pointers, UI source copy,
+  public-safe artifact policy, no action controls, authority boundary, final
+  recommendation, and bounded changed-file scope.
+- `reports/browser/2026-06-29-promotion-readiness-copy-ia-clarity.md`:
+  public-safe browser validation report for the copy/IA clarity route chain.
+- `npm run browser:promotion-readiness-copy-ia-clarity-v0-1`:
+  browser/CDP validation for the copy/IA clarity route chain.
+- `npm run smoke:promotion-readiness-copy-ia-clarity-v0-1`:
+  focused static smoke for this copy/IA-only clarity slice.
+
+Boundary summary: this copy/IA slice performs no human review and claims no
+human signoff. It does not execute promotion, write promotion decisions,
+use/write the promotion decision store, create proof/evidence, apply durable
+Perspective state, write Formation Receipts, product-write, write accepted
+evidence refs, allocate product IDs, add GitHub actuation, execute release
+work, call live providers, fetch sources, expand retrieval execution, add
+broad all-route audit instrumentation, add API write routes, add new API
+routes, add DB schema/migrations, copy raw artifacts, embed screenshots, or
+include private local path inclusion.
+
 ---
 
 ## 업로드 권장 파일 목록 (Active set)

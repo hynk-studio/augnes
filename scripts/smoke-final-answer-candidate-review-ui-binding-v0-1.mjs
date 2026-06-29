@@ -136,6 +136,14 @@ const expectedChangedFiles = new Set([
   "fixtures/operator-path-backend-safety-validation-bundle.sample.v0.1.json",
   "scripts/smoke-operator-path-backend-safety-validation-bundle-v0-1.mjs",
   "lib/runtime-audit/audit-event-store.ts",
+  "docs/PROMOTION_READINESS_COPY_IA_CLARITY_V0_1.md",
+  "fixtures/promotion-readiness-copy-ia-clarity.sample.v0.1.json",
+  "reports/browser/2026-06-29-promotion-readiness-copy-ia-clarity.md",
+  "scripts/browser-validate-promotion-readiness-copy-ia-clarity-v0-1.mjs",
+  "scripts/smoke-promotion-readiness-copy-ia-clarity-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
+  "scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
 ]);
 
 const allowedTrueBoundaryFields = [

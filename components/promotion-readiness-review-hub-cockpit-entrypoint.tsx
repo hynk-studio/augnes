@@ -57,6 +57,12 @@ const cannotDoItems = [
   "The /perspective/promotion link is navigation only, not approval, promotion, write, or release.",
 ] as const;
 
+const clarityItems = [
+  ["Human review prep", "Use this chain to prepare a human review, not to grant approval."],
+  ["Read/display-only", "It shows the existing review surfaces without writing decisions."],
+  ["Not promotion approval", "No promotion, product-write, release, or authority transition starts here."],
+] as const;
+
 export function PromotionReadinessReviewHubCockpitEntrypoint() {
   return (
     <section
@@ -75,6 +81,14 @@ export function PromotionReadinessReviewHubCockpitEntrypoint() {
             Validation pass is not truth/proof/approval/product readiness
           </strong>
           <strong style={warningStyle}>Browser validation is not human review</strong>
+        </div>
+        <div aria-label="Promotion readiness cockpit entrypoint clarity" style={clarityGridStyle}>
+          {clarityItems.map(([label, value]) => (
+            <div key={label} style={clarityItemStyle}>
+              <strong style={clarityLabelStyle}>{label}</strong>
+              <span>{value}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -101,6 +115,9 @@ export function PromotionReadinessReviewHubCockpitEntrypoint() {
           </p>
           <p style={bodyTextStyle}>
             Downstream readiness packet route: <code>{downstreamReadinessPacketRoute}</code>
+          </p>
+          <p style={calloutTextStyle}>
+            Human review prep path. Read/display-only. Not promotion approval.
           </p>
           <a href={linkedRoute} style={navigationLinkStyle}>
             Open read/display promotion review hub
@@ -214,6 +231,31 @@ const warningStyle = {
   lineHeight: 1.35,
 } as const;
 
+const clarityGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: "10px",
+  marginTop: "14px",
+} as const;
+
+const clarityItemStyle = {
+  display: "grid",
+  gap: "5px",
+  padding: "12px",
+  border: "1px solid #cfd6df",
+  borderRadius: "8px",
+  background: "#ffffff",
+  color: "#243244",
+  fontSize: "14px",
+  lineHeight: 1.38,
+} as const;
+
+const clarityLabelStyle = {
+  color: "#17212f",
+  fontSize: "14px",
+  lineHeight: 1.25,
+} as const;
+
 const statusGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
@@ -269,6 +311,15 @@ const bodyTextStyle = {
   color: "#2d3b4a",
   fontSize: "14px",
   lineHeight: 1.55,
+  overflowWrap: "anywhere",
+} as const;
+
+const calloutTextStyle = {
+  margin: "0 0 12px",
+  color: "#17212f",
+  fontSize: "14px",
+  fontWeight: 700,
+  lineHeight: 1.45,
   overflowWrap: "anywhere",
 } as const;
 
