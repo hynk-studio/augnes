@@ -5958,6 +5958,49 @@ readiness. The final recommendation is
 
 ---
 
+### Operator path public-safe artifact index v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add product authority.
+`operator_path_public_safe_artifact_index_v0_1` is a public-safe symbolic
+artifact index for the already generated operator-path validation artifacts and
+screenshots. It uses #856 backend safety validation, #857 human review packet,
+and #858 backend remaining gap inventory as its current basis.
+
+- `docs/OPERATOR_PATH_PUBLIC_SAFE_ARTIFACT_INDEX_V0_1.md`:
+  public-safe symbolic artifact index covering the assisted manual QA execution
+  report artifact, browser validation report artifact, desktop screenshot
+  artifact, mobile screenshot artifact, backend safety validation bundle
+  summary artifact, human review packet summary artifact, and backend remaining
+  gap inventory summary artifact. It includes the raw-copy, screenshot, private
+  path, freshness, authority, human-signoff, and no-truth/no-proof boundaries.
+- `fixtures/operator-path-public-safe-artifact-index.sample.v0.1.json`:
+  public-safe fixture for `basis_prs: [856, 857, 858]`, symbolic artifact
+  classes, artifact index entries, raw copy policy, screenshot policy, private
+  path policy, freshness caveat, authority boundaries, forbidden capabilities,
+  human-review status, and final status.
+- `scripts/smoke-operator-path-public-safe-artifact-index-v0-1.mjs`:
+  static smoke for docs, fixture, package script, latest pointer, #856/#857/#858
+  basis, artifact classes, symbolic-only locations, raw-copy denial,
+  screenshot-embedding denial, private-path denial, freshness caveat, public-safe
+  policy, authority boundaries, next recommendation, and changed-file scope.
+- `npm run smoke:operator-path-public-safe-artifact-index-v0-1`:
+  focused static smoke for this public-safe symbolic artifact index.
+
+Boundary summary: this index performs no human review and claims no human
+signoff. It copies no raw artifacts, embeds no screenshots, includes no private
+local paths, and adds no runtime behavior, API routes, UI behavior, DB schema,
+migrations, live provider validation, source fetching, retrieval execution
+expansion, broad all-route audit instrumentation, promotion execution,
+promotion decision writes/store usage, proof/evidence creation, durable
+Perspective state apply, Formation Receipt writes, product-write, accepted
+evidence ref writes, product IDs, GitHub actuation, release execution, or
+release authority. Validation pass is not truth, proof, approval, or product
+readiness. The final recommendation is
+`operator_path_known_warning_registry_v0_1` or
+`operator_path_docs_fixture_consistency_audit_v0_1`.
+
+---
+
 ## 업로드 권장 파일 목록 (Active set)
 
 1) `SSOT_CANONICAL.md` — 의미/정책 SSOT (SSOT-2)  
