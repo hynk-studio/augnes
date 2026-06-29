@@ -188,6 +188,17 @@ const expectedChangedFiles = new Set([
   "scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
+  "components/promotion-readiness-review-hub-cockpit-entrypoint.tsx",
+  "components/promotion-readiness-packet-review-hub.tsx",
+  "components/promotion-readiness-packet-panel.tsx",
+  "docs/PROMOTION_READINESS_COPY_IA_CLARITY_V0_1.md",
+  "fixtures/promotion-readiness-copy-ia-clarity.sample.v0.1.json",
+  "reports/browser/2026-06-29-promotion-readiness-copy-ia-clarity.md",
+  "scripts/browser-validate-promotion-readiness-copy-ia-clarity-v0-1.mjs",
+  "scripts/smoke-promotion-readiness-copy-ia-clarity-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
+  "scripts/smoke-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs",
 ]);
 
 for (const filePath of [

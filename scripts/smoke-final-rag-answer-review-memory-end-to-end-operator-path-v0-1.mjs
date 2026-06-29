@@ -152,6 +152,14 @@ const expectedChangedFiles = new Set([
   "reports/browser/2026-06-29-promotion-readiness-review-hub-cockpit-entrypoint.md",
   "scripts/browser-validate-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs",
   "scripts/smoke-promotion-readiness-review-hub-cockpit-entrypoint-v0-1.mjs",
+  "docs/PROMOTION_READINESS_COPY_IA_CLARITY_V0_1.md",
+  "fixtures/promotion-readiness-copy-ia-clarity.sample.v0.1.json",
+  "reports/browser/2026-06-29-promotion-readiness-copy-ia-clarity.md",
+  "scripts/browser-validate-promotion-readiness-copy-ia-clarity-v0-1.mjs",
+  "scripts/smoke-promotion-readiness-copy-ia-clarity-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
+  "scripts/smoke-final-rag-answer-review-memory-end-to-end-operator-path-v0-1.mjs",
 ]);
 
 const requiredExistingFiles = [

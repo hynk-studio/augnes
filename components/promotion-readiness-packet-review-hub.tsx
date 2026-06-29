@@ -70,9 +70,32 @@ const cannotDoItems = [
   "The readiness packet link is navigation only, not approval or promotion.",
 ] as const;
 
+const firstJudgmentItems = [
+  [
+    "What is this?",
+    "Review preparation, not promotion approval. Human review still required.",
+  ],
+  [
+    "What can I safely do here?",
+    "This hub only links to read/display surfaces for operator orientation.",
+  ],
+  [
+    "What can I not do here?",
+    "No promotion decision is written here. No product-write or release happens here.",
+  ],
+  [
+    "Why no approval button?",
+    "No action controls are present because this surface is intentionally locked to read/display navigation.",
+  ],
+] as const;
+
 export function PromotionReadinessPacketReviewHub() {
   return (
-    <section aria-labelledby="promotion-review-hub-title" style={hubStyle}>
+    <section
+      aria-labelledby="promotion-review-hub-title"
+      data-testid="promotion-readiness-review-hub"
+      style={hubStyle}
+    >
       <div style={headerStyle}>
         <p style={eyebrowStyle}>Read/display-only</p>
         <h2 id="promotion-review-hub-title" style={titleStyle}>
@@ -87,6 +110,15 @@ export function PromotionReadinessPacketReviewHub() {
         </div>
       </div>
 
+      <div aria-label="Promotion review hub first judgment summary" style={firstJudgmentGridStyle}>
+        {firstJudgmentItems.map(([label, value]) => (
+          <div key={label} style={firstJudgmentItemStyle}>
+            <strong style={firstJudgmentLabelStyle}>{label}</strong>
+            <span>{value}</span>
+          </div>
+        ))}
+      </div>
+
       <div style={statusGridStyle} aria-label="Promotion review hub status flags">
         {authorityFlags.map(([label, value]) => (
           <div key={label} style={statusItemStyle}>
@@ -98,6 +130,10 @@ export function PromotionReadinessPacketReviewHub() {
 
       <div style={contentGridStyle}>
         <HubSection title="Available read/display surfaces">
+          <p style={calloutTextStyle}>
+            Review preparation, not promotion approval. This hub only links to
+            read/display surfaces.
+          </p>
           <p style={bodyTextStyle}>
             Existing readiness packet route: <code>{readinessPacketRoute}</code>
           </p>
@@ -121,6 +157,10 @@ export function PromotionReadinessPacketReviewHub() {
         </HubSection>
 
         <HubSection title="Blocked authority actions">
+          <p style={bodyTextStyle}>
+            Short version: no promotion decision is written here, and no product-write
+            or release happens here.
+          </p>
           <SimpleList items={blockedAuthorityActions} />
         </HubSection>
 
@@ -243,6 +283,30 @@ const warningStyle = {
   lineHeight: 1.35,
 } as const;
 
+const firstJudgmentGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gap: "1px",
+  background: "#d9e0e8",
+  borderBottom: "1px solid #d9e0e8",
+} as const;
+
+const firstJudgmentItemStyle = {
+  display: "grid",
+  gap: "6px",
+  padding: "14px 16px",
+  background: "#ffffff",
+  color: "#263344",
+  fontSize: "14px",
+  lineHeight: 1.4,
+} as const;
+
+const firstJudgmentLabelStyle = {
+  color: "#17212f",
+  fontSize: "14px",
+  lineHeight: 1.25,
+} as const;
+
 const statusGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
@@ -298,6 +362,15 @@ const bodyTextStyle = {
   color: "#2d3b4a",
   fontSize: "14px",
   lineHeight: 1.55,
+  overflowWrap: "anywhere",
+} as const;
+
+const calloutTextStyle = {
+  margin: "0 0 12px",
+  color: "#17212f",
+  fontSize: "14px",
+  fontWeight: 700,
+  lineHeight: 1.45,
   overflowWrap: "anywhere",
 } as const;
 

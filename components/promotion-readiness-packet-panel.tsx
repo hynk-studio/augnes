@@ -72,9 +72,28 @@ const displayedSections = [
   "blocked authority actions",
 ] as const;
 
+const previewClarityItems = [
+  [
+    "Static/symbolic read-display preview",
+    "This fixture-backed packet uses symbolic refs for operator orientation.",
+  ],
+  [
+    "This is not live promotion readiness",
+    "It does not read or certify live Review Memory readiness.",
+  ],
+  [
+    "Use this to prepare human review, not to approve promotion",
+    "The only intended next step is review preparation or copy/IA validation.",
+  ],
+] as const;
+
 export function PromotionReadinessPacketPanel() {
   return (
-    <section aria-labelledby="promotion-readiness-packet-title" style={panelStyle}>
+    <section
+      aria-labelledby="promotion-readiness-packet-title"
+      data-testid="promotion-readiness-packet-panel"
+      style={panelStyle}
+    >
       <div style={headerStyle}>
         <p style={eyebrowStyle}>Promotion readiness packet read/display</p>
         <h2 id="promotion-readiness-packet-title" style={titleStyle}>
@@ -85,6 +104,14 @@ export function PromotionReadinessPacketPanel() {
           <strong style={warningStyle}>
             Validation pass is not truth/proof/approval/product readiness
           </strong>
+        </div>
+        <div aria-label="Readiness packet static symbolic preview clarity" style={previewGridStyle}>
+          {previewClarityItems.map(([label, value]) => (
+            <div key={label} style={previewItemStyle}>
+              <strong style={previewLabelStyle}>{label}</strong>
+              <span>{value}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -99,6 +126,10 @@ export function PromotionReadinessPacketPanel() {
 
       <div style={contentGridStyle}>
         <ReadinessSection title="Readiness summary">
+          <p style={calloutTextStyle}>
+            Static/symbolic read-display preview. This is not live promotion
+            readiness.
+          </p>
           <dl style={definitionGridStyle}>
             <Definition label="readiness_packet_id" value={readinessPacket.readiness_packet_id} />
             <Definition
@@ -123,10 +154,18 @@ export function PromotionReadinessPacketPanel() {
         </ReadinessSection>
 
         <ReadinessSection title="Public-safe evidence summary">
+          <p style={plainLanguageTextStyle}>
+            Plain language: validation can prepare review, but it does not prove the
+            answer, approve promotion, or make the packet product-ready.
+          </p>
           <p style={bodyTextStyle}>{readinessPacket.evidence_summary_public_safe}</p>
         </ReadinessSection>
 
         <ReadinessSection title="Boundary summary">
+          <p style={plainLanguageTextStyle}>
+            Plain language: this surface is intentionally locked. It displays review
+            prep data and does not create authority.
+          </p>
           <p style={bodyTextStyle}>{readinessPacket.boundary_summary}</p>
         </ReadinessSection>
 
@@ -243,6 +282,31 @@ const warningStyle = {
   lineHeight: 1.35,
 } as const;
 
+const previewGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: "10px",
+  marginTop: "14px",
+} as const;
+
+const previewItemStyle = {
+  display: "grid",
+  gap: "5px",
+  padding: "12px",
+  border: "1px solid #cfd6df",
+  borderRadius: "8px",
+  background: "#ffffff",
+  color: "#263344",
+  fontSize: "14px",
+  lineHeight: 1.38,
+} as const;
+
+const previewLabelStyle = {
+  color: "#17212f",
+  fontSize: "14px",
+  lineHeight: 1.25,
+} as const;
+
 const statusGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
@@ -334,6 +398,23 @@ const listStyle = {
   paddingLeft: "18px",
   color: "#263344",
   fontSize: "14px",
+  lineHeight: 1.45,
+} as const;
+
+const calloutTextStyle = {
+  margin: "0 0 12px",
+  color: "#17212f",
+  fontSize: "14px",
+  fontWeight: 700,
+  lineHeight: 1.45,
+  overflowWrap: "anywhere",
+} as const;
+
+const plainLanguageTextStyle = {
+  margin: "0 0 10px",
+  color: "#17212f",
+  fontSize: "14px",
+  fontWeight: 700,
   lineHeight: 1.45,
 } as const;
 
