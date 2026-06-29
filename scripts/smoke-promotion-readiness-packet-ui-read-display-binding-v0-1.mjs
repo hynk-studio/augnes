@@ -103,6 +103,7 @@ const expectedChangedFiles = new Set([
   smokePath,
   packagePath,
   indexPath,
+  "scripts/smoke-promotion-readiness-packet-from-review-memory-v0-1.mjs",
   "scripts/smoke-operator-path-public-safe-artifact-index-v0-1.mjs",
   "scripts/smoke-operator-path-backend-remaining-gap-inventory-v0-1.mjs",
   "scripts/smoke-operator-path-human-review-packet-v0-1.mjs",
@@ -115,6 +116,11 @@ const expectedChangedFiles = new Set([
   "scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
+  "docs/PROMOTION_READINESS_PACKET_UI_BROWSER_STATIC_VALIDATION_V0_1.md",
+  "fixtures/promotion-readiness-packet-ui-browser-static-validation.sample.v0.1.json",
+  "reports/browser/2026-06-29-promotion-readiness-packet-ui-browser-static-validation.md",
+  "scripts/browser-validate-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs",
+  "scripts/smoke-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs",
 ]);
 
 for (const filePath of [

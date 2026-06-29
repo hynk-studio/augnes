@@ -92,6 +92,12 @@ const expectedChangedFiles = new Set([
   "docs/OPERATOR_PATH_PUBLIC_SAFE_ARTIFACT_INDEX_V0_1.md",
   "fixtures/operator-path-public-safe-artifact-index.sample.v0.1.json",
   "scripts/smoke-operator-path-public-safe-artifact-index-v0-1.mjs",
+  "scripts/smoke-promotion-readiness-packet-ui-read-display-binding-v0-1.mjs",
+  "docs/PROMOTION_READINESS_PACKET_UI_BROWSER_STATIC_VALIDATION_V0_1.md",
+  "fixtures/promotion-readiness-packet-ui-browser-static-validation.sample.v0.1.json",
+  "reports/browser/2026-06-29-promotion-readiness-packet-ui-browser-static-validation.md",
+  "scripts/browser-validate-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs",
+  "scripts/smoke-promotion-readiness-packet-ui-browser-static-validation-v0-1.mjs",
 ]);
 const falseExecutionFlags = [
   "provider_call_executed",
