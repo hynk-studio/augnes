@@ -1,11 +1,5 @@
-import { AugnesCockpit } from "@/components/augnes-cockpit";
-import { PromotionReadinessReviewHubCockpitEntrypoint } from "@/components/promotion-readiness-review-hub-cockpit-entrypoint";
+import { AugnesPublicHomeSurface } from "@/components/augnes-public-home-surface";
 
 export default function Home() {
-  return (
-    <>
-      <PromotionReadinessReviewHubCockpitEntrypoint />
-      <AugnesCockpit />
-    </>
-  );
+  return <AugnesPublicHomeSurface />;
 }
