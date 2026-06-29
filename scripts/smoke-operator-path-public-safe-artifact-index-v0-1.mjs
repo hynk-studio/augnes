@@ -85,6 +85,11 @@ const expectedChangedFiles = new Set([
   "scripts/smoke-final-answer-candidate-review-ui-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-review-memory-binding-v0-1.mjs",
   "scripts/smoke-final-rag-answer-generation-candidate-review-v0-1.mjs",
+  "components/promotion-readiness-packet-panel.tsx",
+  "app/perspective/promotion/readiness-packet/page.tsx",
+  "docs/PROMOTION_READINESS_PACKET_UI_READ_DISPLAY_BINDING_V0_1.md",
+  "fixtures/promotion-readiness-packet-ui-read-display-binding.sample.v0.1.json",
+  "scripts/smoke-promotion-readiness-packet-ui-read-display-binding-v0-1.mjs",
 ]);
 
 for (const filePath of [docsPath, fixturePath, smokePath, packagePath, indexPath]) {

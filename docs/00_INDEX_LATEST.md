@@ -6001,6 +6001,56 @@ readiness. The final recommendation is
 
 ---
 
+### Promotion readiness packet UI read/display binding v0.1 pointer (repo-local, non-SSOT)
+
+This pointer does not expand the Active set or add promotion/product/release
+authority. `promotion_readiness_packet_ui_read_display_binding_v0_1` is a
+read/display-only UI binding for the existing promotion readiness packet
+generated from Review Memory. It uses #856 backend safety validation, #857 human
+review packet, #858 backend remaining gap inventory, and #859 public-safe
+artifact index as its current basis.
+
+- `components/promotion-readiness-packet-panel.tsx`:
+  read/display-only panel for public-safe promotion readiness packet preview
+  data, including readiness summary, source/basis refs, blocking items, missing
+  prerequisites, public-safe evidence summary, boundary summary, next allowed
+  non-authority actions, blocked authority actions, status flags, and warnings
+  that readiness is not promotion and validation pass is not truth/proof/
+  approval/product readiness.
+- `app/perspective/promotion/readiness-packet/page.tsx`:
+  route page for `/perspective/promotion/readiness-packet`; it renders the
+  read/display-only panel and does not call an API route.
+- `docs/PROMOTION_READINESS_PACKET_UI_READ_DISPLAY_BINDING_V0_1.md`:
+  documentation for the read/display-only UI binding, route/path, rendered
+  sections, no-action-controls policy, read/display policy, public-safe
+  boundary, authority boundary, human-review status, and final recommendation.
+- `fixtures/promotion-readiness-packet-ui-read-display-binding.sample.v0.1.json`:
+  public-safe fixture for `basis_prs: [856, 857, 858, 859]`, readiness packet
+  symbolic refs, displayed sections, no-action/read-display flags, authority
+  boundary, forbidden capabilities, human-review status, and final status.
+- `scripts/smoke-promotion-readiness-packet-ui-read-display-binding-v0-1.mjs`:
+  static smoke for docs, fixture, component, page, package script, latest
+  pointer, #856/#857/#858/#859 basis, required warnings/status flags, no action
+  controls, no write route calls, public-safe policy, authority boundary, final
+  recommendation, and changed-file scope.
+- `npm run smoke:promotion-readiness-packet-ui-read-display-binding-v0-1`:
+  focused static smoke for this read/display-only UI binding.
+
+Boundary summary: this UI performs no human review and claims no human signoff.
+It has no action controls, does not execute promotion, does not write promotion
+decisions or use/write the promotion decision store, does not create
+proof/evidence, does not apply durable Perspective state, does not write
+Formation Receipts, does not product-write, does not write accepted evidence
+refs, does not allocate product IDs, does not add GitHub actuation, does not
+execute release work, does not call providers, does not fetch sources, does not
+expand retrieval execution, does not add broad all-route audit instrumentation,
+does not add API write routes, and does not add DB schema or migrations.
+Readiness is not promotion, and validation pass is not truth, proof, approval,
+or product readiness. The final recommendation is browser/static smoke
+validation of this read/display UI or a narrow usability follow-up.
+
+---
+
 ## 업로드 권장 파일 목록 (Active set)
 
 1) `SSOT_CANONICAL.md` — 의미/정책 SSOT (SSOT-2)  
