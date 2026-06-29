@@ -187,6 +187,110 @@
       "product_write_now": true
     }
   },
+  "blocked_forbidden_authority_string_claim_cases": [
+    {
+      "case_id": "validation_pass_approval",
+      "target": "normalized_summary",
+      "phrase_parts": ["Validation pass", "is", "approval."]
+    },
+    {
+      "case_id": "validation_failure_rejection",
+      "target": "normalized_summary",
+      "phrase_parts": ["Validation failure", "is", "rejection."]
+    },
+    {
+      "case_id": "changed_files_proof",
+      "target": "normalized_summary",
+      "phrase_parts": ["Changed files", "are", "proof."]
+    },
+    {
+      "case_id": "codex_result_execution_approval",
+      "target": "normalized_summary",
+      "phrase_parts": ["Codex result", "is", "execution approval."]
+    },
+    {
+      "case_id": "dogfooding_record_promotion",
+      "target": "normalized_summary",
+      "phrase_parts": ["Dogfooding record", "is", "promotion."]
+    },
+    {
+      "case_id": "dogfooding_record_product_write",
+      "target": "normalized_summary",
+      "phrase_parts": ["Dogfooding record", "is", "product-write."]
+    },
+    {
+      "case_id": "pr_body_truth",
+      "target": "boundary_notes",
+      "phrase_parts": ["PR body", "is", "truth."]
+    },
+    {
+      "case_id": "smoke_failure_rejection",
+      "target": "boundary_notes",
+      "phrase_parts": ["Smoke failure", "is", "rejection."]
+    },
+    {
+      "case_id": "ci_failure_rejection",
+      "target": "boundary_notes",
+      "phrase_parts": ["CI failure", "is", "rejection."]
+    },
+    {
+      "case_id": "provider_output_evidence",
+      "target": "normalized_summary",
+      "phrase_parts": ["Provider output", "is", "evidence."]
+    },
+    {
+      "case_id": "provider_output_accepted_evidence",
+      "target": "normalized_summary",
+      "phrase_parts": ["Provider output", "is", "accepted evidence."]
+    },
+    {
+      "case_id": "retrieval_score_promotion_readiness",
+      "target": "normalized_summary",
+      "phrase_parts": ["Retrieval score", "is", "promotion readiness."]
+    },
+    {
+      "case_id": "feedback_truth",
+      "target": "normalized_summary",
+      "phrase_parts": ["Feedback", "is", "truth."]
+    },
+    {
+      "case_id": "layout_coordinate_truth",
+      "target": "normalized_summary",
+      "phrase_parts": ["Layout coordinate", "is", "truth."]
+    },
+    {
+      "case_id": "layout_coordinates_authority",
+      "target": "normalized_summary",
+      "phrase_parts": ["Layout coordinates", "are", "authority."]
+    },
+    {
+      "case_id": "salience_score_truth",
+      "target": "normalized_summary",
+      "phrase_parts": ["Salience score", "is", "truth."]
+    }
+  ],
+  "allowed_negated_authority_string_cases": [
+    {
+      "case_id": "validation_pass_not_approval",
+      "target": "normalized_summary",
+      "phrase": "Validation pass is not approval."
+    },
+    {
+      "case_id": "changed_files_not_proof",
+      "target": "normalized_summary",
+      "phrase": "Changed files are not proof."
+    },
+    {
+      "case_id": "codex_result_not_execution_approval",
+      "target": "normalized_summary",
+      "phrase": "Codex result is not execution approval."
+    },
+    {
+      "case_id": "dogfooding_record_not_product_write",
+      "target": "normalized_summary",
+      "phrase": "Dogfooding record is not product-write."
+    }
+  ],
   "expected": {
     "valid_record_lifecycle_state": "candidate_only",
     "valid_record_kind": "codex_result_report",

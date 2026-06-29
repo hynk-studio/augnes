@@ -159,6 +159,38 @@ function assertFixtureVersions() {
   assert.equal(fixture.scope, scope);
   assert.equal(fixture.selected_slice, selectedSlice);
   assert.equal(fixture.next_recommended_slice, nextSlice);
+  assert.deepEqual(
+    fixture.blocked_forbidden_authority_string_claim_cases.map((testCase) => testCase.case_id),
+    [
+      "validation_pass_approval",
+      "validation_failure_rejection",
+      "changed_files_proof",
+      "codex_result_execution_approval",
+      "dogfooding_record_promotion",
+      "dogfooding_record_product_write",
+      "pr_body_truth",
+      "smoke_failure_rejection",
+      "ci_failure_rejection",
+      "provider_output_evidence",
+      "provider_output_accepted_evidence",
+      "retrieval_score_promotion_readiness",
+      "feedback_truth",
+      "layout_coordinate_truth",
+      "layout_coordinates_authority",
+      "salience_score_truth",
+    ],
+    "fixture must preserve blocked authority string claim coverage",
+  );
+  assert.deepEqual(
+    fixture.allowed_negated_authority_string_cases.map((testCase) => testCase.case_id),
+    [
+      "validation_pass_not_approval",
+      "changed_files_not_proof",
+      "codex_result_not_execution_approval",
+      "dogfooding_record_not_product_write",
+    ],
+    "fixture must preserve negated boundary phrase allow coverage",
+  );
   assert.equal(reconciliationFixture.selected_next_slice, selectedSlice);
   assert.ok(
     reconciliationDocs.includes(selectedSlice),
@@ -308,6 +340,33 @@ function assertStoreBehavior() {
   assert.equal(authorityBlocked.status, fixture.expected.blocked_authority_status);
   assert.equal(authorityBlocked.record, null);
 
+  for (const testCase of fixture.blocked_forbidden_authority_string_claim_cases) {
+    const input = authorityStringClaimInput(testCase);
+    const result = store.buildDogfoodingResearchRecordV01(input);
+    assert.equal(result.ok, false, `${testCase.case_id} must be blocked`);
+    assert.equal(
+      result.status,
+      fixture.expected.blocked_authority_status,
+      `${testCase.case_id} status`,
+    );
+    assert.equal(result.record, null, `${testCase.case_id} must not build record`);
+    assert.ok(
+      result.privacy_report.findings.some(
+        (finding) => finding.finding_kind === "forbidden_authority_phrase",
+      ),
+      `${testCase.case_id} must include forbidden authority phrase finding`,
+    );
+    assertBlockedPhraseNotEchoed(result, testCase, `${testCase.case_id} result`);
+  }
+
+  for (const testCase of fixture.allowed_negated_authority_string_cases) {
+    const input = authorityStringClaimInput(testCase);
+    const result = store.buildDogfoodingResearchRecordV01(input);
+    assert.equal(result.ok, true, `${testCase.case_id} must remain allowed`);
+    assert.equal(result.status, "created", `${testCase.case_id} status`);
+    assert.ok(result.record, `${testCase.case_id} must build record`);
+  }
+
   const missingSchemaDb = new Database(":memory:");
   try {
     assert.equal(store.dogfoodingResearchRecordStoreSchemaExistsV01(missingSchemaDb), false);
@@ -411,6 +470,28 @@ async function assertRouteBehavior() {
     assert.equal((await blockedAuthorityPost.json()).error_code, "blocked_forbidden_authority");
     assert.equal(existsSync(tempDbPath), false, "blocked authority input must not create DB");
 
+    const blockedStringClaimCase =
+      fixture.blocked_forbidden_authority_string_claim_cases[0];
+    const blockedStringClaimPost = await route.POST(
+      routeRequest(tempDbPath, authorityStringClaimInput(blockedStringClaimCase)),
+    );
+    assert.equal(blockedStringClaimPost.status, 403);
+    const blockedStringClaimBody = await blockedStringClaimPost.json();
+    assert.equal(
+      blockedStringClaimBody.error_code,
+      "blocked_forbidden_authority",
+    );
+    assertBlockedPhraseNotEchoed(
+      blockedStringClaimBody,
+      blockedStringClaimCase,
+      "route blocked authority string body",
+    );
+    assert.equal(
+      existsSync(tempDbPath),
+      false,
+      "blocked authority string input must not create DB",
+    );
+
     const createPost = await route.POST(routeRequest(tempDbPath, fixture.safe_input_example));
     assert.equal(createPost.status, 201);
     const createBody = await createPost.json();
@@ -466,6 +547,38 @@ function routeRequest(dbPath, input, headerOverrides = {}) {
       input,
     }),
   });
+}
+
+function authorityStringClaimInput(testCase) {
+  const input = clone(fixture.safe_input_example);
+  input.record_id = `dogfooding-research-record:${testCase.case_id}`;
+  input.record_kind = "operator_review_note";
+  delete input.codex_result_report_input;
+  input.source_refs = ["authority-string-claim-test-ref"];
+  input.pr_refs = [];
+  input.branch_refs = [];
+  input.commit_refs = [];
+  input.changed_file_refs = [];
+  input.validation_refs = [];
+  input.skipped_check_refs = [];
+  input.known_warning_refs = [];
+  input.not_done_refs = [];
+  input.expected_observed_delta_refs = [];
+  input.review_cues = [];
+  input.boundary_notes = ["Authority string claim test case."];
+  const phrase = phraseForCase(testCase);
+  if (testCase.target === "boundary_notes") {
+    input.normalized_summary = "Boundary note authority string claim test.";
+    input.boundary_notes = [phrase];
+  } else {
+    input.normalized_summary = phrase;
+  }
+  return input;
+}
+
+function phraseForCase(testCase) {
+  if (Array.isArray(testCase.phrase_parts)) return testCase.phrase_parts.join(" ");
+  return testCase.phrase;
 }
 
 function assertAllForbiddenExecutionFlagsFalse(value) {
@@ -525,6 +638,11 @@ function assertNoUnsafeEcho(value, label) {
   ]) {
     assert.ok(!text.includes(marker), `${label} must not echo ${marker}`);
   }
+}
+
+function assertBlockedPhraseNotEchoed(value, testCase, label) {
+  const phrase = phraseForCase(testCase);
+  assert.ok(!JSON.stringify(value).includes(phrase), `${label} must not echo blocked phrase`);
 }
 
 function read(path) {

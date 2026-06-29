@@ -751,21 +751,26 @@ const researchAllowedTrueAuthorityFields = [
   "candidate_only",
   "public_safe_summary_only",
 ] as const;
-const researchBlockedAuthorityPhraseParts = [
-  ["candidate", "proof"],
-  ["candidate", "fact"],
-  ["provider output", "truth"],
-  ["provider output", "proof"],
-  ["retrieval result", "evidence"],
-  ["retrieval result", "authority"],
-  ["retrieval score", "truth score"],
-  ["pr body", "authority"],
-  ["ci pass", "truth"],
-  ["ci pass", "approval"],
-  ["smoke pass", "truth"],
-  ["smoke pass", "evidence"],
-  ["git ref", "authority"],
-  ["github pr", "core decision"],
+const researchForbiddenAuthorityPhrasePatterns = [
+  /\bcandidates?\s+(?:is|are|=|as)\s+(?!not\b)(?:proof|facts?|accepted evidence)\b/i,
+  /\bprovider output\s+(?:is|=|as)\s+(?!not\b)(?:truth|proof|accepted evidence|evidence)\b/i,
+  /\bretrieval result\s+(?:is|=|as)\s+(?!not\b)(?:accepted evidence|evidence|authority|promotion authority)\b/i,
+  /\bretrieval score\s+(?:is|=|as)\s+(?!not\b)(?:truth score|truth|promotion readiness|authority|approval)\b/i,
+  /\bpr body\s+(?:is|=|as)\s+(?!not\b)(?:truth|proof|authority|approval)\b/i,
+  /\bchanged files?\s+(?:is|are|=|as)\s+(?!not\b)(?:proof|accepted evidence|evidence|authority|approval)\b/i,
+  /\bvalidation pass\s+(?:is|=|as)\s+(?!not\b)(?:approval|truth|proof|authority)\b/i,
+  /\bvalidation failure\s+(?:is|=|as)\s+(?!not\b|diagnostic\b)(?:automatic\s+)?rejection\b/i,
+  /\bsmoke pass\s+(?:is|=|as)\s+(?!not\b)(?:accepted evidence|evidence|truth|proof|approval|authority)\b/i,
+  /\bsmoke failure\s+(?:is|=|as)\s+(?!not\b|diagnostic\b)(?:automatic\s+)?rejection\b/i,
+  /\bci pass\s+(?:is|=|as)\s+(?!not\b)(?:truth|proof|approval|authority|promotion|merge approval|release approval|product-write authority|durable state)\b/i,
+  /\bci failure\s+(?:is|=|as)\s+(?!not\b|diagnostic\b)(?:automatic\s+)?rejection\b/i,
+  /\bcodex result\s+(?:is|=|as)\s+(?!not\b)(?:execution approval|proof|accepted evidence|evidence|authority|approval|durable state|state)\b/i,
+  /\bdogfooding record\s+(?:is|=|as)\s+(?!not\b)(?:review memory write|promotion|formation receipt|durable perspective state|product-write|truth|proof|authority|approval)\b/i,
+  /\bfeedback\s+(?:is|=|as)\s+(?!not\b)truth\b/i,
+  /\blayout coordinates?\s+(?:is|are|=|as)\s+(?!not\b)(?:truth|authority|source of truth)\b/i,
+  /\bsalience score\s+(?:is|=|as)\s+(?!not\b)(?:truth|truth score|authority|promotion readiness)\b/i,
+  /\bgit (?:commit|ref|tag|branch)\s+(?:is|=|as)\s+(?!not\b)(?:approval|authority|durable state|core decision|promotion)\b/i,
+  /\bgithub (?:branch|commit|pr)\s+(?:is|=|as)\s+(?!not\b)(?:core decision|automatic execution authority|execution authority|authority)\b/i,
 ] as const;
 
 type DogfoodingResearchRecordRow = Omit<
@@ -1602,14 +1607,9 @@ function detectResearchForbiddenAuthorityFindings(input: unknown): ResearchFindi
       });
     }
     if (typeof value !== "string") return;
-    const normalized = value.toLowerCase().replace(/\s+/g, " ").trim();
-    for (const [subject, object] of researchBlockedAuthorityPhraseParts) {
-      const variants = [
-        `${subject} is ${object}`,
-        `${subject} = ${object}`,
-        `${subject} as ${object}`,
-      ];
-      if (!variants.some((variant) => normalized.includes(variant))) continue;
+    for (const pattern of researchForbiddenAuthorityPhrasePatterns) {
+      pattern.lastIndex = 0;
+      if (!pattern.test(value)) continue;
       findings.push({
         path,
         finding_kind: "forbidden_authority_phrase",

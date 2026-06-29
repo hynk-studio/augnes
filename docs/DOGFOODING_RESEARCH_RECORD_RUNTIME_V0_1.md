@@ -158,6 +158,11 @@ Dogfooding record is not product-write.
 
 Product-write remains parked by #686.
 
+Forbidden positive authority string shortcuts are blocked for validation
+pass/failure, smoke pass/failure, CI pass/failure, Codex result, PR body,
+changed files, dogfooding record, provider output, retrieval score, feedback,
+layout coordinate, and salience score boundaries.
+
 ## Forbidden Capabilities
 
 This slice adds no UI.
