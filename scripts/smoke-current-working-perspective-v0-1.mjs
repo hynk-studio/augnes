@@ -21,6 +21,11 @@ const contractSmokeFile = "scripts/smoke-augnes-delta-contract-v0-1.mjs";
 const projectionSmokeFile = "scripts/smoke-augnes-delta-projection-v0-1.mjs";
 const projectionRouteSmokeFile =
   "scripts/smoke-augnes-delta-projection-route-v0-1.mjs";
+const currentPerspectiveSourceFile =
+  "lib/perspective/current-working-perspective-source.ts";
+const currentPerspectiveRouteFile = "app/api/perspective/current/route.ts";
+const currentPerspectiveRouteSmokeFile =
+  "scripts/smoke-current-working-perspective-route-v0-1.mjs";
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -39,7 +44,12 @@ const allowedChangedFiles = new Set([
   contractSmokeFile,
   projectionSmokeFile,
   projectionRouteSmokeFile,
+  currentPerspectiveSourceFile,
+  currentPerspectiveRouteFile,
+  currentPerspectiveRouteSmokeFile,
 ]);
+
+const allowedRouteFiles = new Set([currentPerspectiveRouteFile]);
 
 const textByFile = loadTextByFile(requiredFiles);
 const docText = textByFile.get(currentPerspectiveDoc);
@@ -86,13 +96,19 @@ console.log(
       review_queue_delta_refs_checked: true,
       research_diagnostics_non_authority_checked: true,
       clean_projection_gap_pressure_checked: true,
+      follow_on_current_working_perspective_runtime_read_surface_files_allowed: [
+        currentPerspectiveSourceFile,
+        currentPerspectiveRouteFile,
+        currentPerspectiveRouteSmokeFile,
+      ],
       changed_files_checked: changedFilesBoundary.checked,
       changed_files_skipped: changedFilesBoundary.skipped,
       changed_files_skip_reason: changedFilesBoundary.skip_reason,
       changed_files_observed: changedFilesBoundary.files,
       smoke_type:
         "static-current-working-perspective-type-helper-fixture-package-index-boundary-only",
-      runtime_route_added: false,
+      runtime_route_added:
+        changedFilesBoundary.files.includes(currentPerspectiveRouteFile),
       ui_behavior_changed: false,
       db_schema_migration_changed: false,
       db_write_added: false,
@@ -148,7 +164,8 @@ function assertDocumentContract() {
       "no state mutation",
       "Research diagnostics remain non-authoritative",
       "Projected deltas remain read-model inputs",
-      "Phase 3B may add a GET-only read-only route",
+      "Phase 3B adds",
+      "GET /api/perspective/current?scope=project:augnes",
       "Phase 4 - Human Surface v0.1",
     ],
     { label: currentPerspectiveDoc },
@@ -522,12 +539,16 @@ function assertChangedFileBoundary() {
   for (const file of files) {
     assert(
       allowedChangedFiles.has(file),
-      `Unexpected Phase 3A Current Working Perspective changed file: ${file}`,
+      `Unexpected Phase 3A/3B Current Working Perspective changed file: ${file}`,
     );
-    assert(!/^app\/api\//.test(file), `Phase 3A must not add API route files: ${file}`);
     assert(
-      !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file),
-      `Phase 3A must not add route files: ${file}`,
+      !/^app\/api\//.test(file) || allowedRouteFiles.has(file),
+      `Current Working Perspective follow-on must not add API route files outside the Current Working Perspective read route: ${file}`,
+    );
+    assert(
+      !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) ||
+        allowedRouteFiles.has(file),
+      `Current Working Perspective follow-on must not add route files outside the Current Working Perspective read route: ${file}`,
     );
     assert(!/^components\//.test(file), `Phase 3A must not change UI files: ${file}`);
     assert(!/^db\//.test(file), `Phase 3A must not change DB files: ${file}`);

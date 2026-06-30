@@ -107,6 +107,15 @@ PR #868 is merged. Current route planning starts from:
   call, GitHub actuation, Codex execution, proof/evidence write, durable
   Perspective apply, memory mutation, product-write, scheduler/autonomy
   runner, merge/publish/retry/replay/deploy behavior, or external side effect.
+  Phase 3B adds a GET-only read-only Current Working Perspective route and
+  thin runtime source/composition helper for returning
+  CurrentWorkingPerspective from PerspectiveSnapshot and
+  AugnesDeltaProjectionReadModel inputs. It adds no UI, DB schema/migration,
+  DB write, persistence, MCP/App tool, provider/OpenAI call, GitHub actuation,
+  Codex execution, proof/evidence write, durable Perspective apply, memory
+  mutation, product-write, scheduler/autonomy runner, Human Surface,
+  GuideBrief, merge/publish/retry/replay/deploy behavior, or external side
+  effect.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
