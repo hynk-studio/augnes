@@ -56,14 +56,17 @@ const expectedChangedFiles = new Set([
   "scripts/smoke-local-data-export-manifest-builder-v0-1.mjs",
   "docs/LOCAL_DATA_EXPORT_MANIFEST_BUILDER_V0_1.md",
   "scripts/smoke-local-data-export-policy-v0-1.mjs",
+  "lib/git-ledger/build-export-packet-from-local-manifest.ts",
+  "fixtures/git-ledger-export-from-local-manifest.sample.v0.1.json",
+  "scripts/smoke-git-ledger-export-from-local-manifest-v0-1.mjs",
+  "docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md",
 ]);
 
 const newSliceFiles = [
-  "types/local-data-export-manifest.ts",
-  "lib/local-export/build-local-data-export-manifest.ts",
-  "fixtures/local-data-export-manifest.sample.v0.1.json",
-  "scripts/smoke-local-data-export-manifest-builder-v0-1.mjs",
-  "docs/LOCAL_DATA_EXPORT_MANIFEST_BUILDER_V0_1.md",
+  "lib/git-ledger/build-export-packet-from-local-manifest.ts",
+  "fixtures/git-ledger-export-from-local-manifest.sample.v0.1.json",
+  "scripts/smoke-git-ledger-export-from-local-manifest-v0-1.mjs",
+  "docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md",
 ];
 
 const requiredHelperExports = [
