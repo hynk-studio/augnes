@@ -19,6 +19,14 @@ const contractSmokeFile = "scripts/smoke-augnes-delta-contract-v0-1.mjs";
 const sourceCollectorFile = "lib/augnes-delta/source-collector.ts";
 const routeFile = "app/api/augnes/read/deltas/route.ts";
 const routeSmokeFile = "scripts/smoke-augnes-delta-projection-route-v0-1.mjs";
+const currentPerspectiveDoc = "docs/AUGNES_CURRENT_WORKING_PERSPECTIVE_V0_1.md";
+const currentPerspectiveTypeFile = "types/current-working-perspective.ts";
+const currentPerspectiveHelperFile =
+  "lib/perspective/current-working-perspective.ts";
+const currentPerspectiveFixtureFile =
+  "fixtures/current-working-perspective.sample.v0.1.json";
+const currentPerspectiveSmokeFile =
+  "scripts/smoke-current-working-perspective-v0-1.mjs";
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -39,8 +47,18 @@ const followOnProjectionRuntimeReadSurfaceFiles = [
   routeFile,
   routeSmokeFile,
 ];
+const followOnCurrentWorkingPerspectiveFiles = [
+  currentPerspectiveDoc,
+  currentPerspectiveTypeFile,
+  currentPerspectiveHelperFile,
+  currentPerspectiveFixtureFile,
+  currentPerspectiveSmokeFile,
+];
 
-for (const file of followOnProjectionRuntimeReadSurfaceFiles) {
+for (const file of [
+  ...followOnProjectionRuntimeReadSurfaceFiles,
+  ...followOnCurrentWorkingPerspectiveFiles,
+]) {
   allowedChangedFiles.add(file);
 }
 
@@ -95,6 +113,8 @@ console.log(
       changed_files_observed: changedFilesBoundary.files,
       follow_on_projection_runtime_read_surface_files_allowed:
         followOnProjectionRuntimeReadSurfaceFiles,
+      follow_on_current_working_perspective_files_allowed:
+        followOnCurrentWorkingPerspectiveFiles,
       smoke_type: "static-projection-read-model-type-helper-fixture-package-index-boundary-only",
       runtime_behavior_changed: changedFilesBoundary.api_route_added,
       ui_behavior_changed: false,

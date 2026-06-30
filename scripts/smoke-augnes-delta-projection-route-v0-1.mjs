@@ -15,6 +15,14 @@ const routeSmokeFile = "scripts/smoke-augnes-delta-projection-route-v0-1.mjs";
 const projectionDoc = "docs/AUGNES_DELTA_PROJECTION_READ_MODEL_V0_1.md";
 const projectionSmokeFile = "scripts/smoke-augnes-delta-projection-v0-1.mjs";
 const contractSmokeFile = "scripts/smoke-augnes-delta-contract-v0-1.mjs";
+const currentPerspectiveDoc = "docs/AUGNES_CURRENT_WORKING_PERSPECTIVE_V0_1.md";
+const currentPerspectiveTypeFile = "types/current-working-perspective.ts";
+const currentPerspectiveHelperFile =
+  "lib/perspective/current-working-perspective.ts";
+const currentPerspectiveFixtureFile =
+  "fixtures/current-working-perspective.sample.v0.1.json";
+const currentPerspectiveSmokeFile =
+  "scripts/smoke-current-working-perspective-v0-1.mjs";
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -34,6 +42,11 @@ const allowedChangedFiles = new Set([
   projectionDoc,
   projectionSmokeFile,
   contractSmokeFile,
+  currentPerspectiveDoc,
+  currentPerspectiveTypeFile,
+  currentPerspectiveHelperFile,
+  currentPerspectiveFixtureFile,
+  currentPerspectiveSmokeFile,
   packageJsonFile,
   indexDoc,
 ]);

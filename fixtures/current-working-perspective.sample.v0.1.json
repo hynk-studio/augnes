@@ -1,0 +1,459 @@
+{
+  "runtime": "augnes",
+  "perspective_version": "current_working_perspective.v0.1",
+  "projection_version": "augnes_delta_projection.v0.1",
+  "snapshot_version": "perspective_snapshot.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-06-30T12:00:00.000Z",
+  "public_safety": {
+    "fixture_kind": "synthetic_sample",
+    "contains_private_paths": false,
+    "contains_secrets": false,
+    "contains_api_keys": false,
+    "contains_github_tokens": false,
+    "contains_raw_private_conversations": false,
+    "contains_hidden_reasoning": false,
+    "contains_real_external_account_artifacts": false
+  },
+  "current_frame": {
+    "summary": "Synthetic sample current frame for Augnes Delta redesign review.",
+    "primary_state_keys": [
+      "augnes.delta_contract.v0_1",
+      "augnes.delta_projection.v0_1"
+    ],
+    "active_work_ids": [
+      "AG-SAMPLE-CWP-001"
+    ],
+    "pressure_level": "medium",
+    "source_refs": [
+      "perspective_snapshot:2026-06-30T12:00:00.000Z",
+      "state_entry:sample-state-entry-delta-contract",
+      "work:AG-SAMPLE-CWP-001"
+    ],
+    "non_authority_notes": [
+      "Current frame is derived from PerspectiveSnapshot.",
+      "Current frame is not source-of-truth state.",
+      "Current frame grants no approval or apply authority."
+    ]
+  },
+  "current_thesis": {
+    "summary": "Current Working Perspective can provide a stable read-only packet for downstream consumer design.",
+    "supporting_points": [
+      "PerspectiveSnapshot supplies derived frame and tension context.",
+      "AugnesDeltaProjectionReadModel supplies projected deltas, batches, source refs, and gaps.",
+      "Review hints remain advisory and non-authoritative."
+    ],
+    "source_refs": [
+      "perspective_snapshot:2026-06-30T12:00:00.000Z",
+      "augnes_delta_projection:2026-06-30T11:58:00.000Z"
+    ],
+    "confidence": "partial",
+    "non_authority_notes": [
+      "Thesis is synthesized from read models only.",
+      "Thesis is not a durable user preference or committed project fact.",
+      "Projected deltas are inputs, not source-of-truth state."
+    ]
+  },
+  "active_goals": [
+    {
+      "goal_id": "AG-SAMPLE-CWP-001",
+      "title": "Define Current Working Perspective v0.1",
+      "status": "in_progress",
+      "priority": "now",
+      "summary": "Create a read-only packet from snapshot and delta projection inputs.",
+      "next_action": "Review Phase 3A contract, type, fixture, helper, and smoke.",
+      "source_refs": [
+        "work:AG-SAMPLE-CWP-001",
+        "work_event:sample-work-event-implementation",
+        "state_key:augnes.current_working_perspective.v0_1"
+      ],
+      "user_attention_required": true
+    }
+  ],
+  "accepted_assumptions": [
+    {
+      "assumption_id": "assumption.committed_state.sample-state-entry-delta-contract",
+      "assumption_kind": "committed_state_basis",
+      "summary": "Committed state basis includes augnes.delta_contract.v0_1.",
+      "source_refs": [
+        "state_entry:sample-state-entry-delta-contract",
+        "state_key:augnes.delta_contract.v0_1"
+      ],
+      "durability": "committed_state_ref",
+      "non_authority_notes": [
+        "Assumption is a reference to existing committed state basis only.",
+        "Current Working Perspective does not commit or mutate this assumption."
+      ]
+    }
+  ],
+  "rejected_assumptions": [
+    {
+      "assumption_id": "assumption.rejected_delta.delta.state_delta_proposal.sample-rejected",
+      "assumption_kind": "delta_rejected",
+      "summary": "Rejected projected delta: Restore rejected sample proposal.",
+      "source_refs": [
+        "augnes_delta:delta.state_delta_proposal.sample-rejected",
+        "state_delta_proposal:sample-rejected"
+      ],
+      "durability": "projection_metadata",
+      "non_authority_notes": [
+        "Rejected delta status is review metadata from the projection.",
+        "Current Working Perspective does not restore or recommit rejected inputs."
+      ]
+    }
+  ],
+  "open_questions": [
+    {
+      "question_id": "question.missing_context.1",
+      "summary": "Phase 3B route behavior is intentionally deferred.",
+      "severity": "medium",
+      "source_refs": [
+        "perspective_snapshot:2026-06-30T12:00:00.000Z"
+      ],
+      "suggested_review_path": "Review whether a GET-only route should be added in a separate Phase 3B PR."
+    },
+    {
+      "question_id": "question.gap.delta_projection.dogfooding_records_table_unavailable",
+      "summary": "No structured dogfooding record table is available to the read-only projection collector.",
+      "severity": "low",
+      "source_refs": [],
+      "suggested_review_path": "Treat dogfooding records as optional enrichment until structured public-safe records exist."
+    }
+  ],
+  "active_risks": [
+    {
+      "risk_id": "risk.gap.delta_projection.codex_result_traces_not_available",
+      "summary": "Structured Codex result traces are absent in this sample projection.",
+      "severity": "medium",
+      "source_refs": [],
+      "blocked_authority_notes": [
+        "Source gap limits downstream confidence.",
+        "Gap does not authorize reconstruction from missing text."
+      ]
+    }
+  ],
+  "research_pressure": {
+    "pressure_level": "medium",
+    "pending_proposal_count": 1,
+    "projection_gap_count": 2,
+    "diagnostic_refs": [
+      {
+        "diagnostic_id": "diagnostic.perspective_snapshot.loopness.project_augnes",
+        "diagnostic_kind": "perspective_snapshot_loopness_hint",
+        "source_ref": "perspective_snapshot:2026-06-30T12:00:00.000Z",
+        "summary": "PerspectiveSnapshot loopness hint level is low.",
+        "status": "log_only",
+        "non_authority_notes": [
+          "not truth",
+          "not proof",
+          "not approval",
+          "not readiness",
+          "not committed Perspective state"
+        ],
+        "informs_delta_ids": []
+      }
+    ],
+    "notes": [
+      "Pending proposals are pressure only.",
+      "Loopness hint level: low.",
+      "Projection gaps: 2."
+    ],
+    "non_authority_notes": [
+      "Research diagnostics are log-only.",
+      "Research pressure is not truth, proof, approval, readiness, or committed Perspective state.",
+      "Research pressure does not change proposal scoring or commit/reject authority."
+    ]
+  },
+  "next_candidates": [
+    {
+      "candidate_id": "candidate.boundary_next",
+      "title": "Review Current Working Perspective v0.1",
+      "rationale": "Human Surface and GuideBrief consumers need one stable packet shape before UI work.",
+      "priority": "now",
+      "source_refs": [
+        "perspective_snapshot:2026-06-30T12:00:00.000Z",
+        "state_key:augnes.current_working_perspective.v0_1"
+      ],
+      "allowed_next_steps": [
+        "Inspect source refs, gaps, and review hints."
+      ],
+      "blocked_next_steps": [
+        "Do not apply durable Perspective state from this packet.",
+        "Do not write proof or evidence from this packet."
+      ],
+      "authority_required": "manual_review"
+    }
+  ],
+  "last_major_delta_refs": [
+    {
+      "delta_id": "delta.state_delta_proposal.sample-perspective",
+      "type": "perspective_delta",
+      "status": "needs_review",
+      "source": "state_delta_proposal",
+      "title": "Projected state delta proposal: augnes.current_working_perspective.v0_1",
+      "created_at": "2026-06-30T11:55:00.000Z",
+      "source_refs": [
+        "augnes_delta:delta.state_delta_proposal.sample-perspective",
+        "state_delta_proposal:sample-perspective"
+      ],
+      "review_reason": "Delta requires user judgment before any future apply path."
+    },
+    {
+      "delta_id": "delta.work_event.sample-implementation",
+      "type": "code_delta",
+      "status": "draft",
+      "source": "work_event",
+      "title": "Projected work event: implementation",
+      "created_at": "2026-06-30T11:50:00.000Z",
+      "source_refs": [
+        "augnes_delta:delta.work_event.sample-implementation",
+        "work_event:sample-work-event-implementation"
+      ],
+      "review_reason": "Delta is included as read-model context only."
+    }
+  ],
+  "review_queue_hints": {
+    "needs_review_delta_ids": [
+      "delta.state_delta_proposal.sample-perspective"
+    ],
+    "blocked_delta_ids": [
+      "delta.state_delta_proposal.sample-committed"
+    ],
+    "manual_review_delta_ids": [
+      "delta.work_event.sample-implementation"
+    ],
+    "validation_required_delta_ids": [
+      "delta.work_event.sample-implementation"
+    ],
+    "project_perspective_review_delta_ids": [
+      "delta.state_delta_proposal.sample-perspective"
+    ],
+    "durable_memory_review_delta_ids": [],
+    "user_decision_delta_ids": [],
+    "notes": [
+      "Review queue hints are advisory read-model metadata only.",
+      "Hints do not approve, reject, apply, merge, publish, retry, replay, or deploy."
+    ]
+  },
+  "source_refs": {
+    "perspective_snapshot": {
+      "snapshot_version": "perspective_snapshot.v0.1",
+      "as_of": "2026-06-30T12:00:00.000Z",
+      "source_refs": {
+        "state_brief_as_of": "2026-06-30T11:59:00.000Z",
+        "state_entry_ids": [
+          "sample-state-entry-delta-contract"
+        ],
+        "pending_proposal_ids": [
+          "sample-perspective"
+        ],
+        "evidence_ids": [
+          "sample-evidence-pointer"
+        ],
+        "work_ids": [
+          "AG-SAMPLE-CWP-001"
+        ],
+        "work_event_ids": [
+          "sample-work-event-implementation"
+        ],
+        "action_record_ids": [
+          "sample-action-record"
+        ],
+        "tension_ids": [
+          "sample-tension-route-deferred"
+        ],
+        "execution_lane_ids": [
+          "lane:user",
+          "lane:codex"
+        ]
+      }
+    },
+    "delta_projection": {
+      "projection_version": "augnes_delta_projection.v0.1",
+      "as_of": "2026-06-30T11:58:00.000Z",
+      "source_refs": {
+        "state_delta_proposal_ids": [
+          "sample-perspective"
+        ],
+        "work_event_ids": [
+          "sample-work-event-implementation"
+        ],
+        "coordination_event_ids": [
+          "sample-coordination-event-handoff"
+        ],
+        "action_record_ids": [
+          "sample-action-record"
+        ],
+        "evidence_record_ids": [
+          "sample-evidence-pointer"
+        ],
+        "dogfooding_record_ids": [],
+        "handoff_refs": [
+          "handoff.sample"
+        ],
+        "codex_result_refs": [],
+        "snapshot_refs": [
+          {
+            "snapshot_id": "runtime_read_context.augnes_delta_projection.v0.1",
+            "snapshot_kind": "readonly_runtime_db_projection_context",
+            "created_at": "2026-06-30T11:58:00.000Z",
+            "source_refs": [
+              "state_delta_proposal:sample-perspective",
+              "work_event:sample-work-event-implementation"
+            ],
+            "staleness_status": "fresh",
+            "freshness_notes": [
+              "Synthetic sample runtime read context only."
+            ]
+          }
+        ],
+        "diagnostic_refs": []
+      },
+      "source_counts": {
+        "state_delta_proposals": 1,
+        "work_events": 1,
+        "coordination_events": 1,
+        "action_records": 1,
+        "evidence_records": 1,
+        "dogfooding_records": 0,
+        "handoff_traces": 1,
+        "codex_result_traces": 0,
+        "snapshot_refs": 1,
+        "diagnostic_refs": 0,
+        "total_projected_deltas": 3,
+        "total_batches": 1,
+        "total_gaps": 2
+      },
+      "delta_ids": [
+        "delta.state_delta_proposal.sample-perspective",
+        "delta.work_event.sample-implementation",
+        "delta.state_delta_proposal.sample-rejected"
+      ],
+      "batch_ids": [
+        "batch.augnes_delta_projection.project_augnes.v0.1"
+      ],
+      "gap_codes": [
+        "dogfooding_records_table_unavailable",
+        "codex_result_traces_not_available"
+      ]
+    },
+    "snapshot_refs": [
+      {
+        "snapshot_id": "perspective_snapshot.current_working.project_augnes",
+        "snapshot_kind": "perspective_snapshot_input",
+        "created_at": "2026-06-30T12:00:00.000Z",
+        "source_refs": [
+          "state_entry:sample-state-entry-delta-contract",
+          "work:AG-SAMPLE-CWP-001"
+        ],
+        "staleness_status": "fresh",
+        "freshness_notes": [
+          "SnapshotRef mirrors the supplied PerspectiveSnapshot input.",
+          "Current Working Perspective does not persist this ref."
+        ]
+      }
+    ],
+    "diagnostic_refs": [
+      {
+        "diagnostic_id": "diagnostic.perspective_snapshot.loopness.project_augnes",
+        "diagnostic_kind": "perspective_snapshot_loopness_hint",
+        "source_ref": "perspective_snapshot:2026-06-30T12:00:00.000Z",
+        "summary": "PerspectiveSnapshot loopness hint level is low.",
+        "status": "log_only",
+        "non_authority_notes": [
+          "not truth",
+          "not proof",
+          "not approval",
+          "not readiness",
+          "not committed Perspective state"
+        ],
+        "informs_delta_ids": []
+      }
+    ],
+    "project_constellation_refs": [
+      "docs/PROJECT_CONSTELLATION_IA_V0_1.md"
+    ]
+  },
+  "staleness": {
+    "status": "partial",
+    "snapshot_as_of": "2026-06-30T12:00:00.000Z",
+    "projection_as_of": "2026-06-30T11:58:00.000Z",
+    "freshness_notes": [
+      "One or more source gaps make this packet partial.",
+      "Freshness is read-model metadata only and grants no approval."
+    ],
+    "source_gap_codes": [
+      "delta_projection.dogfooding_records_table_unavailable",
+      "delta_projection.codex_result_traces_not_available"
+    ]
+  },
+  "gaps": [
+    {
+      "code": "delta_projection.dogfooding_records_table_unavailable",
+      "severity": "low",
+      "summary": "No structured dogfooding record table is available to the read-only projection collector.",
+      "source_refs": [],
+      "inherited_projection_gap": {
+        "code": "dogfooding_records_table_unavailable",
+        "severity": "low",
+        "source_kind": "dogfooding_record",
+        "summary": "No structured dogfooding record table is available to the read-only projection collector.",
+        "details": [
+          "Dogfooding records remain optional and gap-reported."
+        ],
+        "source_refs": []
+      }
+    },
+    {
+      "code": "delta_projection.codex_result_traces_not_available",
+      "severity": "medium",
+      "summary": "Structured Codex result traces are absent in this sample projection.",
+      "source_refs": [],
+      "inherited_projection_gap": {
+        "code": "codex_result_traces_not_available",
+        "severity": "medium",
+        "source_kind": "codex_result",
+        "summary": "Structured Codex result traces are absent in this sample projection.",
+        "details": [
+          "No result text was reconstructed."
+        ],
+        "source_refs": []
+      }
+    }
+  ],
+  "authority_boundary": {
+    "source_of_truth": "Existing Augnes Core records, PerspectiveSnapshot inputs, and AugnesDeltaProjectionReadModel inputs remain authoritative; Current Working Perspective is a read-only derived packet.",
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_mutate_memory": false,
+    "can_apply_project_perspective": false,
+    "can_publish_external": false,
+    "can_merge": false,
+    "can_retry_replay_deploy": false,
+    "can_call_github": false,
+    "can_call_openai_or_provider": false,
+    "can_execute_codex": false,
+    "can_create_branch_or_pr": false,
+    "derived_view_only": true,
+    "can_write_db": false,
+    "can_add_route": false,
+    "can_add_ui": false,
+    "notes": [
+      "read-only derived current perspective model",
+      "PerspectiveSnapshot remains derived source context",
+      "AugnesDeltaProjectionReadModel deltas remain projection inputs",
+      "research diagnostics are non-authoritative",
+      "no durable Perspective apply",
+      "no memory mutation",
+      "no proof/evidence write",
+      "no external side effect"
+    ]
+  },
+  "next_phase_notes": [
+    "Phase 3A builds a read-only Current Working Perspective packet only.",
+    "Phase 3B may add a GET-only route under a separate scoped PR.",
+    "Phase 4 can consume this packet for Human Surface v0.1 without requiring state mutation."
+  ]
+}

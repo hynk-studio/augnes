@@ -40,10 +40,19 @@ const followOnProjectionRuntimeReadSurfaceFiles = [
   "scripts/smoke-augnes-delta-projection-route-v0-1.mjs",
 ];
 
+const followOnCurrentWorkingPerspectiveFiles = [
+  "docs/AUGNES_CURRENT_WORKING_PERSPECTIVE_V0_1.md",
+  "types/current-working-perspective.ts",
+  "lib/perspective/current-working-perspective.ts",
+  "fixtures/current-working-perspective.sample.v0.1.json",
+  "scripts/smoke-current-working-perspective-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnProjectionReadModelFiles,
   ...followOnProjectionRuntimeReadSurfaceFiles,
+  ...followOnCurrentWorkingPerspectiveFiles,
 ]);
 
 const allowedRouteFiles = new Set(["app/api/augnes/read/deltas/route.ts"]);
@@ -86,6 +95,8 @@ console.log(
         changedFilesBoundary.follow_on_projection_files_allowed,
       follow_on_projection_runtime_read_surface_files_allowed:
         changedFilesBoundary.follow_on_projection_runtime_read_surface_files_allowed,
+      follow_on_current_working_perspective_files_allowed:
+        changedFilesBoundary.follow_on_current_working_perspective_files_allowed,
       changed_files_observed: changedFilesBoundary.files,
       smoke_type: "static-contract-type-fixture-package-index-boundary-only",
       runtime_behavior_changed: changedFilesBoundary.api_route_added,
@@ -344,6 +355,8 @@ function assertChangedFileBoundary() {
     follow_on_projection_files_allowed: followOnProjectionReadModelFiles,
     follow_on_projection_runtime_read_surface_files_allowed:
       followOnProjectionRuntimeReadSurfaceFiles,
+    follow_on_current_working_perspective_files_allowed:
+      followOnCurrentWorkingPerspectiveFiles,
     api_route_added: files.some((file) => allowedRouteFiles.has(file)),
     files,
   };
