@@ -1165,14 +1165,27 @@ function appendEmptySourceGaps(
     );
   }
 
-  if (input.handoff_traces.length === 0 && input.codex_result_traces.length === 0) {
+  if (input.handoff_traces.length === 0) {
     gaps.push(
       createProjectionGap({
-        code: "handoff_codex_result_traces_not_available",
+        code: "handoff_traces_not_available",
         severity: "medium",
         source_kind: "handoff_packet",
         summary:
-          "No safe structured handoff or Codex result trace source was materialized in Phase 2A.",
+          "No safe structured handoff trace source was materialized in Phase 2A.",
+        details: ["Handoff pointers from other source families remain pointer-only."],
+      }),
+    );
+  }
+
+  if (input.codex_result_traces.length === 0) {
+    gaps.push(
+      createProjectionGap({
+        code: "codex_result_traces_not_available",
+        severity: "medium",
+        source_kind: "codex_result",
+        summary:
+          "No safe structured Codex result trace source was materialized in Phase 2A.",
         details: ["The projector does not reconstruct missing result text."],
       }),
     );

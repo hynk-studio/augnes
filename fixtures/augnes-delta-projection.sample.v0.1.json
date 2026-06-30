@@ -31,9 +31,7 @@
     "action_record_ids": [],
     "evidence_record_ids": [],
     "dogfooding_record_ids": [],
-    "handoff_refs": [
-      "handoff.synthetic.operator_packet.v0.1"
-    ],
+    "handoff_refs": [],
     "codex_result_refs": [],
     "snapshot_refs": [
       {
@@ -79,13 +77,13 @@
     "action_records": 0,
     "evidence_records": 0,
     "dogfooding_records": 0,
-    "handoff_traces": 1,
+    "handoff_traces": 0,
     "codex_result_traces": 0,
     "snapshot_refs": 1,
     "diagnostic_refs": 1,
     "total_projected_deltas": 3,
     "total_batches": 1,
-    "total_gaps": 4
+    "total_gaps": 5
   },
   "authority_boundary": {
     "source_of_truth": "Existing Augnes source records remain authoritative; this read model is a read-only projection.",
@@ -495,10 +493,45 @@
       "created_at": "2026-06-30T00:00:00.000Z",
       "created_by": "synthetic_fixture",
       "target_refs": [
-        "state_delta_proposal:proposal.synthetic.project_perspective_delta.v0.1"
+        "state_delta_proposal:proposal.synthetic.project_perspective_delta.v0.1",
+        "state_key:project_perspective.delta_projection"
       ],
-      "snapshot_refs": [],
-      "diagnostic_refs": [],
+      "snapshot_refs": [
+        {
+          "snapshot_id": "snapshot.synthetic_projection_fixture.v0.1",
+          "snapshot_kind": "perspective_snapshot_ref",
+          "created_at": "2026-06-30T00:00:00.000Z",
+          "source_refs": [
+            "docs/PERSPECTIVE_SNAPSHOT_V0_1.md",
+            "fixtures/augnes-delta-projection.sample.v0.1.json"
+          ],
+          "staleness_status": "partial",
+          "freshness_notes": [
+            "Synthetic/sample SnapshotRef only.",
+            "Phase 2A does not materialize or persist a fresh PerspectiveSnapshot."
+          ]
+        }
+      ],
+      "diagnostic_refs": [
+        {
+          "diagnostic_id": "diagnostic.synthetic.projection_gap_boundary.v0.1",
+          "diagnostic_kind": "research_diagnostic",
+          "source_ref": "fixtures/augnes-delta-projection.sample.v0.1.json#diagnostic",
+          "summary": "Synthetic diagnostic reference that informs a research gap but is not truth, proof, approval, readiness, or committed Perspective state.",
+          "status": "log_only",
+          "non_authority_notes": [
+            "research diagnostic informs projection gaps only",
+            "not truth",
+            "not proof",
+            "not approval",
+            "not readiness",
+            "not committed Perspective state"
+          ],
+          "informs_delta_ids": [
+            "delta.state_delta_proposal.proposal.synthetic.project_perspective_delta.v0.1"
+          ]
+        }
+      ],
       "evidence_refs": [],
       "artifact_refs": [],
       "handoff_refs": [],
@@ -538,8 +571,14 @@
           "no source-of-truth claim"
         ]
       },
+      "review_notes": [
+        "Proposal status is delta review metadata only.",
+        "Existing Augnes Core records remain source of truth."
+      ],
       "non_goals": [
-        "No state mutation."
+        "No state mutation.",
+        "No durable Perspective apply.",
+        "No proof/evidence write."
       ]
     },
     {
@@ -554,7 +593,8 @@
       "created_at": "2026-06-30T00:00:00.000Z",
       "created_by": "synthetic_fixture",
       "target_refs": [
-        "work_event:work_event.synthetic.verification_trace.v0.1"
+        "work_event:work_event.synthetic.verification_trace.v0.1",
+        "work:work.synthetic.phase_2a"
       ],
       "snapshot_refs": [],
       "diagnostic_refs": [],
@@ -569,7 +609,15 @@
           "evidence_write_authority": false
         }
       ],
-      "artifact_refs": [],
+      "artifact_refs": [
+        {
+          "artifact_ref": "artifact.pr.synthetic-code-delta-pointer",
+          "artifact_kind": "code",
+          "pointer_semantics": "pointer_only",
+          "summary": "Synthetic code artifact pointer only; no GitHub actuation authority.",
+          "source_of_truth": false
+        }
+      ],
       "handoff_refs": [],
       "merge_policy": {
         "mode": "manual_review_required",
@@ -607,8 +655,29 @@
           "no source-of-truth claim"
         ]
       },
+      "validation_summary": {
+        "validation_status": "not_run",
+        "required_checks": [],
+        "completed_checks": [],
+        "failed_checks": [],
+        "skipped_checks": [
+          {
+            "check": "work_event_runtime_validation",
+            "reason": "Phase 2A projection is pointer-only and does not run source validation."
+          }
+        ],
+        "notes": [
+          "WorkEvent validation trace is pointer-only and is not approval."
+        ]
+      },
+      "review_notes": [
+        "WorkEvent is a human-readable trace.",
+        "WorkEvent does not become proof, evidence, approval, or readiness."
+      ],
       "non_goals": [
-        "No proof/evidence write."
+        "No work status update.",
+        "No proof/evidence write.",
+        "No approval or readiness claim."
       ]
     },
     {
@@ -623,7 +692,9 @@
       "created_at": "2026-06-30T00:00:00.000Z",
       "created_by": "synthetic_fixture",
       "target_refs": [
-        "coordination_event:coordination.synthetic.handoff_ready.v0.1"
+        "coordination_event:coordination.synthetic.handoff_ready.v0.1",
+        "work:work.synthetic.phase_2a",
+        "source_authority_level:committed_state"
       ],
       "snapshot_refs": [],
       "diagnostic_refs": [],
@@ -675,8 +746,14 @@
           "no source-of-truth claim"
         ]
       },
+      "review_notes": [
+        "Coordination event authority_level is not delta authority.",
+        "Publication/send/execution authority is not granted."
+      ],
       "non_goals": [
-        "No Codex execution."
+        "No Codex execution.",
+        "No handoff send.",
+        "No external side effect."
       ]
     }
   ],
@@ -708,6 +785,16 @@
       "summary": "No safe structured dogfooding source was materialized in Phase 2A.",
       "details": [
         "Dogfooding records are gap-reported rather than reconstructed from raw private conversations."
+      ],
+      "source_refs": []
+    },
+    {
+      "code": "handoff_traces_not_available",
+      "severity": "medium",
+      "source_kind": "handoff_packet",
+      "summary": "No safe structured handoff trace source was materialized in Phase 2A.",
+      "details": [
+        "Handoff pointers from coordination events remain pointer-only and are not treated as structured handoff trace inputs."
       ],
       "source_refs": []
     },

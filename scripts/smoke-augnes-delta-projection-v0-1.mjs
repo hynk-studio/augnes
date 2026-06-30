@@ -15,6 +15,7 @@ const projectionTypeFile = "types/augnes-delta-projection.ts";
 const projectorFile = "lib/augnes-delta/projector.ts";
 const fixtureFile = "fixtures/augnes-delta-projection.sample.v0.1.json";
 const smokeFile = "scripts/smoke-augnes-delta-projection-v0-1.mjs";
+const contractSmokeFile = "scripts/smoke-augnes-delta-contract-v0-1.mjs";
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -24,6 +25,7 @@ const requiredFiles = [
   projectorFile,
   fixtureFile,
   smokeFile,
+  contractSmokeFile,
   packageJsonFile,
   indexDoc,
 ];
@@ -45,6 +47,8 @@ assertProjectionDoc();
 assertProjectionTypes();
 assertProjectorExports();
 assertFixtureShape();
+assertCanonicalDeltaSynchronization();
+assertSeparateTraceGapReporting();
 assertAuthorityBoundaries();
 assertConservativeMergePolicies();
 assertPointerOnlyRefs();
@@ -66,6 +70,8 @@ console.log(
       batch_count: fixture.batches.length,
       delta_count: collectDeltas(fixture).length,
       gap_count: fixture.gaps.length,
+      canonical_delta_synchronization_checked: true,
+      separate_trace_gap_reporting_checked: true,
       authority_boundary_checked: true,
       conservative_merge_policy_checked: true,
       pointer_only_refs_checked: true,
@@ -267,6 +273,70 @@ function assertFixtureShape() {
   );
 }
 
+function assertCanonicalDeltaSynchronization() {
+  assert(Array.isArray(fixture.deltas), `${fixtureFile} must include top-level deltas`);
+  const batchDeltas = fixture.batches.flatMap((batch) => batch.deltas ?? []);
+  const topLevelIds = fixture.deltas.map((delta) => delta.delta_id);
+  const batchIds = batchDeltas.map((delta) => delta.delta_id);
+
+  assert.deepEqual(
+    topLevelIds,
+    batchIds,
+    `${fixtureFile} top-level delta IDs must match batch delta IDs in order`,
+  );
+  assert.deepEqual(
+    fixture.deltas,
+    batchDeltas,
+    `${fixtureFile} top-level deltas must be canonical copies of batch deltas`,
+  );
+  assert.equal(
+    fixture.source_counts.total_projected_deltas,
+    fixture.deltas.length,
+    `${fixtureFile} source_counts.total_projected_deltas must match canonical top-level deltas`,
+  );
+}
+
+function assertSeparateTraceGapReporting() {
+  const gapCodes = new Set(fixture.gaps.map((gap) => gap.code));
+
+  assert(
+    projectorText.includes("handoff_traces_not_available"),
+    `${projectorFile} must report missing handoff traces separately`,
+  );
+  assert(
+    projectorText.includes("codex_result_traces_not_available"),
+    `${projectorFile} must report missing Codex result traces separately`,
+  );
+  assert(
+    !projectorText.includes("handoff_codex_result_traces_not_available"),
+    `${projectorFile} must not collapse handoff and Codex trace gaps into one code`,
+  );
+  assert(
+    !gapCodes.has("handoff_codex_result_traces_not_available"),
+    `${fixtureFile} must not use a combined handoff/Codex trace gap`,
+  );
+
+  if (fixture.source_counts.handoff_traces === 0) {
+    assert(
+      gapCodes.has("handoff_traces_not_available"),
+      `${fixtureFile} must include handoff_traces_not_available when handoff_traces count is zero`,
+    );
+  }
+
+  if (fixture.source_counts.codex_result_traces === 0) {
+    assert(
+      gapCodes.has("codex_result_traces_not_available"),
+      `${fixtureFile} must include codex_result_traces_not_available when codex_result_traces count is zero`,
+    );
+  }
+
+  assert.equal(
+    fixture.source_counts.total_gaps,
+    fixture.gaps.length,
+    `${fixtureFile} source_counts.total_gaps must match gaps length`,
+  );
+}
+
 function assertAuthorityBoundaries() {
   const boundaries = collectObjectsByKey(fixture, "authority_boundary");
   assert(boundaries.length >= 3, `${fixtureFile} must include authority boundaries`);
@@ -411,7 +481,10 @@ function assertChangedFileBoundary() {
   ]);
 
   for (const file of files) {
-    assert(allowedChangedFiles.has(file), `Unexpected Phase 2A changed file: ${file}`);
+    assert(
+      allowedChangedFiles.has(file),
+      `Unexpected Phase 2A/review-fix changed file: ${file}`,
+    );
     assert(!/^app\/api\//.test(file), `Phase 2A must not add API route files: ${file}`);
     assert(
       !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file),
