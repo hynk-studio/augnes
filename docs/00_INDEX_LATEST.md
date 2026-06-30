@@ -4436,6 +4436,49 @@ repo-local 색인이다.
   Augnes runtime; no GitHub API call from Augnes runtime; no Git/GitHub
   actuation from Augnes runtime; no release, deploy, or publish behavior. Next
   recommended slice: `dogfooding_record_to_review_memory_proposal_v0_1`.
+- Dogfooding To Review Memory Proposal v0.1:
+  `docs/DOGFOODING_TO_REVIEW_MEMORY_PROPOSAL_V0_1.md`,
+  `types/dogfooding-to-review-memory-proposal.ts`,
+  `lib/dogfooding/build-review-memory-proposal.ts`,
+  `fixtures/dogfooding-to-review-memory-proposal.sample.v0.1.json`, and
+  `scripts/smoke-dogfooding-to-review-memory-proposal-v0-1.mjs`
+  (`npm run smoke:dogfooding-to-review-memory-proposal-v0-1`) implements
+  `dogfooding_record_to_review_memory_proposal_v0_1`. PR #868 remains the
+  frozen web baseline for `/`, `/perspective`, and `/workbench`. PR #874
+  provides dogfooding record to handoff packet binding context. This slice adds
+  no UI. Dogfooding records become candidate-only Review Memory proposal
+  candidates, not Review Memory writes. Dogfooding record to Review Memory
+  proposal is not truth, proof, accepted evidence, Review Memory write,
+  execution approval, promotion, Formation Receipt, durable Perspective state,
+  or product-write. Review Memory proposal is candidate-only and is not saved
+  Review Memory. Operator confirmation is required before any Review Memory
+  write. Proposed review actions are not executed actions. Changed files are
+  not proof. Observed files are not proof. Validation pass is not approval.
+  Validation failure is not automatic rejection. Smoke pass is not evidence.
+  Smoke failure is diagnostic, not automatic rejection. CI pass is not
+  authority. CI failure is diagnostic, not automatic rejection. Skipped checks
+  are review context, not failure by themselves. Known warnings are review
+  context, not automatic rejection. Not-done items are next-task cues, not
+  automatic task creation. Expected/observed delta is reconciliation context,
+  not approval or rejection. Review Memory refs, Promotion/Receipt/State refs,
+  Git refs, and GitHub PR refs are references only. Product-write remains
+  parked by #686.
+
+  Boundary phrases: helper-only dogfooding-record-to-proposal conversion;
+  caller-provided public-safe dogfooding summaries only; preview-only Review
+  Memory write shape; operator confirmation required; no raw DB rows; no raw
+  source bodies; no raw provider output; no raw retrieval output; no raw
+  conversations; no hidden reasoning; no UI; no components; no Cockpit change;
+  no public-surface change; no route model change for `/`, `/perspective`, or
+  `/workbench`; no browser-validation-only work; no new API route; no DB
+  migration; no DB write; no direct DB read; no provider/OpenAI call; no prompt
+  sent; no source fetch; no retrieval execution; no retrieval index write; no
+  proof/evidence creation; no claim/evidence write; no Review Memory write; no
+  promotion execution; no Formation Receipt write; no durable Perspective state
+  apply; no product-write; no product ID allocation; no Codex execution from
+  Augnes runtime; no GitHub API call from Augnes runtime; no Git/GitHub
+  actuation from Augnes runtime; no release, deploy, or publish behavior. Next
+  recommended slice: `local_data_export_manifest_builder_v0_1`.
 - Runtime Audit Panel v0.1:
   `docs/RUNTIME_AUDIT_PANEL_V0_1.md`,
   `lib/runtime-audit/build-runtime-audit-model.ts`,

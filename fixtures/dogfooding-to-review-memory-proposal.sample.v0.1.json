@@ -1,0 +1,313 @@
+{
+  "fixture_version": "dogfooding_to_review_memory_proposal.sample.v0.1",
+  "proposal_version": "dogfooding_to_review_memory_proposal.v0.1",
+  "builder_version": "dogfooding_to_review_memory_proposal_builder.v0.1",
+  "selected_slice": "dogfooding_record_to_review_memory_proposal_v0_1",
+  "next_recommended_slice": "local_data_export_manifest_builder_v0_1",
+  "scope": "project:augnes",
+  "post_868_boundary": {
+    "pr_868_is_frozen_web_baseline": true,
+    "frozen_routes": ["/", "/perspective", "/workbench"],
+    "web_last": true,
+    "ui_in_scope": false,
+    "route_in_scope": false,
+    "db_in_scope": false,
+    "review_memory_write_in_scope": false
+  },
+  "allowed_action_candidates": [
+    "save_review_note",
+    "request_more_evidence",
+    "mark_needs_followup",
+    "mark_validation_incomplete",
+    "mark_superseded",
+    "mark_duplicate",
+    "prepare_handoff_later"
+  ],
+  "safe_single_record_input": {
+    "record_version": "dogfooding_research_record.v0.1",
+    "runtime_version": "dogfooding_research_record_runtime.v0.1",
+    "store_version": "dogfooding_research_record_store.v0.1",
+    "scope": "project:augnes",
+    "record_id": "dogfooding-research-record:proposal-sample-a",
+    "record_kind": "codex_result_report",
+    "created_at": "2026-06-30T02:10:00.000Z",
+    "updated_at": "2026-06-30T02:10:00.000Z",
+    "operator_actor_ref": "operator:public-safe-summary",
+    "source_refs": ["codex-result-report-id:proposal-sample-a"],
+    "pr_refs": ["pr:874"],
+    "branch_refs": ["branch:codex/conversation-handoff-from-dogfooding-record-v0-1"],
+    "commit_refs": ["commit:5dc739d7c1c935f465d0f9b26973913ce10d64c9"],
+    "changed_file_refs": [
+      "lib/handoff/build-handoff-from-dogfooding-record.ts",
+      "scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs"
+    ],
+    "validation_refs": [
+      "npm run smoke:conversation-handoff-from-dogfooding-record-v0-1",
+      "npm run typecheck"
+    ],
+    "skipped_check_refs": ["skipped:none"],
+    "known_warning_refs": ["warning:privacy-smoke-node-experimental-strip-types"],
+    "not_done_refs": ["not-done:review-memory-proposal-remained-next-slice"],
+    "expected_observed_delta_refs": [
+      "delta:review-memory-proposal-was-not-yet-built"
+    ],
+    "normalized_summary": "Dogfooding record to handoff packet binding is available as public-safe candidate context for a Review Memory proposal candidate.",
+    "review_cues": [
+      {
+        "cue_id": "cue:save-review-note",
+        "cue_kind": "review_operator_note",
+        "public_safe_summary": "Save review note should be proposed only after operator review.",
+        "source_refs": ["dogfooding-research-record:proposal-sample-a"],
+        "reason_codes": ["candidate_only_review_material"],
+        "candidate_only": true
+      },
+      {
+        "cue_id": "cue:followup",
+        "cue_kind": "preserve_not_done_item",
+        "public_safe_summary": "Not-done item remains a follow-up cue only.",
+        "source_refs": ["not-done:review-memory-proposal-remained-next-slice"],
+        "reason_codes": ["not_done_preserved"],
+        "candidate_only": true
+      }
+    ],
+    "privacy_report": {
+      "guard_ref": "privacy_redaction_runtime_guard_v0_1",
+      "status": "passed",
+      "findings": [],
+      "blocked_paths": [],
+      "redacted_paths": [],
+      "reason_codes": ["public_safe_summary_only"],
+      "boundary_notes": [
+        "Dogfooding research records remain candidate-only review material.",
+        "Privacy guard applied without raw value echo."
+      ]
+    },
+    "authority_boundary": {
+      "dogfooding_research_record_runtime_now": true,
+      "same_origin_route_now": true,
+      "local_test_db_query_or_write_now": true,
+      "operator_supplied_payload_only": true,
+      "caller_injected_local_db_only": true,
+      "candidate_only": true,
+      "public_safe_summary_only": true,
+      "ui_now": false,
+      "component_now": false,
+      "provider_openai_call_now": false,
+      "source_fetch_now": false,
+      "retrieval_execution_now": false,
+      "proof_or_evidence_record_now": false,
+      "review_memory_write_now": false,
+      "promotion_execution_now": false,
+      "formation_receipt_write_now": false,
+      "durable_state_apply_now": false,
+      "product_write_now": false,
+      "github_api_call_now": false,
+      "git_write_now": false,
+      "github_git_actuation_now": false,
+      "release_deploy_publish_now": false,
+      "record_is_truth": false,
+      "record_is_proof": false,
+      "validation_pass_is_approval": false,
+      "ci_pass_is_authority": false,
+      "dogfooding_record_is_product_write": false
+    },
+    "reason_codes": [
+      "candidate_only_review_material",
+      "changed_files_not_proof",
+      "validation_pass_not_approval",
+      "ci_pass_not_authority",
+      "not_done_preserved",
+      "expected_observed_delta_preserved"
+    ],
+    "lifecycle_state": "candidate_only",
+    "record_fingerprint": "sha256:proposal-sample-a"
+  },
+  "safe_multiple_records_input": {
+    "proposal_id": "review-memory-proposal:dogfooding:fixture-multi",
+    "created_at": "2026-06-30T02:20:00.000Z",
+    "dogfooding_records": [
+      {
+        "record_id": "dogfooding-research-record:proposal-sample-a",
+        "record_kind": "codex_result_report",
+        "created_at": "2026-06-30T02:10:00.000Z",
+        "source_refs": ["codex-result-report-id:proposal-sample-a"],
+        "pr_refs": ["pr:874"],
+        "branch_refs": ["branch:codex/conversation-handoff-from-dogfooding-record-v0-1"],
+        "commit_refs": ["commit:5dc739d7c1c935f465d0f9b26973913ce10d64c9"],
+        "changed_file_refs": ["lib/handoff/build-handoff-from-dogfooding-record.ts"],
+        "validation_refs": ["npm run smoke:conversation-handoff-from-dogfooding-record-v0-1"],
+        "skipped_check_refs": ["skipped:none"],
+        "known_warning_refs": ["warning:privacy-smoke-node-experimental-strip-types"],
+        "not_done_refs": ["not-done:review-memory-proposal-remained-next-slice"],
+        "expected_observed_delta_refs": ["delta:proposal-helper-not-present-before-this-slice"],
+        "normalized_summary": "Proposal candidate should preserve dogfooding material without writing Review Memory.",
+        "review_cues": [
+          {
+            "cue_kind": "review_operator_note",
+            "public_safe_summary": "save_review_note candidate only.",
+            "candidate_only": true
+          },
+          {
+            "cue_kind": "resolve_expected_observed_delta",
+            "public_safe_summary": "request_more_evidence candidate only for expected/observed delta.",
+            "candidate_only": true
+          }
+        ],
+        "privacy_report": {
+          "status": "passed",
+          "boundary_notes": ["Candidate-only material; no raw payload included."]
+        },
+        "reason_codes": ["expected_observed_delta_preserved"]
+      },
+      {
+        "record_id": "dogfooding-research-record:proposal-sample-b",
+        "record_kind": "operator_review_note",
+        "created_at": "2026-06-30T02:11:00.000Z",
+        "source_refs": ["operator-review-note:proposal-sample-b"],
+        "pr_refs": ["pr:874"],
+        "changed_file_refs": ["docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md"],
+        "validation_refs": ["npm run smoke:privacy-redaction-guard-v0-1"],
+        "skipped_check_refs": ["skipped:manual-browser-validation-not-in-scope"],
+        "known_warning_refs": ["warning:none-observed"],
+        "not_done_refs": ["not-done:local-data-export-manifest-remains-next-slice"],
+        "expected_observed_delta_refs": ["delta:manual-review-still-required"],
+        "normalized_summary": "Operator note asks to mark_needs_followup, mark_validation_incomplete, mark_superseded, mark_duplicate, and prepare_handoff_later as proposal candidates only.",
+        "review_cues": [
+          {
+            "cue_kind": "review_operator_note",
+            "public_safe_summary": "mark_superseded candidate remains not deletion.",
+            "candidate_only": true
+          },
+          {
+            "cue_kind": "review_operator_note",
+            "public_safe_summary": "mark_duplicate candidate remains not deletion.",
+            "candidate_only": true
+          },
+          {
+            "cue_kind": "review_operator_note",
+            "public_safe_summary": "prepare_handoff_later candidate remains not execution approval.",
+            "candidate_only": true
+          }
+        ],
+        "privacy_report": {
+          "status": "passed",
+          "boundary_notes": ["Known warnings and skipped checks are review context only."]
+        },
+        "reason_codes": ["not_done_preserved", "skipped_checks_preserved"]
+      }
+    ],
+    "source_dogfooding_record_refs": [
+      "dogfooding-research-record:proposal-summary-ref"
+    ],
+    "candidate_review_summary": [
+      "Summary-level proposal material is public-safe and candidate-only."
+    ],
+    "reason_codes": ["operator_confirmation_required"]
+  },
+  "safe_summary_input": {
+    "proposal_id": "review-memory-proposal:dogfooding:summary-only",
+    "created_at": "2026-06-30T02:21:00.000Z",
+    "source_dogfooding_record_refs": [
+      "dogfooding-research-record:summary-only:proposal-sample"
+    ],
+    "source_refs": ["operator-summary:dogfooding-record-public-safe"],
+    "changed_file_refs": ["lib/dogfooding/build-review-memory-proposal.ts"],
+    "validation_refs": ["npm run smoke:dogfooding-to-review-memory-proposal-v0-1"],
+    "skipped_check_refs": ["skipped:none"],
+    "known_warning_refs": ["warning:none-observed-in-summary-fixture"],
+    "not_done_refs": ["not-done:local-data-export-manifest-remains-next-slice"],
+    "expected_observed_delta_refs": ["delta:summary-only-input-has-no-db-read"],
+    "candidate_review_summary": [
+      "Build a proposal candidate from caller-provided public-safe dogfooding summary fields."
+    ],
+    "review_cues": [
+      "prepare_handoff_later remains a candidate-only cue."
+    ]
+  },
+  "blocked_private_or_raw_payload_example": {
+    "record_id": "dogfooding-research-record:blocked-private:proposal-sample",
+    "scope": "project:augnes",
+    "normalized_summary": "SAFE_MARKER_HIDDEN_REASONING"
+  },
+  "blocked_structured_authority_example": {
+    "record_id": "dogfooding-research-record:blocked-authority:proposal-sample",
+    "scope": "project:augnes",
+    "normalized_summary": "Structured authority field refusal sample.",
+    "authority_boundary": {
+      "review_memory_write_now": true
+    }
+  },
+  "blocked_forbidden_authority_string_claim_cases": [
+    {
+      "case_id": "review_memory_proposal_claim",
+      "target": "normalized_summary",
+      "phrase_parts": ["Review Memory proposal", "is", "saved Review Memory."]
+    },
+    {
+      "case_id": "dogfooding_record_claim",
+      "target": "normalized_summary",
+      "phrase_parts": ["Dogfooding record", "is", "Review Memory write."]
+    },
+    {
+      "case_id": "validation_pass_claim",
+      "target": "normalized_summary",
+      "phrase_parts": ["Validation pass", "is", "approval."]
+    },
+    {
+      "case_id": "changed_files_claim",
+      "target": "normalized_summary",
+      "phrase_parts": ["Changed files", "are", "proof."]
+    },
+    {
+      "case_id": "proposed_action_claim",
+      "target": "review_cues",
+      "phrase_parts": ["Proposed save_review_note", "is", "Review Memory write."]
+    },
+    {
+      "case_id": "request_more_evidence_claim",
+      "target": "review_cues",
+      "phrase_parts": ["Proposed request_more_evidence", "is", "source fetch."]
+    }
+  ],
+  "allowed_negated_authority_examples": [
+    "Dogfooding record to Review Memory proposal is not Review Memory write.",
+    "Review Memory proposal is not saved Review Memory.",
+    "Proposed save_review_note is not Review Memory write.",
+    "Validation pass is not approval.",
+    "Changed files are not proof."
+  ],
+  "required_false_execution_flags": [
+    "product_write_executed",
+    "review_memory_written",
+    "review_memory_write_executed",
+    "proof_or_evidence_created",
+    "claim_or_evidence_written",
+    "promotion_executed",
+    "formation_receipt_written",
+    "durable_state_applied",
+    "github_git_actuated",
+    "provider_called",
+    "retrieval_executed",
+    "source_fetched",
+    "release_deploy_publish_executed",
+    "db_read_executed",
+    "db_write_executed"
+  ],
+  "required_authority_boundary_false_fields": [
+    "review_memory_write_now",
+    "review_memory_write_executed",
+    "proof_or_evidence_record_now",
+    "claim_or_evidence_write_now",
+    "promotion_execution_now",
+    "formation_receipt_write_now",
+    "durable_state_apply_now",
+    "product_write_now",
+    "github_api_call_now",
+    "git_write_now",
+    "github_git_actuation_now",
+    "provider_openai_call_now",
+    "retrieval_execution_now",
+    "source_fetch_now",
+    "release_deploy_publish_now"
+  ]
+}
