@@ -91,6 +91,12 @@ export function TraceDiagnosticsPanel({
             </span>
           </li>
         ))}
+        {reviewNotes.slice(0, 3).map((note, index) => (
+          <li key={`review-note-${index}`} style={workplaneItemStyle}>
+            <span style={workplaneBadgeStyle}>review note</span>
+            <span style={workplaneCopyStyle}>{note}</span>
+          </li>
+        ))}
         {!hasTraceDiagnostics ? (
           <li style={workplaneItemStyle}>
             <span style={workplaneCopyStyle}>
