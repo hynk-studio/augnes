@@ -63,6 +63,16 @@ const followOnAgentWorkplaneFiles = [
   "docs/AGENT_WORKPLANE_V0_1.md",
   "scripts/smoke-agent-workplane-shell-v0-1.mjs",
 ];
+const followOnAgentWorkplanePanelFiles = [
+  "components/workplane/workplane-panel-shell.tsx",
+  "components/workplane/work-queue-panel.tsx",
+  "components/workplane/current-perspective-workplane-panel.tsx",
+  "components/workplane/delta-projection-workplane-panel.tsx",
+  "components/workplane/review-queue-workplane-panel.tsx",
+  "components/workplane/evidence-handoff-workplane-panel.tsx",
+  "components/workplane/workplane-inspector.tsx",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -87,6 +97,7 @@ const allowedChangedFiles = new Set([
   ...followOnHumanSurfaceHomeFiles,
   ...followOnPerspectiveHumanTimelineFiles,
   ...followOnAgentWorkplaneFiles,
+  ...followOnAgentWorkplanePanelFiles,
 ]);
 
 const allowedRouteFiles = new Set([currentPerspectiveRouteFile]);
@@ -143,6 +154,9 @@ console.log(
       ],
       follow_on_human_surface_home_files_allowed:
         followOnHumanSurfaceHomeFiles,
+      follow_on_agent_workplane_files_allowed: followOnAgentWorkplaneFiles,
+      follow_on_agent_workplane_panel_files_allowed:
+        followOnAgentWorkplanePanelFiles,
       changed_files_checked: changedFilesBoundary.checked,
       changed_files_skipped: changedFilesBoundary.skipped,
       changed_files_skip_reason: changedFilesBoundary.skip_reason,
@@ -599,8 +613,9 @@ function assertChangedFileBoundary() {
       !/^components\//.test(file) ||
         followOnHumanSurfaceHomeFiles.includes(file) ||
         followOnPerspectiveHumanTimelineFiles.includes(file) ||
-        followOnAgentWorkplaneFiles.includes(file),
-      `Phase 3A follow-on must not change UI files outside Phase 4A/4B Human Surface or Phase 5A Agent Workplane files: ${file}`,
+        followOnAgentWorkplaneFiles.includes(file) ||
+        followOnAgentWorkplanePanelFiles.includes(file),
+      `Phase 3A follow-on must not change UI files outside Phase 4A/4B Human Surface or Phase 5A/5B Agent Workplane files: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 3A must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `Phase 3A must not change migrations: ${file}`);

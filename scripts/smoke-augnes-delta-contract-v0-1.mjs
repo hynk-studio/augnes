@@ -94,6 +94,17 @@ const followOnAgentWorkplaneFiles = [
   "scripts/smoke-agent-workplane-shell-v0-1.mjs",
 ];
 
+const followOnAgentWorkplanePanelFiles = [
+  "components/workplane/workplane-panel-shell.tsx",
+  "components/workplane/work-queue-panel.tsx",
+  "components/workplane/current-perspective-workplane-panel.tsx",
+  "components/workplane/delta-projection-workplane-panel.tsx",
+  "components/workplane/review-queue-workplane-panel.tsx",
+  "components/workplane/evidence-handoff-workplane-panel.tsx",
+  "components/workplane/workplane-inspector.tsx",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnProjectionReadModelFiles,
@@ -103,6 +114,7 @@ const allowedChangedFiles = new Set([
   ...followOnHumanSurfaceHomeFiles,
   ...followOnPerspectiveHumanTimelineFiles,
   ...followOnAgentWorkplaneFiles,
+  ...followOnAgentWorkplanePanelFiles,
 ]);
 
 const allowedRouteFiles = new Set([
@@ -395,8 +407,9 @@ function assertChangedFileBoundary() {
       !/^components\//.test(file) ||
         followOnHumanSurfaceHomeFiles.includes(file) ||
         followOnPerspectiveHumanTimelineFiles.includes(file) ||
-        followOnAgentWorkplaneFiles.includes(file),
-      `AugnesDelta contract follow-on must not change UI files outside Phase 4A/4B Human Surface or Phase 5A Agent Workplane files: ${file}`,
+        followOnAgentWorkplaneFiles.includes(file) ||
+        followOnAgentWorkplanePanelFiles.includes(file),
+      `AugnesDelta contract follow-on must not change UI files outside Phase 4A/4B Human Surface or Phase 5A/5B Agent Workplane files: ${file}`,
     );
     assert(!/^db\//.test(file), `AugnesDelta contract follow-on must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `AugnesDelta contract follow-on must not change migrations: ${file}`);
@@ -442,6 +455,8 @@ function assertChangedFileBoundary() {
     follow_on_perspective_human_timeline_files_allowed:
       followOnPerspectiveHumanTimelineFiles,
     follow_on_agent_workplane_files_allowed: followOnAgentWorkplaneFiles,
+    follow_on_agent_workplane_panel_files_allowed:
+      followOnAgentWorkplanePanelFiles,
     api_route_added: files.some((file) => allowedRouteFiles.has(file)),
     human_surface_ui_added: humanSurfaceUiAdded,
     agent_workplane_ui_added: agentWorkplaneUiAdded,

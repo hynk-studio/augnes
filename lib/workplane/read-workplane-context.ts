@@ -137,7 +137,7 @@ export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
     can_merge: false,
     can_retry_replay_deploy: false,
     notes: [
-      "Agent Workplane is a read-only backend/operator surface in Phase 5A.",
+      "Agent Workplane is a read-only backend/operator surface in Phase 5A and Phase 5B.",
       "It can inspect Current Working Perspective and Augnes Delta Projection context.",
       "It does not execute agents, apply deltas, write proof/evidence, call providers, call GitHub, launch Codex, merge, publish, retry, replay, deploy, or mutate state.",
       "Existing Cockpit content is preserved as compatibility content for operator continuity.",
@@ -199,7 +199,7 @@ export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
     workplane_notes: [
       "Human-facing entry remains `/` and Perspective review remains `/perspective`.",
       "Workbench remains `/workbench` and is reframed as Agent Workplane.",
-      "Phase 5B can extract work queue, delta, evidence, and handoff panels without redoing the shell.",
+      "Phase 5B extracts work queue, Current Perspective, Delta Projection, Review Queue, Evidence/Handoff, and Inspector panels without redoing the shell.",
     ],
   };
 }

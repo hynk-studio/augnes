@@ -32,19 +32,21 @@ const contextReaderFile = "lib/workplane/read-workplane-context.ts";
 const agentWorkplaneDoc = "docs/AGENT_WORKPLANE_V0_1.md";
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
-const smokeFile = "scripts/smoke-agent-workplane-shell-v0-1.mjs";
+const shellSmokeFile = "scripts/smoke-agent-workplane-shell-v0-1.mjs";
+const humanSurfaceSmokeFile = "scripts/smoke-human-surface-home-v0-1.mjs";
+const perspectiveSmokeFile =
+  "scripts/smoke-perspective-human-timeline-v0-1.mjs";
+const smokeFile = "scripts/smoke-agent-workplane-panels-v0-1.mjs";
 
-const followOnSmokeCompatibilityFiles = [
+const followOnHistoricalSmokeCompatibilityFiles = [
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
   "scripts/smoke-augnes-delta-projection-v0-1.mjs",
   "scripts/smoke-augnes-delta-projection-route-v0-1.mjs",
   "scripts/smoke-current-working-perspective-v0-1.mjs",
   "scripts/smoke-current-working-perspective-route-v0-1.mjs",
-  "scripts/smoke-human-surface-home-v0-1.mjs",
-  "scripts/smoke-perspective-human-timeline-v0-1.mjs",
 ];
 
-const followOnAgentWorkplanePanelFiles = [
+const panelFiles = [
   panelShellFile,
   workQueuePanelFile,
   currentPerspectivePanelFile,
@@ -52,7 +54,6 @@ const followOnAgentWorkplanePanelFiles = [
   reviewQueuePanelFile,
   evidenceHandoffPanelFile,
   workplaneInspectorFile,
-  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
 ];
 
 const requiredFiles = [
@@ -62,24 +63,34 @@ const requiredFiles = [
   workplaneOverviewFile,
   workplaneBoundaryFile,
   compatibilityPanelFile,
-  panelShellFile,
-  workQueuePanelFile,
-  currentPerspectivePanelFile,
-  deltaProjectionPanelFile,
-  reviewQueuePanelFile,
-  evidenceHandoffPanelFile,
-  workplaneInspectorFile,
+  ...panelFiles,
   contextReaderFile,
   agentWorkplaneDoc,
   packageJsonFile,
   indexDoc,
+  shellSmokeFile,
+  humanSurfaceSmokeFile,
+  perspectiveSmokeFile,
   smokeFile,
 ];
 
 const allowedChangedFiles = new Set([
-  ...requiredFiles,
-  ...followOnSmokeCompatibilityFiles,
-  ...followOnAgentWorkplanePanelFiles,
+  workbenchPageFile,
+  agentWorkplaneFile,
+  workplaneHeaderFile,
+  workplaneOverviewFile,
+  workplaneBoundaryFile,
+  compatibilityPanelFile,
+  ...panelFiles,
+  contextReaderFile,
+  agentWorkplaneDoc,
+  indexDoc,
+  packageJsonFile,
+  shellSmokeFile,
+  humanSurfaceSmokeFile,
+  perspectiveSmokeFile,
+  ...followOnHistoricalSmokeCompatibilityFiles,
+  smokeFile,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -89,74 +100,81 @@ const headerText = textByFile.get(workplaneHeaderFile);
 const overviewText = textByFile.get(workplaneOverviewFile);
 const boundaryText = textByFile.get(workplaneBoundaryFile);
 const compatibilityText = textByFile.get(compatibilityPanelFile);
-const panelText = [
-  textByFile.get(panelShellFile),
-  textByFile.get(workQueuePanelFile),
-  textByFile.get(currentPerspectivePanelFile),
-  textByFile.get(deltaProjectionPanelFile),
-  textByFile.get(reviewQueuePanelFile),
-  textByFile.get(evidenceHandoffPanelFile),
-  textByFile.get(workplaneInspectorFile),
-].join("\n");
+const panelShellText = textByFile.get(panelShellFile);
+const workQueueText = textByFile.get(workQueuePanelFile);
+const currentPerspectiveText = textByFile.get(currentPerspectivePanelFile);
+const deltaProjectionText = textByFile.get(deltaProjectionPanelFile);
+const reviewQueueText = textByFile.get(reviewQueuePanelFile);
+const evidenceHandoffText = textByFile.get(evidenceHandoffPanelFile);
+const inspectorText = textByFile.get(workplaneInspectorFile);
 const contextReaderText = textByFile.get(contextReaderFile);
 const docText = textByFile.get(agentWorkplaneDoc);
 const packageJsonText = textByFile.get(packageJsonFile);
 const indexText = textByFile.get(indexDoc);
-const smokeText = textByFile.get(smokeFile);
+const shellSmokeText = textByFile.get(shellSmokeFile);
+const humanSurfaceSmokeText = textByFile.get(humanSurfaceSmokeFile);
+const perspectiveSmokeText = textByFile.get(perspectiveSmokeFile);
 
 assertPackageJsonScript();
 assertIndexPointer();
-assertWorkbenchRouteShell();
-assertWorkplaneComponents();
+assertWorkbenchRouteStillShell();
+assertShellComposition();
+assertPanelComponents();
 assertWorkplaneContextReader();
 assertDocs();
+assertFollowOnSmokeCompatibility();
 assertNoNewAuthorityCode();
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
   JSON.stringify(
     {
-      smoke: "agent-workplane-shell-v0-1",
+      smoke: "agent-workplane-panels-v0-1",
       pass: true,
       required_files_checked: requiredFiles,
       package_script_checked: true,
       index_pointer_checked: true,
       workbench_route_checked: true,
-      agent_workplane_shell_checked: true,
+      shell_composition_checked: true,
+      panel_components_checked: true,
       cockpit_compatibility_checked: true,
       current_working_perspective_context_checked: true,
       delta_projection_context_checked: true,
+      follow_on_smoke_compatibility_checked: true,
+      follow_on_historical_smoke_compatibility_files_allowed:
+        followOnHistoricalSmokeCompatibilityFiles,
       no_new_authority_code_checked: true,
       changed_files_checked: changedFilesBoundary.checked,
       changed_files_skipped: changedFilesBoundary.skipped,
       changed_files_skip_reason: changedFilesBoundary.skip_reason,
       changed_files_observed: changedFilesBoundary.files,
-      follow_on_smoke_compatibility_files_allowed:
-        followOnSmokeCompatibilityFiles,
-      follow_on_agent_workplane_panel_files_allowed:
-        followOnAgentWorkplanePanelFiles,
-      smoke_type: "static-agent-workplane-shell-ui-helper-doc-package-index-boundary-only",
-      route_model_changed: "/workbench wrapper only",
+      smoke_type:
+        "static-agent-workplane-panels-ui-helper-doc-package-index-boundary-only",
+      route_model_changed: false,
       db_schema_migration_changed: false,
       db_write_added: false,
+      api_write_route_added: false,
       mcp_app_tool_added: false,
       provider_openai_github_runtime_call_added: false,
       codex_execution_added: false,
       proof_evidence_write_added: false,
+      memory_mutation_added: false,
+      durable_perspective_state_apply_added: false,
       scheduler_autonomy_runner_added: false,
+      phase5c_panel_scope_started: false,
       external_side_effect_added: false,
     },
     null,
     2,
   ),
 );
-console.log("PASS smoke:agent-workplane-shell-v0-1");
+console.log("PASS smoke:agent-workplane-panels-v0-1");
 
 function assertPackageJsonScript() {
   assertPackageScript({
     packageJsonText,
-    scriptName: "smoke:agent-workplane-shell-v0-1",
-    expectedCommand: "node scripts/smoke-agent-workplane-shell-v0-1.mjs",
+    scriptName: "smoke:agent-workplane-panels-v0-1",
+    expectedCommand: "node scripts/smoke-agent-workplane-panels-v0-1.mjs",
   });
 }
 
@@ -165,15 +183,19 @@ function assertIndexPointer() {
     indexText,
     [
       agentWorkplaneDoc,
-      "Phase 5A read-only Agent Workplane shell",
-      "/workbench",
-      "legacy Cockpit compatibility content",
+      "Phase 5B adds focused read-only Agent Workplane panels",
+      "Work Queue",
+      "Current Perspective",
+      "Delta Projection",
+      "Review Queue",
+      "Evidence/Handoff",
+      "Workplane Inspector",
     ],
     { label: indexDoc },
   );
 }
 
-function assertWorkbenchRouteShell() {
+function assertWorkbenchRouteStillShell() {
   assertContainsAll(
     workbenchPageText,
     [
@@ -186,17 +208,16 @@ function assertWorkbenchRouteShell() {
   );
   assert(
     !workbenchPageText.includes("<AugnesCockpit"),
-    `${workbenchPageFile} should route through the Agent Workplane shell, not direct Cockpit rendering`,
+    `${workbenchPageFile} should keep Cockpit behind the Agent Workplane compatibility shell`,
   );
 }
 
-function assertWorkplaneComponents() {
+function assertShellComposition() {
   assertContainsAll(
     agentWorkplaneText,
     [
       "Agent Workplane",
-      "AugnesCockpit",
-      "LegacyCockpitCompatibilityPanel",
+      "WorkplaneHeader",
       "WorkplaneOverview",
       "WorkQueuePanel",
       "CurrentPerspectiveWorkplanePanel",
@@ -204,27 +225,13 @@ function assertWorkplaneComponents() {
       "ReviewQueueWorkplanePanel",
       "EvidenceHandoffWorkplanePanel",
       "WorkplaneInspector",
+      "LegacyCockpitCompatibilityPanel",
+      "AugnesCockpit",
       "readWorkplaneContext",
       "Agent Workplane panels",
+      "Agent Workplane active compatibility content",
     ],
     { label: agentWorkplaneFile },
-  );
-  assertContainsAll(
-    panelText,
-    [
-      "Work Queue",
-      "Current Perspective",
-      "Delta Projection",
-      "Review Queue",
-      "Evidence / Handoff",
-      "Workplane Inspector",
-      "WorkplaneBoundaryCard",
-      "No handoff refs materialized yet",
-      "Run postmortem source is not materialized yet",
-      "No projected deltas materialized yet",
-      "No active work goals are materialized yet",
-    ],
-    { label: "Phase 5B Agent Workplane panel files" },
   );
   assertContainsAll(
     headerText,
@@ -233,11 +240,6 @@ function assertWorkplaneComponents() {
       "Backend work surface",
       "read-only operator view",
       "No hidden execution authority",
-      "Current Working Perspective context",
-      "Augnes Delta Projection context",
-      "Evidence pointers",
-      "Handoff context",
-      "Trace context",
       'href="/"',
       'href="/perspective"',
     ],
@@ -250,10 +252,114 @@ function assertWorkplaneComponents() {
       "Augnes Delta Projection",
       "Review queue",
       "Source / fallback status",
-      "Fixture fallback is not live runtime state",
-      "No review queue delta refs are materialized yet",
     ],
     { label: workplaneOverviewFile },
+  );
+  assertContainsAll(
+    compatibilityText,
+    [
+      "Existing Cockpit compatibility content",
+      "Legacy Cockpit remains reachable",
+      "Phase 5B extracts focused",
+    ],
+    { label: compatibilityPanelFile },
+  );
+}
+
+function assertPanelComponents() {
+  assertContainsAll(
+    panelShellText,
+    [
+      "WorkplanePanelShell",
+      "WorkplanePanelMetric",
+      "workplaneCopyStyle",
+      "workplaneListStyle",
+      "workplaneItemStyle",
+      "workplaneBadgeStyle",
+    ],
+    { label: panelShellFile },
+  );
+  assertContainsAll(
+    workQueueText,
+    [
+      "WorkQueuePanel",
+      "Work Queue",
+      "Active work and review scope",
+      "No active work goals are materialized yet",
+      "read-only queue hints",
+      "WorkplaneContextRead",
+    ],
+    { label: workQueuePanelFile },
+  );
+  assertContainsAll(
+    currentPerspectiveText,
+    [
+      "CurrentPerspectiveWorkplanePanel",
+      "Current Perspective",
+      "Current Working Perspective workplane context",
+      "Source status",
+      "Staleness",
+      "Fixture fallback is disclosed",
+      "WorkplaneContextRead",
+    ],
+    { label: currentPerspectivePanelFile },
+  );
+  assertContainsAll(
+    deltaProjectionText,
+    [
+      "DeltaProjectionWorkplanePanel",
+      "Delta Projection",
+      "Augnes Delta Projection workplane context",
+      "No projected deltas materialized yet",
+      "read-model inputs",
+      "Date.parse",
+      "localeCompare",
+      "WorkplaneContextRead",
+    ],
+    { label: deltaProjectionPanelFile },
+  );
+  assertContainsAll(
+    reviewQueueText,
+    [
+      "ReviewQueueWorkplanePanel",
+      "Review Queue",
+      "Operator attention hints",
+      "No review queue delta refs are materialized yet",
+      "does not approve",
+      "WorkplaneContextRead",
+    ],
+    { label: reviewQueuePanelFile },
+  );
+  assertContainsAll(
+    evidenceHandoffText,
+    [
+      "EvidenceHandoffWorkplanePanel",
+      "Evidence / Handoff",
+      "Pointer-only handoff and evidence context",
+      "Evidence pointers",
+      "Handoff context",
+      "No handoff refs materialized yet",
+      "Run postmortem source is not materialized yet",
+      "does not create evidence records",
+      "WorkplaneContextRead",
+    ],
+    { label: evidenceHandoffPanelFile },
+  );
+  assertContainsAll(
+    inspectorText,
+    [
+      "WorkplaneInspector",
+      "WorkplaneBoundaryCard",
+      "No hidden execution authority",
+      "Pointer-only backend context",
+      "merge policy",
+      "Non-goals",
+      "No projected deltas materialized yet",
+      "Date.parse",
+      "localeCompare",
+      "WorkplaneContextRead",
+    ],
+    { label: workplaneInspectorFile },
   );
   assertContainsAll(
     boundaryText,
@@ -269,15 +375,6 @@ function assertWorkplaneComponents() {
     ],
     { label: workplaneBoundaryFile },
   );
-  assertContainsAll(
-    compatibilityText,
-    [
-      "Existing Cockpit compatibility content",
-      "Legacy Cockpit remains reachable",
-      "Phase 5B extracts focused",
-    ],
-    { label: compatibilityPanelFile },
-  );
 }
 
 function assertWorkplaneContextReader() {
@@ -291,7 +388,7 @@ function assertWorkplaneContextReader() {
       "source_status",
       "fallback_reason",
       "authority_boundary",
-      "no_hidden_execution_authority",
+      "Phase 5B extracts work queue",
       "can_execute_codex: false",
       "can_create_evidence: false",
       "can_record_proof: false",
@@ -302,41 +399,69 @@ function assertWorkplaneContextReader() {
     ],
     { label: contextReaderFile },
   );
-  assert(
-    !contextReaderText.includes("projection.deltas\n          .slice(0, 4)") &&
-      !contextReaderText.includes("projection.deltas.slice(0, 4)"),
-    `${contextReaderFile} must sort a copied delta array before slicing latest_delta_titles`,
-  );
 }
 
 function assertDocs() {
   assertContainsAll(
     docText,
     [
-      "Agent Workplane v0.1",
-      "Existing Cockpit Preservation",
-      "Data Sources and Fallback",
-      "Trace context summary",
-      "No handoff refs",
-      "No run/postmortem source",
-      "Authority Boundary",
-      "smoke:agent-workplane-shell-v0-1",
-      "Phase 5B",
+      "Phase 5B Agent Workplane Panels",
+      "Work Queue panel",
+      "Current Perspective Workplane panel",
+      "Delta Projection Workplane panel",
+      "Review Queue panel",
+      "Evidence/Handoff panel",
+      "Workplane Inspector",
+      "Phase 5C remains deferred",
       "smoke:agent-workplane-panels-v0-1",
+      "no-write, no-execution, no-hidden-authority",
     ],
     { label: agentWorkplaneDoc },
   );
 }
 
+function assertFollowOnSmokeCompatibility() {
+  assertContainsAll(
+    shellSmokeText,
+    [
+      "followOnAgentWorkplanePanelFiles",
+      "work-queue-panel.tsx",
+      "smoke-agent-workplane-panels-v0-1.mjs",
+    ],
+    { label: shellSmokeFile },
+  );
+  assertContainsAll(
+    humanSurfaceSmokeText,
+    [
+      "followOnAgentWorkplanePanelFiles",
+      "smoke-agent-workplane-panels-v0-1.mjs",
+    ],
+    { label: humanSurfaceSmokeFile },
+  );
+  assertContainsAll(
+    perspectiveSmokeText,
+    [
+      "followOnAgentWorkplanePanelFiles",
+      "smoke-agent-workplane-panels-v0-1.mjs",
+    ],
+    { label: perspectiveSmokeFile },
+  );
+}
+
 function assertNoNewAuthorityCode() {
   const implementationText = [
-    workbenchPageText,
     agentWorkplaneText,
     headerText,
     overviewText,
     boundaryText,
     compatibilityText,
-    panelText,
+    panelShellText,
+    workQueueText,
+    currentPerspectiveText,
+    deltaProjectionText,
+    reviewQueueText,
+    evidenceHandoffText,
+    inspectorText,
     contextReaderText,
   ].join("\n");
 
@@ -362,6 +487,7 @@ function assertNoNewAuthorityCode() {
     [/\bexecuteCodex\s*\(/, "Codex execution"],
     [/\bcodexSdk\b/i, "Codex SDK"],
     [/\bsetInterval\s*\(/, "scheduler interval"],
+    [/\bsetTimeout\s*\(/, "scheduler timeout"],
     [/\bautonomyRunner\b/i, "autonomy runner"],
     [/\bINSERT\s+INTO\b/i, "SQL insert"],
     [/\bUPDATE\s+\w+/i, "SQL update"],
@@ -369,27 +495,15 @@ function assertNoNewAuthorityCode() {
     [/\bCREATE\s+TABLE\b/i, "schema creation"],
     [/\bALTER\s+TABLE\b/i, "schema alteration"],
     [/\bDROP\s+TABLE\b/i, "schema drop"],
+    [/\bcreatePullRequest\s*\(/, "GitHub actuation"],
   ];
 
   for (const [pattern, label] of forbiddenPatterns) {
     assert(
       !pattern.test(implementationText),
-      `Agent Workplane shell must not add ${label}: ${pattern}`,
+      `Agent Workplane panels must not add ${label}: ${pattern}`,
     );
   }
-
-  assertContainsAll(
-    smokeText,
-    [
-      "app/api/",
-      "migrations/",
-      "apps/augnes_apps/",
-      "app/page.tsx",
-      "app/perspective/page.tsx",
-      "no_new_authority_code_checked",
-    ],
-    { label: smokeFile },
-  );
 }
 
 function assertChangedFileBoundary() {
@@ -407,42 +521,42 @@ function assertChangedFileBoundary() {
   for (const file of files) {
     assert(
       allowedChangedFiles.has(file),
-      `Unexpected Phase 5A changed or untracked file: ${file}`,
+      `Unexpected Phase 5B changed or untracked file: ${file}`,
     );
-    assert(file !== "app/page.tsx", "Phase 5A must not update / home page");
+    assert(file !== "app/page.tsx", "Phase 5B must not update / home page");
     assert(
       file !== "app/perspective/page.tsx",
-      "Phase 5A must not update /perspective page",
+      "Phase 5B must not update /perspective page",
     );
-    assert(!/^app\/api\//.test(file), `Phase 5A must not add API routes: ${file}`);
+    assert(!/^app\/api\//.test(file), `Phase 5B must not add API routes: ${file}`);
     assert(
       !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file),
-      `Phase 5A must not add route files: ${file}`,
+      `Phase 5B must not add route files: ${file}`,
     );
-    assert(!/^db\//.test(file), `Phase 5A must not change DB files: ${file}`);
+    assert(!/^db\//.test(file), `Phase 5B must not change DB files: ${file}`);
     assert(
       !/^migrations\//.test(file),
-      `Phase 5A must not change migrations: ${file}`,
+      `Phase 5B must not change migrations: ${file}`,
     );
     assert(
       !/^apps\/augnes_apps\//.test(file),
-      `Phase 5A must not change MCP/App files: ${file}`,
+      `Phase 5B must not change MCP/App files: ${file}`,
     );
     assert(
       !/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file),
-      `Phase 5A must not change MCP/App tool files: ${file}`,
+      `Phase 5B must not change MCP/App tool files: ${file}`,
     );
     assert(
       !/(^|\/)(provider|providers|openai|github)(\/|$)/i.test(file),
-      `Phase 5A must not change provider/OpenAI/GitHub runtime files: ${file}`,
+      `Phase 5B must not change provider/OpenAI/GitHub runtime files: ${file}`,
     );
     assert(
       !/(^|\/)(proof|evidence)(\/|$)/i.test(file),
-      `Phase 5A must not add proof/evidence write paths: ${file}`,
+      `Phase 5B must not add proof/evidence write paths: ${file}`,
     );
     assert(
       !/(^|\/)(work-mutation|work_mutation|autonomy-runner|scheduler)(\/|$)/i.test(file),
-      `Phase 5A must not add work mutation or autonomy runner files: ${file}`,
+      `Phase 5B must not add work mutation or autonomy runner files: ${file}`,
     );
   }
 

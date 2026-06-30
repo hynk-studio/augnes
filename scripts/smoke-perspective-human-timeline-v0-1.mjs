@@ -49,6 +49,17 @@ const followOnAgentWorkplaneFiles = [
   "scripts/smoke-agent-workplane-shell-v0-1.mjs",
 ];
 
+const followOnAgentWorkplanePanelFiles = [
+  "components/workplane/workplane-panel-shell.tsx",
+  "components/workplane/work-queue-panel.tsx",
+  "components/workplane/current-perspective-workplane-panel.tsx",
+  "components/workplane/delta-projection-workplane-panel.tsx",
+  "components/workplane/review-queue-workplane-panel.tsx",
+  "components/workplane/evidence-handoff-workplane-panel.tsx",
+  "components/workplane/workplane-inspector.tsx",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+];
+
 const requiredFiles = [
   pageFile,
   wrapperFile,
@@ -70,6 +81,7 @@ const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnSmokeCompatibilityFiles,
   ...followOnAgentWorkplaneFiles,
+  ...followOnAgentWorkplanePanelFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -123,9 +135,13 @@ console.log(
       follow_on_smoke_compatibility_files_allowed:
         followOnSmokeCompatibilityFiles,
       follow_on_agent_workplane_files_allowed: followOnAgentWorkplaneFiles,
+      follow_on_agent_workplane_panel_files_allowed:
+        followOnAgentWorkplanePanelFiles,
       smoke_type: "static-perspective-human-timeline-ui-helper-doc-package-index-boundary-only",
       phase5a_agent_workplane_follow_on_used:
         changedFilesBoundary.phase5a_agent_workplane_follow_on_used,
+      phase5b_agent_workplane_panel_follow_on_used:
+        changedFilesBoundary.phase5b_agent_workplane_panel_follow_on_used,
       route_behavior_changed: changedFilesBoundary.route_behavior_changed,
       route_behavior_change_reason:
         changedFilesBoundary.route_behavior_change_reason,
@@ -464,6 +480,9 @@ function assertChangedFileBoundary() {
   const phase5aAgentWorkplaneFollowOnUsed = files.some((file) =>
     followOnAgentWorkplaneFiles.includes(file),
   );
+  const phase5bAgentWorkplanePanelFollowOnUsed = files.some((file) =>
+    followOnAgentWorkplanePanelFiles.includes(file),
+  );
   const workbenchPageChanged = files.includes("app/workbench/page.tsx");
 
   return {
@@ -487,6 +506,8 @@ function assertChangedFileBoundary() {
         : "changed-file boundary could not be checked",
     phase5a_agent_workplane_follow_on_used:
       phase5aAgentWorkplaneFollowOnUsed,
+    phase5b_agent_workplane_panel_follow_on_used:
+      phase5bAgentWorkplanePanelFollowOnUsed,
     workbench_page_changed: workbenchPageChanged,
     route_behavior_changed: workbenchPageChanged,
     route_behavior_change_reason: workbenchPageChanged
