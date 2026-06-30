@@ -4479,6 +4479,50 @@ repo-local 색인이다.
   Augnes runtime; no GitHub API call from Augnes runtime; no Git/GitHub
   actuation from Augnes runtime; no release, deploy, or publish behavior. Next
   recommended slice: `local_data_export_manifest_builder_v0_1`.
+- Local Data Export Manifest Builder v0.1:
+  `docs/LOCAL_DATA_EXPORT_MANIFEST_BUILDER_V0_1.md`,
+  `types/local-data-export-manifest.ts`,
+  `lib/local-export/build-local-data-export-manifest.ts`,
+  `fixtures/local-data-export-manifest.sample.v0.1.json`, and
+  `scripts/smoke-local-data-export-manifest-builder-v0-1.mjs`
+  (`npm run smoke:local-data-export-manifest-builder-v0-1`) implements
+  `local_data_export_manifest_builder_v0_1`. PR #868 remains the frozen web
+  baseline for `/`, `/perspective`, and `/workbench`. PR #875 provides
+  dogfooding to Review Memory proposal context. This slice adds no UI. Local
+  export manifests are candidate-only public-safe summaries, not export files
+  or import approval. Local data export manifest is not truth, proof, accepted
+  evidence, file write approval, product readiness, or release readiness. Export
+  item summaries are not raw data or canonical source bodies. Import preview is
+  not import apply. Manifest fingerprint is not proof or approval. Dogfooding
+  records remain candidate summaries. Review Memory summaries are references
+  only. Review Memory proposals are candidate-only. Promotion decision refs,
+  Formation Receipt refs, Git Ledger packet refs, Git refs, and GitHub PR refs
+  are references only. Durable state summaries are summaries only. Validation
+  pass is not approval. Validation failure is not automatic rejection. Smoke
+  pass is not evidence. Smoke failure is diagnostic, not automatic rejection. CI
+  pass is not authority. CI failure is diagnostic, not automatic rejection.
+  Skipped checks are review context, not failure by themselves. Known warnings
+  are review context, not automatic rejection. Not-done items are next-task
+  cues, not automatic task creation. Expected/observed delta is reconciliation
+  context, not approval or rejection. Product-write remains parked by #686.
+
+  Boundary phrases: helper-only local data export manifest candidate builder;
+  caller-provided public-safe summaries only; redacted-with-warnings preserves
+  reference-only public-safe summaries without unsafe raw echo; no raw DB rows;
+  no raw source bodies; no raw provider output; no raw retrieval output; no raw
+  conversations; no hidden reasoning; no UI; no components; no Cockpit change;
+  no public-surface change; no route model change for `/`, `/perspective`, or
+  `/workbench`; no browser-validation-only work; no new API route; no DB
+  migration; no DB write; no direct DB read; no local file write; no local file
+  read; no import apply; no provider/OpenAI call; no prompt sent; no source
+  fetch; no retrieval execution; no retrieval index write; no proof/evidence
+  creation; no claim/evidence write; no Review Memory write; no promotion
+  execution; no promotion decision creation from export manifest; no Formation
+  Receipt write; no durable Perspective state apply; no product-write; no
+  product ID allocation; no Codex execution from Augnes runtime; no GitHub API
+  call from Augnes runtime; no Git/GitHub actuation from Augnes runtime; no
+  release, deploy, or publish behavior. Next recommended slice:
+  `git_ledger_export_manifest_binding_v0_1`.
 - Runtime Audit Panel v0.1:
   `docs/RUNTIME_AUDIT_PANEL_V0_1.md`,
   `lib/runtime-audit/build-runtime-audit-model.ts`,

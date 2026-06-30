@@ -1,0 +1,279 @@
+{
+  "fixture_version": "local_data_export_manifest_builder.sample.v0.1",
+  "manifest_version": "local_data_export_manifest_candidate.v0.1",
+  "builder_version": "local_data_export_manifest_builder.v0.1",
+  "selected_slice": "local_data_export_manifest_builder_v0_1",
+  "next_recommended_slice": "git_ledger_export_manifest_binding_v0_1",
+  "scope": "project:augnes",
+  "post_868_boundary": {
+    "pr_868_is_frozen_web_baseline": true,
+    "frozen_routes": ["/", "/perspective", "/workbench"],
+    "web_last": true,
+    "ui_in_scope": false,
+    "route_in_scope": false,
+    "db_in_scope": false,
+    "file_write_in_scope": false,
+    "file_read_in_scope": false,
+    "import_apply_in_scope": false
+  },
+  "required_export_profiles": [
+    "operator_review_bundle",
+    "dogfooding_memory_bundle",
+    "handoff_context_bundle",
+    "review_proposal_bundle",
+    "audit_readiness_bundle",
+    "release_readiness_bundle",
+    "minimal_public_safe_bundle"
+  ],
+  "safe_minimal_input": {
+    "manifest_id": "local-data-export-manifest:fixture-minimal",
+    "created_at": "2026-06-30T03:10:00.000Z",
+    "export_profile": "minimal_public_safe_bundle",
+    "source_summary_refs": [
+      {
+        "ref": "source-summary:post-868-core-chain",
+        "public_safe_summary": "Post-#868 dogfooding and handoff slices are represented as public-safe summary refs only."
+      }
+    ],
+    "dogfooding_record_summary_refs": [
+      "dogfooding-research-record:proposal-sample-a"
+    ],
+    "review_memory_proposal_refs": [
+      "review-memory-proposal:dogfooding:fixture-multi"
+    ],
+    "handoff_packet_refs": [
+      "conversation-handoff-packet:public-safe-fixture"
+    ],
+    "validation_refs": [
+      "npm run smoke:local-data-export-manifest-builder-v0-1"
+    ],
+    "skipped_check_refs": ["skipped:none"],
+    "known_warning_refs": ["warning:none-observed-in-manifest-fixture"],
+    "not_done_refs": [
+      "not-done:git-ledger-export-manifest-binding-remains-next-slice"
+    ],
+    "expected_observed_delta_refs": [
+      "delta:manifest-builder-only-no-export-file"
+    ],
+    "reason_codes": ["public_safe_summary_only"]
+  },
+  "safe_multi_category_input": {
+    "manifest_id": "local-data-export-manifest:fixture-multi",
+    "created_at": "2026-06-30T03:20:00.000Z",
+    "export_profile": "operator_review_bundle",
+    "source_summary_refs": [
+      {
+        "ref": "source-summary:dogfooding-chain",
+        "public_safe_summary": "Dogfooding records and proposal candidates remain public-safe summaries."
+      }
+    ],
+    "dogfooding_record_summaries": [
+      {
+        "record_id": "dogfooding-research-record:proposal-sample-a",
+        "normalized_summary": "Dogfooding record summary remains candidate context only."
+      }
+    ],
+    "review_memory_summaries": [
+      {
+        "ref": "review-memory-summary:public-safe-a",
+        "public_safe_summary": "Review Memory summary remains reference-only context."
+      }
+    ],
+    "review_memory_proposals": [
+      {
+        "proposal_id": "review-memory-proposal:dogfooding:fixture-multi",
+        "candidate_review_summary": "Review Memory proposal remains candidate-only."
+      }
+    ],
+    "source_refs": ["source-ref:public-safe-summary-only"],
+    "candidate_bundle_refs": ["candidate-bundle-ref:public-safe"],
+    "promotion_decision_refs": ["promotion-decision-ref:reference-only"],
+    "formation_receipt_refs": ["formation-receipt-ref:reference-only"],
+    "durable_state_summaries": [
+      {
+        "ref": "durable-state-summary:public-safe",
+        "public_safe_summary": "Durable state summary remains summary only and not state apply."
+      }
+    ],
+    "trajectory_refs": ["trajectory-ref:public-safe"],
+    "feedback_summaries": [
+      {
+        "ref": "feedback-summary:public-safe",
+        "public_safe_summary": "Feedback summary remains review context only."
+      }
+    ],
+    "runtime_audit_refs": ["runtime-audit-ref:public-safe"],
+    "git_ledger_packet_refs": ["git-ledger-packet-ref:future-binding"],
+    "handoff_packet_refs": ["conversation-handoff-packet:public-safe-fixture"],
+    "validation_refs": [
+      "npm run smoke:local-data-export-manifest-builder-v0-1",
+      "npm run typecheck"
+    ],
+    "skipped_check_refs": ["skipped:none"],
+    "known_warning_refs": [
+      "warning:privacy-smoke-node-experimental-strip-types"
+    ],
+    "not_done_refs": [
+      "not-done:git-ledger-export-manifest-binding-remains-next-slice"
+    ],
+    "expected_observed_delta_refs": [
+      "delta:manifest-candidate-not-export-file"
+    ],
+    "reason_codes": [
+      "candidate_only_manifest",
+      "export_file_not_written",
+      "import_apply_not_executed"
+    ]
+  },
+  "redacted_with_warnings_input": {
+    "manifest_id": "local-data-export-manifest:fixture-redacted",
+    "created_at": "2026-06-30T03:25:00.000Z",
+    "export_profile": "operator_review_bundle",
+    "source_summary_refs": [
+      {
+        "ref": "SAFE_MARKER_OPAQUE_CONNECTOR_ID",
+        "public_safe_summary": "Opaque connector marker should become reference-only, not canonical label."
+      }
+    ],
+    "handoff_packet_refs": ["SAFE_MARKER_UPLOADED_FILE_OPAQUE_ID"],
+    "validation_refs": [
+      "npm run smoke:local-data-export-manifest-builder-v0-1"
+    ]
+  },
+  "blocked_private_marker_cases": [
+    {
+      "case_id": "raw_source_body",
+      "field": "source_summary_refs",
+      "marker": "SAFE_MARKER_RAW_SOURCE_BODY"
+    },
+    {
+      "case_id": "raw_provider_output",
+      "field": "source_summary_refs",
+      "marker": "SAFE_MARKER_RAW_PROVIDER_OUTPUT"
+    },
+    {
+      "case_id": "raw_retrieval_output",
+      "field": "source_summary_refs",
+      "marker": "SAFE_MARKER_RAW_RETRIEVAL_OUTPUT"
+    },
+    {
+      "case_id": "raw_db_row",
+      "field": "source_summary_refs",
+      "marker": "SAFE_MARKER_RAW_DB_ROW"
+    },
+    {
+      "case_id": "raw_conversation",
+      "field": "source_summary_refs",
+      "marker": "SAFE_MARKER_RAW_CONVERSATION"
+    },
+    {
+      "case_id": "hidden_reasoning",
+      "field": "source_summary_refs",
+      "marker": "SAFE_MARKER_HIDDEN_REASONING"
+    },
+    {
+      "case_id": "private_url",
+      "field": "source_summary_refs",
+      "marker": "SAFE_MARKER_PRIVATE_URL"
+    },
+    {
+      "case_id": "local_private_path",
+      "field": "source_summary_refs",
+      "marker": "SAFE_MARKER_LOCAL_PRIVATE_PATH"
+    },
+    {
+      "case_id": "credential",
+      "field": "source_summary_refs",
+      "marker": "SAFE_MARKER_CREDENTIAL"
+    },
+    {
+      "case_id": "secret_token",
+      "field": "source_summary_refs",
+      "marker": "SAFE_MARKER_SECRET_TOKEN"
+    }
+  ],
+  "blocked_structured_authority_example": {
+    "manifest_id": "local-data-export-manifest:blocked-authority",
+    "created_at": "2026-06-30T03:30:00.000Z",
+    "source_summary_refs": ["source-summary:blocked-authority"],
+    "authority_boundary": {
+      "export_file_written": true
+    }
+  },
+  "blocked_forbidden_authority_string_claim_cases": [
+    {
+      "case_id": "manifest_export_file_claim",
+      "field": "source_summary_refs",
+      "phrase_parts": ["Local data export manifest", "is", "export file."]
+    },
+    {
+      "case_id": "manifest_fingerprint_claim",
+      "field": "source_summary_refs",
+      "phrase_parts": ["Manifest fingerprint", "is", "approval."]
+    },
+    {
+      "case_id": "import_preview_claim",
+      "field": "source_summary_refs",
+      "phrase_parts": ["Import preview", "is", "import apply."]
+    },
+    {
+      "case_id": "validation_pass_claim",
+      "field": "validation_refs",
+      "phrase_parts": ["Validation pass", "is", "approval."]
+    },
+    {
+      "case_id": "ci_pass_claim",
+      "field": "validation_refs",
+      "phrase_parts": ["CI pass", "is", "authority."]
+    }
+  ],
+  "allowed_negated_authority_examples": [
+    "Local data export manifest is not export file.",
+    "Manifest fingerprint is not approval.",
+    "Import preview is not import apply.",
+    "Validation pass is not approval.",
+    "CI pass is not authority."
+  ],
+  "required_false_execution_flags": [
+    "export_file_written",
+    "import_apply_executed",
+    "local_file_written",
+    "local_file_read",
+    "db_read_executed",
+    "db_write_executed",
+    "product_write_executed",
+    "review_memory_written",
+    "proof_or_evidence_created",
+    "claim_or_evidence_written",
+    "promotion_executed",
+    "formation_receipt_written",
+    "durable_state_applied",
+    "github_git_actuated",
+    "provider_called",
+    "retrieval_executed",
+    "source_fetched",
+    "release_deploy_publish_executed"
+  ],
+  "required_authority_boundary_false_fields": [
+    "export_file_written",
+    "import_apply_executed",
+    "local_file_write_now",
+    "local_file_read_now",
+    "db_read_now",
+    "db_write_now",
+    "proof_or_evidence_record_now",
+    "claim_or_evidence_write_now",
+    "review_memory_write_now",
+    "promotion_execution_now",
+    "formation_receipt_write_now",
+    "durable_state_apply_now",
+    "product_write_now",
+    "github_api_call_now",
+    "git_write_now",
+    "github_git_actuation_now",
+    "provider_openai_call_now",
+    "retrieval_execution_now",
+    "source_fetch_now",
+    "release_deploy_publish_now"
+  ]
+}
