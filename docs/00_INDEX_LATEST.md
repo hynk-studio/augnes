@@ -73,6 +73,13 @@ PR #868 is merged. Current route planning starts from:
   selected next slice, Web last boundary, no web-priority inversion wording,
   no opened product-write/GitHub/live-provider/release capability, and exact
   changed-file scope.
+- `docs/AUGNES_DELTA_CONTRACT_V0_1.md`: repo-local contract/design pointer for
+  AugnesDelta, the common semantic change unit across Perspective, memory,
+  artifact, code, research, handoff, world-state, and agent-plan changes. It
+  is contract/type/fixture/smoke-only in v0.1 and adds no UI, route, DB,
+  MCP/App tool, persistence, Codex execution, GitHub/provider call,
+  proof/evidence write, durable state apply, product-write, or autonomy runner
+  behavior.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
