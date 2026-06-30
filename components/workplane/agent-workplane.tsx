@@ -18,16 +18,19 @@ import type { CSSProperties } from "react";
 
 const surfaceStyle: CSSProperties = {
   minHeight: "100vh",
-  padding: "28px",
+  boxSizing: "border-box",
+  padding: "clamp(12px, 4vw, 28px)",
   background:
     "linear-gradient(180deg, #eaf0f8 0%, #f8fafc 42%, #eef2f7 100%)",
   color: "#0f172a",
+  overflowX: "hidden",
 };
 
 const shellStyle: CSSProperties = {
   display: "grid",
   gap: "14px",
   width: "min(1560px, 100%)",
+  minWidth: 0,
   margin: "0 auto",
 };
 
@@ -54,10 +57,12 @@ const previewSectionStyle: CSSProperties = {
 const previewHeadingStyle: CSSProperties = {
   display: "grid",
   gap: "4px",
+  minWidth: 0,
   padding: "14px",
   border: "1px solid rgba(30, 41, 59, 0.12)",
   borderRadius: "8px",
   background: "rgba(255, 255, 255, 0.9)",
+  overflowWrap: "anywhere",
 };
 
 const previewKickerStyle: CSSProperties = {
@@ -115,7 +120,10 @@ export async function AgentWorkplane() {
                 These panels expose preview-only backend context for projection
                 candidates, Delta Batch review, handoff builder inputs, run
                 postmortem slots, and bounded trace diagnostics. No hidden
-                execution authority is added.
+                execution authority is added: no apply, approve, reject, send,
+                launch Codex, provider/GitHub call, proof/evidence write, DB
+                write, memory mutation, scheduler, merge, publish, retry,
+                replay, or deploy behavior.
               </p>
             </div>
 

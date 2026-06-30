@@ -4,16 +4,20 @@ import type { CSSProperties } from "react";
 const sectionStyle: CSSProperties = {
   display: "grid",
   gap: "12px",
+  minWidth: 0,
+  boxSizing: "border-box",
   padding: "16px",
   border: "1px solid rgba(30, 41, 59, 0.12)",
   borderRadius: "8px",
   background: "rgba(255, 255, 255, 0.92)",
   boxShadow: "0 18px 36px rgba(15, 23, 42, 0.06)",
+  overflow: "hidden",
 };
 
 const headingStyle: CSSProperties = {
   display: "grid",
   gap: "4px",
+  minWidth: 0,
 };
 
 const kickerStyle: CSSProperties = {
@@ -29,12 +33,14 @@ const titleStyle: CSSProperties = {
   color: "#0f172a",
   fontSize: "1.1rem",
   lineHeight: 1.2,
+  overflowWrap: "anywhere",
 };
 
 const gridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
   gap: "10px",
+  minWidth: 0,
 };
 
 const cardStyle: CSSProperties = {
@@ -49,8 +55,9 @@ const cardStyle: CSSProperties = {
 
 const metricGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 108px), 1fr))",
   gap: "6px",
+  minWidth: 0,
 };
 
 const metricStyle: CSSProperties = {
@@ -80,10 +87,12 @@ const bodyTextStyle: CSSProperties = {
   color: "#334155",
   fontSize: "0.84rem",
   lineHeight: 1.36,
+  overflowWrap: "anywhere",
 };
 
 const fallbackStyle: CSSProperties = {
   margin: 0,
+  minWidth: 0,
   padding: "10px",
   border: "1px solid rgba(180, 83, 9, 0.28)",
   borderRadius: "8px",
@@ -91,6 +100,7 @@ const fallbackStyle: CSSProperties = {
   color: "#7c2d12",
   fontSize: "0.78rem",
   lineHeight: 1.38,
+  overflowWrap: "anywhere",
 };
 
 export function WorkplaneOverview({

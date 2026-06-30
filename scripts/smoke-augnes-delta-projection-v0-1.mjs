@@ -123,6 +123,10 @@ const followOnAgentWorkplaneProjectionHandoffFiles = [
   "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneCleanupHardeningFiles = [
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+];
+
 for (const file of [
   ...followOnProjectionRuntimeReadSurfaceFiles,
   ...followOnCurrentWorkingPerspectiveFiles,
@@ -132,6 +136,7 @@ for (const file of [
   ...followOnAgentWorkplaneFiles,
   ...followOnAgentWorkplanePanelFiles,
   ...followOnAgentWorkplaneProjectionHandoffFiles,
+  ...followOnAgentWorkplaneCleanupHardeningFiles,
 ]) {
   allowedChangedFiles.add(file);
 }

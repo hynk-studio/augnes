@@ -2,8 +2,9 @@
 
 ## 1. Status and Scope
 
-Status: Phase 5A Agent Workplane Shell, Phase 5B Agent Workplane Panels, and
-Phase 5C Agent Workplane Projection / Handoff / Postmortem Skeletons, v0.1.
+Status: Phase 5A Agent Workplane Shell, Phase 5B Agent Workplane Panels,
+Phase 5C Agent Workplane Projection / Handoff / Postmortem Skeletons, and
+Phase 5D Agent Workplane Cleanup / Responsive Hardening, v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -17,6 +18,13 @@ Diagnostics. It does not add execution, send, apply, approve, reject,
 persistence, proof/evidence writes, DB writes, provider calls, GitHub
 actuation, Codex execution, hidden authority, Phase 5D cleanup, or Phase 6
 GuideBrief behavior.
+
+Phase 5D adds cleanup, responsive hardening, old-label cleanup, accessibility /
+semantics hardening, source/fallback visibility hardening, boundary-copy
+consistency, this closeout update, and a focused static smoke. It does not add
+new panels, new data sources, new routes, execution, send, apply, approve,
+reject, persistence, proof/evidence writes, DB writes, provider calls, GitHub
+actuation, Codex execution, hidden authority, or Phase 6 GuideBrief behavior.
 
 ## 2. Surface Model
 
@@ -55,8 +63,10 @@ Phase 5A keeps `AugnesCockpit` mounted inside `LegacyCockpitCompatibilityPanel`.
 This preserves existing Work Brief, Handoff, Perspective, Bridge, Operator, trace, and diagnostic visibility while the surrounding information architecture moves from Cockpit-as-main-human-product-surface to Agent-Workplane-as-backend/operator-surface.
 
 Phase 5B adds focused Agent Workplane panels around the existing compatibility
-content. Phase 5C adds preview skeleton panels after those panels. Neither
-phase deep-extracts or deletes Cockpit functionality.
+content. Phase 5C adds preview skeleton panels after those panels. Phase 5D
+contains the legacy compatibility body so wide legacy content does not redefine
+the Workplane layout. No Phase 5 slice deep-extracts or deletes Cockpit
+functionality.
 
 ## 4. Data Sources and Fallback
 
@@ -224,11 +234,52 @@ bounded trace context, not a raw unbounded diagnostics dump. It does not add a
 runtime trace collector, hidden scheduler, provider call, DB read/write,
 proof/evidence write, or external side effect.
 
-Phase 5D cleanup, responsive hardening, old-label cleanup, and smoke hardening
-remain deferred. Phase 6 GuideBrief / Cross-Surface Guide Core remains
-deferred.
+## 10. Phase 5D Cleanup / Responsive Hardening
 
-## 10. Smoke Plan
+Phase 5D is cleanup and hardening only. It keeps the route model unchanged:
+
+```text
+/ = Human Surface home
+/perspective = Perspective Human Timeline
+/workbench = Agent Workplane backend/operator surface
+```
+
+Cleanup includes:
+
+- responsive hardening for desktop, tablet-ish, and narrow mobile widths around
+  390px
+- safe wrapping for long delta ids, pointer refs, gaps, diagnostics, and
+  fallback text
+- containment for legacy Cockpit compatibility content without deleting it
+- old-label cleanup so `/workbench` is not framed as the primary human product
+  surface
+- accessibility / semantics cleanup for headings, sections, nav anchors, lists,
+  and panel labels
+- source/fallback visibility hardening so fixture fallback is not presented as
+  live runtime state
+- boundary-copy consistency across Phase 5A/B/C panels
+- smoke hardening for Phase 5D changed-file boundaries and no-authority checks
+
+Boundary copy remains explicit: Agent Workplane is read-only and preview-only
+where relevant. It adds no apply, approve, reject, send, launch Codex,
+GitHub/provider calls, proof/evidence write, DB schema/write, memory mutation,
+scheduler/autonomy runner, product-write, merge, publish, retry, replay,
+deploy, or external side effect behavior.
+
+Phase 5 v0.1 is ready for the next phase only when:
+
+- Agent Workplane remains distinct from Human Surface and Perspective Human
+  Timeline
+- Cockpit compatibility content remains reachable
+- source/fallback status remains visible
+- trace/diagnostics remain bounded rather than raw dumps
+- no hidden execution authority or write/apply controls are introduced
+- Phase 5A/B/C/D smokes and the required upstream smokes pass
+
+Phase 6 GuideBrief / Cross-Surface Guide Core can start only after those
+criteria remain true and no authority drift is found.
+
+## 11. Smoke Plan
 
 `npm run smoke:agent-workplane-shell-v0-1` checks:
 
@@ -273,9 +324,29 @@ deferred.
   scheduler/autonomy runner, raw unbounded diagnostics dump, or external side
   effect is introduced
 
-## 11. Validation
+`npm run smoke:agent-workplane-cleanup-hardening-v0-1` checks:
 
-Minimum validation for Phase 5C:
+- package script pointer exists
+- `/workbench` still renders `AgentWorkplane`
+- Phase 5A shell, Phase 5B panels, and Phase 5C preview panels still compose
+- legacy `AugnesCockpit` compatibility remains reachable
+- visible copy keeps `Agent Workplane`, `Backend work surface`, `Read-only
+  operator view`, `No hidden execution authority`, `legacy Cockpit
+  compatibility content`, and source/fallback status
+- route model, Human Surface, Perspective Human Timeline, and API routes are not
+  changed
+- no DB schema/migration, DB write, MCP/App tool, provider/OpenAI/GitHub runtime
+  call, Codex execution, proof/evidence write, scheduler/autonomy runner,
+  product-write, durable Perspective apply, memory mutation,
+  merge/publish/retry/replay/deploy behavior, button/form write control, broad
+  Cockpit deletion, raw unbounded diagnostics dump, or external side effect is
+  introduced
+- old-label cleanup keeps Cockpit references limited to explicit legacy
+  compatibility or historical context
+
+## 12. Validation
+
+Minimum validation for Phase 5D:
 
 ```bash
 npm run typecheck
@@ -289,6 +360,7 @@ npm run smoke:perspective-human-timeline-v0-1
 npm run smoke:agent-workplane-shell-v0-1
 npm run smoke:agent-workplane-panels-v0-1
 npm run smoke:agent-workplane-projection-handoff-v0-1
+npm run smoke:agent-workplane-cleanup-hardening-v0-1
 git diff --check
 ```
 

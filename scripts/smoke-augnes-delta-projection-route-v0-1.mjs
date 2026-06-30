@@ -84,6 +84,10 @@ const followOnAgentWorkplaneProjectionHandoffFiles = [
   "components/workplane/trace-diagnostics-panel.tsx",
   "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
 ];
+
+const followOnAgentWorkplaneCleanupHardeningFiles = [
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -116,6 +120,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneFiles,
   ...followOnAgentWorkplanePanelFiles,
   ...followOnAgentWorkplaneProjectionHandoffFiles,
+  ...followOnAgentWorkplaneCleanupHardeningFiles,
   packageJsonFile,
   indexDoc,
 ]);

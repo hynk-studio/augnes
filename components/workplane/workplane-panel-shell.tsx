@@ -4,16 +4,19 @@ const panelStyle: CSSProperties = {
   display: "grid",
   gap: "10px",
   minWidth: 0,
+  boxSizing: "border-box",
   padding: "14px",
   border: "1px solid rgba(30, 41, 59, 0.12)",
   borderRadius: "8px",
   background: "rgba(255, 255, 255, 0.92)",
   boxShadow: "0 18px 36px rgba(15, 23, 42, 0.06)",
+  overflow: "hidden",
 };
 
 const headingStyle: CSSProperties = {
   display: "grid",
   gap: "3px",
+  minWidth: 0,
 };
 
 const kickerStyle: CSSProperties = {
@@ -29,6 +32,7 @@ const titleStyle: CSSProperties = {
   color: "#0f172a",
   fontSize: "1.02rem",
   lineHeight: 1.2,
+  overflowWrap: "anywhere",
 };
 
 export const workplaneCopyStyle: CSSProperties = {
@@ -41,8 +45,9 @@ export const workplaneCopyStyle: CSSProperties = {
 
 const metricGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 118px), 1fr))",
   gap: "7px",
+  minWidth: 0,
 };
 
 const metricStyle: CSSProperties = {
@@ -70,6 +75,7 @@ const metricValueStyle: CSSProperties = {
 export const workplaneListStyle: CSSProperties = {
   display: "grid",
   gap: "7px",
+  minWidth: 0,
   margin: 0,
   padding: 0,
   listStyle: "none",
@@ -79,10 +85,13 @@ export const workplaneItemStyle: CSSProperties = {
   display: "grid",
   gap: "4px",
   minWidth: 0,
+  boxSizing: "border-box",
   padding: "9px",
   border: "1px solid rgba(30, 41, 59, 0.1)",
   borderRadius: "8px",
   background: "#f8fafc",
+  overflowWrap: "anywhere",
+  wordBreak: "break-word",
 };
 
 export const workplaneBadgeStyle: CSSProperties = {
