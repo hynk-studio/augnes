@@ -134,6 +134,16 @@ PR #868 is merged. Current route planning starts from:
   GitHub actuation, Codex execution, proof/evidence write, durable Perspective
   apply, memory mutation, product-write, scheduler/autonomy runner,
   merge/publish/retry/replay/deploy behavior, or external side effect.
+- `docs/AGENT_WORKPLANE_V0_1.md`: Phase 5A read-only Agent Workplane shell
+  pointer for reframing `/workbench` as the backend work surface for
+  agent/operator Trace context, projection candidates, handoff context,
+  Evidence pointers, validation context, Current Working Perspective context,
+  Augnes Delta Projection context, and legacy Cockpit compatibility content.
+  Phase 5A preserves existing Cockpit reachability and adds no DB
+  schema/migration, DB write, MCP/App tool, provider/OpenAI call, GitHub
+  actuation, Codex execution, proof/evidence write, durable Perspective apply,
+  memory mutation, product-write, scheduler/autonomy runner,
+  merge/publish/retry/replay/deploy behavior, or external side effect.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

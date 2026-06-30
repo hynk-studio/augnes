@@ -34,7 +34,7 @@ const panelStyle: CSSProperties = {
   minWidth: 0,
   padding: "14px",
   border: "1px solid rgba(30, 41, 59, 0.12)",
-  borderRadius: "14px",
+  borderRadius: "8px",
   background: "rgba(255, 255, 255, 0.92)",
   boxShadow: "0 18px 36px rgba(15, 23, 42, 0.06)",
 };
@@ -76,7 +76,7 @@ const itemStyle: CSSProperties = {
   minWidth: 0,
   padding: "9px",
   border: "1px solid rgba(30, 41, 59, 0.1)",
-  borderRadius: "10px",
+  borderRadius: "8px",
   background: "#f8fafc",
 };
 
@@ -84,7 +84,7 @@ const badgeStyle: CSSProperties = {
   display: "inline-flex",
   width: "fit-content",
   padding: "3px 7px",
-  borderRadius: "999px",
+  borderRadius: "8px",
   background: "#e0f2fe",
   color: "#075985",
   fontSize: "0.68rem",
@@ -148,9 +148,15 @@ export async function AgentWorkplane() {
               </h2>
               <p style={copyStyle}>
                 Handoff refs: {context.overview.delta_projection.handoff_ref_count}. Codex result refs: {context.overview.delta_projection.codex_result_ref_count}. Evidence pointers: {context.overview.delta_projection.evidence_ref_count}.
+                {context.overview.delta_projection.handoff_ref_count === 0
+                  ? " No handoff refs materialized yet."
+                  : ""}
               </p>
               <p style={copyStyle}>
                 Projection candidates and Delta Batch review remain read-only in Phase 5A. No approve, apply, send, launch, or persistence controls are added here.
+              </p>
+              <p style={copyStyle}>
+                Run postmortem source is not materialized yet.
               </p>
               <ul style={listStyle}>
                 {latestDeltaTitles.length > 0 ? (

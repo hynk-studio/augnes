@@ -52,6 +52,17 @@ const followOnPerspectiveHumanTimelineFiles = [
   "lib/human-surface/read-delta-projection.ts",
   "scripts/smoke-perspective-human-timeline-v0-1.mjs",
 ];
+const followOnAgentWorkplaneFiles = [
+  "app/workbench/page.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/workplane-header.tsx",
+  "components/workplane/workplane-overview.tsx",
+  "components/workplane/workplane-boundary-card.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "lib/workplane/read-workplane-context.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -75,6 +86,7 @@ const allowedChangedFiles = new Set([
   currentPerspectiveRouteSmokeFile,
   ...followOnHumanSurfaceHomeFiles,
   ...followOnPerspectiveHumanTimelineFiles,
+  ...followOnAgentWorkplaneFiles,
 ]);
 
 const allowedRouteFiles = new Set([currentPerspectiveRouteFile]);
@@ -580,7 +592,13 @@ function assertChangedFileBoundary() {
         allowedRouteFiles.has(file),
       `Current Working Perspective follow-on must not add route files outside the Current Working Perspective read route: ${file}`,
     );
-    assert(!/^components\//.test(file) || followOnHumanSurfaceHomeFiles.includes(file) || followOnPerspectiveHumanTimelineFiles.includes(file), `Phase 3A follow-on must not change UI files outside Phase 4A/4B Human Surface files: ${file}`);
+    assert(
+      !/^components\//.test(file) ||
+        followOnHumanSurfaceHomeFiles.includes(file) ||
+        followOnPerspectiveHumanTimelineFiles.includes(file) ||
+        followOnAgentWorkplaneFiles.includes(file),
+      `Phase 3A follow-on must not change UI files outside Phase 4A/4B Human Surface or Phase 5A Agent Workplane files: ${file}`,
+    );
     assert(!/^db\//.test(file), `Phase 3A must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `Phase 3A must not change migrations: ${file}`);
     assert(
@@ -614,7 +632,8 @@ function assertChangedFileBoundary() {
         : null,
     human_surface_ui_added: files.some((file) =>
       followOnHumanSurfaceHomeFiles.includes(file) ||
-      followOnPerspectiveHumanTimelineFiles.includes(file),
+      followOnPerspectiveHumanTimelineFiles.includes(file) ||
+      followOnAgentWorkplaneFiles.includes(file),
     ),
     files,
   };

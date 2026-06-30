@@ -6,7 +6,7 @@ const sectionStyle: CSSProperties = {
   gap: "12px",
   padding: "16px",
   border: "1px solid rgba(30, 41, 59, 0.12)",
-  borderRadius: "14px",
+  borderRadius: "8px",
   background: "rgba(255, 255, 255, 0.92)",
   boxShadow: "0 18px 36px rgba(15, 23, 42, 0.06)",
 };
@@ -43,7 +43,7 @@ const cardStyle: CSSProperties = {
   minWidth: 0,
   padding: "12px",
   border: "1px solid rgba(30, 41, 59, 0.12)",
-  borderRadius: "12px",
+  borderRadius: "8px",
   background: "#f8fafc",
 };
 
@@ -59,7 +59,7 @@ const metricStyle: CSSProperties = {
   minWidth: 0,
   padding: "8px",
   border: "1px solid rgba(30, 41, 59, 0.1)",
-  borderRadius: "10px",
+  borderRadius: "8px",
   background: "#ffffff",
   color: "#64748b",
   fontSize: "0.68rem",
@@ -86,7 +86,7 @@ const fallbackStyle: CSSProperties = {
   margin: 0,
   padding: "10px",
   border: "1px solid rgba(180, 83, 9, 0.28)",
-  borderRadius: "10px",
+  borderRadius: "8px",
   background: "#fff7ed",
   color: "#7c2d12",
   fontSize: "0.78rem",

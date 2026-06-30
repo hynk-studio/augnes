@@ -37,6 +37,18 @@ const followOnSmokeCompatibilityFiles = [
   "scripts/smoke-human-surface-home-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneFiles = [
+  "app/workbench/page.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/workplane-header.tsx",
+  "components/workplane/workplane-overview.tsx",
+  "components/workplane/workplane-boundary-card.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "lib/workplane/read-workplane-context.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+];
+
 const requiredFiles = [
   pageFile,
   wrapperFile,
@@ -57,6 +69,7 @@ const requiredFiles = [
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnSmokeCompatibilityFiles,
+  ...followOnAgentWorkplaneFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -407,8 +420,9 @@ function assertChangedFileBoundary() {
       `Unexpected Phase 4B changed or untracked file: ${file}`,
     );
     assert(
-      file !== "app/workbench/page.tsx",
-      "Phase 4B must not update /workbench page",
+      file !== "app/workbench/page.tsx" ||
+        followOnAgentWorkplaneFiles.includes(file),
+      "Phase 4B must not update /workbench page outside the Phase 5A Agent Workplane follow-on",
     );
     assert(!/^app\/api\//.test(file), `Phase 4B must not add API routes: ${file}`);
     assert(

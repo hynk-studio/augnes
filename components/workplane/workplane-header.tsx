@@ -7,7 +7,7 @@ const headerStyle: CSSProperties = {
   alignItems: "end",
   padding: "18px",
   border: "1px solid rgba(148, 163, 184, 0.28)",
-  borderRadius: "14px",
+  borderRadius: "8px",
   background: "rgba(15, 23, 42, 0.94)",
   color: "#f8fafc",
 };
@@ -22,9 +22,9 @@ const kickerStyle: CSSProperties = {
 
 const titleStyle: CSSProperties = {
   margin: "4px 0 0",
-  fontSize: "clamp(2.2rem, 6vw, 4.6rem)",
+  fontSize: "3.4rem",
   lineHeight: 0.94,
-  letterSpacing: "-0.05em",
+  letterSpacing: 0,
 };
 
 const copyStyle: CSSProperties = {
@@ -48,7 +48,7 @@ const linkStyle: CSSProperties = {
   minHeight: "34px",
   padding: "7px 11px",
   border: "1px solid rgba(226, 232, 240, 0.24)",
-  borderRadius: "999px",
+  borderRadius: "8px",
   background: "rgba(15, 23, 42, 0.72)",
   color: "#e0f2fe",
   fontSize: "0.82rem",
@@ -64,10 +64,11 @@ export function WorkplaneHeader() {
         <h1 style={titleStyle}>Agent Workplane</h1>
         <p style={copyStyle}>
           Agent Workplane is the backend work surface for agent/operator traces,
-          projection candidates, handoff context, evidence pointers, and
-          validation context. It is a read-only operator view in this phase:
-          no hidden execution authority, no agent launch, no delta apply, and no
-          state mutation.
+          projection candidates, Handoff context, Evidence pointers, Trace
+          context, validation context, Current Working Perspective context, and
+          Augnes Delta Projection context. It is a read-only operator view in
+          this phase: No hidden execution authority, no agent launch, no delta
+          apply, and no state mutation.
         </p>
       </div>
       <nav aria-label="Agent Workplane navigation" style={navStyle}>

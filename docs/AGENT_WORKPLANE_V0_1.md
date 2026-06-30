@@ -27,6 +27,7 @@ Agent Workplane renders:
 - read-only boundary copy
 - Current Working Perspective compact summary
 - Augnes Delta Projection compact summary
+- Trace context summary
 - review queue counts
 - source/fallback status
 - work queue/context scope summary
@@ -130,6 +131,9 @@ Required visible states:
 - No active goals: the work queue panel says no active work goals are materialized.
 - No review queue refs: the review queue card says no review queue delta refs are materialized.
 - No handoff/Codex/evidence refs: the inspector shows pointer counts as zero.
+- No handoff refs: the inspector says no handoff refs materialized yet.
+- No run/postmortem source: the inspector says run postmortem source is not
+  materialized yet.
 
 No fixture is silently presented as runtime data.
 

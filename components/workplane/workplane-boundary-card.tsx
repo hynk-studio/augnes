@@ -6,7 +6,7 @@ const cardStyle: CSSProperties = {
   minWidth: 0,
   padding: "14px",
   border: "1px solid rgba(124, 45, 18, 0.18)",
-  borderRadius: "14px",
+  borderRadius: "8px",
   background: "#fff7ed",
   color: "#431407",
 };
@@ -45,7 +45,7 @@ export function WorkplaneBoundaryCard({ notes }: { notes: string[] }) {
     <aside aria-labelledby="workplane-boundary-title" style={cardStyle}>
       <p style={kickerStyle}>Authority boundary</p>
       <h2 id="workplane-boundary-title" style={titleStyle}>
-        Read-only UI; no hidden execution authority
+        Read-only UI; No hidden execution authority
       </h2>
       <p style={copyStyle}>
         This Agent Workplane surfaces backend/operator context only. It does not

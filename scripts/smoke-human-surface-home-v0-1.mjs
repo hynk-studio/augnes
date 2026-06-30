@@ -48,6 +48,18 @@ const followOnPerspectiveHumanTimelineFiles = [
   "scripts/smoke-perspective-human-timeline-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneFiles = [
+  "app/workbench/page.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/workplane-header.tsx",
+  "components/workplane/workplane-overview.tsx",
+  "components/workplane/workplane-boundary-card.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "lib/workplane/read-workplane-context.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+];
+
 const requiredFiles = [
   pageFile,
   publicHomeFile,
@@ -69,6 +81,7 @@ const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnSmokeCompatibilityFiles,
   ...followOnPerspectiveHumanTimelineFiles,
+  ...followOnAgentWorkplaneFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -408,8 +421,9 @@ function assertChangedFileBoundary() {
       "Phase 4A follow-on must only update /perspective page for Phase 4B",
     );
     assert(
-      file !== "app/workbench/page.tsx",
-      "Phase 4A must not update /workbench page",
+      file !== "app/workbench/page.tsx" ||
+        followOnAgentWorkplaneFiles.includes(file),
+      "Phase 4A must not update /workbench page outside the Phase 5A Agent Workplane follow-on",
     );
     assert(
       !/^components\/perspective\//.test(file) ||

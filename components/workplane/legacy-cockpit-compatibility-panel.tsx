@@ -6,7 +6,7 @@ const panelStyle: CSSProperties = {
   minWidth: 0,
   padding: "14px",
   border: "1px solid rgba(30, 41, 59, 0.14)",
-  borderRadius: "14px",
+  borderRadius: "8px",
   background: "rgba(255, 255, 255, 0.92)",
   boxShadow: "0 18px 36px rgba(15, 23, 42, 0.06)",
 };
@@ -42,7 +42,7 @@ const bodyStyle: CSSProperties = {
   minWidth: 0,
   overflow: "hidden",
   border: "1px solid rgba(30, 41, 59, 0.1)",
-  borderRadius: "12px",
+  borderRadius: "8px",
 };
 
 export function LegacyCockpitCompatibilityPanel({
