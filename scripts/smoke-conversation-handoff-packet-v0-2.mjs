@@ -13,6 +13,16 @@ const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const codexBindingSmokePath =
   "scripts/smoke-codex-result-to-dogfooding-record-v0-1.mjs";
+const dogfoodingResearchSmokePath =
+  "scripts/smoke-dogfooding-research-record-runtime-v0-1.mjs";
+const dogfoodingRecordHandoffHelperPath =
+  "lib/handoff/build-handoff-from-dogfooding-record.ts";
+const dogfoodingRecordHandoffFixturePath =
+  "fixtures/conversation-handoff-from-dogfooding-record.sample.v0.1.json";
+const dogfoodingRecordHandoffSmokePath =
+  "scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs";
+const dogfoodingRecordHandoffDocsPath =
+  "docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md";
 const reconciliationDocsPath =
   "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md";
 const dogfoodingDocsPath = "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
@@ -39,6 +49,11 @@ const expectedChangedFiles = new Set([
   packagePath,
   indexPath,
   codexBindingSmokePath,
+  dogfoodingResearchSmokePath,
+  dogfoodingRecordHandoffHelperPath,
+  dogfoodingRecordHandoffFixturePath,
+  dogfoodingRecordHandoffSmokePath,
+  dogfoodingRecordHandoffDocsPath,
 ]);
 
 const requiredHelperExports = [

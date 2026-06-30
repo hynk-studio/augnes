@@ -1,0 +1,373 @@
+{
+  "fixture_version": "conversation_handoff_from_dogfooding_record.sample.v0.1",
+  "binding_version": "conversation_handoff_from_dogfooding_record.v0.1",
+  "packet_version": "conversation_handoff_packet.v0.2",
+  "builder_version": "conversation_handoff_packet_builder.v0.2",
+  "selected_slice": "conversation_handoff_packet_from_dogfooding_record_v0_1",
+  "next_recommended_slice": "dogfooding_record_to_review_memory_proposal_v0_1",
+  "scope": "project:augnes",
+  "default_profile": "codex_implementation",
+  "post_868_boundary": {
+    "pr_868_is_frozen_web_baseline": true,
+    "frozen_routes": ["/", "/perspective", "/workbench"],
+    "web_last": true,
+    "ui_in_scope": false,
+    "route_in_scope": false,
+    "db_in_scope": false
+  },
+  "required_profiles": [
+    "chatgpt_strategy",
+    "codex_implementation",
+    "codex_pr_review",
+    "human_operator_review",
+    "boundary_audit",
+    "handoff_minimal",
+    "release_readiness_review"
+  ],
+  "safe_single_record_input": {
+    "record_version": "dogfooding_research_record.v0.1",
+    "runtime_version": "dogfooding_research_record_runtime.v0.1",
+    "store_version": "dogfooding_research_record_store.v0.1",
+    "scope": "project:augnes",
+    "record_id": "dogfooding-research-record:codex-result-report:handoff-sample-a",
+    "record_kind": "codex_result_report",
+    "created_at": "2026-06-30T01:10:00.000Z",
+    "updated_at": "2026-06-30T01:10:00.000Z",
+    "operator_actor_ref": "operator:public-safe-summary",
+    "source_refs": [
+      "codex-result-report-id:sample-a",
+      "codex-result-report-fingerprint:sample-a"
+    ],
+    "pr_refs": ["pr:873"],
+    "branch_refs": ["branch:codex/conversation-handoff-packet-builder-v0-2"],
+    "commit_refs": ["commit:8a5b9377899fc2442fc5b40e4e534811ecfab97b"],
+    "changed_file_refs": [
+      "lib/handoff/build-conversation-handoff-packet.ts",
+      "scripts/smoke-conversation-handoff-packet-v0-2.mjs"
+    ],
+    "validation_refs": [
+      "npm run smoke:conversation-handoff-packet-v0-2",
+      "npm run typecheck"
+    ],
+    "skipped_check_refs": [
+      "skipped:none"
+    ],
+    "known_warning_refs": [
+      "warning:privacy-smoke-node-experimental-strip-types"
+    ],
+    "not_done_refs": [
+      "not-done:dogfooding-record-sourced-builder-remained-next-slice"
+    ],
+    "expected_observed_delta_refs": [
+      "delta:observed-files-are-review-cues-not-proof"
+    ],
+    "normalized_summary": "Conversation handoff packet builder output is available as candidate-only handoff context for follow-up operator review.",
+    "review_cues": [
+      {
+        "cue_id": "cue:inspect-changed-files",
+        "cue_kind": "inspect_changed_files",
+        "public_safe_summary": "Changed file refs should be reviewed as context, not proof.",
+        "source_refs": ["lib/handoff/build-conversation-handoff-packet.ts"],
+        "reason_codes": ["changed_files_not_proof"],
+        "candidate_only": true
+      },
+      {
+        "cue_id": "cue:preserve-not-done",
+        "cue_kind": "preserve_not_done_item",
+        "public_safe_summary": "The dogfooding-record-sourced packet builder remains next-task context only.",
+        "source_refs": ["not-done:dogfooding-record-sourced-builder-remained-next-slice"],
+        "reason_codes": ["not_done_preserved"],
+        "candidate_only": true
+      }
+    ],
+    "privacy_report": {
+      "guard_ref": "privacy_redaction_runtime_guard_v0_1",
+      "status": "passed",
+      "findings": [],
+      "blocked_paths": [],
+      "redacted_paths": [],
+      "reason_codes": ["public_safe_summary_only"],
+      "boundary_notes": [
+        "Dogfooding research records remain candidate-only review material.",
+        "Privacy guard applied without raw value echo."
+      ]
+    },
+    "authority_boundary": {
+      "dogfooding_research_record_runtime_now": true,
+      "same_origin_route_now": true,
+      "local_test_db_query_or_write_now": true,
+      "operator_supplied_payload_only": true,
+      "caller_injected_local_db_only": true,
+      "candidate_only": true,
+      "public_safe_summary_only": true,
+      "ui_now": false,
+      "component_now": false,
+      "provider_openai_call_now": false,
+      "source_fetch_now": false,
+      "retrieval_execution_now": false,
+      "proof_or_evidence_record_now": false,
+      "review_memory_write_now": false,
+      "promotion_execution_now": false,
+      "formation_receipt_write_now": false,
+      "durable_state_apply_now": false,
+      "product_write_now": false,
+      "github_api_call_now": false,
+      "git_write_now": false,
+      "github_git_actuation_now": false,
+      "release_deploy_publish_now": false,
+      "record_is_truth": false,
+      "record_is_proof": false,
+      "validation_pass_is_approval": false,
+      "ci_pass_is_authority": false,
+      "dogfooding_record_is_product_write": false
+    },
+    "reason_codes": [
+      "candidate_only_review_material",
+      "changed_files_not_proof",
+      "validation_pass_not_approval",
+      "ci_pass_not_authority",
+      "not_done_preserved",
+      "expected_observed_delta_preserved"
+    ],
+    "lifecycle_state": "candidate_only",
+    "record_fingerprint": "sha256:sample-a"
+  },
+  "safe_multiple_records_input": {
+    "profile": "codex_pr_review",
+    "packet_id": "conversation-handoff-from-dogfooding-record:multi-sample",
+    "created_at": "2026-06-30T01:20:00.000Z",
+    "dogfooding_records": [
+      {
+        "record_id": "dogfooding-research-record:codex-result-report:handoff-sample-a",
+        "record_kind": "codex_result_report",
+        "created_at": "2026-06-30T01:10:00.000Z",
+        "source_refs": ["codex-result-report-id:sample-a"],
+        "pr_refs": ["pr:873"],
+        "branch_refs": ["branch:codex/conversation-handoff-packet-builder-v0-2"],
+        "commit_refs": ["commit:8a5b9377899fc2442fc5b40e4e534811ecfab97b"],
+        "changed_file_refs": ["lib/handoff/build-conversation-handoff-packet.ts"],
+        "validation_refs": ["npm run smoke:conversation-handoff-packet-v0-2"],
+        "skipped_check_refs": ["skipped:none"],
+        "known_warning_refs": ["warning:privacy-smoke-node-experimental-strip-types"],
+        "not_done_refs": ["not-done:dogfooding-record-sourced-builder-remained-next-slice"],
+        "expected_observed_delta_refs": ["delta:packet-builder-only-no-dogfooding-source"],
+        "normalized_summary": "Packet builder material is ready for candidate-only handoff conversion.",
+        "review_cues": [
+          {
+            "cue_kind": "resolve_expected_observed_delta",
+            "public_safe_summary": "Keep expected/observed delta separate from validation status.",
+            "candidate_only": true
+          }
+        ],
+        "privacy_report": {
+          "status": "passed",
+          "boundary_notes": ["Candidate-only material; no raw payload included."]
+        },
+        "reason_codes": ["expected_observed_delta_preserved"]
+      },
+      {
+        "record_id": "dogfooding-research-record:known-warning:handoff-sample-b",
+        "record_kind": "known_warning_report",
+        "created_at": "2026-06-30T01:11:00.000Z",
+        "source_refs": ["warning-report:sample-b"],
+        "changed_file_refs": ["scripts/smoke-conversation-handoff-packet-v0-2.mjs"],
+        "validation_refs": ["npm run smoke:privacy-redaction-guard-v0-1"],
+        "skipped_check_refs": ["skipped:none"],
+        "known_warning_refs": ["warning:privacy-smoke-node-experimental-strip-types"],
+        "not_done_refs": ["not-done:no-route-added"],
+        "expected_observed_delta_refs": ["delta:warning-is-review-context"],
+        "normalized_summary": "Known warning material remains review context and not automatic rejection.",
+        "review_cues": [
+          {
+            "cue_kind": "review_known_warning",
+            "public_safe_summary": "Known warning should be preserved for operator review.",
+            "candidate_only": true
+          }
+        ],
+        "privacy_report": {
+          "status": "passed",
+          "boundary_notes": ["Known warnings are review context only."]
+        },
+        "reason_codes": ["known_warnings_preserved"]
+      }
+    ],
+    "review_memory_refs": ["review-memory-ref:operator-supplied-summary-only"],
+    "promotion_receipt_state_refs": ["promotion-receipt-state-ref:none-executed"],
+    "current_task": [
+      "Convert dogfooding research record summaries into a bounded handoff packet."
+    ],
+    "expected_files": [
+      "lib/handoff/build-handoff-from-dogfooding-record.ts",
+      "fixtures/conversation-handoff-from-dogfooding-record.sample.v0.1.json",
+      "scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs",
+      "docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md"
+    ],
+    "expected_checks": [
+      "npm run smoke:conversation-handoff-from-dogfooding-record-v0-1"
+    ]
+  },
+  "safe_summary_input": {
+    "profile": "human_operator_review",
+    "packet_id": "conversation-handoff-from-dogfooding-record:summary-only",
+    "created_at": "2026-06-30T01:21:00.000Z",
+    "dogfooding_record_refs": [
+      "dogfooding-research-record:summary-only:handoff-sample"
+    ],
+    "source_refs": ["operator-summary:dogfooding-record-public-safe"],
+    "current_task": [
+      "Build handoff packet from caller-provided public-safe dogfooding summary fields."
+    ],
+    "observed_files": ["lib/handoff/build-handoff-from-dogfooding-record.ts"],
+    "observed_checks": ["npm run smoke:conversation-handoff-from-dogfooding-record-v0-1"],
+    "expected_observed_delta": ["delta:summary-only-input-has-no-db-read"],
+    "known_warnings": ["warning:none-observed-in-summary-fixture"],
+    "skipped_checks": ["skipped:none"],
+    "not_done_items": ["not-done:review-memory-proposal-remains-next-slice"],
+    "unresolved_tensions": ["Summary-only packets are guidance, not execution approval."]
+  },
+  "blocked_private_or_raw_payload_example": {
+    "profile": "codex_implementation",
+    "record_id": "dogfooding-research-record:blocked-private:handoff-sample",
+    "scope": "project:augnes",
+    "normalized_summary": "SAFE_MARKER_HIDDEN_REASONING"
+  },
+  "blocked_structured_authority_example": {
+    "profile": "codex_implementation",
+    "record_id": "dogfooding-research-record:blocked-authority:handoff-sample",
+    "scope": "project:augnes",
+    "normalized_summary": "Structured authority field refusal sample.",
+    "authority_boundary": {
+      "product_write_now": true
+    }
+  },
+  "blocked_forbidden_authority_string_claim_cases": [
+    {
+      "case_id": "validation_pass_claim",
+      "target": "normalized_summary",
+      "phrase_parts": ["Validation pass", "is", "approval."]
+    },
+    {
+      "case_id": "validation_failure_claim",
+      "target": "normalized_summary",
+      "phrase_parts": ["Validation failure", "is", "rejection."]
+    },
+    {
+      "case_id": "ci_pass_claim",
+      "target": "review_cues",
+      "phrase_parts": ["CI pass", "is", "authority."]
+    },
+    {
+      "case_id": "dogfooding_record_claim",
+      "target": "normalized_summary",
+      "phrase_parts": ["Dogfooding record", "is", "promotion."]
+    },
+    {
+      "case_id": "next_slice_claim",
+      "target": "normalized_summary",
+      "phrase_parts": ["Next recommended slice", "is", "execution approval."]
+    }
+  ],
+  "allowed_negated_authority_string_cases": [
+    {
+      "case_id": "validation_pass_not_approval",
+      "target": "normalized_summary",
+      "phrase": "Validation pass is not approval."
+    },
+    {
+      "case_id": "dogfooding_record_candidate_only",
+      "target": "normalized_summary",
+      "phrase": "Dogfooding record is candidate-only review material."
+    },
+    {
+      "case_id": "next_slice_not_execution",
+      "target": "normalized_summary",
+      "phrase": "Next recommended slice is not execution approval."
+    }
+  ],
+  "expected": {
+    "single_record_status": "built",
+    "multiple_record_status": "built",
+    "blocked_private_status": "blocked_private_or_raw_payload",
+    "blocked_authority_status": "blocked_forbidden_authority",
+    "required_packet_input_mappings": {
+      "changed_file_ref": "lib/handoff/build-conversation-handoff-packet.ts",
+      "validation_ref": "npm run smoke:conversation-handoff-packet-v0-2",
+      "skipped_check_ref": "skipped:none remains review context, not automatic failure.",
+      "known_warning_ref": "warning:privacy-smoke-node-experimental-strip-types remains review context, not automatic rejection.",
+      "not_done_ref": "not-done:dogfooding-record-sourced-builder-remained-next-slice remains a next-task cue, not automatic task creation.",
+      "expected_observed_delta_ref": "delta:observed-files-are-review-cues-not-proof remains reconciliation context, not approval or rejection."
+    },
+    "required_authority_boundary_lines": [
+      "Dogfooding record is candidate-only review material.",
+      "Handoff packet is not execution approval.",
+      "Observed files are not proof.",
+      "Validation pass is not approval.",
+      "Validation failure is not automatic rejection.",
+      "CI pass is not authority.",
+      "CI failure is diagnostic, not automatic rejection.",
+      "Next recommended slice is not execution approval."
+    ],
+    "forbidden_execution_flags_false": [
+      "product_write_executed",
+      "review_memory_written",
+      "proof_or_evidence_created",
+      "claim_or_evidence_written",
+      "promotion_executed",
+      "formation_receipt_written",
+      "durable_state_applied",
+      "github_git_actuated",
+      "provider_called",
+      "retrieval_executed",
+      "source_fetched",
+      "release_deploy_publish_executed"
+    ],
+    "forbidden_authority_flags_false": [
+      "db_read_now",
+      "db_write_now",
+      "route_now",
+      "ui_now",
+      "component_now",
+      "provider_openai_call_now",
+      "prompt_sent_now",
+      "source_fetch_now",
+      "retrieval_execution_now",
+      "proof_or_evidence_record_now",
+      "claim_or_evidence_write_now",
+      "review_memory_write_now",
+      "promotion_execution_now",
+      "formation_receipt_write_now",
+      "durable_state_apply_now",
+      "product_write_now",
+      "github_api_call_now",
+      "git_write_now",
+      "github_git_actuation_now",
+      "release_deploy_publish_now",
+      "dogfooding_record_to_handoff_packet_is_execution_approval",
+      "dogfooding_record_to_handoff_packet_is_truth",
+      "dogfooding_record_to_handoff_packet_is_proof",
+      "dogfooding_record_to_handoff_packet_is_accepted_evidence",
+      "dogfooding_record_to_handoff_packet_is_review_memory_write",
+      "dogfooding_record_to_handoff_packet_is_promotion",
+      "dogfooding_record_to_handoff_packet_is_formation_receipt",
+      "dogfooding_record_to_handoff_packet_is_durable_perspective_state",
+      "dogfooding_record_to_handoff_packet_is_product_write",
+      "handoff_packet_is_execution_approval",
+      "pr_body_is_truth",
+      "changed_files_are_proof",
+      "observed_files_are_proof",
+      "validation_pass_is_approval",
+      "validation_failure_is_rejection",
+      "smoke_pass_is_evidence",
+      "smoke_failure_is_rejection",
+      "ci_pass_is_authority",
+      "ci_failure_is_rejection",
+      "skipped_checks_are_automatic_failure",
+      "known_warnings_are_automatic_rejection",
+      "not_done_items_are_automatic_task_creation",
+      "expected_observed_delta_is_approval_or_rejection",
+      "git_ref_is_authority",
+      "github_pr_ref_is_authority",
+      "next_recommended_slice_is_execution_approval"
+    ]
+  }
+}

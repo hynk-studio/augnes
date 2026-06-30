@@ -4397,6 +4397,45 @@ repo-local 색인이다.
   actuation from Augnes runtime; no release, deploy, or publish behavior. Next
   recommended slice:
   `conversation_handoff_packet_from_dogfooding_record_v0_1`.
+- Conversation Handoff From Dogfooding Record v0.1:
+  `docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md`,
+  `lib/handoff/build-handoff-from-dogfooding-record.ts`,
+  `fixtures/conversation-handoff-from-dogfooding-record.sample.v0.1.json`, and
+  `scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs`
+  (`npm run smoke:conversation-handoff-from-dogfooding-record-v0-1`) implements
+  `conversation_handoff_packet_from_dogfooding_record_v0_1`. PR #868 remains
+  the frozen web baseline for `/`, `/perspective`, and `/workbench`. PR #873
+  provides the conversation handoff packet builder used by this slice. This
+  slice adds no UI. Dogfooding records become candidate-only handoff packet
+  input, not execution approval. Dogfooding record to handoff packet is not
+  truth, proof, accepted evidence, Review Memory write, promotion, Formation
+  Receipt, durable Perspective state, or product-write. Handoff packet is
+  candidate-only conversation/workflow guidance. PR body is not truth. Changed
+  files are not proof. Observed files are not proof. Validation pass is not
+  approval. Validation failure is not automatic rejection. Smoke pass is not
+  evidence. Smoke failure is diagnostic, not automatic rejection. CI pass is not
+  authority. CI failure is diagnostic, not automatic rejection. Skipped checks
+  are review context, not failure by themselves. Known warnings are review
+  context, not automatic rejection. Not-done items are next-task cues, not
+  automatic task creation. Expected/observed delta is reconciliation context,
+  not approval or rejection. Review Memory refs, Promotion/Receipt/State refs,
+  Git refs, and GitHub PR refs are references only. Next recommended slice is
+  not execution approval. Product-write remains parked by #686.
+
+  Boundary phrases: helper-only dogfooding-record-to-packet conversion;
+  caller-provided public-safe dogfooding summaries only; no raw DB rows; no raw
+  source bodies; no raw provider output; no raw retrieval output; no raw
+  conversations; no hidden reasoning; no UI; no components; no Cockpit change;
+  no public-surface change; no route model change for `/`, `/perspective`, or
+  `/workbench`; no browser-validation-only work; no new API route; no DB
+  migration; no DB write; no direct DB read; no provider/OpenAI call; no prompt
+  sent; no source fetch; no retrieval execution; no retrieval index write; no
+  proof/evidence creation; no claim/evidence write; no Review Memory write; no
+  promotion execution; no Formation Receipt write; no durable Perspective state
+  apply; no product-write; no product ID allocation; no Codex execution from
+  Augnes runtime; no GitHub API call from Augnes runtime; no Git/GitHub
+  actuation from Augnes runtime; no release, deploy, or publish behavior. Next
+  recommended slice: `dogfooding_record_to_review_memory_proposal_v0_1`.
 - Runtime Audit Panel v0.1:
   `docs/RUNTIME_AUDIT_PANEL_V0_1.md`,
   `lib/runtime-audit/build-runtime-audit-model.ts`,
