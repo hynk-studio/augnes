@@ -43,10 +43,15 @@ file refs.
 - privacy boundary notes map to public-safe unresolved context
 - authority boundary fields remain non-authority context
 - reason codes map to source or packet context only
+- caller-provided public-safe `next_recommended_slice` or `next_slice` maps to
+  `next_recommended_slice`
 
 Expected/observed delta remains separate from validation approval or rejection.
 Changed files and observed files remain review context, not proof. Validation
 refs remain diagnostic context, not approval.
+For v0.3 closeout material, the cue
+`no_next_slice_v0_3_core_sequence_complete_pending_operator_decision` is
+preserved as a cue only. It is not execution approval.
 
 ## Output
 
@@ -142,9 +147,9 @@ behavior.
 ## Fixture And Smoke
 
 `fixtures/conversation-handoff-from-dogfooding-record.sample.v0.1.json` covers
-single-record, multi-record, and summary-only inputs, profile pass-through,
-field mapping, authority boundaries, privacy blocking, authority blocking,
-allowed negated boundary wording, and no-execution flags.
+single-record, multi-record, summary-only, and v0.3 no-next closeout inputs,
+profile pass-through, field mapping, authority boundaries, privacy blocking,
+authority blocking, allowed negated boundary wording, and no-execution flags.
 
 `scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs` verifies
 determinism, mapping, profile behavior, private/raw blocking without unsafe
@@ -153,5 +158,8 @@ builder, and exact changed-file scope.
 
 ## Next
 
-Next recommended slice:
+Default fallback next recommended slice for older normal flows:
 `dogfooding_record_to_review_memory_proposal_v0_1`.
+
+Caller-provided v0.3 closeout cue:
+`no_next_slice_v0_3_core_sequence_complete_pending_operator_decision`.

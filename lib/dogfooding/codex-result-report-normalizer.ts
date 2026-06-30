@@ -294,6 +294,31 @@ const rawMarkerRules: Array<{
     reasonCode: "secret_like_pattern_blocked",
   },
   {
+    marker: "SAFE_MARKER_CREDENTIAL",
+    findingKind: "secret_like_pattern",
+    reasonCode: "secret_like_pattern_blocked",
+  },
+  {
+    marker: "SAFE_MARKER_TOKEN",
+    findingKind: "secret_like_pattern",
+    reasonCode: "secret_like_pattern_blocked",
+  },
+  {
+    marker: "SAFE_MARKER_SECRET",
+    findingKind: "secret_like_pattern",
+    reasonCode: "secret_like_pattern_blocked",
+  },
+  {
+    marker: "SAFE_MARKER_COOKIE",
+    findingKind: "secret_like_pattern",
+    reasonCode: "secret_like_pattern_blocked",
+  },
+  {
+    marker: "SAFE_MARKER_PRIVATE_KEY",
+    findingKind: "secret_like_pattern",
+    reasonCode: "secret_like_pattern_blocked",
+  },
+  {
     marker: "SAFE_MARKER_RAW_TERMINAL_LOG",
     findingKind: "raw_terminal_log",
     reasonCode: "raw_terminal_log_blocked",

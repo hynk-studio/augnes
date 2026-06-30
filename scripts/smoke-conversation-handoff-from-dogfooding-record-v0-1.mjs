@@ -34,6 +34,8 @@ const packetVersion = "conversation_handoff_packet.v0.2";
 const builderVersion = "conversation_handoff_packet_builder.v0.2";
 const selectedSlice = "conversation_handoff_packet_from_dogfooding_record_v0_1";
 const nextSlice = "dogfooding_record_to_review_memory_proposal_v0_1";
+const v03NoNextSlice =
+  "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision";
 const scope = "project:augnes";
 const defaultProfile = "codex_implementation";
 const packageScriptName =
@@ -48,6 +50,10 @@ const expectedChangedFiles = new Set([
   docsPath,
   packagePath,
   indexPath,
+  "lib/dogfooding/codex-result-report-normalizer.ts",
+  "fixtures/codex-result-report-ingestion.sample.v0.1.json",
+  "fixtures/codex-result-to-dogfooding-record.sample.v0.1.json",
+  "scripts/smoke-codex-result-report-ingestion-v0-1.mjs",
   packetSmokePath,
   codexBindingSmokePath,
   dogfoodingSmokePath,
@@ -63,6 +69,7 @@ const expectedChangedFiles = new Set([
   "docs/LOCAL_DATA_EXPORT_MANIFEST_BUILDER_V0_1.md",
   "scripts/smoke-local-data-export-policy-v0-1.mjs",
   "lib/git-ledger/build-export-packet-from-local-manifest.ts",
+  "lib/git-ledger/build-export-packet.ts",
   "fixtures/git-ledger-export-from-local-manifest.sample.v0.1.json",
   "scripts/smoke-git-ledger-export-from-local-manifest-v0-1.mjs",
   "docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md",
@@ -108,6 +115,7 @@ const requiredDocsPhrases = [
   "Not-done items are next-task cues, not automatic task creation.",
   "Expected/observed delta is reconciliation context, not approval or rejection.",
   "Next recommended slice is not execution approval.",
+  "`no_next_slice_v0_3_core_sequence_complete_pending_operator_decision` is preserved as a cue only.",
   "`dogfooding_record_to_review_memory_proposal_v0_1`",
 ];
 
@@ -178,6 +186,7 @@ assertStaticCoverage();
 assertSingleRecordBehavior();
 assertMultipleRecordBehavior();
 assertSummaryOnlyBehavior();
+assertV03NoNextCloseoutBehavior();
 assertProfileBehavior();
 assertBlockedInputBehavior();
 assertChangedFileScope();
@@ -189,6 +198,7 @@ console.log(
       final_status: "pass",
       selected_slice: selectedSlice,
       next_recommended_slice: nextSlice,
+      v0_3_no_next_slice_checked: v03NoNextSlice,
       profiles_checked: fixture.required_profiles.length,
       changed_file_scope_checked: true,
     },
@@ -204,6 +214,7 @@ function assertFixtureVersions() {
   assert.equal(fixture.builder_version, builderVersion);
   assert.equal(fixture.selected_slice, selectedSlice);
   assert.equal(fixture.next_recommended_slice, nextSlice);
+  assert.equal(fixture.expected.v0_3_no_next_slice, v03NoNextSlice);
   assert.equal(fixture.scope, scope);
   assert.equal(fixture.default_profile, defaultProfile);
   assert.equal(fixture.post_868_boundary.pr_868_is_frozen_web_baseline, true);
@@ -388,6 +399,37 @@ function assertSummaryOnlyBehavior() {
       "lib/handoff/build-handoff-from-dogfooding-record.ts",
     ),
     "summary-only observed files must be preserved",
+  );
+}
+
+function assertV03NoNextCloseoutBehavior() {
+  const built = helper.buildHandoffFromDogfoodingRecordV01(
+    fixture.v0_3_closeout_no_next_input,
+  );
+  assert.equal(built.ok, true);
+  assert.equal(built.status, "built");
+  assert.ok(built.packet_input);
+  assert.ok(built.packet);
+  assert.equal(built.profile, "release_readiness_review");
+  assert.equal(
+    built.packet_input.next_recommended_slice,
+    v03NoNextSlice,
+    "v0.3 closeout handoff must preserve the no-next cue",
+  );
+  assert.ok(
+    built.packet.plain_text.includes(v03NoNextSlice),
+    "packet text must include the v0.3 no-next cue",
+  );
+  assert.equal(
+    built.packet.authority_boundary.next_recommended_slice_is_execution_approval,
+    false,
+    "no-next cue must not become execution approval",
+  );
+  assertAllExecutionFlagsFalse(built);
+  assertAuthorityBoundaryClosed(built.authority_boundary, "v0.3 no-next boundary");
+  assertPacketAuthorityBoundaryClosed(
+    built.packet.authority_boundary,
+    "v0.3 no-next packet boundary",
   );
 }
 

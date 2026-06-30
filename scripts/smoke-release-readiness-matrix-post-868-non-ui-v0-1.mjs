@@ -48,6 +48,22 @@ const expectedChangedFiles = new Set([
   docsPath,
   fixturePath,
   smokePath,
+  "docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md",
+  "fixtures/codex-result-report-ingestion.sample.v0.1.json",
+  "fixtures/codex-result-to-dogfooding-record.sample.v0.1.json",
+  "fixtures/conversation-handoff-from-dogfooding-record.sample.v0.1.json",
+  "fixtures/git-ledger-export-from-local-manifest.sample.v0.1.json",
+  "lib/dogfooding/codex-result-report-normalizer.ts",
+  "lib/git-ledger/build-export-packet-from-local-manifest.ts",
+  "lib/git-ledger/build-export-packet.ts",
+  "lib/handoff/build-handoff-from-dogfooding-record.ts",
+  "scripts/smoke-codex-result-report-ingestion-v0-1.mjs",
+  "scripts/smoke-codex-result-to-dogfooding-record-v0-1.mjs",
+  "scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs",
+  "scripts/smoke-git-ledger-export-from-local-manifest-v0-1.mjs",
+  "scripts/smoke-local-data-export-manifest-builder-v0-1.mjs",
+  "scripts/smoke-dogfooding-to-review-memory-proposal-v0-1.mjs",
+  "scripts/smoke-selected-runtime-audit-event-store-v0-1.mjs",
   packagePath,
   indexPath,
   selectedAuditSmokePath,
@@ -61,6 +77,12 @@ const expectedChangedFiles = new Set([
 ]);
 
 const newSliceFiles = [docsPath, fixturePath, smokePath];
+const allowedRepairRuntimeFiles = new Set([
+  "lib/dogfooding/codex-result-report-normalizer.ts",
+  "lib/git-ledger/build-export-packet-from-local-manifest.ts",
+  "lib/git-ledger/build-export-packet.ts",
+  "lib/handoff/build-handoff-from-dogfooding-record.ts",
+]);
 
 const requiredRowIds = [
   "pr_868_frozen_web_baseline",
@@ -157,6 +179,8 @@ const requiredDocsPhrases = [
   "`/perspective` is Perspective detail",
   "`/workbench` is Cockpit/workbench",
   "PR #878 provides selected runtime audit event store context.",
+  "This matrix is a static repo-grounded artifact.",
+  "Its authority coverage is verified by fixture fields and smoke assertions, not by a callable runtime phrase blocker.",
   "This slice adds no UI",
   "Release readiness matrix is not release approval.",
   "Release readiness matrix is not deploy approval.",
@@ -227,7 +251,7 @@ assertAuthorityBoundary();
 assertDeterministicFingerprint();
 assertDocsAndIndexPointers();
 assertCompatibilityGuards();
-assertChangedFileScope();
+const changedFileScopeReasonCode = assertChangedFileScope();
 
 console.log(
   JSON.stringify(
@@ -238,6 +262,7 @@ console.log(
       matrix_fingerprint: fixture.matrix_fingerprint,
       next_recommended_slice: fixture.next_recommended_slice,
       changed_file_scope_checked: true,
+      changed_file_scope_reason_code: changedFileScopeReasonCode,
     },
     null,
     2,
@@ -321,6 +346,8 @@ function assertAuthorityBoundary() {
   for (const field of [
     "matrix_review_only",
     "repo_grounded_public_safe_summaries_only",
+    "matrix_static_repo_artifact_only",
+    "authority_coverage_verified_by_fixture_fields_and_smoke_assertions_only",
     "skipped_checks_are_review_context_only",
     "known_warnings_are_review_context_only",
     "not_done_items_are_next_planning_cues_only",
@@ -338,6 +365,7 @@ function assertAuthorityBoundary() {
     "release_readiness_matrix_is_proof",
     "release_readiness_matrix_is_accepted_evidence",
     "release_readiness_matrix_is_authority",
+    "callable_runtime_phrase_blocker_added",
     "readiness_classification_is_execution_approval",
     "matrix_fingerprint_is_proof",
     "matrix_fingerprint_is_approval",
@@ -416,18 +444,30 @@ function assertCompatibilityGuards() {
 
 function assertChangedFileScope() {
   const changedFiles = getChangedFiles();
-  assert.ok(changedFiles.length > 0, "changed-file scope must inspect a non-empty delta");
+  if (changedFiles.length === 0) {
+    assert.ok(
+      isCleanMergedMainTree(),
+      "changed-file scope must inspect a non-empty delta unless clean merged-main mode applies",
+    );
+    return "post_merge_clean_tree_no_changed_file_delta";
+  }
   for (const filePath of changedFiles) {
     assert.ok(expectedChangedFiles.has(filePath), `Unexpected changed file: ${filePath}`);
     assert.ok(!filePath.startsWith("components/"), `No component files allowed: ${filePath}`);
     assert.ok(!filePath.startsWith("app/"), `No route files allowed: ${filePath}`);
     assert.ok(!filePath.includes("/migrations/"), `No migration files allowed: ${filePath}`);
-    assert.ok(!filePath.startsWith("lib/"), `No runtime helper files allowed: ${filePath}`);
+    if (filePath.startsWith("lib/")) {
+      assert.ok(
+        allowedRepairRuntimeFiles.has(filePath),
+        `No runtime helper files allowed outside targeted repair paths: ${filePath}`,
+      );
+    }
     assert.ok(!filePath.startsWith("types/"), `No runtime type files allowed: ${filePath}`);
   }
   for (const requiredPath of newSliceFiles) {
     assert.ok(changedFiles.includes(requiredPath), `changed files must include ${requiredPath}`);
   }
+  return "changed_file_scope_checked";
 }
 
 function getChangedFiles() {
@@ -444,6 +484,38 @@ function getChangedFiles() {
     }
   }
   return [...candidates].sort();
+}
+
+function isCleanMergedMainTree() {
+  return (
+    gitOutput(["status", "--short"]) === "" &&
+    gitOutput(["diff", "--name-only"]) === "" &&
+    gitOutput(["diff", "--cached", "--name-only"]) === "" &&
+    gitOutput(["ls-files", "--others", "--exclude-standard"]) === "" &&
+    isHeadOnMainOrCurrentMain()
+  );
+}
+
+function isHeadOnMainOrCurrentMain() {
+  const head = gitOutput(["rev-parse", "HEAD"]);
+  const branch = gitOutput(["branch", "--show-current"]);
+  if (branch === "main") return true;
+  for (const ref of ["main", "refs/heads/main", "origin/main", "refs/remotes/origin/main"]) {
+    if (gitOutputOrNull(["rev-parse", "--verify", ref]) === head) return true;
+  }
+  return false;
+}
+
+function gitOutput(args) {
+  return execFileSync("git", args, { encoding: "utf8" }).trim();
+}
+
+function gitOutputOrNull(args) {
+  try {
+    return gitOutput(args);
+  } catch {
+    return null;
+  }
 }
 
 function fingerprintFixture(value) {

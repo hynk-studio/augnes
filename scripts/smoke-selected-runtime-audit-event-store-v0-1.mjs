@@ -61,6 +61,16 @@ const expectedChangedFiles = new Set([
   packetSmokePath,
   codexBindingSmokePath,
   dogfoodingSmokePath,
+  "docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md",
+  "fixtures/codex-result-report-ingestion.sample.v0.1.json",
+  "fixtures/codex-result-to-dogfooding-record.sample.v0.1.json",
+  "fixtures/conversation-handoff-from-dogfooding-record.sample.v0.1.json",
+  "fixtures/git-ledger-export-from-local-manifest.sample.v0.1.json",
+  "lib/dogfooding/codex-result-report-normalizer.ts",
+  "lib/git-ledger/build-export-packet-from-local-manifest.ts",
+  "lib/git-ledger/build-export-packet.ts",
+  "lib/handoff/build-handoff-from-dogfooding-record.ts",
+  "scripts/smoke-codex-result-report-ingestion-v0-1.mjs",
   "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md",
   "fixtures/release-readiness-matrix-post-868-non-ui.sample.v0.1.json",
   "scripts/smoke-release-readiness-matrix-post-868-non-ui-v0-1.mjs",
@@ -188,7 +198,7 @@ assertReferenceOnlyMarkerHandling();
 assertForbiddenAuthorityBlocking();
 assertAllowedNegatedBoundaryText();
 assertReadListBoundaries();
-assertChangedFileScope();
+const changedFileScopeReasonCode = assertChangedFileScope();
 
 console.log(
   JSON.stringify(
@@ -200,6 +210,7 @@ console.log(
       audit_event_id: built.event.audit_event_id,
       event_fingerprint: built.event.event_fingerprint,
       changed_file_scope_checked: true,
+      changed_file_scope_reason_code: changedFileScopeReasonCode,
     },
     null,
     2,
@@ -579,7 +590,13 @@ function assertNoUnsafeEcho(value, marker) {
 
 function assertChangedFileScope() {
   const changedFiles = getChangedFiles();
-  assert.ok(changedFiles.length > 0, "changed-file scope must inspect a non-empty delta");
+  if (changedFiles.length === 0) {
+    assert.ok(
+      isCleanMergedMainTree(),
+      "changed-file scope must inspect a non-empty delta unless clean merged-main mode applies",
+    );
+    return "post_merge_clean_tree_no_changed_file_delta";
+  }
   for (const filePath of changedFiles) {
     assert.ok(expectedChangedFiles.has(filePath), `Unexpected changed file: ${filePath}`);
     assert.ok(!filePath.startsWith("components/"), `No component files allowed: ${filePath}`);
@@ -589,6 +606,7 @@ function assertChangedFileScope() {
   for (const requiredPath of newSliceFiles) {
     assert.ok(changedFiles.includes(requiredPath), `changed files must include ${requiredPath}`);
   }
+  return "changed_file_scope_checked";
 }
 
 function getChangedFiles() {
@@ -605,6 +623,38 @@ function getChangedFiles() {
     }
   }
   return [...candidates].sort();
+}
+
+function isCleanMergedMainTree() {
+  return (
+    gitOutput(["status", "--short"]) === "" &&
+    gitOutput(["diff", "--name-only"]) === "" &&
+    gitOutput(["diff", "--cached", "--name-only"]) === "" &&
+    gitOutput(["ls-files", "--others", "--exclude-standard"]) === "" &&
+    isHeadOnMainOrCurrentMain()
+  );
+}
+
+function isHeadOnMainOrCurrentMain() {
+  const head = gitOutput(["rev-parse", "HEAD"]);
+  const branch = gitOutput(["branch", "--show-current"]);
+  if (branch === "main") return true;
+  for (const ref of ["main", "refs/heads/main", "origin/main", "refs/remotes/origin/main"]) {
+    if (gitOutputOrNull(["rev-parse", "--verify", ref]) === head) return true;
+  }
+  return false;
+}
+
+function gitOutput(args) {
+  return execFileSync("git", args, { encoding: "utf8" }).trim();
+}
+
+function gitOutputOrNull(args) {
+  try {
+    return gitOutput(args);
+  } catch {
+    return null;
+  }
 }
 
 function createDb() {

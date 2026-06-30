@@ -225,6 +225,46 @@
     "not_done_items": ["not-done:review-memory-proposal-remains-next-slice"],
     "unresolved_tensions": ["Summary-only packets are guidance, not execution approval."]
   },
+  "v0_3_closeout_no_next_input": {
+    "profile": "release_readiness_review",
+    "packet_id": "conversation-handoff-from-dogfooding-record:v0-3-closeout-no-next",
+    "created_at": "2026-06-30T01:22:00.000Z",
+    "next_recommended_slice": "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision",
+    "dogfooding_record_refs": [
+      "dogfooding-research-record:codex-result-report:pr-879-closeout"
+    ],
+    "source_refs": [
+      "github-pr-ref:879",
+      "release-readiness-matrix-post-868-non-ui-v0-1"
+    ],
+    "current_task": [
+      "Close the post-#868 v0.3 non-UI core/handoff/conversation sequence as candidate-only review context."
+    ],
+    "observed_files": [
+      "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md",
+      "fixtures/release-readiness-matrix-post-868-non-ui.sample.v0.1.json",
+      "scripts/smoke-release-readiness-matrix-post-868-non-ui-v0-1.mjs"
+    ],
+    "observed_checks": [
+      "npm run smoke:release-readiness-matrix-post-868-non-ui-v0-1"
+    ],
+    "expected_observed_delta": [
+      "delta:v0-3-sequence-closed-with-no-release-approval"
+    ],
+    "known_warnings": [
+      "warning:privacy-smoke-node-experimental-strip-types"
+    ],
+    "skipped_checks": [
+      "skipped:none"
+    ],
+    "not_done_items": [
+      "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision remains a cue, not execution approval."
+    ],
+    "reason_codes": [
+      "v0_3_core_sequence_complete_pending_operator_decision",
+      "release_readiness_matrix_not_release_approval"
+    ]
+  },
   "blocked_private_or_raw_payload_example": {
     "profile": "codex_implementation",
     "record_id": "dogfooding-research-record:blocked-private:handoff-sample",
@@ -297,6 +337,7 @@
       "not_done_ref": "not-done:dogfooding-record-sourced-builder-remained-next-slice remains a next-task cue, not automatic task creation.",
       "expected_observed_delta_ref": "delta:observed-files-are-review-cues-not-proof remains reconciliation context, not approval or rejection."
     },
+    "v0_3_no_next_slice": "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision",
     "required_authority_boundary_lines": [
       "Dogfooding record is candidate-only review material.",
       "Handoff packet is not execution approval.",

@@ -37,6 +37,8 @@ export const ConversationHandoffFromDogfoodingRecordSliceV01 =
   "conversation_handoff_packet_from_dogfooding_record_v0_1" as const;
 export const ConversationHandoffFromDogfoodingRecordNextSliceV01 =
   "dogfooding_record_to_review_memory_proposal_v0_1" as const;
+export const ConversationHandoffFromDogfoodingRecordNoNextCueV01 =
+  "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision" as const;
 export const ConversationHandoffFromDogfoodingRecordDefaultProfileV01 =
   "codex_implementation" as const satisfies ConversationHandoffPacketProfileV02;
 
@@ -157,6 +159,7 @@ type NormalizedDogfoodingRecord = {
   review_cues: string[];
   boundary_notes: string[];
   reason_codes: string[];
+  next_recommended_slice: string | null;
 };
 
 type NormalizedDogfoodingMaterial = {
@@ -186,6 +189,7 @@ type NormalizedDogfoodingMaterial = {
     pr_body_requirements: string[];
     validation_commands: string[];
     reason_codes: string[];
+    next_recommended_slice: string | null;
   };
 };
 
@@ -617,6 +621,7 @@ function buildPacketInput(
     ...defaultProjectContext,
     ...normalized.summary_fields.project_context,
   ]);
+  const nextRecommendedSlice = resolveNextRecommendedSlice(normalized);
 
   return {
     input_version: ConversationHandoffPacketInputVersionV02,
@@ -667,7 +672,7 @@ function buildPacketInput(
     ]),
     pr_body_requirements: uniqueSortedStrings(normalized.summary_fields.pr_body_requirements),
     validation_commands: validationCommands,
-    next_recommended_slice: ConversationHandoffFromDogfoodingRecordNextSliceV01,
+    next_recommended_slice: nextRecommendedSlice,
     privacy_report: {
       status: "passed",
       caller_provided_public_safe_dogfooding_material_only: true,
@@ -712,6 +717,7 @@ function normalizeDogfoodingMaterial(
     pr_body_requirements: normalizeList(root.pr_body_requirements),
     validation_commands: normalizeList(root.validation_commands),
     reason_codes: normalizeList(root.reason_codes),
+    next_recommended_slice: resolveRootNextRecommendedSlice(root),
   };
   const hasSummaryOnlyRefs =
     summaryFields.dogfooding_record_refs.length > 0 ||
@@ -781,6 +787,7 @@ function normalizeRecord(
         : [],
     ),
     reason_codes: normalizeList(recordView.reason_codes),
+    next_recommended_slice: resolveRootNextRecommendedSlice(recordView),
   };
 }
 
@@ -798,6 +805,63 @@ function normalizeReviewCues(value: unknown): string[] {
       return `${cueKind}:${summary}`;
     }),
   );
+}
+
+function resolveRootNextRecommendedSlice(root: JsonRecord): string | null {
+  return (
+    normalizeOptionalString(root.next_recommended_slice) ??
+    normalizeOptionalString(root.next_slice)
+  );
+}
+
+function resolveNextRecommendedSlice(
+  normalized: NormalizedDogfoodingMaterial,
+): string {
+  return (
+    normalized.summary_fields.next_recommended_slice ??
+    normalized.records
+      .map((record) => record.next_recommended_slice)
+      .find((value): value is string => Boolean(value)) ??
+    detectNoNextCueFromMaterial(normalized) ??
+    ConversationHandoffFromDogfoodingRecordNextSliceV01
+  );
+}
+
+function detectNoNextCueFromMaterial(
+  normalized: NormalizedDogfoodingMaterial,
+): string | null {
+  const values = [
+    ...Object.values(normalized.summary_fields).flatMap((value) =>
+      Array.isArray(value) ? value : [value],
+    ),
+    ...normalized.records.flatMap((record) => [
+      record.record_ref,
+      record.record_kind,
+      record.created_at,
+      record.normalized_summary,
+      record.next_recommended_slice,
+      ...record.source_refs,
+      ...record.pr_refs,
+      ...record.branch_refs,
+      ...record.commit_refs,
+      ...record.changed_file_refs,
+      ...record.validation_refs,
+      ...record.skipped_check_refs,
+      ...record.known_warning_refs,
+      ...record.not_done_refs,
+      ...record.expected_observed_delta_refs,
+      ...record.review_cues,
+      ...record.boundary_notes,
+      ...record.reason_codes,
+    ]),
+  ];
+  return values.some(
+    (value) =>
+      typeof value === "string" &&
+      value.includes(ConversationHandoffFromDogfoodingRecordNoNextCueV01),
+  )
+    ? ConversationHandoffFromDogfoodingRecordNoNextCueV01
+    : null;
 }
 
 function resolveProfile(
