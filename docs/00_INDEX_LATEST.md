@@ -96,6 +96,17 @@ PR #868 is merged. Current route planning starts from:
   execution, proof/evidence write, durable Perspective apply, memory mutation,
   product-write, scheduler/autonomy runner, merge/publish/retry/replay/deploy
   behavior, or external side effect.
+- `docs/AUGNES_CURRENT_WORKING_PERSPECTIVE_V0_1.md`: read-only Current
+  Working Perspective read model for synthesizing `PerspectiveSnapshot` and
+  `AugnesDeltaProjectionReadModel` into a stable packet with current frame,
+  thesis, goals, assumptions, questions, risks, research pressure, next
+  candidates, last major delta refs, review hints, source refs, staleness,
+  gaps, authority boundary, and next-phase notes. Phase 3A adds
+  docs/type/helper/fixture/smoke/package-pointer/index-pointer only and adds no
+  UI, route, DB schema/migration, DB write, MCP/App tool, provider/OpenAI
+  call, GitHub actuation, Codex execution, proof/evidence write, durable
+  Perspective apply, memory mutation, product-write, scheduler/autonomy
+  runner, merge/publish/retry/replay/deploy behavior, or external side effect.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
