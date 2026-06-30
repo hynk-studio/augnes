@@ -43,6 +43,10 @@ const expectedChangedFiles = new Set([
   fixturePath,
   smokePath,
   docsPath,
+  "lib/dogfooding/codex-result-to-dogfooding-record.ts",
+  "fixtures/codex-result-to-dogfooding-record.sample.v0.1.json",
+  "scripts/smoke-codex-result-to-dogfooding-record-v0-1.mjs",
+  "docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md",
   packagePath,
   indexPath,
 ]);

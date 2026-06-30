@@ -4327,6 +4327,40 @@ repo-local 색인이다.
   runtime; no GitHub API call from Augnes runtime; no Git/GitHub actuation from
   Augnes runtime; no release, deploy, or publish behavior. Next recommended
   slice: `codex_result_report_to_dogfooding_record_binding_v0_1`.
+- Codex Result To Dogfooding Record Binding v0.1:
+  `docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md`,
+  `lib/dogfooding/codex-result-to-dogfooding-record.ts`,
+  `fixtures/codex-result-to-dogfooding-record.sample.v0.1.json`, and
+  `scripts/smoke-codex-result-to-dogfooding-record-v0-1.mjs`
+  (`npm run smoke:codex-result-to-dogfooding-record-v0-1`) implements
+  `codex_result_report_to_dogfooding_record_binding_v0_1`. PR #868 remains the
+  frozen web baseline for `/`, `/perspective`, and `/workbench`. PR #871
+  provides the dogfooding research record runtime used by this binding. This
+  slice adds no UI. Codex reports become candidate-only dogfooding research
+  record input. Codex report to dogfooding record is not proof. Codex report to
+  dogfooding record is not accepted evidence. Codex report to dogfooding record
+  is not Review Memory write. Codex report to dogfooding record is not
+  promotion, Formation Receipt, durable Perspective state, or product-write.
+  Codex report is not execution approval. PR body is not truth. Changed files
+  are not proof. Validation pass is not approval. Validation failure is not
+  automatic rejection. Smoke pass is not evidence. Smoke failure is diagnostic,
+  not automatic rejection. CI pass is not authority. CI failure is diagnostic,
+  not automatic rejection. Git refs and GitHub PR refs are references only.
+  Product-write remains parked by #686.
+
+  Boundary phrases: binding/conversion helper only; existing Codex result
+  normalizer first for raw caller input; existing dogfooding research record
+  input contract reused; no UI; no components; no Cockpit change; no
+  public-surface change; no route model change for `/`, `/perspective`, or
+  `/workbench`; no browser-validation-only work; no new API route; no DB
+  migration; no provider/OpenAI call; no prompt sent; no source fetch; no
+  retrieval execution; no retrieval index write; no proof/evidence creation; no
+  claim/evidence write; no Review Memory write; no promotion execution; no
+  Formation Receipt write; no durable Perspective state apply; no product-write;
+  no product ID allocation; no Codex execution from Augnes runtime; no GitHub API
+  call from Augnes runtime; no Git/GitHub actuation from Augnes runtime; no
+  release, deploy, or publish behavior. Next recommended slice:
+  `conversation_handoff_packet_builder_v0_2`.
 - Runtime Audit Panel v0.1:
   `docs/RUNTIME_AUDIT_PANEL_V0_1.md`,
   `lib/runtime-audit/build-runtime-audit-model.ts`,
