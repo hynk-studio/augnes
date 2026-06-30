@@ -1,0 +1,69 @@
+import type { CSSProperties, ReactNode } from "react";
+
+const panelStyle: CSSProperties = {
+  display: "grid",
+  gap: "12px",
+  minWidth: 0,
+  padding: "14px",
+  border: "1px solid rgba(30, 41, 59, 0.14)",
+  borderRadius: "14px",
+  background: "rgba(255, 255, 255, 0.92)",
+  boxShadow: "0 18px 36px rgba(15, 23, 42, 0.06)",
+};
+
+const headingStyle: CSSProperties = {
+  display: "grid",
+  gap: "4px",
+};
+
+const kickerStyle: CSSProperties = {
+  margin: 0,
+  color: "#64748b",
+  fontSize: "0.72rem",
+  fontWeight: 820,
+  textTransform: "uppercase",
+};
+
+const titleStyle: CSSProperties = {
+  margin: 0,
+  color: "#0f172a",
+  fontSize: "1.05rem",
+  lineHeight: 1.2,
+};
+
+const copyStyle: CSSProperties = {
+  margin: 0,
+  color: "#475569",
+  fontSize: "0.82rem",
+  lineHeight: 1.36,
+};
+
+const bodyStyle: CSSProperties = {
+  minWidth: 0,
+  overflow: "hidden",
+  border: "1px solid rgba(30, 41, 59, 0.1)",
+  borderRadius: "12px",
+};
+
+export function LegacyCockpitCompatibilityPanel({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <section aria-labelledby="legacy-cockpit-compatibility-title" style={panelStyle}>
+      <div style={headingStyle}>
+        <p style={kickerStyle}>Existing Cockpit compatibility content</p>
+        <h2 id="legacy-cockpit-compatibility-title" style={titleStyle}>
+          Legacy Cockpit remains reachable
+        </h2>
+        <p style={copyStyle}>
+          Phase 5A reframes `/workbench` as Agent Workplane without deleting the
+          existing Cockpit operator/read surfaces. Deeper panel extraction is
+          deferred to Phase 5B.
+        </p>
+      </div>
+      <div style={bodyStyle}>{children}</div>
+    </section>
+  );
+}
