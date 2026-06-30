@@ -4523,6 +4523,48 @@ repo-local 색인이다.
   call from Augnes runtime; no Git/GitHub actuation from Augnes runtime; no
   release, deploy, or publish behavior. Next recommended slice:
   `git_ledger_export_manifest_binding_v0_1`.
+- Git Ledger Export From Local Manifest v0.1:
+  `docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md`,
+  `lib/git-ledger/build-export-packet-from-local-manifest.ts`,
+  `fixtures/git-ledger-export-from-local-manifest.sample.v0.1.json`, and
+  `scripts/smoke-git-ledger-export-from-local-manifest-v0-1.mjs`
+  (`npm run smoke:git-ledger-export-from-local-manifest-v0-1`) implements
+  `git_ledger_export_manifest_binding_v0_1`. PR #868 remains the frozen web
+  baseline for `/`, `/perspective`, and `/workbench`. PR #876 provides local
+  export manifest candidate context. This slice adds no UI. Git Ledger packets
+  are candidate-only text packets, not Git/GitHub actuation. Suggested commit
+  message is not approval. Suggested commit intent is not execution approval.
+  Packet hash is not truth, proof, or approval. Idempotency key is not
+  approval. Local data export manifest is candidate-only, not an export file,
+  and not import approval. Manifest fingerprint is not proof. Manifest status
+  is not product/release readiness. Export item summary is not raw data. Import
+  preview is not import apply. Git refs and GitHub PR refs are references only.
+  Validation pass is not approval. Validation failure is not automatic
+  rejection. Smoke pass is not evidence. Smoke failure is diagnostic, not
+  automatic rejection. CI pass is not authority. CI failure is diagnostic, not
+  automatic rejection. Skipped checks are review context, not failure by
+  themselves. Known warnings are review context, not automatic rejection.
+  Not-done items are next-task cues, not automatic task creation.
+  Expected/observed delta is reconciliation context, not approval or rejection.
+  Product-write remains parked by #686.
+
+  Boundary phrases: helper-only Git Ledger export packet candidate binding from
+  caller-provided public-safe local data export manifest candidates; no raw DB
+  rows; no raw source bodies; no raw provider output; no raw retrieval output;
+  no raw conversations; no hidden reasoning; no UI; no components; no Cockpit
+  change; no public-surface change; no route model change for `/`,
+  `/perspective`, or `/workbench`; no browser-validation-only work; no new API
+  route; no DB migration; no DB write; no direct DB read; no local file write;
+  no local file read; no import apply; no provider/OpenAI call; no prompt sent;
+  no source fetch; no retrieval execution; no retrieval index write; no
+  proof/evidence creation; no claim/evidence write; no Review Memory write; no
+  promotion execution; no promotion decision creation from Git Ledger packet; no
+  Formation Receipt write; no durable Perspective state apply; no product-write;
+  no product ID allocation; no Codex execution from Augnes runtime; no GitHub
+  API call from Augnes runtime; no Git branch, commit, PR, merge, or tag
+  creation from Augnes runtime; no Git/GitHub actuation from Augnes runtime; no
+  release, deploy, or publish behavior. Next recommended slice:
+  `selected_runtime_audit_event_store_v0_1`.
 - Runtime Audit Panel v0.1:
   `docs/RUNTIME_AUDIT_PANEL_V0_1.md`,
   `lib/runtime-audit/build-runtime-audit-model.ts`,

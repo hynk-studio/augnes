@@ -54,9 +54,18 @@ const expectedChangedFiles = new Set([
   codexBindingSmokePath,
   dogfoodingSmokePath,
   policySmokePath,
+  "lib/git-ledger/build-export-packet-from-local-manifest.ts",
+  "fixtures/git-ledger-export-from-local-manifest.sample.v0.1.json",
+  "scripts/smoke-git-ledger-export-from-local-manifest-v0-1.mjs",
+  "docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md",
 ]);
 
-const newSliceFiles = [typePath, helperPath, fixturePath, smokePath, docsPath];
+const newSliceFiles = [
+  "lib/git-ledger/build-export-packet-from-local-manifest.ts",
+  "fixtures/git-ledger-export-from-local-manifest.sample.v0.1.json",
+  "scripts/smoke-git-ledger-export-from-local-manifest-v0-1.mjs",
+  "docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md",
+];
 
 const requiredHelperExports = [
   "buildLocalDataExportManifestCandidateV01",
