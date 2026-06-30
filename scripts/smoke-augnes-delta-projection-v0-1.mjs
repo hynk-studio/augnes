@@ -16,6 +16,9 @@ const projectorFile = "lib/augnes-delta/projector.ts";
 const fixtureFile = "fixtures/augnes-delta-projection.sample.v0.1.json";
 const smokeFile = "scripts/smoke-augnes-delta-projection-v0-1.mjs";
 const contractSmokeFile = "scripts/smoke-augnes-delta-contract-v0-1.mjs";
+const sourceCollectorFile = "lib/augnes-delta/source-collector.ts";
+const routeFile = "app/api/augnes/read/deltas/route.ts";
+const routeSmokeFile = "scripts/smoke-augnes-delta-projection-route-v0-1.mjs";
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -31,6 +34,17 @@ const requiredFiles = [
 ];
 
 const allowedChangedFiles = new Set(requiredFiles);
+const followOnProjectionRuntimeReadSurfaceFiles = [
+  sourceCollectorFile,
+  routeFile,
+  routeSmokeFile,
+];
+
+for (const file of followOnProjectionRuntimeReadSurfaceFiles) {
+  allowedChangedFiles.add(file);
+}
+
+const allowedRouteFiles = new Set([routeFile]);
 
 const textByFile = loadTextByFile(requiredFiles);
 const projectionDocText = textByFile.get(projectionDoc);
@@ -79,11 +93,13 @@ console.log(
       changed_files_skipped: changedFilesBoundary.skipped,
       changed_files_skip_reason: changedFilesBoundary.skip_reason,
       changed_files_observed: changedFilesBoundary.files,
+      follow_on_projection_runtime_read_surface_files_allowed:
+        followOnProjectionRuntimeReadSurfaceFiles,
       smoke_type: "static-projection-read-model-type-helper-fixture-package-index-boundary-only",
-      runtime_behavior_changed: false,
+      runtime_behavior_changed: changedFilesBoundary.api_route_added,
       ui_behavior_changed: false,
-      route_behavior_changed: false,
-      api_route_added: false,
+      route_behavior_changed: changedFilesBoundary.api_route_added,
+      api_route_added: changedFilesBoundary.api_route_added,
       db_schema_migration_changed: false,
       mcp_app_tool_added: false,
       persistence_added: false,
@@ -485,10 +501,14 @@ function assertChangedFileBoundary() {
       allowedChangedFiles.has(file),
       `Unexpected Phase 2A/review-fix changed file: ${file}`,
     );
-    assert(!/^app\/api\//.test(file), `Phase 2A must not add API route files: ${file}`);
     assert(
-      !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file),
-      `Phase 2A must not add route files: ${file}`,
+      !/^app\/api\//.test(file) || allowedRouteFiles.has(file),
+      `Phase 2A follow-on must not add API route files outside the Delta Projection read route: ${file}`,
+    );
+    assert(
+      !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) ||
+        allowedRouteFiles.has(file),
+      `Phase 2A follow-on must not add route files outside the Delta Projection read route: ${file}`,
     );
     assert(!/^components\//.test(file), `Phase 2A must not change UI files: ${file}`);
     assert(!/^db\//.test(file), `Phase 2A must not change DB files: ${file}`);
@@ -518,6 +538,7 @@ function assertChangedFileBoundary() {
       workingTree.checked || baseRange.checked
         ? null
         : "changed-file boundary could not be checked",
+    api_route_added: files.some((file) => allowedRouteFiles.has(file)),
     files,
   };
 }
