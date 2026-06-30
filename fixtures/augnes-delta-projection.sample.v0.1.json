@@ -1,0 +1,729 @@
+{
+  "runtime": "augnes",
+  "projection_version": "augnes_delta_projection.v0.1",
+  "contract_version": "augnes_delta_contract.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-06-30T00:00:00.000Z",
+  "status": "sample_fixture_only",
+  "public_safety": {
+    "classification": "synthetic_public_safe",
+    "contains_private_conversation": false,
+    "contains_hidden_reasoning": false,
+    "contains_local_private_paths": false,
+    "contains_secrets_or_tokens": false,
+    "contains_real_external_account_artifacts": false,
+    "contains_private_user_material": false,
+    "notes": [
+      "Synthetic fixture only.",
+      "No raw private conversations, private local paths, API keys, GitHub tokens, account artifacts, hidden reasoning, or real user-private material."
+    ]
+  },
+  "source_refs": {
+    "state_delta_proposal_ids": [
+      "proposal.synthetic.project_perspective_delta.v0.1"
+    ],
+    "work_event_ids": [
+      "work_event.synthetic.verification_trace.v0.1"
+    ],
+    "coordination_event_ids": [
+      "coordination.synthetic.handoff_ready.v0.1"
+    ],
+    "action_record_ids": [],
+    "evidence_record_ids": [],
+    "dogfooding_record_ids": [],
+    "handoff_refs": [
+      "handoff.synthetic.operator_packet.v0.1"
+    ],
+    "codex_result_refs": [],
+    "snapshot_refs": [
+      {
+        "snapshot_id": "snapshot.synthetic_projection_fixture.v0.1",
+        "snapshot_kind": "perspective_snapshot_ref",
+        "created_at": "2026-06-30T00:00:00.000Z",
+        "source_refs": [
+          "docs/PERSPECTIVE_SNAPSHOT_V0_1.md",
+          "fixtures/augnes-delta-projection.sample.v0.1.json"
+        ],
+        "staleness_status": "partial",
+        "freshness_notes": [
+          "Synthetic/sample SnapshotRef only.",
+          "Phase 2A does not materialize or persist a fresh PerspectiveSnapshot."
+        ]
+      }
+    ],
+    "diagnostic_refs": [
+      {
+        "diagnostic_id": "diagnostic.synthetic.projection_gap_boundary.v0.1",
+        "diagnostic_kind": "research_diagnostic",
+        "source_ref": "fixtures/augnes-delta-projection.sample.v0.1.json#diagnostic",
+        "summary": "Synthetic diagnostic reference that informs a research gap but is not truth, proof, approval, readiness, or committed Perspective state.",
+        "status": "log_only",
+        "non_authority_notes": [
+          "research diagnostic informs projection gaps only",
+          "not truth",
+          "not proof",
+          "not approval",
+          "not readiness",
+          "not committed Perspective state"
+        ],
+        "informs_delta_ids": [
+          "delta.state_delta_proposal.proposal.synthetic.project_perspective_delta.v0.1"
+        ]
+      }
+    ]
+  },
+  "source_counts": {
+    "state_delta_proposals": 1,
+    "work_events": 1,
+    "coordination_events": 1,
+    "action_records": 0,
+    "evidence_records": 0,
+    "dogfooding_records": 0,
+    "handoff_traces": 1,
+    "codex_result_traces": 0,
+    "snapshot_refs": 1,
+    "diagnostic_refs": 1,
+    "total_projected_deltas": 3,
+    "total_batches": 1,
+    "total_gaps": 4
+  },
+  "authority_boundary": {
+    "source_of_truth": "Existing Augnes source records remain authoritative; this read model is a read-only projection.",
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_mutate_memory": false,
+    "can_apply_project_perspective": false,
+    "can_publish_external": false,
+    "can_merge": false,
+    "can_retry_replay_deploy": false,
+    "can_call_github": false,
+    "can_call_openai_or_provider": false,
+    "can_execute_codex": false,
+    "can_create_branch_or_pr": false,
+    "notes": [
+      "read-only projection",
+      "pointer-only refs",
+      "no durable apply",
+      "no external side effect",
+      "no proof/evidence write",
+      "no source-of-truth claim"
+    ]
+  },
+  "batches": [
+    {
+      "batch_id": "batch.augnes_delta_projection.project_augnes.v0.1",
+      "contract_version": "augnes_delta_contract.v0.1",
+      "scope": "project:augnes",
+      "title": "Augnes Delta projection read-model sample batch",
+      "summary": "Synthetic read-only projection batch built from state_delta_proposal, work_event, coordination_event, evidence pointer, artifact pointer, and handoff pointer examples.",
+      "created_at": "2026-06-30T00:00:00.000Z",
+      "created_by": "synthetic_fixture",
+      "snapshot_refs": [
+        {
+          "snapshot_id": "snapshot.synthetic_projection_fixture.v0.1",
+          "snapshot_kind": "perspective_snapshot_ref",
+          "created_at": "2026-06-30T00:00:00.000Z",
+          "source_refs": [
+            "docs/PERSPECTIVE_SNAPSHOT_V0_1.md",
+            "fixtures/augnes-delta-projection.sample.v0.1.json"
+          ],
+          "staleness_status": "partial",
+          "freshness_notes": [
+            "Synthetic/sample SnapshotRef only.",
+            "Phase 2A does not materialize or persist a fresh PerspectiveSnapshot."
+          ]
+        }
+      ],
+      "diagnostic_refs": [
+        {
+          "diagnostic_id": "diagnostic.synthetic.projection_gap_boundary.v0.1",
+          "diagnostic_kind": "research_diagnostic",
+          "source_ref": "fixtures/augnes-delta-projection.sample.v0.1.json#diagnostic",
+          "summary": "Synthetic diagnostic reference that informs a research gap but is not truth, proof, approval, readiness, or committed Perspective state.",
+          "status": "log_only",
+          "non_authority_notes": [
+            "research diagnostic informs projection gaps only",
+            "not truth",
+            "not proof",
+            "not approval",
+            "not readiness",
+            "not committed Perspective state"
+          ],
+          "informs_delta_ids": [
+            "delta.state_delta_proposal.proposal.synthetic.project_perspective_delta.v0.1"
+          ]
+        }
+      ],
+      "authority_boundary": {
+        "source_of_truth": "Existing Augnes source records remain authoritative; this delta batch is a read-only projection.",
+        "can_commit_or_reject_state": false,
+        "can_record_proof": false,
+        "can_create_evidence": false,
+        "can_update_work": false,
+        "can_mutate_memory": false,
+        "can_apply_project_perspective": false,
+        "can_publish_external": false,
+        "can_merge": false,
+        "can_retry_replay_deploy": false,
+        "can_call_github": false,
+        "can_call_openai_or_provider": false,
+        "can_execute_codex": false,
+        "can_create_branch_or_pr": false,
+        "notes": [
+          "read-only projection",
+          "pointer-only refs",
+          "no durable apply",
+          "no external side effect",
+          "no proof/evidence write",
+          "no source-of-truth claim"
+        ]
+      },
+      "validation_summary": {
+        "validation_status": "not_run",
+        "required_checks": [
+          "npm run smoke:augnes-delta-projection-v0-1"
+        ],
+        "completed_checks": [],
+        "failed_checks": [],
+        "skipped_checks": [],
+        "notes": [
+          "Fixture validation is performed by the deterministic static smoke script."
+        ]
+      },
+      "budget_summary": {
+        "budget_scope": "projection_read_model",
+        "estimated_delta_count": 3,
+        "reviewed_delta_count": 0,
+        "auto_apply_candidate_count": 0,
+        "manual_review_required_count": 3,
+        "blocked_delta_count": 0,
+        "notes": [
+          "Counts are fixture metadata only."
+        ]
+      },
+      "deltas": [
+        {
+          "delta_id": "delta.state_delta_proposal.proposal.synthetic.project_perspective_delta.v0.1",
+          "contract_version": "augnes_delta_contract.v0.1",
+          "scope": "project:augnes",
+          "type": "perspective_delta",
+          "status": "needs_review",
+          "source": "state_delta_proposal",
+          "title": "Projected state delta proposal: project_perspective.delta_projection",
+          "summary": "Manual-mode project Perspective proposal projected as review metadata only.",
+          "created_at": "2026-06-30T00:00:00.000Z",
+          "created_by": "synthetic_fixture",
+          "target_refs": [
+            "state_delta_proposal:proposal.synthetic.project_perspective_delta.v0.1",
+            "state_key:project_perspective.delta_projection"
+          ],
+          "snapshot_refs": [
+            {
+              "snapshot_id": "snapshot.synthetic_projection_fixture.v0.1",
+              "snapshot_kind": "perspective_snapshot_ref",
+              "created_at": "2026-06-30T00:00:00.000Z",
+              "source_refs": [
+                "docs/PERSPECTIVE_SNAPSHOT_V0_1.md",
+                "fixtures/augnes-delta-projection.sample.v0.1.json"
+              ],
+              "staleness_status": "partial",
+              "freshness_notes": [
+                "Synthetic/sample SnapshotRef only.",
+                "Phase 2A does not materialize or persist a fresh PerspectiveSnapshot."
+              ]
+            }
+          ],
+          "diagnostic_refs": [
+            {
+              "diagnostic_id": "diagnostic.synthetic.projection_gap_boundary.v0.1",
+              "diagnostic_kind": "research_diagnostic",
+              "source_ref": "fixtures/augnes-delta-projection.sample.v0.1.json#diagnostic",
+              "summary": "Synthetic diagnostic reference that informs a research gap but is not truth, proof, approval, readiness, or committed Perspective state.",
+              "status": "log_only",
+              "non_authority_notes": [
+                "research diagnostic informs projection gaps only",
+                "not truth",
+                "not proof",
+                "not approval",
+                "not readiness",
+                "not committed Perspective state"
+              ],
+              "informs_delta_ids": [
+                "delta.state_delta_proposal.proposal.synthetic.project_perspective_delta.v0.1"
+              ]
+            }
+          ],
+          "evidence_refs": [],
+          "artifact_refs": [],
+          "handoff_refs": [],
+          "merge_policy": {
+            "mode": "review_required_for_project_perspective",
+            "target_scope": "projection_read_model",
+            "allowed_auto_apply": false,
+            "requires_user_judgment": true,
+            "requires_fresh_snapshot": true,
+            "requires_validation": false,
+            "durable_memory_allowed": false,
+            "project_perspective_allowed": false,
+            "external_side_effect_allowed": false,
+            "blocked_reason": "Phase 2 projection read model has no apply authority."
+          },
+          "authority_boundary": {
+            "source_of_truth": "Existing Augnes source records remain authoritative; this delta is a read-only projection.",
+            "can_commit_or_reject_state": false,
+            "can_record_proof": false,
+            "can_create_evidence": false,
+            "can_update_work": false,
+            "can_mutate_memory": false,
+            "can_apply_project_perspective": false,
+            "can_publish_external": false,
+            "can_merge": false,
+            "can_retry_replay_deploy": false,
+            "can_call_github": false,
+            "can_call_openai_or_provider": false,
+            "can_execute_codex": false,
+            "can_create_branch_or_pr": false,
+            "notes": [
+              "read-only projection",
+              "pointer-only refs",
+              "no durable apply",
+              "no external side effect",
+              "no proof/evidence write",
+              "no source-of-truth claim"
+            ]
+          },
+          "review_notes": [
+            "Proposal status is delta review metadata only.",
+            "Existing Augnes Core records remain source of truth."
+          ],
+          "non_goals": [
+            "No state mutation.",
+            "No durable Perspective apply.",
+            "No proof/evidence write."
+          ]
+        },
+        {
+          "delta_id": "delta.work_event.work_event.synthetic.verification_trace.v0.1",
+          "contract_version": "augnes_delta_contract.v0.1",
+          "scope": "project:augnes",
+          "type": "validation_delta",
+          "status": "draft",
+          "source": "work_event",
+          "title": "Projected work event: verification",
+          "summary": "Synthetic WorkEvent verification trace; not proof, evidence, approval, or readiness.",
+          "created_at": "2026-06-30T00:00:00.000Z",
+          "created_by": "synthetic_fixture",
+          "target_refs": [
+            "work_event:work_event.synthetic.verification_trace.v0.1",
+            "work:work.synthetic.phase_2a"
+          ],
+          "snapshot_refs": [],
+          "diagnostic_refs": [],
+          "evidence_refs": [
+            {
+              "evidence_ref": "evidence_record.pointer.synthetic.static_smoke.v0.1",
+              "evidence_kind": "validation_pointer",
+              "pointer_semantics": "pointer_only",
+              "summary": "Pointer to existing validation context only; no proof or evidence write authority.",
+              "verified_status": "unverified",
+              "proof_write_authority": false,
+              "evidence_write_authority": false
+            }
+          ],
+          "artifact_refs": [
+            {
+              "artifact_ref": "artifact.pr.synthetic-code-delta-pointer",
+              "artifact_kind": "code",
+              "pointer_semantics": "pointer_only",
+              "summary": "Synthetic code artifact pointer only; no GitHub actuation authority.",
+              "source_of_truth": false
+            }
+          ],
+          "handoff_refs": [],
+          "merge_policy": {
+            "mode": "manual_review_required",
+            "target_scope": "projection_read_model",
+            "allowed_auto_apply": false,
+            "requires_user_judgment": false,
+            "requires_fresh_snapshot": false,
+            "requires_validation": true,
+            "durable_memory_allowed": false,
+            "project_perspective_allowed": false,
+            "external_side_effect_allowed": false,
+            "blocked_reason": "Phase 2 projection read model has no apply authority."
+          },
+          "authority_boundary": {
+            "source_of_truth": "Existing Augnes source records remain authoritative; this delta is a read-only projection.",
+            "can_commit_or_reject_state": false,
+            "can_record_proof": false,
+            "can_create_evidence": false,
+            "can_update_work": false,
+            "can_mutate_memory": false,
+            "can_apply_project_perspective": false,
+            "can_publish_external": false,
+            "can_merge": false,
+            "can_retry_replay_deploy": false,
+            "can_call_github": false,
+            "can_call_openai_or_provider": false,
+            "can_execute_codex": false,
+            "can_create_branch_or_pr": false,
+            "notes": [
+              "read-only projection",
+              "pointer-only refs",
+              "no durable apply",
+              "no external side effect",
+              "no proof/evidence write",
+              "no source-of-truth claim"
+            ]
+          },
+          "validation_summary": {
+            "validation_status": "not_run",
+            "required_checks": [],
+            "completed_checks": [],
+            "failed_checks": [],
+            "skipped_checks": [
+              {
+                "check": "work_event_runtime_validation",
+                "reason": "Phase 2A projection is pointer-only and does not run source validation."
+              }
+            ],
+            "notes": [
+              "WorkEvent validation trace is pointer-only and is not approval."
+            ]
+          },
+          "review_notes": [
+            "WorkEvent is a human-readable trace.",
+            "WorkEvent does not become proof, evidence, approval, or readiness."
+          ],
+          "non_goals": [
+            "No work status update.",
+            "No proof/evidence write.",
+            "No approval or readiness claim."
+          ]
+        },
+        {
+          "delta_id": "delta.coordination_event.coordination.synthetic.handoff_ready.v0.1",
+          "contract_version": "augnes_delta_contract.v0.1",
+          "scope": "project:augnes",
+          "type": "handoff_delta",
+          "status": "draft",
+          "source": "coordination_event",
+          "title": "Projected coordination event: handoff_ready",
+          "summary": "Synthetic coordination handoff-ready event projected as pointer-only handoff delta.",
+          "created_at": "2026-06-30T00:00:00.000Z",
+          "created_by": "synthetic_fixture",
+          "target_refs": [
+            "coordination_event:coordination.synthetic.handoff_ready.v0.1",
+            "work:work.synthetic.phase_2a",
+            "source_authority_level:committed_state"
+          ],
+          "snapshot_refs": [],
+          "diagnostic_refs": [],
+          "evidence_refs": [],
+          "artifact_refs": [],
+          "handoff_refs": [
+            {
+              "handoff_ref": "handoff.synthetic.operator_packet.v0.1",
+              "handoff_kind": "operator_packet",
+              "pointer_semantics": "pointer_only",
+              "summary": "Synthetic operator packet pointer only; grants no execution or external send authority.",
+              "execution_authority": false,
+              "external_send_authority": false
+            }
+          ],
+          "merge_policy": {
+            "mode": "manual_review_required",
+            "target_scope": "projection_read_model",
+            "allowed_auto_apply": false,
+            "requires_user_judgment": false,
+            "requires_fresh_snapshot": false,
+            "requires_validation": true,
+            "durable_memory_allowed": false,
+            "project_perspective_allowed": false,
+            "external_side_effect_allowed": false,
+            "blocked_reason": "Phase 2 projection read model has no apply authority."
+          },
+          "authority_boundary": {
+            "source_of_truth": "Existing Augnes source records remain authoritative; this delta is a read-only projection.",
+            "can_commit_or_reject_state": false,
+            "can_record_proof": false,
+            "can_create_evidence": false,
+            "can_update_work": false,
+            "can_mutate_memory": false,
+            "can_apply_project_perspective": false,
+            "can_publish_external": false,
+            "can_merge": false,
+            "can_retry_replay_deploy": false,
+            "can_call_github": false,
+            "can_call_openai_or_provider": false,
+            "can_execute_codex": false,
+            "can_create_branch_or_pr": false,
+            "notes": [
+              "read-only projection",
+              "pointer-only refs",
+              "no durable apply",
+              "no external side effect",
+              "no proof/evidence write",
+              "no source-of-truth claim"
+            ]
+          },
+          "review_notes": [
+            "Coordination event authority_level is not delta authority.",
+            "Publication/send/execution authority is not granted."
+          ],
+          "non_goals": [
+            "No Codex execution.",
+            "No handoff send.",
+            "No external side effect."
+          ]
+        }
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "delta_id": "delta.state_delta_proposal.proposal.synthetic.project_perspective_delta.v0.1",
+      "contract_version": "augnes_delta_contract.v0.1",
+      "scope": "project:augnes",
+      "type": "perspective_delta",
+      "status": "needs_review",
+      "source": "state_delta_proposal",
+      "title": "Projected state delta proposal: project_perspective.delta_projection",
+      "summary": "Manual-mode project Perspective proposal projected as review metadata only.",
+      "created_at": "2026-06-30T00:00:00.000Z",
+      "created_by": "synthetic_fixture",
+      "target_refs": [
+        "state_delta_proposal:proposal.synthetic.project_perspective_delta.v0.1"
+      ],
+      "snapshot_refs": [],
+      "diagnostic_refs": [],
+      "evidence_refs": [],
+      "artifact_refs": [],
+      "handoff_refs": [],
+      "merge_policy": {
+        "mode": "review_required_for_project_perspective",
+        "target_scope": "projection_read_model",
+        "allowed_auto_apply": false,
+        "requires_user_judgment": true,
+        "requires_fresh_snapshot": true,
+        "requires_validation": false,
+        "durable_memory_allowed": false,
+        "project_perspective_allowed": false,
+        "external_side_effect_allowed": false,
+        "blocked_reason": "Phase 2 projection read model has no apply authority."
+      },
+      "authority_boundary": {
+        "source_of_truth": "Existing Augnes source records remain authoritative; this delta is a read-only projection.",
+        "can_commit_or_reject_state": false,
+        "can_record_proof": false,
+        "can_create_evidence": false,
+        "can_update_work": false,
+        "can_mutate_memory": false,
+        "can_apply_project_perspective": false,
+        "can_publish_external": false,
+        "can_merge": false,
+        "can_retry_replay_deploy": false,
+        "can_call_github": false,
+        "can_call_openai_or_provider": false,
+        "can_execute_codex": false,
+        "can_create_branch_or_pr": false,
+        "notes": [
+          "read-only projection",
+          "pointer-only refs",
+          "no durable apply",
+          "no external side effect",
+          "no proof/evidence write",
+          "no source-of-truth claim"
+        ]
+      },
+      "non_goals": [
+        "No state mutation."
+      ]
+    },
+    {
+      "delta_id": "delta.work_event.work_event.synthetic.verification_trace.v0.1",
+      "contract_version": "augnes_delta_contract.v0.1",
+      "scope": "project:augnes",
+      "type": "validation_delta",
+      "status": "draft",
+      "source": "work_event",
+      "title": "Projected work event: verification",
+      "summary": "Synthetic WorkEvent verification trace; not proof, evidence, approval, or readiness.",
+      "created_at": "2026-06-30T00:00:00.000Z",
+      "created_by": "synthetic_fixture",
+      "target_refs": [
+        "work_event:work_event.synthetic.verification_trace.v0.1"
+      ],
+      "snapshot_refs": [],
+      "diagnostic_refs": [],
+      "evidence_refs": [
+        {
+          "evidence_ref": "evidence_record.pointer.synthetic.static_smoke.v0.1",
+          "evidence_kind": "validation_pointer",
+          "pointer_semantics": "pointer_only",
+          "summary": "Pointer to existing validation context only; no proof or evidence write authority.",
+          "verified_status": "unverified",
+          "proof_write_authority": false,
+          "evidence_write_authority": false
+        }
+      ],
+      "artifact_refs": [],
+      "handoff_refs": [],
+      "merge_policy": {
+        "mode": "manual_review_required",
+        "target_scope": "projection_read_model",
+        "allowed_auto_apply": false,
+        "requires_user_judgment": false,
+        "requires_fresh_snapshot": false,
+        "requires_validation": true,
+        "durable_memory_allowed": false,
+        "project_perspective_allowed": false,
+        "external_side_effect_allowed": false,
+        "blocked_reason": "Phase 2 projection read model has no apply authority."
+      },
+      "authority_boundary": {
+        "source_of_truth": "Existing Augnes source records remain authoritative; this delta is a read-only projection.",
+        "can_commit_or_reject_state": false,
+        "can_record_proof": false,
+        "can_create_evidence": false,
+        "can_update_work": false,
+        "can_mutate_memory": false,
+        "can_apply_project_perspective": false,
+        "can_publish_external": false,
+        "can_merge": false,
+        "can_retry_replay_deploy": false,
+        "can_call_github": false,
+        "can_call_openai_or_provider": false,
+        "can_execute_codex": false,
+        "can_create_branch_or_pr": false,
+        "notes": [
+          "read-only projection",
+          "pointer-only refs",
+          "no durable apply",
+          "no external side effect",
+          "no proof/evidence write",
+          "no source-of-truth claim"
+        ]
+      },
+      "non_goals": [
+        "No proof/evidence write."
+      ]
+    },
+    {
+      "delta_id": "delta.coordination_event.coordination.synthetic.handoff_ready.v0.1",
+      "contract_version": "augnes_delta_contract.v0.1",
+      "scope": "project:augnes",
+      "type": "handoff_delta",
+      "status": "draft",
+      "source": "coordination_event",
+      "title": "Projected coordination event: handoff_ready",
+      "summary": "Synthetic coordination handoff-ready event projected as pointer-only handoff delta.",
+      "created_at": "2026-06-30T00:00:00.000Z",
+      "created_by": "synthetic_fixture",
+      "target_refs": [
+        "coordination_event:coordination.synthetic.handoff_ready.v0.1"
+      ],
+      "snapshot_refs": [],
+      "diagnostic_refs": [],
+      "evidence_refs": [],
+      "artifact_refs": [],
+      "handoff_refs": [
+        {
+          "handoff_ref": "handoff.synthetic.operator_packet.v0.1",
+          "handoff_kind": "operator_packet",
+          "pointer_semantics": "pointer_only",
+          "summary": "Synthetic operator packet pointer only; grants no execution or external send authority.",
+          "execution_authority": false,
+          "external_send_authority": false
+        }
+      ],
+      "merge_policy": {
+        "mode": "manual_review_required",
+        "target_scope": "projection_read_model",
+        "allowed_auto_apply": false,
+        "requires_user_judgment": false,
+        "requires_fresh_snapshot": false,
+        "requires_validation": true,
+        "durable_memory_allowed": false,
+        "project_perspective_allowed": false,
+        "external_side_effect_allowed": false,
+        "blocked_reason": "Phase 2 projection read model has no apply authority."
+      },
+      "authority_boundary": {
+        "source_of_truth": "Existing Augnes source records remain authoritative; this delta is a read-only projection.",
+        "can_commit_or_reject_state": false,
+        "can_record_proof": false,
+        "can_create_evidence": false,
+        "can_update_work": false,
+        "can_mutate_memory": false,
+        "can_apply_project_perspective": false,
+        "can_publish_external": false,
+        "can_merge": false,
+        "can_retry_replay_deploy": false,
+        "can_call_github": false,
+        "can_call_openai_or_provider": false,
+        "can_execute_codex": false,
+        "can_create_branch_or_pr": false,
+        "notes": [
+          "read-only projection",
+          "pointer-only refs",
+          "no durable apply",
+          "no external side effect",
+          "no proof/evidence write",
+          "no source-of-truth claim"
+        ]
+      },
+      "non_goals": [
+        "No Codex execution."
+      ]
+    }
+  ],
+  "gaps": [
+    {
+      "code": "action_records_not_projected",
+      "severity": "low",
+      "source_kind": "action_record",
+      "summary": "No safe structured ActionRecord inputs were included in this public-safe sample.",
+      "details": [
+        "Action records are gap-reported in this sample rather than reconstructed."
+      ],
+      "source_refs": []
+    },
+    {
+      "code": "evidence_records_not_projected",
+      "severity": "low",
+      "source_kind": "evidence_record",
+      "summary": "No safe structured EvidenceRecord inputs were included in this public-safe sample.",
+      "details": [
+        "EvidenceRef examples remain pointer-only and create no evidence rows."
+      ],
+      "source_refs": []
+    },
+    {
+      "code": "dogfooding_records_not_available",
+      "severity": "medium",
+      "source_kind": "dogfooding_record",
+      "summary": "No safe structured dogfooding source was materialized in Phase 2A.",
+      "details": [
+        "Dogfooding records are gap-reported rather than reconstructed from raw private conversations."
+      ],
+      "source_refs": []
+    },
+    {
+      "code": "codex_result_traces_not_available",
+      "severity": "medium",
+      "source_kind": "codex_result",
+      "summary": "No safe structured Codex result trace source was materialized in Phase 2A.",
+      "details": [
+        "The projection does not reconstruct missing result text from vibes."
+      ],
+      "source_refs": []
+    }
+  ],
+  "next_phase_notes": [
+    "Phase 2B may add a read-only route only under an explicit operator prompt.",
+    "Phase 3 can consume deltas, batches, source_refs, gaps, and snapshot_refs."
+  ]
+}
