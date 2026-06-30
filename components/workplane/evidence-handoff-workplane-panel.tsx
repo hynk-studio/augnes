@@ -16,9 +16,14 @@ export function EvidenceHandoffWorkplanePanel({
 }) {
   const projection = context.delta_projection_read.data;
   const sourceRefs = projection.source_refs;
+  const sourceHandoffRefs = sourceRefs.handoff_refs;
   const evidenceRefs = projection.deltas.flatMap((delta) => delta.evidence_refs);
-  const handoffRefs = projection.deltas.flatMap((delta) => delta.handoff_refs);
+  const deltaHandoffRefs = projection.deltas.flatMap((delta) => delta.handoff_refs);
   const artifactRefs = projection.deltas.flatMap((delta) => delta.artifact_refs);
+  const uniqueHandoffRefCount = new Set([
+    ...sourceHandoffRefs,
+    ...deltaHandoffRefs.map((handoffRef) => handoffRef.handoff_ref),
+  ]).size;
 
   return (
     <WorkplanePanelShell
@@ -34,27 +39,32 @@ export function EvidenceHandoffWorkplanePanel({
 
       <WorkplanePanelMetricGrid>
         <WorkplanePanelMetric label="Evidence refs" value={evidenceRefs.length} />
-        <WorkplanePanelMetric label="Handoff refs" value={sourceRefs.handoff_refs.length} />
+        <WorkplanePanelMetric label="Handoff refs" value={uniqueHandoffRefCount} />
         <WorkplanePanelMetric label="Codex refs" value={sourceRefs.codex_result_refs.length} />
         <WorkplanePanelMetric label="Artifacts" value={artifactRefs.length} />
       </WorkplanePanelMetricGrid>
 
       <ul style={workplaneListStyle}>
-        {sourceRefs.handoff_refs.slice(0, 3).map((handoffRef) => (
+        {sourceHandoffRefs.slice(0, 3).map((handoffRef) => (
           <li key={handoffRef} style={workplaneItemStyle}>
             <span style={workplaneBadgeStyle}>handoff</span>
             <span style={workplaneCopyStyle}>{handoffRef}</span>
           </li>
         ))}
-        {handoffRefs.slice(0, 3).map((handoffRef) => (
+        {deltaHandoffRefs.slice(0, 3).map((handoffRef) => (
           <li key={handoffRef.handoff_ref} style={workplaneItemStyle}>
             <span style={workplaneBadgeStyle}>{handoffRef.handoff_kind}</span>
             <span style={workplaneCopyStyle}>{handoffRef.summary}</span>
           </li>
         ))}
-        {sourceRefs.handoff_refs.length === 0 && handoffRefs.length === 0 ? (
+        {sourceHandoffRefs.length === 0 && deltaHandoffRefs.length === 0 ? (
           <li style={workplaneItemStyle}>
             <span style={workplaneCopyStyle}>No handoff refs materialized yet.</span>
+          </li>
+        ) : null}
+        {evidenceRefs.length === 0 ? (
+          <li style={workplaneItemStyle}>
+            <span style={workplaneCopyStyle}>No evidence pointers materialized yet.</span>
           </li>
         ) : null}
       </ul>
