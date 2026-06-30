@@ -116,6 +116,17 @@ PR #868 is merged. Current route planning starts from:
   mutation, product-write, scheduler/autonomy runner, Human Surface,
   GuideBrief, merge/publish/retry/replay/deploy behavior, or external side
   effect.
+- `docs/HUMAN_SURFACE_V0_1.md`: Phase 4A read-only Human Surface Home pointer
+  for updating `/` into a guided Blank State and Current Working Perspective
+  entry with display-only mode presets, current thesis/goals/questions/risks,
+  next candidates, recent important deltas, review queue hints, source status,
+  fallback disclosure, and links to `/perspective` and `/workbench`. Phase 4A
+  adds read-only Human Surface UI only and adds no DB schema/migration, DB
+  write, MCP/App tool, provider/OpenAI call, GitHub actuation, Codex execution,
+  proof/evidence write, durable Perspective apply, memory mutation,
+  product-write, scheduler/autonomy runner, Perspective timeline, workbench
+  behavior change, merge/publish/retry/replay/deploy behavior, or external
+  side effect.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

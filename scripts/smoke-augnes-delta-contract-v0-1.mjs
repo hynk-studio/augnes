@@ -54,12 +54,28 @@ const followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles = [
   "scripts/smoke-current-working-perspective-route-v0-1.mjs",
 ];
 
+const followOnHumanSurfaceHomeFiles = [
+  "app/page.tsx",
+  "app/globals.css",
+  "components/augnes-public-home-surface.tsx",
+  "components/human-surface/blank-state-panel.tsx",
+  "components/human-surface/current-perspective-card.tsx",
+  "components/human-surface/human-surface-home.tsx",
+  "components/human-surface/mode-preset-selector.tsx",
+  "components/human-surface/recent-deltas-preview.tsx",
+  "components/human-surface/surface-link-grid.tsx",
+  "lib/human-surface/read-current-perspective.ts",
+  "docs/HUMAN_SURFACE_V0_1.md",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnProjectionReadModelFiles,
   ...followOnProjectionRuntimeReadSurfaceFiles,
   ...followOnCurrentWorkingPerspectiveFiles,
   ...followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles,
+  ...followOnHumanSurfaceHomeFiles,
 ]);
 
 const allowedRouteFiles = new Set([
@@ -109,10 +125,12 @@ console.log(
         changedFilesBoundary.follow_on_current_working_perspective_files_allowed,
       follow_on_current_working_perspective_runtime_read_surface_files_allowed:
         changedFilesBoundary.follow_on_current_working_perspective_runtime_read_surface_files_allowed,
+      follow_on_human_surface_home_files_allowed:
+        changedFilesBoundary.follow_on_human_surface_home_files_allowed,
       changed_files_observed: changedFilesBoundary.files,
       smoke_type: "static-contract-type-fixture-package-index-boundary-only",
       runtime_behavior_changed: changedFilesBoundary.api_route_added,
-      ui_behavior_changed: false,
+      ui_behavior_changed: changedFilesBoundary.human_surface_ui_added,
       route_behavior_changed: changedFilesBoundary.api_route_added,
       api_route_added: changedFilesBoundary.api_route_added,
       db_schema_migration_changed: false,
@@ -343,7 +361,7 @@ function assertChangedFileBoundary() {
     );
     assert(!/^app\/api\//.test(file) || allowedRouteFiles.has(file), `AugnesDelta contract follow-on must not add API routes outside approved read routes: ${file}`);
     assert(!/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) || allowedRouteFiles.has(file), `AugnesDelta contract follow-on must not add route files outside approved read routes: ${file}`);
-    assert(!/^components\//.test(file), `AugnesDelta contract follow-on must not change UI files: ${file}`);
+    assert(!/^components\//.test(file) || followOnHumanSurfaceHomeFiles.includes(file), `AugnesDelta contract follow-on must not change UI files outside Phase 4A Human Surface Home: ${file}`);
     assert(!/^db\//.test(file), `AugnesDelta contract follow-on must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `AugnesDelta contract follow-on must not change migrations: ${file}`);
     assert(!/^apps\/augnes_apps\//.test(file), `AugnesDelta contract follow-on must not change MCP/App files: ${file}`);
@@ -371,7 +389,11 @@ function assertChangedFileBoundary() {
       followOnCurrentWorkingPerspectiveFiles,
     follow_on_current_working_perspective_runtime_read_surface_files_allowed:
       followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles,
+    follow_on_human_surface_home_files_allowed: followOnHumanSurfaceHomeFiles,
     api_route_added: files.some((file) => allowedRouteFiles.has(file)),
+    human_surface_ui_added: files.some((file) =>
+      followOnHumanSurfaceHomeFiles.includes(file),
+    ),
     files,
   };
 }

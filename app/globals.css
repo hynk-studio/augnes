@@ -973,30 +973,381 @@
   text-decoration-color: rgba(55, 70, 92, 0.32);
 }
 
+.human-surface-home {
+  min-height: 100vh;
+  padding: 28px;
+  background:
+    linear-gradient(180deg, #f7faf9 0%, #eef4f2 100%);
+  color: #172033;
+}
+
+.human-surface-shell {
+  display: grid;
+  gap: 18px;
+  width: min(1380px, 100%);
+  margin: 0 auto;
+}
+
+.human-surface-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: end;
+}
+
+.human-surface-kicker,
+.human-surface-section-heading p {
+  margin: 0;
+  color: #647184;
+  font-size: 0.74rem;
+  font-weight: 820;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.human-surface-header h1 {
+  margin: 4px 0 0;
+  color: #111827;
+  font-size: 4rem;
+  line-height: 0.96;
+  letter-spacing: 0;
+}
+
+.human-surface-header p:not(.human-surface-kicker) {
+  margin: 8px 0 0;
+  color: #405168;
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+
+.human-surface-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.human-surface-nav a,
+.human-surface-inline-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid rgba(31, 41, 55, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #26354a;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.human-surface-nav a:hover,
+.human-surface-nav a:focus-visible,
+.human-surface-inline-link:hover,
+.human-surface-inline-link:focus-visible,
+.human-surface-link-card:hover,
+.human-surface-link-card:focus-visible {
+  border-color: rgba(19, 121, 91, 0.38);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(19, 121, 91, 0.12);
+}
+
+.human-surface-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.human-surface-blank-state,
+.human-surface-right-rail,
+.human-surface-panel,
+.human-surface-section {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.human-surface-panel,
+.human-surface-blank-state {
+  padding: 14px;
+  border: 1px solid rgba(31, 41, 55, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 28px rgba(25, 37, 50, 0.05);
+}
+
+.human-surface-section-heading h2 {
+  margin: 3px 0 0;
+  color: #172235;
+  font-size: 1.05rem;
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+.human-surface-section-heading span {
+  display: block;
+  max-width: 720px;
+  margin-top: 4px;
+  color: #48576b;
+  font-size: 0.84rem;
+  line-height: 1.34;
+}
+
+.human-surface-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.human-surface-mode-card,
+.human-surface-action-card,
+.human-surface-delta-card,
+.human-surface-link-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(40, 93, 159, 0.14);
+  border-radius: 8px;
+  background: #ffffff;
+  color: inherit;
+  text-decoration: none;
+}
+
+.human-surface-mode-card.is-selected {
+  border-color: rgba(19, 121, 91, 0.38);
+  background: #f3fbf7;
+}
+
+.human-surface-mode-card > div,
+.human-surface-delta-card > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.human-surface-mode-card strong,
+.human-surface-action-card strong,
+.human-surface-delta-card strong,
+.human-surface-link-card strong,
+.human-surface-summary-list strong {
+  color: #142033;
+  font-size: 0.86rem;
+  line-height: 1.18;
+}
+
+.human-surface-mode-card > div span,
+.human-surface-action-card > span,
+.human-surface-delta-card > div span {
+  color: #13795b;
+  font-size: 0.68rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.human-surface-mode-card p,
+.human-surface-action-card p,
+.human-surface-delta-card p,
+.human-surface-link-card span,
+.human-surface-source-reason,
+.human-surface-empty-deltas {
+  margin: 0;
+  color: #46566c;
+  font-size: 0.78rem;
+  line-height: 1.34;
+}
+
+.human-surface-mode-card dl,
+.human-surface-delta-card dl {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+
+.human-surface-mode-card dl div,
+.human-surface-delta-card dl div {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 6px;
+}
+
+.human-surface-mode-card dt,
+.human-surface-delta-card dt {
+  color: #6a7586;
+  font-size: 0.68rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.human-surface-mode-card dd,
+.human-surface-delta-card dd {
+  min-width: 0;
+  margin: 0;
+  color: #334155;
+  font-size: 0.74rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.human-surface-action-grid,
+.human-surface-link-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.human-surface-action-card:nth-child(5),
+.human-surface-link-card.is-future {
+  border-color: rgba(165, 102, 24, 0.18);
+  background: #fffaf2;
+}
+
+.human-surface-boundary-note,
+.human-surface-fallback-note {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgba(165, 102, 24, 0.24);
+  border-radius: 8px;
+  background: #fffaf2;
+  color: #4e422f;
+  font-size: 0.8rem;
+  line-height: 1.36;
+}
+
+.human-surface-thesis {
+  padding: 10px;
+  border-left: 4px solid #13795b;
+  border-radius: 8px;
+  background: #f6fbf8;
+}
+
+.human-surface-thesis span {
+  color: #657184;
+  font-size: 0.7rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.human-surface-thesis p {
+  margin: 4px 0 0;
+  color: #213049;
+  font-size: 0.94rem;
+  line-height: 1.36;
+}
+
+.human-surface-metric-grid,
+.human-surface-delta-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.human-surface-metric,
+.human-surface-delta-counts span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(31, 41, 55, 0.11);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #556274;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.human-surface-metric strong,
+.human-surface-delta-counts strong {
+  color: #162033;
+  font-size: 1.16rem;
+  line-height: 1;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+.human-surface-current-lists,
+.human-surface-delta-list {
+  display: grid;
+  gap: 9px;
+}
+
+.human-surface-summary-list {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.human-surface-summary-list h3 {
+  margin: 0;
+  color: #172235;
+  font-size: 0.86rem;
+  line-height: 1.2;
+}
+
+.human-surface-summary-list ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.human-surface-summary-list li {
+  display: grid;
+  gap: 3px;
+  padding-left: 9px;
+  border-left: 3px solid rgba(40, 93, 159, 0.4);
+}
+
+.human-surface-summary-list span,
+.human-surface-summary-list p {
+  margin: 0;
+  color: #4b5a70;
+  font-size: 0.76rem;
+  line-height: 1.32;
+}
+
 @media (max-width: 980px) {
   .augnes-public-hero,
-  .perspective-public-first-screen {
+  .perspective-public-first-screen,
+  .human-surface-shell {
     min-height: auto;
   }
 
   .augnes-public-header,
   .augnes-public-first-grid,
   .perspective-public-header,
-  .perspective-public-grid {
+  .perspective-public-grid,
+  .human-surface-header,
+  .human-surface-layout {
     grid-template-columns: 1fr;
   }
 
   .augnes-public-header h1,
-  .perspective-public-header h1 {
+  .perspective-public-header h1,
+  .human-surface-header h1 {
     font-size: 3.4rem;
   }
 
-  .perspective-public-header-rail {
+  .perspective-public-header-rail,
+  .human-surface-nav {
     justify-items: start;
+    justify-content: flex-start;
   }
 
-  .perspective-public-counts {
+  .perspective-public-counts,
+  .human-surface-metric-grid,
+  .human-surface-delta-counts {
     width: 100%;
+  }
+
+  .human-surface-mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .augnes-public-constellation {
@@ -1057,12 +1408,14 @@
 
 @media (max-width: 620px) {
   .augnes-public-surface,
-  .perspective-public-surface {
+  .perspective-public-surface,
+  .human-surface-home {
     padding: 14px;
   }
 
   .augnes-public-header h1,
-  .perspective-public-header h1 {
+  .perspective-public-header h1,
+  .human-surface-header h1 {
     font-size: 2.6rem;
   }
 
@@ -1070,7 +1423,12 @@
   .augnes-public-constellation,
   .perspective-public-counts,
   .perspective-public-map-nodes,
-  .perspective-public-relationships {
+  .perspective-public-relationships,
+  .human-surface-mode-grid,
+  .human-surface-action-grid,
+  .human-surface-link-grid,
+  .human-surface-metric-grid,
+  .human-surface-delta-counts {
     grid-template-columns: 1fr;
   }
 }

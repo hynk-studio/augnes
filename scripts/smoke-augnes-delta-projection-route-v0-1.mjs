@@ -28,6 +28,20 @@ const currentPerspectiveSourceFile =
 const currentPerspectiveRouteFile = "app/api/perspective/current/route.ts";
 const currentPerspectiveRouteSmokeFile =
   "scripts/smoke-current-working-perspective-route-v0-1.mjs";
+const followOnHumanSurfaceHomeFiles = [
+  "app/page.tsx",
+  "app/globals.css",
+  "components/augnes-public-home-surface.tsx",
+  "components/human-surface/blank-state-panel.tsx",
+  "components/human-surface/current-perspective-card.tsx",
+  "components/human-surface/human-surface-home.tsx",
+  "components/human-surface/mode-preset-selector.tsx",
+  "components/human-surface/recent-deltas-preview.tsx",
+  "components/human-surface/surface-link-grid.tsx",
+  "lib/human-surface/read-current-perspective.ts",
+  "docs/HUMAN_SURFACE_V0_1.md",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -55,6 +69,7 @@ const allowedChangedFiles = new Set([
   currentPerspectiveSourceFile,
   currentPerspectiveRouteFile,
   currentPerspectiveRouteSmokeFile,
+  ...followOnHumanSurfaceHomeFiles,
   packageJsonFile,
   indexDoc,
 ]);
@@ -96,10 +111,12 @@ console.log(
       changed_files_skipped: changedFilesBoundary.skipped,
       changed_files_skip_reason: changedFilesBoundary.skip_reason,
       changed_files_observed: changedFilesBoundary.files,
+      follow_on_human_surface_home_files_allowed:
+        followOnHumanSurfaceHomeFiles,
       smoke_type: "static-runtime-read-route-source-collector-boundary-only",
       route_behavior_changed: true,
       route_behavior: "GET-only local read-only Augnes Delta projection read surface",
-      ui_behavior_changed: false,
+      ui_behavior_changed: changedFilesBoundary.human_surface_ui_added,
       db_schema_migration_changed: false,
       db_write_added: false,
       mcp_app_tool_added: false,
@@ -332,7 +349,7 @@ function assertChangedFileBoundary() {
         allowedRouteFiles.has(file),
       `Phase 2B follow-on must not add route files outside approved read routes: ${file}`,
     );
-    assert(!/^components\//.test(file), `Phase 2B must not change UI files: ${file}`);
+    assert(!/^components\//.test(file) || followOnHumanSurfaceHomeFiles.includes(file), `Phase 2B follow-on must not change UI files outside Phase 4A Human Surface Home: ${file}`);
     assert(!/^db\//.test(file), `Phase 2B must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `Phase 2B must not change migrations: ${file}`);
     assert(
@@ -364,6 +381,9 @@ function assertChangedFileBoundary() {
       !workingTree.checked && !cached.checked && !baseRange.checked
         ? "git diff checks were unavailable"
         : null,
+    human_surface_ui_added: files.some((file) =>
+      followOnHumanSurfaceHomeFiles.includes(file),
+    ),
     files,
   };
 }
