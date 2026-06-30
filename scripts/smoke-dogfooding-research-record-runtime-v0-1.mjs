@@ -47,6 +47,11 @@ const expectedChangedFiles = new Set([
   "fixtures/codex-result-to-dogfooding-record.sample.v0.1.json",
   "scripts/smoke-codex-result-to-dogfooding-record-v0-1.mjs",
   "docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md",
+  "scripts/smoke-conversation-handoff-packet-v0-2.mjs",
+  "lib/handoff/build-handoff-from-dogfooding-record.ts",
+  "fixtures/conversation-handoff-from-dogfooding-record.sample.v0.1.json",
+  "scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs",
+  "docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md",
   packagePath,
   indexPath,
 ]);

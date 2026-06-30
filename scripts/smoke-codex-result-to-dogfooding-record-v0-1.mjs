@@ -31,6 +31,14 @@ const conversationHandoffSmokePath =
   "scripts/smoke-conversation-handoff-packet-v0-2.mjs";
 const conversationHandoffDocsPath =
   "docs/CONVERSATION_HANDOFF_PACKET_BUILDER_V0_2.md";
+const dogfoodingRecordHandoffHelperPath =
+  "lib/handoff/build-handoff-from-dogfooding-record.ts";
+const dogfoodingRecordHandoffFixturePath =
+  "fixtures/conversation-handoff-from-dogfooding-record.sample.v0.1.json";
+const dogfoodingRecordHandoffSmokePath =
+  "scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs";
+const dogfoodingRecordHandoffDocsPath =
+  "docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md";
 
 const fixtureVersion = "codex_result_to_dogfooding_record.sample.v0.1";
 const bindingVersion = "codex_result_report_to_dogfooding_record_binding.v0.1";
@@ -58,6 +66,10 @@ const expectedChangedFiles = new Set([
   conversationHandoffFixturePath,
   conversationHandoffSmokePath,
   conversationHandoffDocsPath,
+  dogfoodingRecordHandoffHelperPath,
+  dogfoodingRecordHandoffFixturePath,
+  dogfoodingRecordHandoffSmokePath,
+  dogfoodingRecordHandoffDocsPath,
 ]);
 
 const requiredHelperExports = [
