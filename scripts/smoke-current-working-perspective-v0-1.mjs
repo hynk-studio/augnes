@@ -151,7 +151,10 @@ console.log(
         "static-current-working-perspective-type-helper-fixture-package-index-boundary-only",
       runtime_route_added:
         changedFilesBoundary.files.includes(currentPerspectiveRouteFile),
-      ui_behavior_changed: changedFilesBoundary.human_surface_ui_added,
+      ui_behavior_changed: changedFilesBoundary.ui_surface_added,
+      human_surface_ui_added: changedFilesBoundary.human_surface_ui_added,
+      agent_workplane_ui_added: changedFilesBoundary.agent_workplane_ui_added,
+      ui_surface_added: changedFilesBoundary.ui_surface_added,
       db_schema_migration_changed: false,
       db_write_added: false,
       mcp_app_tool_added: false,
@@ -619,6 +622,19 @@ function assertChangedFileBoundary() {
     );
   }
 
+  const humanSurfaceUiAdded = files.some((file) =>
+    file === "app/page.tsx" ||
+    file === "app/perspective/page.tsx" ||
+    file === "app/globals.css" ||
+    file === "components/augnes-public-home-surface.tsx" ||
+    file.startsWith("components/human-surface/") ||
+    file.startsWith("components/perspective/"),
+  );
+  const agentWorkplaneUiAdded = files.some((file) =>
+    file === "app/workbench/page.tsx" ||
+    file.startsWith("components/workplane/"),
+  );
+
   return {
     checked:
       workingTree.checked ||
@@ -630,11 +646,9 @@ function assertChangedFileBoundary() {
       !workingTree.checked && !cached.checked && !baseRange.checked
         ? "git diff checks were unavailable"
         : null,
-    human_surface_ui_added: files.some((file) =>
-      followOnHumanSurfaceHomeFiles.includes(file) ||
-      followOnPerspectiveHumanTimelineFiles.includes(file) ||
-      followOnAgentWorkplaneFiles.includes(file),
-    ),
+    human_surface_ui_added: humanSurfaceUiAdded,
+    agent_workplane_ui_added: agentWorkplaneUiAdded,
+    ui_surface_added: humanSurfaceUiAdded || agentWorkplaneUiAdded,
     files,
   };
 }

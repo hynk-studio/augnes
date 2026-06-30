@@ -122,8 +122,13 @@ console.log(
       changed_files_observed: changedFilesBoundary.files,
       follow_on_smoke_compatibility_files_allowed:
         followOnSmokeCompatibilityFiles,
+      follow_on_agent_workplane_files_allowed: followOnAgentWorkplaneFiles,
       smoke_type: "static-perspective-human-timeline-ui-helper-doc-package-index-boundary-only",
-      route_behavior_changed: false,
+      phase5a_agent_workplane_follow_on_used:
+        changedFilesBoundary.phase5a_agent_workplane_follow_on_used,
+      route_behavior_changed: changedFilesBoundary.route_behavior_changed,
+      route_behavior_change_reason:
+        changedFilesBoundary.route_behavior_change_reason,
       db_schema_migration_changed: false,
       db_write_added: false,
       mcp_app_tool_added: false,
@@ -133,7 +138,7 @@ console.log(
       memory_mutation_added: false,
       durable_perspective_state_apply_added: false,
       scheduler_autonomy_runner_added: false,
-      workbench_page_changed: false,
+      workbench_page_changed: changedFilesBoundary.workbench_page_changed,
       graph_editor_added: false,
       persistence_added: false,
     },
@@ -456,6 +461,11 @@ function assertChangedFileBoundary() {
     );
   }
 
+  const phase5aAgentWorkplaneFollowOnUsed = files.some((file) =>
+    followOnAgentWorkplaneFiles.includes(file),
+  );
+  const workbenchPageChanged = files.includes("app/workbench/page.tsx");
+
   return {
     checked:
       workingTree.checked ||
@@ -475,6 +485,13 @@ function assertChangedFileBoundary() {
       untrackedFiles.length > 0
         ? null
         : "changed-file boundary could not be checked",
+    phase5a_agent_workplane_follow_on_used:
+      phase5aAgentWorkplaneFollowOnUsed,
+    workbench_page_changed: workbenchPageChanged,
+    route_behavior_changed: workbenchPageChanged,
+    route_behavior_change_reason: workbenchPageChanged
+      ? "Phase 5A Agent Workplane follow-on updates /workbench wrapper only."
+      : null,
     files,
   };
 }

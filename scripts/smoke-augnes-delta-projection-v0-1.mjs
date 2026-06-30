@@ -173,7 +173,10 @@ console.log(
         followOnHumanSurfaceHomeFiles,
       smoke_type: "static-projection-read-model-type-helper-fixture-package-index-boundary-only",
       runtime_behavior_changed: changedFilesBoundary.api_route_added,
-      ui_behavior_changed: changedFilesBoundary.human_surface_ui_added,
+      ui_behavior_changed: changedFilesBoundary.ui_surface_added,
+      human_surface_ui_added: changedFilesBoundary.human_surface_ui_added,
+      agent_workplane_ui_added: changedFilesBoundary.agent_workplane_ui_added,
+      ui_surface_added: changedFilesBoundary.ui_surface_added,
       route_behavior_changed: changedFilesBoundary.api_route_added,
       api_route_added: changedFilesBoundary.api_route_added,
       db_schema_migration_changed: false,
@@ -613,6 +616,19 @@ function assertChangedFileBoundary() {
     );
   }
 
+  const humanSurfaceUiAdded = files.some((file) =>
+    file === "app/page.tsx" ||
+    file === "app/perspective/page.tsx" ||
+    file === "app/globals.css" ||
+    file === "components/augnes-public-home-surface.tsx" ||
+    file.startsWith("components/human-surface/") ||
+    file.startsWith("components/perspective/"),
+  );
+  const agentWorkplaneUiAdded = files.some((file) =>
+    file === "app/workbench/page.tsx" ||
+    file.startsWith("components/workplane/"),
+  );
+
   return {
     checked: workingTree.checked || baseRange.checked,
     skipped: !(workingTree.checked || baseRange.checked),
@@ -621,11 +637,9 @@ function assertChangedFileBoundary() {
         ? null
         : "changed-file boundary could not be checked",
     api_route_added: files.some((file) => allowedRouteFiles.has(file)),
-    human_surface_ui_added: files.some((file) =>
-      followOnHumanSurfaceHomeFiles.includes(file) ||
-      followOnPerspectiveHumanTimelineFiles.includes(file) ||
-      followOnAgentWorkplaneFiles.includes(file),
-    ),
+    human_surface_ui_added: humanSurfaceUiAdded,
+    agent_workplane_ui_added: agentWorkplaneUiAdded,
+    ui_surface_added: humanSurfaceUiAdded || agentWorkplaneUiAdded,
     files,
   };
 }

@@ -235,8 +235,17 @@ function assertWorkplaneContextReader() {
       "can_execute_codex: false",
       "can_create_evidence: false",
       "can_record_proof: false",
+      "latestDeltas",
+      ".sort(",
+      "Date.parse",
+      "localeCompare",
     ],
     { label: contextReaderFile },
+  );
+  assert(
+    !contextReaderText.includes("projection.deltas\n          .slice(0, 4)") &&
+      !contextReaderText.includes("projection.deltas.slice(0, 4)"),
+    `${contextReaderFile} must sort a copied delta array before slicing latest_delta_titles`,
   );
 }
 

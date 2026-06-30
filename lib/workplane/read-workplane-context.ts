@@ -105,6 +105,20 @@ export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
     (count, delta) => count + delta.evidence_refs.length,
     0,
   );
+  const latestDeltas = [...projection.deltas].sort((left, right) => {
+    const leftCreatedAt = Date.parse(left.created_at);
+    const rightCreatedAt = Date.parse(right.created_at);
+    const createdAtDelta =
+      Number.isFinite(rightCreatedAt) && Number.isFinite(leftCreatedAt)
+        ? rightCreatedAt - leftCreatedAt
+        : 0;
+
+    if (createdAtDelta !== 0) {
+      return createdAtDelta;
+    }
+
+    return left.delta_id.localeCompare(right.delta_id);
+  });
 
   const authorityBoundary: WorkplaneAuthorityBoundary = {
     surface: "agent_workplane",
@@ -155,7 +169,7 @@ export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
         handoff_ref_count: projection.source_refs.handoff_refs.length,
         codex_result_ref_count: projection.source_refs.codex_result_refs.length,
         evidence_ref_count: evidenceRefCount,
-        latest_delta_titles: projection.deltas
+        latest_delta_titles: latestDeltas
           .slice(0, 4)
           .map((delta) => `${delta.title} (${delta.status})`),
       },
