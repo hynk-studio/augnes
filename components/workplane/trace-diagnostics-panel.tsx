@@ -55,7 +55,8 @@ export function TraceDiagnosticsPanel({
       <p style={workplaneCopyStyle}>
         Trace / Diagnostics context is bounded read-only preview context, not a
         raw unbounded diagnostics dump. Source and fallback status remain
-        visible.
+        visible. No runtime trace collector, scheduler, provider call, DB
+        read/write, proof/evidence write, or external side effect is added.
       </p>
 
       <WorkplanePanelMetricGrid>

@@ -4,16 +4,19 @@ const panelStyle: CSSProperties = {
   display: "grid",
   gap: "12px",
   minWidth: 0,
+  boxSizing: "border-box",
   padding: "14px",
   border: "1px solid rgba(30, 41, 59, 0.14)",
   borderRadius: "8px",
   background: "rgba(255, 255, 255, 0.92)",
   boxShadow: "0 18px 36px rgba(15, 23, 42, 0.06)",
+  overflow: "hidden",
 };
 
 const headingStyle: CSSProperties = {
   display: "grid",
   gap: "4px",
+  minWidth: 0,
 };
 
 const kickerStyle: CSSProperties = {
@@ -29,6 +32,7 @@ const titleStyle: CSSProperties = {
   color: "#0f172a",
   fontSize: "1.05rem",
   lineHeight: 1.2,
+  overflowWrap: "anywhere",
 };
 
 const copyStyle: CSSProperties = {
@@ -36,13 +40,16 @@ const copyStyle: CSSProperties = {
   color: "#475569",
   fontSize: "0.82rem",
   lineHeight: 1.36,
+  overflowWrap: "anywhere",
 };
 
 const bodyStyle: CSSProperties = {
   minWidth: 0,
-  overflow: "hidden",
+  maxWidth: "100%",
+  overflowX: "auto",
   border: "1px solid rgba(30, 41, 59, 0.1)",
   borderRadius: "8px",
+  WebkitOverflowScrolling: "touch",
 };
 
 export function LegacyCockpitCompatibilityPanel({
@@ -60,7 +67,8 @@ export function LegacyCockpitCompatibilityPanel({
         <p style={copyStyle}>
           Phase 5A reframes `/workbench` as Agent Workplane without deleting the
           existing Cockpit operator/read surfaces. Phase 5B extracts focused
-          read-only panels while this compatibility content remains reachable.
+          read-only panels, Phase 5C adds preview skeletons, and Phase 5D keeps
+          legacy Cockpit compatibility content contained and reachable.
         </p>
       </div>
       <div style={bodyStyle}>{children}</div>

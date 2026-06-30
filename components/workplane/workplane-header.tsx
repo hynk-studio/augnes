@@ -5,11 +5,14 @@ const headerStyle: CSSProperties = {
   gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
   gap: "16px",
   alignItems: "end",
+  minWidth: 0,
+  boxSizing: "border-box",
   padding: "18px",
   border: "1px solid rgba(148, 163, 184, 0.28)",
   borderRadius: "8px",
   background: "rgba(15, 23, 42, 0.94)",
   color: "#f8fafc",
+  overflow: "hidden",
 };
 
 const kickerStyle: CSSProperties = {
@@ -22,9 +25,10 @@ const kickerStyle: CSSProperties = {
 
 const titleStyle: CSSProperties = {
   margin: "4px 0 0",
-  fontSize: "3.4rem",
-  lineHeight: 0.94,
+  fontSize: "2.7rem",
+  lineHeight: 1,
   letterSpacing: 0,
+  overflowWrap: "anywhere",
 };
 
 const copyStyle: CSSProperties = {
@@ -33,18 +37,21 @@ const copyStyle: CSSProperties = {
   color: "#cbd5e1",
   fontSize: "1rem",
   lineHeight: 1.42,
+  overflowWrap: "anywhere",
 };
 
 const navStyle: CSSProperties = {
   display: "flex",
   flexWrap: "wrap",
   gap: "8px",
+  minWidth: 0,
   justifyContent: "flex-end",
 };
 
 const linkStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
+  justifyContent: "center",
   minHeight: "34px",
   padding: "7px 11px",
   border: "1px solid rgba(226, 232, 240, 0.24)",
@@ -54,6 +61,7 @@ const linkStyle: CSSProperties = {
   fontSize: "0.82rem",
   fontWeight: 800,
   textDecoration: "none",
+  overflowWrap: "anywhere",
 };
 
 export function WorkplaneHeader() {
@@ -68,7 +76,9 @@ export function WorkplaneHeader() {
           context, validation context, Current Working Perspective context, and
           Augnes Delta Projection context. It is a read-only operator view in
           this phase: No hidden execution authority, no agent launch, no delta
-          apply, and no state mutation.
+          apply, no DB/schema write, no proof/evidence write, no memory
+          mutation, no scheduler/autonomy runner, no
+          merge/publish/retry/replay/deploy behavior, and no state mutation.
         </p>
       </div>
       <nav aria-label="Agent Workplane navigation" style={navStyle}>

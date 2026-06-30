@@ -55,6 +55,10 @@ const followOnAgentWorkplaneProjectionHandoffFiles = [
   "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneCleanupHardeningFiles = [
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+];
+
 const panelFiles = [
   panelShellFile,
   workQueuePanelFile,
@@ -100,6 +104,7 @@ const allowedChangedFiles = new Set([
   perspectiveSmokeFile,
   ...followOnHistoricalSmokeCompatibilityFiles,
   ...followOnAgentWorkplaneProjectionHandoffFiles,
+  ...followOnAgentWorkplaneCleanupHardeningFiles,
   smokeFile,
 ]);
 

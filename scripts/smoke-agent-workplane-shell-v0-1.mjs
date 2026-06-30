@@ -64,6 +64,10 @@ const followOnAgentWorkplaneProjectionHandoffFiles = [
   "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneCleanupHardeningFiles = [
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+];
+
 const requiredFiles = [
   workbenchPageFile,
   agentWorkplaneFile,
@@ -90,6 +94,7 @@ const allowedChangedFiles = new Set([
   ...followOnSmokeCompatibilityFiles,
   ...followOnAgentWorkplanePanelFiles,
   ...followOnAgentWorkplaneProjectionHandoffFiles,
+  ...followOnAgentWorkplaneCleanupHardeningFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);

@@ -36,6 +36,7 @@ const followOnSmokeCompatibilityFiles = [
   "scripts/smoke-human-surface-home-v0-1.mjs",
   "scripts/smoke-perspective-human-timeline-v0-1.mjs",
   "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
 const phase5bPanelFiles = [
@@ -53,6 +54,19 @@ const phase5cPanelFiles = [
   handoffBuilderPanelFile,
   runPostmortemPanelFile,
   traceDiagnosticsPanelFile,
+];
+
+const followOnAgentWorkplaneCleanupHardeningFiles = [
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/workplane-header.tsx",
+  "components/workplane/workplane-overview.tsx",
+  "components/workplane/workplane-boundary-card.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "components/workplane/workplane-panel-shell.tsx",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
 const requiredFiles = [
@@ -75,6 +89,7 @@ const allowedChangedFiles = new Set([
   packageJsonFile,
   phase5bSmokeFile,
   ...followOnSmokeCompatibilityFiles,
+  ...followOnAgentWorkplaneCleanupHardeningFiles,
   smokeFile,
 ]);
 
@@ -112,6 +127,8 @@ console.log(
       phase5c_panels_checked: true,
       docs_index_checked: true,
       no_authority_drift_checked: true,
+      phase5d_agent_workplane_cleanup_hardening_files_allowed:
+        followOnAgentWorkplaneCleanupHardeningFiles,
       changed_files_checked: changedFilesBoundary.checked,
       changed_files_skipped: changedFilesBoundary.skipped,
       changed_files_skip_reason: changedFilesBoundary.skip_reason,

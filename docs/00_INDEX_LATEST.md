@@ -163,6 +163,16 @@ PR #868 is merged. Current route planning starts from:
   write, durable Perspective apply, memory mutation, product-write,
   scheduler/autonomy runner, merge/publish/retry/replay/deploy behavior,
   Phase 5D cleanup, Phase 6 GuideBrief, or external side effect.
+  Phase 5D adds Agent Workplane cleanup, responsive hardening, old-label
+  cleanup, accessibility/semantics cleanup, source/fallback visibility
+  hardening, boundary-copy consistency, and smoke hardening only. It preserves
+  the `/workbench` route model, Phase 5A/B/C panels, legacy Cockpit
+  compatibility content, bounded trace/diagnostics, and source/fallback
+  disclosure, and adds no new data model, API route, DB schema/migration, DB
+  write, MCP/App tool, provider/OpenAI call, GitHub actuation, Codex
+  execution, proof/evidence write, durable Perspective apply, memory mutation,
+  product-write, scheduler/autonomy runner, GuideBrief,
+  merge/publish/retry/replay/deploy behavior, or external side effect.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
