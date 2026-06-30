@@ -59,8 +59,8 @@ export function LegacyCockpitCompatibilityPanel({
         </h2>
         <p style={copyStyle}>
           Phase 5A reframes `/workbench` as Agent Workplane without deleting the
-          existing Cockpit operator/read surfaces. Deeper panel extraction is
-          deferred to Phase 5B.
+          existing Cockpit operator/read surfaces. Phase 5B extracts focused
+          read-only panels while this compatibility content remains reachable.
         </p>
       </div>
       <div style={bodyStyle}>{children}</div>
