@@ -36,6 +36,18 @@ const followOnHumanSurfaceHomeFiles = [
   "docs/HUMAN_SURFACE_V0_1.md",
   "scripts/smoke-human-surface-home-v0-1.mjs",
 ];
+const followOnPerspectiveHumanTimelineFiles = [
+  "app/perspective/page.tsx",
+  "components/perspective/perspective-public-constellation-surface.tsx",
+  "components/perspective/perspective-human-surface.tsx",
+  "components/perspective/perspective-current-summary-rail.tsx",
+  "components/perspective/perspective-timeline.tsx",
+  "components/perspective/perspective-delta-card.tsx",
+  "components/perspective/perspective-delta-inspector.tsx",
+  "components/perspective/perspective-boundary-next-panel.tsx",
+  "lib/human-surface/read-delta-projection.ts",
+  "scripts/smoke-perspective-human-timeline-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -58,6 +70,7 @@ const allowedChangedFiles = new Set([
   projectionSmokeFile,
   projectionRouteSmokeFile,
   ...followOnHumanSurfaceHomeFiles,
+  ...followOnPerspectiveHumanTimelineFiles,
   packageJsonFile,
   indexDoc,
 ]);
@@ -357,7 +370,7 @@ function assertChangedFileBoundary() {
         allowedRouteFiles.has(file),
       `Phase 3B must not add route files outside the Current Working Perspective read route: ${file}`,
     );
-    assert(!/^components\//.test(file) || followOnHumanSurfaceHomeFiles.includes(file), `Phase 3B follow-on must not change UI files outside Phase 4A Human Surface Home: ${file}`);
+    assert(!/^components\//.test(file) || followOnHumanSurfaceHomeFiles.includes(file) || followOnPerspectiveHumanTimelineFiles.includes(file), `Phase 3B follow-on must not change UI files outside Phase 4A/4B Human Surface files: ${file}`);
     assert(!/^db\//.test(file), `Phase 3B must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `Phase 3B must not change migrations: ${file}`);
     assert(
@@ -378,6 +391,7 @@ function assertChangedFileBoundary() {
     );
     assert(
       followOnHumanSurfaceHomeFiles.includes(file) ||
+        followOnPerspectiveHumanTimelineFiles.includes(file) ||
         !/(^|\/)(human-surface|human_surface|guidebrief|guide-brief)(\/|$)/i.test(file),
       `Phase 3B must not add Human Surface or GuideBrief files: ${file}`,
     );
@@ -403,7 +417,8 @@ function assertChangedFileBoundary() {
         ? null
         : "changed-file boundary could not be checked",
     human_surface_ui_added: files.some((file) =>
-      followOnHumanSurfaceHomeFiles.includes(file),
+      followOnHumanSurfaceHomeFiles.includes(file) ||
+      followOnPerspectiveHumanTimelineFiles.includes(file),
     ),
     files,
   };

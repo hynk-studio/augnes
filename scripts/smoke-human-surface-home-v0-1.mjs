@@ -35,6 +35,19 @@ const followOnSmokeCompatibilityFiles = [
   "scripts/smoke-current-working-perspective-route-v0-1.mjs",
 ];
 
+const followOnPerspectiveHumanTimelineFiles = [
+  "app/perspective/page.tsx",
+  "components/perspective/perspective-public-constellation-surface.tsx",
+  "components/perspective/perspective-human-surface.tsx",
+  "components/perspective/perspective-current-summary-rail.tsx",
+  "components/perspective/perspective-timeline.tsx",
+  "components/perspective/perspective-delta-card.tsx",
+  "components/perspective/perspective-delta-inspector.tsx",
+  "components/perspective/perspective-boundary-next-panel.tsx",
+  "lib/human-surface/read-delta-projection.ts",
+  "scripts/smoke-perspective-human-timeline-v0-1.mjs",
+];
+
 const requiredFiles = [
   pageFile,
   publicHomeFile,
@@ -55,6 +68,7 @@ const requiredFiles = [
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnSmokeCompatibilityFiles,
+  ...followOnPerspectiveHumanTimelineFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -110,6 +124,8 @@ console.log(
       changed_files_observed: changedFilesBoundary.files,
       follow_on_smoke_compatibility_files_allowed:
         followOnSmokeCompatibilityFiles,
+      follow_on_perspective_human_timeline_files_allowed:
+        followOnPerspectiveHumanTimelineFiles,
       smoke_type: "static-human-surface-home-ui-helper-doc-package-index-boundary-only",
       route_behavior_changed: false,
       db_schema_migration_changed: false,
@@ -291,7 +307,7 @@ function assertDocs() {
       "source_status",
       "fixture_fallback",
       "read-only Human Surface UI",
-      "Phase 4B Perspective Human Timeline is deferred",
+      "Phase 4B Perspective Human Timeline",
       "Phase 5 Agent Workplane is future work",
       "Mode preset display does not create work",
     ],
@@ -387,16 +403,18 @@ function assertChangedFileBoundary() {
       `Unexpected Phase 4A changed or untracked file: ${file}`,
     );
     assert(
-      file !== "app/perspective/page.tsx",
-      "Phase 4A must not update /perspective page",
+      file !== "app/perspective/page.tsx" ||
+        followOnPerspectiveHumanTimelineFiles.includes(file),
+      "Phase 4A follow-on must only update /perspective page for Phase 4B",
     );
     assert(
       file !== "app/workbench/page.tsx",
       "Phase 4A must not update /workbench page",
     );
     assert(
-      !/^components\/perspective\//.test(file),
-      `Phase 4A must not add /perspective timeline components: ${file}`,
+      !/^components\/perspective\//.test(file) ||
+        followOnPerspectiveHumanTimelineFiles.includes(file),
+      `Phase 4A follow-on must not add /perspective timeline components outside Phase 4B: ${file}`,
     );
     assert(!/^app\/api\//.test(file), `Phase 4A must not add API routes: ${file}`);
     assert(

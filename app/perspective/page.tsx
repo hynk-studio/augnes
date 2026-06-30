@@ -2,7 +2,7 @@ import { PerspectivePublicConstellationSurface } from "@/components/perspective/
 
 export const metadata = {
   title: "Perspective",
-  description: "Project constellation surface",
+  description: "Read-only Perspective Human Timeline surface",
 };
 
 export default function PerspectivePage() {

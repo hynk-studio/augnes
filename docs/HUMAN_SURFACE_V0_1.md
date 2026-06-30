@@ -136,7 +136,8 @@ Phase 4A the preset cards are display-only.
 
 ## 8. Deferred Work
 
-Phase 4B Perspective Human Timeline is deferred.
+Phase 4B Perspective Human Timeline updates `/perspective` into a read-only
+human review surface.
 
 Phase 5 Agent Workplane is future work.
 
@@ -144,7 +145,61 @@ Human Surface does not include GuideBrief, Timeline, Handoff Capsule,
 Autonomy Contract, product-write, merge/publish/retry/replay/deploy behavior,
 or external side effects in Phase 4A.
 
-## 9. Validation and Smoke Plan
+## 9. Phase 4B Perspective Human Timeline
+
+Phase 4B adds the `/perspective` Human Timeline skeleton. It renders:
+
+- a Current Working Perspective rail
+- a vertical timeline skeleton over projected Augnes Delta records
+- Delta cards with type, status, source, title, created time, summary, and
+  review state
+- local selected delta state
+- a Delta Inspector for source refs, evidence refs, artifact refs, handoff refs,
+  diagnostic refs, merge policy, authority boundary, validation summary, gaps /
+  staleness, review notes, and non-goals
+- a Boundary / Next panel for next candidates, open questions, active risks,
+  source/fallback notes, gaps, and staleness warnings
+
+Preferred timeline data source:
+
+```text
+GET /api/augnes/read/deltas?scope=project:augnes
+x-augnes-local-readonly: augnes-delta-projection-v0.1
+```
+
+Fallback source:
+
+- `fixtures/augnes-delta-projection.sample.v0.1.json`
+
+The Delta Projection helper exposes:
+
+- `data`
+- `source_status: "runtime" | "fixture_fallback" | "empty_fallback"`
+- `fallback_reason`
+- `authority_boundary`
+
+Fixture fallback is disclosed and is never presented as live runtime state.
+
+Phase 4B is read-only Human Surface UI with a read-only authority boundary.
+Delta selection is local UI state only. It does not persist selection, write
+records, apply deltas, call providers, launch Codex, or create work.
+
+The Delta Inspector uses this compact boundary:
+
+```text
+Read-only projection. No state mutation, no proof/evidence write, no external action.
+```
+
+Phase 4B adds no graph editor, graph DB, drag/drop persistence, no
+persistence, save/reset/rollback controls, DB schema/migration, DB write, write
+route, MCP/App tool, provider/OpenAI call, GitHub actuation, Codex execution,
+proof/evidence write, durable Perspective apply, memory mutation,
+product-write, scheduler/autonomy runner, merge/publish/retry/replay/deploy
+behavior, or external side effect.
+
+Phase 5 Agent Workplane remains future work.
+
+## 10. Validation and Smoke Plan
 
 `npm run smoke:human-surface-home-v0-1` checks:
 
@@ -163,3 +218,24 @@ or external side effects in Phase 4A.
   durable Perspective apply, memory mutation, scheduler/autonomy runner, or
   external side effect files are added
 - changed-file boundary remains focused on Phase 4A files
+
+`npm run smoke:perspective-human-timeline-v0-1` checks:
+
+- package script pointer
+- `/perspective` still routes through the Perspective surface wrapper
+- Current Working Perspective rail/card, timeline, Delta card, Delta Inspector,
+  and Boundary / Next panel components exist
+- the Delta Projection helper uses the GET-only read route, local/read-only
+  marker, fixture fallback, source status, fallback reason, and authority
+  boundary
+- the timeline represents type, status, source, title, created_at, and review
+  needs
+- the inspector represents source refs, evidence refs, artifact refs, handoff
+  refs, diagnostic refs, merge policy, authority boundary, validation summary,
+  gaps/staleness, review notes, and non-goals
+- no graph editor, graph DB, persistence, mutating HTTP method, DB migration,
+  MCP/App tool, provider/OpenAI/GitHub runtime, Codex execution,
+  proof/evidence write, memory mutation, durable Perspective apply,
+  scheduler/autonomy runner, `/workbench` page change, or external side effect
+  is added
+- changed-file boundary remains focused on Phase 4B files
