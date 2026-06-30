@@ -113,7 +113,7 @@ export interface DeltaMergePolicy {
   durable_memory_allowed: boolean;
   project_perspective_allowed: boolean;
   external_side_effect_allowed: boolean;
-  blocked_reason?: string;
+  blocked_reason: string;
 }
 
 export interface DeltaBatch {

@@ -167,6 +167,15 @@ function assertTypeContract() {
     assert(exportPattern.test(typeText), `${typeFile} must export ${exportName}`);
   }
 
+  assert(
+    /blocked_reason:\s*string;/.test(typeText),
+    `${typeFile} must require DeltaMergePolicy.blocked_reason`,
+  );
+  assert(
+    !/blocked_reason\?:/.test(typeText),
+    `${typeFile} must not make DeltaMergePolicy.blocked_reason optional`,
+  );
+
   assertContainsAll(
     typeText,
     [
