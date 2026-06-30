@@ -65,14 +65,15 @@ const expectedChangedFiles = new Set([
   "fixtures/selected-runtime-audit-event-store.sample.v0.1.json",
   "scripts/smoke-selected-runtime-audit-event-store-v0-1.mjs",
   "docs/SELECTED_RUNTIME_AUDIT_EVENT_STORE_V0_1.md",
+  "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md",
+  "fixtures/release-readiness-matrix-post-868-non-ui.sample.v0.1.json",
+  "scripts/smoke-release-readiness-matrix-post-868-non-ui-v0-1.mjs",
 ]);
 
 const newSliceFiles = [
-  "types/runtime-audit-event.ts",
-  "lib/runtime-audit/audit-event-store.ts",
-  "fixtures/selected-runtime-audit-event-store.sample.v0.1.json",
-  "scripts/smoke-selected-runtime-audit-event-store-v0-1.mjs",
-  "docs/SELECTED_RUNTIME_AUDIT_EVENT_STORE_V0_1.md",
+  "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md",
+  "fixtures/release-readiness-matrix-post-868-non-ui.sample.v0.1.json",
+  "scripts/smoke-release-readiness-matrix-post-868-non-ui-v0-1.mjs",
 ];
 
 const requiredHelperExports = [

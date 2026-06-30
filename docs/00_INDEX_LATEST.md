@@ -4598,6 +4598,45 @@ repo-local 색인이다.
   runtime; no GitHub API call from Augnes runtime; no Git/GitHub actuation from
   Augnes runtime; no tag creation; no release, deploy, or publish behavior.
   Next recommended slice: `release_readiness_matrix_post_868_non_ui_v0_1`.
+- Release Readiness Matrix Post-#868 Non-UI v0.1:
+  `docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md`,
+  `fixtures/release-readiness-matrix-post-868-non-ui.sample.v0.1.json`, and
+  `scripts/smoke-release-readiness-matrix-post-868-non-ui-v0-1.mjs`
+  (`npm run smoke:release-readiness-matrix-post-868-non-ui-v0-1`) implements
+  `release_readiness_matrix_post_868_non_ui_v0_1`. PR #868 remains the frozen
+  web baseline for `/`, `/perspective`, and `/workbench`. PR #878 provides
+  selected runtime audit event store context. This slice adds no UI. The
+  release/readiness matrix is review-only and does not approve release, deploy,
+  publish, product readiness, proof/evidence readiness, or authority. It
+  records the v0.3 non-UI core/handoff/conversation sequence through selected
+  runtime audit event store as repo artifacts, pending operator decision.
+  Product-write, GitHub/Git actuation, live provider calls, source fetch,
+  retrieval expansion, and release/deploy/publish execution remain blocked
+  unless separately approved. UI, Cockpit, browser-validation-only,
+  public-surface, route IA polish, mobile viewport polish, and read/display-only
+  UI expansion remain Web-last backlog. Matrix fingerprint is not proof or
+  approval. Readiness classification is not execution approval. Skipped checks
+  and known warnings are review context only. Not-done items are next-planning
+  cues only.
+
+  Boundary phrases: static matrix document, fixture, and smoke only; repo-
+  grounded public-safe summaries only; no UI; no components; no Cockpit change;
+  no public-surface change; no route model change for `/`, `/perspective`, or
+  `/workbench`; no browser-validation-only work; no new API route; no broad
+  route instrumentation; no DB migration; no global DB config; no DB write; no
+  direct DB read; no local file write; no local file read; no import apply; no
+  provider/OpenAI call; no prompt sent; no source fetch; no retrieval execution;
+  no retrieval index write; no raw request body storage; no raw response body
+  storage; no raw terminal log storage; no raw source body storage; no raw
+  provider output storage; no raw retrieval output storage; no raw DB row
+  storage; no raw conversation storage; no hidden reasoning storage; no
+  proof/evidence creation; no claim/evidence write; no Review Memory write; no
+  promotion execution; no Formation Receipt write; no durable Perspective state
+  apply; no product-write; no product ID allocation; no Codex execution from
+  Augnes runtime; no GitHub API call from Augnes runtime; no Git/GitHub
+  actuation from Augnes runtime; no tag creation; no release, deploy, or publish
+  behavior. Next recommended slice:
+  `no_next_slice_v0_3_core_sequence_complete_pending_operator_decision`.
 - Runtime Audit Panel v0.1:
   `docs/RUNTIME_AUDIT_PANEL_V0_1.md`,
   `lib/runtime-audit/build-runtime-audit-model.ts`,
