@@ -69,6 +69,19 @@ const followOnHumanSurfaceHomeFiles = [
   "scripts/smoke-human-surface-home-v0-1.mjs",
 ];
 
+const followOnPerspectiveHumanTimelineFiles = [
+  "app/perspective/page.tsx",
+  "components/perspective/perspective-public-constellation-surface.tsx",
+  "components/perspective/perspective-human-surface.tsx",
+  "components/perspective/perspective-current-summary-rail.tsx",
+  "components/perspective/perspective-timeline.tsx",
+  "components/perspective/perspective-delta-card.tsx",
+  "components/perspective/perspective-delta-inspector.tsx",
+  "components/perspective/perspective-boundary-next-panel.tsx",
+  "lib/human-surface/read-delta-projection.ts",
+  "scripts/smoke-perspective-human-timeline-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnProjectionReadModelFiles,
@@ -76,6 +89,7 @@ const allowedChangedFiles = new Set([
   ...followOnCurrentWorkingPerspectiveFiles,
   ...followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles,
   ...followOnHumanSurfaceHomeFiles,
+  ...followOnPerspectiveHumanTimelineFiles,
 ]);
 
 const allowedRouteFiles = new Set([
@@ -361,7 +375,7 @@ function assertChangedFileBoundary() {
     );
     assert(!/^app\/api\//.test(file) || allowedRouteFiles.has(file), `AugnesDelta contract follow-on must not add API routes outside approved read routes: ${file}`);
     assert(!/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) || allowedRouteFiles.has(file), `AugnesDelta contract follow-on must not add route files outside approved read routes: ${file}`);
-    assert(!/^components\//.test(file) || followOnHumanSurfaceHomeFiles.includes(file), `AugnesDelta contract follow-on must not change UI files outside Phase 4A Human Surface Home: ${file}`);
+    assert(!/^components\//.test(file) || followOnHumanSurfaceHomeFiles.includes(file) || followOnPerspectiveHumanTimelineFiles.includes(file), `AugnesDelta contract follow-on must not change UI files outside Phase 4A/4B Human Surface files: ${file}`);
     assert(!/^db\//.test(file), `AugnesDelta contract follow-on must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `AugnesDelta contract follow-on must not change migrations: ${file}`);
     assert(!/^apps\/augnes_apps\//.test(file), `AugnesDelta contract follow-on must not change MCP/App files: ${file}`);
@@ -390,9 +404,12 @@ function assertChangedFileBoundary() {
     follow_on_current_working_perspective_runtime_read_surface_files_allowed:
       followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles,
     follow_on_human_surface_home_files_allowed: followOnHumanSurfaceHomeFiles,
+    follow_on_perspective_human_timeline_files_allowed:
+      followOnPerspectiveHumanTimelineFiles,
     api_route_added: files.some((file) => allowedRouteFiles.has(file)),
     human_surface_ui_added: files.some((file) =>
-      followOnHumanSurfaceHomeFiles.includes(file),
+      followOnHumanSurfaceHomeFiles.includes(file) ||
+      followOnPerspectiveHumanTimelineFiles.includes(file),
     ),
     files,
   };

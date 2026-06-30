@@ -127,6 +127,13 @@ PR #868 is merged. Current route planning starts from:
   product-write, scheduler/autonomy runner, Perspective timeline, workbench
   behavior change, merge/publish/retry/replay/deploy behavior, or external
   side effect.
+  Phase 4B adds the read-only `/perspective` Human Timeline skeleton with
+  Current Working Perspective summary, vertical Augnes Delta timeline, Delta
+  cards, Delta Inspector, Boundary / Next panel, runtime/fallback source
+  disclosure, and no graph editor, persistence, DB write, provider/OpenAI call,
+  GitHub actuation, Codex execution, proof/evidence write, durable Perspective
+  apply, memory mutation, product-write, scheduler/autonomy runner,
+  merge/publish/retry/replay/deploy behavior, or external side effect.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
