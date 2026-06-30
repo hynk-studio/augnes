@@ -22,6 +22,20 @@ const contractSmokeFile = "scripts/smoke-augnes-delta-contract-v0-1.mjs";
 const projectionSmokeFile = "scripts/smoke-augnes-delta-projection-v0-1.mjs";
 const projectionRouteSmokeFile =
   "scripts/smoke-augnes-delta-projection-route-v0-1.mjs";
+const followOnHumanSurfaceHomeFiles = [
+  "app/page.tsx",
+  "app/globals.css",
+  "components/augnes-public-home-surface.tsx",
+  "components/human-surface/blank-state-panel.tsx",
+  "components/human-surface/current-perspective-card.tsx",
+  "components/human-surface/human-surface-home.tsx",
+  "components/human-surface/mode-preset-selector.tsx",
+  "components/human-surface/recent-deltas-preview.tsx",
+  "components/human-surface/surface-link-grid.tsx",
+  "lib/human-surface/read-current-perspective.ts",
+  "docs/HUMAN_SURFACE_V0_1.md",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -43,6 +57,7 @@ const allowedChangedFiles = new Set([
   contractSmokeFile,
   projectionSmokeFile,
   projectionRouteSmokeFile,
+  ...followOnHumanSurfaceHomeFiles,
   packageJsonFile,
   indexDoc,
 ]);
@@ -84,12 +99,14 @@ console.log(
       changed_files_skipped: changedFilesBoundary.skipped,
       changed_files_skip_reason: changedFilesBoundary.skip_reason,
       changed_files_observed: changedFilesBoundary.files,
+      follow_on_human_surface_home_files_allowed:
+        followOnHumanSurfaceHomeFiles,
       smoke_type:
         "static-current-working-perspective-runtime-read-route-source-composition-boundary-only",
       route_behavior_changed: true,
       route_behavior:
         "GET-only local read-only Current Working Perspective read surface",
-      ui_behavior_changed: false,
+      ui_behavior_changed: changedFilesBoundary.human_surface_ui_added,
       db_schema_migration_changed: false,
       db_write_added: false,
       mcp_app_tool_added: false,
@@ -100,7 +117,7 @@ console.log(
       proof_evidence_write_added: false,
       durable_perspective_state_apply_added: false,
       memory_mutation_added: false,
-      human_surface_added: false,
+      human_surface_added: changedFilesBoundary.human_surface_ui_added,
       guidebrief_added: false,
       product_write_behavior_added: false,
       autonomy_runner_added: false,
@@ -340,7 +357,7 @@ function assertChangedFileBoundary() {
         allowedRouteFiles.has(file),
       `Phase 3B must not add route files outside the Current Working Perspective read route: ${file}`,
     );
-    assert(!/^components\//.test(file), `Phase 3B must not change UI files: ${file}`);
+    assert(!/^components\//.test(file) || followOnHumanSurfaceHomeFiles.includes(file), `Phase 3B follow-on must not change UI files outside Phase 4A Human Surface Home: ${file}`);
     assert(!/^db\//.test(file), `Phase 3B must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `Phase 3B must not change migrations: ${file}`);
     assert(
@@ -360,7 +377,8 @@ function assertChangedFileBoundary() {
       `Phase 3B must not add proof/evidence write paths: ${file}`,
     );
     assert(
-      !/(^|\/)(human-surface|human_surface|guidebrief|guide-brief)(\/|$)/i.test(file),
+      followOnHumanSurfaceHomeFiles.includes(file) ||
+        !/(^|\/)(human-surface|human_surface|guidebrief|guide-brief)(\/|$)/i.test(file),
       `Phase 3B must not add Human Surface or GuideBrief files: ${file}`,
     );
   }
@@ -384,6 +402,9 @@ function assertChangedFileBoundary() {
       untrackedFiles.checked
         ? null
         : "changed-file boundary could not be checked",
+    human_surface_ui_added: files.some((file) =>
+      followOnHumanSurfaceHomeFiles.includes(file),
+    ),
     files,
   };
 }
