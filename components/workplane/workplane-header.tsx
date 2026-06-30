@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 
 const headerStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) auto",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
   gap: "16px",
   alignItems: "end",
   padding: "18px",
