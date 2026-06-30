@@ -61,9 +61,16 @@ const expectedChangedFiles = new Set([
   packetSmokePath,
   codexBindingSmokePath,
   dogfoodingSmokePath,
+  "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md",
+  "fixtures/release-readiness-matrix-post-868-non-ui.sample.v0.1.json",
+  "scripts/smoke-release-readiness-matrix-post-868-non-ui-v0-1.mjs",
 ]);
 
-const newSliceFiles = [typePath, helperPath, fixturePath, smokePath, docsPath];
+const newSliceFiles = [
+  "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md",
+  "fixtures/release-readiness-matrix-post-868-non-ui.sample.v0.1.json",
+  "scripts/smoke-release-readiness-matrix-post-868-non-ui-v0-1.mjs",
+];
 
 const requiredHelperExports = [
   "ensureSelectedRuntimeAuditEventSchemaV01",

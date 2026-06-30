@@ -1,0 +1,601 @@
+{
+  "matrix_id": "release-readiness-matrix:post-868-non-ui:v0.1",
+  "matrix_version": "release_readiness_matrix_post_868_non_ui.v0.1",
+  "scope": "project:augnes",
+  "generated_at": "2026-06-30T00:00:00.000Z",
+  "baseline_refs": [
+    {
+      "ref": "github-pr:#868",
+      "summary": "Frozen web baseline for public surface, Perspective detail, and workbench routes."
+    },
+    {
+      "ref": "github-pr:#870",
+      "summary": "Post-#868 non-UI runtime gap reconciliation and selected non-UI sequence."
+    },
+    {
+      "ref": "github-pr:#871",
+      "summary": "Dogfooding research record runtime."
+    },
+    {
+      "ref": "github-pr:#872",
+      "summary": "Codex result report to dogfooding research record binding."
+    },
+    {
+      "ref": "github-pr:#873",
+      "summary": "Conversation handoff packet builder."
+    },
+    {
+      "ref": "github-pr:#874",
+      "summary": "Dogfooding record to handoff packet binding."
+    },
+    {
+      "ref": "github-pr:#875",
+      "summary": "Dogfooding record to Review Memory proposal candidate builder."
+    },
+    {
+      "ref": "github-pr:#876",
+      "summary": "Local data export manifest candidate builder."
+    },
+    {
+      "ref": "github-pr:#877",
+      "summary": "Local export manifest to Git Ledger export packet binding."
+    },
+    {
+      "ref": "github-pr:#878",
+      "summary": "Selected runtime audit event store."
+    }
+  ],
+  "route_model_baseline": {
+    "frozen_by": "github-pr:#868",
+    "frozen": true,
+    "routes": [
+      {
+        "path": "/",
+        "role": "public_augnes_surface",
+        "frozen": true
+      },
+      {
+        "path": "/perspective",
+        "role": "perspective_detail",
+        "frozen": true
+      },
+      {
+        "path": "/workbench",
+        "role": "cockpit_workbench",
+        "frozen": true
+      }
+    ]
+  },
+  "rows": [
+    {
+      "row_id": "pr_868_frozen_web_baseline",
+      "label": "#868 frozen web baseline",
+      "classification": "implemented_non_ui",
+      "repo_refs": [
+        "docs/POST_868_DEVELOPMENT_POSTURE.md",
+        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+      ],
+      "status_summary": "Route model baseline remains frozen for /, /perspective, and /workbench.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "post_868_non_ui_runtime_gap_reconciliation",
+      "label": "post-#868 non-UI runtime gap reconciliation",
+      "classification": "ready_for_next_planning",
+      "repo_refs": [
+        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md",
+        "fixtures/post-868-non-ui-runtime-gap-reconciliation.sample.v0.1.json"
+      ],
+      "status_summary": "Core first, Handoff first, Conversation first, Web last direction recorded.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "dogfooding_research_record_runtime",
+      "label": "dogfooding research record runtime",
+      "classification": "implemented_non_ui",
+      "repo_refs": [
+        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md",
+        "fixtures/dogfooding-research-record-runtime.sample.v0.1.json",
+        "scripts/smoke-dogfooding-research-record-runtime-v0-1.mjs"
+      ],
+      "status_summary": "Candidate-only research records exist with same-origin write boundary and caller-injected local test DB coverage.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "codex_result_to_dogfooding_record_binding",
+      "label": "Codex result to dogfooding record binding",
+      "classification": "implemented_non_ui",
+      "repo_refs": [
+        "docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md",
+        "fixtures/codex-result-to-dogfooding-record.sample.v0.1.json",
+        "scripts/smoke-codex-result-to-dogfooding-record-v0-1.mjs"
+      ],
+      "status_summary": "Codex report summaries can become candidate-only dogfooding record input.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "conversation_handoff_packet_builder",
+      "label": "conversation handoff packet builder",
+      "classification": "implemented_non_ui",
+      "repo_refs": [
+        "docs/CONVERSATION_HANDOFF_PACKET_BUILDER_V0_2.md",
+        "fixtures/conversation-handoff-packet.sample.v0.2.json",
+        "scripts/smoke-conversation-handoff-packet-v0-2.mjs"
+      ],
+      "status_summary": "Deterministic packet builder produces public-safe handoff text without execution behavior.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "conversation_handoff_from_dogfooding_record_binding",
+      "label": "conversation handoff packet from dogfooding record binding",
+      "classification": "implemented_non_ui",
+      "repo_refs": [
+        "docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md",
+        "fixtures/conversation-handoff-from-dogfooding-record.sample.v0.1.json",
+        "scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs"
+      ],
+      "status_summary": "Public-safe dogfooding record summaries can feed the handoff packet builder.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "dogfooding_to_review_memory_proposal_candidate_builder",
+      "label": "dogfooding record to Review Memory proposal candidate builder",
+      "classification": "candidate_only",
+      "repo_refs": [
+        "docs/DOGFOODING_TO_REVIEW_MEMORY_PROPOSAL_V0_1.md",
+        "fixtures/dogfooding-to-review-memory-proposal.sample.v0.1.json",
+        "scripts/smoke-dogfooding-to-review-memory-proposal-v0-1.mjs"
+      ],
+      "status_summary": "Review Memory proposal candidates require operator confirmation and do not write Review Memory.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "local_data_export_manifest_candidate_builder",
+      "label": "local data export manifest candidate builder",
+      "classification": "candidate_only",
+      "repo_refs": [
+        "docs/LOCAL_DATA_EXPORT_MANIFEST_BUILDER_V0_1.md",
+        "fixtures/local-data-export-manifest.sample.v0.1.json",
+        "scripts/smoke-local-data-export-manifest-builder-v0-1.mjs"
+      ],
+      "status_summary": "Local export manifests are candidate-only summaries, not export files or import approval.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "git_ledger_export_from_local_manifest_binding",
+      "label": "Git Ledger export from local manifest binding",
+      "classification": "candidate_only",
+      "repo_refs": [
+        "docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md",
+        "fixtures/git-ledger-export-from-local-manifest.sample.v0.1.json",
+        "scripts/smoke-git-ledger-export-from-local-manifest-v0-1.mjs"
+      ],
+      "status_summary": "Git Ledger export packets are text candidates, not Git/GitHub actuation.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "selected_runtime_audit_event_store",
+      "label": "selected runtime audit event store",
+      "classification": "implemented_non_ui",
+      "repo_refs": [
+        "docs/SELECTED_RUNTIME_AUDIT_EVENT_STORE_V0_1.md",
+        "fixtures/selected-runtime-audit-event-store.sample.v0.1.json",
+        "scripts/smoke-selected-runtime-audit-event-store-v0-1.mjs"
+      ],
+      "status_summary": "Selected public-safe audit events can be stored with caller-injected local test DB only.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "privacy_redaction_guard",
+      "label": "privacy redaction guard",
+      "classification": "ready_for_operator_review",
+      "repo_refs": [
+        "docs/PRIVACY_REDACTION_RUNTIME_GUARD_V0_1.md",
+        "scripts/smoke-privacy-redaction-guard-v0-1.mjs"
+      ],
+      "status_summary": "Privacy guard remains the public-safe summary boundary for the sequence.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "authority_boundary_regression",
+      "label": "authority boundary regression",
+      "classification": "ready_for_operator_review",
+      "repo_refs": [
+        "docs/AUTHORITY_BOUNDARY_REGRESSION_CI_V0_1.md",
+        "scripts/smoke-authority-boundary-regression-v0-1.mjs"
+      ],
+      "status_summary": "Authority regression static smoke remains active for current files.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "product_write_parked_status",
+      "label": "product-write parked status",
+      "classification": "blocked_by_design",
+      "repo_refs": [
+        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+      ],
+      "status_summary": "Product-write remains blocked unless separately approved.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "github_git_actuation_blocked_status",
+      "label": "GitHub/Git actuation blocked status",
+      "classification": "blocked_by_design",
+      "repo_refs": [
+        "docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md",
+        "docs/SELECTED_RUNTIME_AUDIT_EVENT_STORE_V0_1.md"
+      ],
+      "status_summary": "GitHub/Git actuation remains blocked in Augnes runtime.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "live_provider_blocked_status",
+      "label": "live provider blocked status",
+      "classification": "blocked_by_design",
+      "repo_refs": [
+        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+      ],
+      "status_summary": "Live provider calls remain blocked.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "source_fetch_blocked_status",
+      "label": "source fetch blocked status",
+      "classification": "blocked_by_design",
+      "repo_refs": [
+        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+      ],
+      "status_summary": "Source fetch remains blocked.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "retrieval_expansion_blocked_status",
+      "label": "retrieval expansion blocked status",
+      "classification": "blocked_by_design",
+      "repo_refs": [
+        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+      ],
+      "status_summary": "Retrieval expansion remains blocked.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "release_deploy_publish_blocked_status",
+      "label": "release/deploy/publish blocked status",
+      "classification": "blocked_by_design",
+      "repo_refs": [
+        "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md"
+      ],
+      "status_summary": "Release, deploy, and publish execution remain blocked.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "web_last_backlog_frozen_status",
+      "label": "Web-last backlog frozen status",
+      "classification": "web_last_backlog",
+      "repo_refs": [
+        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+      ],
+      "status_summary": "UI/Cockpit/browser/public-surface work remains Web-last backlog.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "skipped_checks_and_reason",
+      "label": "skipped checks and reason",
+      "classification": "skipped_with_reason",
+      "repo_refs": [
+        "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md"
+      ],
+      "status_summary": "Browser, release, deploy, and publish checks are out of scope for this static non-UI matrix.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "known_warnings",
+      "label": "known warnings",
+      "classification": "warning_observed",
+      "repo_refs": [
+        "scripts/smoke-privacy-redaction-guard-v0-1.mjs"
+      ],
+      "status_summary": "Known Node warning output from relevant smokes is review context only.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "not_done_items",
+      "label": "not-done items",
+      "classification": "incomplete",
+      "repo_refs": [
+        "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md"
+      ],
+      "status_summary": "Product readiness, release approval, proof/evidence readiness, market/user readiness, deployability, and web backlog completion are not claimed.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "remaining_explicit_reentry_backlog",
+      "label": "remaining explicit reentry backlog",
+      "classification": "explicit_reentry_blocked",
+      "repo_refs": [
+        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+      ],
+      "status_summary": "Product-write, GitHub/Git, provider, source-fetch, retrieval, release, promotion, durable state, proof/evidence, and Formation Receipt reentry require separate approval.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "current_matrix_scope",
+      "label": "current matrix scope",
+      "classification": "not_in_scope",
+      "repo_refs": [
+        "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md"
+      ],
+      "status_summary": "Product readiness, market/user readiness, deployability, and proof/evidence readiness are outside this matrix.",
+      "review_context_only": true
+    },
+    {
+      "row_id": "operator_review_posture",
+      "label": "operator review posture",
+      "classification": "no_release_recommendation",
+      "repo_refs": [
+        "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md"
+      ],
+      "status_summary": "No release recommendation is made.",
+      "review_context_only": true
+    }
+  ],
+  "skipped_checks": [
+    {
+      "check_id": "browser_validation",
+      "reason": "No UI, browser-validation-only, route IA, or viewport work is in scope.",
+      "review_context_only": true,
+      "automatic_failure": false
+    },
+    {
+      "check_id": "release_deploy_publish_execution",
+      "reason": "Release, deploy, and publish execution are blocked by design.",
+      "review_context_only": true,
+      "automatic_failure": false
+    }
+  ],
+  "known_warnings": [
+    {
+      "warning_id": "node_experimental_strip_types_warning",
+      "summary": "Relevant TypeScript-backed smoke commands can emit Node ExperimentalWarning output while passing.",
+      "review_context_only": true,
+      "automatic_rejection": false
+    }
+  ],
+  "not_done_items": [
+    {
+      "item_id": "no_release_approval",
+      "summary": "No release approval is created by this matrix.",
+      "next_planning_cue_only": true
+    },
+    {
+      "item_id": "no_product_readiness_claim",
+      "summary": "No product readiness, market/user readiness, deployability, or proof/evidence readiness is claimed.",
+      "next_planning_cue_only": true
+    },
+    {
+      "item_id": "web_last_backlog_not_started",
+      "summary": "UI, Cockpit, browser, and public-surface backlog remains frozen unless separately approved.",
+      "next_planning_cue_only": true
+    }
+  ],
+  "blocked_capabilities": [
+    {
+      "capability": "product_write",
+      "blocked": true
+    },
+    {
+      "capability": "github_git_actuation",
+      "blocked": true
+    },
+    {
+      "capability": "live_provider",
+      "blocked": true
+    },
+    {
+      "capability": "source_fetch",
+      "blocked": true
+    },
+    {
+      "capability": "retrieval_expansion",
+      "blocked": true
+    },
+    {
+      "capability": "release_deploy_publish",
+      "blocked": true
+    },
+    {
+      "capability": "proof_evidence_creation",
+      "blocked": true
+    },
+    {
+      "capability": "review_memory_write",
+      "blocked": true
+    },
+    {
+      "capability": "promotion_execution",
+      "blocked": true
+    },
+    {
+      "capability": "formation_receipt_write",
+      "blocked": true
+    },
+    {
+      "capability": "durable_state_apply",
+      "blocked": true
+    }
+  ],
+  "web_last_backlog": [
+    {
+      "item_id": "ui_components",
+      "frozen": true
+    },
+    {
+      "item_id": "cockpit_workbench_polish",
+      "frozen": true
+    },
+    {
+      "item_id": "browser_validation_only",
+      "frozen": true
+    },
+    {
+      "item_id": "public_surface_polish",
+      "frozen": true
+    },
+    {
+      "item_id": "route_ia_polish",
+      "frozen": true
+    },
+    {
+      "item_id": "mobile_viewport_polish",
+      "frozen": true
+    },
+    {
+      "item_id": "read_display_only_ui_expansion",
+      "frozen": true
+    }
+  ],
+  "explicit_reentry_backlog": [
+    {
+      "item_id": "product_write",
+      "blocked": true
+    },
+    {
+      "item_id": "github_git_actuation",
+      "blocked": true
+    },
+    {
+      "item_id": "live_provider_calls",
+      "blocked": true
+    },
+    {
+      "item_id": "source_fetch",
+      "blocked": true
+    },
+    {
+      "item_id": "retrieval_expansion",
+      "blocked": true
+    },
+    {
+      "item_id": "release_execution",
+      "blocked": true
+    },
+    {
+      "item_id": "promotion_execution",
+      "blocked": true
+    },
+    {
+      "item_id": "formation_receipt_write",
+      "blocked": true
+    },
+    {
+      "item_id": "durable_state_apply",
+      "blocked": true
+    },
+    {
+      "item_id": "proof_evidence_creation",
+      "blocked": true
+    }
+  ],
+  "authority_boundary": {
+    "matrix_review_only": true,
+    "repo_grounded_public_safe_summaries_only": true,
+    "release_readiness_matrix_is_release_approval": false,
+    "release_readiness_matrix_is_deploy_approval": false,
+    "release_readiness_matrix_is_publish_approval": false,
+    "release_readiness_matrix_is_product_readiness": false,
+    "release_readiness_matrix_is_proof": false,
+    "release_readiness_matrix_is_accepted_evidence": false,
+    "release_readiness_matrix_is_authority": false,
+    "readiness_classification_is_execution_approval": false,
+    "matrix_fingerprint_is_proof": false,
+    "matrix_fingerprint_is_approval": false,
+    "smoke_pass_is_evidence": false,
+    "ci_pass_is_authority": false,
+    "validation_pass_is_approval": false,
+    "validation_failure_is_rejection": false,
+    "skipped_checks_are_review_context_only": true,
+    "known_warnings_are_review_context_only": true,
+    "not_done_items_are_next_planning_cues_only": true,
+    "blocked_capability_remains_blocked": true,
+    "web_last_backlog_remains_frozen": true,
+    "explicit_reentry_backlog_remains_blocked": true,
+    "next_recommended_slice_is_execution_approval": false
+  },
+  "forbidden_capabilities": [
+    "ui",
+    "components",
+    "cockpit_changes",
+    "public_surface_changes",
+    "route_model_changes",
+    "browser_validation_only_work",
+    "new_api_route",
+    "broad_route_instrumentation",
+    "db_migrations",
+    "global_db_config",
+    "db_reads",
+    "db_writes",
+    "local_file_reads",
+    "local_file_writes",
+    "import_apply",
+    "provider_openai_calls",
+    "prompt_sending",
+    "source_fetch",
+    "retrieval_execution",
+    "retrieval_index_write",
+    "raw_log_storage",
+    "proof_evidence_creation",
+    "claim_evidence_writes",
+    "review_memory_write",
+    "promotion_execution",
+    "formation_receipt_write",
+    "durable_perspective_state_apply",
+    "product_write",
+    "product_id_allocation",
+    "codex_execution_from_augnes_runtime",
+    "github_api_calls_from_augnes_runtime",
+    "git_github_actuation_from_augnes_runtime",
+    "tag_creation",
+    "release_deploy_publish_behavior"
+  ],
+  "release_execution": false,
+  "deploy_execution": false,
+  "publish_execution": false,
+  "product_write_execution": false,
+  "github_git_actuation": false,
+  "provider_execution": false,
+  "retrieval_execution": false,
+  "source_fetch_execution": false,
+  "readiness_summary": {
+    "route_model_frozen": true,
+    "route_model_statement": "#868 route model remains frozen for /, /perspective, and /workbench.",
+    "non_ui_sequence_implemented_as_repo_artifacts": true,
+    "sequence_statement": "The v0.3 non-UI core/handoff/conversation sequence through selected runtime audit event store is implemented as repo artifacts.",
+    "review_only_no_release_execution": true,
+    "blocked_capabilities_remain_blocked": true,
+    "web_last_backlog_remains_frozen": true,
+    "next_recommended_slice_requires_operator_decision": true,
+    "product_readiness_claimed": false,
+    "release_approval_claimed": false,
+    "proof_evidence_readiness_claimed": false,
+    "market_user_readiness_claimed": false,
+    "deployability_claimed": false
+  },
+  "next_recommended_slice": "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision",
+  "matrix_fingerprint": "sha256:657555a23354601679f7317af6a96d785968db14daffd1781d0f349903a2ca37",
+  "reason_codes": [
+    "post_868_route_baseline_frozen",
+    "pr_878_selected_runtime_audit_event_context",
+    "non_ui_core_handoff_conversation_sequence_recorded",
+    "review_only_matrix",
+    "no_release_recommendation",
+    "product_write_blocked",
+    "github_git_actuation_blocked",
+    "live_provider_blocked",
+    "source_fetch_blocked",
+    "retrieval_expansion_blocked",
+    "release_deploy_publish_blocked",
+    "web_last_backlog_frozen",
+    "explicit_reentry_requires_operator_decision",
+    "next_slice_requires_operator_decision"
+  ]
+}
