@@ -82,6 +82,14 @@ const followOnAgentWorkplaneProjectionHandoffFiles = [
 const followOnAgentWorkplaneCleanupHardeningFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
+
+const followOnGuideBriefCoreFiles = [
+  "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+  "types/guide-brief.ts",
+  "lib/guide/guide-brief.ts",
+  "fixtures/guide-brief.sample.v0.1.json",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -109,6 +117,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplanePanelFiles,
   ...followOnAgentWorkplaneProjectionHandoffFiles,
   ...followOnAgentWorkplaneCleanupHardeningFiles,
+  ...followOnGuideBriefCoreFiles,
   packageJsonFile,
   indexDoc,
 ]);
@@ -155,6 +164,8 @@ console.log(
       follow_on_agent_workplane_files_allowed: followOnAgentWorkplaneFiles,
       follow_on_agent_workplane_panel_files_allowed:
         followOnAgentWorkplanePanelFiles,
+      follow_on_guide_brief_core_files_allowed:
+        followOnGuideBriefCoreFiles,
       smoke_type:
         "static-current-working-perspective-runtime-read-route-source-composition-boundary-only",
       route_behavior_changed: true,
@@ -175,7 +186,8 @@ console.log(
       durable_perspective_state_apply_added: false,
       memory_mutation_added: false,
       human_surface_added: changedFilesBoundary.human_surface_ui_added,
-      guidebrief_added: false,
+      guidebrief_core_follow_on_allowed:
+        changedFilesBoundary.guidebrief_core_follow_on_used,
       product_write_behavior_added: false,
       autonomy_runner_added: false,
       external_side_effect_added: false,
@@ -444,8 +456,9 @@ function assertChangedFileBoundary() {
     assert(
       followOnHumanSurfaceHomeFiles.includes(file) ||
         followOnPerspectiveHumanTimelineFiles.includes(file) ||
+        followOnGuideBriefCoreFiles.includes(file) ||
         !/(^|\/)(human-surface|human_surface|guidebrief|guide-brief)(\/|$)/i.test(file),
-      `Phase 3B must not add Human Surface or GuideBrief files: ${file}`,
+      `Phase 3B must not add Human Surface or GuideBrief files outside exact follow-on allowlists: ${file}`,
     );
   }
 
@@ -460,6 +473,9 @@ function assertChangedFileBoundary() {
   const agentWorkplaneUiAdded = files.some((file) =>
     file === "app/workbench/page.tsx" ||
     file.startsWith("components/workplane/"),
+  );
+  const guidebriefCoreFollowOnUsed = files.some((file) =>
+    followOnGuideBriefCoreFiles.includes(file),
   );
 
   return {
@@ -483,6 +499,7 @@ function assertChangedFileBoundary() {
         : "changed-file boundary could not be checked",
     human_surface_ui_added: humanSurfaceUiAdded,
     agent_workplane_ui_added: agentWorkplaneUiAdded,
+    guidebrief_core_follow_on_used: guidebriefCoreFollowOnUsed,
     ui_surface_added: humanSurfaceUiAdded || agentWorkplaneUiAdded,
     files,
   };

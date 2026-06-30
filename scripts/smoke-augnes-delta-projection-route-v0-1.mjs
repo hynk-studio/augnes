@@ -88,6 +88,14 @@ const followOnAgentWorkplaneProjectionHandoffFiles = [
 const followOnAgentWorkplaneCleanupHardeningFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
+
+const followOnGuideBriefCoreFiles = [
+  "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+  "types/guide-brief.ts",
+  "lib/guide/guide-brief.ts",
+  "fixtures/guide-brief.sample.v0.1.json",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -121,6 +129,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplanePanelFiles,
   ...followOnAgentWorkplaneProjectionHandoffFiles,
   ...followOnAgentWorkplaneCleanupHardeningFiles,
+  ...followOnGuideBriefCoreFiles,
   packageJsonFile,
   indexDoc,
 ]);
@@ -167,6 +176,8 @@ console.log(
       follow_on_agent_workplane_files_allowed: followOnAgentWorkplaneFiles,
       follow_on_agent_workplane_panel_files_allowed:
         followOnAgentWorkplanePanelFiles,
+      follow_on_guide_brief_core_files_allowed:
+        followOnGuideBriefCoreFiles,
       smoke_type: "static-runtime-read-route-source-collector-boundary-only",
       route_behavior_changed: true,
       route_behavior: "GET-only local read-only Augnes Delta projection read surface",

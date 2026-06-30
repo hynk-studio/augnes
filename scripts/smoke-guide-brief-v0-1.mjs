@@ -1,0 +1,659 @@
+#!/usr/bin/env node
+import assert from "node:assert/strict";
+import {
+  assertContainsAll,
+  assertNoRuntimeImports,
+  assertPackageScript,
+  collectGitDiffFiles,
+  collectUntrackedFiles,
+  getBaseRangeChangedFiles,
+  loadTextByFile,
+  uniqueSorted,
+} from "./smoke-boundary-common.mjs";
+
+const guideBriefDoc = "docs/GUIDEBRIEF_CONTRACT_V0_1.md";
+const guideBriefTypeFile = "types/guide-brief.ts";
+const guideBriefHelperFile = "lib/guide/guide-brief.ts";
+const fixtureFile = "fixtures/guide-brief.sample.v0.1.json";
+const smokeFile = "scripts/smoke-guide-brief-v0-1.mjs";
+const packageJsonFile = "package.json";
+const indexDoc = "docs/00_INDEX_LATEST.md";
+
+const priorSmokeAllowlistCompatibilityFiles = [
+  "scripts/smoke-augnes-delta-contract-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-route-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-route-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-perspective-human-timeline-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+];
+
+const requiredFiles = [
+  guideBriefDoc,
+  guideBriefTypeFile,
+  guideBriefHelperFile,
+  fixtureFile,
+  smokeFile,
+  packageJsonFile,
+  indexDoc,
+];
+
+const allowedChangedFiles = new Set([
+  ...requiredFiles,
+  ...priorSmokeAllowlistCompatibilityFiles,
+]);
+
+const textByFile = loadTextByFile(requiredFiles);
+const docText = textByFile.get(guideBriefDoc);
+const typeText = textByFile.get(guideBriefTypeFile);
+const helperText = textByFile.get(guideBriefHelperFile);
+const fixtureText = textByFile.get(fixtureFile);
+const smokeText = textByFile.get(smokeFile);
+const packageJsonText = textByFile.get(packageJsonFile);
+const indexText = textByFile.get(indexDoc);
+const fixture = JSON.parse(fixtureText);
+
+assertPackageJsonScript();
+assertIndexPointer();
+assertDocumentContract();
+assertTypeContract();
+assertHelperContract();
+assertFixtureShape();
+assertSeparation();
+assertSurfaceRenderingNotes();
+assertHandoffPreviewBoundary();
+assertAuthorityBoundary();
+assertPublicSafety();
+assertNoRuntimeActuationCode();
+const changedFilesBoundary = assertChangedFileBoundary();
+
+console.log(
+  JSON.stringify(
+    {
+      smoke: "guide-brief-v0-1",
+      pass: true,
+      required_files_checked: requiredFiles,
+      package_script_checked: true,
+      index_pointer_checked: true,
+      document_contract_checked: true,
+      type_exports_checked: true,
+      helper_exports_checked: true,
+      fixture_json_parsed: true,
+      observed_count: fixture.observed.length,
+      inferred_count: fixture.inferred.length,
+      suggested_count: fixture.suggested.length,
+      needs_user_judgment_count: fixture.needs_user_judgment.length,
+      handoff_candidate_count: fixture.handoff_candidates.length,
+      staleness_warning_count: fixture.staleness_warnings.length,
+      authority_boundary_checked: true,
+      public_safety_checked: true,
+      no_runtime_actuation_code_checked: true,
+      changed_files_checked: changedFilesBoundary.checked,
+      changed_files_skipped: changedFilesBoundary.skipped,
+      changed_files_skip_reason: changedFilesBoundary.skip_reason,
+      changed_files_observed: changedFilesBoundary.files,
+      prior_smoke_allowlist_compatibility_files_allowed:
+        priorSmokeAllowlistCompatibilityFiles,
+      smoke_type:
+        "static-guide-brief-contract-type-helper-fixture-package-index-boundary-only",
+      route_behavior_changed: false,
+      ui_behavior_changed: false,
+      mcp_app_tool_added: false,
+      db_schema_migration_changed: false,
+      db_write_added: false,
+      provider_openai_github_runtime_call_added: false,
+      codex_execution_added: false,
+      proof_evidence_write_added: false,
+      memory_mutation_added: false,
+      durable_perspective_state_apply_added: false,
+      scheduler_autonomy_runner_added: false,
+      handoff_execution_added: false,
+      external_side_effect_added: false,
+    },
+    null,
+    2,
+  ),
+);
+console.log("PASS smoke:guide-brief-v0-1");
+
+function assertPackageJsonScript() {
+  assertPackageScript({
+    packageJsonText,
+    scriptName: "smoke:guide-brief-v0-1",
+    expectedCommand: "node scripts/smoke-guide-brief-v0-1.mjs",
+  });
+}
+
+function assertIndexPointer() {
+  assertContainsAll(
+    indexText,
+    [
+      guideBriefDoc,
+      "GuideBrief / Cross-Surface Guide Core v0.1",
+      "contract/type/helper/fixture/smoke only",
+    ],
+    { label: indexDoc },
+  );
+}
+
+function assertDocumentContract() {
+  assertContainsAll(
+    docText,
+    [
+      "GuideBrief is a read-only guide packet",
+      "Top-Level Shape",
+      "Observed / Inferred / Suggested / Needs User Judgment",
+      "Observed items are source-backed facts",
+      "Inferred items are derived interpretations",
+      "Suggested items are candidate next actions or navigation suggestions only",
+      "needs_user_judgment",
+      "Source Mapping",
+      "Surface Rendering Notes",
+      "Handoff candidates are preview-only",
+      "Authority Boundary",
+      "Phase 6A scope is contract/type/helper/fixture/smoke only",
+      "Phase 6B GuideBrief GET-only read route is deferred",
+      "Phase 6C Web Guide UI is deferred",
+      "Phase 6D ChatGPT App/MCP Guide tool is deferred",
+      "Phase 6E Codex Guide alignment is deferred",
+      "Phase 7 Handoff Capsule / Codex Launch Card may consume GuideBrief only",
+      "no DB reads",
+      "no DB writes",
+      "no provider/OpenAI calls",
+      "no GitHub calls",
+      "no Codex execution",
+      "no proof/evidence writes",
+      "no external side effects",
+    ],
+    { label: guideBriefDoc },
+  );
+}
+
+function assertTypeContract() {
+  assertNoRuntimeImports({
+    file: guideBriefTypeFile,
+    text: typeText,
+    forbiddenImports: [
+      "node:",
+      "fs",
+      "path",
+      "child_process",
+      ".json",
+      "app/",
+      "components/",
+      "lib/db",
+      "migrations/",
+      "apps/augnes_apps/",
+      "@openai",
+      "openai",
+      "octokit",
+    ],
+  });
+
+  assert(
+    !/\breadFileSync\b|\bwriteFileSync\b|\bfetch\s*\(|\bnew\s+Database\b|\bprocess\.env\b/.test(
+      typeText,
+    ),
+    `${guideBriefTypeFile} must not contain runtime side effects`,
+  );
+
+  const requiredExports = [
+    "GuideBrief",
+    "GuideBriefInput",
+    "GuideBriefObservedItem",
+    "GuideBriefInferredItem",
+    "GuideBriefSuggestion",
+    "GuideBriefUserJudgmentItem",
+    "GuideBriefCurrentPerspectiveSummary",
+    "GuideBriefDeltaSummary",
+    "GuideBriefWorkplaneSummary",
+    "GuideBriefReviewQueueSummary",
+    "GuideBriefHandoffCandidate",
+    "GuideBriefStalenessWarning",
+    "GuideBriefSurfaceRenderingNotes",
+    "GuideBriefSourceRefs",
+    "GuideBriefGap",
+    "GuideBriefAuthorityBoundary",
+    "GuideBriefSourceSurface",
+    "GuideBriefSuggestedSurface",
+    "GuideBriefSuggestedActor",
+    "GuideBriefConfidence",
+    "GuideBriefJudgmentUrgency",
+  ];
+
+  for (const exportName of requiredExports) {
+    const exportPattern = new RegExp(
+      `export\\s+(?:const|type|interface)\\s+${escapeRegExp(exportName)}\\b`,
+    );
+    assert(
+      exportPattern.test(typeText),
+      `${guideBriefTypeFile} must export ${exportName}`,
+    );
+  }
+}
+
+function assertHelperContract() {
+  const requiredExports = [
+    "buildGuideBrief",
+    "buildGuideObservedItems",
+    "buildGuideInferences",
+    "buildGuideSuggestions",
+    "buildGuideUserJudgmentItems",
+    "buildGuideCurrentPerspectiveSummary",
+    "buildGuideDeltaSummary",
+    "buildGuideWorkplaneSummary",
+    "buildGuideReviewQueueSummary",
+    "buildGuideHandoffCandidates",
+    "buildGuideStalenessWarnings",
+    "buildGuideSurfaceRenderingNotes",
+    "buildGuideBriefAuthorityBoundary",
+  ];
+
+  for (const exportName of requiredExports) {
+    const exportPattern = new RegExp(
+      `export\\s+function\\s+${escapeRegExp(exportName)}\\b`,
+    );
+    assert(
+      exportPattern.test(helperText),
+      `${guideBriefHelperFile} must export ${exportName}`,
+    );
+  }
+
+  assertContainsAll(
+    helperText,
+    [
+      "GuideBrief is read-only",
+      "Observed items are read-model observations only",
+      "Inferred items are derived interpretations only",
+      "Suggested items are candidate next actions only",
+      "Needs user judgment items must not be decided by the guide",
+      "Handoff candidates are preview-only",
+      "Codex and ChatGPT surfaces require separate scoped implementation",
+    ],
+    { label: guideBriefHelperFile },
+  );
+}
+
+function assertFixtureShape() {
+  assert.equal(fixture.runtime, "augnes", `${fixtureFile} must use runtime`);
+  assert.equal(
+    fixture.guide_version,
+    "guide_brief.v0.1",
+    `${fixtureFile} must use GuideBrief version`,
+  );
+  assert.equal(fixture.scope, "project:augnes", `${fixtureFile} must use scope`);
+
+  for (const field of [
+    "observed",
+    "inferred",
+    "suggested",
+    "needs_user_judgment",
+    "current_perspective_summary",
+    "delta_summary",
+    "workplane_summary",
+    "review_queue_summary",
+    "handoff_candidates",
+    "staleness_warnings",
+    "surface_rendering_notes",
+    "source_refs",
+    "gaps",
+    "authority_boundary",
+    "next_phase_notes",
+  ]) {
+    assert(
+      Object.prototype.hasOwnProperty.call(fixture, field),
+      `${fixtureFile} must include ${field}`,
+    );
+  }
+
+  assert(fixture.observed.length >= 4, `${fixtureFile} needs observed items`);
+  assert(fixture.inferred.length >= 2, `${fixtureFile} needs inferred items`);
+  assert(fixture.suggested.length >= 3, `${fixtureFile} needs suggested items`);
+  assert(
+    fixture.needs_user_judgment.length >= 2,
+    `${fixtureFile} needs needs_user_judgment items`,
+  );
+  assert(
+    fixture.handoff_candidates.length >= 1,
+    `${fixtureFile} needs handoff candidates`,
+  );
+  assert(
+    fixture.staleness_warnings.length >= 1,
+    `${fixtureFile} needs staleness warnings`,
+  );
+  assert.equal(
+    fixture.current_perspective_summary.research_pressure_level,
+    "medium",
+    `${fixtureFile} must include current perspective research pressure`,
+  );
+  assert.equal(
+    fixture.workplane_summary.route,
+    "/workbench",
+    `${fixtureFile} must show /workbench route`,
+  );
+  assert.equal(
+    fixture.workplane_summary.surface_role,
+    "agent_workplane",
+    `${fixtureFile} must show Agent Workplane role`,
+  );
+}
+
+function assertSeparation() {
+  for (const item of fixture.observed) {
+    assert.equal(
+      item.confidence,
+      "observed",
+      "observed items must use observed confidence",
+    );
+    assert(!item.suggestion_id, "observed item must not be suggestion");
+    assert(!item.inference_id, "observed item must not be inference");
+  }
+
+  for (const item of fixture.inferred) {
+    assert(
+      ["low", "medium", "high"].includes(item.confidence),
+      "inferred item must use low/medium/high confidence",
+    );
+    assert(
+      Array.isArray(item.basis_observation_ids),
+      "inferred item must preserve basis observations",
+    );
+    assert(
+      Array.isArray(item.caveats) && item.caveats.length > 0,
+      "inferred item must preserve caveats",
+    );
+  }
+
+  for (const item of fixture.suggested) {
+    assert(
+      item.authority_boundary_summary.includes("no") ||
+        item.authority_boundary_summary.includes("Candidate"),
+      "suggested item must include boundary summary",
+    );
+    assert(!item.question, "suggested item must not become a user judgment");
+  }
+
+  for (const item of fixture.needs_user_judgment) {
+    assert(
+      Array.isArray(item.options) && item.options.length >= 2,
+      "needs_user_judgment item must preserve options",
+    );
+    assert(
+      Array.isArray(item.blocked_until_decided),
+      "needs_user_judgment item must preserve blocked_until_decided",
+    );
+  }
+}
+
+function assertSurfaceRenderingNotes() {
+  for (const surface of [
+    "human_surface",
+    "perspective_timeline",
+    "agent_workplane",
+    "chatgpt_app",
+    "codex",
+    "future_agent_surface",
+  ]) {
+    assert(
+      Array.isArray(fixture.surface_rendering_notes[surface]) &&
+        fixture.surface_rendering_notes[surface].length > 0,
+      `${fixtureFile} must include surface rendering notes for ${surface}`,
+    );
+  }
+
+  assertContainsAll(
+    fixtureText,
+    [
+      "compact summary and user judgment prompts",
+      "Preserve delta chronology",
+      "trace and diagnostic refs",
+      "Observed, Inferred, Suggested, and Needs user judgment separated",
+      "repo/task boundaries",
+      "read-only context unless separately scoped",
+    ],
+    { label: fixtureFile },
+  );
+}
+
+function assertHandoffPreviewBoundary() {
+  assert(
+    fixture.handoff_candidates.length >= 1,
+    `${fixtureFile} must include handoff candidate`,
+  );
+
+  for (const candidate of fixture.handoff_candidates) {
+    assert(
+      ["preview_only", "needs_review", "blocked"].includes(candidate.status),
+      "handoff candidate status must be preview_only, needs_review, or blocked",
+    );
+    assert(
+      candidate.authority_boundary.includes("Preview-only") ||
+        candidate.authority_boundary.includes("Preview"),
+      "handoff candidate must preserve preview-only boundary",
+    );
+    assert(
+      /cannot send|no send|Preview-only/i.test(candidate.authority_boundary),
+      "handoff candidate must deny send authority",
+    );
+    assert(
+      /execute|launch Codex/i.test(candidate.authority_boundary),
+      "handoff candidate must deny execution authority",
+    );
+  }
+}
+
+function assertAuthorityBoundary() {
+  const boundary = fixture.authority_boundary;
+  const deniedFields = [
+    "source_of_truth",
+    "can_commit_or_reject_state",
+    "can_record_proof",
+    "can_create_evidence",
+    "can_update_work",
+    "can_mutate_memory",
+    "can_apply_project_perspective",
+    "can_publish_external",
+    "can_merge",
+    "can_retry_replay_deploy",
+    "can_call_github",
+    "can_call_openai_or_provider",
+    "can_execute_codex",
+    "can_create_branch_or_pr",
+    "can_send_handoff",
+    "can_launch_autonomy",
+    "can_create_mcp_tool",
+    "can_create_ui_action",
+  ];
+
+  for (const field of deniedFields) {
+    assert.equal(
+      boundary[field],
+      false,
+      `${fixtureFile} authority boundary must deny ${field}`,
+    );
+  }
+
+  assertContainsAll(
+    boundary.notes.join("\n"),
+    [
+      "GuideBrief is read-only.",
+      "Observed items are read-model observations only.",
+      "Inferred items are derived interpretations only.",
+      "Suggested items are candidate next actions only.",
+      "Needs user judgment items must not be decided by the guide.",
+      "Handoff candidates are preview-only.",
+      "Codex and ChatGPT surfaces require separate scoped implementation.",
+    ],
+    { label: `${fixtureFile} authority notes` },
+  );
+}
+
+function assertPublicSafety() {
+  const safety = fixture.public_safety;
+  for (const field of [
+    "contains_private_paths",
+    "contains_secrets",
+    "contains_api_keys",
+    "contains_github_tokens",
+    "contains_raw_private_conversations",
+    "contains_hidden_reasoning",
+    "contains_raw_provider_output",
+    "contains_raw_retrieval_output",
+    "contains_real_external_account_artifacts",
+  ]) {
+    assert.equal(
+      safety[field],
+      false,
+      `${fixtureFile} public_safety.${field} must be false`,
+    );
+  }
+
+  assert(!/\/Users\/|sk-[A-Za-z0-9]|ghp_[A-Za-z0-9]/.test(fixtureText));
+}
+
+function assertNoRuntimeActuationCode() {
+  const checkedText = `${typeText}\n${helperText}`;
+  const forbiddenPatterns = [
+    /\bfrom\s+["']@\/lib\/db["']/,
+    /\bfrom\s+["'][^"']*\/db["']/,
+    /\bnew\s+Database\b/,
+    /\bfetch\s*\(/,
+    /\bappendWorkEvent\b/,
+    /\bappendCoordinationEvent\b/,
+    /\bcreateEvidenceRecord\b/,
+    /\brecordProof\b/,
+    /\bcommitState\b/,
+    /\brejectState\b/,
+    /\bcommitStateDeltaProposal\b/,
+    /\brejectStateDeltaProposal\b/,
+    /@openai/,
+    /\boctokit\b/i,
+    /\bcreatePullRequest\b/,
+    /\bchild_process\b/,
+    /\bspawn\s*\(/,
+    /\bexecFile\s*\(/,
+    /\breadFileSync\b/,
+    /\bwriteFileSync\b/,
+    /\bprocess\.env\b/,
+    /\bINSERT\s+INTO\b/i,
+    /\bUPDATE\s+[A-Za-z_][\w.]*\s+SET\b/i,
+    /\bDELETE\s+FROM\b/i,
+    /\bCREATE\s+TABLE\b/i,
+    /\bALTER\s+TABLE\b/i,
+    /\bDROP\s+TABLE\b/i,
+    /\bsetInterval\s*\(/,
+    /\bsetTimeout\s*\(/,
+    /\bautonomyRunner\b/i,
+  ];
+
+  for (const pattern of forbiddenPatterns) {
+    assert(
+      !pattern.test(checkedText),
+      `GuideBrief type/helper must not add runtime actuation code matching ${pattern}`,
+    );
+  }
+
+  assertContainsAll(
+    smokeText,
+    [
+      "allowedChangedFiles",
+      "source_of_truth",
+      "can_send_handoff",
+      "can_launch_autonomy",
+      "can_create_mcp_tool",
+      "can_create_ui_action",
+    ],
+    { label: smokeFile },
+  );
+}
+
+function assertChangedFileBoundary() {
+  const workingTree = collectGitDiffFiles(["diff", "--name-only"]);
+  const cached = collectGitDiffFiles(["diff", "--cached", "--name-only"]);
+  const baseRange = getBaseRangeChangedFiles();
+  const untrackedFiles = collectUntrackedFiles();
+  const files = uniqueSorted([
+    ...workingTree.files,
+    ...cached.files,
+    ...baseRange.files,
+    ...untrackedFiles,
+  ]);
+
+  for (const file of files) {
+    assert(
+      allowedChangedFiles.has(file),
+      `Unexpected Phase 6A GuideBrief changed or untracked file: ${file}`,
+    );
+    assert(file !== "app/page.tsx", "Phase 6A must not update / home page");
+    assert(
+      file !== "app/perspective/page.tsx",
+      "Phase 6A must not update /perspective page",
+    );
+    assert(
+      file !== "app/workbench/page.tsx",
+      "Phase 6A must not update /workbench page",
+    );
+    assert(!/^components\//.test(file), `Phase 6A must not change UI files: ${file}`);
+    assert(!/^app\/api\//.test(file), `Phase 6A must not add API routes: ${file}`);
+    assert(
+      !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file),
+      `Phase 6A must not add route files: ${file}`,
+    );
+    assert(!/^db\//.test(file), `Phase 6A must not change DB files: ${file}`);
+    assert(
+      !/^migrations\//.test(file),
+      `Phase 6A must not change migrations: ${file}`,
+    );
+    assert(
+      !/^apps\/augnes_apps\//.test(file),
+      `Phase 6A must not change MCP/App files: ${file}`,
+    );
+    assert(
+      !/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file),
+      `Phase 6A must not change MCP/App tool files: ${file}`,
+    );
+    assert(
+      !/(^|\/)(provider|providers|openai|github)(\/|$)/i.test(file),
+      `Phase 6A must not change provider/OpenAI/GitHub runtime files: ${file}`,
+    );
+    assert(
+      !/(^|\/)(proof|evidence)(\/|$)/i.test(file),
+      `Phase 6A must not add proof/evidence write paths: ${file}`,
+    );
+    assert(
+      !/(^|\/)(autonomy-runner|scheduler)(\/|$)/i.test(file),
+      `Phase 6A must not add scheduler or autonomy runner files: ${file}`,
+    );
+  }
+
+  return {
+    checked:
+      workingTree.checked ||
+      cached.checked ||
+      baseRange.checked ||
+      untrackedFiles.length > 0,
+    skipped: !(
+      workingTree.checked ||
+      cached.checked ||
+      baseRange.checked ||
+      untrackedFiles.length > 0
+    ),
+    skip_reason:
+      workingTree.checked ||
+      cached.checked ||
+      baseRange.checked ||
+      untrackedFiles.length > 0
+        ? null
+        : "changed-file boundary could not be checked",
+    files,
+  };
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

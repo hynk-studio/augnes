@@ -697,6 +697,7 @@
     "smoke:agent-workplane-panels-v0-1": "node scripts/smoke-agent-workplane-panels-v0-1.mjs",
     "smoke:agent-workplane-projection-handoff-v0-1": "node scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
     "smoke:agent-workplane-cleanup-hardening-v0-1": "node scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+    "smoke:guide-brief-v0-1": "node scripts/smoke-guide-brief-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-end-to-end-operator-path-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-final-rag-answer-review-memory-end-to-end-operator-path-v0-1.mjs",
     "browser:validate-final-rag-answer-review-memory-operator-path-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/browser-validate-final-rag-answer-review-memory-operator-path-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-operator-browser-validation-v0-1": "node scripts/smoke-final-rag-answer-review-memory-operator-browser-validation-v0-1.mjs",
