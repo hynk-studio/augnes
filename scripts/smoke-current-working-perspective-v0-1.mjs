@@ -73,6 +73,15 @@ const followOnAgentWorkplanePanelFiles = [
   "components/workplane/workplane-inspector.tsx",
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
 ];
+
+const followOnAgentWorkplaneProjectionHandoffFiles = [
+  "components/workplane/projection-candidates-panel.tsx",
+  "components/workplane/delta-batch-panel.tsx",
+  "components/workplane/handoff-builder-preview-panel.tsx",
+  "components/workplane/run-postmortem-skeleton-panel.tsx",
+  "components/workplane/trace-diagnostics-panel.tsx",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -98,6 +107,7 @@ const allowedChangedFiles = new Set([
   ...followOnPerspectiveHumanTimelineFiles,
   ...followOnAgentWorkplaneFiles,
   ...followOnAgentWorkplanePanelFiles,
+  ...followOnAgentWorkplaneProjectionHandoffFiles,
 ]);
 
 const allowedRouteFiles = new Set([currentPerspectiveRouteFile]);
@@ -612,10 +622,11 @@ function assertChangedFileBoundary() {
     assert(
       !/^components\//.test(file) ||
         followOnHumanSurfaceHomeFiles.includes(file) ||
-        followOnPerspectiveHumanTimelineFiles.includes(file) ||
+      followOnPerspectiveHumanTimelineFiles.includes(file) ||
         followOnAgentWorkplaneFiles.includes(file) ||
-        followOnAgentWorkplanePanelFiles.includes(file),
-      `Phase 3A follow-on must not change UI files outside Phase 4A/4B Human Surface or Phase 5A/5B Agent Workplane files: ${file}`,
+        followOnAgentWorkplanePanelFiles.includes(file) ||
+        followOnAgentWorkplaneProjectionHandoffFiles.includes(file),
+      `Phase 3A follow-on must not change UI files outside Phase 4A/4B Human Surface or Phase 5A/5B/5C Agent Workplane files: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 3A must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `Phase 3A must not change migrations: ${file}`);

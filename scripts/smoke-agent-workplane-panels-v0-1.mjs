@@ -46,6 +46,15 @@ const followOnHistoricalSmokeCompatibilityFiles = [
   "scripts/smoke-current-working-perspective-route-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneProjectionHandoffFiles = [
+  "components/workplane/projection-candidates-panel.tsx",
+  "components/workplane/delta-batch-panel.tsx",
+  "components/workplane/handoff-builder-preview-panel.tsx",
+  "components/workplane/run-postmortem-skeleton-panel.tsx",
+  "components/workplane/trace-diagnostics-panel.tsx",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+];
+
 const panelFiles = [
   panelShellFile,
   workQueuePanelFile,
@@ -90,6 +99,7 @@ const allowedChangedFiles = new Set([
   humanSurfaceSmokeFile,
   perspectiveSmokeFile,
   ...followOnHistoricalSmokeCompatibilityFiles,
+  ...followOnAgentWorkplaneProjectionHandoffFiles,
   smokeFile,
 ]);
 
@@ -143,6 +153,10 @@ console.log(
       follow_on_smoke_compatibility_checked: true,
       follow_on_historical_smoke_compatibility_files_allowed:
         followOnHistoricalSmokeCompatibilityFiles,
+      phase5c_agent_workplane_projection_handoff_follow_on_used:
+        changedFilesBoundary.phase5c_agent_workplane_projection_handoff_follow_on_used,
+      phase5c_agent_workplane_projection_handoff_files_allowed:
+        followOnAgentWorkplaneProjectionHandoffFiles,
       no_new_authority_code_checked: true,
       changed_files_checked: changedFilesBoundary.checked,
       changed_files_skipped: changedFilesBoundary.skipped,
@@ -161,7 +175,8 @@ console.log(
       memory_mutation_added: false,
       durable_perspective_state_apply_added: false,
       scheduler_autonomy_runner_added: false,
-      phase5c_panel_scope_started: false,
+      phase5c_panel_scope_started:
+        changedFilesBoundary.phase5c_agent_workplane_projection_handoff_follow_on_used,
       external_side_effect_added: false,
     },
     null,
@@ -418,7 +433,10 @@ function assertDocs() {
       "Review Queue panel",
       "Evidence/Handoff panel",
       "Workplane Inspector",
-      "Phase 5C remains deferred",
+      "Phase 5C",
+      "Projection Candidates",
+      "Handoff Builder preview",
+      "Trace / Diagnostics",
       "smoke:agent-workplane-panels-v0-1",
       "no-write, no-execution, no-hidden-authority",
     ],
@@ -523,6 +541,9 @@ function assertChangedFileBoundary() {
     ...baseRange.files,
     ...untrackedFiles,
   ]);
+  const phase5cAgentWorkplaneProjectionHandoffFollowOnUsed = files.some((file) =>
+    followOnAgentWorkplaneProjectionHandoffFiles.includes(file),
+  );
 
   for (const file of files) {
     assert(
@@ -586,5 +607,7 @@ function assertChangedFileBoundary() {
         ? null
         : "changed-file boundary could not be checked",
     files,
+    phase5c_agent_workplane_projection_handoff_follow_on_used:
+      phase5cAgentWorkplaneProjectionHandoffFollowOnUsed,
   };
 }
