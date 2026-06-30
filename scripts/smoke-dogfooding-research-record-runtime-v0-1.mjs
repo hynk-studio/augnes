@@ -52,6 +52,11 @@ const expectedChangedFiles = new Set([
   "fixtures/conversation-handoff-from-dogfooding-record.sample.v0.1.json",
   "scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs",
   "docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md",
+  "types/dogfooding-to-review-memory-proposal.ts",
+  "lib/dogfooding/build-review-memory-proposal.ts",
+  "fixtures/dogfooding-to-review-memory-proposal.sample.v0.1.json",
+  "scripts/smoke-dogfooding-to-review-memory-proposal-v0-1.mjs",
+  "docs/DOGFOODING_TO_REVIEW_MEMORY_PROPOSAL_V0_1.md",
   packagePath,
   indexPath,
 ]);

@@ -70,6 +70,11 @@ const expectedChangedFiles = new Set([
   dogfoodingRecordHandoffFixturePath,
   dogfoodingRecordHandoffSmokePath,
   dogfoodingRecordHandoffDocsPath,
+  "types/dogfooding-to-review-memory-proposal.ts",
+  "lib/dogfooding/build-review-memory-proposal.ts",
+  "fixtures/dogfooding-to-review-memory-proposal.sample.v0.1.json",
+  "scripts/smoke-dogfooding-to-review-memory-proposal-v0-1.mjs",
+  "docs/DOGFOODING_TO_REVIEW_MEMORY_PROPOSAL_V0_1.md",
 ]);
 
 const requiredHelperExports = [
