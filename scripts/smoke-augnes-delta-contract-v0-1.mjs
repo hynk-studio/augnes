@@ -82,6 +82,18 @@ const followOnPerspectiveHumanTimelineFiles = [
   "scripts/smoke-perspective-human-timeline-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneFiles = [
+  "app/workbench/page.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/workplane-header.tsx",
+  "components/workplane/workplane-overview.tsx",
+  "components/workplane/workplane-boundary-card.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "lib/workplane/read-workplane-context.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnProjectionReadModelFiles,
@@ -90,6 +102,7 @@ const allowedChangedFiles = new Set([
   ...followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles,
   ...followOnHumanSurfaceHomeFiles,
   ...followOnPerspectiveHumanTimelineFiles,
+  ...followOnAgentWorkplaneFiles,
 ]);
 
 const allowedRouteFiles = new Set([
@@ -144,7 +157,10 @@ console.log(
       changed_files_observed: changedFilesBoundary.files,
       smoke_type: "static-contract-type-fixture-package-index-boundary-only",
       runtime_behavior_changed: changedFilesBoundary.api_route_added,
-      ui_behavior_changed: changedFilesBoundary.human_surface_ui_added,
+      ui_behavior_changed: changedFilesBoundary.ui_surface_added,
+      human_surface_ui_added: changedFilesBoundary.human_surface_ui_added,
+      agent_workplane_ui_added: changedFilesBoundary.agent_workplane_ui_added,
+      ui_surface_added: changedFilesBoundary.ui_surface_added,
       route_behavior_changed: changedFilesBoundary.api_route_added,
       api_route_added: changedFilesBoundary.api_route_added,
       db_schema_migration_changed: false,
@@ -375,7 +391,13 @@ function assertChangedFileBoundary() {
     );
     assert(!/^app\/api\//.test(file) || allowedRouteFiles.has(file), `AugnesDelta contract follow-on must not add API routes outside approved read routes: ${file}`);
     assert(!/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) || allowedRouteFiles.has(file), `AugnesDelta contract follow-on must not add route files outside approved read routes: ${file}`);
-    assert(!/^components\//.test(file) || followOnHumanSurfaceHomeFiles.includes(file) || followOnPerspectiveHumanTimelineFiles.includes(file), `AugnesDelta contract follow-on must not change UI files outside Phase 4A/4B Human Surface files: ${file}`);
+    assert(
+      !/^components\//.test(file) ||
+        followOnHumanSurfaceHomeFiles.includes(file) ||
+        followOnPerspectiveHumanTimelineFiles.includes(file) ||
+        followOnAgentWorkplaneFiles.includes(file),
+      `AugnesDelta contract follow-on must not change UI files outside Phase 4A/4B Human Surface or Phase 5A Agent Workplane files: ${file}`,
+    );
     assert(!/^db\//.test(file), `AugnesDelta contract follow-on must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `AugnesDelta contract follow-on must not change migrations: ${file}`);
     assert(!/^apps\/augnes_apps\//.test(file), `AugnesDelta contract follow-on must not change MCP/App files: ${file}`);
@@ -383,6 +405,19 @@ function assertChangedFileBoundary() {
     assert(!/(^|\/)(provider|providers|openai|github)(\/|$)/i.test(file), `AugnesDelta contract follow-on must not change provider/OpenAI/GitHub runtime files: ${file}`);
     assert(!/(^|\/)(proof|evidence)(\/|$)/i.test(file), `AugnesDelta contract follow-on must not add proof/evidence write paths: ${file}`);
   }
+
+  const humanSurfaceUiAdded = files.some((file) =>
+    file === "app/page.tsx" ||
+    file === "app/perspective/page.tsx" ||
+    file === "app/globals.css" ||
+    file === "components/augnes-public-home-surface.tsx" ||
+    file.startsWith("components/human-surface/") ||
+    file.startsWith("components/perspective/"),
+  );
+  const agentWorkplaneUiAdded = files.some((file) =>
+    file === "app/workbench/page.tsx" ||
+    file.startsWith("components/workplane/"),
+  );
 
   return {
     checked:
@@ -406,11 +441,11 @@ function assertChangedFileBoundary() {
     follow_on_human_surface_home_files_allowed: followOnHumanSurfaceHomeFiles,
     follow_on_perspective_human_timeline_files_allowed:
       followOnPerspectiveHumanTimelineFiles,
+    follow_on_agent_workplane_files_allowed: followOnAgentWorkplaneFiles,
     api_route_added: files.some((file) => allowedRouteFiles.has(file)),
-    human_surface_ui_added: files.some((file) =>
-      followOnHumanSurfaceHomeFiles.includes(file) ||
-      followOnPerspectiveHumanTimelineFiles.includes(file),
-    ),
+    human_surface_ui_added: humanSurfaceUiAdded,
+    agent_workplane_ui_added: agentWorkplaneUiAdded,
+    ui_surface_added: humanSurfaceUiAdded || agentWorkplaneUiAdded,
     files,
   };
 }

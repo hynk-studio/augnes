@@ -48,6 +48,18 @@ const followOnPerspectiveHumanTimelineFiles = [
   "scripts/smoke-perspective-human-timeline-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneFiles = [
+  "app/workbench/page.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/workplane-header.tsx",
+  "components/workplane/workplane-overview.tsx",
+  "components/workplane/workplane-boundary-card.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "lib/workplane/read-workplane-context.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+];
+
 const requiredFiles = [
   pageFile,
   publicHomeFile,
@@ -69,6 +81,7 @@ const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnSmokeCompatibilityFiles,
   ...followOnPerspectiveHumanTimelineFiles,
+  ...followOnAgentWorkplaneFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -126,8 +139,13 @@ console.log(
         followOnSmokeCompatibilityFiles,
       follow_on_perspective_human_timeline_files_allowed:
         followOnPerspectiveHumanTimelineFiles,
+      follow_on_agent_workplane_files_allowed: followOnAgentWorkplaneFiles,
       smoke_type: "static-human-surface-home-ui-helper-doc-package-index-boundary-only",
-      route_behavior_changed: false,
+      phase5a_agent_workplane_follow_on_used:
+        changedFilesBoundary.phase5a_agent_workplane_follow_on_used,
+      route_behavior_changed: changedFilesBoundary.route_behavior_changed,
+      route_behavior_change_reason:
+        changedFilesBoundary.route_behavior_change_reason,
       db_schema_migration_changed: false,
       db_write_added: false,
       mcp_app_tool_added: false,
@@ -138,7 +156,7 @@ console.log(
       durable_perspective_state_apply_added: false,
       scheduler_autonomy_runner_added: false,
       perspective_timeline_added: false,
-      workbench_page_changed: false,
+      workbench_page_changed: changedFilesBoundary.workbench_page_changed,
     },
     null,
     2,
@@ -408,8 +426,9 @@ function assertChangedFileBoundary() {
       "Phase 4A follow-on must only update /perspective page for Phase 4B",
     );
     assert(
-      file !== "app/workbench/page.tsx",
-      "Phase 4A must not update /workbench page",
+      file !== "app/workbench/page.tsx" ||
+        followOnAgentWorkplaneFiles.includes(file),
+      "Phase 4A must not update /workbench page outside the Phase 5A Agent Workplane follow-on",
     );
     assert(
       !/^components\/perspective\//.test(file) ||
@@ -448,6 +467,11 @@ function assertChangedFileBoundary() {
     );
   }
 
+  const phase5aAgentWorkplaneFollowOnUsed = files.some((file) =>
+    followOnAgentWorkplaneFiles.includes(file),
+  );
+  const workbenchPageChanged = files.includes("app/workbench/page.tsx");
+
   return {
     checked:
       workingTree.checked ||
@@ -467,6 +491,13 @@ function assertChangedFileBoundary() {
       untrackedFiles.length > 0
         ? null
         : "changed-file boundary could not be checked",
+    phase5a_agent_workplane_follow_on_used:
+      phase5aAgentWorkplaneFollowOnUsed,
+    workbench_page_changed: workbenchPageChanged,
+    route_behavior_changed: workbenchPageChanged,
+    route_behavior_change_reason: workbenchPageChanged
+      ? "Phase 5A Agent Workplane follow-on updates /workbench wrapper only."
+      : null,
     files,
   };
 }

@@ -54,6 +54,17 @@ const followOnPerspectiveHumanTimelineFiles = [
   "lib/human-surface/read-delta-projection.ts",
   "scripts/smoke-perspective-human-timeline-v0-1.mjs",
 ];
+const followOnAgentWorkplaneFiles = [
+  "app/workbench/page.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/workplane-header.tsx",
+  "components/workplane/workplane-overview.tsx",
+  "components/workplane/workplane-boundary-card.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "lib/workplane/read-workplane-context.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -83,6 +94,7 @@ const allowedChangedFiles = new Set([
   currentPerspectiveRouteSmokeFile,
   ...followOnHumanSurfaceHomeFiles,
   ...followOnPerspectiveHumanTimelineFiles,
+  ...followOnAgentWorkplaneFiles,
   packageJsonFile,
   indexDoc,
 ]);
@@ -129,7 +141,10 @@ console.log(
       smoke_type: "static-runtime-read-route-source-collector-boundary-only",
       route_behavior_changed: true,
       route_behavior: "GET-only local read-only Augnes Delta projection read surface",
-      ui_behavior_changed: changedFilesBoundary.human_surface_ui_added,
+      ui_behavior_changed: changedFilesBoundary.ui_surface_added,
+      human_surface_ui_added: changedFilesBoundary.human_surface_ui_added,
+      agent_workplane_ui_added: changedFilesBoundary.agent_workplane_ui_added,
+      ui_surface_added: changedFilesBoundary.ui_surface_added,
       db_schema_migration_changed: false,
       db_write_added: false,
       mcp_app_tool_added: false,
@@ -362,7 +377,13 @@ function assertChangedFileBoundary() {
         allowedRouteFiles.has(file),
       `Phase 2B follow-on must not add route files outside approved read routes: ${file}`,
     );
-    assert(!/^components\//.test(file) || followOnHumanSurfaceHomeFiles.includes(file) || followOnPerspectiveHumanTimelineFiles.includes(file), `Phase 2B follow-on must not change UI files outside Phase 4A/4B Human Surface files: ${file}`);
+    assert(
+      !/^components\//.test(file) ||
+        followOnHumanSurfaceHomeFiles.includes(file) ||
+        followOnPerspectiveHumanTimelineFiles.includes(file) ||
+        followOnAgentWorkplaneFiles.includes(file),
+      `Phase 2B follow-on must not change UI files outside Phase 4A/4B Human Surface or Phase 5A Agent Workplane files: ${file}`,
+    );
     assert(!/^db\//.test(file), `Phase 2B must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `Phase 2B must not change migrations: ${file}`);
     assert(
@@ -383,6 +404,19 @@ function assertChangedFileBoundary() {
     );
   }
 
+  const humanSurfaceUiAdded = files.some((file) =>
+    file === "app/page.tsx" ||
+    file === "app/perspective/page.tsx" ||
+    file === "app/globals.css" ||
+    file === "components/augnes-public-home-surface.tsx" ||
+    file.startsWith("components/human-surface/") ||
+    file.startsWith("components/perspective/"),
+  );
+  const agentWorkplaneUiAdded = files.some((file) =>
+    file === "app/workbench/page.tsx" ||
+    file.startsWith("components/workplane/"),
+  );
+
   return {
     checked:
       workingTree.checked ||
@@ -394,10 +428,9 @@ function assertChangedFileBoundary() {
       !workingTree.checked && !cached.checked && !baseRange.checked
         ? "git diff checks were unavailable"
         : null,
-    human_surface_ui_added: files.some((file) =>
-      followOnHumanSurfaceHomeFiles.includes(file) ||
-      followOnPerspectiveHumanTimelineFiles.includes(file),
-    ),
+    human_surface_ui_added: humanSurfaceUiAdded,
+    agent_workplane_ui_added: agentWorkplaneUiAdded,
+    ui_surface_added: humanSurfaceUiAdded || agentWorkplaneUiAdded,
     files,
   };
 }
