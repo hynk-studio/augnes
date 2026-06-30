@@ -1,0 +1,493 @@
+{
+  "contract_version": "augnes_delta_contract.v0.1",
+  "scope": "project:augnes",
+  "status": "sample_fixture_only",
+  "public_safety": {
+    "classification": "synthetic_public_safe",
+    "contains_private_conversation": false,
+    "contains_hidden_reasoning": false,
+    "contains_local_private_paths": false,
+    "contains_secrets_or_tokens": false,
+    "notes": [
+      "Synthetic fixture only.",
+      "No raw private conversations, private local paths, API keys, GitHub tokens, account artifacts, or real user-private material."
+    ]
+  },
+  "authority_boundary": {
+    "source_of_truth": "Augnes Core committed state and explicit user/runtime gates, not this AugnesDelta fixture.",
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_mutate_memory": false,
+    "can_apply_project_perspective": false,
+    "can_publish_external": false,
+    "can_merge": false,
+    "can_retry_replay_deploy": false,
+    "can_call_github": false,
+    "can_call_openai_or_provider": false,
+    "can_execute_codex": false,
+    "can_create_branch_or_pr": false,
+    "notes": [
+      "Contract fixture only.",
+      "No runtime behavior, route, DB, MCP/App tool, provider call, GitHub actuation, Codex execution, proof/evidence write, durable state apply, product-write, scheduler, autonomy runner, merge, publish, retry, replay, deploy, or external side effect."
+    ]
+  },
+  "merge_policy_examples": {
+    "manual_mode_project_perspective": {
+      "mode": "review_required_for_project_perspective",
+      "target_scope": "project_perspective",
+      "allowed_auto_apply": false,
+      "requires_user_judgment": true,
+      "requires_fresh_snapshot": true,
+      "requires_validation": true,
+      "durable_memory_allowed": false,
+      "project_perspective_allowed": false,
+      "external_side_effect_allowed": false,
+      "blocked_reason": "Important project-perspective deltas require explicit future review/apply authority."
+    },
+    "autonomy_mode_working_memory_future_contract": {
+      "mode": "auto_apply_working_memory_only",
+      "target_scope": "working_memory_draft",
+      "allowed_auto_apply": false,
+      "requires_user_judgment": false,
+      "requires_fresh_snapshot": true,
+      "requires_validation": true,
+      "durable_memory_allowed": false,
+      "project_perspective_allowed": false,
+      "external_side_effect_allowed": false,
+      "blocked_reason": "Phase 1 has no explicit Autonomy Contract; this example records future policy shape only."
+    }
+  },
+  "research_diagnostic_refs": [
+    {
+      "diagnostic_id": "diagnostic.synthetic_research_trace_pressure.v0.1",
+      "diagnostic_kind": "research_diagnostic",
+      "source_ref": "docs/PERSPECTIVE_SNAPSHOT_V0_1.md#research_diagnostics",
+      "summary": "Synthetic diagnostic reference that informs review of a research_delta without becoming truth, proof, approval, readiness, or committed Perspective state.",
+      "status": "log_only",
+      "non_authority_notes": [
+        "informs a delta but is not truth",
+        "not proof",
+        "not approval",
+        "not readiness",
+        "not committed Perspective state"
+      ],
+      "informs_delta_ids": [
+        "delta.research.synthetic_diagnostic_boundary.v0.1"
+      ]
+    }
+  ],
+  "snapshot_refs": [
+    {
+      "snapshot_id": "snapshot.synthetic_perspective_basis.v0.1",
+      "snapshot_kind": "perspective_snapshot_ref",
+      "created_at": "2026-06-30T00:00:00.000Z",
+      "source_refs": [
+        "docs/PERSPECTIVE_SNAPSHOT_V0_1.md",
+        "docs/PROJECT_CONSTELLATION_IA_V0_1.md"
+      ],
+      "staleness_status": "partial",
+      "freshness_notes": [
+        "Synthetic snapshot pointer only.",
+        "A future durable project-perspective apply path must require a fresh snapshot."
+      ]
+    }
+  ],
+  "evidence_refs": [
+    {
+      "evidence_ref": "evidence.pointer.static_contract_review.v0.1",
+      "evidence_kind": "review_pointer",
+      "pointer_semantics": "pointer_only",
+      "summary": "Pointer to static contract review context; this fixture does not create proof or evidence.",
+      "verified_status": "unverified",
+      "proof_write_authority": false,
+      "evidence_write_authority": false
+    }
+  ],
+  "artifact_refs": [
+    {
+      "artifact_ref": "artifact.docs.AUGNES_DELTA_CONTRACT_V0_1",
+      "artifact_kind": "doc",
+      "pointer_semantics": "pointer_only",
+      "summary": "Contract document pointer.",
+      "source_of_truth": false
+    },
+    {
+      "artifact_ref": "artifact.types.augnes_delta",
+      "artifact_kind": "type_contract",
+      "pointer_semantics": "pointer_only",
+      "summary": "TypeScript contract pointer.",
+      "source_of_truth": false
+    }
+  ],
+  "handoff_refs": [
+    {
+      "handoff_ref": "handoff.synthetic_delta_phase_1.v0.1",
+      "handoff_kind": "codex_handoff",
+      "pointer_semantics": "pointer_only",
+      "summary": "Synthetic handoff delta pointer for a draft packet; it grants no execution or external send authority.",
+      "execution_authority": false,
+      "external_send_authority": false
+    }
+  ],
+  "batches": [
+    {
+      "batch_id": "batch.augnes_delta_phase_1.sample.v0.1",
+      "contract_version": "augnes_delta_contract.v0.1",
+      "scope": "project:augnes",
+      "title": "Augnes Delta phase 1 sample batch",
+      "summary": "Public-safe sample showing perspective, research, and handoff deltas with manual and future-autonomy policy boundaries.",
+      "created_at": "2026-06-30T00:00:00.000Z",
+      "created_by": "synthetic_fixture",
+      "snapshot_refs": [
+        {
+          "snapshot_id": "snapshot.synthetic_perspective_basis.v0.1",
+          "snapshot_kind": "perspective_snapshot_ref",
+          "created_at": "2026-06-30T00:00:00.000Z",
+          "source_refs": [
+            "docs/PERSPECTIVE_SNAPSHOT_V0_1.md",
+            "docs/PROJECT_CONSTELLATION_IA_V0_1.md"
+          ],
+          "staleness_status": "partial",
+          "freshness_notes": [
+            "Synthetic snapshot pointer only.",
+            "A future durable project-perspective apply path must require a fresh snapshot."
+          ]
+        }
+      ],
+      "diagnostic_refs": [
+        {
+          "diagnostic_id": "diagnostic.synthetic_research_trace_pressure.v0.1",
+          "diagnostic_kind": "research_diagnostic",
+          "source_ref": "docs/PERSPECTIVE_SNAPSHOT_V0_1.md#research_diagnostics",
+          "summary": "Synthetic diagnostic reference that informs review of a research_delta without becoming truth, proof, approval, readiness, or committed Perspective state.",
+          "status": "log_only",
+          "non_authority_notes": [
+            "informs a delta but is not truth",
+            "not proof",
+            "not approval",
+            "not readiness",
+            "not committed Perspective state"
+          ],
+          "informs_delta_ids": [
+            "delta.research.synthetic_diagnostic_boundary.v0.1"
+          ]
+        }
+      ],
+      "authority_boundary": {
+        "source_of_truth": "Augnes Core committed state and explicit user/runtime gates, not this AugnesDelta fixture.",
+        "can_commit_or_reject_state": false,
+        "can_record_proof": false,
+        "can_create_evidence": false,
+        "can_update_work": false,
+        "can_mutate_memory": false,
+        "can_apply_project_perspective": false,
+        "can_publish_external": false,
+        "can_merge": false,
+        "can_retry_replay_deploy": false,
+        "can_call_github": false,
+        "can_call_openai_or_provider": false,
+        "can_execute_codex": false,
+        "can_create_branch_or_pr": false,
+        "notes": [
+          "Batch projection only.",
+          "No durable apply authority."
+        ]
+      },
+      "validation_summary": {
+        "validation_status": "not_run",
+        "required_checks": [
+          "npm run smoke:augnes-delta-contract-v0-1"
+        ],
+        "completed_checks": [],
+        "failed_checks": [],
+        "skipped_checks": [],
+        "notes": [
+          "Fixture validation is performed by the static smoke script."
+        ]
+      },
+      "budget_summary": {
+        "budget_scope": "sample_fixture",
+        "estimated_delta_count": 3,
+        "reviewed_delta_count": 0,
+        "auto_apply_candidate_count": 1,
+        "manual_review_required_count": 2,
+        "blocked_delta_count": 0,
+        "notes": [
+          "Counts are fixture metadata only."
+        ]
+      },
+      "deltas": [
+        {
+          "delta_id": "delta.perspective.synthetic_common_change_unit.v0.1",
+          "contract_version": "augnes_delta_contract.v0.1",
+          "scope": "project:augnes",
+          "type": "perspective_delta",
+          "status": "needs_review",
+          "source": "manual_user_input",
+          "title": "Recognize AugnesDelta as the common semantic change unit",
+          "summary": "Manual-mode project Perspective delta that requires review before any durable project-perspective apply path.",
+          "created_at": "2026-06-30T00:00:00.000Z",
+          "created_by": "synthetic_fixture",
+          "target_refs": [
+            "project_perspective"
+          ],
+          "snapshot_refs": [
+            {
+              "snapshot_id": "snapshot.synthetic_perspective_basis.v0.1",
+              "snapshot_kind": "perspective_snapshot_ref",
+              "created_at": "2026-06-30T00:00:00.000Z",
+              "source_refs": [
+                "docs/PERSPECTIVE_SNAPSHOT_V0_1.md"
+              ],
+              "staleness_status": "partial",
+              "freshness_notes": [
+                "Requires fresh snapshot before any future durable apply."
+              ]
+            }
+          ],
+          "diagnostic_refs": [],
+          "evidence_refs": [
+            {
+              "evidence_ref": "evidence.pointer.static_contract_review.v0.1",
+              "evidence_kind": "review_pointer",
+              "pointer_semantics": "pointer_only",
+              "summary": "Pointer only; not proof/evidence creation.",
+              "verified_status": "unverified",
+              "proof_write_authority": false,
+              "evidence_write_authority": false
+            }
+          ],
+          "artifact_refs": [
+            {
+              "artifact_ref": "artifact.docs.AUGNES_DELTA_CONTRACT_V0_1",
+              "artifact_kind": "doc",
+              "pointer_semantics": "pointer_only",
+              "summary": "Contract doc pointer.",
+              "source_of_truth": false
+            }
+          ],
+          "handoff_refs": [],
+          "merge_policy": {
+            "mode": "review_required_for_project_perspective",
+            "target_scope": "project_perspective",
+            "allowed_auto_apply": false,
+            "requires_user_judgment": true,
+            "requires_fresh_snapshot": true,
+            "requires_validation": true,
+            "durable_memory_allowed": false,
+            "project_perspective_allowed": false,
+            "external_side_effect_allowed": false,
+            "blocked_reason": "Project Perspective apply requires a future explicit review/apply contract."
+          },
+          "authority_boundary": {
+            "source_of_truth": "Augnes Core committed state and user/runtime review gates, not this delta.",
+            "can_commit_or_reject_state": false,
+            "can_record_proof": false,
+            "can_create_evidence": false,
+            "can_update_work": false,
+            "can_mutate_memory": false,
+            "can_apply_project_perspective": false,
+            "can_publish_external": false,
+            "can_merge": false,
+            "can_retry_replay_deploy": false,
+            "can_call_github": false,
+            "can_call_openai_or_provider": false,
+            "can_execute_codex": false,
+            "can_create_branch_or_pr": false,
+            "notes": [
+              "Important project-perspective delta remains reviewable.",
+              "No durable state is applied by this fixture."
+            ]
+          },
+          "validation_summary": {
+            "validation_status": "not_run",
+            "required_checks": [
+              "fresh PerspectiveSnapshot in a future implementation"
+            ],
+            "completed_checks": [],
+            "failed_checks": [],
+            "skipped_checks": [],
+            "notes": [
+              "Future requirement only."
+            ]
+          },
+          "non_goals": [
+            "no durable Perspective state apply",
+            "no product-write behavior"
+          ]
+        },
+        {
+          "delta_id": "delta.research.synthetic_diagnostic_boundary.v0.1",
+          "contract_version": "augnes_delta_contract.v0.1",
+          "scope": "project:augnes",
+          "type": "research_delta",
+          "status": "draft",
+          "source": "research_diagnostic",
+          "title": "Keep research diagnostics as non-authoritative inputs",
+          "summary": "Research diagnostic informs review of a delta but is not truth, proof, approval, readiness, or committed Perspective state.",
+          "created_at": "2026-06-30T00:00:00.000Z",
+          "created_by": "synthetic_fixture",
+          "target_refs": [
+            "research_review_packet"
+          ],
+          "snapshot_refs": [],
+          "diagnostic_refs": [
+            {
+              "diagnostic_id": "diagnostic.synthetic_research_trace_pressure.v0.1",
+              "diagnostic_kind": "research_diagnostic",
+              "source_ref": "docs/PERSPECTIVE_SNAPSHOT_V0_1.md#research_diagnostics",
+              "summary": "Synthetic diagnostic reference.",
+              "status": "log_only",
+              "non_authority_notes": [
+                "not truth",
+                "not proof",
+                "not approval",
+                "not readiness",
+                "not committed Perspective state"
+              ],
+              "informs_delta_ids": [
+                "delta.research.synthetic_diagnostic_boundary.v0.1"
+              ]
+            }
+          ],
+          "evidence_refs": [],
+          "artifact_refs": [
+            {
+              "artifact_ref": "artifact.docs.PERSPECTIVE_SNAPSHOT_V0_1",
+              "artifact_kind": "doc",
+              "pointer_semantics": "pointer_only",
+              "summary": "Research diagnostics boundary pointer.",
+              "source_of_truth": false
+            }
+          ],
+          "handoff_refs": [],
+          "merge_policy": {
+            "mode": "manual_review_required",
+            "target_scope": "research_review",
+            "allowed_auto_apply": false,
+            "requires_user_judgment": true,
+            "requires_fresh_snapshot": false,
+            "requires_validation": true,
+            "durable_memory_allowed": false,
+            "project_perspective_allowed": false,
+            "external_side_effect_allowed": false,
+            "blocked_reason": "Diagnostics can inform review but cannot be committed as truth by this contract."
+          },
+          "authority_boundary": {
+            "source_of_truth": "Research diagnostic refs are pointer inputs only.",
+            "can_commit_or_reject_state": false,
+            "can_record_proof": false,
+            "can_create_evidence": false,
+            "can_update_work": false,
+            "can_mutate_memory": false,
+            "can_apply_project_perspective": false,
+            "can_publish_external": false,
+            "can_merge": false,
+            "can_retry_replay_deploy": false,
+            "can_call_github": false,
+            "can_call_openai_or_provider": false,
+            "can_execute_codex": false,
+            "can_create_branch_or_pr": false,
+            "notes": [
+              "Diagnostic is not truth, proof, approval, readiness, or committed Perspective state."
+            ]
+          },
+          "non_goals": [
+            "no source fetching",
+            "no retrieval",
+            "no evidence write"
+          ]
+        },
+        {
+          "delta_id": "delta.handoff.synthetic_autonomy_draft.v0.1",
+          "contract_version": "augnes_delta_contract.v0.1",
+          "scope": "project:augnes",
+          "type": "handoff_delta",
+          "status": "draft",
+          "source": "handoff_packet",
+          "title": "Draft handoff delta for future working-memory-only autonomy",
+          "summary": "Autonomy-mode example: a draft handoff delta may be auto-applied only within a future explicit Autonomy Contract.",
+          "created_at": "2026-06-30T00:00:00.000Z",
+          "created_by": "synthetic_fixture",
+          "target_refs": [
+            "working_memory_draft"
+          ],
+          "snapshot_refs": [
+            {
+              "snapshot_id": "snapshot.synthetic_perspective_basis.v0.1",
+              "snapshot_kind": "perspective_snapshot_ref",
+              "created_at": "2026-06-30T00:00:00.000Z",
+              "source_refs": [
+                "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md"
+              ],
+              "staleness_status": "partial",
+              "freshness_notes": [
+                "Future autonomy contract must define freshness requirements."
+              ]
+            }
+          ],
+          "diagnostic_refs": [],
+          "evidence_refs": [],
+          "artifact_refs": [
+            {
+              "artifact_ref": "artifact.types.augnes_delta",
+              "artifact_kind": "type_contract",
+              "pointer_semantics": "pointer_only",
+              "summary": "Delta type contract pointer.",
+              "source_of_truth": false
+            }
+          ],
+          "handoff_refs": [
+            {
+              "handoff_ref": "handoff.synthetic_delta_phase_1.v0.1",
+              "handoff_kind": "codex_handoff",
+              "pointer_semantics": "pointer_only",
+              "summary": "Draft handoff pointer only.",
+              "execution_authority": false,
+              "external_send_authority": false
+            }
+          ],
+          "merge_policy": {
+            "mode": "auto_apply_working_memory_only",
+            "target_scope": "working_memory_draft",
+            "allowed_auto_apply": false,
+            "requires_user_judgment": false,
+            "requires_fresh_snapshot": true,
+            "requires_validation": true,
+            "durable_memory_allowed": false,
+            "project_perspective_allowed": false,
+            "external_side_effect_allowed": false,
+            "blocked_reason": "Phase 1 has no explicit Autonomy Contract, so auto-apply is not enabled."
+          },
+          "authority_boundary": {
+            "source_of_truth": "Draft handoff pointer only; not execution or external send authority.",
+            "can_commit_or_reject_state": false,
+            "can_record_proof": false,
+            "can_create_evidence": false,
+            "can_update_work": false,
+            "can_mutate_memory": false,
+            "can_apply_project_perspective": false,
+            "can_publish_external": false,
+            "can_merge": false,
+            "can_retry_replay_deploy": false,
+            "can_call_github": false,
+            "can_call_openai_or_provider": false,
+            "can_execute_codex": false,
+            "can_create_branch_or_pr": false,
+            "notes": [
+              "Future autonomy example only.",
+              "No autonomy runner, scheduler, hidden automation, Codex execution, GitHub call, provider call, or external side effect."
+            ]
+          },
+          "non_goals": [
+            "no autonomy runner",
+            "no Codex execution",
+            "no external handoff send"
+          ]
+        }
+      ]
+    }
+  ]
+}
