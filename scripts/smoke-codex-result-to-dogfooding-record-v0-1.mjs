@@ -22,6 +22,15 @@ const researchDocsPath = "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
 const reconciliationDocsPath = "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
+const conversationHandoffTypePath = "types/conversation-handoff-packet.ts";
+const conversationHandoffHelperPath =
+  "lib/handoff/build-conversation-handoff-packet.ts";
+const conversationHandoffFixturePath =
+  "fixtures/conversation-handoff-packet.sample.v0.2.json";
+const conversationHandoffSmokePath =
+  "scripts/smoke-conversation-handoff-packet-v0-2.mjs";
+const conversationHandoffDocsPath =
+  "docs/CONVERSATION_HANDOFF_PACKET_BUILDER_V0_2.md";
 
 const fixtureVersion = "codex_result_to_dogfooding_record.sample.v0.1";
 const bindingVersion = "codex_result_report_to_dogfooding_record_binding.v0.1";
@@ -44,6 +53,11 @@ const expectedChangedFiles = new Set([
   docsPath,
   packagePath,
   indexPath,
+  conversationHandoffTypePath,
+  conversationHandoffHelperPath,
+  conversationHandoffFixturePath,
+  conversationHandoffSmokePath,
+  conversationHandoffDocsPath,
 ]);
 
 const requiredHelperExports = [

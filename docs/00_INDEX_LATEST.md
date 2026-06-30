@@ -4361,6 +4361,42 @@ repo-local 색인이다.
   call from Augnes runtime; no Git/GitHub actuation from Augnes runtime; no
   release, deploy, or publish behavior. Next recommended slice:
   `conversation_handoff_packet_builder_v0_2`.
+- Conversation Handoff Packet Builder v0.2:
+  `docs/CONVERSATION_HANDOFF_PACKET_BUILDER_V0_2.md`,
+  `types/conversation-handoff-packet.ts`,
+  `lib/handoff/build-conversation-handoff-packet.ts`,
+  `fixtures/conversation-handoff-packet.sample.v0.2.json`, and
+  `scripts/smoke-conversation-handoff-packet-v0-2.mjs`
+  (`npm run smoke:conversation-handoff-packet-v0-2`) implements
+  `conversation_handoff_packet_builder_v0_2`. PR #868 remains the frozen web
+  baseline for `/`, `/perspective`, and `/workbench`. PR #872 provides Codex
+  result to dogfooding record binding context for handoff. This slice adds no
+  UI. Handoff packets are candidate-only conversation/workflow guidance, not
+  execution approval. Handoff packet is not truth, proof, or accepted evidence.
+  Expected files are not write authority. Observed files are not proof. Expected
+  checks are not proof. Observed checks are not approval. Validation pass is not
+  approval. Validation failure is not automatic rejection. Smoke pass is not
+  evidence. Smoke failure is diagnostic, not automatic rejection. CI pass is not
+  authority. CI failure is diagnostic, not automatic rejection. PR body is not
+  authority. Codex report is not execution approval. Dogfooding record is
+  candidate-only review material. Review Memory refs, Promotion/Receipt/State
+  refs, Git refs, and GitHub PR refs are references only. Next recommended slice
+  is not execution approval. Product-write remains parked by #686.
+
+  Boundary phrases: helper-only packet builder; caller-provided public-safe
+  summaries only; no raw source bodies; no raw provider output; no raw retrieval
+  output; no raw DB rows; no raw conversations; no hidden reasoning; no UI; no
+  components; no Cockpit change; no public-surface change; no route model change
+  for `/`, `/perspective`, or `/workbench`; no browser-validation-only work; no
+  new API route; no DB migration; no provider/OpenAI call; no prompt sent; no
+  source fetch; no retrieval execution; no retrieval index write; no
+  proof/evidence creation; no claim/evidence write; no Review Memory write; no
+  promotion execution; no Formation Receipt write; no durable Perspective state
+  apply; no product-write; no product ID allocation; no Codex execution from
+  Augnes runtime; no GitHub API call from Augnes runtime; no Git/GitHub
+  actuation from Augnes runtime; no release, deploy, or publish behavior. Next
+  recommended slice:
+  `conversation_handoff_packet_from_dogfooding_record_v0_1`.
 - Runtime Audit Panel v0.1:
   `docs/RUNTIME_AUDIT_PANEL_V0_1.md`,
   `lib/runtime-audit/build-runtime-audit-model.ts`,

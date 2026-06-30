@@ -1,0 +1,342 @@
+{
+  "fixture_version": "conversation_handoff_packet.sample.v0.2",
+  "packet_version": "conversation_handoff_packet.v0.2",
+  "builder_version": "conversation_handoff_packet_builder.v0.2",
+  "input_version": "conversation_handoff_packet_input.v0.2",
+  "selected_slice": "conversation_handoff_packet_builder_v0_2",
+  "next_recommended_slice": "conversation_handoff_packet_from_dogfooding_record_v0_1",
+  "scope": "project:augnes",
+  "post_868_boundary": {
+    "pr_868_is_frozen_web_baseline": true,
+    "frozen_routes": ["/", "/perspective", "/workbench"],
+    "web_last": true,
+    "ui_in_scope": false,
+    "route_in_scope": false
+  },
+  "required_profiles": [
+    "chatgpt_strategy",
+    "codex_implementation",
+    "codex_pr_review",
+    "human_operator_review",
+    "boundary_audit",
+    "handoff_minimal",
+    "release_readiness_review"
+  ],
+  "safe_input_example": {
+    "input_version": "conversation_handoff_packet_input.v0.2",
+    "packet_id": "conversation-handoff-packet:sample:v0.2",
+    "packet_version": "conversation_handoff_packet.v0.2",
+    "scope": "project:augnes",
+    "profile": "codex_implementation",
+    "created_at": "2026-06-30T00:30:00.000Z",
+    "project_context": [
+      "Augnes is in the post-#868 Core first, Handoff first, Conversation first, Web last direction.",
+      "#868 is treated as the frozen web baseline for /, /perspective, and /workbench."
+    ],
+    "current_baseline": [
+      "#870 added non-UI runtime reconciliation.",
+      "#871 added dogfooding research records as candidate-only review material.",
+      "#872 added Codex result to dogfooding record binding context for handoff."
+    ],
+    "current_task": [
+      "Build a deterministic plain-text conversation handoff packet builder from caller-provided public-safe summaries."
+    ],
+    "expected_files": [
+      "types/conversation-handoff-packet.ts",
+      "lib/handoff/build-conversation-handoff-packet.ts",
+      "fixtures/conversation-handoff-packet.sample.v0.2.json",
+      "scripts/smoke-conversation-handoff-packet-v0-2.mjs",
+      "docs/CONVERSATION_HANDOFF_PACKET_BUILDER_V0_2.md",
+      "package.json",
+      "docs/00_INDEX_LATEST.md"
+    ],
+    "observed_files": [
+      "types/conversation-handoff-packet.ts",
+      "lib/handoff/build-conversation-handoff-packet.ts",
+      "fixtures/conversation-handoff-packet.sample.v0.2.json",
+      "scripts/smoke-conversation-handoff-packet-v0-2.mjs",
+      "docs/CONVERSATION_HANDOFF_PACKET_BUILDER_V0_2.md",
+      "package.json",
+      "docs/00_INDEX_LATEST.md"
+    ],
+    "expected_checks": [
+      "node --check scripts/smoke-conversation-handoff-packet-v0-2.mjs",
+      "npm run smoke:conversation-handoff-packet-v0-2",
+      "npm run typecheck"
+    ],
+    "observed_checks": [
+      "pending: node --check scripts/smoke-conversation-handoff-packet-v0-2.mjs",
+      "pending: npm run smoke:conversation-handoff-packet-v0-2",
+      "pending: npm run typecheck"
+    ],
+    "expected_observed_delta": [
+      "Expected checks are listed separately from observed check status.",
+      "Observed files are review cues and not proof."
+    ],
+    "known_warnings": [
+      "Known warnings must remain candidate review material until validated separately."
+    ],
+    "skipped_checks": [
+      "None expected for this fixture."
+    ],
+    "not_done_items": [
+      "No dogfooding-record-sourced packet builder is implemented in this slice.",
+      "No route or UI surface is implemented in this slice."
+    ],
+    "source_refs": [
+      "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md",
+      "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md",
+      "docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md"
+    ],
+    "dogfooding_record_refs": [
+      "dogfooding-research-record:codex-result-report:sample"
+    ],
+    "review_memory_refs": [
+      "review-memory-ref:operator-supplied-summary-only"
+    ],
+    "promotion_receipt_state_refs": [
+      "promotion-receipt-state-ref:none-executed"
+    ],
+    "unresolved_tensions": [
+      "The packet is reusable guidance but cannot approve execution.",
+      "Release readiness review wording must not imply deploy or publish execution."
+    ],
+    "authority_boundary": {
+      "conversation_handoff_packet_builder_now": true,
+      "caller_provided_input_only": true,
+      "public_safe_summary_only": true,
+      "candidate_only_conversation_guidance": true,
+      "handoff_packet_is_execution_approval": false,
+      "handoff_packet_is_truth": false,
+      "handoff_packet_is_proof": false,
+      "handoff_packet_is_accepted_evidence": false,
+      "expected_files_are_write_authority": false,
+      "observed_files_are_proof": false,
+      "validation_pass_is_approval": false,
+      "validation_failure_is_rejection": false,
+      "ci_pass_is_authority": false,
+      "ci_failure_is_rejection": false,
+      "pr_body_is_authority": false,
+      "codex_report_is_execution_approval": false,
+      "next_recommended_slice_is_execution_approval": false,
+      "review_memory_write_now": false,
+      "promotion_execution_now": false,
+      "proof_or_evidence_record_now": false,
+      "product_write_now": false,
+      "provider_openai_call_now": false,
+      "retrieval_execution_now": false,
+      "source_fetch_now": false,
+      "github_git_actuation_now": false,
+      "release_deploy_publish_now": false
+    },
+    "forbidden_capabilities": [
+      "No UI.",
+      "No new API route.",
+      "No Review Memory write.",
+      "No product-write.",
+      "No release, deploy, or publish behavior."
+    ],
+    "stop_conditions": [
+      "Stop if implementation requires a route, UI, DB migration, provider call, retrieval, source fetch, GitHub/Git actuation, product-write, release, deploy, or publish behavior."
+    ],
+    "pr_body_requirements": [
+      "Use the requested PR body headings exactly.",
+      "List skipped checks honestly."
+    ],
+    "validation_commands": [
+      "node --check scripts/smoke-conversation-handoff-packet-v0-2.mjs",
+      "npm run smoke:conversation-handoff-packet-v0-2",
+      "npm run typecheck",
+      "git diff --check",
+      "git diff --cached --check",
+      "npm run smoke:authority-boundary-regression-v0-1",
+      "npm run smoke:privacy-redaction-guard-v0-1",
+      "npm run smoke:codex-result-to-dogfooding-record-v0-1"
+    ],
+    "next_recommended_slice": "conversation_handoff_packet_from_dogfooding_record_v0_1",
+    "privacy_report": {
+      "status": "passed",
+      "raw_payloads_included": false
+    },
+    "reason_codes": [
+      "conversation_handoff_packet_builder_present",
+      "candidate_only_conversation_guidance"
+    ]
+  },
+  "expected": {
+    "required_codex_implementation_sections": [
+      "expected_files",
+      "validation_commands",
+      "forbidden_capabilities",
+      "stop_conditions",
+      "pr_body_requirements"
+    ],
+    "required_codex_pr_review_sections": [
+      "expected_observed_delta",
+      "skipped_checks_and_reason",
+      "known_warnings",
+      "not_done_classification",
+      "authority_boundary"
+    ],
+    "required_human_operator_review_sections": [
+      "unresolved_tensions",
+      "not_done_classification",
+      "expected_observed_delta",
+      "authority_boundary"
+    ],
+    "required_minimal_sections": [
+      "current_task",
+      "next_recommended_slice",
+      "authority_boundary",
+      "forbidden_capabilities",
+      "stop_conditions"
+    ],
+    "required_authority_boundary_lines": [
+      "Handoff packet is not execution approval.",
+      "Handoff packet is not truth.",
+      "Handoff packet is not proof.",
+      "Handoff packet is not accepted evidence.",
+      "Expected files are not write authority.",
+      "Observed files are not proof.",
+      "Expected checks are not proof.",
+      "Observed checks are not approval.",
+      "Validation pass is not approval.",
+      "Validation failure is not automatic rejection.",
+      "Smoke pass is not evidence.",
+      "Smoke failure is diagnostic, not automatic rejection.",
+      "CI pass is not authority.",
+      "CI failure is diagnostic, not automatic rejection.",
+      "PR body is not authority.",
+      "Codex report is not execution approval.",
+      "Dogfooding record is candidate-only review material.",
+      "Review Memory refs are references only.",
+      "Git refs and GitHub PR refs are references only.",
+      "Next recommended slice is not execution approval."
+    ],
+    "forbidden_execution_flags_false": [
+      "product_write_executed",
+      "review_memory_written",
+      "proof_or_evidence_created",
+      "claim_or_evidence_written",
+      "promotion_executed",
+      "formation_receipt_written",
+      "durable_state_applied",
+      "github_git_actuated",
+      "provider_called",
+      "retrieval_executed",
+      "source_fetched",
+      "release_deploy_publish_executed"
+    ],
+    "forbidden_authority_flags_false": [
+      "ui_now",
+      "component_now",
+      "api_route_now",
+      "db_migration_now",
+      "provider_openai_call_now",
+      "prompt_sent_now",
+      "source_fetch_now",
+      "retrieval_execution_now",
+      "proof_or_evidence_record_now",
+      "claim_or_evidence_write_now",
+      "review_memory_write_now",
+      "promotion_execution_now",
+      "formation_receipt_write_now",
+      "durable_state_apply_now",
+      "product_write_now",
+      "github_api_call_now",
+      "git_write_now",
+      "github_git_actuation_now",
+      "release_deploy_publish_now",
+      "handoff_packet_is_execution_approval",
+      "handoff_packet_is_truth",
+      "handoff_packet_is_proof",
+      "expected_files_are_write_authority",
+      "observed_files_are_proof",
+      "validation_pass_is_approval",
+      "validation_failure_is_rejection",
+      "ci_pass_is_authority",
+      "ci_failure_is_rejection",
+      "pr_body_is_authority",
+      "codex_report_is_execution_approval",
+      "next_recommended_slice_is_execution_approval"
+    ],
+    "blocked_private_status": "blocked_private_or_raw_payload",
+    "blocked_authority_status": "blocked_forbidden_authority"
+  },
+  "blocked_private_or_raw_payload_example": {
+    "input_version": "conversation_handoff_packet_input.v0.2",
+    "packet_id": "conversation-handoff-packet:blocked-private:v0.2",
+    "packet_version": "conversation_handoff_packet.v0.2",
+    "scope": "project:augnes",
+    "profile": "codex_implementation",
+    "created_at": "2026-06-30T00:31:00.000Z",
+    "current_task": [
+      "SAFE_MARKER_HIDDEN_REASONING"
+    ]
+  },
+  "blocked_structured_authority_example": {
+    "input_version": "conversation_handoff_packet_input.v0.2",
+    "packet_id": "conversation-handoff-packet:blocked-structured-authority:v0.2",
+    "packet_version": "conversation_handoff_packet.v0.2",
+    "scope": "project:augnes",
+    "profile": "codex_implementation",
+    "created_at": "2026-06-30T00:32:00.000Z",
+    "authority_boundary": {
+      "product_write_now": true
+    }
+  },
+  "blocked_forbidden_authority_string_claim_cases": [
+    {
+      "case_id": "validation_pass_claim",
+      "target": "current_task",
+      "phrase_parts": ["Validation pass", "is", "approval."]
+    },
+    {
+      "case_id": "validation_failure_claim",
+      "target": "current_task",
+      "phrase_parts": ["Validation failure", "is", "rejection."]
+    },
+    {
+      "case_id": "ci_pass_claim",
+      "target": "unresolved_tensions",
+      "phrase_parts": ["CI pass", "is", "authority."]
+    },
+    {
+      "case_id": "pr_body_claim",
+      "target": "current_task",
+      "phrase_parts": ["PR body", "is", "authority."]
+    },
+    {
+      "case_id": "codex_report_claim",
+      "target": "current_task",
+      "phrase_parts": ["Codex report", "is", "execution approval."]
+    },
+    {
+      "case_id": "next_slice_claim",
+      "target": "current_task",
+      "phrase_parts": ["Next recommended slice", "is", "execution approval."]
+    }
+  ],
+  "allowed_negated_authority_string_cases": [
+    {
+      "case_id": "validation_pass_not_approval",
+      "target": "current_task",
+      "phrase": "Validation pass is not approval."
+    },
+    {
+      "case_id": "expected_files_not_authority",
+      "target": "current_task",
+      "phrase": "Expected files are not write authority."
+    },
+    {
+      "case_id": "codex_report_not_execution",
+      "target": "current_task",
+      "phrase": "Codex report is not execution approval."
+    },
+    {
+      "case_id": "next_slice_not_execution",
+      "target": "current_task",
+      "phrase": "Next recommended slice is not execution approval."
+    }
+  ]
+}

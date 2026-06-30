@@ -575,6 +575,7 @@
     "smoke:dogfooding-ingestion-runtime-v0-1": "node scripts/smoke-dogfooding-ingestion-runtime-v0-1.mjs",
     "smoke:dogfooding-research-record-runtime-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-dogfooding-research-record-runtime-v0-1.mjs",
     "smoke:codex-result-to-dogfooding-record-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-codex-result-to-dogfooding-record-v0-1.mjs",
+    "smoke:conversation-handoff-packet-v0-2": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-conversation-handoff-packet-v0-2.mjs",
     "smoke:runtime-audit-selected-route-instrumentation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-selected-route-instrumentation-v0-1.mjs",
     "smoke:runtime-audit-selected-route-instrumentation-v0-2": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-selected-route-instrumentation-v0-2.mjs",
     "smoke:runtime-audit-selected-route-instrumentation-v0-3": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-selected-route-instrumentation-v0-3.mjs",
