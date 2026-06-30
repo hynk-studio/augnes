@@ -67,6 +67,11 @@ const expectedChangedFiles = new Set([
   "fixtures/git-ledger-export-from-local-manifest.sample.v0.1.json",
   "scripts/smoke-git-ledger-export-from-local-manifest-v0-1.mjs",
   "docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md",
+  "types/runtime-audit-event.ts",
+  "lib/runtime-audit/audit-event-store.ts",
+  "fixtures/selected-runtime-audit-event-store.sample.v0.1.json",
+  "scripts/smoke-selected-runtime-audit-event-store-v0-1.mjs",
+  "docs/SELECTED_RUNTIME_AUDIT_EVENT_STORE_V0_1.md",
   packagePath,
   indexPath,
 ]);

@@ -1,0 +1,182 @@
+{
+  "fixture_version": "selected_runtime_audit_event_store.sample.v0.1",
+  "selected_slice": "selected_runtime_audit_event_store_v0_1",
+  "next_recommended_slice": "release_readiness_matrix_post_868_non_ui_v0_1",
+  "event_version": "selected_runtime_audit_event.v0.1",
+  "store_version": "selected_runtime_audit_event_store.v0.1",
+  "scope": "project:augnes",
+  "post_868_boundary": {
+    "pr_868_is_frozen_web_baseline": true,
+    "route_model_baseline": ["/", "/perspective", "/workbench"],
+    "ui_in_scope": false,
+    "route_changes_in_scope": false
+  },
+  "required_event_kinds": [
+    "dogfooding_record_created",
+    "review_memory_record_created",
+    "review_memory_proposal_candidate_created",
+    "promotion_decision_created",
+    "formation_receipt_created",
+    "durable_state_apply_executed",
+    "local_export_manifest_candidate_created",
+    "git_ledger_packet_candidate_created",
+    "product_write_attempt_blocked",
+    "forbidden_authority_claim_blocked",
+    "private_raw_payload_blocked"
+  ],
+  "optional_event_kinds": [
+    "codex_result_bound_to_dogfooding_record",
+    "handoff_packet_candidate_created",
+    "local_export_manifest_blocked",
+    "git_ledger_packet_blocked"
+  ],
+  "required_event_statuses": [
+    "recorded",
+    "duplicate_event",
+    "conflicting_event",
+    "blocked_private_or_raw_payload",
+    "blocked_forbidden_authority",
+    "rejected",
+    "schema_missing",
+    "not_found",
+    "listed",
+    "read"
+  ],
+  "valid_event_input": {
+    "audit_event_id": "runtime-audit:selected:git-ledger-packet-candidate:001",
+    "scope": "project:augnes",
+    "event_kind": "git_ledger_packet_candidate_created",
+    "event_status": "recorded",
+    "created_at": "2026-06-30T00:00:00.000Z",
+    "operator_actor_ref": "operator-ref:augnes-codex",
+    "selected_surface_ref": "runtime-surface:git-ledger-export-manifest-binding-v0-1",
+    "linked_record_refs": ["dogfooding-record:summary:001"],
+    "linked_candidate_refs": [
+      "local-export-manifest:candidate:001",
+      "git-ledger-packet:candidate:001"
+    ],
+    "linked_git_refs": ["git-ref:commit:68bb3587"],
+    "linked_github_refs": ["github-pr-ref:877"],
+    "linked_validation_refs": [
+      "validation:npm-run-smoke-git-ledger-export-from-local-manifest-v0-1"
+    ],
+    "public_safe_summary": "Selected runtime audit event records that a Git Ledger packet candidate was created from public-safe manifest summary material.",
+    "expected_observed_delta_refs": ["delta:expected-observed:git-ledger-binding"],
+    "skipped_check_refs": ["skipped-check:none"],
+    "known_warning_refs": ["warning:none-observed"],
+    "not_done_refs": ["not-done:no-route-added"],
+    "authority_boundary_snapshot": {
+      "selected_runtime_audit_event_store_now": true,
+      "caller_injected_local_test_db_only": true,
+      "schema_sql_only": true,
+      "linked_refs_are_reference_only": true,
+      "audit_event_is_truth": false,
+      "audit_event_is_proof": false,
+      "audit_event_is_approval": false,
+      "validation_pass_is_approval": false,
+      "ci_pass_is_authority": false,
+      "product_write_now": false,
+      "github_api_call_now": false,
+      "git_write_now": false
+    },
+    "reason_codes": [
+      "selected_runtime_audit_event_store_present",
+      "caller_injected_local_test_db_only",
+      "linked_refs_reference_only"
+    ],
+    "lifecycle_state": "candidate_only"
+  },
+  "product_write_attempt_blocked_input": {
+    "audit_event_id": "runtime-audit:selected:product-write-attempt-blocked:001",
+    "scope": "project:augnes",
+    "event_kind": "product_write_attempt_blocked",
+    "event_status": "recorded",
+    "created_at": "2026-06-30T00:00:00.000Z",
+    "operator_actor_ref": "operator-ref:augnes-codex",
+    "selected_surface_ref": "runtime-surface:product-write-gate",
+    "linked_record_refs": ["review-memory-proposal:candidate:001"],
+    "public_safe_summary": "Product-write attempt was blocked and represented as audit context only.",
+    "reason_codes": ["product_write_denied", "audit_event_not_product_write"]
+  },
+  "forbidden_authority_claim_blocked_input": {
+    "audit_event_id": "runtime-audit:selected:forbidden-authority-claim-blocked:001",
+    "scope": "project:augnes",
+    "event_kind": "forbidden_authority_claim_blocked",
+    "event_status": "recorded",
+    "created_at": "2026-06-30T00:00:00.000Z",
+    "operator_actor_ref": "operator-ref:augnes-codex",
+    "selected_surface_ref": "runtime-surface:selected-audit-store",
+    "linked_record_refs": ["authority-boundary:blocked-claim"],
+    "public_safe_summary": "Forbidden positive authority shortcut was blocked without raw unsafe echo.",
+    "reason_codes": ["forbidden_authority_blocked"]
+  },
+  "private_raw_payload_blocked_input": {
+    "audit_event_id": "runtime-audit:selected:private-raw-payload-blocked:001",
+    "scope": "project:augnes",
+    "event_kind": "private_raw_payload_blocked",
+    "event_status": "recorded",
+    "created_at": "2026-06-30T00:00:00.000Z",
+    "operator_actor_ref": "operator-ref:augnes-codex",
+    "selected_surface_ref": "runtime-surface:selected-audit-store",
+    "linked_record_refs": ["privacy-guard:blocked-payload"],
+    "public_safe_summary": "Private or raw payload was blocked without storing raw request, response, terminal log, source, provider, retrieval, DB, or conversation content.",
+    "reason_codes": ["raw_private_payload_blocked"]
+  },
+  "blocked_private_marker_cases": [
+    "SAFE_MARKER_RAW_SOURCE_BODY",
+    "SAFE_MARKER_RAW_PROVIDER_OUTPUT",
+    "SAFE_MARKER_RAW_RETRIEVAL_OUTPUT",
+    "SAFE_MARKER_RAW_DB_ROW",
+    "SAFE_MARKER_RAW_CONVERSATION",
+    "SAFE_MARKER_HIDDEN_REASONING",
+    "SAFE_MARKER_LOCAL_PRIVATE_PATH",
+    "SAFE_MARKER_CREDENTIAL",
+    "SAFE_MARKER_SECRET_TOKEN"
+  ],
+  "reference_only_marker_cases": [
+    "SAFE_MARKER_OPAQUE_CONNECTOR_ID",
+    "SAFE_MARKER_UPLOADED_FILE_OPAQUE_ID"
+  ],
+  "blocked_forbidden_authority_claim_parts": [
+    { "subject": "Audit event", "object": "proof" },
+    { "subject": "Audit event fingerprint", "object": "approval" },
+    { "subject": "Validation pass", "object": "approval" },
+    { "subject": "Validation failure", "object": "rejection" },
+    { "subject": "CI pass", "object": "authority" },
+    { "subject": "Smoke failure", "object": "rejection" },
+    { "subject": "Linked refs", "object": "proof" },
+    { "subject": "Git Ledger packet", "object": "Git commit" }
+  ],
+  "allowed_negated_boundary_examples": [
+    "Audit event is not proof.",
+    "Audit event fingerprint is not approval.",
+    "Validation pass is not approval.",
+    "Validation failure is not automatic rejection.",
+    "CI pass is not authority.",
+    "Smoke failure is diagnostic, not automatic rejection.",
+    "Linked refs are references only."
+  ],
+  "required_false_execution_flags": [
+    "product_write_executed",
+    "proof_or_evidence_created",
+    "accepted_evidence_created",
+    "claim_or_evidence_written",
+    "review_memory_written",
+    "promotion_executed",
+    "formation_receipt_written",
+    "durable_state_applied",
+    "github_api_called",
+    "git_write_executed",
+    "github_git_actuated",
+    "provider_called",
+    "retrieval_executed",
+    "source_fetched",
+    "local_file_written",
+    "local_file_read",
+    "import_apply_executed",
+    "release_deploy_publish_executed",
+    "raw_request_body_stored",
+    "raw_response_body_stored",
+    "raw_terminal_log_stored"
+  ]
+}

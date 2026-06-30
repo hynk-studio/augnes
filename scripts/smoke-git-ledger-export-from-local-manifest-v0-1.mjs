@@ -58,9 +58,20 @@ const expectedChangedFiles = new Set([
   packetSmokePath,
   codexBindingSmokePath,
   dogfoodingSmokePath,
+  "types/runtime-audit-event.ts",
+  "lib/runtime-audit/audit-event-store.ts",
+  "fixtures/selected-runtime-audit-event-store.sample.v0.1.json",
+  "scripts/smoke-selected-runtime-audit-event-store-v0-1.mjs",
+  "docs/SELECTED_RUNTIME_AUDIT_EVENT_STORE_V0_1.md",
 ]);
 
-const newSliceFiles = [helperPath, fixturePath, smokePath, docsPath];
+const newSliceFiles = [
+  "types/runtime-audit-event.ts",
+  "lib/runtime-audit/audit-event-store.ts",
+  "fixtures/selected-runtime-audit-event-store.sample.v0.1.json",
+  "scripts/smoke-selected-runtime-audit-event-store-v0-1.mjs",
+  "docs/SELECTED_RUNTIME_AUDIT_EVENT_STORE_V0_1.md",
+];
 
 const requiredHelperExports = [
   "buildGitLedgerExportPacketFromLocalManifestV01",

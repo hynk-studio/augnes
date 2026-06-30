@@ -4565,6 +4565,39 @@ repo-local 색인이다.
   creation from Augnes runtime; no Git/GitHub actuation from Augnes runtime; no
   release, deploy, or publish behavior. Next recommended slice:
   `selected_runtime_audit_event_store_v0_1`.
+- Selected Runtime Audit Event Store v0.1:
+  `docs/SELECTED_RUNTIME_AUDIT_EVENT_STORE_V0_1.md`,
+  `types/runtime-audit-event.ts`,
+  `lib/runtime-audit/audit-event-store.ts`,
+  `fixtures/selected-runtime-audit-event-store.sample.v0.1.json`, and
+  `scripts/smoke-selected-runtime-audit-event-store-v0-1.mjs`
+  (`npm run smoke:selected-runtime-audit-event-store-v0-1`) implements
+  `selected_runtime_audit_event_store_v0_1`. PR #868 remains the frozen web
+  baseline for `/`, `/perspective`, and `/workbench`. PR #877 provides Git
+  Ledger packet candidate context. This slice adds no UI. Runtime audit events
+  are public-safe records of selected event summaries, not proof, approval,
+  product readiness, release readiness, or authority. Audit event fingerprint is
+  not proof or approval. Linked refs are references only. Validation pass is
+  not approval. Validation failure is not automatic rejection. CI pass is not
+  authority. Skipped checks are review context, not failure by themselves.
+  Known warnings are review context, not automatic rejection. Expected/observed
+  delta is reconciliation context, not approval or rejection.
+
+  Boundary phrases: selected runtime audit event store/helper only;
+  caller-injected local test DB only; schema SQL only; no UI; no components; no
+  Cockpit change; no public-surface change; no route model change for `/`,
+  `/perspective`, or `/workbench`; no browser-validation-only work; no new API
+  route; no broad all-route instrumentation; no DB migration; no global DB
+  config; no local file write; no local file read; no import apply; no
+  provider/OpenAI call; no prompt sent; no source fetch; no retrieval execution;
+  no retrieval index write; no raw request body storage; no raw response body
+  storage; no raw terminal log storage; no proof/evidence creation; no
+  claim/evidence write; no Review Memory write; no promotion execution; no
+  Formation Receipt write; no durable Perspective state apply; no
+  product-write; no product ID allocation; no Codex execution from Augnes
+  runtime; no GitHub API call from Augnes runtime; no Git/GitHub actuation from
+  Augnes runtime; no tag creation; no release, deploy, or publish behavior.
+  Next recommended slice: `release_readiness_matrix_post_868_non_ui_v0_1`.
 - Runtime Audit Panel v0.1:
   `docs/RUNTIME_AUDIT_PANEL_V0_1.md`,
   `lib/runtime-audit/build-runtime-audit-model.ts`,
