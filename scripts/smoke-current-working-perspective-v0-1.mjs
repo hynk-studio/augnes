@@ -59,6 +59,7 @@ assertHelperContract();
 assertFixtureShape();
 assertAuthorityBoundary();
 assertSourceRefsAndStaleness();
+assertReviewQueueHintsResolveToDeltaRefs();
 assertResearchDiagnosticsNonAuthority();
 assertNoRuntimeActuationCode();
 const changedFilesBoundary = assertChangedFileBoundary();
@@ -82,7 +83,9 @@ console.log(
       authority_boundary_checked: true,
       source_refs_checked: true,
       staleness_checked: true,
+      review_queue_delta_refs_checked: true,
       research_diagnostics_non_authority_checked: true,
+      clean_projection_gap_pressure_checked: true,
       changed_files_checked: changedFilesBoundary.checked,
       changed_files_skipped: changedFilesBoundary.skipped,
       changed_files_skip_reason: changedFilesBoundary.skip_reason,
@@ -237,6 +240,14 @@ function assertHelperContract() {
       "Phase 3B may add a GET-only route under a separate scoped PR",
     ],
     { label: currentPerspectiveHelperFile },
+  );
+
+  assert(
+    /gaps\.length\s*===\s*0[\s\S]*return\s+"none"/.test(helperText) ||
+      /deltaProjection\.gaps\.length\s*===\s*0[\s\S]*"none"/.test(
+        helperText,
+      ),
+    `${currentPerspectiveHelperFile} must return none pressure when projection gaps are empty`,
   );
 }
 
@@ -395,6 +406,34 @@ function assertSourceRefsAndStaleness() {
     fixture.staleness.source_gap_codes.length >= 1,
     `${fixtureFile} must preserve source gap codes`,
   );
+}
+
+function assertReviewQueueHintsResolveToDeltaRefs() {
+  const knownDeltaIds = new Set(fixture.source_refs.delta_projection.delta_ids);
+  const queue = fixture.review_queue_hints;
+  const fields = [
+    "needs_review_delta_ids",
+    "blocked_delta_ids",
+    "manual_review_delta_ids",
+    "validation_required_delta_ids",
+    "project_perspective_review_delta_ids",
+    "durable_memory_review_delta_ids",
+    "user_decision_delta_ids",
+  ];
+
+  for (const field of fields) {
+    assert(
+      Array.isArray(queue[field]),
+      `${fixtureFile} review_queue_hints.${field} must be an array`,
+    );
+
+    for (const deltaId of queue[field]) {
+      assert(
+        knownDeltaIds.has(deltaId),
+        `${fixtureFile} review_queue_hints.${field} references unknown delta id: ${deltaId}`,
+      );
+    }
+  }
 }
 
 function assertResearchDiagnosticsNonAuthority() {

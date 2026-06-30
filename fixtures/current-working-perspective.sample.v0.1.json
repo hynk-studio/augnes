@@ -216,9 +216,7 @@
     "needs_review_delta_ids": [
       "delta.state_delta_proposal.sample-perspective"
     ],
-    "blocked_delta_ids": [
-      "delta.state_delta_proposal.sample-committed"
-    ],
+    "blocked_delta_ids": [],
     "manual_review_delta_ids": [
       "delta.work_event.sample-implementation"
     ],

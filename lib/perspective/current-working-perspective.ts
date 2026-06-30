@@ -532,13 +532,9 @@ function buildResearchPressure({
   deltaProjection: AugnesDeltaProjectionReadModel;
   sourceRefs: CurrentWorkingPerspectiveSourceRefs;
 }): CurrentWorkingPerspectiveResearchPressure {
-  const projectionGapPressure = deltaProjection.gaps.some(
-    (gap) => gap.severity === "high",
-  )
-    ? "high"
-    : deltaProjection.gaps.some((gap) => gap.severity === "medium")
-      ? "medium"
-      : "low";
+  const projectionGapPressure = pressureFromProjectionGaps(
+    deltaProjection.gaps,
+  );
 
   return {
     pressure_level: maxPressureLevel([
@@ -560,6 +556,24 @@ function buildResearchPressure({
       "Research pressure does not change proposal scoring or commit/reject authority.",
     ],
   };
+}
+
+function pressureFromProjectionGaps(
+  gaps: AugnesDeltaProjectionReadModel["gaps"],
+): CurrentWorkingPerspectiveResearchPressure["pressure_level"] {
+  if (gaps.length === 0) {
+    return "none";
+  }
+
+  if (gaps.some((gap) => gap.severity === "high")) {
+    return "high";
+  }
+
+  if (gaps.some((gap) => gap.severity === "medium")) {
+    return "medium";
+  }
+
+  return "low";
 }
 
 function buildNextCandidates({
