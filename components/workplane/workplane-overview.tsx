@@ -172,7 +172,7 @@ export function WorkplaneOverview({
 
       {hasFallback ? (
         <p style={fallbackStyle}>
-          Fallback disclosed. Current Perspective: {context.fallback_reason.current_perspective ?? "runtime read"}. Delta Projection: {context.fallback_reason.delta_projection ?? "runtime read"}. Fixture fallback is not live runtime state, because apparently reality still requires labels.
+          Fallback disclosed. Current Perspective: {context.fallback_reason.current_perspective ?? "runtime read"}. Delta Projection: {context.fallback_reason.delta_projection ?? "runtime read"}. Fixture fallback is not live runtime state.
         </p>
       ) : null}
     </section>
