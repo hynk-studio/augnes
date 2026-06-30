@@ -2,13 +2,21 @@
 
 ## 1. Status and Scope
 
-Status: Phase 5A Agent Workplane Shell and Phase 5B Agent Workplane Panels, v0.1.
+Status: Phase 5A Agent Workplane Shell, Phase 5B Agent Workplane Panels, and
+Phase 5C Agent Workplane Projection / Handoff / Postmortem Skeletons, v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
 Phase 5A adds a read-only Workplane shell, header, overview cards, boundary card, compatibility panel, a thin workplane context read helper, this document, and a focused static smoke. It preserves the existing Cockpit content instead of deleting or replacing it.
 
 Phase 5B extracts focused read-only Agent Workplane panels for work queue, Current Perspective, Delta Projection, Review Queue, Evidence/Handoff, and inspector context. It does not redo the shell, remove Cockpit compatibility, add writes, add route changes, execute agents, launch Codex, or apply deltas.
+
+Phase 5C adds read-only / preview-only skeleton panels for Projection
+Candidates, Delta Batch, Handoff Builder preview, Run Postmortem, and Trace /
+Diagnostics. It does not add execution, send, apply, approve, reject,
+persistence, proof/evidence writes, DB writes, provider calls, GitHub
+actuation, Codex execution, hidden authority, Phase 5D cleanup, or Phase 6
+GuideBrief behavior.
 
 ## 2. Surface Model
 
@@ -36,6 +44,8 @@ Agent Workplane renders:
 - pointer-only inspector for handoff, Codex result, evidence, and latest delta refs
 - focused read-only panels for Work Queue, Current Perspective, Delta Projection,
   Review Queue, Evidence/Handoff, and Workplane Inspector context
+- read-only preview skeletons for Projection Candidates, Delta Batch, Handoff
+  Builder preview, Run Postmortem, and Trace / Diagnostics
 - existing Cockpit compatibility content
 
 ## 3. Existing Cockpit Preservation
@@ -44,7 +54,9 @@ Phase 5A keeps `AugnesCockpit` mounted inside `LegacyCockpitCompatibilityPanel`.
 
 This preserves existing Work Brief, Handoff, Perspective, Bridge, Operator, trace, and diagnostic visibility while the surrounding information architecture moves from Cockpit-as-main-human-product-surface to Agent-Workplane-as-backend/operator-surface.
 
-Phase 5B adds focused Agent Workplane panels around the existing compatibility content. It does not deep-extract or delete Cockpit functionality.
+Phase 5B adds focused Agent Workplane panels around the existing compatibility
+content. Phase 5C adds preview skeleton panels after those panels. Neither
+phase deep-extracts or deletes Cockpit functionality.
 
 ## 4. Data Sources and Fallback
 
@@ -173,9 +185,50 @@ Panel semantics:
 
 Phase 5B preserves the same no-write, no-execution, no-hidden-authority boundary.
 
-Phase 5C remains deferred.
+## 9. Phase 5C Projection / Handoff / Postmortem Skeletons
 
-## 9. Smoke Plan
+Phase 5C adds preview-only Agent Workplane panels:
+
+- Projection Candidates panel
+- Delta Batch panel
+- Handoff Builder preview panel
+- Run Postmortem skeleton panel
+- Trace / Diagnostics panel
+
+Projection Candidates shows Current Working Perspective next candidates,
+candidate-like projected deltas, review queue pressure, and source/fallback
+status. Projection candidates are read-only preview context. No apply, approve,
+reject, or persistence controls are available there.
+
+Delta Batch shows projected batch title, summary, delta count, validation
+summary status, snapshot ref count, diagnostic ref count, and compact authority
+boundary summary. It has no transaction semantics, batch apply behavior, batch
+approval, or persistence behavior.
+
+Handoff Builder preview shows pointer-only handoff refs from top-level
+`source_refs.handoff_refs` and per-delta `handoff_refs`, plus artifact pointer
+and Codex result ref counts. Handoff Capsule is not implemented in Phase 5C.
+Future handoff build/send behavior requires separate explicit authority. Phase
+5C adds no copy button, send button, Codex launch, PR creation, GitHub call,
+provider call, proof/evidence write, external send, or local persistence.
+
+Run Postmortem reserves skeleton fields for goal, context loaded, major
+decisions, tools used, failed attempts, validation, outputs, generated deltas,
+and unresolved issues. Because no structured run source is materialized in
+Phase 5C, each field says `not materialized yet`. The panel creates no proof
+write, evidence write, completion record, work closeout, or runtime execution.
+
+Trace / Diagnostics shows bounded projection gaps, diagnostic refs, validation
+summary statuses, review notes, non-goals, and source/fallback status. It is
+bounded trace context, not a raw unbounded diagnostics dump. It does not add a
+runtime trace collector, hidden scheduler, provider call, DB read/write,
+proof/evidence write, or external side effect.
+
+Phase 5D cleanup, responsive hardening, old-label cleanup, and smoke hardening
+remain deferred. Phase 6 GuideBrief / Cross-Surface Guide Core remains
+deferred.
+
+## 10. Smoke Plan
 
 `npm run smoke:agent-workplane-shell-v0-1` checks:
 
@@ -206,9 +259,23 @@ Phase 5C remains deferred.
   runner, merge/publish/retry/replay/deploy behavior, or external side effect is
   introduced
 
-## 10. Validation
+`npm run smoke:agent-workplane-projection-handoff-v0-1` checks:
 
-Minimum validation for Phase 5B:
+- package script pointer exists
+- `/workbench` still renders `AgentWorkplane`
+- Phase 5B panels still compose
+- Projection Candidates, Delta Batch, Handoff Builder preview, Run Postmortem,
+  and Trace / Diagnostics panel components exist and are composed
+- required preview/empty-state/boundary copy exists
+- no apply, approve, reject, send, launch, proof/evidence, persistence, merge,
+  deploy, mutating HTTP method, route, DB schema/migration, DB write,
+  MCP/App tool, provider/OpenAI/GitHub runtime call, Codex execution,
+  scheduler/autonomy runner, raw unbounded diagnostics dump, or external side
+  effect is introduced
+
+## 11. Validation
+
+Minimum validation for Phase 5C:
 
 ```bash
 npm run typecheck
@@ -221,6 +288,7 @@ npm run smoke:human-surface-home-v0-1
 npm run smoke:perspective-human-timeline-v0-1
 npm run smoke:agent-workplane-shell-v0-1
 npm run smoke:agent-workplane-panels-v0-1
+npm run smoke:agent-workplane-projection-handoff-v0-1
 git diff --check
 ```
 

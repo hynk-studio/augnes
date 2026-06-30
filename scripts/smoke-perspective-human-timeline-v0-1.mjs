@@ -60,6 +60,15 @@ const followOnAgentWorkplanePanelFiles = [
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneProjectionHandoffFiles = [
+  "components/workplane/projection-candidates-panel.tsx",
+  "components/workplane/delta-batch-panel.tsx",
+  "components/workplane/handoff-builder-preview-panel.tsx",
+  "components/workplane/run-postmortem-skeleton-panel.tsx",
+  "components/workplane/trace-diagnostics-panel.tsx",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+];
+
 const requiredFiles = [
   pageFile,
   wrapperFile,
@@ -82,6 +91,7 @@ const allowedChangedFiles = new Set([
   ...followOnSmokeCompatibilityFiles,
   ...followOnAgentWorkplaneFiles,
   ...followOnAgentWorkplanePanelFiles,
+  ...followOnAgentWorkplaneProjectionHandoffFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
