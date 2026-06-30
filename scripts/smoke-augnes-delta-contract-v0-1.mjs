@@ -48,14 +48,24 @@ const followOnCurrentWorkingPerspectiveFiles = [
   "scripts/smoke-current-working-perspective-v0-1.mjs",
 ];
 
+const followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles = [
+  "lib/perspective/current-working-perspective-source.ts",
+  "app/api/perspective/current/route.ts",
+  "scripts/smoke-current-working-perspective-route-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnProjectionReadModelFiles,
   ...followOnProjectionRuntimeReadSurfaceFiles,
   ...followOnCurrentWorkingPerspectiveFiles,
+  ...followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles,
 ]);
 
-const allowedRouteFiles = new Set(["app/api/augnes/read/deltas/route.ts"]);
+const allowedRouteFiles = new Set([
+  "app/api/augnes/read/deltas/route.ts",
+  "app/api/perspective/current/route.ts",
+]);
 
 const textByFile = loadTextByFile(requiredFiles);
 const contractText = textByFile.get(contractDoc);
@@ -97,6 +107,8 @@ console.log(
         changedFilesBoundary.follow_on_projection_runtime_read_surface_files_allowed,
       follow_on_current_working_perspective_files_allowed:
         changedFilesBoundary.follow_on_current_working_perspective_files_allowed,
+      follow_on_current_working_perspective_runtime_read_surface_files_allowed:
+        changedFilesBoundary.follow_on_current_working_perspective_runtime_read_surface_files_allowed,
       changed_files_observed: changedFilesBoundary.files,
       smoke_type: "static-contract-type-fixture-package-index-boundary-only",
       runtime_behavior_changed: changedFilesBoundary.api_route_added,
@@ -329,8 +341,8 @@ function assertChangedFileBoundary() {
       allowedChangedFiles.has(file),
       `Unexpected changed or untracked file for AugnesDelta contract phase: ${file}`,
     );
-    assert(!/^app\/api\//.test(file) || allowedRouteFiles.has(file), `AugnesDelta contract follow-on must not add API routes outside the Delta Projection read route: ${file}`);
-    assert(!/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) || allowedRouteFiles.has(file), `AugnesDelta contract follow-on must not add route files outside the Delta Projection read route: ${file}`);
+    assert(!/^app\/api\//.test(file) || allowedRouteFiles.has(file), `AugnesDelta contract follow-on must not add API routes outside approved read routes: ${file}`);
+    assert(!/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) || allowedRouteFiles.has(file), `AugnesDelta contract follow-on must not add route files outside approved read routes: ${file}`);
     assert(!/^components\//.test(file), `AugnesDelta contract follow-on must not change UI files: ${file}`);
     assert(!/^db\//.test(file), `AugnesDelta contract follow-on must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `AugnesDelta contract follow-on must not change migrations: ${file}`);
@@ -357,6 +369,8 @@ function assertChangedFileBoundary() {
       followOnProjectionRuntimeReadSurfaceFiles,
     follow_on_current_working_perspective_files_allowed:
       followOnCurrentWorkingPerspectiveFiles,
+    follow_on_current_working_perspective_runtime_read_surface_files_allowed:
+      followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles,
     api_route_added: files.some((file) => allowedRouteFiles.has(file)),
     files,
   };

@@ -27,6 +27,11 @@ const currentPerspectiveFixtureFile =
   "fixtures/current-working-perspective.sample.v0.1.json";
 const currentPerspectiveSmokeFile =
   "scripts/smoke-current-working-perspective-v0-1.mjs";
+const currentPerspectiveSourceFile =
+  "lib/perspective/current-working-perspective-source.ts";
+const currentPerspectiveRouteFile = "app/api/perspective/current/route.ts";
+const currentPerspectiveRouteSmokeFile =
+  "scripts/smoke-current-working-perspective-route-v0-1.mjs";
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -54,15 +59,21 @@ const followOnCurrentWorkingPerspectiveFiles = [
   currentPerspectiveFixtureFile,
   currentPerspectiveSmokeFile,
 ];
+const followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles = [
+  currentPerspectiveSourceFile,
+  currentPerspectiveRouteFile,
+  currentPerspectiveRouteSmokeFile,
+];
 
 for (const file of [
   ...followOnProjectionRuntimeReadSurfaceFiles,
   ...followOnCurrentWorkingPerspectiveFiles,
+  ...followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles,
 ]) {
   allowedChangedFiles.add(file);
 }
 
-const allowedRouteFiles = new Set([routeFile]);
+const allowedRouteFiles = new Set([routeFile, currentPerspectiveRouteFile]);
 
 const textByFile = loadTextByFile(requiredFiles);
 const projectionDocText = textByFile.get(projectionDoc);
@@ -115,6 +126,8 @@ console.log(
         followOnProjectionRuntimeReadSurfaceFiles,
       follow_on_current_working_perspective_files_allowed:
         followOnCurrentWorkingPerspectiveFiles,
+      follow_on_current_working_perspective_runtime_read_surface_files_allowed:
+        followOnCurrentWorkingPerspectiveRuntimeReadSurfaceFiles,
       smoke_type: "static-projection-read-model-type-helper-fixture-package-index-boundary-only",
       runtime_behavior_changed: changedFilesBoundary.api_route_added,
       ui_behavior_changed: false,
@@ -523,12 +536,12 @@ function assertChangedFileBoundary() {
     );
     assert(
       !/^app\/api\//.test(file) || allowedRouteFiles.has(file),
-      `Phase 2A follow-on must not add API route files outside the Delta Projection read route: ${file}`,
+      `Phase 2A follow-on must not add API route files outside approved read routes: ${file}`,
     );
     assert(
       !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) ||
         allowedRouteFiles.has(file),
-      `Phase 2A follow-on must not add route files outside the Delta Projection read route: ${file}`,
+      `Phase 2A follow-on must not add route files outside approved read routes: ${file}`,
     );
     assert(!/^components\//.test(file), `Phase 2A must not change UI files: ${file}`);
     assert(!/^db\//.test(file), `Phase 2A must not change DB files: ${file}`);

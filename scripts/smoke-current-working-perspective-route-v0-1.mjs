@@ -9,78 +9,66 @@ import {
   uniqueSorted,
 } from "./smoke-boundary-common.mjs";
 
-const routeFile = "app/api/augnes/read/deltas/route.ts";
-const sourceCollectorFile = "lib/augnes-delta/source-collector.ts";
-const routeSmokeFile = "scripts/smoke-augnes-delta-projection-route-v0-1.mjs";
-const projectionDoc = "docs/AUGNES_DELTA_PROJECTION_READ_MODEL_V0_1.md";
-const projectionSmokeFile = "scripts/smoke-augnes-delta-projection-v0-1.mjs";
-const contractSmokeFile = "scripts/smoke-augnes-delta-contract-v0-1.mjs";
-const currentPerspectiveDoc = "docs/AUGNES_CURRENT_WORKING_PERSPECTIVE_V0_1.md";
-const currentPerspectiveTypeFile = "types/current-working-perspective.ts";
-const currentPerspectiveHelperFile =
-  "lib/perspective/current-working-perspective.ts";
-const currentPerspectiveFixtureFile =
-  "fixtures/current-working-perspective.sample.v0.1.json";
+const routeFile = "app/api/perspective/current/route.ts";
+const sourceHelperFile =
+  "lib/perspective/current-working-perspective-source.ts";
+const routeSmokeFile =
+  "scripts/smoke-current-working-perspective-route-v0-1.mjs";
+const currentPerspectiveDoc =
+  "docs/AUGNES_CURRENT_WORKING_PERSPECTIVE_V0_1.md";
 const currentPerspectiveSmokeFile =
   "scripts/smoke-current-working-perspective-v0-1.mjs";
-const currentPerspectiveSourceFile =
-  "lib/perspective/current-working-perspective-source.ts";
-const currentPerspectiveRouteFile = "app/api/perspective/current/route.ts";
-const currentPerspectiveRouteSmokeFile =
-  "scripts/smoke-current-working-perspective-route-v0-1.mjs";
+const contractSmokeFile = "scripts/smoke-augnes-delta-contract-v0-1.mjs";
+const projectionSmokeFile = "scripts/smoke-augnes-delta-projection-v0-1.mjs";
+const projectionRouteSmokeFile =
+  "scripts/smoke-augnes-delta-projection-route-v0-1.mjs";
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
 const requiredFiles = [
   routeFile,
-  sourceCollectorFile,
+  sourceHelperFile,
   routeSmokeFile,
-  projectionDoc,
+  currentPerspectiveDoc,
   packageJsonFile,
   indexDoc,
 ];
 
 const allowedChangedFiles = new Set([
   routeFile,
-  sourceCollectorFile,
+  sourceHelperFile,
   routeSmokeFile,
-  projectionDoc,
-  projectionSmokeFile,
-  contractSmokeFile,
   currentPerspectiveDoc,
-  currentPerspectiveTypeFile,
-  currentPerspectiveHelperFile,
-  currentPerspectiveFixtureFile,
   currentPerspectiveSmokeFile,
-  currentPerspectiveSourceFile,
-  currentPerspectiveRouteFile,
-  currentPerspectiveRouteSmokeFile,
+  contractSmokeFile,
+  projectionSmokeFile,
+  projectionRouteSmokeFile,
   packageJsonFile,
   indexDoc,
 ]);
 
-const allowedRouteFiles = new Set([routeFile, currentPerspectiveRouteFile]);
+const allowedRouteFiles = new Set([routeFile]);
 
 const textByFile = loadTextByFile(requiredFiles);
 const routeText = textByFile.get(routeFile);
-const sourceCollectorText = textByFile.get(sourceCollectorFile);
+const sourceHelperText = textByFile.get(sourceHelperFile);
 const routeSmokeText = textByFile.get(routeSmokeFile);
-const projectionDocText = textByFile.get(projectionDoc);
-const indexText = textByFile.get(indexDoc);
+const currentPerspectiveDocText = textByFile.get(currentPerspectiveDoc);
 const packageJsonText = textByFile.get(packageJsonFile);
+const indexText = textByFile.get(indexDoc);
 
 assertPackageJsonScript();
 assertIndexPointer();
 assertRouteDocs();
 assertRouteShape();
-assertSourceCollectorShape();
+assertSourceHelperShape();
 assertNoRuntimeActuationCode();
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
   JSON.stringify(
     {
-      smoke: "augnes-delta-projection-route-v0-1",
+      smoke: "current-working-perspective-route-v0-1",
       pass: true,
       required_files_checked: requiredFiles,
       package_script_checked: true,
@@ -89,16 +77,18 @@ console.log(
       route_get_only_checked: true,
       local_readonly_marker_checked: true,
       scope_fail_closed_checked: true,
-      source_collector_readonly_checked: true,
-      route_uses_projector_via_collector_checked: true,
+      source_composition_helper_readonly_checked: true,
+      route_uses_current_working_perspective_helper_checked: true,
       no_runtime_actuation_code_checked: true,
       changed_files_checked: changedFilesBoundary.checked,
       changed_files_skipped: changedFilesBoundary.skipped,
       changed_files_skip_reason: changedFilesBoundary.skip_reason,
       changed_files_observed: changedFilesBoundary.files,
-      smoke_type: "static-runtime-read-route-source-collector-boundary-only",
+      smoke_type:
+        "static-current-working-perspective-runtime-read-route-source-composition-boundary-only",
       route_behavior_changed: true,
-      route_behavior: "GET-only local read-only Augnes Delta projection read surface",
+      route_behavior:
+        "GET-only local read-only Current Working Perspective read surface",
       ui_behavior_changed: false,
       db_schema_migration_changed: false,
       db_write_added: false,
@@ -110,6 +100,8 @@ console.log(
       proof_evidence_write_added: false,
       durable_perspective_state_apply_added: false,
       memory_mutation_added: false,
+      human_surface_added: false,
+      guidebrief_added: false,
       product_write_behavior_added: false,
       autonomy_runner_added: false,
       external_side_effect_added: false,
@@ -118,14 +110,14 @@ console.log(
     2,
   ),
 );
-console.log("PASS smoke:augnes-delta-projection-route-v0-1");
+console.log("PASS smoke:current-working-perspective-route-v0-1");
 
 function assertPackageJsonScript() {
   assertPackageScript({
     packageJsonText,
-    scriptName: "smoke:augnes-delta-projection-route-v0-1",
+    scriptName: "smoke:current-working-perspective-route-v0-1",
     expectedCommand:
-      "node scripts/smoke-augnes-delta-projection-route-v0-1.mjs",
+      "node scripts/smoke-current-working-perspective-route-v0-1.mjs",
   });
 }
 
@@ -133,9 +125,11 @@ function assertIndexPointer() {
   assertContainsAll(
     indexText,
     [
-      projectionDoc,
-      "Phase 2B adds a GET-only read-only Delta Projection route",
-      "source collector",
+      currentPerspectiveDoc,
+      "Phase 3B adds a GET-only read-only Current Working Perspective route",
+      "source/composition helper",
+      "Human Surface",
+      "GuideBrief",
     ],
     { label: indexDoc },
   );
@@ -143,22 +137,39 @@ function assertIndexPointer() {
 
 function assertRouteDocs() {
   assertContainsAll(
-    projectionDocText,
+    currentPerspectiveDocText,
     [
-      "Phase 2B Runtime Read Surface",
-      "GET /api/augnes/read/deltas?scope=project:augnes",
+      "Phase 3B Runtime Read Surface",
+      "GET /api/perspective/current?scope=project:augnes",
       "read-only",
-      "source collector",
-      "source_refs",
-      "source_counts",
-      "gaps",
-      "x-augnes-local-readonly: augnes-delta-projection-v0.1",
+      "source/composition helper",
+      "CurrentWorkingPerspective",
+      "PerspectiveSnapshot",
+      "AugnesDeltaProjectionReadModel",
+      "x-augnes-local-readonly: current-working-perspective-v0.1",
       "no writes",
       "no persistence",
       "no external calls",
       "no approval/apply/proof/evidence authority",
+      "Human Surface / GuideBrief are not implemented in Phase 3B",
+      "current_frame",
+      "current_thesis",
+      "active_goals",
+      "accepted_assumptions",
+      "rejected_assumptions",
+      "open_questions",
+      "active_risks",
+      "research_pressure",
+      "next_candidates",
+      "last_major_delta_refs",
+      "review_queue_hints",
+      "source_refs",
+      "staleness",
+      "gaps",
+      "authority_boundary",
+      "next_phase_notes",
     ],
-    { label: projectionDoc },
+    { label: currentPerspectiveDoc },
   );
 }
 
@@ -178,80 +189,75 @@ function assertRouteShape() {
   assertContainsAll(
     routeText,
     [
-      "validateAugnesDeltaProjectionReadRequest",
-      "buildAugnesDeltaProjectionRuntimeReadModel",
+      "validateCurrentWorkingPerspectiveReadRequest",
+      "buildCurrentWorkingPerspectiveRuntimeReadModel",
       "NextResponse.json",
-      "AUGNES_DELTA_PROJECTION_LOCAL_READ_HEADER",
-      "AUGNES_DELTA_PROJECTION_LOCAL_READ_MARKER",
-      "AUGNES_DELTA_PROJECTION_CACHE_CONTROL",
+      "CURRENT_WORKING_PERSPECTIVE_LOCAL_READ_HEADER",
+      "CURRENT_WORKING_PERSPECTIVE_LOCAL_READ_MARKER",
+      "CURRENT_WORKING_PERSPECTIVE_CACHE_CONTROL",
       "READONLY_RESPONSE_HEADERS",
     ],
     { label: routeFile },
   );
 
   assertContainsAll(
-    sourceCollectorText,
+    sourceHelperText,
     [
       "validateReadonlyApiLocalAccess",
       "READONLY_LOCAL_HOSTS",
       "shouldUseReadonlyApiLocalDevAuthStrictMode",
       "validateReadonlyApiLocalDevAuthAdapter",
-      "AUGNES_DELTA_PROJECTION_ROUTE_SCOPE = \"project:augnes\"",
-      "requestedScope !== AUGNES_DELTA_PROJECTION_ROUTE_SCOPE",
+      "CURRENT_WORKING_PERSPECTIVE_ROUTE_SCOPE",
+      "requestedScope !== CURRENT_WORKING_PERSPECTIVE_ROUTE_SCOPE",
       "\"missing_scope\"",
       "\"invalid_scope\"",
       "x-augnes-local-readonly",
-      "augnes-delta-projection-v0.1",
+      "current-working-perspective-v0.1",
     ],
-    { label: sourceCollectorFile },
+    { label: sourceHelperFile },
   );
 }
 
-function assertSourceCollectorShape() {
+function assertSourceHelperShape() {
   assertContainsAll(
-    sourceCollectorText,
+    sourceHelperText,
     [
-      "buildAugnesDeltaProjectionReadModel",
-      "collectAugnesDeltaProjectionInput",
-      "state_delta_proposals",
-      "work_events",
-      "coordination_events",
-      "action_records",
-      "verification_evidence_records",
-      "dogfooding_records",
-      "handoff_traces",
-      "codex_result_traces",
-      "runtime_read_context.augnes_delta_projection.v0.1",
+      "buildCurrentWorkingPerspectiveRuntimeReadModel",
+      "collectCurrentWorkingPerspectiveInput",
+      "validateCurrentWorkingPerspectiveReadRequest",
+      "buildCurrentWorkingPerspectiveReadError",
+      "buildCurrentWorkingPerspective",
+      "buildAugnesDeltaProjectionRuntimeReadModel",
+      "PerspectiveSnapshot-shaped input",
+      "perspective_version",
       "projection_version",
-      "contract_version",
-      "source_refs",
+      "snapshot_version",
       "gaps",
-      "authority_boundary",
       "readonly: true",
       "fileMustExist: true",
       "query_only = ON",
     ],
-    { label: sourceCollectorFile },
+    { label: sourceHelperFile },
   );
 
   assert(
     /new\s+Database\s*\(\s*getDatabasePath\(\)\s*,\s*\{[\s\S]*readonly:\s*true[\s\S]*fileMustExist:\s*true[\s\S]*\}/.test(
-      sourceCollectorText,
+      sourceHelperText,
     ),
-    `${sourceCollectorFile} must open the existing DB in read-only fileMustExist mode`,
+    `${sourceHelperFile} must open the existing DB in read-only fileMustExist mode`,
   );
   assert(
-    !/\bopenDatabase\s*\(/.test(sourceCollectorText),
-    `${sourceCollectorFile} must not call the migration-capable openDatabase helper`,
+    !/\bopenDatabase\s*\(/.test(sourceHelperText),
+    `${sourceHelperFile} must not call the migration-capable openDatabase helper`,
   );
   assert(
-    !/\bbuildPerspectiveSnapshot\s*\(/.test(sourceCollectorText),
-    `${sourceCollectorFile} must not call snapshot helpers that can open migration-capable DB helpers`,
+    !/\bbuildPerspectiveSnapshot\s*\(/.test(sourceHelperText),
+    `${sourceHelperFile} must not call snapshot helpers that can open migration-capable DB helpers`,
   );
 }
 
 function assertNoRuntimeActuationCode() {
-  const checkedText = `${routeText}\n${sourceCollectorText}`;
+  const checkedText = `${routeText}\n${sourceHelperText}`;
   const forbiddenPatterns = [
     /\bappendWorkEvent\s*\(/,
     /\bappendCoordinationEvent\s*\(/,
@@ -287,7 +293,7 @@ function assertNoRuntimeActuationCode() {
   for (const pattern of forbiddenPatterns) {
     assert(
       !pattern.test(checkedText),
-      `Phase 2B route/source collector must not add runtime actuation code matching ${pattern}`,
+      `Phase 3B route/source helper must not add runtime actuation code matching ${pattern}`,
     );
   }
 
@@ -301,6 +307,8 @@ function assertNoRuntimeActuationCode() {
       "allowedRouteFiles",
       "readonly: true",
       "fileMustExist: true",
+      "Human Surface",
+      "GuideBrief",
     ],
     { label: routeSmokeFile },
   );
@@ -321,35 +329,39 @@ function assertChangedFileBoundary() {
   for (const file of files) {
     assert(
       allowedChangedFiles.has(file),
-      `Unexpected Phase 2B changed or untracked file: ${file}`,
+      `Unexpected Phase 3B changed or untracked file: ${file}`,
     );
     assert(
       !/^app\/api\//.test(file) || allowedRouteFiles.has(file),
-      `Phase 2B follow-on must not add API route files outside approved read routes: ${file}`,
+      `Phase 3B must not add API route files outside the Current Working Perspective read route: ${file}`,
     );
     assert(
       !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) ||
         allowedRouteFiles.has(file),
-      `Phase 2B follow-on must not add route files outside approved read routes: ${file}`,
+      `Phase 3B must not add route files outside the Current Working Perspective read route: ${file}`,
     );
-    assert(!/^components\//.test(file), `Phase 2B must not change UI files: ${file}`);
-    assert(!/^db\//.test(file), `Phase 2B must not change DB files: ${file}`);
-    assert(!/^migrations\//.test(file), `Phase 2B must not change migrations: ${file}`);
+    assert(!/^components\//.test(file), `Phase 3B must not change UI files: ${file}`);
+    assert(!/^db\//.test(file), `Phase 3B must not change DB files: ${file}`);
+    assert(!/^migrations\//.test(file), `Phase 3B must not change migrations: ${file}`);
     assert(
       !/^apps\/augnes_apps\//.test(file),
-      `Phase 2B must not change MCP/App files: ${file}`,
+      `Phase 3B must not change MCP/App files: ${file}`,
     );
     assert(
       !/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file),
-      `Phase 2B must not change MCP/App tool files: ${file}`,
+      `Phase 3B must not change MCP/App tool files: ${file}`,
     );
     assert(
       !/(^|\/)(provider|providers|openai|github)(\/|$)/i.test(file),
-      `Phase 2B must not change provider/OpenAI/GitHub runtime files: ${file}`,
+      `Phase 3B must not change provider/OpenAI/GitHub runtime files: ${file}`,
     );
     assert(
       !/(^|\/)(proof|evidence)(\/|$)/i.test(file),
-      `Phase 2B must not add proof/evidence write paths: ${file}`,
+      `Phase 3B must not add proof/evidence write paths: ${file}`,
+    );
+    assert(
+      !/(^|\/)(human-surface|human_surface|guidebrief|guide-brief)(\/|$)/i.test(file),
+      `Phase 3B must not add Human Surface or GuideBrief files: ${file}`,
     );
   }
 
@@ -358,12 +370,20 @@ function assertChangedFileBoundary() {
       workingTree.checked ||
       cached.checked ||
       baseRange.checked ||
-      untrackedFiles.length > 0,
-    skipped: !workingTree.checked && !cached.checked && !baseRange.checked,
+      untrackedFiles.checked,
+    skipped: !(
+      workingTree.checked ||
+      cached.checked ||
+      baseRange.checked ||
+      untrackedFiles.checked
+    ),
     skip_reason:
-      !workingTree.checked && !cached.checked && !baseRange.checked
-        ? "git diff checks were unavailable"
-        : null,
+      workingTree.checked ||
+      cached.checked ||
+      baseRange.checked ||
+      untrackedFiles.checked
+        ? null
+        : "changed-file boundary could not be checked",
     files,
   };
 }

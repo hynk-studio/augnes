@@ -201,17 +201,81 @@ merge, publish, retry, replay, deploy, or external side effects.
 - Changed-file boundaries stay focused on Phase 3A helper/type/doc/fixture/
   smoke/package/index files and exact follow-on smoke compatibility edits.
 
-## 11. Future Phase Handoff
+## 11. Phase 3B Runtime Read Surface
 
-Phase 3B may add a GET-only read-only route for this packet if explicitly
-scoped. Route work should reuse the established local/read-only guard pattern
-and must preserve the same authority boundary.
+Phase 3B adds:
 
-Phase 4 - Human Surface v0.1 can consume this read model to render the current
+- `GET /api/perspective/current?scope=project:augnes`
+- `lib/perspective/current-working-perspective-source.ts`
+- `npm run smoke:current-working-perspective-route-v0-1`
+
+The route is GET-only and read-only. It requires `scope=project:augnes`,
+fails closed for missing or invalid scope, uses the established local/read-only
+access guard pattern, returns `400` for missing or invalid scope before any
+source composition, and returns the local/read-only marker:
+
+```text
+x-augnes-local-readonly: current-working-perspective-v0.1
+```
+
+The route also sets `cache-control: no-store`.
+
+The source/composition helper is read-only. It:
+
+- opens the existing Augnes DB only in read-only `fileMustExist` mode with
+  SQLite `query_only = ON`
+- builds a bounded `PerspectiveSnapshot`-shaped input without calling the
+  migration-capable `buildPerspectiveSnapshot` / `openDatabase` path
+- reuses the Phase 2B `AugnesDeltaProjectionReadModel` runtime read path
+- passes `PerspectiveSnapshot` context and `AugnesDeltaProjectionReadModel`
+  into `buildCurrentWorkingPerspective`
+- preserves `source_refs`, `staleness`, `gaps`, diagnostic refs, review hints,
+  and authority boundary
+
+The response is a `CurrentWorkingPerspective` JSON packet with:
+
+- `runtime`
+- `perspective_version`
+- `projection_version`
+- `snapshot_version`
+- `scope`
+- `as_of`
+- `current_frame`
+- `current_thesis`
+- `active_goals`
+- `accepted_assumptions`
+- `rejected_assumptions`
+- `open_questions`
+- `active_risks`
+- `research_pressure`
+- `next_candidates`
+- `last_major_delta_refs`
+- `review_queue_hints`
+- `source_refs`
+- `staleness`
+- `gaps`
+- `authority_boundary`
+- `next_phase_notes`
+
+If the existing DB or optional source tables are unavailable, the route returns
+a packet with explicit gaps instead of creating schema, running migrations,
+mutating source records, or inventing durable-looking source ids.
+
+Phase 3B adds no writes, no persistence, no external calls, no
+approval/apply/proof/evidence authority, no durable Perspective state apply,
+no memory mutation, no product-write behavior, and no merge/publish/retry/
+replay/deploy behavior.
+
+Human Surface / GuideBrief are not implemented in Phase 3B.
+
+## 12. Future Phase Handoff
+
+Phase 4 - Human Surface v0.1 can consume this read model through either the
+pure helper or the Phase 3B GET-only read-only route. It can render the current
 frame, goals, assumptions, questions, risks, next candidates, delta refs,
 review hints, source refs, staleness, and gaps without needing state mutation.
 
-## 12. Next Phase Readiness Criteria
+## 13. Next Phase Readiness Criteria
 
 Phase 3A is ready for Phase 4 when:
 
