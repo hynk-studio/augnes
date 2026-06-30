@@ -26,7 +26,18 @@ const requiredFiles = [
   indexDoc,
 ];
 
-const allowedChangedFiles = new Set(requiredFiles);
+const followOnProjectionReadModelFiles = [
+  "docs/AUGNES_DELTA_PROJECTION_READ_MODEL_V0_1.md",
+  "types/augnes-delta-projection.ts",
+  "lib/augnes-delta/projector.ts",
+  "fixtures/augnes-delta-projection.sample.v0.1.json",
+  "scripts/smoke-augnes-delta-projection-v0-1.mjs",
+];
+
+const allowedChangedFiles = new Set([
+  ...requiredFiles,
+  ...followOnProjectionReadModelFiles,
+]);
 
 const textByFile = loadTextByFile(requiredFiles);
 const contractText = textByFile.get(contractDoc);
@@ -62,6 +73,8 @@ console.log(
       changed_files_skipped: changedFilesBoundary.skipped,
       changed_files_skip_reason: changedFilesBoundary.skip_reason,
       git_diff_name_only_checked: changedFilesBoundary.git_diff_name_only_checked,
+      follow_on_projection_files_allowed:
+        changedFilesBoundary.follow_on_projection_files_allowed,
       changed_files_observed: changedFilesBoundary.files,
       smoke_type: "static-contract-type-fixture-package-index-boundary-only",
       runtime_behavior_changed: false,
@@ -294,6 +307,15 @@ function assertChangedFileBoundary() {
       allowedChangedFiles.has(file),
       `Unexpected changed or untracked file for AugnesDelta contract phase: ${file}`,
     );
+    assert(!/^app\/api\//.test(file), `AugnesDelta contract follow-on must not add API routes: ${file}`);
+    assert(!/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file), `AugnesDelta contract follow-on must not add route files: ${file}`);
+    assert(!/^components\//.test(file), `AugnesDelta contract follow-on must not change UI files: ${file}`);
+    assert(!/^db\//.test(file), `AugnesDelta contract follow-on must not change DB files: ${file}`);
+    assert(!/^migrations\//.test(file), `AugnesDelta contract follow-on must not change migrations: ${file}`);
+    assert(!/^apps\/augnes_apps\//.test(file), `AugnesDelta contract follow-on must not change MCP/App files: ${file}`);
+    assert(!/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file), `AugnesDelta contract follow-on must not change MCP/App tool files: ${file}`);
+    assert(!/(^|\/)(provider|providers|openai|github)(\/|$)/i.test(file), `AugnesDelta contract follow-on must not change provider/OpenAI/GitHub runtime files: ${file}`);
+    assert(!/(^|\/)(proof|evidence)(\/|$)/i.test(file), `AugnesDelta contract follow-on must not add proof/evidence write paths: ${file}`);
   }
 
   return {
@@ -308,6 +330,7 @@ function assertChangedFileBoundary() {
         ? "git diff checks were unavailable"
         : null,
     git_diff_name_only_checked: workingTree.checked,
+    follow_on_projection_files_allowed: followOnProjectionReadModelFiles,
     files,
   };
 }

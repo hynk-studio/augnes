@@ -80,6 +80,15 @@ PR #868 is merged. Current route planning starts from:
   MCP/App tool, persistence, Codex execution, GitHub/provider call,
   proof/evidence write, durable state apply, product-write, or autonomy runner
   behavior.
+- `docs/AUGNES_DELTA_PROJECTION_READ_MODEL_V0_1.md`: read-only Augnes Delta
+  projection read-model contract for projecting existing Augnes source records
+  into AugnesDelta[] and DeltaBatch[] with source refs, source counts, gaps,
+  authority boundary, and conservative merge policies. Phase 2A adds
+  docs/type/helper/fixture/smoke/package-pointer/index-pointer only and adds no
+  UI, route, DB schema/migration, DB write, MCP/App tool, provider/OpenAI
+  call, GitHub actuation, Codex execution, proof/evidence write, durable
+  Perspective apply, memory mutation, product-write, scheduler/autonomy
+  runner, merge/publish/retry/replay/deploy behavior, or external side effect.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
