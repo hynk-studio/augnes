@@ -125,6 +125,7 @@
   ],
   "blocked_forbidden_authority_string_claim_cases": [
     "Git Ledger export packet is Git commit.",
+    "Git Ledger export packet is Git write approval.",
     "Git Ledger export packet is GitHub actuation.",
     "Suggested commit message is approval.",
     "Suggested commit intent is execution approval.",
@@ -136,6 +137,8 @@
   ],
   "allowed_negated_authority_examples": [
     "Git Ledger export packet is not Git commit.",
+    "Git Ledger export packet is not a Git commit.",
+    "Git Ledger export packet is not Git write approval.",
     "Suggested commit message is not approval.",
     "Suggested commit intent is not execution approval.",
     "Packet hash is not proof.",

@@ -184,6 +184,24 @@
     },
     "expected_status": "blocked_private_or_raw_payload"
   },
+  "blocked_credential_marker_report_example": {
+    "input": {
+      "input_version": "codex_result_report_input.v0.1",
+      "scope": "project:augnes",
+      "report_id": "codex-result-report:binding-blocked-credential-marker",
+      "report_kind": "codex_validation_report",
+      "reported_at": "2026-06-30T00:36:00Z",
+      "operator_actor_ref": "operator-ref:codex-local",
+      "codex_claimed_summary": "Blocked credential marker fixture for binding coverage.",
+      "blocked_fixture_marker": "SAFE_MARKER_CREDENTIAL",
+      "authority_boundary": {
+        "product_write_authority": false,
+        "github_api_call_now": false,
+        "codex_execution_authority": false
+      }
+    },
+    "expected_status": "blocked_private_or_raw_payload"
+  },
   "blocked_structured_authority_report_example": {
     "input": {
       "input_version": "codex_result_report_input.v0.1",

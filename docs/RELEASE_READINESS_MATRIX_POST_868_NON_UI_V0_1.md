@@ -4,6 +4,9 @@ This matrix is repo-grounded, review-only, and non-executing. PR #868 is
 treated as the frozen web baseline: `/` is the public Augnes surface,
 `/perspective` is Perspective detail, and `/workbench` is Cockpit/workbench.
 PR #878 provides selected runtime audit event store context.
+This matrix is a static repo-grounded artifact. Its authority coverage is
+verified by fixture fields and smoke assertions, not by a callable runtime
+phrase blocker.
 
 This slice adds no UI, components, route model changes, routes, broad route
 instrumentation, DB migrations, global DB config, local file reads or writes,

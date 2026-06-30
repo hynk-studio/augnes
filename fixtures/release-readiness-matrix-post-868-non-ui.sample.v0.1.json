@@ -499,6 +499,9 @@
   "authority_boundary": {
     "matrix_review_only": true,
     "repo_grounded_public_safe_summaries_only": true,
+    "matrix_static_repo_artifact_only": true,
+    "authority_coverage_verified_by_fixture_fields_and_smoke_assertions_only": true,
+    "callable_runtime_phrase_blocker_added": false,
     "release_readiness_matrix_is_release_approval": false,
     "release_readiness_matrix_is_deploy_approval": false,
     "release_readiness_matrix_is_publish_approval": false,
@@ -581,7 +584,7 @@
     "deployability_claimed": false
   },
   "next_recommended_slice": "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision",
-  "matrix_fingerprint": "sha256:657555a23354601679f7317af6a96d785968db14daffd1781d0f349903a2ca37",
+  "matrix_fingerprint": "sha256:c3694f81b6303ef9b28c12cc3333c520e4822ab1cf1aeeb8164f2e63ee88e0ff",
   "reason_codes": [
     "post_868_route_baseline_frozen",
     "pr_878_selected_runtime_audit_event_context",

@@ -449,7 +449,7 @@ const mutationRequestPatterns: ReadonlyArray<{
   summary: string;
 }> = [
   {
-    pattern: /\b(?:git\s+(?:commit|push|tag|checkout|branch|merge)|create\s+(?:commit|branch|tag)|merge\s+pull request)\b/i,
+    pattern: /\b(?:(?<!\bnot\s)(?<!\bnot\sa\s)git\s+(?:commit|push|tag|checkout|branch|merge)|create\s+(?:commit|branch|tag)|merge\s+pull request)\b/i,
     reason_code: "git_write_not_executed",
     summary: "Git mutation request was blocked.",
   },

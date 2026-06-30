@@ -55,8 +55,11 @@ const packageScriptValue =
 
 const expectedChangedFiles = new Set([
   helperPath,
+  normalizerPath,
   fixturePath,
+  codexFixturePath,
   smokePath,
+  "scripts/smoke-codex-result-report-ingestion-v0-1.mjs",
   researchSmokePath,
   docsPath,
   packagePath,
@@ -82,6 +85,7 @@ const expectedChangedFiles = new Set([
   "docs/LOCAL_DATA_EXPORT_MANIFEST_BUILDER_V0_1.md",
   "scripts/smoke-local-data-export-policy-v0-1.mjs",
   "lib/git-ledger/build-export-packet-from-local-manifest.ts",
+  "lib/git-ledger/build-export-packet.ts",
   "fixtures/git-ledger-export-from-local-manifest.sample.v0.1.json",
   "scripts/smoke-git-ledger-export-from-local-manifest-v0-1.mjs",
   "docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md",
@@ -381,6 +385,18 @@ function assertBlockedInputBehavior() {
   assertNoUnsafeEcho(privateResult, "private binding result");
   assertAllBindingExecutionFlagsFalse(privateResult);
 
+  const credentialResult = helper.convertRawCodexResultReportToDogfoodingRecordInputV01(
+    fixture.blocked_credential_marker_report_example.input,
+  );
+  assert.equal(credentialResult.ok, false);
+  assert.equal(
+    credentialResult.status,
+    fixture.blocked_credential_marker_report_example.expected_status,
+  );
+  assert.equal(credentialResult.dogfooding_record_input, null);
+  assertNoUnsafeEcho(credentialResult, "credential binding result");
+  assertAllBindingExecutionFlagsFalse(credentialResult);
+
   const structuredAuthorityResult =
     helper.convertRawCodexResultReportToDogfoodingRecordInputV01(
       fixture.blocked_structured_authority_report_example.input,
@@ -557,6 +573,11 @@ function assertNoUnsafeEcho(value, label) {
     "SAFE_MARKER_PRIVATE_URL",
     "SAFE_MARKER_LOCAL_PRIVATE_PATH",
     "SAFE_MARKER_SECRET_TOKEN",
+    "SAFE_MARKER_CREDENTIAL",
+    "SAFE_MARKER_TOKEN",
+    "SAFE_MARKER_SECRET",
+    "SAFE_MARKER_COOKIE",
+    "SAFE_MARKER_PRIVATE_KEY",
   ]) {
     assert.ok(!text.includes(marker), `${label} must not echo ${marker}`);
   }
