@@ -310,6 +310,55 @@ Autonomy mode in Phase 2A is contract-only. The read model may identify future
 working-memory-only candidates, but it cannot auto-apply them. A future
 explicit Autonomy Contract is required before any auto-apply behavior exists.
 
+## Phase 2B Runtime Read Surface
+
+Phase 2B adds a GET-only read-only runtime read surface:
+
+- `GET /api/augnes/read/deltas?scope=project:augnes`
+- Required local/read-only response marker:
+  `x-augnes-local-readonly: augnes-delta-projection-v0.1`
+- The route requires the `scope` query parameter and fails closed unless the
+  scope is exactly `project:augnes`.
+- The route uses the existing local/read-only access guard pattern with a
+  route-specific marker and no-store response headers.
+- The route returns `AugnesDeltaProjectionReadModel` JSON with `runtime`,
+  `projection_version`, `contract_version`, `scope`, `as_of`, `source_refs`,
+  `source_counts`, `deltas`, `batches`, `gaps`, `authority_boundary`, and
+  `next_phase_notes`.
+
+The Phase 2B source collector is read-only. It opens the existing Augnes DB in
+SQLite read-only/query-only mode, requires the DB file to already exist, and
+does not create DB files, run migrations, create schema, persist records,
+mutate source records, append work events, append coordination events, insert
+or update state delta proposals, write proof, or write evidence.
+
+Supported source families in Phase 2B:
+
+- `state_delta_proposals` -> `state_delta_proposal` projection inputs.
+- `work_events` -> `work_event` projection inputs.
+- `coordination_events` -> `coordination_event` projection inputs.
+- `action_records` -> `action_record` projection inputs when the table exists.
+- `verification_evidence_records` -> `evidence_record` pointer inputs when
+  the table exists.
+- `dogfooding_records` -> public-safe bounded `dogfooding_record` projection
+  inputs when the table exists.
+- handoff traces -> derived only from structured handoff coordination event
+  refs; packet text is not reconstructed.
+- Codex result traces -> derived only from structured Codex work-event result
+  refs; result text is not reconstructed.
+- Snapshot context -> represented as an in-memory `SnapshotRef` for the current
+  read-only DB projection context, not as durable Perspective state.
+
+Gap behavior is explicit. Missing DB files, missing optional source tables,
+unreadable source families, absent handoff traces, and absent Codex result
+traces are represented as `gaps`; the route does not invent source data.
+
+The Phase 2B route and collector add no writes, no persistence, no external
+calls, and no approval/apply/proof/evidence authority. They do not grant merge,
+publish, retry, replay, deploy, provider/OpenAI, GitHub, Codex execution,
+memory mutation, durable Perspective apply, product-write, scheduler, daemon,
+or autonomy runner authority.
+
 ## 14. Non-Goals
 
 Phase 2A does not add UI, route changes, API routes, DB schema or migrations,
@@ -347,8 +396,9 @@ The static smoke for Phase 2A must check:
 
 ## 16. Future Phase Handoff
 
-Phase 2B may add a read-only route only if a future operator prompt explicitly
-authorizes it and the repository pattern is clear.
+Phase 2B adds the read-only route and source collector authorized by the
+operator prompt. It remains a read-only projection surface and does not apply
+or approve deltas.
 
 Phase 3 can consume this read model to build Current Working Perspective v0.1
 from deltas, batches, source refs, gaps, and snapshot refs.

@@ -89,6 +89,13 @@ PR #868 is merged. Current route planning starts from:
   call, GitHub actuation, Codex execution, proof/evidence write, durable
   Perspective apply, memory mutation, product-write, scheduler/autonomy
   runner, merge/publish/retry/replay/deploy behavior, or external side effect.
+  Phase 2B adds a GET-only read-only Delta Projection route and thin source
+  collector for projecting existing Augnes records into
+  AugnesDeltaProjectionReadModel. It adds no UI, DB schema/migration, DB write,
+  persistence, MCP/App tool, provider/OpenAI call, GitHub actuation, Codex
+  execution, proof/evidence write, durable Perspective apply, memory mutation,
+  product-write, scheduler/autonomy runner, merge/publish/retry/replay/deploy
+  behavior, or external side effect.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
