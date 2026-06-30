@@ -23,7 +23,7 @@ const shellStyle: CSSProperties = {
 
 const layoutStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(240px, 0.68fr) minmax(520px, 1.5fr) minmax(280px, 0.78fr)",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
   gap: "14px",
   alignItems: "start",
 };
@@ -130,7 +130,10 @@ export async function AgentWorkplane() {
             </p>
           </aside>
 
-          <section aria-labelledby="workplane-active-content-title" style={{ minWidth: 0 }}>
+          <section
+            aria-label="Agent Workplane active compatibility content"
+            style={{ minWidth: 0 }}
+          >
             <LegacyCockpitCompatibilityPanel>
               <AugnesCockpit />
             </LegacyCockpitCompatibilityPanel>
