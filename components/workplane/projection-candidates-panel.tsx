@@ -18,12 +18,13 @@ export function ProjectionCandidatesPanel({
   const projection = context.delta_projection_read.data;
   const nextCandidates = context.current_perspective_read.data.next_candidates;
   const reviewQueue = context.overview.review_queue;
-  const candidateDeltas = sortDeltasNewestFirst(
+  const candidateDeltaPreview = sortDeltasNewestFirst(
     projection.deltas.filter((delta) =>
       ["draft", "needs_review", "deferred"].includes(delta.status),
     ),
-  ).slice(0, 4);
-  const candidateCount = nextCandidates.length + candidateDeltas.length;
+  );
+  const visibleCandidateDeltas = candidateDeltaPreview.slice(0, 4);
+  const candidateCount = nextCandidates.length + candidateDeltaPreview.length;
 
   return (
     <WorkplanePanelShell
@@ -51,7 +52,7 @@ export function ProjectionCandidatesPanel({
             <span style={workplaneCopyStyle}>{candidate.rationale}</span>
           </li>
         ))}
-        {candidateDeltas.map((delta) => (
+        {visibleCandidateDeltas.map((delta) => (
           <li key={delta.delta_id} style={workplaneItemStyle}>
             <span style={workplaneBadgeStyle}>{delta.status}</span>
             <strong>{delta.title}</strong>

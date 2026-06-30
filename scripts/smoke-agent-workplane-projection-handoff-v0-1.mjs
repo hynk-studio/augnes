@@ -183,8 +183,18 @@ function assertPhase5CPanelComponents() {
       "persistence controls",
       "review_queue",
       "next_candidates",
+      "candidateDeltaPreview",
+      "visibleCandidateDeltas",
+      "candidateDeltaPreview.slice(0, 4)",
+      "candidateCount = nextCandidates.length + candidateDeltaPreview.length",
     ],
     { label: projectionCandidatesPanelFile },
+  );
+  assert(
+    !/candidateCount\s*=\s*nextCandidates\.length\s*\+\s*visibleCandidateDeltas\.length/.test(
+      projectionCandidatesText,
+    ),
+    `${projectionCandidatesPanelFile} Candidates metric must use the full uncapped candidate delta list`,
   );
   assertContainsAll(
     deltaBatchText,
@@ -197,8 +207,22 @@ function assertPhase5CPanelComponents() {
       "diagnostic_refs",
       "authority_boundary",
       "no batch apply",
+      "totalBatchDeltaCount",
+      "totalBatchSnapshotRefCount",
+      "totalBatchDiagnosticRefCount",
+      "batches.reduce(",
+      "count + batch.deltas.length",
+      "count + batch.snapshot_refs.length",
+      "count + batch.diagnostic_refs.length",
+      "batches.slice(0, 3)",
     ],
     { label: deltaBatchPanelFile },
+  );
+  assert(
+    !/firstBatch\s*\?\s*firstBatch\.(?:deltas|snapshot_refs|diagnostic_refs)\.length\s*:\s*0/.test(
+      deltaBatchText,
+    ),
+    `${deltaBatchPanelFile} top metrics must summarize all materialized batches`,
   );
   assertContainsAll(
     handoffBuilderText,

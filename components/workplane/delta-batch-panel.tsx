@@ -16,7 +16,18 @@ export function DeltaBatchPanel({
 }) {
   const projection = context.delta_projection_read.data;
   const batches = projection.batches;
-  const firstBatch = batches[0];
+  const totalBatchDeltaCount = batches.reduce(
+    (count, batch) => count + batch.deltas.length,
+    0,
+  );
+  const totalBatchSnapshotRefCount = batches.reduce(
+    (count, batch) => count + batch.snapshot_refs.length,
+    0,
+  );
+  const totalBatchDiagnosticRefCount = batches.reduce(
+    (count, batch) => count + batch.diagnostic_refs.length,
+    0,
+  );
 
   return (
     <WorkplanePanelShell
@@ -31,18 +42,9 @@ export function DeltaBatchPanel({
 
       <WorkplanePanelMetricGrid>
         <WorkplanePanelMetric label="Batches" value={batches.length} />
-        <WorkplanePanelMetric
-          label="Deltas"
-          value={firstBatch ? firstBatch.deltas.length : 0}
-        />
-        <WorkplanePanelMetric
-          label="Snapshots"
-          value={firstBatch ? firstBatch.snapshot_refs.length : 0}
-        />
-        <WorkplanePanelMetric
-          label="Diagnostics"
-          value={firstBatch ? firstBatch.diagnostic_refs.length : 0}
-        />
+        <WorkplanePanelMetric label="Deltas" value={totalBatchDeltaCount} />
+        <WorkplanePanelMetric label="Snapshots" value={totalBatchSnapshotRefCount} />
+        <WorkplanePanelMetric label="Diagnostics" value={totalBatchDiagnosticRefCount} />
       </WorkplanePanelMetricGrid>
 
       <ul style={workplaneListStyle}>
