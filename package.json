@@ -580,6 +580,7 @@
     "smoke:dogfooding-to-review-memory-proposal-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-dogfooding-to-review-memory-proposal-v0-1.mjs",
     "smoke:local-data-export-manifest-builder-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-local-data-export-manifest-builder-v0-1.mjs",
     "smoke:git-ledger-export-from-local-manifest-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-git-ledger-export-from-local-manifest-v0-1.mjs",
+    "smoke:selected-runtime-audit-event-store-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-selected-runtime-audit-event-store-v0-1.mjs",
     "smoke:runtime-audit-selected-route-instrumentation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-selected-route-instrumentation-v0-1.mjs",
     "smoke:runtime-audit-selected-route-instrumentation-v0-2": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-selected-route-instrumentation-v0-2.mjs",
     "smoke:runtime-audit-selected-route-instrumentation-v0-3": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-selected-route-instrumentation-v0-3.mjs",
