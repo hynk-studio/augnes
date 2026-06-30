@@ -578,6 +578,7 @@
     "smoke:conversation-handoff-packet-v0-2": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-conversation-handoff-packet-v0-2.mjs",
     "smoke:conversation-handoff-from-dogfooding-record-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs",
     "smoke:dogfooding-to-review-memory-proposal-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-dogfooding-to-review-memory-proposal-v0-1.mjs",
+    "smoke:local-data-export-manifest-builder-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-local-data-export-manifest-builder-v0-1.mjs",
     "smoke:runtime-audit-selected-route-instrumentation-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-selected-route-instrumentation-v0-1.mjs",
     "smoke:runtime-audit-selected-route-instrumentation-v0-2": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-selected-route-instrumentation-v0-2.mjs",
     "smoke:runtime-audit-selected-route-instrumentation-v0-3": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-runtime-audit-selected-route-instrumentation-v0-3.mjs",

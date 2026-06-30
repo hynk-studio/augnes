@@ -50,9 +50,21 @@ const expectedChangedFiles = new Set([
   packetSmokePath,
   codexBindingSmokePath,
   dogfoodingSmokePath,
+  "types/local-data-export-manifest.ts",
+  "lib/local-export/build-local-data-export-manifest.ts",
+  "fixtures/local-data-export-manifest.sample.v0.1.json",
+  "scripts/smoke-local-data-export-manifest-builder-v0-1.mjs",
+  "docs/LOCAL_DATA_EXPORT_MANIFEST_BUILDER_V0_1.md",
+  "scripts/smoke-local-data-export-policy-v0-1.mjs",
 ]);
 
-const newSliceFiles = [typePath, helperPath, fixturePath, smokePath, docsPath];
+const newSliceFiles = [
+  "types/local-data-export-manifest.ts",
+  "lib/local-export/build-local-data-export-manifest.ts",
+  "fixtures/local-data-export-manifest.sample.v0.1.json",
+  "scripts/smoke-local-data-export-manifest-builder-v0-1.mjs",
+  "docs/LOCAL_DATA_EXPORT_MANIFEST_BUILDER_V0_1.md",
+];
 
 const requiredHelperExports = [
   "buildReviewMemoryProposalFromDogfoodingRecordV01",

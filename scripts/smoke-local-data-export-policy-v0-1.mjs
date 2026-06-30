@@ -7,6 +7,8 @@ const docsPath = "docs/LOCAL_DATA_EXPORT_IMPORT_POLICY_V0_1.md";
 const typePath = "types/local-data-export.ts";
 const fixturePath = "fixtures/local-data-export.sample.v0.1.json";
 const smokePath = "scripts/smoke-local-data-export-policy-v0-1.mjs";
+const manifestBuilderHelperPath =
+  "lib/local-export/build-local-data-export-manifest.ts";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const roadmapPath = "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md";
@@ -592,6 +594,9 @@ function assertNoForbiddenRuntimeFiles() {
       continue;
     }
     for (const filePath of walk(runtimeDir)) {
+      if (filePath === manifestBuilderHelperPath) {
+        continue;
+      }
       if (suspiciousPathPattern.test(filePath)) {
         forbiddenRuntimeHits.push(filePath);
       }
@@ -616,6 +621,30 @@ function assertNoForbiddenRuntimeFiles() {
       existsSync(expectedFile),
       `expected narrow-scope slice file must exist: ${expectedFile}`,
     );
+  }
+  if (existsSync(manifestBuilderHelperPath)) {
+    const helperSource = readFileSync(manifestBuilderHelperPath, "utf8");
+    const forbiddenHelperPatterns = [
+      /from\s+["']node:fs["']/,
+      /from\s+["']fs["']/,
+      /from\s+["']next\/server["']/,
+      /from\s+["']openai["']/i,
+      /from\s+["']node:child_process["']/,
+      /from\s+["']child_process["']/,
+      /\breadFile(?:Sync)?\s*\(/,
+      /\bwriteFile(?:Sync)?\s*\(/,
+      /\bcreateReadStream\s*\(/,
+      /\bcreateWriteStream\s*\(/,
+      /\bfetch\s*\(/,
+      /\bDatabase\s*\(/,
+      /\bNextResponse\b/,
+    ];
+    for (const pattern of forbiddenHelperPatterns) {
+      assert.ok(
+        !pattern.test(helperSource),
+        `manifest builder helper must remain no-file/no-route/no-provider: ${pattern}`,
+      );
+    }
   }
 }
 

@@ -57,6 +57,12 @@ const expectedChangedFiles = new Set([
   "fixtures/dogfooding-to-review-memory-proposal.sample.v0.1.json",
   "scripts/smoke-dogfooding-to-review-memory-proposal-v0-1.mjs",
   "docs/DOGFOODING_TO_REVIEW_MEMORY_PROPOSAL_V0_1.md",
+  "types/local-data-export-manifest.ts",
+  "lib/local-export/build-local-data-export-manifest.ts",
+  "fixtures/local-data-export-manifest.sample.v0.1.json",
+  "scripts/smoke-local-data-export-manifest-builder-v0-1.mjs",
+  "docs/LOCAL_DATA_EXPORT_MANIFEST_BUILDER_V0_1.md",
+  "scripts/smoke-local-data-export-policy-v0-1.mjs",
   packagePath,
   indexPath,
 ]);
