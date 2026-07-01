@@ -82,6 +82,14 @@ const followOnHistoricalSmokeCompatibilityFiles = [
   "scripts/smoke-perspective-human-timeline-v0-1.mjs",
 ];
 
+const followOnGuideBriefCoreFiles = [
+  "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+  "types/guide-brief.ts",
+  "lib/guide/guide-brief.ts",
+  "fixtures/guide-brief.sample.v0.1.json",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+];
+
 const requiredFiles = [
   workbenchPageFile,
   ...phase5aFiles,
@@ -107,6 +115,7 @@ const allowedChangedFiles = new Set([
   panelsSmokeFile,
   projectionHandoffSmokeFile,
   ...followOnHistoricalSmokeCompatibilityFiles,
+  ...followOnGuideBriefCoreFiles,
   smokeFile,
   "app/globals.css",
 ]);
@@ -190,7 +199,9 @@ console.log(
       product_write_added: false,
       merge_publish_retry_replay_deploy_added: false,
       broad_cockpit_deletion: false,
-      phase6_guidebrief_started: false,
+      guidebrief_core_follow_on_allowed:
+        changedFilesBoundary.guidebrief_core_follow_on_used,
+      guidebrief_core_files_allowed: followOnGuideBriefCoreFiles,
       external_side_effect_added: false,
     },
     null,
@@ -531,10 +542,15 @@ function assertChangedFileBoundary() {
       `Phase 5D must not add work mutation or autonomy runner files: ${file}`,
     );
     assert(
-      !/(guidebrief|guide-brief|guide_brief)/i.test(file),
-      `Phase 5D must not start Phase 6 GuideBrief files: ${file}`,
+      followOnGuideBriefCoreFiles.includes(file) ||
+        !/(guidebrief|guide-brief|guide_brief)/i.test(file),
+      `Phase 5D must not allow GuideBrief files outside exact Phase 6A core follow-on scope: ${file}`,
     );
   }
+
+  const guidebriefCoreFollowOnUsed = files.some((file) =>
+    followOnGuideBriefCoreFiles.includes(file),
+  );
 
   return {
     checked:
@@ -555,6 +571,7 @@ function assertChangedFileBoundary() {
       untrackedFiles.length > 0
         ? null
         : "changed-file boundary could not be checked",
+    guidebrief_core_follow_on_used: guidebriefCoreFollowOnUsed,
     files,
   };
 }

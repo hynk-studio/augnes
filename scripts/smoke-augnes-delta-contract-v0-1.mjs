@@ -118,6 +118,14 @@ const followOnAgentWorkplaneCleanupHardeningFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const followOnGuideBriefCoreFiles = [
+  "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+  "types/guide-brief.ts",
+  "lib/guide/guide-brief.ts",
+  "fixtures/guide-brief.sample.v0.1.json",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnProjectionReadModelFiles,
@@ -130,6 +138,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplanePanelFiles,
   ...followOnAgentWorkplaneProjectionHandoffFiles,
   ...followOnAgentWorkplaneCleanupHardeningFiles,
+  ...followOnGuideBriefCoreFiles,
 ]);
 
 const allowedRouteFiles = new Set([
@@ -181,6 +190,8 @@ console.log(
         changedFilesBoundary.follow_on_current_working_perspective_runtime_read_surface_files_allowed,
       follow_on_human_surface_home_files_allowed:
         changedFilesBoundary.follow_on_human_surface_home_files_allowed,
+      follow_on_guide_brief_core_files_allowed:
+        followOnGuideBriefCoreFiles,
       changed_files_observed: changedFilesBoundary.files,
       smoke_type: "static-contract-type-fixture-package-index-boundary-only",
       runtime_behavior_changed: changedFilesBoundary.api_route_added,

@@ -1,0 +1,492 @@
+{
+  "runtime": "augnes",
+  "guide_version": "guide_brief.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-06-30T12:05:00.000Z",
+  "public_safety": {
+    "fixture_kind": "synthetic_sample",
+    "contains_private_paths": false,
+    "contains_secrets": false,
+    "contains_api_keys": false,
+    "contains_github_tokens": false,
+    "contains_raw_private_conversations": false,
+    "contains_hidden_reasoning": false,
+    "contains_raw_provider_output": false,
+    "contains_raw_retrieval_output": false,
+    "contains_real_external_account_artifacts": false
+  },
+  "source_surfaces": [
+    "current_working_perspective",
+    "delta_projection",
+    "human_surface",
+    "perspective_timeline",
+    "agent_workplane",
+    "docs"
+  ],
+  "observed": [
+    {
+      "observation_id": "observed.current_thesis",
+      "kind": "current_perspective_thesis",
+      "summary": "Current Working Perspective can provide a stable read-only packet for downstream consumer design.",
+      "source_refs": [
+        "current_working_perspective:2026-06-30T12:00:00.000Z",
+        "perspective_snapshot:2026-06-30T12:00:00.000Z"
+      ],
+      "related_delta_ids": [
+        "delta.state_delta_proposal.sample-perspective",
+        "delta.work_event.sample-implementation"
+      ],
+      "confidence": "observed",
+      "notes": [
+        "Observed from CurrentWorkingPerspective.current_thesis.",
+        "This is a read-model observation only and is not source-of-truth state."
+      ]
+    },
+    {
+      "observation_id": "observed.active_goal_count",
+      "kind": "active_goal_count",
+      "summary": "1 active goal is present in the supplied Current Working Perspective.",
+      "source_refs": [
+        "work:AG-SAMPLE-CWP-001",
+        "work_event:sample-work-event-implementation"
+      ],
+      "related_delta_ids": [],
+      "confidence": "observed",
+      "notes": [
+        "Observed from CurrentWorkingPerspective.active_goals.",
+        "Goal count does not create or update work."
+      ]
+    },
+    {
+      "observation_id": "observed.review_queue_counts",
+      "kind": "review_queue_counts",
+      "summary": "Review queue has 2 total attention refs across needs-review, manual-review, validation, and Project Perspective review buckets.",
+      "source_refs": [
+        "augnes_delta:delta.state_delta_proposal.sample-perspective",
+        "augnes_delta:delta.work_event.sample-implementation"
+      ],
+      "related_delta_ids": [
+        "delta.state_delta_proposal.sample-perspective",
+        "delta.work_event.sample-implementation"
+      ],
+      "confidence": "observed",
+      "notes": [
+        "Observed from CurrentWorkingPerspective.review_queue_hints.",
+        "Review queue hints are advisory and do not approve or apply deltas."
+      ]
+    },
+    {
+      "observation_id": "observed.delta_projection_gaps",
+      "kind": "delta_projection_gap_count",
+      "summary": "Delta Projection reports 2 explicit gaps.",
+      "source_refs": [
+        "gap:dogfooding_records_table_unavailable",
+        "gap:codex_result_traces_not_available"
+      ],
+      "related_delta_ids": [
+        "delta.state_delta_proposal.sample-perspective",
+        "delta.work_event.sample-implementation"
+      ],
+      "confidence": "observed",
+      "notes": [
+        "Observed from AugnesDeltaProjectionReadModel.gaps.",
+        "Gaps do not authorize reconstructing missing source text."
+      ]
+    },
+    {
+      "observation_id": "observed.workplane_panels_available",
+      "kind": "workplane_panels_available",
+      "summary": "Agent Workplane context lists 6 read-only panels for /workbench.",
+      "source_refs": [
+        "/workbench:agent_workplane",
+        "docs/AGENT_WORKPLANE_V0_1.md"
+      ],
+      "related_delta_ids": [],
+      "confidence": "observed",
+      "notes": [
+        "Observed from supplied lightweight workplane context.",
+        "Workplane panel availability does not add UI or route behavior."
+      ]
+    }
+  ],
+  "inferred": [
+    {
+      "inference_id": "inferred.review_attention_pressure",
+      "summary": "Guide consumers likely need to keep review pressure visible before any handoff or next-phase work is treated as ready.",
+      "basis_observation_ids": [
+        "observed.review_queue_counts"
+      ],
+      "source_refs": [
+        "augnes_delta:delta.state_delta_proposal.sample-perspective",
+        "augnes_delta:delta.work_event.sample-implementation"
+      ],
+      "confidence": "medium",
+      "caveats": [
+        "This is derived interpretation from review queue counts.",
+        "It is not a source fact and does not decide the review outcome."
+      ],
+      "non_authority_notes": [
+        "Inference has no apply, approve, reject, merge, or publish authority."
+      ]
+    },
+    {
+      "inference_id": "inferred.staleness_or_gap_pressure",
+      "summary": "Guide renderers should keep freshness and gap context adjacent to suggestions so candidates are not mistaken for decisions.",
+      "basis_observation_ids": [
+        "observed.delta_projection_gaps"
+      ],
+      "source_refs": [
+        "current_working_perspective:2026-06-30T12:00:00.000Z",
+        "augnes_delta_projection:2026-06-30T11:58:00.000Z",
+        "diagnostic.perspective_snapshot.loopness.project_augnes"
+      ],
+      "confidence": "medium",
+      "caveats": [
+        "This is derived from staleness status and explicit gaps.",
+        "Freshness metadata is review support only."
+      ],
+      "non_authority_notes": [
+        "Inference does not refresh sources, call routes, or mutate records."
+      ]
+    }
+  ],
+  "suggested": [
+    {
+      "suggestion_id": "suggested.review_user_judgment_prompts",
+      "title": "Review unresolved judgment prompts",
+      "summary": "Show unresolved user judgment prompts before treating any guide candidate as ready.",
+      "suggested_surface": "future_guide_panel",
+      "suggested_actor": "user",
+      "priority": "high",
+      "required_checks": [
+        "Keep needs_user_judgment separate from suggestions.",
+        "Preserve source refs and blocked-until-decided notes."
+      ],
+      "blocked_by": [],
+      "source_refs": [
+        "current_working_perspective:2026-06-30T12:00:00.000Z"
+      ],
+      "related_delta_ids": [
+        "delta.state_delta_proposal.sample-perspective"
+      ],
+      "authority_boundary_summary": "Candidate only; GuideBrief must not decide user judgment items."
+    },
+    {
+      "suggestion_id": "suggested.inspect_delta_timeline",
+      "title": "Inspect projected delta chronology",
+      "summary": "Use Perspective Timeline context to keep projected delta chronology and selected-delta source refs visible.",
+      "suggested_surface": "perspective_timeline",
+      "suggested_actor": "operator",
+      "priority": "high",
+      "required_checks": [
+        "Keep AugnesDelta records as read-model inputs only.",
+        "Keep evidence, artifact, and handoff refs pointer-only."
+      ],
+      "blocked_by": [],
+      "source_refs": [
+        "augnes_delta_projection:2026-06-30T11:58:00.000Z"
+      ],
+      "related_delta_ids": [
+        "delta.state_delta_proposal.sample-perspective",
+        "delta.work_event.sample-implementation"
+      ],
+      "authority_boundary_summary": "Navigation suggestion only; no apply, approve, reject, or persistence authority."
+    },
+    {
+      "suggestion_id": "suggested.prepare_preview_only_handoff",
+      "title": "Prepare preview-only handoff context",
+      "summary": "Collect bounded context for a future Codex or ChatGPT handoff preview without sending, launching, or executing it.",
+      "suggested_surface": "codex_handoff",
+      "suggested_actor": "operator",
+      "priority": "medium",
+      "required_checks": [
+        "Preserve skipped-check reasons and authority boundary.",
+        "Keep handoff candidates preview-only until separately scoped."
+      ],
+      "blocked_by": [
+        "inferred.staleness_or_gap_pressure"
+      ],
+      "source_refs": [
+        "handoff.sample",
+        "current_working_perspective:2026-06-30T12:00:00.000Z"
+      ],
+      "related_delta_ids": [
+        "delta.state_delta_proposal.sample-perspective",
+        "delta.work_event.sample-implementation"
+      ],
+      "authority_boundary_summary": "Preview only; no send, Codex launch, branch creation, PR creation, or external side effect."
+    }
+  ],
+  "needs_user_judgment": [
+    {
+      "judgment_id": "judgment.open_question.phase_3b_route_deferred",
+      "question": "Should a GuideBrief route be added as a separate Phase 6B GET-only read surface?",
+      "why_it_matters": "Phase 6A is contract/type/helper/fixture/smoke only; adding a route would widen authority.",
+      "options": [
+        "Defer route work.",
+        "Scope Phase 6B after Phase 6A lands.",
+        "Keep GuideBrief as helper/fixture only."
+      ],
+      "source_refs": [
+        "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+        "docs/AUGNES_CURRENT_WORKING_PERSPECTIVE_V0_1.md"
+      ],
+      "related_delta_ids": [],
+      "urgency": "medium",
+      "blocked_until_decided": [
+        "GuideBrief GET-only read route",
+        "Any Web Guide route consumer"
+      ]
+    },
+    {
+      "judgment_id": "judgment.delta_requires_user.sample_perspective",
+      "question": "How should the user/operator treat projected delta delta.state_delta_proposal.sample-perspective?",
+      "why_it_matters": "The projected delta explicitly requires user judgment before any future durable or boundary-crossing path.",
+      "options": [
+        "Review manually.",
+        "Defer.",
+        "Treat as blocked until a fresh scoped implementation exists."
+      ],
+      "source_refs": [
+        "augnes_delta:delta.state_delta_proposal.sample-perspective"
+      ],
+      "related_delta_ids": [
+        "delta.state_delta_proposal.sample-perspective"
+      ],
+      "urgency": "high",
+      "blocked_until_decided": [
+        "Durable Perspective apply",
+        "Durable memory mutation",
+        "External side effects"
+      ]
+    }
+  ],
+  "current_perspective_summary": {
+    "current_thesis": "Current Working Perspective can provide a stable read-only packet for downstream consumer design.",
+    "active_goal_count": 1,
+    "open_question_count": 2,
+    "active_risk_count": 1,
+    "research_pressure_level": "medium",
+    "staleness_status": "partial",
+    "source_status": {
+      "current_working_perspective": "fixture_fallback",
+      "delta_projection": "fixture_fallback"
+    },
+    "source_refs": [
+      "current_working_perspective:2026-06-30T12:00:00.000Z",
+      "perspective_snapshot:2026-06-30T12:00:00.000Z",
+      "augnes_delta_projection:2026-06-30T11:58:00.000Z"
+    ]
+  },
+  "delta_summary": {
+    "projected_delta_count": 3,
+    "batch_count": 1,
+    "gap_count": 2,
+    "needs_review_count": 1,
+    "blocked_count": 0,
+    "manual_review_count": 1,
+    "important_delta_refs": [
+      "delta.state_delta_proposal.sample-perspective",
+      "delta.work_event.sample-implementation"
+    ],
+    "source_refs": [
+      "augnes_delta_projection:2026-06-30T11:58:00.000Z",
+      "delta_batch:batch.augnes_delta_projection.project_augnes.v0.1"
+    ]
+  },
+  "workplane_summary": {
+    "route": "/workbench",
+    "surface_role": "agent_workplane",
+    "panels_available": [
+      "Work Queue",
+      "Current Perspective",
+      "Delta Projection",
+      "Review Queue",
+      "Evidence/Handoff",
+      "Trace / Diagnostics"
+    ],
+    "legacy_cockpit_reachable": true,
+    "source_fallback_status": [
+      "Current Working Perspective fixture_fallback is disclosed.",
+      "Delta Projection fixture_fallback is disclosed."
+    ],
+    "trace_diagnostics_bounded": true,
+    "authority_boundary_summary": "Agent Workplane is a read-only operator surface; GuideBrief adds no Workplane route, UI, send, apply, approve, reject, or execution control."
+  },
+  "review_queue_summary": {
+    "needs_review_count": 1,
+    "blocked_count": 0,
+    "manual_review_count": 1,
+    "validation_required_count": 1,
+    "project_perspective_review_count": 1,
+    "durable_memory_review_count": 0,
+    "user_decision_count": 0,
+    "total_attention_count": 2,
+    "source_refs": [
+      "augnes_delta:delta.state_delta_proposal.sample-perspective",
+      "augnes_delta:delta.work_event.sample-implementation"
+    ]
+  },
+  "handoff_candidates": [
+    {
+      "handoff_candidate_id": "handoff_candidate.ref.handoff_sample",
+      "target_surface": "codex_handoff",
+      "title": "Preview handoff reference",
+      "summary": "Review pointer-only handoff ref handoff.sample before any future handoff execution path.",
+      "source_refs": [
+        "handoff.sample"
+      ],
+      "related_delta_ids": [
+        "delta.coordination_event.sample-handoff"
+      ],
+      "required_context": [
+        "GuideBrief authority boundary",
+        "Observed/Inferred/Suggested/Judgment separation",
+        "Skipped checks and source freshness status"
+      ],
+      "blocked_by": [
+        "Separate scoped handoff implementation is required."
+      ],
+      "authority_boundary": "Preview-only handoff candidate; GuideBrief cannot send, execute, launch Codex, create a PR, call providers, call GitHub, or write proof/evidence.",
+      "status": "preview_only"
+    }
+  ],
+  "staleness_warnings": [
+    {
+      "warning_id": "staleness.current_perspective.partial",
+      "summary": "Current Working Perspective staleness status is partial.",
+      "severity": "medium",
+      "source_refs": [
+        "current_working_perspective:2026-06-30T12:00:00.000Z",
+        "delta_projection.dogfooding_records_table_unavailable",
+        "delta_projection.codex_result_traces_not_available"
+      ],
+      "refresh_suggestion": "Refresh or explicitly accept the Current Working Perspective basis before relying on handoff candidates.",
+      "blocks_handoff": false
+    }
+  ],
+  "surface_rendering_notes": {
+    "human_surface": [
+      "Render a compact summary and user judgment prompts.",
+      "Keep suggestions visually separate from decisions."
+    ],
+    "perspective_timeline": [
+      "Preserve delta chronology and selected-delta context.",
+      "Keep source refs, gaps, staleness, and pointer-only refs visible."
+    ],
+    "agent_workplane": [
+      "Show trace and diagnostic refs while keeping raw logs bounded or collapsed.",
+      "Keep preview-only handoff candidates separate from execution controls."
+    ],
+    "chatgpt_app": [
+      "Keep Observed, Inferred, Suggested, and Needs user judgment separated.",
+      "Do not expose GuideBrief as an MCP/App write tool in Phase 6A."
+    ],
+    "codex": [
+      "Preserve repo/task boundaries, expected files/checks, skipped checks, and authority boundary.",
+      "Do not treat suggestions as Codex execution or PR creation authority."
+    ],
+    "future_agent_surface": [
+      "Render GuideBrief as read-only context unless separately scoped.",
+      "Require a future explicit authority path before any handoff or autonomy behavior."
+    ]
+  },
+  "source_refs": {
+    "current_working_perspective_ref": "current_working_perspective:2026-06-30T12:00:00.000Z",
+    "delta_projection_ref": "augnes_delta_projection:2026-06-30T11:58:00.000Z",
+    "workplane_ref": "/workbench:agent_workplane",
+    "perspective_snapshot_refs": [
+      "perspective_snapshot.current_working.project_augnes",
+      "runtime_read_context.augnes_delta_projection.v0.1"
+    ],
+    "delta_ids": [
+      "delta.state_delta_proposal.sample-perspective",
+      "delta.work_event.sample-implementation",
+      "delta.state_delta_proposal.sample-rejected"
+    ],
+    "batch_ids": [
+      "batch.augnes_delta_projection.project_augnes.v0.1"
+    ],
+    "evidence_refs": [
+      "evidence_record:sample-evidence-pointer"
+    ],
+    "artifact_refs": [
+      "artifact.pr.synthetic-code-delta-pointer"
+    ],
+    "handoff_refs": [
+      "handoff.sample"
+    ],
+    "diagnostic_refs": [
+      "diagnostic.perspective_snapshot.loopness.project_augnes"
+    ],
+    "route_refs": [
+      "/",
+      "/perspective",
+      "/workbench"
+    ],
+    "docs_refs": [
+      "docs/AUGNES_CURRENT_WORKING_PERSPECTIVE_V0_1.md",
+      "docs/AUGNES_DELTA_PROJECTION_READ_MODEL_V0_1.md",
+      "docs/AGENT_WORKPLANE_V0_1.md",
+      "docs/HUMAN_SURFACE_V0_1.md",
+      "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md"
+    ]
+  },
+  "gaps": [
+    {
+      "code": "delta_projection.dogfooding_records_table_unavailable",
+      "severity": "low",
+      "summary": "No structured dogfooding record table is available to the read-only projection collector.",
+      "source_refs": [
+        "gap:dogfooding_records_table_unavailable"
+      ],
+      "blocks_guide_confidence": false
+    },
+    {
+      "code": "delta_projection.codex_result_traces_not_available",
+      "severity": "medium",
+      "summary": "Structured Codex result traces are absent in this sample projection.",
+      "source_refs": [
+        "gap:codex_result_traces_not_available"
+      ],
+      "blocks_guide_confidence": true
+    }
+  ],
+  "authority_boundary": {
+    "source_of_truth": false,
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_mutate_memory": false,
+    "can_apply_project_perspective": false,
+    "can_publish_external": false,
+    "can_merge": false,
+    "can_retry_replay_deploy": false,
+    "can_call_github": false,
+    "can_call_openai_or_provider": false,
+    "can_execute_codex": false,
+    "can_create_branch_or_pr": false,
+    "can_send_handoff": false,
+    "can_launch_autonomy": false,
+    "can_create_mcp_tool": false,
+    "can_create_ui_action": false,
+    "notes": [
+      "GuideBrief is read-only.",
+      "Observed items are read-model observations only.",
+      "Inferred items are derived interpretations only.",
+      "Suggested items are candidate next actions only.",
+      "Needs user judgment items must not be decided by the guide.",
+      "Handoff candidates are preview-only.",
+      "Codex and ChatGPT surfaces require separate scoped implementation."
+    ]
+  },
+  "next_phase_notes": [
+    "Phase 6A adds GuideBrief contract, types, helper, fixture, and smoke only.",
+    "Phase 6B may add a GET-only read route only under a separate scoped prompt.",
+    "Phase 6C Web Guide UI is deferred.",
+    "Phase 6D ChatGPT App/MCP Guide tool is deferred.",
+    "Phase 6E Codex Guide alignment is deferred.",
+    "Phase 7 Handoff Capsule / Codex Launch Card can consume GuideBrief only after separate scoped authority paths."
+  ]
+}

@@ -59,6 +59,14 @@ const followOnAgentWorkplaneCleanupHardeningFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const followOnGuideBriefCoreFiles = [
+  "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+  "types/guide-brief.ts",
+  "lib/guide/guide-brief.ts",
+  "fixtures/guide-brief.sample.v0.1.json",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+];
+
 const panelFiles = [
   panelShellFile,
   workQueuePanelFile,
@@ -105,6 +113,7 @@ const allowedChangedFiles = new Set([
   ...followOnHistoricalSmokeCompatibilityFiles,
   ...followOnAgentWorkplaneProjectionHandoffFiles,
   ...followOnAgentWorkplaneCleanupHardeningFiles,
+  ...followOnGuideBriefCoreFiles,
   smokeFile,
 ]);
 
@@ -162,6 +171,8 @@ console.log(
         changedFilesBoundary.phase5c_agent_workplane_projection_handoff_follow_on_used,
       phase5c_agent_workplane_projection_handoff_files_allowed:
         followOnAgentWorkplaneProjectionHandoffFiles,
+      follow_on_guide_brief_core_files_allowed:
+        followOnGuideBriefCoreFiles,
       no_new_authority_code_checked: true,
       changed_files_checked: changedFilesBoundary.checked,
       changed_files_skipped: changedFilesBoundary.skipped,

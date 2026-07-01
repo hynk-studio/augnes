@@ -173,6 +173,19 @@ PR #868 is merged. Current route planning starts from:
   execution, proof/evidence write, durable Perspective apply, memory mutation,
   product-write, scheduler/autonomy runner, GuideBrief,
   merge/publish/retry/replay/deploy behavior, or external side effect.
+- `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
+  Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
+  guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and
+  future handoff/capsule work. Phase 6A is contract/type/helper/fixture/smoke
+  only: it adds `types/guide-brief.ts`, `lib/guide/guide-brief.ts`,
+  `fixtures/guide-brief.sample.v0.1.json`, and
+  `scripts/smoke-guide-brief-v0-1.mjs`, keeps Observed, Inferred, Suggested,
+  and Needs user judgment separated, preserves source refs/staleness/gaps,
+  and adds no route, UI, MCP/App tool, Codex Guide skill, Handoff Capsule,
+  Codex Launch Card, DB schema/migration, DB write, provider/OpenAI call,
+  GitHub actuation, Codex execution, proof/evidence write, durable Perspective
+  apply, memory mutation, product-write, scheduler/autonomy runner,
+  merge/publish/retry/replay/deploy behavior, or external side effect.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
