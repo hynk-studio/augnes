@@ -60,6 +60,9 @@ const allowedChangedFiles = new Set([
   "lib/autonomy/autonomy-contract.ts",
   "fixtures/autonomy-contract.sample.v0.1.json",
   "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "app/api/augnes/read/autonomy-contract/route.ts",
+  "lib/autonomy/autonomy-contract-source.ts",
+  "scripts/smoke-autonomy-contract-route-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   serverFile,
@@ -603,7 +606,11 @@ function assertChangedFileBoundary() {
       allowedChangedFiles.has(file),
       `Unexpected changed file for Phase 6D GuideBrief App/MCP tool: ${file}`,
     );
-    assert(!/^app\/api\//.test(file), `Phase 6D must not change API route files: ${file}`);
+    assert(
+      !/^app\/api\//.test(file) ||
+        file === "app/api/augnes/read/autonomy-contract/route.ts",
+      `Phase 6D must not change API route files: ${file}`,
+    );
     assert(
       (!/^components\//.test(file) ||
         followOnHandoffCapsuleCopyExportFiles.includes(file)) &&

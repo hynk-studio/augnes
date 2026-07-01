@@ -80,6 +80,9 @@ for (const file of [
   "lib/autonomy/autonomy-contract.ts",
   "fixtures/autonomy-contract.sample.v0.1.json",
   "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "app/api/augnes/read/autonomy-contract/route.ts",
+  "lib/autonomy/autonomy-contract-source.ts",
+  "scripts/smoke-autonomy-contract-route-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
 ]) {
@@ -265,6 +268,7 @@ const allowedRouteFiles = new Set([
   "app/api/augnes/read/guide-brief/route.ts",
   "app/api/augnes/read/handoff-capsule/route.ts",
   "app/api/augnes/read/codex-launch-card/route.ts",
+  "app/api/augnes/read/autonomy-contract/route.ts",
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);

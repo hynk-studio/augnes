@@ -54,13 +54,20 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
 ];
 
+const phase8bAutonomyContractRouteFiles = [
+  "app/api/augnes/read/autonomy-contract/route.ts",
+  "lib/autonomy/autonomy-contract-source.ts",
+  "scripts/smoke-autonomy-contract-route-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
+  ...phase8bAutonomyContractRouteFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
-  /^app\//,
+  /^app\/(?!api\/augnes\/read\/autonomy-contract\/route\.ts$)/,
   /^components\//,
   /^apps\/augnes_apps\//,
   /^migrations\//,
@@ -69,7 +76,7 @@ const forbiddenChangedFilePatterns = [
   /(^|\/)(provider|providers|openai|github|octokit)(\/|$)/i,
   /(^|\/)(proof|evidence)(\/|$)/i,
   /(^|\/)(scheduler|autonomy-runner|autonomy_runner)(\/|$)/i,
-  /(^|\/)(route|api)\.(js|jsx|ts|tsx)$/,
+  /(^|\/)api\.(js|jsx|ts|tsx)$/,
 ];
 
 const requiredDocsRefs = [
@@ -181,6 +188,9 @@ assertAuthorityBoundary();
 assertPublicSafety();
 assertNoRuntimeActuationCode();
 const changedFilesBoundary = assertChangedFileBoundary();
+const phase8bRouteChanged = changedFilesBoundary.files.includes(
+  "app/api/augnes/read/autonomy-contract/route.ts",
+);
 
 console.log(
   JSON.stringify(
@@ -203,9 +213,11 @@ console.log(
       stop_condition_kinds_checked: requiredStopKinds,
       prior_smoke_allowlist_compatibility_files_allowed:
         priorSmokeAllowlistCompatibilityFiles,
+      phase8b_autonomy_contract_route_files_allowed:
+        phase8bAutonomyContractRouteFiles,
       no_runtime_actuation_code_checked: true,
       no_ui_files_changed_checked: true,
-      no_api_route_files_changed_checked: true,
+      no_api_route_files_changed_checked: !phase8bRouteChanged,
       no_mcp_app_tool_files_changed_checked: true,
       no_db_migrations_changed_checked: true,
       changed_files_boundary_checked: changedFilesBoundary.checked,
@@ -215,7 +227,7 @@ console.log(
       changed_files_base_ref: changedFilesBoundary.base_ref,
       smoke_type:
         "static-autonomy-contract-budget-delta-merge-policy-type-helper-fixture-package-index-boundary-only",
-      route_behavior_changed: false,
+      route_behavior_changed: phase8bRouteChanged,
       ui_behavior_changed: false,
       mcp_app_tool_added: false,
       db_schema_migration_changed: false,

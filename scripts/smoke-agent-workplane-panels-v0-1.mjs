@@ -131,6 +131,9 @@ const allowedChangedFiles = new Set([
   "lib/autonomy/autonomy-contract.ts",
   "fixtures/autonomy-contract.sample.v0.1.json",
   "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "app/api/augnes/read/autonomy-contract/route.ts",
+  "lib/autonomy/autonomy-contract-source.ts",
+  "scripts/smoke-autonomy-contract-route-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   workbenchPageFile,
@@ -678,12 +681,15 @@ function assertChangedFileBoundary() {
       "Phase 5B must not update /perspective page",
     );
     assert(
-      !/^app\/api\//.test(file) || followOnGuideBriefRouteFiles.includes(file),
+      !/^app\/api\//.test(file) ||
+        followOnGuideBriefRouteFiles.includes(file) ||
+        file === "app/api/augnes/read/autonomy-contract/route.ts",
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(
       !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) ||
-        followOnGuideBriefRouteFiles.includes(file),
+        followOnGuideBriefRouteFiles.includes(file) ||
+        file === "app/api/augnes/read/autonomy-contract/route.ts",
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 5B must not change DB files: ${file}`);
