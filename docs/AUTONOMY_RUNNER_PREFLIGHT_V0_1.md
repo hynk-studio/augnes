@@ -167,6 +167,33 @@ merge/publish/retry/replay/deploy behavior, or external side effect.
 Phase 9E adds no API route, UI, App/MCP tool, runner, scheduler, daemon,
 background work, product write, runtime execution, or external side effect.
 
+## 1.5 Phase 9F Local Copy / Manual-Copy Preview
+
+Phase 9F adds local copy/manual-copy preview for Autonomy Runner Preflight /
+Dry-Run packets. Copy packets are local text previews only. Clipboard copy is
+local-only. There is no file download/export-to-disk. There is no external
+post, send, or publish behavior. There is no run, schedule, launch, apply,
+persist, write, or product action behavior.
+
+Phase 9F is not approval to run. It preserves `dry_run_only` and every planned
+step with `would_execute: false`. Packet builders preserve readiness,
+readiness summary, blockers, warnings, required user judgment, required
+operator review, budget/action/delta/review/stop/staleness/authority
+assessments, planned read sources, planned steps, blocked steps, required
+preconditions, required checks, stop conditions, budget projection, source
+refs, authority boundary, public safety, route/source status, and the
+preview/operator-supplied source caveat.
+
+Phase 9F adds no file download/export-to-disk, external posting, external
+send, publish, merge, deploy, retry/replay, runner execution, run button,
+schedule button, launch Codex button, GitHub/provider/OpenAI call, App/MCP
+tool, API route, POST/PUT/PATCH/DELETE route, DB schema/migration, DB write,
+proof/evidence write, memory mutation, durable Perspective apply, scheduler,
+daemon, background work, interval/timer/cron/worker loop, Codex execution from
+Augnes product code, GitHub actuation from Augnes product code, branch/PR
+creation from product code, budget spend, auto-apply, product-write, or
+external side effect.
+
 ## 2. Purpose
 
 `AutonomyRunnerPreflight` is a deterministic preview packet that classifies a
@@ -508,12 +535,23 @@ pointer, planning-only interpretation, `dry_run_only`, planned-step
 preservation, public-safety boundary, prior Phase 9A/9B/9C/9D smokes, and no
 API/UI/App/MCP/runtime/write/execution scope drift.
 
+`npm run smoke:autonomy-runner-preflight-copy-export-v0-1` checks the Phase 9F
+copy packet helper, copy preview panel, package script, latest-index pointer,
+local text/manual-copy boundary, no file download/export-to-disk boundary,
+packet builder behavior, bounded JSON parseability, `dry_run_only`,
+planned-step `would_execute: false`, blocker/warning/review/budget/stop/
+staleness/authority/public-safety/source-ref preservation, public-safe JSON,
+absence of run/schedule/launch/apply/send/persist/create-branch/open-PR
+controls, and no API/App/MCP/runtime/write/execution scope drift.
+
 Browser/CDP validation is skipped because Phase 9A has no UI or route.
 Browser/CDP validation is skipped because Phase 9B adds only a GET-only read
 route and no UI.
 Browser/CDP validation is skipped because Phase 9D adds only a ChatGPT App/MCP
 read-only preview tool and no Web UI.
 Browser/CDP validation is skipped because Phase 9E adds only Codex docs/skill/smoke alignment and no Web UI.
+Browser/CDP validation is expected for Phase 9F because it adds local
+copy/manual-copy UI to the Agent Workplane preview surface.
 
 Proof-only closeout is skipped unless a future task explicitly scopes proof
 recording and runtime proof context is available. Phase 9A does not write
@@ -532,8 +570,11 @@ Phase 9B should consume the Phase 9A preflight without inventing policy. It
 must preserve the no-run authority boundary unless the operator explicitly
 scopes a different future phase.
 
-Phase 9F recommended next phase:
+Phase 9G recommended next phase:
 
 ```text
-Phase 9F - Autonomy Runner Preflight / Dry-Run local copy and manual-copy preview v0.1
+Phase 9G - explicit operator-approved runner skeleton planning v0.1
 ```
+
+Phase 9G is planning only unless separately and explicitly scoped. Phase 9F
+does not implement a runner skeleton.

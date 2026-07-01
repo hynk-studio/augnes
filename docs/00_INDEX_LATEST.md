@@ -511,6 +511,24 @@ PR #868 is merged. Current route planning starts from:
   auto-apply, product-write, merge/publish/retry/replay/deploy behavior,
   write-capable skill/tool behavior, or external side effect. This index
   pointer is not roadmap authority.
+  Phase 9F Autonomy Runner Preflight / Dry-Run local copy and manual-copy
+  preview v0.1 adds repo-local non-SSOT pointers for
+  `lib/autonomy/autonomy-runner-preflight-copy-export.ts`,
+  `components/autonomy/autonomy-runner-preflight-copy-export-panel.tsx`, and
+  `scripts/smoke-autonomy-runner-preflight-copy-export-v0-1.mjs` (`npm run
+  smoke:autonomy-runner-preflight-copy-export-v0-1`). The copy preview is
+  local text/manual-copy only, may use local clipboard copy, preserves
+  `dry_run_plan.status: dry_run_only`, every planned step with
+  `would_execute: false`, blockers/warnings, review requirements,
+  budget/stop/staleness/authority assessments, public safety, source refs, and
+  the all-false no-run authority boundary. Phase 9F adds no file
+  download/export-to-disk, external post/send/publish, API route, App/MCP
+  tool, actual runner, scheduler, daemon, background work, DB schema/migration,
+  DB write, provider/OpenAI call, GitHub actuation, Codex execution from
+  Augnes product code, proof/evidence write, memory mutation, durable
+  Perspective apply, handoff execution, branch/PR creation from product code,
+  product-write, budget spend, auto-apply, merge/deploy/retry/replay behavior,
+  or external side effect. This index pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
