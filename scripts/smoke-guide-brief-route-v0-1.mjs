@@ -127,6 +127,20 @@ const phase8PriorSmokeAllowlistFiles = [
 for (const file of phase8PriorSmokeAllowlistFiles) {
   allowedChangedFiles.add(file);
 }
+const phase8cAutonomyContractWebPreviewFiles = [
+  "components/autonomy/autonomy-boundary-card.tsx",
+  "components/autonomy/autonomy-budget-preview-panel.tsx",
+  "components/autonomy/autonomy-contract-preview-panel.tsx",
+  "components/autonomy/autonomy-policy-preview-panel.tsx",
+  "components/autonomy/autonomy-preview-shared.tsx",
+  "components/autonomy/autonomy-run-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/autonomy/read-autonomy-contract-for-web.ts",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+];
+for (const file of phase8cAutonomyContractWebPreviewFiles) {
+  allowedChangedFiles.add(file);
+}
 
 const textByFile = loadTextByFile(requiredFiles);
 const docText = textByFile.get(guideBriefDoc);
@@ -491,8 +505,9 @@ function assertChangedFileBoundary() {
       !/^components\//.test(file) ||
         followOnWebGuidePanelFiles.includes(file) ||
         followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
-        followOnHandoffCapsuleCopyExportFiles.includes(file),
-      `Phase 6B must not change UI files outside exact Phase 6C/7C/7F Web follow-on scope: ${file}`,
+        followOnHandoffCapsuleCopyExportFiles.includes(file) ||
+        phase8cAutonomyContractWebPreviewFiles.includes(file),
+      `Phase 6B must not change UI files outside exact Phase 6C/7C/7F Web follow-on scope or exact Phase 8C Autonomy Web preview files: ${file}`,
     );
     assert(
       !/^app\/api\//.test(file) ||

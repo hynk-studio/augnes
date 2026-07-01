@@ -94,6 +94,20 @@ const phase8PriorSmokeAllowlistFiles = [
 for (const file of phase8PriorSmokeAllowlistFiles) {
   allowedChangedFiles.add(file);
 }
+const phase8cAutonomyContractWebPreviewFiles = [
+  "components/autonomy/autonomy-boundary-card.tsx",
+  "components/autonomy/autonomy-budget-preview-panel.tsx",
+  "components/autonomy/autonomy-contract-preview-panel.tsx",
+  "components/autonomy/autonomy-policy-preview-panel.tsx",
+  "components/autonomy/autonomy-preview-shared.tsx",
+  "components/autonomy/autonomy-run-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/autonomy/read-autonomy-contract-for-web.ts",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+];
+for (const file of phase8cAutonomyContractWebPreviewFiles) {
+  allowedChangedFiles.add(file);
+}
 
 const followOnHandoffCapsuleFiles = [
   "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",
@@ -430,6 +444,7 @@ function assertChangedFilesBoundary() {
           followOnHandoffCapsuleAppToolFiles.includes(file) ||
           followOnHandoffCapsuleCodexSkillFiles.includes(file) ||
           followOnHandoffCapsuleCopyExportFiles.includes(file) ||
+          phase8cAutonomyContractWebPreviewFiles.includes(file) ||
           file === "app/api/augnes/read/autonomy-contract/route.ts" ||
           !forbiddenRuntimePathPatterns.some((pattern) => pattern.test(file)),
         `Forbidden runtime changed file for Codex GuideBrief handoff alignment smoke: ${file}`,

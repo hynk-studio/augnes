@@ -1,4 +1,9 @@
 import { AugnesCockpit } from "@/components/augnes-cockpit";
+import { AutonomyBoundaryCard } from "@/components/autonomy/autonomy-boundary-card";
+import { AutonomyBudgetPreviewPanel } from "@/components/autonomy/autonomy-budget-preview-panel";
+import { AutonomyContractPreviewPanel } from "@/components/autonomy/autonomy-contract-preview-panel";
+import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-policy-preview-panel";
+import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
 import { HandoffCopyExportPanel } from "@/components/handoff/handoff-copy-export-panel";
@@ -18,6 +23,7 @@ import { WorkQueuePanel } from "@/components/workplane/work-queue-panel";
 import { WorkplaneHeader } from "@/components/workplane/workplane-header";
 import { WorkplaneInspector } from "@/components/workplane/workplane-inspector";
 import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
+import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-contract-for-web";
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
@@ -96,10 +102,11 @@ const previewCopyStyle: CSSProperties = {
 };
 
 export async function AgentWorkplane() {
-  const [context, guideBrief, handoffPreview] = await Promise.all([
+  const [context, guideBrief, handoffPreview, autonomyPreview] = await Promise.all([
     readWorkplaneContext(),
     Promise.resolve(readGuideBriefForWeb()),
     Promise.resolve(readHandoffCapsulePreviewForWeb()),
+    Promise.resolve(readAutonomyContractPreviewForWeb()),
   ]);
 
   return (
@@ -156,6 +163,11 @@ export async function AgentWorkplane() {
                 }
                 boundaryNotes={handoffPreview.boundary_notes}
               />
+              <AutonomyContractPreviewPanel preview={autonomyPreview} />
+              <AutonomyBudgetPreviewPanel preview={autonomyPreview} />
+              <AutonomyPolicyPreviewPanel preview={autonomyPreview} />
+              <AutonomyRunPreviewPanel preview={autonomyPreview} />
+              <AutonomyBoundaryCard preview={autonomyPreview} />
               <RunPostmortemSkeletonPanel context={context} />
               <TraceDiagnosticsPanel context={context} />
             </section>

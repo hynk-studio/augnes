@@ -60,15 +60,28 @@ const phase8bAutonomyContractRouteFiles = [
   "scripts/smoke-autonomy-contract-route-v0-1.mjs",
 ];
 
+const phase8cAutonomyContractWebPreviewFiles = [
+  "components/autonomy/autonomy-boundary-card.tsx",
+  "components/autonomy/autonomy-budget-preview-panel.tsx",
+  "components/autonomy/autonomy-contract-preview-panel.tsx",
+  "components/autonomy/autonomy-policy-preview-panel.tsx",
+  "components/autonomy/autonomy-preview-shared.tsx",
+  "components/autonomy/autonomy-run-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/autonomy/read-autonomy-contract-for-web.ts",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
   ...phase8bAutonomyContractRouteFiles,
+  ...phase8cAutonomyContractWebPreviewFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
   /^app\/(?!api\/augnes\/read\/autonomy-contract\/route\.ts$)/,
-  /^components\//,
+  /^components\/(?!autonomy\/|workplane\/agent-workplane\.tsx$)/,
   /^apps\/augnes_apps\//,
   /^migrations\//,
   /^db\//,

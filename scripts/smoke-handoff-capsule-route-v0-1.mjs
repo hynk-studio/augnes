@@ -135,10 +135,24 @@ const phase8PriorSmokeAllowlistFiles = [
 for (const file of phase8PriorSmokeAllowlistFiles) {
   allowedChangedFiles.add(file);
 }
+const phase8cAutonomyContractWebPreviewFiles = [
+  "components/autonomy/autonomy-boundary-card.tsx",
+  "components/autonomy/autonomy-budget-preview-panel.tsx",
+  "components/autonomy/autonomy-contract-preview-panel.tsx",
+  "components/autonomy/autonomy-policy-preview-panel.tsx",
+  "components/autonomy/autonomy-preview-shared.tsx",
+  "components/autonomy/autonomy-run-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/autonomy/read-autonomy-contract-for-web.ts",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+];
+for (const file of phase8cAutonomyContractWebPreviewFiles) {
+  allowedChangedFiles.add(file);
+}
 
 const forbiddenChangedFilePatterns = [
   /^app\/(?!api\/augnes\/read\/(?:handoff-capsule|codex-launch-card|autonomy-contract)\/route\.ts$)/,
-  /^components\//,
+  /^components\/(?!autonomy\/|workplane\/agent-workplane\.tsx$)/,
   /^apps\/augnes_apps\//,
   /^migrations\//,
   /^db\//,
