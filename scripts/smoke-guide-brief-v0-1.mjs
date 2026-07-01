@@ -63,6 +63,13 @@ const followOnChatgptAppGuideBriefToolFiles = [
   "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
 ];
 
+const followOnHandoffCapsuleAppToolFiles = [
+  "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",
+  "scripts/smoke-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+];
 
 const requiredFiles = [
   guideBriefDoc,
@@ -80,6 +87,7 @@ const allowedChangedFiles = new Set([
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
   ...followOnChatgptAppGuideBriefToolFiles,
+  ...followOnHandoffCapsuleAppToolFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);

@@ -549,6 +549,127 @@ export const GuideBriefResultSchema = z
   })
   .passthrough();
 
+export const HandoffCapsulePreviewToolInputSchema = z
+  .object({
+    scope: z.string().min(1).optional(),
+    target: z.string().min(1).optional(),
+    compact: z.boolean().optional(),
+  })
+  .strip();
+
+export const CodexLaunchCardPreviewToolInputSchema = z
+  .object({
+    scope: z.string().min(1).optional(),
+    compact: z.boolean().optional(),
+  })
+  .strip();
+
+export const HandoffPreviewAuthorityBoundarySchema = z
+  .object({
+    can_execute_codex: z.literal(false),
+    can_launch_codex: z.literal(false),
+    can_send_handoff: z.literal(false),
+    can_create_branch_or_pr: z.literal(false),
+    can_call_github: z.literal(false),
+    can_call_openai_or_provider: z.literal(false),
+    can_record_proof: z.literal(false),
+    can_create_evidence: z.literal(false),
+    can_mutate_memory: z.literal(false),
+    can_apply_project_perspective: z.literal(false),
+    can_merge: z.literal(false),
+    can_retry_replay_deploy: z.literal(false),
+    can_create_mcp_tool: z.literal(false),
+    can_create_ui_action: z.literal(false),
+    can_post_external_comment: z.literal(false),
+  })
+  .passthrough();
+
+export const HandoffCapsulePreviewPacketSchema = z
+  .object({
+    runtime: z.literal("augnes"),
+    capsule_version: z.string(),
+    scope: z.string(),
+    title: z.string(),
+    summary: z.string(),
+    target_surface: z.string(),
+    target_actor: z.string(),
+    handoff_intent: z.string(),
+    status: z.string(),
+    observed_context: z.array(z.unknown()),
+    inferred_context: z.array(z.unknown()),
+    suggested_context: z.array(z.unknown()),
+    needs_user_judgment: z.array(z.unknown()),
+    authority_boundary: HandoffPreviewAuthorityBoundarySchema,
+  })
+  .passthrough();
+
+export const CodexLaunchCardPreviewPacketSchema = z
+  .object({
+    runtime: z.literal("augnes"),
+    card_version: z.string(),
+    scope: z.string(),
+    repo: z.string(),
+    base_branch: z.string(),
+    branch_suggestion: z.string(),
+    expected_pr_title: z.string(),
+    task_goal: z.string(),
+    task_summary: z.string(),
+    status: z.string(),
+    observed_context: z.array(z.unknown()),
+    inferred_context: z.array(z.unknown()),
+    suggestions_for_codex: z.array(z.unknown()),
+    unresolved_user_judgment: z.array(z.unknown()),
+    expected_files: z.array(z.string()),
+    forbidden_files: z.array(z.string()),
+    required_checks: z.array(z.string()),
+    skipped_check_policy: z.array(z.string()),
+    pr_body_requirements: z.array(z.string()),
+    final_report_requirements: z.array(z.string()),
+    proof_evidence_boundary: z.array(z.string()),
+    authority_boundary: HandoffPreviewAuthorityBoundarySchema,
+  })
+  .passthrough();
+
+export const HandoffPreviewSourceStatusSchema = z
+  .object({
+    guide_brief: z.string().optional(),
+    capsule: z.string().optional(),
+    launch_card: z.string().optional(),
+    synthetic_operator_supplied_fields: z.array(z.string()).optional(),
+    source_disclosure: z.string().optional(),
+  })
+  .passthrough();
+
+export const HandoffCapsulePreviewResultSchema = z
+  .object({
+    response_version: z.string(),
+    runtime: z.literal("augnes"),
+    scope: z.string(),
+    route_id: z.string(),
+    route_family: z.string(),
+    capsule: HandoffCapsulePreviewPacketSchema,
+    route_authority_boundary: z.array(z.string()),
+    source_status: HandoffPreviewSourceStatusSchema,
+    warnings: z.array(z.unknown()).optional(),
+    gaps: z.array(z.unknown()).optional(),
+  })
+  .passthrough();
+
+export const CodexLaunchCardPreviewResultSchema = z
+  .object({
+    response_version: z.string(),
+    runtime: z.literal("augnes"),
+    scope: z.string(),
+    route_id: z.string(),
+    route_family: z.string(),
+    launch_card: CodexLaunchCardPreviewPacketSchema,
+    route_authority_boundary: z.array(z.string()),
+    source_status: HandoffPreviewSourceStatusSchema,
+    warnings: z.array(z.unknown()).optional(),
+    gaps: z.array(z.unknown()).optional(),
+  })
+  .passthrough();
+
 export const WorkEventResultSchema = z
   .object({
     scope: z.string(),
@@ -881,6 +1002,8 @@ export type VerificationEvidenceRecord = z.infer<typeof VerificationEvidenceReco
 export type VerificationEvidenceRecordsResult = z.infer<typeof VerificationEvidenceRecordsResultSchema>;
 export type ConstellationPreviewResult = z.infer<typeof ConstellationPreviewResultSchema>;
 export type GuideBriefResult = z.infer<typeof GuideBriefResultSchema>;
+export type HandoffCapsulePreviewResult = z.infer<typeof HandoffCapsulePreviewResultSchema>;
+export type CodexLaunchCardPreviewResult = z.infer<typeof CodexLaunchCardPreviewResultSchema>;
 export type WorkEventResult = z.infer<typeof WorkEventResultSchema>;
 export type HandoffRecord = z.infer<typeof HandoffRecordSchema>;
 export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
@@ -918,6 +1041,15 @@ export interface StateRuntimeVerificationEvidenceRecordsInput {
   evidenceKind?: EvidenceKind;
   status?: EvidenceStatus;
   limit?: StateRuntimeLimit;
+}
+
+export interface StateRuntimeHandoffCapsulePreviewInput {
+  scope: StateRuntimeScope;
+  target: string;
+}
+
+export interface StateRuntimeCodexLaunchCardPreviewInput {
+  scope: StateRuntimeScope;
 }
 
 export interface StateRuntimeActionResultInput {
@@ -969,6 +1101,8 @@ export interface StateRuntimeBridgeAdapter {
   getStateBrief(scope: StateRuntimeScope): Promise<StateBrief>;
   getConstellationPreview(scope: StateRuntimeScope): Promise<ConstellationPreviewResult>;
   getGuideBrief(scope: StateRuntimeScope): Promise<GuideBriefResult>;
+  getHandoffCapsulePreview(input: StateRuntimeHandoffCapsulePreviewInput): Promise<HandoffCapsulePreviewResult>;
+  getCodexLaunchCardPreview(input: StateRuntimeCodexLaunchCardPreviewInput): Promise<CodexLaunchCardPreviewResult>;
   getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult>;
   getSessionTrace(input: StateRuntimeSessionTraceInput): Promise<SessionTraceResult>;
   getVerificationEvidenceRecords(

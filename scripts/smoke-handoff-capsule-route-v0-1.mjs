@@ -56,10 +56,23 @@ const followOnHandoffCapsuleWebPreviewFiles = [
   "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
 ];
 
+const followOnHandoffCapsuleAppToolFiles = [
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
   ...followOnHandoffCapsuleWebPreviewFiles,
+  ...followOnHandoffCapsuleAppToolFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
@@ -170,8 +183,8 @@ function assertDocsAndIndexPointers() {
     "exports `GET` only",
     "fails closed on missing scope, invalid scope, missing marker, invalid marker, and invalid target",
     "Source composition is owned by `lib/handoff/handoff-capsule-source.ts`",
-    "Phase 7C Web preview UI is documented below",
-    "Phase 7D ChatGPT App/MCP tool is deferred",
+    "Phase 7C Web preview UI and Phase 7D ChatGPT App/MCP read-only preview tools",
+    "Phase 7D ChatGPT App/MCP read-only preview tools are documented below.",
     "Phase 7E Codex skill alignment is deferred",
     "no DB schema/migration, DB write, provider/OpenAI call, GitHub actuation, Codex execution, proof/evidence write, memory mutation, durable Perspective state apply, handoff send, branch/PR creation, scheduler/autonomy runner, product-write, or external side effects",
   ], { label: contractDoc });
@@ -376,6 +389,7 @@ function assertChangedFileBoundary() {
       );
       assert(
         followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
+          followOnHandoffCapsuleAppToolFiles.includes(file) ||
           !forbiddenChangedFilePatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed path for Handoff Capsule route smoke: ${file}`,
       );

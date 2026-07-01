@@ -16,15 +16,19 @@ import { withPresentation } from "./lib/profile.js";
 import { sanitizeValue } from "./lib/sanitize.js";
 import {
   EvidencePackToolInputSchema,
+  CodexLaunchCardPreviewToolInputSchema,
   GuideBriefToolInputSchema,
+  HandoffCapsulePreviewToolInputSchema,
   ProjectConstellationPreviewToolInputSchema,
   SessionTraceToolInputSchema,
   StateRuntimeActionResultKindSchema,
   StateRuntimeActionResultStatusSchema,
   VerificationEvidenceRecordsToolInputSchema,
+  type CodexLaunchCardPreviewResult,
   type ConstellationPreviewResult,
   type ControlPacket,
   type GuideBriefResult,
+  type HandoffCapsulePreviewResult,
   type PublicationSummaryResult,
   type SessionTraceResult,
   type StateBrief,
@@ -55,6 +59,8 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
   "augnes_get_guide_brief",
+  "augnes_get_handoff_capsule_preview",
+  "augnes_get_codex_launch_card_preview",
   "augnes_get_evidence_pack",
   "augnes_get_session_trace",
   "augnes_get_verification_evidence_records",
@@ -6529,6 +6535,354 @@ function describeGuideBrief(guideBrief: GuideBriefResult): string {
   ].join(" ");
 }
 
+const HANDOFF_PREVIEW_DEFAULT_TARGET = "codex_handoff" as const;
+
+const HANDOFF_PREVIEW_AUTHORITY_BOUNDARY_FALSE_FIELDS = [
+  "source_of_truth",
+  "can_commit_or_reject_state",
+  "can_record_proof",
+  "can_create_evidence",
+  "can_update_work",
+  "can_mutate_memory",
+  "can_apply_project_perspective",
+  "can_publish_external",
+  "can_merge",
+  "can_retry_replay_deploy",
+  "can_call_github",
+  "can_call_openai_or_provider",
+  "can_execute_codex",
+  "can_create_branch_or_pr",
+  "can_send_handoff",
+  "can_launch_codex",
+  "can_launch_autonomy",
+  "can_create_mcp_tool",
+  "can_create_ui_action",
+  "can_post_external_comment",
+] as const;
+
+const HANDOFF_PREVIEW_READ_BOUNDARY_FALSE_FIELDS = [
+  "handoff_send_authority",
+  "codex_execution_authority",
+  "codex_launch_authority",
+  "branch_pr_creation_authority",
+  "github_openai_provider_calls",
+  "proof_evidence_writes",
+  "state_memory_db_mutation",
+  "publish_merge_retry_replay_deploy",
+  "external_post_authority",
+  "copy_export_authority",
+  "suggestions_are_actions",
+] as const;
+
+function arrayCount(value: unknown): number {
+  return Array.isArray(value) ? value.length : 0;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function stringField(record: Record<string, unknown>, field: string): string | null {
+  const value = record[field];
+  return typeof value === "string" ? value : null;
+}
+
+function buildHandoffPreviewReadBoundary({
+  route,
+  marker,
+}: {
+  route: string;
+  marker: string;
+}) {
+  return {
+    source_route: route,
+    local_readonly_marker: marker,
+    preview_review_preparation_only: true,
+    suggestions_are_advisory_only: true,
+    unresolved_user_judgment_remains_unresolved: true,
+    handoff_send_authority: false,
+    codex_execution_authority: false,
+    codex_launch_authority: false,
+    branch_pr_creation_authority: false,
+    github_openai_provider_calls: false,
+    proof_evidence_writes: false,
+    state_memory_db_mutation: false,
+    publish_merge_retry_replay_deploy: false,
+    external_post_authority: false,
+    copy_export_authority: false,
+    suggestions_are_actions: false,
+  };
+}
+
+function restoreHandoffPreviewAuthorityBoundary(
+  sanitizedAuthorityBoundary: unknown,
+  sourceAuthorityBoundary: unknown
+): Record<string, unknown> {
+  return restoreFalseBoundaryFields(
+    sanitizedAuthorityBoundary,
+    sourceAuthorityBoundary,
+    HANDOFF_PREVIEW_AUTHORITY_BOUNDARY_FALSE_FIELDS
+  );
+}
+
+function restoreHandoffPreviewReadBoundary(
+  sanitizedReadBoundary: unknown,
+  sourceReadBoundary: unknown
+): Record<string, unknown> {
+  return restoreFalseBoundaryFields(
+    sanitizedReadBoundary,
+    sourceReadBoundary,
+    HANDOFF_PREVIEW_READ_BOUNDARY_FALSE_FIELDS
+  );
+}
+
+function summarizeHandoffPreviewSourceStatus(
+  result: HandoffCapsulePreviewResult | CodexLaunchCardPreviewResult
+): Record<string, unknown> {
+  return objectRecord(result.source_status);
+}
+
+function summarizeHandoffPreviewAuthorityBoundary(
+  sourceAuthorityBoundary: unknown,
+  readBoundary: Record<string, unknown>
+): Record<string, unknown> {
+  return {
+    authority_boundary: restoreHandoffPreviewAuthorityBoundary(
+      sourceAuthorityBoundary,
+      sourceAuthorityBoundary
+    ),
+    read_boundary: restoreHandoffPreviewReadBoundary(readBoundary, readBoundary),
+    summary:
+      "Preview/review preparation only: no send, no launch, no execution, no mutation, no branch/PR creation, no GitHub/OpenAI/provider calls, no proof/evidence writes, and no external post.",
+  };
+}
+
+function buildHandoffCapsulePreviewSummary(result: HandoffCapsulePreviewResult) {
+  const capsule = objectRecord(result.capsule);
+  const staleness = objectRecord(capsule.staleness);
+
+  return {
+    title: stringField(capsule, "title"),
+    target_surface: stringField(capsule, "target_surface"),
+    target_actor: stringField(capsule, "target_actor"),
+    handoff_intent: stringField(capsule, "handoff_intent"),
+    status: stringField(capsule, "status"),
+    staleness: stringField(staleness, "status"),
+    source_status: summarizeHandoffPreviewSourceStatus(result),
+    observed_count: arrayCount(capsule.observed_context),
+    inferred_count: arrayCount(capsule.inferred_context),
+    suggested_count: arrayCount(capsule.suggested_context),
+    needs_user_judgment_count: arrayCount(capsule.needs_user_judgment),
+    warning_count: arrayCount(result.warnings),
+    gap_count: arrayCount(result.gaps),
+  };
+}
+
+function buildCodexLaunchCardPreviewSummary(result: CodexLaunchCardPreviewResult) {
+  const launchCard = objectRecord(result.launch_card);
+
+  return {
+    repo: stringField(launchCard, "repo"),
+    base_branch: stringField(launchCard, "base_branch"),
+    branch_suggestion: stringField(launchCard, "branch_suggestion"),
+    expected_pr_title: stringField(launchCard, "expected_pr_title"),
+    task_goal: stringField(launchCard, "task_goal"),
+    task_summary: stringField(launchCard, "task_summary"),
+    status: stringField(launchCard, "status"),
+    source_status: summarizeHandoffPreviewSourceStatus(result),
+    observed_count: arrayCount(launchCard.observed_context),
+    inferred_count: arrayCount(launchCard.inferred_context),
+    suggestions_for_codex_count: arrayCount(launchCard.suggestions_for_codex),
+    unresolved_user_judgment_count: arrayCount(launchCard.unresolved_user_judgment),
+    expected_file_count: arrayCount(launchCard.expected_files),
+    forbidden_file_count: arrayCount(launchCard.forbidden_files),
+    required_check_count: arrayCount(launchCard.required_checks),
+    warning_count: arrayCount(result.warnings),
+    gap_count: arrayCount(result.gaps),
+  };
+}
+
+function buildHandoffCapsulePreviewStructuredContent({
+  result,
+  compact,
+}: {
+  result: HandoffCapsulePreviewResult;
+  compact: boolean | undefined;
+}): Record<string, unknown> {
+  const capsule = objectRecord(result.capsule);
+  const readBoundary = buildHandoffPreviewReadBoundary({
+    route: "GET /api/augnes/read/handoff-capsule",
+    marker: "x-augnes-local-readonly: handoff-capsule-v0.1",
+  });
+  const summary = buildHandoffCapsulePreviewSummary(result);
+  const structuredContent = sanitizePayload({
+    profile: config.appProfile,
+    panel: "handoff_capsule_preview",
+    packet_label: "Handoff Capsule preview",
+    scope: result.scope,
+    route_id: result.route_id,
+    route_family: result.route_family,
+    compact: compact ?? true,
+    capsule: result.capsule,
+    handoff_capsule: result.capsule,
+    capsule_summary: summary,
+    observed_context: capsule.observed_context ?? [],
+    inferred_context: capsule.inferred_context ?? [],
+    suggested_context: capsule.suggested_context ?? [],
+    needs_user_judgment: capsule.needs_user_judgment ?? [],
+    selected_delta_refs: capsule.selected_delta_refs ?? [],
+    validation_expectations: capsule.validation_expectations ?? {},
+    forbidden_actions: capsule.forbidden_actions ?? [],
+    source_status: result.source_status,
+    public_safety: capsule.public_safety ?? {},
+    warnings: result.warnings ?? [],
+    gaps: result.gaps ?? [],
+    authority_boundary: capsule.authority_boundary,
+    route_authority_boundary: result.route_authority_boundary,
+    read_boundary: readBoundary,
+    route_boundary: readBoundary,
+    boundary_summary:
+      "No send, no launch, no execution, no mutation, no branch/PR creation, no GitHub/OpenAI/provider calls, no proof/evidence writes, no external post.",
+  }) as Record<string, unknown>;
+
+  structuredContent.authority_boundary = restoreHandoffPreviewAuthorityBoundary(
+    structuredContent.authority_boundary,
+    capsule.authority_boundary
+  );
+  structuredContent.read_boundary = restoreHandoffPreviewReadBoundary(
+    structuredContent.read_boundary,
+    readBoundary
+  );
+  structuredContent.route_boundary = restoreHandoffPreviewReadBoundary(
+    structuredContent.route_boundary,
+    readBoundary
+  );
+  structuredContent.authority_boundary_summary = summarizeHandoffPreviewAuthorityBoundary(
+    capsule.authority_boundary,
+    readBoundary
+  );
+
+  for (const capsuleKey of ["capsule", "handoff_capsule"] as const) {
+    const sanitizedCapsule = objectRecord(structuredContent[capsuleKey]);
+    structuredContent[capsuleKey] = {
+      ...sanitizedCapsule,
+      authority_boundary: restoreHandoffPreviewAuthorityBoundary(
+        sanitizedCapsule.authority_boundary,
+        capsule.authority_boundary
+      ),
+    };
+  }
+
+  return structuredContent;
+}
+
+function buildCodexLaunchCardPreviewStructuredContent({
+  result,
+  compact,
+}: {
+  result: CodexLaunchCardPreviewResult;
+  compact: boolean | undefined;
+}): Record<string, unknown> {
+  const launchCard = objectRecord(result.launch_card);
+  const readBoundary = buildHandoffPreviewReadBoundary({
+    route: "GET /api/augnes/read/codex-launch-card",
+    marker: "x-augnes-local-readonly: codex-launch-card-v0.1",
+  });
+  const summary = buildCodexLaunchCardPreviewSummary(result);
+  const structuredContent = sanitizePayload({
+    profile: config.appProfile,
+    panel: "codex_launch_card_preview",
+    packet_label: "Codex Launch Card preview",
+    scope: result.scope,
+    route_id: result.route_id,
+    route_family: result.route_family,
+    compact: compact ?? true,
+    launch_card: result.launch_card,
+    codex_launch_card: result.launch_card,
+    launch_card_summary: summary,
+    observed_context: launchCard.observed_context ?? [],
+    inferred_context: launchCard.inferred_context ?? [],
+    suggestions_for_codex: launchCard.suggestions_for_codex ?? [],
+    unresolved_user_judgment: launchCard.unresolved_user_judgment ?? [],
+    expected_files: launchCard.expected_files ?? [],
+    forbidden_files: launchCard.forbidden_files ?? [],
+    required_checks: launchCard.required_checks ?? [],
+    optional_checks: launchCard.optional_checks ?? [],
+    skipped_check_policy: launchCard.skipped_check_policy ?? [],
+    pr_body_requirements: launchCard.pr_body_requirements ?? [],
+    final_report_requirements: launchCard.final_report_requirements ?? [],
+    proof_evidence_boundary: launchCard.proof_evidence_boundary ?? [],
+    source_status: result.source_status,
+    public_safety: launchCard.public_safety ?? {},
+    warnings: result.warnings ?? [],
+    gaps: result.gaps ?? [],
+    authority_boundary: launchCard.authority_boundary,
+    route_authority_boundary: result.route_authority_boundary,
+    read_boundary: readBoundary,
+    route_boundary: readBoundary,
+    boundary_summary:
+      "Not Codex execution, not branch creation, not PR creation, not a launch action, no GitHub/OpenAI/provider calls, no proof/evidence writes, no state/memory/DB mutation.",
+  }) as Record<string, unknown>;
+
+  structuredContent.authority_boundary = restoreHandoffPreviewAuthorityBoundary(
+    structuredContent.authority_boundary,
+    launchCard.authority_boundary
+  );
+  structuredContent.read_boundary = restoreHandoffPreviewReadBoundary(
+    structuredContent.read_boundary,
+    readBoundary
+  );
+  structuredContent.route_boundary = restoreHandoffPreviewReadBoundary(
+    structuredContent.route_boundary,
+    readBoundary
+  );
+  structuredContent.authority_boundary_summary = summarizeHandoffPreviewAuthorityBoundary(
+    launchCard.authority_boundary,
+    readBoundary
+  );
+
+  for (const launchCardKey of ["launch_card", "codex_launch_card"] as const) {
+    const sanitizedLaunchCard = objectRecord(structuredContent[launchCardKey]);
+    structuredContent[launchCardKey] = {
+      ...sanitizedLaunchCard,
+      authority_boundary: restoreHandoffPreviewAuthorityBoundary(
+        sanitizedLaunchCard.authority_boundary,
+        launchCard.authority_boundary
+      ),
+    };
+  }
+
+  return structuredContent;
+}
+
+function describeHandoffCapsulePreview(result: HandoffCapsulePreviewResult): string {
+  const summary = buildHandoffCapsulePreviewSummary(result);
+
+  return [
+    `Handoff Capsule preview loaded for scope ${result.scope}: ${summary.observed_count} observed, ${summary.inferred_count} inferred, ${summary.suggested_count} suggested, and ${summary.needs_user_judgment_count} needs_user_judgment item(s).`,
+    `${summary.warning_count} warning(s), ${summary.gap_count} gap(s).`,
+    `Status: ${summary.status ?? "unknown"}; target: ${summary.target_surface ?? "unknown"}.`,
+    "Preview/review preparation only.",
+    "Suggestions are advisory only.",
+    "Unresolved user judgment remains unresolved.",
+    "Read-only tool: no handoff send, no Codex launch or execution, no GitHub/OpenAI/provider calls, no branch/PR creation, no proof/evidence writes, no state/memory/DB/work/Perspective mutation, no publish/merge/retry/replay/deploy/external post.",
+  ].join(" ");
+}
+
+function describeCodexLaunchCardPreview(result: CodexLaunchCardPreviewResult): string {
+  const summary = buildCodexLaunchCardPreviewSummary(result);
+
+  return [
+    `Codex Launch Card preview loaded for scope ${result.scope}: repo ${summary.repo ?? "unknown"}, base ${summary.base_branch ?? "unknown"}, ${summary.expected_file_count} expected file hint(s), ${summary.required_check_count} required check hint(s), and ${summary.unresolved_user_judgment_count} unresolved user judgment item(s).`,
+    `${summary.warning_count} warning(s), ${summary.gap_count} gap(s).`,
+    `Status: ${summary.status ?? "unknown"}; no status may mean executed.`,
+    "Suggestions for Codex are advisory only.",
+    "Unresolved user judgment remains unresolved.",
+    "This is not Codex execution, not branch creation, not PR creation, not a launch action, and not handoff send.",
+    "Read-only tool: no GitHub/OpenAI/provider calls, no proof/evidence writes, no state/memory/DB/work/Perspective mutation, no publish/merge/retry/replay/deploy/external post.",
+  ].join(" ");
+}
+
 export type McpAppServerOptions = {
   enableAgentBridge?: boolean;
   toolSurface?: AugnesAppToolSurface;
@@ -7162,6 +7516,76 @@ export function createMcpAppServer(
           };
         } catch (error) {
           return buildBridgeToolError("augnes_get_guide_brief", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_get_handoff_capsule_preview",
+      {
+        title: "Get Handoff Capsule preview",
+        description:
+          "Read-only Handoff Capsule preview tool for preview/review preparation only. It consumes the local marker-gated Handoff Capsule route, preserves Observed/Inferred/Suggested/Needs user judgment separation, treats suggestions as advisory only, leaves unresolved user judgment unresolved, does not send handoffs, does not launch or execute Codex, does not call GitHub/OpenAI/provider services, does not create branches or PRs, does not create proof/evidence records, does not mutate state, memory, DB, work, or Perspective, and does not publish, merge, retry, replay, deploy, or externally post.",
+        inputSchema: HandoffCapsulePreviewToolInputSchema.shape,
+        annotations: localRouteReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope, target, compact }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+        const resolvedTarget = target ?? HANDOFF_PREVIEW_DEFAULT_TARGET;
+
+        try {
+          const result = await stateRuntimeAdapter.getHandoffCapsulePreview({
+            scope: resolvedScope,
+            target: resolvedTarget,
+          });
+          const structuredContent = buildHandoffCapsulePreviewStructuredContent({
+            result,
+            compact: compact ?? true,
+          });
+
+          return {
+            structuredContent,
+            content: narrative(describeHandoffCapsulePreview(result)),
+            _meta: structuredContent,
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_get_handoff_capsule_preview", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_get_codex_launch_card_preview",
+      {
+        title: "Get Codex Launch Card preview",
+        description:
+          "Read-only Codex Launch Card preview tool for preview/review preparation only. It consumes the local marker-gated Codex Launch Card route, preserves Observed/Inferred/Suggested/Needs user judgment separation, treats suggestions for Codex as advisory only, leaves unresolved user judgment unresolved, does not send handoffs, does not launch or execute Codex, does not call GitHub/OpenAI/provider services, does not create branches or PRs, does not create proof/evidence records, does not mutate state, memory, DB, work, or Perspective, and does not publish, merge, retry, replay, deploy, or externally post.",
+        inputSchema: CodexLaunchCardPreviewToolInputSchema.shape,
+        annotations: localRouteReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope, compact }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const result = await stateRuntimeAdapter.getCodexLaunchCardPreview({
+            scope: resolvedScope,
+          });
+          const structuredContent = buildCodexLaunchCardPreviewStructuredContent({
+            result,
+            compact: compact ?? true,
+          });
+
+          return {
+            structuredContent,
+            content: narrative(describeCodexLaunchCardPreview(result)),
+            _meta: structuredContent,
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_get_codex_launch_card_preview", error);
         }
       }
     );

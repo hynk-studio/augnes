@@ -99,6 +99,21 @@ for (const file of followOnHandoffCapsuleWebPreviewFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffCapsuleAppToolFiles = [
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+  "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleAppToolFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const forbiddenRuntimePathPatterns = [
   /^app\//,
   /^components\//,
@@ -348,6 +363,7 @@ function assertChangedFilesBoundary() {
       assert(
         followOnHandoffCapsuleRouteFiles.includes(file) ||
           followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
+          followOnHandoffCapsuleAppToolFiles.includes(file) ||
           !forbiddenRuntimePathPatterns.some((pattern) => pattern.test(file)),
         `Forbidden runtime changed file for Codex GuideBrief handoff alignment smoke: ${file}`,
       );

@@ -67,6 +67,11 @@ const allowedChangedFiles = new Set([
   packageJsonFile,
   smokeFile,
   ...priorSmokeAllowlistCompatibilityFiles,
+  "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",
+  "scripts/smoke-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);

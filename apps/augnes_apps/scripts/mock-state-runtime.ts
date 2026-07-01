@@ -1,10 +1,12 @@
 import type {
   ActionRecordResult,
+  CodexLaunchCardPreviewResult,
   CodexResultReviewDraft,
   ConstellationPreviewResult,
   ControlPacket,
   EvidencePackResult,
   GuideBriefResult,
+  HandoffCapsulePreviewResult,
   GeneratedHandoffDraft,
   GenerateHandoffDraftInput,
   MailboxSummaryResult,
@@ -15,7 +17,9 @@ import type {
   StateBrief,
   StateRuntimeActionResultInput,
   StateRuntimeBridgeAdapter,
+  StateRuntimeCodexLaunchCardPreviewInput,
   StateRuntimeEvidencePackInput,
+  StateRuntimeHandoffCapsulePreviewInput,
   StateRuntimeMessageInput,
   StateRuntimeProposal,
   StateRuntimeScope,
@@ -69,6 +73,326 @@ const verificationEvidenceRecord = {
   created_at: "2026-05-08T00:00:00.000Z",
   updated_at: "2026-05-08T00:00:00.000Z",
 } as const;
+
+const handoffPreviewAuthorityBoundary = {
+  source_of_truth: false,
+  can_commit_or_reject_state: false,
+  can_record_proof: false,
+  can_create_evidence: false,
+  can_update_work: false,
+  can_mutate_memory: false,
+  can_apply_project_perspective: false,
+  can_publish_external: false,
+  can_merge: false,
+  can_retry_replay_deploy: false,
+  can_call_github: false,
+  can_call_openai_or_provider: false,
+  can_execute_codex: false,
+  can_create_branch_or_pr: false,
+  can_send_handoff: false,
+  can_launch_codex: false,
+  can_launch_autonomy: false,
+  can_create_mcp_tool: false,
+  can_create_ui_action: false,
+  can_post_external_comment: false,
+  notes: [
+    "Mock Handoff Capsule and Codex Launch Card previews are read-only.",
+    "Suggestions are advisory only.",
+    "Unresolved user judgment remains unresolved.",
+    "No status may mean executed.",
+  ],
+} as const;
+
+const handoffPreviewRouteAuthorityBoundary = [
+  "GET-only local read-only Handoff Capsule / Codex Launch Card route",
+  "preview JSON only",
+  "no handoff send authority",
+  "no Codex execution authority",
+  "no GitHub actuation authority",
+  "no provider/OpenAI authority",
+  "no branch/PR creation authority from Augnes product code",
+  "no proof/evidence write authority",
+  "no state, memory, DB, work, or Perspective mutation authority",
+] as const;
+
+function buildMockHandoffCapsulePreviewRouteResponse(
+  scope: StateRuntimeScope,
+  target = "codex_handoff",
+): HandoffCapsulePreviewResult {
+  return {
+    response_version: "handoff_capsule_route_response.v0.1",
+    runtime: "augnes",
+    scope,
+    route_id: "augnes.read.handoff_capsule.v0.1",
+    route_family: "handoff_capsule",
+    capsule: {
+      runtime: "augnes",
+      capsule_version: "handoff_capsule.v0.1",
+      scope,
+      capsule_id: "handoff_capsule.mock.chatgpt_app.v0.1.preview",
+      created_at: "2026-05-10T00:00:00.000Z",
+      source_guide_brief_ref: "guide_brief:mock:2026-05-10T00:00:00.000Z",
+      source_snapshot_refs: ["snapshot:handoff-capsule-smoke"],
+      target_surface: target,
+      target_actor: "codex",
+      handoff_intent: "implementation_preparation",
+      status: "preview_only",
+      title: "Mock Codex handoff capsule preview",
+      summary: "Synthetic App/MCP preview response; not sent, launched, executed, or persisted.",
+      thesis: "Mock preview packets prepare context while preserving read-only authority boundaries.",
+      observed_context: [
+        {
+          context_id: "handoff.mock.observed.1",
+          kind: "current_thesis",
+          summary: "Mock observed context stays source-backed in the preview packet.",
+          source_refs: ["docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"],
+          related_delta_ids: ["delta:handoff-smoke"],
+          confidence: "observed",
+          notes: ["Mock route response for App/MCP smoke."],
+        },
+      ],
+      inferred_context: [
+        {
+          context_id: "handoff.mock.inferred.1",
+          summary: "Mock inferred context remains derived and caveated.",
+          basis_observation_ids: ["handoff.mock.observed.1"],
+          source_refs: ["docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"],
+          confidence: "medium",
+          caveats: ["Synthetic preview only."],
+          non_authority_notes: ["Inference is not a source fact."],
+        },
+      ],
+      suggested_context: [
+        {
+          context_id: "handoff.mock.suggested.1",
+          title: "Review preview packet",
+          summary: "Advisory only; not a command and not executed by the tool.",
+          suggested_surface: "chatgpt_app",
+          suggested_actor: "operator",
+          priority: "next",
+          required_checks: ["npm run smoke:chatgpt-app-handoff-capsule-tool-v0-1"],
+          blocked_by: [],
+          source_refs: ["docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"],
+          related_delta_ids: ["delta:handoff-smoke"],
+          advisory_only: true,
+          authority_boundary_summary: "Suggestions are advisory only.",
+        },
+      ],
+      needs_user_judgment: [
+        {
+          context_id: "handoff.mock.judgment.1",
+          question: "Should a future operator prompt authorize Codex work?",
+          why_it_matters: "The preview tool cannot decide or launch work.",
+          options: ["Explicitly scope a future Codex task", "Hold"],
+          source_refs: ["docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"],
+          related_delta_ids: [],
+          urgency: "medium",
+          blocked_until_decided: ["No launch or send authority exists in this tool."],
+          decided_by_packet: false,
+        },
+      ],
+      source_refs: {
+        guide_brief_ref: "guide_brief:mock:2026-05-10T00:00:00.000Z",
+        current_working_perspective_ref: "/api/perspective/current?scope=project%3Aaugnes",
+        delta_projection_ref: "/api/augnes/read/deltas?scope=project%3Aaugnes",
+        workplane_ref: "/workbench",
+        perspective_snapshot_refs: ["snapshot:handoff-capsule-smoke"],
+        delta_ids: ["delta:handoff-smoke"],
+        batch_ids: ["batch:handoff-smoke"],
+        evidence_refs: [],
+        artifact_refs: [],
+        handoff_refs: ["handoff:mock-preview"],
+        diagnostic_refs: ["diagnostic:handoff-smoke"],
+        route_refs: [
+          "/api/augnes/read/handoff-capsule?scope=project:augnes&target=codex_handoff",
+          "/api/augnes/read/codex-launch-card?scope=project:augnes",
+        ],
+        docs_refs: [
+          "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",
+          "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+        ],
+        repo_refs: ["hynk-studio/augnes"],
+      },
+      selected_delta_refs: [
+        {
+          delta_id: "delta:handoff-smoke",
+          reason: "Mock selected delta ref for preview smoke.",
+          source_refs: ["docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"],
+        },
+      ],
+      evidence_refs: [],
+      artifact_refs: [],
+      diagnostic_refs: ["diagnostic:handoff-smoke"],
+      constraints: {
+        allowed_change_scope: ["Read-only preview inspection only."],
+        boundary_notes: ["No send, launch, execution, post, merge, publish, or state mutation."],
+        skipped_check_policy: ["Skipped checks must be reported with concrete reasons."],
+        public_safety: ["Synthetic mock preview contains no private account artifacts."],
+        non_goals: ["Codex execution", "GitHub actuation", "proof/evidence writes"],
+      },
+      forbidden_actions: [
+        "No handoff send.",
+        "No Codex launch or execution.",
+        "No GitHub/OpenAI/provider calls.",
+        "No branch/PR creation.",
+        "No proof/evidence writes.",
+        "No state, memory, DB, work, or Perspective mutation.",
+      ],
+      expected_inputs: ["Marker-gated local read request."],
+      expected_outputs: ["Preview JSON only."],
+      validation_expectations: {
+        required_checks: ["npm run smoke:chatgpt-app-handoff-capsule-tool-v0-1"],
+        optional_checks: [],
+        skipped_check_policy: ["Report skipped checks honestly."],
+        success_criteria: ["Preview remains read-only and model-only."],
+      },
+      staleness: {
+        status: "unknown",
+        as_of: "2026-05-10T00:00:00.000Z",
+        warnings: ["Synthetic mock preview."],
+        refresh_suggestion: "Use the Phase 7B route through the App adapter.",
+      },
+      authority_boundary: handoffPreviewAuthorityBoundary,
+      target_rendering: {
+        primary_sections: ["Observed", "Inferred", "Suggested", "Needs user judgment"],
+        preserve_separation: true,
+        compact_summary: "Mock Handoff Capsule preview.",
+        copy_behavior: "not_copyable",
+        action_controls: false,
+        notes: ["Model-only App/MCP tool response."],
+      },
+      gaps: [],
+      next_phase_notes: ["Phase 7D App/MCP read-only preview tool smoke."],
+      public_safety: {
+        fixture_kind: "synthetic_sample",
+        contains_private_conversations: false,
+        contains_hidden_reasoning: false,
+        contains_local_private_paths: false,
+        contains_secrets: false,
+        contains_tokens: false,
+        contains_raw_provider_output: false,
+        contains_raw_retrieval_output: false,
+        contains_real_account_artifacts: false,
+        notes: ["Synthetic public-safe mock preview."],
+      },
+    },
+    route_authority_boundary: [...handoffPreviewRouteAuthorityBoundary],
+    source_status: {
+      guide_brief: "synthetic_mock_guide_brief",
+      capsule: "synthetic_mock_handoff_capsule_preview",
+      synthetic_operator_supplied_fields: ["repo", "base_branch", "expected_files", "required_checks"],
+      source_disclosure: "Synthetic mock preview for App/MCP smoke; does not claim live runtime state.",
+    },
+    warnings: ["Mock Handoff Capsule preview is synthetic.", "Launch Card status never means executed."],
+    gaps: [],
+  };
+}
+
+function buildMockCodexLaunchCardPreviewRouteResponse(
+  scope: StateRuntimeScope,
+): CodexLaunchCardPreviewResult {
+  const capsuleResponse = buildMockHandoffCapsulePreviewRouteResponse(scope);
+
+  return {
+    response_version: "codex_launch_card_route_response.v0.1",
+    runtime: "augnes",
+    scope,
+    route_id: "augnes.read.codex_launch_card.v0.1",
+    route_family: "codex_launch_card",
+    launch_card: {
+      runtime: "augnes",
+      card_version: "codex_launch_card.v0.1",
+      scope,
+      launch_card_id: "codex_launch_card.mock.chatgpt_app.v0.1.preview",
+      created_at: "2026-05-10T00:00:00.000Z",
+      source_capsule_id: capsuleResponse.capsule.capsule_id,
+      source_guide_brief_ref: capsuleResponse.capsule.source_guide_brief_ref,
+      repo: "hynk-studio/augnes",
+      base_branch: "main",
+      branch_suggestion: "operator-scoped-branch-required-before-any-codex-work",
+      expected_pr_title: "Operator-scoped task required before PR title",
+      task_goal: "Review the mock Launch Card preview; do not execute or launch Codex.",
+      task_summary: "Synthetic preview-only Launch Card for App/MCP smoke validation.",
+      context_anchors: [capsuleResponse.capsule.capsule_id, "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"],
+      observed_context: capsuleResponse.capsule.observed_context,
+      inferred_context: capsuleResponse.capsule.inferred_context,
+      suggestions_for_codex: [
+        {
+          suggestion_id: "codex_launch_card.mock.suggestion.1",
+          title: "Treat preview suggestions as advisory",
+          summary: "Do not treat Launch Card suggestions as commands.",
+          source_refs: ["docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"],
+          related_delta_ids: ["delta:handoff-smoke"],
+          required_checks: ["npm run smoke:chatgpt-app-handoff-capsule-tool-v0-1"],
+          blocked_by: ["Explicit future operator prompt"],
+          advisory_only: true,
+          active_operator_prompt_required: true,
+        },
+      ],
+      unresolved_user_judgment: capsuleResponse.capsule.needs_user_judgment,
+      expected_files: ["Operator prompt must supply expected files before Codex work."],
+      forbidden_files: ["migrations/**", "lib/db.ts", "provider/**", "proof/**", "evidence/**", "autonomy/**"],
+      allowed_change_scope: ["None from this App/MCP preview tool."],
+      forbidden_actions: capsuleResponse.capsule.forbidden_actions,
+      required_checks: ["Operator prompt must supply required checks before Codex work."],
+      optional_checks: [],
+      skipped_check_policy: ["Skipped checks must be reported with concrete reasons."],
+      pr_body_requirements: ["Summary", "Files changed", "Validation", "Skipped checks", "Authority boundary statement"],
+      final_report_requirements: ["PR URL", "Commit SHA", "Validation results", "No merge statement"],
+      proof_evidence_boundary: ["No proof/evidence write authority in this preview tool."],
+      source_refs: capsuleResponse.capsule.source_refs,
+      staleness: capsuleResponse.capsule.staleness,
+      authority_boundary: handoffPreviewAuthorityBoundary,
+      status: "preview_only",
+      next_phase_notes: capsuleResponse.capsule.next_phase_notes,
+      public_safety: capsuleResponse.capsule.public_safety,
+    },
+    route_authority_boundary: [...handoffPreviewRouteAuthorityBoundary],
+    source_status: {
+      guide_brief: "synthetic_mock_guide_brief",
+      capsule: "synthetic_mock_handoff_capsule_preview",
+      launch_card: "synthetic_mock_codex_launch_card_preview",
+      synthetic_operator_supplied_fields: ["repo", "base_branch", "expected_files", "required_checks"],
+      source_disclosure: "Synthetic mock preview for App/MCP smoke; does not claim live runtime state.",
+    },
+    warnings: ["Mock Codex Launch Card preview is synthetic.", "No status may mean executed."],
+    gaps: [],
+  };
+}
+
+export async function handleMockStateRuntimeReadRoute(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  const scope = url.searchParams.get("scope");
+  const marker = request.headers.get("x-augnes-local-readonly");
+
+  if (request.method !== "GET") {
+    return Response.json({ error: "method_not_allowed" }, { status: 405 });
+  }
+
+  if (scope !== "project:augnes") {
+    return Response.json({ error: "invalid_scope" }, { status: 400 });
+  }
+
+  if (url.pathname === "/api/augnes/read/handoff-capsule") {
+    const target = url.searchParams.get("target");
+    if (target !== "codex_handoff") {
+      return Response.json({ error: "invalid_target" }, { status: 400 });
+    }
+    if (marker !== "handoff-capsule-v0.1") {
+      return Response.json({ error: marker ? "invalid_marker" : "missing_marker" }, { status: 403 });
+    }
+    return Response.json(buildMockHandoffCapsulePreviewRouteResponse(scope, target), { status: 200 });
+  }
+
+  if (url.pathname === "/api/augnes/read/codex-launch-card") {
+    if (marker !== "codex-launch-card-v0.1") {
+      return Response.json({ error: marker ? "invalid_marker" : "missing_marker" }, { status: 403 });
+    }
+    return Response.json(buildMockCodexLaunchCardPreviewRouteResponse(scope), { status: 200 });
+  }
+
+  return Response.json({ error: "not_found" }, { status: 404 });
+}
 
 export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter {
   async getStateBrief(scope: StateRuntimeScope): Promise<StateBrief> {
@@ -426,6 +750,14 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
         "Phase 7 Handoff Capsule / Codex Launch Card remains deferred.",
       ],
     };
+  }
+
+  async getHandoffCapsulePreview(input: StateRuntimeHandoffCapsulePreviewInput): Promise<HandoffCapsulePreviewResult> {
+    return buildMockHandoffCapsulePreviewRouteResponse(input.scope, input.target);
+  }
+
+  async getCodexLaunchCardPreview(input: StateRuntimeCodexLaunchCardPreviewInput): Promise<CodexLaunchCardPreviewResult> {
+    return buildMockCodexLaunchCardPreviewRouteResponse(input.scope);
   }
 
   async getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult> {
