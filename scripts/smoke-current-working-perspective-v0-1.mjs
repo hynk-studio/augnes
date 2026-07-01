@@ -94,6 +94,12 @@ const followOnGuideBriefCoreFiles = [
   "fixtures/guide-brief.sample.v0.1.json",
   "scripts/smoke-guide-brief-v0-1.mjs",
 ];
+
+const followOnGuideBriefRouteFiles = [
+  "app/api/augnes/read/guide-brief/route.ts",
+  "lib/guide/guide-brief-source.ts",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -122,9 +128,13 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneProjectionHandoffFiles,
   ...followOnAgentWorkplaneCleanupHardeningFiles,
   ...followOnGuideBriefCoreFiles,
+  ...followOnGuideBriefRouteFiles,
 ]);
 
-const allowedRouteFiles = new Set([currentPerspectiveRouteFile]);
+const allowedRouteFiles = new Set([
+  currentPerspectiveRouteFile,
+  "app/api/augnes/read/guide-brief/route.ts",
+]);
 
 const textByFile = loadTextByFile(requiredFiles);
 const docText = textByFile.get(currentPerspectiveDoc);
