@@ -58,6 +58,9 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
   "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
   "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
+  "app/api/augnes/read/autonomy-runner-preflight/route.ts",
+  "lib/autonomy/autonomy-runner-preflight-source.ts",
+  "scripts/smoke-autonomy-runner-preflight-route-v0-1.mjs",
 ];
 
 const allowedChangedFiles = new Set([
@@ -66,7 +69,7 @@ const allowedChangedFiles = new Set([
 ]);
 
 const forbiddenChangedFilePatterns = [
-  /^app\//,
+  /^app\/(?!api\/augnes\/read\/autonomy-runner-preflight\/route\.ts$)/,
   /^components\//,
   /^apps\/augnes_apps\//,
   /^migrations\//,
@@ -724,6 +727,9 @@ function assertChangedFileBoundary() {
   for (const file of files) {
     assert(allowedChangedFiles.has(file), `Unexpected changed file for Phase 9A: ${file}`);
     for (const pattern of forbiddenChangedFilePatterns) {
+      if (file === "app/api/augnes/read/autonomy-runner-preflight/route.ts") {
+        continue;
+      }
       assert(!pattern.test(file), `Forbidden Phase 9A changed file: ${file}`);
     }
   }

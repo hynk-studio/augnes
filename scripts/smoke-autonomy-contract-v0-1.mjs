@@ -114,6 +114,9 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "lib/autonomy/autonomy-runner-preflight.ts",
   "fixtures/autonomy-runner-preflight.sample.v0.1.json",
   "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+  "app/api/augnes/read/autonomy-runner-preflight/route.ts",
+  "lib/autonomy/autonomy-runner-preflight-source.ts",
+  "scripts/smoke-autonomy-runner-preflight-route-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -786,6 +789,9 @@ function assertChangedFileBoundary() {
   for (const file of files) {
     assert(allowedChangedFiles.has(file), `Unexpected changed file for Phase 8A: ${file}`);
     for (const pattern of forbiddenChangedFilePatterns) {
+      if (file === "app/api/augnes/read/autonomy-runner-preflight/route.ts") {
+        continue;
+      }
       assert(!pattern.test(file), `Forbidden Phase 8A changed file: ${file}`);
     }
   }

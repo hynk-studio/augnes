@@ -135,6 +135,9 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "lib/autonomy/autonomy-runner-preflight.ts",
   "fixtures/autonomy-runner-preflight.sample.v0.1.json",
   "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+  "app/api/augnes/read/autonomy-runner-preflight/route.ts",
+  "lib/autonomy/autonomy-runner-preflight-source.ts",
+  "scripts/smoke-autonomy-runner-preflight-route-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -602,7 +605,8 @@ function assertChangedFileBoundary() {
     );
     assert(
       !/^app\/api\//.test(file) ||
-        file === "app/api/augnes/read/autonomy-contract/route.ts",
+        file === "app/api/augnes/read/autonomy-contract/route.ts" ||
+        file === "app/api/augnes/read/autonomy-runner-preflight/route.ts",
       `Phase 7C must not change API route files: ${file}`,
     );
     assert(
