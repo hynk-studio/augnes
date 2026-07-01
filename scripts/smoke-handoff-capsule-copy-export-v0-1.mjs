@@ -89,6 +89,14 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-web-guide-panel-v0-1.mjs",
   "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
   "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
+  "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
+  "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-augnes-operator-plugin-v2.mjs",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
 ]);
 const phase8PriorSmokeAllowlistFiles = [
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -546,7 +554,9 @@ function assertChangedFileBoundary() {
       `Phase 7F must not add scheduler/autonomy runner files: ${file}`,
     );
     assert(
-      !/^plugins\//.test(file),
+      !/^plugins\//.test(file) ||
+        file ===
+          "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
       `Phase 7F must not change Codex skill/plugin files: ${file}`,
     );
   }

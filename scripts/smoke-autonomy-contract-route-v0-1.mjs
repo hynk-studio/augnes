@@ -68,6 +68,17 @@ const phase8dAutonomyContractAppToolFiles = [
   "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
 ];
 
+const phase8eAutonomyContractCodexSkillFiles = [
+  "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
+  "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-augnes-operator-plugin-v2.mjs",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const allowedChangedFiles = new Set([
   contractDoc,
   routeFile,
@@ -86,6 +97,7 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
   ...priorSmokeAllowlistCompatibilityFiles,
   ...phase8dAutonomyContractAppToolFiles,
+  ...phase8eAutonomyContractCodexSkillFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
@@ -95,7 +107,7 @@ const forbiddenChangedFilePatterns = [
   /^migrations\//,
   /^db\//,
   /^lib\/db(\/|\.|$)/,
-  /^plugins\//,
+  /^plugins\/(?!augnes-operator\/skills\/augnes-autonomy-contract\/SKILL\.md$)/,
   /(^|\/)(provider|providers|openai|github|octokit)(\/|$)/i,
   /(^|\/)(proof|evidence)(\/|$)/i,
   /(^|\/)(scheduler|autonomy-runner|autonomy_runner)(\/|$)/i,
@@ -237,7 +249,8 @@ function assertDocsAndIndexPointers() {
     "Phase 8C Read-Only Web Preview UI",
     "Phase 8D ChatGPT App/MCP Read-Only Preview Tool",
     "augnes_get_autonomy_contract_preview",
-    "Phase 8E Codex skill alignment is deferred.",
+    "Phase 8E Codex Skill Alignment",
+    "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
     "Phase 8F copy/export preview is deferred.",
   ], { label: contractDoc });
 

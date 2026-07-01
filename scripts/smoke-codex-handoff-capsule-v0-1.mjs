@@ -131,6 +131,19 @@ for (const file of phase8dAutonomyContractAppToolFiles) {
   allowedChangedFiles.add(file);
 }
 
+const phase8eAutonomyContractCodexSkillFiles = new Set([
+  "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
+  "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+]);
+for (const file of phase8eAutonomyContractCodexSkillFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const forbiddenChangedPathPatterns = [
   /^app\/api\//,
   /^components\/(?!autonomy\/|workplane\/agent-workplane\.tsx$)/,
@@ -600,6 +613,7 @@ function assertChangedFilesBoundary() {
         followOnHandoffCapsuleCopyExportFiles.has(file) ||
           phase8AutonomyContractCoreFiles.has(file) ||
           phase8dAutonomyContractAppToolFiles.has(file) ||
+          phase8eAutonomyContractCodexSkillFiles.has(file) ||
           !forbiddenChangedPathPatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed file for Codex Handoff Capsule alignment smoke: ${file}`,
       );

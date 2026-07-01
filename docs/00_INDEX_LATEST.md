@@ -384,6 +384,23 @@ PR #868 is merged. Current route planning starts from:
   handoff send, branch/PR creation behavior,
   merge/publish/retry/replay/deploy behavior, or external side effect. This
   index pointer is not roadmap authority.
+  Phase 8E Codex Autonomy Contract alignment v0.1 adds repo-local non-SSOT
+  pointers for `docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md`,
+  `plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md`, and
+  `scripts/smoke-codex-autonomy-contract-v0-1.mjs` (`npm run
+  smoke:codex-autonomy-contract-v0-1`). The skill is instruction-only Codex
+  planning-boundary guidance for consuming Autonomy Contract packets while
+  preserving budget boundaries, allowed/forbidden actions, stop conditions,
+  review escalation, delta merge policy, output policy, validation policy,
+  source/fallback status, warnings/gaps, run preview, and authority
+  boundaries. It adds no runtime/write/execution/schedule authority: no
+  runtime hooks, Web UI, API routes, App/MCP tools, DB schema/migration, DB
+  write, provider/OpenAI call, GitHub actuation from Augnes product code,
+  Codex execution from Augnes product code, autonomy runner, scheduler,
+  daemon, background work, proof/evidence write, memory mutation, durable
+  Perspective apply, handoff send, branch/PR creation behavior, copy/export,
+  merge/publish/retry/replay/deploy behavior, or external side effect. This
+  index pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

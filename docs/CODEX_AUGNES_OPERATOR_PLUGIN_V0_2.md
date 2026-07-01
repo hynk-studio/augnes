@@ -33,6 +33,9 @@ or Augnes Core gates.
   instruction-only Perspective Capsule / Handoff Capsule consumption skill.
 - `plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md` adds an
   instruction-only GuideBrief consumption note for Codex GuideBrief alignment.
+- `plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md` adds an
+  instruction-only Autonomy Contract planning-boundary consumption note for
+  Phase 8E Codex Autonomy Contract alignment.
 - `scripts/smoke-augnes-operator-plugin-v2.mjs` adds a static boundary smoke.
 - `scripts/smoke-augnes-capsule-handoff-skill.mjs` adds a static guard for
   the capsule handoff skill.
@@ -166,6 +169,28 @@ App/MCP tool changes, no Web UI, no DB writes, no proof/evidence writes, no
 handoff execution, no copy/export, no branch/PR creation from Augnes product
 code, no merge/publish/retry/replay/deploy behavior, and no external side
 effects. It does not imply that `plugin.json` adds runtime capability.
+
+## Phase 8E Autonomy Contract Skill Alignment
+
+The `augnes-autonomy-contract` skill at
+`plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md` is
+instruction-only guidance for Codex consuming Autonomy Contract packets as
+planning boundary context for separately scoped operator tasks.
+
+The skill preserves budget, allowed actions, forbidden actions, stop
+conditions, review escalation, delta merge policy, output policy, validation
+policy, source/fallback status, warnings/gaps, run preview, and authority
+boundaries. It keeps Autonomy Budget as boundary only, allowed actions as
+planning context only, `auto_apply_allowed` false, `run_preview` as
+`preview_only`, and unresolved user judgment unresolved.
+
+It adds no runtime behavior, no network calls, no GitHub calls, no
+OpenAI/provider calls, no Augnes runtime calls, no hooks, no MCP config, no
+App/MCP tool changes, no Web UI, no DB writes, no proof/evidence writes, no
+handoff execution, no autonomy runner, no scheduler, no daemon, no background
+work, no copy/export, no branch/PR creation from Augnes product code, no
+merge/publish/retry/replay/deploy, and no external side effects. It does not
+imply that `plugin.json` adds runtime capability.
 
 ## PR-Centered Workflow
 

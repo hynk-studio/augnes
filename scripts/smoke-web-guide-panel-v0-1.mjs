@@ -66,6 +66,31 @@ const followOnHandoffCapsuleAppToolFiles = [
   "scripts/smoke-codex-handoff-capsule-v0-1.mjs",
 ];
 
+const followOnAutonomyContractCodexSkillFiles = [
+  "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
+  "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-augnes-operator-plugin-v2.mjs",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-route-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
+  "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
+  "scripts/smoke-codex-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+];
+
 const requiredFiles = [
   panelFile,
   sectionFile,
@@ -98,6 +123,7 @@ const allowedChangedFiles = new Set([
   ...priorSmokeAllowlistCompatibilityFiles,
   ...followOnChatgptAppGuideBriefToolFiles,
   ...followOnHandoffCapsuleAppToolFiles,
+  ...followOnAutonomyContractCodexSkillFiles,
 ]);
 const phase8PriorSmokeAllowlistFiles = [
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -586,7 +612,8 @@ function assertChangedFileBoundary() {
         followOnCodexGuideBriefHandoffFiles.includes(file)) ||
         followOnChatgptAppGuideBriefToolFiles.includes(file) ||
         followOnCodexGuideBriefHandoffFiles.includes(file) ||
-        followOnHandoffCapsuleAppToolFiles.includes(file)),
+        followOnHandoffCapsuleAppToolFiles.includes(file) ||
+        followOnAutonomyContractCodexSkillFiles.includes(file)),
       `Phase 6C must not change MCP/App tool files: ${file}`,
     );
     assert(
