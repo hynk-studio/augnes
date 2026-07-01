@@ -85,6 +85,18 @@ const followOnHandoffCapsuleCodexSkillFiles = [
   "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
 ];
 
+const followOnHandoffCapsuleCopyExportFiles = [
+  "lib/handoff/handoff-capsule-copy-export.ts",
+  "components/handoff/handoff-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
@@ -92,6 +104,7 @@ const allowedChangedFiles = new Set([
   ...followOnHandoffCapsuleWebPreviewFiles,
   ...followOnHandoffCapsuleAppToolFiles,
   ...followOnHandoffCapsuleCodexSkillFiles,
+  ...followOnHandoffCapsuleCopyExportFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
@@ -652,6 +665,7 @@ function assertChangedFileBoundary() {
           followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
           followOnHandoffCapsuleAppToolFiles.includes(file) ||
           followOnHandoffCapsuleCodexSkillFiles.includes(file) ||
+          followOnHandoffCapsuleCopyExportFiles.includes(file) ||
           !forbiddenChangedFilePatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed path for Handoff Capsule Phase 7A smoke: ${file}`,
       );

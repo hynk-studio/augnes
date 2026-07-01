@@ -27,6 +27,8 @@ export function HandoffCapsulePreviewPanel({
       <p style={workplaneCopyStyle}>
         Preview only: no send, no launch, no execution, no mutation. This panel
         renders Handoff Capsule review context and source/fallback status only.
+        Copy/export is available only through the bounded Phase 7F local copy
+        panel.
       </p>
 
       <WorkplanePanelMetricGrid>

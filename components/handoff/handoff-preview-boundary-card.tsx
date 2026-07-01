@@ -61,7 +61,9 @@ export function HandoffPreviewBoundaryCard({
       <p style={workplaneCopyStyle}>
         Handoff Capsule and Codex Launch Card are preview-only transfer packets.
         They prepare context for review; they do not send, launch, execute,
-        post, merge, publish, copy, export, or mutate state.
+        post, merge, publish, or mutate state. Phase 7F permits local
+        clipboard/manual copy preview only; copying is not approval, proof,
+        evidence, merge authority, launch authority, or external posting.
       </p>
 
       <WorkplanePanelMetricGrid>

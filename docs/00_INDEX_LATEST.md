@@ -295,6 +295,25 @@ PR #868 is merged. Current route planning starts from:
   proof/evidence write, memory mutation, durable Perspective apply,
   scheduler/autonomy runner, handoff send, branch/PR creation behavior,
   copy/export, or external side effect.
+  Phase 7F Handoff Capsule / Codex Launch Card local copy/export preview v0.1
+  adds repo-local non-SSOT pointers for
+  `lib/handoff/handoff-capsule-copy-export.ts`,
+  `components/handoff/handoff-copy-export-panel.tsx`, and
+  `scripts/smoke-handoff-capsule-copy-export-v0-1.mjs` (`npm run
+  smoke:handoff-capsule-copy-export-v0-1`). Phase 7F copy/export means local
+  clipboard/manual copy preview only on `/workbench`; it renders Handoff
+  Capsule markdown, Codex Launch Card markdown, a combined review packet, and
+  bounded JSON preview. It preserves source/fallback status,
+  Observed/Inferred/Suggested/Needs user judgment separation, expected and
+  forbidden files, required/optional checks, skipped-check policy, PR/final
+  report requirements, proof/evidence boundary, authority boundary, warnings,
+  gaps, and public safety. It adds no external post, network send, file
+  download/export-to-disk, API write route, App/MCP tool, DB write,
+  provider/OpenAI call, GitHub actuation, Codex execution, handoff send,
+  branch/PR creation behavior, proof/evidence write, memory mutation, durable
+  Perspective apply, scheduler/autonomy runner, product-write,
+  merge/publish/retry/replay/deploy behavior, copied-packet persistence, or
+  external side effect.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

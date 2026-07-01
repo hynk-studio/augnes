@@ -78,12 +78,25 @@ const followOnHandoffCapsuleCodexSkillFiles = [
   "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
 ];
 
+const followOnHandoffCapsuleCopyExportFiles = [
+  "lib/handoff/handoff-capsule-copy-export.ts",
+  "components/handoff/handoff-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
   ...followOnHandoffCapsuleWebPreviewFiles,
   ...followOnHandoffCapsuleAppToolFiles,
   ...followOnHandoffCapsuleCodexSkillFiles,
+  ...followOnHandoffCapsuleCopyExportFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
@@ -194,9 +207,9 @@ function assertDocsAndIndexPointers() {
     "exports `GET` only",
     "fails closed on missing scope, invalid scope, missing marker, invalid marker, and invalid target",
     "Source composition is owned by `lib/handoff/handoff-capsule-source.ts`",
-    "Phase 7C Web preview UI and Phase 7D ChatGPT App/MCP read-only preview tools",
-    "Phase 7D ChatGPT App/MCP read-only preview tools are documented below.",
-    "Phase 7E Codex skill alignment is deferred",
+    "Phase 7C Web preview UI, Phase 7D ChatGPT App/MCP read-only preview tools,",
+    "Phase 7D ChatGPT App/MCP read-only preview tools, Phase 7E Codex skill",
+    "Phase 7F local copy/export preview are documented below.",
     "no DB schema/migration, DB write, provider/OpenAI call, GitHub actuation, Codex execution, proof/evidence write, memory mutation, durable Perspective state apply, handoff send, branch/PR creation, scheduler/autonomy runner, product-write, or external side effects",
   ], { label: contractDoc });
 
@@ -399,9 +412,10 @@ function assertChangedFileBoundary() {
         `Unexpected changed file for Handoff Capsule route smoke: ${file}`,
       );
       assert(
-        followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
+          followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
           followOnHandoffCapsuleAppToolFiles.includes(file) ||
           followOnHandoffCapsuleCodexSkillFiles.includes(file) ||
+          followOnHandoffCapsuleCopyExportFiles.includes(file) ||
           !forbiddenChangedFilePatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed path for Handoff Capsule route smoke: ${file}`,
       );

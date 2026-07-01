@@ -1,6 +1,7 @@
 import { AugnesCockpit } from "@/components/augnes-cockpit";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
+import { HandoffCopyExportPanel } from "@/components/handoff/handoff-copy-export-panel";
 import { HandoffCapsulePreviewPanel } from "@/components/handoff/handoff-capsule-preview-panel";
 import { HandoffPreviewBoundaryCard } from "@/components/handoff/handoff-preview-boundary-card";
 import { CurrentPerspectiveWorkplanePanel } from "@/components/workplane/current-perspective-workplane-panel";
@@ -147,6 +148,7 @@ export async function AgentWorkplane() {
               <HandoffBuilderPreviewPanel context={context} />
               <HandoffCapsulePreviewPanel preview={handoffPreview} />
               <CodexLaunchCardPreviewPanel preview={handoffPreview} />
+              <HandoffCopyExportPanel preview={handoffPreview} />
               <HandoffPreviewBoundaryCard
                 capsuleAuthority={handoffPreview.capsule.authority_boundary}
                 launchCardAuthority={
