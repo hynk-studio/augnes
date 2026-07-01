@@ -55,6 +55,10 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "app/api/augnes/read/autonomy-runner-preflight/route.ts",
   "lib/autonomy/autonomy-runner-preflight-source.ts",
   "scripts/smoke-autonomy-runner-preflight-route-v0-1.mjs",
+  "lib/autonomy/read-autonomy-runner-preflight-for-web.ts",
+  "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -813,7 +817,8 @@ function assertChangedFileBoundary() {
         followOnAgentWorkplanePanelFiles.includes(file) ||
         followOnAgentWorkplaneProjectionHandoffFiles.includes(file) ||
         followOnWebGuidePanelFiles.includes(file) ||
-        phase8cAutonomyContractWebPreviewFiles.includes(file),
+        phase8cAutonomyContractWebPreviewFiles.includes(file) ||
+        phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 2A follow-on must not change UI files outside Phase 4A/4B Human Surface, Phase 5A/5B/5C Agent Workplane, exact Phase 6C Web Guide files, or exact Phase 8C Autonomy Web preview files: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 2A must not change DB files: ${file}`);
