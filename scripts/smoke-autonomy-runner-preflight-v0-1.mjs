@@ -61,6 +61,10 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "app/api/augnes/read/autonomy-runner-preflight/route.ts",
   "lib/autonomy/autonomy-runner-preflight-source.ts",
   "scripts/smoke-autonomy-runner-preflight-route-v0-1.mjs",
+  "lib/autonomy/read-autonomy-runner-preflight-for-web.ts",
+  "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
 ];
 
 const allowedChangedFiles = new Set([
@@ -83,6 +87,13 @@ const forbiddenChangedFilePatterns = [
   /(^|\/)route\.(js|jsx|ts|tsx)$/,
   /(^|\/)api\.(js|jsx|ts|tsx)$/,
 ];
+
+const phase9cWebPreviewFollowOnFiles = new Set([
+  "lib/autonomy/read-autonomy-runner-preflight-for-web.ts",
+  "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
+]);
 
 const authorityBooleanFields = [
   "source_of_truth",
@@ -728,6 +739,9 @@ function assertChangedFileBoundary() {
     assert(allowedChangedFiles.has(file), `Unexpected changed file for Phase 9A: ${file}`);
     for (const pattern of forbiddenChangedFilePatterns) {
       if (file === "app/api/augnes/read/autonomy-runner-preflight/route.ts") {
+        continue;
+      }
+      if (phase9cWebPreviewFollowOnFiles.has(file)) {
         continue;
       }
       assert(!pattern.test(file), `Forbidden Phase 9A changed file: ${file}`);

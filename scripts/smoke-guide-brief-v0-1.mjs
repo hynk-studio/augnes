@@ -131,6 +131,10 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "app/api/augnes/read/autonomy-runner-preflight/route.ts",
   "lib/autonomy/autonomy-runner-preflight-source.ts",
   "scripts/smoke-autonomy-runner-preflight-route-v0-1.mjs",
+  "lib/autonomy/read-autonomy-runner-preflight-for-web.ts",
+  "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -848,6 +852,7 @@ function assertChangedFileBoundary() {
         followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
         followOnHandoffCapsuleCopyExportFiles.includes(file) ||
         phase8cAutonomyContractWebPreviewFiles.includes(file) ||
+        phase9aAutonomyRunnerPreflightFiles.includes(file) ||
         phase8fAutonomyContractCopyExportFiles.includes(file),
       `Phase 6A must not change UI files outside exact Phase 6C/7C/7F Web follow-on scope or exact Phase 8C/8F Autonomy Web preview files: ${file}`,
     );

@@ -75,6 +75,46 @@ auto-apply deltas. The route does not spend budget. The route does not start a
 daemon or background work. The route does not merge/publish/retry/replay/deploy
 or externally post.
 
+## 1.2 Phase 9C Read-Only Web Preview Panel
+
+Phase 9C adds a read-only Agent Workplane Web preview panel:
+
+```text
+Autonomy Runner Preflight Preview
+Dry-Run Plan Preview
+```
+
+Primary placement is `/workbench` Agent Workplane. The Web read helper is
+`lib/autonomy/read-autonomy-runner-preflight-for-web.ts`, and the panel is
+`components/autonomy/autonomy-runner-preflight-preview-panel.tsx`.
+
+The Web helper composes from the Phase 9B source helper directly and does not
+call the route over HTTP. The panel consumes Phase 9A/9B preview data and does
+not invent readiness, blocker, warning, budget, action-scope, delta-merge,
+escalation, stop-condition, staleness, or authority policy.
+
+The Phase 9C panel displays readiness, readiness summary, blockers, warnings,
+required user judgment, required operator review, assessment summaries, dry-run
+status, planned steps, planned read sources, blocked steps, required
+preconditions, required checks, stop conditions, budget projection, source
+refs, route/source status, no-run authority boundary, and public safety status.
+Every planned step visibly preserves `would_execute: false`,
+`allowed_by_contract`, `blocked_by`, `would_require_review`, and
+`expected_output`.
+
+Phase 9C Web preview is read-only display only. It adds no Start runner button,
+Run now button, Schedule button, Launch Codex button, Call GitHub button, Send
+handoff button, Apply delta button, Approve auto-apply button, Persist run
+record button, form submit, mutation handler, copy/export, no file
+download/export-to-disk, no App/MCP tool, no API route,
+POST/PUT/PATCH/DELETE route, DB schema/migration, DB write, proof/evidence
+write, memory mutation, durable
+Perspective apply, no actual autonomy runner, no scheduler, no daemon, no background work,
+interval/timer/cron/worker loop, Codex execution, provider/OpenAI call, GitHub
+actuation, branch/PR creation from product code, auto-apply behavior,
+product-write, merge/publish/retry/replay/deploy behavior, or external side
+effect.
+
 ## 2. Purpose
 
 `AutonomyRunnerPreflight` is a deterministic preview packet that classifies a
@@ -389,6 +429,16 @@ paths, dry-run-only status, planned-step `would_execute: false`, all-false
 authority boundary, and no UI/MCP/App/DB migration/provider/GitHub/Codex/
 proof/evidence/memory/Perspective/handoff/auto-apply/budget-spend/external
 side-effect scope drift.
+
+`npm run smoke:autonomy-runner-preflight-web-preview-v0-1` checks the Phase 9C
+Web read helper, preview panel component, Agent Workplane integration, package
+script, latest-index pointer, Web preview boundary wording, visible readiness,
+readiness summary, blockers, warnings, dry-run status, planned steps,
+`would_execute: false`, required preconditions/checks, source refs,
+route/source status, public safety status, no-run authority boundary, absence
+of run/schedule/launch/apply/send/persist controls, and no API/MCP/App/DB
+migration/provider/GitHub/Codex/proof/evidence/memory/Perspective/handoff/
+auto-apply/budget-spend/external-post/file-export scope drift.
 
 Browser/CDP validation is skipped because Phase 9A has no UI or route.
 Browser/CDP validation is skipped because Phase 9B adds only a GET-only read

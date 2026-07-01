@@ -96,6 +96,10 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "app/api/augnes/read/autonomy-runner-preflight/route.ts",
   "lib/autonomy/autonomy-runner-preflight-source.ts",
   "scripts/smoke-autonomy-runner-preflight-route-v0-1.mjs",
+  "lib/autonomy/read-autonomy-runner-preflight-for-web.ts",
+  "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -611,10 +615,16 @@ function assertNoForbiddenScopeDrift() {
     "components/autonomy/autonomy-contract-preview-panel.tsx",
     "components/workplane/agent-workplane.tsx",
   ]);
+  const allowedPhase9cWebPreviewFiles = new Set([
+    "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
+    "components/workplane/agent-workplane.tsx",
+  ]);
 
   for (const file of changed) {
     assert(
-      !file.startsWith("components/") || allowedPhase8fWebFiles.has(file),
+      !file.startsWith("components/") ||
+        allowedPhase8fWebFiles.has(file) ||
+        allowedPhase9cWebPreviewFiles.has(file),
       `Phase 8D must not change Web UI files: ${file}`,
     );
     assert(

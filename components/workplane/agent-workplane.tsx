@@ -5,6 +5,7 @@ import { AutonomyContractPreviewPanel } from "@/components/autonomy/autonomy-con
 import { AutonomyCopyExportPanel } from "@/components/autonomy/autonomy-copy-export-panel";
 import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-policy-preview-panel";
 import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
+import { AutonomyRunnerPreflightPreviewPanel } from "@/components/autonomy/autonomy-runner-preflight-preview-panel";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
 import { HandoffCopyExportPanel } from "@/components/handoff/handoff-copy-export-panel";
@@ -25,6 +26,7 @@ import { WorkplaneHeader } from "@/components/workplane/workplane-header";
 import { WorkplaneInspector } from "@/components/workplane/workplane-inspector";
 import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
 import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-contract-for-web";
+import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
@@ -103,11 +105,18 @@ const previewCopyStyle: CSSProperties = {
 };
 
 export async function AgentWorkplane() {
-  const [context, guideBrief, handoffPreview, autonomyPreview] = await Promise.all([
+  const [
+    context,
+    guideBrief,
+    handoffPreview,
+    autonomyPreview,
+    autonomyRunnerPreflightPreview,
+  ] = await Promise.all([
     readWorkplaneContext(),
     Promise.resolve(readGuideBriefForWeb()),
     Promise.resolve(readHandoffCapsulePreviewForWeb()),
     Promise.resolve(readAutonomyContractPreviewForWeb()),
+    Promise.resolve(readAutonomyRunnerPreflightPreviewForWeb()),
   ]);
 
   return (
@@ -168,6 +177,9 @@ export async function AgentWorkplane() {
               <AutonomyBudgetPreviewPanel preview={autonomyPreview} />
               <AutonomyPolicyPreviewPanel preview={autonomyPreview} />
               <AutonomyRunPreviewPanel preview={autonomyPreview} />
+              <AutonomyRunnerPreflightPreviewPanel
+                preview={autonomyRunnerPreflightPreview}
+              />
               <AutonomyBoundaryCard preview={autonomyPreview} />
               <AutonomyCopyExportPanel preview={autonomyPreview} />
               <RunPostmortemSkeletonPanel context={context} />
