@@ -72,17 +72,29 @@ const phase8cAutonomyContractWebPreviewFiles = [
   "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
 ];
 
+const phase8dAutonomyContractAppToolFiles = [
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+  "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
   ...phase8bAutonomyContractRouteFiles,
   ...phase8cAutonomyContractWebPreviewFiles,
+  ...phase8dAutonomyContractAppToolFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
   /^app\/(?!api\/augnes\/read\/autonomy-contract\/route\.ts$)/,
   /^components\/(?!autonomy\/|workplane\/agent-workplane\.tsx$)/,
-  /^apps\/augnes_apps\//,
+  /^apps\/augnes_apps\/(?!(?:src\/server\.ts|src\/lib\/state-runtime-types\.ts|src\/adapters\/state-runtime-http\.ts|scripts\/invariants\.ts|scripts\/smoke\.ts|scripts\/mock-state-runtime\.ts)$)/,
   /^migrations\//,
   /^db\//,
   /^lib\/db(\/|\.|$)/,

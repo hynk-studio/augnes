@@ -62,6 +62,17 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
 ];
 
+const phase8dAutonomyContractAppToolFiles = [
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+  "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   contractDoc,
   indexDoc,
@@ -76,11 +87,12 @@ const allowedChangedFiles = new Set([
   sharedPanelFile,
   webSmokeFile,
   ...priorSmokeAllowlistCompatibilityFiles,
+  ...phase8dAutonomyContractAppToolFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
   /^app\/api\//,
-  /^apps\/augnes_apps\//,
+  /^apps\/augnes_apps\/(?!(?:src\/server\.ts|src\/lib\/state-runtime-types\.ts|src\/adapters\/state-runtime-http\.ts|scripts\/invariants\.ts|scripts\/smoke\.ts|scripts\/mock-state-runtime\.ts)$)/,
   /^migrations\//,
   /^db\//,
   /^lib\/db(\/|\.|$)/,
@@ -205,7 +217,8 @@ function assertDocsAndIndexPointers() {
     "no product-write",
     "no merge/publish/retry/replay/deploy",
     "no external side effects",
-    "Phase 8D ChatGPT App/MCP read-only tool is deferred.",
+    "Phase 8D ChatGPT App/MCP Read-Only Preview Tool",
+    "augnes_get_autonomy_contract_preview",
     "Phase 8E Codex skill alignment is deferred.",
     "Phase 8F copy/export preview is deferred.",
     "Phase 9 runner remains deferred and requires separate explicit scope and approval.",

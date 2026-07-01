@@ -1,6 +1,7 @@
 import type { ZodType } from "zod";
 import {
   ActionRecordResultSchema,
+  AutonomyContractPreviewResultSchema,
   CodexLaunchCardPreviewResultSchema,
   CodexResultReviewDraftSchema,
   ConstellationPreviewResultSchema,
@@ -23,6 +24,7 @@ import {
   WorkEventResultSchema,
   WorkListResultSchema,
   type ActionRecordResult,
+  type AutonomyContractPreviewResult,
   type CodexLaunchCardPreviewResult,
   type CodexResultReviewDraft,
   type ConstellationPreviewResult,
@@ -39,6 +41,7 @@ import {
   type SessionTraceResult,
   type StateBrief,
   type StateRuntimeActionResultInput,
+  type StateRuntimeAutonomyContractPreviewInput,
   type StateRuntimeBridgeAdapter,
   type StateRuntimeCodexLaunchCardPreviewInput,
   type StateRuntimeEvidencePackInput,
@@ -66,6 +69,8 @@ const HANDOFF_CAPSULE_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const HANDOFF_CAPSULE_LOCAL_READ_MARKER = "handoff-capsule-v0.1";
 const CODEX_LAUNCH_CARD_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const CODEX_LAUNCH_CARD_LOCAL_READ_MARKER = "codex-launch-card-v0.1";
+const AUTONOMY_CONTRACT_LOCAL_READ_HEADER = "x-augnes-local-readonly";
+const AUTONOMY_CONTRACT_LOCAL_READ_MARKER = "autonomy-contract-v0.1";
 
 const endpointContract = {
   stateBrief: { method: "GET", path: "/api/state/brief" },
@@ -73,6 +78,7 @@ const endpointContract = {
   guideBrief: { method: "GET", path: "/api/augnes/read/guide-brief" },
   handoffCapsulePreview: { method: "GET", path: "/api/augnes/read/handoff-capsule" },
   codexLaunchCardPreview: { method: "GET", path: "/api/augnes/read/codex-launch-card" },
+  autonomyContractPreview: { method: "GET", path: "/api/augnes/read/autonomy-contract" },
   evidencePack: { method: "GET", path: "/api/evidence-pack" },
   sessionTrace: { method: "GET", path: "/api/sessions/trace" },
   sessionTraceById: { method: "GET", path: "/api/sessions" },
@@ -258,6 +264,21 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
         query: { scope: parseScope(input.scope) },
         headers: {
           [CODEX_LAUNCH_CARD_LOCAL_READ_HEADER]: CODEX_LAUNCH_CARD_LOCAL_READ_MARKER,
+        },
+      }
+    );
+  }
+
+  async getAutonomyContractPreview(input: StateRuntimeAutonomyContractPreviewInput): Promise<AutonomyContractPreviewResult> {
+    return this.requestJson(
+      endpointContract.autonomyContractPreview.method,
+      endpointContract.autonomyContractPreview.path,
+      AutonomyContractPreviewResultSchema,
+      "autonomy contract preview",
+      {
+        query: { scope: parseScope(input.scope) },
+        headers: {
+          [AUTONOMY_CONTRACT_LOCAL_READ_HEADER]: AUTONOMY_CONTRACT_LOCAL_READ_MARKER,
         },
       }
     );

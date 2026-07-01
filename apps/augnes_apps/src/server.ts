@@ -15,6 +15,7 @@ import { config, type AugnesAppToolSurface } from "./lib/config.js";
 import { withPresentation } from "./lib/profile.js";
 import { sanitizeValue } from "./lib/sanitize.js";
 import {
+  AutonomyContractPreviewToolInputSchema,
   EvidencePackToolInputSchema,
   CodexLaunchCardPreviewToolInputSchema,
   GuideBriefToolInputSchema,
@@ -24,6 +25,7 @@ import {
   StateRuntimeActionResultKindSchema,
   StateRuntimeActionResultStatusSchema,
   VerificationEvidenceRecordsToolInputSchema,
+  type AutonomyContractPreviewResult,
   type CodexLaunchCardPreviewResult,
   type ConstellationPreviewResult,
   type ControlPacket,
@@ -61,6 +63,7 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_get_guide_brief",
   "augnes_get_handoff_capsule_preview",
   "augnes_get_codex_launch_card_preview",
+  "augnes_get_autonomy_contract_preview",
   "augnes_get_evidence_pack",
   "augnes_get_session_trace",
   "augnes_get_verification_evidence_records",
@@ -6883,6 +6886,275 @@ function describeCodexLaunchCardPreview(result: CodexLaunchCardPreviewResult): s
   ].join(" ");
 }
 
+const AUTONOMY_PREVIEW_AUTHORITY_BOUNDARY_FALSE_FIELDS = [
+  "source_of_truth",
+  "can_commit_or_reject_state",
+  "can_record_proof",
+  "can_create_evidence",
+  "can_update_work",
+  "can_mutate_memory",
+  "can_apply_project_perspective",
+  "can_publish_external",
+  "can_merge",
+  "can_retry_replay_deploy",
+  "can_call_github",
+  "can_call_openai_or_provider",
+  "can_execute_codex",
+  "can_create_branch_or_pr",
+  "can_send_handoff",
+  "can_launch_codex",
+  "can_launch_autonomy",
+  "can_schedule_background_work",
+  "can_create_mcp_tool",
+  "can_create_ui_action",
+  "can_post_external_comment",
+  "can_write_db",
+  "can_start_daemon",
+] as const;
+
+const AUTONOMY_PREVIEW_READ_BOUNDARY_FALSE_FIELDS = [
+  "autonomy_runner_authority",
+  "scheduler_authority",
+  "daemon_authority",
+  "background_work_authority",
+  "codex_execution_authority",
+  "codex_launch_authority",
+  "branch_pr_creation_authority",
+  "github_openai_provider_calls",
+  "proof_evidence_writes",
+  "state_memory_db_mutation",
+  "handoff_send_authority",
+  "publish_merge_retry_replay_deploy",
+  "external_post_authority",
+  "auto_apply_authority",
+  "budget_spend_permission",
+  "run_preview_is_execution",
+] as const;
+
+function buildAutonomyPreviewReadBoundary() {
+  return {
+    source_route: "GET /api/augnes/read/autonomy-contract",
+    local_readonly_marker: "x-augnes-local-readonly: autonomy-contract-v0.1",
+    preview_review_planning_only: true,
+    suggestions_are_advisory_only: true,
+    unresolved_user_judgment_remains_unresolved: true,
+    autonomy_runner_authority: false,
+    scheduler_authority: false,
+    daemon_authority: false,
+    background_work_authority: false,
+    codex_execution_authority: false,
+    codex_launch_authority: false,
+    branch_pr_creation_authority: false,
+    github_openai_provider_calls: false,
+    proof_evidence_writes: false,
+    state_memory_db_mutation: false,
+    handoff_send_authority: false,
+    publish_merge_retry_replay_deploy: false,
+    external_post_authority: false,
+    auto_apply_authority: false,
+    budget_spend_permission: false,
+    run_preview_is_execution: false,
+  };
+}
+
+function restoreAutonomyPreviewAuthorityBoundary(
+  sanitizedAuthorityBoundary: unknown,
+  sourceAuthorityBoundary: unknown
+): Record<string, unknown> {
+  return restoreFalseBoundaryFields(
+    sanitizedAuthorityBoundary,
+    sourceAuthorityBoundary,
+    AUTONOMY_PREVIEW_AUTHORITY_BOUNDARY_FALSE_FIELDS
+  );
+}
+
+function restoreAutonomyPreviewReadBoundary(
+  sanitizedReadBoundary: unknown,
+  sourceReadBoundary: unknown
+): Record<string, unknown> {
+  return restoreFalseBoundaryFields(
+    sanitizedReadBoundary,
+    sourceReadBoundary,
+    AUTONOMY_PREVIEW_READ_BOUNDARY_FALSE_FIELDS
+  );
+}
+
+function summarizeAutonomyPreviewSourceStatus(result: AutonomyContractPreviewResult): Record<string, unknown> {
+  return objectRecord(result.source_status);
+}
+
+function summarizeAutonomyPreviewAuthorityBoundary(
+  sourceAuthorityBoundary: unknown,
+  readBoundary: Record<string, unknown>
+): Record<string, unknown> {
+  return {
+    authority_boundary: restoreAutonomyPreviewAuthorityBoundary(
+      sourceAuthorityBoundary,
+      sourceAuthorityBoundary
+    ),
+    read_boundary: restoreAutonomyPreviewReadBoundary(readBoundary, readBoundary),
+    summary:
+      "Read-only preview only: no autonomy runner, no scheduler, no daemon, no background work, no Codex execution, no Codex launch, no GitHub/OpenAI/provider calls, no DB writes, no proof/evidence writes, no memory/state/work/Perspective mutation, no handoff send, no branch/PR creation, no merge/publish/retry/replay/deploy, no external posting, auto_apply_allowed remains false, run_preview.status remains preview_only, and budget is not spend permission.",
+  };
+}
+
+function autonomyRefsFromSource(
+  sourceRefs: Record<string, unknown>,
+  pluralField: string,
+  fallback: unknown
+): unknown[] {
+  const refs = sourceRefs[pluralField];
+  if (Array.isArray(refs)) return refs;
+  if (fallback === undefined || fallback === null) return [];
+  return Array.isArray(fallback) ? fallback : [fallback];
+}
+
+function buildAutonomyContractPreviewSummary(result: AutonomyContractPreviewResult) {
+  const contract = objectRecord(result.contract);
+  const deltaMergePolicy = objectRecord(contract.delta_merge_policy);
+  const runPreview = objectRecord(contract.run_preview);
+  const budget = objectRecord(contract.budget);
+
+  return {
+    contract_id: stringField(contract, "contract_id"),
+    status: stringField(contract, "status"),
+    autonomy_mode: stringField(contract, "autonomy_mode"),
+    title: stringField(contract, "title"),
+    goal: stringField(contract, "goal"),
+    run_preview_status: stringField(runPreview, "status"),
+    auto_apply_allowed: deltaMergePolicy.auto_apply_allowed === true ? true : false,
+    auto_apply_target_count: arrayCount(deltaMergePolicy.auto_apply_targets),
+    budget_id: stringField(budget, "budget_id"),
+    source_status: summarizeAutonomyPreviewSourceStatus(result),
+    allowed_action_count: arrayCount(contract.allowed_actions),
+    forbidden_action_count: arrayCount(contract.forbidden_actions),
+    stop_condition_count: arrayCount(contract.stop_conditions),
+    warning_count: arrayCount(result.warnings),
+    gap_count: arrayCount(result.gaps),
+  };
+}
+
+function buildAutonomyContractPreviewStructuredContent({
+  result,
+  compact,
+}: {
+  result: AutonomyContractPreviewResult;
+  compact: boolean | undefined;
+}): Record<string, unknown> {
+  const contract = objectRecord(result.contract);
+  const sourceRefs = objectRecord(contract.source_refs);
+  const readBoundary = buildAutonomyPreviewReadBoundary();
+  const summary = buildAutonomyContractPreviewSummary(result);
+  const structuredContent = sanitizePayload({
+    profile: config.appProfile,
+    panel: "autonomy_contract_preview",
+    packet_label: "Autonomy Contract preview",
+    scope: result.scope,
+    route_id: result.route_id,
+    route_family: result.route_family,
+    compact: compact ?? true,
+    contract: result.contract,
+    autonomy_contract: result.contract,
+    contract_summary: summary,
+    autonomy_contract_summary: summary,
+    bounded_context_summary: contract.bounded_context_summary ?? "",
+    source_refs: sourceRefs,
+    guide_brief_refs: autonomyRefsFromSource(
+      sourceRefs,
+      "guide_brief_refs",
+      contract.guide_brief_ref
+    ),
+    handoff_capsule_refs: autonomyRefsFromSource(
+      sourceRefs,
+      "handoff_capsule_refs",
+      contract.handoff_capsule_refs
+    ),
+    codex_launch_card_refs: autonomyRefsFromSource(
+      sourceRefs,
+      "codex_launch_card_refs",
+      contract.codex_launch_card_refs
+    ),
+    current_working_perspective_refs: autonomyRefsFromSource(
+      sourceRefs,
+      "current_working_perspective_refs",
+      contract.current_working_perspective_ref
+    ),
+    delta_projection_refs: autonomyRefsFromSource(
+      sourceRefs,
+      "delta_projection_refs",
+      contract.delta_projection_ref
+    ),
+    allowed_agents: contract.allowed_agents ?? [],
+    allowed_surfaces: contract.allowed_surfaces ?? [],
+    allowed_actions: contract.allowed_actions ?? [],
+    forbidden_actions: contract.forbidden_actions ?? [],
+    budget: contract.budget ?? {},
+    reporting_cadence: contract.reporting_cadence ?? {},
+    stop_conditions: contract.stop_conditions ?? [],
+    delta_merge_policy: contract.delta_merge_policy ?? {},
+    review_escalation_policy: contract.review_escalation_policy ?? {},
+    output_policy: contract.output_policy ?? {},
+    staleness_policy: contract.staleness_policy ?? {},
+    validation_policy: contract.validation_policy ?? {},
+    run_preview: contract.run_preview ?? {},
+    authority_boundary: contract.authority_boundary,
+    route_authority_boundary: result.route_authority_boundary,
+    read_boundary: readBoundary,
+    route_boundary: readBoundary,
+    source_status: result.source_status,
+    warnings: result.warnings ?? [],
+    gaps: result.gaps ?? [],
+    public_safety: contract.public_safety ?? {},
+    boundary_summary:
+      "Read-only preview only: no autonomy runner, no scheduler, no daemon, no background work, no Codex execution, no Codex launch, no GitHub/OpenAI/provider calls, no DB writes, no proof/evidence writes, no memory/state/work/Perspective mutation, no handoff send, no branch/PR creation, no merge/publish/retry/replay/deploy, no external posting, auto_apply_allowed remains false, run_preview.status remains preview_only, and budget is not spend permission.",
+  }) as Record<string, unknown>;
+
+  structuredContent.authority_boundary = restoreAutonomyPreviewAuthorityBoundary(
+    structuredContent.authority_boundary,
+    contract.authority_boundary
+  );
+  structuredContent.read_boundary = restoreAutonomyPreviewReadBoundary(
+    structuredContent.read_boundary,
+    readBoundary
+  );
+  structuredContent.route_boundary = restoreAutonomyPreviewReadBoundary(
+    structuredContent.route_boundary,
+    readBoundary
+  );
+  structuredContent.authority_boundary_summary = summarizeAutonomyPreviewAuthorityBoundary(
+    contract.authority_boundary,
+    readBoundary
+  );
+
+  for (const contractKey of ["contract", "autonomy_contract"] as const) {
+    const sanitizedContract = objectRecord(structuredContent[contractKey]);
+    structuredContent[contractKey] = {
+      ...sanitizedContract,
+      authority_boundary: restoreAutonomyPreviewAuthorityBoundary(
+        sanitizedContract.authority_boundary,
+        contract.authority_boundary
+      ),
+    };
+  }
+
+  return structuredContent;
+}
+
+function describeAutonomyContractPreview(result: AutonomyContractPreviewResult): string {
+  const summary = buildAutonomyContractPreviewSummary(result);
+
+  return [
+    `Autonomy Contract preview loaded for scope ${result.scope}: contract ${summary.contract_id ?? "unknown"}, status ${summary.status ?? "unknown"}, mode ${summary.autonomy_mode ?? "unknown"}, ${summary.allowed_action_count} allowed action(s), ${summary.forbidden_action_count} forbidden action(s), and ${summary.stop_condition_count} stop condition(s).`,
+    `${summary.warning_count} warning(s), ${summary.gap_count} gap(s).`,
+    `Run preview status: ${summary.run_preview_status ?? "unknown"}; auto_apply_allowed: ${String(summary.auto_apply_allowed)}; auto_apply_targets: ${summary.auto_apply_target_count}.`,
+    "Read-only Autonomy Contract preview tool for preview/review planning only.",
+    "Budget is not spend permission.",
+    "Suggestions or candidate actions are advisory/planning only.",
+    "Unresolved user judgment remains unresolved.",
+    "Read-only tool: no autonomy runner, no scheduler, no daemon, no background work, no Codex execution, no Codex launch, no GitHub/OpenAI/provider calls, no branch/PR creation, no proof/evidence writes, no state/memory/DB/work/Perspective mutation, no handoff send, no publish/merge/retry/replay/deploy/external post.",
+  ].join(" ");
+}
+
 export type McpAppServerOptions = {
   enableAgentBridge?: boolean;
   toolSurface?: AugnesAppToolSurface;
@@ -7586,6 +7858,40 @@ export function createMcpAppServer(
           };
         } catch (error) {
           return buildBridgeToolError("augnes_get_codex_launch_card_preview", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_get_autonomy_contract_preview",
+      {
+        title: "Get Autonomy Contract preview",
+        description:
+          "Read-only Autonomy Contract preview tool for preview/review planning only. It consumes the local marker-gated Autonomy Contract route, preserves budget boundaries, delta merge policy, review escalation policy, stop conditions, output policy, run preview, and authority boundary. It adds no autonomy runner, no scheduler, no daemon, no background work, no Codex execution, no Codex launch, no GitHub/OpenAI/provider calls, no branch/PR creation, no proof/evidence record creation, no state, memory, DB, work, or Perspective mutation, no handoff send, no copy/export behavior, and no publish/merge/retry/replay/deploy/external post. Budget is not spend permission, auto_apply_allowed remains false, run_preview is not execution, suggestions or candidate actions are advisory/planning only, and unresolved user judgment remains unresolved.",
+        inputSchema: AutonomyContractPreviewToolInputSchema.shape,
+        annotations: localRouteReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope, compact }) => {
+        const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+
+        try {
+          const result = await stateRuntimeAdapter.getAutonomyContractPreview({
+            scope: resolvedScope,
+          });
+          const structuredContent = buildAutonomyContractPreviewStructuredContent({
+            result,
+            compact: compact ?? true,
+          });
+
+          return {
+            structuredContent,
+            content: narrative(describeAutonomyContractPreview(result)),
+            _meta: structuredContent,
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_get_autonomy_contract_preview", error);
         }
       }
     );

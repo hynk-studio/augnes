@@ -136,6 +136,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
           augnes_get_guide_brief: {},
           augnes_get_handoff_capsule_preview: {},
           augnes_get_codex_launch_card_preview: {},
+          augnes_get_autonomy_contract_preview: {},
           augnes_get_evidence_pack: {},
           augnes_get_session_trace: { sessionId: 'session:smoke-1', limit: 5 },
           augnes_get_verification_evidence_records: { workId: 'AG-001', limit: 5 },
@@ -196,6 +197,20 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             handoffCapsuleSummary: result.structuredContent?.capsule_summary,
             codexLaunchCard: result.structuredContent?.codex_launch_card,
             codexLaunchCardSummary: result.structuredContent?.launch_card_summary,
+            autonomyContract: result.structuredContent?.autonomy_contract,
+            contractSummary: result.structuredContent?.contract_summary,
+            budget: result.structuredContent?.budget,
+            deltaMergePolicy: result.structuredContent?.delta_merge_policy,
+            reviewEscalationPolicy: result.structuredContent?.review_escalation_policy,
+            stopConditions: result.structuredContent?.stop_conditions,
+            runPreview: result.structuredContent?.run_preview,
+            outputPolicy: result.structuredContent?.output_policy,
+            stalenessPolicy: result.structuredContent?.staleness_policy,
+            validationPolicy: result.structuredContent?.validation_policy,
+            allowedActions: result.structuredContent?.allowed_actions,
+            forbiddenActions: result.structuredContent?.forbidden_actions,
+            sourceRefs: result.structuredContent?.source_refs,
+            publicSafety: result.structuredContent?.public_safety,
             routeAuthorityBoundary: result.structuredContent?.route_authority_boundary,
             sourceStatus: result.structuredContent?.source_status,
             observedContext: result.structuredContent?.observed_context,
@@ -665,6 +680,162 @@ async function main() {
     bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.text,
     /not Codex execution, not branch creation, not PR creation, not a launch action/i,
     "augnes_get_codex_launch_card_preview should deny Codex execution and branch/PR creation"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.autonomyContract.contract_version,
+    "autonomy_contract.v0.1",
+    "augnes_get_autonomy_contract_preview should return Autonomy Contract structured content"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.contractSummary.run_preview_status,
+    "preview_only",
+    "augnes_get_autonomy_contract_preview should summarize run_preview.status"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.runPreview.status,
+    "preview_only",
+    "augnes_get_autonomy_contract_preview should expose run_preview.status as preview_only"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.deltaMergePolicy.auto_apply_allowed,
+    false,
+    "augnes_get_autonomy_contract_preview should preserve auto_apply_allowed false"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.deltaMergePolicy.auto_apply_targets.length,
+    0,
+    "augnes_get_autonomy_contract_preview should preserve empty auto_apply_targets"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.autonomyContract.authority_boundary.can_execute_codex,
+    false,
+    "augnes_get_autonomy_contract_preview should preserve Codex execution denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.autonomyContract.authority_boundary.can_launch_codex,
+    false,
+    "augnes_get_autonomy_contract_preview should preserve Codex launch denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.autonomyContract.authority_boundary.can_call_openai_or_provider,
+    false,
+    "augnes_get_autonomy_contract_preview should preserve OpenAI/provider denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.autonomyContract.authority_boundary.can_schedule_background_work,
+    false,
+    "augnes_get_autonomy_contract_preview should preserve scheduler denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.autonomyContract.authority_boundary.can_start_daemon,
+    false,
+    "augnes_get_autonomy_contract_preview should preserve daemon denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.authorityBoundary.can_write_db,
+    false,
+    "augnes_get_autonomy_contract_preview should preserve DB write denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.autonomy_runner_authority,
+    false,
+    "augnes_get_autonomy_contract_preview should deny runner authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.scheduler_authority,
+    false,
+    "augnes_get_autonomy_contract_preview should deny scheduler authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.daemon_authority,
+    false,
+    "augnes_get_autonomy_contract_preview should deny daemon authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.background_work_authority,
+    false,
+    "augnes_get_autonomy_contract_preview should deny background work authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.github_openai_provider_calls,
+    false,
+    "augnes_get_autonomy_contract_preview should deny GitHub/OpenAI/provider calls"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.proof_evidence_writes,
+    false,
+    "augnes_get_autonomy_contract_preview should deny proof/evidence writes"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.state_memory_db_mutation,
+    false,
+    "augnes_get_autonomy_contract_preview should deny state/memory/DB mutation"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.handoff_send_authority,
+    false,
+    "augnes_get_autonomy_contract_preview should deny handoff send authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.branch_pr_creation_authority,
+    false,
+    "augnes_get_autonomy_contract_preview should deny branch/PR creation authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.auto_apply_authority,
+    false,
+    "augnes_get_autonomy_contract_preview should deny auto-apply authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.budget_spend_permission,
+    false,
+    "augnes_get_autonomy_contract_preview should state budget is not spend permission"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.readBoundary.run_preview_is_execution,
+    false,
+    "augnes_get_autonomy_contract_preview should state run preview is not execution"
+  );
+  assert.ok(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.budget,
+    "augnes_get_autonomy_contract_preview should expose budget boundaries"
+  );
+  assert.ok(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.reviewEscalationPolicy,
+    "augnes_get_autonomy_contract_preview should expose review escalation policy"
+  );
+  assert.ok(
+    Array.isArray(bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.stopConditions),
+    "augnes_get_autonomy_contract_preview should expose stop conditions"
+  );
+  assert.ok(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.outputPolicy,
+    "augnes_get_autonomy_contract_preview should expose output policy"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.text,
+    /Budget is not spend permission/i,
+    "augnes_get_autonomy_contract_preview should state budget is not spend permission"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.text,
+    /no autonomy runner, no scheduler, no daemon, no background work/i,
+    "augnes_get_autonomy_contract_preview should deny runner, scheduler, daemon, and background work"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.text,
+    /no Codex execution, no Codex launch/i,
+    "augnes_get_autonomy_contract_preview should deny Codex execution and launch"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.text,
+    /no GitHub\/OpenAI\/provider calls/i,
+    "augnes_get_autonomy_contract_preview should deny GitHub/OpenAI/provider calls"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.text,
+    /no handoff send/i,
+    "augnes_get_autonomy_contract_preview should deny handoff send"
   );
   assert.equal(
     bridgeSnapshot.profiles.augnes_record_action_result.actionRecord.action_name,

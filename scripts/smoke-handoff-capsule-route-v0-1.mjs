@@ -64,6 +64,7 @@ const followOnHandoffCapsuleAppToolFiles = [
   "apps/augnes_apps/scripts/smoke.ts",
   "apps/augnes_apps/scripts/mock-state-runtime.ts",
   "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
   "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
   "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
 ];

@@ -117,6 +117,20 @@ for (const file of phase8cAutonomyContractWebPreviewFiles) {
   allowedChangedFiles.add(file);
 }
 
+const phase8dAutonomyContractAppToolFiles = new Set([
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+  "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
+]);
+for (const file of phase8dAutonomyContractAppToolFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const forbiddenChangedPathPatterns = [
   /^app\/api\//,
   /^components\/(?!autonomy\/|workplane\/agent-workplane\.tsx$)/,
@@ -585,6 +599,7 @@ function assertChangedFilesBoundary() {
       assert(
         followOnHandoffCapsuleCopyExportFiles.has(file) ||
           phase8AutonomyContractCoreFiles.has(file) ||
+          phase8dAutonomyContractAppToolFiles.has(file) ||
           !forbiddenChangedPathPatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed file for Codex Handoff Capsule alignment smoke: ${file}`,
       );
