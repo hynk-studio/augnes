@@ -1,0 +1,743 @@
+{
+  "runtime": "augnes",
+  "preflight_version": "autonomy_runner_preflight.v0.1",
+  "scope": "project:augnes",
+  "preflight_id": "autonomy_runner_preflight.sample.phase_9a.v0.1",
+  "created_at": "2026-07-01T00:00:00.000Z",
+  "source_contract_id": "autonomy_contract.sample.phase_8a.v0.1",
+  "source_contract_version": "autonomy_contract.v0.1",
+  "readiness": "needs_review",
+  "readiness_summary": "Preflight needs review for budget approval, preview-only Codex/Handoff inputs, contract status, partial freshness, and the Phase 9A dry-run boundary. No run starts.",
+  "contract_status": "preview_only",
+  "autonomy_mode": "scheduled_hunt_preview",
+  "budget_assessment": {
+    "status": "needs_review",
+    "budget_id": "autonomy_budget.sample.phase_8a.v0.1",
+    "budget_present": true,
+    "budget_complete": true,
+    "budget_approved": false,
+    "budget_exceeded": false,
+    "would_spend_budget": false,
+    "requires_budget_refresh": true,
+    "blocks_run": false,
+    "requires_review": true,
+    "summary": "Budget is present but not operator-approved; future runner needs review.",
+    "source_refs": [
+      "AutonomyBudget"
+    ]
+  },
+  "action_scope_assessment": {
+    "status": "needs_review",
+    "allowed_dry_run_action_kinds": [
+      "read_contract",
+      "read_preview_inputs",
+      "evaluate_budget",
+      "evaluate_stop_conditions",
+      "evaluate_review_escalation",
+      "rank_candidate_steps",
+      "build_dry_run_plan",
+      "draft_report_preview"
+    ],
+    "contract_allowed_actions": [
+      "read_current_perspective",
+      "read_delta_projection",
+      "read_guide_brief",
+      "read_handoff_capsule_preview",
+      "read_codex_launch_card_preview",
+      "summarize_context",
+      "rank_candidate_deltas",
+      "prepare_review_packet",
+      "prepare_codex_handoff_preview",
+      "draft_report_preview"
+    ],
+    "contract_forbidden_actions": [
+      "execute_codex",
+      "run_codex",
+      "call_github",
+      "open_pr",
+      "call_openai_or_provider",
+      "create_branch_or_pr",
+      "send_handoff",
+      "write_db",
+      "record_proof",
+      "create_evidence",
+      "mutate_memory",
+      "write_memory",
+      "apply_project_perspective",
+      "publish_external",
+      "merge",
+      "retry_replay_deploy",
+      "start_background_work",
+      "schedule_background_work",
+      "schedule_run"
+    ],
+    "requested_forbidden_actions": [],
+    "forbidden_execution_terms": [],
+    "codex_or_handoff_preview_requires_future_approval": true,
+    "run_preview_status": "preview_only",
+    "blocks_run": false,
+    "requires_review": true,
+    "summary": "Codex/Handoff preview steps remain future-supervised and need operator review before any later runner.",
+    "source_refs": [
+      "allowed_actions",
+      "run_preview"
+    ]
+  },
+  "delta_merge_assessment": {
+    "status": "pass",
+    "policy_id": "autonomy_delta_merge_policy.sample.phase_8a.v0.1",
+    "default_delta_status": "needs_review",
+    "auto_apply_allowed": false,
+    "auto_apply_targets": [],
+    "review_required_targets": [
+      "working_memory_candidate",
+      "project_perspective_candidate",
+      "durable_memory_candidate",
+      "codex_launch_candidate",
+      "handoff_send_candidate"
+    ],
+    "blocked_targets": [
+      "proof_evidence_write",
+      "external_publication",
+      "github_actuation",
+      "provider_call",
+      "branch_pr_creation",
+      "durable_apply_without_review"
+    ],
+    "proposed_outputs_are_review_only": true,
+    "blocks_run": false,
+    "requires_review": false,
+    "summary": "Delta merge policy keeps auto_apply_allowed false and outputs review-only.",
+    "source_refs": [
+      "delta_merge_policy"
+    ]
+  },
+  "review_escalation_assessment": {
+    "status": "needs_review",
+    "escalation_id": "autonomy_review_escalation_policy.sample.phase_8a.v0.1",
+    "required_user_judgment": [],
+    "blocking_user_judgment": [],
+    "required_operator_review": [
+      "contract_status.preview_only"
+    ],
+    "blocks_run": false,
+    "requires_review": true,
+    "summary": "Review escalation is required before any future supervised runner.",
+    "source_refs": [
+      "review_escalation_policy",
+      "contract_status"
+    ]
+  },
+  "stop_condition_assessment": {
+    "status": "pass",
+    "triggered_stop_condition_ids": [],
+    "blocking_triggered_stop_condition_ids": [],
+    "review_triggered_stop_condition_ids": [],
+    "stop_condition_count": 11,
+    "blocks_run": false,
+    "requires_review": false,
+    "summary": "No triggered stop condition blocks this dry-run preflight.",
+    "source_refs": [
+      "stop_conditions"
+    ]
+  },
+  "staleness_assessment": {
+    "status": "needs_review",
+    "freshness": "partial",
+    "fresh_snapshot_required": true,
+    "stale_context_blocks_run": true,
+    "refresh_required_sources": [
+      "GuideBrief",
+      "Handoff Capsule",
+      "Codex Launch Card",
+      "Current Working Perspective",
+      "Delta Projection"
+    ],
+    "blocks_run": false,
+    "requires_review": true,
+    "summary": "Context freshness is partial, unknown, or missing; refresh/review is required.",
+    "source_refs": [
+      "context_scope",
+      "staleness_policy"
+    ]
+  },
+  "authority_assessment": {
+    "status": "pass",
+    "source_contract_boundary_present": true,
+    "source_contract_boundary_clear": true,
+    "preflight_boundary_all_false": true,
+    "missing_core_fields": [],
+    "unsupported_reasons": [],
+    "unexpected_authority_grants": [],
+    "denied_authority_flags": [
+      "source_of_truth",
+      "can_start_runner",
+      "can_schedule_runner",
+      "can_start_daemon",
+      "can_start_background_work",
+      "can_commit_or_reject_state",
+      "can_record_proof",
+      "can_create_evidence",
+      "can_update_work",
+      "can_mutate_memory",
+      "can_apply_project_perspective",
+      "can_publish_external",
+      "can_merge",
+      "can_retry_replay_deploy",
+      "can_call_github",
+      "can_call_openai_or_provider",
+      "can_execute_codex",
+      "can_create_branch_or_pr",
+      "can_send_handoff",
+      "can_launch_codex",
+      "can_launch_autonomy",
+      "can_schedule_background_work",
+      "can_create_mcp_tool",
+      "can_create_ui_action",
+      "can_post_external_comment",
+      "can_write_db",
+      "can_spend_budget",
+      "can_auto_apply_delta"
+    ],
+    "blocks_run": false,
+    "requires_review": false,
+    "summary": "Authority boundary is explicit and preflight denies all execution/write/schedule/external flags.",
+    "source_refs": [
+      "authority_boundary"
+    ]
+  },
+  "blockers": [],
+  "warnings": [
+    {
+      "warning_id": "warning.budget",
+      "kind": "budget",
+      "severity": "medium",
+      "summary": "Budget is present but not operator-approved; future runner needs review.",
+      "source_refs": [
+        "AutonomyBudget"
+      ],
+      "review_hint": "Carry this item into manual operator review before any future supervised runner phase."
+    },
+    {
+      "warning_id": "warning.action_scope",
+      "kind": "action_scope",
+      "severity": "medium",
+      "summary": "Codex/Handoff preview steps remain future-supervised and need operator review before any later runner.",
+      "source_refs": [
+        "allowed_actions",
+        "run_preview"
+      ],
+      "review_hint": "Carry this item into manual operator review before any future supervised runner phase."
+    },
+    {
+      "warning_id": "warning.review_escalation",
+      "kind": "review_escalation",
+      "severity": "medium",
+      "summary": "Review escalation is required before any future supervised runner.",
+      "source_refs": [
+        "review_escalation_policy",
+        "contract_status"
+      ],
+      "review_hint": "Carry this item into manual operator review before any future supervised runner phase."
+    },
+    {
+      "warning_id": "warning.staleness",
+      "kind": "staleness",
+      "severity": "medium",
+      "summary": "Context freshness is partial, unknown, or missing; refresh/review is required.",
+      "source_refs": [
+        "context_scope",
+        "staleness_policy"
+      ],
+      "review_hint": "Carry this item into manual operator review before any future supervised runner phase."
+    },
+    {
+      "warning_id": "phase_9a_dry_run_only",
+      "kind": "phase_boundary",
+      "severity": "medium",
+      "summary": "Phase 9A can build a preflight and dry-run plan only; no runner starts.",
+      "source_refs": [
+        "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md"
+      ],
+      "review_hint": "Keep any execution, scheduler, daemon, route, UI, App/MCP, DB, provider, GitHub, proof/evidence, memory, Perspective, handoff, auto-apply, or external behavior for a separate explicit phase."
+    }
+  ],
+  "required_user_judgment": [],
+  "required_operator_review": [
+    "warning.action_scope",
+    "warning.budget",
+    "warning.review_escalation",
+    "warning.staleness",
+    "phase_9a_dry_run_only"
+  ],
+  "dry_run_plan": {
+    "runtime": "augnes",
+    "dry_run_version": "autonomy_dry_run_plan.v0.1",
+    "dry_run_id": "autonomy_dry_run_plan.sample.phase_9a.v0.1",
+    "source_contract_id": "autonomy_contract.sample.phase_8a.v0.1",
+    "status": "dry_run_only",
+    "planned_steps": [
+      {
+        "step_id": "dry_run_step.01.read_contract",
+        "title": "Read source Autonomy Contract",
+        "summary": "Inspect the supplied AutonomyContract object as preview input only.",
+        "action_kind": "read_contract",
+        "allowed_by_contract": true,
+        "blocked_by": [],
+        "source_refs": [
+          "AutonomyContract",
+          "docs/AGENT_WORKPLANE_V0_1.md",
+          "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
+          "docs/AUTHORITY_MATRIX.md",
+          "docs/AUTONOMY_CONTRACT_V0_1.md",
+          "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+          "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+          "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+          "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+          "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"
+        ],
+        "expected_output": "Source contract id, version, status, mode, and refs.",
+        "would_require_review": true,
+        "would_execute": false
+      },
+      {
+        "step_id": "dry_run_step.02.read_preview_inputs",
+        "title": "Read preview input refs",
+        "summary": "List GuideBrief, Handoff Capsule, Codex Launch Card, Current Working Perspective, Delta Projection, docs, and repo refs without collecting data.",
+        "action_kind": "read_preview_inputs",
+        "allowed_by_contract": true,
+        "blocked_by": [],
+        "source_refs": [
+          "AutonomyContract",
+          "docs/AGENT_WORKPLANE_V0_1.md",
+          "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
+          "docs/AUTHORITY_MATRIX.md",
+          "docs/AUTONOMY_CONTRACT_V0_1.md",
+          "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+          "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+          "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+          "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+          "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"
+        ],
+        "expected_output": "Bounded source-ref inventory.",
+        "would_require_review": true,
+        "would_execute": false
+      },
+      {
+        "step_id": "dry_run_step.03.evaluate_budget",
+        "title": "Evaluate budget boundary",
+        "summary": "Classify whether the supplied budget is present, complete, approved, exceeded, or review-bound.",
+        "action_kind": "evaluate_budget",
+        "allowed_by_contract": true,
+        "blocked_by": [],
+        "source_refs": [
+          "AutonomyContract",
+          "docs/AGENT_WORKPLANE_V0_1.md",
+          "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
+          "docs/AUTHORITY_MATRIX.md",
+          "docs/AUTONOMY_CONTRACT_V0_1.md",
+          "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+          "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+          "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+          "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+          "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"
+        ],
+        "expected_output": "Budget assessment with no spend.",
+        "would_require_review": true,
+        "would_execute": false
+      },
+      {
+        "step_id": "dry_run_step.04.evaluate_stop_conditions",
+        "title": "Evaluate stop conditions",
+        "summary": "Classify triggered stop conditions supplied by input without running checks.",
+        "action_kind": "evaluate_stop_conditions",
+        "allowed_by_contract": true,
+        "blocked_by": [],
+        "source_refs": [
+          "AutonomyContract",
+          "docs/AGENT_WORKPLANE_V0_1.md",
+          "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
+          "docs/AUTHORITY_MATRIX.md",
+          "docs/AUTONOMY_CONTRACT_V0_1.md",
+          "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+          "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+          "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+          "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+          "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"
+        ],
+        "expected_output": "Stop condition assessment.",
+        "would_require_review": true,
+        "would_execute": false
+      },
+      {
+        "step_id": "dry_run_step.05.evaluate_review_escalation",
+        "title": "Evaluate review escalation",
+        "summary": "Surface required user judgment and operator review without deciding it.",
+        "action_kind": "evaluate_review_escalation",
+        "allowed_by_contract": true,
+        "blocked_by": [],
+        "source_refs": [
+          "AutonomyContract",
+          "docs/AGENT_WORKPLANE_V0_1.md",
+          "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
+          "docs/AUTHORITY_MATRIX.md",
+          "docs/AUTONOMY_CONTRACT_V0_1.md",
+          "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+          "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+          "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+          "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+          "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"
+        ],
+        "expected_output": "Review escalation assessment.",
+        "would_require_review": true,
+        "would_execute": false
+      },
+      {
+        "step_id": "dry_run_step.06.rank_candidate_steps",
+        "title": "Rank candidate dry-run steps",
+        "summary": "Rank preview-only read/evaluate/report steps and leave execution future-only.",
+        "action_kind": "rank_candidate_steps",
+        "allowed_by_contract": true,
+        "blocked_by": [],
+        "source_refs": [
+          "AutonomyContract",
+          "docs/AGENT_WORKPLANE_V0_1.md",
+          "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
+          "docs/AUTHORITY_MATRIX.md",
+          "docs/AUTONOMY_CONTRACT_V0_1.md",
+          "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+          "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+          "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+          "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+          "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"
+        ],
+        "expected_output": "Ordered dry-run step previews.",
+        "would_require_review": true,
+        "would_execute": false
+      },
+      {
+        "step_id": "dry_run_step.07.build_dry_run_plan",
+        "title": "Build dry-run plan",
+        "summary": "Assemble a dry-run-only plan with would_execute false on every step.",
+        "action_kind": "build_dry_run_plan",
+        "allowed_by_contract": true,
+        "blocked_by": [],
+        "source_refs": [
+          "AutonomyContract",
+          "docs/AGENT_WORKPLANE_V0_1.md",
+          "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
+          "docs/AUTHORITY_MATRIX.md",
+          "docs/AUTONOMY_CONTRACT_V0_1.md",
+          "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+          "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+          "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+          "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+          "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"
+        ],
+        "expected_output": "AutonomyDryRunPlan preview.",
+        "would_require_review": true,
+        "would_execute": false
+      },
+      {
+        "step_id": "dry_run_step.08.draft_report_preview",
+        "title": "Draft report preview",
+        "summary": "Prepare a manual operator report preview with blockers, warnings, skipped checks, and next-phase notes.",
+        "action_kind": "draft_report_preview",
+        "allowed_by_contract": true,
+        "blocked_by": [],
+        "source_refs": [
+          "AutonomyContract",
+          "docs/AGENT_WORKPLANE_V0_1.md",
+          "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
+          "docs/AUTHORITY_MATRIX.md",
+          "docs/AUTONOMY_CONTRACT_V0_1.md",
+          "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+          "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+          "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+          "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+          "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"
+        ],
+        "expected_output": "Manual report preview outline.",
+        "would_require_review": true,
+        "would_execute": false
+      }
+    ],
+    "planned_read_sources": [
+      "Agent Workplane preview refs",
+      "augnes_delta_projection.sample.v0.1",
+      "Codex Launch Card preview",
+      "codex_launch_card.sample.v0.1",
+      "current_working_perspective.sample.v0.1",
+      "Current Working Perspective",
+      "Delta Projection",
+      "docs/AGENT_WORKPLANE_V0_1.md",
+      "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
+      "docs/AUTHORITY_MATRIX.md",
+      "docs/AUTONOMY_CONTRACT_V0_1.md",
+      "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+      "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+      "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+      "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+      "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",
+      "GuideBrief",
+      "guide_brief.sample.v0.1",
+      "Handoff Capsule preview",
+      "handoff_capsule.sample.v0.1",
+      "hynk-studio/augnes"
+    ],
+    "proposed_delta_outputs": [
+      "blocked action summary",
+      "blocked action summary preview only",
+      "needs_review delta candidate previews only",
+      "needs_review delta candidates",
+      "user judgment item list"
+    ],
+    "proposed_delta_batches": [
+      "autonomy_dry_run_delta_batch.preview_only",
+      "delta_batch.autonomy.sample preview only"
+    ],
+    "proposed_reports": [
+      "budget usage preview",
+      "manual operator preflight report preview",
+      "manual operator review packet",
+      "next phase readiness report preview",
+      "next phase readiness summary"
+    ],
+    "proposed_review_queue_items": [
+      "phase_9a_dry_run_only",
+      "warning.action_scope",
+      "warning.budget",
+      "warning.review_escalation",
+      "warning.staleness"
+    ],
+    "blocked_steps": [
+      "apply_project_perspective",
+      "auto_apply_delta",
+      "call_github",
+      "call_openai_or_provider",
+      "create_branch_or_pr",
+      "create_evidence",
+      "execute_codex",
+      "merge",
+      "mutate_memory",
+      "open_pr",
+      "publish_external",
+      "record_proof",
+      "retry_replay_deploy",
+      "run_codex",
+      "schedule_background_work",
+      "schedule_run",
+      "send_handoff",
+      "spend_budget",
+      "start_background_work",
+      "write_db",
+      "write_memory"
+    ],
+    "required_preconditions": [
+      "Every future execution step requires separate explicit scope and approval.",
+      "Explicit future Phase 9 runner scope.",
+      "Fresh source snapshots.",
+      "Operator-reviewed budget.",
+      "Phase 9A remains dry-run only.",
+      "Resolved user judgment items.",
+      "Review allowed_actions before future runner.",
+      "Review AutonomyBudget before future runner.",
+      "Review context_scope before future runner.",
+      "Review review_escalation_policy before future runner."
+    ],
+    "required_checks": [
+      "npm run smoke:autonomy-contract-v0-1",
+      "npm run smoke:autonomy-runner-preflight-v0-1",
+      "npm run typecheck"
+    ],
+    "stop_conditions": [
+      "stop.authority_boundary_unclear",
+      "stop.budget_exhausted",
+      "stop.forbidden_action_requested",
+      "stop.forbidden_file_scope",
+      "stop.manual_stop_requested",
+      "stop.required_check_failed",
+      "stop.required_check_skipped",
+      "stop.runtime_unavailable",
+      "stop.source_gap_high",
+      "stop.stale_context",
+      "stop.user_judgment_required"
+    ],
+    "budget_projection": {
+      "budget_id": "autonomy_budget.sample.phase_8a.v0.1",
+      "time_limit_minutes": 30,
+      "max_iterations": 2,
+      "max_tool_calls": 0,
+      "max_codex_tasks": 0,
+      "max_prs": 0,
+      "max_file_changes": 0,
+      "would_spend_budget": false,
+      "budget_boundary_notes": [
+        "Budget is a boundary, not spend permission.",
+        "Missing budget blocks future autonomy.",
+        "Phase 8A must not charge, call providers, execute tools, or run background work.",
+        "Dry-run plan does not spend budget."
+      ]
+    },
+    "no_run_boundary": {
+      "source_of_truth": false,
+      "can_start_runner": false,
+      "can_schedule_runner": false,
+      "can_start_daemon": false,
+      "can_start_background_work": false,
+      "can_commit_or_reject_state": false,
+      "can_record_proof": false,
+      "can_create_evidence": false,
+      "can_update_work": false,
+      "can_mutate_memory": false,
+      "can_apply_project_perspective": false,
+      "can_publish_external": false,
+      "can_merge": false,
+      "can_retry_replay_deploy": false,
+      "can_call_github": false,
+      "can_call_openai_or_provider": false,
+      "can_execute_codex": false,
+      "can_create_branch_or_pr": false,
+      "can_send_handoff": false,
+      "can_launch_codex": false,
+      "can_launch_autonomy": false,
+      "can_schedule_background_work": false,
+      "can_create_mcp_tool": false,
+      "can_create_ui_action": false,
+      "can_post_external_comment": false,
+      "can_write_db": false,
+      "can_spend_budget": false,
+      "can_auto_apply_delta": false,
+      "notes": [
+        "Phase 9A preflight is dry-run only.",
+        "Preflight does not start runner.",
+        "Dry-run plan does not execute.",
+        "No scheduler, daemon, or background work is created.",
+        "No Codex, GitHub, OpenAI, provider, DB, proof, evidence, memory, Perspective, handoff, auto-apply, publish, merge, retry, replay, deploy, or external side effect authority is granted."
+      ]
+    },
+    "next_phase_notes": [
+      "Phase 9A is preflight/dry-run only.",
+      "ready_for_future_supervised_runner still means no run starts in Phase 9A.",
+      "Recommended next phase: Phase 9B - Autonomy Runner Preflight GET-only read route v0.1."
+    ]
+  },
+  "source_refs": {
+    "guide_brief_refs": [
+      "guide_brief.sample.v0.1"
+    ],
+    "handoff_capsule_refs": [
+      "handoff_capsule.sample.v0.1"
+    ],
+    "codex_launch_card_refs": [
+      "codex_launch_card.sample.v0.1"
+    ],
+    "current_working_perspective_refs": [
+      "current_working_perspective.sample.v0.1"
+    ],
+    "delta_projection_refs": [
+      "augnes_delta_projection.sample.v0.1"
+    ],
+    "workplane_refs": [
+      "agent_workplane.preview.v0.1"
+    ],
+    "delta_ids": [
+      "delta.autonomy.sample.review_packet"
+    ],
+    "batch_ids": [
+      "delta_batch.autonomy.sample"
+    ],
+    "evidence_refs": [
+      "evidence.pointer.sample.validation_only"
+    ],
+    "artifact_refs": [
+      "artifact.docs.autonomy_contract_v0_1"
+    ],
+    "handoff_refs": [
+      "handoff.preview.sample"
+    ],
+    "diagnostic_refs": [
+      "diagnostic.source_gap.sample"
+    ],
+    "route_refs": [
+      "GET /api/augnes/read/codex-launch-card?scope=project:augnes",
+      "GET /api/augnes/read/guide-brief?scope=project:augnes",
+      "GET /api/augnes/read/handoff-capsule?scope=project:augnes&target=codex_handoff"
+    ],
+    "docs_refs": [
+      "docs/AGENT_WORKPLANE_V0_1.md",
+      "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
+      "docs/AUTHORITY_MATRIX.md",
+      "docs/AUTONOMY_CONTRACT_V0_1.md",
+      "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+      "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+      "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+      "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+      "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md"
+    ],
+    "repo_refs": [
+      "hynk-studio/augnes"
+    ]
+  },
+  "authority_boundary": {
+    "source_of_truth": false,
+    "can_start_runner": false,
+    "can_schedule_runner": false,
+    "can_start_daemon": false,
+    "can_start_background_work": false,
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_mutate_memory": false,
+    "can_apply_project_perspective": false,
+    "can_publish_external": false,
+    "can_merge": false,
+    "can_retry_replay_deploy": false,
+    "can_call_github": false,
+    "can_call_openai_or_provider": false,
+    "can_execute_codex": false,
+    "can_create_branch_or_pr": false,
+    "can_send_handoff": false,
+    "can_launch_codex": false,
+    "can_launch_autonomy": false,
+    "can_schedule_background_work": false,
+    "can_create_mcp_tool": false,
+    "can_create_ui_action": false,
+    "can_post_external_comment": false,
+    "can_write_db": false,
+    "can_spend_budget": false,
+    "can_auto_apply_delta": false,
+    "notes": [
+      "Phase 9A preflight is dry-run only.",
+      "Preflight does not start runner.",
+      "Dry-run plan does not execute.",
+      "No scheduler, daemon, or background work is created.",
+      "No Codex, GitHub, OpenAI, provider, DB, proof, evidence, memory, Perspective, handoff, auto-apply, publish, merge, retry, replay, deploy, or external side effect authority is granted."
+    ]
+  },
+  "public_safety": {
+    "fixture_kind": "synthetic_sample",
+    "contains_private_conversation": false,
+    "contains_hidden_reasoning": false,
+    "contains_local_private_paths": false,
+    "contains_secrets_or_tokens": false,
+    "contains_raw_provider_output": false,
+    "contains_raw_retrieval_output": false,
+    "contains_real_account_artifacts": false,
+    "notes": [
+      "No private conversation.",
+      "No hidden reasoning.",
+      "No local private paths.",
+      "No secrets/tokens.",
+      "No raw provider output.",
+      "No raw retrieval output.",
+      "No real account artifacts."
+    ]
+  },
+  "next_phase_notes": [
+    "Phase 9A is preflight/dry-run only.",
+    "ready_for_future_supervised_runner still means no run starts in Phase 9A.",
+    "Recommended next phase: Phase 9B - Autonomy Runner Preflight GET-only read route v0.1."
+  ]
+}

@@ -416,6 +416,25 @@ PR #868 is merged. Current route planning starts from:
   durable Perspective apply, handoff send, branch/PR creation behavior,
   merge/publish/retry/replay/deploy behavior, budget spend, auto-apply, and
   no external side effect. This index pointer is not roadmap authority.
+  Phase 9A Autonomy Runner Preflight / Dry-Run core v0.1 adds repo-local
+  non-SSOT pointers for `docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md`,
+  `types/autonomy-runner.ts`,
+  `lib/autonomy/autonomy-runner-preflight.ts`,
+  `fixtures/autonomy-runner-preflight.sample.v0.1.json`, and
+  `scripts/smoke-autonomy-runner-preflight-v0-1.mjs` (`npm run
+  smoke:autonomy-runner-preflight-v0-1`). Phase 9A consumes
+  `AutonomyContract` preview input and produces `AutonomyRunnerPreflight` plus
+  `AutonomyDryRunPlan`. The preflight may reason about whether a future
+  supervised runner could be considered, and the dry-run plan may preview
+  read/evaluate/report steps, but no runner starts and every planned step has
+  `would_execute: false`. Phase 9A adds no UI, API route, App/MCP tool, DB
+  schema/migration, DB write, provider/OpenAI call, GitHub actuation from
+  product code, Codex execution from product code, proof/evidence write,
+  memory mutation, durable Perspective apply, scheduler, daemon, background
+  work, actual autonomy runner, handoff send/execution, branch/PR creation from
+  product code, product-write, budget spend, auto-apply,
+  merge/publish/retry/replay/deploy behavior, or external side effect. This
+  index pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
