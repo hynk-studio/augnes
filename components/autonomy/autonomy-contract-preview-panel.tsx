@@ -27,9 +27,9 @@ export function AutonomyContractPreviewPanel({
     >
       <p style={workplaneCopyStyle}>
         Preview only. Future runner not implemented. No run, no schedule, no
-        Codex launch, no handoff send, no write, no copy/export behavior, and
-        no external side effect. Phase 9 requires separate explicit scope and
-        approval.
+        Codex launch, no handoff send, no write, and no external side effect.
+        Copy/export is available only through the bounded Phase 8F local copy
+        panel. Phase 9 requires separate explicit scope and approval.
       </p>
 
       <WorkplanePanelMetricGrid>

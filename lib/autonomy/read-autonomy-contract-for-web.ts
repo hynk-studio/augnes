@@ -66,14 +66,16 @@ const AUTONOMY_PREVIEW_BOUNDARY_NOTES = [
   "Budget is a boundary only, not spend permission.",
   "Route-composed budget/operator fields may be synthetic/operator-supplied preview defaults.",
   "Public Web display defaults to public-safe fixture fallback unless a validated local read-only request context is supplied.",
+  "Phase 8F permits local clipboard/manual copy preview only; copied text may become stale and is not authority.",
   "No API write route, App/MCP tool, DB write, proof/evidence write, memory mutation, durable Perspective apply, scheduler, daemon, or background work authority.",
 ] as const;
 
 const AUTONOMY_PREVIEW_NEXT_PHASE_NOTES = [
   "Phase 8C adds read-only Autonomy Contract Web preview panels on /workbench.",
-  "Phase 8D ChatGPT App/MCP read-only tool remains deferred.",
-  "Phase 8E Codex skill alignment remains deferred.",
-  "Phase 8F copy/export remains deferred.",
+  "Phase 8D adds a ChatGPT App/MCP model-only read-only Autonomy Contract preview tool.",
+  "Phase 8E adds Codex instruction-only Autonomy Contract alignment.",
+  "Phase 8F adds local clipboard/manual-copy Autonomy Contract preview only.",
+  "Phase 8F copy/export is not file export-to-disk, external posting, send, schedule, run, launch, budget spend, or auto-apply.",
   "Phase 9 runner remains deferred and requires separate explicit scope and approval.",
 ] as const;
 
@@ -115,11 +117,12 @@ export function readAutonomyContractPreviewForWeb(
         warnings: uniqueSorted([
           ...routeResponse.warnings,
           "Autonomy Contract Web preview is read-only display, not active autonomy state.",
-          "AutonomyRunPreview is not execution.",
-          "Budget is not spend permission.",
-        ]),
-        gaps: uniqueSorted(routeResponse.gaps),
-      };
+      "AutonomyRunPreview is not execution.",
+      "Budget is not spend permission.",
+      "Local copy/export preview is clipboard/manual-copy only and may become stale.",
+    ]),
+    gaps: uniqueSorted(routeResponse.gaps),
+  };
     }
 
     return buildFallbackPreview({
@@ -175,6 +178,7 @@ function buildFallbackPreview({
         "This is not active run state.",
         "This is not budget approval or spend permission.",
         "This is not runner, scheduler, daemon, proof, evidence, or background work.",
+        "This is not file export-to-disk, external posting, budget spend, or auto-apply.",
       ],
     },
     delta_merge_policy: {
@@ -265,6 +269,7 @@ function buildFallbackPreview({
       "This is not active run state.",
       "Budget is not approval and not spend permission.",
       "No runner, scheduler, daemon, background work, proof/evidence write, or external side effect is implemented.",
+      "Local copy/export preview is clipboard/manual-copy only; copied content may become stale and is not authority.",
     ],
     gaps: [
       "Live route-composed Autonomy Contract preview data is unavailable without validated local read authorization.",

@@ -165,7 +165,47 @@ GitHub/provider call, DB write, proof/evidence write, memory mutation, durable
 Perspective apply, handoff send, branch/PR creation, merge, publish, deploy,
 or external posting authority.
 
-Phase 8F copy/export preview is deferred.
+## 1.5 Phase 8F Local Copy/Export Preview
+
+Phase 8F adds local clipboard/manual copy preview only:
+
+- `lib/autonomy/autonomy-contract-copy-export.ts`
+- `components/autonomy/autonomy-copy-export-panel.tsx`
+- `scripts/smoke-autonomy-contract-copy-export-v0-1.mjs`
+- `npm run smoke:autonomy-contract-copy-export-v0-1`
+
+Primary placement is `/workbench` Agent Workplane near the existing Autonomy
+Contract preview panels. `/` and `/perspective` remain deferred unless
+separately scoped.
+
+Phase 8F copy/export means local clipboard copy and manual text export preview
+only. It renders copyable Autonomy Contract markdown, Autonomy Budget summary
+markdown, Review Escalation checklist markdown, a combined Autonomy Contract
+review packet markdown, and a bounded JSON preview. It may show packet
+fingerprint, character count, source/fallback status, and freshness status.
+
+File download/export-to-disk remains deferred unless separately scoped.
+
+Phase 8F adds no external post, no send, no schedule, no run, no daemon, no
+background work, no launch Codex, no Codex execution, no branch/PR creation,
+no GitHub/OpenAI/provider calls, no DB write, no proof/evidence write, no
+state/memory/work/Perspective mutation, no durable Perspective apply, no
+scheduler/autonomy runner, no product-write, no
+merge/publish/retry/replay/deploy, no external side effects, no budget spend,
+and no auto-apply.
+
+Copied text may become stale and is not approval, proof, evidence,
+source-of-truth state, merge authority, run authority, launch authority,
+budget approval, auto-apply authority, or external-post authority. Re-copy
+before use if source/fallback status changes.
+
+If Phase 8A, 8B, 8C, 8D, 8E, and 8F smokes pass, the Phase 8 Autonomy Contract
+preview stack is complete as a contract, read route, Web preview, ChatGPT
+App/MCP read-only preview tool, Codex instruction-only alignment, and local
+copy/manual export preview. Phase 9 Autonomy Runner planning and
+implementation remain future work and require separate explicit scope and
+approval.
+
 Phase 9 runner remains deferred and requires separate explicit scope and
 approval.
 

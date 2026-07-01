@@ -98,6 +98,20 @@ const followOnAutonomyContractCodexSkillFiles = [
   "scripts/smoke-guide-brief-v0-1.mjs",
 ];
 
+const phase8fAutonomyContractCopyExportFiles = [
+  "lib/autonomy/autonomy-contract-copy-export.ts",
+  "components/autonomy/autonomy-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/autonomy/read-autonomy-contract-for-web.ts",
+  "components/autonomy/autonomy-boundary-card.tsx",
+  "components/autonomy/autonomy-contract-preview-panel.tsx",
+  "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const requiredFiles = [
   guideBriefDoc,
   guideBriefTypeFile,
@@ -126,6 +140,7 @@ const allowedChangedFiles = new Set([
   ...followOnChatgptAppGuideBriefToolFiles,
   ...followOnHandoffCapsuleAppToolFiles,
   ...followOnAutonomyContractCodexSkillFiles,
+  ...phase8fAutonomyContractCopyExportFiles,
 ]);
 const phase8PriorSmokeAllowlistFiles = [
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -789,8 +804,9 @@ function assertChangedFileBoundary() {
         followOnWebGuidePanelFiles.includes(file) ||
         followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
         followOnHandoffCapsuleCopyExportFiles.includes(file) ||
-        phase8cAutonomyContractWebPreviewFiles.includes(file),
-      `Phase 6A must not change UI files outside exact Phase 6C/7C/7F Web follow-on scope or exact Phase 8C Autonomy Web preview files: ${file}`,
+        phase8cAutonomyContractWebPreviewFiles.includes(file) ||
+        phase8fAutonomyContractCopyExportFiles.includes(file),
+      `Phase 6A must not change UI files outside exact Phase 6C/7C/7F Web follow-on scope or exact Phase 8C/8F Autonomy Web preview files: ${file}`,
     );
     assert(
       !/^app\/api\//.test(file) ||

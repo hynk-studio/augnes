@@ -30,6 +30,9 @@ const deniedAuthority = [
   "no handoff send",
   "no branch/PR creation",
   "no merge/publish/retry/replay/deploy",
+  "no file export-to-disk",
+  "no budget spend",
+  "no auto-apply",
   "no external side effects",
 ] as const;
 
@@ -73,14 +76,21 @@ export function AutonomyBoundaryCard({ preview }: AutonomyBoundaryCardProps) {
     >
       <p style={workplaneCopyStyle}>
         Every authority boolean is expected to deny execution, write, schedule,
-        and external authority. This preview does not imply approval, proof,
-        evidence, source-of-truth state, merge authority, launch authority, or
-        future runner authority.
+        and external authority. Phase 8F permits local clipboard/manual copy
+        preview only. Autonomy Contract still does not run, schedule, launch
+        Codex, start daemon/background work, post, merge, publish, mutate
+        state, spend budget, or auto-apply deltas.
+      </p>
+      <p style={workplaneCopyStyle}>
+        This preview does not imply approval, proof, evidence,
+        source-of-truth state, merge authority, launch authority, run
+        authority, budget approval, auto-apply authority, external-post
+        authority, or future runner authority.
       </p>
 
       <WorkplanePanelMetricGrid>
         <WorkplanePanelMetric label="Denied flags" value={falseCount} />
-        <WorkplanePanelMetric label="UI actions" value="0" />
+        <WorkplanePanelMetric label="Run actions" value="none" />
         <WorkplanePanelMetric label="Run authority" value="none" />
         <WorkplanePanelMetric label="External authority" value="none" />
       </WorkplanePanelMetricGrid>

@@ -79,6 +79,20 @@ const phase8eAutonomyContractCodexSkillFiles = [
   "package.json",
 ];
 
+const phase8fAutonomyContractCopyExportFiles = [
+  "lib/autonomy/autonomy-contract-copy-export.ts",
+  "components/autonomy/autonomy-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/autonomy/read-autonomy-contract-for-web.ts",
+  "components/autonomy/autonomy-boundary-card.tsx",
+  "components/autonomy/autonomy-contract-preview-panel.tsx",
+  "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const allowedChangedFiles = new Set([
   contractDoc,
   routeFile,
@@ -98,6 +112,7 @@ const allowedChangedFiles = new Set([
   ...priorSmokeAllowlistCompatibilityFiles,
   ...phase8dAutonomyContractAppToolFiles,
   ...phase8eAutonomyContractCodexSkillFiles,
+  ...phase8fAutonomyContractCopyExportFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
@@ -251,7 +266,8 @@ function assertDocsAndIndexPointers() {
     "augnes_get_autonomy_contract_preview",
     "Phase 8E Codex Skill Alignment",
     "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
-    "Phase 8F copy/export preview is deferred.",
+    "Phase 8F Local Copy/Export Preview",
+    "local clipboard copy and manual text export preview only",
   ], { label: contractDoc });
 
   assertContainsAll(indexText, [
