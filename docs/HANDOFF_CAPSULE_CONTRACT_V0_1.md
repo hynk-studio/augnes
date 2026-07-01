@@ -2,15 +2,16 @@
 
 ## 1. Status and Scope
 
-Status: Phase 7E Handoff Capsule / Codex Launch Card core, GET-only read
-routes, Web preview UI, ChatGPT App/MCP read-only preview tools, and Codex
-skill alignment v0.1.
+Status: Phase 7F Handoff Capsule / Codex Launch Card core, GET-only read
+routes, Web preview UI, ChatGPT App/MCP read-only preview tools, Codex skill
+alignment, and local copy/export preview v0.1.
 
 Scope: Phase 7A contract, type, pure helper, public-safe fixtures, static
 smoke, package script pointer, and latest-index pointer plus Phase 7B GET-only
 local read-only preview routes and thin source composition, Phase 7C read-only
 Web preview UI on Agent Workplane, Phase 7D ChatGPT App/MCP model-only
-read-only preview tools, and Phase 7E Codex instruction-only skill alignment.
+read-only preview tools, Phase 7E Codex instruction-only skill alignment, and
+Phase 7F local clipboard/manual-copy preview.
 
 Handoff Capsule and Codex Launch Card are reviewable transfer packets. They
 prepare context for another surface. They do not send, launch, execute, post,
@@ -217,8 +218,9 @@ actuation, Codex execution, proof/evidence write, memory mutation, durable
 Perspective state apply, handoff send, branch/PR creation, scheduler/autonomy
 runner, product-write, or external side effects.
 
-Phase 7C Web preview UI and Phase 7D ChatGPT App/MCP read-only preview tools
-are documented below. Phase 7E Codex skill alignment is deferred.
+Phase 7C Web preview UI, Phase 7D ChatGPT App/MCP read-only preview tools,
+Phase 7E Codex skill alignment, and Phase 7F local copy/export preview are
+documented below.
 
 ## 5.2 Phase 7C Web Preview UI
 
@@ -250,8 +252,8 @@ The Web preview UI preserves Handoff Capsule and GuideBrief separation:
 - Suggested remains advisory only; suggestions are not commands.
 - Needs user judgment remains unresolved and is not decided by the UI.
 
-No action buttons.
-No copy/export.
+No action buttons in the Phase 7C preview panels.
+No copy/export in the Phase 7C preview panels.
 No send.
 No launch.
 No Codex execution.
@@ -273,9 +275,8 @@ no memory mutation, no durable Perspective apply, no handoff send, no
 branch/PR creation from Augnes product code, no scheduler/autonomy runner, no
 merge/publish/retry/replay/deploy behavior, and no external side effects.
 
-Phase 7D ChatGPT App/MCP read-only preview tools are documented below.
-Phase 7E Codex skill alignment is documented below. Phase 7F copy/export
-remains deferred.
+Phase 7D ChatGPT App/MCP read-only preview tools, Phase 7E Codex skill
+alignment, and Phase 7F local copy/export preview are documented below.
 
 ## 5.3 Phase 7D ChatGPT App/MCP Read-Only Preview Tools
 
@@ -310,8 +311,8 @@ creation, no proof/evidence writes, no state/memory/DB/work/Perspective
 mutation, no publish/merge/retry/replay/deploy behavior, and no external side
 effects.
 
-Phase 7E Codex skill alignment is documented below. Phase 7F copy/export
-remains deferred.
+Phase 7E Codex skill alignment and Phase 7F local copy/export preview are
+documented below.
 
 ## 5.4 Phase 7E Codex Skill Alignment
 
@@ -347,7 +348,82 @@ branch/PR creation behavior from Augnes product code, no scheduler/autonomy,
 no copy/export, no merge/publish/retry/replay/deploy, and no external side
 effects.
 
-Phase 7F copy/export remains deferred.
+Phase 7F local copy/export preview is documented below.
+
+## 5.5 Phase 7F Local Copy/Export Preview
+
+Phase 7F adds local clipboard/manual copy preview for Handoff Capsule and
+Codex Launch Card packets. In Phase 7F, copy/export means local clipboard copy
+and manual text copy preview only.
+
+The Phase 7F files are:
+
+```text
+lib/handoff/handoff-capsule-copy-export.ts
+components/handoff/handoff-copy-export-panel.tsx
+scripts/smoke-handoff-capsule-copy-export-v0-1.mjs
+```
+
+`npm run smoke:handoff-capsule-copy-export-v0-1` checks the Phase 7F helper,
+client component, Workplane placement, docs, latest-index pointer, package
+script, changed-file boundary, local clipboard/manual-copy boundary, and
+no-runtime/no-external-side-effect authority boundary.
+
+Primary placement is `/workbench` Agent Workplane, near the Handoff Capsule
+preview, Codex Launch Card preview, and authority boundary panels. `/` and
+`/perspective` compact previews remain deferred. File download/export-to-disk
+remains deferred unless separately scoped later.
+
+The local copy/export preview can render:
+
+- Handoff Capsule markdown.
+- Codex Launch Card markdown.
+- Combined Handoff Capsule + Codex Launch Card review packet markdown.
+- Local JSON preview when bounded and small.
+
+Copied text preserves Observed/Inferred/Suggested/Needs user judgment
+separation, source refs, selected delta refs, expected files, forbidden files,
+required checks, optional checks, skipped-check policy, PR body requirements,
+final report requirements, proof/evidence boundary, authority boundary,
+source/fallback status, warnings, gaps, public safety, and route/read boundary
+notes when present.
+
+Phase 7F boundary flags must remain visible:
+
+```text
+local_clipboard_only true
+external_handoff_sent false
+codex_executed false
+github_called false
+provider_called false
+proof_evidence_written false
+db_written false
+state_mutated false
+copy_persisted false
+```
+
+Phase 7F adds no external post, no network send, no fetch, no window.open, no
+download-to-file, no server action, no API write route, no route behavior
+change, no App/MCP tool change, no DB schema/migration, no DB write, no
+provider/OpenAI call, no GitHub actuation, no Codex execution, no Codex
+launch, no handoff send, no branch/PR creation behavior from Augnes product
+code, no proof/evidence write, no memory mutation, no durable Perspective
+apply, no scheduler/autonomy runner, no product-write, no
+merge/publish/retry/replay/deploy behavior, no external side effects, no
+hidden background work, and no persistence of copied packet state.
+
+Copied text may become stale and is not approval, proof, evidence,
+source-of-truth state, merge authority, launch authority, branch/PR creation
+authority, or handoff-send authority. Re-copy before use if source/fallback
+status changes.
+
+Phase 7 Handoff Capsule / Codex Launch Card preview stack is complete after
+Phase 7F if Phase 7A, 7B, 7C, 7D, 7E, and 7F smokes pass and no authority drift
+is found.
+
+Phase 8 Autonomy Contract may consume Handoff Capsule / Codex Launch Card
+packets only as preview input, not execution authority, and only if explicitly
+scoped later.
 
 ## 6. Source Refs
 

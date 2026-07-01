@@ -156,6 +156,20 @@ for (const file of followOnHandoffCapsuleWebPreviewFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffCapsuleCopyExportFiles = [
+  "lib/handoff/handoff-capsule-copy-export.ts",
+  "components/handoff/handoff-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleCopyExportFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
@@ -439,8 +453,9 @@ function assertChangedFileBoundary() {
     assert(
       !/^components\//.test(file) ||
         followOnWebGuidePanelFiles.includes(file) ||
-        followOnHandoffCapsuleWebPreviewFiles.includes(file),
-      `Phase 6B must not change UI files outside exact Phase 6C/7C Web follow-on scope: ${file}`,
+        followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
+        followOnHandoffCapsuleCopyExportFiles.includes(file),
+      `Phase 6B must not change UI files outside exact Phase 6C/7C/7F Web follow-on scope: ${file}`,
     );
     assert(
       !/^app\/api\//.test(file) ||

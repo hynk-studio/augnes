@@ -169,6 +169,20 @@ for (const file of followOnHandoffCapsuleCodexSkillFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffCapsuleCopyExportFiles = [
+  "lib/handoff/handoff-capsule-copy-export.ts",
+  "components/handoff/handoff-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleCopyExportFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
@@ -557,7 +571,8 @@ function assertChangedFileBoundary() {
     );
     assert(!/^app\/api\//.test(file), `Phase 6D must not change API route files: ${file}`);
     assert(
-      !/^components\//.test(file) &&
+      (!/^components\//.test(file) ||
+        followOnHandoffCapsuleCopyExportFiles.includes(file)) &&
         !["app/page.tsx", "app/perspective/page.tsx", "app/workbench/page.tsx"].includes(file),
       `Phase 6D must not change Web UI files: ${file}`,
     );

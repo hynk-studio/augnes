@@ -85,7 +85,26 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-handoff-capsule-route-v0-1.mjs",
   "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
   "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
+  "lib/handoff/handoff-capsule-copy-export.ts",
+  "components/handoff/handoff-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
   ...priorSmokeAllowlistCompatibilityFiles,
+]);
+
+const followOnHandoffCapsuleCopyExportFiles = new Set([
+  "lib/handoff/handoff-capsule-copy-export.ts",
+  "components/handoff/handoff-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -442,8 +461,8 @@ function assertDocsAndIndex() {
       "no state/memory/DB/work/Perspective mutation",
       "no copy/export behavior",
       "no external side effects",
-      "Phase 7E Codex skill alignment is documented below.",
-      "Phase 7F copy/export remains deferred.",
+      "Phase 7E Codex skill alignment and Phase 7F local copy/export preview are",
+      "Phase 7F Local Copy/Export Preview",
     ],
     { label: contractDoc },
   );
@@ -506,6 +525,10 @@ function assertNoForbiddenScopeDrift() {
   ];
 
   for (const file of changed) {
+    if (followOnHandoffCapsuleCopyExportFiles.has(file)) {
+      continue;
+    }
+
     for (const pattern of forbiddenChangedPatterns) {
       assert(
         !pattern.test(file),
@@ -581,7 +604,7 @@ function assertPriorPhaseBoundaries() {
   );
   assertContainsAll(
     phase7cSmokeText,
-    ["no_action_controls_checked", "no_copy_export_behavior_checked"],
+    ["no_action_controls_checked", "phase7f_local_copy_controls_checked"],
     { label: phase7cSmokeFile },
   );
 }

@@ -71,16 +71,17 @@ const HANDOFF_PREVIEW_DOC_REFS = [
 const HANDOFF_PREVIEW_BOUNDARY_NOTES = [
   "Read-only Web preview display only.",
   "Preview only; no send, no launch, no execution, and no mutation.",
-  "No action buttons or form controls are provided.",
-  "No copy/export behavior is provided in Phase 7C.",
+  "No send, launch, execute, apply, approve, reject, publish, merge, retry, replay, deploy, or external-post controls are provided.",
+  "Phase 7F permits local clipboard/manual copy preview only through the bounded Handoff copy/export panel.",
   "No Codex execution, GitHub actuation, branch/PR creation, provider/OpenAI calls, DB writes, proof/evidence writes, memory mutation, durable Perspective apply, scheduler/autonomy, handoff send, or external side effects.",
 ] as const;
 
 const HANDOFF_PREVIEW_NEXT_PHASE_NOTES = [
   "Phase 7C adds read-only Web preview UI for Handoff Capsule / Codex Launch Card.",
-  "Phase 7D ChatGPT App/MCP tool remains deferred.",
-  "Phase 7E Codex skill alignment remains deferred.",
-  "Phase 7F copy/export remains deferred.",
+  "Phase 7D adds ChatGPT App/MCP model-only read-only preview tools.",
+  "Phase 7E adds Codex instruction-only Handoff Capsule / Codex Launch Card alignment.",
+  "Phase 7F adds bounded local clipboard/manual copy preview on /workbench.",
+  "File download/export-to-disk and external posting remain deferred.",
 ] as const;
 
 const CAPSULE_SAMPLE = capsuleSample as unknown as HandoffCapsule;
@@ -237,7 +238,8 @@ export function buildPublicSafeHandoffCapsulePreviewFallback(
     diagnostic_refs: ["public_safe_fixture_fallback:handoff_preview"],
     expected_outputs: [
       "Read-only Web preview only.",
-      "No sent handoff, launch, execution, write, copy/export, or external side effect.",
+      "No sent handoff, launch, execution, write, file export, or external side effect.",
+      "Local clipboard/manual copy preview is available only through the bounded Phase 7F copy panel.",
     ],
     staleness: {
       status: "unknown",
@@ -285,7 +287,7 @@ export function buildPublicSafeCodexLaunchCardPreviewFallback(
     task_goal:
       "Review the public-safe Codex Launch Card preview and provide an explicit operator prompt before any Codex implementation work.",
     task_summary:
-      "Public-safe fixture fallback. It is not Codex execution, branch creation, PR creation, launch action, copy/export, or handoff send.",
+      "Public-safe fixture fallback. It is not Codex execution, branch creation, PR creation, launch action, file export, external post, or handoff send.",
     context_anchors: [
       "fixtures/codex-launch-card.sample.v0.1.json",
       "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",

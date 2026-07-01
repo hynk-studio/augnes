@@ -26,7 +26,9 @@ export function CodexLaunchCardPreviewPanel({
     >
       <p style={workplaneCopyStyle}>
         This is not Codex execution, not branch creation, not PR creation, not
-        a launch action, and not copy/export. No status may mean executed.
+        a launch action, and not external export. Copy/export is available only
+        through the bounded Phase 7F local copy panel. No status may mean
+        executed.
       </p>
 
       <WorkplanePanelMetricGrid>

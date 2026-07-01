@@ -34,6 +34,14 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "scripts/smoke-handoff-capsule-route-v0-1.mjs",
   "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
   "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+  "lib/handoff/handoff-capsule-copy-export.ts",
+  "components/handoff/handoff-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
 ];
 
 const inspectedFiles = [
@@ -76,6 +84,18 @@ const forbiddenChangedPathPatterns = [
   /(^|\/)(handoff-execution|handoff_execution)(\/|$)/i,
   /(^|\/)(route|api)\.(js|jsx|ts|tsx)$/,
 ];
+
+const followOnHandoffCapsuleCopyExportFiles = new Set([
+  "lib/handoff/handoff-capsule-copy-export.ts",
+  "components/handoff/handoff-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+]);
 
 const textByFile = loadTextByFile(inspectedFiles);
 
@@ -354,7 +374,7 @@ function assertPluginDoc() {
 
 function assertHandoffContractDoc() {
   assertContainsAll(handoffContractDoc, [
-    "Status: Phase 7E Handoff Capsule / Codex Launch Card core",
+    "Status: Phase 7F Handoff Capsule / Codex Launch Card core",
     "Phase 7E Codex Skill Alignment",
     "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
     "plugins/augnes-operator/skills/augnes-handoff-capsule/SKILL.md",
@@ -385,7 +405,7 @@ function assertHandoffContractDoc() {
     "no copy/export",
     "no merge/publish/retry/replay/deploy",
     "no external side effects",
-    "Phase 7F copy/export remains deferred",
+    "Phase 7F local copy/export preview is documented below.",
   ], { textByFile });
 }
 
@@ -499,7 +519,8 @@ function assertChangedFilesBoundary() {
         `Unexpected changed file for Codex Handoff Capsule alignment smoke: ${file}`,
       );
       assert(
-        !forbiddenChangedPathPatterns.some((pattern) => pattern.test(file)),
+        followOnHandoffCapsuleCopyExportFiles.has(file) ||
+          !forbiddenChangedPathPatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed file for Codex Handoff Capsule alignment smoke: ${file}`,
       );
     }

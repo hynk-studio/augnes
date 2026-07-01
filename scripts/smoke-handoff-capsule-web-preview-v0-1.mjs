@@ -21,6 +21,9 @@ const launchCardPanelFile =
   "components/handoff/codex-launch-card-preview-panel.tsx";
 const boundaryCardFile =
   "components/handoff/handoff-preview-boundary-card.tsx";
+const copyExportPanelFile =
+  "components/handoff/handoff-copy-export-panel.tsx";
+const copyExportHelperFile = "lib/handoff/handoff-capsule-copy-export.ts";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
 const handoffBuilderPanelFile =
   "components/workplane/handoff-builder-preview-panel.tsx";
@@ -29,6 +32,8 @@ const handoffRouteFile =
 const launchCardRouteFile =
   "app/api/augnes/read/codex-launch-card/route.ts";
 const phase7aSmokeFile = "scripts/smoke-handoff-capsule-v0-1.mjs";
+const phase7fSmokeFile =
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs";
 
 const requiredFiles = [
   contractDoc,
@@ -39,11 +44,14 @@ const requiredFiles = [
   capsulePanelFile,
   launchCardPanelFile,
   boundaryCardFile,
+  copyExportPanelFile,
+  copyExportHelperFile,
   agentWorkplaneFile,
   handoffBuilderPanelFile,
   handoffRouteFile,
   launchCardRouteFile,
   phase7aSmokeFile,
+  phase7fSmokeFile,
 ];
 
 const priorSmokeAllowlistCompatibilityFiles = [
@@ -92,7 +100,10 @@ const allowedChangedFiles = new Set([
   capsulePanelFile,
   launchCardPanelFile,
   boundaryCardFile,
+  copyExportPanelFile,
+  copyExportHelperFile,
   agentWorkplaneFile,
+  phase7fSmokeFile,
   ...priorSmokeAllowlistCompatibilityFiles,
   ...followOnHandoffCapsuleAppToolFiles,
   ...followOnHandoffCapsuleCodexSkillFiles,
@@ -106,6 +117,7 @@ const readHelperText = textByFile.get(readHelperFile);
 const capsulePanelText = textByFile.get(capsulePanelFile);
 const launchCardPanelText = textByFile.get(launchCardPanelFile);
 const boundaryCardText = textByFile.get(boundaryCardFile);
+const copyExportPanelText = textByFile.get(copyExportPanelFile);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
 const handoffBuilderText = textByFile.get(handoffBuilderPanelFile);
 const handoffRouteText = textByFile.get(handoffRouteFile);
@@ -140,7 +152,7 @@ console.log(
       observed_inferred_suggested_judgment_labels_checked: true,
       codex_launch_card_fields_checked: true,
       no_action_controls_checked: true,
-      no_copy_export_behavior_checked: true,
+      phase7f_local_copy_controls_checked: true,
       no_route_files_changed_checked: true,
       phase7a_launch_card_status_regression_checked: true,
       phase7b_get_only_routes_checked: true,
@@ -172,8 +184,8 @@ function assertDocsAndIndex() {
     "Web preview UI renders Handoff Capsule and Codex Launch Card as read-only preview panels.",
     "Primary placement is `/workbench` Agent Workplane.",
     "Public Web default uses public-safe fallback",
-    "No action buttons.",
-    "No copy/export.",
+    "No action buttons in the Phase 7C preview panels.",
+    "No copy/export in the Phase 7C preview panels.",
     "No send.",
     "No launch.",
     "No Codex execution.",
@@ -187,9 +199,10 @@ function assertDocsAndIndex() {
     "No scheduler/autonomy runner.",
     "No product-write.",
     "No external side effects.",
-    "Phase 7D ChatGPT App/MCP read-only preview tools are documented below.",
-    "Phase 7E Codex skill alignment is documented below.",
-    "Phase 7F copy/export remains deferred.",
+    "Phase 7D ChatGPT App/MCP read-only preview tools, Phase 7E Codex skill",
+    "alignment, and Phase 7F local copy/export preview are documented below.",
+    "Phase 7F Local Copy/Export Preview",
+    "local clipboard/manual copy preview",
   ], { label: contractDoc });
 
   assertContainsAll(indexText, [
@@ -199,6 +212,8 @@ function assertDocsAndIndex() {
     "source/fallback status",
     "preview-only",
     "no action authority",
+    "Phase 7F Handoff Capsule / Codex Launch Card local copy/export preview v0.1",
+    "local clipboard/manual copy preview only",
   ], { label: indexDoc });
 }
 
@@ -263,6 +278,7 @@ function assertPreviewComponents() {
   assertContainsAll(boundaryCardText, [
     "export function HandoffPreviewBoundaryCard",
     "Authority boundary",
+    "Phase 7F permits local",
     "no handoff send",
     "no Codex execution",
     "no GitHub actuation",
@@ -275,6 +291,19 @@ function assertPreviewComponents() {
     "no scheduler/autonomy",
     "no external side effects",
   ], { label: boundaryCardFile });
+
+  assertContainsAll(copyExportPanelText, [
+    '"use client"',
+    "export function HandoffCopyExportPanel",
+    'type="button"',
+    "navigator.clipboard.writeText",
+    "manual copy fallback",
+    "readOnly",
+    "local_clipboard_only",
+    "external_handoff_sent",
+    "codex_executed",
+    "copy_persisted",
+  ], { label: copyExportPanelFile });
 }
 
 function assertWorkbenchIntegration() {
@@ -282,6 +311,7 @@ function assertWorkbenchIntegration() {
     "readHandoffCapsulePreviewForWeb",
     "HandoffCapsulePreviewPanel",
     "CodexLaunchCardPreviewPanel",
+    "HandoffCopyExportPanel",
     "HandoffPreviewBoundaryCard",
     "GuideBriefMiniPanel",
     "HandoffBuilderPreviewPanel",
@@ -302,7 +332,6 @@ function assertNoActionControls() {
     [capsulePanelFile, capsulePanelText],
     [launchCardPanelFile, launchCardPanelText],
     [boundaryCardFile, boundaryCardText],
-    [agentWorkplaneFile, agentWorkplaneText],
   ];
   const forbiddenPatterns = [
     /<button\b/i,
@@ -328,6 +357,33 @@ function assertNoActionControls() {
         `${file} must not include positive action/control pattern ${pattern}`,
       );
     }
+  }
+
+  assert(
+    !/<button\b/i.test(agentWorkplaneText),
+    `${agentWorkplaneFile} must not define buttons directly; Phase 7F buttons stay isolated in ${copyExportPanelFile}`,
+  );
+  assert(
+    /navigator\.clipboard\.writeText/.test(copyExportPanelText),
+    `${copyExportPanelFile} must use local clipboard writeText for Phase 7F copy`,
+  );
+
+  const forbiddenCopyPanelPatterns = [
+    /\bfetch\s*\(/,
+    /\bwindow\.open\s*\(/,
+    /\bdownload\s*=/,
+    /<form\b/i,
+    /\btype=["']submit["']/i,
+    /\bonSubmit\s*=/,
+    /\bformAction\s*=/,
+    /\/api\/augnes\/read\//,
+  ];
+
+  for (const pattern of forbiddenCopyPanelPatterns) {
+    assert(
+      !pattern.test(copyExportPanelText),
+      `${copyExportPanelFile} must not include forbidden copy/export pattern ${pattern}`,
+    );
   }
 }
 
