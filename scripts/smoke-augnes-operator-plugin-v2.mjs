@@ -15,13 +15,37 @@ const skillFile =
   "plugins/augnes-operator/skills/augnes-codex-surface-ops/SKILL.md";
 const capsuleHandoffSkillFile =
   "plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md";
+const guideBriefHandoffSkillFile =
+  "plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md";
 const docFile = "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md";
+const guideBriefHandoffDocFile = "docs/CODEX_GUIDEBRIEF_HANDOFF_V0_1.md";
+const guideBriefContractDocFile = "docs/GUIDEBRIEF_CONTRACT_V0_1.md";
 const capsuleDocFile = "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md";
 const indexFile = "docs/00_INDEX_LATEST.md";
 const smokeFile = "scripts/smoke-augnes-operator-plugin-v2.mjs";
 const capsuleHandoffSmokeFile =
   "scripts/smoke-augnes-capsule-handoff-skill.mjs";
+const guideBriefHandoffSmokeFile =
+  "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs";
 const packageJsonFile = "package.json";
+
+const priorSmokeAllowlistCompatibilityFiles = [
+  "scripts/smoke-augnes-delta-contract-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-route-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-route-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-perspective-human-timeline-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
+];
 
 const inspectedFiles = [
   pluginJsonFile,
@@ -34,8 +58,15 @@ const inspectedFiles = [
 
 const allowedChangedFiles = new Set(inspectedFiles);
 allowedChangedFiles.add(capsuleHandoffSkillFile);
+allowedChangedFiles.add(guideBriefHandoffSkillFile);
 allowedChangedFiles.add(capsuleDocFile);
+allowedChangedFiles.add(guideBriefHandoffDocFile);
+allowedChangedFiles.add(guideBriefContractDocFile);
 allowedChangedFiles.add(capsuleHandoffSmokeFile);
+allowedChangedFiles.add(guideBriefHandoffSmokeFile);
+for (const file of priorSmokeAllowlistCompatibilityFiles) {
+  allowedChangedFiles.add(file);
+}
 
 const forbiddenPositiveAuthoritySelfTests = [
   "A plugin may publish without review.",

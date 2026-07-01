@@ -104,6 +104,21 @@ assertHandoffPreviewBoundary();
 assertAuthorityBoundary();
 assertPublicSafety();
 assertNoRuntimeActuationCode();
+const followOnCodexGuideBriefHandoffFiles = [
+  "docs/CODEX_GUIDEBRIEF_HANDOFF_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md",
+  "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
+  "scripts/smoke-augnes-operator-plugin-v2.mjs",
+  "scripts/smoke-augnes-capsule-handoff-skill.mjs",
+];
+for (const file of followOnCodexGuideBriefHandoffFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
@@ -196,7 +211,7 @@ function assertDocumentContract() {
       "Phase 6B GuideBrief GET-only read route is deferred",
       "Phase 6C Web Guide UI is deferred",
       "Phase 6D ChatGPT App/MCP Guide tool is deferred",
-      "Phase 6E Codex Guide alignment is deferred",
+      "Phase 6E scope is Codex GuideBrief alignment docs, skill guidance, smoke",
       "Phase 7 Handoff Capsule / Codex Launch Card may consume GuideBrief only",
       "no DB reads",
       "no DB writes",
@@ -657,7 +672,7 @@ function assertChangedFileBoundary() {
       `Phase 6A must not change MCP/App files: ${file}`,
     );
     assert(
-      (!/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file) || followOnChatgptAppGuideBriefToolFiles.includes(file)),
+      ((!/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file) || followOnCodexGuideBriefHandoffFiles.includes(file)) || followOnChatgptAppGuideBriefToolFiles.includes(file) || followOnCodexGuideBriefHandoffFiles.includes(file)),
       `Phase 6A must not change MCP/App tool files: ${file}`,
     );
     assert(

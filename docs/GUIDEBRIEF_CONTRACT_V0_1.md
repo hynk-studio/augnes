@@ -2,14 +2,16 @@
 
 ## 1. Status and Scope
 
-Status: Phase 6D GuideBrief / Cross-Surface Guide Core, GET-only read route,
-Web Guide read-only panel skeleton, and ChatGPT App/MCP read-only Guide tool
-v0.1.
+Status: Phase 6E GuideBrief / Cross-Surface Guide Core, GET-only read route,
+Web Guide read-only panel skeleton, ChatGPT App/MCP read-only Guide tool, and
+Codex GuideBrief alignment v0.1.
 
 Scope: Phase 6A contract, type, pure helper, public-safe fixture, static smoke,
 package script pointer, and latest-index pointer plus Phase 6B GET-only local
 read-only route composition plus Phase 6C read-only Web Guide panel rendering
-plus Phase 6D ChatGPT App/MCP read-only GuideBrief tool.
+plus Phase 6D ChatGPT App/MCP read-only GuideBrief tool plus Phase 6E Codex
+GuideBrief alignment docs, skill guidance, smoke, package pointer, and
+latest-index pointer.
 
 Phase 6A adds no route work, no UI work, no MCP/App tool work, no Codex Guide
 skill, no Handoff Capsule implementation, no Codex Launch Card, no DB schema or
@@ -42,6 +44,20 @@ proof/evidence write, DB schema/migration, DB write, state mutation, memory
 mutation, durable Perspective apply, scheduler/autonomy runner, handoff
 execution, branch/PR creation, merge, publish, retry, replay, deploy, chat
 execution, UI action, or external side effect.
+
+Phase 6E adds only Codex GuideBrief alignment docs, skill guidance, smoke,
+package pointer, and latest-index pointer. Codex can consume GuideBrief as
+task-start context while preserving Observed/Inferred/Suggested/Needs user
+judgment separation and source refs. It adds no Codex execution from Augnes,
+no GitHub/provider calls, no provider/OpenAI call, no Handoff Capsule runtime,
+no Codex Launch Card runtime, no proof/evidence write, no DB write, no memory
+mutation, no durable Perspective apply, no scheduler/autonomy runner, no
+handoff execution, no branch/PR creation behavior from Augnes product code, no
+merge/publish/retry/replay/deploy behavior, and no external side effect.
+It preserves Observed/Inferred/Suggested/Needs user judgment separation and
+source refs.
+It adds no Codex execution from Augnes, no GitHub/provider calls, and no Phase
+7 Handoff Capsule / Codex Launch Card behavior.
 
 GuideBrief is a read-only guide packet. It may observe, infer, suggest, and
 identify `needs_user_judgment`. It may not act.
@@ -253,8 +269,34 @@ migration, no branch/PR creation, no handoff execution, no scheduler/autonomy
 runner, no merge/publish/retry/replay/deploy behavior, no Web UI change, no new
 API route, and no external side effect.
 
-Phase 6E Codex Guide alignment remains deferred. Phase 7 Handoff Capsule /
-Codex Launch Card remains deferred.
+## 3.4 Phase 6E Codex GuideBrief Alignment
+
+Phase 6E adds Codex GuideBrief alignment through:
+
+- `docs/CODEX_GUIDEBRIEF_HANDOFF_V0_1.md`
+- `plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md`
+- `scripts/smoke-codex-guidebrief-handoff-v0-1.mjs`
+
+Codex can consume GuideBrief as task-start context. Codex must preserve:
+
+- Observed context as source-backed read-model observations only.
+- Inferred context as derived interpretation with caveats and confidence.
+- Suggested context as advisory; suggestions are not commands.
+- Needs user judgment items as unresolved; `needs_user_judgment` is not
+  decided by Codex.
+- Source refs, expected files, expected checks, skipped checks, and authority
+  boundary.
+- Preview-only handoff candidates.
+
+Phase 6E is docs/skill/smoke only. It does not add a runtime hook, API route,
+Web UI, MCP/App tool, Codex execution from Augnes, GitHub actuation from
+Augnes, provider/OpenAI call, DB write, proof/evidence write, memory mutation,
+durable Perspective apply, scheduler/autonomy runner, handoff execution,
+branch/PR creation behavior from Augnes product code, merge, publish, retry,
+replay, deploy, or external side effect.
+
+Phase 7 Handoff Capsule / Codex Launch Card remains deferred and requires
+separate scope.
 
 ## 4. Observed / Inferred / Suggested / Needs User Judgment
 
@@ -502,20 +544,23 @@ Handoff Capsule, Codex Launch Card, write behavior, execution behavior, hidden
 authority, or future handoff/autonomy behavior.
 
 Phase 6C scope is the read-only Web Guide panel skeleton and existing-surface
-entries only. It does not start Phase 6D, Phase 6E, or Phase 7.
+entries only. It did not start Phase 6D, Phase 6E, or Phase 7.
+
+Phase 6D scope is the ChatGPT App/MCP read-only GuideBrief tool only. It did
+not start Phase 6E or Phase 7.
+
+Phase 6E scope is Codex GuideBrief alignment docs, skill guidance, smoke,
+package pointer, and latest-index pointer only. It does not start Phase 7.
 
 Historical deferred markers:
 
 - Phase 6C Web Guide UI is deferred until separate scoped UI prompt.
 - Phase 6D ChatGPT App/MCP Guide tool is deferred.
-- Phase 6E Codex Guide alignment is deferred.
 - Phase 7 Handoff Capsule / Codex Launch Card may consume GuideBrief only
   after separate scoped authority paths are defined and approved.
 
-Current deferred work after Phase 6C:
+Current deferred work after Phase 6E:
 
-- Phase 6D ChatGPT App/MCP Guide tool remains deferred.
-- Phase 6E Codex Guide alignment remains deferred.
 - Phase 7 Handoff Capsule / Codex Launch Card remains deferred.
 
 ## 10. Validation and Smoke Plan

@@ -215,6 +215,21 @@ PR #868 is merged. Current route planning starts from:
   authority, no Codex execution, no GitHub/OpenAI/provider calls, no
   proof/evidence write, no state/memory/DB mutation, no handoff execution, no
   branch/PR creation, and no merge/publish/retry/replay/deploy behavior.
+  Phase 6E adds Codex GuideBrief alignment through
+  `docs/CODEX_GUIDEBRIEF_HANDOFF_V0_1.md`,
+  `plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md`, and
+  `scripts/smoke-codex-guidebrief-handoff-v0-1.mjs`. It is docs/skill/smoke
+  alignment only: Codex may consume GuideBrief as task-start context while
+  preserving Observed/Inferred/Suggested/Needs user judgment separation,
+  source refs, skipped checks, expected checks, and authority boundary. It
+  adds no UI action/write/execution authority, no route behavior, no MCP/App
+  tool, no Codex execution from Augnes, no GitHub/OpenAI/provider calls, no
+  proof/evidence write, no DB write, no memory mutation, no durable
+  Perspective apply, no handoff execution, no scheduler/autonomy runner, and
+  no merge/publish/retry/replay/deploy behavior. `npm run
+  smoke:codex-guidebrief-handoff-v0-1` checks this Phase 6E boundary. Phase
+  6E completes GuideBrief cross-surface alignment if all Phase 6 smokes pass.
+  Phase 7 is next only after explicit scope.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
@@ -408,6 +423,17 @@ PR #868 is merged. Current route planning starts from:
   v0.2 boundary를 정적으로 확인한다. This pointer does not add runtime
   behavior, does not add MCP/App tool changes, does not add proof/evidence
   writes, and does not add merge/publish authority.
+- `docs/CODEX_GUIDEBRIEF_HANDOFF_V0_1.md`: Phase 6E Codex GuideBrief
+  alignment contract. It documents GuideBrief task-start consumption rules for
+  Codex, preserves Observed/Inferred/Suggested/Needs user judgment separation,
+  source refs, expected checks, skipped checks, and authority boundary, and
+  keeps suggestions as non-command advisory context. It adds no runtime hook,
+  route behavior, Web UI, MCP/App tool, Codex execution from Augnes, GitHub
+  actuation from Augnes, provider/OpenAI call, DB write, proof/evidence write,
+  memory mutation, durable Perspective apply, scheduler/autonomy runner,
+  handoff execution, Handoff Capsule runtime, Codex Launch Card runtime, or
+  external side effect. `npm run smoke:codex-guidebrief-handoff-v0-1` checks
+  the docs/skill/smoke/package boundary.
 - `plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md`: Augnes
   Operator plugin의 instruction-only Perspective Capsule / Handoff Capsule
   consumption skill이다. It turns copied capsule/handoff material into bounded
@@ -430,6 +456,17 @@ PR #868 is merged. Current route planning starts from:
   calls, no proof/evidence writes, no branch/PR creation authority by itself,
   and no merge/publish/approval/retry/replay/deploy authority를 정적으로
   확인한다.
+- `plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md`: Augnes
+  Operator plugin의 instruction-only GuideBrief consumption skill이다. It tells
+  Codex to preserve observed/inferred/suggested/judgment separation, source
+  refs, expected checks, skipped checks, authority boundary, preview-only
+  handoff candidates, no background work, no proof/evidence write unless
+  separately scoped, and no merge statement when GuideBrief is provided as
+  task-start context. It remains read-only/context alignment only and adds no
+  runtime behavior, GitHub/OpenAI/provider call, Augnes runtime call, MCP/App
+  tool call, Codex execution from Augnes, DB write, proof/evidence write,
+  handoff execution, Handoff Capsule runtime, Codex Launch Card runtime, or
+  external side effect.
 - `types/project-constellation-fixture.ts`: type-only Project Constellation
   fixture/schema boundary for the static public-safe sample fixture and
   read-only preview loop이다. It is non-SSOT and has no runtime schema, no DB

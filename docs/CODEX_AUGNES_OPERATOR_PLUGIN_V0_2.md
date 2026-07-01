@@ -31,11 +31,16 @@ or Augnes Core gates.
   instruction-only surface-ops skill.
 - `plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md` adds an
   instruction-only Perspective Capsule / Handoff Capsule consumption skill.
+- `plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md` adds an
+  instruction-only GuideBrief consumption note for Codex GuideBrief alignment.
 - `scripts/smoke-augnes-operator-plugin-v2.mjs` adds a static boundary smoke.
 - `scripts/smoke-augnes-capsule-handoff-skill.mjs` adds a static guard for
   the capsule handoff skill.
+- `scripts/smoke-codex-guidebrief-handoff-v0-1.mjs` adds a static guard for
+  GuideBrief handoff alignment.
 - `package.json` exposes `npm run smoke:augnes-operator-plugin-v2`.
 - `package.json` exposes `npm run smoke:augnes-capsule-handoff-skill`.
+- `package.json` exposes `npm run smoke:codex-guidebrief-handoff-v0-1`.
 - `docs/00_INDEX_LATEST.md` points to this v0.2 alignment document.
 
 This PR does not change `AGENTS.md`.
@@ -126,6 +131,22 @@ PRs, does not merge, does not publish, does not approve, does not retry, does
 not replay, does not deploy, does not post externally, does not execute Codex
 SDK calls, and does not implement providers.
 
+## v0.2 GuideBrief Handoff Skill
+
+The `augnes-guidebrief-handoff` skill is an instruction-only GuideBrief
+consumption note for Phase 6E Codex GuideBrief alignment. It tells Codex to
+consume GuideBrief as task-start context while preserving Observed, Inferred,
+Suggested, and Needs user judgment separation, source refs, expected checks,
+skipped checks, authority boundary, and preview-only handoff candidates.
+
+The skill is read-only/context alignment only. It does not add
+launch/runtime behavior, does not add Codex execution from Augnes, does not add
+GitHub actuation from Augnes, does not call providers or OpenAI, does not call
+Augnes runtime, does not call MCP/App tools, does not record proof/evidence,
+does not create branches or PRs from Augnes product code, does not send
+handoffs, and does not create Handoff Capsule or Codex Launch Card runtime
+behavior.
+
 ## PR-Centered Workflow
 
 The preserved workflow is:
@@ -171,6 +192,7 @@ npm run typecheck
 npm run smoke:augnes-operator-plugin-scaffold
 npm run smoke:augnes-operator-plugin-v2
 npm run smoke:augnes-capsule-handoff-skill
+npm run smoke:codex-guidebrief-handoff-v0-1
 git diff --check
 git diff --cached --check
 ```
