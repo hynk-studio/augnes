@@ -45,6 +45,17 @@ const allowedPriorSmokeAllowlistFiles = [
   "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
 ];
 
+const phase8eAutonomyContractCodexSkillFiles = [
+  "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
+  "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-augnes-operator-plugin-v2.mjs",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const requiredFiles = [
   serverFile,
   stateRuntimeTypesFile,
@@ -75,6 +86,7 @@ const allowedChangedFiles = new Set([
   indexDoc,
   packageJsonFile,
   ...allowedPriorSmokeAllowlistFiles,
+  ...phase8eAutonomyContractCodexSkillFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -428,7 +440,8 @@ function assertDocsAndIndex() {
       "`auto_apply_allowed` remains `false`",
       "`run_preview.status` remains `preview_only`",
       "run preview is not execution",
-      "Phase 8E Codex skill alignment is deferred",
+      "Phase 8E Codex Skill Alignment",
+      "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
       "Phase 8F copy/export preview is deferred",
       "Phase 9 runner remains deferred",
     ],

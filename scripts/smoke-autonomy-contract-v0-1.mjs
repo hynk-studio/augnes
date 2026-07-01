@@ -83,12 +83,24 @@ const phase8dAutonomyContractAppToolFiles = [
   "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
 ];
 
+const phase8eAutonomyContractCodexSkillFiles = [
+  "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
+  "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-augnes-operator-plugin-v2.mjs",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
   ...phase8bAutonomyContractRouteFiles,
   ...phase8cAutonomyContractWebPreviewFiles,
   ...phase8dAutonomyContractAppToolFiles,
+  ...phase8eAutonomyContractCodexSkillFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [

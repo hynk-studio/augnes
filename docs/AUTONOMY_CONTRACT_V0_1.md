@@ -134,7 +134,37 @@ remains `false`. `run_preview.status` remains `preview_only`; run preview is
 not execution. Suggestions or candidate actions are advisory/planning only.
 Unresolved user judgment remains unresolved.
 
-Phase 8E Codex skill alignment is deferred.
+## 1.4 Phase 8E Codex Skill Alignment
+
+Phase 8E adds Codex Autonomy Contract skill alignment:
+
+- `docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md`
+- `plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md`
+- `scripts/smoke-codex-autonomy-contract-v0-1.mjs`
+- `npm run smoke:codex-autonomy-contract-v0-1`
+
+Codex can consume Autonomy Contract as planning boundary context only for
+separately scoped operator tasks. The active user/operator prompt and
+`AGENTS.md` remain the authority for repo edits and normal PR workflow.
+
+Phase 8E preserves budget as boundary only, allowed actions as planning
+context only, forbidden actions as hard review warnings, stop conditions,
+review escalation, delta merge policy, output policy, validation policy,
+source/fallback status, warnings/gaps, run preview, and authority boundaries.
+
+Phase 8E adds no runtime hooks, no API routes, no Web UI, no App/MCP tools, no
+DB schema/migration, no DB writes, no provider/OpenAI calls, no GitHub
+actuation, no Codex execution from Augnes, no proof/evidence writes, no memory
+mutation, no durable Perspective apply, no handoff send/execution, no
+branch/PR creation behavior from Augnes product code, no scheduler, no
+autonomy runner, no daemon, no background work, no copy/export, no
+merge/publish/retry/replay/deploy, and no external side effects.
+
+Autonomy Contract itself does not grant runner, scheduler, Codex launch,
+GitHub/provider call, DB write, proof/evidence write, memory mutation, durable
+Perspective apply, handoff send, branch/PR creation, merge, publish, deploy,
+or external posting authority.
+
 Phase 8F copy/export preview is deferred.
 Phase 9 runner remains deferred and requires separate explicit scope and
 approval.

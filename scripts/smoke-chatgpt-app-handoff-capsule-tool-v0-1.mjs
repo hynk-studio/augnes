@@ -103,6 +103,15 @@ const allowedChangedFiles = new Set([
   "components/handoff/codex-launch-card-preview-panel.tsx",
   "components/handoff/handoff-capsule-preview-panel.tsx",
   "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
+  "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
+  "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-augnes-operator-plugin-v2.mjs",
+  "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-route-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
   ...priorSmokeAllowlistCompatibilityFiles,
 ]);
 const phase8PriorSmokeAllowlistFiles = [

@@ -34,6 +34,13 @@ const handoffCapsuleSkillFile =
 const handoffCapsuleContractDocFile = "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md";
 const handoffCapsuleSmokeFile =
   "scripts/smoke-codex-handoff-capsule-v0-1.mjs";
+const autonomyContractConsumptionDocFile =
+  "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md";
+const autonomyContractSkillFile =
+  "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md";
+const autonomyContractDocFile = "docs/AUTONOMY_CONTRACT_V0_1.md";
+const autonomyContractSmokeFile =
+  "scripts/smoke-codex-autonomy-contract-v0-1.mjs";
 const packageJsonFile = "package.json";
 
 const priorSmokeAllowlistCompatibilityFiles = [
@@ -75,6 +82,25 @@ allowedChangedFiles.add(handoffCapsuleConsumptionDocFile);
 allowedChangedFiles.add(handoffCapsuleSkillFile);
 allowedChangedFiles.add(handoffCapsuleContractDocFile);
 allowedChangedFiles.add(handoffCapsuleSmokeFile);
+allowedChangedFiles.add(autonomyContractConsumptionDocFile);
+allowedChangedFiles.add(autonomyContractSkillFile);
+allowedChangedFiles.add(autonomyContractDocFile);
+allowedChangedFiles.add(autonomyContractSmokeFile);
+allowedChangedFiles.add("scripts/smoke-autonomy-contract-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-autonomy-contract-route-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-autonomy-contract-web-preview-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-handoff-capsule-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-handoff-capsule-route-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-handoff-capsule-web-preview-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-handoff-capsule-copy-export-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-guide-brief-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-guide-brief-route-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-web-guide-panel-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs");
+allowedChangedFiles.add("scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs");
 allowedChangedFiles.add("scripts/smoke-handoff-capsule-v0-1.mjs");
 allowedChangedFiles.add("scripts/smoke-handoff-capsule-route-v0-1.mjs");
 allowedChangedFiles.add("scripts/smoke-handoff-capsule-web-preview-v0-1.mjs");

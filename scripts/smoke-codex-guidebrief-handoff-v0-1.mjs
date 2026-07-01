@@ -179,6 +179,19 @@ for (const file of followOnHandoffCapsuleCodexSkillFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnAutonomyContractCodexSkillFiles = [
+  "docs/CODEX_AUTONOMY_CONTRACT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
+  "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+for (const file of followOnAutonomyContractCodexSkillFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const followOnHandoffCapsuleCopyExportFiles = [
   "lib/handoff/handoff-capsule-copy-export.ts",
   "components/handoff/handoff-copy-export-panel.tsx",
