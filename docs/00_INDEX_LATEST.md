@@ -314,6 +314,23 @@ PR #868 is merged. Current route planning starts from:
   Perspective apply, scheduler/autonomy runner, product-write,
   merge/publish/retry/replay/deploy behavior, copied-packet persistence, or
   external side effect.
+  Phase 8A Autonomy Contract / Budget / Delta Merge Policy core v0.1 adds
+  repo-local non-SSOT pointers for
+  `docs/AUTONOMY_CONTRACT_V0_1.md`, `types/autonomy-contract.ts`,
+  `lib/autonomy/autonomy-contract.ts`,
+  `fixtures/autonomy-contract.sample.v0.1.json`, and
+  `scripts/smoke-autonomy-contract-v0-1.mjs` (`npm run
+  smoke:autonomy-contract-v0-1`). Phase 8A defines preview-only
+  AutonomyContract, AutonomyBudget, AutonomyDeltaMergePolicy,
+  AutonomyReviewEscalationPolicy, stop conditions, reporting cadence, output
+  policy, source refs, run preview, and all-false authority boundary. It adds
+  no runner/scheduler/daemon/background work/execution/write/external
+  authority: no route, UI, ChatGPT App/MCP tool, Codex skill alignment,
+  copy/export, DB schema/migration, DB write, provider/OpenAI call, GitHub
+  actuation, Codex execution, proof/evidence write, memory mutation, durable
+  Perspective apply, handoff send, branch/PR creation behavior,
+  merge/publish/retry/replay/deploy behavior, or external side effect. This
+  index pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
