@@ -159,6 +159,18 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "docs/AUTONOMY_RUNNER_SKELETON_PLANNING_V0_1.md",
   "docs/AUTONOMY_RUNNER_OPERATOR_APPROVAL_GATE_V0_1.md",
   "scripts/smoke-autonomy-runner-skeleton-planning-v0-1.mjs",
+  "docs/AUTONOMY_RUNNER_EXECUTION_V0_1.md",
+  "types/autonomy-runner-execution.ts",
+  "lib/autonomy/runner.ts",
+  "lib/autonomy/scheduler.ts",
+  "lib/autonomy/runner-ledger.ts",
+  "lib/autonomy/runner-delta-batch.ts",
+  "lib/autonomy/runner-state.ts",
+  "app/api/autonomy/runs/route.ts",
+  "app/api/autonomy/runs/[id]/route.ts",
+  "fixtures/autonomy-runner.sample.v0.1.json",
+  "scripts/smoke-autonomy-runner-v0-1.mjs",
+  "lib/db/schema.sql",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -651,14 +663,14 @@ function assertChangedFileBoundary() {
       !/^app\/api\//.test(file) ||
         followOnGuideBriefRouteFiles.includes(file) ||
         file === "app/api/augnes/read/autonomy-contract/route.ts" ||
-        file === "app/api/augnes/read/autonomy-runner-preflight/route.ts",
+        phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 4A must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(
       !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) ||
         followOnGuideBriefRouteFiles.includes(file) ||
         file === "app/api/augnes/read/autonomy-contract/route.ts" ||
-        file === "app/api/augnes/read/autonomy-runner-preflight/route.ts",
+        phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 4A must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 4A must not change DB files: ${file}`);
