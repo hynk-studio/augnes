@@ -151,6 +151,13 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
   "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
   "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
 ];
 const allowedChangedFiles = new Set([
   ...requiredFiles,
@@ -793,7 +800,7 @@ function assertChangedFileBoundary() {
   for (const file of files) {
     assert(allowedChangedFiles.has(file), `Unexpected changed file for Phase 8A: ${file}`);
     for (const pattern of forbiddenChangedFilePatterns) {
-      if (file === "app/api/augnes/read/autonomy-runner-preflight/route.ts") {
+      if (phase9aAutonomyRunnerPreflightFiles.includes(file)) {
         continue;
       }
       assert(!pattern.test(file), `Forbidden Phase 8A changed file: ${file}`);

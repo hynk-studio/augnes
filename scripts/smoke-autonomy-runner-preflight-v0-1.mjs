@@ -65,6 +65,13 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
   "components/workplane/agent-workplane.tsx",
   "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
 ];
 
 const allowedChangedFiles = new Set([
@@ -93,6 +100,16 @@ const phase9cWebPreviewFollowOnFiles = new Set([
   "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
   "components/workplane/agent-workplane.tsx",
   "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
+]);
+
+const phase9dChatgptAppFollowOnFiles = new Set([
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
 ]);
 
 const authorityBooleanFields = [
@@ -742,6 +759,9 @@ function assertChangedFileBoundary() {
         continue;
       }
       if (phase9cWebPreviewFollowOnFiles.has(file)) {
+        continue;
+      }
+      if (phase9dChatgptAppFollowOnFiles.has(file)) {
         continue;
       }
       assert(!pattern.test(file), `Forbidden Phase 9A changed file: ${file}`);

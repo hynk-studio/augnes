@@ -74,11 +74,28 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
   phase9aSmokeFile,
   phase9bSmokeFile,
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
 ];
 
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
+]);
+
+const phase9dChatgptAppFollowOnFiles = new Set([
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
 ]);
 
 const forbiddenChangedFilePatterns = [
@@ -546,6 +563,7 @@ function assertChangedFileBoundary() {
   for (const file of files) {
     assert(allowedChangedFiles.has(file), `Unexpected Phase 9C changed file: ${file}`);
     for (const pattern of forbiddenChangedFilePatterns) {
+      if (phase9dChatgptAppFollowOnFiles.has(file)) continue;
       assert(!pattern.test(file), `Forbidden Phase 9C changed file: ${file}`);
     }
   }

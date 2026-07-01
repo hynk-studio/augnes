@@ -2,6 +2,7 @@ import type { ZodType } from "zod";
 import {
   ActionRecordResultSchema,
   AutonomyContractPreviewResultSchema,
+  AutonomyRunnerPreflightPreviewResultSchema,
   CodexLaunchCardPreviewResultSchema,
   CodexResultReviewDraftSchema,
   ConstellationPreviewResultSchema,
@@ -25,6 +26,7 @@ import {
   WorkListResultSchema,
   type ActionRecordResult,
   type AutonomyContractPreviewResult,
+  type AutonomyRunnerPreflightPreviewResult,
   type CodexLaunchCardPreviewResult,
   type CodexResultReviewDraft,
   type ConstellationPreviewResult,
@@ -42,6 +44,7 @@ import {
   type StateBrief,
   type StateRuntimeActionResultInput,
   type StateRuntimeAutonomyContractPreviewInput,
+  type StateRuntimeAutonomyRunnerPreflightInput,
   type StateRuntimeBridgeAdapter,
   type StateRuntimeCodexLaunchCardPreviewInput,
   type StateRuntimeEvidencePackInput,
@@ -71,6 +74,8 @@ const CODEX_LAUNCH_CARD_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const CODEX_LAUNCH_CARD_LOCAL_READ_MARKER = "codex-launch-card-v0.1";
 const AUTONOMY_CONTRACT_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const AUTONOMY_CONTRACT_LOCAL_READ_MARKER = "autonomy-contract-v0.1";
+const AUTONOMY_RUNNER_PREFLIGHT_LOCAL_READ_HEADER = "x-augnes-local-readonly";
+const AUTONOMY_RUNNER_PREFLIGHT_LOCAL_READ_MARKER = "autonomy-runner-preflight-v0.1";
 
 const endpointContract = {
   stateBrief: { method: "GET", path: "/api/state/brief" },
@@ -79,6 +84,7 @@ const endpointContract = {
   handoffCapsulePreview: { method: "GET", path: "/api/augnes/read/handoff-capsule" },
   codexLaunchCardPreview: { method: "GET", path: "/api/augnes/read/codex-launch-card" },
   autonomyContractPreview: { method: "GET", path: "/api/augnes/read/autonomy-contract" },
+  autonomyRunnerPreflight: { method: "GET", path: "/api/augnes/read/autonomy-runner-preflight" },
   evidencePack: { method: "GET", path: "/api/evidence-pack" },
   sessionTrace: { method: "GET", path: "/api/sessions/trace" },
   sessionTraceById: { method: "GET", path: "/api/sessions" },
@@ -279,6 +285,21 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
         query: { scope: parseScope(input.scope) },
         headers: {
           [AUTONOMY_CONTRACT_LOCAL_READ_HEADER]: AUTONOMY_CONTRACT_LOCAL_READ_MARKER,
+        },
+      }
+    );
+  }
+
+  async getAutonomyRunnerPreflight(input: StateRuntimeAutonomyRunnerPreflightInput): Promise<AutonomyRunnerPreflightPreviewResult> {
+    return this.requestJson(
+      endpointContract.autonomyRunnerPreflight.method,
+      endpointContract.autonomyRunnerPreflight.path,
+      AutonomyRunnerPreflightPreviewResultSchema,
+      "autonomy runner preflight preview",
+      {
+        query: { scope: parseScope(input.scope) },
+        headers: {
+          [AUTONOMY_RUNNER_PREFLIGHT_LOCAL_READ_HEADER]: AUTONOMY_RUNNER_PREFLIGHT_LOCAL_READ_MARKER,
         },
       }
     );

@@ -473,6 +473,26 @@ PR #868 is merged. Current route planning starts from:
   auto-apply, file download/export-to-disk, merge/publish/retry/replay/deploy
   behavior, or external side effect. This index pointer is not roadmap
   authority.
+  Phase 9D ChatGPT App/MCP Autonomy Runner Preflight read-only preview tool
+  v0.1 adds repo-local non-SSOT pointers for
+  `apps/augnes_apps/src/server.ts`,
+  `apps/augnes_apps/src/lib/state-runtime-types.ts`,
+  `apps/augnes_apps/src/adapters/state-runtime-http.ts`,
+  `apps/augnes_apps/scripts/mock-state-runtime.ts`, and
+  `scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs`
+  (`npm run smoke:chatgpt-app-autonomy-runner-preflight-tool-v0-1`). The
+  `augnes_get_autonomy_runner_preflight` tool is read-only preview only,
+  consumes Phase 9A/9B preflight/dry-run preview data without inventing
+  readiness or blocker policy, returns readiness, blockers/warnings,
+  `dry_run_plan.status: dry_run_only`, planned steps, `would_execute: false`,
+  source refs, public safety status, no-run notes, and the all-false authority
+  boundary. Phase 9D adds no API route, UI, actual runner, scheduler, daemon,
+  background work, DB schema/migration, DB write, provider/OpenAI call, GitHub
+  actuation, Codex execution, proof/evidence write, memory mutation, durable
+  Perspective apply, handoff execution, branch/PR creation from product code,
+  product-write, budget spend, auto-apply, file download/export-to-disk,
+  merge/publish/retry/replay/deploy behavior, write-capable App/MCP tool, or
+  external side effect. This index pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

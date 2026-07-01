@@ -135,6 +135,7 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
   "components/workplane/agent-workplane.tsx",
   "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",

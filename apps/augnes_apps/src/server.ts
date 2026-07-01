@@ -16,6 +16,7 @@ import { withPresentation } from "./lib/profile.js";
 import { sanitizeValue } from "./lib/sanitize.js";
 import {
   AutonomyContractPreviewToolInputSchema,
+  AutonomyRunnerPreflightToolInputSchema,
   EvidencePackToolInputSchema,
   CodexLaunchCardPreviewToolInputSchema,
   GuideBriefToolInputSchema,
@@ -26,6 +27,7 @@ import {
   StateRuntimeActionResultStatusSchema,
   VerificationEvidenceRecordsToolInputSchema,
   type AutonomyContractPreviewResult,
+  type AutonomyRunnerPreflightPreviewResult,
   type CodexLaunchCardPreviewResult,
   type ConstellationPreviewResult,
   type ControlPacket,
@@ -64,6 +66,7 @@ export const AUGNES_BRIDGE_TOOL_NAMES = [
   "augnes_get_handoff_capsule_preview",
   "augnes_get_codex_launch_card_preview",
   "augnes_get_autonomy_contract_preview",
+  "augnes_get_autonomy_runner_preflight",
   "augnes_get_evidence_pack",
   "augnes_get_session_trace",
   "augnes_get_verification_evidence_records",
@@ -7155,6 +7158,350 @@ function describeAutonomyContractPreview(result: AutonomyContractPreviewResult):
   ].join(" ");
 }
 
+const AUTONOMY_RUNNER_PREFLIGHT_AUTHORITY_BOUNDARY_FALSE_FIELDS = [
+  "source_of_truth",
+  "can_start_runner",
+  "can_schedule_runner",
+  "can_start_daemon",
+  "can_start_background_work",
+  "can_commit_or_reject_state",
+  "can_record_proof",
+  "can_create_evidence",
+  "can_update_work",
+  "can_mutate_memory",
+  "can_apply_project_perspective",
+  "can_publish_external",
+  "can_merge",
+  "can_retry_replay_deploy",
+  "can_call_github",
+  "can_call_openai_or_provider",
+  "can_execute_codex",
+  "can_create_branch_or_pr",
+  "can_send_handoff",
+  "can_launch_codex",
+  "can_launch_autonomy",
+  "can_schedule_background_work",
+  "can_create_mcp_tool",
+  "can_create_ui_action",
+  "can_post_external_comment",
+  "can_write_db",
+  "can_spend_budget",
+  "can_auto_apply_delta",
+] as const;
+
+const AUTONOMY_RUNNER_PREFLIGHT_READ_BOUNDARY_FALSE_FIELDS = [
+  "runner_authority",
+  "scheduler_authority",
+  "daemon_authority",
+  "background_work_authority",
+  "codex_execution_authority",
+  "codex_launch_authority",
+  "github_provider_call_authority",
+  "db_write_authority",
+  "proof_evidence_write_authority",
+  "memory_perspective_mutation_authority",
+  "handoff_send_authority",
+  "branch_pr_creation_authority",
+  "auto_apply_authority",
+  "budget_spend_authority",
+  "external_side_effect_authority",
+  "dry_run_plan_is_execution",
+] as const;
+
+const AUTONOMY_RUNNER_PREFLIGHT_PUBLIC_SAFETY_FALSE_FIELDS = [
+  "contains_private_conversation",
+  "contains_hidden_reasoning",
+  "contains_local_private_paths",
+  "contains_secrets_or_tokens",
+  "contains_raw_provider_output",
+  "contains_raw_retrieval_output",
+  "contains_real_account_artifacts",
+] as const;
+
+function buildAutonomyRunnerPreflightBoundaryNotes() {
+  return {
+    read_only: true,
+    preview_only: true,
+    no_run_started: true,
+    no_scheduler_started: true,
+    no_daemon_started: true,
+    no_background_work_started: true,
+    no_codex_execution: true,
+    no_github_or_provider_call: true,
+    no_db_write: true,
+    no_proof_or_evidence_write: true,
+    no_memory_or_perspective_mutation: true,
+    no_handoff_send: true,
+    no_branch_or_pr_creation: true,
+    no_auto_apply: true,
+    no_budget_spend: true,
+    no_external_side_effect: true,
+  };
+}
+
+function buildAutonomyRunnerPreflightReadBoundary() {
+  return {
+    source_route: "GET /api/augnes/read/autonomy-runner-preflight",
+    local_readonly_marker: "x-augnes-local-readonly: autonomy-runner-preflight-v0.1",
+    read_only_preview_only: true,
+    dry_run_only: true,
+    runner_authority: false,
+    scheduler_authority: false,
+    daemon_authority: false,
+    background_work_authority: false,
+    codex_execution_authority: false,
+    codex_launch_authority: false,
+    github_provider_call_authority: false,
+    db_write_authority: false,
+    proof_evidence_write_authority: false,
+    memory_perspective_mutation_authority: false,
+    handoff_send_authority: false,
+    branch_pr_creation_authority: false,
+    auto_apply_authority: false,
+    budget_spend_authority: false,
+    external_side_effect_authority: false,
+    dry_run_plan_is_execution: false,
+  };
+}
+
+function restoreAutonomyRunnerPreflightAuthorityBoundary(
+  sanitizedAuthorityBoundary: unknown,
+  sourceAuthorityBoundary: unknown
+): Record<string, unknown> {
+  return restoreFalseBoundaryFields(
+    sanitizedAuthorityBoundary,
+    sourceAuthorityBoundary,
+    AUTONOMY_RUNNER_PREFLIGHT_AUTHORITY_BOUNDARY_FALSE_FIELDS
+  );
+}
+
+function restoreAutonomyRunnerPreflightReadBoundary(
+  sanitizedReadBoundary: unknown,
+  sourceReadBoundary: unknown
+): Record<string, unknown> {
+  return restoreFalseBoundaryFields(
+    sanitizedReadBoundary,
+    sourceReadBoundary,
+    AUTONOMY_RUNNER_PREFLIGHT_READ_BOUNDARY_FALSE_FIELDS
+  );
+}
+
+function restoreAutonomyRunnerPreflightPublicSafety(
+  sanitizedPublicSafety: unknown,
+  sourcePublicSafety: unknown
+): Record<string, unknown> {
+  return restoreFalseBoundaryFields(
+    sanitizedPublicSafety,
+    sourcePublicSafety,
+    AUTONOMY_RUNNER_PREFLIGHT_PUBLIC_SAFETY_FALSE_FIELDS
+  );
+}
+
+function summarizeAutonomyRunnerPreflightAuthorityBoundary(
+  sourceAuthorityBoundary: unknown,
+  readBoundary: Record<string, unknown>
+): Record<string, unknown> {
+  return {
+    authority_boundary: restoreAutonomyRunnerPreflightAuthorityBoundary(
+      sourceAuthorityBoundary,
+      sourceAuthorityBoundary
+    ),
+    read_boundary: restoreAutonomyRunnerPreflightReadBoundary(readBoundary, readBoundary),
+    summary:
+      "Read-only preview only: no runner starts, no scheduler starts, no daemon starts, no background work starts, no Codex execution, no GitHub/provider/OpenAI call, no DB write, no proof/evidence write, no memory mutation, no durable Perspective apply, no handoff send, no branch/PR creation, no auto-apply, no budget spend, and no external side effect.",
+  };
+}
+
+function buildAutonomyRunnerPreflightSummary(result: AutonomyRunnerPreflightPreviewResult) {
+  const preflight = objectRecord(result.preflight);
+  const dryRunPlan = objectRecord(result.dry_run_plan);
+  const budgetAssessment = objectRecord(preflight.budget_assessment);
+  const actionScopeAssessment = objectRecord(preflight.action_scope_assessment);
+  const deltaMergeAssessment = objectRecord(preflight.delta_merge_assessment);
+  const reviewEscalationAssessment = objectRecord(preflight.review_escalation_assessment);
+  const stopConditionAssessment = objectRecord(preflight.stop_condition_assessment);
+  const stalenessAssessment = objectRecord(preflight.staleness_assessment);
+  const authorityAssessment = objectRecord(preflight.authority_assessment);
+
+  return {
+    preflight_id: stringField(preflight, "preflight_id"),
+    preflight_version: stringField(preflight, "preflight_version"),
+    source_contract_id: stringField(preflight, "source_contract_id"),
+    source_contract_version: stringField(preflight, "source_contract_version"),
+    readiness: stringField(preflight, "readiness") ?? result.readiness,
+    readiness_summary: stringField(preflight, "readiness_summary"),
+    dry_run_status: stringField(dryRunPlan, "status"),
+    planned_step_count: arrayCount(dryRunPlan.planned_steps),
+    blocker_count: arrayCount(result.blockers),
+    warning_count: arrayCount(result.warnings),
+    required_user_judgment_count: arrayCount(preflight.required_user_judgment),
+    required_operator_review_count: arrayCount(preflight.required_operator_review),
+    budget_status: stringField(budgetAssessment, "status"),
+    action_scope_status: stringField(actionScopeAssessment, "status"),
+    delta_merge_status: stringField(deltaMergeAssessment, "status"),
+    review_escalation_status: stringField(reviewEscalationAssessment, "status"),
+    stop_condition_status: stringField(stopConditionAssessment, "status"),
+    staleness_status: stringField(stalenessAssessment, "status"),
+    authority_status: stringField(authorityAssessment, "status"),
+    every_planned_step_would_execute_false: Array.isArray(dryRunPlan.planned_steps)
+      ? dryRunPlan.planned_steps.every((step) => objectRecord(step).would_execute === false)
+      : false,
+  };
+}
+
+function resolveAutonomyRunnerPreflightScope(scope: string | undefined): typeof DEFAULT_STATE_RUNTIME_SCOPE {
+  const resolvedScope = scope ?? DEFAULT_STATE_RUNTIME_SCOPE;
+  if (resolvedScope !== DEFAULT_STATE_RUNTIME_SCOPE) {
+    throw new Error("Autonomy Runner Preflight preview scope must be project:augnes.");
+  }
+
+  return DEFAULT_STATE_RUNTIME_SCOPE;
+}
+
+function buildAutonomyRunnerPreflightStructuredContent({
+  result,
+  includeDryRunPlan,
+  includeBoundary,
+}: {
+  result: AutonomyRunnerPreflightPreviewResult;
+  includeDryRunPlan: boolean | undefined;
+  includeBoundary: boolean | undefined;
+}): Record<string, unknown> {
+  const preflight = objectRecord(result.preflight);
+  const dryRunPlan = objectRecord(result.dry_run_plan);
+  const readBoundary = buildAutonomyRunnerPreflightReadBoundary();
+  const noRunBoundaryNotes = buildAutonomyRunnerPreflightBoundaryNotes();
+  const summary = buildAutonomyRunnerPreflightSummary(result);
+  const structuredContent = sanitizePayload({
+    profile: config.appProfile,
+    panel: "autonomy_runner_preflight_preview",
+    packet_label: "Autonomy Runner Preflight / Dry-Run preview",
+    scope: result.scope,
+    route_id: result.route_id,
+    route_family: result.route_family,
+    include_dry_run_plan: includeDryRunPlan ?? true,
+    include_boundary: includeBoundary ?? true,
+    preflight: result.preflight,
+    autonomy_runner_preflight: result.preflight,
+    preflight_summary: summary,
+    readiness: result.readiness,
+    readiness_summary: preflight.readiness_summary ?? "",
+    blockers: result.blockers ?? [],
+    warnings: result.warnings ?? [],
+    required_user_judgment: preflight.required_user_judgment ?? [],
+    required_operator_review: preflight.required_operator_review ?? [],
+    assessments: {
+      budget_assessment: preflight.budget_assessment ?? {},
+      action_scope_assessment: preflight.action_scope_assessment ?? {},
+      delta_merge_assessment: preflight.delta_merge_assessment ?? {},
+      review_escalation_assessment: preflight.review_escalation_assessment ?? {},
+      stop_condition_assessment: preflight.stop_condition_assessment ?? {},
+      staleness_assessment: preflight.staleness_assessment ?? {},
+      authority_assessment: preflight.authority_assessment ?? {},
+    },
+    budget_assessment: preflight.budget_assessment ?? {},
+    action_scope_assessment: preflight.action_scope_assessment ?? {},
+    delta_merge_assessment: preflight.delta_merge_assessment ?? {},
+    review_escalation_assessment: preflight.review_escalation_assessment ?? {},
+    stop_condition_assessment: preflight.stop_condition_assessment ?? {},
+    staleness_assessment: preflight.staleness_assessment ?? {},
+    authority_assessment: preflight.authority_assessment ?? {},
+    dry_run_plan: result.dry_run_plan,
+    dry_run_plan_summary: {
+      status: dryRunPlan.status,
+      planned_step_count: arrayCount(dryRunPlan.planned_steps),
+      blocked_step_count: arrayCount(dryRunPlan.blocked_steps),
+      required_precondition_count: arrayCount(dryRunPlan.required_preconditions),
+      required_check_count: arrayCount(dryRunPlan.required_checks),
+      stop_condition_count: arrayCount(dryRunPlan.stop_conditions),
+      every_planned_step_would_execute_false: summary.every_planned_step_would_execute_false,
+    },
+    dry_run_status: dryRunPlan.status,
+    planned_steps: dryRunPlan.planned_steps ?? [],
+    planned_read_sources: dryRunPlan.planned_read_sources ?? [],
+    blocked_steps: dryRunPlan.blocked_steps ?? [],
+    required_preconditions: dryRunPlan.required_preconditions ?? [],
+    required_checks: dryRunPlan.required_checks ?? [],
+    stop_conditions: dryRunPlan.stop_conditions ?? [],
+    budget_projection: dryRunPlan.budget_projection ?? {},
+    source_refs: result.source_refs,
+    authority_boundary: result.authority_boundary,
+    no_run_boundary: dryRunPlan.no_run_boundary ?? {},
+    read_boundary: readBoundary,
+    route_boundary: readBoundary,
+    no_run_boundary_notes: noRunBoundaryNotes,
+    route_authority_boundary: result.route_authority_boundary,
+    source_status: result.source_status,
+    route_notes: result.route_notes,
+    public_safety: result.public_safety,
+    boundary_summary:
+      "Read-only preview only: no runner starts, no scheduler starts, no daemon starts, no background work starts, no Codex execution, no GitHub/provider/OpenAI call, no DB write, no proof/evidence write, no memory mutation, no durable Perspective apply, no handoff send, no branch/PR creation, no auto-apply, no budget spend, and no external side effect.",
+  }) as Record<string, unknown>;
+
+  structuredContent.no_run_boundary_notes = noRunBoundaryNotes;
+  structuredContent.public_safety = restoreAutonomyRunnerPreflightPublicSafety(
+    structuredContent.public_safety,
+    result.public_safety
+  );
+  structuredContent.authority_boundary = restoreAutonomyRunnerPreflightAuthorityBoundary(
+    structuredContent.authority_boundary,
+    result.authority_boundary
+  );
+  structuredContent.no_run_boundary = restoreAutonomyRunnerPreflightAuthorityBoundary(
+    structuredContent.no_run_boundary,
+    dryRunPlan.no_run_boundary
+  );
+  structuredContent.read_boundary = restoreAutonomyRunnerPreflightReadBoundary(
+    structuredContent.read_boundary,
+    readBoundary
+  );
+  structuredContent.route_boundary = restoreAutonomyRunnerPreflightReadBoundary(
+    structuredContent.route_boundary,
+    readBoundary
+  );
+  structuredContent.authority_boundary_summary = summarizeAutonomyRunnerPreflightAuthorityBoundary(
+    result.authority_boundary,
+    readBoundary
+  );
+
+  for (const preflightKey of ["preflight", "autonomy_runner_preflight"] as const) {
+    const sanitizedPreflight = objectRecord(structuredContent[preflightKey]);
+    structuredContent[preflightKey] = {
+      ...sanitizedPreflight,
+      authority_boundary: restoreAutonomyRunnerPreflightAuthorityBoundary(
+        sanitizedPreflight.authority_boundary,
+        preflight.authority_boundary
+      ),
+      dry_run_plan: {
+        ...objectRecord(sanitizedPreflight.dry_run_plan),
+        no_run_boundary: restoreAutonomyRunnerPreflightAuthorityBoundary(
+          objectRecord(sanitizedPreflight.dry_run_plan).no_run_boundary,
+          dryRunPlan.no_run_boundary
+        ),
+      },
+      public_safety: restoreAutonomyRunnerPreflightPublicSafety(
+        sanitizedPreflight.public_safety,
+        preflight.public_safety
+      ),
+    };
+  }
+
+  return structuredContent;
+}
+
+function describeAutonomyRunnerPreflight(result: AutonomyRunnerPreflightPreviewResult): string {
+  const summary = buildAutonomyRunnerPreflightSummary(result);
+
+  return [
+    `Autonomy Runner Preflight preview loaded for scope ${result.scope}: preflight ${summary.preflight_id ?? "unknown"}, readiness ${summary.readiness ?? "unknown"}, dry-run status ${summary.dry_run_status ?? "unknown"}, ${summary.planned_step_count} planned dry-run step(s), ${summary.blocker_count} blocker(s), and ${summary.warning_count} warning(s).`,
+    `Readiness summary: ${summary.readiness_summary ?? "not provided"}.`,
+    `Every planned step would_execute false: ${String(summary.every_planned_step_would_execute_false)}.`,
+    "Read-only Autonomy Runner Preflight / Dry-Run preview tool.",
+    "The tool is not approval to run.",
+    "Read-only tool: no runner starts, no scheduler starts, no daemon starts, no background work starts, no Codex execution, no GitHub/provider/OpenAI call, no DB write, no proof/evidence write, no memory mutation, no durable Perspective apply, no handoff send, no branch/PR creation, no auto-apply, no budget spend, and no external side effect.",
+  ].join(" ");
+}
+
 export type McpAppServerOptions = {
   enableAgentBridge?: boolean;
   toolSurface?: AugnesAppToolSurface;
@@ -7892,6 +8239,40 @@ export function createMcpAppServer(
           };
         } catch (error) {
           return buildBridgeToolError("augnes_get_autonomy_contract_preview", error);
+        }
+      }
+    );
+
+    registerAppTool(
+      server,
+      "augnes_get_autonomy_runner_preflight",
+      {
+        title: "Get Autonomy Runner Preflight / Dry-Run preview",
+        description:
+          "Read-only Autonomy Runner Preflight / Dry-Run preview tool. It consumes the local marker-gated Autonomy Runner Preflight route/source path, preserves readiness, blockers, warnings, assessment summaries, dry-run plan status, planned steps, source refs, public safety, and the no-run authority boundary. It adds no actual runner execution, no scheduler, no daemon, no background work, no Codex execution, no Codex launch, no GitHub/OpenAI/provider calls, no DB writes, no proof/evidence writes, no state, memory, work, or Perspective mutation, no handoff send, no branch/PR creation, no auto-apply behavior, no budget spending, no copy/export/download behavior, and no publish/merge/retry/replay/deploy/external side effect. The dry-run plan remains dry_run_only, every planned step keeps would_execute false, and the tool is not approval to run.",
+        inputSchema: AutonomyRunnerPreflightToolInputSchema.shape,
+        annotations: localRouteReadAnnotations,
+        _meta: modelOnlyToolMeta,
+      },
+      async ({ scope, include_dry_run_plan, include_boundary }) => {
+        try {
+          const resolvedScope = resolveAutonomyRunnerPreflightScope(scope);
+          const result = await stateRuntimeAdapter.getAutonomyRunnerPreflight({
+            scope: resolvedScope,
+          });
+          const structuredContent = buildAutonomyRunnerPreflightStructuredContent({
+            result,
+            includeDryRunPlan: include_dry_run_plan ?? true,
+            includeBoundary: include_boundary ?? true,
+          });
+
+          return {
+            structuredContent,
+            content: narrative(describeAutonomyRunnerPreflight(result)),
+            _meta: structuredContent,
+          };
+        } catch (error) {
+          return buildBridgeToolError("augnes_get_autonomy_runner_preflight", error);
         }
       }
     );
