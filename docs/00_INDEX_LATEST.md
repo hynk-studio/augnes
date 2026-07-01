@@ -331,6 +331,22 @@ PR #868 is merged. Current route planning starts from:
   Perspective apply, handoff send, branch/PR creation behavior,
   merge/publish/retry/replay/deploy behavior, or external side effect. This
   index pointer is not roadmap authority.
+  Phase 8B Autonomy Contract read route v0.1 adds repo-local non-SSOT
+  pointers for
+  `GET /api/augnes/read/autonomy-contract?scope=project:augnes` with
+  `x-augnes-local-readonly: autonomy-contract-v0.1` and `cache-control:
+  no-store`. The route is GET-only, local read-only, and preview JSON only.
+  `app/api/augnes/read/autonomy-contract/route.ts` owns the thin Next route,
+  `lib/autonomy/autonomy-contract-source.ts` owns fail-closed scope/marker and
+  local access validation plus deterministic source composition, and
+  `scripts/smoke-autonomy-contract-route-v0-1.mjs` (`npm run
+  smoke:autonomy-contract-route-v0-1`) checks the route/source boundary. Phase
+  8B adds no runner/scheduler/daemon/background work/write/execution/external
+  authority: no Web UI, App/MCP tool, DB schema/migration, DB write,
+  provider/OpenAI call, GitHub actuation, Codex execution, proof/evidence
+  write, memory mutation, durable Perspective apply, handoff send,
+  branch/PR creation behavior, merge/publish/retry/replay/deploy behavior, or
+  external side effect. This index pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

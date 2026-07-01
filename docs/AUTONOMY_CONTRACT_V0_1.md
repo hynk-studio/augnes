@@ -19,6 +19,54 @@ Phase 8A adds no route, no UI, no ChatGPT App/MCP tool, no Codex skill
 alignment, no copy/export, no API route, no App/MCP write tool, no scheduler,
 no daemon, no background work, and no external post.
 
+## 1.1 Phase 8B GET-Only Read Route
+
+Phase 8B adds a GET-only local read-only Autonomy Contract preview route:
+
+```text
+GET /api/augnes/read/autonomy-contract?scope=project:augnes
+x-augnes-local-readonly: autonomy-contract-v0.1
+cache-control: no-store
+```
+
+Route behavior:
+
+- exports `GET` only and exports no `POST`, `PUT`, `PATCH`, `DELETE`, or other
+  mutating handler
+- uses `runtime = "nodejs"` and `dynamic = "force-dynamic"`
+- returns preview JSON only with `cache-control: no-store`
+- returns the matching `x-augnes-local-readonly: autonomy-contract-v0.1`
+  marker response header
+- requires exact `scope=project:augnes`
+- fails closed on missing scope, invalid scope, missing marker, invalid marker,
+  and local access failures
+- returns structured read errors with route authority boundary notes
+- preserves the Autonomy Contract authority boundary
+
+Source composition is owned by
+`lib/autonomy/autonomy-contract-source.ts`. The route may compose from
+GuideBrief, Handoff Capsule, and Codex Launch Card read-only preview sources.
+These source refs are preview input only; the route must not call those routes
+through HTTP and must not import app route handlers.
+
+Phase 8B route composition may include synthetic/operator-supplied preview
+defaults for title, goal, autonomy mode, allowed agents, allowed surfaces,
+budget, reporting cadence, and run preview. Those defaults are not live
+delegation approval, not spend permission, and not active autonomy state.
+
+The Phase 8B route does not run autonomy. The route does not schedule
+autonomy. The route does not launch Codex. The route does not send handoff.
+The route does not call GitHub/OpenAI/provider APIs. The route does not write
+DB/proof/evidence. The route does not mutate memory/state/work/Perspective.
+The route does not create branches or PRs. The route does not start background
+work or daemon. The route does not merge/publish/retry/replay/deploy or
+externally post.
+
+Phase 8C Web preview UI is deferred.
+Phase 8D ChatGPT App/MCP read-only tool is deferred.
+Phase 8E Codex skill alignment is deferred.
+Phase 8F copy/export preview is deferred.
+
 ## 2. Purpose
 
 `AutonomyContract` is a preview-only packet that can describe a future bounded

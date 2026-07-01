@@ -69,6 +69,9 @@ const allowedChangedFiles = new Set([
   "lib/autonomy/autonomy-contract.ts",
   "fixtures/autonomy-contract.sample.v0.1.json",
   "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "app/api/augnes/read/autonomy-contract/route.ts",
+  "lib/autonomy/autonomy-contract-source.ts",
+  "scripts/smoke-autonomy-contract-route-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   serverFile,
@@ -559,6 +562,9 @@ function assertNoForbiddenScopeDrift() {
   ];
   const phase8AutonomyContractCoreFiles = new Set([
     "lib/autonomy/autonomy-contract.ts",
+    "app/api/augnes/read/autonomy-contract/route.ts",
+    "lib/autonomy/autonomy-contract-source.ts",
+    "scripts/smoke-autonomy-contract-route-v0-1.mjs",
   ]);
 
   for (const file of changed) {

@@ -61,6 +61,9 @@ const allowedChangedFiles = new Set([
   "lib/autonomy/autonomy-contract.ts",
   "fixtures/autonomy-contract.sample.v0.1.json",
   "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "app/api/augnes/read/autonomy-contract/route.ts",
+  "lib/autonomy/autonomy-contract-source.ts",
+  "scripts/smoke-autonomy-contract-route-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   helperFile,
@@ -484,7 +487,11 @@ function assertChangedFileBoundary() {
       allowedChangedFiles.has(file),
       `Unexpected Phase 7F changed or untracked file: ${file}`,
     );
-    assert(!/^app\/api\//.test(file), `Phase 7F must not change routes: ${file}`);
+    assert(
+      !/^app\/api\//.test(file) ||
+        file === "app/api/augnes/read/autonomy-contract/route.ts",
+      `Phase 7F must not change routes: ${file}`,
+    );
     assert(
       !/^apps\/augnes_apps\//.test(file),
       `Phase 7F must not change App/MCP files: ${file}`,
