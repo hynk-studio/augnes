@@ -529,6 +529,30 @@ PR #868 is merged. Current route planning starts from:
   Perspective apply, handoff execution, branch/PR creation from product code,
   product-write, budget spend, auto-apply, merge/deploy/retry/replay behavior,
   or external side effect. This index pointer is not roadmap authority.
+  Phase 9G explicit operator-approved Autonomy Runner skeleton planning v0.1
+  adds repo-local non-SSOT pointers for
+  `docs/AUTONOMY_RUNNER_SKELETON_PLANNING_V0_1.md`,
+  `docs/AUTONOMY_RUNNER_OPERATOR_APPROVAL_GATE_V0_1.md`, and
+  `scripts/smoke-autonomy-runner-skeleton-planning-v0-1.mjs` (`npm run
+  smoke:autonomy-runner-skeleton-planning-v0-1`). Phase 9G is planning only,
+  does not implement a runner skeleton, and does not add execution authority.
+  Any future runner skeleton requires separate explicit operator approval.
+  In Phase 9G, preflight remains planning context, dry-run remains preview
+  context, readiness remains not authorization, and operator approval is not
+  implied by readiness, dry-run, copy/manual-copy packets, App/MCP tool calls,
+  Codex summaries, browser visibility, smoke tests, or merged PRs. The docs
+  define run ledger/write policy, pause/stop/cancel, manual confirmation, tool
+  execution whitelist, and
+  Codex/GitHub/provider/OpenAI/DB/proof/evidence/memory/Perspective/handoff/branch-PR/budget/external boundaries as future
+  prerequisites only. Phase 9G adds no API route, UI, App/MCP tool, actual
+  runner, runner skeleton implementation, scheduler, daemon, background work,
+  queue, worker, DB schema/migration, DB write, provider/OpenAI call, GitHub
+  actuation, Codex execution from Augnes product code, proof/evidence write,
+  memory mutation, durable Perspective apply, handoff execution,
+  branch/PR creation from product code, budget spend, auto-apply, file
+  download/export-to-disk, external posting, product-write,
+  merge/publish/retry/replay/deploy behavior, or external side effect. This
+  index pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

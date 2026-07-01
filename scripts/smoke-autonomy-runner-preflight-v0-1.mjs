@@ -126,6 +126,9 @@ const phase9fCopyExportFollowOnFiles = new Set([
   "components/autonomy/autonomy-runner-preflight-copy-export-panel.tsx",
   "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
   "scripts/smoke-autonomy-runner-preflight-copy-export-v0-1.mjs",
+  "docs/AUTONOMY_RUNNER_SKELETON_PLANNING_V0_1.md",
+  "docs/AUTONOMY_RUNNER_OPERATOR_APPROVAL_GATE_V0_1.md",
+  "scripts/smoke-autonomy-runner-skeleton-planning-v0-1.mjs",
 ]);
 for (const file of phase9fCopyExportFollowOnFiles) {
   allowedChangedFiles.add(file);
