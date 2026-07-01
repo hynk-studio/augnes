@@ -62,10 +62,49 @@ The route does not create branches or PRs. The route does not start background
 work or daemon. The route does not merge/publish/retry/replay/deploy or
 externally post.
 
-Phase 8C Web preview UI is deferred.
+## 1.2 Phase 8C Read-Only Web Preview UI
+
+Phase 8C adds read-only Autonomy Contract Web preview panels. Primary
+placement is `/workbench` Agent Workplane. `/` and `/perspective` remain
+deferred unless separately scoped.
+
+The Web preview renders:
+
+- Autonomy Contract goal, status, mode, bounded context, source refs, allowed
+  agents, allowed surfaces, allowed actions, forbidden actions, warnings, and
+  gaps
+- Autonomy Budget fields and budget boundary notes
+- Delta Merge Policy and Review Escalation Policy
+- Stop conditions, Reporting Cadence, Output Policy, and Run Preview
+- authority boundary fields and denied-authority notes
+- visible source/fallback status
+
+Public Web display defaults to the public-safe fixture fallback from
+`fixtures/autonomy-contract.sample.v0.1.json` unless a separately scoped
+local-only request context passes the Phase 8B validator. Source/fallback
+status must remain visible. Route-composed budget/operator fields may remain
+synthetic/operator-supplied preview defaults and must be disclosed.
+
+Source composition for the Web display is owned by
+`lib/autonomy/read-autonomy-contract-for-web.ts`. It does not fetch the Phase
+8B route from the client, does not call local routes through HTTP, does not
+import app route handlers, and does not bypass the local marker guard to expose
+live route data on public Web surfaces.
+
+Phase 8C Web preview adds no action buttons, no forms, no start, no run, no
+schedule, no launch Codex, no send handoff, no apply memory, no apply project
+Perspective, no approve auto-apply, no persist contract, no copy/export, no
+API write route, no App/MCP tool, no DB schema/migration/write, no
+provider/OpenAI call, no GitHub actuation, no proof/evidence writes, no memory
+mutation, no durable Perspective apply, no scheduler/autonomy runner, no
+daemon, no background work, no product-write, no
+merge/publish/retry/replay/deploy, and no external side effects.
+
 Phase 8D ChatGPT App/MCP read-only tool is deferred.
 Phase 8E Codex skill alignment is deferred.
 Phase 8F copy/export preview is deferred.
+Phase 9 runner remains deferred and requires separate explicit scope and
+approval.
 
 ## 2. Purpose
 

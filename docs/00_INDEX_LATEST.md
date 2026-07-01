@@ -347,6 +347,22 @@ PR #868 is merged. Current route planning starts from:
   write, memory mutation, durable Perspective apply, handoff send,
   branch/PR creation behavior, merge/publish/retry/replay/deploy behavior, or
   external side effect. This index pointer is not roadmap authority.
+  Phase 8C Autonomy Contract Web preview UI v0.1 adds repo-local non-SSOT
+  pointers for read-only `/workbench` Agent Workplane preview panels through
+  `components/autonomy/*`, `lib/autonomy/read-autonomy-contract-for-web.ts`,
+  and `scripts/smoke-autonomy-contract-web-preview-v0-1.mjs` (`npm run
+  smoke:autonomy-contract-web-preview-v0-1`). The Web display defaults to
+  public-safe fixture fallback data, keeps source/fallback status visible, and
+  shows Autonomy Contract goal/context, budget, allowed actions, forbidden
+  actions, delta merge policy, review escalation policy, stop conditions,
+  reporting cadence, output policy, run preview, and authority boundary. Phase
+  8C adds no action buttons, forms, copy/export behavior,
+  runner/scheduler/daemon/background work/write/execution/external authority,
+  API write route, App/MCP tool, DB schema/migration, DB write,
+  provider/OpenAI call, GitHub actuation, Codex execution, proof/evidence
+  write, memory mutation, durable Perspective apply, handoff send,
+  branch/PR creation behavior, merge/publish/retry/replay/deploy behavior, or
+  external side effect. This index pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

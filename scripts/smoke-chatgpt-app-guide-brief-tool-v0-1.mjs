@@ -110,6 +110,20 @@ const phase8PriorSmokeAllowlistFiles = [
 for (const file of phase8PriorSmokeAllowlistFiles) {
   allowedChangedFiles.add(file);
 }
+const phase8cAutonomyContractWebPreviewFiles = [
+  "components/autonomy/autonomy-boundary-card.tsx",
+  "components/autonomy/autonomy-budget-preview-panel.tsx",
+  "components/autonomy/autonomy-contract-preview-panel.tsx",
+  "components/autonomy/autonomy-policy-preview-panel.tsx",
+  "components/autonomy/autonomy-preview-shared.tsx",
+  "components/autonomy/autonomy-run-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/autonomy/read-autonomy-contract-for-web.ts",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+];
+for (const file of phase8cAutonomyContractWebPreviewFiles) {
+  allowedChangedFiles.add(file);
+}
 
 const textByFile = loadTextByFile(requiredFiles);
 const serverText = textByFile.get(serverFile);
@@ -613,7 +627,8 @@ function assertChangedFileBoundary() {
     );
     assert(
       (!/^components\//.test(file) ||
-        followOnHandoffCapsuleCopyExportFiles.includes(file)) &&
+        followOnHandoffCapsuleCopyExportFiles.includes(file) ||
+        phase8cAutonomyContractWebPreviewFiles.includes(file)) &&
         !["app/page.tsx", "app/perspective/page.tsx", "app/workbench/page.tsx"].includes(file),
       `Phase 6D must not change Web UI files: ${file}`,
     );
