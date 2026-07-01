@@ -1,5 +1,6 @@
 import {
   AUTONOMY_CONTRACT_VERSION,
+  AUTONOMY_FORBIDDEN_ACTIONS,
   AUTONOMY_MODES,
   type AutonomyContract,
   type AutonomyPublicSafetyBlock,
@@ -36,6 +37,11 @@ const FALLBACK_PREFLIGHT_ID =
   "autonomy_runner_preflight.unspecified" as const;
 const FALLBACK_DRY_RUN_ID = "autonomy_dry_run_plan.unspecified" as const;
 const FALLBACK_SOURCE_CONTRACT_ID = "autonomy_contract.unspecified" as const;
+
+const PHASE_9A_FORBIDDEN_ACTIONS = uniqueSorted([
+  ...AUTONOMY_RUNNER_FORBIDDEN_ACTIONS,
+  ...AUTONOMY_FORBIDDEN_ACTIONS,
+]);
 
 const REQUIRED_PREFLIGHT_DOC_REFS = [
   "docs/AUTONOMY_CONTRACT_V0_1.md",
@@ -194,7 +200,7 @@ export function buildAutonomyDryRunPlan(
     ]),
     blocked_steps: uniqueSorted([
       ...(runPreview?.blocked_steps ?? []),
-      ...AUTONOMY_RUNNER_FORBIDDEN_ACTIONS,
+      ...PHASE_9A_FORBIDDEN_ACTIONS,
     ]),
     required_preconditions: uniqueSorted([
       ...(runPreview?.required_preconditions ?? []),
@@ -318,11 +324,7 @@ export function assessAutonomyActionScope(
   const allowedActions = contract?.allowed_actions ?? [];
   const forbiddenActions = contract?.forbidden_actions ?? [];
   const requestedForbiddenActions = uniqueSorted(
-    allowedActions.filter((action) =>
-      AUTONOMY_RUNNER_FORBIDDEN_ACTIONS.includes(
-        action as (typeof AUTONOMY_RUNNER_FORBIDDEN_ACTIONS)[number],
-      ),
-    ),
+    allowedActions.filter((action) => PHASE_9A_FORBIDDEN_ACTIONS.includes(action)),
   );
   const forbiddenExecutionTerms = findForbiddenExecutionTerms(
     contract?.run_preview?.planned_steps ?? [],
@@ -775,6 +777,9 @@ function buildDryRunSteps({
     contract && blockers.length === 0
       ? []
       : blockers.map((blocker) => blocker.blocker_id);
+  const unsupportedBlocked = blockers.some(
+    (blocker) => blocker.kind === "not_supported",
+  );
   const warningReview = warnings.length > 0;
   const docsRefs = sourceRefs.docs_refs;
 
@@ -849,7 +854,8 @@ function buildDryRunSteps({
     action_kind: step.action_kind,
     allowed_by_contract:
       AUTONOMY_RUNNER_PREFLIGHT_ACTION_KINDS.includes(step.action_kind) &&
-      contract !== null,
+      contract !== null &&
+      !unsupportedBlocked,
     blocked_by: globalBlockedBy,
     source_refs: uniqueSorted([...docsRefs, "AutonomyContract"]),
     expected_output: step.expected_output,
@@ -880,6 +886,11 @@ function buildAssessmentPreconditions(
 ): string[] {
   return uniqueSorted(
     Object.values(assessments).flatMap((assessment) => {
+      if (assessment.status === "not_supported") {
+        return [
+          `Provide supported input for ${assessment.source_refs[0] ?? "assessment"}; preflight cannot reason.`,
+        ];
+      }
       if (assessment.blocks_run) {
         return [`Resolve ${assessment.source_refs[0] ?? "assessment"} blocker.`];
       }
@@ -971,18 +982,23 @@ function buildBlocker(
     source_refs: string[];
   },
 ): AutonomyRunBlocker | undefined {
-  if (!assessment.blocks_run) {
+  const notSupported = assessment.status === "not_supported";
+  if (!assessment.blocks_run && !notSupported) {
     return undefined;
   }
+  const blockerKind = notSupported ? "not_supported" : kind;
 
   return {
-    blocker_id: `blocker.${kind}`,
-    kind,
+    blocker_id: notSupported ? `blocker.not_supported.${kind}` : `blocker.${kind}`,
+    kind: blockerKind,
     severity: "blocking",
-    summary: assessment.summary,
+    summary: notSupported
+      ? `not_supported: ${assessment.summary || "Preflight cannot reason safely."}`
+      : assessment.summary,
     source_refs: assessment.source_refs,
-    recovery_hint:
-      "Resolve this blocker and rerun preflight before considering a future supervised runner.",
+    recovery_hint: notSupported
+      ? "Provide a supported AutonomyContract v0.1 with required fields so preflight can reason before considering any future supervised runner."
+      : "Resolve this blocker and rerun preflight before considering a future supervised runner.",
   };
 }
 

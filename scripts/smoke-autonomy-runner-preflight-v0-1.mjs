@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
   assertChangedFilesWithin,
   assertContainsAll,
@@ -185,6 +186,7 @@ const fixtureText = textByFile.get(fixtureFile);
 const packageJsonText = textByFile.get(packageJsonFile);
 const indexText = textByFile.get(indexDoc);
 const fixture = JSON.parse(fixtureText);
+const helperBehavior = assertHelperBehavior();
 
 assertPackageJsonScript();
 assertIndexPointer();
@@ -212,6 +214,8 @@ console.log(
       fixture_json_parsed: true,
       preflight_id: fixture.preflight_id,
       readiness: fixture.readiness,
+      helper_behavior_checked: helperBehavior.checked,
+      helper_behavior_cases: helperBehavior.cases,
       dry_run_id: fixture.dry_run_plan.dry_run_id,
       dry_run_status: fixture.dry_run_plan.status,
       all_planned_steps_would_execute_false_checked: true,
@@ -353,6 +357,10 @@ function assertHelperContract() {
   assertContainsAll(helperText, [
     "FALLBACK_CREATED_AT",
     "1970-01-01T00:00:00.000Z",
+    "AUTONOMY_FORBIDDEN_ACTIONS",
+    "PHASE_9A_FORBIDDEN_ACTIONS",
+    "not_supported",
+    "blocker.not_supported.",
     "buildAutonomyRunnerPreflight",
     "buildAutonomyDryRunPlan",
     "assessAutonomyBudget",
@@ -381,6 +389,132 @@ function assertHelperContract() {
       `export\\s+function\\s+${exportedName}\\b`,
     );
     assert(exportPattern.test(helperText), `${helperFile} must export ${exportedName}`);
+  }
+}
+
+function assertHelperBehavior() {
+  const behaviorScript = String.raw`
+    import { readFileSync } from "node:fs";
+    import { buildAutonomyRunnerPreflight } from "./lib/autonomy/autonomy-runner-preflight.ts";
+
+    const sample = JSON.parse(readFileSync("fixtures/autonomy-contract.sample.v0.1.json", "utf8"));
+    const summarize = (preflight) => ({
+      readiness: preflight.readiness,
+      blockers: preflight.blockers.map((blocker) => ({
+        blocker_id: blocker.blocker_id,
+        kind: blocker.kind,
+        summary: blocker.summary,
+      })),
+      action_scope_assessment: preflight.action_scope_assessment,
+      dry_run_plan: {
+        status: preflight.dry_run_plan.status,
+        blocked_steps: preflight.dry_run_plan.blocked_steps,
+        planned_steps: preflight.dry_run_plan.planned_steps.map((step) => ({
+          step_id: step.step_id,
+          allowed_by_contract: step.allowed_by_contract,
+          blocked_by: step.blocked_by,
+          would_execute: step.would_execute,
+        })),
+      },
+    });
+
+    const withAllowedAction = (action) => ({
+      ...sample,
+      allowed_actions: [action],
+      run_preview: {
+        ...sample.run_preview,
+        status: "preview_only",
+        planned_steps: [],
+      },
+    });
+
+    const cases = {
+      missing: summarize(buildAutonomyRunnerPreflight({ contract: null })),
+      unsupported_version: summarize(buildAutonomyRunnerPreflight({
+        contract: {
+          ...sample,
+          contract_version: "autonomy_contract.v99",
+        },
+      })),
+      open_pr: summarize(buildAutonomyRunnerPreflight({
+        budget_approved: true,
+        contract: withAllowedAction("open_pr"),
+      })),
+      write_memory: summarize(buildAutonomyRunnerPreflight({
+        budget_approved: true,
+        contract: withAllowedAction("write_memory"),
+      })),
+    };
+
+    console.log(JSON.stringify(cases));
+  `;
+  const output = execFileSync(
+    "apps/augnes_apps/node_modules/.bin/tsx",
+    ["--eval", behaviorScript],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: { ...process.env, TSX_TSCONFIG_PATH: "tsconfig.json" },
+    },
+  );
+  const cases = JSON.parse(output);
+
+  assertUnsupportedCase(cases.missing, "missing contract");
+  assertUnsupportedCase(cases.unsupported_version, "unsupported contract version");
+  assertForbiddenAliasCase({
+    alias: "open_pr",
+    expectedPolicySignal: /open_pr|create_branch_or_pr|branch\/pr creation|branch or pr/i,
+    observed: cases.open_pr,
+  });
+  assertForbiddenAliasCase({
+    alias: "write_memory",
+    expectedPolicySignal: /write_memory|mutate_memory|memory mutation/i,
+    observed: cases.write_memory,
+  });
+
+  return {
+    checked: true,
+    cases: ["missing", "unsupported_version", "open_pr", "write_memory"],
+  };
+}
+
+function assertUnsupportedCase(observed, label) {
+  assert.equal(observed.readiness, "not_supported", `${label} must be not_supported`);
+  assert(observed.blockers.length > 0, `${label} must include explicit blockers`);
+  assert(
+    /unsupported|missing|not_supported|cannot reason/i.test(JSON.stringify(observed.blockers)),
+    `${label} blocker must explain unsupported, missing, not_supported, or cannot reason`,
+  );
+  assert.equal(observed.dry_run_plan.status, "dry_run_only", `${label} dry-run status must remain dry_run_only`);
+  assert(observed.dry_run_plan.planned_steps.length > 0, `${label} must still build blocked dry-run steps`);
+
+  for (const step of observed.dry_run_plan.planned_steps) {
+    assert.equal(step.would_execute, false, `${label} ${step.step_id} must have would_execute false`);
+    assert.equal(step.allowed_by_contract, false, `${label} ${step.step_id} must not look contract-allowed`);
+    assert(step.blocked_by.length > 0, `${label} ${step.step_id} must carry at least one blocker`);
+  }
+}
+
+function assertForbiddenAliasCase({ alias, expectedPolicySignal, observed }) {
+  assert.equal(observed.readiness, "blocked", `${alias} must block readiness`);
+  assert.equal(observed.dry_run_plan.status, "dry_run_only", `${alias} dry-run status must remain dry_run_only`);
+  assert(
+    observed.action_scope_assessment.requested_forbidden_actions.includes(alias),
+    `${alias} must be listed as a requested forbidden action`,
+  );
+  assert(
+    expectedPolicySignal.test(JSON.stringify(observed.action_scope_assessment)) ||
+      expectedPolicySignal.test(JSON.stringify(observed.blockers)),
+    `${alias} action scope or blockers must identify the forbidden action signal`,
+  );
+  assert(observed.blockers.length > 0, `${alias} must include at least one blocker`);
+  assert(
+    observed.dry_run_plan.blocked_steps.includes(alias),
+    `${alias} must be present in blocked dry-run steps`,
+  );
+
+  for (const step of observed.dry_run_plan.planned_steps) {
+    assert.equal(step.would_execute, false, `${alias} ${step.step_id} must have would_execute false`);
   }
 }
 
