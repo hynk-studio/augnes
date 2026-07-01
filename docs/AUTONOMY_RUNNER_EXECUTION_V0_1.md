@@ -110,7 +110,9 @@ steps.
 
 `tickAutonomyRun(...)` advances at most one safe deterministic internal step.
 It records `step_started` and `step_completed` events and updates the step
-record. It never executes a contract-forbidden action as a runner step.
+record. Runner event IDs include a readable run/time/type prefix plus a unique
+suffix, so repeated same-timestamp lifecycle or skipped-tick events remain
+append-only. It never executes a contract-forbidden action as a runner step.
 
 ## Scheduler
 
@@ -125,9 +127,15 @@ record. It never executes a contract-forbidden action as a runner step.
 once. `runAutonomySchedulerWatch(...)` loops on an interval and accepts
 `max_loops` so smoke tests and local validation can exit cleanly.
 
+Watch mode also continues ticking active `running` runs that were originally
+scheduled and are still within their due window. This keeps a default
+multi-step scheduled run from stalling after its first tick changes it from
+`scheduled` to `running`.
+
 Watch mode supports an `AbortSignal` and optional SIGINT/SIGTERM handlers. It
-does not start from import side effects. Scheduled run is processed only when
-the local runner process is explicitly started.
+does not start from import side effects. A pre-aborted signal stops watch before
+any loop or tick. Scheduled run is processed only when the local runner process
+is explicitly started.
 
 ## Local API Routes
 
@@ -152,7 +160,9 @@ Supported POST actions on `/api/autonomy/runs/[id]` are:
 Routes are local-host bounded and same-origin guarded for POST. They write only
 runner ledger records. They do not call provider APIs, OpenAI, GitHub, Codex,
 publish, deploy, merge, post externally, apply Perspective, mutate durable
-memory, or write proof/evidence records.
+memory, or write proof/evidence records. Detail-route actions read the run and
+validate scope before mutation, so wrong-scope runs are rejected without a tick,
+pause, resume, or cancel side effect.
 
 ## DeltaBatch Recovery
 

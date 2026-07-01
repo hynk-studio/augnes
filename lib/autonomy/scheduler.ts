@@ -93,6 +93,17 @@ export function runDueAutonomyRunsOnce(
 export async function runAutonomySchedulerWatch(
   input: RunAutonomySchedulerWatchInput = {},
 ): Promise<RunAutonomySchedulerWatchResult> {
+  if (input.signal?.aborted) {
+    return {
+      now: input.now ?? nowIso(),
+      loops: 0,
+      processed_run_count: 0,
+      stopped: true,
+      stop_reason: "abort_signal",
+      processed_runs: [],
+    };
+  }
+
   const maxLoops = Math.max(1, input.max_loops ?? 1);
   const intervalMs = Math.max(0, input.interval_ms ?? 1_000);
   const processedRuns: AutonomyRunRecord[] = [];
@@ -118,8 +129,11 @@ export async function runAutonomySchedulerWatch(
     while (!stopped && loops < maxLoops) {
       loops += 1;
       const now = input.now ?? nowIso();
-      const onceResult = runDueAutonomyRunsOnce({ ...input, now });
-      processedRuns.push(...onceResult.processed_runs);
+      const runnableRuns = findWatchRunnableAutonomyRuns({ ...input, now });
+      const loopProcessedRuns = runnableRuns.map((run) =>
+        tickAutonomyRun({ run_id: run.run_id, now, dbPath: input.dbPath }),
+      );
+      processedRuns.push(...loopProcessedRuns);
 
       if (stopped || loops >= maxLoops) break;
       await waitForInterval(intervalMs, input.signal);
@@ -139,6 +153,36 @@ export async function runAutonomySchedulerWatch(
       getAutonomyRun(run.run_id, { dbPath: input.dbPath }) ?? run,
     ),
   };
+}
+
+function findWatchRunnableAutonomyRuns(
+  input: FindDueAutonomyRunsInput,
+): AutonomyRunSummary[] {
+  const now = input.now ?? nowIso();
+  const limit = input.limit ?? 100;
+  const dueRuns = findDueAutonomyRuns({ ...input, now, limit });
+  const activeScheduledRuns = listAutonomyRuns({
+    dbPath: input.dbPath,
+    scope: input.scope,
+    status: "running",
+    limit,
+  })
+    .filter((run) => Boolean(run.scheduled_for))
+    .filter((run) => String(run.scheduled_for) <= now);
+
+  return [...dueRuns, ...activeScheduledRuns]
+    .filter(
+      (run, index, runs) =>
+        runs.findIndex((candidate) => candidate.run_id === run.run_id) === index,
+    )
+    .sort((a, b) => {
+      const scheduleCompare = String(a.scheduled_for).localeCompare(
+        String(b.scheduled_for),
+      );
+      if (scheduleCompare !== 0) return scheduleCompare;
+      return a.run_id.localeCompare(b.run_id);
+    })
+    .slice(0, limit);
 }
 
 function waitForInterval(intervalMs: number, signal: AbortSignal | undefined) {

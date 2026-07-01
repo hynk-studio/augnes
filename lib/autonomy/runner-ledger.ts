@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
@@ -582,7 +583,7 @@ export function buildAutonomyRunEventRecord({
   created_at: string;
 }): AutonomyRunEventRecord {
   return {
-    event_id: `${run_id}.event.${created_at}.${event_type}.${step_id ?? "run"}`,
+    event_id: `${run_id}.event.${created_at}.${event_type}.${step_id ?? "run"}.${randomUUID()}`,
     run_id,
     step_id,
     event_type,

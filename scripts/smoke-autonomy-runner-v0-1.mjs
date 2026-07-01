@@ -152,12 +152,16 @@ for (const table of [
 
 const tempDir = join(tmpdir(), "augnes-autonomy-runner-v0-1");
 const tempDbPath = join(tempDir, "runner.sqlite");
+const routeDbPath = "tmp/autonomy-runner-v0-1-route-scope.sqlite";
 assert(tempDbPath.startsWith(tmpdir()), "smoke must use temp DB storage");
 rmSync(tempDir, { recursive: true, force: true });
 mkdirSync(tempDir, { recursive: true });
+mkdirSync("tmp", { recursive: true });
+rmSync(routeDbPath, { force: true });
 
 const behaviorScript = `
   import assert from "node:assert/strict";
+  import { POST as postRunAction } from "./app/api/autonomy/runs/[id]/route.ts";
   import {
     createAutonomyRun,
     getAutonomyRun,
@@ -175,6 +179,7 @@ const behaviorScript = `
 
   async function main() {
   const dbPath = ${JSON.stringify(tempDbPath)};
+  const routeDbPath = ${JSON.stringify(routeDbPath)};
   const scope = "project:augnes";
   const created = createAutonomyRun({
     dbPath,
@@ -294,6 +299,34 @@ const behaviorScript = `
   assert.equal(cancelledTick.status, "cancelled");
   assert.equal(cancelledTick.steps.filter((step) => step.status === "completed").length, 0);
 
+  const duplicatePausedRun = createAutonomyRun({
+    dbPath,
+    run_id: "autonomy_run.smoke.phase9.duplicate_paused",
+    scope,
+    created_at: "2026-07-02T00:02:30.000Z",
+    planned_steps: [
+      { step_id: "autonomy_run.smoke.phase9.duplicate_paused.step.1", action_kind: "summarize_current_autonomy_context" }
+    ]
+  });
+  pauseAutonomyRun({
+    dbPath,
+    run_id: duplicatePausedRun.run_id,
+    now: "2026-07-02T00:02:31.000Z"
+  });
+  tickAutonomyRun({
+    dbPath,
+    run_id: duplicatePausedRun.run_id,
+    now: "2026-07-02T00:02:32.000Z"
+  });
+  const duplicatePausedTick = tickAutonomyRun({
+    dbPath,
+    run_id: duplicatePausedRun.run_id,
+    now: "2026-07-02T00:02:32.000Z"
+  });
+  const duplicateSkippedEvents = duplicatePausedTick.events.filter((event) => event.event_type === "tick_skipped");
+  assert.equal(duplicateSkippedEvents.length, 2);
+  assert.equal(new Set(duplicateSkippedEvents.map((event) => event.event_id)).size, 2);
+
   const countsBeforeSchedulerImport = countAutonomyRunnerLedgerRows({ dbPath });
   const schedulerModule = await import("./lib/autonomy/scheduler.ts");
   const scheduler = schedulerModule.default ?? schedulerModule;
@@ -352,11 +385,105 @@ const behaviorScript = `
   assert(watchResult.processed_runs.some((run) => run.run_id === watchRun.run_id));
   assert.equal(getAutonomyRun(watchRun.run_id, { dbPath })?.status, "completed");
 
+  const defaultWatchRun = createAutonomyRun({
+    dbPath,
+    run_id: "autonomy_run.smoke.phase9.watch_default_steps",
+    scope,
+    status: "scheduled",
+    scheduled_for: "2026-07-02T00:05:00.000Z",
+    created_at: "2026-07-02T00:04:59.000Z"
+  });
+  assert.equal(defaultWatchRun.steps.length, 2);
+  const defaultWatchResult = await scheduler.runAutonomySchedulerWatch({
+    dbPath,
+    scope,
+    now: "2026-07-02T00:05:00.000Z",
+    interval_ms: 0,
+    max_loops: 4
+  });
+  assert(defaultWatchResult.processed_runs.some((run) => run.run_id === defaultWatchRun.run_id));
+  const defaultWatchCompleted = getAutonomyRun(defaultWatchRun.run_id, { dbPath });
+  assert(defaultWatchCompleted, "default scheduled watch run must still exist");
+  assert(["completed", "needs_review"].includes(defaultWatchCompleted.status));
+  assert.equal(defaultWatchCompleted.steps.filter((step) => step.status === "completed").length, 2);
+  const defaultWatchBatch = recoverDeltaBatchForRun({
+    dbPath,
+    run_id: defaultWatchRun.run_id,
+    now: "2026-07-02T00:05:04.000Z"
+  });
+  const defaultWatchReadBack = readRecoveredDeltaBatch(defaultWatchBatch.batch_id, { dbPath });
+  assert(defaultWatchReadBack, "scheduled watch DeltaBatch must read back");
+  assert.equal(defaultWatchReadBack.batch_id, defaultWatchBatch.batch_id);
+  assert.equal(defaultWatchReadBack.run_id, defaultWatchRun.run_id);
+
+  const preAbortedRun = createAutonomyRun({
+    dbPath,
+    run_id: "autonomy_run.smoke.phase9.pre_aborted_watch",
+    scope,
+    status: "scheduled",
+    scheduled_for: "2026-07-02T00:06:00.000Z",
+    created_at: "2026-07-02T00:05:59.000Z",
+    planned_steps: [
+      { step_id: "autonomy_run.smoke.phase9.pre_aborted_watch.step.1", action_kind: "summarize_current_autonomy_context" }
+    ]
+  });
+  const abortController = new AbortController();
+  abortController.abort();
+  const preAbortedWatchResult = await scheduler.runAutonomySchedulerWatch({
+    dbPath,
+    scope,
+    now: "2026-07-02T00:06:00.000Z",
+    interval_ms: 0,
+    max_loops: 4,
+    signal: abortController.signal
+  });
+  const preAbortedAfter = getAutonomyRun(preAbortedRun.run_id, { dbPath });
+  assert.equal(preAbortedWatchResult.loops, 0);
+  assert.equal(preAbortedWatchResult.processed_run_count, 0);
+  assert.equal(preAbortedWatchResult.stopped, true);
+  assert.equal(preAbortedWatchResult.stop_reason, "abort_signal");
+  assert.equal(preAbortedAfter?.status, "scheduled");
+  assert.equal(preAbortedAfter?.steps.filter((step) => step.status === "completed").length, 0);
+
+  const wrongScopeRun = createAutonomyRun({
+    dbPath: routeDbPath,
+    run_id: "autonomy_run.smoke.phase9.wrong_scope",
+    scope: "project:not-augnes",
+    created_at: "2026-07-02T00:07:00.000Z",
+    planned_steps: [
+      { step_id: "autonomy_run.smoke.phase9.wrong_scope.step.1", action_kind: "summarize_current_autonomy_context" }
+    ]
+  });
+  const wrongScopeResponse = await postRunAction(
+    new Request("http://localhost/api/autonomy/runs/" + encodeURIComponent(wrongScopeRun.run_id), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        host: "localhost",
+        origin: "http://localhost",
+        "sec-fetch-site": "same-origin"
+      },
+      body: JSON.stringify({
+        action: "tick",
+        db_path: routeDbPath,
+        now: "2026-07-02T00:07:01.000Z"
+      })
+    }),
+    { params: Promise.resolve({ id: encodeURIComponent(wrongScopeRun.run_id) }) }
+  );
+  const wrongScopeBody = await wrongScopeResponse.json();
+  const wrongScopeAfter = getAutonomyRun(wrongScopeRun.run_id, { dbPath: routeDbPath });
+  assert.equal(wrongScopeResponse.status, 400);
+  assert.equal(wrongScopeBody.error_code, "invalid_scope");
+  assert.equal(wrongScopeAfter?.status, "planned");
+  assert.equal(wrongScopeAfter?.steps.filter((step) => step.status === "completed").length, 0);
+  assert.equal(wrongScopeAfter?.events.length, 1);
+
   const finalCounts = countAutonomyRunnerLedgerRows({ dbPath });
-  assert(finalCounts.autonomy_runs >= 5);
-  assert(finalCounts.autonomy_run_steps >= 6);
-  assert(finalCounts.autonomy_run_events >= 12);
-  assert(finalCounts.autonomy_run_delta_batches >= 1);
+  assert(finalCounts.autonomy_runs >= 8);
+  assert(finalCounts.autonomy_run_steps >= 10);
+  assert(finalCounts.autonomy_run_events >= 30);
+  assert(finalCounts.autonomy_run_delta_batches >= 2);
 
   console.log(JSON.stringify({
     created_status: created.status,
@@ -371,6 +498,24 @@ const behaviorScript = `
     due_run_processed_status: getAutonomyRun(scheduledRun.run_id, { dbPath })?.status,
     watch_loops: watchResult.loops,
     watch_processed_status: getAutonomyRun(watchRun.run_id, { dbPath })?.status,
+    default_watch_loops: defaultWatchResult.loops,
+    default_watch_processed: defaultWatchResult.processed_runs.some((run) => run.run_id === defaultWatchRun.run_id),
+    default_watch_final_status: defaultWatchCompleted.status,
+    default_watch_completed_step_count: defaultWatchCompleted.steps.filter((step) => step.status === "completed").length,
+    default_watch_recovered_batch_id: defaultWatchBatch.batch_id,
+    default_watch_readback_batch_id: defaultWatchReadBack.batch_id,
+    pre_aborted_watch_loops: preAbortedWatchResult.loops,
+    pre_aborted_watch_processed_count: preAbortedWatchResult.processed_run_count,
+    pre_aborted_watch_stop_reason: preAbortedWatchResult.stop_reason,
+    pre_aborted_run_status: preAbortedAfter?.status,
+    pre_aborted_completed_steps: preAbortedAfter?.steps.filter((step) => step.status === "completed").length,
+    duplicate_skipped_tick_count: duplicateSkippedEvents.length,
+    duplicate_skipped_unique_event_ids: new Set(duplicateSkippedEvents.map((event) => event.event_id)).size,
+    wrong_scope_route_status: wrongScopeResponse.status,
+    wrong_scope_error_code: wrongScopeBody.error_code,
+    wrong_scope_after_status: wrongScopeAfter?.status,
+    wrong_scope_after_completed_steps: wrongScopeAfter?.steps.filter((step) => step.status === "completed").length,
+    wrong_scope_after_event_count: wrongScopeAfter?.events.length,
     paused_tick_completed_steps: pausedTick.steps.filter((step) => step.status === "completed").length,
     cancelled_tick_completed_steps: cancelledTick.steps.filter((step) => step.status === "completed").length,
     scheduler_import_counts_unchanged: JSON.stringify(countsAfterSchedulerImport) === JSON.stringify(countsBeforeSchedulerImport),
@@ -406,6 +551,25 @@ assert.equal(behavior.due_run_detected, true);
 assert.equal(behavior.due_run_processed_status, "completed");
 assert.equal(behavior.watch_loops, 2);
 assert.equal(behavior.watch_processed_status, "completed");
+assert.equal(behavior.default_watch_processed, true);
+assert.equal(behavior.default_watch_final_status, "completed");
+assert.equal(behavior.default_watch_completed_step_count, 2);
+assert.equal(
+  behavior.default_watch_readback_batch_id,
+  behavior.default_watch_recovered_batch_id,
+);
+assert.equal(behavior.pre_aborted_watch_loops, 0);
+assert.equal(behavior.pre_aborted_watch_processed_count, 0);
+assert.equal(behavior.pre_aborted_watch_stop_reason, "abort_signal");
+assert.equal(behavior.pre_aborted_run_status, "scheduled");
+assert.equal(behavior.pre_aborted_completed_steps, 0);
+assert.equal(behavior.duplicate_skipped_tick_count, 2);
+assert.equal(behavior.duplicate_skipped_unique_event_ids, 2);
+assert.equal(behavior.wrong_scope_route_status, 400);
+assert.equal(behavior.wrong_scope_error_code, "invalid_scope");
+assert.equal(behavior.wrong_scope_after_status, "planned");
+assert.equal(behavior.wrong_scope_after_completed_steps, 0);
+assert.equal(behavior.wrong_scope_after_event_count, 1);
 assert.equal(behavior.paused_tick_completed_steps, 0);
 assert.equal(behavior.cancelled_tick_completed_steps, 0);
 assert.equal(behavior.scheduler_import_counts_unchanged, true);
@@ -414,6 +578,7 @@ assertNoRows(tempDbPath, "perspective_memory_items");
 assertNoRows(tempDbPath, "perspective_state_apply_events");
 assertNoRows(tempDbPath, "perspective_states");
 assertNoRows(tempDbPath, "verification_evidence_records");
+rmSync(routeDbPath, { force: true });
 
 console.log(
   JSON.stringify(
@@ -430,11 +595,16 @@ console.log(
       scheduled_due_detection_checked: true,
       scheduled_due_processing_checked: true,
       bounded_watch_checked: true,
+      scheduled_default_multi_step_watch_checked: true,
       pause_resume_cancel_checked: true,
       runner_step_executed_checked: true,
       step_event_recorded_checked: true,
       delta_batch_recovered_checked: true,
       delta_batch_readback_checked: true,
+      scheduled_watch_delta_batch_readback_checked: true,
+      detail_route_wrong_scope_pre_mutation_guard_checked: true,
+      pre_aborted_watch_noop_checked: true,
+      duplicate_timestamp_event_ids_checked: true,
       no_provider_openai_github_codex_external_call_checked: true,
       no_durable_memory_mutation_checked: true,
       no_durable_project_perspective_auto_apply_checked: true,

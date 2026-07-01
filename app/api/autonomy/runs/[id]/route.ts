@@ -74,6 +74,14 @@ export async function POST(
     typeof inputBody.reason === "string" ? inputBody.reason : undefined;
 
   try {
+    const existingRun = getAutonomyRun(runId, {
+      dbPath: dbPath ?? undefined,
+    });
+    if (!existingRun) return jsonResponse(errorResponse("not_found"), 404);
+    if (existingRun.scope !== SCOPE) {
+      return jsonResponse(errorResponse("invalid_scope"), 400);
+    }
+
     const common = { run_id: runId, now, reason, dbPath: dbPath ?? undefined };
     const run =
       inputBody.action === "tick"
@@ -87,7 +95,6 @@ export async function POST(
               : null;
 
     if (!run) return jsonResponse(errorResponse("invalid_action"), 400);
-    if (run.scope !== SCOPE) return jsonResponse(errorResponse("invalid_scope"), 400);
 
     return jsonResponse({
       route_version: ROUTE_VERSION,
