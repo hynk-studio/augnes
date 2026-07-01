@@ -82,6 +82,19 @@ const followOnGuideBriefRouteFiles = [
   "scripts/smoke-guide-brief-route-v0-1.mjs",
 ];
 
+const followOnWebGuidePanelFiles = [
+  "components/guide/guide-brief-panel.tsx",
+  "components/guide/guide-brief-section.tsx",
+  "components/guide/guide-brief-summary-card.tsx",
+  "components/guide/guide-brief-boundary-card.tsx",
+  "components/guide/guide-brief-mini-panel.tsx",
+  "lib/guide/read-guide-brief-for-web.ts",
+  "components/human-surface/human-surface-home.tsx",
+  "components/perspective/perspective-public-constellation-surface.tsx",
+  "components/perspective/perspective-human-surface.tsx",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+];
+
 const requiredFiles = [
   workbenchPageFile,
   agentWorkplaneFile,
@@ -111,6 +124,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneCleanupHardeningFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
+  ...followOnWebGuidePanelFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);

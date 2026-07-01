@@ -1,11 +1,16 @@
 import { BlankStatePanel } from "@/components/human-surface/blank-state-panel";
 import { CurrentPerspectiveCard } from "@/components/human-surface/current-perspective-card";
+import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { RecentDeltasPreview } from "@/components/human-surface/recent-deltas-preview";
 import { SurfaceLinkGrid } from "@/components/human-surface/surface-link-grid";
 import { readCurrentPerspectiveForHumanSurface } from "@/lib/human-surface/read-current-perspective";
+import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
 
 export async function HumanSurfaceHome() {
-  const currentPerspectiveRead = await readCurrentPerspectiveForHumanSurface();
+  const [currentPerspectiveRead, guideBrief] = await Promise.all([
+    readCurrentPerspectiveForHumanSurface(),
+    Promise.resolve(readGuideBriefForWeb()),
+  ]);
   const perspective = currentPerspectiveRead.data;
 
   return (
@@ -27,6 +32,7 @@ export async function HumanSurfaceHome() {
           <BlankStatePanel />
           <div className="human-surface-right-rail">
             <CurrentPerspectiveCard read={currentPerspectiveRead} />
+            <GuideBriefMiniPanel guideBrief={guideBrief} variant="home" />
             <RecentDeltasPreview perspective={perspective} />
             <SurfaceLinkGrid />
           </div>

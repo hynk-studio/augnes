@@ -96,6 +96,19 @@ const followOnGuideBriefRouteFiles = [
   "lib/guide/guide-brief-source.ts",
   "scripts/smoke-guide-brief-route-v0-1.mjs",
 ];
+const followOnWebGuidePanelFiles = [
+  "components/guide/guide-brief-panel.tsx",
+  "components/guide/guide-brief-section.tsx",
+  "components/guide/guide-brief-summary-card.tsx",
+  "components/guide/guide-brief-boundary-card.tsx",
+  "components/guide/guide-brief-mini-panel.tsx",
+  "lib/guide/read-guide-brief-for-web.ts",
+  "components/human-surface/human-surface-home.tsx",
+  "components/perspective/perspective-public-constellation-surface.tsx",
+  "components/perspective/perspective-human-surface.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+];
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -125,6 +138,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneCleanupHardeningFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
+  ...followOnWebGuidePanelFiles,
   packageJsonFile,
   indexDoc,
 ]);
@@ -442,8 +456,9 @@ function assertChangedFileBoundary() {
       followOnPerspectiveHumanTimelineFiles.includes(file) ||
         followOnAgentWorkplaneFiles.includes(file) ||
         followOnAgentWorkplanePanelFiles.includes(file) ||
-        followOnAgentWorkplaneProjectionHandoffFiles.includes(file),
-      `Phase 3B follow-on must not change UI files outside Phase 4A/4B Human Surface or Phase 5A/5B/5C Agent Workplane files: ${file}`,
+        followOnAgentWorkplaneProjectionHandoffFiles.includes(file) ||
+        followOnWebGuidePanelFiles.includes(file),
+      `Phase 3B follow-on must not change UI files outside Phase 4A/4B Human Surface, Phase 5A/5B/5C Agent Workplane, or exact Phase 6C Web Guide files: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 3B must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `Phase 3B must not change migrations: ${file}`);
@@ -468,6 +483,7 @@ function assertChangedFileBoundary() {
         followOnPerspectiveHumanTimelineFiles.includes(file) ||
         followOnGuideBriefCoreFiles.includes(file) ||
         followOnGuideBriefRouteFiles.includes(file) ||
+        followOnWebGuidePanelFiles.includes(file) ||
         !/(^|\/)(human-surface|human_surface|guidebrief|guide-brief)(\/|$)/i.test(file),
       `Phase 3B must not add Human Surface or GuideBrief files outside exact follow-on allowlists: ${file}`,
     );
@@ -479,7 +495,8 @@ function assertChangedFileBoundary() {
     file === "app/globals.css" ||
     file === "components/augnes-public-home-surface.tsx" ||
     file.startsWith("components/human-surface/") ||
-    file.startsWith("components/perspective/"),
+    file.startsWith("components/perspective/") ||
+    file.startsWith("components/guide/"),
   );
   const agentWorkplaneUiAdded = files.some((file) =>
     file === "app/workbench/page.tsx" ||
@@ -487,6 +504,9 @@ function assertChangedFileBoundary() {
   );
   const guidebriefCoreFollowOnUsed = files.some((file) =>
     followOnGuideBriefCoreFiles.includes(file),
+  );
+  const webGuidePanelFollowOnUsed = files.some((file) =>
+    followOnWebGuidePanelFiles.includes(file),
   );
 
   return {
@@ -511,6 +531,7 @@ function assertChangedFileBoundary() {
     human_surface_ui_added: humanSurfaceUiAdded,
     agent_workplane_ui_added: agentWorkplaneUiAdded,
     guidebrief_core_follow_on_used: guidebriefCoreFollowOnUsed,
+    web_guide_panel_follow_on_used: webGuidePanelFollowOnUsed,
     ui_surface_added: humanSurfaceUiAdded || agentWorkplaneUiAdded,
     files,
   };

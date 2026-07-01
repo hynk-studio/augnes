@@ -1,0 +1,446 @@
+#!/usr/bin/env node
+import assert from "node:assert/strict";
+import {
+  assertContainsAll,
+  assertPackageScript,
+  collectGitDiffFiles,
+  collectUntrackedFiles,
+  getBaseRangeChangedFiles,
+  loadTextByFile,
+  uniqueSorted,
+} from "./smoke-boundary-common.mjs";
+
+const panelFile = "components/guide/guide-brief-panel.tsx";
+const sectionFile = "components/guide/guide-brief-section.tsx";
+const summaryCardFile = "components/guide/guide-brief-summary-card.tsx";
+const boundaryCardFile = "components/guide/guide-brief-boundary-card.tsx";
+const miniPanelFile = "components/guide/guide-brief-mini-panel.tsx";
+const webReadFile = "lib/guide/read-guide-brief-for-web.ts";
+const homeComponentFile = "components/human-surface/human-surface-home.tsx";
+const perspectiveWrapperFile =
+  "components/perspective/perspective-public-constellation-surface.tsx";
+const perspectiveSurfaceFile =
+  "components/perspective/perspective-human-surface.tsx";
+const workbenchComponentFile = "components/workplane/agent-workplane.tsx";
+const guideBriefDoc = "docs/GUIDEBRIEF_CONTRACT_V0_1.md";
+const indexDoc = "docs/00_INDEX_LATEST.md";
+const packageJsonFile = "package.json";
+const smokeFile = "scripts/smoke-web-guide-panel-v0-1.mjs";
+
+const priorSmokeAllowlistCompatibilityFiles = [
+  "scripts/smoke-augnes-delta-contract-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-route-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-route-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-perspective-human-timeline-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+];
+
+const requiredFiles = [
+  panelFile,
+  sectionFile,
+  summaryCardFile,
+  boundaryCardFile,
+  miniPanelFile,
+  webReadFile,
+  homeComponentFile,
+  perspectiveWrapperFile,
+  perspectiveSurfaceFile,
+  workbenchComponentFile,
+  guideBriefDoc,
+  indexDoc,
+  packageJsonFile,
+  smokeFile,
+];
+
+const allowedChangedFiles = new Set([
+  ...requiredFiles,
+  ...priorSmokeAllowlistCompatibilityFiles,
+]);
+
+const textByFile = loadTextByFile(requiredFiles);
+const panelText = textByFile.get(panelFile);
+const sectionText = textByFile.get(sectionFile);
+const summaryCardText = textByFile.get(summaryCardFile);
+const boundaryCardText = textByFile.get(boundaryCardFile);
+const miniPanelText = textByFile.get(miniPanelFile);
+const webReadText = textByFile.get(webReadFile);
+const homeText = textByFile.get(homeComponentFile);
+const perspectiveWrapperText = textByFile.get(perspectiveWrapperFile);
+const perspectiveSurfaceText = textByFile.get(perspectiveSurfaceFile);
+const workbenchText = textByFile.get(workbenchComponentFile);
+const docText = textByFile.get(guideBriefDoc);
+const indexText = textByFile.get(indexDoc);
+const packageJsonText = textByFile.get(packageJsonFile);
+
+assertPackageJsonScript();
+assertSharedPanelContract();
+assertWebReadPath();
+assertSurfaceEntries();
+assertDocsAndIndex();
+assertNoActionControls();
+assertNoForbiddenRuntimeCode();
+const changedFilesBoundary = assertChangedFileBoundary();
+
+console.log(
+  JSON.stringify(
+    {
+      smoke: "web-guide-panel-v0-1",
+      pass: true,
+      required_files_checked: requiredFiles,
+      package_script_checked: true,
+      shared_panel_component_checked: true,
+      guide_brief_labels_checked: true,
+      read_only_boundary_copy_checked: true,
+      web_read_path_checked: true,
+      home_entry_checked: true,
+      perspective_entry_checked: true,
+      workbench_entry_checked: true,
+      docs_index_checked: true,
+      no_chat_composer_checked: true,
+      no_positive_write_execute_controls_checked: true,
+      no_route_handlers_changed_checked: true,
+      no_mcp_app_tool_files_changed_checked: true,
+      no_db_migration_schema_changed_checked: true,
+      no_provider_openai_github_codex_calls_checked: true,
+      no_proof_evidence_write_code_checked: true,
+      no_scheduler_autonomy_runner_checked: true,
+      no_handoff_execution_checked: true,
+      changed_files_checked: changedFilesBoundary.checked,
+      changed_files_skipped: changedFilesBoundary.skipped,
+      changed_files_skip_reason: changedFilesBoundary.skip_reason,
+      changed_files_observed: changedFilesBoundary.files,
+      prior_smoke_allowlist_compatibility_files_allowed:
+        priorSmokeAllowlistCompatibilityFiles,
+      smoke_type:
+        "static-web-guide-panel-component-source-doc-package-boundary-only",
+    },
+    null,
+    2,
+  ),
+);
+console.log("PASS smoke:web-guide-panel-v0-1");
+
+function assertPackageJsonScript() {
+  assertPackageScript({
+    packageJsonText,
+    scriptName: "smoke:web-guide-panel-v0-1",
+    expectedCommand: "node scripts/smoke-web-guide-panel-v0-1.mjs",
+  });
+}
+
+function assertSharedPanelContract() {
+  assertContainsAll(
+    panelText,
+    [
+      "GuideBrief",
+      "read-only guide packet",
+      "Observed",
+      "Inferred",
+      "Suggested",
+      "Needs user judgment",
+      "Staleness warnings",
+      "Source refs",
+      "Source-backed read-model observations only.",
+      "Derived interpretation only",
+      "Candidate next actions or navigation suggestions only.",
+      "Unresolved choices for a user, operator, or PM.",
+      "data-guide-brief-panel",
+    ],
+    { label: panelFile },
+  );
+
+  assertContainsAll(
+    boundaryCardText,
+    [
+      "Authority boundary",
+      "No hidden execution authority",
+      "Suggestions are not actions",
+      "The guide does not decide user judgment items",
+      "Handoff candidates are preview-only",
+      "can_create_ui_action",
+      "can_send_handoff",
+      "can_execute_codex",
+    ],
+    { label: boundaryCardFile },
+  );
+
+  assertContainsAll(
+    miniPanelText,
+    ["GuideBriefPanel", 'variant: "home" | "perspective" | "workbench"'],
+    { label: miniPanelFile },
+  );
+
+  assertContainsAll(
+    sectionText,
+    ["section", "aria-labelledby", "No guide items materialized."],
+    { label: sectionFile },
+  );
+
+  assertContainsAll(
+    summaryCardText,
+    [
+      "GuideBrief summary",
+      "Research pressure",
+      "Projected deltas",
+      "Review queue",
+    ],
+    { label: summaryCardFile },
+  );
+}
+
+function assertWebReadPath() {
+  assertContainsAll(
+    webReadText,
+    [
+      "export function readGuideBriefForWeb",
+      "readGuideBriefForRoute({ scope: GUIDE_BRIEF_ROUTE_SCOPE })",
+      "Phase 6C adds read-only Web Guide panel skeleton rendering.",
+      "Phase 6D ChatGPT App/MCP Guide tool remains deferred.",
+      "Phase 6E Codex Guide alignment remains deferred.",
+      "Phase 7 Handoff Capsule / Codex Launch Card remains deferred.",
+    ],
+    { label: webReadFile },
+  );
+
+  assert(
+    /\bimport\s+type\s+\{\s*GuideBrief\s*\}/.test(webReadText),
+    `${webReadFile} must import GuideBrief as a type`,
+  );
+  assert(
+    !/\bfetch\s*\(/.test(webReadText),
+    `${webReadFile} must not fetch the local API route`,
+  );
+}
+
+function assertSurfaceEntries() {
+  assertContainsAll(
+    homeText,
+    [
+      "readGuideBriefForWeb",
+      "GuideBriefMiniPanel",
+      'variant="home"',
+      "<CurrentPerspectiveCard",
+    ],
+    { label: homeComponentFile },
+  );
+
+  assertContainsAll(
+    perspectiveWrapperText,
+    ["readGuideBriefForWeb", "guideBrief={guideBrief}"],
+    { label: perspectiveWrapperFile },
+  );
+
+  assertContainsAll(
+    perspectiveSurfaceText,
+    [
+      "GuideBriefMiniPanel",
+      "guideBrief: GuideBrief",
+      'variant="perspective"',
+      "<PerspectiveDeltaInspector",
+      "<PerspectiveBoundaryNextPanel",
+    ],
+    { label: perspectiveSurfaceFile },
+  );
+
+  assertContainsAll(
+    workbenchText,
+    [
+      "readGuideBriefForWeb",
+      "GuideBriefMiniPanel",
+      'variant="workbench"',
+      "<WorkplaneOverview",
+      "<LegacyCockpitCompatibilityPanel>",
+    ],
+    { label: workbenchComponentFile },
+  );
+}
+
+function assertDocsAndIndex() {
+  assertContainsAll(
+    docText,
+    [
+      "Phase 6C Web Guide Read-Only Panel Skeleton",
+      "shared display components",
+      "Entry points:",
+      "`/`",
+      "`/perspective`",
+      "`/workbench`",
+      "The Web Guide UI preserves the required separation",
+      "The Web Guide panel is read-only display only",
+      "does not include a chat composer",
+      "Phase 6D ChatGPT App/MCP Guide tool",
+      "Phase 6E Codex Guide alignment",
+      "Phase 7 Handoff Capsule / Codex Launch Card",
+    ],
+    { label: guideBriefDoc },
+  );
+
+  assertContainsAll(
+    indexText,
+    [
+      "Phase 6C adds a read-only Web Guide panel skeleton",
+      "components/guide/*",
+      "lib/guide/read-guide-brief-for-web.ts",
+      "no UI action/write/execution authority",
+      "no chat composer",
+    ],
+    { label: indexDoc },
+  );
+}
+
+function assertNoActionControls() {
+  const implementationFiles = [
+    panelFile,
+    sectionFile,
+    summaryCardFile,
+    boundaryCardFile,
+    miniPanelFile,
+    homeComponentFile,
+    perspectiveWrapperFile,
+    perspectiveSurfaceFile,
+    workbenchComponentFile,
+  ];
+
+  for (const file of implementationFiles) {
+    const text = textByFile.get(file);
+    assert(!/<\s*button\b/i.test(text), `${file} must not render a button`);
+    assert(!/<\s*textarea\b/i.test(text), `${file} must not render a textarea`);
+    assert(!/<\s*form\b/i.test(text), `${file} must not render a form`);
+    assert(
+      !/\bplaceholder\s*=\s*["'][^"']*(chat|prompt|message)/i.test(text),
+      `${file} must not add a chat or prompt input`,
+    );
+
+    const positiveControlPattern =
+      /<\s*(?:button|a)\b[^>]*>[\s\S]{0,120}\b(apply|approve|reject|send|launch codex|create pr|record proof|create evidence|persist|commit|merge|deploy|retry|replay|publish|copy handoff)\b/i;
+    assert(
+      !positiveControlPattern.test(text),
+      `${file} must not render positive write/execute controls`,
+    );
+  }
+}
+
+function assertNoForbiddenRuntimeCode() {
+  const checkedText = [
+    panelText,
+    sectionText,
+    summaryCardText,
+    boundaryCardText,
+    miniPanelText,
+    webReadText,
+    homeText,
+    perspectiveWrapperText,
+    perspectiveSurfaceText,
+    workbenchText,
+  ].join("\n");
+
+  const forbiddenPatterns = [
+    /\bfetch\s*\(/,
+    /\bappendWorkEvent\b/,
+    /\bappendCoordinationEvent\b/,
+    /\bcreateEvidenceRecord\b/,
+    /\brecordProof\b/,
+    /\bcommitState\b/,
+    /\brejectState\b/,
+    /\bcommitStateDeltaProposal\b/,
+    /\brejectStateDeltaProposal\b/,
+    /@openai/,
+    /\bfrom\s+["']openai["']/,
+    /\boctokit\b/i,
+    /\bgithub\b.*\b(rest|graphql|request|client|token)\b/i,
+    /\bcreatePullRequest\b/,
+    /\bchild_process\b/,
+    /\bspawn\s*\(/,
+    /\bexecFile\s*\(/,
+    /\bwriteFileSync\b/,
+    /\bprocess\.env\b/,
+    /\bINSERT\s+INTO\b/i,
+    /\bUPDATE\s+[A-Za-z_][\w.]*\s+SET\b/i,
+    /\bDELETE\s+FROM\b/i,
+    /\bCREATE\s+TABLE\b/i,
+    /\bALTER\s+TABLE\b/i,
+    /\bDROP\s+TABLE\b/i,
+    /\bsetInterval\s*\(/,
+    /\bsetTimeout\s*\(/,
+    /\bautonomyRunner\b/i,
+    /\bcreateMcpTool\b/i,
+    /\bsendHandoff\b/i,
+    /\bexecuteCodex\b/i,
+    /\bserverAction\b/i,
+  ];
+
+  for (const pattern of forbiddenPatterns) {
+    assert(
+      !pattern.test(checkedText),
+      `Phase 6C Web Guide files must not add forbidden runtime code matching ${pattern}`,
+    );
+  }
+}
+
+function assertChangedFileBoundary() {
+  const workingTree = collectGitDiffFiles(["diff", "--name-only"]);
+  const cached = collectGitDiffFiles(["diff", "--cached", "--name-only"]);
+  const baseRange = getBaseRangeChangedFiles();
+  const untrackedFiles = collectUntrackedFiles();
+  const files = uniqueSorted([
+    ...workingTree.files,
+    ...cached.files,
+    ...baseRange.files,
+    ...untrackedFiles,
+  ]);
+
+  for (const file of files) {
+    assert(
+      allowedChangedFiles.has(file),
+      `Unexpected Phase 6C Web Guide changed or untracked file: ${file}`,
+    );
+    assert(!/^app\/api\//.test(file), `Phase 6C must not change API routes: ${file}`);
+    assert(
+      !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file),
+      `Phase 6C must not add route handlers: ${file}`,
+    );
+    assert(!/^db\//.test(file), `Phase 6C must not change DB files: ${file}`);
+    assert(
+      !/^migrations\//.test(file),
+      `Phase 6C must not change migrations: ${file}`,
+    );
+    assert(
+      !/^apps\/augnes_apps\//.test(file),
+      `Phase 6C must not change MCP/App files: ${file}`,
+    );
+    assert(
+      !/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file),
+      `Phase 6C must not change MCP/App tool files: ${file}`,
+    );
+    assert(
+      !/(^|\/)(provider|providers|openai|github)(\/|$)/i.test(file),
+      `Phase 6C must not change provider/OpenAI/GitHub runtime files: ${file}`,
+    );
+    assert(
+      !/(^|\/)(proof|evidence)(\/|$)/i.test(file),
+      `Phase 6C must not add proof/evidence write paths: ${file}`,
+    );
+    assert(
+      !/(^|\/)(work-mutation|work_mutation|autonomy-runner|scheduler)(\/|$)/i.test(file),
+      `Phase 6C must not add scheduler or autonomy runner files: ${file}`,
+    );
+  }
+
+  return {
+    checked: workingTree.checked || cached.checked || baseRange.checked,
+    skipped: !(workingTree.checked || cached.checked || baseRange.checked),
+    skip_reason:
+      workingTree.checked || cached.checked || baseRange.checked
+        ? null
+        : "changed-file boundary could not be checked",
+    files,
+  };
+}

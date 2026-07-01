@@ -96,6 +96,19 @@ const followOnGuideBriefRouteFiles = [
   "scripts/smoke-guide-brief-route-v0-1.mjs",
 ];
 
+const followOnWebGuidePanelFiles = [
+  "components/guide/guide-brief-panel.tsx",
+  "components/guide/guide-brief-section.tsx",
+  "components/guide/guide-brief-summary-card.tsx",
+  "components/guide/guide-brief-boundary-card.tsx",
+  "components/guide/guide-brief-mini-panel.tsx",
+  "lib/guide/read-guide-brief-for-web.ts",
+  "components/human-surface/human-surface-home.tsx",
+  "components/perspective/perspective-public-constellation-surface.tsx",
+  "components/perspective/perspective-human-surface.tsx",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+];
+
 const requiredFiles = [
   workbenchPageFile,
   ...phase5aFiles,
@@ -123,6 +136,7 @@ const allowedChangedFiles = new Set([
   ...followOnHistoricalSmokeCompatibilityFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
+  ...followOnWebGuidePanelFiles,
   smokeFile,
   "app/globals.css",
 ]);
@@ -555,6 +569,7 @@ function assertChangedFileBoundary() {
     assert(
       followOnGuideBriefCoreFiles.includes(file) ||
         followOnGuideBriefRouteFiles.includes(file) ||
+        followOnWebGuidePanelFiles.includes(file) ||
         !/(guidebrief|guide-brief|guide_brief)/i.test(file),
       `Phase 5D must not allow GuideBrief files outside exact Phase 6A core follow-on scope: ${file}`,
     );
@@ -562,6 +577,9 @@ function assertChangedFileBoundary() {
 
   const guidebriefCoreFollowOnUsed = files.some((file) =>
     followOnGuideBriefCoreFiles.includes(file),
+  );
+  const webGuidePanelFollowOnUsed = files.some((file) =>
+    followOnWebGuidePanelFiles.includes(file),
   );
 
   return {
@@ -584,6 +602,7 @@ function assertChangedFileBoundary() {
         ? null
         : "changed-file boundary could not be checked",
     guidebrief_core_follow_on_used: guidebriefCoreFollowOnUsed,
+    web_guide_panel_follow_on_used: webGuidePanelFollowOnUsed,
     files,
   };
 }

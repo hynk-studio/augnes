@@ -194,6 +194,16 @@ PR #868 is merged. Current route planning starts from:
   actuation, Codex execution, proof/evidence write, durable Perspective apply,
   memory mutation, product-write, handoff execution,
   merge/publish/retry/replay/deploy behavior, or external side effect.
+  Phase 6C adds a read-only Web Guide panel skeleton on `/`, `/perspective`,
+  and `/workbench` through shared `components/guide/*` rendering components
+  and `lib/guide/read-guide-brief-for-web.ts`. It preserves Observed,
+  Inferred, Suggested, and Needs user judgment separation, requires no new API
+  route, and adds no UI action/write/execution authority, chat composer,
+  prompt input, MCP/App tool, provider/OpenAI call, GitHub actuation, Codex execution,
+  proof/evidence write, durable Perspective apply, memory mutation, handoff
+  execution, product-write, scheduler/autonomy runner, or external side effect.
+  The Phase 6C Web Guide boundary is no chat composer, no suggestions as
+  actions, and no guide-decided user judgment items.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
