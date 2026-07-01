@@ -100,7 +100,40 @@ mutation, no durable Perspective apply, no scheduler/autonomy runner, no
 daemon, no background work, no product-write, no
 merge/publish/retry/replay/deploy, and no external side effects.
 
-Phase 8D ChatGPT App/MCP read-only tool is deferred.
+## 1.3 Phase 8D ChatGPT App/MCP Read-Only Preview Tool
+
+Phase 8D adds one ChatGPT App/MCP read-only Autonomy Contract preview tool:
+
+```text
+augnes_get_autonomy_contract_preview
+```
+
+The tool is model-only and not widget-backed. It consumes the Phase 8B
+GET-only local read-only route through the state-runtime HTTP adapter:
+
+```text
+GET /api/augnes/read/autonomy-contract?scope=project:augnes
+x-augnes-local-readonly: autonomy-contract-v0.1
+```
+
+The tool returns Autonomy Contract structured content plus compact narrative
+content for preview/review planning only. It exposes source/fallback status,
+warnings, gaps, budget boundaries, delta merge policy, review escalation
+policy, stop conditions, output policy, run preview, and authority boundary.
+
+Phase 8D adds no write tool and no widget-backed UI. It does not run
+autonomy, schedule autonomy, start a daemon, start background work, execute
+Codex, launch Codex, send handoffs, call GitHub/OpenAI/provider APIs, create
+branches or PRs, create proof/evidence records, mutate
+state/memory/DB/work/Perspective, copy/export,
+publish/merge/retry/replay/deploy, externally post, or add external side
+effects.
+
+Budget remains boundary only and not spend permission. `auto_apply_allowed`
+remains `false`. `run_preview.status` remains `preview_only`; run preview is
+not execution. Suggestions or candidate actions are advisory/planning only.
+Unresolved user judgment remains unresolved.
+
 Phase 8E Codex skill alignment is deferred.
 Phase 8F copy/export preview is deferred.
 Phase 9 runner remains deferred and requires separate explicit scope and

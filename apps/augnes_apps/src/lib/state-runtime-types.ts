@@ -564,6 +564,13 @@ export const CodexLaunchCardPreviewToolInputSchema = z
   })
   .strip();
 
+export const AutonomyContractPreviewToolInputSchema = z
+  .object({
+    scope: z.string().min(1).optional(),
+    compact: z.boolean().optional(),
+  })
+  .strip();
+
 export const HandoffPreviewAuthorityBoundarySchema = z
   .object({
     can_execute_codex: z.literal(false),
@@ -665,6 +672,80 @@ export const CodexLaunchCardPreviewResultSchema = z
     launch_card: CodexLaunchCardPreviewPacketSchema,
     route_authority_boundary: z.array(z.string()),
     source_status: HandoffPreviewSourceStatusSchema,
+    warnings: z.array(z.unknown()).optional(),
+    gaps: z.array(z.unknown()).optional(),
+  })
+  .passthrough();
+
+export const AutonomyPreviewAuthorityBoundarySchema = z
+  .object({
+    source_of_truth: z.literal(false),
+    can_commit_or_reject_state: z.literal(false),
+    can_record_proof: z.literal(false),
+    can_create_evidence: z.literal(false),
+    can_update_work: z.literal(false),
+    can_mutate_memory: z.literal(false),
+    can_apply_project_perspective: z.literal(false),
+    can_publish_external: z.literal(false),
+    can_merge: z.literal(false),
+    can_retry_replay_deploy: z.literal(false),
+    can_call_github: z.literal(false),
+    can_call_openai_or_provider: z.literal(false),
+    can_execute_codex: z.literal(false),
+    can_create_branch_or_pr: z.literal(false),
+    can_send_handoff: z.literal(false),
+    can_launch_codex: z.literal(false),
+    can_launch_autonomy: z.literal(false),
+    can_schedule_background_work: z.literal(false),
+    can_create_mcp_tool: z.literal(false),
+    can_create_ui_action: z.literal(false),
+    can_post_external_comment: z.literal(false),
+    can_write_db: z.literal(false),
+    can_start_daemon: z.literal(false),
+  })
+  .passthrough();
+
+export const AutonomyContractPreviewPacketSchema = z
+  .object({
+    runtime: z.literal("augnes"),
+    contract_version: z.string(),
+    scope: z.string(),
+    contract_id: z.string(),
+    status: z.string(),
+    autonomy_mode: z.string(),
+    title: z.string(),
+    goal: z.string(),
+    bounded_context_summary: z.string(),
+    allowed_actions: z.array(z.unknown()),
+    forbidden_actions: z.array(z.unknown()),
+    budget: z.object({}).passthrough(),
+    reporting_cadence: z.object({}).passthrough(),
+    stop_conditions: z.array(z.unknown()),
+    delta_merge_policy: z
+      .object({
+        auto_apply_allowed: z.literal(false),
+        auto_apply_targets: z.array(z.unknown()).length(0),
+      })
+      .passthrough(),
+    review_escalation_policy: z.object({}).passthrough(),
+    output_policy: z.object({}).passthrough(),
+    staleness_policy: z.object({}).passthrough(),
+    validation_policy: z.object({}).passthrough(),
+    run_preview: z.object({ status: z.literal("preview_only") }).passthrough(),
+    authority_boundary: AutonomyPreviewAuthorityBoundarySchema,
+  })
+  .passthrough();
+
+export const AutonomyContractPreviewResultSchema = z
+  .object({
+    response_version: z.string(),
+    runtime: z.literal("augnes"),
+    scope: z.string(),
+    route_id: z.string(),
+    route_family: z.string(),
+    contract: AutonomyContractPreviewPacketSchema,
+    route_authority_boundary: z.array(z.string()),
+    source_status: z.object({}).passthrough(),
     warnings: z.array(z.unknown()).optional(),
     gaps: z.array(z.unknown()).optional(),
   })
@@ -1004,6 +1085,7 @@ export type ConstellationPreviewResult = z.infer<typeof ConstellationPreviewResu
 export type GuideBriefResult = z.infer<typeof GuideBriefResultSchema>;
 export type HandoffCapsulePreviewResult = z.infer<typeof HandoffCapsulePreviewResultSchema>;
 export type CodexLaunchCardPreviewResult = z.infer<typeof CodexLaunchCardPreviewResultSchema>;
+export type AutonomyContractPreviewResult = z.infer<typeof AutonomyContractPreviewResultSchema>;
 export type WorkEventResult = z.infer<typeof WorkEventResultSchema>;
 export type HandoffRecord = z.infer<typeof HandoffRecordSchema>;
 export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
@@ -1049,6 +1131,10 @@ export interface StateRuntimeHandoffCapsulePreviewInput {
 }
 
 export interface StateRuntimeCodexLaunchCardPreviewInput {
+  scope: StateRuntimeScope;
+}
+
+export interface StateRuntimeAutonomyContractPreviewInput {
   scope: StateRuntimeScope;
 }
 
@@ -1103,6 +1189,7 @@ export interface StateRuntimeBridgeAdapter {
   getGuideBrief(scope: StateRuntimeScope): Promise<GuideBriefResult>;
   getHandoffCapsulePreview(input: StateRuntimeHandoffCapsulePreviewInput): Promise<HandoffCapsulePreviewResult>;
   getCodexLaunchCardPreview(input: StateRuntimeCodexLaunchCardPreviewInput): Promise<CodexLaunchCardPreviewResult>;
+  getAutonomyContractPreview(input: StateRuntimeAutonomyContractPreviewInput): Promise<AutonomyContractPreviewResult>;
   getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult>;
   getSessionTrace(input: StateRuntimeSessionTraceInput): Promise<SessionTraceResult>;
   getVerificationEvidenceRecords(

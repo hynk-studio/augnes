@@ -363,6 +363,27 @@ PR #868 is merged. Current route planning starts from:
   write, memory mutation, durable Perspective apply, handoff send,
   branch/PR creation behavior, merge/publish/retry/replay/deploy behavior, or
   external side effect. This index pointer is not roadmap authority.
+  Phase 8D ChatGPT App/MCP read-only Autonomy Contract preview tool v0.1 adds
+  repo-local non-SSOT pointers for `augnes_get_autonomy_contract_preview`,
+  `apps/augnes_apps/src/server.ts`,
+  `apps/augnes_apps/src/lib/state-runtime-types.ts`,
+  `apps/augnes_apps/src/adapters/state-runtime-http.ts`,
+  `apps/augnes_apps/scripts/mock-state-runtime.ts`, and
+  `scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs` (`npm run
+  smoke:chatgpt-app-autonomy-contract-tool-v0-1`). The model-only tool
+  consumes `GET /api/augnes/read/autonomy-contract?scope=project:augnes`
+  through the state-runtime adapter with `x-augnes-local-readonly:
+  autonomy-contract-v0.1`. It returns preview-only structured content and
+  narrative content for budget boundaries, delta merge policy, review
+  escalation policy, stop conditions, output policy, run preview, source
+  status, warnings, gaps, and all-false authority boundary. Phase 8D adds no
+  Web UI, write tool, copy/export behavior, runner/scheduler/daemon/background
+  work/write/execution/external authority, API write route, DB
+  schema/migration, DB write, provider/OpenAI call, GitHub actuation, Codex
+  execution, proof/evidence write, memory mutation, durable Perspective apply,
+  handoff send, branch/PR creation behavior,
+  merge/publish/retry/replay/deploy behavior, or external side effect. This
+  index pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

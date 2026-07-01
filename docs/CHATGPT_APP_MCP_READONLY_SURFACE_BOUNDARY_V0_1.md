@@ -246,6 +246,40 @@ effects.
 Suggestions are advisory only. Unresolved user judgment remains unresolved.
 Codex Launch Card status never means executed.
 
+## Phase 8D Autonomy Contract preview tool
+
+Phase 8D adds one ChatGPT App/MCP read-only Autonomy Contract preview tool:
+
+```text
+augnes_get_autonomy_contract_preview
+```
+
+The tool is local-route backed and model-only. It consumes the Phase 8B
+GET-only local read-only Autonomy Contract route through the state-runtime
+HTTP adapter:
+
+```text
+GET /api/augnes/read/autonomy-contract?scope=project:augnes
+x-augnes-local-readonly: autonomy-contract-v0.1
+```
+
+The tool returns structured Autonomy Contract preview content and compact
+narrative content for preview/review planning only. It exposes source/fallback
+status, warnings, gaps, budget boundaries, delta merge policy, review
+escalation policy, stop conditions, output policy, run preview, and authority
+boundary.
+
+It does not expose a widget, write tool, run action, scheduler, daemon,
+background work, Codex execution, Codex launch, handoff send,
+GitHub/OpenAI/provider calls, branch or PR creation, proof/evidence writes,
+state/memory/DB/work/Perspective mutation, publish/merge/retry/replay/deploy
+behavior, external posting, or external side effects.
+
+Budget is boundary only and not spend permission. `auto_apply_allowed`
+remains `false`. `run_preview.status` is `preview_only`, and run preview is
+not execution. Suggestions or candidate actions are advisory/planning only.
+Unresolved user judgment remains unresolved.
+
 ## Authority boundaries
 
 Authority boundaries:
