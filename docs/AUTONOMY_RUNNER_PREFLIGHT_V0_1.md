@@ -194,6 +194,30 @@ Augnes product code, GitHub actuation from Augnes product code, branch/PR
 creation from product code, budget spend, auto-apply, product-write, or
 external side effect.
 
+## 1.6 Phase 9G Runner Skeleton Planning
+
+Phase 9G adds planning docs and smoke coverage only.
+
+```text
+docs/AUTONOMY_RUNNER_SKELETON_PLANNING_V0_1.md
+docs/AUTONOMY_RUNNER_OPERATOR_APPROVAL_GATE_V0_1.md
+scripts/smoke-autonomy-runner-skeleton-planning-v0-1.mjs
+```
+
+Phase 9G does not implement a runner skeleton. Phase 9G does not add execution
+authority. In Phase 9G, preflight remains planning context, dry-run remains
+preview context, readiness remains not authorization, and operator approval is
+not implied by any existing preview/read/copy/Codex/App surface. No run may
+start from Phase 9G artifacts.
+
+The planning docs define future prerequisites for an explicitly
+operator-approved runner skeleton, including run ledger/write policy,
+pause/stop/cancel semantics, manual confirmation, tool/source boundaries, and
+Codex/GitHub/provider/OpenAI/DB/proof/evidence/memory/Perspective/handoff/
+branch-PR/budget/external side-effect boundaries. They do not create the
+approval mechanism, runner skeleton, scheduler, daemon, queue, worker, or any
+write/execution behavior.
+
 ## 2. Purpose
 
 `AutonomyRunnerPreflight` is a deterministic preview packet that classifies a
@@ -544,6 +568,14 @@ staleness/authority/public-safety/source-ref preservation, public-safe JSON,
 absence of run/schedule/launch/apply/send/persist/create-branch/open-PR
 controls, and no API/App/MCP/runtime/write/execution scope drift.
 
+`npm run smoke:autonomy-runner-skeleton-planning-v0-1` checks the Phase 9G
+runner skeleton planning document, operator approval gate document, package
+script, latest-index pointer, planning-only interpretation, no runner skeleton
+implementation, no execution authority, future explicit operator approval
+requirements, fail-closed approval cases, no-run authority boundary, prior
+Phase 9A/9B/9C/9D/9E/9F smokes, and no API/UI/App/MCP/runtime/write/execution
+scope drift.
+
 Browser/CDP validation is skipped because Phase 9A has no UI or route.
 Browser/CDP validation is skipped because Phase 9B adds only a GET-only read
 route and no UI.
@@ -552,6 +584,8 @@ read-only preview tool and no Web UI.
 Browser/CDP validation is skipped because Phase 9E adds only Codex docs/skill/smoke alignment and no Web UI.
 Browser/CDP validation is expected for Phase 9F because it adds local
 copy/manual-copy UI to the Agent Workplane preview surface.
+Browser/CDP validation is skipped because Phase 9G adds only runner skeleton
+planning docs/smoke and no Web UI.
 
 Proof-only closeout is skipped unless a future task explicitly scopes proof
 recording and runtime proof context is available. Phase 9A does not write
@@ -578,3 +612,12 @@ Phase 9G - explicit operator-approved runner skeleton planning v0.1
 
 Phase 9G is planning only unless separately and explicitly scoped. Phase 9F
 does not implement a runner skeleton.
+
+Phase 9H default recommended next phase:
+
+```text
+Phase 9H - Autonomy Runner ledger and run-record policy planning v0.1, docs/smoke only
+```
+
+Phase 10A supervised runner skeleton core can be considered only if the
+operator explicitly approves moving beyond planning in a later phase.
