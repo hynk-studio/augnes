@@ -2,10 +2,12 @@
 
 ## 1. Status and Scope
 
-Status: Phase 7A Handoff Capsule / Codex Launch Card core v0.1.
+Status: Phase 7B Handoff Capsule / Codex Launch Card core and GET-only read
+routes v0.1.
 
-Scope: contract, type, pure helper, public-safe fixtures, static smoke,
-package script pointer, and latest-index pointer only.
+Scope: Phase 7A contract, type, pure helper, public-safe fixtures, static
+smoke, package script pointer, and latest-index pointer plus Phase 7B GET-only
+local read-only preview routes and thin source composition.
 
 Handoff Capsule and Codex Launch Card are reviewable transfer packets. They
 prepare context for another surface. They do not send, launch, execute, post,
@@ -168,6 +170,52 @@ Allowed `status` values:
 
 No status may mean "executed"; every status can only describe
 review/preparation state.
+
+## 5.1 Phase 7B GET-Only Read Routes
+
+Phase 7B exposes Handoff Capsule and Codex Launch Card preview JSON through
+GET-only local read-only routes:
+
+```text
+GET /api/augnes/read/handoff-capsule?scope=project:augnes&target=codex_handoff
+x-augnes-local-readonly: handoff-capsule-v0.1
+```
+
+```text
+GET /api/augnes/read/codex-launch-card?scope=project:augnes
+x-augnes-local-readonly: codex-launch-card-v0.1
+```
+
+Route behavior:
+
+- exports `GET` only and exports no `POST`, `PUT`, `PATCH`, `DELETE`, or other
+  mutating handler
+- uses `runtime = "nodejs"` and `dynamic = "force-dynamic"`
+- returns JSON with `cache-control: no-store`
+- returns the matching `x-augnes-local-readonly` marker response header
+- requires exact `scope=project:augnes`
+- Handoff Capsule route requires exact `target=codex_handoff`
+- fails closed on missing scope, invalid scope, missing marker, invalid marker,
+  and invalid target
+- returns structured read errors with route authority boundary notes
+- returns preview JSON only
+- preserves Handoff Capsule and Codex Launch Card authority boundaries
+
+Source composition is owned by `lib/handoff/handoff-capsule-source.ts`. The
+source helper uses the existing GuideBrief local read-only source helper and
+the Phase 7A `buildHandoffCapsule(input)` and `buildCodexLaunchCard(input)`
+builders. It may combine runtime GuideBrief read-model data with shaped
+operator/sample defaults for repo/task fields, but those defaults must be
+disclosed as route-composed preview fields and must not claim live task
+assignment, execution state, proof, evidence, or account artifacts.
+
+Phase 7B adds no DB schema/migration, DB write, provider/OpenAI call, GitHub
+actuation, Codex execution, proof/evidence write, memory mutation, durable
+Perspective state apply, handoff send, branch/PR creation, scheduler/autonomy
+runner, product-write, or external side effects.
+
+Phase 7C Web preview UI is deferred. Phase 7D ChatGPT App/MCP tool is
+deferred. Phase 7E Codex skill alignment is deferred.
 
 ## 6. Source Refs
 

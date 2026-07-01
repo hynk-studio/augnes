@@ -241,6 +241,18 @@ PR #868 is merged. Current route planning starts from:
   do not send, launch, execute, post, merge, publish, mutate state, call
   GitHub/OpenAI/providers, write proof/evidence, create product-code
   branch/PR behavior, or add external side effects.
+  Phase 7B Handoff Capsule / Codex Launch Card read route v0.1 adds repo-local
+  non-SSOT pointers for
+  `GET /api/augnes/read/handoff-capsule?scope=project:augnes&target=codex_handoff`
+  with `x-augnes-local-readonly: handoff-capsule-v0.1` and
+  `GET /api/augnes/read/codex-launch-card?scope=project:augnes` with
+  `x-augnes-local-readonly: codex-launch-card-v0.1`. Both routes are
+  GET-only, local read-only, return `cache-control: no-store`, and expose
+  preview JSON only. `lib/handoff/handoff-capsule-source.ts` owns thin source
+  composition from the read-only GuideBrief route source plus Phase 7A
+  builders. `scripts/smoke-handoff-capsule-route-v0-1.mjs` (`npm run
+  smoke:handoff-capsule-route-v0-1`) checks the route/source boundary and
+  no UI/MCP/App/DB/provider/GitHub/Codex execution/proof/evidence/memory/autonomy/handoff-send/external side effects.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

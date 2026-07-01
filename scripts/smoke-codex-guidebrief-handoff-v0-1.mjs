@@ -70,6 +70,16 @@ for (const file of followOnHandoffCapsuleFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffCapsuleRouteFiles = [
+  "app/api/augnes/read/handoff-capsule/route.ts",
+  "app/api/augnes/read/codex-launch-card/route.ts",
+  "lib/handoff/handoff-capsule-source.ts",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleRouteFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const forbiddenRuntimePathPatterns = [
   /^app\//,
   /^components\//,
@@ -317,7 +327,8 @@ function assertChangedFilesBoundary() {
         `Unexpected changed file for Codex GuideBrief handoff alignment smoke: ${file}`,
       );
       assert(
-        !forbiddenRuntimePathPatterns.some((pattern) => pattern.test(file)),
+        followOnHandoffCapsuleRouteFiles.includes(file) ||
+          !forbiddenRuntimePathPatterns.some((pattern) => pattern.test(file)),
         `Forbidden runtime changed file for Codex GuideBrief handoff alignment smoke: ${file}`,
       );
     }
