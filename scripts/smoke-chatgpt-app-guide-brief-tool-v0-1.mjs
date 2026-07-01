@@ -159,6 +159,17 @@ function extractGuideBriefAdapterBlock() {
   return httpAdapterText.slice(start, next === -1 ? undefined : next);
 }
 
+function extractBuildGuideBriefStructuredContentBlock() {
+  const start = serverText.indexOf("function buildGuideBriefStructuredContent");
+  assert.notEqual(
+    start,
+    -1,
+    `${serverFile} must include a boundary-aware GuideBrief structured content helper`,
+  );
+  const next = serverText.indexOf("\nfunction ", start + 1);
+  return serverText.slice(start, next === -1 ? undefined : next);
+}
+
 function assertServerTool() {
   assertContainsAll(
     serverText,
@@ -167,7 +178,14 @@ function assertServerTool() {
       "GuideBriefToolInputSchema",
       "describeGuideBrief",
       "buildGuideBriefSummary",
+      "buildGuideBriefStructuredContent",
+      "restoreGuideBriefAuthorityBoundary",
+      "restoreGuideBriefReadBoundary",
       "summarizeGuideBriefSourceRefs",
+      "GUIDE_BRIEF_AUTHORITY_BOUNDARY_FALSE_FIELDS",
+      "GUIDE_BRIEF_READ_BOUNDARY_FALSE_FIELDS",
+      "can_call_openai_or_provider",
+      "github_openai_provider_calls",
     ],
     { label: serverFile },
   );
@@ -190,24 +208,20 @@ function assertServerTool() {
       "annotations: localRouteReadAnnotations",
       "modelOnlyToolMeta",
       "stateRuntimeAdapter.getGuideBrief(resolvedScope)",
+      "buildGuideBriefStructuredContent",
       "guideBrief",
       "guideBriefSummary",
-      "observed_count",
-      "inferred_count",
-      "suggested_count",
-      "needs_user_judgment_count",
-      "staleness_warning_count",
-      "handoff_candidate_count",
-      "authority_boundary",
-      "surface_rendering_notes",
-      "read_boundary",
-      "route_boundary",
-      "source_refs",
       "content: narrative(describeGuideBrief(guideBrief))",
     ],
     { label: `${serverFile} augnes_get_guide_brief block` },
   );
 
+  assert(
+    !/const\s+structuredContent\s*=\s*sanitizePayload\s*\(\s*\{/.test(
+      toolBlock,
+    ),
+    "augnes_get_guide_brief must not use generic sanitizePayload as the final structuredContent operation",
+  );
   assert(
     !toolBlock.includes("bridgeWriteAnnotations"),
     "augnes_get_guide_brief must not use bridgeWriteAnnotations",
@@ -226,6 +240,46 @@ function assertServerTool() {
       "Read-only tool: no writes, no Codex execution, no GitHub/OpenAI/provider calls, no handoff send.",
     ],
     { label: serverFile },
+  );
+
+  const structuredContentBlock = extractBuildGuideBriefStructuredContentBlock();
+  assertContainsAll(
+    structuredContentBlock,
+    [
+      "sanitizePayload({",
+      "observed_count",
+      "inferred_count",
+      "suggested_count",
+      "needs_user_judgment_count",
+      "staleness_warning_count",
+      "handoff_candidate_count",
+      "authority_boundary",
+      "surface_rendering_notes",
+      "read_boundary",
+      "route_boundary",
+      "source_refs",
+      "structuredContent.authority_boundary = restoreGuideBriefAuthorityBoundary",
+      "structuredContent.read_boundary = restoreGuideBriefReadBoundary",
+      "structuredContent.route_boundary = restoreGuideBriefReadBoundary",
+      "for (const guideBriefKey of [\"guideBrief\", \"guide_brief\"] as const)",
+      "authority_boundary: restoreGuideBriefAuthorityBoundary",
+    ],
+    { label: `${serverFile} buildGuideBriefStructuredContent block` },
+  );
+
+  assert(
+    structuredContentBlock.indexOf("sanitizePayload({") <
+      structuredContentBlock.indexOf(
+        "structuredContent.authority_boundary = restoreGuideBriefAuthorityBoundary",
+      ),
+    "GuideBrief structured content helper must rehydrate authority boundary after generic sanitization",
+  );
+  assert(
+    structuredContentBlock.indexOf("sanitizePayload({") <
+      structuredContentBlock.indexOf(
+        "structuredContent.read_boundary = restoreGuideBriefReadBoundary",
+      ),
+    "GuideBrief structured content helper must rehydrate read boundary after generic sanitization",
   );
 }
 

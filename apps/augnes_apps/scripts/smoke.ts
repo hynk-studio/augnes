@@ -185,8 +185,11 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             projectConstellationPreview: result.structuredContent?.project_constellation_preview,
             copyableHandoffSeed: result.structuredContent?.copyable_handoff_seed,
             guideBrief: result.structuredContent?.guideBrief,
+            guideBriefSnake: result.structuredContent?.guide_brief,
             guideBriefSummary: result.structuredContent?.guideBriefSummary,
+            authorityBoundary: result.structuredContent?.authority_boundary,
             readBoundary: result.structuredContent?.read_boundary,
+            routeBoundary: result.structuredContent?.route_boundary,
             actionRecord: result.structuredContent?.actionRecord,
             eventResult: result.structuredContent?.eventResult,
             handoff: result.structuredContent?.handoff,
@@ -464,9 +467,34 @@ async function main() {
     "augnes_get_guide_brief should not expose Codex execution authority"
   );
   assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.authority_boundary.can_call_openai_or_provider,
+    false,
+    "augnes_get_guide_brief should preserve guideBrief OpenAI/provider denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBriefSnake.authority_boundary.can_call_openai_or_provider,
+    false,
+    "augnes_get_guide_brief should preserve guide_brief OpenAI/provider denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.authorityBoundary.can_call_openai_or_provider,
+    false,
+    "augnes_get_guide_brief should preserve top-level OpenAI/provider denial"
+  );
+  assert.equal(
     bridgeSnapshot.profiles.augnes_get_guide_brief.readBoundary.handoff_execution_authority,
     false,
     "augnes_get_guide_brief should keep handoff execution authority denied"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.readBoundary.github_openai_provider_calls,
+    false,
+    "augnes_get_guide_brief should preserve read boundary OpenAI/provider denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.routeBoundary.github_openai_provider_calls,
+    false,
+    "augnes_get_guide_brief should preserve route boundary OpenAI/provider denial"
   );
   assert.match(
     bridgeSnapshot.profiles.augnes_get_guide_brief.text,

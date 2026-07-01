@@ -6385,6 +6385,137 @@ function buildGuideBriefSummary(guideBrief: GuideBriefResult) {
   };
 }
 
+const GUIDE_BRIEF_AUTHORITY_BOUNDARY_FALSE_FIELDS = [
+  "source_of_truth",
+  "can_commit_or_reject_state",
+  "can_record_proof",
+  "can_create_evidence",
+  "can_update_work",
+  "can_mutate_memory",
+  "can_apply_project_perspective",
+  "can_publish_external",
+  "can_merge",
+  "can_retry_replay_deploy",
+  "can_call_github",
+  "can_call_openai_or_provider",
+  "can_execute_codex",
+  "can_create_branch_or_pr",
+  "can_send_handoff",
+  "can_launch_autonomy",
+  "can_create_mcp_tool",
+  "can_create_ui_action",
+] as const;
+
+const GUIDE_BRIEF_READ_BOUNDARY_FALSE_FIELDS = [
+  "github_openai_provider_calls",
+  "codex_execution_authority",
+  "handoff_execution_authority",
+  "proof_evidence_writes",
+  "state_memory_db_mutation",
+  "suggestions_are_actions",
+] as const;
+
+function objectRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function restoreFalseBoundaryFields(
+  sanitizedBoundary: unknown,
+  sourceBoundary: unknown,
+  falseFields: readonly string[]
+): Record<string, unknown> {
+  const restored = { ...objectRecord(sanitizedBoundary) };
+  const source = objectRecord(sourceBoundary);
+
+  for (const field of falseFields) {
+    if (source[field] === false) {
+      restored[field] = false;
+    }
+  }
+
+  return restored;
+}
+
+function restoreGuideBriefAuthorityBoundary(
+  sanitizedAuthorityBoundary: unknown,
+  guideBrief: GuideBriefResult
+): Record<string, unknown> {
+  return restoreFalseBoundaryFields(
+    sanitizedAuthorityBoundary,
+    guideBrief.authority_boundary,
+    GUIDE_BRIEF_AUTHORITY_BOUNDARY_FALSE_FIELDS
+  );
+}
+
+function restoreGuideBriefReadBoundary(
+  sanitizedReadBoundary: unknown,
+  guideBriefSummary: ReturnType<typeof buildGuideBriefSummary>
+): Record<string, unknown> {
+  return restoreFalseBoundaryFields(
+    sanitizedReadBoundary,
+    guideBriefSummary.read_boundary,
+    GUIDE_BRIEF_READ_BOUNDARY_FALSE_FIELDS
+  );
+}
+
+function buildGuideBriefStructuredContent({
+  guideBrief,
+  guideBriefSummary,
+  compact,
+}: {
+  guideBrief: GuideBriefResult;
+  guideBriefSummary: ReturnType<typeof buildGuideBriefSummary>;
+  compact: boolean | undefined;
+}): Record<string, unknown> {
+  const structuredContent = sanitizePayload({
+    profile: config.appProfile,
+    guideBrief,
+    guide_brief: guideBrief,
+    guideBriefSummary,
+    guide_summary: guideBriefSummary,
+    compact: compact ?? true,
+    observed_count: guideBriefSummary.observed_count,
+    inferred_count: guideBriefSummary.inferred_count,
+    suggested_count: guideBriefSummary.suggested_count,
+    needs_user_judgment_count: guideBriefSummary.needs_user_judgment_count,
+    staleness_warning_count: guideBriefSummary.staleness_warning_count,
+    handoff_candidate_count: guideBriefSummary.handoff_candidate_count,
+    authority_boundary: guideBrief.authority_boundary,
+    surface_rendering_notes: guideBrief.surface_rendering_notes ?? {},
+    read_boundary: guideBriefSummary.read_boundary,
+    route_boundary: guideBriefSummary.read_boundary,
+    source_refs: summarizeGuideBriefSourceRefs(guideBrief),
+  }) as Record<string, unknown>;
+
+  structuredContent.authority_boundary = restoreGuideBriefAuthorityBoundary(
+    structuredContent.authority_boundary,
+    guideBrief
+  );
+  structuredContent.read_boundary = restoreGuideBriefReadBoundary(
+    structuredContent.read_boundary,
+    guideBriefSummary
+  );
+  structuredContent.route_boundary = restoreGuideBriefReadBoundary(
+    structuredContent.route_boundary,
+    guideBriefSummary
+  );
+
+  for (const guideBriefKey of ["guideBrief", "guide_brief"] as const) {
+    const sanitizedGuideBrief = objectRecord(structuredContent[guideBriefKey]);
+    structuredContent[guideBriefKey] = {
+      ...sanitizedGuideBrief,
+      authority_boundary: restoreGuideBriefAuthorityBoundary(
+        sanitizedGuideBrief.authority_boundary,
+        guideBrief
+      ),
+    };
+  }
+
+  return structuredContent;
+}
+
 function describeGuideBrief(guideBrief: GuideBriefResult): string {
   const summary = buildGuideBriefSummary(guideBrief);
 
@@ -7018,24 +7149,10 @@ export function createMcpAppServer(
         try {
           const guideBrief = await stateRuntimeAdapter.getGuideBrief(resolvedScope);
           const guideBriefSummary = buildGuideBriefSummary(guideBrief);
-          const structuredContent = sanitizePayload({
-            profile: config.appProfile,
+          const structuredContent = buildGuideBriefStructuredContent({
             guideBrief,
-            guide_brief: guideBrief,
             guideBriefSummary,
-            guide_summary: guideBriefSummary,
             compact: compact ?? true,
-            observed_count: guideBriefSummary.observed_count,
-            inferred_count: guideBriefSummary.inferred_count,
-            suggested_count: guideBriefSummary.suggested_count,
-            needs_user_judgment_count: guideBriefSummary.needs_user_judgment_count,
-            staleness_warning_count: guideBriefSummary.staleness_warning_count,
-            handoff_candidate_count: guideBriefSummary.handoff_candidate_count,
-            authority_boundary: guideBrief.authority_boundary,
-            surface_rendering_notes: guideBrief.surface_rendering_notes ?? {},
-            read_boundary: guideBriefSummary.read_boundary,
-            route_boundary: guideBriefSummary.read_boundary,
-            source_refs: summarizeGuideBriefSourceRefs(guideBrief),
           });
 
           return {
