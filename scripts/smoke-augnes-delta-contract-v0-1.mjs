@@ -171,6 +171,9 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "components/workplane/agent-workplane.tsx",
   "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
   "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
+  "docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md",
+  "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -619,7 +622,7 @@ function assertChangedFileBoundary() {
     assert(!/^db\//.test(file), `AugnesDelta contract follow-on must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `AugnesDelta contract follow-on must not change migrations: ${file}`);
     assert((!/^apps\/augnes_apps\//.test(file) || followOnChatgptAppGuideBriefToolFiles.includes(file)), `AugnesDelta contract follow-on must not change MCP/App files: ${file}`);
-    assert(((!/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file) || followOnCodexGuideBriefHandoffFiles.includes(file)) || followOnChatgptAppGuideBriefToolFiles.includes(file) || followOnCodexGuideBriefHandoffFiles.includes(file)), `AugnesDelta contract follow-on must not change MCP/App tool files: ${file}`);
+    assert(((!/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file) || followOnCodexGuideBriefHandoffFiles.includes(file)) || followOnChatgptAppGuideBriefToolFiles.includes(file) || followOnCodexGuideBriefHandoffFiles.includes(file) || phase9aAutonomyRunnerPreflightFiles.includes(file)), `AugnesDelta contract follow-on must not change MCP/App tool files: ${file}`);
     assert(!/(^|\/)(provider|providers|openai|github)(\/|$)/i.test(file), `AugnesDelta contract follow-on must not change provider/OpenAI/GitHub runtime files: ${file}`);
     assert(!/(^|\/)(proof|evidence)(\/|$)/i.test(file), `AugnesDelta contract follow-on must not add proof/evidence write paths: ${file}`);
   }

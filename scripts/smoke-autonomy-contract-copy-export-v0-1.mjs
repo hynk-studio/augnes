@@ -127,6 +127,9 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "apps/augnes_apps/scripts/smoke.ts",
   "apps/augnes_apps/scripts/mock-state-runtime.ts",
   "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
+  "docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md",
+  "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
 ];
 const allowedChangedFiles = new Set([
   helperFile,

@@ -90,6 +90,9 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
   "scripts/smoke-codex-handoff-capsule-v0-1.mjs",
   "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
+  "docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md",
+  "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
 ]);
 
 const authorityFalseFields = [
@@ -470,6 +473,9 @@ function assertDocsAndIndex() {
       "Phase 9D ChatGPT App/MCP Autonomy Runner Preflight read-only preview tool",
       "augnes_get_autonomy_runner_preflight",
       "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
+  "docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md",
+  "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
       "smoke:chatgpt-app-autonomy-runner-preflight-tool-v0-1",
       "read-only preview only",
       "dry_run_plan.status: dry_run_only",

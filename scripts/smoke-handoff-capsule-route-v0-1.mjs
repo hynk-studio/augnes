@@ -142,6 +142,9 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "components/workplane/agent-workplane.tsx",
   "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
   "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
+  "docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md",
+  "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -557,6 +560,7 @@ function assertChangedFileBoundary() {
           followOnHandoffCapsuleCopyExportFiles.includes(file) ||
           phase8eAutonomyContractCodexSkillFiles.includes(file) ||
           phase8fAutonomyContractCopyExportFiles.includes(file) ||
+          phase9aAutonomyRunnerPreflightFiles.includes(file) ||
           file ===
             "app/api/augnes/read/autonomy-runner-preflight/route.ts" ||
           !forbiddenChangedFilePatterns.some((pattern) => pattern.test(file)),
