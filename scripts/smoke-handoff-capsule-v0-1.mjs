@@ -135,6 +135,43 @@ const phase8fAutonomyContractCopyExportFiles = [
   "package.json",
 ];
 
+const phase9aAutonomyRunnerPreflightFiles = [
+  "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+  "types/autonomy-runner.ts",
+  "lib/autonomy/autonomy-runner-preflight.ts",
+  "fixtures/autonomy-runner-preflight.sample.v0.1.json",
+  "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
+  "scripts/smoke-augnes-delta-contract-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-route-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-route-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-perspective-human-timeline-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
+  "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+  "scripts/smoke-codex-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-route-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
+  "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
+];
 const allowedChangedFiles = new Set([
   "docs/AUTONOMY_CONTRACT_V0_1.md",
   "types/autonomy-contract.ts",
@@ -156,6 +193,9 @@ const allowedChangedFiles = new Set([
   ...phase8eAutonomyContractCodexSkillFiles,
   ...phase8fAutonomyContractCopyExportFiles,
 ]);
+for (const file of phase9aAutonomyRunnerPreflightFiles) {
+  allowedChangedFiles.add(file);
+}
 const phase8PriorSmokeAllowlistFiles = [
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
   "scripts/smoke-augnes-delta-projection-v0-1.mjs",
