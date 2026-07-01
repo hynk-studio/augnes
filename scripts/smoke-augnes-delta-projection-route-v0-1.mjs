@@ -115,6 +115,17 @@ const followOnWebGuidePanelFiles = [
   "components/workplane/agent-workplane.tsx",
   "scripts/smoke-web-guide-panel-v0-1.mjs",
 ];
+const followOnChatgptAppGuideBriefToolFiles = [
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+  "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
+];
+
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 
@@ -151,6 +162,7 @@ const allowedChangedFiles = new Set([
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
+  ...followOnChatgptAppGuideBriefToolFiles,
   packageJsonFile,
   indexDoc,
 ]);
@@ -455,11 +467,11 @@ function assertChangedFileBoundary() {
     assert(!/^db\//.test(file), `Phase 2B must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `Phase 2B must not change migrations: ${file}`);
     assert(
-      !/^apps\/augnes_apps\//.test(file),
+      (!/^apps\/augnes_apps\//.test(file) || followOnChatgptAppGuideBriefToolFiles.includes(file)),
       `Phase 2B must not change MCP/App files: ${file}`,
     );
     assert(
-      !/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file),
+      (!/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file) || followOnChatgptAppGuideBriefToolFiles.includes(file)),
       `Phase 2B must not change MCP/App tool files: ${file}`,
     );
     assert(

@@ -133,6 +133,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
         const args = {
           augnes_get_state_brief: {},
           augnes_get_project_constellation_preview: {},
+          augnes_get_guide_brief: {},
           augnes_get_evidence_pack: {},
           augnes_get_session_trace: { sessionId: 'session:smoke-1', limit: 5 },
           augnes_get_verification_evidence_records: { workId: 'AG-001', limit: 5 },
@@ -183,6 +184,9 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             agentHandoff: result.structuredContent?.brief?.agent_handoff,
             projectConstellationPreview: result.structuredContent?.project_constellation_preview,
             copyableHandoffSeed: result.structuredContent?.copyable_handoff_seed,
+            guideBrief: result.structuredContent?.guideBrief,
+            guideBriefSummary: result.structuredContent?.guideBriefSummary,
+            readBoundary: result.structuredContent?.read_boundary,
             actionRecord: result.structuredContent?.actionRecord,
             eventResult: result.structuredContent?.eventResult,
             handoff: result.structuredContent?.handoff,
@@ -443,6 +447,41 @@ async function main() {
     bridgeSnapshot.profiles.augnes_get_project_constellation_preview.copyableHandoffSeed.preview_text,
     /Augnes Project Constellation handoff seed/,
     "augnes_get_project_constellation_preview should return copyable handoff seed text"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.guide_version,
+    "guide_brief.v0.1",
+    "augnes_get_guide_brief should return GuideBrief structured content"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBriefSummary.observed_count,
+    1,
+    "augnes_get_guide_brief should summarize observed items"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.guideBrief.authority_boundary.can_execute_codex,
+    false,
+    "augnes_get_guide_brief should not expose Codex execution authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.readBoundary.handoff_execution_authority,
+    false,
+    "augnes_get_guide_brief should keep handoff execution authority denied"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.text,
+    /Suggestions are not actions/i,
+    "augnes_get_guide_brief should state suggestions are not actions"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.text,
+    /Needs user judgment items are not decided by the guide/i,
+    "augnes_get_guide_brief should state user judgment items are not decided"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_guide_brief.text,
+    /Handoff candidates are preview-only/i,
+    "augnes_get_guide_brief should state handoff candidates are preview-only"
   );
   assert.equal(
     bridgeSnapshot.profiles.augnes_record_action_result.actionRecord.action_name,

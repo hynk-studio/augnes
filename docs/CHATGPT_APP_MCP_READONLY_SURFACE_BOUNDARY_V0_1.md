@@ -189,6 +189,32 @@ local-only; this App/MCP contact surface is a separate read-only consumer path.
 local Cockpit closeout. The closeout did not add App/MCP authority; the v0.1
 tool here adds only a read-only consumer path.
 
+## GuideBrief read-only tool
+
+Phase 6D adds one additional read-only App/MCP tool:
+
+```text
+augnes_get_guide_brief
+```
+
+`augnes_get_guide_brief` is read-only and local-route backed. It consumes the
+existing Phase 6B GuideBrief route through the state-runtime HTTP adapter:
+
+```text
+GET /api/augnes/read/guide-brief?scope=project:augnes
+x-augnes-local-readonly: guide-brief-v0.1
+```
+
+The tool returns GuideBrief structured content and a compact summary for
+ChatGPT. It preserves Observed/Inferred/Suggested/Needs user judgment
+separation, states that suggestions are not actions, and states that
+needs_user_judgment is not decided by the tool.
+
+The tool does not expose a write surface. It does not add Codex execution,
+GitHub/OpenAI/provider calls, proof/evidence writes, state mutation, memory
+mutation, DB writes, branch or PR creation, handoff execution, approval,
+publish, retry, replay, deploy, or external side effects.
+
 ## Authority boundaries
 
 Authority boundaries:

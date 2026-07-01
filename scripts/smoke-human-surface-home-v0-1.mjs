@@ -107,6 +107,17 @@ const followOnWebGuidePanelFiles = [
   "lib/guide/read-guide-brief-for-web.ts",
   "scripts/smoke-web-guide-panel-v0-1.mjs",
 ];
+const followOnChatgptAppGuideBriefToolFiles = [
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+  "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
+];
+
 
 const requiredFiles = [
   pageFile,
@@ -136,6 +147,7 @@ const allowedChangedFiles = new Set([
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
+  ...followOnChatgptAppGuideBriefToolFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -510,11 +522,11 @@ function assertChangedFileBoundary() {
       `Phase 4A must not change migrations: ${file}`,
     );
     assert(
-      !/^apps\/augnes_apps\//.test(file),
+      (!/^apps\/augnes_apps\//.test(file) || followOnChatgptAppGuideBriefToolFiles.includes(file)),
       `Phase 4A must not change MCP/App files: ${file}`,
     );
     assert(
-      !/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file),
+      (!/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file) || followOnChatgptAppGuideBriefToolFiles.includes(file)),
       `Phase 4A must not change MCP/App tool files: ${file}`,
     );
     assert(
