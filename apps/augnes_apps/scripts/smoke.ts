@@ -137,6 +137,7 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
           augnes_get_handoff_capsule_preview: {},
           augnes_get_codex_launch_card_preview: {},
           augnes_get_autonomy_contract_preview: {},
+          augnes_get_autonomy_runner_preflight: { include_dry_run_plan: true, include_boundary: true },
           augnes_get_evidence_pack: {},
           augnes_get_session_trace: { sessionId: 'session:smoke-1', limit: 5 },
           augnes_get_verification_evidence_records: { workId: 'AG-001', limit: 5 },
@@ -199,6 +200,20 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             codexLaunchCardSummary: result.structuredContent?.launch_card_summary,
             autonomyContract: result.structuredContent?.autonomy_contract,
             contractSummary: result.structuredContent?.contract_summary,
+            autonomyRunnerPreflight: result.structuredContent?.autonomy_runner_preflight,
+            preflightSummary: result.structuredContent?.preflight_summary,
+            dryRunPlan: result.structuredContent?.dry_run_plan,
+            dryRunPlanSummary: result.structuredContent?.dry_run_plan_summary,
+            readiness: result.structuredContent?.readiness,
+            readinessSummary: result.structuredContent?.readiness_summary,
+            blockers: result.structuredContent?.blockers,
+            warnings: result.structuredContent?.warnings,
+            assessments: result.structuredContent?.assessments,
+            plannedSteps: result.structuredContent?.planned_steps,
+            plannedReadSources: result.structuredContent?.planned_read_sources,
+            blockedSteps: result.structuredContent?.blocked_steps,
+            noRunBoundary: result.structuredContent?.no_run_boundary,
+            noRunBoundaryNotes: result.structuredContent?.no_run_boundary_notes,
             budget: result.structuredContent?.budget,
             deltaMergePolicy: result.structuredContent?.delta_merge_policy,
             reviewEscalationPolicy: result.structuredContent?.review_escalation_policy,
@@ -836,6 +851,120 @@ async function main() {
     bridgeSnapshot.profiles.augnes_get_autonomy_contract_preview.text,
     /no handoff send/i,
     "augnes_get_autonomy_contract_preview should deny handoff send"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.autonomyRunnerPreflight.preflight_version,
+    "autonomy_runner_preflight.v0.1",
+    "augnes_get_autonomy_runner_preflight should return Autonomy Runner Preflight structured content"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.dryRunPlan.status,
+    "dry_run_only",
+    "augnes_get_autonomy_runner_preflight should return a dry_run_only plan"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.preflightSummary.every_planned_step_would_execute_false,
+    true,
+    "augnes_get_autonomy_runner_preflight should preserve would_execute false for every planned step"
+  );
+  assert.ok(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.plannedSteps.length > 0,
+    "augnes_get_autonomy_runner_preflight should expose planned steps"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.plannedSteps.every((step: { would_execute?: unknown }) => step.would_execute === false),
+    true,
+    "augnes_get_autonomy_runner_preflight planned steps must all have would_execute false"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.authorityBoundary.can_start_runner,
+    false,
+    "augnes_get_autonomy_runner_preflight should deny runner start authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.authorityBoundary.can_schedule_runner,
+    false,
+    "augnes_get_autonomy_runner_preflight should deny runner schedule authority"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.authorityBoundary.can_execute_codex,
+    false,
+    "augnes_get_autonomy_runner_preflight should deny Codex execution"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.authorityBoundary.can_call_openai_or_provider,
+    false,
+    "augnes_get_autonomy_runner_preflight should deny OpenAI/provider calls"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.authorityBoundary.can_call_github,
+    false,
+    "augnes_get_autonomy_runner_preflight should deny GitHub calls"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.authorityBoundary.can_write_db,
+    false,
+    "augnes_get_autonomy_runner_preflight should deny DB writes"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.authorityBoundary.can_spend_budget,
+    false,
+    "augnes_get_autonomy_runner_preflight should deny budget spend"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.authorityBoundary.can_auto_apply_delta,
+    false,
+    "augnes_get_autonomy_runner_preflight should deny auto-apply"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.noRunBoundary.can_start_runner,
+    false,
+    "augnes_get_autonomy_runner_preflight should expose no-run boundary"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.readBoundary.dry_run_plan_is_execution,
+    false,
+    "augnes_get_autonomy_runner_preflight should state dry-run plan is not execution"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.noRunBoundaryNotes.no_run_started,
+    true,
+    "augnes_get_autonomy_runner_preflight should expose no-run boundary notes"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.publicSafety.contains_private_conversation,
+    false,
+    "augnes_get_autonomy_runner_preflight should not expose private conversation data"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.publicSafety.contains_secrets_or_tokens,
+    false,
+    "augnes_get_autonomy_runner_preflight should not expose secrets or tokens"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.text,
+    /Read-only Autonomy Runner Preflight \/ Dry-Run preview tool/i,
+    "augnes_get_autonomy_runner_preflight should state read-only preview behavior"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.text,
+    /no runner starts, no scheduler starts, no daemon starts, no background work starts/i,
+    "augnes_get_autonomy_runner_preflight should deny runner, scheduler, daemon, and background work"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.text,
+    /no Codex execution, no GitHub\/provider\/OpenAI call/i,
+    "augnes_get_autonomy_runner_preflight should deny Codex, GitHub, and provider calls"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.text,
+    /no DB write, no proof\/evidence write, no memory mutation, no durable Perspective apply/i,
+    "augnes_get_autonomy_runner_preflight should deny writes and durable state mutation"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_autonomy_runner_preflight.text,
+    /no handoff send, no branch\/PR creation, no auto-apply, no budget spend, and no external side effect/i,
+    "augnes_get_autonomy_runner_preflight should deny handoff, PR, auto-apply, budget, and external effects"
   );
   assert.equal(
     bridgeSnapshot.profiles.augnes_record_action_result.actionRecord.action_name,

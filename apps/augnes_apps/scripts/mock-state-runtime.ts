@@ -1,6 +1,7 @@
 import type {
   ActionRecordResult,
   AutonomyContractPreviewResult,
+  AutonomyRunnerPreflightPreviewResult,
   CodexLaunchCardPreviewResult,
   CodexResultReviewDraft,
   ConstellationPreviewResult,
@@ -18,6 +19,7 @@ import type {
   StateBrief,
   StateRuntimeActionResultInput,
   StateRuntimeAutonomyContractPreviewInput,
+  StateRuntimeAutonomyRunnerPreflightInput,
   StateRuntimeBridgeAdapter,
   StateRuntimeCodexLaunchCardPreviewInput,
   StateRuntimeEvidencePackInput,
@@ -178,6 +180,65 @@ const autonomyPreviewRouteAuthorityBoundary = [
   "no handoff send authority",
   "no external side effect authority",
 ] as const;
+
+const autonomyRunnerPreflightAuthorityBoundary = {
+  source_of_truth: false,
+  can_start_runner: false,
+  can_schedule_runner: false,
+  can_start_daemon: false,
+  can_start_background_work: false,
+  can_commit_or_reject_state: false,
+  can_record_proof: false,
+  can_create_evidence: false,
+  can_update_work: false,
+  can_mutate_memory: false,
+  can_apply_project_perspective: false,
+  can_publish_external: false,
+  can_merge: false,
+  can_retry_replay_deploy: false,
+  can_call_github: false,
+  can_call_openai_or_provider: false,
+  can_execute_codex: false,
+  can_create_branch_or_pr: false,
+  can_send_handoff: false,
+  can_launch_codex: false,
+  can_launch_autonomy: false,
+  can_schedule_background_work: false,
+  can_create_mcp_tool: false,
+  can_create_ui_action: false,
+  can_post_external_comment: false,
+  can_write_db: false,
+  can_spend_budget: false,
+  can_auto_apply_delta: false,
+  notes: [
+    "Mock Autonomy Runner Preflight preview is read-only.",
+    "Preflight does not start a runner.",
+    "Dry-run plan does not execute.",
+    "No scheduler, daemon, or background work is created.",
+    "No Codex, GitHub, OpenAI, provider, DB, proof, evidence, memory, Perspective, handoff, auto-apply, budget spend, publish, merge, retry, replay, deploy, or external side effect authority is granted.",
+  ],
+} as const;
+
+const autonomyRunnerPreflightPublicSafety = {
+  fixture_kind: "synthetic_sample",
+  contains_private_conversation: false,
+  contains_hidden_reasoning: false,
+  contains_local_private_paths: false,
+  contains_secrets_or_tokens: false,
+  contains_raw_provider_output: false,
+  contains_raw_retrieval_output: false,
+  contains_real_account_artifacts: false,
+  notes: [
+    "Synthetic public-safe mock preview.",
+    "No private conversation.",
+    "No hidden reasoning.",
+    "No local private paths.",
+    "No secrets/tokens.",
+    "No raw provider output.",
+    "No raw retrieval output.",
+    "No real account artifacts.",
+  ],
+} as const;
 
 function buildMockHandoffCapsulePreviewRouteResponse(
   scope: StateRuntimeScope,
@@ -717,6 +778,271 @@ function buildMockAutonomyContractPreviewRouteResponse(
   };
 }
 
+function buildMockAutonomyRunnerPreflightRouteResponse(
+  scope: StateRuntimeScope,
+): AutonomyRunnerPreflightPreviewResult {
+  const sourceRefs = {
+    route_refs: [
+      "/api/augnes/read/autonomy-runner-preflight?scope=project:augnes",
+      "/api/augnes/read/autonomy-contract?scope=project:augnes",
+    ],
+    docs_refs: [
+      "docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md",
+      "docs/AUTONOMY_CONTRACT_V0_1.md",
+      "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+      "docs/AUTHORITY_MATRIX.md",
+    ],
+    repo_refs: ["hynk-studio/augnes"],
+  };
+  const blockers = [
+    {
+      blocker_id: "blocker.mock.operator_budget_review",
+      severity: "blocking",
+      summary: "Synthetic mock preflight requires operator budget review before any future runner.",
+      source_refs: ["docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md"],
+    },
+  ];
+  const warnings = [
+    {
+      warning_id: "warning.mock.preview_source",
+      severity: "review",
+      summary: "Mock Autonomy Runner Preflight preview is synthetic public-safe route data.",
+      source_refs: ["docs/AUTONOMY_RUNNER_PREFLIGHT_V0_1.md"],
+    },
+  ];
+  const plannedSteps = [
+    {
+      step_id: "dry_run_step.mock.read_contract",
+      title: "Read Autonomy Contract preview",
+      summary: "Inspect the source Autonomy Contract preview packet without collecting new data.",
+      action_kind: "read_contract",
+      allowed_by_contract: true,
+      blocked_by: ["blocker.mock.operator_budget_review"],
+      source_refs: sourceRefs.route_refs,
+      expected_output: "Contract boundary summary.",
+      would_require_review: true,
+      would_execute: false as const,
+    },
+    {
+      step_id: "dry_run_step.mock.build_report_preview",
+      title: "Draft preflight report preview",
+      summary: "Summarize readiness, blockers, warnings, and dry-run-only steps.",
+      action_kind: "draft_report_preview",
+      allowed_by_contract: true,
+      blocked_by: ["blocker.mock.operator_budget_review"],
+      source_refs: sourceRefs.docs_refs,
+      expected_output: "Read-only Autonomy Runner Preflight preview report.",
+      would_require_review: true,
+      would_execute: false as const,
+    },
+  ];
+  const dryRunPlan = {
+    runtime: "augnes" as const,
+    dry_run_version: "autonomy_dry_run_plan.v0.1",
+    dry_run_id: "autonomy_dry_run_plan.mock.chatgpt_app.v0.1.preview",
+    source_contract_id: "autonomy_contract.mock.chatgpt_app.v0.1.preview",
+    status: "dry_run_only" as const,
+    planned_steps: plannedSteps,
+    planned_read_sources: [
+      "Autonomy Contract preview route",
+      "Autonomy Runner Preflight source helper",
+      "Phase 9A/9B docs",
+    ],
+    proposed_delta_outputs: ["needs_review delta candidates only"],
+    proposed_delta_batches: ["preview-only delta batch summary"],
+    proposed_reports: ["Autonomy Runner Preflight / Dry-Run preview report"],
+    proposed_review_queue_items: ["operator_review_required.preview_only"],
+    blocked_steps: [
+      "start_runner",
+      "schedule_runner",
+      "launch_codex",
+      "call_github_or_provider",
+      "write_db",
+      "record_proof_or_create_evidence",
+      "mutate_memory_or_perspective",
+      "send_handoff",
+      "create_branch_or_pr",
+      "auto_apply_delta",
+      "spend_budget",
+    ],
+    required_preconditions: [
+      "Separate explicit future runner scope.",
+      "Operator-approved budget.",
+      "Resolved user judgment items.",
+      "Fresh source snapshots.",
+      "Phase 9D remains read-only preview only.",
+    ],
+    required_checks: [
+      "npm run smoke:autonomy-runner-preflight-v0-1",
+      "npm run smoke:autonomy-runner-preflight-route-v0-1",
+      "npm run smoke:chatgpt-app-autonomy-runner-preflight-tool-v0-1",
+    ],
+    stop_conditions: [
+      "stop.forbidden_action_requested",
+      "stop.budget_not_approved",
+      "stop.user_judgment_required",
+      "stop.stale_context",
+      "stop.authority_boundary_unclear",
+    ],
+    budget_projection: {
+      budget_id: "autonomy_budget.mock.no_spend.preview",
+      time_limit_minutes: 0,
+      max_iterations: 0,
+      max_tool_calls: 0,
+      max_codex_tasks: 0,
+      max_prs: 0,
+      max_file_changes: 0,
+      would_spend_budget: false as const,
+      budget_boundary_notes: [
+        "Budget is boundary only.",
+        "Budget is not spend permission.",
+        "Dry-run plan does not spend budget.",
+      ],
+    },
+    no_run_boundary: autonomyRunnerPreflightAuthorityBoundary,
+    next_phase_notes: [
+      "Phase 9D adds a ChatGPT App/MCP read-only preview tool.",
+      "Recommended next phase: Phase 9E - Codex Autonomy Runner Preflight consumption alignment v0.1.",
+    ],
+  };
+  const preflight = {
+    runtime: "augnes" as const,
+    preflight_version: "autonomy_runner_preflight.v0.1" as const,
+    scope,
+    preflight_id: "autonomy_runner_preflight.mock.chatgpt_app.v0.1.preview",
+    created_at: "2026-07-02T00:00:00.000Z",
+    source_contract_id: "autonomy_contract.mock.chatgpt_app.v0.1.preview",
+    source_contract_version: "autonomy_contract.v0.1",
+    readiness: "blocked",
+    readiness_summary:
+      "Mock preflight is blocked for operator budget review; no run starts and the dry-run plan remains non-executing.",
+    contract_status: "preview_only",
+    autonomy_mode: "scheduled_hunt_preview",
+    budget_assessment: {
+      status: "needs_review",
+      budget_present: true,
+      budget_complete: true,
+      budget_approved: false,
+      budget_exceeded: false,
+      would_spend_budget: false,
+      blocks_run: false,
+      requires_review: true,
+      summary: "Budget is present but not approved; future runner requires review.",
+      source_refs: ["AutonomyBudget"],
+    },
+    action_scope_assessment: {
+      status: "ready",
+      requested_forbidden_actions: [],
+      forbidden_execution_terms: [],
+      run_preview_status: "preview_only",
+      blocks_run: false,
+      requires_review: false,
+      summary: "Mock action scope remains read/evaluate/report dry-run only.",
+      source_refs: ["AutonomyContract.allowed_actions"],
+    },
+    delta_merge_assessment: {
+      status: "ready",
+      auto_apply_allowed: false,
+      auto_apply_targets: [],
+      blocks_run: false,
+      requires_review: false,
+      summary: "Auto-apply is denied and no auto-apply targets exist.",
+      source_refs: ["AutonomyContract.delta_merge_policy"],
+    },
+    review_escalation_assessment: {
+      status: "needs_review",
+      requires_user_judgment: false,
+      requires_operator_review: true,
+      blocks_run: false,
+      requires_review: true,
+      summary: "Operator review remains required before any future runner phase.",
+      source_refs: ["AutonomyContract.review_escalation_policy"],
+    },
+    stop_condition_assessment: {
+      status: "ready",
+      triggered_stop_conditions: [],
+      blocks_run: false,
+      requires_review: false,
+      summary: "No mock stop condition is currently triggered.",
+      source_refs: ["AutonomyContract.stop_conditions"],
+    },
+    staleness_assessment: {
+      status: "needs_review",
+      stale_context_blocks_run: false,
+      refresh_required: true,
+      blocks_run: false,
+      requires_review: true,
+      summary: "Mock source freshness is preview-only and refreshable before future runner scope.",
+      source_refs: ["AutonomyContract.staleness_policy"],
+    },
+    authority_assessment: {
+      status: "ready",
+      authority_boundary_clear: true,
+      execution_authority_denied: true,
+      write_authority_denied: true,
+      schedule_authority_denied: true,
+      external_authority_denied: true,
+      blocks_run: false,
+      requires_review: false,
+      summary: "All runner/write/schedule/external authority is denied for Phase 9D.",
+      source_refs: ["AutonomyRunnerAuthorityBoundary"],
+    },
+    blockers,
+    warnings,
+    required_user_judgment: [],
+    required_operator_review: ["phase_9d_chatgpt_app_preview_review"],
+    dry_run_plan: dryRunPlan,
+    source_refs: sourceRefs,
+    authority_boundary: autonomyRunnerPreflightAuthorityBoundary,
+    public_safety: autonomyRunnerPreflightPublicSafety,
+    next_phase_notes: [
+      "Phase 9D returns read-only App/MCP preview data.",
+      "The tool is not approval to run.",
+      "Recommended next phase: Phase 9E - Codex Autonomy Runner Preflight consumption alignment v0.1.",
+    ],
+  };
+
+  return {
+    response_version: "autonomy_runner_preflight_route_response.v0.1",
+    runtime: "augnes",
+    scope,
+    route_id: "augnes.read.autonomy_runner_preflight.v0.1",
+    route_family: "autonomy_runner_preflight",
+    preflight,
+    dry_run_plan: dryRunPlan,
+    readiness: preflight.readiness,
+    blockers,
+    warnings,
+    source_refs: sourceRefs,
+    authority_boundary: autonomyRunnerPreflightAuthorityBoundary,
+    public_safety: autonomyRunnerPreflightPublicSafety,
+    route_authority_boundary: [
+      "GET-only local read-only Autonomy Runner Preflight route",
+      "preview JSON only",
+      "no runner, scheduler, daemon, background work, Codex, GitHub, provider, DB, proof, evidence, memory, Perspective, handoff, auto-apply, budget spend, or external side effect authority",
+    ],
+    source_status: {
+      autonomy_contract: "synthetic_mock_autonomy_contract_preview",
+      autonomy_runner_preflight: "synthetic_mock_phase_9d_app_preview",
+      dry_run_plan: "dry_run_only_no_runner",
+      source_disclosure:
+        "Synthetic mock preview for App/MCP smoke; preview data only, not active autonomy state.",
+      synthetic_operator_supplied_fields: [
+        "preflight_id",
+        "dry_run_id",
+        "readiness_summary",
+        "operator_review_notes",
+      ],
+    },
+    route_notes: [
+      "App/MCP mock output is local/read-only preview data.",
+      "Dry-run plan status remains dry_run_only.",
+      "Every planned step has would_execute false.",
+      "Authority boundary denies execution/write/schedule/external behavior.",
+    ],
+  };
+}
+
 export async function handleMockStateRuntimeReadRoute(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const scope = url.searchParams.get("scope");
@@ -753,6 +1079,13 @@ export async function handleMockStateRuntimeReadRoute(request: Request): Promise
       return Response.json({ error: marker ? "invalid_marker" : "missing_marker" }, { status: 403 });
     }
     return Response.json(buildMockAutonomyContractPreviewRouteResponse(scope), { status: 200 });
+  }
+
+  if (url.pathname === "/api/augnes/read/autonomy-runner-preflight") {
+    if (marker !== "autonomy-runner-preflight-v0.1") {
+      return Response.json({ error: marker ? "invalid_marker" : "missing_marker" }, { status: 403 });
+    }
+    return Response.json(buildMockAutonomyRunnerPreflightRouteResponse(scope), { status: 200 });
   }
 
   return Response.json({ error: "not_found" }, { status: 404 });
@@ -1126,6 +1459,10 @@ export class MockStateRuntimeBridgeAdapter implements StateRuntimeBridgeAdapter 
 
   async getAutonomyContractPreview(input: StateRuntimeAutonomyContractPreviewInput): Promise<AutonomyContractPreviewResult> {
     return buildMockAutonomyContractPreviewRouteResponse(input.scope);
+  }
+
+  async getAutonomyRunnerPreflight(input: StateRuntimeAutonomyRunnerPreflightInput): Promise<AutonomyRunnerPreflightPreviewResult> {
+    return buildMockAutonomyRunnerPreflightRouteResponse(input.scope);
   }
 
   async getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult> {

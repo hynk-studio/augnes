@@ -106,6 +106,7 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
   "scripts/smoke-codex-autonomy-contract-v0-1.mjs",
   "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
 ];
 const allowedChangedFiles = new Set([
   "docs/AUTONOMY_CONTRACT_V0_1.md",

@@ -115,6 +115,33 @@ actuation, branch/PR creation from product code, auto-apply behavior,
 product-write, merge/publish/retry/replay/deploy behavior, or external side
 effect.
 
+## 1.3 Phase 9D ChatGPT App/MCP Read-Only Preview Tool
+
+Phase 9D adds a ChatGPT App/MCP read-only preview tool:
+
+```text
+augnes_get_autonomy_runner_preflight
+```
+
+The tool returns Autonomy Runner Preflight / Dry-Run preview data for
+`project:augnes`. It consumes the Phase 9B/9A preview source path and does not
+invent readiness, blocker, warning, budget, action-scope, delta-merge,
+escalation, stop-condition, staleness, authority, or dry-run policy.
+
+The tool returns readiness, readiness summary, blockers, warnings, required user
+judgment, required operator review, assessment summaries, source refs, public
+safety status, route/source status, the no-run authority boundary, and the
+dry-run plan. The dry-run plan remains `dry_run_only`, and every planned step
+continues to preserve `would_execute: false`.
+
+Phase 9D ChatGPT App/MCP preview is read-only preview only. The tool is not
+approval to run. It does not run, schedule, start a runner, start a daemon, start
+background work, launch Codex, execute Codex, call GitHub/providers/OpenAI,
+write DB, create proof/evidence, mutate memory/Perspective/state/work, send a
+handoff, create branches/PRs, apply deltas, spend budget, create copy/export or
+download-to-disk behavior, publish/merge/retry/replay/deploy, or create external
+side effects. It adds no write-capable MCP/App tool.
+
 ## 2. Purpose
 
 `AutonomyRunnerPreflight` is a deterministic preview packet that classifies a
@@ -440,9 +467,20 @@ of run/schedule/launch/apply/send/persist controls, and no API/MCP/App/DB
 migration/provider/GitHub/Codex/proof/evidence/memory/Perspective/handoff/
 auto-apply/budget-spend/external-post/file-export scope drift.
 
+`npm run smoke:chatgpt-app-autonomy-runner-preflight-tool-v0-1` checks the Phase
+9D ChatGPT App/MCP read-only preview tool registration, strict `project:augnes`
+scope validation, schema/input boundary, source/helper consumption, App/MCP
+mock behavior, dry-run-only status, planned-step `would_execute: false`,
+all-false authority boundary, public-safety leakage flags, no-run response
+notes, and no API/UI/MCP write/DB migration/provider/GitHub/Codex/proof/
+evidence/memory/Perspective/handoff/auto-apply/budget-spend/external-post/
+file-export scope drift.
+
 Browser/CDP validation is skipped because Phase 9A has no UI or route.
 Browser/CDP validation is skipped because Phase 9B adds only a GET-only read
 route and no UI.
+Browser/CDP validation is skipped because Phase 9D adds only a ChatGPT App/MCP
+read-only preview tool and no Web UI.
 
 Proof-only closeout is skipped unless a future task explicitly scopes proof
 recording and runtime proof context is available. Phase 9A does not write
@@ -460,3 +498,9 @@ Phase 9B - Autonomy Runner Preflight GET-only read route v0.1
 Phase 9B should consume the Phase 9A preflight without inventing policy. It
 must preserve the no-run authority boundary unless the operator explicitly
 scopes a different future phase.
+
+Phase 9E recommended next phase:
+
+```text
+Phase 9E - Codex Autonomy Runner Preflight consumption alignment v0.1
+```

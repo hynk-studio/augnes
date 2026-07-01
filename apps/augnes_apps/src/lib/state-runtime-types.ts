@@ -571,6 +571,14 @@ export const AutonomyContractPreviewToolInputSchema = z
   })
   .strip();
 
+export const AutonomyRunnerPreflightToolInputSchema = z
+  .object({
+    scope: z.literal("project:augnes").optional(),
+    include_dry_run_plan: z.boolean().optional(),
+    include_boundary: z.boolean().optional(),
+  })
+  .strip();
+
 export const HandoffPreviewAuthorityBoundarySchema = z
   .object({
     can_execute_codex: z.literal(false),
@@ -748,6 +756,142 @@ export const AutonomyContractPreviewResultSchema = z
     source_status: z.object({}).passthrough(),
     warnings: z.array(z.unknown()).optional(),
     gaps: z.array(z.unknown()).optional(),
+  })
+  .passthrough();
+
+export const AutonomyRunnerPreflightAuthorityBoundarySchema = z
+  .object({
+    source_of_truth: z.literal(false),
+    can_start_runner: z.literal(false),
+    can_schedule_runner: z.literal(false),
+    can_start_daemon: z.literal(false),
+    can_start_background_work: z.literal(false),
+    can_commit_or_reject_state: z.literal(false),
+    can_record_proof: z.literal(false),
+    can_create_evidence: z.literal(false),
+    can_update_work: z.literal(false),
+    can_mutate_memory: z.literal(false),
+    can_apply_project_perspective: z.literal(false),
+    can_publish_external: z.literal(false),
+    can_merge: z.literal(false),
+    can_retry_replay_deploy: z.literal(false),
+    can_call_github: z.literal(false),
+    can_call_openai_or_provider: z.literal(false),
+    can_execute_codex: z.literal(false),
+    can_create_branch_or_pr: z.literal(false),
+    can_send_handoff: z.literal(false),
+    can_launch_codex: z.literal(false),
+    can_launch_autonomy: z.literal(false),
+    can_schedule_background_work: z.literal(false),
+    can_create_mcp_tool: z.literal(false),
+    can_create_ui_action: z.literal(false),
+    can_post_external_comment: z.literal(false),
+    can_write_db: z.literal(false),
+    can_spend_budget: z.literal(false),
+    can_auto_apply_delta: z.literal(false),
+  })
+  .passthrough();
+
+export const AutonomyRunnerPreflightPublicSafetySchema = z
+  .object({
+    contains_private_conversation: z.literal(false),
+    contains_hidden_reasoning: z.literal(false),
+    contains_local_private_paths: z.literal(false),
+    contains_secrets_or_tokens: z.literal(false),
+    contains_raw_provider_output: z.literal(false),
+    contains_raw_retrieval_output: z.literal(false),
+    contains_real_account_artifacts: z.literal(false),
+  })
+  .passthrough();
+
+export const AutonomyRunnerPreflightStepSchema = z
+  .object({
+    step_id: z.string(),
+    title: z.string(),
+    summary: z.string(),
+    action_kind: z.string(),
+    allowed_by_contract: z.boolean(),
+    blocked_by: z.array(z.string()),
+    source_refs: z.array(z.string()),
+    expected_output: z.string(),
+    would_require_review: z.boolean(),
+    would_execute: z.literal(false),
+  })
+  .passthrough();
+
+export const AutonomyDryRunPlanPreviewSchema = z
+  .object({
+    runtime: z.literal("augnes"),
+    dry_run_version: z.string(),
+    dry_run_id: z.string(),
+    source_contract_id: z.string(),
+    status: z.literal("dry_run_only"),
+    planned_steps: z.array(AutonomyRunnerPreflightStepSchema),
+    planned_read_sources: z.array(z.string()),
+    proposed_delta_outputs: z.array(z.string()),
+    proposed_delta_batches: z.array(z.string()),
+    proposed_reports: z.array(z.string()),
+    proposed_review_queue_items: z.array(z.string()),
+    blocked_steps: z.array(z.string()),
+    required_preconditions: z.array(z.string()),
+    required_checks: z.array(z.string()),
+    stop_conditions: z.array(z.string()),
+    budget_projection: z
+      .object({
+        would_spend_budget: z.literal(false),
+      })
+      .passthrough(),
+    no_run_boundary: AutonomyRunnerPreflightAuthorityBoundarySchema,
+    next_phase_notes: z.array(z.string()),
+  })
+  .passthrough();
+
+export const AutonomyRunnerPreflightPacketSchema = z
+  .object({
+    runtime: z.literal("augnes"),
+    preflight_version: z.literal("autonomy_runner_preflight.v0.1"),
+    scope: z.string(),
+    preflight_id: z.string(),
+    source_contract_id: z.string(),
+    source_contract_version: z.string(),
+    readiness: z.string(),
+    readiness_summary: z.string(),
+    budget_assessment: z.object({}).passthrough(),
+    action_scope_assessment: z.object({}).passthrough(),
+    delta_merge_assessment: z.object({}).passthrough(),
+    review_escalation_assessment: z.object({}).passthrough(),
+    stop_condition_assessment: z.object({}).passthrough(),
+    staleness_assessment: z.object({}).passthrough(),
+    authority_assessment: z.object({}).passthrough(),
+    blockers: z.array(z.unknown()),
+    warnings: z.array(z.unknown()),
+    required_user_judgment: z.array(z.string()),
+    required_operator_review: z.array(z.string()),
+    dry_run_plan: AutonomyDryRunPlanPreviewSchema,
+    source_refs: z.object({}).passthrough(),
+    authority_boundary: AutonomyRunnerPreflightAuthorityBoundarySchema,
+    public_safety: AutonomyRunnerPreflightPublicSafetySchema,
+  })
+  .passthrough();
+
+export const AutonomyRunnerPreflightPreviewResultSchema = z
+  .object({
+    response_version: z.string(),
+    runtime: z.literal("augnes"),
+    scope: z.string(),
+    route_id: z.string(),
+    route_family: z.string(),
+    preflight: AutonomyRunnerPreflightPacketSchema,
+    dry_run_plan: AutonomyDryRunPlanPreviewSchema,
+    readiness: z.string(),
+    blockers: z.array(z.unknown()),
+    warnings: z.array(z.unknown()),
+    source_refs: z.object({}).passthrough(),
+    authority_boundary: AutonomyRunnerPreflightAuthorityBoundarySchema,
+    public_safety: AutonomyRunnerPreflightPublicSafetySchema,
+    route_authority_boundary: z.array(z.string()),
+    source_status: z.object({}).passthrough(),
+    route_notes: z.array(z.string()),
   })
   .passthrough();
 
@@ -1086,6 +1230,7 @@ export type GuideBriefResult = z.infer<typeof GuideBriefResultSchema>;
 export type HandoffCapsulePreviewResult = z.infer<typeof HandoffCapsulePreviewResultSchema>;
 export type CodexLaunchCardPreviewResult = z.infer<typeof CodexLaunchCardPreviewResultSchema>;
 export type AutonomyContractPreviewResult = z.infer<typeof AutonomyContractPreviewResultSchema>;
+export type AutonomyRunnerPreflightPreviewResult = z.infer<typeof AutonomyRunnerPreflightPreviewResultSchema>;
 export type WorkEventResult = z.infer<typeof WorkEventResultSchema>;
 export type HandoffRecord = z.infer<typeof HandoffRecordSchema>;
 export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
@@ -1135,6 +1280,10 @@ export interface StateRuntimeCodexLaunchCardPreviewInput {
 }
 
 export interface StateRuntimeAutonomyContractPreviewInput {
+  scope: StateRuntimeScope;
+}
+
+export interface StateRuntimeAutonomyRunnerPreflightInput {
   scope: StateRuntimeScope;
 }
 
@@ -1190,6 +1339,7 @@ export interface StateRuntimeBridgeAdapter {
   getHandoffCapsulePreview(input: StateRuntimeHandoffCapsulePreviewInput): Promise<HandoffCapsulePreviewResult>;
   getCodexLaunchCardPreview(input: StateRuntimeCodexLaunchCardPreviewInput): Promise<CodexLaunchCardPreviewResult>;
   getAutonomyContractPreview(input: StateRuntimeAutonomyContractPreviewInput): Promise<AutonomyContractPreviewResult>;
+  getAutonomyRunnerPreflight(input: StateRuntimeAutonomyRunnerPreflightInput): Promise<AutonomyRunnerPreflightPreviewResult>;
   getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult>;
   getSessionTrace(input: StateRuntimeSessionTraceInput): Promise<SessionTraceResult>;
   getVerificationEvidenceRecords(
