@@ -201,13 +201,36 @@ function assertWebReadPath() {
     webReadText,
     [
       "export function readGuideBriefForWeb",
-      "readGuideBriefForRoute({ scope: GUIDE_BRIEF_ROUTE_SCOPE })",
+      "validateGuideBriefReadRequest",
+      "readGuideBriefForRoute({ scope: validation.scope })",
+      "buildPublicSafeGuideBriefFallback",
+      "public_safe_fixture_fallback",
+      "No explicit local read-only request context was supplied to the Web Guide display.",
+      "Live GuideBrief route data remains marker-gated and local-host-gated.",
       "Phase 6C adds read-only Web Guide panel skeleton rendering.",
+      "Web Guide display uses a public-safe fallback unless an explicit local read-only request context passes the Phase 6B GuideBrief route guard.",
       "Phase 6D ChatGPT App/MCP Guide tool remains deferred.",
       "Phase 6E Codex Guide alignment remains deferred.",
       "Phase 7 Handoff Capsule / Codex Launch Card remains deferred.",
     ],
     { label: webReadFile },
+  );
+
+  assert(
+    !/readGuideBriefForRoute\s*\(\s*\{\s*scope:\s*GUIDE_BRIEF_ROUTE_SCOPE\s*\}\s*\)/.test(
+      webReadText,
+    ),
+    `${webReadFile} must not directly call readGuideBriefForRoute({ scope: GUIDE_BRIEF_ROUTE_SCOPE }) from public Web rendering`,
+  );
+  assert(
+    /validateGuideBriefReadRequest[\s\S]+validation\.ok[\s\S]+readGuideBriefForRoute\s*\(\s*\{\s*scope:\s*validation\.scope\s*\}\s*\)/.test(
+      webReadText,
+    ),
+    `${webReadFile} must call readGuideBriefForRoute only after GuideBrief local read validation succeeds`,
+  );
+  assert(
+    /return\s+buildPublicSafeGuideBriefFallback/.test(webReadText),
+    `${webReadFile} must return public-safe fallback on default or failed validation paths`,
   );
 
   assert(
@@ -275,6 +298,10 @@ function assertDocsAndIndex() {
       "`/workbench`",
       "The Web Guide UI preserves the required separation",
       "The Web Guide panel is read-only display only",
+      "Public Web surfaces must not bypass the Phase 6B local read guard",
+      "public_safe_fixture_fallback",
+      "The live GuideBrief route remains marker-gated and local read-only",
+      "source/fallback status must remain visible",
       "does not include a chat composer",
       "Phase 6D ChatGPT App/MCP Guide tool",
       "Phase 6E Codex Guide alignment",
@@ -291,6 +318,9 @@ function assertDocsAndIndex() {
       "lib/guide/read-guide-brief-for-web.ts",
       "no UI action/write/execution authority",
       "no chat composer",
+      "public-safe GuideBrief fallback",
+      "source/fallback status",
+      "x-augnes-local-readonly: guide-brief-v0.1",
     ],
     { label: indexDoc },
   );

@@ -202,6 +202,9 @@ PR #868 is merged. Current route planning starts from:
   prompt input, MCP/App tool, provider/OpenAI call, GitHub actuation, Codex execution,
   proof/evidence write, durable Perspective apply, memory mutation, handoff
   execution, product-write, scheduler/autonomy runner, or external side effect.
+  Public Web surfaces default to a public-safe GuideBrief fallback with visible
+  source/fallback status; live GuideBrief route data remains local-host and
+  `x-augnes-local-readonly: guide-brief-v0.1` marker gated.
   The Phase 6C Web Guide boundary is no chat composer, no suggestions as
   actions, and no guide-decided user judgment items.
 

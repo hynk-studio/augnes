@@ -149,10 +149,25 @@ components:
 - `components/guide/guide-brief-boundary-card.tsx`
 - `components/guide/guide-brief-mini-panel.tsx`
 
-The Web Guide read path is `lib/guide/read-guide-brief-for-web.ts`, a thin
-read-only wrapper over the Phase 6B route source helper. It does not call the
-local API route with browser/client `fetch`, add polling, add server actions,
-add route handlers, query DOM state, or create a new DB reader.
+The Web Guide read path is `lib/guide/read-guide-brief-for-web.ts`. Public Web
+surfaces must not bypass the Phase 6B local read guard. By default, the Web
+Guide read path returns a public-safe GuideBrief fallback from the committed
+sample fixture and visibly discloses `public_safe_fixture_fallback` source
+status. It may read live GuideBrief data only when an explicit `Request`
+context passes the same `validateGuideBriefReadRequest` /
+`validateReadonlyApiLocalAccess` boundary used by the Phase 6B route: exact
+scope, local host, and `x-augnes-local-readonly: guide-brief-v0.1`.
+
+The live GuideBrief route remains marker-gated and local read-only. `/`,
+`/perspective`, and `/workbench` render public-safe/read-only GuideBrief display
+unless a separately scoped local-only surface supplies a validated request
+context. The fallback must not pretend to be live Current Working Perspective
+or Delta Projection runtime state, and its source/fallback status must remain
+visible in the Web Guide summary and source refs.
+
+The Web Guide read path does not call the local API route with browser/client
+`fetch`, add polling, add server actions, add route handlers, query DOM state,
+or create a new DB reader.
 
 Entry points:
 
@@ -509,8 +524,9 @@ boundary:
 - visible boundary copy includes read-only guide packet, Suggestions are not
   actions, The guide does not decide user judgment items, Handoff candidates
   are preview-only, and No hidden execution authority
-- the panel consumes the GuideBrief type and the web read wrapper consumes the
-  Phase 6B route source helper
+- the panel consumes the GuideBrief type, the web read wrapper preserves the
+  Phase 6B local read guard, and public Web display defaults to a public-safe
+  fallback with visible source/fallback status
 - `/`, `/perspective`, and `/workbench` render compact GuideBrief entries
 - no chat composer, textarea, action form, positive write/execute controls,
   route handlers, MCP/App tool files, DB migrations, provider/OpenAI/GitHub
