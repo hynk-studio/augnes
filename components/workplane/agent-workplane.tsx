@@ -2,6 +2,7 @@ import { AugnesCockpit } from "@/components/augnes-cockpit";
 import { AutonomyBoundaryCard } from "@/components/autonomy/autonomy-boundary-card";
 import { AutonomyBudgetPreviewPanel } from "@/components/autonomy/autonomy-budget-preview-panel";
 import { AutonomyContractPreviewPanel } from "@/components/autonomy/autonomy-contract-preview-panel";
+import { AutonomyCopyExportPanel } from "@/components/autonomy/autonomy-copy-export-panel";
 import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-policy-preview-panel";
 import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
@@ -168,6 +169,7 @@ export async function AgentWorkplane() {
               <AutonomyPolicyPreviewPanel preview={autonomyPreview} />
               <AutonomyRunPreviewPanel preview={autonomyPreview} />
               <AutonomyBoundaryCard preview={autonomyPreview} />
+              <AutonomyCopyExportPanel preview={autonomyPreview} />
               <RunPostmortemSkeletonPanel context={context} />
               <TraceDiagnosticsPanel context={context} />
             </section>

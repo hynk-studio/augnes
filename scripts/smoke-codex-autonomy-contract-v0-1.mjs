@@ -41,6 +41,20 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const phase8fAutonomyContractCopyExportFiles = [
+  "lib/autonomy/autonomy-contract-copy-export.ts",
+  "components/autonomy/autonomy-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/autonomy/read-autonomy-contract-for-web.ts",
+  "components/autonomy/autonomy-boundary-card.tsx",
+  "components/autonomy/autonomy-contract-preview-panel.tsx",
+  "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const inspectedFiles = [
   consumptionDoc,
   skillFile,
@@ -61,13 +75,14 @@ const allowedChangedFiles = new Set([
   indexDoc,
   packageJsonFile,
   ...priorSmokeAllowlistCompatibilityFiles,
+  ...phase8fAutonomyContractCopyExportFiles,
 ]);
 
 const forbiddenChangedPathPatterns = [
   /^app\/api\//,
-  /^components\//,
+  /^components\/(?!autonomy\/autonomy-copy-export-panel\.tsx$|autonomy\/autonomy-boundary-card\.tsx$|autonomy\/autonomy-contract-preview-panel\.tsx$|workplane\/agent-workplane\.tsx$)/,
   /^apps\/augnes_apps\//,
-  /^lib\/autonomy\//,
+  /^lib\/autonomy\/(?!autonomy-contract-copy-export\.ts$|read-autonomy-contract-for-web\.ts$)/,
   /^types\/autonomy-contract\.ts$/,
   /^fixtures\/autonomy-contract\.sample\.v0\.1\.json$/,
   /^migrations\//,
@@ -108,6 +123,8 @@ console.log(
       plugin_manifest_metadata_only_checked: true,
       prior_smoke_allowlist_compatibility_files_allowed:
         priorSmokeAllowlistCompatibilityFiles,
+      phase8f_autonomy_contract_copy_export_files_allowed:
+        phase8fAutonomyContractCopyExportFiles,
       no_app_api_route_files_changed_checked: true,
       no_components_files_changed_checked: true,
       no_apps_augnes_apps_files_changed_checked: true,
@@ -427,7 +444,9 @@ function assertAutonomyContractDoc() {
     "no copy/export",
     "no merge/publish/retry/replay/deploy",
     "no external side effects",
-    "Phase 8F copy/export preview is deferred.",
+    "Phase 8F Local Copy/Export Preview",
+    "local clipboard copy and manual text export preview only",
+    "Phase 9 Autonomy Runner planning and implementation remain future work and require separate explicit scope and approval.",
     "Phase 9 runner remains deferred and requires separate explicit scope and approval.",
   ], { textByFile });
 }

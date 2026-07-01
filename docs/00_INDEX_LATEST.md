@@ -401,6 +401,21 @@ PR #868 is merged. Current route planning starts from:
   Perspective apply, handoff send, branch/PR creation behavior, copy/export,
   merge/publish/retry/replay/deploy behavior, or external side effect. This
   index pointer is not roadmap authority.
+  Phase 8F Autonomy Contract local copy/export preview v0.1 adds repo-local
+  non-SSOT pointers for `lib/autonomy/autonomy-contract-copy-export.ts`,
+  `components/autonomy/autonomy-copy-export-panel.tsx`, and
+  `scripts/smoke-autonomy-contract-copy-export-v0-1.mjs` (`npm run
+  smoke:autonomy-contract-copy-export-v0-1`). The /workbench Agent Workplane
+  can display local clipboard/manual copy affordances for Autonomy Contract
+  markdown, Autonomy Budget summary, Review Escalation checklist, combined
+  Autonomy Contract review packet, and bounded JSON preview. Phase 8F
+  copy/export is local clipboard/manual copy only: no external post, network
+  send, file download/export-to-disk, API write route, App/MCP tool, DB write,
+  provider/OpenAI call, GitHub actuation, Codex execution, autonomy runner,
+  scheduler, daemon, background work, proof/evidence write, memory mutation,
+  durable Perspective apply, handoff send, branch/PR creation behavior,
+  merge/publish/retry/replay/deploy behavior, budget spend, auto-apply, and
+  no external side effect. This index pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

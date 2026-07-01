@@ -112,6 +112,9 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
   "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
   "scripts/smoke-guide-brief-v0-1.mjs",
+  "lib/autonomy/autonomy-contract-copy-export.ts",
+  "components/autonomy/autonomy-copy-export-panel.tsx",
+  "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
   ...priorSmokeAllowlistCompatibilityFiles,
 ]);
 const phase8PriorSmokeAllowlistFiles = [
@@ -165,6 +168,20 @@ const followOnHandoffCapsuleCopyExportFiles = new Set([
   "components/handoff/codex-launch-card-preview-panel.tsx",
   "components/handoff/handoff-capsule-preview-panel.tsx",
   "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
+]);
+
+const phase8fAutonomyContractCopyExportFiles = new Set([
+  "lib/autonomy/autonomy-contract-copy-export.ts",
+  "components/autonomy/autonomy-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/autonomy/read-autonomy-contract-for-web.ts",
+  "components/autonomy/autonomy-boundary-card.tsx",
+  "components/autonomy/autonomy-contract-preview-panel.tsx",
+  "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -598,6 +615,9 @@ function assertNoForbiddenScopeDrift() {
       continue;
     }
     if (phase8cAutonomyContractWebPreviewFiles.includes(file)) {
+      continue;
+    }
+    if (phase8fAutonomyContractCopyExportFiles.has(file)) {
       continue;
     }
 

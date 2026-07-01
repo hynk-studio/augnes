@@ -713,6 +713,7 @@
     "smoke:autonomy-contract-web-preview-v0-1": "node scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
     "smoke:chatgpt-app-autonomy-contract-tool-v0-1": "node scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
     "smoke:codex-autonomy-contract-v0-1": "node scripts/smoke-codex-autonomy-contract-v0-1.mjs",
+    "smoke:autonomy-contract-copy-export-v0-1": "node scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-end-to-end-operator-path-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-final-rag-answer-review-memory-end-to-end-operator-path-v0-1.mjs",
     "browser:validate-final-rag-answer-review-memory-operator-path-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/browser-validate-final-rag-answer-review-memory-operator-path-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-operator-browser-validation-v0-1": "node scripts/smoke-final-rag-answer-review-memory-operator-browser-validation-v0-1.mjs",

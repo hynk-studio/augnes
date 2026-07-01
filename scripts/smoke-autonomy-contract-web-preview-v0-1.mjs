@@ -22,6 +22,12 @@ const policyPanelFile =
 const runPanelFile = "components/autonomy/autonomy-run-preview-panel.tsx";
 const boundaryCardFile = "components/autonomy/autonomy-boundary-card.tsx";
 const sharedPanelFile = "components/autonomy/autonomy-preview-shared.tsx";
+const copyExportPanelFile =
+  "components/autonomy/autonomy-copy-export-panel.tsx";
+const copyExportHelperFile =
+  "lib/autonomy/autonomy-contract-copy-export.ts";
+const copyExportSmokeFile =
+  "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs";
 const webSmokeFile = "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs";
 
 const requiredFiles = [
@@ -36,6 +42,7 @@ const requiredFiles = [
   runPanelFile,
   boundaryCardFile,
   sharedPanelFile,
+  copyExportPanelFile,
   webSmokeFile,
 ];
 
@@ -84,6 +91,19 @@ const phase8eAutonomyContractCodexSkillFiles = [
   "package.json",
 ];
 
+const phase8fAutonomyContractCopyExportFiles = [
+  copyExportHelperFile,
+  copyExportPanelFile,
+  copyExportSmokeFile,
+  webReadHelperFile,
+  agentWorkplaneFile,
+  boundaryCardFile,
+  contractPanelFile,
+  contractDoc,
+  indexDoc,
+  packageJsonFile,
+];
+
 const allowedChangedFiles = new Set([
   contractDoc,
   indexDoc,
@@ -100,6 +120,7 @@ const allowedChangedFiles = new Set([
   ...priorSmokeAllowlistCompatibilityFiles,
   ...phase8dAutonomyContractAppToolFiles,
   ...phase8eAutonomyContractCodexSkillFiles,
+  ...phase8fAutonomyContractCopyExportFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
@@ -129,7 +150,9 @@ const componentTexts = [
   boundaryCardFile,
   sharedPanelFile,
 ].map((file) => [file, textByFile.get(file)]);
+const copyExportPanelText = textByFile.get(copyExportPanelFile);
 const combinedComponentText = componentTexts
+  .concat([[copyExportPanelFile, copyExportPanelText]])
   .map(([file, text]) => `${file}\n${text}`)
   .join("\n");
 
@@ -167,6 +190,8 @@ console.log(
       phase_8b_route_smoke_passed: true,
       prior_smoke_allowlist_compatibility_files_allowed:
         priorSmokeAllowlistCompatibilityFiles,
+      phase8f_autonomy_contract_copy_export_files_allowed:
+        phase8fAutonomyContractCopyExportFiles,
       changed_files_boundary_checked: changedFilesBoundary.checked,
       changed_files_boundary_skipped: changedFilesBoundary.skipped,
       changed_files_boundary_skip_reason: changedFilesBoundary.skip_reason,
@@ -233,7 +258,8 @@ function assertDocsAndIndexPointers() {
     "augnes_get_autonomy_contract_preview",
     "Phase 8E Codex Skill Alignment",
     "plugins/augnes-operator/skills/augnes-autonomy-contract/SKILL.md",
-    "Phase 8F copy/export preview is deferred.",
+    "Phase 8F Local Copy/Export Preview",
+    "local clipboard copy and manual text export preview only",
     "Phase 9 runner remains deferred and requires separate explicit scope and approval.",
   ], { label: contractDoc });
 
@@ -296,7 +322,8 @@ function assertComponentExportsAndContent() {
     "warnings and gaps",
     "Preview only.",
     "Future runner not implemented.",
-    "No run, no schedule, no Codex launch, no handoff send, no write, no copy/export behavior, and no external side effect.",
+    "No run, no schedule, no Codex launch, no handoff send, no write, and no external side effect.",
+    "Copy/export is available only through the bounded Phase 8F local copy panel.",
   ], { label: contractPanelFile });
 
   assertContainsAll(textByFile.get(budgetPanelFile), [
@@ -386,7 +413,25 @@ function assertComponentExportsAndContent() {
     "no merge/publish/retry/replay/deploy",
     "no external side effects",
     "Every authority boolean is expected to deny execution, write, schedule, and external authority.",
+    "Phase 8F permits local clipboard/manual copy preview only.",
   ], { label: boundaryCardFile });
+
+  assertContainsAll(copyExportPanelText, [
+    "export function AutonomyCopyExportPanel",
+    "Phase 8F local copy",
+    "Autonomy copy/export preview",
+    "Copy Autonomy Contract markdown",
+    "Copy Budget summary",
+    "Copy Review Escalation checklist",
+    "Copy combined autonomy review packet",
+    'type="button"',
+    "navigator.clipboard.writeText(text)",
+    "readOnly",
+    "manual copy fallback",
+    "local_clipboard_only",
+    "budget_spent",
+    "auto_apply_performed",
+  ], { label: copyExportPanelFile });
 
   assertContainsAll(combinedComponentText, [
     "budget",
@@ -413,6 +458,7 @@ function assertWorkbenchIntegration() {
     "AutonomyPolicyPreviewPanel",
     "AutonomyRunPreviewPanel",
     "AutonomyBoundaryCard",
+    "AutonomyCopyExportPanel",
     "const [context, guideBrief, handoffPreview, autonomyPreview] = await Promise.all",
     "Promise.resolve(readAutonomyContractPreviewForWeb())",
     "<AutonomyContractPreviewPanel preview={autonomyPreview} />",
@@ -420,6 +466,7 @@ function assertWorkbenchIntegration() {
     "<AutonomyPolicyPreviewPanel preview={autonomyPreview} />",
     "<AutonomyRunPreviewPanel preview={autonomyPreview} />",
     "<AutonomyBoundaryCard preview={autonomyPreview} />",
+    "<AutonomyCopyExportPanel preview={autonomyPreview} />",
     "GuideBriefMiniPanel",
     "WorkQueuePanel",
     "CurrentPerspectiveWorkplanePanel",
@@ -460,6 +507,49 @@ function assertNoForbiddenUiControls() {
     );
     assert(!/\bdownload\s*=/i.test(text), `${file} must not include download=`);
   }
+
+  assert(
+    !/\bfetch\s*\(/i.test(copyExportPanelText),
+    `${copyExportPanelFile} must not fetch`,
+  );
+  assert(
+    !/<form\b/i.test(copyExportPanelText),
+    `${copyExportPanelFile} must not render form elements`,
+  );
+  assert(
+    !/\bonSubmit\s*=/i.test(copyExportPanelText),
+    `${copyExportPanelFile} must not include onSubmit`,
+  );
+  assert(
+    !/\baction\s*=/i.test(copyExportPanelText),
+    `${copyExportPanelFile} must not include action=`,
+  );
+  assert(
+    !/\bformAction\s*=/i.test(copyExportPanelText),
+    `${copyExportPanelFile} must not include formAction`,
+  );
+  assert(
+    !/router\.push/i.test(copyExportPanelText),
+    `${copyExportPanelFile} must not call router.push`,
+  );
+  assert(
+    !/window\.open/i.test(copyExportPanelText),
+    `${copyExportPanelFile} must not call window.open`,
+  );
+  assert(
+    !/\bdownload\s*=/i.test(copyExportPanelText),
+    `${copyExportPanelFile} must not include download=`,
+  );
+  assert(
+    /navigator\.clipboard\.writeText\(text\)/.test(copyExportPanelText),
+    `${copyExportPanelFile} may use navigator.clipboard.writeText only for local copy`,
+  );
+  assert(
+    /<textarea[\s\S]*readOnly[\s\S]*value=\{copyState\.fallbackText\}/.test(
+      copyExportPanelText,
+    ),
+    `${copyExportPanelFile} must provide read-only manual copy fallback textarea`,
+  );
 
   for (const forbiddenLabel of [
     "Start autonomy",

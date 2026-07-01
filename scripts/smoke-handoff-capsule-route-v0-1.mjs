@@ -114,6 +114,20 @@ const phase8eAutonomyContractCodexSkillFiles = [
   "scripts/smoke-guide-brief-v0-1.mjs",
 ];
 
+const phase8fAutonomyContractCopyExportFiles = [
+  "lib/autonomy/autonomy-contract-copy-export.ts",
+  "components/autonomy/autonomy-copy-export-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/autonomy/read-autonomy-contract-for-web.ts",
+  "components/autonomy/autonomy-boundary-card.tsx",
+  "components/autonomy/autonomy-contract-preview-panel.tsx",
+  "scripts/smoke-autonomy-contract-copy-export-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const allowedChangedFiles = new Set([
   "docs/AUTONOMY_CONTRACT_V0_1.md",
   "types/autonomy-contract.ts",
@@ -132,6 +146,7 @@ const allowedChangedFiles = new Set([
   ...followOnHandoffCapsuleCodexSkillFiles,
   ...followOnHandoffCapsuleCopyExportFiles,
   ...phase8eAutonomyContractCodexSkillFiles,
+  ...phase8fAutonomyContractCopyExportFiles,
 ]);
 const phase8PriorSmokeAllowlistFiles = [
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -493,6 +508,7 @@ function assertChangedFileBoundary() {
           followOnHandoffCapsuleCodexSkillFiles.includes(file) ||
           followOnHandoffCapsuleCopyExportFiles.includes(file) ||
           phase8eAutonomyContractCodexSkillFiles.includes(file) ||
+          phase8fAutonomyContractCopyExportFiles.includes(file) ||
           !forbiddenChangedFilePatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed path for Handoff Capsule route smoke: ${file}`,
       );
