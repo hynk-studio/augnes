@@ -37,12 +37,29 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "scripts/smoke-current-working-perspective-route-v0-1.mjs",
   "scripts/smoke-guide-brief-v0-1.mjs",
   "scripts/smoke-guide-brief-route-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-perspective-human-timeline-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
   "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
+];
+
+const followOnHandoffCapsuleWebPreviewFiles = [
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
 ];
 
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
+  ...followOnHandoffCapsuleWebPreviewFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
@@ -153,7 +170,7 @@ function assertDocsAndIndexPointers() {
     "exports `GET` only",
     "fails closed on missing scope, invalid scope, missing marker, invalid marker, and invalid target",
     "Source composition is owned by `lib/handoff/handoff-capsule-source.ts`",
-    "Phase 7C Web preview UI is deferred",
+    "Phase 7C Web preview UI is documented below",
     "Phase 7D ChatGPT App/MCP tool is deferred",
     "Phase 7E Codex skill alignment is deferred",
     "no DB schema/migration, DB write, provider/OpenAI call, GitHub actuation, Codex execution, proof/evidence write, memory mutation, durable Perspective state apply, handoff send, branch/PR creation, scheduler/autonomy runner, product-write, or external side effects",
@@ -358,7 +375,8 @@ function assertChangedFileBoundary() {
         `Unexpected changed file for Handoff Capsule route smoke: ${file}`,
       );
       assert(
-        !forbiddenChangedFilePatterns.some((pattern) => pattern.test(file)),
+        followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
+          !forbiddenChangedFilePatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed path for Handoff Capsule route smoke: ${file}`,
       );
     }

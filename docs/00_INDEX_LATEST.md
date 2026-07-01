@@ -253,6 +253,18 @@ PR #868 is merged. Current route planning starts from:
   builders. `scripts/smoke-handoff-capsule-route-v0-1.mjs` (`npm run
   smoke:handoff-capsule-route-v0-1`) checks the route/source boundary and
   no UI/MCP/App/DB/provider/GitHub/Codex execution/proof/evidence/memory/autonomy/handoff-send/external side effects.
+  Phase 7C Handoff Capsule / Codex Launch Card Web preview UI v0.1 adds a
+  repo-local non-SSOT pointer for read-only preview panels on `/workbench`
+  Agent Workplane through `components/handoff/*` and
+  `lib/handoff/read-handoff-capsule-for-web.ts`. The Web display defaults to
+  `public_safe_fixture_fallback`, keeps source/fallback status visible, renders
+  Handoff Capsule and Codex Launch Card as preview-only transfer packets, and
+  adds no action authority, copy/export, API write route, MCP/App tool, DB
+  write, provider/OpenAI call, GitHub actuation, Codex execution,
+  proof/evidence write, memory mutation, durable Perspective apply,
+  scheduler/autonomy runner, handoff send, branch/PR creation, or external side
+  effect. `scripts/smoke-handoff-capsule-web-preview-v0-1.mjs` (`npm run
+  smoke:handoff-capsule-web-preview-v0-1`) checks this Web preview boundary.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
