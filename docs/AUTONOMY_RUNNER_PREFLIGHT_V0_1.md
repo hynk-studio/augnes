@@ -30,6 +30,51 @@ call. Phase 9A has no DB writes. Phase 9A has no proof/evidence writes. Phase
 send. Phase 9A has no branch/PR creation from product code. Phase 9A has no
 auto-apply. Phase 9A has no external side effects.
 
+## 1.1 Phase 9B GET-Only Read Route
+
+Phase 9B adds a GET-only local/read-only Autonomy Runner Preflight route:
+
+```text
+GET /api/augnes/read/autonomy-runner-preflight?scope=project:augnes
+x-augnes-local-readonly: autonomy-runner-preflight-v0.1
+cache-control: no-store
+```
+
+Route behavior:
+
+- exports `GET` only and exports no `POST`, `PUT`, `PATCH`, `DELETE`, or other
+  mutating handler
+- uses `runtime = "nodejs"` and `dynamic = "force-dynamic"`
+- returns preview JSON only with `cache-control: no-store`
+- returns the matching
+  `x-augnes-local-readonly: autonomy-runner-preflight-v0.1` marker response
+  header
+- requires exact `scope=project:augnes`
+- fails closed on missing scope, invalid scope, missing marker, invalid marker,
+  and local access failures
+- returns structured read errors with route authority boundary notes
+- preserves `preflight_version: autonomy_runner_preflight.v0.1`
+- preserves `dry_run_plan.status: dry_run_only`
+- preserves `would_execute: false` on every planned step
+- preserves the all-false no-run authority boundary
+
+Source composition is owned by
+`lib/autonomy/autonomy-runner-preflight-source.ts`. The route consumes the
+Phase 8 Autonomy Contract read-only source helper as preview input and calls
+`buildAutonomyRunnerPreflight()` from
+`lib/autonomy/autonomy-runner-preflight.ts`. The route does not invent
+readiness, blocker, warning, budget, action-scope, delta-merge, escalation,
+stop-condition, staleness, or authority policy.
+
+The Phase 9B route does not start a runner. The route does not schedule
+anything. The route does not run Codex. The route does not call GitHub,
+OpenAI, or provider APIs. The route does not write DB/proof/evidence. The
+route does not mutate memory/state/work/Perspective. The route does not send
+handoff. The route does not create branches or PRs. The route does not
+auto-apply deltas. The route does not spend budget. The route does not start a
+daemon or background work. The route does not merge/publish/retry/replay/deploy
+or externally post.
+
 ## 2. Purpose
 
 `AutonomyRunnerPreflight` is a deterministic preview packet that classifies a
@@ -336,7 +381,18 @@ scheduler, daemon, background work, route, DB write, provider/GitHub/Codex
 call, child_process, fs write, interval, timer, cron, or external side effect
 implementation.
 
+`npm run smoke:autonomy-runner-preflight-route-v0-1` checks the Phase 9B
+GET-only route, source helper, package script, latest-index pointer, route
+boundary wording, exact scope/header marker, `cache-control: no-store`, use of
+the Phase 9A helper, direct route behavior for success and fail-closed request
+paths, dry-run-only status, planned-step `would_execute: false`, all-false
+authority boundary, and no UI/MCP/App/DB migration/provider/GitHub/Codex/
+proof/evidence/memory/Perspective/handoff/auto-apply/budget-spend/external
+side-effect scope drift.
+
 Browser/CDP validation is skipped because Phase 9A has no UI or route.
+Browser/CDP validation is skipped because Phase 9B adds only a GET-only read
+route and no UI.
 
 Proof-only closeout is skipped unless a future task explicitly scopes proof
 recording and runtime proof context is available. Phase 9A does not write

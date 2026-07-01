@@ -143,6 +143,9 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "lib/autonomy/autonomy-runner-preflight.ts",
   "fixtures/autonomy-runner-preflight.sample.v0.1.json",
   "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+  "app/api/augnes/read/autonomy-runner-preflight/route.ts",
+  "lib/autonomy/autonomy-runner-preflight-source.ts",
+  "scripts/smoke-autonomy-runner-preflight-route-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -291,6 +294,7 @@ const allowedRouteFiles = new Set([
   "app/api/augnes/read/handoff-capsule/route.ts",
   "app/api/augnes/read/codex-launch-card/route.ts",
   "app/api/augnes/read/autonomy-contract/route.ts",
+  "app/api/augnes/read/autonomy-runner-preflight/route.ts",
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
