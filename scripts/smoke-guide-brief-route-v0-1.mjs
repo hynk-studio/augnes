@@ -110,6 +110,18 @@ for (const file of followOnCodexGuideBriefHandoffFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffCapsuleFiles = [
+  "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",
+  "types/handoff-capsule.ts",
+  "lib/handoff/handoff-capsule.ts",
+  "fixtures/handoff-capsule.sample.v0.1.json",
+  "fixtures/codex-launch-card.sample.v0.1.json",
+  "scripts/smoke-handoff-capsule-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(

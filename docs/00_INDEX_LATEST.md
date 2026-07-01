@@ -230,6 +230,17 @@ PR #868 is merged. Current route planning starts from:
   smoke:codex-guidebrief-handoff-v0-1` checks this Phase 6E boundary. Phase
   6E completes GuideBrief cross-surface alignment if all Phase 6 smokes pass.
   Phase 7 is next only after explicit scope.
+  Phase 7A Handoff Capsule / Codex Launch Card core v0.1 is tracked by the
+  repo-local non-SSOT pointer `docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md`,
+  `types/handoff-capsule.ts`, `lib/handoff/handoff-capsule.ts`,
+  `fixtures/handoff-capsule.sample.v0.1.json`,
+  `fixtures/codex-launch-card.sample.v0.1.json`, and
+  `scripts/smoke-handoff-capsule-v0-1.mjs` (`npm run
+  smoke:handoff-capsule-v0-1`). Handoff Capsule and Codex Launch Card are
+  reviewable transfer packets that prepare context for another surface; they
+  do not send, launch, execute, post, merge, publish, mutate state, call
+  GitHub/OpenAI/providers, write proof/evidence, create product-code
+  branch/PR behavior, or add external side effects.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

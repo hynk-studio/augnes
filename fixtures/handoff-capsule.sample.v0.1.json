@@ -1,0 +1,415 @@
+{
+  "runtime": "augnes",
+  "capsule_version": "handoff_capsule.v0.1",
+  "scope": "project:augnes",
+  "capsule_id": "handoff_capsule.phase_7a.sample.codex",
+  "created_at": "2026-07-01T00:00:00.000Z",
+  "source_guide_brief_ref": "guide_brief:project:augnes:2026-07-01T00:00:00.000Z",
+  "source_snapshot_refs": [
+    "perspective_snapshot.phase_7a.synthetic",
+    "runtime_read_context.guide_brief.v0.1.synthetic"
+  ],
+  "target_surface": "codex_handoff",
+  "target_actor": "codex",
+  "handoff_intent": "implementation_preparation",
+  "status": "preview_only",
+  "title": "Phase 7A Handoff Capsule and Codex Launch Card core",
+  "summary": "Synthetic reviewable transfer packet for preparing a bounded Codex implementation slice without sending, launching, executing, posting, merging, publishing, or mutating state.",
+  "thesis": "Handoff Capsule and Codex Launch Card can preserve GuideBrief context as portable preparation packets while denying execution, write, external-call, and handoff-send authority.",
+  "observed_context": [
+    {
+      "context_id": "handoff.observed.guidebrief_phase6_boundary",
+      "source_observation_id": "observed.guidebrief_phase6_boundary",
+      "kind": "phase_boundary",
+      "summary": "Phase 6E completed GuideBrief Codex alignment as docs, skill guidance, smoke, package pointer, and latest-index pointer only.",
+      "source_refs": [
+        "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+        "docs/CODEX_GUIDEBRIEF_HANDOFF_V0_1.md"
+      ],
+      "related_delta_ids": [
+        "delta.phase6e.codex-guidebrief-alignment"
+      ],
+      "confidence": "observed",
+      "notes": [
+        "Observed from committed docs refs.",
+        "This is read-model context only, not source-of-truth state."
+      ]
+    },
+    {
+      "context_id": "handoff.observed.authority_boundary_required",
+      "source_observation_id": "observed.authority_boundary_required",
+      "kind": "authority_boundary",
+      "summary": "GuideBrief and handoff-related contracts require explicit authority boundaries that deny writes, execution, external calls, proof/evidence writes, handoff send, and merge/publish behavior.",
+      "source_refs": [
+        "docs/AUTHORITY_MATRIX.md",
+        "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md"
+      ],
+      "related_delta_ids": [
+        "delta.phase7a.authority-boundary"
+      ],
+      "confidence": "observed",
+      "notes": [
+        "Observed from authority and capsule contracts.",
+        "Authority boundary copy does not grant authority."
+      ]
+    }
+  ],
+  "inferred_context": [
+    {
+      "context_id": "handoff.inferred.phase7a_shape",
+      "source_inference_id": "inferred.phase7a_shape",
+      "summary": "A deterministic type/helper/fixture/smoke slice is sufficient for Phase 7A because route, UI, MCP/App, and execution paths are explicitly deferred.",
+      "basis_observation_ids": [
+        "observed.guidebrief_phase6_boundary",
+        "observed.authority_boundary_required"
+      ],
+      "source_refs": [
+        "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+        "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md"
+      ],
+      "confidence": "high",
+      "caveats": [
+        "This is derived implementation framing, not a source-backed fact.",
+        "Future route or UI behavior requires a separate scoped prompt."
+      ],
+      "non_authority_notes": [
+        "Inference has no send, launch, execute, approve, merge, publish, proof, evidence, or state authority."
+      ]
+    }
+  ],
+  "suggested_context": [
+    {
+      "context_id": "handoff.suggested.build_core_packet",
+      "source_suggestion_id": "suggested.build_core_packet",
+      "title": "Build the core packet contract",
+      "summary": "Add HandoffCapsule and CodexLaunchCard types, pure builders, public-safe fixtures, and static smoke coverage.",
+      "suggested_surface": "codex_handoff",
+      "suggested_actor": "codex",
+      "priority": "high",
+      "required_checks": [
+        "npm run typecheck",
+        "npm run smoke:handoff-capsule-v0-1",
+        "git diff --check"
+      ],
+      "blocked_by": [],
+      "source_refs": [
+        "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+        "docs/CODEX_GUIDEBRIEF_HANDOFF_V0_1.md"
+      ],
+      "related_delta_ids": [
+        "delta.phase7a.handoff-capsule",
+        "delta.phase7a.codex-launch-card"
+      ],
+      "advisory_only": true,
+      "authority_boundary_summary": "Suggestion only; active operator prompt is required before Codex implements anything."
+    },
+    {
+      "context_id": "handoff.suggested.defer_surfaces",
+      "source_suggestion_id": "suggested.defer_surfaces",
+      "title": "Defer route, UI, MCP/App, and execution surfaces",
+      "summary": "Keep Phase 7A to core packet contract and deterministic helpers only.",
+      "suggested_surface": "future_agent_handoff",
+      "suggested_actor": "operator",
+      "priority": "high",
+      "required_checks": [
+        "No UI files changed",
+        "No API route files changed",
+        "No MCP/App tool files changed",
+        "No DB migrations changed"
+      ],
+      "blocked_by": [
+        "separate_explicit_scope_required"
+      ],
+      "source_refs": [
+        "docs/AUTHORITY_MATRIX.md"
+      ],
+      "related_delta_ids": [
+        "delta.phase7a.boundary"
+      ],
+      "advisory_only": true,
+      "authority_boundary_summary": "Future-surface suggestion only; no execution, route, UI, or App/MCP authority."
+    }
+  ],
+  "needs_user_judgment": [
+    {
+      "context_id": "handoff.judgment.next_surface",
+      "source_judgment_id": "judgment.next_surface",
+      "question": "Which future surface should consume the Handoff Capsule first after Phase 7A lands?",
+      "why_it_matters": "A route, UI preview, ChatGPT App/MCP tool, or Codex skill alignment would each require different authority boundaries and validation.",
+      "options": [
+        "Add a GET-only read route in a separately scoped phase.",
+        "Add a read-only UI preview in a separately scoped phase.",
+        "Add ChatGPT App/MCP read-only tooling in a separately scoped phase.",
+        "Add Codex skill alignment in a separately scoped phase."
+      ],
+      "source_refs": [
+        "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+        "docs/AUTHORITY_MATRIX.md"
+      ],
+      "related_delta_ids": [
+        "delta.phase7a.next-surface"
+      ],
+      "urgency": "medium",
+      "blocked_until_decided": [
+        "Phase 7B route/UI/MCP/Codex alignment selection"
+      ],
+      "decided_by_packet": false
+    }
+  ],
+  "source_refs": {
+    "guide_brief_ref": "guide_brief:project:augnes:2026-07-01T00:00:00.000Z",
+    "current_working_perspective_ref": "current_working_perspective:2026-07-01T00:00:00.000Z",
+    "delta_projection_ref": "augnes_delta_projection:2026-07-01T00:00:00.000Z",
+    "workplane_ref": "/workbench:agent_workplane",
+    "perspective_snapshot_refs": [
+      "perspective_snapshot.phase_7a.synthetic",
+      "runtime_read_context.guide_brief.v0.1.synthetic"
+    ],
+    "delta_ids": [
+      "delta.phase7a.handoff-capsule",
+      "delta.phase7a.codex-launch-card",
+      "delta.phase7a.boundary"
+    ],
+    "batch_ids": [
+      "batch.phase7a.handoff-capsule.synthetic"
+    ],
+    "evidence_refs": [
+      "validation_pointer:phase7a.smoke.synthetic"
+    ],
+    "artifact_refs": [
+      "artifact:docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",
+      "artifact:types/handoff-capsule.ts"
+    ],
+    "handoff_refs": [
+      "handoff_capsule.phase_7a.sample.codex"
+    ],
+    "diagnostic_refs": [
+      "diagnostic:phase7a.changed-file-boundary.synthetic"
+    ],
+    "route_refs": [
+      "/",
+      "/perspective",
+      "/workbench"
+    ],
+    "docs_refs": [
+      "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+      "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md",
+      "docs/CODEX_GUIDEBRIEF_HANDOFF_V0_1.md",
+      "docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md",
+      "docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md",
+      "docs/AUTHORITY_MATRIX.md"
+    ],
+    "repo_refs": [
+      "hynk-studio/augnes",
+      "main"
+    ]
+  },
+  "selected_delta_refs": [
+    {
+      "delta_id": "delta.phase7a.handoff-capsule",
+      "reason": "Carries the HandoffCapsule core contract.",
+      "source_refs": [
+        "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md"
+      ]
+    },
+    {
+      "delta_id": "delta.phase7a.codex-launch-card",
+      "reason": "Carries the CodexLaunchCard preparation packet.",
+      "source_refs": [
+        "docs/CODEX_GUIDEBRIEF_HANDOFF_V0_1.md"
+      ]
+    }
+  ],
+  "evidence_refs": [
+    "validation_pointer:phase7a.smoke.synthetic"
+  ],
+  "artifact_refs": [
+    "artifact:docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",
+    "artifact:types/handoff-capsule.ts"
+  ],
+  "diagnostic_refs": [
+    "diagnostic:phase7a.changed-file-boundary.synthetic"
+  ],
+  "constraints": {
+    "allowed_change_scope": [
+      "Phase 7A core contract, types, pure helper, fixtures, smoke, package pointer, and latest-index pointer only.",
+      "No route, UI, MCP/App tool, DB schema/migration, provider/OpenAI call, GitHub actuation, Codex execution, proof/evidence write, memory mutation, durable Perspective apply, product-write, scheduler/autonomy, handoff send, branch/PR creation from product code, merge, publish, retry, replay, deploy, or external side effect."
+    ],
+    "boundary_notes": [
+      "Handoff Capsule is not handoff send.",
+      "Codex Launch Card is not Codex execution.",
+      "Suggestions are not commands.",
+      "User/operator judgment remains unresolved unless explicitly decided outside the packet."
+    ],
+    "skipped_check_policy": [
+      "Name the exact skipped check.",
+      "Give a concrete reason.",
+      "Do not claim skipped checks passed."
+    ],
+    "public_safety": [
+      "No private conversation.",
+      "No hidden reasoning.",
+      "No local private paths.",
+      "No secrets or tokens.",
+      "No raw provider output.",
+      "No raw retrieval output.",
+      "No real account artifacts."
+    ],
+    "non_goals": [
+      "No UI changes.",
+      "No API routes.",
+      "No MCP/App tools.",
+      "No DB writes.",
+      "No provider/OpenAI calls.",
+      "No GitHub actuation from Augnes product code.",
+      "No Codex execution from Augnes product code.",
+      "No proof/evidence writes.",
+      "No handoff send."
+    ]
+  },
+  "forbidden_actions": [
+    "Do not send handoffs.",
+    "Do not launch Codex.",
+    "Do not execute Codex.",
+    "Do not create branches or PRs from Augnes product code.",
+    "Do not call GitHub from Augnes product code.",
+    "Do not call providers or OpenAI.",
+    "Do not write proof or evidence.",
+    "Do not mutate DB state.",
+    "Do not mutate memory.",
+    "Do not apply durable Perspective state.",
+    "Do not add product-write behavior.",
+    "Do not add scheduler or autonomy runner behavior.",
+    "Do not merge, publish, retry, replay, or deploy."
+  ],
+  "expected_inputs": [
+    "GuideBrief or GuideBrief-derived context.",
+    "Explicit target surface and target actor.",
+    "Active operator/user prompt for any future implementation."
+  ],
+  "expected_outputs": [
+    "Reviewable Handoff Capsule JSON.",
+    "Derived Codex Launch Card JSON.",
+    "No sent handoff and no execution side effect."
+  ],
+  "validation_expectations": {
+    "required_checks": [
+      "npm run typecheck",
+      "npm run smoke:handoff-capsule-v0-1",
+      "git diff --check"
+    ],
+    "optional_checks": [
+      "Phase 1-6 smoke suite when validating adjacent compatibility."
+    ],
+    "skipped_check_policy": [
+      "Name the exact skipped check.",
+      "Give a concrete reason.",
+      "Do not claim skipped checks passed."
+    ],
+    "success_criteria": [
+      "HandoffCapsule exists.",
+      "CodexLaunchCard exists.",
+      "Authority boundary denies all write, execution, external call, send, and launch authority.",
+      "Launch Card is preview-only."
+    ]
+  },
+  "staleness": {
+    "status": "partial",
+    "as_of": "2026-07-01T00:00:00.000Z",
+    "warnings": [
+      "Fixture is synthetic and must not be presented as live runtime state.",
+      "Future execution-scoped work must refresh source refs or rely on an active operator prompt."
+    ],
+    "refresh_suggestion": "Refresh GuideBrief and source refs before any future route, UI, MCP/App, or execution-scoped phase."
+  },
+  "authority_boundary": {
+    "source_of_truth": false,
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_mutate_memory": false,
+    "can_apply_project_perspective": false,
+    "can_publish_external": false,
+    "can_merge": false,
+    "can_retry_replay_deploy": false,
+    "can_call_github": false,
+    "can_call_openai_or_provider": false,
+    "can_execute_codex": false,
+    "can_create_branch_or_pr": false,
+    "can_send_handoff": false,
+    "can_launch_codex": false,
+    "can_launch_autonomy": false,
+    "can_create_mcp_tool": false,
+    "can_create_ui_action": false,
+    "can_post_external_comment": false,
+    "notes": [
+      "Capsule is preview-only.",
+      "Launch Card is reviewable preparation only.",
+      "No execution authority.",
+      "No GitHub actuation.",
+      "No provider calls.",
+      "No proof/evidence writes.",
+      "No state/memory mutation.",
+      "No handoff send.",
+      "No background work.",
+      "User/operator prompt is required before any future execution path."
+    ]
+  },
+  "target_rendering": {
+    "primary_sections": [
+      "Summary",
+      "Observed context",
+      "Inferred context",
+      "Suggested context",
+      "Needs user judgment",
+      "Source refs",
+      "Authority boundary"
+    ],
+    "preserve_separation": true,
+    "compact_summary": "Render for codex_handoff as reviewable preparation only.",
+    "copy_behavior": "manual_copy_only",
+    "action_controls": false,
+    "notes": [
+      "Show suggestions separately from commands.",
+      "Show unresolved judgment separately from decisions.",
+      "Do not render send, launch, execute, post, merge, publish, or mutate controls."
+    ]
+  },
+  "gaps": [
+    {
+      "code": "phase7a.future_surface_deferred",
+      "severity": "medium",
+      "summary": "Route, UI, MCP/App, and Codex skill alignment are deferred to separately scoped future phases.",
+      "source_refs": [
+        "docs/GUIDEBRIEF_CONTRACT_V0_1.md"
+      ],
+      "blocks_transfer_confidence": false
+    }
+  ],
+  "next_phase_notes": [
+    "Phase 7A adds Handoff Capsule and Codex Launch Card core only.",
+    "Phase 7B can choose one read-only consumer surface only after explicit operator scope.",
+    "Phase 8 Autonomy Contract can consume the card/capsule only as preview input, not execution authority."
+  ],
+  "public_safety": {
+    "fixture_kind": "synthetic_sample",
+    "contains_private_conversations": false,
+    "contains_hidden_reasoning": false,
+    "contains_local_private_paths": false,
+    "contains_secrets": false,
+    "contains_tokens": false,
+    "contains_raw_provider_output": false,
+    "contains_raw_retrieval_output": false,
+    "contains_real_account_artifacts": false,
+    "notes": [
+      "No private conversation.",
+      "No hidden reasoning.",
+      "No local private paths.",
+      "No secrets or tokens.",
+      "No raw provider output.",
+      "No raw retrieval output.",
+      "No real account artifacts."
+    ]
+  }
+}
