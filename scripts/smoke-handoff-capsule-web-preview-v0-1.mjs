@@ -61,6 +61,18 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
 ];
 
+const followOnHandoffCapsuleAppToolFiles = [
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+];
+
 const allowedChangedFiles = new Set([
   contractDoc,
   indexDoc,
@@ -72,6 +84,7 @@ const allowedChangedFiles = new Set([
   boundaryCardFile,
   agentWorkplaneFile,
   ...priorSmokeAllowlistCompatibilityFiles,
+  ...followOnHandoffCapsuleAppToolFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -163,7 +176,7 @@ function assertDocsAndIndex() {
     "No scheduler/autonomy runner.",
     "No product-write.",
     "No external side effects.",
-    "Phase 7D ChatGPT App/MCP tool remains deferred.",
+    "Phase 7D ChatGPT App/MCP read-only preview tools are documented below.",
     "Phase 7E Codex skill alignment remains deferred.",
     "Phase 7F copy/export remains deferred.",
   ], { label: contractDoc });
@@ -394,7 +407,8 @@ function assertChangedFileBoundary() {
       `Phase 7C must not change API route files: ${file}`,
     );
     assert(
-      !/^apps\/augnes_apps\//.test(file),
+      followOnHandoffCapsuleAppToolFiles.includes(file) ||
+        !/^apps\/augnes_apps\//.test(file),
       `Phase 7C must not change MCP/App tool files: ${file}`,
     );
     assert(

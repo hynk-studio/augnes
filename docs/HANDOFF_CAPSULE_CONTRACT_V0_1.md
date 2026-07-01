@@ -2,13 +2,14 @@
 
 ## 1. Status and Scope
 
-Status: Phase 7C Handoff Capsule / Codex Launch Card core, GET-only read
-routes, and Web preview UI v0.1.
+Status: Phase 7D Handoff Capsule / Codex Launch Card core, GET-only read
+routes, Web preview UI, and ChatGPT App/MCP read-only preview tools v0.1.
 
 Scope: Phase 7A contract, type, pure helper, public-safe fixtures, static
 smoke, package script pointer, and latest-index pointer plus Phase 7B GET-only
-local read-only preview routes and thin source composition plus Phase 7C
-read-only Web preview UI on Agent Workplane.
+local read-only preview routes and thin source composition, Phase 7C read-only
+Web preview UI on Agent Workplane, and Phase 7D ChatGPT App/MCP model-only
+read-only preview tools.
 
 Handoff Capsule and Codex Launch Card are reviewable transfer packets. They
 prepare context for another surface. They do not send, launch, execute, post,
@@ -215,8 +216,8 @@ actuation, Codex execution, proof/evidence write, memory mutation, durable
 Perspective state apply, handoff send, branch/PR creation, scheduler/autonomy
 runner, product-write, or external side effects.
 
-Phase 7C Web preview UI is documented below. Phase 7D ChatGPT App/MCP tool is
-deferred. Phase 7E Codex skill alignment is deferred.
+Phase 7C Web preview UI and Phase 7D ChatGPT App/MCP read-only preview tools
+are documented below. Phase 7E Codex skill alignment is deferred.
 
 ## 5.2 Phase 7C Web Preview UI
 
@@ -271,8 +272,45 @@ no memory mutation, no durable Perspective apply, no handoff send, no
 branch/PR creation from Augnes product code, no scheduler/autonomy runner, no
 merge/publish/retry/replay/deploy behavior, and no external side effects.
 
-Phase 7D ChatGPT App/MCP tool remains deferred. Phase 7E Codex skill alignment
-remains deferred. Phase 7F copy/export remains deferred.
+Phase 7D ChatGPT App/MCP read-only preview tools are documented below.
+Phase 7E Codex skill alignment remains deferred. Phase 7F copy/export remains
+deferred.
+
+## 5.3 Phase 7D ChatGPT App/MCP Read-Only Preview Tools
+
+Phase 7D adds two model-only ChatGPT App/MCP read-only preview tools:
+
+```text
+augnes_get_handoff_capsule_preview
+augnes_get_codex_launch_card_preview
+```
+
+The tools consume the Phase 7B GET-only local read-only routes through the
+state-runtime HTTP adapter:
+
+```text
+GET /api/augnes/read/handoff-capsule?scope=project:augnes&target=codex_handoff
+x-augnes-local-readonly: handoff-capsule-v0.1
+
+GET /api/augnes/read/codex-launch-card?scope=project:augnes
+x-augnes-local-readonly: codex-launch-card-v0.1
+```
+
+Both tools are preview/review preparation only. They return structured Handoff
+Capsule or Codex Launch Card content plus compact narrative text for the model.
+They preserve Observed/Inferred/Suggested/Needs user judgment separation.
+Suggestions remain advisory only. Unresolved user judgment remains unresolved.
+Codex Launch Card status never means executed.
+
+Phase 7D adds no write tool and no widget-backed UI. It adds no Web UI, no API
+route behavior change, no copy/export behavior, no Codex execution, no Codex
+launch, no handoff send, no GitHub/OpenAI/provider calls, no branch/PR
+creation, no proof/evidence writes, no state/memory/DB/work/Perspective
+mutation, no publish/merge/retry/replay/deploy behavior, and no external side
+effects.
+
+Phase 7E Codex skill alignment remains deferred. Phase 7F copy/export remains
+deferred.
 
 ## 6. Source Refs
 

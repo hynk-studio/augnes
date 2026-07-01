@@ -265,6 +265,21 @@ PR #868 is merged. Current route planning starts from:
   scheduler/autonomy runner, handoff send, branch/PR creation, or external side
   effect. `scripts/smoke-handoff-capsule-web-preview-v0-1.mjs` (`npm run
   smoke:handoff-capsule-web-preview-v0-1`) checks this Web preview boundary.
+  Phase 7D ChatGPT App/MCP read-only Handoff Capsule / Codex Launch Card
+  preview tools v0.1 adds repo-local non-SSOT pointers for
+  `augnes_get_handoff_capsule_preview` and
+  `augnes_get_codex_launch_card_preview`. The tools consume the Phase 7B
+  marker-gated local routes through the state-runtime HTTP adapter with
+  `x-augnes-local-readonly: handoff-capsule-v0.1` and
+  `x-augnes-local-readonly: codex-launch-card-v0.1`, return model-only
+  structured preview content, preserve source/fallback/warnings/gaps and
+  all-false authority boundaries, and add no Web UI, widget, write tool,
+  copy/export, API write route, DB write, provider/OpenAI call, GitHub
+  actuation, Codex execution, proof/evidence write, memory mutation, durable
+  Perspective apply, scheduler/autonomy runner, handoff send, branch/PR
+  creation, or external side effect. `scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs`
+  (`npm run smoke:chatgpt-app-handoff-capsule-tool-v0-1`) checks this
+  App/MCP preview-tool boundary.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

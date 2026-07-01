@@ -215,6 +215,37 @@ GitHub/OpenAI/provider calls, proof/evidence writes, state mutation, memory
 mutation, DB writes, branch or PR creation, handoff execution, approval,
 publish, retry, replay, deploy, or external side effects.
 
+## Handoff Capsule / Codex Launch Card preview tools
+
+Phase 7D adds two read-only, model-only App/MCP tools:
+
+```text
+augnes_get_handoff_capsule_preview
+augnes_get_codex_launch_card_preview
+```
+
+Both tools are local-route backed. They consume the Phase 7B preview routes
+through the state-runtime HTTP adapter:
+
+```text
+GET /api/augnes/read/handoff-capsule?scope=project:augnes&target=codex_handoff
+x-augnes-local-readonly: handoff-capsule-v0.1
+
+GET /api/augnes/read/codex-launch-card?scope=project:augnes
+x-augnes-local-readonly: codex-launch-card-v0.1
+```
+
+The tools return Handoff Capsule / Codex Launch Card structured content and a
+compact narrative summary. They are preview/review preparation only. They do
+not expose a widget, write tool, copy/export behavior, Codex execution, Codex
+launch, handoff send, GitHub/OpenAI/provider calls, branch or PR creation,
+proof/evidence writes, state/memory/DB/work/Perspective mutation,
+publish/merge/retry/replay/deploy behavior, external posting, or external side
+effects.
+
+Suggestions are advisory only. Unresolved user judgment remains unresolved.
+Codex Launch Card status never means executed.
+
 ## Authority boundaries
 
 Authority boundaries:

@@ -134,6 +134,8 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
           augnes_get_state_brief: {},
           augnes_get_project_constellation_preview: {},
           augnes_get_guide_brief: {},
+          augnes_get_handoff_capsule_preview: {},
+          augnes_get_codex_launch_card_preview: {},
           augnes_get_evidence_pack: {},
           augnes_get_session_trace: { sessionId: 'session:smoke-1', limit: 5 },
           augnes_get_verification_evidence_records: { workId: 'AG-001', limit: 5 },
@@ -190,6 +192,24 @@ function spawnBridgeToolProfileSnapshot(env: Record<string, string | undefined>)
             authorityBoundary: result.structuredContent?.authority_boundary,
             readBoundary: result.structuredContent?.read_boundary,
             routeBoundary: result.structuredContent?.route_boundary,
+            handoffCapsule: result.structuredContent?.handoff_capsule,
+            handoffCapsuleSummary: result.structuredContent?.capsule_summary,
+            codexLaunchCard: result.structuredContent?.codex_launch_card,
+            codexLaunchCardSummary: result.structuredContent?.launch_card_summary,
+            routeAuthorityBoundary: result.structuredContent?.route_authority_boundary,
+            sourceStatus: result.structuredContent?.source_status,
+            observedContext: result.structuredContent?.observed_context,
+            inferredContext: result.structuredContent?.inferred_context,
+            suggestedContext: result.structuredContent?.suggested_context,
+            needsUserJudgment: result.structuredContent?.needs_user_judgment,
+            suggestionsForCodex: result.structuredContent?.suggestions_for_codex,
+            unresolvedUserJudgment: result.structuredContent?.unresolved_user_judgment,
+            expectedFiles: result.structuredContent?.expected_files,
+            forbiddenFiles: result.structuredContent?.forbidden_files,
+            requiredChecks: result.structuredContent?.required_checks,
+            skippedCheckPolicy: result.structuredContent?.skipped_check_policy,
+            prBodyRequirements: result.structuredContent?.pr_body_requirements,
+            finalReportRequirements: result.structuredContent?.final_report_requirements,
             actionRecord: result.structuredContent?.actionRecord,
             eventResult: result.structuredContent?.eventResult,
             handoff: result.structuredContent?.handoff,
@@ -510,6 +530,141 @@ async function main() {
     bridgeSnapshot.profiles.augnes_get_guide_brief.text,
     /Handoff candidates are preview-only/i,
     "augnes_get_guide_brief should state handoff candidates are preview-only"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.handoffCapsule.capsule_version,
+    "handoff_capsule.v0.1",
+    "augnes_get_handoff_capsule_preview should return Handoff Capsule structured content"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.handoffCapsule.authority_boundary.can_call_openai_or_provider,
+    false,
+    "augnes_get_handoff_capsule_preview should preserve OpenAI/provider denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.handoffCapsule.authority_boundary.can_launch_codex,
+    false,
+    "augnes_get_handoff_capsule_preview should preserve Codex launch denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.authorityBoundary.can_send_handoff,
+    false,
+    "augnes_get_handoff_capsule_preview should preserve handoff send denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.readBoundary.github_openai_provider_calls,
+    false,
+    "augnes_get_handoff_capsule_preview should preserve read boundary OpenAI/provider denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.routeBoundary.github_openai_provider_calls,
+    false,
+    "augnes_get_handoff_capsule_preview should preserve route boundary OpenAI/provider denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.handoffCapsuleSummary.observed_count,
+    1,
+    "augnes_get_handoff_capsule_preview should summarize observed context"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.observedContext.length,
+    1,
+    "augnes_get_handoff_capsule_preview should expose observed context separately"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.inferredContext.length,
+    1,
+    "augnes_get_handoff_capsule_preview should expose inferred context separately"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.suggestedContext.length,
+    1,
+    "augnes_get_handoff_capsule_preview should expose suggested context separately"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.needsUserJudgment.length,
+    1,
+    "augnes_get_handoff_capsule_preview should expose needs_user_judgment separately"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.text,
+    /Suggestions are advisory only/i,
+    "augnes_get_handoff_capsule_preview should state suggestions are advisory only"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_handoff_capsule_preview.text,
+    /no handoff send, no Codex launch or execution/i,
+    "augnes_get_handoff_capsule_preview should deny send and Codex execution"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.codexLaunchCard.card_version,
+    "codex_launch_card.v0.1",
+    "augnes_get_codex_launch_card_preview should return Codex Launch Card structured content"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.codexLaunchCard.authority_boundary.can_call_openai_or_provider,
+    false,
+    "augnes_get_codex_launch_card_preview should preserve OpenAI/provider denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.codexLaunchCard.authority_boundary.can_execute_codex,
+    false,
+    "augnes_get_codex_launch_card_preview should preserve Codex execution denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.authorityBoundary.can_create_branch_or_pr,
+    false,
+    "augnes_get_codex_launch_card_preview should preserve branch/PR creation denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.readBoundary.github_openai_provider_calls,
+    false,
+    "augnes_get_codex_launch_card_preview should preserve read boundary OpenAI/provider denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.routeBoundary.github_openai_provider_calls,
+    false,
+    "augnes_get_codex_launch_card_preview should preserve route boundary OpenAI/provider denial"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.expectedFiles.length,
+    1,
+    "augnes_get_codex_launch_card_preview should expose expected files"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.forbiddenFiles.length,
+    6,
+    "augnes_get_codex_launch_card_preview should expose forbidden files"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.requiredChecks.length,
+    1,
+    "augnes_get_codex_launch_card_preview should expose required checks"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.skippedCheckPolicy.length,
+    1,
+    "augnes_get_codex_launch_card_preview should expose skipped-check policy"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.prBodyRequirements.length,
+    5,
+    "augnes_get_codex_launch_card_preview should expose PR body requirements"
+  );
+  assert.equal(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.finalReportRequirements.length,
+    4,
+    "augnes_get_codex_launch_card_preview should expose final report requirements"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.text,
+    /No status may mean executed/i,
+    "augnes_get_codex_launch_card_preview should preserve safe status wording"
+  );
+  assert.match(
+    bridgeSnapshot.profiles.augnes_get_codex_launch_card_preview.text,
+    /not Codex execution, not branch creation, not PR creation, not a launch action/i,
+    "augnes_get_codex_launch_card_preview should deny Codex execution and branch/PR creation"
   );
   assert.equal(
     bridgeSnapshot.profiles.augnes_record_action_result.actionRecord.action_name,

@@ -1,12 +1,14 @@
 import type { ZodType } from "zod";
 import {
   ActionRecordResultSchema,
+  CodexLaunchCardPreviewResultSchema,
   CodexResultReviewDraftSchema,
   ConstellationPreviewResultSchema,
   ControlPacketSchema,
   EvidencePackResultSchema,
   GeneratedHandoffDraftSchema,
   GuideBriefResultSchema,
+  HandoffCapsulePreviewResultSchema,
   MailboxSummaryResultSchema,
   ObserveResultSchema,
   PendingProposalsResultSchema,
@@ -21,11 +23,13 @@ import {
   WorkEventResultSchema,
   WorkListResultSchema,
   type ActionRecordResult,
+  type CodexLaunchCardPreviewResult,
   type CodexResultReviewDraft,
   type ConstellationPreviewResult,
   type ControlPacket,
   type EvidencePackResult,
   type GuideBriefResult,
+  type HandoffCapsulePreviewResult,
   type GeneratedHandoffDraft,
   type GenerateHandoffDraftInput,
   type MailboxSummaryResult,
@@ -36,7 +40,9 @@ import {
   type StateBrief,
   type StateRuntimeActionResultInput,
   type StateRuntimeBridgeAdapter,
+  type StateRuntimeCodexLaunchCardPreviewInput,
   type StateRuntimeEvidencePackInput,
+  type StateRuntimeHandoffCapsulePreviewInput,
   type StateRuntimeLimit,
   type StateRuntimeMessageInput,
   type StateRuntimeProposal,
@@ -56,11 +62,17 @@ const CONSTELLATION_PREVIEW_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const CONSTELLATION_PREVIEW_LOCAL_READ_MARKER = "constellation-preview-v0.1";
 const GUIDE_BRIEF_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const GUIDE_BRIEF_LOCAL_READ_MARKER = "guide-brief-v0.1";
+const HANDOFF_CAPSULE_LOCAL_READ_HEADER = "x-augnes-local-readonly";
+const HANDOFF_CAPSULE_LOCAL_READ_MARKER = "handoff-capsule-v0.1";
+const CODEX_LAUNCH_CARD_LOCAL_READ_HEADER = "x-augnes-local-readonly";
+const CODEX_LAUNCH_CARD_LOCAL_READ_MARKER = "codex-launch-card-v0.1";
 
 const endpointContract = {
   stateBrief: { method: "GET", path: "/api/state/brief" },
   constellationPreview: { method: "GET", path: "/api/augnes/read/constellation-preview" },
   guideBrief: { method: "GET", path: "/api/augnes/read/guide-brief" },
+  handoffCapsulePreview: { method: "GET", path: "/api/augnes/read/handoff-capsule" },
+  codexLaunchCardPreview: { method: "GET", path: "/api/augnes/read/codex-launch-card" },
   evidencePack: { method: "GET", path: "/api/evidence-pack" },
   sessionTrace: { method: "GET", path: "/api/sessions/trace" },
   sessionTraceById: { method: "GET", path: "/api/sessions" },
@@ -213,6 +225,39 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
         query: { scope: parseScope(scope) },
         headers: {
           [GUIDE_BRIEF_LOCAL_READ_HEADER]: GUIDE_BRIEF_LOCAL_READ_MARKER,
+        },
+      }
+    );
+  }
+
+  async getHandoffCapsulePreview(input: StateRuntimeHandoffCapsulePreviewInput): Promise<HandoffCapsulePreviewResult> {
+    return this.requestJson(
+      endpointContract.handoffCapsulePreview.method,
+      endpointContract.handoffCapsulePreview.path,
+      HandoffCapsulePreviewResultSchema,
+      "handoff capsule preview",
+      {
+        query: {
+          scope: parseScope(input.scope),
+          target: input.target,
+        },
+        headers: {
+          [HANDOFF_CAPSULE_LOCAL_READ_HEADER]: HANDOFF_CAPSULE_LOCAL_READ_MARKER,
+        },
+      }
+    );
+  }
+
+  async getCodexLaunchCardPreview(input: StateRuntimeCodexLaunchCardPreviewInput): Promise<CodexLaunchCardPreviewResult> {
+    return this.requestJson(
+      endpointContract.codexLaunchCardPreview.method,
+      endpointContract.codexLaunchCardPreview.path,
+      CodexLaunchCardPreviewResultSchema,
+      "codex launch card preview",
+      {
+        query: { scope: parseScope(input.scope) },
+        headers: {
+          [CODEX_LAUNCH_CARD_LOCAL_READ_HEADER]: CODEX_LAUNCH_CARD_LOCAL_READ_MARKER,
         },
       }
     );
