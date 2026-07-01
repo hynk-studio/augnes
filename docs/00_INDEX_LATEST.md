@@ -280,6 +280,21 @@ PR #868 is merged. Current route planning starts from:
   creation, or external side effect. `scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs`
   (`npm run smoke:chatgpt-app-handoff-capsule-tool-v0-1`) checks this
   App/MCP preview-tool boundary.
+  Phase 7E Codex Handoff Capsule / Codex Launch Card alignment v0.1 adds
+  repo-local non-SSOT pointers for
+  `docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md`,
+  `plugins/augnes-operator/skills/augnes-handoff-capsule/SKILL.md`, and
+  `scripts/smoke-codex-handoff-capsule-v0-1.mjs` (`npm run
+  smoke:codex-handoff-capsule-v0-1`). The skill is instruction-only Codex
+  task-start context guidance. It preserves Observed/Inferred/Suggested/Needs
+  user judgment separation, source refs, expected/forbidden files, required
+  and optional checks, skipped-check policy, PR/final-report requirements,
+  source/fallback status, warnings/gaps, public safety, and authority
+  boundaries. It adds no runtime hook, Web UI, API route, App/MCP tool, DB
+  write, provider/OpenAI call, GitHub actuation, Codex execution,
+  proof/evidence write, memory mutation, durable Perspective apply,
+  scheduler/autonomy runner, handoff send, branch/PR creation behavior,
+  copy/export, or external side effect.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

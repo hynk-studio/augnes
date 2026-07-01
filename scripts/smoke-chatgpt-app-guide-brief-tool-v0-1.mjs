@@ -120,6 +120,55 @@ for (const file of followOnHandoffCapsuleFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffCapsuleReadRouteFiles = [
+  "app/api/augnes/read/handoff-capsule/route.ts",
+  "app/api/augnes/read/codex-launch-card/route.ts",
+  "lib/handoff/handoff-capsule-source.ts",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleReadRouteFiles) {
+  allowedChangedFiles.add(file);
+}
+
+const followOnHandoffCapsuleWebPreviewFiles = [
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleWebPreviewFiles) {
+  allowedChangedFiles.add(file);
+}
+
+const followOnHandoffCapsuleAppToolFiles = [
+  "apps/augnes_apps/src/server.ts",
+  "apps/augnes_apps/src/lib/state-runtime-types.ts",
+  "apps/augnes_apps/src/adapters/state-runtime-http.ts",
+  "apps/augnes_apps/scripts/invariants.ts",
+  "apps/augnes_apps/scripts/smoke.ts",
+  "apps/augnes_apps/scripts/mock-state-runtime.ts",
+  "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
+  "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleAppToolFiles) {
+  allowedChangedFiles.add(file);
+}
+
+const followOnHandoffCapsuleCodexSkillFiles = [
+  "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-handoff-capsule/SKILL.md",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "scripts/smoke-codex-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
+  "scripts/smoke-augnes-operator-plugin-v2.mjs",
+  "scripts/smoke-augnes-capsule-handoff-skill.mjs",
+];
+for (const file of followOnHandoffCapsuleCodexSkillFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(

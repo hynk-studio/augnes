@@ -60,6 +60,9 @@ const followOnHandoffCapsuleAppToolFiles = [
   "scripts/smoke-handoff-capsule-route-v0-1.mjs",
   "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
   "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+  "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-handoff-capsule/SKILL.md",
+  "scripts/smoke-codex-handoff-capsule-v0-1.mjs",
 ];
 
 const requiredFiles = [
@@ -508,7 +511,11 @@ function assertChangedFileBoundary() {
       `Phase 6C must not change MCP/App files: ${file}`,
     );
     assert(
-      ((!/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file) || followOnCodexGuideBriefHandoffFiles.includes(file)) || followOnChatgptAppGuideBriefToolFiles.includes(file) || followOnCodexGuideBriefHandoffFiles.includes(file)),
+      ((!/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file) ||
+        followOnCodexGuideBriefHandoffFiles.includes(file)) ||
+        followOnChatgptAppGuideBriefToolFiles.includes(file) ||
+        followOnCodexGuideBriefHandoffFiles.includes(file) ||
+        followOnHandoffCapsuleAppToolFiles.includes(file)),
       `Phase 6C must not change MCP/App tool files: ${file}`,
     );
     assert(

@@ -147,6 +147,26 @@ does not create branches or PRs from Augnes product code, does not send
 handoffs, and does not create Handoff Capsule or Codex Launch Card runtime
 behavior.
 
+## Phase 7E Handoff Capsule / Codex Launch Card Skill Alignment
+
+The `augnes-handoff-capsule` skill at
+`plugins/augnes-operator/skills/augnes-handoff-capsule/SKILL.md` is
+instruction-only guidance for Codex consuming Handoff Capsule and Codex Launch
+Card packets as task-start context.
+
+The skill preserves source refs, expected files, forbidden files, allowed
+change scope, required checks, optional checks, skipped-check policy, PR body
+requirements, final report requirements, unresolved user judgment,
+source/fallback status, warnings, gaps, public safety, and authority
+boundaries.
+
+It adds no runtime behavior, no network calls, no GitHub calls, no
+OpenAI/provider calls, no Augnes runtime calls, no hooks, no MCP config, no
+App/MCP tool changes, no Web UI, no DB writes, no proof/evidence writes, no
+handoff execution, no copy/export, no branch/PR creation from Augnes product
+code, no merge/publish/retry/replay/deploy behavior, and no external side
+effects. It does not imply that `plugin.json` adds runtime capability.
+
 ## PR-Centered Workflow
 
 The preserved workflow is:

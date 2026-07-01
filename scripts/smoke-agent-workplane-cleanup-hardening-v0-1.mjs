@@ -249,6 +249,19 @@ for (const file of followOnHandoffCapsuleAppToolFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffCapsuleCodexSkillFiles = [
+  "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-handoff-capsule/SKILL.md",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "scripts/smoke-codex-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
+  "scripts/smoke-augnes-operator-plugin-v2.mjs",
+  "scripts/smoke-augnes-capsule-handoff-skill.mjs",
+];
+for (const file of followOnHandoffCapsuleCodexSkillFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
@@ -617,7 +630,11 @@ function assertChangedFileBoundary() {
       `Phase 5D must not change MCP/App files: ${file}`,
     );
     assert(
-      ((!/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file) || followOnCodexGuideBriefHandoffFiles.includes(file)) || followOnChatgptAppGuideBriefToolFiles.includes(file) || followOnCodexGuideBriefHandoffFiles.includes(file)),
+      ((!/(^|\/)(mcp|plugin|plugins|tool|tools)(\/|$)/i.test(file) ||
+        followOnCodexGuideBriefHandoffFiles.includes(file)) ||
+        followOnChatgptAppGuideBriefToolFiles.includes(file) ||
+        followOnCodexGuideBriefHandoffFiles.includes(file) ||
+        followOnHandoffCapsuleCodexSkillFiles.includes(file)),
       `Phase 5D must not change MCP/App tool files: ${file}`,
     );
     assert(
