@@ -80,6 +80,25 @@ for (const file of followOnHandoffCapsuleRouteFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffCapsuleWebPreviewFiles = [
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleWebPreviewFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const forbiddenRuntimePathPatterns = [
   /^app\//,
   /^components\//,
@@ -328,6 +347,7 @@ function assertChangedFilesBoundary() {
       );
       assert(
         followOnHandoffCapsuleRouteFiles.includes(file) ||
+          followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
           !forbiddenRuntimePathPatterns.some((pattern) => pattern.test(file)),
         `Forbidden runtime changed file for Codex GuideBrief handoff alignment smoke: ${file}`,
       );

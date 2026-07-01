@@ -2,12 +2,13 @@
 
 ## 1. Status and Scope
 
-Status: Phase 7B Handoff Capsule / Codex Launch Card core and GET-only read
-routes v0.1.
+Status: Phase 7C Handoff Capsule / Codex Launch Card core, GET-only read
+routes, and Web preview UI v0.1.
 
 Scope: Phase 7A contract, type, pure helper, public-safe fixtures, static
 smoke, package script pointer, and latest-index pointer plus Phase 7B GET-only
-local read-only preview routes and thin source composition.
+local read-only preview routes and thin source composition plus Phase 7C
+read-only Web preview UI on Agent Workplane.
 
 Handoff Capsule and Codex Launch Card are reviewable transfer packets. They
 prepare context for another surface. They do not send, launch, execute, post,
@@ -214,8 +215,64 @@ actuation, Codex execution, proof/evidence write, memory mutation, durable
 Perspective state apply, handoff send, branch/PR creation, scheduler/autonomy
 runner, product-write, or external side effects.
 
-Phase 7C Web preview UI is deferred. Phase 7D ChatGPT App/MCP tool is
+Phase 7C Web preview UI is documented below. Phase 7D ChatGPT App/MCP tool is
 deferred. Phase 7E Codex skill alignment is deferred.
+
+## 5.2 Phase 7C Web Preview UI
+
+Web preview UI renders Handoff Capsule and Codex Launch Card as read-only
+preview panels.
+
+Primary placement is `/workbench` Agent Workplane. The panels render near the
+existing Handoff Builder preview and other projection/handoff preview panels.
+`/` and `/perspective` compact cards are deferred in Phase 7C to keep the slice
+focused.
+
+The Web preview read path is:
+
+```text
+lib/handoff/read-handoff-capsule-for-web.ts
+```
+
+Public Web default uses public-safe fallback unless a separately scoped
+local-only context passes validation. The fallback/source status must remain
+visible and must not pretend to be live Handoff Capsule route, Codex Launch
+Card route, GuideBrief route, Current Working Perspective, or Delta Projection
+runtime state. Route-composed repo/task fields may remain synthetic or
+operator-supplied preview defaults and must be disclosed as preview defaults.
+
+The Web preview UI preserves Handoff Capsule and GuideBrief separation:
+
+- Observed remains source-backed context only.
+- Inferred remains derived interpretation only.
+- Suggested remains advisory only; suggestions are not commands.
+- Needs user judgment remains unresolved and is not decided by the UI.
+
+No action buttons.
+No copy/export.
+No send.
+No launch.
+No Codex execution.
+No GitHub actuation.
+No branch/PR creation.
+No provider/OpenAI calls.
+No DB write.
+No proof/evidence writes.
+No memory mutation.
+No durable Perspective apply.
+No scheduler/autonomy runner.
+No product-write.
+No external side effects.
+
+Phase 7C adds no route behavior change, no API write route, no MCP/App tool,
+no Codex skill alignment, no DB schema/migration, no DB write, no provider or
+OpenAI call, no GitHub actuation, no Codex execution, no proof/evidence write,
+no memory mutation, no durable Perspective apply, no handoff send, no
+branch/PR creation from Augnes product code, no scheduler/autonomy runner, no
+merge/publish/retry/replay/deploy behavior, and no external side effects.
+
+Phase 7D ChatGPT App/MCP tool remains deferred. Phase 7E Codex skill alignment
+remains deferred. Phase 7F copy/export remains deferred.
 
 ## 6. Source Refs
 

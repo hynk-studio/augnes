@@ -55,10 +55,20 @@ const followOnHandoffCapsuleRouteFiles = [
   "scripts/smoke-handoff-capsule-route-v0-1.mjs",
 ];
 
+const followOnHandoffCapsuleWebPreviewFiles = [
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
   ...followOnHandoffCapsuleRouteFiles,
+  ...followOnHandoffCapsuleWebPreviewFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
@@ -616,6 +626,7 @@ function assertChangedFileBoundary() {
       );
       assert(
         followOnHandoffCapsuleRouteFiles.includes(file) ||
+          followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
           !forbiddenChangedFilePatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed path for Handoff Capsule Phase 7A smoke: ${file}`,
       );

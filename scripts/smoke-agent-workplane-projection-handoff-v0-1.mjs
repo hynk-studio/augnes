@@ -177,8 +177,20 @@ const followOnHandoffCapsuleFiles = [
   "fixtures/handoff-capsule.sample.v0.1.json",
   "fixtures/codex-launch-card.sample.v0.1.json",
   "scripts/smoke-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
 ];
 for (const file of followOnHandoffCapsuleFiles) {
+  allowedChangedFiles.add(file);
+}
+
+const followOnHandoffCapsuleWebPreviewFiles = [
+  "components/handoff/handoff-capsule-preview-panel.tsx",
+  "components/handoff/codex-launch-card-preview-panel.tsx",
+  "components/handoff/handoff-preview-boundary-card.tsx",
+  "lib/handoff/read-handoff-capsule-for-web.ts",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleWebPreviewFiles) {
   allowedChangedFiles.add(file);
 }
 

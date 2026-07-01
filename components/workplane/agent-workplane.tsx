@@ -1,5 +1,8 @@
 import { AugnesCockpit } from "@/components/augnes-cockpit";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
+import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
+import { HandoffCapsulePreviewPanel } from "@/components/handoff/handoff-capsule-preview-panel";
+import { HandoffPreviewBoundaryCard } from "@/components/handoff/handoff-preview-boundary-card";
 import { CurrentPerspectiveWorkplanePanel } from "@/components/workplane/current-perspective-workplane-panel";
 import { DeltaBatchPanel } from "@/components/workplane/delta-batch-panel";
 import { DeltaProjectionWorkplanePanel } from "@/components/workplane/delta-projection-workplane-panel";
@@ -15,6 +18,7 @@ import { WorkplaneHeader } from "@/components/workplane/workplane-header";
 import { WorkplaneInspector } from "@/components/workplane/workplane-inspector";
 import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
+import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
 import type { CSSProperties } from "react";
 
@@ -91,9 +95,10 @@ const previewCopyStyle: CSSProperties = {
 };
 
 export async function AgentWorkplane() {
-  const [context, guideBrief] = await Promise.all([
+  const [context, guideBrief, handoffPreview] = await Promise.all([
     readWorkplaneContext(),
     Promise.resolve(readGuideBriefForWeb()),
+    Promise.resolve(readHandoffCapsulePreviewForWeb()),
   ]);
 
   return (
@@ -140,6 +145,15 @@ export async function AgentWorkplane() {
               <ProjectionCandidatesPanel context={context} />
               <DeltaBatchPanel context={context} />
               <HandoffBuilderPreviewPanel context={context} />
+              <HandoffCapsulePreviewPanel preview={handoffPreview} />
+              <CodexLaunchCardPreviewPanel preview={handoffPreview} />
+              <HandoffPreviewBoundaryCard
+                capsuleAuthority={handoffPreview.capsule.authority_boundary}
+                launchCardAuthority={
+                  handoffPreview.launch_card.authority_boundary
+                }
+                boundaryNotes={handoffPreview.boundary_notes}
+              />
               <RunPostmortemSkeletonPanel context={context} />
               <TraceDiagnosticsPanel context={context} />
             </section>
