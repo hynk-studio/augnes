@@ -122,6 +122,16 @@ for (const file of followOnHandoffCapsuleFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffCapsuleRouteFiles = [
+  "app/api/augnes/read/handoff-capsule/route.ts",
+  "app/api/augnes/read/codex-launch-card/route.ts",
+  "lib/handoff/handoff-capsule-source.ts",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleRouteFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
@@ -407,8 +417,10 @@ function assertChangedFileBoundary() {
       `Phase 6B must not change UI files outside exact Phase 6C Web Guide follow-on scope: ${file}`,
     );
     assert(
-      !/^app\/api\//.test(file) || file === guideBriefRouteFile,
-      `Phase 6B must not add API route files outside GuideBrief read route: ${file}`,
+      !/^app\/api\//.test(file) ||
+        file === guideBriefRouteFile ||
+        followOnHandoffCapsuleRouteFiles.includes(file),
+      `Phase 6B must not add API route files outside GuideBrief/Handoff Capsule read routes: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 6B must not change DB files: ${file}`);
     assert(

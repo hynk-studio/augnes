@@ -202,10 +202,22 @@ for (const file of followOnHandoffCapsuleFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffCapsuleRouteFiles = [
+  "app/api/augnes/read/handoff-capsule/route.ts",
+  "app/api/augnes/read/codex-launch-card/route.ts",
+  "lib/handoff/handoff-capsule-source.ts",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
+];
+for (const file of followOnHandoffCapsuleRouteFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const allowedRouteFiles = new Set([
   "app/api/augnes/read/deltas/route.ts",
   "app/api/perspective/current/route.ts",
   "app/api/augnes/read/guide-brief/route.ts",
+  "app/api/augnes/read/handoff-capsule/route.ts",
+  "app/api/augnes/read/codex-launch-card/route.ts",
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);

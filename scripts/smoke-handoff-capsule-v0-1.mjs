@@ -48,9 +48,17 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
 ];
 
+const followOnHandoffCapsuleRouteFiles = [
+  "app/api/augnes/read/handoff-capsule/route.ts",
+  "app/api/augnes/read/codex-launch-card/route.ts",
+  "lib/handoff/handoff-capsule-source.ts",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
+  ...followOnHandoffCapsuleRouteFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
@@ -181,6 +189,8 @@ console.log(
       public_safety_checked: true,
       prior_smoke_allowlist_compatibility_files_allowed:
         priorSmokeAllowlistCompatibilityFiles,
+      follow_on_handoff_capsule_route_files_allowed:
+        followOnHandoffCapsuleRouteFiles,
       no_runtime_actuation_code_checked: true,
       no_ui_files_changed_checked: true,
       no_api_route_files_changed_checked: true,
@@ -605,7 +615,8 @@ function assertChangedFileBoundary() {
         `Unexpected changed file for Handoff Capsule Phase 7A smoke: ${file}`,
       );
       assert(
-        !forbiddenChangedFilePatterns.some((pattern) => pattern.test(file)),
+        followOnHandoffCapsuleRouteFiles.includes(file) ||
+          !forbiddenChangedFilePatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed path for Handoff Capsule Phase 7A smoke: ${file}`,
       );
     }
