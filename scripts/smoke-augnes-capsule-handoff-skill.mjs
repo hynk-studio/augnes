@@ -25,6 +25,13 @@ const guideBriefHandoffSkillFile =
   "plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md";
 const guideBriefHandoffSmokeFile =
   "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs";
+const handoffCapsuleConsumptionDoc =
+  "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md";
+const handoffCapsuleSkillFile =
+  "plugins/augnes-operator/skills/augnes-handoff-capsule/SKILL.md";
+const handoffCapsuleContractDoc = "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md";
+const handoffCapsuleSmokeFile =
+  "scripts/smoke-codex-handoff-capsule-v0-1.mjs";
 const usefulnessPlanFile =
   "docs/PERSPECTIVE_HANDOFF_USEFULNESS_EXPERIMENT_PLAN_V0_1.md";
 const usefulnessPlanSmokeFile =
@@ -69,6 +76,14 @@ const allowedChangedFiles = new Set([
   guideBriefContractDoc,
   guideBriefHandoffSkillFile,
   guideBriefHandoffSmokeFile,
+  handoffCapsuleConsumptionDoc,
+  handoffCapsuleSkillFile,
+  handoffCapsuleContractDoc,
+  handoffCapsuleSmokeFile,
+  "scripts/smoke-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
   usefulnessPlanFile,
   usefulnessPlanSmokeFile,
   userIntentSmokeFile,

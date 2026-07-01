@@ -2,14 +2,15 @@
 
 ## 1. Status and Scope
 
-Status: Phase 7D Handoff Capsule / Codex Launch Card core, GET-only read
-routes, Web preview UI, and ChatGPT App/MCP read-only preview tools v0.1.
+Status: Phase 7E Handoff Capsule / Codex Launch Card core, GET-only read
+routes, Web preview UI, ChatGPT App/MCP read-only preview tools, and Codex
+skill alignment v0.1.
 
 Scope: Phase 7A contract, type, pure helper, public-safe fixtures, static
 smoke, package script pointer, and latest-index pointer plus Phase 7B GET-only
 local read-only preview routes and thin source composition, Phase 7C read-only
-Web preview UI on Agent Workplane, and Phase 7D ChatGPT App/MCP model-only
-read-only preview tools.
+Web preview UI on Agent Workplane, Phase 7D ChatGPT App/MCP model-only
+read-only preview tools, and Phase 7E Codex instruction-only skill alignment.
 
 Handoff Capsule and Codex Launch Card are reviewable transfer packets. They
 prepare context for another surface. They do not send, launch, execute, post,
@@ -273,8 +274,8 @@ branch/PR creation from Augnes product code, no scheduler/autonomy runner, no
 merge/publish/retry/replay/deploy behavior, and no external side effects.
 
 Phase 7D ChatGPT App/MCP read-only preview tools are documented below.
-Phase 7E Codex skill alignment remains deferred. Phase 7F copy/export remains
-deferred.
+Phase 7E Codex skill alignment is documented below. Phase 7F copy/export
+remains deferred.
 
 ## 5.3 Phase 7D ChatGPT App/MCP Read-Only Preview Tools
 
@@ -309,8 +310,44 @@ creation, no proof/evidence writes, no state/memory/DB/work/Perspective
 mutation, no publish/merge/retry/replay/deploy behavior, and no external side
 effects.
 
-Phase 7E Codex skill alignment remains deferred. Phase 7F copy/export remains
-deferred.
+Phase 7E Codex skill alignment is documented below. Phase 7F copy/export
+remains deferred.
+
+## 5.4 Phase 7E Codex Skill Alignment
+
+Phase 7E adds Codex instruction-only alignment for consuming Handoff Capsule
+and Codex Launch Card packets as task-start context for separately scoped
+operator tasks.
+
+The Phase 7E alignment files are:
+
+```text
+docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md
+plugins/augnes-operator/skills/augnes-handoff-capsule/SKILL.md
+scripts/smoke-codex-handoff-capsule-v0-1.mjs
+```
+
+`npm run smoke:codex-handoff-capsule-v0-1` checks the Phase 7E docs, skill,
+plugin metadata, package pointer, latest-index pointer, changed-file boundary,
+and no-runtime/no-execution authority boundary.
+
+Codex can consume Handoff Capsule and Codex Launch Card packets as task-start
+context only for separately scoped operator tasks. The packets can help Codex
+preserve Observed/Inferred/Suggested/Needs user judgment separation, source
+refs, expected files, forbidden files, required checks, optional checks,
+skipped-check policy, PR body requirements, final report requirements,
+source/fallback status, warnings, gaps, public safety, and authority boundary
+notes.
+
+Phase 7E adds no runtime hooks, no API routes, no Web UI, no App/MCP tools, no
+DB schema/migration, no DB writes, no provider/OpenAI calls, no GitHub
+actuation, no Codex execution from Augnes, no proof/evidence writes, no memory
+mutation, no durable Perspective apply, no handoff send/execution, no
+branch/PR creation behavior from Augnes product code, no scheduler/autonomy,
+no copy/export, no merge/publish/retry/replay/deploy, and no external side
+effects.
+
+Phase 7F copy/export remains deferred.
 
 ## 6. Source Refs
 

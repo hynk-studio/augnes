@@ -75,12 +75,23 @@ const followOnHandoffCapsuleAppToolFiles = [
   "docs/CHATGPT_APP_MCP_READONLY_SURFACE_BOUNDARY_V0_1.md",
 ];
 
+const followOnHandoffCapsuleCodexSkillFiles = [
+  "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-handoff-capsule/SKILL.md",
+  "scripts/smoke-codex-handoff-capsule-v0-1.mjs",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "scripts/smoke-augnes-operator-plugin-v2.mjs",
+  "scripts/smoke-augnes-capsule-handoff-skill.mjs",
+  "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
   ...followOnHandoffCapsuleRouteFiles,
   ...followOnHandoffCapsuleWebPreviewFiles,
   ...followOnHandoffCapsuleAppToolFiles,
+  ...followOnHandoffCapsuleCodexSkillFiles,
 ]);
 
 const forbiddenChangedFilePatterns = [
@@ -640,6 +651,7 @@ function assertChangedFileBoundary() {
         followOnHandoffCapsuleRouteFiles.includes(file) ||
           followOnHandoffCapsuleWebPreviewFiles.includes(file) ||
           followOnHandoffCapsuleAppToolFiles.includes(file) ||
+          followOnHandoffCapsuleCodexSkillFiles.includes(file) ||
           !forbiddenChangedFilePatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed path for Handoff Capsule Phase 7A smoke: ${file}`,
       );
