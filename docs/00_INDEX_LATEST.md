@@ -493,6 +493,24 @@ PR #868 is merged. Current route planning starts from:
   product-write, budget spend, auto-apply, file download/export-to-disk,
   merge/publish/retry/replay/deploy behavior, write-capable App/MCP tool, or
   external side effect. This index pointer is not roadmap authority.
+  Phase 9E Codex Autonomy Runner Preflight consumption alignment v0.1 adds
+  repo-local non-SSOT pointers for
+  `docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md`,
+  `plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md`,
+  and `scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs` (`npm run
+  smoke:codex-autonomy-runner-preflight-v0-1`). Autonomy Runner Preflight is
+  planning context only, Autonomy Dry-Run Plan is preview context only,
+  readiness is not authorization, `dry_run_only` and `would_execute: false`
+  must be preserved, and blockers/warnings, review requirements,
+  budget/stop/staleness/authority assessment boundaries, public safety, and
+  source refs must be carried forward. Phase 9E adds no API route, UI,
+  App/MCP tool, actual runner, scheduler, daemon, background work, DB write,
+  provider/OpenAI call, GitHub actuation, Codex execution from Augnes product
+  code, proof/evidence write, memory mutation, durable Perspective apply,
+  handoff execution, branch/PR creation from product code, budget spend,
+  auto-apply, product-write, merge/publish/retry/replay/deploy behavior,
+  write-capable skill/tool behavior, or external side effect. This index
+  pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

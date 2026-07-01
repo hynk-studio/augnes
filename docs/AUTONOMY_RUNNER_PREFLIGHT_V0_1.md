@@ -142,6 +142,31 @@ handoff, create branches/PRs, apply deltas, spend budget, create copy/export or
 download-to-disk behavior, publish/merge/retry/replay/deploy, or create external
 side effects. It adds no write-capable MCP/App tool.
 
+## 1.4 Phase 9E Codex Consumption Alignment
+
+Phase 9E adds Codex consumption alignment docs, an instruction-only Codex skill,
+and smoke coverage:
+
+```text
+docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md
+plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md
+scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs
+```
+
+Autonomy Runner Preflight is planning context only. Autonomy Dry-Run Plan is
+preview context only. Preflight is not approval to run. Dry-run plan is not
+execution permission. Readiness is not authorization. Codex must preserve
+`dry_run_only` and every planned step with `would_execute: false`.
+
+Phase 9E adds no API route, UI, App/MCP tool, runner, scheduler, daemon,
+background work, product write, runtime execution, DB write, provider/OpenAI
+call, GitHub actuation, Codex execution from Augnes product code,
+proof/evidence write, memory mutation, durable Perspective apply, handoff
+execution, branch/PR creation from product code, budget spend, auto-apply,
+merge/publish/retry/replay/deploy behavior, or external side effect.
+Phase 9E adds no API route, UI, App/MCP tool, runner, scheduler, daemon,
+background work, product write, runtime execution, or external side effect.
+
 ## 2. Purpose
 
 `AutonomyRunnerPreflight` is a deterministic preview packet that classifies a
@@ -476,11 +501,19 @@ notes, and no API/UI/MCP write/DB migration/provider/GitHub/Codex/proof/
 evidence/memory/Perspective/handoff/auto-apply/budget-spend/external-post/
 file-export scope drift.
 
+`npm run smoke:codex-autonomy-runner-preflight-v0-1` checks the Phase 9E Codex
+alignment document, instruction-only skill, package script, latest-index
+pointer, planning-only interpretation, `dry_run_only`, planned-step
+`would_execute: false`, blocker/warning/review/budget/stop/staleness/authority
+preservation, public-safety boundary, prior Phase 9A/9B/9C/9D smokes, and no
+API/UI/App/MCP/runtime/write/execution scope drift.
+
 Browser/CDP validation is skipped because Phase 9A has no UI or route.
 Browser/CDP validation is skipped because Phase 9B adds only a GET-only read
 route and no UI.
 Browser/CDP validation is skipped because Phase 9D adds only a ChatGPT App/MCP
 read-only preview tool and no Web UI.
+Browser/CDP validation is skipped because Phase 9E adds only Codex docs/skill/smoke alignment and no Web UI.
 
 Proof-only closeout is skipped unless a future task explicitly scopes proof
 recording and runtime proof context is available. Phase 9A does not write
@@ -499,8 +532,8 @@ Phase 9B should consume the Phase 9A preflight without inventing policy. It
 must preserve the no-run authority boundary unless the operator explicitly
 scopes a different future phase.
 
-Phase 9E recommended next phase:
+Phase 9F recommended next phase:
 
 ```text
-Phase 9E - Codex Autonomy Runner Preflight consumption alignment v0.1
+Phase 9F - Autonomy Runner Preflight / Dry-Run local copy and manual-copy preview v0.1
 ```

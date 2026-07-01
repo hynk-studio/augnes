@@ -134,6 +134,9 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "components/workplane/agent-workplane.tsx",
   "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
   "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
+  "docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md",
+  "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
   "package.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
@@ -741,7 +744,7 @@ function assertChangedFileBoundary() {
         followOnChatgptAppGuideBriefToolFiles.includes(file) ||
         followOnCodexGuideBriefHandoffFiles.includes(file) ||
         followOnHandoffCapsuleCodexSkillFiles.includes(file) ||
-        followOnAutonomyContractCodexSkillFiles.includes(file)),
+        followOnAutonomyContractCodexSkillFiles.includes(file) || phase9aAutonomyRunnerPreflightFiles.includes(file)),
       `Phase 5C must not change MCP/App tool files: ${file}`,
     );
     assert(
