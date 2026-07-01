@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import type { AugnesDelta } from "@/types/augnes-delta";
+import type { GuideBrief } from "@/types/guide-brief";
 import type { HumanSurfaceCurrentPerspectiveRead } from "@/lib/human-surface/read-current-perspective";
 import type { HumanSurfaceDeltaProjectionRead } from "@/lib/human-surface/read-delta-projection";
 import { PerspectiveBoundaryNextPanel } from "./perspective-boundary-next-panel";
@@ -13,11 +15,13 @@ import type { PerspectiveDeltaCardReviewState } from "./perspective-delta-card";
 type PerspectiveHumanSurfaceProps = {
   currentPerspectiveRead: HumanSurfaceCurrentPerspectiveRead;
   deltaProjectionRead: HumanSurfaceDeltaProjectionRead;
+  guideBrief: GuideBrief;
 };
 
 export function PerspectiveHumanSurface({
   currentPerspectiveRead,
   deltaProjectionRead,
+  guideBrief,
 }: PerspectiveHumanSurfaceProps) {
   const sortedDeltas = useMemo(
     () => sortDeltasNewestFirst(deltaProjectionRead.data.deltas),
@@ -92,6 +96,7 @@ export function PerspectiveHumanSurface({
                 selectedDelta ? formatDeltaCreatedAt(selectedDelta.created_at) : null
               }
             />
+            <GuideBriefMiniPanel guideBrief={guideBrief} variant="perspective" />
             <PerspectiveBoundaryNextPanel
               currentPerspectiveRead={currentPerspectiveRead}
               deltaProjectionRead={deltaProjectionRead}

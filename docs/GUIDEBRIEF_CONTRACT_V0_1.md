@@ -2,12 +2,12 @@
 
 ## 1. Status and Scope
 
-Status: Phase 6B GuideBrief / Cross-Surface Guide Core and GET-only read
-route v0.1.
+Status: Phase 6C GuideBrief / Cross-Surface Guide Core, GET-only read route,
+and Web Guide read-only panel skeleton v0.1.
 
 Scope: Phase 6A contract, type, pure helper, public-safe fixture, static smoke,
 package script pointer, and latest-index pointer plus Phase 6B GET-only local
-read-only route composition.
+read-only route composition plus Phase 6C read-only Web Guide panel rendering.
 
 Phase 6A adds no route work, no UI work, no MCP/App tool work, no Codex Guide
 skill, no Handoff Capsule implementation, no Codex Launch Card, no DB schema or
@@ -23,6 +23,15 @@ migration, no DB write, no provider/OpenAI call, no GitHub actuation, no Codex
 execution, no proof/evidence write, no memory mutation, no durable Perspective
 state apply, no product-write behavior, no scheduler/autonomy runner, no
 handoff execution, no merge, publish, retry, replay, deploy, or external side
+effect.
+
+Phase 6C adds only read-only Web Guide display components and compact entries
+on existing web surfaces. It adds no chat composer, chat execution, MCP/App
+tool, Codex Guide skill, Handoff Capsule implementation, Codex Launch Card, DB
+schema or migration, DB write, provider/OpenAI call, GitHub actuation, Codex
+execution, proof/evidence write, memory mutation, durable Perspective state
+apply, product-write behavior, scheduler/autonomy runner, handoff execution,
+UI action authority, merge, publish, retry, replay, deploy, or external side
 effect.
 
 GuideBrief is a read-only guide packet. It may observe, infer, suggest, and
@@ -128,6 +137,72 @@ actuation, Codex execution, proof/evidence write, memory mutation, durable
 Perspective state apply, product-write, scheduler/autonomy runner, MCP/App
 tool, UI action, handoff execution, merge, publish, retry, replay, deploy, or
 external side effect.
+
+## 3.2 Phase 6C Web Guide Read-Only Panel Skeleton
+
+Phase 6C renders GuideBrief on existing web surfaces through shared display
+components:
+
+- `components/guide/guide-brief-panel.tsx`
+- `components/guide/guide-brief-section.tsx`
+- `components/guide/guide-brief-summary-card.tsx`
+- `components/guide/guide-brief-boundary-card.tsx`
+- `components/guide/guide-brief-mini-panel.tsx`
+
+The Web Guide read path is `lib/guide/read-guide-brief-for-web.ts`. Public Web
+surfaces must not bypass the Phase 6B local read guard. By default, the Web
+Guide read path returns a public-safe GuideBrief fallback from the committed
+sample fixture and visibly discloses `public_safe_fixture_fallback` source
+status. It may read live GuideBrief data only when an explicit `Request`
+context passes the same `validateGuideBriefReadRequest` /
+`validateReadonlyApiLocalAccess` boundary used by the Phase 6B route: exact
+scope, local host, and `x-augnes-local-readonly: guide-brief-v0.1`.
+
+The live GuideBrief route remains marker-gated and local read-only. `/`,
+`/perspective`, and `/workbench` render public-safe/read-only GuideBrief display
+unless a separately scoped local-only surface supplies a validated request
+context. The fallback must not pretend to be live Current Working Perspective
+or Delta Projection runtime state, and its source/fallback status must remain
+visible in the Web Guide summary and source refs.
+
+The Web Guide read path does not call the local API route with browser/client
+`fetch`, add polling, add server actions, add route handlers, query DOM state,
+or create a new DB reader.
+
+Entry points:
+
+- `/`: compact Human Surface panel near the Current Working Perspective summary
+  with Observed, Suggested, Needs user judgment, and staleness guidance.
+- `/perspective`: compact guide rail inside the Perspective detail surface with
+  delta/timeline relevance, staleness warnings, and judgment prompts.
+- `/workbench`: compact Agent Workplane panel with Workplane guidance, handoff
+  candidates as preview-only, bounded trace/staleness guidance, and authority
+  boundary.
+
+The Web Guide UI preserves the required separation:
+
+- Observed remains source-backed read-model observations.
+- Inferred remains derived interpretation only.
+- Suggested remains candidate next actions or navigation suggestions only.
+- Needs user judgment remains unresolved user/operator/PM decisions.
+
+The Web Guide panel is read-only display only. It does not include a chat
+composer, textarea, prompt input, action form, send button, apply button,
+approve button, reject button, launch Codex button, create PR button, record
+proof button, create evidence button, persist button, commit button, merge
+button, deploy button, retry/replay button, publish button, copy handoff
+button, or any control that implies action.
+
+Phase 6C adds no ChatGPT App/MCP Guide tool, no Codex Guide skill, no Handoff
+Capsule, no Codex Launch Card, no chat execution, no write route, no DB
+schema/migration, no DB write, no provider/OpenAI call, no GitHub actuation,
+no Codex execution, no proof/evidence write, no memory mutation, no durable
+Perspective state apply, no scheduler/autonomy runner, no handoff execution,
+no product-write, no merge/publish/retry/replay/deploy behavior, and no
+external side effect.
+
+Phase 6D ChatGPT App/MCP Guide tool, Phase 6E Codex Guide alignment, and Phase
+7 Handoff Capsule / Codex Launch Card remain deferred.
 
 ## 4. Observed / Inferred / Suggested / Needs User Judgment
 
@@ -249,7 +324,8 @@ GuideBrief maps supplied lightweight Agent Workplane context into:
 - Workplane authority boundary notes
 
 GuideBrief maps Human Surface and Perspective Timeline context into rendering
-notes only in Phase 6A. It does not add or change UI.
+notes. Phase 6C consumes those notes for read-only Web Guide display only and
+does not add action controls or write behavior.
 
 Minimum `source_refs` preserve:
 
@@ -289,8 +365,10 @@ GuideBrief rendering notes are advisory read-only notes for consumers:
 - Future agent surface: render GuideBrief as read-only context unless
   separately scoped.
 
-Rendering notes do not implement those surfaces. They do not add routes,
-components, MCP/App tools, Codex skills, or future agent behavior.
+Rendering notes are not authority. Phase 6C implements only Web display
+components for existing Augnes surfaces. Rendering notes still do not add
+routes, MCP/App tools, Codex skills, handoff execution, future agent behavior,
+or write controls.
 
 ## 7. Handoff Candidates
 
@@ -371,15 +449,22 @@ composition helper only. It does not add UI, MCP/App tools, Codex Guide skill,
 Handoff Capsule, Codex Launch Card, write behavior, execution behavior, hidden
 authority, or future handoff/autonomy behavior.
 
-Deferred work:
+Phase 6C scope is the read-only Web Guide panel skeleton and existing-surface
+entries only. It does not start Phase 6D, Phase 6E, or Phase 7.
 
-- Phase 6C Web Guide UI is deferred.
+Historical deferred markers:
+
+- Phase 6C Web Guide UI is deferred until separate scoped UI prompt.
 - Phase 6D ChatGPT App/MCP Guide tool is deferred.
 - Phase 6E Codex Guide alignment is deferred.
 - Phase 7 Handoff Capsule / Codex Launch Card may consume GuideBrief only
   after separate scoped authority paths are defined and approved.
 
-Phase 6B does not start Phase 6C, 6D, 6E, or Phase 7.
+Current deferred work after Phase 6C:
+
+- Phase 6D ChatGPT App/MCP Guide tool remains deferred.
+- Phase 6E Codex Guide alignment remains deferred.
+- Phase 7 Handoff Capsule / Codex Launch Card remains deferred.
 
 ## 10. Validation and Smoke Plan
 
@@ -429,3 +514,26 @@ changes.
 
 Browser validation is not required for Phase 6B because Phase 6B adds no UI
 changes.
+
+`npm run smoke:web-guide-panel-v0-1` checks the Phase 6C Web Guide panel
+boundary:
+
+- shared GuideBrief panel components exist
+- the panel renders visible GuideBrief, Observed, Inferred, Suggested, Needs
+  user judgment, Staleness warnings, Authority boundary, and Source refs labels
+- visible boundary copy includes read-only guide packet, Suggestions are not
+  actions, The guide does not decide user judgment items, Handoff candidates
+  are preview-only, and No hidden execution authority
+- the panel consumes the GuideBrief type, the web read wrapper preserves the
+  Phase 6B local read guard, and public Web display defaults to a public-safe
+  fallback with visible source/fallback status
+- `/`, `/perspective`, and `/workbench` render compact GuideBrief entries
+- no chat composer, textarea, action form, positive write/execute controls,
+  route handlers, MCP/App tool files, DB migrations, provider/OpenAI/GitHub
+  runtime calls, Codex execution code, proof/evidence write code,
+  scheduler/autonomy runner, handoff execution, or focused changed-file
+  boundary drift is added
+
+Browser validation is required for Phase 6C because Phase 6C adds UI display
+components. The browser check should use a temp DB and inspect `/`,
+`/perspective`, and `/workbench` at desktop and 390px mobile widths.

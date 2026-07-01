@@ -33,6 +33,20 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "scripts/smoke-guide-brief-v0-1.mjs",
 ];
 
+const followOnWebGuidePanelFiles = [
+  "components/guide/guide-brief-panel.tsx",
+  "components/guide/guide-brief-section.tsx",
+  "components/guide/guide-brief-summary-card.tsx",
+  "components/guide/guide-brief-boundary-card.tsx",
+  "components/guide/guide-brief-mini-panel.tsx",
+  "lib/guide/read-guide-brief-for-web.ts",
+  "components/human-surface/human-surface-home.tsx",
+  "components/perspective/perspective-public-constellation-surface.tsx",
+  "components/perspective/perspective-human-surface.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+];
+
 const requiredFiles = [
   guideBriefDoc,
   guideBriefRouteFile,
@@ -51,6 +65,7 @@ const allowedChangedFiles = new Set([
   packageJsonFile,
   indexDoc,
   ...priorSmokeAllowlistCompatibilityFiles,
+  ...followOnWebGuidePanelFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -95,6 +110,7 @@ console.log(
       changed_files_observed: changedFilesBoundary.files,
       prior_smoke_allowlist_compatibility_files_allowed:
         priorSmokeAllowlistCompatibilityFiles,
+      web_guide_panel_files_allowed: followOnWebGuidePanelFiles,
       direct_route_invocation_skipped: true,
       direct_route_invocation_skip_reason:
         "Static smoke avoids importing a Next route handler from plain Node without the Next runtime and TS path loader; optional local route sanity covers behavior when run.",
@@ -347,7 +363,10 @@ function assertChangedFileBoundary() {
       file !== "app/workbench/page.tsx",
       "Phase 6B must not update /workbench page",
     );
-    assert(!/^components\//.test(file), `Phase 6B must not change UI files: ${file}`);
+    assert(
+      !/^components\//.test(file) || followOnWebGuidePanelFiles.includes(file),
+      `Phase 6B must not change UI files outside exact Phase 6C Web Guide follow-on scope: ${file}`,
+    );
     assert(
       !/^app\/api\//.test(file) || file === guideBriefRouteFile,
       `Phase 6B must not add API route files outside GuideBrief read route: ${file}`,

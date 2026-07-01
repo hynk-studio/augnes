@@ -141,6 +141,20 @@ const followOnGuideBriefRouteFiles = [
   "scripts/smoke-guide-brief-route-v0-1.mjs",
 ];
 
+const followOnWebGuidePanelFiles = [
+  "components/guide/guide-brief-panel.tsx",
+  "components/guide/guide-brief-section.tsx",
+  "components/guide/guide-brief-summary-card.tsx",
+  "components/guide/guide-brief-boundary-card.tsx",
+  "components/guide/guide-brief-mini-panel.tsx",
+  "lib/guide/read-guide-brief-for-web.ts",
+  "components/human-surface/human-surface-home.tsx",
+  "components/perspective/perspective-public-constellation-surface.tsx",
+  "components/perspective/perspective-human-surface.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+];
+
 for (const file of [
   ...followOnProjectionRuntimeReadSurfaceFiles,
   ...followOnCurrentWorkingPerspectiveFiles,
@@ -153,6 +167,7 @@ for (const file of [
   ...followOnAgentWorkplaneCleanupHardeningFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
+  ...followOnWebGuidePanelFiles,
 ]) {
   allowedChangedFiles.add(file);
 }
@@ -647,8 +662,9 @@ function assertChangedFileBoundary() {
       followOnPerspectiveHumanTimelineFiles.includes(file) ||
         followOnAgentWorkplaneFiles.includes(file) ||
         followOnAgentWorkplanePanelFiles.includes(file) ||
-        followOnAgentWorkplaneProjectionHandoffFiles.includes(file),
-      `Phase 2A follow-on must not change UI files outside Phase 4A/4B Human Surface or Phase 5A/5B/5C Agent Workplane files: ${file}`,
+        followOnAgentWorkplaneProjectionHandoffFiles.includes(file) ||
+        followOnWebGuidePanelFiles.includes(file),
+      `Phase 2A follow-on must not change UI files outside Phase 4A/4B Human Surface, Phase 5A/5B/5C Agent Workplane, or exact Phase 6C Web Guide files: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 2A must not change DB files: ${file}`);
     assert(!/^migrations\//.test(file), `Phase 2A must not change migrations: ${file}`);
@@ -676,7 +692,8 @@ function assertChangedFileBoundary() {
     file === "app/globals.css" ||
     file === "components/augnes-public-home-surface.tsx" ||
     file.startsWith("components/human-surface/") ||
-    file.startsWith("components/perspective/"),
+    file.startsWith("components/perspective/") ||
+    file.startsWith("components/guide/"),
   );
   const agentWorkplaneUiAdded = files.some((file) =>
     file === "app/workbench/page.tsx" ||

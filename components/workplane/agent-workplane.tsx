@@ -1,4 +1,5 @@
 import { AugnesCockpit } from "@/components/augnes-cockpit";
+import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { CurrentPerspectiveWorkplanePanel } from "@/components/workplane/current-perspective-workplane-panel";
 import { DeltaBatchPanel } from "@/components/workplane/delta-batch-panel";
 import { DeltaProjectionWorkplanePanel } from "@/components/workplane/delta-projection-workplane-panel";
@@ -13,6 +14,7 @@ import { WorkQueuePanel } from "@/components/workplane/work-queue-panel";
 import { WorkplaneHeader } from "@/components/workplane/workplane-header";
 import { WorkplaneInspector } from "@/components/workplane/workplane-inspector";
 import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
+import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
 import type { CSSProperties } from "react";
 
@@ -89,13 +91,17 @@ const previewCopyStyle: CSSProperties = {
 };
 
 export async function AgentWorkplane() {
-  const context = await readWorkplaneContext();
+  const [context, guideBrief] = await Promise.all([
+    readWorkplaneContext(),
+    Promise.resolve(readGuideBriefForWeb()),
+  ]);
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
       <div style={shellStyle}>
         <WorkplaneHeader />
         <WorkplaneOverview context={context} />
+        <GuideBriefMiniPanel guideBrief={guideBrief} variant="workbench" />
 
         <section aria-label="Agent Workplane layout" style={layoutStyle}>
           <section aria-label="Agent Workplane panels" style={panelGridStyle}>
