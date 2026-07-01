@@ -56,6 +56,13 @@ const inspectedFiles = [
 ];
 
 const allowedChangedFiles = new Set([
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "types/autonomy-contract.ts",
+  "lib/autonomy/autonomy-contract.ts",
+  "fixtures/autonomy-contract.sample.v0.1.json",
+  "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
   consumptionDoc,
   skillFile,
   smokeFile,
@@ -65,6 +72,33 @@ const allowedChangedFiles = new Set([
   packageJsonFile,
   ...priorSmokeAllowlistCompatibilityFiles,
 ]);
+const phase8PriorSmokeAllowlistFiles = [
+  "scripts/smoke-augnes-delta-contract-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-route-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-route-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-perspective-human-timeline-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
+  "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-route-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-handoff-capsule-tool-v0-1.mjs",
+  "scripts/smoke-codex-handoff-capsule-v0-1.mjs",
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
+];
+for (const file of phase8PriorSmokeAllowlistFiles) {
+  allowedChangedFiles.add(file);
+}
 
 const forbiddenChangedPathPatterns = [
   /^app\/api\//,
@@ -95,6 +129,16 @@ const followOnHandoffCapsuleCopyExportFiles = new Set([
   "components/handoff/handoff-capsule-preview-panel.tsx",
   "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
   "scripts/smoke-handoff-capsule-web-preview-v0-1.mjs",
+]);
+
+const phase8AutonomyContractCoreFiles = new Set([
+  "docs/AUTONOMY_CONTRACT_V0_1.md",
+  "types/autonomy-contract.ts",
+  "lib/autonomy/autonomy-contract.ts",
+  "fixtures/autonomy-contract.sample.v0.1.json",
+  "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "package.json",
+  "docs/00_INDEX_LATEST.md",
 ]);
 
 const textByFile = loadTextByFile(inspectedFiles);
@@ -520,6 +564,7 @@ function assertChangedFilesBoundary() {
       );
       assert(
         followOnHandoffCapsuleCopyExportFiles.has(file) ||
+          phase8AutonomyContractCoreFiles.has(file) ||
           !forbiddenChangedPathPatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed file for Codex Handoff Capsule alignment smoke: ${file}`,
       );

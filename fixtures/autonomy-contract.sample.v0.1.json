@@ -1,0 +1,618 @@
+{
+  "runtime": "augnes",
+  "contract_version": "autonomy_contract.v0.1",
+  "scope": "project:augnes",
+  "contract_id": "autonomy_contract.sample.phase_8a.v0.1",
+  "created_at": "2026-07-01T00:00:00.000Z",
+  "status": "preview_only",
+  "autonomy_mode": "scheduled_hunt_preview",
+  "title": "Phase 8A autonomy contract preview sample",
+  "goal": "Describe a bounded future autonomy contract that can read existing preview packets and prepare reviewable delta/report previews without executing, scheduling, applying, posting, or mutating state.",
+  "bounded_context_summary": "Synthetic Phase 8A sample showing how GuideBrief, Handoff Capsule, Codex Launch Card, Current Working Perspective, and Delta Projection refs can be carried into a preview-only autonomy contract.",
+  "source_refs": {
+    "guide_brief_refs": [
+      "guide_brief.sample.v0.1"
+    ],
+    "handoff_capsule_refs": [
+      "handoff_capsule.sample.v0.1"
+    ],
+    "codex_launch_card_refs": [
+      "codex_launch_card.sample.v0.1"
+    ],
+    "current_working_perspective_refs": [
+      "current_working_perspective.sample.v0.1"
+    ],
+    "delta_projection_refs": [
+      "augnes_delta_projection.sample.v0.1"
+    ],
+    "workplane_refs": [
+      "agent_workplane.preview.v0.1"
+    ],
+    "delta_ids": [
+      "delta.autonomy.sample.review_packet"
+    ],
+    "batch_ids": [
+      "delta_batch.autonomy.sample"
+    ],
+    "evidence_refs": [
+      "evidence.pointer.sample.validation_only"
+    ],
+    "artifact_refs": [
+      "artifact.docs.autonomy_contract_v0_1"
+    ],
+    "handoff_refs": [
+      "handoff.preview.sample"
+    ],
+    "diagnostic_refs": [
+      "diagnostic.source_gap.sample"
+    ],
+    "route_refs": [
+      "GET /api/augnes/read/guide-brief?scope=project:augnes",
+      "GET /api/augnes/read/handoff-capsule?scope=project:augnes&target=codex_handoff",
+      "GET /api/augnes/read/codex-launch-card?scope=project:augnes"
+    ],
+    "docs_refs": [
+      "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+      "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",
+      "docs/CODEX_HANDOFF_CAPSULE_CONSUMPTION_V0_1.md",
+      "docs/AUGNES_DELTA_CONTRACT_V0_1.md",
+      "docs/AUTHORITY_MATRIX.md",
+      "docs/AGENT_WORKPLANE_V0_1.md",
+      "docs/AUTONOMY_CONTRACT_V0_1.md"
+    ],
+    "repo_refs": [
+      "hynk-studio/augnes"
+    ]
+  },
+  "guide_brief_ref": "guide_brief.sample.v0.1",
+  "handoff_capsule_refs": [
+    "handoff_capsule.sample.v0.1"
+  ],
+  "codex_launch_card_refs": [
+    "codex_launch_card.sample.v0.1"
+  ],
+  "current_working_perspective_ref": "current_working_perspective.sample.v0.1",
+  "delta_projection_ref": "augnes_delta_projection.sample.v0.1",
+  "context_scope": {
+    "scope_summary": "Preview-only context from public-safe sample refs.",
+    "included_refs": [
+      "guide_brief.sample.v0.1",
+      "handoff_capsule.sample.v0.1",
+      "codex_launch_card.sample.v0.1",
+      "current_working_perspective.sample.v0.1",
+      "augnes_delta_projection.sample.v0.1"
+    ],
+    "excluded_refs": [
+      "private conversation logs",
+      "hidden reasoning",
+      "local private paths",
+      "secrets/tokens",
+      "raw provider output",
+      "raw retrieval output",
+      "real account artifacts"
+    ],
+    "freshness": "partial",
+    "notes": [
+      "Sample refs are preview inputs only.",
+      "Sample refs do not grant execution, write, schedule, launch, or external authority."
+    ]
+  },
+  "allowed_agents": [
+    "user",
+    "operator",
+    "chatgpt",
+    "codex",
+    "future_agent"
+  ],
+  "allowed_surfaces": [
+    "guide_brief",
+    "handoff_capsule_preview",
+    "codex_launch_card_preview",
+    "current_working_perspective_read_model",
+    "delta_projection_read_model",
+    "agent_workplane_preview",
+    "manual_operator_review"
+  ],
+  "allowed_actions": [
+    "read_current_perspective",
+    "read_delta_projection",
+    "read_guide_brief",
+    "read_handoff_capsule_preview",
+    "read_codex_launch_card_preview",
+    "summarize_context",
+    "rank_candidate_deltas",
+    "prepare_review_packet",
+    "prepare_codex_handoff_preview",
+    "draft_report_preview"
+  ],
+  "forbidden_actions": [
+    "execute_codex",
+    "run_codex",
+    "call_github",
+    "open_pr",
+    "call_openai_or_provider",
+    "create_branch_or_pr",
+    "send_handoff",
+    "write_db",
+    "record_proof",
+    "create_evidence",
+    "mutate_memory",
+    "write_memory",
+    "apply_project_perspective",
+    "publish_external",
+    "merge",
+    "retry_replay_deploy",
+    "start_background_work",
+    "schedule_background_work",
+    "schedule_run"
+  ],
+  "budget": {
+    "budget_id": "autonomy_budget.sample.phase_8a.v0.1",
+    "time_limit_minutes": 30,
+    "wall_clock_window": {
+      "starts_at": null,
+      "ends_at": null,
+      "timezone": "UTC",
+      "notes": [
+        "Wall-clock window is descriptive only.",
+        "No active schedule is created."
+      ]
+    },
+    "max_iterations": 2,
+    "max_tool_calls": 0,
+    "max_codex_tasks": 0,
+    "max_prs": 0,
+    "max_file_changes": 0,
+    "allowed_file_globs": [
+      "docs/**",
+      "types/**",
+      "lib/autonomy/**",
+      "fixtures/**",
+      "scripts/smoke-autonomy-contract-v0-1.mjs"
+    ],
+    "forbidden_file_globs": [
+      "app/**",
+      "app/api/**",
+      "components/**",
+      "apps/augnes_apps/**",
+      "migrations/**",
+      "lib/db*",
+      "proof/**",
+      "evidence/**",
+      "scheduler/**"
+    ],
+    "token_or_compute_budget": {
+      "max_tokens": null,
+      "max_compute_units": null,
+      "notes": [
+        "Budget is a boundary, not permission to spend.",
+        "Phase 8A does not call providers or execute tools."
+      ]
+    },
+    "cost_budget": {
+      "currency": "USD",
+      "amount": null,
+      "notes": [
+        "No spend permission is granted.",
+        "Phase 8A must not charge or call provider APIs."
+      ]
+    },
+    "retry_limit": 0,
+    "failure_threshold": 1,
+    "reporting_interval": "manual preview report only",
+    "requires_budget_refresh_after": [
+      "budget_exceeded",
+      "scope_change",
+      "new_external_side_effect_request",
+      "missing_required_check"
+    ],
+    "budget_boundary_notes": [
+      "Budget is a boundary, not spend permission.",
+      "Missing budget blocks future autonomy.",
+      "Phase 8A must not charge, call providers, execute tools, or run background work."
+    ]
+  },
+  "reporting_cadence": {
+    "mode": "manual",
+    "interval_description": "Manual report after preview packet review.",
+    "minimum_report_fields": [
+      "summary",
+      "source_refs",
+      "deltas_created",
+      "delta_batch_summary",
+      "budget_used",
+      "checks_run",
+      "skipped_checks",
+      "blocked_actions",
+      "user_judgment_items",
+      "known_risks",
+      "next_phase_readiness"
+    ],
+    "report_target_surface": "manual_operator_review"
+  },
+  "stop_conditions": [
+    {
+      "stop_condition_id": "stop.budget_exhausted",
+      "kind": "budget_exhausted",
+      "summary": "Budget is missing, exceeded, or no longer matches scope.",
+      "severity": "blocking",
+      "source_refs": [
+        "autonomy_budget.sample.phase_8a.v0.1"
+      ],
+      "blocks_future_run": true,
+      "recovery_hint": "Refresh budget with operator review before any future run."
+    },
+    {
+      "stop_condition_id": "stop.stale_context",
+      "kind": "stale_context",
+      "summary": "GuideBrief, Handoff Capsule, Current Working Perspective, or Delta Projection is stale.",
+      "severity": "high",
+      "source_refs": [
+        "guide_brief.sample.v0.1",
+        "handoff_capsule.sample.v0.1"
+      ],
+      "blocks_future_run": true,
+      "recovery_hint": "Refresh source snapshots before review."
+    },
+    {
+      "stop_condition_id": "stop.user_judgment_required",
+      "kind": "user_judgment_required",
+      "summary": "At least one needs_user_judgment item exists.",
+      "severity": "blocking",
+      "source_refs": [
+        "guide_brief.sample.v0.1"
+      ],
+      "blocks_future_run": true,
+      "recovery_hint": "Resolve user/operator judgment before future autonomy."
+    },
+    {
+      "stop_condition_id": "stop.required_check_failed",
+      "kind": "required_check_failed",
+      "summary": "A required check failed.",
+      "severity": "blocking",
+      "source_refs": [
+        "validation_policy.sample"
+      ],
+      "blocks_future_run": true,
+      "recovery_hint": "Fix the failure and rerun the required check."
+    },
+    {
+      "stop_condition_id": "stop.required_check_skipped",
+      "kind": "required_check_skipped",
+      "summary": "A required check was skipped.",
+      "severity": "high",
+      "source_refs": [
+        "validation_policy.sample"
+      ],
+      "blocks_future_run": true,
+      "recovery_hint": "Report the skipped check and obtain review before continuing."
+    },
+    {
+      "stop_condition_id": "stop.forbidden_action_requested",
+      "kind": "forbidden_action_requested",
+      "summary": "A forbidden action was requested.",
+      "severity": "blocking",
+      "source_refs": [
+        "forbidden_actions"
+      ],
+      "blocks_future_run": true,
+      "recovery_hint": "Remove the forbidden action or obtain a new explicit phase scope."
+    },
+    {
+      "stop_condition_id": "stop.forbidden_file_scope",
+      "kind": "forbidden_file_scope",
+      "summary": "A forbidden file scope would be touched.",
+      "severity": "blocking",
+      "source_refs": [
+        "budget.forbidden_file_globs"
+      ],
+      "blocks_future_run": true,
+      "recovery_hint": "Constrain file scope or obtain operator review."
+    },
+    {
+      "stop_condition_id": "stop.source_gap_high",
+      "kind": "source_gap_high",
+      "summary": "A high-severity source gap blocks safe review.",
+      "severity": "high",
+      "source_refs": [
+        "gaps"
+      ],
+      "blocks_future_run": true,
+      "recovery_hint": "Collect a fresh bounded source packet before future autonomy."
+    },
+    {
+      "stop_condition_id": "stop.authority_boundary_unclear",
+      "kind": "authority_boundary_unclear",
+      "summary": "Authority boundary is ambiguous.",
+      "severity": "blocking",
+      "source_refs": [
+        "authority_boundary"
+      ],
+      "blocks_future_run": true,
+      "recovery_hint": "Clarify authority before any future runner."
+    },
+    {
+      "stop_condition_id": "stop.runtime_unavailable",
+      "kind": "runtime_unavailable",
+      "summary": "Required future runtime source is unavailable.",
+      "severity": "high",
+      "source_refs": [
+        "source_refs"
+      ],
+      "blocks_future_run": true,
+      "recovery_hint": "Use fallback honestly or wait for runtime availability."
+    },
+    {
+      "stop_condition_id": "stop.manual_stop_requested",
+      "kind": "manual_stop_requested",
+      "summary": "User/operator manually stops the future run.",
+      "severity": "blocking",
+      "source_refs": [
+        "operator_review"
+      ],
+      "blocks_future_run": true,
+      "recovery_hint": "Stop and report current state without retry/replay/deploy."
+    }
+  ],
+  "delta_merge_policy": {
+    "policy_id": "autonomy_delta_merge_policy.sample.phase_8a.v0.1",
+    "default_delta_status": "needs_review",
+    "auto_apply_allowed": false,
+    "auto_apply_targets": [],
+    "review_required_targets": [
+      "working_memory_candidate",
+      "project_perspective_candidate",
+      "durable_memory_candidate",
+      "codex_launch_candidate",
+      "handoff_send_candidate"
+    ],
+    "blocked_targets": [
+      "proof_evidence_write",
+      "external_publication",
+      "github_actuation",
+      "provider_call",
+      "branch_pr_creation",
+      "durable_apply_without_review"
+    ],
+    "durable_memory_policy": "Durable memory changes require user/operator review and are not auto-applied in Phase 8A.",
+    "project_perspective_policy": "Project Perspective changes require user/operator review and are not auto-applied in Phase 8A.",
+    "external_side_effect_policy": "External side effects are blocked in Phase 8A.",
+    "codex_launch_policy": "Codex launch is blocked; Codex Launch Card refs are preview input only.",
+    "proof_evidence_policy": "Proof/evidence writes are blocked in Phase 8A.",
+    "stale_context_policy": "Stale context requires fresh snapshot review before any future runner.",
+    "user_judgment_policy": "needs_user_judgment items require review and block future autonomy until decided.",
+    "policy_notes": [
+      "auto_apply_allowed is false in Phase 8A.",
+      "auto_apply_within_contract is future-contract-preview and inactive in this fixture.",
+      "Durable memory and project Perspective require review."
+    ]
+  },
+  "review_escalation_policy": {
+    "escalation_id": "autonomy_review_escalation_policy.sample.phase_8a.v0.1",
+    "requires_user_judgment_when": [
+      "needs_user_judgment item exists",
+      "ambiguous authority boundary"
+    ],
+    "requires_operator_review_when": [
+      "external side effect requested",
+      "durable memory change requested",
+      "project perspective change requested",
+      "proof/evidence write requested",
+      "Codex launch requested",
+      "GitHub/provider call requested",
+      "forbidden file touched in future run"
+    ],
+    "requires_fresh_snapshot_when": [
+      "stale GuideBrief or stale Handoff Capsule",
+      "stale Current Working Perspective",
+      "stale Delta Projection"
+    ],
+    "requires_new_budget_when": [
+      "budget exceeded",
+      "budget missing",
+      "scope expands beyond budget boundary"
+    ],
+    "blocks_run_when": [
+      "required check skipped",
+      "required check failed",
+      "external side effect requested",
+      "durable memory change requested",
+      "project perspective change requested",
+      "proof/evidence write requested",
+      "Codex launch requested",
+      "GitHub/provider call requested",
+      "ambiguous authority boundary"
+    ],
+    "review_queue_target": "operator_autonomy_review_queue_preview",
+    "escalation_summary_template": "Review required: {trigger}. Source refs: {source_refs}. Recovery: {recovery_hint}.",
+    "notes": [
+      "Review escalation is preview policy only in Phase 8A.",
+      "Escalation does not run, schedule, apply, post, merge, or mutate state."
+    ]
+  },
+  "output_policy": {
+    "output_surfaces": [
+      "manual_operator_review",
+      "future_agent_workplane_preview"
+    ],
+    "required_report_sections": [
+      "summary",
+      "source_refs",
+      "deltas_created",
+      "delta_batch_summary",
+      "budget_used",
+      "checks_run",
+      "skipped_checks",
+      "blocked_actions",
+      "user_judgment_items",
+      "known_risks",
+      "next_phase_readiness"
+    ],
+    "delta_batch_required": true,
+    "skipped_check_reporting_required": true,
+    "proof_evidence_status_required": true,
+    "no_background_work_statement_required": true,
+    "no_merge_statement_required": true,
+    "next_phase_readiness_required": true
+  },
+  "staleness_policy": {
+    "policy_id": "autonomy_staleness_policy.sample.phase_8a.v0.1",
+    "fresh_snapshot_required": true,
+    "stale_context_blocks_future_run": true,
+    "stale_guide_brief_requires_review": true,
+    "stale_handoff_capsule_requires_review": true,
+    "refresh_required_sources": [
+      "GuideBrief",
+      "Handoff Capsule",
+      "Codex Launch Card",
+      "Current Working Perspective",
+      "Delta Projection"
+    ],
+    "notes": [
+      "Stale context requires review before any future autonomous run."
+    ]
+  },
+  "validation_policy": {
+    "policy_id": "autonomy_validation_policy.sample.phase_8a.v0.1",
+    "required_checks": [
+      "npm run typecheck",
+      "npm run smoke:autonomy-contract-v0-1"
+    ],
+    "optional_checks": [
+      "prior Phase 1-7 smokes when changed-file allowlists are in scope"
+    ],
+    "skipped_check_policy": [
+      "Skipped checks must be reported with concrete reasons.",
+      "Skipped required checks block future autonomy."
+    ],
+    "failed_check_policy": [
+      "Failed required checks block future autonomy."
+    ],
+    "validation_notes": [
+      "Validation is report context only and does not create proof/evidence."
+    ]
+  },
+  "run_preview": {
+    "preview_id": "autonomy_run_preview.sample.phase_8a.v0.1",
+    "title": "Preview-only future autonomy sketch",
+    "planned_steps": [
+      "Read GuideBrief, Handoff Capsule, Codex Launch Card, Current Working Perspective, and Delta Projection refs.",
+      "Summarize bounded context and rank candidate deltas.",
+      "Prepare review packet and draft report preview."
+    ],
+    "allowed_read_sources": [
+      "GuideBrief",
+      "Handoff Capsule preview",
+      "Codex Launch Card preview",
+      "Current Working Perspective",
+      "Delta Projection",
+      "Agent Workplane preview refs"
+    ],
+    "proposed_delta_outputs": [
+      "needs_review delta candidates",
+      "blocked action summary",
+      "user judgment item list"
+    ],
+    "proposed_reports": [
+      "manual operator review packet",
+      "budget usage preview",
+      "next phase readiness summary"
+    ],
+    "blocked_steps": [
+      "run_codex",
+      "open_pr",
+      "call_github",
+      "call_openai_or_provider",
+      "write_memory",
+      "apply_project_perspective",
+      "record_proof",
+      "create_evidence",
+      "schedule_run",
+      "send_handoff",
+      "publish_external"
+    ],
+    "required_preconditions": [
+      "Explicit future Phase 9 runner scope.",
+      "Fresh source snapshots.",
+      "Operator-reviewed budget.",
+      "Resolved user judgment items."
+    ],
+    "not_implemented_notes": [
+      "AutonomyRunPreview is not background work.",
+      "No runner, scheduler, daemon, background job, or active execution exists in Phase 8A.",
+      "Future runner requires separate Phase 9 scope and explicit approval."
+    ],
+    "status": "preview_only"
+  },
+  "authority_boundary": {
+    "source_of_truth": false,
+    "can_commit_or_reject_state": false,
+    "can_record_proof": false,
+    "can_create_evidence": false,
+    "can_update_work": false,
+    "can_mutate_memory": false,
+    "can_apply_project_perspective": false,
+    "can_publish_external": false,
+    "can_merge": false,
+    "can_retry_replay_deploy": false,
+    "can_call_github": false,
+    "can_call_openai_or_provider": false,
+    "can_execute_codex": false,
+    "can_create_branch_or_pr": false,
+    "can_send_handoff": false,
+    "can_launch_codex": false,
+    "can_launch_autonomy": false,
+    "can_schedule_background_work": false,
+    "can_create_mcp_tool": false,
+    "can_create_ui_action": false,
+    "can_post_external_comment": false,
+    "can_write_db": false,
+    "can_start_daemon": false,
+    "notes": [
+      "Contract is preview-only.",
+      "Contract does not run.",
+      "Contract does not schedule.",
+      "Contract does not launch Codex.",
+      "Contract does not call GitHub or providers.",
+      "Contract does not mutate state/memory/work/Perspective.",
+      "Contract does not send handoffs.",
+      "Contract does not create proof/evidence.",
+      "Future runner requires separate Phase 9 scope and explicit approval."
+    ]
+  },
+  "gaps": [
+    {
+      "code": "phase_9_runner_not_scoped",
+      "severity": "medium",
+      "summary": "Future runner implementation is intentionally deferred outside Phase 8A.",
+      "source_refs": [
+        "docs/AUTONOMY_CONTRACT_V0_1.md"
+      ],
+      "blocks_future_runner": true
+    }
+  ],
+  "public_safety": {
+    "fixture_kind": "synthetic_sample",
+    "contains_private_conversation": false,
+    "contains_hidden_reasoning": false,
+    "contains_local_private_paths": false,
+    "contains_secrets_or_tokens": false,
+    "contains_raw_provider_output": false,
+    "contains_raw_retrieval_output": false,
+    "contains_real_account_artifacts": false,
+    "notes": [
+      "No private conversation.",
+      "No hidden reasoning.",
+      "No local private paths.",
+      "No secrets/tokens.",
+      "No raw provider output.",
+      "No raw retrieval output.",
+      "No real account artifacts."
+    ]
+  },
+  "next_phase_notes": [
+    "Phase 8A defines preview-only Autonomy Contract / Budget / Delta Merge Policy core.",
+    "Future runner requires separate Phase 9 scope and explicit approval.",
+    "No runner, scheduler, daemon, background work, UI, route, App/MCP tool, provider call, GitHub actuation, Codex execution, proof/evidence write, memory mutation, durable Perspective apply, handoff send, branch/PR creation behavior, merge, publish, retry, replay, deploy, or external side effect is added."
+  ]
+}
