@@ -207,6 +207,14 @@ PR #868 is merged. Current route planning starts from:
   `x-augnes-local-readonly: guide-brief-v0.1` marker gated.
   The Phase 6C Web Guide boundary is no chat composer, no suggestions as
   actions, and no guide-decided user judgment items.
+  Phase 6D adds `augnes_get_guide_brief` as a ChatGPT App/MCP read-only
+  GuideBrief tool that consumes the marker-gated local GuideBrief route through
+  the App state-runtime HTTP adapter. It returns GuideBrief structured content
+  and a compact summary while preserving Observed/Inferred/Suggested/Needs user
+  judgment separation. It adds no MCP/App write tool, no external action
+  authority, no Codex execution, no GitHub/OpenAI/provider calls, no
+  proof/evidence write, no state/memory/DB mutation, no handoff execution, no
+  branch/PR creation, and no merge/publish/retry/replay/deploy behavior.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.

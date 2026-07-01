@@ -502,6 +502,53 @@ export const ConstellationPreviewResultSchema = z
   })
   .passthrough();
 
+export const GuideBriefToolInputSchema = z
+  .object({
+    scope: z.string().min(1).optional(),
+    compact: z.boolean().optional(),
+  })
+  .strip();
+
+export const GuideBriefAuthorityBoundarySchema = z
+  .object({
+    source_of_truth: z.literal(false),
+    can_commit_or_reject_state: z.literal(false),
+    can_record_proof: z.literal(false),
+    can_create_evidence: z.literal(false),
+    can_update_work: z.literal(false),
+    can_mutate_memory: z.literal(false),
+    can_apply_project_perspective: z.literal(false),
+    can_publish_external: z.literal(false),
+    can_merge: z.literal(false),
+    can_retry_replay_deploy: z.literal(false),
+    can_call_github: z.literal(false),
+    can_call_openai_or_provider: z.literal(false),
+    can_execute_codex: z.literal(false),
+    can_create_branch_or_pr: z.literal(false),
+    can_send_handoff: z.literal(false),
+    can_launch_autonomy: z.literal(false),
+    can_create_mcp_tool: z.literal(false),
+    can_create_ui_action: z.literal(false),
+  })
+  .passthrough();
+
+export const GuideBriefResultSchema = z
+  .object({
+    runtime: z.literal("augnes"),
+    guide_version: z.string(),
+    scope: z.string(),
+    observed: z.array(z.unknown()),
+    inferred: z.array(z.unknown()),
+    suggested: z.array(z.unknown()),
+    needs_user_judgment: z.array(z.unknown()),
+    authority_boundary: GuideBriefAuthorityBoundarySchema,
+    surface_rendering_notes: z.record(z.unknown()).optional(),
+    source_refs: z.record(z.unknown()).optional(),
+    staleness_warnings: z.array(z.unknown()).optional(),
+    handoff_candidates: z.array(z.unknown()).optional(),
+  })
+  .passthrough();
+
 export const WorkEventResultSchema = z
   .object({
     scope: z.string(),
@@ -833,6 +880,7 @@ export type SessionTraceResult = z.infer<typeof SessionTraceResultSchema>;
 export type VerificationEvidenceRecord = z.infer<typeof VerificationEvidenceRecordSchema>;
 export type VerificationEvidenceRecordsResult = z.infer<typeof VerificationEvidenceRecordsResultSchema>;
 export type ConstellationPreviewResult = z.infer<typeof ConstellationPreviewResultSchema>;
+export type GuideBriefResult = z.infer<typeof GuideBriefResultSchema>;
 export type WorkEventResult = z.infer<typeof WorkEventResultSchema>;
 export type HandoffRecord = z.infer<typeof HandoffRecordSchema>;
 export type GeneratedHandoffDraft = z.infer<typeof GeneratedHandoffDraftSchema>;
@@ -920,6 +968,7 @@ export interface ReviewCodexResultDraftInput {
 export interface StateRuntimeBridgeAdapter {
   getStateBrief(scope: StateRuntimeScope): Promise<StateBrief>;
   getConstellationPreview(scope: StateRuntimeScope): Promise<ConstellationPreviewResult>;
+  getGuideBrief(scope: StateRuntimeScope): Promise<GuideBriefResult>;
   getEvidencePack(input: StateRuntimeEvidencePackInput): Promise<EvidencePackResult>;
   getSessionTrace(input: StateRuntimeSessionTraceInput): Promise<SessionTraceResult>;
   getVerificationEvidenceRecords(

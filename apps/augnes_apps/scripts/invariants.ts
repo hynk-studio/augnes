@@ -18,6 +18,7 @@ const INTENDED_LEGACY_TOOL_NAMES = [
 const INTENDED_BRIDGE_TOOL_NAMES = [
   "augnes_get_state_brief",
   "augnes_get_project_constellation_preview",
+  "augnes_get_guide_brief",
   "augnes_get_evidence_pack",
   "augnes_get_session_trace",
   "augnes_get_verification_evidence_records",
@@ -51,6 +52,12 @@ const BRIDGE_READ_ANNOTATIONS = {
   destructiveHint: false,
   openWorldHint: true,
 } as const;
+const LOCAL_ROUTE_READ_ANNOTATIONS = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
 const BRIDGE_WRITE_ANNOTATIONS = {
   readOnlyHint: false,
   destructiveHint: false,
@@ -61,6 +68,7 @@ interface RegisteredTool {
   annotations?: {
     readOnlyHint?: boolean;
     destructiveHint?: boolean;
+    idempotentHint?: boolean;
     openWorldHint?: boolean;
   };
   enabled?: boolean;
@@ -95,7 +103,6 @@ function assertLegacyTools(tools: Record<string, RegisteredTool>) {
 function assertBridgeTools(tools: Record<string, RegisteredTool>) {
   for (const name of [
     "augnes_get_state_brief",
-    "augnes_get_project_constellation_preview",
     "augnes_get_evidence_pack",
     "augnes_get_session_trace",
     "augnes_get_verification_evidence_records",
@@ -109,6 +116,17 @@ function assertBridgeTools(tools: Record<string, RegisteredTool>) {
     assert.ok(tool, `${name} should be registered`);
     assert.equal(tool.enabled, true, `${name} should be enabled`);
     assert.deepEqual(tool.annotations, BRIDGE_READ_ANNOTATIONS, `${name} must be read-only, non-destructive, and open-world`);
+    assert.equal(tool.execution?.taskSupport, "forbidden", `${name} must not expose task/job execution`);
+  }
+
+  for (const name of [
+    "augnes_get_project_constellation_preview",
+    "augnes_get_guide_brief",
+  ] as const) {
+    const tool = tools[name];
+    assert.ok(tool, `${name} should be registered`);
+    assert.equal(tool.enabled, true, `${name} should be enabled`);
+    assert.deepEqual(tool.annotations, LOCAL_ROUTE_READ_ANNOTATIONS, `${name} must be read-only, non-destructive, idempotent, and local-route bounded`);
     assert.equal(tool.execution?.taskSupport, "forbidden", `${name} must not expose task/job execution`);
   }
 

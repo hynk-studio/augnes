@@ -2,12 +2,14 @@
 
 ## 1. Status and Scope
 
-Status: Phase 6C GuideBrief / Cross-Surface Guide Core, GET-only read route,
-and Web Guide read-only panel skeleton v0.1.
+Status: Phase 6D GuideBrief / Cross-Surface Guide Core, GET-only read route,
+Web Guide read-only panel skeleton, and ChatGPT App/MCP read-only Guide tool
+v0.1.
 
 Scope: Phase 6A contract, type, pure helper, public-safe fixture, static smoke,
 package script pointer, and latest-index pointer plus Phase 6B GET-only local
-read-only route composition plus Phase 6C read-only Web Guide panel rendering.
+read-only route composition plus Phase 6C read-only Web Guide panel rendering
+plus Phase 6D ChatGPT App/MCP read-only GuideBrief tool.
 
 Phase 6A adds no route work, no UI work, no MCP/App tool work, no Codex Guide
 skill, no Handoff Capsule implementation, no Codex Launch Card, no DB schema or
@@ -33,6 +35,13 @@ execution, proof/evidence write, memory mutation, durable Perspective state
 apply, product-write behavior, scheduler/autonomy runner, handoff execution,
 UI action authority, merge, publish, retry, replay, deploy, or external side
 effect.
+
+Phase 6D adds only a ChatGPT App/MCP read-only GuideBrief tool. It adds no
+MCP/App write tool, Codex execution, GitHub actuation, provider/OpenAI call,
+proof/evidence write, DB schema/migration, DB write, state mutation, memory
+mutation, durable Perspective apply, scheduler/autonomy runner, handoff
+execution, branch/PR creation, merge, publish, retry, replay, deploy, chat
+execution, UI action, or external side effect.
 
 GuideBrief is a read-only guide packet. It may observe, infer, suggest, and
 identify `needs_user_judgment`. It may not act.
@@ -201,8 +210,51 @@ Perspective state apply, no scheduler/autonomy runner, no handoff execution,
 no product-write, no merge/publish/retry/replay/deploy behavior, and no
 external side effect.
 
-Phase 6D ChatGPT App/MCP Guide tool, Phase 6E Codex Guide alignment, and Phase
-7 Handoff Capsule / Codex Launch Card remain deferred.
+Phase 6E Codex Guide alignment and Phase 7 Handoff Capsule / Codex Launch Card
+remain deferred.
+
+## 3.3 Phase 6D ChatGPT App/MCP Read-Only Guide Tool
+
+Phase 6D adds one ChatGPT App/MCP read-only GuideBrief tool:
+
+```text
+augnes_get_guide_brief
+```
+
+The tool consumes the Phase 6B GET-only local read-only route through the
+existing App state-runtime HTTP adapter:
+
+```text
+GET /api/augnes/read/guide-brief?scope=project:augnes
+x-augnes-local-readonly: guide-brief-v0.1
+```
+
+Tool behavior:
+
+- accepts only optional `scope` and `compact` input fields
+- defaults `scope` to `project:augnes`
+- returns GuideBrief structured content plus a compact text summary
+- preserves Observed/Inferred/Suggested/Needs user judgment separation
+- treats suggestions as candidate next actions only, not actions
+- states that needs_user_judgment items are not decided by the tool
+- states that handoff candidates are preview-only
+- preserves the GuideBrief `authority_boundary`
+- uses read-only/local-route App annotations
+- uses sanitization before returning structured content and metadata
+
+The tool does not import Next route helpers, `lib/guide/guide-brief-source.ts`,
+`lib/guide/read-guide-brief-for-web.ts`, or fixtures for live behavior. The
+ChatGPT App/MCP tool is a consumer of the GET-only route, not a private
+backdoor.
+
+Phase 6D adds no MCP/App write tool, no Codex execution, no GitHub/OpenAI/provider
+calls, no proof/evidence writes, no state/memory/DB mutation, no DB schema or
+migration, no branch/PR creation, no handoff execution, no scheduler/autonomy
+runner, no merge/publish/retry/replay/deploy behavior, no Web UI change, no new
+API route, and no external side effect.
+
+Phase 6E Codex Guide alignment remains deferred. Phase 7 Handoff Capsule /
+Codex Launch Card remains deferred.
 
 ## 4. Observed / Inferred / Suggested / Needs User Judgment
 

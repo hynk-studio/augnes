@@ -6,6 +6,7 @@ import {
   ControlPacketSchema,
   EvidencePackResultSchema,
   GeneratedHandoffDraftSchema,
+  GuideBriefResultSchema,
   MailboxSummaryResultSchema,
   ObserveResultSchema,
   PendingProposalsResultSchema,
@@ -24,6 +25,7 @@ import {
   type ConstellationPreviewResult,
   type ControlPacket,
   type EvidencePackResult,
+  type GuideBriefResult,
   type GeneratedHandoffDraft,
   type GenerateHandoffDraftInput,
   type MailboxSummaryResult,
@@ -52,10 +54,13 @@ import {
 const DEFAULT_API_BASE_URL = "http://localhost:3000";
 const CONSTELLATION_PREVIEW_LOCAL_READ_HEADER = "x-augnes-local-readonly";
 const CONSTELLATION_PREVIEW_LOCAL_READ_MARKER = "constellation-preview-v0.1";
+const GUIDE_BRIEF_LOCAL_READ_HEADER = "x-augnes-local-readonly";
+const GUIDE_BRIEF_LOCAL_READ_MARKER = "guide-brief-v0.1";
 
 const endpointContract = {
   stateBrief: { method: "GET", path: "/api/state/brief" },
   constellationPreview: { method: "GET", path: "/api/augnes/read/constellation-preview" },
+  guideBrief: { method: "GET", path: "/api/augnes/read/guide-brief" },
   evidencePack: { method: "GET", path: "/api/evidence-pack" },
   sessionTrace: { method: "GET", path: "/api/sessions/trace" },
   sessionTraceById: { method: "GET", path: "/api/sessions" },
@@ -193,6 +198,21 @@ export class StateRuntimeHttpAdapter implements StateRuntimeBridgeAdapter {
         query: { scope: parseScope(scope) },
         headers: {
           [CONSTELLATION_PREVIEW_LOCAL_READ_HEADER]: CONSTELLATION_PREVIEW_LOCAL_READ_MARKER,
+        },
+      }
+    );
+  }
+
+  async getGuideBrief(scope: StateRuntimeScope): Promise<GuideBriefResult> {
+    return this.requestJson(
+      endpointContract.guideBrief.method,
+      endpointContract.guideBrief.path,
+      GuideBriefResultSchema,
+      "guide brief",
+      {
+        query: { scope: parseScope(scope) },
+        headers: {
+          [GUIDE_BRIEF_LOCAL_READ_HEADER]: GUIDE_BRIEF_LOCAL_READ_MARKER,
         },
       }
     );
