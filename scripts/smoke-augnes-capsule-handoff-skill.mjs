@@ -14,11 +14,17 @@ const skillFile =
   "plugins/augnes-operator/skills/augnes-capsule-handoff/SKILL.md";
 const pluginJsonFile = "plugins/augnes-operator/.codex-plugin/plugin.json";
 const pluginDoc = "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md";
+const guideBriefHandoffDoc = "docs/CODEX_GUIDEBRIEF_HANDOFF_V0_1.md";
+const guideBriefContractDoc = "docs/GUIDEBRIEF_CONTRACT_V0_1.md";
 const capsuleDoc = "docs/PERSPECTIVE_CAPSULE_CONTRACT_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-augnes-capsule-handoff-skill.mjs";
 const pluginV2SmokeFile = "scripts/smoke-augnes-operator-plugin-v2.mjs";
+const guideBriefHandoffSkillFile =
+  "plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md";
+const guideBriefHandoffSmokeFile =
+  "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs";
 const usefulnessPlanFile =
   "docs/PERSPECTIVE_HANDOFF_USEFULNESS_EXPERIMENT_PLAN_V0_1.md";
 const usefulnessPlanSmokeFile =
@@ -27,6 +33,24 @@ const userIntentSmokeFile =
   "scripts/smoke-project-constellation-user-intent-validation.mjs";
 const readonlyCloseoutSmokeFile =
   "scripts/smoke-readonly-constellation-local-only-consumer-closeout.mjs";
+
+const priorSmokeAllowlistCompatibilityFiles = [
+  "scripts/smoke-augnes-delta-contract-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-v0-1.mjs",
+  "scripts/smoke-augnes-delta-projection-route-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-route-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-perspective-human-timeline-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+  "scripts/smoke-chatgpt-app-guide-brief-tool-v0-1.mjs",
+];
 
 const inspectedFiles = [
   skillFile,
@@ -41,10 +65,15 @@ const inspectedFiles = [
 const allowedChangedFiles = new Set([
   ...inspectedFiles,
   pluginV2SmokeFile,
+  guideBriefHandoffDoc,
+  guideBriefContractDoc,
+  guideBriefHandoffSkillFile,
+  guideBriefHandoffSmokeFile,
   usefulnessPlanFile,
   usefulnessPlanSmokeFile,
   userIntentSmokeFile,
   readonlyCloseoutSmokeFile,
+  ...priorSmokeAllowlistCompatibilityFiles,
 ]);
 
 const requiredSections = [

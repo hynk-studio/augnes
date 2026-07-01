@@ -88,6 +88,21 @@ assertHttpAdapter();
 assertAppCompatibility();
 assertDocsAndIndex();
 assertNoForbiddenGuideBriefActuation();
+const followOnCodexGuideBriefHandoffFiles = [
+  "docs/CODEX_GUIDEBRIEF_HANDOFF_V0_1.md",
+  "plugins/augnes-operator/skills/augnes-guidebrief-handoff/SKILL.md",
+  "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+  "docs/CODEX_AUGNES_OPERATOR_PLUGIN_V0_2.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-codex-guidebrief-handoff-v0-1.mjs",
+  "scripts/smoke-augnes-operator-plugin-v2.mjs",
+  "scripts/smoke-augnes-capsule-handoff-skill.mjs",
+];
+for (const file of followOnCodexGuideBriefHandoffFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
@@ -403,7 +418,7 @@ function assertDocsAndIndex() {
       "no state/memory/DB mutation",
       "no branch/PR creation",
       "no handoff execution",
-      "Phase 6E Codex Guide alignment remains deferred",
+      "Phase 6E scope is Codex GuideBrief alignment docs, skill guidance, smoke",
       "Phase 7 Handoff Capsule / Codex Launch Card remains deferred",
     ],
     { label: guideBriefDoc },
