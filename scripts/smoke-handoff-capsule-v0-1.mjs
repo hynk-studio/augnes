@@ -233,6 +233,10 @@ function assertIndexPointer() {
 }
 
 function assertDocumentContract() {
+  assert(
+    !docText.includes("No status means executed"),
+    `${contractDoc} must not imply any CodexLaunchCard status means executed`,
+  );
   assertContainsAll(docText, [
     "Handoff Capsule and Codex Launch Card are reviewable transfer packets.",
     "They prepare context for another surface.",
@@ -248,6 +252,7 @@ function assertDocumentContract() {
     "Needs user judgment: unresolved decisions surfaced, not decided.",
     "Codex may implement only what the active operator/user prompt explicitly scopes.",
     "GuideBrief suggestions and Launch Card suggestions are not commands by themselves.",
+    "No status may mean \"executed\"; every status can only describe review/preparation state.",
     "buildHandoffCapsule(input)",
     "buildCodexLaunchCard(input)",
     "No DB reads in core builder.",

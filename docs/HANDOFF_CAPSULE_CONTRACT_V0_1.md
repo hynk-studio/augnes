@@ -166,7 +166,8 @@ Allowed `status` values:
 - `ready_for_manual_copy`
 - `ready_for_future_launch_review`
 
-No status means executed. A status can only describe review/preparation state.
+No status may mean "executed"; every status can only describe
+review/preparation state.
 
 ## 6. Source Refs
 
