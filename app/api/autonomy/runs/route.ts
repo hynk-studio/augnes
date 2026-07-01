@@ -96,9 +96,23 @@ function validateLocalOperatorRequest(
 ):
   | { ok: true }
   | { ok: false; code: string; status: 400 | 403 } {
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (!host || !isLocalTestHost(host)) {
+  const urlHost = normalizeRequestHost(new URL(request.url).host);
+  if (!urlHost || !isLocalTestHost(urlHost)) {
     return { ok: false, code: "local_operator_host_required", status: 403 };
+  }
+
+  const hostHeader = request.headers.get("host");
+  const host = hostHeader ? normalizeRequestHost(hostHeader) : urlHost;
+  if (!host || !isLocalTestHost(host) || host !== urlHost) {
+    return { ok: false, code: "local_operator_host_required", status: 403 };
+  }
+
+  const forwardedHostHeader = request.headers.get("x-forwarded-host");
+  if (forwardedHostHeader) {
+    const forwardedHost = normalizeRequestHost(forwardedHostHeader);
+    if (!forwardedHost || !isLocalTestHost(forwardedHost) || forwardedHost !== host) {
+      return { ok: false, code: "local_operator_host_required", status: 403 };
+    }
   }
 
   if (!options.requireSameOrigin) return { ok: true };
@@ -112,7 +126,8 @@ function validateLocalOperatorRequest(
   if (!origin) return { ok: true };
 
   try {
-    return new URL(origin).host.toLowerCase() === host.toLowerCase()
+    const originHost = normalizeRequestHost(new URL(origin).host);
+    return originHost === host
       ? { ok: true }
       : { ok: false, code: "same_origin_required", status: 403 };
   } catch {
@@ -121,11 +136,18 @@ function validateLocalOperatorRequest(
 }
 
 function isLocalTestHost(host: string): boolean {
+  return ["localhost", "127.0.0.1", "0.0.0.0", "[::1]"].includes(host);
+}
+
+function normalizeRequestHost(host: string): string | null {
   const normalized = host.trim().toLowerCase();
-  return (
-    /^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(normalized) ||
-    /^\[::1\](:\d+)?$/.test(normalized)
-  );
+  if (!normalized) return null;
+  if (normalized.startsWith("[")) {
+    const bracketEnd = normalized.indexOf("]");
+    if (bracketEnd === -1) return null;
+    return normalized.slice(0, bracketEnd + 1);
+  }
+  return normalized.split(":")[0] || null;
 }
 
 function optionalSafeRouteDbPath(value: unknown): string | null | false {

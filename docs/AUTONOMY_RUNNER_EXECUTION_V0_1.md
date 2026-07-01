@@ -92,6 +92,11 @@ A normal manual run starts as `planned`, moves to `running` on tick, and reaches
 safely complete, it uses `blocked` or `needs_review` with a clear
 `stop_reason` and event record.
 
+Create-time status is runtime validated before any ledger insert. New runs may
+only be created as `planned`, as `scheduled` with `scheduled_for`, or with no
+status so the runner derives one from `scheduled_for`. Terminal, active,
+review, internal, and arbitrary statuses are rejected before rows are written.
+
 Paused runs do not progress on tick. Cancelled runs do not execute additional
 steps.
 
@@ -157,12 +162,19 @@ Supported POST actions on `/api/autonomy/runs/[id]` are:
 { "action": "cancel" }
 ```
 
-Routes are local-host bounded and same-origin guarded for POST. They write only
-runner ledger records. They do not call provider APIs, OpenAI, GitHub, Codex,
-publish, deploy, merge, post externally, apply Perspective, mutate durable
-memory, or write proof/evidence records. Detail-route actions read the run and
-validate scope before mutation, so wrong-scope runs are rejected without a tick,
-pause, resume, or cancel side effect.
+Routes are local-host bounded and same-origin guarded for POST. The request URL
+host and `Host` header, when present, must both be loopback local hosts.
+`X-Forwarded-Host` is not primary authority; when present it is only an
+additional fail-closed consistency check and must also be local and match the
+actual URL/Host host after normalization. POST `Origin` checks compare against
+the actual URL/Host path, not the forwarded host.
+
+The routes write only runner ledger records. They do not call provider APIs,
+OpenAI, GitHub, Codex, publish, deploy, merge, post externally, apply
+Perspective, mutate durable memory, or write proof/evidence records.
+Detail-route actions read the run and validate scope before mutation, so
+wrong-scope runs are rejected without a tick, pause, resume, or cancel side
+effect.
 
 ## DeltaBatch Recovery
 

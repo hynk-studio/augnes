@@ -153,14 +153,26 @@ for (const table of [
 const tempDir = join(tmpdir(), "augnes-autonomy-runner-v0-1");
 const tempDbPath = join(tempDir, "runner.sqlite");
 const routeDbPath = "tmp/autonomy-runner-v0-1-route-scope.sqlite";
+const createStatusDbPath = "tmp/autonomy-runner-v0-1-create-status.sqlite";
+const spoofCreateDbPath = "tmp/autonomy-runner-v0-1-spoof-create.sqlite";
+const spoofActionDbPath = "tmp/autonomy-runner-v0-1-spoof-action.sqlite";
+const routeSmokeDbPaths = [
+  routeDbPath,
+  createStatusDbPath,
+  spoofCreateDbPath,
+  spoofActionDbPath,
+];
 assert(tempDbPath.startsWith(tmpdir()), "smoke must use temp DB storage");
 rmSync(tempDir, { recursive: true, force: true });
 mkdirSync(tempDir, { recursive: true });
 mkdirSync("tmp", { recursive: true });
-rmSync(routeDbPath, { force: true });
+for (const dbPath of routeSmokeDbPaths) {
+  rmSync(dbPath, { force: true });
+}
 
 const behaviorScript = `
   import assert from "node:assert/strict";
+  import { POST as postCreateRun } from "./app/api/autonomy/runs/route.ts";
   import { POST as postRunAction } from "./app/api/autonomy/runs/[id]/route.ts";
   import {
     createAutonomyRun,
@@ -180,7 +192,159 @@ const behaviorScript = `
   async function main() {
   const dbPath = ${JSON.stringify(tempDbPath)};
   const routeDbPath = ${JSON.stringify(routeDbPath)};
+  const createStatusDbPath = ${JSON.stringify(createStatusDbPath)};
+  const spoofCreateDbPath = ${JSON.stringify(spoofCreateDbPath)};
+  const spoofActionDbPath = ${JSON.stringify(spoofActionDbPath)};
   const scope = "project:augnes";
+
+  const directCompletedStatusBefore = countAutonomyRunnerLedgerRows({ dbPath }).autonomy_runs;
+  assert.throws(
+    () => createAutonomyRun({
+      dbPath,
+      run_id: "autonomy_run.smoke.phase9.invalid_completed_status",
+      scope,
+      status: "completed",
+      created_at: "2026-07-02T00:00:00.010Z"
+    }),
+    /invalid_create_status:completed/
+  );
+  const directCompletedStatusAfter = countAutonomyRunnerLedgerRows({ dbPath }).autonomy_runs;
+  assert.equal(
+    directCompletedStatusAfter,
+    directCompletedStatusBefore,
+    "completed create status must reject before writing rows"
+  );
+
+  const directBogusStatusBefore = countAutonomyRunnerLedgerRows({ dbPath }).autonomy_runs;
+  assert.throws(
+    () => createAutonomyRun({
+      dbPath,
+      run_id: "autonomy_run.smoke.phase9.invalid_bogus_status",
+      scope,
+      status: "bogus_status",
+      created_at: "2026-07-02T00:00:00.020Z"
+    }),
+    /invalid_create_status:bogus_status/
+  );
+  const directBogusStatusAfter = countAutonomyRunnerLedgerRows({ dbPath }).autonomy_runs;
+  assert.equal(
+    directBogusStatusAfter,
+    directBogusStatusBefore,
+    "bogus create status must reject before writing rows"
+  );
+
+  assert.throws(
+    () => createAutonomyRun({
+      dbPath,
+      run_id: "autonomy_run.smoke.phase9.scheduled_without_time",
+      scope,
+      status: "scheduled",
+      created_at: "2026-07-02T00:00:00.030Z"
+    }),
+    /scheduled_run_requires_scheduled_for/
+  );
+
+  const invalidPostCreateResponse = await postCreateRun(
+    new Request("http://localhost/api/autonomy/runs", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        host: "localhost",
+        origin: "http://localhost",
+        "sec-fetch-site": "same-origin"
+      },
+      body: JSON.stringify({
+        run_id: "autonomy_run.smoke.phase9.route_invalid_completed_status",
+        scope,
+        status: "completed",
+        db_path: createStatusDbPath,
+        created_at: "2026-07-02T00:00:00.040Z"
+      })
+    })
+  );
+  const invalidPostCreateBody = await invalidPostCreateResponse.json();
+  assert.equal(invalidPostCreateResponse.status, 400);
+  assert.equal(invalidPostCreateBody.error_code, "invalid_create_status:completed");
+  const invalidPostCreateRowsAfter = countAutonomyRunnerLedgerRows({ dbPath: createStatusDbPath }).autonomy_runs;
+  assert.equal(
+    invalidPostCreateRowsAfter,
+    0,
+    "invalid create route status must not write rows"
+  );
+
+  const validPostPlannedResponse = await postCreateRun(
+    new Request("http://localhost/api/autonomy/runs", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        host: "localhost",
+        origin: "http://localhost",
+        "sec-fetch-site": "same-origin"
+      },
+      body: JSON.stringify({
+        run_id: "autonomy_run.smoke.phase9.route_valid_planned",
+        scope,
+        status: "planned",
+        db_path: createStatusDbPath,
+        created_at: "2026-07-02T00:00:00.050Z"
+      })
+    })
+  );
+  const validPostPlannedBody = await validPostPlannedResponse.json();
+  assert.equal(validPostPlannedResponse.status, 201);
+  assert.equal(validPostPlannedBody.run.status, "planned");
+
+  const validPostScheduledResponse = await postCreateRun(
+    new Request("http://localhost/api/autonomy/runs", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        host: "localhost",
+        origin: "http://localhost",
+        "sec-fetch-site": "same-origin"
+      },
+      body: JSON.stringify({
+        run_id: "autonomy_run.smoke.phase9.route_valid_scheduled",
+        scope,
+        status: "scheduled",
+        scheduled_for: "2026-07-02T00:08:00.000Z",
+        db_path: createStatusDbPath,
+        created_at: "2026-07-02T00:00:00.060Z"
+      })
+    })
+  );
+  const validPostScheduledBody = await validPostScheduledResponse.json();
+  assert.equal(validPostScheduledResponse.status, 201);
+  assert.equal(validPostScheduledBody.run.status, "scheduled");
+
+  const spoofedCreateResponse = await postCreateRun(
+    new Request("http://remote.example/api/autonomy/runs", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        host: "remote.example",
+        "x-forwarded-host": "localhost",
+        origin: "http://localhost",
+        "sec-fetch-site": "same-origin"
+      },
+      body: JSON.stringify({
+        run_id: "autonomy_run.smoke.phase9.spoof_create",
+        scope,
+        status: "planned",
+        db_path: spoofCreateDbPath,
+        created_at: "2026-07-02T00:00:00.070Z"
+      })
+    })
+  );
+  const spoofedCreateBody = await spoofedCreateResponse.json();
+  assert.equal(spoofedCreateResponse.status, 403);
+  assert.equal(spoofedCreateBody.error_code, "local_operator_host_required");
+  assert.equal(
+    countAutonomyRunnerLedgerRows({ dbPath: spoofCreateDbPath }).autonomy_runs,
+    0,
+    "spoofed forwarded host create route must not write rows"
+  );
+
   const created = createAutonomyRun({
     dbPath,
     run_id: "autonomy_run.smoke.phase9.main",
@@ -479,6 +643,41 @@ const behaviorScript = `
   assert.equal(wrongScopeAfter?.steps.filter((step) => step.status === "completed").length, 0);
   assert.equal(wrongScopeAfter?.events.length, 1);
 
+  const spoofActionRun = createAutonomyRun({
+    dbPath: spoofActionDbPath,
+    run_id: "autonomy_run.smoke.phase9.spoof_action",
+    scope,
+    created_at: "2026-07-02T00:07:30.000Z",
+    planned_steps: [
+      { step_id: "autonomy_run.smoke.phase9.spoof_action.step.1", action_kind: "summarize_current_autonomy_context" }
+    ]
+  });
+  const spoofedActionResponse = await postRunAction(
+    new Request("http://remote.example/api/autonomy/runs/" + encodeURIComponent(spoofActionRun.run_id), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        host: "remote.example",
+        "x-forwarded-host": "localhost",
+        origin: "http://localhost",
+        "sec-fetch-site": "same-origin"
+      },
+      body: JSON.stringify({
+        action: "tick",
+        db_path: spoofActionDbPath,
+        now: "2026-07-02T00:07:31.000Z"
+      })
+    }),
+    { params: Promise.resolve({ id: encodeURIComponent(spoofActionRun.run_id) }) }
+  );
+  const spoofedActionBody = await spoofedActionResponse.json();
+  const spoofActionAfter = getAutonomyRun(spoofActionRun.run_id, { dbPath: spoofActionDbPath });
+  assert.equal(spoofedActionResponse.status, 403);
+  assert.equal(spoofedActionBody.error_code, "local_operator_host_required");
+  assert.equal(spoofActionAfter?.status, "planned");
+  assert.equal(spoofActionAfter?.steps.filter((step) => step.status === "completed").length, 0);
+  assert.equal(spoofActionAfter?.events.length, 1);
+
   const finalCounts = countAutonomyRunnerLedgerRows({ dbPath });
   assert(finalCounts.autonomy_runs >= 8);
   assert(finalCounts.autonomy_run_steps >= 10);
@@ -511,6 +710,21 @@ const behaviorScript = `
     pre_aborted_completed_steps: preAbortedAfter?.steps.filter((step) => step.status === "completed").length,
     duplicate_skipped_tick_count: duplicateSkippedEvents.length,
     duplicate_skipped_unique_event_ids: new Set(duplicateSkippedEvents.map((event) => event.event_id)).size,
+    invalid_direct_completed_status_rejected_without_write: directCompletedStatusAfter === directCompletedStatusBefore,
+    invalid_direct_bogus_status_rejected_without_write: directBogusStatusAfter === directBogusStatusBefore,
+    invalid_post_create_status: invalidPostCreateResponse.status,
+    invalid_post_create_error_code: invalidPostCreateBody.error_code,
+    invalid_post_create_rows: invalidPostCreateRowsAfter,
+    valid_post_planned_status: validPostPlannedBody.run.status,
+    valid_post_scheduled_status: validPostScheduledBody.run.status,
+    spoofed_create_status: spoofedCreateResponse.status,
+    spoofed_create_error_code: spoofedCreateBody.error_code,
+    spoofed_create_rows: countAutonomyRunnerLedgerRows({ dbPath: spoofCreateDbPath }).autonomy_runs,
+    spoofed_action_status: spoofedActionResponse.status,
+    spoofed_action_error_code: spoofedActionBody.error_code,
+    spoofed_action_after_status: spoofActionAfter?.status,
+    spoofed_action_after_completed_steps: spoofActionAfter?.steps.filter((step) => step.status === "completed").length,
+    spoofed_action_after_event_count: spoofActionAfter?.events.length,
     wrong_scope_route_status: wrongScopeResponse.status,
     wrong_scope_error_code: wrongScopeBody.error_code,
     wrong_scope_after_status: wrongScopeAfter?.status,
@@ -565,6 +779,24 @@ assert.equal(behavior.pre_aborted_run_status, "scheduled");
 assert.equal(behavior.pre_aborted_completed_steps, 0);
 assert.equal(behavior.duplicate_skipped_tick_count, 2);
 assert.equal(behavior.duplicate_skipped_unique_event_ids, 2);
+assert.equal(behavior.invalid_direct_completed_status_rejected_without_write, true);
+assert.equal(behavior.invalid_direct_bogus_status_rejected_without_write, true);
+assert.equal(behavior.invalid_post_create_status, 400);
+assert.equal(
+  behavior.invalid_post_create_error_code,
+  "invalid_create_status:completed",
+);
+assert.equal(behavior.invalid_post_create_rows, 0);
+assert.equal(behavior.valid_post_planned_status, "planned");
+assert.equal(behavior.valid_post_scheduled_status, "scheduled");
+assert.equal(behavior.spoofed_create_status, 403);
+assert.equal(behavior.spoofed_create_error_code, "local_operator_host_required");
+assert.equal(behavior.spoofed_create_rows, 0);
+assert.equal(behavior.spoofed_action_status, 403);
+assert.equal(behavior.spoofed_action_error_code, "local_operator_host_required");
+assert.equal(behavior.spoofed_action_after_status, "planned");
+assert.equal(behavior.spoofed_action_after_completed_steps, 0);
+assert.equal(behavior.spoofed_action_after_event_count, 1);
 assert.equal(behavior.wrong_scope_route_status, 400);
 assert.equal(behavior.wrong_scope_error_code, "invalid_scope");
 assert.equal(behavior.wrong_scope_after_status, "planned");
@@ -578,7 +810,9 @@ assertNoRows(tempDbPath, "perspective_memory_items");
 assertNoRows(tempDbPath, "perspective_state_apply_events");
 assertNoRows(tempDbPath, "perspective_states");
 assertNoRows(tempDbPath, "verification_evidence_records");
-rmSync(routeDbPath, { force: true });
+for (const dbPath of routeSmokeDbPaths) {
+  rmSync(dbPath, { force: true });
+}
 
 console.log(
   JSON.stringify(
@@ -602,6 +836,10 @@ console.log(
       delta_batch_recovered_checked: true,
       delta_batch_readback_checked: true,
       scheduled_watch_delta_batch_readback_checked: true,
+      forwarded_host_spoof_create_rejected_checked: true,
+      forwarded_host_spoof_action_rejected_checked: true,
+      create_status_runtime_validation_checked: true,
+      create_route_status_validation_checked: true,
       detail_route_wrong_scope_pre_mutation_guard_checked: true,
       pre_aborted_watch_noop_checked: true,
       duplicate_timestamp_event_ids_checked: true,

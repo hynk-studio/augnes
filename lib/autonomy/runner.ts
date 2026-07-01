@@ -42,7 +42,7 @@ export function createAutonomyRun(
     input.run_id ??
     `autonomy_run.${safeRunnerIdSegment(scope)}.${safeRunnerIdSegment(createdAt)}`;
   const scheduledFor = input.scheduled_for ?? null;
-  const status = input.status ?? (scheduledFor ? "scheduled" : "planned");
+  const status = normalizeCreateAutonomyRunStatus(input.status, scheduledFor);
   const sourceRefs = buildDefaultRunnerSourceRefs({
     ...input.source_refs,
     autonomy_contract_refs: [
@@ -540,6 +540,22 @@ function readRequiredRun(
   const run = readAutonomyRunLedgerRecord(runId, options);
   if (!run) throw new Error(`autonomy_run_not_found:${runId}`);
   return run;
+}
+
+function normalizeCreateAutonomyRunStatus(
+  status: unknown,
+  scheduledFor: string | null,
+): "planned" | "scheduled" {
+  if (status === undefined || status === null) {
+    return scheduledFor ? "scheduled" : "planned";
+  }
+  if (status !== "planned" && status !== "scheduled") {
+    throw new Error(`invalid_create_status:${String(status)}`);
+  }
+  if (status === "scheduled" && !scheduledFor) {
+    throw new Error("scheduled_run_requires_scheduled_for");
+  }
+  return status;
 }
 
 function nowIso(): string {
