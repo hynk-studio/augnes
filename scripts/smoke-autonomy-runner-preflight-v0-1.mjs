@@ -121,6 +121,16 @@ const phase9eCodexAlignmentFollowOnFiles = new Set([
   "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
 ]);
 
+const phase9fCopyExportFollowOnFiles = new Set([
+  "lib/autonomy/autonomy-runner-preflight-copy-export.ts",
+  "components/autonomy/autonomy-runner-preflight-copy-export-panel.tsx",
+  "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
+  "scripts/smoke-autonomy-runner-preflight-copy-export-v0-1.mjs",
+]);
+for (const file of phase9fCopyExportFollowOnFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const authorityBooleanFields = [
   "source_of_truth",
   "can_start_runner",
@@ -774,6 +784,9 @@ function assertChangedFileBoundary() {
         continue;
       }
       if (phase9eCodexAlignmentFollowOnFiles.has(file)) {
+        continue;
+      }
+      if (phase9fCopyExportFollowOnFiles.has(file)) {
         continue;
       }
       assert(!pattern.test(file), `Forbidden Phase 9A changed file: ${file}`);

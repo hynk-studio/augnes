@@ -81,6 +81,16 @@ const allowedChangedFiles = new Set([
   ...priorSmokeAllowlistCompatibilityFiles,
 ]);
 
+const phase9fCopyExportFollowOnFiles = new Set([
+  "lib/autonomy/autonomy-runner-preflight-copy-export.ts",
+  "components/autonomy/autonomy-runner-preflight-copy-export-panel.tsx",
+  "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
+  "scripts/smoke-autonomy-runner-preflight-copy-export-v0-1.mjs",
+]);
+for (const file of phase9fCopyExportFollowOnFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const forbiddenChangedPathPatterns = [
   /^app\/api\//,
   /^app\/.*route\.(ts|tsx|js|jsx)$/,
@@ -339,7 +349,8 @@ function assertRunnerDocNote() {
     "Phase 9E adds no API route, UI, App/MCP tool, runner, scheduler, daemon, background work, product write, runtime execution, or external side effect.",
     "npm run smoke:codex-autonomy-runner-preflight-v0-1",
     "Browser/CDP validation is skipped because Phase 9E adds only Codex docs/skill/smoke alignment and no Web UI.",
-    "Phase 9F - Autonomy Runner Preflight / Dry-Run local copy and manual-copy preview v0.1",
+    "Phase 9G - explicit operator-approved runner skeleton planning v0.1",
+    "Phase 9G is planning only unless separately and explicitly scoped.",
   ], { textByFile });
 }
 
@@ -464,6 +475,9 @@ function assertChangedFilesBoundary() {
         allowedChangedFiles.has(file),
         `Unexpected changed file for Codex Autonomy Runner Preflight alignment smoke: ${file}`,
       );
+      if (phase9fCopyExportFollowOnFiles.has(file)) {
+        continue;
+      }
       assert(
         !forbiddenChangedPathPatterns.some((pattern) => pattern.test(file)),
         `Forbidden changed file for Codex Autonomy Runner Preflight alignment smoke: ${file}`,

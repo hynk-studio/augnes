@@ -10,6 +10,7 @@ import {
   workplaneItemStyle,
   workplaneListStyle,
 } from "@/components/autonomy/autonomy-preview-shared";
+import { AutonomyRunnerPreflightCopyExportPanel } from "@/components/autonomy/autonomy-runner-preflight-copy-export-panel";
 import type { AutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
 import type {
   AutonomyRunnerAuthorityBoundary,
@@ -263,12 +264,12 @@ export function AutonomyRunnerPreflightPreviewPanel({
         </p>
         <AutonomyList
           itemLabel="route ref"
-          items={preview.route_refs}
+          items={uniqueStrings(preview.route_refs)}
           emptyText="No route refs materialized."
         />
         <AutonomyList
           itemLabel="doc ref"
-          items={preview.docs_refs}
+          items={uniqueStrings(preview.docs_refs)}
           emptyText="No doc refs materialized."
         />
         <AutonomyList
@@ -334,6 +335,8 @@ export function AutonomyRunnerPreflightPreviewPanel({
           items={preview.public_safety.notes}
         />
       </AutonomySection>
+
+      <AutonomyRunnerPreflightCopyExportPanel preview={preview} />
     </WorkplanePanelShell>
   );
 }
@@ -371,4 +374,8 @@ function buildAuthorityRows(
   authority: AutonomyRunnerAuthorityBoundary,
 ): Array<[string, boolean]> {
   return authorityFields.map((field) => [field, authority[field]]);
+}
+
+function uniqueStrings(items: string[]) {
+  return Array.from(new Set(items));
 }

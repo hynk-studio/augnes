@@ -93,6 +93,10 @@ const allowedChangedFiles = new Set([
   "docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md",
   "plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md",
   "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
+  "lib/autonomy/autonomy-runner-preflight-copy-export.ts",
+  "components/autonomy/autonomy-runner-preflight-copy-export-panel.tsx",
+  "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
+  "scripts/smoke-autonomy-runner-preflight-copy-export-v0-1.mjs",
 ]);
 
 const authorityFalseFields = [
@@ -492,6 +496,16 @@ function assertDocsAndIndex() {
 function assertNoForbiddenScopeDrift() {
   const changed = collectChangedFiles();
   for (const file of changed) {
+    if (
+      [
+        "lib/autonomy/autonomy-runner-preflight-copy-export.ts",
+        "components/autonomy/autonomy-runner-preflight-copy-export-panel.tsx",
+        "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
+        "scripts/smoke-autonomy-runner-preflight-copy-export-v0-1.mjs",
+      ].includes(file)
+    ) {
+      continue;
+    }
     assert(!file.startsWith("app/api/"), `Phase 9D must not change API route files: ${file}`);
     assert(!file.startsWith("components/"), `Phase 9D must not change UI component files: ${file}`);
     assert(!file.startsWith("app/") || !/page|route|layout/.test(file), `Phase 9D must not change app route/page files: ${file}`);

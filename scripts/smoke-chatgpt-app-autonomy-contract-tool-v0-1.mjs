@@ -134,6 +134,9 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md",
   "plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md",
   "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
+  "lib/autonomy/autonomy-runner-preflight-copy-export.ts",
+  "components/autonomy/autonomy-runner-preflight-copy-export-panel.tsx",
+  "scripts/smoke-autonomy-runner-preflight-copy-export-v0-1.mjs",
 ];
 const allowedChangedFiles = new Set([
   serverFile,
@@ -623,12 +626,16 @@ function assertNoForbiddenScopeDrift() {
     "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
     "components/workplane/agent-workplane.tsx",
   ]);
+  const allowedPhase9fCopyPreviewFiles = new Set([
+    "components/autonomy/autonomy-runner-preflight-copy-export-panel.tsx",
+  ]);
 
   for (const file of changed) {
     assert(
       !file.startsWith("components/") ||
         allowedPhase8fWebFiles.has(file) ||
-        allowedPhase9cWebPreviewFiles.has(file),
+        allowedPhase9cWebPreviewFiles.has(file) ||
+        allowedPhase9fCopyPreviewFiles.has(file),
       `Phase 8D must not change Web UI files: ${file}`,
     );
     assert(
