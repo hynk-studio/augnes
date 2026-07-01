@@ -126,6 +126,12 @@ const followOnGuideBriefCoreFiles = [
   "scripts/smoke-guide-brief-v0-1.mjs",
 ];
 
+const followOnGuideBriefRouteFiles = [
+  "app/api/augnes/read/guide-brief/route.ts",
+  "lib/guide/guide-brief-source.ts",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...followOnProjectionReadModelFiles,
@@ -139,11 +145,13 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneProjectionHandoffFiles,
   ...followOnAgentWorkplaneCleanupHardeningFiles,
   ...followOnGuideBriefCoreFiles,
+  ...followOnGuideBriefRouteFiles,
 ]);
 
 const allowedRouteFiles = new Set([
   "app/api/augnes/read/deltas/route.ts",
   "app/api/perspective/current/route.ts",
+  "app/api/augnes/read/guide-brief/route.ts",
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);

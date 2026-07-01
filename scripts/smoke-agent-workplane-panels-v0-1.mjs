@@ -67,6 +67,12 @@ const followOnGuideBriefCoreFiles = [
   "scripts/smoke-guide-brief-v0-1.mjs",
 ];
 
+const followOnGuideBriefRouteFiles = [
+  "app/api/augnes/read/guide-brief/route.ts",
+  "lib/guide/guide-brief-source.ts",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+];
+
 const panelFiles = [
   panelShellFile,
   workQueuePanelFile,
@@ -114,6 +120,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneProjectionHandoffFiles,
   ...followOnAgentWorkplaneCleanupHardeningFiles,
   ...followOnGuideBriefCoreFiles,
+  ...followOnGuideBriefRouteFiles,
   smokeFile,
 ]);
 
@@ -571,10 +578,14 @@ function assertChangedFileBoundary() {
       file !== "app/perspective/page.tsx",
       "Phase 5B must not update /perspective page",
     );
-    assert(!/^app\/api\//.test(file), `Phase 5B must not add API routes: ${file}`);
     assert(
-      !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file),
-      `Phase 5B must not add route files: ${file}`,
+      !/^app\/api\//.test(file) || followOnGuideBriefRouteFiles.includes(file),
+      `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
+    );
+    assert(
+      !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) ||
+        followOnGuideBriefRouteFiles.includes(file),
+      `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 5B must not change DB files: ${file}`);
     assert(

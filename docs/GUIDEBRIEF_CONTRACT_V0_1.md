@@ -2,10 +2,12 @@
 
 ## 1. Status and Scope
 
-Status: Phase 6A GuideBrief / Cross-Surface Guide Core v0.1.
+Status: Phase 6B GuideBrief / Cross-Surface Guide Core and GET-only read
+route v0.1.
 
-Scope: contract, type, pure helper, public-safe fixture, static smoke, package
-script pointer, and latest-index pointer only.
+Scope: Phase 6A contract, type, pure helper, public-safe fixture, static smoke,
+package script pointer, and latest-index pointer plus Phase 6B GET-only local
+read-only route composition.
 
 Phase 6A adds no route work, no UI work, no MCP/App tool work, no Codex Guide
 skill, no Handoff Capsule implementation, no Codex Launch Card, no DB schema or
@@ -13,6 +15,15 @@ migration, no DB write, no provider/OpenAI call, no GitHub actuation, no Codex
 execution, no proof/evidence write, no memory mutation, no durable Perspective
 state apply, no product-write behavior, no scheduler/autonomy runner, no merge,
 publish, retry, replay, deploy, or external side effect.
+
+Phase 6B adds only a GET-only local read-only route and route source
+composition helper. It adds no UI work, no MCP/App tool work, no Codex Guide
+skill, no Handoff Capsule implementation, no Codex Launch Card, no DB schema or
+migration, no DB write, no provider/OpenAI call, no GitHub actuation, no Codex
+execution, no proof/evidence write, no memory mutation, no durable Perspective
+state apply, no product-write behavior, no scheduler/autonomy runner, no
+handoff execution, no merge, publish, retry, replay, deploy, or external side
+effect.
 
 GuideBrief is a read-only guide packet. It may observe, infer, suggest, and
 identify `needs_user_judgment`. It may not act.
@@ -68,6 +79,55 @@ effects.
 In exact boundary terms: no DB reads, no DB writes, no provider/OpenAI calls,
 no GitHub calls, no Codex execution, no proof/evidence writes, and no external
 side effects.
+
+## 3.1 Phase 6B GET-Only Read Route
+
+Phase 6B exposes GuideBrief through a local read-only route:
+
+```text
+GET /api/augnes/read/guide-brief?scope=project:augnes
+```
+
+The route requires the exact local read-only marker:
+
+```text
+x-augnes-local-readonly: guide-brief-v0.1
+```
+
+Route behavior:
+
+- exports `GET` only and exports no `POST`, `PUT`, `PATCH`, `DELETE`, or other
+  mutating handler
+- requires exact `scope=project:augnes`
+- requires exact `x-augnes-local-readonly: guide-brief-v0.1`
+- fails closed on missing scope, invalid scope, missing marker, invalid marker,
+  malformed request, or non-local access
+- returns JSON with `cache-control: no-store`
+- returns the local read-only marker response header
+- composes GuideBrief JSON through `buildGuideBrief(input)` rather than
+  duplicating GuideBrief construction in the route
+- preserves the GuideBrief `authority_boundary` object with all write,
+  execution, external-call, handoff-send, MCP/App, UI-action, and autonomy
+  booleans set to `false`
+
+Source composition is owned by `lib/guide/guide-brief-source.ts`. It uses
+existing read-only runtime source helpers for:
+
+- `CurrentWorkingPerspective`
+- `AugnesDeltaProjectionReadModel`
+
+The route source helper supplies lightweight Agent Workplane context for
+`/workbench`, route refs for `/`, `/perspective`, and `/workbench`, docs refs,
+and next-phase notes. It does not call route-to-route `fetch`, does not add a
+new DB reader, does not create source records, and does not inspect UI runtime
+or DOM state.
+
+Phase 6B route and source composition add no write or external execution
+behavior: no DB schema/migration, DB write, provider/OpenAI call, GitHub
+actuation, Codex execution, proof/evidence write, memory mutation, durable
+Perspective state apply, product-write, scheduler/autonomy runner, MCP/App
+tool, UI action, handoff execution, merge, publish, retry, replay, deploy, or
+external side effect.
 
 ## 4. Observed / Inferred / Suggested / Needs User Judgment
 
@@ -303,16 +363,23 @@ Authority notes must state:
 
 Phase 6A scope is contract/type/helper/fixture/smoke only.
 
+Phase 6A historical deferred marker: Phase 6B GuideBrief GET-only read route is
+deferred until a separate scoped route prompt.
+
+Phase 6B scope is the GET-only local read-only route and route source
+composition helper only. It does not add UI, MCP/App tools, Codex Guide skill,
+Handoff Capsule, Codex Launch Card, write behavior, execution behavior, hidden
+authority, or future handoff/autonomy behavior.
+
 Deferred work:
 
-- Phase 6B GuideBrief GET-only read route is deferred.
 - Phase 6C Web Guide UI is deferred.
 - Phase 6D ChatGPT App/MCP Guide tool is deferred.
 - Phase 6E Codex Guide alignment is deferred.
 - Phase 7 Handoff Capsule / Codex Launch Card may consume GuideBrief only
   after separate scoped authority paths are defined and approved.
 
-Phase 6A does not start Phase 6B, 6C, 6D, 6E, or Phase 7.
+Phase 6B does not start Phase 6C, 6D, 6E, or Phase 7.
 
 ## 10. Validation and Smoke Plan
 
@@ -339,4 +406,26 @@ Phase 6A does not start Phase 6B, 6C, 6D, 6E, or Phase 7.
   historical smoke allowlist compatibility edits
 
 Browser validation is not required for Phase 6A because Phase 6A adds no UI
+changes.
+
+`npm run smoke:guide-brief-route-v0-1` checks the Phase 6B route boundary:
+
+- required route, source helper, docs, index, package, and smoke files exist
+- package script pointer exists
+- the route exports `GET` and exports no mutating handlers
+- the route requires exact `scope=project:augnes`
+- the route requires `x-augnes-local-readonly: guide-brief-v0.1`
+- the route returns `cache-control: no-store`
+- the route returns GuideBrief JSON through the route source helper and
+  `buildGuideBrief`
+- missing or invalid scope and marker paths fail closed
+- the source helper uses existing read-only runtime source helpers and does not
+  call route-to-route `fetch`
+- the route and source helper do not call provider/OpenAI/GitHub/Codex, create
+  proof/evidence, mutate memory/Perspective/work/state, or write DB state
+- no UI files, MCP/App tool files, DB migrations, provider/OpenAI/GitHub
+  runtime files, proof/evidence write files, or autonomy runner files are
+  changed
+
+Browser validation is not required for Phase 6B because Phase 6B adds no UI
 changes.
