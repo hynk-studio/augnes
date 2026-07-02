@@ -234,6 +234,13 @@ runner behavior, provider/OpenAI/GitHub/Codex execution, DB write,
 proof/evidence write, durable memory apply, Perspective apply, or delta
 auto-apply.
 
+GuideBrief Intent Projection v0.1 now uses this read-only recovered runner
+DeltaBatch context to create reversible Workplane focus and draft runner config
+candidates. Those candidates are draft-only: no runner execution, runner tick,
+runner recovery write, scheduled runner behavior, runner ledger write,
+provider/OpenAI/GitHub/Codex execution, DB write, proof/evidence write,
+durable memory apply, Perspective apply, or delta auto-apply is added.
+
 ## 13. Not Implemented Yet
 
 This v0.1 integration intentionally does not implement:

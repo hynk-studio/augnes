@@ -11,7 +11,9 @@ observed versus inferred, what is stale or fallback-sourced, which validation
 smoke applies, what needs user judgment, and what Codex could inspect next as
 a preview-only debug handoff candidate.
 
-It does not implement GuideBrief Intent Projection.
+It does not implement GuideBrief Intent Projection. The follow-on GuideBrief
+Intent Projection v0.1 now consumes this debug context as its selected
+Workplane basis while preserving the same no-execution boundary.
 
 ## 2. Why This Exists
 
@@ -21,9 +23,9 @@ Context gives Codex, ChatGPT, future agents, and operators a compact packet
 that explains a selected panel, node, run, step, event, batch, delta, or
 handoff ref.
 
-This makes Workplane state explainable before GuideBrief Intent Projection is
-added. A later intent layer can refer to the same stable IDs without guessing
-which rendered panel was selected.
+This makes Workplane state explainable before GuideBrief Intent Projection.
+The v0.1 intent layer now refers to the same stable IDs without guessing which
+rendered panel was selected.
 
 ## 3. GuideBrief Authority
 
@@ -38,6 +40,13 @@ GuideBrief authority. It preserves the existing separation:
 The debug packet may create only a preview-only Codex debug handoff candidate.
 It must not launch Codex, create a branch, open a PR, send anything, or execute
 anything.
+
+GuideBrief Intent Projection v0.1 is documented in
+`docs/GUIDEBRIEF_INTENT_PROJECTION_V0_1.md`. It creates reversible view
+projections and draft candidate packets from this debug context while
+preserving no executable projection, no durable mutation, no route, no server
+action, no chat composer, no runner behavior, no external authority, no
+Perspective apply, no durable memory apply, and no delta auto-apply.
 
 ## 4. Selection Inputs
 
@@ -266,3 +275,7 @@ This slice explicitly adds:
 - no new local-write controls
 
 Recommended next phase: GuideBrief Intent Projection v0.1.
+
+Follow-on status: GuideBrief Intent Projection v0.1 is now implemented as a
+view/draft projection only. The debug context itself remains read-only
+explanation context and still adds no execution authority.
