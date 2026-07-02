@@ -215,6 +215,12 @@ const followOnAugnesDogfoodFiles = [
   "docs/AUGNES_WORKFLOW_METRICS_V0_1.md",
   "docs/00_INDEX_LATEST.md",
   "package.json",
+  "types/augnes-dogfood-metrics-baseline.ts",
+  "lib/dogfood/augnes-dogfood-metrics-baseline.ts",
+  "docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md",
+  "scripts/run-augnes-dogfood-metrics-baseline-v0-2.mjs",
+  "scripts/smoke-augnes-dogfood-metrics-baseline-v0-2.mjs",
+
 ];
 
 const followOnLegacyCockpitShrinkPlanFiles = [

@@ -254,6 +254,20 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   provider/OpenAI/GitHub/Codex execution, product DB write, proof/evidence
   write, durable memory apply, Perspective apply, delta auto-apply, or legacy
   Cockpit deletion/shrink.
+- `docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md`: Repeated Augnes-on-Augnes
+  Dogfood / Metrics Baseline v0.2 adds a local repeated baseline type,
+  helper, runner, aggregate report shape, docs, and smoke for running two or
+  more deterministic dogfood fixture iterations with temp runner ledger paths.
+  It aggregates dogfood, metrics, browser-regression, and local-control
+  classification signals before any shrink candidate. The baseline keeps
+  `resume_latency` and `review_burden` as `insufficient_data` unless repeated
+  evidence is supplied, keeps local-control unknown/manual review as
+  `needs_review`, and keeps shrink gated. It adds no product route, API write
+  route, server action, chat composer, persistent Workplane mode, UI action
+  authority, product runner execution/tick/recovery/scheduled behavior,
+  provider/OpenAI/GitHub/Codex execution, product DB write, proof/evidence
+  write, durable memory apply, Perspective apply, delta auto-apply, native
+  absorption of local-write controls, or Legacy Cockpit deletion/shrink/hide.
 - `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`: Legacy Cockpit
   Shrink Plan v0.1 defines the future gate model for capability-by-capability
   compatibility reduction using Agent Workplane native surfaces, GuideBrief

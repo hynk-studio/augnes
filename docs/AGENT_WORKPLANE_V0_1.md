@@ -12,7 +12,7 @@ Dogfood v0.1, plus Legacy Cockpit Shrink Plan v0.1, plus Workplane Native
 Replacement Browser Regression v0.1, plus Agent Workplane Bridge Trace Detail
 v0.1, plus Agent Workplane Review / Memory Proposal Detail v0.1, plus Agent
 Workplane Run Postmortem Detail v0.1, plus Legacy Cockpit Local UI Control
-Classification v0.1.
+Classification v0.1, plus Augnes Dogfood Metrics Baseline v0.2.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -98,6 +98,18 @@ explicit script/smoke path; product `/workbench` render remains read-only and
 does not create runs, tick runs, recover DeltaBatches, write product DB state,
 add routes, add UI action controls, apply Perspective or durable memory,
 write proof/evidence, auto-apply deltas, or shrink/delete Legacy Cockpit.
+
+Augnes Dogfood Metrics Baseline v0.2 is documented in
+`docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md`. It repeats deterministic
+dogfood fixture iterations and aggregates dogfood, metrics, browser-regression,
+and local-control classification signals. It keeps product `/workbench` render
+read-only, uses temp runner ledger fixtures only in the explicit script/smoke
+path, keeps `resume_latency` and `review_burden` insufficient until repeated
+evidence exists, and does not add route, API write route, server action, chat
+composer, product UI action authority, runner execution/tick/recovery/
+scheduled behavior, provider/OpenAI/GitHub/Codex execution, product DB write,
+proof/evidence write, durable memory apply, Perspective apply, delta
+auto-apply, or Legacy Cockpit deletion, shrink, hiding, or disabling.
 
 Legacy Cockpit Shrink Plan v0.1 is documented in
 `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`. It is a planning

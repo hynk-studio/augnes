@@ -51,6 +51,13 @@ and unknown/manual-review buckets before any shrink candidate. Classification
 is evidence/signaling only, not shrink authority. Local-write controls require
 a separate authority contract before native absorption.
 
+Follow-on repeated dogfood/metrics baseline is documented in
+`docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md`. It repeats deterministic
+Augnes-on-Augnes dogfood fixture iterations and aggregates dogfood, metrics,
+browser-regression, and local-control classification signals before any shrink
+candidate. It is evidence/signaling only, not shrink authority. It does not
+delete, shrink, hide, disable, or weaken Legacy Cockpit compatibility content.
+
 ## 2. Why This Plan Exists
 
 Legacy Cockpit remains useful inside `/workbench` as a compatibility path while
