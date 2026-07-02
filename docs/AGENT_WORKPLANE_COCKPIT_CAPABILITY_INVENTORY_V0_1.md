@@ -24,6 +24,14 @@ Legacy Cockpit Shrink Plan. Metrics are signals, not deletion authority:
 runner DeltaBatch, stale/fallback, Cockpit absorption, and dogfood readiness
 without deleting or shrinking legacy Cockpit functionality.
 
+Legacy Cockpit Shrink Plan v0.1 is now documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`. It is a planning
+and gate-definition slice only. It uses this inventory as the capability
+baseline, but it does not delete, shrink, hide, remove, disable, or weaken any
+Legacy Cockpit functionality. Future deletion requires a separate PR after
+native replacement evidence, GuideBrief debug paths, metrics/dogfood evidence,
+browser regression, rollback rules, and explicit human approval exist.
+
 Allowed status values:
 
 - `native_complete`

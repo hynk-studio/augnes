@@ -254,6 +254,21 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   provider/OpenAI/GitHub/Codex execution, product DB write, proof/evidence
   write, durable memory apply, Perspective apply, delta auto-apply, or legacy
   Cockpit deletion/shrink.
+- `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`: Legacy Cockpit
+  Shrink Plan v0.1 defines the future gate model for capability-by-capability
+  compatibility reduction using Agent Workplane native surfaces, GuideBrief
+  debug paths, GuideBrief Intent Projection, Runner / Workplane Metrics, and
+  Augnes-on-Augnes Dogfood evidence. It adds
+  `scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs` and a
+  package script pointer only. It is a planning and gate-definition slice: no
+  Legacy Cockpit functionality is deleted or shrunk, no compatibility path is
+  removed, no UI behavior is changed, no route or API write route is added, no
+  server action or chat composer is added, no persistent Workplane mode or UI
+  action authority is added, no runner execution/tick/recovery/scheduled
+  behavior is added, no provider/OpenAI/GitHub/Codex execution is added, no
+  product DB write, proof/evidence write, durable memory apply, Perspective
+  apply, or delta auto-apply is added, and future deletion requires a separate
+  PR.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and

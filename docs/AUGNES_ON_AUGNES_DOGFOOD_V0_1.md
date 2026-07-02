@@ -36,6 +36,15 @@ The dogfood report recommends Legacy Cockpit Shrink Plan v0.1 only if dogfood
 and metrics indicate readiness. Otherwise it recommends another dogfood or
 metrics baseline PR.
 
+Follow-on status: Legacy Cockpit Shrink Plan v0.1 is now documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`. The #927 dogfood
+result did not provide a clean shrink go-signal: `cockpit_shrink_readiness`
+is `needs_review`, metrics Cockpit shrink readiness is `watch`, and
+`resume_latency` plus `review_burden` still need more baseline data. The
+shrink plan therefore defines gates and evidence requirements only. It does
+not delete, shrink, hide, remove, disable, or weaken Legacy Cockpit
+compatibility content.
+
 ## 4. What the Harness Does
 
 `lib/dogfood/augnes-on-augnes-dogfood.ts` supports two modes:
@@ -296,3 +305,9 @@ should verify:
 
 Recommended next phase: Legacy Cockpit Shrink Plan v0.1 if dogfood and metrics
 indicate readiness. Otherwise run another dogfood or metrics baseline PR.
+
+Follow-on recommendation: use
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md` for the gate model.
+If readiness remains `watch` / `needs_review`, run another dogfood/metrics
+baseline and a browser regression for native Workplane replacement before any
+actual shrink candidate. Dogfood reports are evidence, not shrink authority.

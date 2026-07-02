@@ -8,7 +8,7 @@ Phase 5D Agent Workplane Cleanup / Responsive Hardening, plus Agent Workplane
 Node / Panel Contract v0.1, Recovered Runner DeltaBatch Integration v0.1, and
 GuideBrief Workplane Debug Context v0.1, plus GuideBrief Intent Projection
 v0.1, plus Runner / Workplane Metrics v0.1, plus Longer Augnes-on-Augnes
-Dogfood v0.1.
+Dogfood v0.1, plus Legacy Cockpit Shrink Plan v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -95,6 +95,20 @@ does not create runs, tick runs, recover DeltaBatches, write product DB state,
 add routes, add UI action controls, apply Perspective or durable memory,
 write proof/evidence, auto-apply deltas, or shrink/delete Legacy Cockpit.
 
+Legacy Cockpit Shrink Plan v0.1 is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`. It is a planning
+and gate-definition slice only. It defines capability-by-capability shrink
+readiness, replacement evidence, GuideBrief debug paths, metric/dogfood
+signals, browser coverage, rollback requirements, and explicit future-removal
+gates. It deletes no Legacy Cockpit functionality, removes no compatibility
+path, changes no UI behavior, adds no route or API write route, adds no
+server action or chat composer, adds no persistent Workplane mode or UI action
+authority, adds no runner execution/tick/recovery/scheduled behavior, adds no
+provider/OpenAI/GitHub/Codex execution, adds no product DB write,
+proof/evidence write, durable memory apply, Perspective apply, or delta
+auto-apply. Metrics remain signals and dogfood remains evidence; neither is
+shrink authority.
+
 ## 2. Surface Model
 
 The route model remains:
@@ -132,6 +146,8 @@ Agent Workplane renders:
 - read-only Runner / Workplane Metrics signals for runner output, review
   burden, stale/fallback visibility, Cockpit absorption readiness, and dogfood
   readiness
+- Legacy Cockpit Shrink Plan v0.1 as a docs/smoke gate model for future
+  compatibility review, not as a deletion authority
 - local Augnes-on-Augnes Dogfood report generation through the explicit script
   path, not through product render
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,
@@ -426,6 +442,11 @@ Legacy Cockpit compatibility remains explicit through
 `compatibility_only` metadata. Legacy Cockpit must not be removed until native
 replacement and validation exist.
 
+Legacy Cockpit Shrink Plan v0.1 now records the future gate model for any
+candidate reduction in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`. The plan does not
+delete, shrink, hide, remove, disable, or weaken any compatibility content.
+
 ## 12. Smoke Plan
 
 `npm run smoke:agent-workplane-shell-v0-1` checks:
@@ -526,6 +547,21 @@ replacement and validation exist.
   write, scheduled behavior, provider/OpenAI/GitHub/Codex execution, DB write
   from Workplane reads, proof/evidence write, durable memory apply,
   Perspective apply, or delta auto-apply is introduced
+
+`npm run smoke:agent-workplane-legacy-cockpit-shrink-plan-v0-1` checks:
+
+- the Legacy Cockpit Shrink Plan doc exists and is linked from this Workplane
+  doc, the inventory, absorption map, metrics doc, dogfood doc, index, and
+  package script
+- required capability rows, allowed shrink readiness values, recommended
+  actions, shrink gates, DeltaBatch identity separation, and current
+  needs-review/watch readiness are documented
+- `LegacyCockpitCompatibilityPanel` and `AugnesCockpit` still exist and
+  `AgentWorkplane` still renders the compatibility panel
+- no product UI/runtime/type/data behavior files, routes, API write routes,
+  server actions, provider/OpenAI/GitHub/Codex paths, runner behavior, product
+  DB writes, proof/evidence writes, durable memory apply, Perspective apply,
+  delta auto-apply, or broad source deletion are added
 
 ## 13. Validation
 
