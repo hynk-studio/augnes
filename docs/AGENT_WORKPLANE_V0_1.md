@@ -7,7 +7,7 @@ Phase 5C Agent Workplane Projection / Handoff / Postmortem Skeletons, and
 Phase 5D Agent Workplane Cleanup / Responsive Hardening, plus Agent Workplane
 Node / Panel Contract v0.1, Recovered Runner DeltaBatch Integration v0.1, and
 GuideBrief Workplane Debug Context v0.1, plus GuideBrief Intent Projection
-v0.1.
+v0.1, plus Runner / Workplane Metrics v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -71,6 +71,17 @@ UI action authority, runner execution, runner recovery write, scheduled
 behavior, external authority, DB write, proof/evidence write, durable memory
 apply, Perspective apply, delta auto-apply, or legacy Cockpit deletion.
 
+Runner / Workplane Metrics v0.1 is documented in
+`docs/AUGNES_WORKFLOW_METRICS_V0_1.md`. `/workbench` now renders read-only
+metrics for runner output, Workplane review load, GuideBrief debug/intent
+projection coverage, stale/fallback visibility, Cockpit absorption readiness,
+and dogfood readiness. Metrics are signals, not execution authority or
+auto-apply decisions. They add no Legacy Cockpit shrink, route, API write
+route, server action, chat composer, persistent Workplane mode, UI action
+authority, runner execution, runner tick, runner recovery write, scheduled
+behavior, external authority, DB write, proof/evidence write, durable memory
+apply, Perspective apply, or delta auto-apply.
+
 ## 2. Surface Model
 
 The route model remains:
@@ -105,6 +116,9 @@ Agent Workplane renders:
   explanation
 - read-only GuideBrief Intent Projection panels for reversible view projection
   and draft candidate packets
+- read-only Runner / Workplane Metrics signals for runner output, review
+  burden, stale/fallback visibility, Cockpit absorption readiness, and dogfood
+  readiness
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,
   `data-workplane-node-kind`, and `data-workplane-node-status` metadata on key
   native panels and the legacy compatibility path

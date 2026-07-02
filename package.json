@@ -700,6 +700,7 @@
     "smoke:workplane-runner-deltabatch-integration-v0-1": "node scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs",
     "smoke:guide-workplane-debug-context-v0-1": "node scripts/smoke-guide-workplane-debug-context-v0-1.mjs",
     "smoke:guidebrief-intent-projection-v0-1": "node scripts/smoke-guidebrief-intent-projection-v0-1.mjs",
+    "smoke:runner-workplane-metrics-v0-1": "node scripts/smoke-runner-workplane-metrics-v0-1.mjs",
     "smoke:guide-brief-v0-1": "node scripts/smoke-guide-brief-v0-1.mjs",
     "smoke:guide-brief-route-v0-1": "node scripts/smoke-guide-brief-route-v0-1.mjs",
     "smoke:web-guide-panel-v0-1": "node scripts/smoke-web-guide-panel-v0-1.mjs",

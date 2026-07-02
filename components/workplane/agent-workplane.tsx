@@ -25,6 +25,7 @@ import { RunPostmortemSkeletonPanel } from "@/components/workplane/run-postmorte
 import { RunnerDeltaBatchPanel } from "@/components/workplane/runner-delta-batch-panel";
 import { TraceDiagnosticsPanel } from "@/components/workplane/trace-diagnostics-panel";
 import { WorkplaneIntentModePanel } from "@/components/workplane/workplane-intent-mode-panel";
+import { WorkplaneMetricsPanel } from "@/components/workplane/workplane-metrics-panel";
 import { WorkQueuePanel } from "@/components/workplane/work-queue-panel";
 import { WorkplaneHeader } from "@/components/workplane/workplane-header";
 import { WorkplaneInspector } from "@/components/workplane/workplane-inspector";
@@ -40,6 +41,7 @@ import {
   WORKPLANE_INTENT_PROJECTION_DEFAULT_INPUT,
 } from "@/lib/guide/workplane-intent-projection";
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
+import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
 import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-view-projection";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
 import { buildAgentWorkplaneNodeContextRead } from "@/lib/workplane/workplane-node-context";
@@ -151,6 +153,13 @@ export async function AgentWorkplane() {
     projection: workplaneIntentProjection,
     node_context_read: workplaneNodeContext,
   });
+  const workplaneMetrics = await readRunnerWorkplaneMetrics({
+    scope: "project:augnes",
+    workplane_context: context,
+    node_context_read: workplaneNodeContext,
+    debug_context: workplaneDebugContext,
+    intent_projection: workplaneIntentProjection,
+  });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -164,6 +173,7 @@ export async function AgentWorkplane() {
           projection={workplaneIntentProjection}
           projectedView={projectedWorkplaneView}
         />
+        <WorkplaneMetricsPanel metrics={workplaneMetrics} />
 
         <section aria-label="Agent Workplane layout" style={layoutStyle}>
           <section aria-label="Agent Workplane panels" style={panelGridStyle}>

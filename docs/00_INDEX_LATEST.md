@@ -220,6 +220,23 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   provider/OpenAI/GitHub/Codex execution, DB write, proof/evidence write,
   durable memory apply, Perspective apply, delta auto-apply, localStorage /
   sessionStorage durable mode, or legacy Cockpit deletion.
+- `docs/AUGNES_WORKFLOW_METRICS_V0_1.md`: Runner / Workplane Metrics v0.1
+  adds read-only metrics for runner output, Workplane review burden,
+  GuideBrief debug/intent projection coverage, stale/fallback visibility,
+  Cockpit absorption readiness, and Augnes-on-Augnes dogfood readiness. It
+  adds `types/augnes-workflow-metrics.ts`,
+  `lib/metrics/runner-workplane-metrics.ts`,
+  `components/workplane/workplane-metrics-panel.tsx`, and
+  `scripts/smoke-runner-workplane-metrics-v0-1.mjs`. Metrics distinguish
+  projected Delta Projection preview context from recovered runner DeltaBatch
+  ledger readback, return insufficient-data states instead of throwing, and
+  are signals only. They add no Legacy Cockpit deletion or shrink, no metrics
+  auto decision, no route, no API write route, no server action, no chat
+  composer, no persistent Workplane mode, no UI action authority, no runner
+  execution, no runner tick, no runner recovery write, no scheduled behavior,
+  no provider/OpenAI/GitHub/Codex execution, no DB write, no proof/evidence
+  write, no durable memory apply, no Perspective apply, and no delta
+  auto-apply.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and

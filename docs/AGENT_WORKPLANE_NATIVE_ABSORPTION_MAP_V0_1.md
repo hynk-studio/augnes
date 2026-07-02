@@ -15,6 +15,13 @@ memory apply, and no Perspective apply.
 Legacy Cockpit must not be removed until native replacement and validation
 exist.
 
+Runner / Workplane Metrics v0.1 is the read-only measurement layer before any
+Legacy Cockpit Shrink Plan. It is documented in
+`docs/AUGNES_WORKFLOW_METRICS_V0_1.md` and treats Cockpit absorption readiness
+as a signal only. It adds no Legacy Cockpit deletion, shrink, execution
+authority, runner behavior, DB write, proof/evidence write, durable memory
+apply, Perspective apply, or delta auto-apply.
+
 ## Baseline Native Absorption Map
 
 | legacy_capability | inventory_capability_id | native_target | retained_compatibility_path | absorption_status | validation_coverage | next_step |
