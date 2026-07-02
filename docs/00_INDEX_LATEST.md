@@ -186,6 +186,22 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   provider/OpenAI/GitHub/Codex execution, no DB write from Workplane reads, no
   proof/evidence write, no durable memory apply, no Perspective apply, no
   delta auto-apply, and no legacy Cockpit deletion.
+- `docs/GUIDEBRIEF_WORKPLANE_DEBUG_CONTEXT_V0_1.md`: GuideBrief Workplane
+  Debug Context v0.1 explains selected Agent Workplane panels, nodes, and refs
+  using stable Workplane node context. It adds
+  `types/guide-debug-context.ts`,
+  `lib/guide/guide-workplane-debug-context.ts`,
+  `components/guide/guide-workplane-debug-panel.tsx`, and
+  `scripts/smoke-guide-workplane-debug-context-v0-1.mjs`. It preserves
+  Observed/Inferred/Suggested/Needs user judgment separation, distinguishes
+  `delta_projection / perspective_delta`, `projected_delta_batch /
+  perspective_delta`, and `delta_batch / runner_delta_batch`, renders a
+  read-only `/workbench` debug panel, and adds no intent projection, Workplane
+  intent mode, route, API write route, server action, chat composer, UI action
+  authority, runner execution, runner recovery write, scheduled runner
+  behavior, provider/OpenAI/GitHub/Codex execution, DB write, proof/evidence
+  write, durable memory apply, Perspective apply, delta auto-apply, or legacy
+  Cockpit deletion.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and

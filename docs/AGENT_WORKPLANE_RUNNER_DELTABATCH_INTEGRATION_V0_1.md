@@ -223,12 +223,16 @@ Workplane reads are read-only:
 
 ## 12. GuideBrief Preparation
 
-GuideBrief Workplane Debug Context can later use the recovered runner
+GuideBrief Workplane Debug Context v0.1 now uses the recovered runner
 DeltaBatch node to explain runner-derived review candidates, source refs,
 validation status, fallback status, and authority boundaries.
 
-This slice does not implement GuideBrief debug behavior or intent projection.
-It only prepares a stable, read-only context source.
+This integration slice itself did not implement GuideBrief debug behavior or
+intent projection. The follow-on debug context remains read-only and adds no
+GuideBrief intent projection, runner execution, recovery write, scheduled
+runner behavior, provider/OpenAI/GitHub/Codex execution, DB write,
+proof/evidence write, durable memory apply, Perspective apply, or delta
+auto-apply.
 
 ## 13. Not Implemented Yet
 

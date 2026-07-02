@@ -3,15 +3,15 @@
 ## 1. Status and Scope
 
 Status: Phase 6E GuideBrief / Cross-Surface Guide Core, GET-only read route,
-Web Guide read-only panel skeleton, ChatGPT App/MCP read-only Guide tool, and
-Codex GuideBrief alignment v0.1.
+Web Guide read-only panel skeleton, ChatGPT App/MCP read-only Guide tool,
+Codex GuideBrief alignment v0.1, and GuideBrief Workplane Debug Context v0.1.
 
 Scope: Phase 6A contract, type, pure helper, public-safe fixture, static smoke,
 package script pointer, and latest-index pointer plus Phase 6B GET-only local
 read-only route composition plus Phase 6C read-only Web Guide panel rendering
 plus Phase 6D ChatGPT App/MCP read-only GuideBrief tool plus Phase 6E Codex
 GuideBrief alignment docs, skill guidance, smoke, package pointer, and
-latest-index pointer.
+latest-index pointer plus GuideBrief Workplane Debug Context v0.1.
 
 Phase 6A adds no route work, no UI work, no MCP/App tool work, no Codex Guide
 skill, no Handoff Capsule implementation, no Codex Launch Card, no DB schema or
@@ -58,6 +58,21 @@ It preserves Observed/Inferred/Suggested/Needs user judgment separation and
 source refs.
 It adds no Codex execution from Augnes, no GitHub/provider calls, and no Phase
 7 Handoff Capsule / Codex Launch Card behavior.
+
+GuideBrief Workplane Debug Context v0.1 is documented in
+`docs/GUIDEBRIEF_WORKPLANE_DEBUG_CONTEXT_V0_1.md`. It consumes Agent Workplane
+node context to explain selected Workplane panels, nodes, and refs while
+preserving Observed/Inferred/Suggested/Needs user judgment separation. It adds
+`types/guide-debug-context.ts`,
+`lib/guide/guide-workplane-debug-context.ts`,
+`components/guide/guide-workplane-debug-panel.tsx`, and
+`scripts/smoke-guide-workplane-debug-context-v0-1.mjs`. It adds no GuideBrief
+intent projection, no Workplane intent mode, no route, no API write route, no
+server action, no chat composer, no UI action authority, no runner execution,
+no runner recovery write, no scheduled runner behavior, no provider/OpenAI/
+GitHub/Codex execution, no DB write, no proof/evidence write, no durable memory
+apply, no Perspective apply, no delta auto-apply, and no legacy Cockpit
+deletion.
 
 GuideBrief is a read-only guide packet. It may observe, infer, suggest, and
 identify `needs_user_judgment`. It may not act.

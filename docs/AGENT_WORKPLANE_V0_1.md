@@ -5,7 +5,8 @@
 Status: Phase 5A Agent Workplane Shell, Phase 5B Agent Workplane Panels,
 Phase 5C Agent Workplane Projection / Handoff / Postmortem Skeletons, and
 Phase 5D Agent Workplane Cleanup / Responsive Hardening, plus Agent Workplane
-Node / Panel Contract v0.1 and Recovered Runner DeltaBatch Integration v0.1.
+Node / Panel Contract v0.1, Recovered Runner DeltaBatch Integration v0.1, and
+GuideBrief Workplane Debug Context v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -44,6 +45,17 @@ provider/OpenAI/GitHub/Codex execution, DB writes from Workplane reads,
 proof/evidence writes, durable memory apply, Perspective apply, delta
 auto-apply, or legacy Cockpit deletion.
 
+GuideBrief Workplane Debug Context v0.1 is documented in
+`docs/GUIDEBRIEF_WORKPLANE_DEBUG_CONTEXT_V0_1.md`. `/workbench` now renders a
+read-only GuideBrief debug panel for a deterministic default selection:
+`workplane_inspector / source_ref_bridge`. The helper can also distinguish
+`delta_projection / perspective_delta`, `projected_delta_batch /
+perspective_delta`, and `delta_batch / runner_delta_batch`. It preserves
+Observed/Inferred/Suggested/Needs user judgment separation and adds no
+GuideBrief intent projection, Workplane intent mode, route, write, execution,
+runner behavior, external authority, durable memory apply, Perspective apply,
+delta auto-apply, or legacy Cockpit deletion.
+
 ## 2. Surface Model
 
 The route model remains:
@@ -74,6 +86,8 @@ Agent Workplane renders:
   Builder preview, Run Postmortem, and Trace / Diagnostics
 - read-only recovered runner DeltaBatch review context when existing runner
   ledger readback is available
+- read-only GuideBrief Workplane Debug Context for selected panel/node/ref
+  explanation
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,
   `data-workplane-node-kind`, and `data-workplane-node-status` metadata on key
   native panels and the legacy compatibility path

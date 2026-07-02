@@ -44,6 +44,30 @@ const existingWorkplaneSmokeFiles = [
   "scripts/smoke-guide-brief-v0-1.mjs",
 ];
 
+const followOnGuideWorkplaneDebugContextFiles = [
+  "types/guide-debug-context.ts",
+  "lib/guide/guide-workplane-debug-context.ts",
+  "components/guide/guide-workplane-debug-panel.tsx",
+  "docs/GUIDEBRIEF_WORKPLANE_DEBUG_CONTEXT_V0_1.md",
+  "scripts/smoke-guide-workplane-debug-context-v0-1.mjs",
+  "components/workplane/agent-workplane.tsx",
+  "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+];
+
 const requiredFiles = [
   readerFile,
   panelFile,
@@ -64,6 +88,7 @@ const requiredFiles = [
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...existingWorkplaneSmokeFiles,
+  ...followOnGuideWorkplaneDebugContextFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);

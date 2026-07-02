@@ -160,6 +160,21 @@ const followOnWorkplaneRunnerDeltaBatchIntegrationFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const followOnGuideWorkplaneDebugContextFiles = [
+  "types/guide-debug-context.ts",
+  "lib/guide/guide-workplane-debug-context.ts",
+  "components/guide/guide-workplane-debug-panel.tsx",
+  "docs/GUIDEBRIEF_WORKPLANE_DEBUG_CONTEXT_V0_1.md",
+  "scripts/smoke-guide-workplane-debug-context-v0-1.mjs",
+  "components/workplane/agent-workplane.tsx",
+  "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const requiredFiles = [
   guideBriefDoc,
   guideBriefTypeFile,
@@ -252,6 +267,7 @@ const allowedChangedFiles = new Set([
   ...phase8fAutonomyContractCopyExportFiles,
   ...followOnAgentWorkplaneNodeContractFiles,
   ...followOnWorkplaneRunnerDeltaBatchIntegrationFiles,
+  ...followOnGuideWorkplaneDebugContextFiles,
 ]);
 for (const file of phase9aAutonomyRunnerPreflightFiles) {
   allowedChangedFiles.add(file);
@@ -922,7 +938,8 @@ function assertChangedFileBoundary() {
         phase9aAutonomyRunnerPreflightFiles.includes(file) ||
         phase8fAutonomyContractCopyExportFiles.includes(file) ||
         followOnAgentWorkplaneNodeContractFiles.includes(file) ||
-        followOnWorkplaneRunnerDeltaBatchIntegrationFiles.includes(file),
+        followOnWorkplaneRunnerDeltaBatchIntegrationFiles.includes(file) ||
+        followOnGuideWorkplaneDebugContextFiles.includes(file),
       `Phase 6A must not change UI files outside exact Phase 6C/7C/7F Web follow-on scope or exact Phase 8C/8F Autonomy Web preview files: ${file}`,
     );
     assert(

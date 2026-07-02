@@ -7,6 +7,7 @@ import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-polic
 import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
 import { AutonomyRunnerPreflightPreviewPanel } from "@/components/autonomy/autonomy-runner-preflight-preview-panel";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
+import { GuideWorkplaneDebugPanel } from "@/components/guide/guide-workplane-debug-panel";
 import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
 import { HandoffCopyExportPanel } from "@/components/handoff/handoff-copy-export-panel";
 import { HandoffCapsulePreviewPanel } from "@/components/handoff/handoff-capsule-preview-panel";
@@ -29,8 +30,13 @@ import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
 import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-contract-for-web";
 import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
+import {
+  buildGuideWorkplaneDebugContext,
+  GUIDE_WORKPLANE_DEBUG_DEFAULT_SELECTIONS,
+} from "@/lib/guide/guide-workplane-debug-context";
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
+import { buildAgentWorkplaneNodeContextRead } from "@/lib/workplane/workplane-node-context";
 import type { CSSProperties } from "react";
 
 const surfaceStyle: CSSProperties = {
@@ -119,6 +125,11 @@ export async function AgentWorkplane() {
     Promise.resolve(readAutonomyContractPreviewForWeb()),
     Promise.resolve(readAutonomyRunnerPreflightPreviewForWeb()),
   ]);
+  const workplaneNodeContext = buildAgentWorkplaneNodeContextRead(context);
+  const workplaneDebugContext = buildGuideWorkplaneDebugContext({
+    node_context_read: workplaneNodeContext,
+    selection: GUIDE_WORKPLANE_DEBUG_DEFAULT_SELECTIONS.workplane_inspector,
+  });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -126,6 +137,7 @@ export async function AgentWorkplane() {
         <WorkplaneHeader />
         <WorkplaneOverview context={context} />
         <GuideBriefMiniPanel guideBrief={guideBrief} variant="workbench" />
+        <GuideWorkplaneDebugPanel debugContext={workplaneDebugContext} />
 
         <section aria-label="Agent Workplane layout" style={layoutStyle}>
           <section aria-label="Agent Workplane panels" style={panelGridStyle}>
