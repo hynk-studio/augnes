@@ -31,6 +31,7 @@ const nodeContextHelperFile = "lib/workplane/workplane-node-context.ts";
 const browserRegressionHelperFile =
   "lib/workplane/workplane-browser-regression.ts";
 const augnesCockpitFile = "components/augnes-cockpit.tsx";
+const cockpitPageFile = "app/cockpit/page.tsx";
 const legacyCompatibilityPanelFile =
   "components/workplane/legacy-cockpit-compatibility-panel.tsx";
 
@@ -129,11 +130,18 @@ const existingSmokeAllowlistFiles = [
   "docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md",
   "docs/AUGNES_WORKFLOW_METRICS_V0_1.md",
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md",
   "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
   "docs/AGENT_WORKPLANE_V0_1.md",
   "docs/00_INDEX_LATEST.md",
   "package.json",
+  "app/cockpit/page.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
 
 ];
 
@@ -148,6 +156,7 @@ const allowedChangedFiles = [
 const requiredFiles = [
   ...bridgeTraceDetailSliceFiles,
   augnesCockpitFile,
+  cockpitPageFile,
   legacyCompatibilityPanelFile,
 ];
 
@@ -438,9 +447,13 @@ function assertWorkplaneIntegration() {
       "buildWorkplaneBridgeTraceDetailRead",
       "<SourceRefBridgeDetailPanel read={bridgeTraceDetail} />",
       "LegacyCockpitCompatibilityPanel",
-      "<AugnesCockpit />",
+      "<LegacyCockpitCompatibilityPanel />",
     ],
     { label: agentWorkplaneFile },
+  );
+  assert(
+    !agentWorkplaneText.includes("AugnesCockpit"),
+    "AgentWorkplane must not import or render AugnesCockpit after the route split",
   );
   assertContainsAll(
     nodeContextText,
@@ -546,7 +559,7 @@ function assertHelperAndRegressionBehavior() {
         <section data-workplane-panel-id="handoff_builder_preview" data-workplane-node-id="handoff_context">Handoff Builder preview</section>
         <section data-workplane-run-postmortem-detail-panel="v0.1"><section data-workplane-panel-id="run_postmortem" data-workplane-node-id="run_postmortem">Run Postmortem detail source-backed run postmortem run_id step refs event refs recovered DeltaBatch validation status source refs no runner execution no runner tick no DeltaBatch recovery no durable memory apply no Perspective apply legacy compatibility retained</section></section>
         <section data-workplane-panel-id="trace_diagnostics" data-workplane-node-id="trace_bridge">Trace Diagnostics validation summary diagnostic refs</section>
-        <section data-workplane-panel-id="legacy_cockpit_compatibility" data-workplane-node-id="legacy_cockpit_compatibility">Legacy Cockpit compatibility remains reachable</section>
+        <section data-workplane-panel-id="legacy_cockpit_compatibility" data-workplane-node-id="legacy_cockpit_compatibility" data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed" data-workplane-legacy-cockpit-route="/cockpit">Legacy Cockpit route split Legacy Cockpit full mount was removed from /workbench Full Legacy Cockpit remains reachable at /cockpit Native Agent Workplane remains primary</section>
       \`;
     }
 
@@ -575,15 +588,23 @@ function assertCompatibilityStillRendered() {
     agentWorkplaneText,
     [
       "LegacyCockpitCompatibilityPanel",
-      "<LegacyCockpitCompatibilityPanel>",
-      "<AugnesCockpit />",
-      "</LegacyCockpitCompatibilityPanel>",
+      "<LegacyCockpitCompatibilityPanel />",
     ],
     { label: agentWorkplaneFile },
   );
+  assert(
+    !agentWorkplaneText.includes("AugnesCockpit"),
+    "AgentWorkplane must not import or render AugnesCockpit after the route split",
+  );
   assertContainsAll(textByFile.get(legacyCompatibilityPanelFile), [
     'data-workplane-panel-id="legacy_cockpit_compatibility"',
-    "Legacy Cockpit remains reachable",
+    'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
+    'data-workplane-legacy-cockpit-route="/cockpit"',
+    "Legacy Cockpit full mount was removed from /workbench",
+  ]);
+  assertContainsAll(textByFile.get(cockpitPageFile), [
+    'import { AugnesCockpit } from "@/components/augnes-cockpit"',
+    "<AugnesCockpit />",
   ]);
   assert(textByFile.get(augnesCockpitFile).includes("export function AugnesCockpit"));
 }
@@ -591,6 +612,9 @@ function assertCompatibilityStillRendered() {
 function assertNoRouteOrAuthorityPathAdded() {
   const changedFiles = observedChangedFiles();
   for (const file of changedFiles) {
+    if (file === cockpitPageFile) {
+      continue;
+    }
     assert(!/^app\//.test(file), `No product route/page changes allowed: ${file}`);
     assert(!/^app\/api\//.test(file), `No API route changes allowed: ${file}`);
     assert(!/route\.(ts|tsx|js|jsx)$/.test(file), `No route file changes allowed: ${file}`);

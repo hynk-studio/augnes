@@ -2,17 +2,30 @@
 
 ## 1. Status And Scope
 
-Status: Legacy Cockpit Shrink Plan v0.1.
+Status: prior shrink gate plan; v0.1 shrink executed by route split.
 
-Scope: planning and gate definition only. This document defines how Augnes can
-later decide whether specific Legacy Cockpit compatibility content can be
-reduced after native Agent Workplane replacement, GuideBrief debug/intent
-projection support, Runner / Workplane Metrics, browser regression coverage,
-dogfood evidence, rollback rules, and explicit human approval exist.
+Scope: historical planning and gate context for the real Legacy Cockpit Shrink
+v0.1 implementation in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md`. This document defines
+how Augnes evaluates capability-by-capability compatibility reduction after
+native Agent Workplane replacement, GuideBrief debug/intent projection support,
+Runner / Workplane Metrics, browser regression coverage, dogfood evidence,
+rollback rules, and explicit human approval exist.
 
-This is not a deletion PR. No Legacy Cockpit functionality is deleted or
-shrunk in this PR. No compatibility path is removed in this PR. No UI behavior
-is changed in this PR. Future deletion requires a separate PR.
+Legacy Cockpit Shrink v0.1 is not a deletion PR. It removes the full
+`AugnesCockpit` mount from `/workbench` and preserves full Legacy Cockpit
+compatibility at `/cockpit`. No source component is deleted. Future absorption
+of retained local-write/manual/local-draft controls still requires a separate
+authority contract.
+
+The real shrink closes the previous plan-only gap:
+
+- the full `/workbench` compatibility island is removed;
+- `/workbench` keeps only a compact `LegacyCockpitCompatibilityPanel`
+  pointer/status panel;
+- `/cockpit` is the explicit retained compatibility path;
+- future work may further absorb local-write controls only after a separate
+  authority contract.
 
 Follow-on browser regression evidence is documented in
 `docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md`. That
@@ -69,12 +82,12 @@ absorption.
 
 ## 2. Why This Plan Exists
 
-Legacy Cockpit remains useful inside `/workbench` as a compatibility path while
-Agent Workplane absorbs native AI-operational surfaces. Native Workplane,
+Legacy Cockpit remained useful inside `/workbench` as a compatibility path
+while Agent Workplane absorbed native AI-operational surfaces. Native Workplane,
 GuideBrief Workplane Debug Context, GuideBrief Intent Projection, recovered
-runner DeltaBatch readback, Runner / Workplane Metrics, and Augnes-on-Augnes
-Dogfood now provide enough evidence sources to define a rigorous shrink review
-process.
+runner DeltaBatch readback, Runner / Workplane Metrics, Augnes-on-Augnes
+Dogfood, local-control classification, and control inventory provided enough
+evidence to execute the route split without deleting retained compatibility.
 
 The current evidence does not justify deleting or hiding compatibility content.
 The #927 dogfood signal was:
@@ -84,17 +97,19 @@ The #927 dogfood signal was:
 - `resume_latency` still needs repeated baseline data
 - `review_burden` still needs repeated baseline data
 
-Therefore this plan records gates, capability-level decisions, required native
-replacement evidence, smoke/browser checks, and rollback requirements. It does
-not remove anything.
+Therefore this plan now records the gates and capability-level context behind
+the executed route split. It remains historical gate context; the current
+implementation record is
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md`.
 
 ## 3. Current Compatibility And Native Absorption State
 
-Legacy Cockpit is currently preserved inside `/workbench` through
-`LegacyCockpitCompatibilityPanel`, which mounts `AugnesCockpit`. The retained
-compatibility path exposes useful Work Brief, Handoff, Perspective, Bridge,
-Operator, work/run, source/ref, review/memory proposal, validation/smoke, and
-local UI control context while native Workplane surfaces mature.
+Legacy Cockpit is now preserved through the explicit `/cockpit` compatibility
+route. `/workbench` renders `LegacyCockpitCompatibilityPanel` as a compact
+pointer/status panel instead of mounting `AugnesCockpit`. The retained
+compatibility route exposes detailed legacy local UI controls, local-write/
+manual/local-draft controls, and any controls that still require a separate
+authority contract while native Workplane surfaces continue to mature.
 
 Native absorption is partial:
 
@@ -115,8 +130,11 @@ Native absorption is partial:
 
 ## 4. Shrink Readiness Summary
 
-Current shrink readiness is not a blanket go-signal yet. Compatibility remains
-the default for every useful capability until all applicable gates pass.
+Current shrink readiness is not a blanket deletion signal. The v0.1 route split
+is allowed because full compatibility remains reachable at `/cockpit` and no
+source component is deleted. Compatibility remains the default for retained
+local-write/manual/local-draft controls until all applicable native authority
+contracts and gates pass.
 
 Allowed `shrink_readiness` values:
 
@@ -142,8 +160,9 @@ Allowed `recommended_action` values:
 ## 5. Shrink Gate Model
 
 Gate 0: compatibility path present.
-`LegacyCockpitCompatibilityPanel` remains rendered and `AugnesCockpit` remains
-present before any shrink discussion.
+`LegacyCockpitCompatibilityPanel` remains rendered in `/workbench`,
+`AugnesCockpit` remains present in source, and full Legacy Cockpit remains
+reachable at `/cockpit`.
 
 Gate 1: native replacement exists.
 The capability has a native panel/node or documented native replacement with
@@ -346,10 +365,11 @@ runner DeltaBatch ledger readback.
 
 ## 15. Rollback And Compatibility Restore Requirements
 
-Any future shrink PR must include a rollback plan:
+The v0.1 route split rollback plan is route-based:
 
-- restore `LegacyCockpitCompatibilityPanel` rendering without route or DB
-  migration;
+- restore `AugnesCockpit` under `LegacyCockpitCompatibilityPanel` from git
+  history if review finds useful capability loss;
+- keep `/cockpit` available as the explicit retained compatibility path;
 - restore the capability-specific Cockpit surface from git history if browser
   or dogfood regression shows useful capability loss;
 - keep compatibility markers and source refs visible during the candidate
@@ -363,14 +383,16 @@ Any future shrink PR must include a rollback plan:
 
 ## 16. Authority Boundary
 
-This PR adds:
+Legacy Cockpit Shrink v0.1 adds:
 
+- route split only
 - no Legacy Cockpit deletion
-- no Legacy Cockpit shrink
-- no hiding of Cockpit content
+- no source component deletion
+- no hiding of retained Cockpit compatibility
 - no removal of compatibility path
-- no UI behavior change
-- no route
+- `/workbench` no longer mounts full `AugnesCockpit`
+- `/workbench` keeps compact compatibility pointer/status only
+- `/cockpit` preserves the full Legacy Cockpit compatibility route
 - no API write route
 - no server action
 - no chat composer
@@ -378,7 +400,7 @@ This PR adds:
 - no apply/approve/reject control
 - no provider/OpenAI call
 - no GitHub call or actuation
-- no Codex launch, branch creation, PR creation, merge, publish, retry, replay, or deploy
+- no Codex launch or product-side branch creation, PR creation, merge, publish, retry, replay, or deploy
 - no runner execution
 - no runner tick
 - no runner recovery write
@@ -392,15 +414,27 @@ This PR adds:
 - no new local-write product controls
 
 Metrics are signals, not shrink authority. Dogfood reports are evidence, not
-shrink authority. Future deletion requires a separate PR.
+merge or deletion authority. Future native absorption of retained local-write
+controls requires a separate authority contract.
 
 ## 17. Smoke And Browser Coverage For This Plan
 
 `npm run smoke:agent-workplane-legacy-cockpit-shrink-plan-v0-1` verifies this
 document, backlinks, required capability fields, allowed values, gate model,
-compatibility retention, no product UI behavior file changes, no route/API
-write/server action additions, no external/product write authority additions,
-and DeltaBatch identity separation.
+route-split compatibility retention, no API write/server action additions, no
+external/product write authority additions, and DeltaBatch identity separation.
+
+`npm run smoke:agent-workplane-legacy-cockpit-shrink-v0-1` verifies the real
+shrink implementation:
+
+- `components/workplane/agent-workplane.tsx` no longer imports or renders
+  `AugnesCockpit`.
+- `components/workplane/legacy-cockpit-compatibility-panel.tsx` is a compact
+  pointer/status panel with
+  `data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"` and
+  `data-workplane-legacy-cockpit-route="/cockpit"`.
+- `app/cockpit/page.tsx` imports and renders `AugnesCockpit`.
+- `components/augnes-cockpit.tsx` remains present.
 
 Browser or server-rendered HTML sanity should verify `/workbench` still
 returns 200 and exposes:
@@ -413,7 +447,10 @@ returns 200 and exposes:
 - `data-workplane-panel-id="projected_delta_batch"`
 - `data-workplane-panel-id="delta_batch"`
 - `data-workplane-panel-id="legacy_cockpit_compatibility"`
-- visible Legacy Cockpit compatibility content
+- `data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"`
+- `data-workplane-legacy-cockpit-route="/cockpit"`
+- no full six-tab Cockpit shell inside `/workbench`
+- visible Legacy Cockpit compatibility pointer content
 
 If Turbopack panic messages appear while `/workbench` still serves 200, the PR
 must report the caveat. If `/workbench` does not serve 200, shrink planning is
@@ -435,8 +472,9 @@ The next review should ask:
 
 ## 19. Recommended Next Phase
 
-Recommended next phase: Browser Regression for Native Workplane Replacement
-v0.1 if shrink readiness remains `watch` / `needs_review`.
+Recommended next phase: operate with the route split and review retained
+local-write/manual/local-draft controls for possible native absorption only
+under a separate authority contract.
 
 Follow-on status: Workplane Native Replacement Browser Regression v0.1 is now
 documented in
@@ -446,10 +484,11 @@ dogfood, metrics, capability absorption, rollback, and explicit human review.
 It does not delete, shrink, hide, remove, disable, or weaken any Legacy
 Cockpit content.
 
-The shrink plan recommends Legacy Cockpit removal only in a future dedicated
-removal PR, another dogfood/metrics baseline if readiness remains `watch` /
-`needs_review`, and browser regression before any actual shrink.
+The shrink plan now treats `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md`
+as the real v0.1 shrink record. Further removal or native absorption remains
+separate work.
 
-Only if all gates are satisfied should Augnes consider Legacy Cockpit Shrink
-Candidate v0.1, and even then no automatic deletion is allowed. The removal
-decision must be reviewed in a separate PR.
+Only if all gates are satisfied should Augnes consider removing retained
+compatibility or absorbing local-write controls natively, and even then no
+automatic deletion is allowed. The removal or authority decision must be
+reviewed in a separate PR.

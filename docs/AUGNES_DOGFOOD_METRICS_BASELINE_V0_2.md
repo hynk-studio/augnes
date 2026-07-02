@@ -6,9 +6,11 @@ Scope: local harness, aggregate report, docs, package scripts, and smoke only.
 This is not a Legacy Cockpit deletion PR, not a shrink candidate PR, and not an
 authority expansion PR.
 
-No Legacy Cockpit functionality is deleted, shrunk, hidden, or disabled.
-Compatibility path remains rendered through `LegacyCockpitCompatibilityPanel`
-wrapping `AugnesCockpit`. Future deletion requires a separate PR.
+No Legacy Cockpit functionality is deleted, hidden, or disabled. Legacy
+Cockpit Shrink v0.1 moved the full Cockpit from the `/workbench`
+compatibility island to the explicit `/cockpit` compatibility route. Future
+native absorption of retained local-write/manual controls requires a separate
+authority contract.
 
 Baseline reports are evidence/signals, not shrink authority. Browser
 regression, metrics, dogfood, and classification are evidence/signals, not
@@ -91,10 +93,10 @@ fixtures using existing runner/dogfood helpers.
 The baseline does not add product UI action authority.
 
 - no Legacy Cockpit deletion
-- no Legacy Cockpit shrink
-- no hiding of Cockpit content
+- no source component deletion
+- no hiding of retained Cockpit compatibility
 - no compatibility path removal
-- no product route is added
+- no product route beyond the explicit `/cockpit` compatibility route
 - no API write route is added
 - no server action is added
 - no chat composer is added

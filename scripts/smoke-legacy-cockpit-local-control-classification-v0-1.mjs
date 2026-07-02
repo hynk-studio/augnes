@@ -29,12 +29,14 @@ const absorptionMapDoc =
   "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md";
 const shrinkPlanDoc =
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md";
+const shrinkDoc = "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md";
 const browserRegressionDoc =
   "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md";
 const runPostmortemDoc =
   "docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
 const augnesCockpitFile = "components/augnes-cockpit.tsx";
+const cockpitPageFile = "app/cockpit/page.tsx";
 const legacyCompatibilityPanelFile =
   "components/workplane/legacy-cockpit-compatibility-panel.tsx";
 
@@ -46,6 +48,7 @@ const classificationSliceFiles = [
   inventoryDoc,
   absorptionMapDoc,
   shrinkPlanDoc,
+  shrinkDoc,
   browserRegressionDoc,
   agentWorkplaneDoc,
   runPostmortemDoc,
@@ -97,12 +100,19 @@ const existingSmokeAllowlistFiles = [
 const allowedChangedFiles = [
   ...classificationSliceFiles,
   ...existingSmokeAllowlistFiles,
+  cockpitPageFile,
+  agentWorkplaneFile,
+  legacyCompatibilityPanelFile,
+  "lib/workplane/workplane-browser-regression.ts",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
 ];
 
 const requiredFiles = [
   ...classificationSliceFiles,
   agentWorkplaneFile,
   augnesCockpitFile,
+  cockpitPageFile,
   legacyCompatibilityPanelFile,
 ];
 
@@ -265,6 +275,7 @@ const browserRegressionDocText = textByFile.get(browserRegressionDoc);
 const runPostmortemDocText = textByFile.get(runPostmortemDoc);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
 const augnesCockpitText = textByFile.get(augnesCockpitFile);
+const cockpitPageText = textByFile.get(cockpitPageFile);
 const legacyCompatibilityPanelText = textByFile.get(
   legacyCompatibilityPanelFile,
 );
@@ -530,13 +541,19 @@ function assertHelperBehavior() {
 function assertLegacyCompatibilityStillRendered() {
   assertContainsAll(agentWorkplaneText, [
     "LegacyCockpitCompatibilityPanel",
-    "<LegacyCockpitCompatibilityPanel>",
-    "<AugnesCockpit />",
-    "</LegacyCockpitCompatibilityPanel>",
+    "<LegacyCockpitCompatibilityPanel />",
+    "Agent Workplane shrunk compatibility route",
   ]);
+  assert(!agentWorkplaneText.includes("AugnesCockpit"), `${agentWorkplaneFile} must not import or render AugnesCockpit after the route split`);
   assertContainsAll(legacyCompatibilityPanelText, [
     'data-workplane-panel-id="legacy_cockpit_compatibility"',
-    "Legacy Cockpit remains reachable",
+    'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
+    'data-workplane-legacy-cockpit-route="/cockpit"',
+    "Legacy Cockpit full mount was removed from /workbench",
+  ]);
+  assertContainsAll(cockpitPageText, [
+    'import { AugnesCockpit } from "@/components/augnes-cockpit"',
+    "<AugnesCockpit />",
   ]);
   assert(augnesCockpitText.includes("export function AugnesCockpit"));
 }
@@ -545,12 +562,13 @@ function assertNoProductBehaviorFileChanges() {
   const changedFiles = observedChangedFiles();
   const forbiddenExact = new Set([
     "components/augnes-cockpit.tsx",
-    "components/workplane/legacy-cockpit-compatibility-panel.tsx",
-    "components/workplane/agent-workplane.tsx",
   ]);
   for (const file of changedFiles) {
     assert(!forbiddenExact.has(file), `No product UI behavior file changes allowed: ${file}`);
-    assert(!file.startsWith("app/"), `No route or product app file changes allowed: ${file}`);
+    assert(
+      file === cockpitPageFile || !file.startsWith("app/"),
+      `No route or product app file changes allowed outside /cockpit: ${file}`,
+    );
     assert(!file.startsWith("db/"), `No DB file changes allowed: ${file}`);
     assert(!file.startsWith("migrations/"), `No migration changes allowed: ${file}`);
   }
@@ -559,7 +577,10 @@ function assertNoProductBehaviorFileChanges() {
 function assertNoRouteOrAuthorityPathAdded() {
   const changedFiles = observedChangedFiles();
   for (const file of changedFiles) {
-    assert(!/route\.(ts|tsx|js|jsx)$/.test(file), `No route file changes allowed: ${file}`);
+    assert(
+      file === cockpitPageFile || !/route\.(ts|tsx|js|jsx)$/.test(file),
+      `No route file changes allowed outside /cockpit: ${file}`,
+    );
     assert(!file.startsWith("app/api/"), `No API route changes allowed: ${file}`);
   }
 

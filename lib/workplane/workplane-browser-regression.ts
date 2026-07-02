@@ -52,6 +52,17 @@ export const WORKPLANE_BROWSER_REGRESSION_REQUIRED_MARKERS: RequiredMarker[] = [
   panelMarker("trace_diagnostics", "native_replacement"),
   panelMarker("legacy_cockpit_compatibility", "legacy_cockpit_compatibility"),
   {
+    check_id: "legacy_cockpit_shrink_marker",
+    surface: "legacy_cockpit_compatibility",
+    marker:
+      'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
+  },
+  {
+    check_id: "legacy_cockpit_route_marker",
+    surface: "legacy_cockpit_compatibility",
+    marker: 'data-workplane-legacy-cockpit-route="/cockpit"',
+  },
+  {
     check_id: "guidebrief_debug_panel_marker",
     surface: "guidebrief_debug",
     marker: 'data-guide-workplane-debug-panel="v0.1"',
@@ -97,7 +108,9 @@ export const WORKPLANE_BROWSER_REGRESSION_DELTABATCH_IDENTITY_CHECKS: IdentityCh
 
 export const WORKPLANE_BROWSER_REGRESSION_REQUIRED_SECTION_TEXT = [
   "Agent Workplane",
-  "Legacy Cockpit compatibility",
+  "Legacy Cockpit route split",
+  "Legacy Cockpit full mount was removed from /workbench",
+  "Full Legacy Cockpit remains reachable at /cockpit",
   "GuideBrief Workplane Debug Context",
   "GuideBrief Intent Projection",
   "Workplane Intent Mode",
@@ -273,9 +286,12 @@ export const WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS: CapabilityDefinitio
     {
       capability_id: "local_ui_controls",
       legacy_surface: "Useful legacy Cockpit local UI controls",
-      native_markers: ['data-workplane-panel-id="legacy_cockpit_compatibility"'],
+      native_markers: [
+        'data-workplane-panel-id="legacy_cockpit_compatibility"',
+        'data-workplane-legacy-cockpit-route="/cockpit"',
+      ],
       recommended_next_check:
-        "Retain compatibility; classify local controls in a separate authority contract.",
+        "Retain full local controls at /cockpit; classify native absorption in a separate authority contract.",
       status_when_present: "needs_review",
     },
   ];
@@ -303,6 +319,14 @@ export const WORKPLANE_BROWSER_REGRESSION_NO_CONTROL_SEGMENT_MARKERS = [
 
 const LEGACY_COMPATIBILITY_MARKER =
   'data-workplane-panel-id="legacy_cockpit_compatibility"';
+const LEGACY_SHRINK_MARKER =
+  'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"';
+const LEGACY_ROUTE_MARKER = 'data-workplane-legacy-cockpit-route="/cockpit"';
+const FULL_COCKPIT_SHELL_MARKERS = [
+  "six-tab-cockpit",
+  'className="six-tab-cockpit"',
+  'class="six-tab-cockpit"',
+] as const;
 
 const DEFAULT_AUTHORITY_BOUNDARY: WorkplaneBrowserRegressionAuthorityBoundary = {
   can_delete_legacy_cockpit: false,
@@ -364,9 +388,13 @@ export function buildWorkplaneBrowserRegressionReport(
     WORKPLANE_BROWSER_REGRESSION_DELTABATCH_IDENTITY_CHECKS.map((identity) =>
       identityMarkerCheck(identity, html),
     );
-  const legacyCompatibilityStatus = hasMarker(html, LEGACY_COMPATIBILITY_MARKER)
-    ? "passed"
-    : "blocked";
+  const legacyCompatibilityStatus =
+    hasMarker(html, LEGACY_COMPATIBILITY_MARKER) &&
+    hasMarker(html, LEGACY_SHRINK_MARKER) &&
+    hasMarker(html, LEGACY_ROUTE_MARKER) &&
+    !hasFullCockpitShell(html)
+      ? "passed"
+      : "blocked";
   const capabilityChecks = WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS.map(
     (definition) => capabilityCheck(definition, html, legacyCompatibilityStatus),
   );
@@ -468,7 +496,7 @@ function markerCheck(
   html: string,
 ): WorkplaneBrowserRegressionMarkerCheck {
   const found = hasMarker(html, required.marker);
-  const isLegacy = required.marker === LEGACY_COMPATIBILITY_MARKER;
+  const isLegacy = required.surface === "legacy_cockpit_compatibility";
   return {
     check_id: required.check_id,
     surface: required.surface,
@@ -768,6 +796,10 @@ function segmentForMarker(html: string, marker: string): string {
 
 function hasMarker(html: string, marker: string): boolean {
   return html.toLowerCase().includes(marker.toLowerCase());
+}
+
+function hasFullCockpitShell(html: string): boolean {
+  return FULL_COCKPIT_SHELL_MARKERS.some((marker) => hasMarker(html, marker));
 }
 
 function normalizeHtml(html: string): string {

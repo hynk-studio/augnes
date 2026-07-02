@@ -25,6 +25,7 @@ const classificationDoc =
 const baselineDoc = "docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md";
 const shrinkPlanDoc =
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md";
+const shrinkDoc = "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md";
 const browserRegressionDoc =
   "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md";
 const agentWorkplaneDoc = "docs/AGENT_WORKPLANE_V0_1.md";
@@ -34,6 +35,7 @@ const dogfoodDoc = "docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md";
 const metricsDoc = "docs/AUGNES_WORKFLOW_METRICS_V0_1.md";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
 const augnesCockpitFile = "components/augnes-cockpit.tsx";
+const cockpitPageFile = "app/cockpit/page.tsx";
 const legacyCompatibilityPanelFile =
   "components/workplane/legacy-cockpit-compatibility-panel.tsx";
 
@@ -47,6 +49,7 @@ const inventorySliceFiles = [
   classificationDoc,
   baselineDoc,
   shrinkPlanDoc,
+  shrinkDoc,
   browserRegressionDoc,
   agentWorkplaneDoc,
   reviewMemoryDoc,
@@ -70,6 +73,18 @@ const existingSmokeAllowlistFiles = [
 const allowedChangedFiles = new Set([
   ...inventorySliceFiles,
   ...existingSmokeAllowlistFiles,
+  cockpitPageFile,
+  agentWorkplaneFile,
+  legacyCompatibilityPanelFile,
+  "lib/workplane/workplane-browser-regression.ts",
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
 ]);
 
 const requiredFiles = [
@@ -233,10 +248,10 @@ function assertDocsAndPointers() {
   assertContainsAll(docText, [
     "unknown local UI control blocker",
     "proposal diff readiness preflight",
-    "No Legacy Cockpit functionality is deleted, shrunk, hidden, disabled, or absorbed",
-    "Compatibility path remains rendered",
-    "Future deletion requires a separate PR",
-    "no product route",
+    "No Legacy Cockpit functionality was deleted, hidden, disabled, or absorbed",
+    "moved the full Cockpit from the `/workbench` compatibility island to the explicit `/cockpit` compatibility route",
+    "Future native absorption of retained local-write/manual controls requires a separate authority contract",
+    "no product route beyond the explicit `/cockpit` compatibility route",
     "no API write route",
     "no server action",
     "no chat composer",
@@ -323,7 +338,7 @@ function assertHelperBehavior() {
         const evidenceReport = buildLegacyCockpitControlInventoryReport({
           as_of: "2026-07-03T00:00:00.000Z",
           workbench_html: html,
-          source_text: "export function AugnesCockpit() {} <LegacyCockpitCompatibilityPanel><AugnesCockpit /></LegacyCockpitCompatibilityPanel>",
+          source_text: "app/cockpit/page.tsx imports AugnesCockpit and renders <AugnesCockpit />; agent-workplane.tsx renders <LegacyCockpitCompatibilityPanel />",
           proposal_diff_source_text: proposalDiffSource,
           proposal_diff_evidence_refs: ["docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md"],
         });
@@ -400,15 +415,17 @@ function buildServerRenderedWorkbenchFixture() {
     <!doctype html>
     <html>
       <body>
-        <section aria-label="Agent Workplane active compatibility content">
+        <section aria-label="Retained Legacy Cockpit compatibility route">
           <section
             data-workplane-panel-id="legacy_cockpit_compatibility"
             data-workplane-node-id="legacy_cockpit_compatibility"
             data-workplane-node-kind="compatibility_panel"
             data-workplane-node-status="compatibility_only"
+            data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"
+            data-workplane-legacy-cockpit-route="/cockpit"
           >
-            <p>Existing Cockpit compatibility content</p>
-            <h2>Legacy Cockpit remains reachable</h2>
+            <p>Full Legacy Cockpit remains reachable at /cockpit.</p>
+            <h2>Retained Legacy Cockpit route</h2>
             <main class="cockpit-shell six-tab-cockpit">
               <nav class="cockpit-tab-nav" aria-label="Cockpit tabs">
                 <button type="button">Overview</button>
@@ -448,13 +465,15 @@ function assertCompatibilityStillRendered() {
   );
   assertContainsAll(agentWorkplaneText, [
     "LegacyCockpitCompatibilityPanel",
-    "<LegacyCockpitCompatibilityPanel>",
-    "<AugnesCockpit />",
-    "</LegacyCockpitCompatibilityPanel>",
+    "<LegacyCockpitCompatibilityPanel />",
+    "Agent Workplane shrunk compatibility route",
   ]);
+  assert(!agentWorkplaneText.includes("AugnesCockpit"), `${agentWorkplaneFile} must not import or render AugnesCockpit after the route split`);
   assertContainsAll(legacyCompatibilityPanelText, [
     'data-workplane-panel-id="legacy_cockpit_compatibility"',
-    "Legacy Cockpit remains reachable",
+    'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
+    'data-workplane-legacy-cockpit-route="/cockpit"',
+    "Legacy Cockpit full mount was removed from /workbench",
   ]);
   assert(augnesCockpitText.includes("export function AugnesCockpit"));
 }
@@ -484,6 +503,9 @@ function assertNoSourceDeletion() {
 
 function assertNoRouteOrAuthorityPathAdded() {
   for (const file of changedAndUntrackedFiles()) {
+    if (file === cockpitPageFile) {
+      continue;
+    }
     assert(!/^app\//.test(file), `No product route/page changes allowed: ${file}`);
     assert(!/^app\/api\//.test(file), `No API route changes allowed: ${file}`);
     assert(!/route\.(ts|tsx|js|jsx)$/.test(file), `No route file changes allowed: ${file}`);
@@ -511,11 +533,14 @@ function assertNoRouteOrAuthorityPathAdded() {
 
 function assertNoProductComponentBehaviorFilesChanged() {
   const changedFiles = changedAndUntrackedFiles();
-  assert(!changedFiles.includes(agentWorkplaneFile), "agent-workplane.tsx must not change");
+  assert(
+    changedFiles.includes(agentWorkplaneFile),
+    "agent-workplane.tsx must change for the route split shrink",
+  );
   assert(!changedFiles.includes(augnesCockpitFile), "AugnesCockpit must not change");
   assert(
-    !changedFiles.includes(legacyCompatibilityPanelFile),
-    "legacy compatibility panel must not change",
+    changedFiles.includes(legacyCompatibilityPanelFile),
+    "legacy compatibility panel must change into the compact route pointer",
   );
 }
 
@@ -524,8 +549,9 @@ function assertNoLegacyCockpitDeletionOrShrink() {
     "can_delete_legacy_cockpit",
     "can_shrink_legacy_cockpit",
     "can_hide_legacy_cockpit",
-    "Future deletion requires a separate PR",
-    "Compatibility path remains rendered",
+    "Legacy Cockpit functionality was deleted, hidden, disabled, or absorbed",
+    "explicit `/cockpit` compatibility route",
+    "Full Legacy Cockpit remains reachable at /cockpit",
   ]);
 }
 
