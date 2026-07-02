@@ -1,0 +1,122 @@
+{
+  "fixture_version": "autonomy_runner.sample.v0.1",
+  "runner_version": "autonomy_runner_execution.v0.1",
+  "batch_version": "autonomy_runner_delta_batch.v0.1",
+  "scope": "project:augnes",
+  "as_of": "2026-07-02T00:00:00.000Z",
+  "required_public_statuses": [
+    "planned",
+    "running",
+    "paused",
+    "blocked",
+    "completed",
+    "needs_review",
+    "cancelled"
+  ],
+  "allowed_internal_statuses": [
+    "created",
+    "scheduled",
+    "failed",
+    "stopped",
+    "cancel_requested"
+  ],
+  "valid_create_input": {
+    "run_id": "autonomy_run.fixture.phase9.v0_1",
+    "scope": "project:augnes",
+    "autonomy_contract_ref": "autonomy_contract.fixture.phase8a.v0_1",
+    "title": "Fixture local autonomy runner execution",
+    "status": "planned",
+    "scheduled_for": null,
+    "created_at": "2026-07-02T00:00:00.000Z",
+    "budget_snapshot": {
+      "budget_id": "autonomy_runner_budget.fixture.v0_1",
+      "max_iterations": 4
+    },
+    "source_refs": {
+      "autonomy_contract_refs": [
+        "autonomy_contract.fixture.phase8a.v0_1"
+      ],
+      "preflight_refs": [
+        "autonomy_runner_preflight.fixture.phase9a.v0_1"
+      ],
+      "docs_refs": [
+        "docs/AUTONOMY_RUNNER_EXECUTION_V0_1.md"
+      ],
+      "repo_refs": [
+        "hynk-studio/augnes"
+      ]
+    }
+  },
+  "scheduled_due_input": {
+    "run_id": "autonomy_run.fixture.scheduled_due.v0_1",
+    "scope": "project:augnes",
+    "autonomy_contract_ref": "autonomy_contract.fixture.phase8a.v0_1",
+    "title": "Fixture scheduled due autonomy runner execution",
+    "status": "scheduled",
+    "scheduled_for": "2026-07-02T00:00:00.000Z",
+    "created_at": "2026-07-01T23:59:00.000Z",
+    "planned_steps": [
+      {
+        "step_id": "autonomy_run.fixture.scheduled_due.v0_1.step.1",
+        "action_kind": "summarize_current_autonomy_context",
+        "title": "Summarize current autonomy context",
+        "summary": "Single safe deterministic scheduled-run step."
+      }
+    ]
+  },
+  "expected_delta_types": [
+    "coordination_delta",
+    "validation_delta",
+    "agent_plan_delta",
+    "handoff_delta"
+  ],
+  "expected_delta_batch_fields": [
+    "batch_id",
+    "run_id",
+    "batch_version",
+    "status",
+    "title",
+    "summary",
+    "created_at",
+    "delta_count",
+    "deltas",
+    "source_refs",
+    "validation",
+    "authority_boundary"
+  ],
+  "forbidden_actions": [
+    "provider/OpenAI calls",
+    "GitHub API calls",
+    "Codex execution",
+    "branch creation from Augnes product code",
+    "PR creation from Augnes product code",
+    "external posting",
+    "publish",
+    "deploy",
+    "merge",
+    "proof/evidence writes",
+    "durable Perspective apply",
+    "durable memory mutation",
+    "hidden daemon auto-start",
+    "auto-apply outside Autonomy Contract"
+  ],
+  "invariants": [
+    "Delta is not source of truth; it is a projection/change unit.",
+    "Research diagnostics are not authority.",
+    "Evidence pointer is not evidence write.",
+    "PR is not merge authority.",
+    "Guide suggestion is not user decision.",
+    "Delta outside an Autonomy Contract boundary cannot be auto_applied.",
+    "Durable memory follows a separate merge policy.",
+    "Stale snapshot based handoff must include a warning.",
+    "Autonomy Run is an execution record, not an approval record.",
+    "Runner ledger is not a proof/evidence ledger.",
+    "Scheduled run is processed only when the local runner process is explicitly started.",
+    "Watch mode does not start from import side effects.",
+    "DeltaBatch recovery is not durable Perspective apply.",
+    "DeltaBatch recovery is not memory mutation.",
+    "Cancelled run does not execute additional steps.",
+    "Paused run does not progress on tick.",
+    "Contract-forbidden action is never executed as a runner step."
+  ]
+}

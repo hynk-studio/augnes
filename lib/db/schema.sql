@@ -219,6 +219,88 @@ CREATE TABLE IF NOT EXISTS work_events (
 CREATE INDEX IF NOT EXISTS idx_work_events_scope_work_time
   ON work_events(scope, work_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS autonomy_runs (
+  run_id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL,
+  autonomy_contract_ref TEXT,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL,
+  scheduled_for TEXT,
+  started_at TEXT,
+  finished_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  stop_reason TEXT,
+  source_refs_json TEXT NOT NULL,
+  authority_boundary_json TEXT NOT NULL,
+  budget_snapshot_json TEXT NOT NULL,
+  metadata_json TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX IF NOT EXISTS idx_autonomy_runs_scope_status_schedule
+  ON autonomy_runs(scope, status, scheduled_for, updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_autonomy_runs_scope_updated
+  ON autonomy_runs(scope, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS autonomy_run_steps (
+  step_id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  step_index INTEGER NOT NULL,
+  action_kind TEXT NOT NULL,
+  status TEXT NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  started_at TEXT,
+  finished_at TEXT,
+  output_json TEXT NOT NULL DEFAULT '{}',
+  error_message TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_autonomy_run_steps_run_index
+  ON autonomy_run_steps(run_id, step_index);
+
+CREATE INDEX IF NOT EXISTS idx_autonomy_run_steps_run_status
+  ON autonomy_run_steps(run_id, status, step_index);
+
+CREATE TABLE IF NOT EXISTS autonomy_run_events (
+  event_id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  step_id TEXT,
+  event_type TEXT NOT NULL,
+  status TEXT NOT NULL,
+  message TEXT NOT NULL,
+  payload_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE,
+  FOREIGN KEY (step_id) REFERENCES autonomy_run_steps(step_id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_autonomy_run_events_run_time
+  ON autonomy_run_events(run_id, created_at, event_id);
+
+CREATE TABLE IF NOT EXISTS autonomy_run_delta_batches (
+  batch_id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  batch_version TEXT NOT NULL,
+  status TEXT NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  delta_count INTEGER NOT NULL,
+  deltas_json TEXT NOT NULL,
+  source_refs_json TEXT NOT NULL,
+  validation_json TEXT NOT NULL,
+  authority_boundary_json TEXT NOT NULL,
+  FOREIGN KEY (run_id) REFERENCES autonomy_runs(run_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_autonomy_run_delta_batches_run_time
+  ON autonomy_run_delta_batches(run_id, created_at, batch_id);
+
 CREATE TABLE IF NOT EXISTS perspective_promotion_decisions (
   promotion_decision_id text primary key,
   scope text not null,

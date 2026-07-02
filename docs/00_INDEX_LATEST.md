@@ -553,6 +553,30 @@ PR #868 is merged. Current route planning starts from:
   download/export-to-disk, external posting, product-write,
   merge/publish/retry/replay/deploy behavior, or external side effect. This
   index pointer is not roadmap authority.
+  Phase 9 Autonomy Runner / Scheduled Hunt execution v0.1 adds local bounded
+  runner execution pointers for `docs/AUTONOMY_RUNNER_EXECUTION_V0_1.md`,
+  `types/autonomy-runner-execution.ts`, `lib/autonomy/runner.ts`,
+  `lib/autonomy/scheduler.ts`, `lib/autonomy/runner-ledger.ts`,
+  `lib/autonomy/runner-delta-batch.ts`, `lib/autonomy/runner-state.ts`,
+  `app/api/autonomy/runs/route.ts`, `app/api/autonomy/runs/[id]/route.ts`,
+  `fixtures/autonomy-runner.sample.v0.1.json`, and
+  `scripts/smoke-autonomy-runner-v0-1.mjs` (`npm run
+  smoke:autonomy-runner-v0-1`). Phase 9 execution can create local
+  `autonomy_runs`, `autonomy_run_steps`, `autonomy_run_events`, and
+  `autonomy_run_delta_batches` ledger records; tick one safe deterministic
+  internal step; pause, resume, and cancel; detect due scheduled runs; run a
+  bounded watch loop with `max_loops`; recover a review-only DeltaBatch; and
+  read that DeltaBatch back through runner ledger helpers. Autonomy Run is an
+  execution record, not an approval record. Runner ledger is not a
+  proof/evidence ledger. Scheduled runs execute only when the local
+  runner/scheduler is explicitly invoked, and watch mode does not start from
+  import side effects. DeltaBatch recovery is not durable Perspective apply,
+  is not durable memory mutation, and cannot auto-apply deltas outside an
+  Autonomy Contract boundary. The runner adds no provider/OpenAI call, GitHub
+  API call, Codex execution, branch/PR creation from Augnes product code,
+  external posting, publish, deploy, merge, proof/evidence write, durable
+  Perspective apply, durable memory mutation, hidden daemon auto-start, or
+  contract-forbidden runner step. This index pointer is not roadmap authority.
 
 - `AUTHORITY_MATRIX.md`: provider-neutral execution lane registry와
   authority invariant smoke suite의 권위 경계를 설명한다.
