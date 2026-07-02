@@ -72,21 +72,21 @@
       "label": "#868 frozen web baseline",
       "classification": "implemented_non_ui",
       "repo_refs": [
-        "docs/POST_868_DEVELOPMENT_POSTURE.md",
-        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+        "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md",
+        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
       ],
       "status_summary": "Route model baseline remains frozen for /, /perspective, and /workbench.",
       "review_context_only": true
     },
     {
-      "row_id": "post_868_non_ui_runtime_gap_reconciliation",
-      "label": "post-#868 non-UI runtime gap reconciliation",
+      "row_id": "active_development_completion_posture",
+      "label": "active development completion posture",
       "classification": "ready_for_next_planning",
       "repo_refs": [
-        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md",
-        "fixtures/post-868-non-ui-runtime-gap-reconciliation.sample.v0.1.json"
+        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md",
+        "fixtures/dogfooding-research-record-runtime.sample.v0.1.json"
       ],
-      "status_summary": "Core first, Handoff first, Conversation first, Web last direction recorded.",
+      "status_summary": "Functional completion, measurable capability improvement, and behavior-focused tests are the active development defaults.",
       "review_context_only": true
     },
     {
@@ -212,7 +212,7 @@
       "label": "product-write parked status",
       "classification": "blocked_by_design",
       "repo_refs": [
-        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
       ],
       "status_summary": "Product-write remains blocked unless separately approved.",
       "review_context_only": true
@@ -233,7 +233,7 @@
       "label": "live provider blocked status",
       "classification": "blocked_by_design",
       "repo_refs": [
-        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
       ],
       "status_summary": "Live provider calls remain blocked.",
       "review_context_only": true
@@ -243,7 +243,7 @@
       "label": "source fetch blocked status",
       "classification": "blocked_by_design",
       "repo_refs": [
-        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
       ],
       "status_summary": "Source fetch remains blocked.",
       "review_context_only": true
@@ -253,7 +253,7 @@
       "label": "retrieval expansion blocked status",
       "classification": "blocked_by_design",
       "repo_refs": [
-        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
       ],
       "status_summary": "Retrieval expansion remains blocked.",
       "review_context_only": true
@@ -273,7 +273,7 @@
       "label": "Web-last backlog frozen status",
       "classification": "web_last_backlog",
       "repo_refs": [
-        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
       ],
       "status_summary": "UI/Cockpit/browser/public-surface work remains Web-last backlog.",
       "review_context_only": true
@@ -313,7 +313,7 @@
       "label": "remaining explicit reentry backlog",
       "classification": "explicit_reentry_blocked",
       "repo_refs": [
-        "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md"
+        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
       ],
       "status_summary": "Product-write, GitHub/Git, provider, source-fetch, retrieval, release, promotion, durable state, proof/evidence, and Formation Receipt reentry require separate approval.",
       "review_context_only": true
@@ -584,7 +584,7 @@
     "deployability_claimed": false
   },
   "next_recommended_slice": "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision",
-  "matrix_fingerprint": "sha256:c3694f81b6303ef9b28c12cc3333c520e4822ab1cf1aeeb8164f2e63ee88e0ff",
+  "matrix_fingerprint": "sha256:71032d135136975c0b06307ae526de7818afdfaffc5dc2550de7ad71f159ac89",
   "reason_codes": [
     "post_868_route_baseline_frozen",
     "pr_878_selected_runtime_audit_event_context",

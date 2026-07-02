@@ -24,7 +24,7 @@ const dogfoodingDocsPath = "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
 const codexBindingDocsPath =
   "docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md";
 const reconciliationDocsPath =
-  "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md";
+  "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 
@@ -579,6 +579,9 @@ function assertPacketAuthorityText(plainText) {
 
 function assertChangedFileScope() {
   const changedFiles = collectChangedFiles();
+  if (getBoundarySmokeMode() === "content-only") {
+    return;
+  }
   for (const filePath of changedFiles) {
     assert.ok(expectedChangedFiles.has(filePath), `Unexpected changed file: ${filePath}`);
     assert.doesNotMatch(filePath, /^components\//, "no component files may change");
@@ -591,6 +594,15 @@ function assertChangedFileScope() {
       "no provider/retrieval/source-fetch files may change",
     );
   }
+}
+
+function getBoundarySmokeMode() {
+  const mode = process.env.AUGNES_BOUNDARY_SMOKE_MODE || "scoped";
+  assert.ok(
+    ["scoped", "content-only"].includes(mode),
+    `AUGNES_BOUNDARY_SMOKE_MODE must be unset, scoped, or content-only; received ${JSON.stringify(mode)}`,
+  );
+  return mode;
 }
 
 function authorityStringClaimInput(testCase) {

@@ -142,32 +142,7 @@ handoff, create branches/PRs, apply deltas, spend budget, create copy/export or
 download-to-disk behavior, publish/merge/retry/replay/deploy, or create external
 side effects. It adds no write-capable MCP/App tool.
 
-## 1.4 Phase 9E Codex Consumption Alignment
-
-Phase 9E adds Codex consumption alignment docs, an instruction-only Codex skill,
-and smoke coverage:
-
-```text
-docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md
-plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md
-scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs
-```
-
-Autonomy Runner Preflight is planning context only. Autonomy Dry-Run Plan is
-preview context only. Preflight is not approval to run. Dry-run plan is not
-execution permission. Readiness is not authorization. Codex must preserve
-`dry_run_only` and every planned step with `would_execute: false`.
-
-Phase 9E adds no API route, UI, App/MCP tool, runner, scheduler, daemon,
-background work, product write, runtime execution, DB write, provider/OpenAI
-call, GitHub actuation, Codex execution from Augnes product code,
-proof/evidence write, memory mutation, durable Perspective apply, handoff
-execution, branch/PR creation from product code, budget spend, auto-apply,
-merge/publish/retry/replay/deploy behavior, or external side effect.
-Phase 9E adds no API route, UI, App/MCP tool, runner, scheduler, daemon,
-background work, product write, runtime execution, or external side effect.
-
-## 1.5 Phase 9F Local Copy / Manual-Copy Preview
+## 1.4 Phase 9F Local Copy / Manual-Copy Preview
 
 Phase 9F adds local copy/manual-copy preview for Autonomy Runner Preflight /
 Dry-Run packets. Copy packets are local text previews only. Clipboard copy is
@@ -193,30 +168,6 @@ daemon, background work, interval/timer/cron/worker loop, Codex execution from
 Augnes product code, GitHub actuation from Augnes product code, branch/PR
 creation from product code, budget spend, auto-apply, product-write, or
 external side effect.
-
-## 1.6 Phase 9G Runner Skeleton Planning
-
-Phase 9G adds planning docs and smoke coverage only.
-
-```text
-docs/AUTONOMY_RUNNER_SKELETON_PLANNING_V0_1.md
-docs/AUTONOMY_RUNNER_OPERATOR_APPROVAL_GATE_V0_1.md
-scripts/smoke-autonomy-runner-skeleton-planning-v0-1.mjs
-```
-
-Phase 9G does not implement a runner skeleton. Phase 9G does not add execution
-authority. In Phase 9G, preflight remains planning context, dry-run remains
-preview context, readiness remains not authorization, and operator approval is
-not implied by any existing preview/read/copy/Codex/App surface. No run may
-start from Phase 9G artifacts.
-
-The planning docs define future prerequisites for an explicitly
-operator-approved runner skeleton, including run ledger/write policy,
-pause/stop/cancel semantics, manual confirmation, tool/source boundaries, and
-Codex/GitHub/provider/OpenAI/DB/proof/evidence/memory/Perspective/handoff/
-branch-PR/budget/external side-effect boundaries. They do not create the
-approval mechanism, runner skeleton, scheduler, daemon, queue, worker, or any
-write/execution behavior.
 
 ## 2. Purpose
 
@@ -552,13 +503,6 @@ notes, and no API/UI/MCP write/DB migration/provider/GitHub/Codex/proof/
 evidence/memory/Perspective/handoff/auto-apply/budget-spend/external-post/
 file-export scope drift.
 
-`npm run smoke:codex-autonomy-runner-preflight-v0-1` checks the Phase 9E Codex
-alignment document, instruction-only skill, package script, latest-index
-pointer, planning-only interpretation, `dry_run_only`, planned-step
-`would_execute: false`, blocker/warning/review/budget/stop/staleness/authority
-preservation, public-safety boundary, prior Phase 9A/9B/9C/9D smokes, and no
-API/UI/App/MCP/runtime/write/execution scope drift.
-
 `npm run smoke:autonomy-runner-preflight-copy-export-v0-1` checks the Phase 9F
 copy packet helper, copy preview panel, package script, latest-index pointer,
 local text/manual-copy boundary, no file download/export-to-disk boundary,
@@ -568,24 +512,13 @@ staleness/authority/public-safety/source-ref preservation, public-safe JSON,
 absence of run/schedule/launch/apply/send/persist/create-branch/open-PR
 controls, and no API/App/MCP/runtime/write/execution scope drift.
 
-`npm run smoke:autonomy-runner-skeleton-planning-v0-1` checks the Phase 9G
-runner skeleton planning document, operator approval gate document, package
-script, latest-index pointer, planning-only interpretation, no runner skeleton
-implementation, no execution authority, future explicit operator approval
-requirements, fail-closed approval cases, no-run authority boundary, prior
-Phase 9A/9B/9C/9D/9E/9F smokes, and no API/UI/App/MCP/runtime/write/execution
-scope drift.
-
 Browser/CDP validation is skipped because Phase 9A has no UI or route.
 Browser/CDP validation is skipped because Phase 9B adds only a GET-only read
 route and no UI.
 Browser/CDP validation is skipped because Phase 9D adds only a ChatGPT App/MCP
 read-only preview tool and no Web UI.
-Browser/CDP validation is skipped because Phase 9E adds only Codex docs/skill/smoke alignment and no Web UI.
 Browser/CDP validation is expected for Phase 9F because it adds local
 copy/manual-copy UI to the Agent Workplane preview surface.
-Browser/CDP validation is skipped because Phase 9G adds only runner skeleton
-planning docs/smoke and no Web UI.
 
 Proof-only closeout is skipped unless a future task explicitly scopes proof
 recording and runtime proof context is available. Phase 9A does not write
@@ -604,20 +537,6 @@ Phase 9B should consume the Phase 9A preflight without inventing policy. It
 must preserve the no-run authority boundary unless the operator explicitly
 scopes a different future phase.
 
-Phase 9G recommended next phase:
-
-```text
-Phase 9G - explicit operator-approved runner skeleton planning v0.1
-```
-
-Phase 9G is planning only unless separately and explicitly scoped. Phase 9F
-does not implement a runner skeleton.
-
-Phase 9H default recommended next phase:
-
-```text
-Phase 9H - Autonomy Runner ledger and run-record policy planning v0.1, docs/smoke only
-```
-
-Phase 10A supervised runner skeleton core can be considered only if the
-operator explicitly approves moving beyond planning in a later phase.
+Current runner implementation is documented in
+`docs/AUTONOMY_RUNNER_EXECUTION_V0_1.md` and verified by
+`npm run smoke:autonomy-runner-v0-1`.

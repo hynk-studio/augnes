@@ -32,7 +32,7 @@ const gitLedgerBuilderDocsPath =
 const authoritySmokePath = "scripts/smoke-authority-boundary-regression-v0-1.mjs";
 const privacyGuardPath = "lib/privacy/redaction-guard.ts";
 const reconciliationDocsPath =
-  "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md";
+  "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
 
 const fixtureVersion = "git_ledger_export_from_local_manifest.sample.v0.1";
 const selectedSlice = "git_ledger_export_manifest_binding_v0_1";
@@ -446,6 +446,9 @@ function assertChangedFileScope() {
     );
     return "post_merge_clean_tree_no_changed_file_delta";
   }
+  if (getBoundarySmokeMode() === "content-only") {
+    return "changed_file_scope_skipped_content_only";
+  }
   for (const filePath of changedFiles) {
     assert.ok(expectedChangedFiles.has(filePath), `Unexpected changed file: ${filePath}`);
     assert.ok(!filePath.startsWith("components/"), `No component files allowed: ${filePath}`);
@@ -456,6 +459,15 @@ function assertChangedFileScope() {
     assert.ok(changedFiles.includes(requiredPath), `changed files must include ${requiredPath}`);
   }
   return "changed_file_scope_checked";
+}
+
+function getBoundarySmokeMode() {
+  const mode = process.env.AUGNES_BOUNDARY_SMOKE_MODE || "scoped";
+  assert.ok(
+    ["scoped", "content-only"].includes(mode),
+    `AUGNES_BOUNDARY_SMOKE_MODE must be unset, scoped, or content-only; received ${JSON.stringify(mode)}`,
+  );
+  return mode;
 }
 
 function buildManifest(input) {

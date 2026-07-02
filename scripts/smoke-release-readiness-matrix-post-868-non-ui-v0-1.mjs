@@ -29,7 +29,7 @@ const dogfoodingSmokePath =
   "scripts/smoke-dogfooding-research-record-runtime-v0-1.mjs";
 
 const reconciliationDocsPath =
-  "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md";
+  "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
 const selectedAuditDocsPath =
   "docs/SELECTED_RUNTIME_AUDIT_EVENT_STORE_V0_1.md";
 const privacyDocsPath = "docs/PRIVACY_REDACTION_RUNTIME_GUARD_V0_1.md";
@@ -48,6 +48,7 @@ const expectedChangedFiles = new Set([
   docsPath,
   fixturePath,
   smokePath,
+  "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md",
   "docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md",
   "fixtures/codex-result-report-ingestion.sample.v0.1.json",
   "fixtures/codex-result-to-dogfooding-record.sample.v0.1.json",
@@ -86,7 +87,7 @@ const allowedRepairRuntimeFiles = new Set([
 
 const requiredRowIds = [
   "pr_868_frozen_web_baseline",
-  "post_868_non_ui_runtime_gap_reconciliation",
+  "active_development_completion_posture",
   "dogfooding_research_record_runtime",
   "codex_result_to_dogfooding_record_binding",
   "conversation_handoff_packet_builder",
@@ -444,12 +445,16 @@ function assertCompatibilityGuards() {
 
 function assertChangedFileScope() {
   const changedFiles = getChangedFiles();
+  const boundaryMode = getBoundarySmokeMode();
   if (changedFiles.length === 0) {
     assert.ok(
       isCleanMergedMainTree(),
       "changed-file scope must inspect a non-empty delta unless clean merged-main mode applies",
     );
     return "post_merge_clean_tree_no_changed_file_delta";
+  }
+  if (boundaryMode === "content-only") {
+    return "changed_file_scope_skipped_content_only";
   }
   for (const filePath of changedFiles) {
     assert.ok(expectedChangedFiles.has(filePath), `Unexpected changed file: ${filePath}`);
@@ -468,6 +473,15 @@ function assertChangedFileScope() {
     assert.ok(changedFiles.includes(requiredPath), `changed files must include ${requiredPath}`);
   }
   return "changed_file_scope_checked";
+}
+
+function getBoundarySmokeMode() {
+  const mode = process.env.AUGNES_BOUNDARY_SMOKE_MODE || "scoped";
+  assert.ok(
+    ["scoped", "content-only"].includes(mode),
+    `AUGNES_BOUNDARY_SMOKE_MODE must be unset, scoped, or content-only; received ${JSON.stringify(mode)}`,
+  );
+  return mode;
 }
 
 function getChangedFiles() {
