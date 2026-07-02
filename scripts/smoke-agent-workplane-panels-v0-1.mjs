@@ -88,6 +88,21 @@ const followOnAgentWorkplaneNodeContractFiles = [
   packageJsonFile,
 ];
 
+const followOnWorkplaneRunnerDeltaBatchIntegrationFiles = [
+  "lib/workplane/read-runner-delta-batches-for-workplane.ts",
+  "components/workplane/runner-delta-batch-panel.tsx",
+  "docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md",
+  "scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs",
+  contextReaderFile,
+  agentWorkplaneFile,
+  "components/workplane/delta-batch-panel.tsx",
+  agentWorkplaneDoc,
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  indexDoc,
+  packageJsonFile,
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -245,6 +260,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneCleanupHardeningFiles,
   ...followOnAgentWorkplaneCockpitInheritanceFiles,
   ...followOnAgentWorkplaneNodeContractFiles,
+  ...followOnWorkplaneRunnerDeltaBatchIntegrationFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,

@@ -139,6 +139,21 @@ const followOnAgentWorkplaneNodeContractFiles = [
   packageJsonFile,
 ];
 
+const followOnWorkplaneRunnerDeltaBatchIntegrationFiles = [
+  "lib/workplane/read-runner-delta-batches-for-workplane.ts",
+  "components/workplane/runner-delta-batch-panel.tsx",
+  "docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md",
+  "scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs",
+  "lib/workplane/read-workplane-context.ts",
+  agentWorkplaneFile,
+  deltaBatchPanelFile,
+  agentWorkplaneDoc,
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  indexDoc,
+  packageJsonFile,
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+];
+
 
 const requiredFiles = [
   workbenchPageFile,
@@ -242,6 +257,7 @@ const allowedChangedFiles = new Set([
   ...followOnChatgptAppGuideBriefToolFiles,
   ...followOnAgentWorkplaneCockpitInheritanceFiles,
   ...followOnAgentWorkplaneNodeContractFiles,
+  ...followOnWorkplaneRunnerDeltaBatchIntegrationFiles,
   smokeFile,
   "app/globals.css",
 ]);

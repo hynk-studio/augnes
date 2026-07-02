@@ -17,6 +17,7 @@ export const AGENT_WORKPLANE_PANEL_IDS = [
   "evidence_handoff",
   "workplane_inspector",
   "projection_candidates",
+  "projected_delta_batch",
   "delta_batch",
   "handoff_builder_preview",
   "run_postmortem",

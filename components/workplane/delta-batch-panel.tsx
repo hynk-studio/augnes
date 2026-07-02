@@ -32,16 +32,17 @@ export function DeltaBatchPanel({
   return (
     <WorkplanePanelShell
       kicker="Phase 5C preview"
-      title="Delta Batch"
-      ariaLabel="Delta Batch Workplane panel"
-      panelId="delta_batch"
-      nodeId="runner_delta_batch"
-      nodeKind="runner_context_source"
+      title="Projected Delta Batch"
+      ariaLabel="Projected Delta Batch Workplane panel"
+      panelId="projected_delta_batch"
+      nodeId="perspective_delta"
+      nodeKind="preview_panel"
       nodeStatus="preview_only"
     >
       <p style={workplaneCopyStyle}>
-        Delta Batch context is read-only preview context. It is not a
-        transaction, not approval, and not persistence behavior.
+        Projected Delta Batch context comes from the Delta Projection read
+        model. It is not a recovered runner DeltaBatch, not a transaction, not
+        approval, and not persistence behavior.
       </p>
 
       <WorkplanePanelMetricGrid>
@@ -78,7 +79,8 @@ export function DeltaBatchPanel({
 
       <p style={workplaneCopyStyle}>
         Source status: {context.source_status.delta_projection}. Batch review
-        context has no batch apply, batch approval, or durable write authority.
+        context has no batch apply, batch approval, runner recovery, or durable
+        write authority.
       </p>
     </WorkplanePanelShell>
   );

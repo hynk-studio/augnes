@@ -27,6 +27,7 @@ export const AGENT_WORKPLANE_REQUIRED_PANEL_IDS = [
   "evidence_handoff",
   "workplane_inspector",
   "projection_candidates",
+  "projected_delta_batch",
   "delta_batch",
   "handoff_builder_preview",
   "run_postmortem",
@@ -112,12 +113,22 @@ export const AGENT_WORKPLANE_PANEL_REGISTRY: ReadonlyArray<{
     summary: "Read-only candidate context from Current Perspective and projected deltas.",
   },
   {
+    panel_id: "projected_delta_batch",
+    node_id: "perspective_delta",
+    kind: "preview_panel",
+    status: "preview_only",
+    title: "Projected Delta Batch",
+    summary:
+      "Projected Delta Projection batch preview context, separate from recovered runner DeltaBatch ledger readback.",
+  },
+  {
     panel_id: "delta_batch",
     node_id: "runner_delta_batch",
     kind: "runner_context_source",
-    status: "preview_only",
-    title: "Delta Batch",
-    summary: "Projected DeltaBatch preview context from Delta Projection read model.",
+    status: "not_materialized",
+    title: "Recovered Runner DeltaBatch",
+    summary:
+      "Recovered runner DeltaBatch readback from the runner ledger when available.",
   },
   {
     panel_id: "handoff_builder_preview",
@@ -197,7 +208,8 @@ export const AGENT_WORKPLANE_PANEL_REGISTRY: ReadonlyArray<{
     kind: "runner_context_source",
     status: "not_materialized",
     title: "Runner State",
-    summary: "Reserved absorption target; runner ledger integration is not materialized.",
+    summary:
+      "Read-only runner ledger context derived from recovered DeltaBatch readback when available.",
   },
 ] as const;
 
@@ -216,6 +228,7 @@ const NODE_CONTEXT_SMOKES = [
   "smoke:agent-workplane-shell-v0-1",
   "smoke:agent-workplane-panels-v0-1",
   "smoke:agent-workplane-projection-handoff-v0-1",
+  "smoke:workplane-runner-deltabatch-integration-v0-1",
 ] as const;
 
 const DEFAULT_AUTHORITY_BOUNDARY: AgentWorkplaneAuthorityBoundary = {
@@ -236,7 +249,7 @@ const DEFAULT_AUTHORITY_BOUNDARY: AgentWorkplaneAuthorityBoundary = {
   notes: [
     "Agent Workplane node context is a read-only context packet.",
     "It adds no DB write, proof/evidence write, provider/OpenAI call, GitHub call or actuation, Codex execution, runner execution, scheduler behavior, durable memory apply, Perspective apply, delta auto-apply, merge, publish, retry, replay, deploy, or external side effect.",
-    "Runner State, runner DeltaBatch, and Run Postmortem nodes remain preview-only or not materialized until a separate integration reads the runner ledger.",
+    "Recovered runner DeltaBatches are read-only review candidates, not approvals, applies, runner execution, or recovery writes.",
   ],
 };
 
@@ -251,12 +264,16 @@ export function buildAgentWorkplaneNodeContextRead(
 ): AgentWorkplaneNodeContextRead {
   const current = context.current_perspective_read.data;
   const projection = context.delta_projection_read.data;
-  const asOf = chooseLatestTimestamp(current.as_of, projection.as_of);
+  const asOf = chooseLatestTimestamp(
+    chooseLatestTimestamp(current.as_of, projection.as_of),
+    context.runner_delta_batch_read.as_of ?? "",
+  );
   const fallbackStatus = buildFallbackStatus(context);
   const staleness = buildStaleness(context, asOf);
   const validationSummary = buildValidationSummary([
     "smoke:agent-workplane-node-contract-v0-1",
     "smoke:agent-workplane-cockpit-inheritance-v0-1",
+    "smoke:workplane-runner-deltabatch-integration-v0-1",
   ]);
   const sourceRefs = collectWorkplaneSourceRefs(context);
   const panels = AGENT_WORKPLANE_PANEL_REGISTRY.map((entry) =>
@@ -283,7 +300,8 @@ export function buildAgentWorkplaneNodeContextRead(
     nodes: panels,
     debug_notes: [
       "Built from existing readWorkplaneContext() output only.",
-      "No route, runner ledger read, persistence, provider call, GitHub call, Codex execution, durable memory apply, Perspective apply, or runner behavior is added.",
+      "Recovered runner DeltaBatch readback is included as review-only context.",
+      "No route, persistence, provider call, GitHub call, Codex execution, durable memory apply, Perspective apply, recovery write, scheduler, or runner behavior is added.",
       "Fixture fallback disclosure is preserved through fallback_status and per-node debug_notes.",
     ],
   };
@@ -305,12 +323,13 @@ function buildPanelContext({
   staleness: AgentWorkplaneStaleness;
 }): AgentWorkplanePanelContext {
   const panelSourceRefs = sourceRefsForPanel(entry.panel_id, context, sourceRefs);
+  const relatedRunIds = relatedRunIdsForPanel(entry.panel_id, context);
+  const relatedStepIds = relatedStepIdsForPanel(entry.panel_id, context);
   const relatedDeltaIds = relatedDeltaIdsForPanel(entry.panel_id, context);
   const relatedBatchIds = relatedBatchIdsForPanel(entry.panel_id, context);
   const relatedHandoffRefs = relatedHandoffRefsForPanel(entry.panel_id, context);
   const relatedEventIds = relatedEventIdsForPanel(entry.panel_id, context);
-  const status =
-    entry.status === "partial" ? statusForSource(context, staleness) : entry.status;
+  const status = statusForPanel(entry.panel_id, entry.status, context, staleness);
 
   return {
     panel_id: entry.panel_id,
@@ -322,8 +341,8 @@ function buildPanelContext({
     created_at: asOf,
     updated_at: updatedAtForPanel(entry.panel_id, context, asOf),
     source_refs: panelSourceRefs,
-    related_run_ids: [],
-    related_step_ids: [],
+    related_run_ids: relatedRunIds,
+    related_step_ids: relatedStepIds,
     related_event_ids: relatedEventIds,
     related_batch_ids: relatedBatchIds,
     related_delta_ids: relatedDeltaIds,
@@ -363,6 +382,9 @@ function buildStaleness(
     notes: [
       ...current.staleness.freshness_notes,
       `Delta Projection as_of ${context.delta_projection_read.data.as_of}.`,
+      context.runner_delta_batch_read.as_of
+        ? `Recovered runner DeltaBatch as_of ${context.runner_delta_batch_read.as_of}.`
+        : "No recovered runner DeltaBatch as_of is materialized.",
     ],
   };
 }
@@ -372,17 +394,25 @@ function buildFallbackStatus(
 ): AgentWorkplaneFallbackStatus {
   const currentStatus = context.source_status.current_perspective;
   const projectionStatus = context.source_status.delta_projection;
+  const runnerStatus = context.source_status.runner_delta_batch;
   const fallbackReasons = [
     context.fallback_reason.current_perspective,
     context.fallback_reason.delta_projection,
+    context.fallback_reason.runner_delta_batch,
   ].filter(Boolean);
 
-  if (currentStatus === "runtime" && projectionStatus === "runtime") {
+  if (
+    currentStatus === "runtime" &&
+    projectionStatus === "runtime" &&
+    runnerStatus !== "fallback"
+  ) {
     return {
       status: "runtime",
       reason: null,
-      source_status: "runtime",
-      notes: ["Current Perspective and Delta Projection read from runtime sources."],
+      source_status: `runtime/runtime/${runnerStatus}`,
+      notes: [
+        "Current Perspective and Delta Projection read from runtime sources; runner DeltaBatch readback is explicit as runner_ledger or empty.",
+      ],
     };
   }
 
@@ -392,11 +422,31 @@ function buildFallbackStatus(
         ? "empty_fallback"
         : "fixture_fallback",
     reason: fallbackReasons.join(" ") || "Fixture fallback disclosure is active.",
-    source_status: `${currentStatus}/${projectionStatus}`,
+    source_status: `${currentStatus}/${projectionStatus}/${runnerStatus}`,
     notes: [
       "Fallback status is explicit and must not be presented as live runtime state.",
     ],
   };
+}
+
+function statusForPanel(
+  panelId: AgentWorkplanePanelId,
+  defaultStatus: AgentWorkplaneNodeStatus,
+  context: WorkplaneContextRead,
+  staleness: AgentWorkplaneStaleness,
+): AgentWorkplaneNodeStatus {
+  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+    const runnerRead = context.runner_delta_batch_read;
+    if (runnerRead.status === "ready") return "ready";
+    if (runnerRead.status === "fallback") return "fallback";
+    return "not_materialized";
+  }
+
+  if (defaultStatus === "partial") {
+    return statusForSource(context, staleness);
+  }
+
+  return defaultStatus;
 }
 
 function statusForSource(
@@ -434,8 +484,12 @@ function updatedAtForPanel(
     return context.current_perspective_read.data.as_of;
   }
 
-  if (panelId === "run_postmortem" || panelId === "runner_state") {
-    return fallbackAsOf;
+  if (
+    panelId === "run_postmortem" ||
+    panelId === "runner_state" ||
+    isRunnerDeltaBatchPanel(panelId)
+  ) {
+    return context.runner_delta_batch_read.as_of ?? fallbackAsOf;
   }
 
   return context.delta_projection_read.data.as_of;
@@ -446,12 +500,17 @@ function stalenessForPanel(
   context: WorkplaneContextRead,
   fallback: AgentWorkplaneStaleness,
 ): AgentWorkplaneStaleness {
-  if (panelId === "run_postmortem" || panelId === "runner_state") {
+  if (
+    panelId === "run_postmortem" ||
+    panelId === "runner_state" ||
+    isRunnerDeltaBatchPanel(panelId)
+  ) {
+    const runner = context.runner_delta_batch_read;
     return {
-      status: "unknown",
-      as_of: null,
-      updated_at: fallback.updated_at,
-      notes: ["Runner/postmortem source is not materialized in this contract slice."],
+      status: runner.staleness.status === "fresh" ? "fresh" : "unknown",
+      as_of: runner.staleness.as_of,
+      updated_at: runner.staleness.updated_at ?? fallback.updated_at,
+      notes: runner.staleness.notes,
     };
   }
 
@@ -459,8 +518,7 @@ function stalenessForPanel(
     [
       "delta_projection",
       "projection_candidates",
-      "delta_batch",
-      "runner_delta_batch",
+      "projected_delta_batch",
       "handoff_builder_preview",
       "evidence_handoff",
       "handoff_context",
@@ -486,12 +544,17 @@ function fallbackForPanel(
   context: WorkplaneContextRead,
   fallback: AgentWorkplaneFallbackStatus,
 ): AgentWorkplaneFallbackStatus {
-  if (panelId === "run_postmortem" || panelId === "runner_state") {
+  if (
+    panelId === "run_postmortem" ||
+    panelId === "runner_state" ||
+    isRunnerDeltaBatchPanel(panelId)
+  ) {
+    const runner = context.runner_delta_batch_read;
     return {
-      status: "not_materialized",
-      reason: "Runner ledger and postmortem source are not read by this helper.",
-      source_status: "not_materialized",
-      notes: ["No runner DeltaBatch Workplane integration is materialized."],
+      status: runner.status === "ready" ? "runtime" : "not_materialized",
+      reason: runner.fallback_reason,
+      source_status: runner.source_status,
+      notes: runner.fallback_status.notes,
     };
   }
 
@@ -499,8 +562,7 @@ function fallbackForPanel(
     [
       "delta_projection",
       "projection_candidates",
-      "delta_batch",
-      "runner_delta_batch",
+      "projected_delta_batch",
       "handoff_builder_preview",
       "evidence_handoff",
       "handoff_context",
@@ -535,6 +597,7 @@ function validationForPanel(
   if (
     [
       "projection_candidates",
+      "projected_delta_batch",
       "delta_batch",
       "handoff_builder_preview",
       "run_postmortem",
@@ -545,6 +608,14 @@ function validationForPanel(
     ].includes(panelId)
   ) {
     smokeRefs.add("smoke:agent-workplane-projection-handoff-v0-1");
+  }
+
+  if (
+    isRunnerDeltaBatchPanel(panelId) ||
+    panelId === "runner_state" ||
+    panelId === "run_postmortem"
+  ) {
+    smokeRefs.add("smoke:workplane-runner-deltabatch-integration-v0-1");
   }
 
   if (panelId === "legacy_cockpit_compatibility") {
@@ -571,10 +642,13 @@ function debugNotesForPanel(
   if (
     panelId === "run_postmortem" ||
     panelId === "runner_state" ||
-    panelId === "runner_delta_batch"
+    isRunnerDeltaBatchPanel(panelId)
   ) {
+    const runner = context.runner_delta_batch_read;
     notes.push(
-      "Runner ledger integration is deferred; context is preview-only or not materialized.",
+      runner.recovered_batch_count > 0
+        ? "Recovered runner DeltaBatches are review candidates, not approvals, durable memory applies, Perspective applies, delta auto-applies, proof/evidence writes, provider calls, GitHub calls, Codex executions, or runner executions."
+        : "No recovered runner DeltaBatch is materialized; empty runner readback is represented without throwing.",
     );
   }
 
@@ -593,8 +667,13 @@ function sourceRefsForPanel(
   context: WorkplaneContextRead,
   allSourceRefs: string[],
 ) {
-  if (panelId === "run_postmortem" || panelId === "runner_state") {
-    return ["not_materialized:runner_postmortem_source"];
+  if (
+    panelId === "run_postmortem" ||
+    panelId === "runner_state" ||
+    isRunnerDeltaBatchPanel(panelId)
+  ) {
+    const refs = collectRunnerDeltaBatchSourceRefs(context);
+    return refs.length > 0 ? refs : ["not_materialized:runner_delta_batch_source"];
   }
 
   if (
@@ -613,8 +692,7 @@ function sourceRefsForPanel(
     [
       "delta_projection",
       "projection_candidates",
-      "delta_batch",
-      "runner_delta_batch",
+      "projected_delta_batch",
       "handoff_builder_preview",
       "evidence_handoff",
       "handoff_context",
@@ -630,16 +708,51 @@ function sourceRefsForPanel(
   return allSourceRefs;
 }
 
+function relatedRunIdsForPanel(
+  panelId: AgentWorkplanePanelId,
+  context: WorkplaneContextRead,
+) {
+  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+    return uniqueStrings(
+      context.runner_delta_batch_read.batches.map((batch) => batch.run_id),
+    );
+  }
+
+  return [];
+}
+
+function relatedStepIdsForPanel(
+  panelId: AgentWorkplanePanelId,
+  context: WorkplaneContextRead,
+) {
+  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+    return uniqueStrings(
+      context.runner_delta_batch_read.batches.flatMap(
+        (batch) => batch.related_step_ids,
+      ),
+    );
+  }
+
+  return [];
+}
+
 function relatedDeltaIdsForPanel(
   panelId: AgentWorkplanePanelId,
   context: WorkplaneContextRead,
 ) {
+  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+    return uniqueStrings(
+      context.runner_delta_batch_read.batches.flatMap(
+        (batch) => batch.related_delta_ids,
+      ),
+    );
+  }
+
   if (
     [
       "delta_projection",
+      "projected_delta_batch",
       "projection_candidates",
-      "delta_batch",
-      "runner_delta_batch",
       "review_queue",
       "workplane_inspector",
       "perspective_delta",
@@ -658,11 +771,16 @@ function relatedBatchIdsForPanel(
   panelId: AgentWorkplanePanelId,
   context: WorkplaneContextRead,
 ) {
+  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+    return uniqueStrings(
+      context.runner_delta_batch_read.batches.map((batch) => batch.batch_id),
+    );
+  }
+
   if (
     [
       "delta_projection",
-      "delta_batch",
-      "runner_delta_batch",
+      "projected_delta_batch",
       "workplane_inspector",
       "trace_bridge",
       "trace_diagnostics",
@@ -696,6 +814,14 @@ function relatedEventIdsForPanel(
   panelId: AgentWorkplanePanelId,
   context: WorkplaneContextRead,
 ) {
+  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+    return uniqueStrings(
+      context.runner_delta_batch_read.batches.flatMap(
+        (batch) => batch.related_event_ids,
+      ),
+    );
+  }
+
   if (
     [
       "work_queue",
@@ -721,6 +847,7 @@ function collectWorkplaneSourceRefs(context: WorkplaneContextRead) {
   return uniqueStrings([
     ...collectCurrentPerspectiveSourceRefs(context),
     ...collectDeltaProjectionSourceRefs(context),
+    ...collectRunnerDeltaBatchSourceRefs(context),
   ]);
 }
 
@@ -796,6 +923,26 @@ function collectHandoffRefs(context: WorkplaneContextRead) {
       delta.handoff_refs.map((handoffRef) => handoffRef.handoff_ref),
     ),
   ]);
+}
+
+function collectRunnerDeltaBatchSourceRefs(context: WorkplaneContextRead) {
+  const runner = context.runner_delta_batch_read;
+  return uniqueStrings([
+    ...runner.batches.flatMap((batch) => [
+      `autonomy_run:${batch.run_id}`,
+      `autonomy_run_delta_batch:${batch.batch_id}`,
+      ...batch.source_refs,
+      ...batch.related_step_ids.map((stepId) => `autonomy_run_step:${stepId}`),
+      ...batch.related_event_ids.map(
+        (eventId) => `autonomy_run_event:${eventId}`,
+      ),
+      ...batch.related_delta_ids.map((deltaId) => `delta:${deltaId}`),
+    ]),
+  ]);
+}
+
+function isRunnerDeltaBatchPanel(panelId: AgentWorkplanePanelId) {
+  return panelId === "delta_batch" || panelId === "runner_delta_batch";
 }
 
 function chooseLatestTimestamp(left: string, right: string) {

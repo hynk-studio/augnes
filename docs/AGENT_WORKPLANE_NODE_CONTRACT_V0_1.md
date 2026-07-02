@@ -18,17 +18,21 @@ This slice adds:
 - this document
 - `scripts/smoke-agent-workplane-node-contract-v0-1.mjs`
 
-It does not add a new GuideBrief debug panel, GuideBrief intent projection,
-Runner / DeltaBatch Workplane integration, new runner behavior, a route, a DB
-write or persistence path, provider/OpenAI/GitHub/Codex execution, durable
-memory apply, Perspective apply, delta auto-apply, or legacy Cockpit deletion.
+The original node contract did not add Runner / DeltaBatch Workplane
+integration. The follow-on Recovered Runner DeltaBatch Integration v0.1 now
+uses this contract to expose recovered runner DeltaBatch readback as read-only
+review context. The contract still does not add a new GuideBrief debug panel,
+GuideBrief intent projection, new runner behavior, a route, a DB write or
+persistence path, provider/OpenAI/GitHub/Codex execution, durable memory apply,
+Perspective apply, delta auto-apply, or legacy Cockpit deletion.
 
 Exact boundary statement: no GuideBrief debug panel is added, no GuideBrief
-intent projection is added, no Runner / DeltaBatch Workplane integration is
-added, no new runner behavior is added, no route is added, no DB write or
-persistence is added, no provider/OpenAI/GitHub/Codex execution is added, no
-durable memory apply is added, no Perspective apply is added, no legacy
-Cockpit deletion occurs, and no legacy Cockpit functionality is deleted.
+intent projection is added, no new runner execution behavior is added, no
+recovery write behavior is added to Workplane reads, no scheduled runner
+behavior is added, no route is added, no DB write or persistence is added by
+Workplane reads, no provider/OpenAI/GitHub/Codex execution is added, no durable
+memory apply is added, no Perspective apply is added, no legacy Cockpit
+deletion occurs, and no legacy Cockpit functionality is deleted.
 
 ## 2. Why This Contract Exists
 
@@ -101,6 +105,7 @@ The v0.1 stable Workplane panel IDs are:
 - `evidence_handoff`
 - `workplane_inspector`
 - `projection_candidates`
+- `projected_delta_batch`
 - `delta_batch`
 - `handoff_builder_preview`
 - `run_postmortem`
@@ -119,6 +124,14 @@ The v0.1 absorption-map target IDs are:
 - `runner_delta_batch`
 - `run_postmortem`
 - `trace_diagnostics`
+
+`delta_projection` and `projected_delta_batch` are intentionally separate
+panel IDs even though both point at the `perspective_delta` context node.
+`delta_projection` names the native Delta Projection panel.
+`projected_delta_batch` names projected Delta Projection preview context.
+`delta_batch` / `runner_delta_batch` names recovered runner DeltaBatch ledger
+readback context. The IDs are separate so future GuideBrief debug selection is
+unambiguous.
 
 ## 6. Stable Node Kinds
 
@@ -159,11 +172,16 @@ refs, evidence pointer refs, artifact pointer refs, diagnostic refs, and
 source/fallback notes. They are not proof writes, evidence writes, or source of
 truth promotion.
 
-The v0.1 helper derives source refs from existing `readWorkplaneContext()`
-output, especially `current_perspective_read`, `delta_projection_read`,
-source/fallback status, Current Perspective `as_of`, Delta Projection `as_of`,
-and related source ref arrays. It adds no new data source and does not read the
-runner ledger.
+The helper derives source refs from existing `readWorkplaneContext()` output,
+especially `current_perspective_read`, `delta_projection_read`,
+`runner_delta_batch_read`, source/fallback status, Current Perspective `as_of`,
+Delta Projection `as_of`, runner DeltaBatch `as_of`, and related source ref
+arrays. Recovered runner source refs stay separate from projected Delta
+Projection refs.
+
+`projected_delta_batch` must derive source refs from `delta_projection_read`.
+It must not source runner ledger refs. `delta_batch` / `runner_delta_batch`
+derive recovered runner refs from `runner_delta_batch_read`.
 
 ## 9. Related Ref Expectations
 
@@ -176,10 +194,13 @@ Related refs are explicit arrays:
 - `related_delta_ids`
 - `related_handoff_refs`
 
-Missing refs must be represented as empty arrays, not guessed. Runner and
-postmortem refs remain empty or `not_materialized` until a later Runner /
-DeltaBatch Workplane integration reads the runner ledger under a separate
-contract.
+Missing refs must be represented as empty arrays, not guessed.
+`projected_delta_batch` related batch and delta refs are projected read-model
+refs from Delta Projection. `delta_batch` / `runner_delta_batch` related run,
+step, event, batch, and delta refs are recovered runner ledger readback refs
+only. Recovered runner DeltaBatch refs are populated only when the runner
+ledger readback has existing recovered batches. Missing runner batches remain
+empty or `not_materialized`, not errors.
 
 ## 10. Authority Boundary Expectations
 
@@ -209,6 +230,7 @@ For this slice the primary validation is:
 - `smoke:agent-workplane-shell-v0-1`
 - `smoke:agent-workplane-panels-v0-1`
 - `smoke:agent-workplane-projection-handoff-v0-1`
+- `smoke:workplane-runner-deltabatch-integration-v0-1`
 
 Validation summary does not imply live runtime execution, human approval, or
 authority to apply any change.
@@ -264,9 +286,9 @@ This v0.1 contract intentionally does not implement:
 - GuideBrief debug panel
 - GuideBrief intent projection
 - Workplane intent mode
-- Runner / DeltaBatch ledger read integration
-- runner execution behavior
-- scheduled run behavior
+- new runner execution behavior
+- recovery write behavior from Workplane reads
+- scheduled runner behavior
 - DB write
 - route or API write route
 - MCP/App tool
@@ -280,4 +302,7 @@ This v0.1 contract intentionally does not implement:
 - legacy Cockpit shrink or deletion
 - new local-write controls
 
-Recommended next phase: Recovered DeltaBatch -> Workplane Integration v0.1.
+Recovered runner DeltaBatch Workplane readback is documented in
+`docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md`.
+
+Recommended next phase: GuideBrief Workplane Debug Context v0.1.

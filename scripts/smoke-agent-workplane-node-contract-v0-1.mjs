@@ -75,10 +75,17 @@ const requiredPanelMetadata = [
   },
   {
     file: "components/workplane/delta-batch-panel.tsx",
+    panelId: "projected_delta_batch",
+    nodeId: "perspective_delta",
+    kind: "preview_panel",
+    status: "preview_only",
+  },
+  {
+    file: "components/workplane/runner-delta-batch-panel.tsx",
     panelId: "delta_batch",
     nodeId: "runner_delta_batch",
     kind: "runner_context_source",
-    status: "preview_only",
+    status: "dynamic",
   },
   {
     file: "components/workplane/handoff-builder-preview-panel.tsx",
@@ -111,6 +118,21 @@ const existingWorkplaneSmokeFiles = [
   "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
 ];
 
+const followOnWorkplaneRunnerDeltaBatchIntegrationFiles = [
+  "lib/workplane/read-runner-delta-batches-for-workplane.ts",
+  "components/workplane/runner-delta-batch-panel.tsx",
+  "docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md",
+  "scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs",
+  "lib/workplane/read-workplane-context.ts",
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/delta-batch-panel.tsx",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+];
+
 const requiredFiles = [
   typeContractFile,
   nodeContextHelperFile,
@@ -127,6 +149,7 @@ const requiredFiles = [
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...existingWorkplaneSmokeFiles,
+  ...followOnWorkplaneRunnerDeltaBatchIntegrationFiles,
 ]);
 
 const requiredFields = [
@@ -160,6 +183,7 @@ const stablePanelIds = [
   "evidence_handoff",
   "workplane_inspector",
   "projection_candidates",
+  "projected_delta_batch",
   "delta_batch",
   "handoff_builder_preview",
   "run_postmortem",
@@ -239,6 +263,7 @@ assertTypeContract();
 assertDocs();
 assertPanelShellMetadata();
 assertPanelMetadata();
+assertPanelIdentityPairsUnique();
 assertLegacyCompatibilityMetadata();
 assertNodeContextHelper();
 assertChangedFileBoundary();
@@ -266,12 +291,13 @@ console.log(
       key_panel_metadata_checked: requiredPanelMetadata.map(
         (panel) => panel.panelId,
       ),
+      key_panel_identity_pairs_unique_checked: true,
       legacy_cockpit_compatibility_metadata_checked: true,
       node_context_registry_checked: true,
       source_fallback_staleness_authority_validation_checked: true,
       no_legacy_cockpit_deletion_checked: true,
       no_guidebrief_debug_or_intent_projection_added: true,
-      no_runner_delta_batch_integration_or_runner_behavior_added: true,
+      no_runner_execution_recovery_write_or_scheduler_behavior_added: true,
       no_route_provider_openai_github_codex_db_or_persistence_added: true,
       no_durable_memory_or_perspective_apply_added: true,
       no_broad_source_deletion_checked: true,
@@ -331,8 +357,10 @@ function assertDocs() {
       "Not Implemented Yet",
       "no GuideBrief debug panel",
       "no GuideBrief intent projection",
-      "no Runner / DeltaBatch Workplane integration",
-      "no new runner behavior",
+      "Recovered runner DeltaBatch Workplane readback",
+      "no new runner execution behavior",
+      "no recovery write behavior is added to Workplane reads",
+      "no scheduled runner behavior",
       "no route",
       "no DB write or persistence",
       "no provider/OpenAI/GitHub/Codex execution",
@@ -357,8 +385,9 @@ function assertDocs() {
       "data-workplane-node-kind",
       "data-workplane-node-status",
       "read-only node context helper",
-      "does not add a route, DB write, persistence, new data source, runner ledger read",
+      "does not add a route, DB write, persistence, runner execution",
       "legacy_cockpit_compatibility",
+      "docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md",
     ],
     { label: agentWorkplaneDoc },
   );
@@ -390,11 +419,55 @@ function assertPanelMetadata() {
         `panelId="${panel.panelId}"`,
         `nodeId="${panel.nodeId}"`,
         `nodeKind="${panel.kind}"`,
-        `nodeStatus="${panel.status}"`,
       ],
       { label: panel.file },
     );
+    if (panel.status === "dynamic") {
+      assertContainsAll(text, ["nodeStatus={nodeStatus}"], {
+        label: panel.file,
+      });
+    } else {
+      assertContainsAll(text, [`nodeStatus="${panel.status}"`], {
+        label: panel.file,
+      });
+    }
   }
+}
+
+function assertPanelIdentityPairsUnique() {
+  const seen = new Map();
+
+  for (const panel of requiredPanelMetadata) {
+    const key = `${panel.panelId}/${panel.nodeId}`;
+    assert(
+      !seen.has(key),
+      `${panel.file} must not share panelId/nodeId pair ${key} with ${seen.get(
+        key,
+      )}`,
+    );
+    seen.set(key, panel.file);
+  }
+
+  assert.equal(
+    requiredPanelMetadata.find(
+      (panel) =>
+        panel.file === "components/workplane/delta-projection-workplane-panel.tsx",
+    )?.panelId,
+    "delta_projection",
+  );
+  assert.equal(
+    requiredPanelMetadata.find(
+      (panel) => panel.file === "components/workplane/delta-batch-panel.tsx",
+    )?.panelId,
+    "projected_delta_batch",
+  );
+  assert.equal(
+    requiredPanelMetadata.find(
+      (panel) =>
+        panel.file === "components/workplane/runner-delta-batch-panel.tsx",
+    )?.panelId,
+    "delta_batch",
+  );
 }
 
 function assertLegacyCompatibilityMetadata() {
@@ -430,7 +503,8 @@ function assertNodeContextHelper() {
       "validation_summary",
       "Fixture fallback disclosure",
       "not_materialized",
-      "Runner State, runner DeltaBatch, and Run Postmortem nodes remain preview-only or not materialized",
+      "Recovered runner DeltaBatches are read-only review candidates",
+      "runner_delta_batch_read",
       ...stablePanelIds,
       ...absorptionTargetNodeIds,
       ...requiredNodeKinds,
@@ -443,8 +517,8 @@ function assertNodeContextHelper() {
     "Node context helper must not use nondeterministic Date.now()",
   );
   assert(
-    !/runner-ledger|runner-delta-batch|runner-state/.test(helperText),
-    "Node context helper must not import or read runner ledger integration",
+    !/from\s+["']@\/lib\/autonomy\/runner/.test(helperText),
+    "Node context helper must not import runner lifecycle helpers",
   );
   assert(
     !/\bfetch\s*\(/.test(helperText),

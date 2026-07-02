@@ -140,6 +140,26 @@ const followOnAgentWorkplaneNodeContractFiles = [
   "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
 ];
 
+const followOnWorkplaneRunnerDeltaBatchIntegrationFiles = [
+  "lib/workplane/read-runner-delta-batches-for-workplane.ts",
+  "components/workplane/runner-delta-batch-panel.tsx",
+  "docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md",
+  "scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs",
+  "lib/workplane/read-workplane-context.ts",
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/delta-batch-panel.tsx",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+];
+
 const requiredFiles = [
   guideBriefDoc,
   guideBriefTypeFile,
@@ -231,6 +251,7 @@ const allowedChangedFiles = new Set([
   ...followOnAutonomyContractCodexSkillFiles,
   ...phase8fAutonomyContractCopyExportFiles,
   ...followOnAgentWorkplaneNodeContractFiles,
+  ...followOnWorkplaneRunnerDeltaBatchIntegrationFiles,
 ]);
 for (const file of phase9aAutonomyRunnerPreflightFiles) {
   allowedChangedFiles.add(file);
@@ -900,7 +921,8 @@ function assertChangedFileBoundary() {
         phase8cAutonomyContractWebPreviewFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file) ||
         phase8fAutonomyContractCopyExportFiles.includes(file) ||
-        followOnAgentWorkplaneNodeContractFiles.includes(file),
+        followOnAgentWorkplaneNodeContractFiles.includes(file) ||
+        followOnWorkplaneRunnerDeltaBatchIntegrationFiles.includes(file),
       `Phase 6A must not change UI files outside exact Phase 6C/7C/7F Web follow-on scope or exact Phase 8C/8F Autonomy Web preview files: ${file}`,
     );
     assert(

@@ -57,10 +57,27 @@ const followOnAgentWorkplaneNodeContractFiles = [
   "package.json",
 ];
 
+const followOnWorkplaneRunnerDeltaBatchIntegrationFiles = [
+  "lib/workplane/read-runner-delta-batches-for-workplane.ts",
+  "components/workplane/runner-delta-batch-panel.tsx",
+  "docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md",
+  "scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs",
+  "lib/workplane/read-workplane-context.ts",
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/delta-batch-panel.tsx",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...downstreamSmokeCompatibilityFiles,
   ...followOnAgentWorkplaneNodeContractFiles,
+  ...followOnWorkplaneRunnerDeltaBatchIntegrationFiles,
 ]);
 
 const validStatuses = new Set([
@@ -345,7 +362,10 @@ function assertNoRuntimeAuthorityFilesChanged() {
       allowedChangedFiles.has(file),
       `Unexpected runtime or authority file changed: ${file}`,
     );
-    if (followOnAgentWorkplaneNodeContractFiles.includes(file)) {
+    if (
+      followOnAgentWorkplaneNodeContractFiles.includes(file) ||
+      followOnWorkplaneRunnerDeltaBatchIntegrationFiles.includes(file)
+    ) {
       continue;
     }
     assert(

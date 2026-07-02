@@ -170,10 +170,22 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   attributes on key existing panels, and
   `scripts/smoke-agent-workplane-node-contract-v0-1.mjs`. It prepares future
   GuideBrief Workplane Debug Context and GuideBrief Intent Projection without
-  adding GuideBrief debug or intent projection behavior, Runner / DeltaBatch
-  Workplane integration, runner behavior, routes, DB writes, provider/OpenAI,
-  GitHub, Codex execution, durable memory apply, Perspective apply, delta
-  auto-apply, or legacy Cockpit deletion.
+  adding GuideBrief debug or intent projection behavior, runner execution
+  behavior, recovery writes from Workplane reads, scheduled behavior, routes,
+  DB writes, provider/OpenAI, GitHub, Codex execution, durable memory apply,
+  Perspective apply, delta auto-apply, or legacy Cockpit deletion.
+- `docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md`: Recovered
+  Runner DeltaBatch Integration v0.1 connects existing recovered runner
+  DeltaBatch ledger readback to Agent Workplane read context, node/panel
+  context, and a native `RunnerDeltaBatchPanel`. It distinguishes projected
+  Delta Projection batches from recovered runner DeltaBatches, exposes empty
+  and fallback states without throwing, and adds
+  `scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs`. It adds no
+  new runner execution, no recovery write behavior from Workplane reads, no
+  scheduled runner behavior, no GuideBrief debug or intent projection, no
+  provider/OpenAI/GitHub/Codex execution, no DB write from Workplane reads, no
+  proof/evidence write, no durable memory apply, no Perspective apply, no
+  delta auto-apply, and no legacy Cockpit deletion.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and
