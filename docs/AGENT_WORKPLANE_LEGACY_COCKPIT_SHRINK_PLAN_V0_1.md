@@ -37,6 +37,20 @@ only; it does not apply durable memory, apply Perspective, auto-apply deltas,
 delete, shrink, hide, or disable Legacy Cockpit, and it does not authorize a
 shrink candidate.
 
+Follow-on Run Postmortem detail evidence is documented in
+`docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md`. It improves native
+work/run visibility with source-backed run summaries, step refs, event refs,
+recovered DeltaBatch summaries, validation status, and no-runner-authority
+copy. It is evidence only and does not authorize a shrink candidate.
+
+Follow-on Legacy Cockpit Local UI Control Classification is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md`.
+It classifies useful Legacy Cockpit local controls into read-only,
+copy/export, preview/local-draft, local-write, forbidden, compatibility-only,
+and unknown/manual-review buckets before any shrink candidate. Classification
+is evidence/signaling only, not shrink authority. Local-write controls require
+a separate authority contract before native absorption.
+
 ## 2. Why This Plan Exists
 
 Legacy Cockpit remains useful inside `/workbench` as a compatibility path while
@@ -174,7 +188,7 @@ plan cannot authorize deletion.
 | source_ref_visibility | Cockpit Work context, Perspective source refs, Bridge endpoint examples, Evidence Pack refs, Session Trace refs | Overview, Evidence/Handoff, Workplane Inspector, Trace / Diagnostics, node context source refs | `workplane_inspector` / `source_ref_bridge`; `evidence_handoff`; `trace_diagnostics` | Compatibility remains available for detailed legacy refs | native_complete | candidate_after_browser_regression | Native source/ref rows cover work ids, state keys, action ids, PR refs, evidence refs, diagnostic refs, handoff refs, stale/fallback status, and DeltaBatch identity split | source/ref browser regression; `smoke:agent-workplane-node-contract-v0-1`; `smoke:guide-workplane-debug-context-v0-1` | select `workplane_inspector` / `source_ref_bridge` | projected-vs-recovered DeltaBatch identity; stale/fallback visibility | add_browser_regression |
 | review_memory_proposal_visibility | Cockpit pending proposal queue, AG Resume technical review panels, durable-memory review refs, local review summaries | Review Queue plus read-only Review / Memory Proposal Detail with durable memory review candidates, Perspective review candidates, validation-required and user-decision lanes, candidate source refs, and no-apply boundaries | `review_queue` / `authority_validation_debug`; `review_memory_detail` / `authority_validation_debug` | Compatibility retains detailed AG Resume and local proposal review panels | partially_native | watch | Native proposal/memory detail remains source-backed in browser regression and GuideBrief debug, and repeated dogfood/metrics show no useful proposal visibility loss without compatibility | `smoke:agent-workplane-review-memory-detail-v0-1`; `smoke:workplane-native-browser-regression-v0-1`; browser negative case for no apply/commit controls | select `review_memory_detail` / `authority_validation_debug`; fallback `review_queue` / `authority_validation_debug` | durable-memory review refs; Perspective review refs; Cockpit dependency signal | add_dogfood_baseline |
 | validation_smoke_visibility | Cockpit Evidence Pack, Session Trace, suggested verification, recent validation, approval/publication summaries | Trace / Diagnostics, Evidence/Handoff, Workplane Inspector, Handoff preview validation refs | `trace_diagnostics`; `evidence_handoff`; `workplane_inspector`; `handoff_builder_preview` | Compatibility retains detailed Evidence Pack and Session Trace material | partially_native | candidate_after_browser_regression | Native panels expose validation commands/status, skipped checks, failures, evidence status, session gaps, and approval-gate context | `smoke:agent-workplane-projection-handoff-v0-1`; `smoke:autonomy-runner-v0-1`; browser validation visibility regression | select `trace_diagnostics` / `trace_bridge` | validation refs in node context; dogfood delta quality and stale visibility | add_browser_regression |
-| legacy_local_ui_controls | Cockpit tab buttons, work selection, copy buttons, load evidence/session artifacts, local proposal commit/reject, consolidate, observe, plan next, checklist actions | Native copy/export preview exists for copy/read controls only; no native replacement for local-write controls | Handoff copy/export preview plus compatibility-only controls | `LegacyCockpitCompatibilityPanel` is the retained compatibility path | legacy_only_still_useful | not_ready | Separate authority contract proves which controls are read/copy-only, which are local-write, and which must never be absorbed by Workplane | browser regression for retained compatibility; negative smokes for no new Workplane write controls | select `legacy_cockpit_compatibility` | Cockpit dependency signal; dogfood no capability loss | retain_compatibility |
+| legacy_local_ui_controls | Cockpit tab buttons, work selection, copy buttons, load evidence/session artifacts, local proposal commit/reject, consolidate, observe, plan next, checklist actions | Legacy Cockpit Local UI Control Classification documents read-only, copy/export, preview/local-draft, local-write, forbidden, compatibility-only, and unknown/manual-review buckets; native copy/export preview exists for copy/read controls only; no native replacement for local-write controls | Handoff copy/export preview plus compatibility-only controls | `LegacyCockpitCompatibilityPanel` is the retained compatibility path | classified_retained_compatibility | not_ready | Classification counts, browser/manual unknown-control inventory, rollback reachability, and a separate authority contract for any local-write control before absorption | `smoke:legacy-cockpit-local-control-classification-v0-1`; browser regression for retained compatibility; negative smokes for no new Workplane write controls | select `legacy_cockpit_compatibility` | Cockpit dependency signal; dogfood no capability loss; local-control unknown/manual-review signal | retain_compatibility |
 | external_control_buttons | Historical Cockpit maps forbid publish, merge, retry, GitHub token controls, live exchange, execute Codex, backup, replay, Publish Proof, Record Proof, and new ChatGPT App tools | No native replacement; intentionally blocked external authority | not applicable; no panel or node should add this authority | not applicable; blocked rather than retained | obsolete | obsolete_with_rationale | These are obsolete because they would add external authority or hidden execution, not because a native replacement should absorb them | authority-boundary smokes must keep them absent | absence is intentional and should remain documented by authority smokes | forbidden-action attempt count must remain zero | no_action |
 
 ## 7. Required Evidence Before Any Future Removal
@@ -192,6 +206,10 @@ Before a future removal PR can be proposed for any capability, reviewers need:
 - Augnes-on-Augnes Dogfood report showing no useful capability loss;
 - browser regression showing native replacement reachability and compatibility
   rollback reachability;
+- Legacy Cockpit local UI control classification showing read-only,
+  copy/export, preview/local-draft, local-write, forbidden, compatibility-only,
+  and unknown/manual-review controls, with local-write controls retained until
+  a separate authority contract exists;
 - static smoke coverage for no new route, no API write route, no server action,
   no provider/OpenAI/GitHub/Codex execution, no runner behavior, no DB write,
   no proof/evidence write, no durable memory apply, no Perspective apply, and
@@ -220,8 +238,11 @@ At minimum:
 - Review/memory proposal visibility requires the native `review_memory_detail`
   candidate-only proposal review context to stay source-backed, GuideBrief-
   debuggable, browser-regression-visible, and no-apply.
-- Useful legacy local UI controls must remain until a separate local-control
-  authority contract exists.
+- Useful legacy local UI controls must remain until
+  `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md`
+  has no unknown/manual-review blocker, browser/manual review confirms no
+  useful control loss, and a separate local-control authority contract exists
+  for any local-write absorption.
 
 ## 9. What Can Be Shrunk Later
 

@@ -41,6 +41,14 @@ DeltaBatch, validation status, no runner execution, no runner tick, and no
 DeltaBatch recovery copy. This improves browser evidence for Work/run
 visibility but does not make browser regression shrink authority.
 
+Follow-on Legacy Cockpit Local UI Control Classification is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md`.
+The classification records read-only, copy/export, preview/local-draft,
+local-write, forbidden, compatibility-only, and unknown/manual-review control
+buckets before any shrink candidate. Browser regression can use that
+classification as evidence/signaling, but it remains not shrink authority and
+does not move local-write controls into native Workplane.
+
 ## 2. Why Browser Regression Exists
 
 Legacy Cockpit remains reachable in `/workbench` as compatibility content while
@@ -94,8 +102,10 @@ The regression validates server-rendered or browser DOM HTML for:
 This regression does not prove that native replacement is complete enough to
 delete compatibility content. It does not measure live resume latency, live
 review burden, dogfood usefulness, operator satisfaction, or human approval.
-It does not validate local-write legacy controls. It does not run a browser
-interaction suite by itself.
+It does not validate local-write legacy controls beyond retaining compatibility
+and pointing to
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md`.
+It does not run a browser interaction suite by itself.
 
 It also does not start the dev server. The runner expects an already-running
 local server.
@@ -212,8 +222,10 @@ The helper maps legacy Cockpit capabilities to native markers:
 - Validation / smoke visibility -> `source_ref_bridge`,
   `trace_diagnostics`, `evidence_handoff`, validation summary copy, evidence
   refs copy, and diagnostic refs copy
-- Local UI controls -> `legacy_cockpit_compatibility` retained, not natively
-  shrunk
+- Local UI controls -> `legacy_cockpit_compatibility` retained, with
+  classification evidence in
+  `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md`;
+  local-write controls are not natively shrunk
 
 Capability checks can pass, be partial, or require review. Partial and
 needs-review statuses block shrink authority.
