@@ -338,3 +338,12 @@ authority, and cannot delete, hide, disable, or weaken Legacy Cockpit
 compatibility content. Current shrink review still needs more baseline data
 for resume latency and review burden before any future removal PR can be
 reviewed.
+
+Follow-on browser regression status: Workplane Native Replacement Browser
+Regression v0.1 is now documented in
+`docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md`. It
+checks `/workbench` HTML for native replacement markers, GuideBrief debug and
+intent projection markers, Workplane metrics visibility, DeltaBatch identity
+separation, no-control constraints, and retained Legacy Cockpit compatibility.
+Browser regression is evidence, not shrink authority; metrics remain signals,
+not shrink authority.

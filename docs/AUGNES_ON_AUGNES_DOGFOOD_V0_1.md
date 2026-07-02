@@ -45,6 +45,15 @@ shrink plan therefore defines gates and evidence requirements only. It does
 not delete, shrink, hide, remove, disable, or weaken Legacy Cockpit
 compatibility content.
 
+Follow-on browser regression status: Workplane Native Replacement Browser
+Regression v0.1 is documented in
+`docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md`. It adds
+repeatable `/workbench` HTML evidence for native replacement reachability,
+GuideBrief debug/intent projection, metrics visibility, DeltaBatch identity
+separation, no-control checks, and retained Legacy Cockpit compatibility.
+Browser regression is evidence, not shrink authority, and dogfood reports
+remain evidence, not shrink authority.
+
 ## 4. What the Harness Does
 
 `lib/dogfood/augnes-on-augnes-dogfood.ts` supports two modes:
@@ -310,4 +319,7 @@ Follow-on recommendation: use
 `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md` for the gate model.
 If readiness remains `watch` / `needs_review`, run another dogfood/metrics
 baseline and a browser regression for native Workplane replacement before any
-actual shrink candidate. Dogfood reports are evidence, not shrink authority.
+actual shrink candidate. Use
+`docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md` for the
+browser regression evidence model. Dogfood reports are evidence, not shrink
+authority.
