@@ -10,17 +10,28 @@ import {
 } from "./smoke-boundary-common.mjs";
 
 const packageJsonFile = "package.json";
+const indexDoc = "docs/00_INDEX_LATEST.md";
 const shrinkDoc = "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md";
+const remainingCapabilityMigrationDoc =
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md";
 const runtimeHelperFile =
   "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs";
 const smokeFile =
   "scripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs";
+const shrinkSmokeFile =
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs";
+const remainingCapabilityMigrationSmokeFile =
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs";
 
 const allowedChangedFiles = [
   packageJsonFile,
+  indexDoc,
   shrinkDoc,
+  remainingCapabilityMigrationDoc,
   runtimeHelperFile,
   smokeFile,
+  shrinkSmokeFile,
+  remainingCapabilityMigrationSmokeFile,
 ];
 
 const textByFile = loadTextByFile([
