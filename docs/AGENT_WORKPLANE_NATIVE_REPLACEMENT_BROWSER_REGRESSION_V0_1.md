@@ -25,6 +25,14 @@ refs copy. This improves browser evidence for Bridge, Source/ref visibility,
 and Validation/smoke visibility but does not make browser regression shrink
 authority.
 
+Follow-on Review / Memory Proposal detail hardening is documented in
+`docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md`. The regression now expects
+the native review memory detail marker and visible Review / memory proposal
+detail, durable memory review, Perspective review, validation required, needs
+user judgment, no durable memory apply, and no Perspective apply copy. This
+improves browser evidence for Review / memory proposal visibility but does not
+make browser regression shrink authority.
+
 ## 2. Why Browser Regression Exists
 
 Legacy Cockpit remains reachable in `/workbench` as compatibility content while
@@ -117,6 +125,8 @@ Native replacement panel markers:
 - `data-workplane-panel-id="projected_delta_batch"`
 - `data-workplane-panel-id="delta_batch"`
 - `data-workplane-panel-id="review_queue"`
+- `data-workplane-panel-id="review_memory_detail"`
+- `data-workplane-review-memory-detail-panel="v0.1"`
 - `data-workplane-panel-id="evidence_handoff"`
 - `data-workplane-panel-id="workplane_inspector"`
 - `data-workplane-panel-id="source_ref_bridge"`
@@ -182,8 +192,11 @@ The helper maps legacy Cockpit capabilities to native markers:
   `run_postmortem`
 - Source/ref visibility -> `source_ref_bridge`, `workplane_inspector`,
   `trace_diagnostics`, `evidence_handoff`, and source refs copy
-- Review / memory proposal visibility -> `review_queue` and needs-user-
-  judgment copy
+- Review / memory proposal visibility -> `review_queue`,
+  `review_memory_detail`, `data-workplane-review-memory-detail-panel="v0.1"`,
+  Review / memory proposal detail, durable memory review, Perspective review,
+  validation required, needs user judgment, no durable memory apply, and no
+  Perspective apply copy
 - Validation / smoke visibility -> `source_ref_bridge`,
   `trace_diagnostics`, `evidence_handoff`, validation summary copy, evidence
   refs copy, and diagnostic refs copy
@@ -310,8 +323,6 @@ This slice does not implement:
 - visual diffing;
 - click/keyboard interaction checks;
 - local-write control classification;
-- review/memory proposal native detail hardening;
-- native proposal/memory review absorption;
 - source-backed Run Postmortem fields;
 - any Legacy Cockpit shrink candidate.
 

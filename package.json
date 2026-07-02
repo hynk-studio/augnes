@@ -707,6 +707,7 @@
     "browser:workplane-native-regression-v0-1": "tsx --tsconfig tsconfig.json scripts/run-workplane-native-browser-regression-v0-1.mjs",
     "smoke:workplane-native-browser-regression-v0-1": "node scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
     "smoke:agent-workplane-bridge-trace-detail-v0-1": "node scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",
+    "smoke:agent-workplane-review-memory-detail-v0-1": "node scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
     "smoke:guide-brief-v0-1": "node scripts/smoke-guide-brief-v0-1.mjs",
     "smoke:guide-brief-route-v0-1": "node scripts/smoke-guide-brief-route-v0-1.mjs",
     "smoke:web-guide-panel-v0-1": "node scripts/smoke-web-guide-panel-v0-1.mjs",

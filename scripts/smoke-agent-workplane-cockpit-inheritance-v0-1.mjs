@@ -206,6 +206,25 @@ const followOnAgentWorkplaneBridgeTraceDetailFiles = [
   "docs/00_INDEX_LATEST.md",
   "package.json",
 ];
+const followOnAgentWorkplaneReviewMemoryDetailFiles = [
+  "types/workplane-review-memory-detail.ts",
+  "lib/workplane/workplane-review-memory-detail.ts",
+  "components/workplane/review-memory-detail-panel.tsx",
+  "docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md",
+  "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
+  "components/workplane/agent-workplane.tsx",
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 
 const allowedChangedFiles = new Set([
   ...requiredFiles,
@@ -219,6 +238,7 @@ const allowedChangedFiles = new Set([
   ...followOnLegacyCockpitShrinkPlanFiles,
   ...followOnWorkplaneNativeBrowserRegressionFiles,
   ...followOnAgentWorkplaneBridgeTraceDetailFiles,
+  ...followOnAgentWorkplaneReviewMemoryDetailFiles,
 ]);
 
 const validStatuses = new Set([
@@ -511,7 +531,8 @@ function assertNoRuntimeAuthorityFilesChanged() {
       followOnRunnerWorkplaneMetricsFiles.includes(file) ||
       followOnAugnesDogfoodFiles.includes(file) ||
       followOnWorkplaneNativeBrowserRegressionFiles.includes(file) ||
-      followOnAgentWorkplaneBridgeTraceDetailFiles.includes(file)
+      followOnAgentWorkplaneBridgeTraceDetailFiles.includes(file) ||
+      followOnAgentWorkplaneReviewMemoryDetailFiles.includes(file)
     ) {
       continue;
     }

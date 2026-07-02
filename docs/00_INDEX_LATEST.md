@@ -307,6 +307,28 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   proof/evidence write, durable memory apply, Perspective apply, delta
   auto-apply, localStorage/sessionStorage durable view mode, product UI action
   authority, or Legacy Cockpit deletion/shrink/hide.
+- `docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md`: Agent Workplane Review /
+  Memory Proposal Detail v0.1 adds native read-only review/memory proposal
+  detail for `/workbench`. It adds
+  `types/workplane-review-memory-detail.ts`,
+  `lib/workplane/workplane-review-memory-detail.ts`,
+  `components/workplane/review-memory-detail-panel.tsx`, and
+  `scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs`. The panel
+  exposes `data-workplane-review-memory-detail-panel="v0.1"` and
+  `data-workplane-panel-id="review_memory_detail"` with durable memory review
+  candidates, Perspective review candidates, validation-required lanes,
+  user-decision lanes, candidate source refs, gap details, and denied apply
+  authority copy. It improves Review / memory proposal visibility, Review Queue
+  explainability, Browser Regression coverage, and GuideBrief debug
+  explainability without deleting, shrinking, hiding, or disabling Legacy
+  Cockpit. Browser regression, metrics, and dogfood remain evidence/signals,
+  not shrink authority. Review/memory detail is visibility only, not apply
+  authority. It adds no route, API write route, server action, chat composer,
+  provider/OpenAI/GitHub/Codex execution, runner execution/tick/recovery/
+  scheduled behavior, product DB write, proof/evidence write, durable memory
+  apply, Perspective apply, delta auto-apply, localStorage/sessionStorage
+  durable view mode, product UI action authority, or Legacy Cockpit deletion/
+  shrink/hide.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and

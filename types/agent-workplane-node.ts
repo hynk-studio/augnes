@@ -14,6 +14,7 @@ export const AGENT_WORKPLANE_PANEL_IDS = [
   "current_perspective",
   "delta_projection",
   "review_queue",
+  "review_memory_detail",
   "evidence_handoff",
   "workplane_inspector",
   "projection_candidates",
