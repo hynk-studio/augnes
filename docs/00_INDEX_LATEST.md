@@ -269,6 +269,24 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   product DB write, proof/evidence write, durable memory apply, Perspective
   apply, or delta auto-apply is added, and future deletion requires a separate
   PR.
+- `docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md`:
+  Workplane Native Replacement Browser Regression v0.1 adds type/helper/script
+  regression coverage for parsing `/workbench` server-rendered HTML from an
+  already-running dev server. It adds `types/workplane-browser-regression.ts`,
+  `lib/workplane/workplane-browser-regression.ts`,
+  `scripts/run-workplane-native-browser-regression-v0-1.mjs`, and
+  `scripts/smoke-workplane-native-browser-regression-v0-1.mjs`. It checks
+  native replacement panel markers, GuideBrief debug/intent projection,
+  Workplane metrics, Legacy Cockpit compatibility, DeltaBatch identity
+  separation, no-control target areas, capability replacement coverage, and
+  gated recommendation logic. Browser regression is evidence, not shrink
+  authority; metrics are signals, not shrink authority; dogfood reports are
+  evidence, not shrink authority. It adds no product UI behavior change, no
+  route, no API write route, no server action, no chat composer, no persistent
+  Workplane mode, no UI action authority, no runner execution/tick/recovery or
+  scheduled behavior, no external authority, no product DB write, no
+  proof/evidence write, no durable memory apply, no Perspective apply, no
+  delta auto-apply, and no Legacy Cockpit deletion/shrink/hide.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and

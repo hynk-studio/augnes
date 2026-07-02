@@ -8,7 +8,8 @@ Phase 5D Agent Workplane Cleanup / Responsive Hardening, plus Agent Workplane
 Node / Panel Contract v0.1, Recovered Runner DeltaBatch Integration v0.1, and
 GuideBrief Workplane Debug Context v0.1, plus GuideBrief Intent Projection
 v0.1, plus Runner / Workplane Metrics v0.1, plus Longer Augnes-on-Augnes
-Dogfood v0.1, plus Legacy Cockpit Shrink Plan v0.1.
+Dogfood v0.1, plus Legacy Cockpit Shrink Plan v0.1, plus Workplane Native
+Replacement Browser Regression v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -109,6 +110,16 @@ proof/evidence write, durable memory apply, Perspective apply, or delta
 auto-apply. Metrics remain signals and dogfood remains evidence; neither is
 shrink authority.
 
+Workplane Native Replacement Browser Regression v0.1 is documented in
+`docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md`. It adds
+a type contract, pure server-rendered HTML parser, GET-only local runner,
+report shape, and smoke coverage proving native replacement markers, GuideBrief
+debug/intent projection, Workplane metrics, DeltaBatch identity separation, and
+Legacy Cockpit compatibility remain reachable in `/workbench`. It is evidence,
+not shrink authority. It changes no product UI behavior, adds no route or API
+write route, starts no runner, writes no product DB state, and deletes,
+shrinks, hides, disables, or weakens no Legacy Cockpit functionality.
+
 ## 2. Surface Model
 
 The route model remains:
@@ -148,6 +159,9 @@ Agent Workplane renders:
   readiness
 - Legacy Cockpit Shrink Plan v0.1 as a docs/smoke gate model for future
   compatibility review, not as a deletion authority
+- Workplane Native Replacement Browser Regression v0.1 as a repeatable
+  server-rendered HTML/browser evidence check before any shrink candidate, not
+  as shrink authority
 - local Augnes-on-Augnes Dogfood report generation through the explicit script
   path, not through product render
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,
@@ -562,6 +576,24 @@ delete, shrink, hide, remove, disable, or weaken any compatibility content.
   server actions, provider/OpenAI/GitHub/Codex paths, runner behavior, product
   DB writes, proof/evidence writes, durable memory apply, Perspective apply,
   delta auto-apply, or broad source deletion are added
+
+`npm run smoke:workplane-native-browser-regression-v0-1` checks:
+
+- the Workplane Native Replacement Browser Regression type, pure parser,
+  GET-only runner, docs, index pointers, package scripts, and smoke exist
+- required native replacement markers, GuideBrief debug/intent projection
+  markers, Workplane metrics marker, Legacy Cockpit compatibility marker, and
+  DeltaBatch identity pairs are encoded in the helper
+- deterministic fixture HTML returns browser-regression passed/partial status
+  as appropriate while keeping shrink gated by dogfood/metrics/human review
+- missing compatibility, DeltaBatch identity collision, and mutation controls
+  block shrink recommendations
+- `LegacyCockpitCompatibilityPanel` remains rendered around `AugnesCockpit`
+- no product component behavior files, routes, API routes, server actions,
+  provider/OpenAI/GitHub/Codex execution paths, runner behavior, DB writes,
+  proof/evidence writes, durable memory apply, Perspective apply, delta
+  auto-apply, broad source deletion, or Legacy Cockpit deletion/shrink/hide are
+  added
 
 ## 13. Validation
 

@@ -147,6 +147,20 @@ const followOnLegacyCockpitShrinkPlanFiles = [
   "package.json",
 ];
 
+const followOnWorkplaneNativeBrowserRegressionFiles = [
+  "types/workplane-browser-regression.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "scripts/run-workplane-native-browser-regression-v0-1.mjs",
+  "scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md",
+  "docs/AUGNES_WORKFLOW_METRICS_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const requiredFiles = [
   readerFile,
   panelFile,
@@ -172,6 +186,7 @@ const allowedChangedFiles = new Set([
   ...followOnRunnerWorkplaneMetricsFiles,
   ...followOnAugnesDogfoodFiles,
   ...followOnLegacyCockpitShrinkPlanFiles,
+  ...followOnWorkplaneNativeBrowserRegressionFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);

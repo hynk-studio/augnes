@@ -14,6 +14,13 @@ This is not a deletion PR. No Legacy Cockpit functionality is deleted or
 shrunk in this PR. No compatibility path is removed in this PR. No UI behavior
 is changed in this PR. Future deletion requires a separate PR.
 
+Follow-on browser regression evidence is documented in
+`docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md`. That
+regression is evidence, not shrink authority. It proves native Workplane
+replacement markers, GuideBrief debug/intent projection, Workplane metrics,
+DeltaBatch identity separation, no-control checks, and retained compatibility
+can be checked from `/workbench` HTML before any shrink candidate is reviewed.
+
 ## 2. Why This Plan Exists
 
 Legacy Cockpit remains useful inside `/workbench` as a compatibility path while
@@ -125,6 +132,14 @@ Gate 7: browser smoke validates replacement and compatibility rollback.
 Browser or server-rendered HTML checks must confirm the native replacement,
 the compatibility path, and rollback markers are reachable before and after
 the candidate shrink.
+
+Workplane Native Replacement Browser Regression v0.1 supplies the first
+repeatable Gate 7 evidence artifact through
+`docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md`,
+`lib/workplane/workplane-browser-regression.ts`, and
+`scripts/run-workplane-native-browser-regression-v0-1.mjs`. Passing this
+regression does not satisfy the dogfood, metrics, native absorption, rollback,
+or human approval gates by itself.
 
 Gate 8: explicit human approval for removal PR.
 Removal requires a separate, dedicated PR with explicit human approval. This
@@ -360,6 +375,14 @@ The next review should ask:
 
 Recommended next phase: Browser Regression for Native Workplane Replacement
 v0.1 if shrink readiness remains `watch` / `needs_review`.
+
+Follow-on status: Workplane Native Replacement Browser Regression v0.1 is now
+documented in
+`docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md`. It should
+be run before any actual shrink candidate and interpreted together with
+dogfood, metrics, capability absorption, rollback, and explicit human review.
+It does not delete, shrink, hide, remove, disable, or weaken any Legacy
+Cockpit content.
 
 The shrink plan recommends Legacy Cockpit removal only in a future dedicated
 removal PR, another dogfood/metrics baseline if readiness remains `watch` /
