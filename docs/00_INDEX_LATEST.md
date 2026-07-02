@@ -143,6 +143,23 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   execution, proof/evidence write, durable Perspective apply, memory mutation,
   product-write, scheduler/autonomy runner, GuideBrief,
   merge/publish/retry/replay/deploy behavior, or external side effect.
+- `docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md`: Agent
+  Workplane Cockpit Capability Inventory v0.1 records useful legacy Cockpit
+  capabilities, why agents use them, current native replacements, retained
+  compatibility paths, absorption targets, statuses, source refs, validation
+  coverage, and recommended next actions. It states that legacy Cockpit must
+  not be removed until native replacement and validation exist, and adds no
+  GuideBrief debug panel, GuideBrief intent projection, Workplane node/panel
+  contract, Runner / DeltaBatch Workplane integration, runner behavior,
+  external actuation, provider/OpenAI call, GitHub execution behavior, Codex
+  execution behavior, durable memory apply, or Perspective apply.
+- `docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md`: Agent Workplane
+  Native Absorption Map v0.1 maps Work Brief, Handoff, Perspective, Bridge,
+  Operator visibility, Runner outputs, Postmortem, and Trace context to native
+  Agent Workplane panels/nodes or explicit retained compatibility paths. It
+  recommends Agent Workplane Node / Panel Contract v0.1 as the next phase and
+  keeps legacy Cockpit deletion blocked until native replacement and validation
+  exist.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and

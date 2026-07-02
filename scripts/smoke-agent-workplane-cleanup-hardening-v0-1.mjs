@@ -120,6 +120,12 @@ const followOnChatgptAppGuideBriefToolFiles = [
   "scripts/smoke-chatgpt-app-autonomy-contract-tool-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneCockpitInheritanceFiles = [
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+];
+
 
 const requiredFiles = [
   workbenchPageFile,
@@ -221,6 +227,7 @@ const allowedChangedFiles = new Set([
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
   ...followOnChatgptAppGuideBriefToolFiles,
+  ...followOnAgentWorkplaneCockpitInheritanceFiles,
   smokeFile,
   "app/globals.css",
 ]);

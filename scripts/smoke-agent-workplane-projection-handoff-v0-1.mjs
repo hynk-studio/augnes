@@ -69,6 +69,12 @@ const followOnAgentWorkplaneCleanupHardeningFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneCockpitInheritanceFiles = [
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -200,6 +206,7 @@ const allowedChangedFiles = new Set([
   phase5bSmokeFile,
   ...followOnSmokeCompatibilityFiles,
   ...followOnAgentWorkplaneCleanupHardeningFiles,
+  ...followOnAgentWorkplaneCockpitInheritanceFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
