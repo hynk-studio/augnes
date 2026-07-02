@@ -33,6 +33,14 @@ user judgment, no durable memory apply, and no Perspective apply copy. This
 improves browser evidence for Review / memory proposal visibility but does not
 make browser regression shrink authority.
 
+Follow-on Run Postmortem detail hardening is documented in
+`docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md`. The regression now
+expects the native run postmortem detail marker and visible Run Postmortem
+detail, source-backed run postmortem, run_id, step refs, event refs, recovered
+DeltaBatch, validation status, no runner execution, no runner tick, and no
+DeltaBatch recovery copy. This improves browser evidence for Work/run
+visibility but does not make browser regression shrink authority.
+
 ## 2. Why Browser Regression Exists
 
 Legacy Cockpit remains reachable in `/workbench` as compatibility content while
@@ -134,6 +142,7 @@ Native replacement panel markers:
 - `data-workplane-panel-id="projection_candidates"`
 - `data-workplane-panel-id="handoff_builder_preview"`
 - `data-workplane-panel-id="run_postmortem"`
+- `data-workplane-run-postmortem-detail-panel="v0.1"`
 - `data-workplane-panel-id="trace_diagnostics"`
 
 Required compatibility marker:
@@ -189,7 +198,10 @@ The helper maps legacy Cockpit capabilities to native markers:
   `trace_diagnostics` plus Bridge matrix copy
 - Operator visibility -> metrics, GuideBrief debug, and `review_queue`
 - Work/run visibility -> `delta_batch` / `runner_delta_batch` /
-  `run_postmortem`
+  `run_postmortem`, `data-workplane-run-postmortem-detail-panel="v0.1"`,
+  Run Postmortem detail, source-backed run postmortem, run_id, step refs,
+  event refs, recovered DeltaBatch, validation status, no runner execution,
+  no runner tick, and no DeltaBatch recovery copy
 - Source/ref visibility -> `source_ref_bridge`, `workplane_inspector`,
   `trace_diagnostics`, `evidence_handoff`, and source refs copy
 - Review / memory proposal visibility -> `review_queue`,

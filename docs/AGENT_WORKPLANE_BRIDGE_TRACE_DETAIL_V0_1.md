@@ -23,7 +23,9 @@ detail, source/ref visibility, validation/evidence detail, review/memory
 proposal visibility, source-backed Run Postmortem fields, and useful legacy
 local UI control classification. Follow-on Review / Memory Proposal Detail
 v0.1 is documented in
-`docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md`.
+`docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md`. Follow-on Run
+Postmortem Detail v0.1 is documented in
+`docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md`.
 
 This PR addresses the first bridge/source/ref/validation/trace slice. It makes
 native Source Ref Bridge and Trace Bridge detail explicit and browser-visible
@@ -112,7 +114,8 @@ readiness, rollback, or human approval remain incomplete.
 
 The following gaps intentionally remain:
 
-- source-backed Run Postmortem fields;
+- direct runner event payload detail and richer postmortem timeline detail
+  after source-backed Run Postmortem detail;
 - repeated review/memory proposal dogfood and metrics baselines after
   `docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md`;
 - legacy local UI control classification;
@@ -152,5 +155,5 @@ evidence, not shrink authority.
 
 ## Recommended Next Phase
 
-Recommended next phase: source-backed Run Postmortem detail hardening. Do not
-proceed to Legacy Cockpit deletion yet.
+Recommended next phase: legacy local UI control classification or repeated
+dogfood/metrics baseline. Do not proceed to Legacy Cockpit deletion yet.

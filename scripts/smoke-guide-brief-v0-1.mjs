@@ -303,6 +303,25 @@ const followOnAgentWorkplaneReviewMemoryDetailFiles = [
   "package.json",
 ];
 
+const followOnAgentWorkplaneRunPostmortemDetailFiles = [
+  "types/workplane-run-postmortem-detail.ts",
+  "lib/workplane/workplane-run-postmortem-detail.ts",
+  "components/workplane/run-postmortem-detail-panel.tsx",
+  "docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md",
+  "scripts/smoke-agent-workplane-run-postmortem-detail-v0-1.mjs",
+  "components/workplane/agent-workplane.tsx",
+  "lib/workplane/workplane-node-context.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md",
+  "docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 
 const requiredFiles = [
   guideBriefDoc,
@@ -404,6 +423,7 @@ const allowedChangedFiles = new Set([
   ...followOnWorkplaneNativeBrowserRegressionFiles,
   ...followOnAgentWorkplaneBridgeTraceDetailFiles,
   ...followOnAgentWorkplaneReviewMemoryDetailFiles,
+  ...followOnAgentWorkplaneRunPostmortemDetailFiles,
 ]);
 for (const file of phase9aAutonomyRunnerPreflightFiles) {
   allowedChangedFiles.add(file);
@@ -1079,7 +1099,8 @@ function assertChangedFileBoundary() {
         followOnGuideBriefIntentProjectionFiles.includes(file) ||
         followOnRunnerWorkplaneMetricsFiles.includes(file) ||
         followOnAgentWorkplaneBridgeTraceDetailFiles.includes(file) ||
-        followOnAgentWorkplaneReviewMemoryDetailFiles.includes(file),
+        (followOnAgentWorkplaneReviewMemoryDetailFiles.includes(file) ||
+        followOnAgentWorkplaneRunPostmortemDetailFiles.includes(file)),
       `Phase 6A must not change UI files outside exact Phase 6C/7C/7F Web follow-on scope or exact Phase 8C/8F Autonomy Web preview files: ${file}`,
     );
     assert(

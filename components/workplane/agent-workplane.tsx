@@ -22,7 +22,7 @@ import { LegacyCockpitCompatibilityPanel } from "@/components/workplane/legacy-c
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
 import { ReviewMemoryDetailPanel } from "@/components/workplane/review-memory-detail-panel";
 import { ReviewQueueWorkplanePanel } from "@/components/workplane/review-queue-workplane-panel";
-import { RunPostmortemSkeletonPanel } from "@/components/workplane/run-postmortem-skeleton-panel";
+import { RunPostmortemDetailPanel } from "@/components/workplane/run-postmortem-detail-panel";
 import { RunnerDeltaBatchPanel } from "@/components/workplane/runner-delta-batch-panel";
 import { SourceRefBridgeDetailPanel } from "@/components/workplane/source-ref-bridge-detail-panel";
 import { TraceDiagnosticsPanel } from "@/components/workplane/trace-diagnostics-panel";
@@ -49,6 +49,7 @@ import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
 import { buildWorkplaneBridgeTraceDetailRead } from "@/lib/workplane/workplane-bridge-trace-detail";
 import { buildAgentWorkplaneNodeContextRead } from "@/lib/workplane/workplane-node-context";
 import { buildWorkplaneReviewMemoryDetailRead } from "@/lib/workplane/workplane-review-memory-detail";
+import { buildWorkplaneRunPostmortemDetailRead } from "@/lib/workplane/workplane-run-postmortem-detail";
 import type { CSSProperties } from "react";
 
 const surfaceStyle: CSSProperties = {
@@ -143,6 +144,10 @@ export async function AgentWorkplane() {
     node_context_read: workplaneNodeContext,
   });
   const reviewMemoryDetail = buildWorkplaneReviewMemoryDetailRead({
+    workplane_context: context,
+    node_context_read: workplaneNodeContext,
+  });
+  const runPostmortemDetail = buildWorkplaneRunPostmortemDetailRead({
     workplane_context: context,
     node_context_read: workplaneNodeContext,
   });
@@ -248,7 +253,7 @@ export async function AgentWorkplane() {
               />
               <AutonomyBoundaryCard preview={autonomyPreview} />
               <AutonomyCopyExportPanel preview={autonomyPreview} />
-              <RunPostmortemSkeletonPanel context={context} />
+              <RunPostmortemDetailPanel read={runPostmortemDetail} />
               <TraceDiagnosticsPanel context={context} />
             </section>
           </section>

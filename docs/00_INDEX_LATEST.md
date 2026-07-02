@@ -329,6 +329,28 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   apply, Perspective apply, delta auto-apply, localStorage/sessionStorage
   durable view mode, product UI action authority, or Legacy Cockpit deletion/
   shrink/hide.
+- `docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md`: Agent Workplane Run
+  Postmortem Detail v0.1 adds native read-only source-backed run postmortem
+  detail for `/workbench`. It adds
+  `types/workplane-run-postmortem-detail.ts`,
+  `lib/workplane/workplane-run-postmortem-detail.ts`,
+  `components/workplane/run-postmortem-detail-panel.tsx`, and
+  `scripts/smoke-agent-workplane-run-postmortem-detail-v0-1.mjs`. The active
+  panel exposes `data-workplane-run-postmortem-detail-panel="v0.1"` and
+  `data-workplane-panel-id="run_postmortem"` with run summaries, step refs,
+  event refs, recovered DeltaBatch summaries, timeline rows, postmortem
+  signals, validation status, source refs, gap details, and denied runner
+  authority copy. It improves Work/run visibility, runner output
+  explainability, Browser Regression coverage, and GuideBrief debug
+  explainability without deleting, shrinking, hiding, or disabling Legacy
+  Cockpit. Browser regression, metrics, and dogfood remain evidence/signals,
+  not shrink authority. Run postmortem detail is visibility only, not runner
+  authority. It adds no route, API write route, server action, chat composer,
+  provider/OpenAI/GitHub/Codex execution, runner execution/tick/recovery/
+  scheduled behavior, product DB write, proof/evidence write, durable memory
+  apply, Perspective apply, delta auto-apply, localStorage/sessionStorage
+  durable view mode, product UI action authority, or Legacy Cockpit deletion/
+  shrink/hide.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and

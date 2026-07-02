@@ -44,6 +44,11 @@ export const WORKPLANE_BROWSER_REGRESSION_REQUIRED_MARKERS: RequiredMarker[] = [
   panelMarker("projection_candidates", "native_replacement"),
   panelMarker("handoff_builder_preview", "native_replacement"),
   panelMarker("run_postmortem", "native_replacement"),
+  {
+    check_id: "run_postmortem_detail_panel_marker",
+    surface: "native_replacement",
+    marker: 'data-workplane-run-postmortem-detail-panel="v0.1"',
+  },
   panelMarker("trace_diagnostics", "native_replacement"),
   panelMarker("legacy_cockpit_compatibility", "legacy_cockpit_compatibility"),
   {
@@ -120,6 +125,16 @@ export const WORKPLANE_BROWSER_REGRESSION_REQUIRED_SECTION_TEXT = [
   "needs user judgment",
   "no durable memory apply",
   "no Perspective apply",
+  "Run Postmortem detail",
+  "source-backed run postmortem",
+  "run_id",
+  "step refs",
+  "event refs",
+  "recovered DeltaBatch",
+  "validation status",
+  "no runner execution",
+  "no runner tick",
+  "no DeltaBatch recovery",
 ] as const;
 
 export const WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS: CapabilityDefinition[] =
@@ -191,9 +206,20 @@ export const WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS: CapabilityDefinitio
         'data-workplane-panel-id="delta_batch"',
         'data-workplane-node-id="runner_delta_batch"',
         'data-workplane-panel-id="run_postmortem"',
+        'data-workplane-run-postmortem-detail-panel="v0.1"',
+        "Run Postmortem detail",
+        "source-backed run postmortem",
+        "run_id",
+        "step refs",
+        "event refs",
+        "recovered DeltaBatch",
+        "validation status",
+        "no runner execution",
+        "no runner tick",
+        "no DeltaBatch recovery",
       ],
       recommended_next_check:
-        "Keep compatibility until recovered runner DeltaBatch and postmortem fields are source-backed enough.",
+        "Keep compatibility until recovered runner DeltaBatch and source-backed postmortem fields have repeated browser, dogfood, metrics, rollback, and human review evidence.",
       status_when_present: "partial",
     },
     {
