@@ -26,7 +26,11 @@ export function BlankStateReviewEntryGrid({
         {entries.map((entry) => (
           <a
             className="human-surface-review-entry-card"
+            data-blank-state-entry-destination={entry.destination}
             data-blank-state-entry-id={entry.capability_id}
+            data-blank-state-entry-next-surface={
+              entry.next_surface ?? undefined
+            }
             data-blank-state-entry-target={entry.target_label}
             data-blank-state-entry-source-status={entry.source_status}
             href={entry.href}

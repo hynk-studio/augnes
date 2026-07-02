@@ -19,6 +19,8 @@ export type BlankStateReviewEntryId =
 
 export type BlankStateReviewEntry = {
   capability_id: BlankStateReviewEntryId;
+  destination: "workplane";
+  next_surface?: "state_proposal_review";
   title: string;
   summary: string;
   target_label: string;
@@ -67,6 +69,7 @@ export function buildBlankStateReviewEntries({
   return [
     {
       capability_id: "continue_current_work_entry",
+      destination: "workplane",
       title: "Continue Current Work",
       summary: activeGoal
         ? activeGoal.next_action
@@ -85,6 +88,8 @@ export function buildBlankStateReviewEntries({
     },
     {
       capability_id: "review_pending_proposals_entry",
+      destination: "workplane",
+      next_surface: "state_proposal_review",
       title: "Review Pending Proposals",
       summary:
         reviewRefCount > 0
@@ -101,6 +106,8 @@ export function buildBlankStateReviewEntries({
     },
     {
       capability_id: "choose_perspective_lens_entry",
+      destination: "workplane",
+      next_surface: "state_proposal_review",
       title: "Choose Perspective Lens",
       summary: perspective.current_frame.summary,
       target_label: "Perspective frame and lens review",
@@ -114,6 +121,7 @@ export function buildBlankStateReviewEntries({
     },
     {
       capability_id: "prepare_codex_handoff_entry",
+      destination: "workplane",
       title: "Prepare Codex Handoff",
       summary:
         handoffRefCount > 0
@@ -130,6 +138,7 @@ export function buildBlankStateReviewEntries({
     },
     {
       capability_id: "review_runner_deltabatch_entry",
+      destination: "workplane",
       title: "Review Runner DeltaBatch",
       summary:
         runnerDeltaBatchRead.recovered_batch_count > 0
@@ -151,6 +160,7 @@ export function buildBlankStateReviewEntries({
     },
     {
       capability_id: "automation_mode_entry",
+      destination: "workplane",
       title: "Automation Mode",
       summary:
         "Automation is boundary-visible only from Blank State. Workplane remains the operational inspection surface.",
@@ -166,6 +176,8 @@ export function buildBlankStateReviewEntries({
     },
     {
       capability_id: "user_judgment_summary_entry",
+      destination: "workplane",
+      next_surface: "state_proposal_review",
       title: "User Judgment Summary",
       summary:
         userJudgmentCount > 0

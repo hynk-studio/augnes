@@ -475,11 +475,18 @@ function assertBlankStateReviewEntries() {
     "automation_mode_entry",
     "user_judgment_summary_entry",
   ];
+  const stateProposalReviewNextSurfaceEntryIds = [
+    "review_pending_proposals_entry",
+    "choose_perspective_lens_entry",
+    "user_judgment_summary_entry",
+  ];
 
   assertContainsAll(
     blankStateReviewEntriesText,
     [
       "BLANK_STATE_REVIEW_ENTRY_IDS",
+      'destination: "workplane";',
+      'next_surface?: "state_proposal_review";',
       ...requiredEntryIds.map((id) => `"${id}"`),
       'href: "/workbench#work_queue"',
       'href: "/workbench#review_queue"',
@@ -497,13 +504,40 @@ function assertBlankStateReviewEntries() {
     blankStateReviewEntryGridText,
     [
       'data-blank-state-review-entry-grid="v0.1"',
+      "data-blank-state-entry-destination={entry.destination}",
       "data-blank-state-entry-id={entry.capability_id}",
+      "data-blank-state-entry-next-surface={",
       "data-blank-state-entry-target={entry.target_label}",
       "data-blank-state-entry-source-status={entry.source_status}",
       "href={entry.href}",
     ],
     { label: blankStateReviewEntryGridFile },
   );
+
+  const destinationAssignments = blankStateReviewEntriesText.match(
+    /destination:\s*"workplane",/g,
+  );
+  assert.equal(
+    destinationAssignments?.length ?? 0,
+    7,
+    "Every Blank State entry must set destination: \"workplane\"",
+  );
+  const nextSurfaceAssignments = blankStateReviewEntriesText.match(
+    /next_surface:\s*"state_proposal_review",/g,
+  );
+  assert.equal(
+    nextSurfaceAssignments?.length ?? 0,
+    3,
+    "Exactly the three State Proposal Review related entries must set next_surface",
+  );
+  for (const id of stateProposalReviewNextSurfaceEntryIds) {
+    assert(
+      new RegExp(
+        `capability_id:\\s*"${id}",\\s*destination:\\s*"workplane",\\s*next_surface:\\s*"state_proposal_review",`,
+      ).test(blankStateReviewEntriesText),
+      `Missing state_proposal_review next surface for ${id}`,
+    );
+  }
 
   assertContainsAll(
     blankStateReviewEntryAbsorptionDocText,
