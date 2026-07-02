@@ -26,6 +26,11 @@ GuideBrief intent projection, new runner behavior, a route, a DB write or
 persistence path, provider/OpenAI/GitHub/Codex execution, durable memory apply,
 Perspective apply, delta auto-apply, or legacy Cockpit deletion.
 
+The follow-on GuideBrief Workplane Debug Context v0.1 now consumes this
+contract to explain selected Workplane panels, nodes, and refs. The node
+contract remains the stable identity layer; the debug context remains
+read-only and adds no intent projection or execution authority.
+
 Exact boundary statement: no GuideBrief debug panel is added, no GuideBrief
 intent projection is added, no new runner execution behavior is added, no
 recovery write behavior is added to Workplane reads, no scheduled runner
@@ -280,10 +285,8 @@ surfaces are added.
 
 ## 15. Not Implemented Yet
 
-This v0.1 contract intentionally does not implement:
+This v0.1 contract itself intentionally does not implement:
 
-- GuideBrief Workplane Debug Context
-- GuideBrief debug panel
 - GuideBrief intent projection
 - Workplane intent mode
 - new runner execution behavior
