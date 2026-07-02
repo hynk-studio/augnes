@@ -4764,8 +4764,10 @@ repo-local 색인이다.
   baseline for `/`, `/perspective`, and `/workbench`. Implemented behavior:
   same-origin dogfooding research record runtime with caller-injected local test
   DB coverage and read/write helper behavior. Dogfooding research records remain
-  candidate-only review material. Current PR sequencing authority comes from
-  `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`; detailed actor authority
+  candidate-only review material. Historical follow-up IDs are fixture
+  compatibility metadata only. `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`
+  defines development posture, not PR sequencing authority; new slice selection
+  must come from explicit operator task prompts. Detailed actor authority
   remains in `docs/AUTHORITY_MATRIX.md`.
 
   Historical follow-up metadata:

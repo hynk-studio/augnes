@@ -99,6 +99,10 @@ const requiredDocsPhrases = [
   "Expected files, observed files, checks, PR bodies, Codex reports, dogfooding records, Review Memory refs, Promotion/Receipt/State refs, Git refs, GitHub refs, and historical next-slice cues remain review references only.",
   "`docs/AUTHORITY_MATRIX.md`",
   "Historical Follow-Up Metadata",
+  "fixture compatibility metadata only",
+  "`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`",
+  "defines development posture, not PR sequencing authority",
+  "new slice selection must come from explicit operator task prompts",
   "`conversation_handoff_packet_from_dogfooding_record_v0_1`",
 ];
 

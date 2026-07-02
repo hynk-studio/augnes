@@ -100,6 +100,10 @@ const requiredDocsPhrases = [
   "Proposed review actions are suggestions for operator review, not executed actions.",
   "`docs/AUTHORITY_MATRIX.md`",
   "Historical Follow-Up Metadata",
+  "fixture compatibility metadata only",
+  "`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`",
+  "defines development posture, not PR sequencing authority",
+  "new slice selection must come from explicit operator task prompts",
   "`local_data_export_manifest_builder_v0_1`",
 ];
 

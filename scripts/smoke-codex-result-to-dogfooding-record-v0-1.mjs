@@ -116,6 +116,10 @@ const requiredDocsPhrases = [
   "The conversion output remains candidate-only review material.",
   "Product-write remains governed by `docs/AUTHORITY_MATRIX.md` and parked by #686.",
   "Historical Follow-Up Metadata",
+  "fixture compatibility metadata only",
+  "`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`",
+  "defines development posture, not PR sequencing authority",
+  "new slice selection must come from explicit operator task prompts",
   "`conversation_handoff_packet_builder_v0_2`",
 ];
 

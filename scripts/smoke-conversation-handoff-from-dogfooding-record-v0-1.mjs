@@ -98,6 +98,10 @@ const requiredDocsPhrases = [
   "Dogfooding records, PR bodies, changed files, observed files, validation/CI results, skipped checks, known warnings, not-done items, expected/observed deltas, Review Memory refs, Promotion/Receipt/State refs, Git refs, GitHub refs, and historical next-slice cues remain review references only.",
   "`docs/AUTHORITY_MATRIX.md`",
   "Historical Follow-Up Metadata",
+  "fixture compatibility metadata only",
+  "`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`",
+  "defines development posture, not PR sequencing authority",
+  "new slice selection must come from explicit operator task prompts",
   "`dogfooding_record_to_review_memory_proposal_v0_1`",
   "`no_next_slice_v0_3_core_sequence_complete_pending_operator_decision`",
 ];

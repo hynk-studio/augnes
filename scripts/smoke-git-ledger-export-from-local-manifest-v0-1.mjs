@@ -95,6 +95,10 @@ const requiredDocsPhrases = [
   "Git Ledger export packets are candidate-only text packets.",
   "`docs/AUTHORITY_MATRIX.md`",
   "Historical Follow-Up Metadata",
+  "fixture compatibility metadata only",
+  "`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`",
+  "defines development posture, not PR sequencing authority",
+  "new slice selection must come from explicit operator task prompts",
   "`selected_runtime_audit_event_store_v0_1`",
 ];
 

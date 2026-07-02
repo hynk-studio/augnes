@@ -125,5 +125,7 @@ unsafe echo, forbidden authority blocking, and exact changed-file scope.
 
 `local_data_export_manifest_builder_v0_1`.
 
-This ID is retained as fixture compatibility metadata. Current PR sequencing
-authority comes from `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`.
+This ID is retained as fixture compatibility metadata only.
+`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md` defines development
+posture, not PR sequencing authority; new slice selection must come from
+explicit operator task prompts.

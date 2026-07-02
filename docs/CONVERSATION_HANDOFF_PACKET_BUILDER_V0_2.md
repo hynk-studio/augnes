@@ -132,5 +132,7 @@ index pointers, and exact changed-file scope for this slice.
 
 `conversation_handoff_packet_from_dogfooding_record_v0_1`.
 
-This ID is retained as fixture compatibility metadata. Current PR sequencing
-authority comes from `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`.
+This ID is retained as fixture compatibility metadata only.
+`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md` defines development
+posture, not PR sequencing authority; new slice selection must come from
+explicit operator task prompts.

@@ -138,5 +138,7 @@ builder, and exact changed-file scope.
 Caller-provided v0.3 closeout cue:
 `no_next_slice_v0_3_core_sequence_complete_pending_operator_decision`.
 
-These IDs are retained as fixture compatibility metadata. Current PR sequencing
-authority comes from `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`.
+These IDs are retained as fixture compatibility metadata only.
+`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md` defines development
+posture, not PR sequencing authority; new slice selection must come from
+explicit operator task prompts.

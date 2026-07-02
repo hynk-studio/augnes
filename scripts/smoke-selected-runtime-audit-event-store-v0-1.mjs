@@ -102,6 +102,10 @@ const requiredDocsPhrases = [
   "Selected audit events are public-safe runtime summaries.",
   "`docs/AUTHORITY_MATRIX.md`",
   "Historical Follow-Up Metadata",
+  "fixture compatibility metadata only",
+  "`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`",
+  "defines development posture, not PR sequencing authority",
+  "new slice selection must come from explicit operator task prompts",
   "`release_readiness_matrix_post_868_non_ui_v0_1`",
 ];
 
