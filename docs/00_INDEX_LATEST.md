@@ -268,6 +268,17 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   provider/OpenAI/GitHub/Codex execution, product DB write, proof/evidence
   write, durable memory apply, Perspective apply, delta auto-apply, native
   absorption of local-write controls, or Legacy Cockpit deletion/shrink/hide.
+- `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md`: Legacy
+  Cockpit DOM/manual control inventory + proposal diff preflight v0.1 adds a
+  type contract, pure helper, docs, and smoke for comparing server-rendered
+  `/workbench` compatibility content against the #933 local-control
+  classification. It reduces the generic unknown bucket only when DOM/manual
+  evidence exists, adds a read-only proposal diff readiness preflight, and
+  keeps shrink gated. It adds no product UI behavior change, no route, no API
+  write route, no server action, no chat composer, no execution/apply/commit/
+  reject control, no provider/OpenAI/GitHub/Codex/runner authority, no product
+  DB write, no proof/evidence write, no durable memory/Perspective/delta apply,
+  no local-write native absorption, and no Legacy Cockpit deletion/shrink/hide.
 - `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`: Legacy Cockpit
   Shrink Plan v0.1 defines the future gate model for capability-by-capability
   compatibility reduction using Agent Workplane native surfaces, GuideBrief

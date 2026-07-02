@@ -24,6 +24,14 @@ classification as evidence/signaling, keeps unknown/manual-review controls as a
 `needs_review` blocker, and runs before any shrink candidate. It does not
 delete, shrink, hide, disable, or absorb Legacy Cockpit local-write controls.
 
+Follow-on DOM/manual control inventory and proposal diff preflight is
+documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md`. It compares
+server-rendered `/workbench` compatibility content and optional manual DOM
+evidence against this #933 classification, reduces the generic unknown bucket
+only when evidence exists, and adds a read-only proposal diff readiness
+preflight. It remains evidence/signaling only, not shrink authority.
+
 ## Why This Exists
 
 This section explains why local UI control classification exists and why it
@@ -183,6 +191,12 @@ reopens one of them.
 source review covers the main Legacy Cockpit controls, but the component is
 large and has conditional browser-only details. Any unclassified control must
 be reviewed through browser/manual inspection before shrink.
+
+Follow-on inventory in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md` can reduce
+this generic unknown bucket only for the inspected server-rendered
+compatibility island or supplied manual DOM evidence. Without that evidence,
+the unknown blocker remains.
 
 ## Required Authority Contract Before Local-Write Absorption
 

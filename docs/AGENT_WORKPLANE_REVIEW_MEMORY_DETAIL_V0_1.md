@@ -15,6 +15,13 @@ Compatibility path remains rendered. Future deletion requires a separate PR.
 Browser regression, metrics, and dogfood are evidence/signals, not shrink
 authority.
 
+Follow-on Legacy Cockpit DOM/manual control inventory and proposal diff
+preflight is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md`. It uses
+read-only proposal detail evidence to decide whether richer proposal diff
+detail is still needed before review burden can be claimed as improved. It
+does not add approve, reject, commit, apply, or proposal mutation authority.
+
 ## Why Review / Memory Detail Hardening Exists
 
 Workplane Native Replacement Browser Regression v0.1 and the Bridge Trace

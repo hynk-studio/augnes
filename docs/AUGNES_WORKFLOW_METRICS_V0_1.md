@@ -20,6 +20,13 @@ browser-regression, and local-control classification signals before any shrink
 candidate. The repeated baseline remains evidence/signaling only and does not
 turn metrics into shrink authority.
 
+Follow-on Legacy Cockpit DOM/manual control inventory and proposal diff
+preflight is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md`. It can reduce
+the local-control unknown bucket only with DOM/manual evidence and reports
+whether richer read-only proposal diff detail is still needed before review
+burden can be treated as improved.
+
 ## 2. Why Metrics Before Legacy Cockpit Shrink
 
 Legacy Cockpit still contains useful compatibility content. Native Agent

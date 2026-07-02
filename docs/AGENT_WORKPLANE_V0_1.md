@@ -111,6 +111,15 @@ scheduled behavior, provider/OpenAI/GitHub/Codex execution, product DB write,
 proof/evidence write, durable memory apply, Perspective apply, delta
 auto-apply, or Legacy Cockpit deletion, shrink, hiding, or disabling.
 
+Legacy Cockpit DOM/manual control inventory and proposal diff preflight v0.1 is
+documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md`. It compares
+server-rendered compatibility content against the #933 local-control
+classification, reduces unknown only with evidence, and reports whether richer
+read-only proposal diff detail is still needed. It keeps `/workbench` product
+behavior unchanged and adds no execution, apply, route, provider, GitHub,
+Codex, runner, DB, proof/evidence, memory, Perspective, or delta authority.
+
 Legacy Cockpit Shrink Plan v0.1 is documented in
 `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`. It is a planning
 and gate-definition slice only. It defines capability-by-capability shrink
