@@ -62,6 +62,25 @@ const followOnAgentWorkplaneBridgeTraceDetailFiles = [
   "package.json",
 ];
 
+const followOnAgentWorkplaneReviewMemoryDetailFiles = [
+  "types/workplane-review-memory-detail.ts",
+  "lib/workplane/workplane-review-memory-detail.ts",
+  "components/workplane/review-memory-detail-panel.tsx",
+  "docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md",
+  "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
+  "components/workplane/agent-workplane.tsx",
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const existingSmokeAllowlistFiles = [
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
   "scripts/smoke-augnes-on-augnes-dogfood-v0-1.mjs",
@@ -82,6 +101,7 @@ const existingSmokeAllowlistFiles = [
 const allowedChangedFiles = [
   ...browserRegressionSliceFiles,
   ...followOnAgentWorkplaneBridgeTraceDetailFiles,
+  ...followOnAgentWorkplaneReviewMemoryDetailFiles,
   ...existingSmokeAllowlistFiles,
 ];
 
@@ -511,6 +531,9 @@ function buildFixtureHtml() {
     <section data-workplane-panel-id="projected_delta_batch" data-workplane-node-id="perspective_delta">Projected Delta Batch</section>
     <section data-workplane-panel-id="delta_batch" data-workplane-node-id="runner_delta_batch">Recovered Runner DeltaBatch</section>
     <section data-workplane-panel-id="review_queue" data-workplane-node-id="authority_validation_debug">Review Queue Needs user judgment</section>
+    <section data-workplane-review-memory-detail-panel="v0.1">
+      <section data-workplane-panel-id="review_memory_detail" data-workplane-node-id="authority_validation_debug">Review / memory proposal detail durable memory review Perspective review validation required needs user judgment source refs no durable memory apply no Perspective apply legacy compatibility retained</section>
+    </section>
     <section data-workplane-panel-id="evidence_handoff" data-workplane-node-id="handoff_context">Evidence Handoff Validation summary</section>
     <section data-workplane-panel-id="workplane_inspector" data-workplane-node-id="source_ref_bridge">Source refs</section>
     <section data-workplane-bridge-trace-detail-panel="v0.1">
@@ -546,6 +569,9 @@ function assertNoProductComponentBehaviorFilesChanged() {
   const changedFiles = observedChangedFiles();
   for (const file of changedFiles) {
     if (followOnAgentWorkplaneBridgeTraceDetailFiles.includes(file)) {
+      continue;
+    }
+    if (followOnAgentWorkplaneReviewMemoryDetailFiles.includes(file)) {
       continue;
     }
     assert(

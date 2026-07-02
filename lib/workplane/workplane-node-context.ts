@@ -24,6 +24,7 @@ export const AGENT_WORKPLANE_REQUIRED_PANEL_IDS = [
   "current_perspective",
   "delta_projection",
   "review_queue",
+  "review_memory_detail",
   "evidence_handoff",
   "workplane_inspector",
   "projection_candidates",
@@ -87,6 +88,15 @@ export const AGENT_WORKPLANE_PANEL_REGISTRY: ReadonlyArray<{
     status: "partial",
     title: "Review Queue",
     summary: "Operator attention hints and validation-required refs.",
+  },
+  {
+    panel_id: "review_memory_detail",
+    node_id: "authority_validation_debug",
+    kind: "debug_context_source",
+    status: "partial",
+    title: "Review / Memory Proposal Detail",
+    summary:
+      "Review and memory/Perspective proposal visibility derived from Workplane review queue and projected deltas.",
   },
   {
     panel_id: "evidence_handoff",
@@ -230,6 +240,7 @@ const NODE_CONTEXT_SMOKES = [
   "smoke:agent-workplane-projection-handoff-v0-1",
   "smoke:workplane-runner-deltabatch-integration-v0-1",
   "smoke:agent-workplane-bridge-trace-detail-v0-1",
+  "smoke:agent-workplane-review-memory-detail-v0-1",
 ] as const;
 
 const DEFAULT_AUTHORITY_BOUNDARY: AgentWorkplaneAuthorityBoundary = {
@@ -478,6 +489,7 @@ function updatedAtForPanel(
       "work_queue",
       "current_perspective",
       "review_queue",
+      "review_memory_detail",
       "current_objective",
       "authority_validation_debug",
     ].includes(panelId)
@@ -527,6 +539,7 @@ function stalenessForPanel(
       "source_ref_bridge",
       "trace_bridge",
       "trace_diagnostics",
+      "review_memory_detail",
     ].includes(panelId)
   ) {
     return {
@@ -571,6 +584,7 @@ function fallbackForPanel(
       "source_ref_bridge",
       "trace_bridge",
       "trace_diagnostics",
+      "review_memory_detail",
     ].includes(panelId)
   ) {
     const status = context.source_status.delta_projection;
@@ -607,6 +621,7 @@ function validationForPanel(
       "runner_delta_batch",
       "trace_bridge",
       "source_ref_bridge",
+      "review_memory_detail",
     ].includes(panelId)
   ) {
     smokeRefs.add("smoke:agent-workplane-projection-handoff-v0-1");
@@ -614,6 +629,11 @@ function validationForPanel(
 
   if (panelId === "source_ref_bridge" || panelId === "trace_bridge") {
     smokeRefs.add("smoke:agent-workplane-bridge-trace-detail-v0-1");
+    smokeRefs.add("smoke:workplane-native-browser-regression-v0-1");
+  }
+
+  if (panelId === "review_memory_detail") {
+    smokeRefs.add("smoke:agent-workplane-review-memory-detail-v0-1");
     smokeRefs.add("smoke:workplane-native-browser-regression-v0-1");
   }
 
@@ -672,6 +692,12 @@ function debugNotesForPanel(
     );
   }
 
+  if (panelId === "review_memory_detail") {
+    notes.push(
+      "Review/memory detail is source-backed read-only visibility for candidate proposals and remains not apply authority and not shrink authority.",
+    );
+  }
+
   return notes;
 }
 
@@ -687,6 +713,13 @@ function sourceRefsForPanel(
   ) {
     const refs = collectRunnerDeltaBatchSourceRefs(context);
     return refs.length > 0 ? refs : ["not_materialized:runner_delta_batch_source"];
+  }
+
+  if (panelId === "review_memory_detail") {
+    return uniqueStrings([
+      ...collectCurrentPerspectiveSourceRefs(context),
+      ...collectDeltaProjectionSourceRefs(context),
+    ]);
   }
 
   if (
@@ -767,6 +800,7 @@ function relatedDeltaIdsForPanel(
       "projected_delta_batch",
       "projection_candidates",
       "review_queue",
+      "review_memory_detail",
       "workplane_inspector",
       "source_ref_bridge",
       "perspective_delta",
@@ -817,6 +851,7 @@ function relatedHandoffRefsForPanel(
       "handoff_builder_preview",
       "handoff_context",
       "source_ref_bridge",
+      "review_memory_detail",
       "legacy_cockpit_compatibility",
     ].includes(panelId)
   ) {

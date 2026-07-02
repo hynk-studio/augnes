@@ -13,11 +13,11 @@ import {
   uniqueSorted,
 } from "./smoke-boundary-common.mjs";
 
-const typeFile = "types/workplane-bridge-trace-detail.ts";
-const helperFile = "lib/workplane/workplane-bridge-trace-detail.ts";
-const panelFile = "components/workplane/source-ref-bridge-detail-panel.tsx";
-const docFile = "docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md";
-const smokeFile = "scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs";
+const typeFile = "types/workplane-review-memory-detail.ts";
+const helperFile = "lib/workplane/workplane-review-memory-detail.ts";
+const panelFile = "components/workplane/review-memory-detail-panel.tsx";
+const docFile = "docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md";
+const smokeFile = "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs";
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const agentWorkplaneDoc = "docs/AGENT_WORKPLANE_V0_1.md";
@@ -26,7 +26,9 @@ const shrinkPlanDoc =
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md";
 const browserRegressionDoc =
   "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md";
+const bridgeTraceDoc = "docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
+const nodeContextTypeFile = "types/agent-workplane-node.ts";
 const nodeContextHelperFile = "lib/workplane/workplane-node-context.ts";
 const browserRegressionHelperFile =
   "lib/workplane/workplane-browser-regression.ts";
@@ -34,43 +36,27 @@ const augnesCockpitFile = "components/augnes-cockpit.tsx";
 const legacyCompatibilityPanelFile =
   "components/workplane/legacy-cockpit-compatibility-panel.tsx";
 
-const bridgeTraceDetailSliceFiles = [
+const reviewMemoryDetailSliceFiles = [
   typeFile,
   helperFile,
   panelFile,
   docFile,
   smokeFile,
   agentWorkplaneFile,
+  nodeContextTypeFile,
   nodeContextHelperFile,
   browserRegressionHelperFile,
   agentWorkplaneDoc,
   absorptionMapDoc,
   shrinkPlanDoc,
   browserRegressionDoc,
+  bridgeTraceDoc,
   indexDoc,
   packageJsonFile,
 ];
 
-const followOnAgentWorkplaneReviewMemoryDetailFiles = [
-  "types/workplane-review-memory-detail.ts",
-  "lib/workplane/workplane-review-memory-detail.ts",
-  "components/workplane/review-memory-detail-panel.tsx",
-  "docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md",
-  "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
-  "components/workplane/agent-workplane.tsx",
-  "types/agent-workplane-node.ts",
-  "lib/workplane/workplane-node-context.ts",
-  "lib/workplane/workplane-browser-regression.ts",
-  "docs/AGENT_WORKPLANE_V0_1.md",
-  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
-  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
-  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
-  "docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md",
-  "docs/00_INDEX_LATEST.md",
-  "package.json",
-];
-
 const existingSmokeAllowlistFiles = [
+  "scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",
   "scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
   "scripts/smoke-augnes-on-augnes-dogfood-v0-1.mjs",
@@ -89,13 +75,12 @@ const existingSmokeAllowlistFiles = [
 ];
 
 const allowedChangedFiles = [
-  ...bridgeTraceDetailSliceFiles,
-  ...followOnAgentWorkplaneReviewMemoryDetailFiles,
+  ...reviewMemoryDetailSliceFiles,
   ...existingSmokeAllowlistFiles,
 ];
 
 const requiredFiles = [
-  ...bridgeTraceDetailSliceFiles,
+  ...reviewMemoryDetailSliceFiles,
   augnesCockpitFile,
   legacyCompatibilityPanelFile,
 ];
@@ -109,32 +94,46 @@ const requiredStatuses = [
   "insufficient_data",
 ];
 
-const requiredRefKinds = [
-  "current_perspective",
-  "delta_projection",
-  "projected_delta_batch",
-  "runner_delta_batch",
-  "work_event",
-  "coordination_event",
-  "action_record",
-  "evidence",
-  "artifact",
-  "handoff",
-  "diagnostic",
-  "snapshot",
-  "smoke",
-  "docs",
-  "repo",
-  "legacy_cockpit_compatibility",
+const requiredLanes = [
+  "needs_review",
+  "blocked",
+  "manual_review",
+  "validation_required",
+  "project_perspective_review",
+  "durable_memory_review",
+  "user_decision",
+  "unknown",
 ];
 
-const requiredBridgeRows = [
-  "source_ref_bridge",
-  "trace_bridge",
-  "delta_projection",
-  "projected_delta_batch",
-  "runner_delta_batch",
-  "legacy_cockpit_compatibility",
+const requiredCandidateKinds = [
+  "delta_review",
+  "durable_memory_candidate",
+  "perspective_update_candidate",
+  "validation_candidate",
+  "user_judgment_candidate",
+  "blocked_candidate",
+  "handoff_candidate",
+  "unknown",
+];
+
+const requiredCandidateFields = [
+  "candidate_id",
+  "candidate_kind",
+  "lane",
+  "title",
+  "summary",
+  "status",
+  "delta_id",
+  "source_refs",
+  "evidence_refs",
+  "artifact_refs",
+  "handoff_refs",
+  "diagnostic_refs",
+  "validation_summary",
+  "merge_policy_summary",
+  "non_goals",
+  "needs_user_judgment",
+  "authority_notes",
 ];
 
 const requiredAuthorityFields = [
@@ -172,15 +171,17 @@ const agentWorkplaneDocText = textByFile.get(agentWorkplaneDoc);
 const absorptionMapText = textByFile.get(absorptionMapDoc);
 const shrinkPlanText = textByFile.get(shrinkPlanDoc);
 const browserRegressionDocText = textByFile.get(browserRegressionDoc);
+const bridgeTraceDocText = textByFile.get(bridgeTraceDoc);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
+const nodeContextTypeText = textByFile.get(nodeContextTypeFile);
 const nodeContextText = textByFile.get(nodeContextHelperFile);
 const browserRegressionHelperText = textByFile.get(browserRegressionHelperFile);
 
 assertPackageScript({
   packageJsonText,
-  scriptName: "smoke:agent-workplane-bridge-trace-detail-v0-1",
+  scriptName: "smoke:agent-workplane-review-memory-detail-v0-1",
   expectedCommand:
-    "node scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",
+    "node scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
 });
 
 assertDocsAndPointers();
@@ -193,7 +194,7 @@ const behavior = assertHelperAndRegressionBehavior();
 assertCompatibilityStillRendered();
 const changedFilesBoundary = assertChangedFilesWithin({
   allowedChangedFiles,
-  label: "agent workplane bridge trace detail v0.1",
+  label: "agent workplane review memory detail v0.1",
 });
 assertNoSourceDeletion();
 assertNoRouteOrAuthorityPathAdded();
@@ -201,7 +202,7 @@ assertNoRouteOrAuthorityPathAdded();
 console.log(
   JSON.stringify(
     {
-      smoke: "agent-workplane-bridge-trace-detail-v0-1",
+      smoke: "agent-workplane-review-memory-detail-v0-1",
       pass: true,
       type_exists: true,
       helper_exists: true,
@@ -210,14 +211,16 @@ console.log(
       package_script_checked: true,
       docs_pointers_checked: true,
       statuses_checked: requiredStatuses,
-      ref_kinds_checked: requiredRefKinds,
-      bridge_rows_checked: behavior.bridge_row_ids,
+      lanes_checked: requiredLanes,
+      candidate_kinds_checked: requiredCandidateKinds,
+      candidate_fields_checked: requiredCandidateFields,
       authority_fields_checked: requiredAuthorityFields,
       helper_report_status: behavior.helper_status,
+      helper_lane_ids: behavior.helper_lane_ids,
       browser_regression_status: behavior.browser_status,
-      bridge_capability_status: behavior.bridge_capability_status,
-      source_ref_capability_status: behavior.source_ref_capability_status,
-      validation_capability_status: behavior.validation_capability_status,
+      review_memory_capability_status:
+        behavior.review_memory_capability_status,
+      recommendation_decision: behavior.recommendation_decision,
       no_route_or_authority_added_checked: true,
       no_legacy_cockpit_deletion_shrink_hide_checked: true,
       deltabatch_identity_separation_checked: true,
@@ -228,7 +231,7 @@ console.log(
     2,
   ),
 );
-console.log("PASS smoke:agent-workplane-bridge-trace-detail-v0-1");
+console.log("PASS smoke:agent-workplane-review-memory-detail-v0-1");
 
 function assertDocsAndPointers() {
   for (const text of [
@@ -239,20 +242,21 @@ function assertDocsAndPointers() {
     browserRegressionDocText,
   ]) {
     assertContainsAll(text, [docFile], {
-      label: "bridge trace detail backlink docs",
+      label: "review memory detail backlink docs",
     });
   }
 
   assertContainsAll(
     docText,
     [
-      "Why Bridge / Trace Detail Hardening Exists",
+      "Why Review / Memory Detail Hardening Exists",
       "Shrink-Plan Gaps Addressed",
-      "Native Source Ref Bridge / Trace Bridge Absorption",
-      "Source/ref visibility",
-      "validation/evidence detail",
+      "Review / memory proposal visibility",
+      "Review Queue explainability",
       "GuideBrief Debug Explainability",
       "Browser Regression Expectations",
+      "Durable Memory Versus Perspective Candidates",
+      "No-Apply Boundaries",
       "Remaining Gaps",
       "Authority Boundary",
       "UI Panel Behavior",
@@ -261,6 +265,10 @@ function assertDocsAndPointers() {
       "Compatibility path remains rendered",
       "Future deletion requires a separate PR",
       "Browser regression, metrics, and dogfood are evidence/signals, not shrink authority",
+      "review/memory detail is visibility only, not apply authority",
+      "no durable memory apply",
+      "no Perspective apply",
+      "no delta auto-apply",
       "no route",
       "no API write route",
       "no server action",
@@ -273,9 +281,6 @@ function assertDocsAndPointers() {
       "no scheduled runner behavior",
       "no product DB write or persistence",
       "no proof/evidence write",
-      "no durable memory apply",
-      "no Perspective apply",
-      "no delta auto-apply",
       "no localStorage/sessionStorage durable view mode",
       "no product UI action authority",
     ],
@@ -287,24 +292,26 @@ function assertTypeContract() {
   assertContainsAll(
     typeText,
     [
-      "WORKPLANE_BRIDGE_TRACE_DETAIL_VERSION",
-      "WorkplaneBridgeTraceStatus",
-      "WorkplaneBridgeTraceRefKind",
-      "WorkplaneBridgeTraceDetailRef",
-      "WorkplaneBridgeTraceBridgeRow",
-      "WorkplaneBridgeTraceValidationDetail",
-      "WorkplaneBridgeTraceEvidenceDetail",
-      "WorkplaneBridgeTraceDiagnosticDetail",
-      "WorkplaneBridgeTraceGapDetail",
-      "WorkplaneBridgeTraceAuthorityBoundary",
-      "WorkplaneBridgeTraceDetailRead",
+      "WORKPLANE_REVIEW_MEMORY_DETAIL_VERSION",
+      "WorkplaneReviewMemoryStatus",
+      "WorkplaneReviewMemoryLane",
+      "WorkplaneReviewMemoryCandidateKind",
+      "WorkplaneReviewMemoryCandidate",
+      "WorkplaneReviewMemoryDecisionItem",
+      "WorkplaneReviewMemoryQueueSummary",
+      "WorkplaneReviewMemoryGapDetail",
+      "WorkplaneReviewMemoryAuthorityBoundary",
+      "WorkplaneReviewMemoryDetailRead",
       ...requiredStatuses,
-      ...requiredRefKinds,
+      ...requiredLanes,
+      ...requiredCandidateKinds,
+      ...requiredCandidateFields,
       ...requiredAuthorityFields,
-      "bridge_rows",
-      "validation_details",
-      "evidence_details",
-      "diagnostic_details",
+      "durable_memory_review_candidates",
+      "perspective_update_candidates",
+      "validation_required_candidates",
+      "user_decision_candidates",
+      "blocked_candidates",
       "gap_details",
       "authority_boundary",
       "validation_summary",
@@ -324,17 +331,28 @@ function assertHelperStaticShape() {
   assertContainsAll(
     helperText,
     [
-      "buildWorkplaneBridgeTraceDetailRead",
-      "readWorkplaneBridgeTraceDetail",
-      "WORKPLANE_BRIDGE_TRACE_DETAIL_REQUIRED_REF_KINDS",
-      "WORKPLANE_BRIDGE_TRACE_DETAIL_REQUIRED_BRIDGE_ROWS",
-      "WORKPLANE_BRIDGE_TRACE_DETAIL_SMOKE_REFS",
-      ...requiredBridgeRows,
-      ...requiredRefKinds,
-      "source_backed_run_postmortem_fields",
-      "review_memory_proposal_visibility",
-      "bridge_matrix_detail",
-      "smoke:agent-workplane-bridge-trace-detail-v0-1",
+      "buildWorkplaneReviewMemoryDetailRead",
+      "readWorkplaneReviewMemoryDetail",
+      "WORKPLANE_REVIEW_MEMORY_DETAIL_LANES",
+      "WORKPLANE_REVIEW_MEMORY_DETAIL_CANDIDATE_KINDS",
+      "WORKPLANE_REVIEW_MEMORY_DETAIL_REQUIRED_PANEL_IDS",
+      "WORKPLANE_REVIEW_MEMORY_DETAIL_SMOKE_REFS",
+      ...requiredLanes,
+      ...requiredCandidateKinds,
+      "needs_review_delta_ids",
+      "blocked_delta_ids",
+      "manual_review_delta_ids",
+      "validation_required_delta_ids",
+      "project_perspective_review_delta_ids",
+      "durable_memory_review_delta_ids",
+      "user_decision_delta_ids",
+      "missing_native_durable_memory_proposal_apply_detail",
+      "missing_source_backed_run_postmortem_detail",
+      "missing_richer_proposal_diff_detail",
+      "smoke:agent-workplane-review-memory-detail-v0-1",
+      "can_apply_durable_memory: false",
+      "can_apply_project_perspective: false",
+      "can_auto_apply_delta: false",
       "can_delete_or_shrink_legacy_cockpit: false",
       "can_hide_legacy_cockpit: false",
     ],
@@ -352,20 +370,21 @@ function assertPanelStaticShape() {
     panelText,
     [
       "WorkplanePanelShell",
-      'data-workplane-bridge-trace-detail-panel="v0.1"',
-      'panelId="source_ref_bridge"',
-      'nodeId="source_ref_bridge"',
+      'data-workplane-review-memory-detail-panel="v0.1"',
+      'panelId="review_memory_detail"',
+      'nodeId="authority_validation_debug"',
       'nodeKind="debug_context_source"',
-      "Source Ref Bridge",
-      "Trace Bridge",
-      "Bridge matrix",
+      "Review / memory proposal detail",
+      "durable memory review",
+      "Perspective review",
+      "validation required",
+      "needs user judgment",
       "source refs",
-      "validation summary",
-      "evidence refs",
-      "diagnostic refs",
+      "no durable memory apply",
+      "no Perspective apply",
       "legacy compatibility retained",
-      "read-only bridge/trace detail",
-      "not execution authority",
+      "visibility only",
+      "not apply authority",
       "not shrink authority",
     ],
     { label: panelFile },
@@ -383,21 +402,26 @@ function assertWorkplaneIntegration() {
   assertContainsAll(
     agentWorkplaneText,
     [
-      "SourceRefBridgeDetailPanel",
-      "buildWorkplaneBridgeTraceDetailRead",
-      "<SourceRefBridgeDetailPanel read={bridgeTraceDetail} />",
+      "ReviewMemoryDetailPanel",
+      "buildWorkplaneReviewMemoryDetailRead",
+      "<ReviewMemoryDetailPanel read={reviewMemoryDetail} />",
       "LegacyCockpitCompatibilityPanel",
       "<AugnesCockpit />",
     ],
     { label: agentWorkplaneFile },
   );
   assertContainsAll(
+    nodeContextTypeText,
+    ["review_memory_detail", "AgentWorkplanePanelId"],
+    { label: nodeContextTypeFile },
+  );
+  assertContainsAll(
     nodeContextText,
     [
-      "source_ref_bridge",
-      "trace_bridge",
-      "smoke:agent-workplane-bridge-trace-detail-v0-1",
-      "Bridge/trace detail is source-backed read-only context",
+      "review_memory_detail",
+      "authority_validation_debug",
+      "Review and memory/Perspective proposal visibility derived from Workplane review queue and projected deltas.",
+      "smoke:agent-workplane-review-memory-detail-v0-1",
     ],
     { label: nodeContextHelperFile },
   );
@@ -407,17 +431,16 @@ function assertBrowserRegressionUpdated() {
   assertContainsAll(
     browserRegressionHelperText,
     [
-      'data-workplane-bridge-trace-detail-panel="v0.1"',
-      'data-workplane-panel-id="source_ref_bridge"',
-      "Source Ref Bridge",
-      "Trace Bridge",
-      "Bridge matrix",
-      "validation summary",
-      "evidence refs",
-      "diagnostic refs",
-      "bridge",
-      "source_ref_visibility",
-      "validation_smoke_visibility",
+      'data-workplane-review-memory-detail-panel="v0.1"',
+      'data-workplane-panel-id="review_memory_detail"',
+      "Review / memory proposal detail",
+      "durable memory review",
+      "Perspective review",
+      "validation required",
+      "needs user judgment",
+      "no durable memory apply",
+      "no Perspective apply",
+      "review_memory_proposal_visibility",
       "browser_regression_passed_shrink_gated",
     ],
     { label: browserRegressionHelperFile },
@@ -429,32 +452,39 @@ function assertHelperAndRegressionBehavior() {
     import assert from "node:assert/strict";
     import { readWorkplaneContext } from "./lib/workplane/read-workplane-context.ts";
     import { buildAgentWorkplaneNodeContextRead } from "./lib/workplane/workplane-node-context.ts";
-    import { buildWorkplaneBridgeTraceDetailRead } from "./lib/workplane/workplane-bridge-trace-detail.ts";
+    import { buildWorkplaneReviewMemoryDetailRead } from "./lib/workplane/workplane-review-memory-detail.ts";
     import { buildWorkplaneBrowserRegressionReport } from "./lib/workplane/workplane-browser-regression.ts";
+
+    const requiredLanes = ${JSON.stringify(requiredLanes)};
+    const requiredAuthorityFields = ${JSON.stringify(requiredAuthorityFields)};
 
     const context = await readWorkplaneContext();
     const nodeContext = buildAgentWorkplaneNodeContextRead(context);
-    const read = buildWorkplaneBridgeTraceDetailRead({
+    const read = buildWorkplaneReviewMemoryDetailRead({
       workplane_context: context,
       node_context_read: nodeContext
     });
 
-    for (const rowId of ${JSON.stringify(requiredBridgeRows)}) {
-      assert(read.bridge_rows.some((row) => row.row_id === rowId), rowId);
+    for (const lane of requiredLanes.filter((lane) => lane !== "unknown")) {
+      assert(read.candidates.some((candidate) => candidate.lane === lane), lane);
     }
-    for (const refKind of ${JSON.stringify(requiredRefKinds)}) {
-      assert(read.source_ref_kinds.some((row) => row.ref_kind === refKind), refKind);
-    }
-    assert(read.validation_details.length > 0);
-    assert(read.evidence_details.length > 0);
-    assert(read.diagnostic_details.length > 0);
-    assert(read.gap_details.some((gap) => gap.gap_id === "source_backed_run_postmortem_fields"));
-    assert(read.gap_details.some((gap) => gap.gap_id === "review_memory_proposal_visibility"));
-    assert(read.gap_details.some((gap) => gap.gap_id === "bridge_matrix_detail"));
-    for (const field of ${JSON.stringify(requiredAuthorityFields)}) {
+    assert(read.durable_memory_review_candidates.length > 0);
+    assert(read.perspective_update_candidates.length > 0);
+    assert(read.validation_required_candidates.length > 0);
+    assert(read.user_decision_candidates.length > 0);
+    assert(read.blocked_candidates.length > 0);
+    assert(read.candidates.every((candidate) => Array.isArray(candidate.source_refs)));
+    assert(read.candidates.every((candidate) => Array.isArray(candidate.evidence_refs)));
+    assert(read.candidates.every((candidate) => Array.isArray(candidate.artifact_refs)));
+    assert(read.candidates.every((candidate) => Array.isArray(candidate.handoff_refs)));
+    assert(read.candidates.every((candidate) => Array.isArray(candidate.diagnostic_refs)));
+    assert(read.gap_details.some((gap) => gap.gap_id === "missing_native_durable_memory_proposal_apply_detail"));
+    assert(read.gap_details.some((gap) => gap.gap_id === "missing_source_backed_run_postmortem_detail"));
+    assert(read.gap_details.some((gap) => gap.gap_id === "missing_richer_proposal_diff_detail"));
+    for (const field of requiredAuthorityFields) {
       assert.equal(read.authority_boundary[field], false, field);
     }
-    assert(read.validation_summary.smoke_refs.includes("smoke:agent-workplane-bridge-trace-detail-v0-1"));
+    assert(read.validation_summary.smoke_refs.includes("smoke:agent-workplane-review-memory-detail-v0-1"));
 
     const html = buildFixtureHtml();
     const report = buildWorkplaneBrowserRegressionReport({
@@ -469,9 +499,7 @@ function assertHelperAndRegressionBehavior() {
     assert.equal(report.legacy_compatibility_status, "passed");
     assert.equal(report.no_control_status, "passed");
     assert.equal(report.deltabatch_identity_status, "passed");
-    assert(["partial", "passed"].includes(capability("bridge").status));
-    assert(["partial", "passed"].includes(capability("source_ref_visibility").status));
-    assert(["partial", "passed"].includes(capability("validation_smoke_visibility").status));
+    assert.equal(capability("review_memory_proposal_visibility").status, "partial");
     assert.equal(report.recommendation.decision, "browser_regression_passed_shrink_gated");
 
     function buildFixtureHtml() {
@@ -501,11 +529,10 @@ function assertHelperAndRegressionBehavior() {
 
     console.log(JSON.stringify({
       helper_status: read.status,
-      bridge_row_ids: read.bridge_rows.map((row) => row.row_id),
+      helper_lane_ids: [...new Set(read.candidates.map((candidate) => candidate.lane))],
       browser_status: report.status,
-      bridge_capability_status: capability("bridge").status,
-      source_ref_capability_status: capability("source_ref_visibility").status,
-      validation_capability_status: capability("validation_smoke_visibility").status
+      review_memory_capability_status: capability("review_memory_proposal_visibility").status,
+      recommendation_decision: report.recommendation.decision
     }));
   `;
 
@@ -513,7 +540,7 @@ function assertHelperAndRegressionBehavior() {
     encoding: "utf8",
     env: {
       ...process.env,
-      AUGNES_DB_PATH: "/tmp/augnes-bridge-trace-detail-smoke-empty.db",
+      AUGNES_DB_PATH: "/tmp/augnes-review-memory-detail-smoke-empty.db",
     },
   });
   return JSON.parse(output);

@@ -37,6 +37,7 @@ export const WORKPLANE_BROWSER_REGRESSION_REQUIRED_MARKERS: RequiredMarker[] = [
   panelMarker("projected_delta_batch", "projected_delta_batch"),
   panelMarker("delta_batch", "runner_delta_batch"),
   panelMarker("review_queue", "native_replacement"),
+  panelMarker("review_memory_detail", "native_replacement"),
   panelMarker("evidence_handoff", "native_replacement"),
   panelMarker("workplane_inspector", "native_replacement"),
   panelMarker("source_ref_bridge", "native_replacement"),
@@ -112,6 +113,13 @@ export const WORKPLANE_BROWSER_REGRESSION_REQUIRED_SECTION_TEXT = [
   "validation summary",
   "evidence refs",
   "diagnostic refs",
+  "Review / memory proposal detail",
+  "durable memory review",
+  "Perspective review",
+  "validation required",
+  "needs user judgment",
+  "no durable memory apply",
+  "no Perspective apply",
 ] as const;
 
 export const WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS: CapabilityDefinition[] =
@@ -207,11 +215,19 @@ export const WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS: CapabilityDefinitio
       legacy_surface: "Legacy Cockpit proposal and memory review panels",
       native_markers: [
         'data-workplane-panel-id="review_queue"',
+        'data-workplane-panel-id="review_memory_detail"',
+        'data-workplane-review-memory-detail-panel="v0.1"',
+        "Review / memory proposal detail",
+        "durable memory review",
+        "Perspective review",
+        "validation required",
         "Needs user judgment",
+        "no durable memory apply",
+        "no Perspective apply",
       ],
       recommended_next_check:
-        "Add native proposal/memory review absorption before any shrink candidate.",
-      status_when_present: "needs_review",
+        "Keep review/memory detail at partial until dogfood, metrics, GuideBrief debug, and human review prove no useful proposal visibility loss.",
+      status_when_present: "partial",
     },
     {
       capability_id: "validation_smoke_visibility",
@@ -249,6 +265,7 @@ export const WORKPLANE_BROWSER_REGRESSION_NO_CONTROL_SEGMENT_MARKERS = [
   'data-workplane-panel-id="projected_delta_batch"',
   'data-workplane-panel-id="delta_batch"',
   'data-workplane-panel-id="review_queue"',
+  'data-workplane-panel-id="review_memory_detail"',
   'data-workplane-panel-id="evidence_handoff"',
   'data-workplane-panel-id="workplane_inspector"',
   'data-workplane-panel-id="source_ref_bridge"',

@@ -28,6 +28,15 @@ diagnostic refs visibility, but it is still evidence only. It does not delete,
 shrink, hide, or disable Legacy Cockpit and does not authorize a shrink
 candidate.
 
+Follow-on Review / Memory Proposal detail evidence is documented in
+`docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md`. It improves native
+review/memory proposal visibility with durable memory review candidates,
+Perspective review candidates, validation-required and user-decision lanes,
+candidate source refs, and explicit no-apply boundaries. It is still evidence
+only; it does not apply durable memory, apply Perspective, auto-apply deltas,
+delete, shrink, hide, or disable Legacy Cockpit, and it does not authorize a
+shrink candidate.
+
 ## 2. Why This Plan Exists
 
 Legacy Cockpit remains useful inside `/workbench` as a compatibility path while
@@ -163,7 +172,7 @@ plan cannot authorize deletion.
 | operator_visibility | Cockpit Operator tab, Operator Handoff Snapshot, mailbox/publication/approval summaries, coordination timeline | Boundary card, Review Queue, Workplane Inspector, Trace / Diagnostics, metrics panel | `review_queue` / `authority_validation_debug`; `workplane_inspector`; `trace_diagnostics`; metrics panel | Compatibility retains Operator tab and summaries | partially_native | watch | Native panels show blocked gates, review queues, validation material, authority copy, and operator blockers without local-write controls | `smoke:agent-workplane-panels-v0-1`; `smoke:agent-workplane-cleanup-hardening-v0-1`; browser operator-summary replacement regression | select `review_queue` / `authority_validation_debug` | `review_burden_signal`; dogfood `review_burden` | add_dogfood_baseline |
 | work_run_visibility | Cockpit Work tab, Session Trace loader, Evidence Pack loader, temporal review artifact loader, operator validation state | Work Queue, Evidence/Handoff, recovered Runner DeltaBatch, Run Postmortem skeleton, Trace / Diagnostics | `work_queue`; `evidence_handoff`; `delta_batch` / `runner_delta_batch`; `run_postmortem`; `trace_diagnostics` | Compatibility retains full Work, proof, trace, and loader surfaces | partially_native | candidate_after_metric_threshold | Recovered runner DeltaBatch and native work/run context expose enough continuity without rerunning hidden automation; Run Postmortem has source-backed fields beyond skeleton | `smoke:workplane-runner-deltabatch-integration-v0-1`; `smoke:autonomy-runner-v0-1`; browser recovered runner DeltaBatch regression | select `delta_batch` / `runner_delta_batch`; fallback `run_postmortem` | recovered DeltaBatch visibility; autonomy yield; review burden | add_metric_baseline |
 | source_ref_visibility | Cockpit Work context, Perspective source refs, Bridge endpoint examples, Evidence Pack refs, Session Trace refs | Overview, Evidence/Handoff, Workplane Inspector, Trace / Diagnostics, node context source refs | `workplane_inspector` / `source_ref_bridge`; `evidence_handoff`; `trace_diagnostics` | Compatibility remains available for detailed legacy refs | native_complete | candidate_after_browser_regression | Native source/ref rows cover work ids, state keys, action ids, PR refs, evidence refs, diagnostic refs, handoff refs, stale/fallback status, and DeltaBatch identity split | source/ref browser regression; `smoke:agent-workplane-node-contract-v0-1`; `smoke:guide-workplane-debug-context-v0-1` | select `workplane_inspector` / `source_ref_bridge` | projected-vs-recovered DeltaBatch identity; stale/fallback visibility | add_browser_regression |
-| review_memory_proposal_visibility | Cockpit pending proposal queue, AG Resume technical review panels, durable-memory review refs, local review summaries | Review Queue exposes some durable-memory and user-decision refs only | `review_queue` / `authority_validation_debug` | Compatibility retains detailed AG Resume and local proposal review panels | needs_native_absorption | not_ready | Native read-only proposal/memory review node exists with candidate labels, lifecycle state, conflict context, and no apply authority | new native proposal/memory smoke; browser negative case for no apply/commit controls | select `review_queue` / `authority_validation_debug`; future proposal node | durable-memory review refs; Cockpit dependency signal | add_native_absorption |
+| review_memory_proposal_visibility | Cockpit pending proposal queue, AG Resume technical review panels, durable-memory review refs, local review summaries | Review Queue plus read-only Review / Memory Proposal Detail with durable memory review candidates, Perspective review candidates, validation-required and user-decision lanes, candidate source refs, and no-apply boundaries | `review_queue` / `authority_validation_debug`; `review_memory_detail` / `authority_validation_debug` | Compatibility retains detailed AG Resume and local proposal review panels | partially_native | watch | Native proposal/memory detail remains source-backed in browser regression and GuideBrief debug, and repeated dogfood/metrics show no useful proposal visibility loss without compatibility | `smoke:agent-workplane-review-memory-detail-v0-1`; `smoke:workplane-native-browser-regression-v0-1`; browser negative case for no apply/commit controls | select `review_memory_detail` / `authority_validation_debug`; fallback `review_queue` / `authority_validation_debug` | durable-memory review refs; Perspective review refs; Cockpit dependency signal | add_dogfood_baseline |
 | validation_smoke_visibility | Cockpit Evidence Pack, Session Trace, suggested verification, recent validation, approval/publication summaries | Trace / Diagnostics, Evidence/Handoff, Workplane Inspector, Handoff preview validation refs | `trace_diagnostics`; `evidence_handoff`; `workplane_inspector`; `handoff_builder_preview` | Compatibility retains detailed Evidence Pack and Session Trace material | partially_native | candidate_after_browser_regression | Native panels expose validation commands/status, skipped checks, failures, evidence status, session gaps, and approval-gate context | `smoke:agent-workplane-projection-handoff-v0-1`; `smoke:autonomy-runner-v0-1`; browser validation visibility regression | select `trace_diagnostics` / `trace_bridge` | validation refs in node context; dogfood delta quality and stale visibility | add_browser_regression |
 | legacy_local_ui_controls | Cockpit tab buttons, work selection, copy buttons, load evidence/session artifacts, local proposal commit/reject, consolidate, observe, plan next, checklist actions | Native copy/export preview exists for copy/read controls only; no native replacement for local-write controls | Handoff copy/export preview plus compatibility-only controls | `LegacyCockpitCompatibilityPanel` is the retained compatibility path | legacy_only_still_useful | not_ready | Separate authority contract proves which controls are read/copy-only, which are local-write, and which must never be absorbed by Workplane | browser regression for retained compatibility; negative smokes for no new Workplane write controls | select `legacy_cockpit_compatibility` | Cockpit dependency signal; dogfood no capability loss | retain_compatibility |
 | external_control_buttons | Historical Cockpit maps forbid publish, merge, retry, GitHub token controls, live exchange, execute Codex, backup, replay, Publish Proof, Record Proof, and new ChatGPT App tools | No native replacement; intentionally blocked external authority | not applicable; no panel or node should add this authority | not applicable; blocked rather than retained | obsolete | obsolete_with_rationale | These are obsolete because they would add external authority or hidden execution, not because a native replacement should absorb them | authority-boundary smokes must keep them absent | absence is intentional and should remain documented by authority smokes | forbidden-action attempt count must remain zero | no_action |
@@ -206,8 +215,9 @@ At minimum:
   validation, and authority summaries.
 - Work/run visibility removal requires recovered runner DeltaBatch readback and
   source-backed Run Postmortem fields.
-- Review/memory proposal visibility requires native candidate-only proposal
-  review context with no apply authority.
+- Review/memory proposal visibility requires the native `review_memory_detail`
+  candidate-only proposal review context to stay source-backed, GuideBrief-
+  debuggable, browser-regression-visible, and no-apply.
 - Useful legacy local UI controls must remain until a separate local-control
   authority contract exists.
 
@@ -234,7 +244,8 @@ The following must remain for now:
 - Bridge tab matrix until native absorption exists
 - Operator tab summaries and blocked-gate visibility
 - Work/run loaders, trace, evidence, temporal review material
-- review/memory proposal visibility
+- detailed legacy review/memory proposal visibility until repeated browser,
+  dogfood, metrics, rollback, and human review prove no useful loss
 - validation/smoke visibility
 - useful legacy local UI controls
 
@@ -251,7 +262,6 @@ authority. Their absence must remain validated by no-authority smokes.
 The major native absorption gaps are:
 
 - Bridge matrix rows and endpoint examples;
-- detailed review/memory proposal visibility;
 - source-backed Run Postmortem fields;
 - full validation/smoke evidence context;
 - local UI control classification into read-only, copy-only, local-write, and

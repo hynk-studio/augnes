@@ -21,7 +21,9 @@ markers rendered, but capability readiness stayed partial. The Legacy Cockpit
 Shrink Plan still identified native absorption gaps around Bridge matrix
 detail, source/ref visibility, validation/evidence detail, review/memory
 proposal visibility, source-backed Run Postmortem fields, and useful legacy
-local UI control classification.
+local UI control classification. Follow-on Review / Memory Proposal Detail
+v0.1 is documented in
+`docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md`.
 
 This PR addresses the first bridge/source/ref/validation/trace slice. It makes
 native Source Ref Bridge and Trace Bridge detail explicit and browser-visible
@@ -111,7 +113,8 @@ readiness, rollback, or human approval remain incomplete.
 The following gaps intentionally remain:
 
 - source-backed Run Postmortem fields;
-- review/memory proposal native detail hardening;
+- repeated review/memory proposal dogfood and metrics baselines after
+  `docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md`;
 - legacy local UI control classification;
 - repeated metrics/dogfood baselines for review burden and resume latency;
 - explicit rollback and human approval before any deletion PR.
@@ -149,6 +152,5 @@ evidence, not shrink authority.
 
 ## Recommended Next Phase
 
-Recommended next phase: review/memory proposal native detail hardening or
-source-backed Run Postmortem detail hardening. Do not proceed to Legacy
-Cockpit deletion yet.
+Recommended next phase: source-backed Run Postmortem detail hardening. Do not
+proceed to Legacy Cockpit deletion yet.

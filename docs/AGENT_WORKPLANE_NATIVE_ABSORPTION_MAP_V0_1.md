@@ -38,6 +38,16 @@ refs, gap details, and browser-regression-visible markers. It does not delete,
 shrink, hide, or disable Legacy Cockpit content and does not authorize a
 shrink candidate.
 
+Agent Workplane Review / Memory Proposal Detail v0.1 is documented in
+`docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md`. It improves native
+Review / memory proposal visibility with a read-only `review_memory_detail`
+panel, durable memory review candidate lanes, Perspective review candidate
+lanes, validation-required and user-decision lanes, source refs, explicit
+no-apply boundaries, gap details, and browser-regression-visible markers. It
+does not apply durable memory, apply Perspective, auto-apply deltas, delete,
+shrink, hide, or disable Legacy Cockpit content, or authorize a shrink
+candidate.
+
 ## Baseline Native Absorption Map
 
 | legacy_capability | inventory_capability_id | native_target | retained_compatibility_path | absorption_status | validation_coverage | next_step |
@@ -48,6 +58,7 @@ shrink candidate.
 | Bridge | bridge | Source Ref Bridge / Trace Bridge | `LegacyCockpitCompatibilityPanel` for Bridge tab matrix | partial native replacement exists | `smoke:agent-workplane-bridge-trace-detail-v0-1`; `smoke:workplane-native-browser-regression-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Keep compatibility until dogfood, metrics, browser regression, rollback, and human review prove no useful Bridge capability loss. |
 | Operator visibility | operator_visibility | Authority / Validation / Debug Inspector | `LegacyCockpitCompatibilityPanel` for Operator tab, local summaries, and controls | partial native replacement exists | `smoke:agent-workplane-panels-v0-1`; `smoke:agent-workplane-cleanup-hardening-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Split read-only operator visibility from local-write controls in the next contract. |
 | Runner outputs | runner_outputs | Runner State / DeltaBatch panel | Runner ledger helpers and `smoke:autonomy-runner-v0-1`; no legacy Cockpit runner panel is deleted | needs native absorption | `smoke:autonomy-runner-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Later PR should add display-only runner-output source mapping, not runner behavior. |
+| Review / memory proposal visibility | review_memory_proposal_visibility | Review Queue plus Review / Memory Proposal Detail | `LegacyCockpitCompatibilityPanel` for detailed AG Resume and local proposal review panels | partial native replacement exists | `smoke:agent-workplane-review-memory-detail-v0-1`; `smoke:workplane-native-browser-regression-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Keep no-apply boundaries explicit; source-backed Run Postmortem and repeated dogfood/metrics baselines still block shrink. |
 | Postmortem | postmortem | Run Postmortem panel | `LegacyCockpitCompatibilityPanel` for Session Trace, Evidence Pack, Work events, and temporal review material | needs native absorption | `smoke:agent-workplane-projection-handoff-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Define source-backed postmortem fields before changing UI behavior. |
 | Trace context | trace_context | Trace / Diagnostics panel | `LegacyCockpitCompatibilityPanel` for full trace and graph detail | partial native replacement exists | `smoke:agent-workplane-projection-handoff-v0-1`; `smoke:agent-workplane-cleanup-hardening-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Keep bounded trace summaries native and full detail compatible until validated. |
 

@@ -10,7 +10,7 @@ GuideBrief Workplane Debug Context v0.1, plus GuideBrief Intent Projection
 v0.1, plus Runner / Workplane Metrics v0.1, plus Longer Augnes-on-Augnes
 Dogfood v0.1, plus Legacy Cockpit Shrink Plan v0.1, plus Workplane Native
 Replacement Browser Regression v0.1, plus Agent Workplane Bridge Trace Detail
-v0.1.
+v0.1, plus Agent Workplane Review / Memory Proposal Detail v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -135,6 +135,21 @@ write, proof/evidence write, durable memory apply, Perspective apply, delta
 auto-apply, product UI action authority, or Legacy Cockpit deletion, shrink,
 hiding, or disabling.
 
+Agent Workplane Review / Memory Proposal Detail v0.1 is documented in
+`docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md`. `/workbench` now renders a
+read-only `ReviewMemoryDetailPanel` with
+`data-workplane-review-memory-detail-panel="v0.1"` and
+`data-workplane-panel-id="review_memory_detail"`. It makes Review / memory
+proposal detail, durable memory review candidates, Perspective review
+candidates, validation required lanes, needs user judgment, candidate source
+refs, no durable memory apply, no Perspective apply, and retained legacy
+compatibility explicit without adding apply authority or shrink authority. It
+adds no route, API write route, server action, chat composer,
+provider/OpenAI/GitHub/Codex execution, runner execution/tick/recovery/
+scheduled behavior, product DB write, proof/evidence write, durable memory
+apply, Perspective apply, delta auto-apply, product UI action authority, or
+Legacy Cockpit deletion, shrink, hiding, or disabling.
+
 ## 2. Surface Model
 
 The route model remains:
@@ -181,6 +196,10 @@ Agent Workplane renders:
   Trace Bridge panel for bridge rows, source ref kind classification,
   validation summary, evidence refs, diagnostic refs, and explicit remaining
   gaps
+- Agent Workplane Review / Memory Proposal Detail v0.1 as a read-only native
+  review/memory panel for durable memory review candidates, Perspective review
+  candidates, validation-required and user-decision lanes, candidate source
+  refs, explicit no-apply boundaries, and explicit remaining gaps
 - local Augnes-on-Augnes Dogfood report generation through the explicit script
   path, not through product render
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,

@@ -20,6 +20,7 @@ import { EvidenceHandoffWorkplanePanel } from "@/components/workplane/evidence-h
 import { HandoffBuilderPreviewPanel } from "@/components/workplane/handoff-builder-preview-panel";
 import { LegacyCockpitCompatibilityPanel } from "@/components/workplane/legacy-cockpit-compatibility-panel";
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
+import { ReviewMemoryDetailPanel } from "@/components/workplane/review-memory-detail-panel";
 import { ReviewQueueWorkplanePanel } from "@/components/workplane/review-queue-workplane-panel";
 import { RunPostmortemSkeletonPanel } from "@/components/workplane/run-postmortem-skeleton-panel";
 import { RunnerDeltaBatchPanel } from "@/components/workplane/runner-delta-batch-panel";
@@ -47,6 +48,7 @@ import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-vi
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
 import { buildWorkplaneBridgeTraceDetailRead } from "@/lib/workplane/workplane-bridge-trace-detail";
 import { buildAgentWorkplaneNodeContextRead } from "@/lib/workplane/workplane-node-context";
+import { buildWorkplaneReviewMemoryDetailRead } from "@/lib/workplane/workplane-review-memory-detail";
 import type { CSSProperties } from "react";
 
 const surfaceStyle: CSSProperties = {
@@ -140,6 +142,10 @@ export async function AgentWorkplane() {
     workplane_context: context,
     node_context_read: workplaneNodeContext,
   });
+  const reviewMemoryDetail = buildWorkplaneReviewMemoryDetailRead({
+    workplane_context: context,
+    node_context_read: workplaneNodeContext,
+  });
   const workplaneDebugContext = buildGuideWorkplaneDebugContext({
     node_context_read: workplaneNodeContext,
     selection: {
@@ -187,6 +193,7 @@ export async function AgentWorkplane() {
             <CurrentPerspectiveWorkplanePanel context={context} />
             <DeltaProjectionWorkplanePanel context={context} />
             <ReviewQueueWorkplanePanel context={context} />
+            <ReviewMemoryDetailPanel read={reviewMemoryDetail} />
             <EvidenceHandoffWorkplanePanel context={context} />
             <WorkplaneInspector context={context} />
             <SourceRefBridgeDetailPanel read={bridgeTraceDetail} />
