@@ -104,6 +104,18 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   GitHub actuation, Codex execution, proof/evidence write, durable Perspective
   apply, memory mutation, product-write, scheduler/autonomy runner,
   merge/publish/retry/replay/deploy behavior, or external side effect.
+- `docs/BLANK_STATE_REVIEW_ENTRY_ABSORPTION_V0_1.md`: Blank State Review
+  Entry Absorption v0.1 implements PR 2 of the Legacy Cockpit decomposition
+  program by rendering the seven `blank_state` migration-map entries on `/`:
+  Continue Current Work, Review Pending Proposals, Choose Perspective Lens,
+  Prepare Codex Handoff, Review Runner DeltaBatch, Automation Mode, and User
+  Judgment Summary. The entries provide high-level summary and navigation to
+  `/workbench` or `/perspective` with stable `data-blank-state-entry-id`
+  markers. It adds no apply/approve/reject/commit authority, provider/OpenAI
+  call, GitHub actuation, Codex execution, runner execution/tick/recovery/
+  scheduling, product DB write, proof/evidence write, durable memory apply,
+  Perspective apply, delta auto-apply, new route, `/cockpit` deletion, or
+  `components/augnes-cockpit.tsx` deletion.
 - `docs/AGENT_WORKPLANE_V0_1.md`: Phase 5A read-only Agent Workplane shell
   pointer for reframing `/workbench` as the backend work surface for
   agent/operator Trace context, projection candidates, handoff context,

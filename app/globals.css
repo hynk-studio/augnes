@@ -1104,7 +1104,8 @@
 .human-surface-mode-card,
 .human-surface-action-card,
 .human-surface-delta-card,
-.human-surface-link-card {
+.human-surface-link-card,
+.human-surface-review-entry-card {
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -1122,7 +1123,8 @@
 }
 
 .human-surface-mode-card > div,
-.human-surface-delta-card > div {
+.human-surface-delta-card > div,
+.human-surface-review-entry-card > div {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -1134,6 +1136,7 @@
 .human-surface-action-card strong,
 .human-surface-delta-card strong,
 .human-surface-link-card strong,
+.human-surface-review-entry-card strong,
 .human-surface-summary-list strong {
   color: #142033;
   font-size: 0.86rem;
@@ -1142,7 +1145,8 @@
 
 .human-surface-mode-card > div span,
 .human-surface-action-card > span,
-.human-surface-delta-card > div span {
+.human-surface-delta-card > div span,
+.human-surface-review-entry-card > div span {
   color: #13795b;
   font-size: 0.68rem;
   font-weight: 820;
@@ -1153,6 +1157,8 @@
 .human-surface-action-card p,
 .human-surface-delta-card p,
 .human-surface-link-card span,
+.human-surface-review-entry-card p,
+.human-surface-review-entry-card small,
 .human-surface-source-reason,
 .human-surface-empty-deltas {
   margin: 0;
@@ -1162,21 +1168,24 @@
 }
 
 .human-surface-mode-card dl,
-.human-surface-delta-card dl {
+.human-surface-delta-card dl,
+.human-surface-review-entry-card dl {
   display: grid;
   gap: 5px;
   margin: 0;
 }
 
 .human-surface-mode-card dl div,
-.human-surface-delta-card dl div {
+.human-surface-delta-card dl div,
+.human-surface-review-entry-card dl div {
   display: grid;
   grid-template-columns: 58px minmax(0, 1fr);
   gap: 6px;
 }
 
 .human-surface-mode-card dt,
-.human-surface-delta-card dt {
+.human-surface-delta-card dt,
+.human-surface-review-entry-card dt {
   color: #6a7586;
   font-size: 0.68rem;
   font-weight: 820;
@@ -1184,7 +1193,8 @@
 }
 
 .human-surface-mode-card dd,
-.human-surface-delta-card dd {
+.human-surface-delta-card dd,
+.human-surface-review-entry-card dd {
   min-width: 0;
   margin: 0;
   color: #334155;
@@ -1194,10 +1204,33 @@
 }
 
 .human-surface-action-grid,
-.human-surface-link-grid {
+.human-surface-link-grid,
+.human-surface-review-entry-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
+}
+
+.human-surface-review-entry-section {
+  margin-top: 2px;
+}
+
+.human-surface-review-entry-card {
+  border-color: rgba(19, 121, 91, 0.18);
+  background: #fbfefe;
+}
+
+.human-surface-review-entry-card:hover,
+.human-surface-review-entry-card:focus-visible {
+  border-color: rgba(19, 121, 91, 0.42);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(19, 121, 91, 0.12);
+}
+
+.human-surface-review-entry-card small {
+  display: block;
+  padding-top: 7px;
+  border-top: 1px solid rgba(31, 41, 55, 0.1);
 }
 
 .human-surface-action-card:nth-child(5),
@@ -1727,7 +1760,8 @@
     width: 100%;
   }
 
-  .human-surface-mode-grid {
+  .human-surface-mode-grid,
+  .human-surface-review-entry-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1810,6 +1844,7 @@
   .human-surface-mode-grid,
   .human-surface-action-grid,
   .human-surface-link-grid,
+  .human-surface-review-entry-grid,
   .human-surface-metric-grid,
   .human-surface-delta-counts,
   .perspective-human-metrics,
