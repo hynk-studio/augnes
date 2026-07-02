@@ -11,7 +11,8 @@ v0.1, plus Runner / Workplane Metrics v0.1, plus Longer Augnes-on-Augnes
 Dogfood v0.1, plus Legacy Cockpit Shrink Plan v0.1, plus Workplane Native
 Replacement Browser Regression v0.1, plus Agent Workplane Bridge Trace Detail
 v0.1, plus Agent Workplane Review / Memory Proposal Detail v0.1, plus Agent
-Workplane Run Postmortem Detail v0.1.
+Workplane Run Postmortem Detail v0.1, plus Legacy Cockpit Local UI Control
+Classification v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -166,6 +167,18 @@ recovery/scheduled behavior, product DB write, proof/evidence write, durable
 memory apply, Perspective apply, delta auto-apply, product UI action
 authority, or Legacy Cockpit deletion, shrink, hiding, or disabling.
 
+Legacy Cockpit Local UI Control Classification v0.1 is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md`.
+It classifies useful Legacy Cockpit local UI controls into read-only,
+copy/export, preview/local-draft, local-write, forbidden, compatibility-only,
+and unknown/manual-review buckets before any shrink candidate. It adds no
+product UI behavior change, route, API write route, server action, chat
+composer, native absorption of local-write controls, provider/OpenAI/GitHub/
+Codex execution, runner execution/tick/recovery/scheduled behavior, product
+DB write, proof/evidence write, durable memory apply, Perspective apply,
+delta auto-apply, or Legacy Cockpit deletion, shrink, hiding, or disabling.
+Classification is evidence/signaling, not shrink authority.
+
 ## 2. Surface Model
 
 The route model remains:
@@ -221,6 +234,10 @@ Agent Workplane renders:
   recovered DeltaBatch summaries, timeline rows, postmortem signals,
   validation status, source refs, no-runner-authority boundaries, and explicit
   remaining gaps
+- Legacy Cockpit Local UI Control Classification v0.1 as a static
+  classification of retained legacy controls into read-only, copy/export,
+  preview/local-draft, local-write, forbidden, compatibility-only, and
+  unknown/manual-review buckets before any shrink candidate
 - local Augnes-on-Augnes Dogfood report generation through the explicit script
   path, not through product render
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,

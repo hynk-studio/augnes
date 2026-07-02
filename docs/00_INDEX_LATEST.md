@@ -351,6 +351,22 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   apply, Perspective apply, delta auto-apply, localStorage/sessionStorage
   durable view mode, product UI action authority, or Legacy Cockpit deletion/
   shrink/hide.
+- `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md`:
+  Legacy Cockpit Local UI Control Classification v0.1 classifies useful
+  retained Legacy Cockpit controls into read-only visibility, copy/export,
+  preview/local-draft, local-write, external-forbidden, compatibility-only,
+  and unknown/manual-review buckets before any shrink candidate. It adds
+  `types/legacy-cockpit-local-control-classification.ts`,
+  `lib/workplane/legacy-cockpit-local-control-classification.ts`, and
+  `scripts/smoke-legacy-cockpit-local-control-classification-v0-1.mjs`.
+  Classification is evidence/signaling, not shrink authority, and
+  local-write controls require a separate authority contract before native
+  absorption. It adds no product UI behavior change, no route, no API write
+  route, no server action, no chat composer, no native absorption of
+  local-write controls, no provider/OpenAI/GitHub/Codex execution, no runner
+  execution/tick/recovery/scheduled behavior, no product DB write, no
+  proof/evidence write, no durable memory apply, no Perspective apply, no
+  delta auto-apply, and no Legacy Cockpit deletion/shrink/hide.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and

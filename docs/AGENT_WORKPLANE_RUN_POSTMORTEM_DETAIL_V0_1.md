@@ -121,6 +121,12 @@ durable memory, apply Perspective, or auto-apply deltas.
 - no runner tick
 - no DeltaBatch recovery
 
+Legacy Cockpit Local UI Control Classification v0.1 is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md`.
+It classifies retained Legacy Cockpit local controls for future shrink review
+but does not move controls into native Workplane and does not authorize shrink.
+The legacy local UI control classification remains evidence/signaling only.
+
 Browser regression can move Work/run visibility and Run Postmortem capability
 checks toward stronger native evidence while still keeping the overall
 recommendation gated when dogfood, metrics, legacy local UI control
@@ -133,7 +139,8 @@ The following gaps intentionally remain:
 - direct runner ledger event payload detail is not read by this helper;
 - richer postmortem timeline detail may be needed later;
 - richer proposal diff detail may be needed later;
-- legacy local UI control classification remains separate;
+- local UI control classification exists, but unknown/manual-review controls
+  and local-write authority contracts remain blockers;
 - repeated metrics/dogfood baselines for review burden and resume latency;
 - explicit rollback and human approval before any deletion PR.
 
@@ -196,5 +203,6 @@ This slice intentionally does not implement:
 
 ## Recommended Next Phase
 
-Recommended next phase: legacy local UI control classification or repeated
-dogfood/metrics baseline. Do not proceed to Legacy Cockpit deletion yet.
+Recommended next phase: repeated dogfood/metrics baseline, or targeted richer
+proposal diff detail if classification shows it is needed; not Legacy Cockpit
+deletion yet.

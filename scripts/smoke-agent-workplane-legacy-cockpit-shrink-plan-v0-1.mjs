@@ -144,6 +144,21 @@ const followOnAgentWorkplaneRunPostmortemDetailFiles = [
   "package.json",
 ];
 
+const followOnLegacyCockpitLocalControlClassificationFiles = [
+  "types/legacy-cockpit-local-control-classification.ts",
+  "lib/workplane/legacy-cockpit-local-control-classification.ts",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md",
+  "scripts/smoke-legacy-cockpit-local-control-classification-v0-1.mjs",
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 
 const allowedChangedFiles = new Set([
   ...shrinkPlanSliceFiles,
@@ -152,6 +167,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneBridgeTraceDetailFiles,
   ...followOnAgentWorkplaneReviewMemoryDetailFiles,
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
+  ...followOnLegacyCockpitLocalControlClassificationFiles,
 ]);
 
 const requiredCapabilities = [
@@ -494,7 +510,8 @@ function assertNoProductBehaviorFilesChanged() {
       followOnWorkplaneNativeBrowserRegressionFiles.includes(file) ||
       followOnAgentWorkplaneBridgeTraceDetailFiles.includes(file) ||
       (followOnAgentWorkplaneReviewMemoryDetailFiles.includes(file) ||
-        followOnAgentWorkplaneRunPostmortemDetailFiles.includes(file))
+        followOnAgentWorkplaneRunPostmortemDetailFiles.includes(file)) ||
+      followOnLegacyCockpitLocalControlClassificationFiles.includes(file)
     ) {
       continue;
     }
@@ -546,7 +563,8 @@ function assertNoRouteOrAuthorityPathAdded() {
       followOnWorkplaneNativeBrowserRegressionFiles.includes(file) ||
       followOnAgentWorkplaneBridgeTraceDetailFiles.includes(file) ||
       (followOnAgentWorkplaneReviewMemoryDetailFiles.includes(file) ||
-        followOnAgentWorkplaneRunPostmortemDetailFiles.includes(file))
+        followOnAgentWorkplaneRunPostmortemDetailFiles.includes(file)) ||
+      followOnLegacyCockpitLocalControlClassificationFiles.includes(file)
     ) {
       continue;
     }
