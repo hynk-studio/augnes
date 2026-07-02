@@ -160,6 +160,20 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   recommends Agent Workplane Node / Panel Contract v0.1 as the next phase and
   keeps legacy Cockpit deletion blocked until native replacement and validation
   exist.
+- `docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md`: Agent Workplane Node / Panel
+  Contract v0.1 defines stable Workplane panel IDs, node IDs, node kinds,
+  conservative statuses, authority boundary, validation summary, staleness,
+  fallback, source refs, and related run/step/event/batch/delta/handoff refs
+  for native panels and retained legacy Cockpit compatibility. It adds
+  `types/agent-workplane-node.ts`,
+  `lib/workplane/workplane-node-context.ts`, stable `data-workplane-*`
+  attributes on key existing panels, and
+  `scripts/smoke-agent-workplane-node-contract-v0-1.mjs`. It prepares future
+  GuideBrief Workplane Debug Context and GuideBrief Intent Projection without
+  adding GuideBrief debug or intent projection behavior, Runner / DeltaBatch
+  Workplane integration, runner behavior, routes, DB writes, provider/OpenAI,
+  GitHub, Codex execution, durable memory apply, Perspective apply, delta
+  auto-apply, or legacy Cockpit deletion.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and

@@ -112,6 +112,34 @@ const phase8fAutonomyContractCopyExportFiles = [
   "package.json",
 ];
 
+const followOnAgentWorkplaneNodeContractFiles = [
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "components/workplane/workplane-panel-shell.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "components/workplane/work-queue-panel.tsx",
+  "components/workplane/current-perspective-workplane-panel.tsx",
+  "components/workplane/delta-projection-workplane-panel.tsx",
+  "components/workplane/review-queue-workplane-panel.tsx",
+  "components/workplane/evidence-handoff-workplane-panel.tsx",
+  "components/workplane/workplane-inspector.tsx",
+  "components/workplane/projection-candidates-panel.tsx",
+  "components/workplane/delta-batch-panel.tsx",
+  "components/workplane/handoff-builder-preview-panel.tsx",
+  "components/workplane/run-postmortem-skeleton-panel.tsx",
+  "components/workplane/trace-diagnostics-panel.tsx",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+];
+
 const requiredFiles = [
   guideBriefDoc,
   guideBriefTypeFile,
@@ -202,6 +230,7 @@ const allowedChangedFiles = new Set([
   ...followOnHandoffCapsuleAppToolFiles,
   ...followOnAutonomyContractCodexSkillFiles,
   ...phase8fAutonomyContractCopyExportFiles,
+  ...followOnAgentWorkplaneNodeContractFiles,
 ]);
 for (const file of phase9aAutonomyRunnerPreflightFiles) {
   allowedChangedFiles.add(file);
@@ -870,7 +899,8 @@ function assertChangedFileBoundary() {
         followOnHandoffCapsuleCopyExportFiles.includes(file) ||
         phase8cAutonomyContractWebPreviewFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file) ||
-        phase8fAutonomyContractCopyExportFiles.includes(file),
+        phase8fAutonomyContractCopyExportFiles.includes(file) ||
+        followOnAgentWorkplaneNodeContractFiles.includes(file),
       `Phase 6A must not change UI files outside exact Phase 6C/7C/7F Web follow-on scope or exact Phase 8C/8F Autonomy Web preview files: ${file}`,
     );
     assert(

@@ -31,6 +31,10 @@ export function ReviewQueueWorkplanePanel({
       kicker="Review Queue"
       title="Operator attention hints"
       ariaLabel="Review Queue Workplane panel"
+      panelId="review_queue"
+      nodeId="authority_validation_debug"
+      nodeKind="native_panel"
+      nodeStatus="partial"
     >
       <p style={workplaneCopyStyle}>
         Review Queue refs are read-only hints from Current Working Perspective.

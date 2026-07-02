@@ -34,9 +34,33 @@ const downstreamSmokeCompatibilityFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneNodeContractFiles = [
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "components/workplane/workplane-panel-shell.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "components/workplane/work-queue-panel.tsx",
+  "components/workplane/current-perspective-workplane-panel.tsx",
+  "components/workplane/delta-projection-workplane-panel.tsx",
+  "components/workplane/review-queue-workplane-panel.tsx",
+  "components/workplane/evidence-handoff-workplane-panel.tsx",
+  "components/workplane/workplane-inspector.tsx",
+  "components/workplane/projection-candidates-panel.tsx",
+  "components/workplane/delta-batch-panel.tsx",
+  "components/workplane/handoff-builder-preview-panel.tsx",
+  "components/workplane/run-postmortem-skeleton-panel.tsx",
+  "components/workplane/trace-diagnostics-panel.tsx",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...downstreamSmokeCompatibilityFiles,
+  ...followOnAgentWorkplaneNodeContractFiles,
 ]);
 
 const validStatuses = new Set([
@@ -321,6 +345,9 @@ function assertNoRuntimeAuthorityFilesChanged() {
       allowedChangedFiles.has(file),
       `Unexpected runtime or authority file changed: ${file}`,
     );
+    if (followOnAgentWorkplaneNodeContractFiles.includes(file)) {
+      continue;
+    }
     assert(
       !forbiddenPathPrefixes.some((prefix) => file.startsWith(prefix)),
       `No runtime, UI, API, provider, GitHub, Codex, runner, durable memory, or Perspective apply file may change: ${file}`,

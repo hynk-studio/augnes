@@ -29,6 +29,10 @@ export function RunPostmortemSkeletonPanel({
       kicker="Phase 5C skeleton"
       title="Run Postmortem"
       ariaLabel="Run Postmortem skeleton Workplane panel"
+      panelId="run_postmortem"
+      nodeId="run_postmortem"
+      nodeKind="runner_context_source"
+      nodeStatus="not_materialized"
     >
       <p style={workplaneCopyStyle}>
         Run postmortem source is not materialized yet. This skeleton reserves

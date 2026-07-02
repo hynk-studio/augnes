@@ -1,4 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
+import type {
+  AgentWorkplaneNodeKind,
+  AgentWorkplaneNodeStatus,
+  AgentWorkplanePanelId,
+} from "@/types/agent-workplane-node";
 
 const panelStyle: CSSProperties = {
   display: "grid",
@@ -113,14 +118,29 @@ export function WorkplanePanelShell({
   title,
   children,
   ariaLabel,
+  panelId,
+  nodeId,
+  nodeKind,
+  nodeStatus,
 }: {
   kicker: string;
   title: string;
   children: ReactNode;
   ariaLabel?: string;
+  panelId?: AgentWorkplanePanelId;
+  nodeId?: AgentWorkplanePanelId;
+  nodeKind?: AgentWorkplaneNodeKind;
+  nodeStatus?: AgentWorkplaneNodeStatus;
 }) {
   return (
-    <section aria-label={ariaLabel ?? title} style={panelStyle}>
+    <section
+      aria-label={ariaLabel ?? title}
+      data-workplane-panel-id={panelId}
+      data-workplane-node-id={nodeId}
+      data-workplane-node-kind={nodeKind}
+      data-workplane-node-status={nodeStatus}
+      style={panelStyle}
+    >
       <div style={headingStyle}>
         <p style={kickerStyle}>{kicker}</p>
         <h2 style={titleStyle}>{title}</h2>

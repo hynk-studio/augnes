@@ -34,6 +34,10 @@ export function DeltaBatchPanel({
       kicker="Phase 5C preview"
       title="Delta Batch"
       ariaLabel="Delta Batch Workplane panel"
+      panelId="delta_batch"
+      nodeId="runner_delta_batch"
+      nodeKind="runner_context_source"
+      nodeStatus="preview_only"
     >
       <p style={workplaneCopyStyle}>
         Delta Batch context is read-only preview context. It is not a

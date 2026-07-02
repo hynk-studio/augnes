@@ -31,6 +31,10 @@ export function HandoffBuilderPreviewPanel({
       kicker="Phase 5C preview"
       title="Handoff Builder preview"
       ariaLabel="Handoff Builder preview Workplane panel"
+      panelId="handoff_builder_preview"
+      nodeId="handoff_context"
+      nodeKind="handoff_context_source"
+      nodeStatus="preview_only"
     >
       <p style={workplaneCopyStyle}>
         Handoff Builder preview shows pointer-only handoff context. Handoff

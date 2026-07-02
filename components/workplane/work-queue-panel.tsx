@@ -21,6 +21,10 @@ export function WorkQueuePanel({
       kicker="Work Queue"
       title="Active work and review scope"
       ariaLabel="Work Queue Workplane panel"
+      panelId="work_queue"
+      nodeId="current_objective"
+      nodeKind="native_panel"
+      nodeStatus="partial"
     >
       <p style={workplaneCopyStyle}>
         {activeGoals.length > 0

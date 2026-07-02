@@ -126,6 +126,19 @@ const followOnAgentWorkplaneCockpitInheritanceFiles = [
   "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneNodeContractFiles = [
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  ...phase5aFiles,
+  ...phase5bPanelFiles,
+  ...phase5cPanelFiles,
+  agentWorkplaneDoc,
+  indexDoc,
+  packageJsonFile,
+];
+
 
 const requiredFiles = [
   workbenchPageFile,
@@ -228,6 +241,7 @@ const allowedChangedFiles = new Set([
   ...followOnWebGuidePanelFiles,
   ...followOnChatgptAppGuideBriefToolFiles,
   ...followOnAgentWorkplaneCockpitInheritanceFiles,
+  ...followOnAgentWorkplaneNodeContractFiles,
   smokeFile,
   "app/globals.css",
 ]);

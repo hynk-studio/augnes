@@ -696,6 +696,7 @@
     "smoke:agent-workplane-projection-handoff-v0-1": "node scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
     "smoke:agent-workplane-cleanup-hardening-v0-1": "node scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
     "smoke:agent-workplane-cockpit-inheritance-v0-1": "node scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+    "smoke:agent-workplane-node-contract-v0-1": "node scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
     "smoke:guide-brief-v0-1": "node scripts/smoke-guide-brief-v0-1.mjs",
     "smoke:guide-brief-route-v0-1": "node scripts/smoke-guide-brief-route-v0-1.mjs",
     "smoke:web-guide-panel-v0-1": "node scripts/smoke-web-guide-panel-v0-1.mjs",

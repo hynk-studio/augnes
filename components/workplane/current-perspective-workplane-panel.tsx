@@ -22,6 +22,10 @@ export function CurrentPerspectiveWorkplanePanel({
       kicker="Current Perspective"
       title="Current Working Perspective workplane context"
       ariaLabel="Current Perspective Workplane panel"
+      panelId="current_perspective"
+      nodeId="current_perspective"
+      nodeKind="native_panel"
+      nodeStatus="partial"
     >
       <p style={workplaneCopyStyle}>{overview.thesis}</p>
       <p style={workplaneCopyStyle}>{overview.frame_summary}</p>

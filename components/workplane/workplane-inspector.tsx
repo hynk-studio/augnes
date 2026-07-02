@@ -24,6 +24,10 @@ export function WorkplaneInspector({
         kicker="Workplane Inspector"
         title="Pointer-only backend context"
         ariaLabel="Workplane Inspector panel"
+        panelId="workplane_inspector"
+        nodeId="source_ref_bridge"
+        nodeKind="debug_context_source"
+        nodeStatus="partial"
       >
         <p style={workplaneCopyStyle}>
           No hidden execution authority. Inspector details are read-only source

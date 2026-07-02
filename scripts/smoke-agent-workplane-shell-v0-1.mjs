@@ -74,6 +74,29 @@ const followOnAgentWorkplaneCockpitInheritanceFiles = [
   "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
 ];
 
+const followOnAgentWorkplaneNodeContractFiles = [
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  panelShellFile,
+  compatibilityPanelFile,
+  workQueuePanelFile,
+  currentPerspectivePanelFile,
+  deltaProjectionPanelFile,
+  reviewQueuePanelFile,
+  evidenceHandoffPanelFile,
+  workplaneInspectorFile,
+  "components/workplane/projection-candidates-panel.tsx",
+  "components/workplane/delta-batch-panel.tsx",
+  "components/workplane/handoff-builder-preview-panel.tsx",
+  "components/workplane/run-postmortem-skeleton-panel.tsx",
+  "components/workplane/trace-diagnostics-panel.tsx",
+  agentWorkplaneDoc,
+  indexDoc,
+  packageJsonFile,
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -211,6 +234,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneProjectionHandoffFiles,
   ...followOnAgentWorkplaneCleanupHardeningFiles,
   ...followOnAgentWorkplaneCockpitInheritanceFiles,
+  ...followOnAgentWorkplaneNodeContractFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
