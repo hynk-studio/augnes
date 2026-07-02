@@ -53,6 +53,69 @@ surface:
 Retained local-write/manual/local-draft controls remain reachable through
 /cockpit until separately absorbed under a future authority contract.
 
+## Runtime Verification
+
+Runtime verification proves the route split through a live local Next server.
+It only performs HTTP GET checks against the rendered routes and adds no
+authority changes, mutation route, runner behavior, or product write path.
+No authority changes are introduced by this runtime verification helper.
+
+### Required Commands
+
+Start a local dev server:
+
+```bash
+AUGNES_DB_PATH=/tmp/augnes-runtime-check.db npm run dev -- --port 3000
+```
+
+Then run the route checker:
+
+```bash
+npm run runtime:agent-workplane-legacy-cockpit-check-v0-1
+```
+
+Static coverage for this runtime helper is checked with:
+
+```bash
+npm run smoke:agent-workplane-legacy-cockpit-runtime-check-v0-1
+```
+
+### Expected Output
+
+The runtime checker prints JSON with `pass: true`, HTTP 200 status for
+`/workbench` and `/cockpit`, and these route facts:
+
+- `/workbench` contains
+  `data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"`.
+- `/workbench` contains `data-workplane-legacy-cockpit-route="/cockpit"`.
+- `/workbench` contains the compact Legacy Cockpit compatibility panel.
+- `/workbench` does not contain full Cockpit shell markers.
+- `/cockpit` contains the Legacy Cockpit page heading.
+- `/cockpit` contains the retained AugnesCockpit shell markers.
+- `/cockpit` contains the existing six-tab shell marker or current equivalent.
+
+The final line should be:
+
+```text
+PASS runtime:agent-workplane-legacy-cockpit-runtime-check-v0-1
+```
+
+### Failure Conditions
+
+The runtime checker fails if any of these conditions are observed:
+
+- /workbench returns any status other than HTTP 200.
+- /cockpit returns any status other than HTTP 200.
+- /workbench is missing the shrink marker.
+- /workbench is missing the retained `/cockpit` route pointer.
+- /workbench is missing the compact Legacy Cockpit compatibility panel.
+- /workbench still contains the full six-tab Cockpit shell.
+- /workbench still contains embedded AugnesCockpit compatibility island markers.
+- /cockpit is missing the Legacy Cockpit page heading.
+- /cockpit is missing AugnesCockpit shell markers.
+- /cockpit is missing the six-tab shell marker or current equivalent.
+- /cockpit no longer proves the retained compatibility route exists.
+
 ## Deprecated Or Blocked
 
 External execution controls remain forbidden. Publish, merge, retry, replay,
