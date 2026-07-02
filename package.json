@@ -715,6 +715,7 @@
     "smoke:workplane-native-browser-regression-v0-1": "node scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
     "smoke:agent-workplane-bridge-trace-detail-v0-1": "node scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",
     "smoke:agent-workplane-review-memory-detail-v0-1": "node scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
+    "smoke:workplane-state-proposal-review-v0-1": "node scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
     "smoke:agent-workplane-run-postmortem-detail-v0-1": "node scripts/smoke-agent-workplane-run-postmortem-detail-v0-1.mjs",
     "smoke:legacy-cockpit-local-control-classification-v0-1": "node scripts/smoke-legacy-cockpit-local-control-classification-v0-1.mjs",
     "smoke:legacy-cockpit-control-inventory-v0-1": "node scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",

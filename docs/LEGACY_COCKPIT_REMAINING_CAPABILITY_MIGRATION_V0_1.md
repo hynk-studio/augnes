@@ -16,6 +16,12 @@ Cockpit without hidden feature loss.
 
 Cockpit unique useful capability count must reach 0 before route removal.
 
+PR 3 implementation update: Workplane State Proposal Review v0.1 is now
+implemented in `docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md`. The native
+`/workbench` panel covers the thirteen `workplane_state_proposal_review`
+capabilities as read-only review context and keeps apply/approve/reject/commit
+authority blocked.
+
 ## Destination Model
 
 Destination values:
@@ -182,6 +188,8 @@ Purpose: Create the research-critical review lane:
 - impact analysis
 - stale/fallback warnings
 - authority boundary
+
+Implementation: `docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md`.
 
 PR 4: Cockpit Manual Controls Migration v0.1
 

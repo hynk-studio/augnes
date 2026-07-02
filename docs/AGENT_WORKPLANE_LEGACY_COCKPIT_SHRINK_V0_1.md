@@ -15,6 +15,11 @@ Remaining capability migration after this route split is mapped in
 surface, and keeps Cockpit route removal blocked until unique useful capability
 count reaches 0.
 
+The PR 3 follow-on is documented in
+`docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md`. It moves the
+research-critical proposal review lane into native Agent Workplane while
+leaving `/cockpit` retained compatibility unchanged.
+
 ## Route Split
 
 - /workbench no longer mounts full AugnesCockpit.
@@ -42,6 +47,11 @@ capabilities that Step 7 depends on:
   Workplane Inspector, and Trace / Diagnostics.
 - Work/run visibility through Runner DeltaBatch and Run Postmortem Detail.
 - Review/memory proposal visibility through ReviewMemoryDetailPanel.
+- Research-critical state proposal review through StateProposalReviewPanel,
+  including field-level diffs, before/after preview, impact, memory proposal
+  review, Perspective lens detail, local draft review, manual preview, manual
+  gravity, formation basis, proposal status history, needs-user-judgment,
+  stale/fallback warnings, and authority boundary review.
 - Validation/smoke visibility through Trace / Diagnostics, Evidence/Handoff,
   Workplane Inspector, metrics, and source-backed docs/smoke refs.
 

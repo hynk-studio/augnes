@@ -41,6 +41,12 @@ and adds no executable projection, persistent Workplane mode, route, write,
 runner behavior, external authority, durable memory apply, Perspective apply,
 or delta auto-apply.
 
+The follow-on Workplane State Proposal Review v0.1 now uses this contract for
+the stable `state_proposal_review` panel/node and the
+`proposal_review_context` node kind. The node contract remains read-only; State
+Proposal Review adds proposal review context only and no approve, reject,
+commit, apply, write, execution, or external authority.
+
 Exact boundary statement: no GuideBrief debug panel is added, no GuideBrief
 intent projection is added, no new runner execution behavior is added, no
 recovery write behavior is added to Workplane reads, no scheduled runner
@@ -117,6 +123,8 @@ The v0.1 stable Workplane panel IDs are:
 - `current_perspective`
 - `delta_projection`
 - `review_queue`
+- `review_memory_detail`
+- `state_proposal_review`
 - `evidence_handoff`
 - `workplane_inspector`
 - `projection_candidates`
@@ -139,6 +147,7 @@ The v0.1 absorption-map target IDs are:
 - `runner_delta_batch`
 - `run_postmortem`
 - `trace_diagnostics`
+- `state_proposal_review`
 
 `delta_projection` and `projected_delta_batch` are intentionally separate
 panel IDs even though both point at the `perspective_delta` context node.
@@ -156,6 +165,7 @@ Allowed node kinds are:
 - `preview_panel`
 - `compatibility_panel`
 - `debug_context_source`
+- `proposal_review_context`
 - `handoff_context_source`
 - `runner_context_source`
 - `trace_context_source`
@@ -176,6 +186,9 @@ Allowed node statuses are:
   path.
 - `not_materialized`: reserved in the contract but not backed by a live source
   yet.
+- `empty`: a native panel exists but has no materialized source rows.
+- `needs_review`: review context is materialized and requires user attention.
+- `blocked`: the panel is intentionally blocked from action authority.
 - `stale`: source staleness is known and should be disclosed.
 - `fallback`: fixture or empty fallback is active and must be disclosed.
 

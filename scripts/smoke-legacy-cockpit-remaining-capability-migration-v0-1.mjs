@@ -21,6 +21,30 @@ const shrinkSmokeFile =
 const runtimeSmokeFile =
   "scripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs";
 
+const followOnWorkplaneStateProposalReviewFiles = [
+  "types/workplane-state-proposal-review.ts",
+  "lib/workplane/workplane-state-proposal-review.ts",
+  "components/workplane/state-proposal-review-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
+  "docs/BLANK_STATE_REVIEW_ENTRY_ABSORPTION_V0_1.md",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "package.json",
+  "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+];
+
 const allowedChangedFiles = [
   migrationDoc,
   smokeFile,
@@ -32,6 +56,7 @@ const allowedChangedFiles = [
   "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
   shrinkSmokeFile,
   runtimeSmokeFile,
+  ...followOnWorkplaneStateProposalReviewFiles,
 ];
 
 const destinationValues = [
@@ -391,6 +416,7 @@ function assertChangedFilesBoundary() {
 }
 
 function assertNoProductUiOrAuthorityPaths(files) {
+  const allowedFollowOnFiles = new Set(followOnWorkplaneStateProposalReviewFiles);
   const forbiddenPathPatterns = [
     /^app\//,
     /^components\//,
@@ -404,6 +430,9 @@ function assertNoProductUiOrAuthorityPaths(files) {
   ];
 
   for (const file of files) {
+    if (allowedFollowOnFiles.has(file)) {
+      continue;
+    }
     for (const pattern of forbiddenPathPatterns) {
       assert(
         !pattern.test(file),
