@@ -24,6 +24,10 @@ export function DeltaProjectionWorkplanePanel({
       kicker="Delta Projection"
       title="Augnes Delta Projection workplane context"
       ariaLabel="Delta Projection Workplane panel"
+      panelId="delta_projection"
+      nodeId="perspective_delta"
+      nodeKind="native_panel"
+      nodeStatus="partial"
     >
       <p style={workplaneCopyStyle}>
         {overview.projected_delta_count > 0

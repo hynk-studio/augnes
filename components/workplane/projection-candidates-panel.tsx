@@ -31,6 +31,10 @@ export function ProjectionCandidatesPanel({
       kicker="Phase 5C preview"
       title="Projection Candidates"
       ariaLabel="Projection Candidates Workplane panel"
+      panelId="projection_candidates"
+      nodeId="perspective_delta"
+      nodeKind="preview_panel"
+      nodeStatus="preview_only"
     >
       <p style={workplaneCopyStyle}>
         Projection candidates are read-only preview context. No apply, approve,

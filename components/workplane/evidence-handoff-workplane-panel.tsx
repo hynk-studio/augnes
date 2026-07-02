@@ -30,6 +30,10 @@ export function EvidenceHandoffWorkplanePanel({
       kicker="Evidence / Handoff"
       title="Pointer-only handoff and evidence context"
       ariaLabel="Evidence and Handoff Workplane panel"
+      panelId="evidence_handoff"
+      nodeId="handoff_context"
+      nodeKind="handoff_context_source"
+      nodeStatus="partial"
     >
       <p style={workplaneCopyStyle}>
         Evidence pointers, Handoff context, Artifact pointers, and Codex result

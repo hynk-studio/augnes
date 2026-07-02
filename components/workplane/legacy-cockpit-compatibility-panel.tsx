@@ -58,7 +58,14 @@ export function LegacyCockpitCompatibilityPanel({
   children: ReactNode;
 }) {
   return (
-    <section aria-labelledby="legacy-cockpit-compatibility-title" style={panelStyle}>
+    <section
+      aria-labelledby="legacy-cockpit-compatibility-title"
+      data-workplane-panel-id="legacy_cockpit_compatibility"
+      data-workplane-node-id="legacy_cockpit_compatibility"
+      data-workplane-node-kind="compatibility_panel"
+      data-workplane-node-status="compatibility_only"
+      style={panelStyle}
+    >
       <div style={headingStyle}>
         <p style={kickerStyle}>Existing Cockpit compatibility content</p>
         <h2 id="legacy-cockpit-compatibility-title" style={titleStyle}>

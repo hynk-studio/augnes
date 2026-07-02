@@ -51,6 +51,10 @@ export function TraceDiagnosticsPanel({
       kicker="Phase 5C bounded trace"
       title="Trace / Diagnostics"
       ariaLabel="Trace and Diagnostics Workplane panel"
+      panelId="trace_diagnostics"
+      nodeId="trace_bridge"
+      nodeKind="trace_context_source"
+      nodeStatus="partial"
     >
       <p style={workplaneCopyStyle}>
         Trace / Diagnostics context is bounded read-only preview context, not a

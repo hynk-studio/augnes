@@ -4,7 +4,8 @@
 
 Status: Phase 5A Agent Workplane Shell, Phase 5B Agent Workplane Panels,
 Phase 5C Agent Workplane Projection / Handoff / Postmortem Skeletons, and
-Phase 5D Agent Workplane Cleanup / Responsive Hardening, v0.1.
+Phase 5D Agent Workplane Cleanup / Responsive Hardening, plus Agent Workplane
+Node / Panel Contract v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -25,6 +26,14 @@ consistency, this closeout update, and a focused static smoke. It does not add
 new panels, new data sources, new routes, execution, send, apply, approve,
 reject, persistence, proof/evidence writes, DB writes, provider calls, GitHub
 actuation, Codex execution, hidden authority, or Phase 6 GuideBrief behavior.
+
+Agent Workplane Node / Panel Contract v0.1 adds stable panel/node IDs, typed
+read-context metadata, a read-only node context helper, and `data-workplane-*`
+attributes on key existing panels. It prepares the surface for later
+GuideBrief Workplane Debug Context and GuideBrief Intent Projection without
+adding GuideBrief debug behavior, intent projection, routes, writes, execution,
+runner ledger reads, Runner / DeltaBatch Workplane integration, durable memory
+apply, Perspective apply, or legacy Cockpit deletion.
 
 ## 2. Surface Model
 
@@ -54,6 +63,9 @@ Agent Workplane renders:
   Review Queue, Evidence/Handoff, and Workplane Inspector context
 - read-only preview skeletons for Projection Candidates, Delta Batch, Handoff
   Builder preview, Run Postmortem, and Trace / Diagnostics
+- stable `data-workplane-panel-id`, `data-workplane-node-id`,
+  `data-workplane-node-kind`, and `data-workplane-node-status` metadata on key
+  native panels and the legacy compatibility path
 - existing Cockpit compatibility content
 
 ## 3. Existing Cockpit Preservation
@@ -279,7 +291,46 @@ Phase 5 v0.1 is ready for the next phase only when:
 Phase 6 GuideBrief / Cross-Surface Guide Core can start only after those
 criteria remain true and no authority drift is found.
 
-## 11. Smoke Plan
+## 11. Node / Panel Contract
+
+`docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md` defines the stable node/panel
+context contract for Agent Workplane.
+
+The contract includes:
+
+- `panel_id`, `node_id`, `kind`, `title`, `summary`, `status`, `created_at`,
+  `updated_at`, `source_refs`, related run/step/event/batch/delta/handoff
+  refs, `authority_boundary`, `validation_summary`, `staleness`,
+  `fallback_status`, and `debug_notes`
+- stable panel IDs for Work Queue, Current Perspective, Delta Projection,
+  Review Queue, Evidence/Handoff, Workplane Inspector, Projection Candidates,
+  Delta Batch, Handoff Builder preview, Run Postmortem, Trace / Diagnostics,
+  and legacy Cockpit compatibility
+- stable absorption target IDs for Current Objective, Handoff Context,
+  Perspective Delta, Source Ref Bridge, Trace Bridge, Authority / Validation /
+  Debug, Runner State, runner DeltaBatch, Run Postmortem, and Trace Diagnostics
+- node kinds for native, preview, compatibility, debug context, handoff
+  context, runner context, and trace context sources
+- conservative statuses for ready, partial, preview-only, compatibility-only,
+  not-materialized, stale, and fallback context
+
+`lib/workplane/workplane-node-context.ts` builds a read-only
+`AgentWorkplaneNodeContextRead` packet from existing `readWorkplaneContext()`
+output. It derives source refs from Current Working Perspective and Augnes
+Delta Projection reads, preserves source/fallback/staleness disclosure, names
+relevant smoke coverage, and represents missing runner/postmortem sources as
+preview-only or not materialized. It does not add a route, DB write,
+persistence, new data source, runner ledger read, Runner / DeltaBatch
+Workplane integration, provider/OpenAI/GitHub/Codex execution, durable memory
+apply, Perspective apply, delta auto-apply, scheduler behavior, or external
+side effect.
+
+Legacy Cockpit compatibility remains explicit through
+`legacy_cockpit_compatibility` with `compatibility_panel` /
+`compatibility_only` metadata. Legacy Cockpit must not be removed until native
+replacement and validation exist.
+
+## 12. Smoke Plan
 
 `npm run smoke:agent-workplane-shell-v0-1` checks:
 
@@ -344,7 +395,23 @@ criteria remain true and no authority drift is found.
 - old-label cleanup keeps Cockpit references limited to explicit legacy
   compatibility or historical context
 
-## 12. Validation
+`npm run smoke:agent-workplane-node-contract-v0-1` checks:
+
+- package script pointer exists
+- node contract types, read helper, docs, index pointer, and Workplane doc
+  pointer exist
+- required fields, stable panel IDs, absorption target IDs, node kinds, and
+  statuses are present
+- `WorkplanePanelShell` accepts and renders stable data attributes
+- required native panels and legacy compatibility expose stable metadata
+- the node context helper exports a stable registry/read model and preserves
+  source/fallback/staleness/authority/validation language
+- no GuideBrief debug panel, intent projection, route, Runner / DeltaBatch
+  Workplane integration, runner behavior, DB write, provider/OpenAI/GitHub/Codex
+  execution, durable memory apply, Perspective apply, broad source deletion, or
+  legacy Cockpit deletion is introduced
+
+## 13. Validation
 
 Minimum validation for Phase 5D:
 
@@ -361,6 +428,7 @@ npm run smoke:agent-workplane-shell-v0-1
 npm run smoke:agent-workplane-panels-v0-1
 npm run smoke:agent-workplane-projection-handoff-v0-1
 npm run smoke:agent-workplane-cleanup-hardening-v0-1
+npm run smoke:agent-workplane-node-contract-v0-1
 git diff --check
 ```
 
