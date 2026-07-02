@@ -34,6 +34,23 @@ import {
 const FALLBACK_AS_OF = "1970-01-01T00:00:00.000Z";
 const DEFAULT_SCOPE = "project:augnes";
 const DEFAULT_LIMIT = 100;
+const FORBIDDEN_ACTION_ATTEMPT_WINDOW = 96;
+
+const AUTHORITY_KEYWORD_PATTERN =
+  /\b(provider|openai|github|codex|execute|schedule|recover|apply|proof|evidence|memory|perspective|merge|publish|deploy|replay|retry)\b/gi;
+
+const ATTEMPT_OR_VIOLATION_MARKER_PATTERN =
+  /\b(attempted|attempt|forbidden|unauthorized|disallowed|denied|blocked_by_authority|authority_violation|forbidden_action_attempt|attempted_forbidden_action)\b/gi;
+
+const SAFE_BOUNDARY_DISCLOSURE_PATTERNS = [
+  /\bscheduled run recorded; it will execute only when the local runner or scheduler is explicitly invoked\b/i,
+  /\bdoes not\b.{0,96}\b(provider|openai|github|codex|execute|schedule|recover|apply|proof|evidence|memory|perspective|merge|publish|deploy|replay|retry)\b/i,
+  /\bnot\b.{0,96}\b(provider|openai|github|codex|execute|schedule|recover|apply|proof|evidence|memory|perspective|merge|publish|deploy|replay|retry)\b/i,
+  /\bwithout\b.{0,96}\b(provider|openai|github|codex|execute|schedule|recover|apply|proof|evidence|memory|perspective|merge|publish|deploy|replay|retry)\b/i,
+  /\bno\b.{0,96}\b(provider|openai|github|codex|execute|schedule|recover|apply|proof|evidence|memory|perspective|merge|publish|deploy|replay|retry)\b/i,
+  /\b(provider|openai|github|codex|execute|schedule|recover|apply|proof|evidence|memory|perspective|merge|publish|deploy|replay|retry)\b.{0,96}\bfalse\b/i,
+  /\bfalse\b.{0,96}\b(provider|openai|github|codex|execute|schedule|recover|apply|proof|evidence|memory|perspective|merge|publish|deploy|replay|retry)\b/i,
+];
 
 export const RUNNER_WORKPLANE_METRIC_GROUPS =
   AUGNES_WORKFLOW_METRIC_GROUP_IDS;
@@ -1185,8 +1202,6 @@ function isScheduledRun(run: AutonomyRunRecord): boolean {
 }
 
 function countForbiddenActionAttempts(runs: AutonomyRunRecord[]): number {
-  const forbiddenPattern =
-    /\b(provider|openai|github|codex|execute|schedule|recover|apply|proof|evidence|memory|perspective|merge|publish|deploy|replay|retry)\b/i;
   const texts = runs.flatMap((run) => [
     run.stop_reason ?? "",
     ...run.events.map((event) => event.message),
@@ -1199,7 +1214,55 @@ function countForbiddenActionAttempts(runs: AutonomyRunRecord[]): number {
       ),
     ]),
   ]);
-  return texts.filter((text) => forbiddenPattern.test(text)).length;
+  return texts.filter(isExplicitForbiddenActionAttempt).length;
+}
+
+function isExplicitForbiddenActionAttempt(text: string): boolean {
+  const normalized = normalizeMetricClassifierText(text);
+  if (!normalized || isSafeBoundaryDisclosure(normalized)) return false;
+
+  const markers = matchIndexes(
+    normalized,
+    ATTEMPT_OR_VIOLATION_MARKER_PATTERN,
+  );
+  if (markers.length === 0) return false;
+
+  const authorityKeywords = matchIndexes(normalized, AUTHORITY_KEYWORD_PATTERN);
+  if (authorityKeywords.length === 0) return false;
+
+  return markers.some((markerIndex) =>
+    authorityKeywords.some(
+      (keywordIndex) =>
+        Math.abs(keywordIndex - markerIndex) <= FORBIDDEN_ACTION_ATTEMPT_WINDOW,
+    ),
+  );
+}
+
+function isSafeBoundaryDisclosure(text: string): boolean {
+  const normalized = normalizeMetricClassifierText(text);
+  if (!normalized) return false;
+
+  const compact = normalized.replace(/[\s-]+/g, "_");
+  if (
+    /\bno_[a-z0-9_]*(provider|openai|github|codex|execute|schedule|recover|apply|proof|evidence|memory|perspective|merge|publish|deploy|replay|retry)/i.test(
+      compact,
+    )
+  ) {
+    return true;
+  }
+
+  return SAFE_BOUNDARY_DISCLOSURE_PATTERNS.some((pattern) =>
+    pattern.test(normalized),
+  );
+}
+
+function matchIndexes(text: string, pattern: RegExp): number[] {
+  pattern.lastIndex = 0;
+  return [...text.matchAll(pattern)].map((match) => match.index ?? 0);
+}
+
+function normalizeMetricClassifierText(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function durationMs(

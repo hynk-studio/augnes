@@ -301,6 +301,10 @@ function assertHelperStaticShape() {
       "runner_delta_batch",
       "insufficient_data",
       "metrics are read-only signals",
+      "isExplicitForbiddenActionAttempt",
+      "isSafeBoundaryDisclosure",
+      "blocked_by_authority",
+      "authority_violation",
     ],
     { label: helperFile },
   );
@@ -507,8 +511,18 @@ function assertHelperBehavior() {
         validation: {
           validation_status,
           completed_checks: ["fixture_check"],
-          skipped_checks: [],
-          notes: ["fixture validation"]
+          skipped_checks: [
+            {
+              check: "no_external_provider_github_codex_call_recorded",
+              reason:
+                "no_memory_mutation_recorded no_durable_perspective_apply_recorded"
+            }
+          ],
+          notes: [
+            "fixture validation",
+            "DeltaBatch recovery is not durable Perspective apply.",
+            "DeltaBatch recovery is not memory mutation."
+          ]
         },
         authority_boundary: runnerAuthority
       };
@@ -571,7 +585,14 @@ function assertHelperBehavior() {
         started_at: "2026-07-02T00:00:00.000Z",
         finished_at: "2026-07-02T00:00:02.000Z",
         steps: [step("run.scheduled.completed", "step.scheduled", "completed")],
-        events: [event("run.scheduled.completed", "run_scheduled"), event("run.scheduled.completed", "run_completed")]
+        events: [
+          event(
+            "run.scheduled.completed",
+            "run_scheduled",
+            "Scheduled run recorded; it will execute only when the local runner or scheduler is explicitly invoked."
+          ),
+          event("run.scheduled.completed", "run_completed")
+        ]
       }),
       run({
         run_id: "run.blocked",
@@ -732,6 +753,36 @@ function assertHelperBehavior() {
     assert.equal(metrics.authority_boundary.can_schedule_runner, false);
     assert.equal(metrics.authority_boundary.can_write_db, false);
     assert.equal(metrics.authority_boundary.can_delete_legacy_cockpit, false);
+    const explicitForbiddenAttemptMetrics = buildRunnerWorkplaneMetrics({
+      scope: "project:augnes",
+      now,
+      runner_runs: [
+        run({
+          run_id: "run.explicit_forbidden_attempt",
+          status: "blocked",
+          steps: [step("run.explicit_forbidden_attempt", "step.explicit", "failed")],
+          events: [
+            event(
+              "run.explicit_forbidden_attempt",
+              "run_blocked",
+              "forbidden provider call attempted"
+            )
+          ]
+        })
+      ],
+      workplane_context,
+      node_context_read,
+      debug_context,
+      intent_projection
+    });
+    const explicitFind = (id) =>
+      explicitForbiddenAttemptMetrics.groups
+        .flatMap((group) => group.metrics)
+        .find((metric) => metric.metric_id === id);
+    assert.equal(
+      explicitFind("forbidden_action_attempt_count").value,
+      1
+    );
     const empty = buildEmptyRunnerWorkplaneMetrics({ now });
     assert.equal(empty.runner_metrics.run_completion_rate.status, "insufficient_data");
     assert(empty.caveats.some((caveat) => /insufficient data/.test(caveat)));
@@ -744,6 +795,8 @@ function assertHelperBehavior() {
       recovered_visibility: find("recovered_delta_batch_visibility_rate").value,
       fallback_count: find("workplane_fallback_source_count").value,
       identity_signal: find("projected_vs_recovered_deltabatch_identity_signal").value,
+      safe_boundary_forbidden_attempt_count: find("forbidden_action_attempt_count").value,
+      explicit_forbidden_attempt_count: explicitFind("forbidden_action_attempt_count").value,
       empty_status: empty.runner_metrics.run_completion_rate.status
     }));
   `;

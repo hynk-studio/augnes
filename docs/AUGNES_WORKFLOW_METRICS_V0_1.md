@@ -92,7 +92,15 @@ Runner metrics include:
 - `paused_run_non_execution_rate`: paused runs with no running step divided by
   paused runs.
 - `forbidden_action_attempt_count`: runner events, step errors, and DeltaBatch
-  validation notes matching forbidden authority keywords.
+  validation notes that contain an explicit attempted, forbidden,
+  unauthorized, disallowed, denied, `blocked_by_authority`,
+  `authority_violation`, `forbidden_action_attempt`, or
+  `attempted_forbidden_action` marker near a forbidden authority keyword.
+  This is a conservative explicit forbidden-attempt signal, not a naive keyword
+  count. It must not count safe boundary disclosures or negated authority
+  statements such as `no_*`, `not`, `without`, `does not`, `false`, `not memory
+  mutation`, `not durable Perspective apply`, `no memory mutation`, or `no
+  durable Perspective apply`.
 - `runner_error_rate`: blocked/failed runs, or runs with blocked/failed steps,
   divided by total runs.
 - `average_run_duration_ms`: average `finished_at - started_at` for runs with
