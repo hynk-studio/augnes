@@ -57,6 +57,13 @@ signals, but it remains evidence/signaling only. A
 browser evidence passed while shrink still waits on metrics, dogfood,
 local-control, rollback, and human review gates.
 
+Follow-on Legacy Cockpit DOM/manual control inventory and proposal diff
+preflight is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md`. It reuses
+server-rendered `/workbench` compatibility evidence to reduce the #933 unknown
+bucket only when DOM/manual evidence exists, and it keeps browser regression
+as evidence rather than shrink authority.
+
 ## 2. Why Browser Regression Exists
 
 Legacy Cockpit remains reachable in `/workbench` as compatibility content while

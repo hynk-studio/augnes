@@ -86,6 +86,11 @@ const existingSmokeAllowlistFiles = [
   "docs/AGENT_WORKPLANE_V0_1.md",
   "docs/00_INDEX_LATEST.md",
   "package.json",
+  "types/legacy-cockpit-control-inventory.ts",
+  "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
+  "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
+  "docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md",
 
 ];
 

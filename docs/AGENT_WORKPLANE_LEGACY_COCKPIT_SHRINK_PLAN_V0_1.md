@@ -58,6 +58,15 @@ browser-regression, and local-control classification signals before any shrink
 candidate. It is evidence/signaling only, not shrink authority. It does not
 delete, shrink, hide, disable, or weaken Legacy Cockpit compatibility content.
 
+Follow-on Legacy Cockpit DOM/manual control inventory and proposal diff
+preflight is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md`. It compares
+server-rendered compatibility content against the #933 local-control
+classification, reduces the unknown bucket only with evidence, and reports
+whether richer read-only proposal diff detail is still needed. It is still
+evidence/signaling only and does not authorize shrink or local-write native
+absorption.
+
 ## 2. Why This Plan Exists
 
 Legacy Cockpit remains useful inside `/workbench` as a compatibility path while

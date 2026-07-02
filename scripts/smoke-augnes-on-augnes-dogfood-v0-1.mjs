@@ -152,6 +152,23 @@ const followOnAugnesDogfoodMetricsBaselineFiles = [
   "package.json",
 ];
 
+const followOnLegacyCockpitControlInventoryFiles = [
+  "types/legacy-cockpit-control-inventory.ts",
+  "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
+  "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md",
+  "docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md",
+  "docs/AUGNES_WORKFLOW_METRICS_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 
 const requiredFiles = [
   typeFile,
@@ -176,6 +193,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnAugnesDogfoodMetricsBaselineFiles,
+  ...followOnLegacyCockpitControlInventoryFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);

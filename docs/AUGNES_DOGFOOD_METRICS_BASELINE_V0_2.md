@@ -49,6 +49,13 @@ The current classification still has an unknown/manual-review blocker, so
 `local_control_classification_readiness` remains `needs_review` and shrink
 remains gated.
 
+Follow-on Legacy Cockpit DOM/manual control inventory and proposal diff
+preflight is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md`. It can reduce
+the generic unknown bucket only when server-rendered DOM/manual evidence
+exists, and it separately reports whether richer read-only proposal diff detail
+is still needed before review burden can be treated as improved.
+
 ## 3. Why Before Any Shrink Candidate
 
 This baseline happens before any shrink candidate because shrink requires

@@ -62,6 +62,13 @@ It is evidence/signaling only, not shrink authority, and keeps
 `resume_latency` and `review_burden` as `insufficient_data` unless repeated
 timing or review-burden evidence exists.
 
+Follow-on Legacy Cockpit DOM/manual control inventory and proposal diff
+preflight is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md`. It reduces
+the #933 unknown bucket only with server-rendered DOM/manual evidence and
+reports whether richer proposal diff detail is needed before review burden
+improvement can be claimed.
+
 ## 4. What the Harness Does
 
 `lib/dogfood/augnes-on-augnes-dogfood.ts` supports two modes:
