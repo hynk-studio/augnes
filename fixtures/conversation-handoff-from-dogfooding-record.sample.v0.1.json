@@ -10,8 +10,7 @@
   "post_868_boundary": {
     "pr_868_is_frozen_web_baseline": true,
     "frozen_routes": ["/", "/perspective", "/workbench"],
-    "web_last": true,
-    "ui_in_scope": false,
+    "ui_browser_work_outside_non_ui_matrix": true,
     "route_in_scope": false,
     "db_in_scope": false
   },
@@ -335,7 +334,7 @@
       "skipped_check_ref": "skipped:none remains review context, not automatic failure.",
       "known_warning_ref": "warning:privacy-smoke-node-experimental-strip-types remains review context, not automatic rejection.",
       "not_done_ref": "not-done:dogfooding-record-sourced-builder-remained-next-slice remains a next-task cue, not automatic task creation.",
-      "expected_observed_delta_ref": "delta:observed-files-are-review-cues-not-proof remains reconciliation context, not approval or rejection."
+      "expected_observed_delta_ref": "delta:observed-files-are-review-cues-not-proof remains review context, not approval or rejection."
     },
     "v0_3_no_next_slice": "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision",
     "required_authority_boundary_lines": [

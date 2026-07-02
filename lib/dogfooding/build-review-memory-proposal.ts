@@ -80,33 +80,10 @@ type NormalizedDogfoodingMaterial = {
 const defaultCreatedAt = "1970-01-01T00:00:00.000Z" as const;
 
 const defaultForbiddenCapabilities = [
-  "No UI.",
-  "No components.",
-  "No Cockpit changes.",
-  "No public surface changes.",
-  "No route model changes for /, /perspective, or /workbench.",
-  "No browser validation-only work.",
-  "No new API route.",
-  "No DB migrations.",
-  "No DB writes.",
-  "No direct DB reads.",
-  "No provider/OpenAI calls.",
-  "No prompt sending.",
-  "No source fetch.",
-  "No retrieval execution.",
-  "No retrieval index write.",
-  "No proof/evidence creation.",
-  "No claim/evidence writes.",
-  "No Review Memory write.",
-  "No promotion execution.",
-  "No Formation Receipt write.",
-  "No durable Perspective state apply.",
-  "No product-write.",
-  "No product ID allocation.",
-  "No Codex execution from Augnes runtime.",
-  "No GitHub API calls from Augnes runtime.",
-  "No Git/GitHub actuation from Augnes runtime.",
-  "No release, deploy, or publish behavior.",
+  "Review Memory proposal candidate only.",
+  "UI, route, DB, provider, retrieval, and source-fetch work remain out of scope.",
+  "Review Memory writes, proof/evidence, promotion, Formation Receipt, durable state, and product-write remain out of scope.",
+  "Codex, GitHub, Git, release, deploy, and publish execution remain out of scope.",
 ] as const;
 
 const defaultReasonCodes = [
@@ -129,7 +106,7 @@ const defaultReasonCodes = [
   "skipped_checks_review_context_only",
   "known_warnings_review_context_only",
   "not_done_items_next_task_cues_only",
-  "expected_observed_delta_reconciliation_context",
+  "expected_observed_delta_review_context",
   "proposed_actions_not_executed",
   "request_more_evidence_not_source_fetch",
   "mark_needs_followup_not_task_creation",
@@ -555,7 +532,7 @@ function buildProposal(
     "skipped_checks_preserved_as_review_context",
     "known_warnings_preserved_as_review_context",
     "not_done_refs_preserved_as_followup_cues",
-    "expected_observed_delta_refs_preserved_as_reconciliation_context",
+    "expected_observed_delta_refs_preserved_as_review_context",
   ]);
   const proposalWithoutFingerprint: Omit<
     DogfoodingToReviewMemoryProposalV01,

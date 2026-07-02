@@ -31,8 +31,7 @@ const gitLedgerBuilderDocsPath =
   "docs/GIT_LEDGER_EXPORT_DETERMINISTIC_BUILDER_V0_1.md";
 const authoritySmokePath = "scripts/smoke-authority-boundary-regression-v0-1.mjs";
 const privacyGuardPath = "lib/privacy/redaction-guard.ts";
-const reconciliationDocsPath =
-  "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
+const authorityMatrixDocsPath = "docs/AUTHORITY_MATRIX.md";
 
 const fixtureVersion = "git_ledger_export_from_local_manifest.sample.v0.1";
 const selectedSlice = "git_ledger_export_manifest_binding_v0_1";
@@ -91,28 +90,11 @@ const requiredHelperExports = [
 const requiredDocsPhrases = [
   "PR #868 is treated as the frozen web baseline.",
   "PR #876 provides local export manifest candidate context.",
-  "This slice adds no UI, components, route model changes, or API routes.",
-  "Git Ledger export packet is candidate-only.",
-  "Git Ledger export packet is not Git commit.",
-  "Git Ledger export packet is not Git write approval.",
-  "Git Ledger export packet is not GitHub actuation.",
-  "Git Ledger export packet is not PR creation.",
-  "Suggested commit message is not approval.",
-  "Suggested commit intent is not execution approval.",
-  "Packet hash is not truth.",
-  "Packet hash is not proof.",
-  "Packet hash is not approval.",
-  "Idempotency key is not approval.",
-  "Local data export manifest is candidate-only.",
-  "Local data export manifest is not an export file.",
-  "Local data export manifest is not import approval.",
-  "Manifest fingerprint is not proof.",
-  "Manifest status is not product/release readiness.",
-  "Import preview is not import apply.",
-  "Git refs are references only.",
-  "GitHub PR refs are references only.",
-  "Validation pass is not approval.",
-  "CI pass is not authority.",
+  "The implemented behavior is deterministic Git Ledger export packet candidate generation from caller-provided public-safe manifest material.",
+  "Caller supplies all manifest material and supplemental packet text.",
+  "Git Ledger export packets are candidate-only text packets.",
+  "`docs/AUTHORITY_MATRIX.md`",
+  "Historical Follow-Up Metadata",
   "`selected_runtime_audit_event_store_v0_1`",
 ];
 
@@ -171,7 +153,7 @@ for (const requiredPath of [
   gitLedgerBuilderDocsPath,
   authoritySmokePath,
   privacyGuardPath,
-  reconciliationDocsPath,
+  authorityMatrixDocsPath,
 ]) {
   assert.ok(existsSync(requiredPath), `required path must exist: ${requiredPath}`);
 }
@@ -231,7 +213,7 @@ function assertFixtureAndStaticCoverage() {
   assert.equal(fixture.source_manifest_version, sourceManifestVersion);
   assert.equal(fixture.scope, scope);
   assert.equal(fixture.post_868_boundary.pr_868_is_frozen_web_baseline, true);
-  assert.equal(fixture.post_868_boundary.ui_in_scope, false);
+  assert.equal(fixture.post_868_boundary.ui_browser_work_outside_non_ui_matrix, true);
   assert.equal(fixture.post_868_boundary.git_or_github_actuation_in_scope, false);
   assert.equal(packageJson.scripts?.[packageScriptName], packageScriptValue);
   for (const pointer of [docsPath, fixturePath, smokePath]) {

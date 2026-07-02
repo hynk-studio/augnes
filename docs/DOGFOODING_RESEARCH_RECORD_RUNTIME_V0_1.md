@@ -17,9 +17,13 @@ treated as the frozen web baseline:
 /workbench = cockpit/workbench
 ```
 
-PR #870 selected `dogfooding_record_runtime_store_route_v0_1` as the next
-non-UI implementation slice. This slice follows that selection and keeps the
-current direction: Core first, Handoff first, Conversation first, Web last.
+PR #870 historically selected `dogfooding_record_runtime_store_route_v0_1` for
+the non-UI implementation sequence. This slice follows that historical
+selection.
+Current follow-up work should use
+`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`: functional goal
+completion, measurable capability and performance improvement, and
+behavior-focused tests.
 
 ## Scope
 
@@ -163,50 +167,14 @@ pass/failure, smoke pass/failure, CI pass/failure, Codex result, PR body,
 changed files, dogfooding record, provider output, retrieval score, feedback,
 layout coordinate, and salience score boundaries.
 
-## Forbidden Capabilities
+## Source Authority
 
-This slice adds no UI.
-
-This slice adds no components.
-
-This slice changes no Cockpit files.
-
-This slice changes no public surface files.
-
-This slice changes no route model for `/`, `/perspective`, or `/workbench`.
-
-This slice adds no browser-validation-only work.
-
-This slice adds no provider/OpenAI calls.
-
-This slice sends no prompts.
-
-This slice fetches no sources.
-
-This slice executes no retrieval.
-
-This slice writes no retrieval index.
-
-This slice creates no proof/evidence.
-
-This slice writes no claim/evidence records.
-
-This slice executes no promotion.
-
-This slice creates no promotion decision from Codex, CI, smoke, or validation.
-
-This slice writes no Formation Receipt.
-
-This slice applies no durable Perspective state.
-
-This slice product-writes nothing and allocates no product IDs.
-
-This slice executes no Codex from Augnes runtime.
-
-This slice calls no GitHub API from Augnes runtime.
-
-This slice creates no Git branch, commit, PR, merge, tag, release, deploy, or
-publish action from Augnes runtime.
+This runtime only creates and reads candidate-only dogfooding research records
+through the same-origin route and caller-injected local DB helpers. UI/browser
+work remains outside this non-UI runtime, and actor authority for provider,
+retrieval, proof/evidence, Review Memory, promotion, Formation Receipt, durable
+state, product-write, Codex, GitHub/Git, release, deploy, and publish behavior
+remains in `docs/AUTHORITY_MATRIX.md`.
 
 ## Store Behavior
 

@@ -9,8 +9,7 @@
   "post_868_boundary": {
     "pr_868_is_frozen_web_baseline": true,
     "frozen_routes": ["/", "/perspective", "/workbench"],
-    "web_last": true,
-    "ui_in_scope": false,
+    "ui_browser_work_outside_non_ui_matrix": true,
     "route_in_scope": false,
     "db_in_scope": false,
     "file_write_in_scope": false,

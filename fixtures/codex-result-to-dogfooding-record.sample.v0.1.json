@@ -15,8 +15,7 @@
       "/perspective": "Perspective detail",
       "/workbench": "cockpit/workbench"
     },
-    "web_last": true,
-    "ui_in_scope": false
+    "ui_browser_work_outside_non_ui_matrix": true
   },
   "raw_codex_result_report_input_example": {
     "input_version": "codex_result_report_input.v0.1",
@@ -118,10 +117,10 @@
       "Git refs and GitHub PR refs are references only."
     ],
     "source_refs": [
-      "post-868-reconciliation-ref:codex_result_report_to_dogfooding_record_binding_v0_1",
-      "dogfooding-runtime-ref:dogfooding_record_runtime_store_route_v0_1",
+      "docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md",
+      "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md",
       "codex-result-normalizer-ref:codex_result_report_ingestion_v0_1",
-      "privacy-guard-ref:privacy_redaction_runtime_guard_v0_1"
+      "docs/PRIVACY_REDACTION_RUNTIME_GUARD_V0_1.md"
     ],
     "authority_boundary": {
       "product_write_authority": false,
@@ -134,8 +133,8 @@
   "expected_conversion": {
     "status": "converted",
     "normalized_report_status": "needs_operator_review",
-    "record_id": "dogfooding-research-record:codex-result-report:ad450e7d71d1f186",
-    "idempotency_key": "codex-result-to-dogfooding-record:codex-result-report:sample-binding-pr-871-closeout:sha256:ad450e7d71d1f18640314331690f9e021b2fcca4b4701cb969be014baaef165a",
+    "record_id": "dogfooding-research-record:codex-result-report:6d3997c368549ca5",
+    "idempotency_key": "codex-result-to-dogfooding-record:codex-result-report:sample-binding-pr-871-closeout:sha256:6d3997c368549ca5aa06410fb85a141813aa4d4d97c5bc6c7f0c172afe15308d",
     "record_kind": "codex_result_report",
     "expected_review_cue_kinds": [
       "inspect_pr_body",

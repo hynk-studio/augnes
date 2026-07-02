@@ -4761,26 +4761,15 @@ repo-local 색인이다.
   (`npm run smoke:dogfooding-research-record-runtime-v0-1`) implements the
   post-#870 selected non-UI slice
   `dogfooding_record_runtime_store_route_v0_1`. PR #868 remains the frozen web
-  baseline for `/`, `/perspective`, and `/workbench`. This slice adds no UI.
-  Dogfooding research records are candidate-only review material. PR body is
-  not truth. Changed files are not proof. Validation pass is not approval.
-  Validation failure is not automatic rejection. Smoke pass is not evidence.
-  Smoke failure is diagnostic, not automatic rejection. CI pass is not
-  authority. CI failure is diagnostic, not automatic rejection. Codex result is
-  not execution approval. Git refs and GitHub PR refs are references only.
-  Product-write remains parked by #686.
+  baseline for `/`, `/perspective`, and `/workbench`. Implemented behavior:
+  same-origin dogfooding research record runtime with caller-injected local test
+  DB coverage and read/write helper behavior. Dogfooding research records remain
+  candidate-only review material. Current PR sequencing authority comes from
+  `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`; detailed actor authority
+  remains in `docs/AUTHORITY_MATRIX.md`.
 
-  Boundary phrases: same-origin POST only; caller-injected local test DB only;
-  GET is read-only; no UI; no components; no Cockpit change; no public-surface
-  change; no route model change for `/`, `/perspective`, or `/workbench`; no
-  browser-validation-only work; no provider/OpenAI call; no prompt sent; no
-  source fetch; no retrieval execution; no retrieval index write; no
-  proof/evidence creation; no claim/evidence write; no promotion execution; no
-  Formation Receipt write; no durable Perspective state apply; no
-  product-write; no product ID allocation; no Codex execution from Augnes
-  runtime; no GitHub API call from Augnes runtime; no Git/GitHub actuation from
-  Augnes runtime; no release, deploy, or publish behavior. Next recommended
-  slice: `codex_result_report_to_dogfooding_record_binding_v0_1`.
+  Historical follow-up metadata:
+  `codex_result_report_to_dogfooding_record_binding_v0_1`.
 - Codex Result To Dogfooding Record Binding v0.1:
   `docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md`,
   `lib/dogfooding/codex-result-to-dogfooding-record.ts`,
@@ -4789,32 +4778,13 @@ repo-local 색인이다.
   (`npm run smoke:codex-result-to-dogfooding-record-v0-1`) implements
   `codex_result_report_to_dogfooding_record_binding_v0_1`. PR #868 remains the
   frozen web baseline for `/`, `/perspective`, and `/workbench`. PR #871
-  provides the dogfooding research record runtime used by this binding. This
-  slice adds no UI. Codex reports become candidate-only dogfooding research
-  record input. Codex report to dogfooding record is not proof. Codex report to
-  dogfooding record is not accepted evidence. Codex report to dogfooding record
-  is not Review Memory write. Codex report to dogfooding record is not
-  promotion, Formation Receipt, durable Perspective state, or product-write.
-  Codex report is not execution approval. PR body is not truth. Changed files
-  are not proof. Validation pass is not approval. Validation failure is not
-  automatic rejection. Smoke pass is not evidence. Smoke failure is diagnostic,
-  not automatic rejection. CI pass is not authority. CI failure is diagnostic,
-  not automatic rejection. Git refs and GitHub PR refs are references only.
-  Product-write remains parked by #686.
+  provides the dogfooding research record runtime used by this binding.
+  Implemented behavior: deterministic Codex result report conversion into
+  candidate-only dogfooding research record input through the existing
+  normalizer and dogfooding contract. Product-write and execution authority
+  remain governed by `docs/AUTHORITY_MATRIX.md`.
 
-  Boundary phrases: binding/conversion helper only; existing Codex result
-  normalizer first for raw caller input; existing dogfooding research record
-  input contract reused; no UI; no components; no Cockpit change; no
-  public-surface change; no route model change for `/`, `/perspective`, or
-  `/workbench`; no browser-validation-only work; no new API route; no DB
-  migration; no provider/OpenAI call; no prompt sent; no source fetch; no
-  retrieval execution; no retrieval index write; no proof/evidence creation; no
-  claim/evidence write; no Review Memory write; no promotion execution; no
-  Formation Receipt write; no durable Perspective state apply; no product-write;
-  no product ID allocation; no Codex execution from Augnes runtime; no GitHub API
-  call from Augnes runtime; no Git/GitHub actuation from Augnes runtime; no
-  release, deploy, or publish behavior. Next recommended slice:
-  `conversation_handoff_packet_builder_v0_2`.
+  Historical follow-up metadata: `conversation_handoff_packet_builder_v0_2`.
 - Conversation Handoff Packet Builder v0.2:
   `docs/CONVERSATION_HANDOFF_PACKET_BUILDER_V0_2.md`,
   `types/conversation-handoff-packet.ts`,
@@ -4824,32 +4794,14 @@ repo-local 색인이다.
   (`npm run smoke:conversation-handoff-packet-v0-2`) implements
   `conversation_handoff_packet_builder_v0_2`. PR #868 remains the frozen web
   baseline for `/`, `/perspective`, and `/workbench`. PR #872 provides Codex
-  result to dogfooding record binding context for handoff. This slice adds no
-  UI. Handoff packets are candidate-only conversation/workflow guidance, not
-  execution approval. Handoff packet is not truth, proof, or accepted evidence.
-  Expected files are not write authority. Observed files are not proof. Expected
-  checks are not proof. Observed checks are not approval. Validation pass is not
-  approval. Validation failure is not automatic rejection. Smoke pass is not
-  evidence. Smoke failure is diagnostic, not automatic rejection. CI pass is not
-  authority. CI failure is diagnostic, not automatic rejection. PR body is not
-  authority. Codex report is not execution approval. Dogfooding record is
-  candidate-only review material. Review Memory refs, Promotion/Receipt/State
-  refs, Git refs, and GitHub PR refs are references only. Next recommended slice
-  is not execution approval. Product-write remains parked by #686.
+  result to dogfooding record binding context for handoff. Implemented behavior:
+  deterministic public-safe handoff packet generation across supported profiles.
+  Handoff packets remain candidate-only conversation/workflow guidance; expected
+  files, observed files, checks, refs, and historical next-slice cues remain
+  review references. Detailed actor authority remains in
+  `docs/AUTHORITY_MATRIX.md`.
 
-  Boundary phrases: helper-only packet builder; caller-provided public-safe
-  summaries only; no raw source bodies; no raw provider output; no raw retrieval
-  output; no raw DB rows; no raw conversations; no hidden reasoning; no UI; no
-  components; no Cockpit change; no public-surface change; no route model change
-  for `/`, `/perspective`, or `/workbench`; no browser-validation-only work; no
-  new API route; no DB migration; no provider/OpenAI call; no prompt sent; no
-  source fetch; no retrieval execution; no retrieval index write; no
-  proof/evidence creation; no claim/evidence write; no Review Memory write; no
-  promotion execution; no Formation Receipt write; no durable Perspective state
-  apply; no product-write; no product ID allocation; no Codex execution from
-  Augnes runtime; no GitHub API call from Augnes runtime; no Git/GitHub
-  actuation from Augnes runtime; no release, deploy, or publish behavior. Next
-  recommended slice:
+  Historical follow-up metadata:
   `conversation_handoff_packet_from_dogfooding_record_v0_1`.
 - Conversation Handoff From Dogfooding Record v0.1:
   `docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md`,
@@ -4859,37 +4811,16 @@ repo-local 색인이다.
   (`npm run smoke:conversation-handoff-from-dogfooding-record-v0-1`) implements
   `conversation_handoff_packet_from_dogfooding_record_v0_1`. PR #868 remains
   the frozen web baseline for `/`, `/perspective`, and `/workbench`. PR #873
-  provides the conversation handoff packet builder used by this slice. This
-  slice adds no UI. Dogfooding records become candidate-only handoff packet
-  input, not execution approval. Dogfooding record to handoff packet is not
-  truth, proof, accepted evidence, Review Memory write, promotion, Formation
-  Receipt, durable Perspective state, or product-write. Handoff packet is
-  candidate-only conversation/workflow guidance. PR body is not truth. Changed
-  files are not proof. Observed files are not proof. Validation pass is not
-  approval. Validation failure is not automatic rejection. Smoke pass is not
-  evidence. Smoke failure is diagnostic, not automatic rejection. CI pass is not
-  authority. CI failure is diagnostic, not automatic rejection. Skipped checks
-  are review context, not failure by themselves. Known warnings are review
-  context, not automatic rejection. Not-done items are next-task cues, not
-  automatic task creation. Expected/observed delta is reconciliation context,
-  not approval or rejection. Review Memory refs, Promotion/Receipt/State refs,
-  Git refs, and GitHub PR refs are references only. Next recommended slice is
-  not execution approval. Product-write remains parked by #686.
+  provides the conversation handoff packet builder used by this slice.
+  Implemented behavior: deterministic mapping from caller-provided dogfooding
+  material into handoff packet input and packet output. Dogfooding records,
+  packet output, changed files, observed files, validation/CI results, skipped
+  checks, known warnings, not-done items, expected/observed deltas, and refs
+  remain review references. Detailed actor authority remains in
+  `docs/AUTHORITY_MATRIX.md`.
 
-  Boundary phrases: helper-only dogfooding-record-to-packet conversion;
-  caller-provided public-safe dogfooding summaries only; no raw DB rows; no raw
-  source bodies; no raw provider output; no raw retrieval output; no raw
-  conversations; no hidden reasoning; no UI; no components; no Cockpit change;
-  no public-surface change; no route model change for `/`, `/perspective`, or
-  `/workbench`; no browser-validation-only work; no new API route; no DB
-  migration; no DB write; no direct DB read; no provider/OpenAI call; no prompt
-  sent; no source fetch; no retrieval execution; no retrieval index write; no
-  proof/evidence creation; no claim/evidence write; no Review Memory write; no
-  promotion execution; no Formation Receipt write; no durable Perspective state
-  apply; no product-write; no product ID allocation; no Codex execution from
-  Augnes runtime; no GitHub API call from Augnes runtime; no Git/GitHub
-  actuation from Augnes runtime; no release, deploy, or publish behavior. Next
-  recommended slice: `dogfooding_record_to_review_memory_proposal_v0_1`.
+  Historical follow-up metadata:
+  `dogfooding_record_to_review_memory_proposal_v0_1`.
 - Dogfooding To Review Memory Proposal v0.1:
   `docs/DOGFOODING_TO_REVIEW_MEMORY_PROPOSAL_V0_1.md`,
   `types/dogfooding-to-review-memory-proposal.ts`,
@@ -4899,40 +4830,15 @@ repo-local 색인이다.
   (`npm run smoke:dogfooding-to-review-memory-proposal-v0-1`) implements
   `dogfooding_record_to_review_memory_proposal_v0_1`. PR #868 remains the
   frozen web baseline for `/`, `/perspective`, and `/workbench`. PR #874
-  provides dogfooding record to handoff packet binding context. This slice adds
-  no UI. Dogfooding records become candidate-only Review Memory proposal
-  candidates, not Review Memory writes. Dogfooding record to Review Memory
-  proposal is not truth, proof, accepted evidence, Review Memory write,
-  execution approval, promotion, Formation Receipt, durable Perspective state,
-  or product-write. Review Memory proposal is candidate-only and is not saved
-  Review Memory. Operator confirmation is required before any Review Memory
-  write. Proposed review actions are not executed actions. Changed files are
-  not proof. Observed files are not proof. Validation pass is not approval.
-  Validation failure is not automatic rejection. Smoke pass is not evidence.
-  Smoke failure is diagnostic, not automatic rejection. CI pass is not
-  authority. CI failure is diagnostic, not automatic rejection. Skipped checks
-  are review context, not failure by themselves. Known warnings are review
-  context, not automatic rejection. Not-done items are next-task cues, not
-  automatic task creation. Expected/observed delta is reconciliation context,
-  not approval or rejection. Review Memory refs, Promotion/Receipt/State refs,
-  Git refs, and GitHub PR refs are references only. Product-write remains
-  parked by #686.
+  provides dogfooding record to handoff packet binding context. Implemented
+  behavior: deterministic Review Memory proposal candidate generation from
+  caller-provided dogfooding material. Proposal actions are suggestions for
+  operator review, not executed actions; Review Memory writes still require an
+  approved runtime and operator action. Detailed actor authority remains in
+  `docs/AUTHORITY_MATRIX.md`.
 
-  Boundary phrases: helper-only dogfooding-record-to-proposal conversion;
-  caller-provided public-safe dogfooding summaries only; preview-only Review
-  Memory write shape; operator confirmation required; no raw DB rows; no raw
-  source bodies; no raw provider output; no raw retrieval output; no raw
-  conversations; no hidden reasoning; no UI; no components; no Cockpit change;
-  no public-surface change; no route model change for `/`, `/perspective`, or
-  `/workbench`; no browser-validation-only work; no new API route; no DB
-  migration; no DB write; no direct DB read; no provider/OpenAI call; no prompt
-  sent; no source fetch; no retrieval execution; no retrieval index write; no
-  proof/evidence creation; no claim/evidence write; no Review Memory write; no
-  promotion execution; no Formation Receipt write; no durable Perspective state
-  apply; no product-write; no product ID allocation; no Codex execution from
-  Augnes runtime; no GitHub API call from Augnes runtime; no Git/GitHub
-  actuation from Augnes runtime; no release, deploy, or publish behavior. Next
-  recommended slice: `local_data_export_manifest_builder_v0_1`.
+  Historical follow-up metadata:
+  `local_data_export_manifest_builder_v0_1`.
 - Local Data Export Manifest Builder v0.1:
   `docs/LOCAL_DATA_EXPORT_MANIFEST_BUILDER_V0_1.md`,
   `types/local-data-export-manifest.ts`,
@@ -4942,40 +4848,15 @@ repo-local 색인이다.
   (`npm run smoke:local-data-export-manifest-builder-v0-1`) implements
   `local_data_export_manifest_builder_v0_1`. PR #868 remains the frozen web
   baseline for `/`, `/perspective`, and `/workbench`. PR #875 provides
-  dogfooding to Review Memory proposal context. This slice adds no UI. Local
-  export manifests are candidate-only public-safe summaries, not export files
-  or import approval. Local data export manifest is not truth, proof, accepted
-  evidence, file write approval, product readiness, or release readiness. Export
-  item summaries are not raw data or canonical source bodies. Import preview is
-  not import apply. Manifest fingerprint is not proof or approval. Dogfooding
-  records remain candidate summaries. Review Memory summaries are references
-  only. Review Memory proposals are candidate-only. Promotion decision refs,
-  Formation Receipt refs, Git Ledger packet refs, Git refs, and GitHub PR refs
-  are references only. Durable state summaries are summaries only. Validation
-  pass is not approval. Validation failure is not automatic rejection. Smoke
-  pass is not evidence. Smoke failure is diagnostic, not automatic rejection. CI
-  pass is not authority. CI failure is diagnostic, not automatic rejection.
-  Skipped checks are review context, not failure by themselves. Known warnings
-  are review context, not automatic rejection. Not-done items are next-task
-  cues, not automatic task creation. Expected/observed delta is reconciliation
-  context, not approval or rejection. Product-write remains parked by #686.
+  dogfooding to Review Memory proposal context. Implemented behavior:
+  deterministic local data export manifest candidate generation from
+  caller-provided public-safe summaries. Export item summaries, import previews,
+  fingerprints, dogfooding records, Review Memory summaries/proposals, durable
+  state summaries, Git Ledger packet refs, validation/CI results, and refs remain
+  review references. Detailed actor authority remains in
+  `docs/AUTHORITY_MATRIX.md`.
 
-  Boundary phrases: helper-only local data export manifest candidate builder;
-  caller-provided public-safe summaries only; redacted-with-warnings preserves
-  reference-only public-safe summaries without unsafe raw echo; no raw DB rows;
-  no raw source bodies; no raw provider output; no raw retrieval output; no raw
-  conversations; no hidden reasoning; no UI; no components; no Cockpit change;
-  no public-surface change; no route model change for `/`, `/perspective`, or
-  `/workbench`; no browser-validation-only work; no new API route; no DB
-  migration; no DB write; no direct DB read; no local file write; no local file
-  read; no import apply; no provider/OpenAI call; no prompt sent; no source
-  fetch; no retrieval execution; no retrieval index write; no proof/evidence
-  creation; no claim/evidence write; no Review Memory write; no promotion
-  execution; no promotion decision creation from export manifest; no Formation
-  Receipt write; no durable Perspective state apply; no product-write; no
-  product ID allocation; no Codex execution from Augnes runtime; no GitHub API
-  call from Augnes runtime; no Git/GitHub actuation from Augnes runtime; no
-  release, deploy, or publish behavior. Next recommended slice:
+  Historical follow-up metadata:
   `git_ledger_export_manifest_binding_v0_1`.
 - Git Ledger Export From Local Manifest v0.1:
   `docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md`,
@@ -4985,39 +4866,14 @@ repo-local 색인이다.
   (`npm run smoke:git-ledger-export-from-local-manifest-v0-1`) implements
   `git_ledger_export_manifest_binding_v0_1`. PR #868 remains the frozen web
   baseline for `/`, `/perspective`, and `/workbench`. PR #876 provides local
-  export manifest candidate context. This slice adds no UI. Git Ledger packets
-  are candidate-only text packets, not Git/GitHub actuation. Suggested commit
-  message is not approval. Suggested commit intent is not execution approval.
-  Packet hash is not truth, proof, or approval. Idempotency key is not
-  approval. Local data export manifest is candidate-only, not an export file,
-  and not import approval. Manifest fingerprint is not proof. Manifest status
-  is not product/release readiness. Export item summary is not raw data. Import
-  preview is not import apply. Git refs and GitHub PR refs are references only.
-  Validation pass is not approval. Validation failure is not automatic
-  rejection. Smoke pass is not evidence. Smoke failure is diagnostic, not
-  automatic rejection. CI pass is not authority. CI failure is diagnostic, not
-  automatic rejection. Skipped checks are review context, not failure by
-  themselves. Known warnings are review context, not automatic rejection.
-  Not-done items are next-task cues, not automatic task creation.
-  Expected/observed delta is reconciliation context, not approval or rejection.
-  Product-write remains parked by #686.
+  export manifest candidate context. Implemented behavior: deterministic Git
+  Ledger export packet candidate generation from caller-provided public-safe
+  manifest material. Suggested commit text, packet hashes, idempotency keys,
+  manifest refs, Git refs, GitHub refs, validation/CI results, and historical
+  next-slice cues remain review references. Detailed actor authority remains in
+  `docs/AUTHORITY_MATRIX.md`.
 
-  Boundary phrases: helper-only Git Ledger export packet candidate binding from
-  caller-provided public-safe local data export manifest candidates; no raw DB
-  rows; no raw source bodies; no raw provider output; no raw retrieval output;
-  no raw conversations; no hidden reasoning; no UI; no components; no Cockpit
-  change; no public-surface change; no route model change for `/`,
-  `/perspective`, or `/workbench`; no browser-validation-only work; no new API
-  route; no DB migration; no DB write; no direct DB read; no local file write;
-  no local file read; no import apply; no provider/OpenAI call; no prompt sent;
-  no source fetch; no retrieval execution; no retrieval index write; no
-  proof/evidence creation; no claim/evidence write; no Review Memory write; no
-  promotion execution; no promotion decision creation from Git Ledger packet; no
-  Formation Receipt write; no durable Perspective state apply; no product-write;
-  no product ID allocation; no Codex execution from Augnes runtime; no GitHub
-  API call from Augnes runtime; no Git branch, commit, PR, merge, or tag
-  creation from Augnes runtime; no Git/GitHub actuation from Augnes runtime; no
-  release, deploy, or publish behavior. Next recommended slice:
+  Historical follow-up metadata:
   `selected_runtime_audit_event_store_v0_1`.
 - Selected Runtime Audit Event Store v0.1:
   `docs/SELECTED_RUNTIME_AUDIT_EVENT_STORE_V0_1.md`,
@@ -5028,30 +4884,15 @@ repo-local 색인이다.
   (`npm run smoke:selected-runtime-audit-event-store-v0-1`) implements
   `selected_runtime_audit_event_store_v0_1`. PR #868 remains the frozen web
   baseline for `/`, `/perspective`, and `/workbench`. PR #877 provides Git
-  Ledger packet candidate context. This slice adds no UI. Runtime audit events
-  are public-safe records of selected event summaries, not proof, approval,
-  product readiness, release readiness, or authority. Audit event fingerprint is
-  not proof or approval. Linked refs are references only. Validation pass is
-  not approval. Validation failure is not automatic rejection. CI pass is not
-  authority. Skipped checks are review context, not failure by themselves.
-  Known warnings are review context, not automatic rejection. Expected/observed
-  delta is reconciliation context, not approval or rejection.
+  Ledger packet candidate context. Implemented behavior: selected public-safe
+  audit event persistence through caller-injected local test DB handles.
+  Fingerprints, linked refs, validation/CI results, skipped checks, known
+  warnings, not-done items, expected/observed deltas, and selected blocked-event
+  summaries remain review references. Detailed actor authority remains in
+  `docs/AUTHORITY_MATRIX.md`.
 
-  Boundary phrases: selected runtime audit event store/helper only;
-  caller-injected local test DB only; schema SQL only; no UI; no components; no
-  Cockpit change; no public-surface change; no route model change for `/`,
-  `/perspective`, or `/workbench`; no browser-validation-only work; no new API
-  route; no broad all-route instrumentation; no DB migration; no global DB
-  config; no local file write; no local file read; no import apply; no
-  provider/OpenAI call; no prompt sent; no source fetch; no retrieval execution;
-  no retrieval index write; no raw request body storage; no raw response body
-  storage; no raw terminal log storage; no proof/evidence creation; no
-  claim/evidence write; no Review Memory write; no promotion execution; no
-  Formation Receipt write; no durable Perspective state apply; no
-  product-write; no product ID allocation; no Codex execution from Augnes
-  runtime; no GitHub API call from Augnes runtime; no Git/GitHub actuation from
-  Augnes runtime; no tag creation; no release, deploy, or publish behavior.
-  Next recommended slice: `release_readiness_matrix_post_868_non_ui_v0_1`.
+  Historical follow-up metadata:
+  `release_readiness_matrix_post_868_non_ui_v0_1`.
 - Release Readiness Matrix Post-#868 Non-UI v0.1:
   `docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md`,
   `fixtures/release-readiness-matrix-post-868-non-ui.sample.v0.1.json`, and
@@ -5059,37 +4900,17 @@ repo-local 색인이다.
   (`npm run smoke:release-readiness-matrix-post-868-non-ui-v0-1`) implements
   `release_readiness_matrix_post_868_non_ui_v0_1`. PR #868 remains the frozen
   web baseline for `/`, `/perspective`, and `/workbench`. PR #878 provides
-  selected runtime audit event store context. This slice adds no UI. The
-  release/readiness matrix is review-only and does not approve release, deploy,
-  publish, product readiness, proof/evidence readiness, or authority. It
-  records the v0.3 non-UI core/handoff/conversation sequence through selected
-  runtime audit event store as repo artifacts, pending operator decision.
-  Product-write, GitHub/Git actuation, live provider calls, source fetch,
-  retrieval expansion, and release/deploy/publish execution remain blocked
-  unless separately approved. UI, Cockpit, browser-validation-only,
-  public-surface, route IA polish, mobile viewport polish, and read/display-only
-  UI expansion remain Web-last backlog. Matrix fingerprint is not proof or
-  approval. Readiness classification is not execution approval. Skipped checks
-  and known warnings are review context only. Not-done items are next-planning
-  cues only.
+  selected runtime audit event store context. Implemented behavior: static
+  release/readiness matrix, fixture, and smoke that summarize current non-UI
+  implemented behavior and blocked-by-design surfaces. The matrix now points to
+  `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md` for active development
+  defaults and `docs/AUTHORITY_MATRIX.md` for actor authority. UI, Cockpit,
+  browser, public-surface, and route-polish work remain outside this non-UI
+  matrix and require explicit implementation scope. Matrix fingerprints,
+  classifications, skipped checks, known warnings, not-done items, and
+  historical next-slice cues remain review references.
 
-  Boundary phrases: static matrix document, fixture, and smoke only; repo-
-  grounded public-safe summaries only; no UI; no components; no Cockpit change;
-  no public-surface change; no route model change for `/`, `/perspective`, or
-  `/workbench`; no browser-validation-only work; no new API route; no broad
-  route instrumentation; no DB migration; no global DB config; no DB write; no
-  direct DB read; no local file write; no local file read; no import apply; no
-  provider/OpenAI call; no prompt sent; no source fetch; no retrieval execution;
-  no retrieval index write; no raw request body storage; no raw response body
-  storage; no raw terminal log storage; no raw source body storage; no raw
-  provider output storage; no raw retrieval output storage; no raw DB row
-  storage; no raw conversation storage; no hidden reasoning storage; no
-  proof/evidence creation; no claim/evidence write; no Review Memory write; no
-  promotion execution; no Formation Receipt write; no durable Perspective state
-  apply; no product-write; no product ID allocation; no Codex execution from
-  Augnes runtime; no GitHub API call from Augnes runtime; no Git/GitHub
-  actuation from Augnes runtime; no tag creation; no release, deploy, or publish
-  behavior. Next recommended slice:
+  Historical closeout cue:
   `no_next_slice_v0_3_core_sequence_complete_pending_operator_decision`.
 - Runtime Audit Panel v0.1:
   `docs/RUNTIME_AUDIT_PANEL_V0_1.md`,

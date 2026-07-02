@@ -28,8 +28,9 @@ const codexBindingSmokePath =
 const dogfoodingSmokePath =
   "scripts/smoke-dogfooding-research-record-runtime-v0-1.mjs";
 
-const reconciliationDocsPath =
-  "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
+const activePostureDocsPath =
+  "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md";
+const authorityMatrixDocsPath = "docs/AUTHORITY_MATRIX.md";
 const selectedAuditDocsPath =
   "docs/SELECTED_RUNTIME_AUDIT_EVENT_STORE_V0_1.md";
 const privacyDocsPath = "docs/PRIVACY_REDACTION_RUNTIME_GUARD_V0_1.md";
@@ -37,7 +38,7 @@ const authorityDocsPath = "docs/AUTHORITY_BOUNDARY_REGRESSION_CI_V0_1.md";
 
 const matrixVersion = "release_readiness_matrix_post_868_non_ui.v0.1";
 const scope = "project:augnes";
-const nextRecommendedSlice =
+const historicalCloseoutCue =
   "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision";
 const packageScriptName =
   "smoke:release-readiness-matrix-post-868-non-ui-v0-1";
@@ -104,7 +105,7 @@ const requiredRowIds = [
   "source_fetch_blocked_status",
   "retrieval_expansion_blocked_status",
   "release_deploy_publish_blocked_status",
-  "web_last_backlog_frozen_status",
+  "outside_non_ui_matrix_ui_browser_status",
   "skipped_checks_and_reason",
   "known_warnings",
   "not_done_items",
@@ -115,14 +116,14 @@ const requiredClassifications = [
   "implemented_non_ui",
   "candidate_only",
   "blocked_by_design",
-  "web_last_backlog",
+  "outside_non_ui_matrix",
   "explicit_reentry_blocked",
   "skipped_with_reason",
   "warning_observed",
   "incomplete",
   "not_in_scope",
   "ready_for_operator_review",
-  "ready_for_next_planning",
+  "active_development_default",
   "no_release_recommendation",
 ];
 
@@ -140,7 +141,7 @@ const requiredBlockedCapabilities = [
   "durable_state_apply",
 ];
 
-const requiredWebLastBacklog = [
+const requiredOutsideNonUiMatrixItems = [
   "ui_components",
   "cockpit_workbench_polish",
   "browser_validation_only",
@@ -182,7 +183,7 @@ const requiredDocsPhrases = [
   "PR #878 provides selected runtime audit event store context.",
   "This matrix is a static repo-grounded artifact.",
   "Its authority coverage is verified by fixture fields and smoke assertions, not by a callable runtime phrase blocker.",
-  "This slice adds no UI",
+  "Implemented behavior: a static matrix, fixture, and smoke that summarize the current non-UI implementation chain, active development posture, and blocked-by-design surfaces with semantically specific repo refs.",
   "Release readiness matrix is not release approval.",
   "Release readiness matrix is not deploy approval.",
   "Release readiness matrix is not publish approval.",
@@ -194,7 +195,9 @@ const requiredDocsPhrases = [
   "Matrix fingerprint is not proof.",
   "Matrix fingerprint is not approval.",
   "Product-write, GitHub/Git actuation, live provider calls, source fetch, retrieval expansion, and release/deploy/publish execution remain blocked unless separately approved.",
-  "UI, Cockpit, browser-validation-only, public-surface, route IA polish, mobile viewport polish, and read/display-only UI expansion remain Web-last backlog.",
+  "UI, Cockpit, browser-validation-only, public-surface, route IA polish, mobile viewport polish, and read/display-only UI expansion remain outside this non-UI matrix.",
+  "Active development completion posture",
+  "Source Authority",
   "`no_next_slice_v0_3_core_sequence_complete_pending_operator_decision`",
 ];
 
@@ -221,7 +224,8 @@ for (const requiredPath of [
   packetSmokePath,
   codexBindingSmokePath,
   dogfoodingSmokePath,
-  reconciliationDocsPath,
+  activePostureDocsPath,
+  authorityMatrixDocsPath,
   selectedAuditDocsPath,
   privacyDocsPath,
   authorityDocsPath,
@@ -246,6 +250,7 @@ const oldSmokeTexts = [
 
 assertFixtureShape();
 assertRequiredRowsAndClassifications();
+assertSemanticRepoRefs();
 assertRouteBaseline();
 assertBlockedAndBacklogBoundaries();
 assertAuthorityBoundary();
@@ -261,7 +266,7 @@ console.log(
       final_status: "pass",
       matrix_id: fixture.matrix_id,
       matrix_fingerprint: fixture.matrix_fingerprint,
-      next_recommended_slice: fixture.next_recommended_slice,
+      historical_closeout_cue: fixture.historical_closeout_cue,
       changed_file_scope_checked: true,
       changed_file_scope_reason_code: changedFileScopeReasonCode,
     },
@@ -273,7 +278,7 @@ console.log(
 function assertFixtureShape() {
   assert.equal(fixture.matrix_version, matrixVersion);
   assert.equal(fixture.scope, scope);
-  assert.equal(fixture.next_recommended_slice, nextRecommendedSlice);
+  assert.equal(fixture.historical_closeout_cue, historicalCloseoutCue);
   assert.ok(Array.isArray(fixture.rows), "rows must be an array");
   assert.ok(fixture.rows.length >= requiredRowIds.length);
   assert.equal(packageJson.scripts?.[packageScriptName], packageScriptValue);
@@ -305,6 +310,35 @@ function assertRequiredRowsAndClassifications() {
   }
 }
 
+function assertSemanticRepoRefs() {
+  const rowsById = new Map(fixture.rows.map((row) => [row.row_id, row]));
+  assert.deepEqual(rowsById.get("active_development_completion_posture").repo_refs, [
+    activePostureDocsPath,
+  ]);
+  assert.deepEqual(rowsById.get("product_write_parked_status").repo_refs, [
+    authorityMatrixDocsPath,
+  ]);
+  for (const rowId of [
+    "live_provider_blocked_status",
+    "source_fetch_blocked_status",
+    "retrieval_expansion_blocked_status",
+  ]) {
+    assert.deepEqual(rowsById.get(rowId).repo_refs, [authorityMatrixDocsPath]);
+  }
+  assert.deepEqual(rowsById.get("remaining_explicit_reentry_backlog").repo_refs, [
+    authorityMatrixDocsPath,
+    activePostureDocsPath,
+  ]);
+  for (const row of fixture.rows) {
+    if (row.row_id !== "dogfooding_research_record_runtime") {
+      assert.ok(
+        !row.repo_refs.includes("docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"),
+        `${row.row_id} must not use dogfooding runtime docs as a generic source ref`,
+      );
+    }
+  }
+}
+
 function assertRouteBaseline() {
   assert.equal(fixture.route_model_baseline.frozen_by, "github-pr:#868");
   assert.equal(fixture.route_model_baseline.frozen, true);
@@ -327,11 +361,18 @@ function assertBlockedAndBacklogBoundaries() {
     assert.equal(blocked.get(capability), true, `${capability} must remain blocked`);
   }
 
-  const webLast = new Map(
-    fixture.web_last_backlog.map((entry) => [entry.item_id, entry.frozen]),
+  const outsideNonUiMatrix = new Map(
+    fixture.outside_non_ui_matrix.map((entry) => [
+      entry.item_id,
+      entry.requires_explicit_implementation_scope,
+    ]),
   );
-  for (const itemId of requiredWebLastBacklog) {
-    assert.equal(webLast.get(itemId), true, `${itemId} must remain Web-last frozen`);
+  for (const itemId of requiredOutsideNonUiMatrixItems) {
+    assert.equal(
+      outsideNonUiMatrix.get(itemId),
+      true,
+      `${itemId} must require explicit implementation scope`,
+    );
   }
 
   const reentry = new Map(
@@ -351,9 +392,9 @@ function assertAuthorityBoundary() {
     "authority_coverage_verified_by_fixture_fields_and_smoke_assertions_only",
     "skipped_checks_are_review_context_only",
     "known_warnings_are_review_context_only",
-    "not_done_items_are_next_planning_cues_only",
+    "not_done_items_are_follow_up_cues_only",
     "blocked_capability_remains_blocked",
-    "web_last_backlog_remains_frozen",
+    "ui_browser_work_outside_non_ui_matrix",
     "explicit_reentry_backlog_remains_blocked",
   ]) {
     assert.equal(boundary[field], true, `authority boundary ${field} must be true`);
@@ -374,7 +415,7 @@ function assertAuthorityBoundary() {
     "ci_pass_is_authority",
     "validation_pass_is_approval",
     "validation_failure_is_rejection",
-    "next_recommended_slice_is_execution_approval",
+    "historical_closeout_cue_is_execution_approval",
   ]) {
     assert.equal(boundary[field], false, `authority boundary ${field} must be false`);
   }
@@ -385,9 +426,12 @@ function assertAuthorityBoundary() {
   );
   assert.equal(fixture.readiness_summary.review_only_no_release_execution, true);
   assert.equal(fixture.readiness_summary.blocked_capabilities_remain_blocked, true);
-  assert.equal(fixture.readiness_summary.web_last_backlog_remains_frozen, true);
   assert.equal(
-    fixture.readiness_summary.next_recommended_slice_requires_operator_decision,
+    fixture.readiness_summary.ui_browser_work_outside_non_ui_matrix,
+    true,
+  );
+  assert.equal(
+    fixture.readiness_summary.historical_closeout_cue_requires_operator_decision,
     true,
   );
   assert.equal(fixture.readiness_summary.product_readiness_claimed, false);

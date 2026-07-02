@@ -10,7 +10,8 @@ packet.
 
 PR #868 is treated as the frozen web baseline. `/` is the public Augnes surface,
 `/perspective` is Perspective detail, and `/workbench` is Cockpit/workbench.
-This slice adds no UI, components, route model changes, or API routes.
+The implemented behavior is deterministic conversion from caller-provided
+dogfooding material into handoff packet input.
 
 PR #873 provides the conversation handoff packet builder used by this slice.
 This helper is a conversion/binding layer only.
@@ -89,35 +90,15 @@ When the caller does not provide a profile, the helper deterministically uses
 
 ## Authority Boundary
 
-Dogfooding record to handoff packet is not execution approval.
-Dogfooding record to handoff packet is not truth.
-Dogfooding record to handoff packet is not proof.
-Dogfooding record to handoff packet is not accepted evidence.
-Dogfooding record to handoff packet is not Review Memory write.
-Dogfooding record to handoff packet is not promotion.
-Dogfooding record to handoff packet is not Formation Receipt.
-Dogfooding record to handoff packet is not durable Perspective state.
-Dogfooding record to handoff packet is not product-write.
-Handoff packet is candidate-only conversation/workflow guidance.
-Dogfooding record is candidate-only review material.
-PR body is not truth.
-Changed files are not proof.
-Observed files are not proof.
-Validation pass is not approval.
-Validation failure is not automatic rejection.
-Smoke pass is not evidence.
-Smoke failure is diagnostic, not automatic rejection.
-CI pass is not authority.
-CI failure is diagnostic, not automatic rejection.
-Skipped checks are review context, not failure by themselves.
-Known warnings are review context, not automatic rejection.
-Not-done items are next-task cues, not automatic task creation.
-Expected/observed delta is reconciliation context, not approval or rejection.
-Review Memory refs are references only.
-Promotion/Receipt/State refs are references only unless separately executed by
-an approved existing runtime.
-Git refs and GitHub PR refs are references only.
-Next recommended slice is not execution approval.
+Dogfooding-to-handoff conversion produces candidate-only conversation/workflow
+guidance. It does not grant execution approval, proof, accepted evidence, Review
+Memory, promotion, Formation Receipt, durable state, product-write, Git/GitHub,
+release, deploy, or publish authority.
+
+Dogfooding records, PR bodies, changed files, observed files, validation/CI
+results, skipped checks, known warnings, not-done items, expected/observed
+deltas, Review Memory refs, Promotion/Receipt/State refs, Git refs, GitHub refs,
+and historical next-slice cues remain review references only.
 
 ## Privacy Boundary
 
@@ -132,17 +113,11 @@ Public-safe refs may be preserved as references only.
 
 ## Forbidden Capabilities
 
-This slice adds no UI, components, Cockpit changes, public-surface changes,
-route model changes for `/`, `/perspective`, or `/workbench`, browser
-validation-only work, new API route, DB migrations, DB writes, direct DB reads,
-provider/OpenAI calls, prompt sending, source fetch, retrieval execution,
-retrieval index writes, proof/evidence creation, claim/evidence writes, Review
-Memory writes, promotion execution, promotion decisions from dogfooding/CI/smoke
-automatically, Formation Receipt writes, durable Perspective state apply,
-product-write, product ID allocation, Codex execution from Augnes runtime,
-GitHub API calls from Augnes runtime, Git branch/commit/PR creation from Augnes
-runtime, Git/GitHub actuation from Augnes runtime, release, deploy, or publish
-behavior.
+This helper only maps caller-provided public-safe dogfooding material into
+conversation handoff packet input. It does not add UI, route, DB access,
+provider, retrieval, Review Memory, product-write, Git/GitHub, release, deploy,
+or publish behavior. Detailed actor authority remains in
+`docs/AUTHORITY_MATRIX.md`.
 
 ## Fixture And Smoke
 
@@ -156,10 +131,12 @@ determinism, mapping, profile behavior, private/raw blocking without unsafe
 echo, forbidden authority blocking, compatibility with the existing #873
 builder, and exact changed-file scope.
 
-## Next
+## Historical Follow-Up Metadata
 
-Default fallback next recommended slice for older normal flows:
 `dogfooding_record_to_review_memory_proposal_v0_1`.
 
 Caller-provided v0.3 closeout cue:
 `no_next_slice_v0_3_core_sequence_complete_pending_operator_decision`.
+
+These IDs are retained as fixture compatibility metadata. Current PR sequencing
+authority comes from `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`.

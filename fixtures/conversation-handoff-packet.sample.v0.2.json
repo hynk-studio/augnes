@@ -9,8 +9,7 @@
   "post_868_boundary": {
     "pr_868_is_frozen_web_baseline": true,
     "frozen_routes": ["/", "/perspective", "/workbench"],
-    "web_last": true,
-    "ui_in_scope": false,
+    "ui_browser_work_outside_non_ui_matrix": true,
     "route_in_scope": false
   },
   "required_profiles": [
@@ -30,11 +29,11 @@
     "profile": "codex_implementation",
     "created_at": "2026-06-30T00:30:00.000Z",
     "project_context": [
-      "Augnes is in the post-#868 Core first, Handoff first, Conversation first, Web last direction.",
+      "Augnes active development favors functional completion, measurable capability and performance improvement, and behavior-focused tests.",
       "#868 is treated as the frozen web baseline for /, /perspective, and /workbench."
     ],
     "current_baseline": [
-      "#870 added non-UI runtime reconciliation.",
+      "#870 through #878 added the non-UI dogfooding, handoff, export, and audit behavior sequence.",
       "#871 added dogfooding research records as candidate-only review material.",
       "#872 added Codex result to dogfooding record binding context for handoff."
     ],
@@ -84,8 +83,8 @@
       "No route or UI surface is implemented in this slice."
     ],
     "source_refs": [
-      "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md",
-      "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md",
+      "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md",
+      "docs/CONVERSATION_HANDOFF_PACKET_BUILDER_V0_2.md",
       "docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md"
     ],
     "dogfooding_record_refs": [
@@ -130,11 +129,10 @@
       "release_deploy_publish_now": false
     },
     "forbidden_capabilities": [
-      "No UI.",
-      "No new API route.",
-      "No Review Memory write.",
-      "No product-write.",
-      "No release, deploy, or publish behavior."
+      "Handoff text only.",
+      "UI, route, DB, provider, retrieval, and source-fetch work remain out of scope.",
+      "Review Memory, proof/evidence, promotion, Formation Receipt, durable state, and product-write remain out of scope.",
+      "Codex, GitHub, Git, release, deploy, and publish execution remain out of scope."
     ],
     "stop_conditions": [
       "Stop if implementation requires a route, UI, DB migration, provider call, retrieval, source fetch, GitHub/Git actuation, product-write, release, deploy, or publish behavior."

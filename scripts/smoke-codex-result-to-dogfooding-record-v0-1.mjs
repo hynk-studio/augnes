@@ -19,7 +19,8 @@ const researchSmokePath = "scripts/smoke-dogfooding-research-record-runtime-v0-1
 const smokePath = "scripts/smoke-codex-result-to-dogfooding-record-v0-1.mjs";
 const docsPath = "docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md";
 const researchDocsPath = "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
-const reconciliationDocsPath = "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
+const activePostureDocsPath =
+  "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const conversationHandoffTypePath = "types/conversation-handoff-packet.ts";
@@ -110,25 +111,11 @@ const requiredHelperExports = [
 const requiredDocsPhrases = [
   "PR #868 is treated as the frozen web baseline.",
   "PR #871 provides the dogfooding research record runtime used by this binding.",
-  "This slice adds no UI.",
-  "Codex reports become candidate-only dogfooding research record input.",
-  "Codex report to dogfooding record is not proof.",
-  "Codex report to dogfooding record is not accepted evidence.",
-  "Codex report to dogfooding record is not Review Memory write.",
-  "Codex report to dogfooding record is not promotion.",
-  "Codex report to dogfooding record is not Formation Receipt.",
-  "Codex report to dogfooding record is not durable Perspective state.",
-  "Codex report to dogfooding record is not product-write.",
-  "Codex report is not execution approval.",
-  "PR body is not truth.",
-  "Changed files are not proof.",
-  "Validation pass is not approval.",
-  "Validation failure is not automatic rejection.",
-  "Smoke pass is not evidence.",
-  "Smoke failure is diagnostic, not automatic rejection.",
-  "CI pass is not authority.",
-  "CI failure is diagnostic, not automatic rejection.",
-  "Git refs and GitHub PR refs are references only.",
+  "The implemented behavior is deterministic conversion from normalized Codex report material into candidate-only dogfooding research record input.",
+  "Route and DB behavior remain with the existing dogfooding runtime.",
+  "The conversion output remains candidate-only review material.",
+  "Product-write remains governed by `docs/AUTHORITY_MATRIX.md` and parked by #686.",
+  "Historical Follow-Up Metadata",
   "`conversation_handoff_packet_builder_v0_2`",
 ];
 
@@ -167,7 +154,7 @@ for (const requiredPath of [
   smokePath,
   docsPath,
   researchDocsPath,
-  reconciliationDocsPath,
+  activePostureDocsPath,
   packagePath,
   indexPath,
 ]) {
@@ -179,7 +166,7 @@ const normalizerText = read(normalizerPath);
 const storeText = read(storePath);
 const docsText = read(docsPath);
 const researchDocsText = read(researchDocsPath);
-const reconciliationDocsText = read(reconciliationDocsPath);
+const activePostureDocsText = read(activePostureDocsPath);
 const fixtureText = read(fixturePath);
 const fixture = JSON.parse(fixtureText);
 const packageJson = JSON.parse(read(packagePath));
@@ -222,7 +209,7 @@ function assertFixtureVersions() {
   assert.equal(fixture.dogfooding_record_version, dogfoodingRecordVersion);
   assert.equal(fixture.scope, scope);
   assert.equal(fixture.post_868_boundary.pr_868_is_frozen_web_baseline, true);
-  assert.equal(fixture.post_868_boundary.ui_in_scope, false);
+  assert.equal(fixture.post_868_boundary.ui_browser_work_outside_non_ui_matrix, true);
 }
 
 function assertStaticCoverage() {
@@ -251,11 +238,16 @@ function assertStaticCoverage() {
   );
   assert.ok(
     researchDocsText.includes("Dogfooding research record is candidate-only review material."),
-    "research record runtime docs must preserve candidate-only boundary",
+    "research record runtime docs must describe candidate review material behavior",
   );
   assert.ok(
-    reconciliationDocsText.includes("dogfooding_record_runtime_store_route_v0_1"),
-    "post-868 reconciliation must point to the prerequisite dogfooding slice",
+    researchDocsText.includes("dogfooding_record_runtime_store_route_v0_1"),
+    "research record runtime docs must point to the prerequisite dogfooding slice",
+  );
+  assert.ok(
+    activePostureDocsText.includes("capability improvement") &&
+      activePostureDocsText.includes("behavior-focused tests"),
+    "active posture docs must preserve behavior-oriented development defaults",
   );
   for (const phrase of requiredDocsPhrases) {
     assertIncludesNormalized(docsText, phrase, `docs phrase ${phrase}`);
@@ -324,14 +316,17 @@ function assertConversionBehavior() {
     input.expected_observed_delta_refs,
     normalized.expected_observed_delta_refs,
   );
-  assert.ok(input.source_refs.includes(selectedSlice), "source refs must include binding slice");
+  assert.ok(
+    input.source_refs.includes(docsPath),
+    "source refs must include binding behavior doc",
+  );
   assert.ok(
     input.source_refs.includes("codex_result_report_ingestion_v0_1"),
     "source refs must include normalizer ref",
   );
   assert.ok(
-    input.source_refs.includes("dogfooding_record_runtime_store_route_v0_1"),
-    "source refs must include dogfooding runtime ref",
+    input.source_refs.includes(researchDocsPath),
+    "source refs must include dogfooding runtime behavior doc",
   );
   assert.ok(
     input.source_refs.some((ref) => ref.startsWith("codex-result-report-fingerprint:")),
