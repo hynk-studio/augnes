@@ -247,6 +247,10 @@ validation summary status, snapshot ref count, diagnostic ref count, and
 compact authority boundary summary from the Delta Projection read model. It is
 not recovered runner output. It has no transaction semantics, batch apply
 behavior, batch approval, runner recovery, or persistence behavior.
+Its stable panel identity is `projected_delta_batch` with node
+`perspective_delta`, intentionally separate from the native `delta_projection`
+panel and from recovered runner `delta_batch` / `runner_delta_batch` readback
+so GuideBrief debug selection can be unambiguous.
 
 Recovered Runner DeltaBatch shows existing recovered runner DeltaBatch ledger
 readback: latest run id, batch id, delta count, validation status, source ref
@@ -254,6 +258,8 @@ count, related step/event/delta refs, and authority boundary notes. It has no
 apply, approve, reject, execute, recover, tick, schedule, send, launch, proof
 write, evidence write, provider/OpenAI/GitHub/Codex execution, durable memory
 apply, Perspective apply, delta auto-apply, or runner behavior.
+Its stable panel identity remains `delta_batch` with node
+`runner_delta_batch`.
 
 Handoff Builder preview shows pointer-only handoff refs from top-level
 `source_refs.handoff_refs` and per-delta `handoff_refs`, plus artifact pointer
@@ -450,6 +456,8 @@ replacement and validation exist.
 - Agent Workplane renders `RunnerDeltaBatchPanel`
 - projected Delta Projection batches and recovered runner DeltaBatches are
   distinguished in code and docs
+- `delta_projection`, `projected_delta_batch`, and `delta_batch` are distinct
+  stable panel identities
 - empty state is represented without throwing
 - a temp-ledger fixture can create a run, tick to completion, recover a
   DeltaBatch through existing runner APIs, and read it back through the

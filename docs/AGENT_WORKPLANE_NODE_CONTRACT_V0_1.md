@@ -105,6 +105,7 @@ The v0.1 stable Workplane panel IDs are:
 - `evidence_handoff`
 - `workplane_inspector`
 - `projection_candidates`
+- `projected_delta_batch`
 - `delta_batch`
 - `handoff_builder_preview`
 - `run_postmortem`
@@ -123,6 +124,14 @@ The v0.1 absorption-map target IDs are:
 - `runner_delta_batch`
 - `run_postmortem`
 - `trace_diagnostics`
+
+`delta_projection` and `projected_delta_batch` are intentionally separate
+panel IDs even though both point at the `perspective_delta` context node.
+`delta_projection` names the native Delta Projection panel.
+`projected_delta_batch` names projected Delta Projection preview context.
+`delta_batch` / `runner_delta_batch` names recovered runner DeltaBatch ledger
+readback context. The IDs are separate so future GuideBrief debug selection is
+unambiguous.
 
 ## 6. Stable Node Kinds
 
@@ -170,6 +179,10 @@ Delta Projection `as_of`, runner DeltaBatch `as_of`, and related source ref
 arrays. Recovered runner source refs stay separate from projected Delta
 Projection refs.
 
+`projected_delta_batch` must derive source refs from `delta_projection_read`.
+It must not source runner ledger refs. `delta_batch` / `runner_delta_batch`
+derive recovered runner refs from `runner_delta_batch_read`.
+
 ## 9. Related Ref Expectations
 
 Related refs are explicit arrays:
@@ -181,10 +194,13 @@ Related refs are explicit arrays:
 - `related_delta_ids`
 - `related_handoff_refs`
 
-Missing refs must be represented as empty arrays, not guessed. Recovered
-runner DeltaBatch refs are populated only when the runner ledger readback has
-existing recovered batches. Missing runner batches remain empty or
-`not_materialized`, not errors.
+Missing refs must be represented as empty arrays, not guessed.
+`projected_delta_batch` related batch and delta refs are projected read-model
+refs from Delta Projection. `delta_batch` / `runner_delta_batch` related run,
+step, event, batch, and delta refs are recovered runner ledger readback refs
+only. Recovered runner DeltaBatch refs are populated only when the runner
+ledger readback has existing recovered batches. Missing runner batches remain
+empty or `not_materialized`, not errors.
 
 ## 10. Authority Boundary Expectations
 

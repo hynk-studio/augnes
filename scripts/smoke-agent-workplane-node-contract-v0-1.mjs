@@ -75,7 +75,7 @@ const requiredPanelMetadata = [
   },
   {
     file: "components/workplane/delta-batch-panel.tsx",
-    panelId: "delta_projection",
+    panelId: "projected_delta_batch",
     nodeId: "perspective_delta",
     kind: "preview_panel",
     status: "preview_only",
@@ -183,6 +183,7 @@ const stablePanelIds = [
   "evidence_handoff",
   "workplane_inspector",
   "projection_candidates",
+  "projected_delta_batch",
   "delta_batch",
   "handoff_builder_preview",
   "run_postmortem",
@@ -262,6 +263,7 @@ assertTypeContract();
 assertDocs();
 assertPanelShellMetadata();
 assertPanelMetadata();
+assertPanelIdentityPairsUnique();
 assertLegacyCompatibilityMetadata();
 assertNodeContextHelper();
 assertChangedFileBoundary();
@@ -289,6 +291,7 @@ console.log(
       key_panel_metadata_checked: requiredPanelMetadata.map(
         (panel) => panel.panelId,
       ),
+      key_panel_identity_pairs_unique_checked: true,
       legacy_cockpit_compatibility_metadata_checked: true,
       node_context_registry_checked: true,
       source_fallback_staleness_authority_validation_checked: true,
@@ -429,6 +432,42 @@ function assertPanelMetadata() {
       });
     }
   }
+}
+
+function assertPanelIdentityPairsUnique() {
+  const seen = new Map();
+
+  for (const panel of requiredPanelMetadata) {
+    const key = `${panel.panelId}/${panel.nodeId}`;
+    assert(
+      !seen.has(key),
+      `${panel.file} must not share panelId/nodeId pair ${key} with ${seen.get(
+        key,
+      )}`,
+    );
+    seen.set(key, panel.file);
+  }
+
+  assert.equal(
+    requiredPanelMetadata.find(
+      (panel) =>
+        panel.file === "components/workplane/delta-projection-workplane-panel.tsx",
+    )?.panelId,
+    "delta_projection",
+  );
+  assert.equal(
+    requiredPanelMetadata.find(
+      (panel) => panel.file === "components/workplane/delta-batch-panel.tsx",
+    )?.panelId,
+    "projected_delta_batch",
+  );
+  assert.equal(
+    requiredPanelMetadata.find(
+      (panel) =>
+        panel.file === "components/workplane/runner-delta-batch-panel.tsx",
+    )?.panelId,
+    "delta_batch",
+  );
 }
 
 function assertLegacyCompatibilityMetadata() {

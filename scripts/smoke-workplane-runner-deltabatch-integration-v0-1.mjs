@@ -23,7 +23,10 @@ const smokeFile =
   "scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs";
 const contextReaderFile = "lib/workplane/read-workplane-context.ts";
 const nodeContextFile = "lib/workplane/workplane-node-context.ts";
+const typeContractFile = "types/agent-workplane-node.ts";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
+const deltaProjectionPanelFile =
+  "components/workplane/delta-projection-workplane-panel.tsx";
 const projectedDeltaBatchPanelFile =
   "components/workplane/delta-batch-panel.tsx";
 const agentWorkplaneDoc = "docs/AGENT_WORKPLANE_V0_1.md";
@@ -48,7 +51,9 @@ const requiredFiles = [
   smokeFile,
   contextReaderFile,
   nodeContextFile,
+  typeContractFile,
   agentWorkplaneFile,
+  deltaProjectionPanelFile,
   projectedDeltaBatchPanelFile,
   agentWorkplaneDoc,
   nodeContractDoc,
@@ -67,7 +72,9 @@ const panelText = textByFile.get(panelFile);
 const docText = textByFile.get(integrationDoc);
 const contextReaderText = textByFile.get(contextReaderFile);
 const nodeContextText = textByFile.get(nodeContextFile);
+const typeContractText = textByFile.get(typeContractFile);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
+const deltaProjectionPanelText = textByFile.get(deltaProjectionPanelFile);
 const projectedDeltaBatchPanelText = textByFile.get(projectedDeltaBatchPanelFile);
 const agentWorkplaneDocText = textByFile.get(agentWorkplaneDoc);
 const nodeContractDocText = textByFile.get(nodeContractDoc);
@@ -98,6 +105,7 @@ assertReaderStaticShape();
 assertContextIntegration();
 assertNodeContextIntegration();
 assertPanelIntegration();
+assertPanelIdentitySeparation();
 assertDocs();
 const behavior = assertTempLedgerBehavior();
 assertChangedFileBoundary();
@@ -121,6 +129,7 @@ console.log(
       workplane_context_runner_delta_batch_read_checked: true,
       node_context_runner_refs_checked: true,
       agent_workplane_panel_render_checked: true,
+      stable_panel_identity_distinction_checked: true,
       projected_vs_recovered_distinction_checked: true,
       empty_state_checked: behavior.default_empty_status,
       temp_ledger_readback_checked: behavior.read_status,
@@ -223,8 +232,10 @@ function assertNodeContextIntegration() {
       "related_delta_ids",
       "collectRunnerDeltaBatchSourceRefs",
       "isRunnerDeltaBatchPanel",
+      "projected_delta_batch",
       "smoke:workplane-runner-deltabatch-integration-v0-1",
       "Recovered runner DeltaBatches are review candidates",
+      "Projected Delta Projection batch preview context",
       "recovery write",
       "runner behavior",
     ],
@@ -242,6 +253,12 @@ function assertPanelIntegration() {
       "recovered runner",
     ],
     { label: agentWorkplaneFile },
+  );
+
+  assertContainsAll(
+    typeContractText,
+    ["AGENT_WORKPLANE_PANEL_IDS", "projected_delta_batch", "delta_batch"],
+    { label: typeContractFile },
   );
 
   assertContainsAll(
@@ -271,9 +288,20 @@ function assertPanelIntegration() {
   );
 
   assertContainsAll(
+    deltaProjectionPanelText,
+    [
+      'panelId="delta_projection"',
+      'nodeId="perspective_delta"',
+      'nodeKind="native_panel"',
+    ],
+    { label: deltaProjectionPanelFile },
+  );
+
+  assertContainsAll(
     projectedDeltaBatchPanelText,
     [
       'title="Projected Delta Batch"',
+      'panelId="projected_delta_batch"',
       'nodeId="perspective_delta"',
       'nodeKind="preview_panel"',
       "not a recovered runner DeltaBatch",
@@ -296,6 +324,58 @@ function assertPanelIntegration() {
   }
 }
 
+function assertPanelIdentitySeparation() {
+  const panelIdentities = [
+    {
+      file: deltaProjectionPanelFile,
+      text: deltaProjectionPanelText,
+      expectedPanelId: "delta_projection",
+      expectedNodeId: "perspective_delta",
+    },
+    {
+      file: projectedDeltaBatchPanelFile,
+      text: projectedDeltaBatchPanelText,
+      expectedPanelId: "projected_delta_batch",
+      expectedNodeId: "perspective_delta",
+    },
+    {
+      file: panelFile,
+      text: panelText,
+      expectedPanelId: "delta_batch",
+      expectedNodeId: "runner_delta_batch",
+    },
+  ];
+
+  const seen = new Map();
+  for (const identity of panelIdentities) {
+    assertContainsAll(
+      identity.text,
+      [
+        `panelId="${identity.expectedPanelId}"`,
+        `nodeId="${identity.expectedNodeId}"`,
+      ],
+      { label: identity.file },
+    );
+    const key = `${identity.expectedPanelId}/${identity.expectedNodeId}`;
+    assert(
+      !seen.has(key),
+      `${identity.file} must not share panelId/nodeId pair ${key} with ${seen.get(
+        key,
+      )}`,
+    );
+    seen.set(key, identity.file);
+  }
+
+  assert.notEqual(
+    "delta_projection/perspective_delta",
+    "projected_delta_batch/perspective_delta",
+  );
+  assert.notEqual(
+    "projected_delta_batch/perspective_delta",
+    "delta_batch/runner_delta_batch",
+  );
+}
+
 function assertDocs() {
   assertContainsAll(
     docText,
@@ -303,6 +383,10 @@ function assertDocs() {
       "Why This Exists",
       "Data Read From the Runner Ledger",
       "Projected vs Recovered DeltaBatches",
+      "projected_delta_batch",
+      "delta_projection",
+      "delta_batch",
+      "IDs are intentionally separate",
       "Workplane Read Context Shape",
       "Node and Panel Context Integration",
       "UI Panel Behavior",

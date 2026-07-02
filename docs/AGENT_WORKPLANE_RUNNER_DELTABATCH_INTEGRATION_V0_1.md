@@ -68,8 +68,18 @@ different sources:
   existing runner recovery has already written them to the runner ledger.
   Workplane only reads them back.
 
-The existing `DeltaBatchPanel` is labeled as projected Delta Batch context. The
-new `RunnerDeltaBatchPanel` is labeled as recovered runner DeltaBatch context.
+The existing `DeltaBatchPanel` is labeled as projected Delta Batch context and
+uses `data-workplane-panel-id="projected_delta_batch"` with
+`data-workplane-node-id="perspective_delta"`. The native Delta Projection panel
+keeps `data-workplane-panel-id="delta_projection"`.
+
+The new `RunnerDeltaBatchPanel` is labeled as recovered runner DeltaBatch
+context and keeps `data-workplane-panel-id="delta_batch"` with
+`data-workplane-node-id="runner_delta_batch"`.
+
+These IDs are intentionally separate so future GuideBrief Workplane Debug
+Context can distinguish a selected Delta Projection panel from the projected
+Delta Batch preview panel and from recovered runner DeltaBatch ledger readback.
 
 ## 5. Workplane Read Context Shape
 
@@ -112,6 +122,9 @@ recovered runner batches exist:
 
 - `delta_batch` / `runner_delta_batch` can become `ready` when ledger readback
   has recovered batches.
+- `projected_delta_batch` remains projected Delta Projection preview context
+  and sources Delta Projection refs, projected batch ids, projected delta ids,
+  staleness, and fallback context.
 - `runner_state` can become `ready` from recovered runner DeltaBatch readback.
 - related run ids are sourced from recovered batches.
 - related batch ids are sourced from recovered batch ids.
@@ -138,6 +151,17 @@ boundary notes, and an empty state when no recovered DeltaBatch exists.
 
 It adds no apply, approve, reject, execute, recover, tick, schedule, send, or
 launch button behavior.
+
+`DeltaBatchPanel` remains the projected Delta Batch preview panel and renders
+with stable metadata:
+
+- `data-workplane-panel-id="projected_delta_batch"`
+- `data-workplane-node-id="perspective_delta"`
+- `data-workplane-node-kind="preview_panel"`
+- `data-workplane-node-status="preview_only"`
+
+It is not a runner ledger source. `delta_batch` / `runner_delta_batch` are the
+recovered runner DeltaBatch ledger readback identities.
 
 ## 8. Source Ref Expectations
 

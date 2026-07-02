@@ -34,7 +34,7 @@ export function DeltaBatchPanel({
       kicker="Phase 5C preview"
       title="Projected Delta Batch"
       ariaLabel="Projected Delta Batch Workplane panel"
-      panelId="delta_projection"
+      panelId="projected_delta_batch"
       nodeId="perspective_delta"
       nodeKind="preview_panel"
       nodeStatus="preview_only"

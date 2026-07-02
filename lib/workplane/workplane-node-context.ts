@@ -27,6 +27,7 @@ export const AGENT_WORKPLANE_REQUIRED_PANEL_IDS = [
   "evidence_handoff",
   "workplane_inspector",
   "projection_candidates",
+  "projected_delta_batch",
   "delta_batch",
   "handoff_builder_preview",
   "run_postmortem",
@@ -110,6 +111,15 @@ export const AGENT_WORKPLANE_PANEL_REGISTRY: ReadonlyArray<{
     status: "preview_only",
     title: "Projection Candidates",
     summary: "Read-only candidate context from Current Perspective and projected deltas.",
+  },
+  {
+    panel_id: "projected_delta_batch",
+    node_id: "perspective_delta",
+    kind: "preview_panel",
+    status: "preview_only",
+    title: "Projected Delta Batch",
+    summary:
+      "Projected Delta Projection batch preview context, separate from recovered runner DeltaBatch ledger readback.",
   },
   {
     panel_id: "delta_batch",
@@ -508,6 +518,7 @@ function stalenessForPanel(
     [
       "delta_projection",
       "projection_candidates",
+      "projected_delta_batch",
       "handoff_builder_preview",
       "evidence_handoff",
       "handoff_context",
@@ -551,6 +562,7 @@ function fallbackForPanel(
     [
       "delta_projection",
       "projection_candidates",
+      "projected_delta_batch",
       "handoff_builder_preview",
       "evidence_handoff",
       "handoff_context",
@@ -585,6 +597,7 @@ function validationForPanel(
   if (
     [
       "projection_candidates",
+      "projected_delta_batch",
       "delta_batch",
       "handoff_builder_preview",
       "run_postmortem",
@@ -679,6 +692,7 @@ function sourceRefsForPanel(
     [
       "delta_projection",
       "projection_candidates",
+      "projected_delta_batch",
       "handoff_builder_preview",
       "evidence_handoff",
       "handoff_context",
@@ -737,6 +751,7 @@ function relatedDeltaIdsForPanel(
   if (
     [
       "delta_projection",
+      "projected_delta_batch",
       "projection_candidates",
       "review_queue",
       "workplane_inspector",
@@ -765,6 +780,7 @@ function relatedBatchIdsForPanel(
   if (
     [
       "delta_projection",
+      "projected_delta_batch",
       "workplane_inspector",
       "trace_bridge",
       "trace_diagnostics",
