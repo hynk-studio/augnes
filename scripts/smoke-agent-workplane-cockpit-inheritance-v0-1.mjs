@@ -151,6 +151,19 @@ const followOnRunnerWorkplaneMetricsFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const followOnAugnesDogfoodFiles = [
+  "types/augnes-dogfood.ts",
+  "lib/dogfood/augnes-on-augnes-dogfood.ts",
+  "docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md",
+  "scripts/run-augnes-on-augnes-dogfood-v0-1.mjs",
+  "scripts/smoke-augnes-on-augnes-dogfood-v0-1.mjs",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/GUIDEBRIEF_INTENT_PROJECTION_V0_1.md",
+  "docs/AUGNES_WORKFLOW_METRICS_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...downstreamSmokeCompatibilityFiles,
@@ -159,6 +172,7 @@ const allowedChangedFiles = new Set([
   ...followOnGuideWorkplaneDebugContextFiles,
   ...followOnGuideBriefIntentProjectionFiles,
   ...followOnRunnerWorkplaneMetricsFiles,
+  ...followOnAugnesDogfoodFiles,
 ]);
 
 const validStatuses = new Set([
@@ -448,7 +462,8 @@ function assertNoRuntimeAuthorityFilesChanged() {
       followOnWorkplaneRunnerDeltaBatchIntegrationFiles.includes(file) ||
       followOnGuideWorkplaneDebugContextFiles.includes(file) ||
       followOnGuideBriefIntentProjectionFiles.includes(file) ||
-      followOnRunnerWorkplaneMetricsFiles.includes(file)
+      followOnRunnerWorkplaneMetricsFiles.includes(file) ||
+      followOnAugnesDogfoodFiles.includes(file)
     ) {
       continue;
     }

@@ -20,6 +20,17 @@ coverage, projected-vs-recovered DeltaBatch identity separation, handoff loss,
 Cockpit absorption readiness, and dogfood readiness without adding execution
 authority or auto-apply decisions.
 
+Longer Augnes-on-Augnes Dogfood v0.1 now uses Intent Projection output as part
+of a local Augnes-on-Augnes evaluation harness. It is documented in
+`docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md`. The dogfood harness builds
+non-executable runner/DeltaBatch review and Codex handoff preparation
+projections, then records whether those projections make the next development
+session easier. It adds no product execution authority, route, server action,
+chat composer, persistent Workplane mode, runner execution, runner recovery
+write, scheduled behavior, provider/OpenAI/GitHub/Codex execution, product DB
+write, proof/evidence write, durable memory apply, Perspective apply, delta
+auto-apply, or legacy Cockpit shrink.
+
 ## 2. Why This Exists
 
 Agent Workplane now has stable panel and node IDs, recovered runner DeltaBatch

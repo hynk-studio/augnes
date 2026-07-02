@@ -7,7 +7,8 @@ Phase 5C Agent Workplane Projection / Handoff / Postmortem Skeletons, and
 Phase 5D Agent Workplane Cleanup / Responsive Hardening, plus Agent Workplane
 Node / Panel Contract v0.1, Recovered Runner DeltaBatch Integration v0.1, and
 GuideBrief Workplane Debug Context v0.1, plus GuideBrief Intent Projection
-v0.1, plus Runner / Workplane Metrics v0.1.
+v0.1, plus Runner / Workplane Metrics v0.1, plus Longer Augnes-on-Augnes
+Dogfood v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -82,6 +83,18 @@ authority, runner execution, runner tick, runner recovery write, scheduled
 behavior, external authority, DB write, proof/evidence write, durable memory
 apply, Perspective apply, or delta auto-apply.
 
+Longer Augnes-on-Augnes Dogfood v0.1 is documented in
+`docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md`. It adds a local dogfood harness,
+JSON report, script, and smoke to inspect Augnes with existing Agent
+Workplane, GuideBrief debug context, GuideBrief intent projection, Runner /
+Workplane Metrics, local runner records, recovered DeltaBatch readback, and
+Codex handoff candidate surfaces. The dogfood harness is not product
+execution authority. Temp runner fixture writes are allowed only in the
+explicit script/smoke path; product `/workbench` render remains read-only and
+does not create runs, tick runs, recover DeltaBatches, write product DB state,
+add routes, add UI action controls, apply Perspective or durable memory,
+write proof/evidence, auto-apply deltas, or shrink/delete Legacy Cockpit.
+
 ## 2. Surface Model
 
 The route model remains:
@@ -119,6 +132,8 @@ Agent Workplane renders:
 - read-only Runner / Workplane Metrics signals for runner output, review
   burden, stale/fallback visibility, Cockpit absorption readiness, and dogfood
   readiness
+- local Augnes-on-Augnes Dogfood report generation through the explicit script
+  path, not through product render
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,
   `data-workplane-node-kind`, and `data-workplane-node-status` metadata on key
   native panels and the legacy compatibility path
