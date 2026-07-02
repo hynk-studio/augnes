@@ -120,6 +120,21 @@ const existingSmokeAllowlistFiles = [
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "types/augnes-dogfood-metrics-baseline.ts",
+  "lib/dogfood/augnes-dogfood-metrics-baseline.ts",
+  "docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md",
+  "scripts/run-augnes-dogfood-metrics-baseline-v0-2.mjs",
+  "scripts/smoke-augnes-dogfood-metrics-baseline-v0-2.mjs",
+
+  "docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md",
+  "docs/AUGNES_WORKFLOW_METRICS_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+
 ];
 
 const allowedChangedFiles = [

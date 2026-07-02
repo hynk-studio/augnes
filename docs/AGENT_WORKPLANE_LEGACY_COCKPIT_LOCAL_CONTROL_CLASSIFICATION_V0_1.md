@@ -18,6 +18,12 @@ regression, metrics, and dogfood are evidence/signals, not shrink authority.
 Local-write controls require a separate authority contract before native
 absorption.
 
+Follow-on repeated dogfood/metrics baseline is documented in
+`docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md`. The v0.2 baseline consumes this
+classification as evidence/signaling, keeps unknown/manual-review controls as a
+`needs_review` blocker, and runs before any shrink candidate. It does not
+delete, shrink, hide, disable, or absorb Legacy Cockpit local-write controls.
+
 ## Why This Exists
 
 This section explains why local UI control classification exists and why it

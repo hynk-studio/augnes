@@ -13,6 +13,13 @@ metrics are signals, not execution authority or auto-apply decisions. They help
 operators decide whether native Agent Workplane absorption is strong enough to
 plan a later Legacy Cockpit shrink, but they do not shrink or delete anything.
 
+Follow-on repeated baseline status: Augnes Dogfood Metrics Baseline v0.2 is
+documented in `docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md`. It repeats
+deterministic dogfood fixture iterations and aggregates metrics, dogfood,
+browser-regression, and local-control classification signals before any shrink
+candidate. The repeated baseline remains evidence/signaling only and does not
+turn metrics into shrink authority.
+
 ## 2. Why Metrics Before Legacy Cockpit Shrink
 
 Legacy Cockpit still contains useful compatibility content. Native Agent

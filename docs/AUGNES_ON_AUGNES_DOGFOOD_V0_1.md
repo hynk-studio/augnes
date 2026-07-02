@@ -54,6 +54,14 @@ separation, no-control checks, and retained Legacy Cockpit compatibility.
 Browser regression is evidence, not shrink authority, and dogfood reports
 remain evidence, not shrink authority.
 
+Follow-on repeated baseline status: Augnes Dogfood Metrics Baseline v0.2 is
+documented in `docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md`. It repeats the
+deterministic dogfood fixture with temp runner ledger paths and aggregates
+dogfood, metrics, browser-regression, and local-control classification signals.
+It is evidence/signaling only, not shrink authority, and keeps
+`resume_latency` and `review_burden` as `insufficient_data` unless repeated
+timing or review-burden evidence exists.
+
 ## 4. What the Harness Does
 
 `lib/dogfood/augnes-on-augnes-dogfood.ts` supports two modes:

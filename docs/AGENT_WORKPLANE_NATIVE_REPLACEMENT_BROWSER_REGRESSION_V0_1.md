@@ -49,6 +49,14 @@ buckets before any shrink candidate. Browser regression can use that
 classification as evidence/signaling, but it remains not shrink authority and
 does not move local-write controls into native Workplane.
 
+Follow-on repeated dogfood/metrics baseline is documented in
+`docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md`. The baseline can attach
+server-rendered browser regression evidence to repeated dogfood/metrics
+signals, but it remains evidence/signaling only. A
+`browser_regression_passed_shrink_gated` recommendation means structural
+browser evidence passed while shrink still waits on metrics, dogfood,
+local-control, rollback, and human review gates.
+
 ## 2. Why Browser Regression Exists
 
 Legacy Cockpit remains reachable in `/workbench` as compatibility content while
