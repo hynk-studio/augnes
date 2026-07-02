@@ -178,6 +178,16 @@ Dogfood readiness combines:
 The summary helps decide whether to proceed toward Legacy Cockpit Shrink Plan
 v0.1 or keep running Longer Augnes-on-Augnes Dogfood v0.1.
 
+Longer Augnes-on-Augnes Dogfood v0.1 is documented in
+`docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md`. The dogfood harness feeds a temp
+runner fixture, recovered DeltaBatch readback, Workplane context, GuideBrief
+debug context, and Intent Projection into this metrics helper so the report
+can distinguish projected vs recovered DeltaBatch signals and record
+insufficient baseline data honestly. Metrics remain read-only signals. The
+dogfood script/smoke may create temp runner fixture records, but product
+`/workbench` render does not create fixture runs and does not write the
+runner ledger.
+
 ## 11. Source Refs
 
 Metric source refs remain pointer-only. They may name docs, Workplane source

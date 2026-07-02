@@ -237,6 +237,23 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   no provider/OpenAI/GitHub/Codex execution, no DB write, no proof/evidence
   write, no durable memory apply, no Perspective apply, and no delta
   auto-apply.
+- `docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md`: Longer Augnes-on-Augnes Dogfood
+  v0.1 adds a bounded local dogfood harness, JSON report, script, and smoke
+  for using Augnes to inspect Augnes before Legacy Cockpit shrink planning. It
+  adds `types/augnes-dogfood.ts`,
+  `lib/dogfood/augnes-on-augnes-dogfood.ts`,
+  `scripts/run-augnes-on-augnes-dogfood-v0-1.mjs`, and
+  `scripts/smoke-augnes-on-augnes-dogfood-v0-1.mjs`. The explicit
+  script/smoke path may create a temp runner ledger fixture, tick it, recover
+  a DeltaBatch, read it through Workplane readback, build GuideBrief debug and
+  intent projection packets, build metrics, and write a temp JSON report.
+  Product `/workbench` render remains read-only and creates no fixture runs.
+  It adds no product route, API write route, server action, chat composer,
+  persistent Workplane mode, UI action authority, product runner execution,
+  product runner tick, product runner recovery write, scheduled behavior,
+  provider/OpenAI/GitHub/Codex execution, product DB write, proof/evidence
+  write, durable memory apply, Perspective apply, delta auto-apply, or legacy
+  Cockpit deletion/shrink.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and
