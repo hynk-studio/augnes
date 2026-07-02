@@ -24,10 +24,12 @@ const indexDoc = "docs/00_INDEX_LATEST.md";
 const agentWorkplaneDoc = "docs/AGENT_WORKPLANE_V0_1.md";
 const shrinkPlanDoc =
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md";
+const shrinkDoc = "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md";
 const dogfoodDoc = "docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md";
 const metricsDoc = "docs/AUGNES_WORKFLOW_METRICS_V0_1.md";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
 const augnesCockpitFile = "components/augnes-cockpit.tsx";
+const cockpitPageFile = "app/cockpit/page.tsx";
 const legacyCompatibilityPanelFile =
   "components/workplane/legacy-cockpit-compatibility-panel.tsx";
 
@@ -41,8 +43,14 @@ const browserRegressionSliceFiles = [
   indexDoc,
   agentWorkplaneDoc,
   shrinkPlanDoc,
+  shrinkDoc,
   dogfoodDoc,
   metricsDoc,
+  agentWorkplaneFile,
+  legacyCompatibilityPanelFile,
+  cockpitPageFile,
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
 ];
 
 const followOnAgentWorkplaneBridgeTraceDetailFiles = [
@@ -171,12 +179,20 @@ const allowedChangedFiles = [
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnAugnesDogfoodMetricsBaselineFiles,
   ...existingSmokeAllowlistFiles,
+  shrinkDoc,
+  cockpitPageFile,
+  legacyCompatibilityPanelFile,
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
+  "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
 ];
 
 const requiredFiles = [
   ...browserRegressionSliceFiles,
   agentWorkplaneFile,
   augnesCockpitFile,
+  cockpitPageFile,
   legacyCompatibilityPanelFile,
 ];
 
@@ -270,6 +286,7 @@ const packageJsonText = textByFile.get(packageJsonFile);
 const indexText = textByFile.get(indexDoc);
 const agentWorkplaneDocText = textByFile.get(agentWorkplaneDoc);
 const shrinkPlanDocText = textByFile.get(shrinkPlanDoc);
+const shrinkDocText = textByFile.get(shrinkDoc);
 const dogfoodDocText = textByFile.get(dogfoodDoc);
 const metricsDocText = textByFile.get(metricsDoc);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
@@ -342,6 +359,7 @@ function assertDocsAndPointers() {
     indexText,
     agentWorkplaneDocText,
     shrinkPlanDocText,
+    shrinkDocText,
     dogfoodDocText,
     metricsDocText,
   ]) {
@@ -373,11 +391,11 @@ function assertDocsAndPointers() {
       "Recommended Next Phase",
       "browser regression is evidence, not shrink authority",
       "Metrics are signals, not shrink authority",
-      "Dogfood reports are evidence, not shrink authority",
-      "No Legacy Cockpit functionality is deleted or shrunk",
-      "No compatibility path is removed",
-      "Future deletion requires a separate PR",
-      "no route",
+      "Dogfood reports are evidence, not authority",
+      "Legacy Cockpit compatibility remains reachable through `/cockpit`",
+      "`/workbench` exposes the compact compatibility pointer",
+      "The full six-tab Cockpit shell is absent from `/workbench`",
+      "no product route beyond the explicit `/cockpit` compatibility route",
       "no API write route",
       "no server action",
       "no chat composer",
@@ -393,8 +411,10 @@ function assertDocsAndPointers() {
       "no Perspective apply",
       "no delta auto-apply",
       "no localStorage/sessionStorage durable view mode",
-      "no product UI behavior change",
       'data-workplane-panel-id="legacy_cockpit_compatibility"',
+      'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
+      'data-workplane-legacy-cockpit-route="/cockpit"',
+      "six-tab-cockpit",
       'data-workplane-panel-id="delta_projection"',
       'data-workplane-panel-id="projected_delta_batch"',
       'data-workplane-panel-id="delta_batch"',
@@ -456,6 +476,9 @@ function assertHelperStaticShape() {
       "WORKPLANE_BROWSER_REGRESSION_DELTABATCH_IDENTITY_CHECKS",
       "WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS",
       "WORKPLANE_BROWSER_REGRESSION_NO_CONTROL_SEGMENT_MARKERS",
+      "LEGACY_SHRINK_MARKER",
+      "LEGACY_ROUTE_MARKER",
+      "FULL_COCKPIT_SHELL_MARKERS",
       "Browser regression parses supplied HTML only.",
       "Browser regression is evidence, not shrink authority.",
       "Metrics are signals, not shrink authority.",
@@ -463,6 +486,9 @@ function assertHelperStaticShape() {
       "delta_projection",
       "projected_delta_batch",
       "runner_delta_batch",
+      "workbench_full_mount_removed",
+      "/cockpit",
+      "six-tab-cockpit",
       "do_not_shrink",
       "browser_regression_passed_shrink_gated",
       "eligible_for_shrink_candidate_review",
@@ -564,7 +590,20 @@ function assertHelperBehavior() {
     assert.equal(mutationControl.status, "failed");
     assert.equal(mutationControl.no_control_status, "failed");
     assert.equal(mutationControl.recommendation.decision, "do_not_shrink");
-    console.log(JSON.stringify({ full, missingLegacy, identityCollision, mutationControl }));
+
+    const fullCockpitStillMounted = buildWorkplaneBrowserRegressionReport({
+      html: fixture.replace(
+        "Legacy Cockpit route split",
+        "Legacy Cockpit route split <main class=\\"six-tab-cockpit\\">Legacy full shell</main>"
+      ),
+      metrics_status: "watch",
+      dogfood_status: "needs_review",
+      cockpit_shrink_readiness: "needs_review"
+    });
+    assert.equal(fullCockpitStillMounted.status, "blocked");
+    assert.equal(fullCockpitStillMounted.legacy_compatibility_status, "blocked");
+    assert.equal(fullCockpitStillMounted.recommendation.decision, "do_not_shrink");
+    console.log(JSON.stringify({ full, missingLegacy, identityCollision, mutationControl, fullCockpitStillMounted }));
   `;
 
   const output = execFileSync("node", ["--import", "tsx", "--eval", code], {
@@ -611,7 +650,16 @@ function buildFixtureHtml() {
     <section data-workplane-panel-id="handoff_builder_preview" data-workplane-node-id="handoff_context">Handoff Builder preview</section>
     <section data-workplane-run-postmortem-detail-panel="v0.1"><section data-workplane-panel-id="run_postmortem" data-workplane-node-id="run_postmortem">Run Postmortem detail source-backed run postmortem run_id step refs event refs recovered DeltaBatch validation status source refs no runner execution no runner tick no DeltaBatch recovery no durable memory apply no Perspective apply legacy compatibility retained</section></section>
     <section data-workplane-panel-id="trace_diagnostics" data-workplane-node-id="trace_bridge">Trace Diagnostics Validation summary</section>
-    <section data-workplane-panel-id="legacy_cockpit_compatibility" data-workplane-node-id="legacy_cockpit_compatibility">Legacy Cockpit compatibility remains reachable</section>
+    <section
+      data-workplane-panel-id="legacy_cockpit_compatibility"
+      data-workplane-node-id="legacy_cockpit_compatibility"
+      data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"
+      data-workplane-legacy-cockpit-route="/cockpit"
+    >
+      Legacy Cockpit route split
+      Legacy Cockpit full mount was removed from /workbench.
+      Full Legacy Cockpit remains reachable at /cockpit.
+    </section>
   `;
 }
 
@@ -620,15 +668,20 @@ function assertCompatibilityStillRendered() {
     agentWorkplaneText,
     [
       "LegacyCockpitCompatibilityPanel",
-      "<LegacyCockpitCompatibilityPanel>",
-      "<AugnesCockpit />",
-      "</LegacyCockpitCompatibilityPanel>",
+      "<LegacyCockpitCompatibilityPanel />",
     ],
     { label: agentWorkplaneFile },
   );
+  assert(!agentWorkplaneText.includes("AugnesCockpit"), `${agentWorkplaneFile} must not import or render AugnesCockpit`);
   assertContainsAll(textByFile.get(legacyCompatibilityPanelFile), [
     'data-workplane-panel-id="legacy_cockpit_compatibility"',
-    "Legacy Cockpit remains reachable",
+    'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
+    'data-workplane-legacy-cockpit-route="/cockpit"',
+    "Legacy Cockpit full mount was removed from /workbench",
+  ]);
+  assertContainsAll(textByFile.get(cockpitPageFile), [
+    'import { AugnesCockpit } from "@/components/augnes-cockpit"',
+    "<AugnesCockpit />",
   ]);
   assert(textByFile.get(augnesCockpitFile).includes("export function AugnesCockpit"));
 }
@@ -646,6 +699,16 @@ function assertNoProductComponentBehaviorFilesChanged() {
     if (followOnAugnesDogfoodMetricsBaselineFiles.includes(file)) {
       continue;
     }
+    if (
+      [
+        agentWorkplaneFile,
+        legacyCompatibilityPanelFile,
+        cockpitPageFile,
+        "lib/workplane/workplane-browser-regression.ts",
+      ].includes(file)
+    ) {
+      continue;
+    }
     assert(
       !file.startsWith("components/") &&
         !file.startsWith("app/") &&
@@ -661,6 +724,9 @@ function assertNoProductComponentBehaviorFilesChanged() {
 function assertNoRouteOrAuthorityPathAdded() {
   const changedFiles = observedChangedFiles();
   for (const file of changedFiles) {
+    if (file === cockpitPageFile) {
+      continue;
+    }
     assert(!/^app\//.test(file), `No product route/page changes allowed: ${file}`);
     assert(!/^app\/api\//.test(file), `No API route changes allowed: ${file}`);
     assert(!/route\.(ts|tsx|js|jsx)$/.test(file), `No route file changes allowed: ${file}`);

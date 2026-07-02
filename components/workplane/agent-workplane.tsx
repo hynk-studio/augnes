@@ -1,4 +1,3 @@
-import { AugnesCockpit } from "@/components/augnes-cockpit";
 import { AutonomyBoundaryCard } from "@/components/autonomy/autonomy-boundary-card";
 import { AutonomyBudgetPreviewPanel } from "@/components/autonomy/autonomy-budget-preview-panel";
 import { AutonomyContractPreviewPanel } from "@/components/autonomy/autonomy-contract-preview-panel";
@@ -259,12 +258,10 @@ export async function AgentWorkplane() {
           </section>
 
           <section
-            aria-label="Agent Workplane active compatibility content"
+            aria-label="Agent Workplane shrunk compatibility route"
             style={{ minWidth: 0 }}
           >
-            <LegacyCockpitCompatibilityPanel>
-              <AugnesCockpit />
-            </LegacyCockpitCompatibilityPanel>
+            <LegacyCockpitCompatibilityPanel />
           </section>
         </section>
       </div>

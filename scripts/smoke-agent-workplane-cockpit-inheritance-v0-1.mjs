@@ -281,6 +281,15 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneReviewMemoryDetailFiles,
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
+  "app/cockpit/page.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
+  "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-local-control-classification-v0-1.mjs",
 ]);
 
 const validStatuses = new Set([
@@ -576,7 +585,9 @@ function assertNoRuntimeAuthorityFilesChanged() {
       followOnAgentWorkplaneBridgeTraceDetailFiles.includes(file) ||
       (followOnAgentWorkplaneReviewMemoryDetailFiles.includes(file) ||
         followOnAgentWorkplaneRunPostmortemDetailFiles.includes(file)) ||
-      followOnLegacyCockpitLocalControlClassificationFiles.includes(file)
+      followOnLegacyCockpitLocalControlClassificationFiles.includes(file) ||
+      file === "app/cockpit/page.tsx" ||
+      file === "lib/workplane/legacy-cockpit-control-inventory.ts"
     ) {
       continue;
     }

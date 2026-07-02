@@ -264,19 +264,25 @@ Agent Workplane renders:
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,
   `data-workplane-node-kind`, and `data-workplane-node-status` metadata on key
   native panels and the legacy compatibility path
-- existing Cockpit compatibility content
+- compact Legacy Cockpit compatibility pointer content
 
 ## 3. Existing Cockpit Preservation
 
-Phase 5A keeps `AugnesCockpit` mounted inside `LegacyCockpitCompatibilityPanel`.
+Legacy Cockpit Shrink v0.1 removes the full `AugnesCockpit` mount from
+`/workbench`. `LegacyCockpitCompatibilityPanel` now renders a compact
+pointer/status panel, and the full Cockpit remains reachable at `/cockpit`.
 
-This preserves existing Work Brief, Handoff, Perspective, Bridge, Operator, trace, and diagnostic visibility while the surrounding information architecture moves from Cockpit-as-main-human-product-surface to Agent-Workplane-as-backend/operator-surface.
+This preserves existing Work Brief, Handoff, Perspective, Bridge, Operator,
+trace, diagnostic, local-write/manual, and local-draft visibility through the
+explicit compatibility route while the surrounding information architecture
+moves from Cockpit-as-main-human-product-surface to
+Agent-Workplane-as-backend/operator-surface.
 
 Phase 5B adds focused Agent Workplane panels around the existing compatibility
 content. Phase 5C adds preview skeleton panels after those panels. Phase 5D
-contains the legacy compatibility body so wide legacy content does not redefine
-the Workplane layout. No Phase 5 slice deep-extracts or deletes Cockpit
-functionality.
+contained the legacy compatibility body so wide legacy content did not
+redefine the Workplane layout. Legacy Cockpit Shrink v0.1 then changed the
+compatibility body into a route pointer without deleting Cockpit source.
 
 ## 4. Data Sources and Fallback
 
@@ -669,7 +675,7 @@ delete, shrink, hide, remove, disable, or weaken any compatibility content.
 - a temp-ledger fixture can create a run, tick to completion, recover a
   DeltaBatch through existing runner APIs, and read it back through the
   Workplane reader
-- no route, legacy Cockpit deletion, new runner behavior, Workplane recovery
+- no API write route, legacy Cockpit deletion, new runner behavior, Workplane recovery
   write, scheduled behavior, provider/OpenAI/GitHub/Codex execution, DB write
   from Workplane reads, proof/evidence write, durable memory apply,
   Perspective apply, or delta auto-apply is introduced
@@ -683,9 +689,8 @@ delete, shrink, hide, remove, disable, or weaken any compatibility content.
   actions, shrink gates, DeltaBatch identity separation, and current
   needs-review/watch readiness are documented
 - `LegacyCockpitCompatibilityPanel` and `AugnesCockpit` still exist and
-  `AgentWorkplane` still renders the compatibility panel
-- no product UI/runtime/type/data behavior files, routes, API write routes,
-  server actions, provider/OpenAI/GitHub/Codex paths, runner behavior, product
+  `AgentWorkplane` renders the compact compatibility pointer
+- no API write route, server action, provider/OpenAI/GitHub/Codex path, runner behavior, product
   DB writes, proof/evidence writes, durable memory apply, Perspective apply,
   delta auto-apply, or broad source deletion are added
 
@@ -700,9 +705,9 @@ delete, shrink, hide, remove, disable, or weaken any compatibility content.
   as appropriate while keeping shrink gated by dogfood/metrics/human review
 - missing compatibility, DeltaBatch identity collision, and mutation controls
   block shrink recommendations
-- `LegacyCockpitCompatibilityPanel` remains rendered around `AugnesCockpit`
-- no product component behavior files, routes, API routes, server actions,
-  provider/OpenAI/GitHub/Codex execution paths, runner behavior, DB writes,
+- `LegacyCockpitCompatibilityPanel` remains rendered as a compact pointer
+  while full `AugnesCockpit` is retained at `/cockpit`
+- no API route, server action, provider/OpenAI/GitHub/Codex execution path, runner behavior, DB writes,
   proof/evidence writes, durable memory apply, Perspective apply, delta
   auto-apply, broad source deletion, or Legacy Cockpit deletion/shrink/hide are
   added

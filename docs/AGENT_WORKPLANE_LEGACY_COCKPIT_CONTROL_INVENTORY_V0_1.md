@@ -10,11 +10,12 @@ Repeated Augnes-on-Augnes Dogfood / Metrics Baseline v0.2. It reduces the
 generic unknown local UI control blocker only when server-rendered DOM/manual
 evidence exists, and it adds a lightweight proposal diff readiness preflight.
 
-This is not a Legacy Cockpit deletion PR, not a shrink candidate, and not an
-authority expansion. No Legacy Cockpit functionality is deleted, shrunk,
-hidden, disabled, or absorbed into native Workplane. Compatibility path remains
-rendered through `LegacyCockpitCompatibilityPanel` wrapping `AugnesCockpit`.
-Future deletion requires a separate PR.
+This was not a Legacy Cockpit deletion PR and not an authority expansion. No
+Legacy Cockpit functionality was deleted, hidden, disabled, or absorbed into
+native Workplane. Legacy Cockpit Shrink v0.1 later moved the full Cockpit from
+the `/workbench` compatibility island to the explicit `/cockpit` compatibility
+route. Future native absorption of retained local-write/manual controls
+requires a separate authority contract.
 
 ## Why This Exists
 
@@ -90,10 +91,12 @@ no evidence exists, the previous unknown/manual-review blocker remains.
 Before this slice, #933 has one unknown/manual-review blocker:
 `unknown_legacy_browser_manual_controls`.
 
-With supplied server-rendered `/workbench` evidence showing the Legacy Cockpit
-compatibility marker, compatibility copy, the six-tab Cockpit shell, and
-Perspective controls such as Formation Basis and Manual Gravity, the helper can
-reduce the inspected server-rendered unknown bucket from 1 to 0.
+With pre-shrink supplied server-rendered `/workbench` evidence showing the
+Legacy Cockpit compatibility marker, compatibility copy, the six-tab Cockpit
+shell, and Perspective controls such as Formation Basis and Manual Gravity,
+the helper can reduce the inspected server-rendered unknown bucket from 1 to
+0. After Legacy Cockpit Shrink v0.1, the six-tab Cockpit shell is expected at
+`/cockpit`, not inside `/workbench`.
 
 That reduction is deliberately narrow. It means no extra unclassified controls
 were observed in the inspected server-rendered compatibility island. It does
@@ -126,12 +129,12 @@ proposal mutation.
 ## What This Does Not Do
 
 - no Legacy Cockpit deletion;
-- no Legacy Cockpit shrink;
-- no hiding or disabling Cockpit content;
+- no full Legacy Cockpit source deletion;
+- no hiding or disabling retained Cockpit compatibility;
 - no compatibility path removal;
 - no native absorption of local-write controls;
 - no product UI behavior change;
-- no product route;
+- no product route beyond the explicit `/cockpit` compatibility route;
 - no API write route;
 - no server action;
 - no chat composer;

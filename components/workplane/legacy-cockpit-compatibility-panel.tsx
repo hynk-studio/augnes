@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 
 const panelStyle: CSSProperties = {
   display: "grid",
@@ -43,20 +43,36 @@ const copyStyle: CSSProperties = {
   overflowWrap: "anywhere",
 };
 
-const bodyStyle: CSSProperties = {
-  minWidth: 0,
-  maxWidth: "100%",
-  overflowX: "auto",
-  border: "1px solid rgba(30, 41, 59, 0.1)",
-  borderRadius: "8px",
-  WebkitOverflowScrolling: "touch",
+const listStyle: CSSProperties = {
+  display: "grid",
+  gap: "7px",
+  margin: 0,
+  paddingInlineStart: "18px",
+  color: "#334155",
+  fontSize: "0.82rem",
+  lineHeight: 1.38,
 };
 
-export function LegacyCockpitCompatibilityPanel({
-  children,
-}: {
-  children: ReactNode;
-}) {
+const linkStyle: CSSProperties = {
+  width: "fit-content",
+  color: "#0f766e",
+  fontSize: "0.84rem",
+  fontWeight: 820,
+  textDecoration: "underline",
+  textUnderlineOffset: "3px",
+};
+
+const statusStyle: CSSProperties = {
+  display: "grid",
+  gap: "8px",
+  minWidth: 0,
+  padding: "12px",
+  border: "1px solid rgba(15, 118, 110, 0.18)",
+  borderRadius: "8px",
+  background: "rgba(240, 253, 250, 0.72)",
+};
+
+export function LegacyCockpitCompatibilityPanel() {
   return (
     <section
       aria-labelledby="legacy-cockpit-compatibility-title"
@@ -64,21 +80,35 @@ export function LegacyCockpitCompatibilityPanel({
       data-workplane-node-id="legacy_cockpit_compatibility"
       data-workplane-node-kind="compatibility_panel"
       data-workplane-node-status="compatibility_only"
+      data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"
+      data-workplane-legacy-cockpit-route="/cockpit"
       style={panelStyle}
     >
       <div style={headingStyle}>
-        <p style={kickerStyle}>Existing Cockpit compatibility content</p>
+        <p style={kickerStyle}>Legacy Cockpit route split</p>
         <h2 id="legacy-cockpit-compatibility-title" style={titleStyle}>
-          Legacy Cockpit remains reachable
+          Compatibility pointer
         </h2>
         <p style={copyStyle}>
-          Phase 5A reframes `/workbench` as Agent Workplane without deleting the
-          existing Cockpit operator/read surfaces. Phase 5B extracts focused
-          read-only panels, Phase 5C adds preview skeletons, and Phase 5D keeps
-          legacy Cockpit compatibility content contained and reachable.
+          Legacy Cockpit full mount was removed from /workbench. Full Legacy
+          Cockpit remains reachable at /cockpit while Native Agent Workplane
+          panels own the primary operational surface.
         </p>
       </div>
-      <div style={bodyStyle}>{children}</div>
+      <div style={statusStyle}>
+        <ul style={listStyle}>
+          <li>
+            Retained local-write/manual compatibility controls remain available
+            only through /cockpit until a separate authority contract exists.
+          </li>
+          <li>
+            No provider/OpenAI/GitHub/Codex/runner execution authority is added.
+          </li>
+        </ul>
+        <a href="/cockpit" style={linkStyle}>
+          Open retained Legacy Cockpit route
+        </a>
+      </div>
     </section>
   );
 }

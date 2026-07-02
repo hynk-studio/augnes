@@ -5,17 +5,19 @@
 Status: Browser Regression for Native Workplane Replacement v0.1.
 
 Scope: repeatable browser/server-rendered regression coverage for native Agent
-Workplane replacement surfaces before any future Legacy Cockpit shrink
-candidate. This is not a shrink PR, not a deletion PR, and not a UI behavior
-redesign PR.
+Workplane replacement surfaces and the Legacy Cockpit Shrink v0.1 route split.
+This is not a deletion PR and not a UI behavior redesign PR.
 
 This slice adds a type contract, pure HTML parsing helper, local GET-only
-runner, documentation, package scripts, and smoke coverage. It does not change
-product render behavior.
+runner, documentation, package scripts, and smoke coverage. After the real
+shrink, it expects `/workbench` to render a compact compatibility pointer and
+to leave the full six-tab Cockpit shell at `/cockpit`.
 
-browser regression is evidence, not shrink authority. Metrics are signals, not
-shrink authority. Dogfood reports are evidence, not shrink authority. Future
-deletion requires a separate PR.
+browser regression is evidence, not shrink authority. Browser regression is
+also not merge/deletion authority. Metrics are signals, not shrink authority.
+Dogfood reports are evidence, not authority.
+Future native absorption of retained local-write/manual controls requires a
+separate authority contract.
 
 Follow-on Bridge/Trace detail hardening is documented in
 `docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md`. The regression now expects
@@ -66,11 +68,11 @@ as evidence rather than shrink authority.
 
 ## 2. Why Browser Regression Exists
 
-Legacy Cockpit remains reachable in `/workbench` as compatibility content while
+Legacy Cockpit remains reachable at `/cockpit` as explicit compatibility while
 native Agent Workplane surfaces absorb useful AI-operational capabilities.
-The Legacy Cockpit Shrink Plan v0.1 requires browser or server-rendered
-coverage before any shrink candidate because static docs and helper contracts
-are not enough to prove the replacement surfaces still render together.
+The Legacy Cockpit Shrink v0.1 route split requires browser or server-rendered
+coverage because static docs and helper contracts are not enough to prove the
+replacement surfaces still render together.
 
 The regression exists before any shrink candidate to prove:
 
@@ -78,7 +80,9 @@ Why it happens before any shrink candidate: a future candidate must already
 have evidence that native replacement surfaces are reachable and explainable
 while compatibility rollback remains reachable.
 
-- Legacy Cockpit compatibility remains reachable.
+- Legacy Cockpit compatibility remains reachable through `/cockpit`.
+- `/workbench` exposes the compact compatibility pointer.
+- The full six-tab Cockpit shell is absent from `/workbench`.
 - Native replacement panels are rendered.
 - Stable `data-workplane-*` panel/node IDs are present.
 - GuideBrief Workplane Debug Context is rendered.
@@ -97,7 +101,7 @@ The regression validates server-rendered or browser DOM HTML for:
 - required native panel markers;
 - required GuideBrief debug, intent projection, intent mode, and metrics
   markers;
-- required Legacy Cockpit compatibility marker;
+- required Legacy Cockpit compatibility marker and route-split markers;
 - visible/server-rendered section text for `Agent Workplane`, `Legacy Cockpit
   compatibility`, `GuideBrief Workplane Debug Context`, `GuideBrief Intent
   Projection`, `Workplane Intent Mode`, `Runner / Workplane Metrics`,
@@ -115,7 +119,7 @@ The regression validates server-rendered or browser DOM HTML for:
 ## 4. What It Does Not Validate
 
 This regression does not prove that native replacement is complete enough to
-delete compatibility content. It does not measure live resume latency, live
+delete retained compatibility content. It does not measure live resume latency, live
 review burden, dogfood usefulness, operator satisfaction, or human approval.
 It does not validate local-write legacy controls beyond retaining compatibility
 and pointing to
@@ -173,6 +177,12 @@ Native replacement panel markers:
 Required compatibility marker:
 
 - `data-workplane-panel-id="legacy_cockpit_compatibility"`
+- `data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"`
+- `data-workplane-legacy-cockpit-route="/cockpit"`
+
+Forbidden `/workbench` marker after shrink:
+
+- `six-tab-cockpit`
 
 Required GuideBrief / metrics markers:
 
@@ -313,15 +323,14 @@ DeltaBatch identity status, and recommendation.
 
 ## 14. Authority Boundary
 
-This PR adds:
+This regression and route-split validation add:
 
 - no Legacy Cockpit deletion
-- no Legacy Cockpit shrink
-- no hiding of Cockpit content
+- no source component deletion
+- no hiding of retained Cockpit compatibility
 - no removal of compatibility path
-- no product UI behavior change
-- no route
 - no API write route
+- no product route beyond the explicit `/cockpit` compatibility route
 - no server action
 - no chat composer
 - no execution button
@@ -340,8 +349,9 @@ This PR adds:
 - no localStorage/sessionStorage durable view mode
 - no new local-write product controls
 
-No Legacy Cockpit functionality is deleted or shrunk. No compatibility path is
-removed. Future deletion requires a separate PR.
+No Legacy Cockpit source is deleted. No compatibility path is removed. Future
+native absorption of retained local-write/manual controls requires a separate
+authority contract.
 
 ## 15. How This Feeds Shrink Review
 

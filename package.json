@@ -706,6 +706,7 @@
     "dogfood:augnes-metrics-baseline-v0-2": "tsx --tsconfig tsconfig.json scripts/run-augnes-dogfood-metrics-baseline-v0-2.mjs",
     "smoke:augnes-dogfood-metrics-baseline-v0-2": "node scripts/smoke-augnes-dogfood-metrics-baseline-v0-2.mjs",
     "smoke:agent-workplane-legacy-cockpit-shrink-plan-v0-1": "node scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
+    "smoke:agent-workplane-legacy-cockpit-shrink-v0-1": "node scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
     "browser:workplane-native-regression-v0-1": "tsx --tsconfig tsconfig.json scripts/run-workplane-native-browser-regression-v0-1.mjs",
     "smoke:workplane-native-browser-regression-v0-1": "node scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
     "smoke:agent-workplane-bridge-trace-detail-v0-1": "node scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",

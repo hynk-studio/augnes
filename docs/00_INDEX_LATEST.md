@@ -279,21 +279,24 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   reject control, no provider/OpenAI/GitHub/Codex/runner authority, no product
   DB write, no proof/evidence write, no durable memory/Perspective/delta apply,
   no local-write native absorption, and no Legacy Cockpit deletion/shrink/hide.
+- `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md`: Legacy Cockpit
+  Shrink v0.1 is the real route split implementation. `/workbench` no longer
+  imports or mounts full `AugnesCockpit`; it keeps only a compact
+  `LegacyCockpitCompatibilityPanel` pointer/status panel. `/cockpit` is the
+  explicit retained full Legacy Cockpit compatibility route for detailed
+  legacy local UI controls and local-write/manual/local-draft controls until a
+  separate native authority contract exists. Native Agent Workplane remains
+  the primary operational surface. This adds no API write route, server
+  action, provider/OpenAI/GitHub/Codex/runner execution, product DB write,
+  proof/evidence write, durable memory/Perspective/delta apply, publish,
+  merge, retry, replay, or deploy authority.
 - `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`: Legacy Cockpit
-  Shrink Plan v0.1 defines the future gate model for capability-by-capability
-  compatibility reduction using Agent Workplane native surfaces, GuideBrief
-  debug paths, GuideBrief Intent Projection, Runner / Workplane Metrics, and
-  Augnes-on-Augnes Dogfood evidence. It adds
-  `scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs` and a
-  package script pointer only. It is a planning and gate-definition slice: no
-  Legacy Cockpit functionality is deleted or shrunk, no compatibility path is
-  removed, no UI behavior is changed, no route or API write route is added, no
-  server action or chat composer is added, no persistent Workplane mode or UI
-  action authority is added, no runner execution/tick/recovery/scheduled
-  behavior is added, no provider/OpenAI/GitHub/Codex execution is added, no
-  product DB write, proof/evidence write, durable memory apply, Perspective
-  apply, or delta auto-apply is added, and future deletion requires a separate
-  PR.
+  Shrink Plan v0.1 is prior planning/gate context for capability-by-capability
+  compatibility reduction. It is no longer the latest shrink implementation
+  pointer; the real v0.1 route split is
+  `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md`. The plan remains useful
+  as historical evidence for absorbed capabilities, local-control boundaries,
+  and future native absorption criteria.
 - `docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md`:
   Workplane Native Replacement Browser Regression v0.1 adds type/helper/script
   regression coverage for parsing `/workbench` server-rendered HTML from an

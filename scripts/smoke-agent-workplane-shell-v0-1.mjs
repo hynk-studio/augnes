@@ -456,6 +456,13 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneReviewMemoryDetailFiles,
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
+  "app/cockpit/page.tsx",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
+  "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
   ...followOnWebGuidePanelFiles,
   ...followOnChatgptAppGuideBriefToolFiles,
 ]);
@@ -644,8 +651,9 @@ function assertWorkplaneComponents() {
     agentWorkplaneText,
     [
       "Agent Workplane",
-      "AugnesCockpit",
       "LegacyCockpitCompatibilityPanel",
+      "<LegacyCockpitCompatibilityPanel />",
+      "Agent Workplane shrunk compatibility route",
       "WorkplaneOverview",
       "WorkQueuePanel",
       "CurrentPerspectiveWorkplanePanel",
@@ -658,6 +666,7 @@ function assertWorkplaneComponents() {
     ],
     { label: agentWorkplaneFile },
   );
+  assert(!agentWorkplaneText.includes("AugnesCockpit"), `${agentWorkplaneFile} must not import or render AugnesCockpit after the route split`);
   assertContainsAll(
     panelText,
     [
@@ -721,9 +730,11 @@ function assertWorkplaneComponents() {
   assertContainsAll(
     compatibilityText,
     [
-      "Existing Cockpit compatibility content",
-      "Legacy Cockpit remains reachable",
-      "Phase 5B extracts focused",
+      "Legacy Cockpit route split",
+      "Compatibility pointer",
+      'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
+      'data-workplane-legacy-cockpit-route="/cockpit"',
+      "Legacy Cockpit full mount was removed from /workbench",
     ],
     { label: compatibilityPanelFile },
   );
@@ -872,6 +883,7 @@ function assertChangedFileBoundary() {
     );
     assert(
       !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) ||
+        file === "app/cockpit/page.tsx" ||
         followOnGuideBriefRouteFiles.includes(file) ||
         file === "app/api/augnes/read/autonomy-contract/route.ts" ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),

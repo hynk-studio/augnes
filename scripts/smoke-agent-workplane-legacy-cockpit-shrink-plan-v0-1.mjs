@@ -13,6 +13,7 @@ import {
 
 const shrinkPlanDoc =
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md";
+const shrinkDoc = "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md";
 const smokeFile =
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs";
 const packageJsonFile = "package.json";
@@ -28,6 +29,7 @@ const legacyCompatibilityPanelFile =
   "components/workplane/legacy-cockpit-compatibility-panel.tsx";
 const augnesCockpitFile = "components/augnes-cockpit.tsx";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
+const cockpitPageFile = "app/cockpit/page.tsx";
 
 const requiredDocs = [
   shrinkPlanDoc,
@@ -218,6 +220,11 @@ const allowedChangedFiles = new Set([
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnAugnesDogfoodMetricsBaselineFiles,
   ...followOnLegacyCockpitControlInventoryFiles,
+  shrinkDoc,
+  cockpitPageFile,
+  legacyCompatibilityPanelFile,
+  agentWorkplaneFile,
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
 ]);
 
 const requiredCapabilities = [
@@ -364,29 +371,29 @@ function assertDocsAndPointers() {
     shrinkPlanText,
     [
       "Why This Plan Exists",
-      "This is not a deletion PR",
-      "No Legacy Cockpit functionality is deleted or shrunk in this PR.",
-      "No compatibility path is removed in this PR.",
-      "No UI behavior is changed in this PR.",
-      "Future deletion requires a separate PR.",
-      "Current shrink readiness is not a blanket go-signal yet.",
+      "v0.1 shrink executed by route split",
+      "Legacy Cockpit Shrink v0.1 is not a deletion PR.",
+      "the full `/workbench` compatibility island is removed",
+      "`/cockpit` is the explicit retained compatibility path",
+      "future work may further absorb local-write controls only after a separate authority contract",
+      "Current shrink readiness is not a blanket deletion signal.",
       "`cockpit_shrink_readiness`: `needs_review`",
       "metrics Cockpit shrink readiness: `watch`",
       "`resume_latency` still needs repeated baseline data",
       "`review_burden` still needs repeated baseline data",
       "Metrics are signals, not shrink authority.",
-      "Dogfood reports are evidence, not shrink authority.",
-      "Legacy Cockpit removal only in a future dedicated removal PR",
-      "another dogfood/metrics baseline if readiness remains `watch` / `needs_review`",
-      "Browser Regression for Native Workplane Replacement v0.1",
-      "Legacy Cockpit Shrink Candidate v0.1",
-      "no route",
+      "Dogfood reports are evidence, not merge or deletion authority.",
+      "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+      "Workplane Native Replacement Browser Regression v0.1",
+      "route split only",
+      "`/workbench` no longer mounts full `AugnesCockpit`",
+      "`/cockpit` preserves the full Legacy Cockpit compatibility route",
       "no API write route",
       "no server action",
       "no chat composer",
       "no provider/OpenAI call",
       "no GitHub call or actuation",
-      "no Codex launch, branch creation, PR creation, merge, publish, retry, replay, or deploy",
+      "no Codex launch or product-side branch creation, PR creation, merge, publish, retry, replay, or deploy",
       "no runner execution",
       "no runner tick",
       "no runner recovery write",
@@ -405,6 +412,8 @@ function assertDocsAndPointers() {
       "data-workplane-panel-id=\"projected_delta_batch\"",
       "data-workplane-panel-id=\"delta_batch\"",
       "data-workplane-panel-id=\"legacy_cockpit_compatibility\"",
+      "data-workplane-legacy-cockpit-shrink=\"workbench_full_mount_removed\"",
+      "data-workplane-legacy-cockpit-route=\"/cockpit\"",
       "delta_projection` / `perspective_delta",
       "projected_delta_batch` / `perspective_delta",
       "delta_batch` / `runner_delta_batch",
@@ -500,17 +509,19 @@ function assertCompatibilityStillRendered() {
   assertContainsAll(legacyCompatibilityPanelText, [
     "LegacyCockpitCompatibilityPanel",
     'data-workplane-panel-id="legacy_cockpit_compatibility"',
-    "Legacy Cockpit remains reachable",
+    'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
+    'data-workplane-legacy-cockpit-route="/cockpit"',
+    "Legacy Cockpit full mount was removed from /workbench",
   ], { label: legacyCompatibilityPanelFile });
   assertContainsAll(augnesCockpitText, ["export function AugnesCockpit"], {
     label: augnesCockpitFile,
   });
   assertContainsAll(agentWorkplaneText, [
     "LegacyCockpitCompatibilityPanel",
-    "AugnesCockpit",
-    "<LegacyCockpitCompatibilityPanel>",
-    "<AugnesCockpit />",
+    "<LegacyCockpitCompatibilityPanel />",
+    "Agent Workplane shrunk compatibility route",
   ], { label: agentWorkplaneFile });
+  assert(!agentWorkplaneText.includes("AugnesCockpit"), `${agentWorkplaneFile} must not import or render AugnesCockpit after the route split`);
 }
 
 function assertChangedFilesWithinAllowedScope() {
@@ -563,7 +574,8 @@ function assertNoProductBehaviorFilesChanged() {
         followOnAgentWorkplaneRunPostmortemDetailFiles.includes(file)) ||
       followOnLegacyCockpitLocalControlClassificationFiles.includes(file) ||
       followOnAugnesDogfoodMetricsBaselineFiles.includes(file) ||
-      followOnLegacyCockpitControlInventoryFiles.includes(file)
+      followOnLegacyCockpitControlInventoryFiles.includes(file) ||
+      [shrinkDoc, cockpitPageFile, legacyCompatibilityPanelFile, agentWorkplaneFile].includes(file)
     ) {
       continue;
     }
@@ -593,6 +605,9 @@ function assertNoRouteOrAuthorityPathAdded() {
   const addedFiles = collectNameStatusAddedFiles();
 
   for (const file of addedFiles) {
+    if (file === cockpitPageFile || file === shrinkDoc) {
+      continue;
+    }
     assert(!file.startsWith("app/"), `No product route is added: ${file}`);
     assert(!/\/api\//.test(file), `No API route is added: ${file}`);
   }
@@ -618,7 +633,8 @@ function assertNoRouteOrAuthorityPathAdded() {
         followOnAgentWorkplaneRunPostmortemDetailFiles.includes(file)) ||
       followOnLegacyCockpitLocalControlClassificationFiles.includes(file) ||
       followOnAugnesDogfoodMetricsBaselineFiles.includes(file) ||
-      followOnLegacyCockpitControlInventoryFiles.includes(file)
+      followOnLegacyCockpitControlInventoryFiles.includes(file) ||
+      [shrinkDoc, cockpitPageFile, legacyCompatibilityPanelFile, agentWorkplaneFile].includes(file)
     ) {
       continue;
     }

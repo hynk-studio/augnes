@@ -154,10 +154,17 @@ export function buildLegacyCockpitControlInventoryReport(
   const compatibilityMarkerPresent =
     hasText(source, 'data-workplane-panel-id="legacy_cockpit_compatibility"') ||
     hasText(source, "legacy_cockpit_compatibility");
-  const serverRenderedCompatibilityContentPresent =
+  const embeddedCompatibilityContentPresent =
     compatibilityMarkerPresent &&
     hasText(source, "Legacy Cockpit remains reachable") &&
     hasText(source, "Existing Cockpit compatibility content");
+  const routeSplitCompatibilityContentPresent =
+    compatibilityMarkerPresent &&
+    hasText(source, 'data-workplane-legacy-cockpit-route="/cockpit"') &&
+    hasText(source, 'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"') &&
+    hasText(source, "Full Legacy Cockpit remains reachable at /cockpit");
+  const serverRenderedCompatibilityContentPresent =
+    embeddedCompatibilityContentPresent || routeSplitCompatibilityContentPresent;
   const augnesCockpitComponentPresent =
     hasText(source, "AugnesCockpit") ||
     hasText(source, "export function AugnesCockpit") ||

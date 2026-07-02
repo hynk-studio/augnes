@@ -177,6 +177,13 @@ const followOnLegacyCockpitLocalControlClassificationFiles = [
   "package.json",
 ];
 
+const followOnLegacyCockpitShrinkRouteSplitFiles = [
+  "app/cockpit/page.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+];
 
 const requiredFiles = [
   typeFile,
@@ -208,6 +215,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnLegacyCockpitControlInventoryFiles,
+  ...followOnLegacyCockpitShrinkRouteSplitFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);

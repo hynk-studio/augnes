@@ -26,6 +26,14 @@ const metricsDoc = "docs/AUGNES_WORKFLOW_METRICS_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 
+const followOnLegacyCockpitShrinkRouteSplitFiles = [
+  "app/cockpit/page.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+];
+
 const existingFollowOnSmokeFiles = [
   "scripts/smoke-runner-workplane-metrics-v0-1.mjs",
   "scripts/smoke-guidebrief-intent-projection-v0-1.mjs",
@@ -194,6 +202,7 @@ const allowedChangedFiles = new Set([
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnAugnesDogfoodMetricsBaselineFiles,
   ...followOnLegacyCockpitControlInventoryFiles,
+  ...followOnLegacyCockpitShrinkRouteSplitFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -686,6 +695,9 @@ function assertNoUiActionControlsAdded() {
     }
     if ((followOnAgentWorkplaneReviewMemoryDetailFiles.includes(file) ||
         followOnAgentWorkplaneRunPostmortemDetailFiles.includes(file))) {
+      continue;
+    }
+    if (followOnLegacyCockpitShrinkRouteSplitFiles.includes(file)) {
       continue;
     }
     assert(
