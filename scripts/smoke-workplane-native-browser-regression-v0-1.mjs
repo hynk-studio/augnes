@@ -45,6 +45,23 @@ const browserRegressionSliceFiles = [
   metricsDoc,
 ];
 
+const followOnAgentWorkplaneBridgeTraceDetailFiles = [
+  "types/workplane-bridge-trace-detail.ts",
+  "lib/workplane/workplane-bridge-trace-detail.ts",
+  "components/workplane/source-ref-bridge-detail-panel.tsx",
+  "docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md",
+  "scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",
+  "components/workplane/agent-workplane.tsx",
+  "lib/workplane/workplane-node-context.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const existingSmokeAllowlistFiles = [
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
   "scripts/smoke-augnes-on-augnes-dogfood-v0-1.mjs",
@@ -64,6 +81,7 @@ const existingSmokeAllowlistFiles = [
 
 const allowedChangedFiles = [
   ...browserRegressionSliceFiles,
+  ...followOnAgentWorkplaneBridgeTraceDetailFiles,
   ...existingSmokeAllowlistFiles,
 ];
 
@@ -292,6 +310,8 @@ function assertDocsAndPointers() {
       'data-workplane-panel-id="delta_projection"',
       'data-workplane-panel-id="projected_delta_batch"',
       'data-workplane-panel-id="delta_batch"',
+      'data-workplane-panel-id="source_ref_bridge"',
+      'data-workplane-bridge-trace-detail-panel="v0.1"',
       'data-guide-workplane-debug-panel="v0.1"',
       'data-guide-intent-projection-panel="v0.1"',
       'data-workplane-intent-mode-panel="v0.1"',
@@ -493,6 +513,9 @@ function buildFixtureHtml() {
     <section data-workplane-panel-id="review_queue" data-workplane-node-id="authority_validation_debug">Review Queue Needs user judgment</section>
     <section data-workplane-panel-id="evidence_handoff" data-workplane-node-id="handoff_context">Evidence Handoff Validation summary</section>
     <section data-workplane-panel-id="workplane_inspector" data-workplane-node-id="source_ref_bridge">Source refs</section>
+    <section data-workplane-bridge-trace-detail-panel="v0.1">
+      <section data-workplane-panel-id="source_ref_bridge" data-workplane-node-id="source_ref_bridge">Source Ref Bridge Trace Bridge Bridge matrix source refs validation summary evidence refs diagnostic refs legacy compatibility retained</section>
+    </section>
     <section data-workplane-panel-id="projection_candidates" data-workplane-node-id="perspective_delta">Projection Candidates</section>
     <section data-workplane-panel-id="handoff_builder_preview" data-workplane-node-id="handoff_context">Handoff Builder preview</section>
     <section data-workplane-panel-id="run_postmortem" data-workplane-node-id="run_postmortem">Run Postmortem</section>
@@ -522,6 +545,9 @@ function assertCompatibilityStillRendered() {
 function assertNoProductComponentBehaviorFilesChanged() {
   const changedFiles = observedChangedFiles();
   for (const file of changedFiles) {
+    if (followOnAgentWorkplaneBridgeTraceDetailFiles.includes(file)) {
+      continue;
+    }
     assert(
       !file.startsWith("components/") &&
         !file.startsWith("app/") &&

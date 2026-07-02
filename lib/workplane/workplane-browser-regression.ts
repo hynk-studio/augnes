@@ -39,6 +39,7 @@ export const WORKPLANE_BROWSER_REGRESSION_REQUIRED_MARKERS: RequiredMarker[] = [
   panelMarker("review_queue", "native_replacement"),
   panelMarker("evidence_handoff", "native_replacement"),
   panelMarker("workplane_inspector", "native_replacement"),
+  panelMarker("source_ref_bridge", "native_replacement"),
   panelMarker("projection_candidates", "native_replacement"),
   panelMarker("handoff_builder_preview", "native_replacement"),
   panelMarker("run_postmortem", "native_replacement"),
@@ -105,6 +106,12 @@ export const WORKPLANE_BROWSER_REGRESSION_REQUIRED_SECTION_TEXT = [
   "not authority",
   "reversible",
   "non-executable",
+  "Source Ref Bridge",
+  "Trace Bridge",
+  "Bridge matrix",
+  "validation summary",
+  "evidence refs",
+  "diagnostic refs",
 ] as const;
 
 export const WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS: CapabilityDefinition[] =
@@ -148,11 +155,14 @@ export const WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS: CapabilityDefinitio
       legacy_surface: "Legacy Cockpit Bridge matrix",
       native_markers: [
         'data-workplane-panel-id="workplane_inspector"',
+        'data-workplane-panel-id="source_ref_bridge"',
+        'data-workplane-bridge-trace-detail-panel="v0.1"',
         'data-workplane-panel-id="trace_diagnostics"',
+        "Bridge matrix",
       ],
       recommended_next_check:
-        "Add native Source Ref Bridge / Trace Bridge absorption before any shrink candidate.",
-      status_when_present: "needs_review",
+        "Keep Bridge compatibility until dogfood, metrics, browser regression, rollback, and human review all pass.",
+      status_when_present: "partial",
     },
     {
       capability_id: "operator_visibility",
@@ -182,9 +192,11 @@ export const WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS: CapabilityDefinitio
       capability_id: "source_ref_visibility",
       legacy_surface: "Legacy Cockpit source and ref views",
       native_markers: [
+        'data-workplane-panel-id="source_ref_bridge"',
         'data-workplane-panel-id="workplane_inspector"',
         'data-workplane-panel-id="trace_diagnostics"',
         'data-workplane-panel-id="evidence_handoff"',
+        "source refs",
       ],
       recommended_next_check:
         "Use browser regression to keep source/fallback and DeltaBatch identity refs distinguishable.",
@@ -205,12 +217,15 @@ export const WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS: CapabilityDefinitio
       capability_id: "validation_smoke_visibility",
       legacy_surface: "Legacy Cockpit validation, evidence, and smoke views",
       native_markers: [
+        'data-workplane-panel-id="source_ref_bridge"',
         'data-workplane-panel-id="trace_diagnostics"',
         'data-workplane-panel-id="evidence_handoff"',
-        "Validation summary",
+        "validation summary",
+        "evidence refs",
+        "diagnostic refs",
       ],
       recommended_next_check:
-        "Add richer validation browser regression before retiring legacy validation detail.",
+        "Keep richer validation browser regression and source-backed postmortem checks before retiring legacy validation detail.",
       status_when_present: "partial",
     },
     {
@@ -236,6 +251,7 @@ export const WORKPLANE_BROWSER_REGRESSION_NO_CONTROL_SEGMENT_MARKERS = [
   'data-workplane-panel-id="review_queue"',
   'data-workplane-panel-id="evidence_handoff"',
   'data-workplane-panel-id="workplane_inspector"',
+  'data-workplane-panel-id="source_ref_bridge"',
   'data-workplane-panel-id="projection_candidates"',
   'data-workplane-panel-id="handoff_builder_preview"',
   'data-workplane-panel-id="run_postmortem"',

@@ -23,6 +23,7 @@ import { ProjectionCandidatesPanel } from "@/components/workplane/projection-can
 import { ReviewQueueWorkplanePanel } from "@/components/workplane/review-queue-workplane-panel";
 import { RunPostmortemSkeletonPanel } from "@/components/workplane/run-postmortem-skeleton-panel";
 import { RunnerDeltaBatchPanel } from "@/components/workplane/runner-delta-batch-panel";
+import { SourceRefBridgeDetailPanel } from "@/components/workplane/source-ref-bridge-detail-panel";
 import { TraceDiagnosticsPanel } from "@/components/workplane/trace-diagnostics-panel";
 import { WorkplaneIntentModePanel } from "@/components/workplane/workplane-intent-mode-panel";
 import { WorkplaneMetricsPanel } from "@/components/workplane/workplane-metrics-panel";
@@ -44,6 +45,7 @@ import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-caps
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
 import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-view-projection";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
+import { buildWorkplaneBridgeTraceDetailRead } from "@/lib/workplane/workplane-bridge-trace-detail";
 import { buildAgentWorkplaneNodeContextRead } from "@/lib/workplane/workplane-node-context";
 import type { CSSProperties } from "react";
 
@@ -134,6 +136,10 @@ export async function AgentWorkplane() {
     Promise.resolve(readAutonomyRunnerPreflightPreviewForWeb()),
   ]);
   const workplaneNodeContext = buildAgentWorkplaneNodeContextRead(context);
+  const bridgeTraceDetail = buildWorkplaneBridgeTraceDetailRead({
+    workplane_context: context,
+    node_context_read: workplaneNodeContext,
+  });
   const workplaneDebugContext = buildGuideWorkplaneDebugContext({
     node_context_read: workplaneNodeContext,
     selection: {
@@ -183,6 +189,7 @@ export async function AgentWorkplane() {
             <ReviewQueueWorkplanePanel context={context} />
             <EvidenceHandoffWorkplanePanel context={context} />
             <WorkplaneInspector context={context} />
+            <SourceRefBridgeDetailPanel read={bridgeTraceDetail} />
           </section>
 
           <section

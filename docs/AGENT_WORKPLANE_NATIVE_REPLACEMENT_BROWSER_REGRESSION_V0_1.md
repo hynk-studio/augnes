@@ -17,6 +17,14 @@ browser regression is evidence, not shrink authority. Metrics are signals, not
 shrink authority. Dogfood reports are evidence, not shrink authority. Future
 deletion requires a separate PR.
 
+Follow-on Bridge/Trace detail hardening is documented in
+`docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md`. The regression now expects
+the native Source Ref Bridge detail marker and visible Source Ref Bridge,
+Trace Bridge, Bridge matrix, validation summary, evidence refs, and diagnostic
+refs copy. This improves browser evidence for Bridge, Source/ref visibility,
+and Validation/smoke visibility but does not make browser regression shrink
+authority.
+
 ## 2. Why Browser Regression Exists
 
 Legacy Cockpit remains reachable in `/workbench` as compatibility content while
@@ -111,6 +119,8 @@ Native replacement panel markers:
 - `data-workplane-panel-id="review_queue"`
 - `data-workplane-panel-id="evidence_handoff"`
 - `data-workplane-panel-id="workplane_inspector"`
+- `data-workplane-panel-id="source_ref_bridge"`
+- `data-workplane-bridge-trace-detail-panel="v0.1"`
 - `data-workplane-panel-id="projection_candidates"`
 - `data-workplane-panel-id="handoff_builder_preview"`
 - `data-workplane-panel-id="run_postmortem"`
@@ -165,16 +175,18 @@ The helper maps legacy Cockpit capabilities to native markers:
 - Handoff -> `handoff_builder_preview` / `evidence_handoff`
 - Perspective -> `current_perspective` / `delta_projection` /
   `projected_delta_batch`
-- Bridge -> `workplane_inspector` / `trace_diagnostics`
+- Bridge -> `source_ref_bridge` / `workplane_inspector` /
+  `trace_diagnostics` plus Bridge matrix copy
 - Operator visibility -> metrics, GuideBrief debug, and `review_queue`
 - Work/run visibility -> `delta_batch` / `runner_delta_batch` /
   `run_postmortem`
-- Source/ref visibility -> `workplane_inspector`, `trace_diagnostics`, and
-  `evidence_handoff`
+- Source/ref visibility -> `source_ref_bridge`, `workplane_inspector`,
+  `trace_diagnostics`, `evidence_handoff`, and source refs copy
 - Review / memory proposal visibility -> `review_queue` and needs-user-
   judgment copy
-- Validation / smoke visibility -> `trace_diagnostics`, `evidence_handoff`,
-  and validation summary copy
+- Validation / smoke visibility -> `source_ref_bridge`,
+  `trace_diagnostics`, `evidence_handoff`, validation summary copy, evidence
+  refs copy, and diagnostic refs copy
 - Local UI controls -> `legacy_cockpit_compatibility` retained, not natively
   shrunk
 
@@ -298,7 +310,7 @@ This slice does not implement:
 - visual diffing;
 - click/keyboard interaction checks;
 - local-write control classification;
-- native Bridge matrix absorption;
+- review/memory proposal native detail hardening;
 - native proposal/memory review absorption;
 - source-backed Run Postmortem fields;
 - any Legacy Cockpit shrink candidate.
