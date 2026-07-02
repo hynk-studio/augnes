@@ -122,6 +122,7 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "components/workplane/agent-workplane.tsx",
   "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs",
   "package.json",
+  "package-lock.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
   "scripts/smoke-augnes-delta-projection-v0-1.mjs",
