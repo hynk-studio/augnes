@@ -14,8 +14,7 @@
       "/perspective": "Perspective detail",
       "/workbench": "cockpit/workbench"
     },
-    "web_last": true,
-    "ui_in_scope": false
+    "ui_browser_work_outside_non_ui_matrix": true
   },
   "safe_input_example": {
     "input_version": "dogfooding_research_record_input.v0.1",
@@ -26,8 +25,8 @@
     "updated_at": "2026-06-30T00:00:00Z",
     "operator_actor_ref": "operator-ref:codex-local",
     "source_refs": [
-      "post-868-reconciliation-ref:dogfooding_record_runtime_store_route_v0_1",
-      "privacy-guard-ref:privacy_redaction_runtime_guard_v0_1"
+      "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md",
+      "docs/PRIVACY_REDACTION_RUNTIME_GUARD_V0_1.md"
     ],
     "pr_refs": [
       "github-pr-ref:870"
@@ -146,7 +145,7 @@
         "Product-write remains blocked."
       ],
       "source_refs": [
-        "post-868-reconciliation-ref:dogfooding_record_runtime_store_route_v0_1"
+        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
       ],
       "authority_boundary": {
         "product_write_authority": false,

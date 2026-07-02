@@ -8,7 +8,7 @@
   "post_868_boundary": {
     "pr_868_is_frozen_web_baseline": true,
     "route_model_baseline": ["/", "/perspective", "/workbench"],
-    "ui_in_scope": false,
+    "ui_browser_work_outside_non_ui_matrix": true,
     "route_changes_in_scope": false
   },
   "required_event_kinds": [

@@ -10,7 +10,7 @@
     },
     {
       "ref": "github-pr:#870",
-      "summary": "Post-#868 non-UI runtime gap reconciliation and selected non-UI sequence."
+      "summary": "Historical selection of the initial post-#868 non-UI implementation sequence."
     },
     {
       "ref": "github-pr:#871",
@@ -72,8 +72,8 @@
       "label": "#868 frozen web baseline",
       "classification": "implemented_non_ui",
       "repo_refs": [
-        "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md",
-        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
+        "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md",
+        "docs/AUTHORITY_MATRIX.md"
       ],
       "status_summary": "Route model baseline remains frozen for /, /perspective, and /workbench.",
       "review_context_only": true
@@ -81,12 +81,11 @@
     {
       "row_id": "active_development_completion_posture",
       "label": "active development completion posture",
-      "classification": "ready_for_next_planning",
+      "classification": "active_development_default",
       "repo_refs": [
-        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md",
-        "fixtures/dogfooding-research-record-runtime.sample.v0.1.json"
+        "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md"
       ],
-      "status_summary": "Functional completion, measurable capability improvement, and behavior-focused tests are the active development defaults.",
+      "status_summary": "Functional completion, measurable capability and performance improvement, and behavior-focused tests are the active development defaults.",
       "review_context_only": true
     },
     {
@@ -212,7 +211,7 @@
       "label": "product-write parked status",
       "classification": "blocked_by_design",
       "repo_refs": [
-        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
+        "docs/AUTHORITY_MATRIX.md"
       ],
       "status_summary": "Product-write remains blocked unless separately approved.",
       "review_context_only": true
@@ -233,7 +232,7 @@
       "label": "live provider blocked status",
       "classification": "blocked_by_design",
       "repo_refs": [
-        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
+        "docs/AUTHORITY_MATRIX.md"
       ],
       "status_summary": "Live provider calls remain blocked.",
       "review_context_only": true
@@ -243,7 +242,7 @@
       "label": "source fetch blocked status",
       "classification": "blocked_by_design",
       "repo_refs": [
-        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
+        "docs/AUTHORITY_MATRIX.md"
       ],
       "status_summary": "Source fetch remains blocked.",
       "review_context_only": true
@@ -253,7 +252,7 @@
       "label": "retrieval expansion blocked status",
       "classification": "blocked_by_design",
       "repo_refs": [
-        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
+        "docs/AUTHORITY_MATRIX.md"
       ],
       "status_summary": "Retrieval expansion remains blocked.",
       "review_context_only": true
@@ -269,13 +268,13 @@
       "review_context_only": true
     },
     {
-      "row_id": "web_last_backlog_frozen_status",
-      "label": "Web-last backlog frozen status",
-      "classification": "web_last_backlog",
+      "row_id": "outside_non_ui_matrix_ui_browser_status",
+      "label": "outside non-UI matrix UI/browser status",
+      "classification": "outside_non_ui_matrix",
       "repo_refs": [
-        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
+        "docs/RELEASE_READINESS_MATRIX_POST_868_NON_UI_V0_1.md"
       ],
-      "status_summary": "UI/Cockpit/browser/public-surface work remains Web-last backlog.",
+      "status_summary": "UI, Cockpit, browser, and public-surface work are outside this non-UI matrix and require explicit implementation scope.",
       "review_context_only": true
     },
     {
@@ -313,7 +312,8 @@
       "label": "remaining explicit reentry backlog",
       "classification": "explicit_reentry_blocked",
       "repo_refs": [
-        "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md"
+        "docs/AUTHORITY_MATRIX.md",
+        "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md"
       ],
       "status_summary": "Product-write, GitHub/Git, provider, source-fetch, retrieval, release, promotion, durable state, proof/evidence, and Formation Receipt reentry require separate approval.",
       "review_context_only": true
@@ -365,17 +365,17 @@
     {
       "item_id": "no_release_approval",
       "summary": "No release approval is created by this matrix.",
-      "next_planning_cue_only": true
+      "follow_up_cue_only": true
     },
     {
       "item_id": "no_product_readiness_claim",
       "summary": "No product readiness, market/user readiness, deployability, or proof/evidence readiness is claimed.",
-      "next_planning_cue_only": true
+      "follow_up_cue_only": true
     },
     {
-      "item_id": "web_last_backlog_not_started",
-      "summary": "UI, Cockpit, browser, and public-surface backlog remains frozen unless separately approved.",
-      "next_planning_cue_only": true
+      "item_id": "outside_non_ui_matrix_ui_browser_not_started",
+      "summary": "UI, Cockpit, browser, and public-surface work remains outside this non-UI matrix until separately scoped.",
+      "follow_up_cue_only": true
     }
   ],
   "blocked_capabilities": [
@@ -424,34 +424,34 @@
       "blocked": true
     }
   ],
-  "web_last_backlog": [
+  "outside_non_ui_matrix": [
     {
       "item_id": "ui_components",
-      "frozen": true
+      "requires_explicit_implementation_scope": true
     },
     {
       "item_id": "cockpit_workbench_polish",
-      "frozen": true
+      "requires_explicit_implementation_scope": true
     },
     {
       "item_id": "browser_validation_only",
-      "frozen": true
+      "requires_explicit_implementation_scope": true
     },
     {
       "item_id": "public_surface_polish",
-      "frozen": true
+      "requires_explicit_implementation_scope": true
     },
     {
       "item_id": "route_ia_polish",
-      "frozen": true
+      "requires_explicit_implementation_scope": true
     },
     {
       "item_id": "mobile_viewport_polish",
-      "frozen": true
+      "requires_explicit_implementation_scope": true
     },
     {
       "item_id": "read_display_only_ui_expansion",
-      "frozen": true
+      "requires_explicit_implementation_scope": true
     }
   ],
   "explicit_reentry_backlog": [
@@ -518,11 +518,11 @@
     "validation_failure_is_rejection": false,
     "skipped_checks_are_review_context_only": true,
     "known_warnings_are_review_context_only": true,
-    "not_done_items_are_next_planning_cues_only": true,
+    "not_done_items_are_follow_up_cues_only": true,
     "blocked_capability_remains_blocked": true,
-    "web_last_backlog_remains_frozen": true,
+    "ui_browser_work_outside_non_ui_matrix": true,
     "explicit_reentry_backlog_remains_blocked": true,
-    "next_recommended_slice_is_execution_approval": false
+    "historical_closeout_cue_is_execution_approval": false
   },
   "forbidden_capabilities": [
     "ui",
@@ -572,23 +572,23 @@
     "route_model_frozen": true,
     "route_model_statement": "#868 route model remains frozen for /, /perspective, and /workbench.",
     "non_ui_sequence_implemented_as_repo_artifacts": true,
-    "sequence_statement": "The v0.3 non-UI core/handoff/conversation sequence through selected runtime audit event store is implemented as repo artifacts.",
+    "sequence_statement": "The v0.3 non-UI dogfooding, handoff, export, and audit chain through selected runtime audit event store is implemented as repo artifacts.",
     "review_only_no_release_execution": true,
     "blocked_capabilities_remain_blocked": true,
-    "web_last_backlog_remains_frozen": true,
-    "next_recommended_slice_requires_operator_decision": true,
+    "ui_browser_work_outside_non_ui_matrix": true,
+    "historical_closeout_cue_requires_operator_decision": true,
     "product_readiness_claimed": false,
     "release_approval_claimed": false,
     "proof_evidence_readiness_claimed": false,
     "market_user_readiness_claimed": false,
     "deployability_claimed": false
   },
-  "next_recommended_slice": "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision",
-  "matrix_fingerprint": "sha256:71032d135136975c0b06307ae526de7818afdfaffc5dc2550de7ad71f159ac89",
+  "historical_closeout_cue": "no_next_slice_v0_3_core_sequence_complete_pending_operator_decision",
+  "matrix_fingerprint": "sha256:e1c9b0a67489cc2f12b3d5b0b072b16fd38817bc1c66d9bf28e34603c0803185",
   "reason_codes": [
     "post_868_route_baseline_frozen",
     "pr_878_selected_runtime_audit_event_context",
-    "non_ui_core_handoff_conversation_sequence_recorded",
+    "non_ui_dogfooding_handoff_export_audit_chain_recorded",
     "review_only_matrix",
     "no_release_recommendation",
     "product_write_blocked",
@@ -597,8 +597,8 @@
     "source_fetch_blocked",
     "retrieval_expansion_blocked",
     "release_deploy_publish_blocked",
-    "web_last_backlog_frozen",
+    "ui_browser_outside_non_ui_matrix",
     "explicit_reentry_requires_operator_decision",
-    "next_slice_requires_operator_decision"
+    "historical_closeout_cue_requires_operator_decision"
   ]
 }

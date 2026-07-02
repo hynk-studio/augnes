@@ -7,7 +7,8 @@ export manifest candidate from caller-provided public-safe summaries.
 
 PR #868 is treated as the frozen web baseline. `/` is the public Augnes surface,
 `/perspective` is Perspective detail, and `/workbench` is Cockpit/workbench.
-This slice adds no UI, components, route model changes, or API routes.
+The implemented behavior is deterministic local data export manifest candidate
+generation from caller-provided public-safe summaries.
 
 PR #875 provides dogfooding to Review Memory proposal context. This slice uses
 that chain as source context only. It does not write Review Memory.
@@ -35,10 +36,8 @@ The helper accepts caller-provided public-safe summaries and refs for:
 - not-done items
 - expected/observed deltas
 
-The helper does not require DB access. It does not add a route. It does not
-write files. It does not read files. It does not apply imports. It does not
-write records. It does not fetch missing refs. It does not dereference GitHub,
-provider, retrieval, uploaded-file, connector, or local file refs.
+Caller supplies all summaries and refs. The helper builds a manifest candidate
+without dereferencing or applying refs.
 
 ## Profiles
 
@@ -67,7 +66,7 @@ privacy or authority boundaries.
 - skipped checks remain caveats and review context, not automatic failure
 - known warnings remain review context, not automatic rejection
 - not-done refs remain follow-up cues, not automatic task creation
-- expected/observed deltas remain reconciliation context, not approval or rejection
+- expected/observed deltas remain review context, not approval or rejection
 - Git Ledger packet refs remain refs, not Git write authority
 
 ## Output
@@ -89,37 +88,16 @@ unsafe raw values.
 
 ## Authority Boundary
 
-Local data export manifest is candidate-only.
-Local data export manifest is not an export file.
-Local data export manifest is not file write approval.
-Local data export manifest is not import approval.
-Local data export manifest is not truth.
-Local data export manifest is not proof.
-Local data export manifest is not accepted evidence.
-Export item summary is not raw data.
-Export item summary is not canonical source body.
-Import preview is not import apply.
-Manifest fingerprint is not proof.
-Manifest fingerprint is not approval.
-Manifest status is not product/release readiness.
-Review Memory summaries are references only.
-Review Memory proposals are candidate-only.
-Promotion decision refs are references only.
-Formation Receipt refs are references only.
-Durable state summaries are summaries only.
-Git Ledger packet refs are references only.
-Git refs and GitHub PR refs are references only.
-Validation pass is not approval.
-Validation failure is not automatic rejection.
-Smoke pass is not evidence.
-Smoke failure is diagnostic, not automatic rejection.
-CI pass is not authority.
-CI failure is diagnostic, not automatic rejection.
-Skipped checks are review context, not failure by themselves.
-Known warnings are review context, not automatic rejection.
-Not-done items are next-task cues, not automatic task creation.
-Expected/observed delta is reconciliation context, not approval or rejection.
-Next recommended slice is not execution approval.
+Local data export manifests are candidate-only public-safe summaries. They do
+not approve export files, file writes, imports, proof, accepted evidence,
+product readiness, release readiness, product-write, Git/GitHub, release,
+deploy, or publish behavior.
+
+Export item summaries, Review Memory summaries/proposals, promotion decision
+refs, Formation Receipt refs, durable state summaries, Git Ledger packet refs,
+Git refs, GitHub refs, validation/CI results, skipped checks, known warnings,
+not-done items, expected/observed deltas, and historical next-slice cues remain
+review references only.
 
 ## Privacy Boundary
 
@@ -135,18 +113,11 @@ not canonical labels. Public-safe refs may be preserved as references only.
 
 ## Forbidden Capabilities
 
-This slice adds no UI, components, Cockpit changes, public-surface changes,
-route model changes for `/`, `/perspective`, or `/workbench`, browser
-validation-only work, new API route, DB migrations, DB writes, direct DB reads,
-local file writes, local file reads, import apply, provider/OpenAI calls, prompt
-sending, source fetch, retrieval execution, retrieval index writes,
-proof/evidence creation, claim/evidence writes, Review Memory writes,
-promotion execution, promotion decision creation from export manifest
-automatically, Formation Receipt writes, durable Perspective state apply,
-product-write, product ID allocation, Codex execution from Augnes runtime,
-GitHub API calls from Augnes runtime, Git branch/commit/PR creation from Augnes
-runtime, Git/GitHub actuation from Augnes runtime, release, deploy, or publish
-behavior.
+This helper only builds a deterministic manifest candidate from caller-provided
+public-safe summaries. It does not write export files, apply imports, read local
+files, or add UI, route, DB access, provider, retrieval, Review Memory,
+product-write, Git/GitHub, release, deploy, or publish behavior. Detailed actor
+authority remains in `docs/AUTHORITY_MATRIX.md`.
 
 ## Fixture And Smoke
 
@@ -159,7 +130,11 @@ determinism, profile ordering, privacy/redaction behavior, blocked unsafe
 markers without unsafe echo, forbidden authority blocking, preview-only import
 behavior, no file/export/import execution, and exact changed-file scope.
 
-## Next
+## Historical Follow-Up Metadata
 
-Next recommended slice:
 `git_ledger_export_manifest_binding_v0_1`.
+
+This ID is retained as fixture compatibility metadata only.
+`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md` defines development
+posture, not PR sequencing authority; new slice selection must come from
+explicit operator task prompts.

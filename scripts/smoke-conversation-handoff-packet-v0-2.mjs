@@ -23,8 +23,8 @@ const dogfoodingRecordHandoffSmokePath =
   "scripts/smoke-conversation-handoff-from-dogfooding-record-v0-1.mjs";
 const dogfoodingRecordHandoffDocsPath =
   "docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md";
-const reconciliationDocsPath =
-  "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
+const activePostureDocsPath =
+  "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md";
 const dogfoodingDocsPath = "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
 const codexBindingDocsPath =
   "docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md";
@@ -94,19 +94,15 @@ const requiredDocsPhrases = [
   "PR #868 is treated as the frozen web baseline.",
   "`/` is the public Augnes surface, `/perspective` is Perspective detail, and `/workbench` is Cockpit/workbench.",
   "PR #872 provides Codex result to dogfooding record binding context for handoff.",
-  "This slice adds no UI and no route model change.",
-  "Handoff packet is not execution approval.",
-  "Handoff packet is not truth.",
-  "Handoff packet is not proof.",
-  "Expected files are not write authority.",
-  "Observed files are not proof.",
-  "Validation pass is not approval.",
-  "Validation failure is not automatic rejection.",
-  "CI pass is not authority.",
-  "PR body is not authority.",
-  "Codex report is not execution approval.",
-  "Dogfooding record is candidate-only review material.",
-  "Next recommended slice is not execution approval.",
+  "The implemented behavior is deterministic public-safe handoff text generation.",
+  "Handoff packets are candidate-only conversation/workflow guidance.",
+  "Expected files, observed files, checks, PR bodies, Codex reports, dogfooding records, Review Memory refs, Promotion/Receipt/State refs, Git refs, GitHub refs, and historical next-slice cues remain review references only.",
+  "`docs/AUTHORITY_MATRIX.md`",
+  "Historical Follow-Up Metadata",
+  "fixture compatibility metadata only",
+  "`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`",
+  "defines development posture, not PR sequencing authority",
+  "new slice selection must come from explicit operator task prompts",
   "`conversation_handoff_packet_from_dogfooding_record_v0_1`",
 ];
 
@@ -141,7 +137,7 @@ for (const requiredPath of [
   packagePath,
   indexPath,
   codexBindingSmokePath,
-  reconciliationDocsPath,
+  activePostureDocsPath,
   dogfoodingDocsPath,
   codexBindingDocsPath,
 ]) {
@@ -156,7 +152,7 @@ const docsText = read(docsPath);
 const packageJson = JSON.parse(read(packagePath));
 const indexText = read(indexPath);
 const codexBindingSmokeText = read(codexBindingSmokePath);
-const reconciliationDocsText = read(reconciliationDocsPath);
+const activePostureDocsText = read(activePostureDocsPath);
 const dogfoodingDocsText = read(dogfoodingDocsPath);
 const codexBindingDocsText = read(codexBindingDocsPath);
 const helper = await import(pathToFileURL(`${process.cwd()}/${helperPath}`).href);
@@ -196,7 +192,7 @@ function assertFixtureVersions() {
     "/perspective",
     "/workbench",
   ]);
-  assert.equal(fixture.post_868_boundary.ui_in_scope, false);
+  assert.equal(fixture.post_868_boundary.ui_browser_work_outside_non_ui_matrix, true);
   assert.equal(fixture.post_868_boundary.route_in_scope, false);
 }
 
@@ -225,13 +221,18 @@ function assertStaticCoverage() {
     "helper must include string shortcut blocking",
   );
   assert.ok(
-    reconciliationDocsText.includes("Core first") &&
-      reconciliationDocsText.includes("Web last"),
-    "post-868 reconciliation must preserve Core/Web direction",
+    activePostureDocsText.includes("functional goal completion") &&
+      activePostureDocsText.includes("behavior-focused tests"),
+    "active posture docs must preserve implementation-first defaults",
   );
+  assert.deepEqual(fixture.safe_input_example.source_refs, [
+    activePostureDocsPath,
+    docsPath,
+    codexBindingDocsPath,
+  ]);
   assert.ok(
     dogfoodingDocsText.includes("Dogfooding research record is candidate-only review material."),
-    "dogfooding runtime docs must preserve candidate-only boundary",
+    "dogfooding runtime docs must describe candidate review material behavior",
   );
   assert.ok(
     codexBindingDocsText.includes("PR #872") ||
@@ -330,7 +331,7 @@ function assertPacketBehavior() {
   assert.ok(
     builtByProfile
       .get("release_readiness_review")
-      .plain_text.includes("No release, deploy, or publish behavior."),
+      .plain_text.includes("release, deploy, and publish execution remain out of scope."),
     "release readiness review must preserve release boundary",
   );
   assert.ok(

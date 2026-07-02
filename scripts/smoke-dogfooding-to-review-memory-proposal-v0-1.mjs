@@ -23,8 +23,8 @@ const dogfoodingSmokePath =
 const docsPath = "docs/DOGFOODING_TO_REVIEW_MEMORY_PROPOSAL_V0_1.md";
 const handoffDocsPath = "docs/CONVERSATION_HANDOFF_FROM_DOGFOODING_RECORD_V0_1.md";
 const dogfoodingDocsPath = "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
-const reconciliationDocsPath =
-  "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
+const activePostureDocsPath =
+  "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 
@@ -95,28 +95,15 @@ const requiredHelperExports = [
 const requiredDocsPhrases = [
   "PR #868 is treated as the frozen web baseline.",
   "PR #874 provides dogfooding record to handoff packet binding context.",
-  "This slice adds no UI, components, route model changes, or API routes.",
-  "Dogfooding record to Review Memory proposal is not Review Memory write.",
-  "Dogfooding record to Review Memory proposal is not execution approval.",
-  "Dogfooding record to Review Memory proposal is not truth.",
-  "Dogfooding record to Review Memory proposal is not proof.",
-  "Dogfooding record to Review Memory proposal is not accepted evidence.",
-  "Review Memory proposal is candidate-only.",
-  "Review Memory proposal is not saved Review Memory.",
-  "Operator confirmation is required before any Review Memory write.",
-  "Proposed save_review_note is not Review Memory write.",
-  "Proposed request_more_evidence is not source fetch.",
-  "Proposed mark_needs_followup is not automatic task creation.",
-  "Proposed mark_superseded is not deletion.",
-  "Proposed mark_duplicate is not deletion.",
-  "Changed files are not proof.",
-  "Validation pass is not approval.",
-  "Validation failure is not automatic rejection.",
-  "CI pass is not authority.",
-  "Skipped checks are review context, not failure by themselves.",
-  "Known warnings are review context, not automatic rejection.",
-  "Not-done items are next-task cues, not automatic task creation.",
-  "Expected/observed delta is reconciliation context, not approval or rejection.",
+  "The implemented behavior is deterministic Review Memory proposal candidate generation from caller-provided dogfooding material.",
+  "Review Memory proposals are candidate-only.",
+  "Proposed review actions are suggestions for operator review, not executed actions.",
+  "`docs/AUTHORITY_MATRIX.md`",
+  "Historical Follow-Up Metadata",
+  "fixture compatibility metadata only",
+  "`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`",
+  "defines development posture, not PR sequencing authority",
+  "new slice selection must come from explicit operator task prompts",
   "`local_data_export_manifest_builder_v0_1`",
 ];
 
@@ -159,7 +146,7 @@ for (const requiredPath of [
   docsPath,
   handoffDocsPath,
   dogfoodingDocsPath,
-  reconciliationDocsPath,
+  activePostureDocsPath,
   packagePath,
   indexPath,
 ]) {
@@ -224,7 +211,7 @@ function assertFixtureVersions() {
     ],
   );
   assert.equal(fixture.post_868_boundary.pr_868_is_frozen_web_baseline, true);
-  assert.equal(fixture.post_868_boundary.ui_in_scope, false);
+  assert.equal(fixture.post_868_boundary.ui_browser_work_outside_non_ui_matrix, true);
   assert.equal(fixture.post_868_boundary.review_memory_write_in_scope, false);
 }
 
@@ -392,7 +379,7 @@ function assertMultipleRecordBehavior() {
   );
   assert.ok(
     first.proposal.reason_codes.includes(
-      "expected_observed_delta_refs_preserved_as_reconciliation_context",
+      "expected_observed_delta_refs_preserved_as_review_context",
     ),
   );
   assertNoExecutionFlags(first);

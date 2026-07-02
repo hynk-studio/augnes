@@ -23,8 +23,8 @@ const packetDocsPath = "docs/CONVERSATION_HANDOFF_PACKET_BUILDER_V0_2.md";
 const dogfoodingDocsPath = "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
 const codexBindingDocsPath =
   "docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md";
-const reconciliationDocsPath =
-  "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
+const activePostureDocsPath =
+  "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 
@@ -93,30 +93,17 @@ const requiredHelperExports = [
 const requiredDocsPhrases = [
   "PR #868 is treated as the frozen web baseline.",
   "PR #873 provides the conversation handoff packet builder used by this slice.",
-  "This slice adds no UI, components, route model changes, or API routes.",
-  "Dogfooding record to handoff packet is not execution approval.",
-  "Dogfooding record to handoff packet is not truth.",
-  "Dogfooding record to handoff packet is not proof.",
-  "Dogfooding record to handoff packet is not accepted evidence.",
-  "Dogfooding record to handoff packet is not Review Memory write.",
-  "Dogfooding record to handoff packet is not promotion.",
-  "Dogfooding record to handoff packet is not Formation Receipt.",
-  "Dogfooding record to handoff packet is not durable Perspective state.",
-  "Dogfooding record to handoff packet is not product-write.",
-  "Handoff packet is candidate-only conversation/workflow guidance.",
-  "Dogfooding record is candidate-only review material.",
-  "Changed files are not proof.",
-  "Observed files are not proof.",
-  "Validation pass is not approval.",
-  "Validation failure is not automatic rejection.",
-  "CI pass is not authority.",
-  "Skipped checks are review context, not failure by themselves.",
-  "Known warnings are review context, not automatic rejection.",
-  "Not-done items are next-task cues, not automatic task creation.",
-  "Expected/observed delta is reconciliation context, not approval or rejection.",
-  "Next recommended slice is not execution approval.",
-  "`no_next_slice_v0_3_core_sequence_complete_pending_operator_decision` is preserved as a cue only.",
+  "The implemented behavior is deterministic conversion from caller-provided dogfooding material into handoff packet input.",
+  "Dogfooding-to-handoff conversion produces candidate-only conversation/workflow guidance.",
+  "Dogfooding records, PR bodies, changed files, observed files, validation/CI results, skipped checks, known warnings, not-done items, expected/observed deltas, Review Memory refs, Promotion/Receipt/State refs, Git refs, GitHub refs, and historical next-slice cues remain review references only.",
+  "`docs/AUTHORITY_MATRIX.md`",
+  "Historical Follow-Up Metadata",
+  "fixture compatibility metadata only",
+  "`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`",
+  "defines development posture, not PR sequencing authority",
+  "new slice selection must come from explicit operator task prompts",
   "`dogfooding_record_to_review_memory_proposal_v0_1`",
+  "`no_next_slice_v0_3_core_sequence_complete_pending_operator_decision`",
 ];
 
 const forbiddenHelperSnippets = [
@@ -156,7 +143,7 @@ for (const requiredPath of [
   packetDocsPath,
   dogfoodingDocsPath,
   codexBindingDocsPath,
-  reconciliationDocsPath,
+  activePostureDocsPath,
   packagePath,
   indexPath,
 ]) {
@@ -173,7 +160,7 @@ const docsText = read(docsPath);
 const packetDocsText = read(packetDocsPath);
 const dogfoodingDocsText = read(dogfoodingDocsPath);
 const codexBindingDocsText = read(codexBindingDocsPath);
-const reconciliationDocsText = read(reconciliationDocsPath);
+const activePostureDocsText = read(activePostureDocsPath);
 const packageJson = JSON.parse(read(packagePath));
 const indexText = read(indexPath);
 const packetSmokeText = read(packetSmokePath);
@@ -223,7 +210,7 @@ function assertFixtureVersions() {
     "/perspective",
     "/workbench",
   ]);
-  assert.equal(fixture.post_868_boundary.ui_in_scope, false);
+  assert.equal(fixture.post_868_boundary.ui_browser_work_outside_non_ui_matrix, true);
   assert.equal(fixture.post_868_boundary.route_in_scope, false);
   assert.equal(fixture.post_868_boundary.db_in_scope, false);
 }
@@ -257,9 +244,9 @@ function assertStaticCoverage() {
     "dogfooding research record type must remain present",
   );
   assert.ok(
-    reconciliationDocsText.includes("Core first") &&
-      reconciliationDocsText.includes("Web last"),
-    "post-868 reconciliation must preserve Core/Web direction",
+    activePostureDocsText.includes("functional goal completion") &&
+      activePostureDocsText.includes("behavior-focused tests"),
+    "active posture docs must preserve implementation-first defaults",
   );
   assert.ok(
     packetDocsText.includes("Conversation Handoff Packet Builder v0.2"),
@@ -267,13 +254,15 @@ function assertStaticCoverage() {
   );
   assert.ok(
     dogfoodingDocsText.includes("Dogfooding research record is candidate-only review material."),
-    "dogfooding docs must preserve candidate-only boundary",
+    "dogfooding docs must describe candidate review material behavior",
   );
   assert.ok(
     codexBindingDocsText
       .replace(/\s+/g, " ")
-      .includes("Codex reports become candidate-only dogfooding research record input."),
-    "codex binding docs must preserve candidate-only boundary",
+      .includes(
+        "The implemented behavior is deterministic conversion from normalized Codex report material into candidate-only dogfooding research record input.",
+      ),
+    "codex binding docs must describe implemented conversion behavior",
   );
   for (const phrase of requiredDocsPhrases) {
     assertIncludesNormalized(docsText, phrase, `docs phrase ${phrase}`);
@@ -366,13 +355,13 @@ function assertMultipleRecordBehavior() {
   );
   assert.ok(
     first.packet_input.expected_observed_delta.some((item) =>
-      item.includes("reconciliation context"),
+      item.includes("review context"),
     ),
-    "expected/observed delta refs must remain reconciliation context",
+    "expected/observed delta refs must remain review context",
   );
   assert.ok(
     !first.packet_input.observed_checks.some((item) =>
-      item.includes("reconciliation context"),
+      item.includes("review context"),
     ),
     "expected/observed delta must stay distinct from validation status",
   );

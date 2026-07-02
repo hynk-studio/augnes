@@ -1,6 +1,6 @@
 # Release Readiness Matrix Post-#868 Non-UI v0.1
 
-This matrix is repo-grounded, review-only, and non-executing. PR #868 is
+This matrix is repo-grounded and review-oriented. PR #868 is
 treated as the frozen web baseline: `/` is the public Augnes surface,
 `/perspective` is Perspective detail, and `/workbench` is Cockpit/workbench.
 PR #878 provides selected runtime audit event store context.
@@ -8,16 +8,15 @@ This matrix is a static repo-grounded artifact. Its authority coverage is
 verified by fixture fields and smoke assertions, not by a callable runtime
 phrase blocker.
 
-This slice adds no UI, components, route model changes, routes, broad route
-instrumentation, DB migrations, global DB config, local file reads or writes,
-provider calls, retrieval execution, source fetch, product-write, Git/GitHub
-actuation, release, deploy, or publish behavior.
+Implemented behavior: a static matrix, fixture, and smoke that summarize the
+current non-UI implementation chain, active development posture, and
+blocked-by-design surfaces with semantically specific repo refs.
 
 ## Summary
 
-The v0.3 non-UI core/handoff/conversation sequence through selected runtime
-audit event store is implemented as repo artifacts. This matrix records that
-state for operator review and next planning only.
+The v0.3 non-UI dogfooding, handoff, export, and audit chain through selected
+runtime audit event store is implemented as repo artifacts. This matrix records
+that state for operator review and active development posture context.
 
 Release readiness matrix is not release approval. Release readiness matrix is
 not deploy approval. Release readiness matrix is not publish approval. Release
@@ -30,9 +29,9 @@ Product-write, GitHub/Git actuation, live provider calls, source fetch,
 retrieval expansion, and release/deploy/publish execution remain blocked unless
 separately approved. UI, Cockpit, browser-validation-only, public-surface,
 route IA polish, mobile viewport polish, and read/display-only UI expansion
-remain Web-last backlog.
+remain outside this non-UI matrix.
 
-Next recommended slice:
+Historical closeout cue:
 `no_next_slice_v0_3_core_sequence_complete_pending_operator_decision`.
 
 ## Matrix Rows
@@ -40,7 +39,7 @@ Next recommended slice:
 | Row | Classification | Repo-grounded status |
 | --- | --- | --- |
 | #868 frozen web baseline | `implemented_non_ui` | Route model baseline remains frozen for `/`, `/perspective`, and `/workbench`. |
-| Post-#868 non-UI runtime gap reconciliation | `ready_for_next_planning` | Reconciliation selected the Phase 1 non-UI sequence and moved web work to Web-last backlog. |
+| Active development completion posture | `active_development_default` | Functional completion, measurable capability and performance improvement, and behavior-focused tests are the active defaults. |
 | Dogfooding research record runtime | `implemented_non_ui` | Candidate-only record runtime, store, and same-origin route exist. |
 | Codex result to dogfooding record binding | `implemented_non_ui` | Codex report material can become candidate-only dogfooding record input. |
 | Conversation handoff packet builder | `implemented_non_ui` | Deterministic plain-text packet builder exists without execution behavior. |
@@ -57,7 +56,7 @@ Next recommended slice:
 | Source fetch blocked status | `blocked_by_design` | Source fetch remains blocked in this sequence. |
 | Retrieval expansion blocked status | `blocked_by_design` | Retrieval expansion remains blocked in this sequence. |
 | Release/deploy/publish blocked status | `blocked_by_design` | Release, deploy, and publish execution remain blocked. |
-| Web-last backlog frozen status | `web_last_backlog` | UI/Cockpit/browser/public-surface work stays Web last. |
+| Outside-matrix UI/browser status | `outside_non_ui_matrix` | UI/Cockpit/browser/public-surface work is outside this non-UI matrix and needs explicit implementation scope. |
 | Skipped checks and reason | `skipped_with_reason` | Browser/release/deploy checks are out of scope for this static non-UI matrix. |
 | Known warnings | `warning_observed` | Known Node runtime warnings from relevant smokes remain review context only. |
 | Not-done items | `incomplete` | Product, web, release, provider, retrieval, source-fetch, and write paths are not completed here. |
@@ -68,32 +67,21 @@ Next recommended slice:
 ## Review Context
 
 Skipped checks are review context, not failure by themselves. Known warnings are
-review context, not automatic rejection. Not-done items are next-planning cues,
-not automatic task creation. Blocked capability remains blocked. Web-last
-backlog remains frozen unless separately approved. Explicit reentry backlog
-remains blocked unless separately approved. Next recommended slice is not
+review context, not automatic rejection. Not-done items are follow-up cues, not
+automatic task creation. Blocked capability remains blocked. UI/browser work is
+outside this non-UI matrix unless separately scoped. Explicit reentry backlog
+remains blocked unless separately approved. Historical closeout cues are not
 execution approval.
 
 Smoke pass is not evidence. CI pass is not authority. Validation pass is not
 approval. Validation failure is not automatic rejection.
 
-## Forbidden Capabilities
+## Source Authority
 
-This matrix does not add UI, components, Cockpit changes, public-surface
-changes, route model changes for `/`, `/perspective`, or `/workbench`,
-browser-validation-only work, new API routes, broad route instrumentation, DB
-migrations, global DB config, DB reads, DB writes, local file reads, local file
-writes, import apply, provider/OpenAI calls, prompt sending, source fetch,
-retrieval execution, retrieval index writes, raw request body storage, raw
-response body storage, raw terminal log storage, raw source body storage, raw
-provider output storage, raw retrieval output storage, raw DB row storage, raw
-conversation storage, hidden reasoning storage, proof/evidence creation,
-claim/evidence writes, Review Memory writes, promotion execution, Formation
-Receipt writes, durable Perspective state apply, product-write, product ID
-allocation, Codex execution from Augnes runtime, GitHub API calls from Augnes
-runtime, Git branch/commit/PR creation from Augnes runtime, Git/GitHub
-actuation from Augnes runtime, tag creation, release, deploy, or publish
-behavior.
+This matrix is a static summary artifact. Active completion posture is sourced
+from `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`; actor authority and
+blocked-by-design surfaces are sourced from `docs/AUTHORITY_MATRIX.md`; each
+implemented row points to its own behavior doc, fixture, and smoke.
 
 ## Files
 

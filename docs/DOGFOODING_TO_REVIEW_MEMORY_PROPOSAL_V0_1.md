@@ -8,7 +8,8 @@ candidate.
 
 PR #868 is treated as the frozen web baseline. `/` is the public Augnes surface,
 `/perspective` is Perspective detail, and `/workbench` is Cockpit/workbench.
-This slice adds no UI, components, route model changes, or API routes.
+The implemented behavior is deterministic Review Memory proposal candidate
+generation from caller-provided dogfooding material.
 
 PR #874 provides dogfooding record to handoff packet binding context. This
 helper is a proposal-builder layer only. It does not call the Review Memory
@@ -36,7 +37,7 @@ file refs.
 - skipped check refs remain validation caveat and review context
 - known warning refs remain warning review context
 - not-done refs become follow-up proposal cues only
-- expected/observed delta refs remain reconciliation review context
+- expected/observed delta refs remain review context
 - review cues may inform proposed review actions or rationale, not commands
 - authority boundary fields remain non-authority context
 - reason codes remain proposal rationale only, not proof
@@ -79,43 +80,16 @@ not saved Review Memory.
 
 ## Authority Boundary
 
-Dogfooding record to Review Memory proposal is not Review Memory write.
-Dogfooding record to Review Memory proposal is not execution approval.
-Dogfooding record to Review Memory proposal is not truth.
-Dogfooding record to Review Memory proposal is not proof.
-Dogfooding record to Review Memory proposal is not accepted evidence.
-Review Memory proposal is candidate-only.
-Review Memory proposal is not saved Review Memory.
-Review Memory proposal is not promotion.
-Review Memory proposal is not Formation Receipt.
-Review Memory proposal is not durable Perspective state.
-Review Memory proposal is not product-write.
-Operator confirmation is required before any Review Memory write.
-Proposed review action is not executed action.
-Proposed save_review_note is not Review Memory write.
-Proposed request_more_evidence is not source fetch.
-Proposed mark_needs_followup is not automatic task creation.
-Proposed mark_validation_incomplete is not validation failure.
-Proposed mark_superseded is not deletion.
-Proposed mark_duplicate is not deletion.
-Proposed prepare_handoff_later is not execution approval.
-PR body is not truth.
-Changed files are not proof.
-Observed files are not proof.
-Validation pass is not approval.
-Validation failure is not automatic rejection.
-Smoke pass is not evidence.
-Smoke failure is diagnostic, not automatic rejection.
-CI pass is not authority.
-CI failure is diagnostic, not automatic rejection.
-Skipped checks are review context, not failure by themselves.
-Known warnings are review context, not automatic rejection.
-Not-done items are next-task cues, not automatic task creation.
-Expected/observed delta is reconciliation context, not approval or rejection.
-Review Memory refs are references only.
-Promotion/Receipt/State refs are references only unless separately executed by
-an approved existing runtime.
-Git refs and GitHub PR refs are references only.
+Review Memory proposals are candidate-only. The helper does not save Review
+Memory or grant execution approval, proof, accepted evidence, promotion,
+Formation Receipt, durable state, product-write, Git/GitHub, release, deploy,
+or publish authority.
+
+Proposed review actions are suggestions for operator review, not executed
+actions. PR bodies, changed/observed files, validation/CI results, skipped
+checks, known warnings, not-done items, expected/observed deltas, Review Memory
+refs, Promotion/Receipt/State refs, Git refs, and GitHub refs remain review
+references only.
 
 ## Privacy Boundary
 
@@ -130,17 +104,11 @@ Public-safe refs may be preserved as references only.
 
 ## Forbidden Capabilities
 
-This slice adds no UI, components, Cockpit changes, public-surface changes,
-route model changes for `/`, `/perspective`, or `/workbench`, browser
-validation-only work, new API route, DB migrations, DB writes, direct DB reads,
-provider/OpenAI calls, prompt sending, source fetch, retrieval execution,
-retrieval index writes, proof/evidence creation, claim/evidence writes, Review
-Memory writes, promotion execution, promotion decisions from dogfooding/CI/smoke
-automatically, Formation Receipt writes, durable Perspective state apply,
-product-write, product ID allocation, Codex execution from Augnes runtime,
-GitHub API calls from Augnes runtime, Git branch/commit/PR creation from Augnes
-runtime, Git/GitHub actuation from Augnes runtime, release, deploy, or publish
-behavior.
+This helper only builds Review Memory proposal candidates from caller-provided
+public-safe dogfooding material. It does not save Review Memory or add UI,
+route, DB access, provider, retrieval, product-write, Git/GitHub, release,
+deploy, or publish behavior. Detailed actor authority remains in
+`docs/AUTHORITY_MATRIX.md`.
 
 ## Fixture And Smoke
 
@@ -153,7 +121,11 @@ authority blocking, allowed negated boundary wording, and no-execution flags.
 determinism, mapping, proposed action boundaries, private/raw blocking without
 unsafe echo, forbidden authority blocking, and exact changed-file scope.
 
-## Next
+## Historical Follow-Up Metadata
 
-Next recommended slice:
 `local_data_export_manifest_builder_v0_1`.
+
+This ID is retained as fixture compatibility metadata only.
+`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md` defines development
+posture, not PR sequencing authority; new slice selection must come from
+explicit operator task prompts.

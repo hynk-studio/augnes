@@ -7,7 +7,8 @@ contract and store/helper for public-safe audit event summaries.
 
 PR #868 is treated as the frozen web baseline. `/` is the public Augnes surface,
 `/perspective` is Perspective detail, and `/workbench` is Cockpit/workbench.
-This slice adds no UI, components, route model changes, or API routes.
+The implemented behavior is selected public-safe audit event persistence through
+caller-injected local test DB handles.
 
 PR #877 provides Git Ledger packet candidate context. This slice can record
 public-safe audit summaries from selected write-capable or candidate-generating
@@ -33,12 +34,9 @@ schema SQL string, an explicit schema ensure helper, a schema exists helper,
 build/create/read/list helpers, and deterministic fingerprint/idempotency
 helpers.
 
-This slice adds no route.
-
-This slice adds no broad all-route instrumentation.
-
-Existing runtime audit route-instrumentation files remain prior lineage and are
-not expanded by this slice.
+Route instrumentation remains outside this selected store. Existing runtime
+audit route-instrumentation files remain prior lineage and are not expanded by
+this slice.
 
 ## Event Kinds
 
@@ -85,63 +83,14 @@ No migration file or global DB config is added.
 
 ## Authority Boundary
 
-Audit event is not proof.
+Selected audit events are public-safe runtime summaries. They do not grant
+proof, accepted evidence, approval, truth, product readiness, release readiness,
+Review Memory, promotion, Formation Receipt, durable state, product-write,
+Git/GitHub, source fetch, provider, retrieval, or raw log storage authority.
 
-Audit event is not accepted evidence.
-
-Audit event is not approval.
-
-Audit event is not truth.
-
-Audit event is not product readiness.
-
-Audit event is not release readiness.
-
-Audit event is not Review Memory write.
-
-Audit event is not promotion.
-
-Audit event is not Formation Receipt.
-
-Audit event is not durable Perspective state.
-
-Audit event is not product-write.
-
-Audit event is not Git/GitHub actuation.
-
-Audit event is not source fetch.
-
-Audit event is not provider call.
-
-Audit event is not retrieval execution.
-
-Audit event is not raw log storage.
-
-Audit event fingerprint is not proof.
-
-Audit event fingerprint is not approval.
-
-Linked refs are references only.
-
-Validation pass is not approval.
-
-Validation failure is not automatic rejection.
-
-Smoke pass is not evidence.
-
-Smoke failure is diagnostic, not automatic rejection.
-
-CI pass is not authority.
-
-CI failure is diagnostic, not automatic rejection.
-
-Skipped checks are review context, not failure by themselves.
-
-Known warnings are review context, not automatic rejection.
-
-Not-done items are next-task cues, not automatic task creation.
-
-Expected/observed delta is reconciliation context, not approval or rejection.
+Event fingerprints, linked refs, validation/CI results, skipped checks, known
+warnings, not-done items, and expected/observed deltas remain review references
+only.
 
 ## Privacy Boundary
 
@@ -159,18 +108,11 @@ canonical labels.
 
 ## Forbidden Capabilities
 
-This slice adds no UI, components, Cockpit changes, public-surface changes,
-route model changes for `/`, `/perspective`, or `/workbench`, browser
-validation-only work, new API route, broad all-route instrumentation, DB
-migrations, global DB config, local file writes, local file reads, import apply,
-provider/OpenAI calls, prompt sending, source fetch, retrieval execution,
-retrieval index writes, raw request body storage, raw response body storage,
-raw terminal log storage, proof/evidence creation, claim/evidence writes,
-Review Memory writes, promotion execution, promotion decisions from audit
-events automatically, Formation Receipt writes, durable Perspective state
-apply, product-write, product ID allocation, Codex execution from Augnes
-runtime, GitHub API calls from Augnes runtime, Git/GitHub actuation from Augnes
-runtime, tag creation, release, deploy, or publish behavior.
+This store records selected public-safe audit events through its caller-injected
+local test DB handle. It does not add UI, route instrumentation, global DB
+config, local file IO, provider, retrieval, Review Memory, product-write,
+Git/GitHub, release, deploy, or publish behavior. Detailed actor authority
+remains in `docs/AUTHORITY_MATRIX.md`.
 
 DB writes and reads are limited to this audit event store with a caller-injected
 local test DB handle.
@@ -188,7 +130,11 @@ conflicting event behavior, selected blocked event representation, private/raw
 blocking without unsafe echo, forbidden authority blocking, read/list
 boundaries, no-execution flags, and exact changed-file scope.
 
-## Next
+## Historical Follow-Up Metadata
 
-Next recommended slice:
 `release_readiness_matrix_post_868_non_ui_v0_1`.
+
+This ID is retained as fixture compatibility metadata only.
+`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md` defines development
+posture, not PR sequencing authority; new slice selection must come from
+explicit operator task prompts.

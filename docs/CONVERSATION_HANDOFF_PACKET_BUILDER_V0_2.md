@@ -7,7 +7,7 @@ building plain-text handoff packets from caller-provided public-safe summaries.
 
 PR #868 is treated as the frozen web baseline. `/` is the public Augnes surface,
 `/perspective` is Perspective detail, and `/workbench` is Cockpit/workbench.
-This slice adds no UI and no route model change.
+The implemented behavior is deterministic public-safe handoff text generation.
 
 PR #872 provides Codex result to dogfooding record binding context for handoff.
 The builder can reference dogfooding record refs supplied by the caller, but it
@@ -82,28 +82,14 @@ Available sections:
 
 ## Authority Boundary
 
-Handoff packet is not execution approval.
-Handoff packet is not truth.
-Handoff packet is not proof.
-Handoff packet is not accepted evidence.
-Expected files are not write authority.
-Observed files are not proof.
-Expected checks are not proof.
-Observed checks are not approval.
-Validation pass is not approval.
-Validation failure is not automatic rejection.
-Smoke pass is not evidence.
-Smoke failure is diagnostic, not automatic rejection.
-CI pass is not authority.
-CI failure is diagnostic, not automatic rejection.
-PR body is not authority.
-Codex report is not execution approval.
-Dogfooding record is candidate-only review material.
-Review Memory refs are references only.
-Promotion/Receipt/State refs are references only unless separately executed by
-an approved existing runtime.
-Git refs and GitHub PR refs are references only.
-Next recommended slice is not execution approval.
+Handoff packets are candidate-only conversation/workflow guidance. They do not
+grant execution approval, proof, accepted evidence, write authority, Review
+Memory, promotion, Formation Receipt, durable state, product-write, Git/GitHub,
+release, deploy, or publish authority.
+
+Expected files, observed files, checks, PR bodies, Codex reports, dogfooding
+records, Review Memory refs, Promotion/Receipt/State refs, Git refs, GitHub refs,
+and historical next-slice cues remain review references only.
 
 Forbidden positive authority string shortcuts are blocked without raw value echo.
 The blocked shortcut coverage includes validation pass/failure, smoke
@@ -125,15 +111,10 @@ keys. Opaque connector IDs and uploaded-file IDs are not canonical labels.
 
 ## Forbidden Capabilities
 
-This slice does not add UI, components, Cockpit changes, public-surface changes,
-route model changes for `/`, `/perspective`, or `/workbench`, browser
-validation-only work, API routes, DB migrations, provider/OpenAI calls, prompt
-sending, source fetch, retrieval execution, retrieval index writes,
-proof/evidence creation, claim/evidence writes, Review Memory writes, promotion
-execution, Formation Receipt writes, durable Perspective state apply,
-product-write, product ID allocation, Codex execution from Augnes runtime,
-GitHub API calls from Augnes runtime, Git/GitHub actuation from Augnes runtime,
-release, deploy, or publish behavior.
+This builder only produces deterministic public-safe handoff text from
+caller-provided summaries. It does not add UI, route, storage, provider,
+retrieval, Review Memory, product-write, Git/GitHub, release, deploy, or publish
+behavior. Detailed actor authority remains in `docs/AUTHORITY_MATRIX.md`.
 
 ## Fixture And Smoke
 
@@ -147,7 +128,11 @@ output, profile behavior, unchanged authority strength across profiles,
 privacy/authority blocking without unsafe echo, no execution flags, package and
 index pointers, and exact changed-file scope for this slice.
 
-## Next
+## Historical Follow-Up Metadata
 
-Next recommended slice:
 `conversation_handoff_packet_from_dogfooding_record_v0_1`.
+
+This ID is retained as fixture compatibility metadata only.
+`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md` defines development
+posture, not PR sequencing authority; new slice selection must come from
+explicit operator task prompts.

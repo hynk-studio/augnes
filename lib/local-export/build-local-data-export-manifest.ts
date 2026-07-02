@@ -235,36 +235,10 @@ const profileItemOrder: Record<
 };
 
 const defaultForbiddenCapabilities = [
-  "No UI.",
-  "No components.",
-  "No Cockpit changes.",
-  "No public surface changes.",
-  "No route model changes for /, /perspective, or /workbench.",
-  "No browser validation-only work.",
-  "No new API route.",
-  "No DB migrations.",
-  "No DB writes.",
-  "No direct DB reads.",
-  "No local file write.",
-  "No local file read.",
-  "No import apply.",
-  "No provider/OpenAI calls.",
-  "No prompt sending.",
-  "No source fetch.",
-  "No retrieval execution.",
-  "No retrieval index write.",
-  "No proof/evidence creation.",
-  "No claim/evidence writes.",
-  "No Review Memory write.",
-  "No promotion execution.",
-  "No Formation Receipt write.",
-  "No durable Perspective state apply.",
-  "No product-write.",
-  "No product ID allocation.",
-  "No Codex execution from Augnes runtime.",
-  "No GitHub API calls from Augnes runtime.",
-  "No Git/GitHub actuation from Augnes runtime.",
-  "No release, deploy, or publish behavior.",
+  "Local export manifest candidate only.",
+  "UI, route, DB, provider, retrieval, source-fetch, local file IO, and import apply remain out of scope.",
+  "Review Memory, proof/evidence, promotion, Formation Receipt, durable state, and product-write remain out of scope.",
+  "Codex, GitHub, Git, release, deploy, and publish execution remain out of scope.",
 ] as const;
 
 const defaultReasonCodes = [
@@ -294,7 +268,7 @@ const defaultReasonCodes = [
   "skipped_checks_review_context_only",
   "known_warnings_review_context_only",
   "not_done_items_next_task_cues_only",
-  "expected_observed_delta_reconciliation_context",
+  "expected_observed_delta_review_context",
   "manifest_fingerprint_not_proof",
   "manifest_fingerprint_not_approval",
   "manifest_status_not_product_or_release_readiness",
@@ -1097,7 +1071,7 @@ function reasonCodesForItemKind(itemKind: LocalDataExportManifestItemKindV01): s
     skipped_check_ref: ["skipped_checks_review_context_only"],
     known_warning_ref: ["known_warnings_review_context_only"],
     not_done_ref: ["not_done_items_next_task_cues_only"],
-    expected_observed_delta_ref: ["expected_observed_delta_reconciliation_context"],
+    expected_observed_delta_ref: ["expected_observed_delta_review_context"],
   };
   return uniqueSortedStrings([...base, ...byKind[itemKind]]);
 }

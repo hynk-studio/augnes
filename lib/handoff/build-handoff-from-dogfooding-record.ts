@@ -197,45 +197,22 @@ const defaultCreatedAt = "1970-01-01T00:00:00.000Z" as const;
 
 const defaultCurrentBaseline = [
   "#868 is the frozen web baseline for /, /perspective, and /workbench.",
-  "#870 added post-868 non-UI runtime gap reconciliation.",
+  "#870 through #878 added the non-UI dogfooding, handoff, export, and audit behavior sequence.",
   "#871 added dogfooding research records as candidate-only review material.",
   "#872 added Codex result report to dogfooding research record binding.",
   "#873 added the deterministic conversation handoff packet builder used by this slice.",
 ] as const;
 
 const defaultProjectContext = [
-  "Augnes remains Core first, Handoff first, Conversation first, Web last.",
+  "Augnes active development favors functional completion, measurable capability and performance improvement, and behavior-focused tests.",
   "Dogfooding records become candidate-only handoff packet input, not execution approval.",
 ] as const;
 
 const defaultForbiddenCapabilities = [
-  "No UI.",
-  "No components.",
-  "No Cockpit changes.",
-  "No public surface changes.",
-  "No route model changes for /, /perspective, or /workbench.",
-  "No browser validation-only work.",
-  "No new API route.",
-  "No DB migrations.",
-  "No DB writes.",
-  "No direct DB reads.",
-  "No provider/OpenAI calls.",
-  "No prompt sending.",
-  "No source fetch.",
-  "No retrieval execution.",
-  "No retrieval index write.",
-  "No proof/evidence creation.",
-  "No claim/evidence writes.",
-  "No Review Memory write.",
-  "No promotion execution.",
-  "No Formation Receipt write.",
-  "No durable Perspective state apply.",
-  "No product-write.",
-  "No product ID allocation.",
-  "No Codex execution from Augnes runtime.",
-  "No GitHub API calls from Augnes runtime.",
-  "No Git/GitHub actuation from Augnes runtime.",
-  "No release, deploy, or publish behavior.",
+  "Dogfooding-to-handoff mapping only.",
+  "UI, route, DB, provider, retrieval, and source-fetch work remain out of scope.",
+  "Review Memory, proof/evidence, promotion, Formation Receipt, durable state, and product-write remain out of scope.",
+  "Codex, GitHub, Git, release, deploy, and publish execution remain out of scope.",
 ] as const;
 
 const defaultStopConditions = [
@@ -594,7 +571,7 @@ function buildPacketInput(
     ...normalized.summary_fields.expected_observed_delta,
     ...normalized.records.flatMap((record) =>
       record.expected_observed_delta_refs.map(
-        (ref) => `${ref} remains reconciliation context, not approval or rejection.`,
+        (ref) => `${ref} remains review context, not approval or rejection.`,
       ),
     ),
   ]);

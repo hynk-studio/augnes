@@ -27,8 +27,8 @@ const codexBindingSmokePath =
 const dogfoodingSmokePath =
   "scripts/smoke-dogfooding-research-record-runtime-v0-1.mjs";
 const proposalDocsPath = "docs/DOGFOODING_TO_REVIEW_MEMORY_PROPOSAL_V0_1.md";
-const reconciliationDocsPath =
-  "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
+const activePostureDocsPath =
+  "docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md";
 
 const fixtureVersion = "local_data_export_manifest_builder.sample.v0.1";
 const manifestVersion = "local_data_export_manifest_candidate.v0.1";
@@ -92,25 +92,15 @@ const requiredHelperExports = [
 const requiredDocsPhrases = [
   "PR #868 is treated as the frozen web baseline.",
   "PR #875 provides dogfooding to Review Memory proposal context.",
-  "This slice adds no UI, components, route model changes, or API routes.",
-  "Local data export manifest is candidate-only.",
-  "Local data export manifest is not an export file.",
-  "Local data export manifest is not file write approval.",
-  "Local data export manifest is not import approval.",
-  "Manifest fingerprint is not proof.",
-  "Manifest fingerprint is not approval.",
-  "Manifest status is not product/release readiness.",
-  "Export item summary is not raw data.",
-  "Import preview is not import apply.",
-  "Review Memory summaries are references only.",
-  "Review Memory proposals are candidate-only.",
-  "Validation pass is not approval.",
-  "Validation failure is not automatic rejection.",
-  "CI pass is not authority.",
-  "Skipped checks are review context, not failure by themselves.",
-  "Known warnings are review context, not automatic rejection.",
-  "Not-done items are next-task cues, not automatic task creation.",
-  "Expected/observed delta is reconciliation context, not approval or rejection.",
+  "The implemented behavior is deterministic local data export manifest candidate generation from caller-provided public-safe summaries.",
+  "Caller supplies all summaries and refs.",
+  "Local data export manifests are candidate-only public-safe summaries.",
+  "`docs/AUTHORITY_MATRIX.md`",
+  "Historical Follow-Up Metadata",
+  "fixture compatibility metadata only",
+  "`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`",
+  "defines development posture, not PR sequencing authority",
+  "new slice selection must come from explicit operator task prompts",
   "`git_ledger_export_manifest_binding_v0_1`",
 ];
 
@@ -166,7 +156,7 @@ for (const requiredPath of [
   codexBindingSmokePath,
   dogfoodingSmokePath,
   proposalDocsPath,
-  reconciliationDocsPath,
+  activePostureDocsPath,
 ]) {
   assert.ok(existsSync(requiredPath), `required path must exist: ${requiredPath}`);
 }
@@ -229,7 +219,7 @@ function assertFixtureVersions() {
     "minimal_public_safe_bundle",
   ]);
   assert.equal(fixture.post_868_boundary.pr_868_is_frozen_web_baseline, true);
-  assert.equal(fixture.post_868_boundary.ui_in_scope, false);
+  assert.equal(fixture.post_868_boundary.ui_browser_work_outside_non_ui_matrix, true);
   assert.equal(fixture.post_868_boundary.file_write_in_scope, false);
   assert.equal(fixture.post_868_boundary.file_read_in_scope, false);
   assert.equal(fixture.post_868_boundary.import_apply_in_scope, false);

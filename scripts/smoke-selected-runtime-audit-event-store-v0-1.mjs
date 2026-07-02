@@ -27,8 +27,7 @@ const codexBindingSmokePath =
 const dogfoodingSmokePath =
   "scripts/smoke-dogfooding-research-record-runtime-v0-1.mjs";
 const privacyGuardPath = "lib/privacy/redaction-guard.ts";
-const reconciliationDocsPath =
-  "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
+const authorityMatrixDocsPath = "docs/AUTHORITY_MATRIX.md";
 const gitLedgerDocsPath =
   "docs/GIT_LEDGER_EXPORT_FROM_LOCAL_MANIFEST_V0_1.md";
 const localExportDocsPath =
@@ -98,18 +97,15 @@ const requiredHelperExports = [
 const requiredDocsPhrases = [
   "PR #868 is treated as the frozen web baseline.",
   "PR #877 provides Git Ledger packet candidate context.",
-  "This slice adds no UI, components, route model changes, or API routes.",
-  "This slice adds no broad all-route instrumentation.",
-  "Audit event is not proof.",
-  "Audit event is not approval.",
-  "Audit event fingerprint is not proof.",
-  "Linked refs are references only.",
-  "Validation pass is not approval.",
-  "Validation failure is not automatic rejection.",
-  "CI pass is not authority.",
-  "Skipped checks are review context, not failure by themselves.",
-  "Known warnings are review context, not automatic rejection.",
-  "Expected/observed delta is reconciliation context, not approval or rejection.",
+  "The implemented behavior is selected public-safe audit event persistence through caller-injected local test DB handles.",
+  "Route instrumentation remains outside this selected store.",
+  "Selected audit events are public-safe runtime summaries.",
+  "`docs/AUTHORITY_MATRIX.md`",
+  "Historical Follow-Up Metadata",
+  "fixture compatibility metadata only",
+  "`docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`",
+  "defines development posture, not PR sequencing authority",
+  "new slice selection must come from explicit operator task prompts",
   "`release_readiness_matrix_post_868_non_ui_v0_1`",
 ];
 
@@ -163,7 +159,7 @@ for (const requiredPath of [
   codexBindingSmokePath,
   dogfoodingSmokePath,
   privacyGuardPath,
-  reconciliationDocsPath,
+  authorityMatrixDocsPath,
   gitLedgerDocsPath,
   localExportDocsPath,
   reviewProposalDocsPath,
@@ -230,7 +226,7 @@ function assertFixtureAndStaticCoverage() {
     "/perspective",
     "/workbench",
   ]);
-  assert.equal(fixture.post_868_boundary.ui_in_scope, false);
+  assert.equal(fixture.post_868_boundary.ui_browser_work_outside_non_ui_matrix, true);
   assert.equal(fixture.post_868_boundary.route_changes_in_scope, false);
   assert.equal(packageJson.scripts?.[packageScriptName], packageScriptValue);
   for (const pointer of [docsPath, fixturePath, smokePath]) {
