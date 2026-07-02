@@ -330,3 +330,11 @@ This slice explicitly does not add:
 Recommended next phase: Legacy Cockpit Shrink Plan v0.1 after metrics
 baseline, if metrics indicate native absorption is ready. If shrink readiness
 is still low, run Longer Augnes-on-Augnes Dogfood v0.1 first.
+
+Follow-on status: Legacy Cockpit Shrink Plan v0.1 is now documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`. The plan records
+capability gates and review criteria only. Metrics remain signals, not shrink
+authority, and cannot delete, hide, disable, or weaken Legacy Cockpit
+compatibility content. Current shrink review still needs more baseline data
+for resume latency and review burden before any future removal PR can be
+reviewed.

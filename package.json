@@ -703,6 +703,7 @@
     "smoke:runner-workplane-metrics-v0-1": "node scripts/smoke-runner-workplane-metrics-v0-1.mjs",
     "dogfood:augnes-on-augnes-v0-1": "tsx --tsconfig tsconfig.json scripts/run-augnes-on-augnes-dogfood-v0-1.mjs",
     "smoke:augnes-on-augnes-dogfood-v0-1": "node scripts/smoke-augnes-on-augnes-dogfood-v0-1.mjs",
+    "smoke:agent-workplane-legacy-cockpit-shrink-plan-v0-1": "node scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
     "smoke:guide-brief-v0-1": "node scripts/smoke-guide-brief-v0-1.mjs",
     "smoke:guide-brief-route-v0-1": "node scripts/smoke-guide-brief-route-v0-1.mjs",
     "smoke:web-guide-panel-v0-1": "node scripts/smoke-web-guide-panel-v0-1.mjs",

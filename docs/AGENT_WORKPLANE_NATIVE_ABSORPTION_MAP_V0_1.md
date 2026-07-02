@@ -22,6 +22,14 @@ as a signal only. It adds no Legacy Cockpit deletion, shrink, execution
 authority, runner behavior, DB write, proof/evidence write, durable memory
 apply, Perspective apply, or delta auto-apply.
 
+Legacy Cockpit Shrink Plan v0.1 is documented in
+`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`. It consumes this
+absorption map as replacement context and defines gates for future review. It
+is not a deletion or shrink slice: no compatibility path is removed, no UI
+behavior changes, and future removal requires a separate PR with browser
+regression, rollback coverage, metrics/dogfood evidence, and explicit human
+approval.
+
 ## Baseline Native Absorption Map
 
 | legacy_capability | inventory_capability_id | native_target | retained_compatibility_path | absorption_status | validation_coverage | next_step |

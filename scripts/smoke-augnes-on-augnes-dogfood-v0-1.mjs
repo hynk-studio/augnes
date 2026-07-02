@@ -41,6 +41,18 @@ const existingFollowOnSmokeFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const followOnLegacyCockpitShrinkPlanFiles = [
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AUGNES_WORKFLOW_METRICS_V0_1.md",
+  "docs/AUGNES_ON_AUGNES_DOGFOOD_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const requiredFiles = [
   typeFile,
   helperFile,
@@ -57,6 +69,7 @@ const requiredFiles = [
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...existingFollowOnSmokeFiles,
+  ...followOnLegacyCockpitShrinkPlanFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
