@@ -229,6 +229,7 @@ const NODE_CONTEXT_SMOKES = [
   "smoke:agent-workplane-panels-v0-1",
   "smoke:agent-workplane-projection-handoff-v0-1",
   "smoke:workplane-runner-deltabatch-integration-v0-1",
+  "smoke:agent-workplane-bridge-trace-detail-v0-1",
 ] as const;
 
 const DEFAULT_AUTHORITY_BOUNDARY: AgentWorkplaneAuthorityBoundary = {
@@ -605,9 +606,15 @@ function validationForPanel(
       "runner_state",
       "runner_delta_batch",
       "trace_bridge",
+      "source_ref_bridge",
     ].includes(panelId)
   ) {
     smokeRefs.add("smoke:agent-workplane-projection-handoff-v0-1");
+  }
+
+  if (panelId === "source_ref_bridge" || panelId === "trace_bridge") {
+    smokeRefs.add("smoke:agent-workplane-bridge-trace-detail-v0-1");
+    smokeRefs.add("smoke:workplane-native-browser-regression-v0-1");
   }
 
   if (
@@ -657,6 +664,12 @@ function debugNotesForPanel(
     context.fallback_reason.delta_projection
   ) {
     notes.push("Fixture fallback disclosure is active for at least one source.");
+  }
+
+  if (panelId === "source_ref_bridge" || panelId === "trace_bridge") {
+    notes.push(
+      "Bridge/trace detail is source-backed read-only context and remains evidence, not shrink authority.",
+    );
   }
 
   return notes;
@@ -755,6 +768,7 @@ function relatedDeltaIdsForPanel(
       "projection_candidates",
       "review_queue",
       "workplane_inspector",
+      "source_ref_bridge",
       "perspective_delta",
       "trace_bridge",
       "trace_diagnostics",
@@ -782,6 +796,7 @@ function relatedBatchIdsForPanel(
       "delta_projection",
       "projected_delta_batch",
       "workplane_inspector",
+      "source_ref_bridge",
       "trace_bridge",
       "trace_diagnostics",
     ].includes(panelId)
@@ -801,6 +816,7 @@ function relatedHandoffRefsForPanel(
       "evidence_handoff",
       "handoff_builder_preview",
       "handoff_context",
+      "source_ref_bridge",
       "legacy_cockpit_compatibility",
     ].includes(panelId)
   ) {

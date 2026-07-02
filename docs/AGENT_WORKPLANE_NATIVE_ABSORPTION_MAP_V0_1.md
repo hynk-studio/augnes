@@ -30,6 +30,14 @@ behavior changes, and future removal requires a separate PR with browser
 regression, rollback coverage, metrics/dogfood evidence, and explicit human
 approval.
 
+Agent Workplane Bridge Trace Detail v0.1 is documented in
+`docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md`. It improves native Source
+Ref Bridge / Trace Bridge absorption with read-only bridge rows, source ref
+kind classification, validation summary detail, evidence refs, diagnostic
+refs, gap details, and browser-regression-visible markers. It does not delete,
+shrink, hide, or disable Legacy Cockpit content and does not authorize a
+shrink candidate.
+
 ## Baseline Native Absorption Map
 
 | legacy_capability | inventory_capability_id | native_target | retained_compatibility_path | absorption_status | validation_coverage | next_step |
@@ -37,7 +45,7 @@ approval.
 | Work Brief | work_brief | Work Queue / Current Objective | `LegacyCockpitCompatibilityPanel` mounting `AugnesCockpit` | partial native replacement exists | `smoke:agent-workplane-shell-v0-1`; `smoke:agent-workplane-panels-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Define exact Work Brief node fields in Agent Workplane Node / Panel Contract v0.1. |
 | Handoff | handoff | Handoff Builder / Handoff Capsule / Codex packet panel | `LegacyCockpitCompatibilityPanel` for current Cockpit copy controls | partial native replacement exists | `smoke:agent-workplane-projection-handoff-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Keep copy/send/execution separation explicit before native retirement. |
 | Perspective | perspective | Current Perspective / Perspective Delta / Timeline context | `LegacyCockpitCompatibilityPanel` for detailed Perspective tab and local preview controls | partial native replacement exists | `smoke:agent-workplane-panels-v0-1`; `smoke:agent-workplane-projection-handoff-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Absorb read-only context first; leave local preview controls in compatibility. |
-| Bridge | bridge | Source Ref Bridge / Trace Bridge | `LegacyCockpitCompatibilityPanel` for Bridge tab matrix | needs native absorption | `smoke:agent-workplane-cockpit-inheritance-v0-1` | Add a native Bridge/Trace node contract before deleting or hiding the Cockpit Bridge tab. |
+| Bridge | bridge | Source Ref Bridge / Trace Bridge | `LegacyCockpitCompatibilityPanel` for Bridge tab matrix | partial native replacement exists | `smoke:agent-workplane-bridge-trace-detail-v0-1`; `smoke:workplane-native-browser-regression-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Keep compatibility until dogfood, metrics, browser regression, rollback, and human review prove no useful Bridge capability loss. |
 | Operator visibility | operator_visibility | Authority / Validation / Debug Inspector | `LegacyCockpitCompatibilityPanel` for Operator tab, local summaries, and controls | partial native replacement exists | `smoke:agent-workplane-panels-v0-1`; `smoke:agent-workplane-cleanup-hardening-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Split read-only operator visibility from local-write controls in the next contract. |
 | Runner outputs | runner_outputs | Runner State / DeltaBatch panel | Runner ledger helpers and `smoke:autonomy-runner-v0-1`; no legacy Cockpit runner panel is deleted | needs native absorption | `smoke:autonomy-runner-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Later PR should add display-only runner-output source mapping, not runner behavior. |
 | Postmortem | postmortem | Run Postmortem panel | `LegacyCockpitCompatibilityPanel` for Session Trace, Evidence Pack, Work events, and temporal review material | needs native absorption | `smoke:agent-workplane-projection-handoff-v0-1`; `smoke:agent-workplane-cockpit-inheritance-v0-1` | Define source-backed postmortem fields before changing UI behavior. |

@@ -9,7 +9,8 @@ Node / Panel Contract v0.1, Recovered Runner DeltaBatch Integration v0.1, and
 GuideBrief Workplane Debug Context v0.1, plus GuideBrief Intent Projection
 v0.1, plus Runner / Workplane Metrics v0.1, plus Longer Augnes-on-Augnes
 Dogfood v0.1, plus Legacy Cockpit Shrink Plan v0.1, plus Workplane Native
-Replacement Browser Regression v0.1.
+Replacement Browser Regression v0.1, plus Agent Workplane Bridge Trace Detail
+v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -120,6 +121,20 @@ not shrink authority. It changes no product UI behavior, adds no route or API
 write route, starts no runner, writes no product DB state, and deletes,
 shrinks, hides, disables, or weakens no Legacy Cockpit functionality.
 
+Agent Workplane Bridge Trace Detail v0.1 is documented in
+`docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md`. `/workbench` now renders a
+read-only `SourceRefBridgeDetailPanel` with
+`data-workplane-bridge-trace-detail-panel="v0.1"` and
+`data-workplane-panel-id="source_ref_bridge"`. It makes Source Ref Bridge,
+Trace Bridge, Bridge matrix rows, source refs, validation summary,
+evidence refs, diagnostic refs, and retained legacy compatibility explicit
+without adding execution authority or shrink authority. It adds no route, API
+write route, server action, chat composer, provider/OpenAI/GitHub/Codex
+execution, runner execution/tick/recovery/scheduled behavior, product DB
+write, proof/evidence write, durable memory apply, Perspective apply, delta
+auto-apply, product UI action authority, or Legacy Cockpit deletion, shrink,
+hiding, or disabling.
+
 ## 2. Surface Model
 
 The route model remains:
@@ -162,6 +177,10 @@ Agent Workplane renders:
 - Workplane Native Replacement Browser Regression v0.1 as a repeatable
   server-rendered HTML/browser evidence check before any shrink candidate, not
   as shrink authority
+- Agent Workplane Bridge Trace Detail v0.1 as a read-only Source Ref Bridge /
+  Trace Bridge panel for bridge rows, source ref kind classification,
+  validation summary, evidence refs, diagnostic refs, and explicit remaining
+  gaps
 - local Augnes-on-Augnes Dogfood report generation through the explicit script
   path, not through product render
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,
@@ -314,6 +333,11 @@ Panel semantics:
   boundary context for projected deltas. It does not add approve, apply, send,
   launch, publish, merge, retry, replay, deploy, save, reset, rollback, or
   persistence controls.
+- Source Ref Bridge detail shows Bridge matrix rows, source ref kinds,
+  validation summary, evidence refs, artifact refs, handoff refs, diagnostic
+  refs, snapshot refs, gap details, and authority boundary notes. It is
+  read-only bridge/trace detail, not execution authority and not shrink
+  authority.
 
 Phase 5B preserves the same no-write, no-execution, no-hidden-authority boundary.
 

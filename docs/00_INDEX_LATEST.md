@@ -287,6 +287,26 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   scheduled behavior, no external authority, no product DB write, no
   proof/evidence write, no durable memory apply, no Perspective apply, no
   delta auto-apply, and no Legacy Cockpit deletion/shrink/hide.
+- `docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md`: Agent Workplane Bridge
+  Trace Detail v0.1 adds native read-only Source Ref Bridge / Trace Bridge
+  detail for `/workbench`. It adds
+  `types/workplane-bridge-trace-detail.ts`,
+  `lib/workplane/workplane-bridge-trace-detail.ts`,
+  `components/workplane/source-ref-bridge-detail-panel.tsx`, and
+  `scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs`. The panel
+  exposes `data-workplane-bridge-trace-detail-panel="v0.1"` and
+  `data-workplane-panel-id="source_ref_bridge"` with Bridge matrix rows,
+  source ref kind classification, validation summary detail, evidence refs,
+  diagnostic refs, gap details, and denied authority copy. It improves
+  Bridge, Source/ref visibility, Validation/smoke visibility, and GuideBrief
+  debug explainability without deleting, shrinking, hiding, or disabling
+  Legacy Cockpit. Browser regression, metrics, and dogfood remain
+  evidence/signals, not shrink authority. It adds no route, API write route,
+  server action, chat composer, provider/OpenAI/GitHub/Codex execution,
+  runner execution/tick/recovery/scheduled behavior, product DB write,
+  proof/evidence write, durable memory apply, Perspective apply, delta
+  auto-apply, localStorage/sessionStorage durable view mode, product UI action
+  authority, or Legacy Cockpit deletion/shrink/hide.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and

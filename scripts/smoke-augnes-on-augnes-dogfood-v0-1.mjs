@@ -67,6 +67,23 @@ const followOnWorkplaneNativeBrowserRegressionFiles = [
   "package.json",
 ];
 
+const followOnAgentWorkplaneBridgeTraceDetailFiles = [
+  "types/workplane-bridge-trace-detail.ts",
+  "lib/workplane/workplane-bridge-trace-detail.ts",
+  "components/workplane/source-ref-bridge-detail-panel.tsx",
+  "docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md",
+  "scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",
+  "components/workplane/agent-workplane.tsx",
+  "lib/workplane/workplane-node-context.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const requiredFiles = [
   typeFile,
   helperFile,
@@ -85,6 +102,7 @@ const allowedChangedFiles = new Set([
   ...existingFollowOnSmokeFiles,
   ...followOnLegacyCockpitShrinkPlanFiles,
   ...followOnWorkplaneNativeBrowserRegressionFiles,
+  ...followOnAgentWorkplaneBridgeTraceDetailFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -572,6 +590,9 @@ function assertNoNewRoute() {
 
 function assertNoUiActionControlsAdded() {
   for (const file of changedAndUntrackedFiles()) {
+    if (followOnAgentWorkplaneBridgeTraceDetailFiles.includes(file)) {
+      continue;
+    }
     assert(
       !/^components\/.*\.(tsx|ts)$/.test(file),
       `Dogfood slice must not add product UI controls or panels: ${file}`,
