@@ -116,6 +116,17 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   scheduling, product DB write, proof/evidence write, durable memory apply,
   Perspective apply, delta auto-apply, new route, `/cockpit` deletion, or
   `components/augnes-cockpit.tsx` deletion.
+- `docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md`: Workplane State Proposal
+  Review v0.1 implements PR 3 of the Legacy Cockpit decomposition program by
+  rendering a native read-only `state_proposal_review` lane in `/workbench`.
+  It preserves field-level proposal diffs, before/after previews, impact,
+  memory proposal review, Perspective lens detail, local draft review, manual
+  preview, manual gravity, formation basis, proposal status history,
+  needs-user-judgment, stale/fallback warnings, source refs, and authority
+  boundary review. It adds no apply/approve/reject/commit authority, provider
+  or GitHub calls, Codex or runner execution, product DB write, proof/evidence
+  write, durable memory apply, Perspective apply, delta auto-apply, new route,
+  `/cockpit` deletion, or `components/augnes-cockpit.tsx` deletion.
 - `docs/AGENT_WORKPLANE_V0_1.md`: Phase 5A read-only Agent Workplane shell
   pointer for reframing `/workbench` as the backend work surface for
   agent/operator Trace context, projection candidates, handoff context,
