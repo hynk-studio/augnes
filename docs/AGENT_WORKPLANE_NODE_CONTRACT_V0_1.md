@@ -31,6 +31,16 @@ contract to explain selected Workplane panels, nodes, and refs. The node
 contract remains the stable identity layer; the debug context remains
 read-only and adds no intent projection or execution authority.
 
+The follow-on GuideBrief Intent Projection v0.1 now consumes this contract
+through GuideBrief Workplane Debug Context to create reversible view
+projections and draft candidate packets. It relies on stable panel IDs such as
+`delta_projection`, `projected_delta_batch`, and `delta_batch` so native Delta
+Projection, projected Delta Batch preview, and recovered runner DeltaBatch
+readback remain distinguishable. The node contract itself remains read-only
+and adds no executable projection, persistent Workplane mode, route, write,
+runner behavior, external authority, durable memory apply, Perspective apply,
+or delta auto-apply.
+
 Exact boundary statement: no GuideBrief debug panel is added, no GuideBrief
 intent projection is added, no new runner execution behavior is added, no
 recovery write behavior is added to Workplane reads, no scheduled runner

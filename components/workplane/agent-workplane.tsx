@@ -7,6 +7,7 @@ import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-polic
 import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
 import { AutonomyRunnerPreflightPreviewPanel } from "@/components/autonomy/autonomy-runner-preflight-preview-panel";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
+import { GuideIntentProjectionPanel } from "@/components/guide/guide-intent-projection-panel";
 import { GuideWorkplaneDebugPanel } from "@/components/guide/guide-workplane-debug-panel";
 import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
 import { HandoffCopyExportPanel } from "@/components/handoff/handoff-copy-export-panel";
@@ -23,6 +24,7 @@ import { ReviewQueueWorkplanePanel } from "@/components/workplane/review-queue-w
 import { RunPostmortemSkeletonPanel } from "@/components/workplane/run-postmortem-skeleton-panel";
 import { RunnerDeltaBatchPanel } from "@/components/workplane/runner-delta-batch-panel";
 import { TraceDiagnosticsPanel } from "@/components/workplane/trace-diagnostics-panel";
+import { WorkplaneIntentModePanel } from "@/components/workplane/workplane-intent-mode-panel";
 import { WorkQueuePanel } from "@/components/workplane/work-queue-panel";
 import { WorkplaneHeader } from "@/components/workplane/workplane-header";
 import { WorkplaneInspector } from "@/components/workplane/workplane-inspector";
@@ -32,9 +34,13 @@ import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-au
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
 import {
   buildGuideWorkplaneDebugContext,
-  GUIDE_WORKPLANE_DEBUG_DEFAULT_SELECTIONS,
 } from "@/lib/guide/guide-workplane-debug-context";
+import {
+  buildWorkplaneIntentProjection,
+  WORKPLANE_INTENT_PROJECTION_DEFAULT_INPUT,
+} from "@/lib/guide/workplane-intent-projection";
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
+import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-view-projection";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
 import { buildAgentWorkplaneNodeContextRead } from "@/lib/workplane/workplane-node-context";
 import type { CSSProperties } from "react";
@@ -128,7 +134,22 @@ export async function AgentWorkplane() {
   const workplaneNodeContext = buildAgentWorkplaneNodeContextRead(context);
   const workplaneDebugContext = buildGuideWorkplaneDebugContext({
     node_context_read: workplaneNodeContext,
-    selection: GUIDE_WORKPLANE_DEBUG_DEFAULT_SELECTIONS.workplane_inspector,
+    selection: {
+      selected_panel_id:
+        WORKPLANE_INTENT_PROJECTION_DEFAULT_INPUT.selected_panel_id,
+      selected_node_id:
+        WORKPLANE_INTENT_PROJECTION_DEFAULT_INPUT.selected_node_id,
+      debug_question: WORKPLANE_INTENT_PROJECTION_DEFAULT_INPUT.debug_question,
+    },
+  });
+  const workplaneIntentProjection = buildWorkplaneIntentProjection({
+    ...WORKPLANE_INTENT_PROJECTION_DEFAULT_INPUT,
+    node_context_read: workplaneNodeContext,
+    debug_context: workplaneDebugContext,
+  });
+  const projectedWorkplaneView = applyWorkplaneViewProjection({
+    projection: workplaneIntentProjection,
+    node_context_read: workplaneNodeContext,
   });
 
   return (
@@ -138,6 +159,11 @@ export async function AgentWorkplane() {
         <WorkplaneOverview context={context} />
         <GuideBriefMiniPanel guideBrief={guideBrief} variant="workbench" />
         <GuideWorkplaneDebugPanel debugContext={workplaneDebugContext} />
+        <GuideIntentProjectionPanel projection={workplaneIntentProjection} />
+        <WorkplaneIntentModePanel
+          projection={workplaneIntentProjection}
+          projectedView={projectedWorkplaneView}
+        />
 
         <section aria-label="Agent Workplane layout" style={layoutStyle}>
           <section aria-label="Agent Workplane panels" style={panelGridStyle}>

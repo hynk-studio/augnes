@@ -150,6 +150,34 @@ const followOnGuideWorkplaneDebugContextFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const followOnGuideBriefIntentProjectionFiles = [
+  "types/workplane-intent-projection.ts",
+  "lib/guide/workplane-intent-projection.ts",
+  "lib/workplane/apply-workplane-view-projection.ts",
+  "components/workplane/workplane-intent-mode-panel.tsx",
+  "components/guide/guide-intent-projection-panel.tsx",
+  "docs/GUIDEBRIEF_INTENT_PROJECTION_V0_1.md",
+  "scripts/smoke-guidebrief-intent-projection-v0-1.mjs",
+  "components/workplane/agent-workplane.tsx",
+  "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
+  "docs/GUIDEBRIEF_WORKPLANE_DEBUG_CONTEXT_V0_1.md",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-guide-workplane-debug-context-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+];
+
 const followOnWebGuidePanelFiles = [
   "components/guide/guide-brief-panel.tsx",
   "components/guide/guide-brief-section.tsx",
@@ -278,6 +306,7 @@ const allowedChangedFiles = new Set([
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnGuideWorkplaneDebugContextFiles,
+  ...followOnGuideBriefIntentProjectionFiles,
   ...followOnWebGuidePanelFiles,
   ...followOnChatgptAppGuideBriefToolFiles,
 ]);

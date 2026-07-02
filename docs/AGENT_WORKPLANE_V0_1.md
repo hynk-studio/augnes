@@ -6,7 +6,8 @@ Status: Phase 5A Agent Workplane Shell, Phase 5B Agent Workplane Panels,
 Phase 5C Agent Workplane Projection / Handoff / Postmortem Skeletons, and
 Phase 5D Agent Workplane Cleanup / Responsive Hardening, plus Agent Workplane
 Node / Panel Contract v0.1, Recovered Runner DeltaBatch Integration v0.1, and
-GuideBrief Workplane Debug Context v0.1.
+GuideBrief Workplane Debug Context v0.1, plus GuideBrief Intent Projection
+v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -56,6 +57,20 @@ GuideBrief intent projection, Workplane intent mode, route, write, execution,
 runner behavior, external authority, durable memory apply, Perspective apply,
 delta auto-apply, or legacy Cockpit deletion.
 
+GuideBrief Intent Projection v0.1 is documented in
+`docs/GUIDEBRIEF_INTENT_PROJECTION_V0_1.md`. `/workbench` now renders a
+deterministic, reversible, dismissible view/draft projection for:
+`Focus the Workplane on runner and DeltaBatch review.` The projection uses the
+default selection `delta_batch / runner_delta_batch`, prioritizes
+`delta_batch`, `projected_delta_batch`, `delta_projection`,
+`trace_diagnostics`, `review_queue`, `workplane_inspector`, and
+`handoff_builder_preview`, and preserves the projected-vs-recovered
+DeltaBatch distinction. It adds no executable projection, persistent Workplane
+mode, user text input, chat composer, route, API write route, server action,
+UI action authority, runner execution, runner recovery write, scheduled
+behavior, external authority, DB write, proof/evidence write, durable memory
+apply, Perspective apply, delta auto-apply, or legacy Cockpit deletion.
+
 ## 2. Surface Model
 
 The route model remains:
@@ -88,6 +103,8 @@ Agent Workplane renders:
   ledger readback is available
 - read-only GuideBrief Workplane Debug Context for selected panel/node/ref
   explanation
+- read-only GuideBrief Intent Projection panels for reversible view projection
+  and draft candidate packets
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,
   `data-workplane-node-kind`, and `data-workplane-node-status` metadata on key
   native panels and the legacy compatibility path

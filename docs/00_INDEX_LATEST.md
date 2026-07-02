@@ -202,6 +202,24 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   behavior, provider/OpenAI/GitHub/Codex execution, DB write, proof/evidence
   write, durable memory apply, Perspective apply, delta auto-apply, or legacy
   Cockpit deletion.
+- `docs/GUIDEBRIEF_INTENT_PROJECTION_V0_1.md`: GuideBrief Intent Projection
+  v0.1 translates a user intent string plus existing Workplane node/debug
+  context into a reversible Agent Workplane view projection and draft candidate
+  packets. It adds `types/workplane-intent-projection.ts`,
+  `lib/guide/workplane-intent-projection.ts`,
+  `lib/workplane/apply-workplane-view-projection.ts`,
+  `components/guide/guide-intent-projection-panel.tsx`,
+  `components/workplane/workplane-intent-mode-panel.tsx`, and
+  `scripts/smoke-guidebrief-intent-projection-v0-1.mjs`. It distinguishes
+  `delta_projection / perspective_delta`, `projected_delta_batch /
+  perspective_delta`, and `delta_batch / runner_delta_batch`, creates only
+  reversible/dismissible view projections and draft handoff / runner config /
+  Perspective update candidates, and adds no executable projection, persistent
+  Workplane mode, user text input, chat composer, route, API write route,
+  server action, runner execution, runner recovery write, scheduled behavior,
+  provider/OpenAI/GitHub/Codex execution, DB write, proof/evidence write,
+  durable memory apply, Perspective apply, delta auto-apply, localStorage /
+  sessionStorage durable mode, or legacy Cockpit deletion.
 - `docs/GUIDEBRIEF_CONTRACT_V0_1.md`: Phase 6A GuideBrief /
   Cross-Surface Guide Core v0.1 pointer. GuideBrief is a portable read-only
   guide packet for Augnes Web, ChatGPT App, Codex, future agent surfaces, and
