@@ -6,6 +6,10 @@ import {
   readDeltaProjectionForHumanSurface,
   type HumanSurfaceDeltaProjectionRead,
 } from "@/lib/human-surface/read-delta-projection";
+import {
+  readRunnerDeltaBatchesForWorkplane,
+  type WorkplaneRunnerDeltaBatchRead,
+} from "@/lib/workplane/read-runner-delta-batches-for-workplane";
 
 export const WORKPLANE_SCOPE = "project:augnes" as const;
 
@@ -44,6 +48,14 @@ export type WorkplaneOverviewSummary = {
     evidence_ref_count: number;
     latest_delta_titles: string[];
   };
+  runner_delta_batch: {
+    as_of: string | null;
+    recovered_batch_count: number;
+    recovered_delta_count: number;
+    latest_batch_id: string | null;
+    latest_run_id: string | null;
+    latest_validation_status: string | null;
+  };
   review_queue: WorkplaneReviewQueueSummary;
 };
 
@@ -69,23 +81,28 @@ export type WorkplaneAuthorityBoundary = {
 export type WorkplaneContextRead = {
   current_perspective_read: HumanSurfaceCurrentPerspectiveRead;
   delta_projection_read: HumanSurfaceDeltaProjectionRead;
+  runner_delta_batch_read: WorkplaneRunnerDeltaBatchRead;
   overview: WorkplaneOverviewSummary;
   source_status: {
     current_perspective: HumanSurfaceCurrentPerspectiveRead["source_status"];
     delta_projection: HumanSurfaceDeltaProjectionRead["source_status"];
+    runner_delta_batch: WorkplaneRunnerDeltaBatchRead["source_status"];
   };
   fallback_reason: {
     current_perspective: string | null;
     delta_projection: string | null;
+    runner_delta_batch: string | null;
   };
   authority_boundary: WorkplaneAuthorityBoundary;
   workplane_notes: string[];
 };
 
 export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
-  const [currentPerspectiveRead, deltaProjectionRead] = await Promise.all([
+  const [currentPerspectiveRead, deltaProjectionRead, runnerDeltaBatchRead] =
+    await Promise.all([
     readCurrentPerspectiveForHumanSurface(),
     readDeltaProjectionForHumanSurface(),
+    Promise.resolve(readRunnerDeltaBatchesForWorkplane()),
   ]);
 
   const current = currentPerspectiveRead.data;
@@ -138,8 +155,9 @@ export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
     can_retry_replay_deploy: false,
     notes: [
       "Agent Workplane is a read-only backend/operator surface in Phase 5A and Phase 5B.",
-      "It can inspect Current Working Perspective and Augnes Delta Projection context.",
-      "It does not execute agents, apply deltas, write proof/evidence, call providers, call GitHub, launch Codex, merge, publish, retry, replay, deploy, or mutate state.",
+      "It can inspect Current Working Perspective, Augnes Delta Projection context, and recovered runner DeltaBatch ledger readback.",
+      "Recovered runner DeltaBatches are review-only context and are separate from projected Delta Projection batches.",
+      "It does not execute agents, recover DeltaBatches, tick or schedule runners, apply deltas, write proof/evidence, call providers, call GitHub, launch Codex, merge, publish, retry, replay, deploy, or mutate state.",
       "Existing Cockpit content is preserved as compatibility content for operator continuity.",
     ],
   };
@@ -147,6 +165,7 @@ export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
   return {
     current_perspective_read: currentPerspectiveRead,
     delta_projection_read: deltaProjectionRead,
+    runner_delta_batch_read: runnerDeltaBatchRead,
     overview: {
       scope: current.scope,
       current_perspective: {
@@ -173,6 +192,15 @@ export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
           .slice(0, 4)
           .map((delta) => `${delta.title} (${delta.status})`),
       },
+      runner_delta_batch: {
+        as_of: runnerDeltaBatchRead.as_of,
+        recovered_batch_count: runnerDeltaBatchRead.recovered_batch_count,
+        recovered_delta_count: runnerDeltaBatchRead.recovered_delta_count,
+        latest_batch_id: runnerDeltaBatchRead.latest_batch_id,
+        latest_run_id: runnerDeltaBatchRead.latest_run_id,
+        latest_validation_status:
+          runnerDeltaBatchRead.latest_validation_status,
+      },
       review_queue: {
         needs_review_count: reviewQueue.needs_review_delta_ids.length,
         blocked_count: reviewQueue.blocked_delta_ids.length,
@@ -190,16 +218,20 @@ export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
     source_status: {
       current_perspective: currentPerspectiveRead.source_status,
       delta_projection: deltaProjectionRead.source_status,
+      runner_delta_batch: runnerDeltaBatchRead.source_status,
     },
     fallback_reason: {
       current_perspective: currentPerspectiveRead.fallback_reason,
       delta_projection: deltaProjectionRead.fallback_reason,
+      runner_delta_batch: runnerDeltaBatchRead.fallback_reason,
     },
     authority_boundary: authorityBoundary,
     workplane_notes: [
       "Human-facing entry remains `/` and Perspective review remains `/perspective`.",
       "Workbench remains `/workbench` and is reframed as Agent Workplane.",
       "Phase 5B extracts work queue, Current Perspective, Delta Projection, Review Queue, Evidence/Handoff, and Inspector panels without redoing the shell.",
+      "Recovered runner DeltaBatches are read from the runner ledger for Workplane review context only.",
+      "Projected Delta Projection batches remain separate from recovered runner DeltaBatches.",
     ],
   };
 }

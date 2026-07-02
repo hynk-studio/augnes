@@ -5,7 +5,7 @@
 Status: Phase 5A Agent Workplane Shell, Phase 5B Agent Workplane Panels,
 Phase 5C Agent Workplane Projection / Handoff / Postmortem Skeletons, and
 Phase 5D Agent Workplane Cleanup / Responsive Hardening, plus Agent Workplane
-Node / Panel Contract v0.1.
+Node / Panel Contract v0.1 and Recovered Runner DeltaBatch Integration v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -35,6 +35,15 @@ adding GuideBrief debug behavior, intent projection, routes, writes, execution,
 runner ledger reads, Runner / DeltaBatch Workplane integration, durable memory
 apply, Perspective apply, or legacy Cockpit deletion.
 
+Recovered Runner DeltaBatch Integration v0.1 is documented in
+`docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md`. It reads existing
+recovered runner DeltaBatches from the runner ledger as read-only Workplane
+review context. It does not add new runner execution, recovery writes from
+Workplane reads, scheduled behavior, GuideBrief debug, intent projection,
+provider/OpenAI/GitHub/Codex execution, DB writes from Workplane reads,
+proof/evidence writes, durable memory apply, Perspective apply, delta
+auto-apply, or legacy Cockpit deletion.
+
 ## 2. Surface Model
 
 The route model remains:
@@ -63,6 +72,8 @@ Agent Workplane renders:
   Review Queue, Evidence/Handoff, and Workplane Inspector context
 - read-only preview skeletons for Projection Candidates, Delta Batch, Handoff
   Builder preview, Run Postmortem, and Trace / Diagnostics
+- read-only recovered runner DeltaBatch review context when existing runner
+  ledger readback is available
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,
   `data-workplane-node-kind`, and `data-workplane-node-status` metadata on key
   native panels and the legacy compatibility path
@@ -87,6 +98,7 @@ Agent Workplane uses `lib/workplane/read-workplane-context.ts` as a thin alias/a
 ```text
 readCurrentPerspectiveForHumanSurface()
 readDeltaProjectionForHumanSurface()
+readRunnerDeltaBatchesForWorkplane()
 ```
 
 Preferred Current Working Perspective source:
@@ -117,6 +129,12 @@ fixtures/augnes-delta-projection.sample.v0.1.json
 
 The Agent Workplane UI exposes source status and fallback reason. Fixture fallback is disclosed and is not presented as live runtime state.
 
+Recovered runner DeltaBatch readback uses the existing runner ledger. The
+default Workplane read opens the configured app DB read-only and returns an
+explicit empty state if the runner ledger or schema is absent. Temp-ledger
+smoke setup may write fixture runner records before reading them back, but
+normal Workplane reads do not write runner ledger records.
+
 ## 5. Overview Semantics
 
 The Workplane overview shows:
@@ -128,6 +146,8 @@ The Workplane overview shows:
 - research pressure
 - projected delta count
 - Delta Batch count
+- recovered runner DeltaBatch count
+- recovered runner DeltaBatch latest run id and latest batch id
 - projection gap count
 - evidence pointer count
 - review queue counts for needs-review, blocked, manual-review, and validation-required delta refs
@@ -222,10 +242,18 @@ candidate-like projected deltas, review queue pressure, and source/fallback
 status. Projection candidates are read-only preview context. No apply, approve,
 reject, or persistence controls are available there.
 
-Delta Batch shows projected batch title, summary, delta count, validation
-summary status, snapshot ref count, diagnostic ref count, and compact authority
-boundary summary. It has no transaction semantics, batch apply behavior, batch
-approval, or persistence behavior.
+Projected Delta Batch shows projected batch title, summary, delta count,
+validation summary status, snapshot ref count, diagnostic ref count, and
+compact authority boundary summary from the Delta Projection read model. It is
+not recovered runner output. It has no transaction semantics, batch apply
+behavior, batch approval, runner recovery, or persistence behavior.
+
+Recovered Runner DeltaBatch shows existing recovered runner DeltaBatch ledger
+readback: latest run id, batch id, delta count, validation status, source ref
+count, related step/event/delta refs, and authority boundary notes. It has no
+apply, approve, reject, execute, recover, tick, schedule, send, launch, proof
+write, evidence write, provider/OpenAI/GitHub/Codex execution, durable memory
+apply, Perspective apply, delta auto-apply, or runner behavior.
 
 Handoff Builder preview shows pointer-only handoff refs from top-level
 `source_refs.handoff_refs` and per-delta `handoff_refs`, plus artifact pointer
@@ -316,14 +344,16 @@ The contract includes:
 
 `lib/workplane/workplane-node-context.ts` builds a read-only
 `AgentWorkplaneNodeContextRead` packet from existing `readWorkplaneContext()`
-output. It derives source refs from Current Working Perspective and Augnes
-Delta Projection reads, preserves source/fallback/staleness disclosure, names
-relevant smoke coverage, and represents missing runner/postmortem sources as
-preview-only or not materialized. It does not add a route, DB write,
-persistence, new data source, runner ledger read, Runner / DeltaBatch
-Workplane integration, provider/OpenAI/GitHub/Codex execution, durable memory
-apply, Perspective apply, delta auto-apply, scheduler behavior, or external
-side effect.
+output. It derives source refs from Current Working Perspective, Augnes Delta
+Projection, and recovered runner DeltaBatch reads, preserves
+source/fallback/staleness disclosure, names relevant smoke coverage, and
+represents missing runner/postmortem sources as empty or not materialized. It
+does not add a route, DB write, persistence, runner execution, runner recovery
+write, scheduler behavior, provider/OpenAI/GitHub/Codex execution, durable
+memory apply, Perspective apply, delta auto-apply, or external side effect.
+
+Recovered runner DeltaBatch node/panel integration is documented in
+`docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md`.
 
 Legacy Cockpit compatibility remains explicit through
 `legacy_cockpit_compatibility` with `compatibility_panel` /
@@ -407,9 +437,27 @@ replacement and validation exist.
 - the node context helper exports a stable registry/read model and preserves
   source/fallback/staleness/authority/validation language
 - no GuideBrief debug panel, intent projection, route, Runner / DeltaBatch
-  Workplane integration, runner behavior, DB write, provider/OpenAI/GitHub/Codex
+  execution behavior, recovery write, DB write, provider/OpenAI/GitHub/Codex
   execution, durable memory apply, Perspective apply, broad source deletion, or
   legacy Cockpit deletion is introduced
+
+`npm run smoke:workplane-runner-deltabatch-integration-v0-1` checks:
+
+- package script pointer exists
+- runner DeltaBatch reader, Workplane panel, docs, and index pointers exist
+- `runner_delta_batch_read` is present in Workplane context
+- node/panel context includes recovered runner run/batch/delta refs
+- Agent Workplane renders `RunnerDeltaBatchPanel`
+- projected Delta Projection batches and recovered runner DeltaBatches are
+  distinguished in code and docs
+- empty state is represented without throwing
+- a temp-ledger fixture can create a run, tick to completion, recover a
+  DeltaBatch through existing runner APIs, and read it back through the
+  Workplane reader
+- no route, legacy Cockpit deletion, new runner behavior, Workplane recovery
+  write, scheduled behavior, provider/OpenAI/GitHub/Codex execution, DB write
+  from Workplane reads, proof/evidence write, durable memory apply,
+  Perspective apply, or delta auto-apply is introduced
 
 ## 13. Validation
 

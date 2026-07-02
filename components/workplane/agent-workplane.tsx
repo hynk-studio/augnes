@@ -20,6 +20,7 @@ import { LegacyCockpitCompatibilityPanel } from "@/components/workplane/legacy-c
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
 import { ReviewQueueWorkplanePanel } from "@/components/workplane/review-queue-workplane-panel";
 import { RunPostmortemSkeletonPanel } from "@/components/workplane/run-postmortem-skeleton-panel";
+import { RunnerDeltaBatchPanel } from "@/components/workplane/runner-delta-batch-panel";
 import { TraceDiagnosticsPanel } from "@/components/workplane/trace-diagnostics-panel";
 import { WorkQueuePanel } from "@/components/workplane/work-queue-panel";
 import { WorkplaneHeader } from "@/components/workplane/workplane-header";
@@ -147,12 +148,14 @@ export async function AgentWorkplane() {
               </h2>
               <p style={previewCopyStyle}>
                 These panels expose preview-only backend context for projection
-                candidates, Delta Batch review, handoff builder inputs, run
-                postmortem slots, and bounded trace diagnostics. No hidden
-                execution authority is added: no apply, approve, reject, send,
-                launch Codex, provider/GitHub call, proof/evidence write, DB
-                write, memory mutation, scheduler, merge, publish, retry,
-                replay, or deploy behavior.
+                candidates, projected Delta Batch review, recovered runner
+                DeltaBatch readback, handoff builder inputs, run postmortem
+                slots, and bounded trace diagnostics. No hidden execution
+                authority is added: no apply, approve, reject, recover, tick,
+                schedule, send, launch Codex, provider/GitHub call,
+                proof/evidence write, DB write from Workplane reads, memory
+                mutation, scheduler, merge, publish, retry, replay, or deploy
+                behavior.
               </p>
             </div>
 
@@ -162,6 +165,7 @@ export async function AgentWorkplane() {
             >
               <ProjectionCandidatesPanel context={context} />
               <DeltaBatchPanel context={context} />
+              <RunnerDeltaBatchPanel context={context} />
               <HandoffBuilderPreviewPanel context={context} />
               <HandoffCapsulePreviewPanel preview={handoffPreview} />
               <CodexLaunchCardPreviewPanel preview={handoffPreview} />
