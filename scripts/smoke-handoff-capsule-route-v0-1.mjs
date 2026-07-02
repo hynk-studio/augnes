@@ -164,6 +164,7 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "scripts/smoke-autonomy-runner-v0-1.mjs",
   "lib/db/schema.sql",
   "package.json",
+  "package-lock.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
   "scripts/smoke-augnes-delta-projection-v0-1.mjs",

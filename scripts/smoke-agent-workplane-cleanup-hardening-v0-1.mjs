@@ -153,6 +153,7 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md",
   "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
   "package.json",
+  "package-lock.json",
   "docs/00_INDEX_LATEST.md",
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
   "scripts/smoke-augnes-delta-projection-v0-1.mjs",

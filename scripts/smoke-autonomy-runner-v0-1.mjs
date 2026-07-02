@@ -8,6 +8,16 @@ import { tmpdir } from "node:os";
 
 const require = createRequire(import.meta.url);
 
+function resolveRootBin(binName) {
+  const executableName = process.platform === "win32" ? `${binName}.cmd` : binName;
+  const binPath = join(process.cwd(), "node_modules", ".bin", executableName);
+  assert.ok(
+    existsSync(binPath),
+    `missing_root_bin:${binName}: run npm install from the repository root before running smoke:autonomy-runner-v0-1`,
+  );
+  return binPath;
+}
+
 const requiredFiles = [
   "lib/autonomy/runner.ts",
   "lib/autonomy/scheduler.ts",
@@ -744,12 +754,13 @@ const behaviorScript = `
 `;
 
 const behaviorOutput = execFileSync(
-  "apps/augnes_apps/node_modules/.bin/tsx",
+  resolveRootBin("tsx"),
   ["--eval", behaviorScript],
   {
     cwd: process.cwd(),
     encoding: "utf8",
     env: { ...process.env, TSX_TSCONFIG_PATH: "tsconfig.json" },
+    shell: process.platform === "win32",
   },
 );
 const behavior = JSON.parse(behaviorOutput);
