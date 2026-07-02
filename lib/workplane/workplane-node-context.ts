@@ -152,9 +152,10 @@ export const AGENT_WORKPLANE_PANEL_REGISTRY: ReadonlyArray<{
     panel_id: "run_postmortem",
     node_id: "run_postmortem",
     kind: "runner_context_source",
-    status: "not_materialized",
-    title: "Run Postmortem",
-    summary: "Reserved postmortem slots; no structured run source is materialized.",
+    status: "partial",
+    title: "Run Postmortem Detail",
+    summary:
+      "Source-backed run postmortem visibility derived from recovered runner DeltaBatch readback.",
   },
   {
     panel_id: "trace_diagnostics",
@@ -241,6 +242,7 @@ const NODE_CONTEXT_SMOKES = [
   "smoke:workplane-runner-deltabatch-integration-v0-1",
   "smoke:agent-workplane-bridge-trace-detail-v0-1",
   "smoke:agent-workplane-review-memory-detail-v0-1",
+  "smoke:agent-workplane-run-postmortem-detail-v0-1",
 ] as const;
 
 const DEFAULT_AUTHORITY_BOUNDARY: AgentWorkplaneAuthorityBoundary = {
@@ -447,11 +449,11 @@ function statusForPanel(
   context: WorkplaneContextRead,
   staleness: AgentWorkplaneStaleness,
 ): AgentWorkplaneNodeStatus {
-  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+  if (isRunnerContextPanel(panelId)) {
     const runnerRead = context.runner_delta_batch_read;
     if (runnerRead.status === "ready") return "ready";
     if (runnerRead.status === "fallback") return "fallback";
-    return "not_materialized";
+    return panelId === "run_postmortem" ? "partial" : "not_materialized";
   }
 
   if (defaultStatus === "partial") {
@@ -637,12 +639,13 @@ function validationForPanel(
     smokeRefs.add("smoke:workplane-native-browser-regression-v0-1");
   }
 
-  if (
-    isRunnerDeltaBatchPanel(panelId) ||
-    panelId === "runner_state" ||
-    panelId === "run_postmortem"
-  ) {
+  if (isRunnerContextPanel(panelId)) {
     smokeRefs.add("smoke:workplane-runner-deltabatch-integration-v0-1");
+  }
+
+  if (panelId === "run_postmortem") {
+    smokeRefs.add("smoke:agent-workplane-run-postmortem-detail-v0-1");
+    smokeRefs.add("smoke:workplane-native-browser-regression-v0-1");
   }
 
   if (panelId === "legacy_cockpit_compatibility") {
@@ -695,6 +698,12 @@ function debugNotesForPanel(
   if (panelId === "review_memory_detail") {
     notes.push(
       "Review/memory detail is source-backed read-only visibility for candidate proposals and remains not apply authority and not shrink authority.",
+    );
+  }
+
+  if (panelId === "run_postmortem") {
+    notes.push(
+      "Run Postmortem detail is source-backed read-only visibility from recovered runner DeltaBatch readback and remains not runner authority and not shrink authority.",
     );
   }
 
@@ -758,7 +767,7 @@ function relatedRunIdsForPanel(
   panelId: AgentWorkplanePanelId,
   context: WorkplaneContextRead,
 ) {
-  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+  if (isRunnerContextPanel(panelId)) {
     return uniqueStrings(
       context.runner_delta_batch_read.batches.map((batch) => batch.run_id),
     );
@@ -771,7 +780,7 @@ function relatedStepIdsForPanel(
   panelId: AgentWorkplanePanelId,
   context: WorkplaneContextRead,
 ) {
-  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+  if (isRunnerContextPanel(panelId)) {
     return uniqueStrings(
       context.runner_delta_batch_read.batches.flatMap(
         (batch) => batch.related_step_ids,
@@ -786,7 +795,7 @@ function relatedDeltaIdsForPanel(
   panelId: AgentWorkplanePanelId,
   context: WorkplaneContextRead,
 ) {
-  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+  if (isRunnerContextPanel(panelId)) {
     return uniqueStrings(
       context.runner_delta_batch_read.batches.flatMap(
         (batch) => batch.related_delta_ids,
@@ -819,7 +828,7 @@ function relatedBatchIdsForPanel(
   panelId: AgentWorkplanePanelId,
   context: WorkplaneContextRead,
 ) {
-  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+  if (isRunnerContextPanel(panelId)) {
     return uniqueStrings(
       context.runner_delta_batch_read.batches.map((batch) => batch.batch_id),
     );
@@ -865,7 +874,7 @@ function relatedEventIdsForPanel(
   panelId: AgentWorkplanePanelId,
   context: WorkplaneContextRead,
 ) {
-  if (isRunnerDeltaBatchPanel(panelId) || panelId === "runner_state") {
+  if (isRunnerContextPanel(panelId)) {
     return uniqueStrings(
       context.runner_delta_batch_read.batches.flatMap(
         (batch) => batch.related_event_ids,
@@ -994,6 +1003,14 @@ function collectRunnerDeltaBatchSourceRefs(context: WorkplaneContextRead) {
 
 function isRunnerDeltaBatchPanel(panelId: AgentWorkplanePanelId) {
   return panelId === "delta_batch" || panelId === "runner_delta_batch";
+}
+
+function isRunnerContextPanel(panelId: AgentWorkplanePanelId) {
+  return (
+    panelId === "run_postmortem" ||
+    panelId === "runner_state" ||
+    isRunnerDeltaBatchPanel(panelId)
+  );
 }
 
 function chooseLatestTimestamp(left: string, right: string) {

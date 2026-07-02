@@ -10,7 +10,8 @@ GuideBrief Workplane Debug Context v0.1, plus GuideBrief Intent Projection
 v0.1, plus Runner / Workplane Metrics v0.1, plus Longer Augnes-on-Augnes
 Dogfood v0.1, plus Legacy Cockpit Shrink Plan v0.1, plus Workplane Native
 Replacement Browser Regression v0.1, plus Agent Workplane Bridge Trace Detail
-v0.1, plus Agent Workplane Review / Memory Proposal Detail v0.1.
+v0.1, plus Agent Workplane Review / Memory Proposal Detail v0.1, plus Agent
+Workplane Run Postmortem Detail v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -150,6 +151,21 @@ scheduled behavior, product DB write, proof/evidence write, durable memory
 apply, Perspective apply, delta auto-apply, product UI action authority, or
 Legacy Cockpit deletion, shrink, hiding, or disabling.
 
+Agent Workplane Run Postmortem Detail v0.1 is documented in
+`docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md`. `/workbench` now renders
+a read-only `RunPostmortemDetailPanel` with
+`data-workplane-run-postmortem-detail-panel="v0.1"` and
+`data-workplane-panel-id="run_postmortem"`. It makes source-backed run
+postmortem detail, run_id, step refs, event refs, recovered DeltaBatch,
+validation status, source refs, no runner execution, no runner tick, no
+DeltaBatch recovery, no durable memory apply, no Perspective apply, and
+retained legacy compatibility explicit without adding runner authority or
+shrink authority. It adds no route, API write route, server action, chat
+composer, provider/OpenAI/GitHub/Codex execution, runner execution/tick/
+recovery/scheduled behavior, product DB write, proof/evidence write, durable
+memory apply, Perspective apply, delta auto-apply, product UI action
+authority, or Legacy Cockpit deletion, shrink, hiding, or disabling.
+
 ## 2. Surface Model
 
 The route model remains:
@@ -200,6 +216,11 @@ Agent Workplane renders:
   review/memory panel for durable memory review candidates, Perspective review
   candidates, validation-required and user-decision lanes, candidate source
   refs, explicit no-apply boundaries, and explicit remaining gaps
+- Agent Workplane Run Postmortem Detail v0.1 as a read-only native
+  run/postmortem panel for source-backed run summaries, step refs, event refs,
+  recovered DeltaBatch summaries, timeline rows, postmortem signals,
+  validation status, source refs, no-runner-authority boundaries, and explicit
+  remaining gaps
 - local Augnes-on-Augnes Dogfood report generation through the explicit script
   path, not through product render
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,
@@ -318,8 +339,9 @@ Required visible states:
 - No review queue refs: the review queue card says no review queue delta refs are materialized.
 - No handoff/Codex/evidence refs: the inspector shows pointer counts as zero.
 - No handoff refs: the inspector says no handoff refs materialized yet.
-- No run/postmortem source: the inspector says run postmortem source is not
-  materialized yet.
+- No run/postmortem source: when no recovered runner readback is available, the
+  Run Postmortem detail panel says no run summaries, step refs, event refs,
+  recovered DeltaBatch, or timeline rows are materialized yet.
 
 No fixture is silently presented as runtime data.
 
@@ -367,7 +389,7 @@ Phase 5C adds preview-only Agent Workplane panels:
 - Projection Candidates panel
 - Delta Batch panel
 - Handoff Builder preview panel
-- Run Postmortem skeleton panel
+- Run Postmortem detail panel
 - Trace / Diagnostics panel
 
 Projection Candidates shows Current Working Perspective next candidates,
@@ -401,11 +423,19 @@ Future handoff build/send behavior requires separate explicit authority. Phase
 5C adds no copy button, send button, Codex launch, PR creation, GitHub call,
 provider call, proof/evidence write, external send, or local persistence.
 
-Run Postmortem reserves skeleton fields for goal, context loaded, major
-decisions, tools used, failed attempts, validation, outputs, generated deltas,
-and unresolved issues. Because no structured run source is materialized in
-Phase 5C, each field says `not materialized yet`. The panel creates no proof
-write, evidence write, completion record, work closeout, or runtime execution.
+Run Postmortem detail now replaces the active skeleton render with
+source-backed run postmortem visibility derived from existing recovered runner
+DeltaBatch readback. It shows run_id, run status, latest batch id, recovered
+delta count, validation status, step refs, event refs, source refs, recovered
+DeltaBatch summaries, timeline rows, postmortem signals, gap details, and
+authority boundary notes. It creates no runner execution, runner tick, runner
+recovery write, scheduled behavior, proof write, evidence write, durable memory
+apply, Perspective apply, delta auto-apply, completion record, work closeout,
+or runtime execution.
+
+The historical Run Postmortem skeleton panel file is retained for compatibility
+and smoke history, but it is no longer the active primary `run_postmortem`
+render.
 
 Trace / Diagnostics shows bounded projection gaps, diagnostic refs, validation
 summary statuses, review notes, non-goals, and source/fallback status. It is
@@ -486,7 +516,8 @@ The contract includes:
 output. It derives source refs from Current Working Perspective, Augnes Delta
 Projection, and recovered runner DeltaBatch reads, preserves
 source/fallback/staleness disclosure, names relevant smoke coverage, and
-represents missing runner/postmortem sources as empty or not materialized. It
+represents recovered runner/postmortem sources through read-only related
+run/step/event/batch/delta refs, or as explicit empty/fallback state. It
 does not add a route, DB write, persistence, runner execution, runner recovery
 write, scheduler behavior, provider/OpenAI/GitHub/Codex execution, durable
 memory apply, Perspective apply, delta auto-apply, or external side effect.
@@ -637,6 +668,22 @@ delete, shrink, hide, remove, disable, or weaken any compatibility content.
   proof/evidence writes, durable memory apply, Perspective apply, delta
   auto-apply, broad source deletion, or Legacy Cockpit deletion/shrink/hide are
   added
+
+`npm run smoke:agent-workplane-run-postmortem-detail-v0-1` checks:
+
+- package script pointer exists
+- the Run Postmortem detail type, helper, panel, docs, index pointers, browser
+  regression recognition, and Workplane integration exist
+- the helper builds deterministic detail from existing Workplane context and
+  node context using `runner_delta_batch_read`
+- the active Agent Workplane renders `RunPostmortemDetailPanel` and does not
+  render duplicate primary `run_postmortem` panels
+- the panel renders no button, form, input, textarea, `onClick`, or
+  `formAction`
+- no route, API route, server action, provider/OpenAI/GitHub/Codex execution,
+  runner execution/tick/recovery/scheduler behavior, DB write, proof/evidence
+  write, durable memory apply, Perspective apply, delta auto-apply, broad
+  source deletion, or Legacy Cockpit deletion/shrink/hide is added
 
 ## 13. Validation
 

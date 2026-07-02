@@ -70,6 +70,25 @@ const followOnAgentWorkplaneReviewMemoryDetailFiles = [
   "package.json",
 ];
 
+const followOnAgentWorkplaneRunPostmortemDetailFiles = [
+  "types/workplane-run-postmortem-detail.ts",
+  "lib/workplane/workplane-run-postmortem-detail.ts",
+  "components/workplane/run-postmortem-detail-panel.tsx",
+  "docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md",
+  "scripts/smoke-agent-workplane-run-postmortem-detail-v0-1.mjs",
+  "components/workplane/agent-workplane.tsx",
+  "lib/workplane/workplane-node-context.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "docs/AGENT_WORKPLANE_BRIDGE_TRACE_DETAIL_V0_1.md",
+  "docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+];
+
 const existingSmokeAllowlistFiles = [
   "scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
@@ -91,6 +110,7 @@ const existingSmokeAllowlistFiles = [
 const allowedChangedFiles = [
   ...bridgeTraceDetailSliceFiles,
   ...followOnAgentWorkplaneReviewMemoryDetailFiles,
+  ...followOnAgentWorkplaneRunPostmortemDetailFiles,
   ...existingSmokeAllowlistFiles,
 ];
 
@@ -493,7 +513,7 @@ function assertHelperAndRegressionBehavior() {
         <section data-workplane-bridge-trace-detail-panel="v0.1"><section data-workplane-panel-id="source_ref_bridge" data-workplane-node-id="source_ref_bridge">Source Ref Bridge Trace Bridge Bridge matrix source refs validation summary evidence refs diagnostic refs legacy compatibility retained</section></section>
         <section data-workplane-panel-id="projection_candidates" data-workplane-node-id="perspective_delta">Projection Candidates</section>
         <section data-workplane-panel-id="handoff_builder_preview" data-workplane-node-id="handoff_context">Handoff Builder preview</section>
-        <section data-workplane-panel-id="run_postmortem" data-workplane-node-id="run_postmortem">Run Postmortem</section>
+        <section data-workplane-run-postmortem-detail-panel="v0.1"><section data-workplane-panel-id="run_postmortem" data-workplane-node-id="run_postmortem">Run Postmortem detail source-backed run postmortem run_id step refs event refs recovered DeltaBatch validation status source refs no runner execution no runner tick no DeltaBatch recovery no durable memory apply no Perspective apply legacy compatibility retained</section></section>
         <section data-workplane-panel-id="trace_diagnostics" data-workplane-node-id="trace_bridge">Trace Diagnostics validation summary diagnostic refs</section>
         <section data-workplane-panel-id="legacy_cockpit_compatibility" data-workplane-node-id="legacy_cockpit_compatibility">Legacy Cockpit compatibility remains reachable</section>
       \`;

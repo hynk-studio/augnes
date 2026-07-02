@@ -139,11 +139,15 @@ Browser regression can move Review / memory proposal visibility from
 recommendation gated when dogfood, metrics, source-backed Run Postmortem,
 rollback, or human approval remain incomplete.
 
+Follow-on Run Postmortem Detail v0.1 is documented in
+`docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md`.
+
 ## Remaining Gaps
 
 The following gaps intentionally remain:
 
-- source-backed Run Postmortem detail;
+- direct runner event payload detail and richer postmortem timeline detail
+  after source-backed Run Postmortem detail;
 - richer proposal diff detail if future review shows it is needed;
 - legacy local UI control classification;
 - repeated metrics/dogfood baselines for review burden and resume latency;
@@ -191,7 +195,7 @@ This slice intentionally does not implement:
 - Perspective apply;
 - delta auto-apply;
 - proposal approve/reject/commit controls;
-- source-backed Run Postmortem detail;
+- direct runner event payload detail and richer postmortem timeline detail;
 - rich proposal diff UI;
 - product route or API write route;
 - server action or chat composer;
@@ -204,5 +208,5 @@ This slice intentionally does not implement:
 
 ## Recommended Next Phase
 
-Recommended next phase: source-backed Run Postmortem detail hardening. Do not
-proceed to Legacy Cockpit deletion yet.
+Recommended next phase: legacy local UI control classification or repeated
+dogfood/metrics baseline. Do not proceed to Legacy Cockpit deletion yet.
