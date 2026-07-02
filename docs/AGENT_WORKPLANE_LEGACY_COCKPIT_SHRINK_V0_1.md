@@ -9,6 +9,12 @@ inventory, dogfood, and metrics slices prepared but did not execute.
 The browser regression context remains documented in
 `docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md`.
 
+Remaining capability migration after this route split is mapped in
+`docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md`. That map treats
+`/cockpit` as temporary retained compatibility, not a long-term product
+surface, and keeps Cockpit route removal blocked until unique useful capability
+count reaches 0.
+
 ## Route Split
 
 - /workbench no longer mounts full AugnesCockpit.

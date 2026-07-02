@@ -290,6 +290,15 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   action, provider/OpenAI/GitHub/Codex/runner execution, product DB write,
   proof/evidence write, durable memory/Perspective/delta apply, publish,
   merge, retry, replay, or deploy authority.
+- `docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md`: Legacy
+  Cockpit Remaining Capability Migration Map v0.1 classifies the useful
+  capabilities still retained after the route split shrink and assigns final
+  destinations to Blank State, Agent Workplane, Workplane State Proposal
+  Review, blocked authority-contract lanes, or deletion. `/cockpit` remains
+  temporary retained compatibility, not a long-term product surface. The map
+  does not move UI, does not delete `/cockpit` or
+  `components/augnes-cockpit.tsx`, and blocks route removal until Cockpit
+  unique useful capability count reaches 0.
 - `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`: Legacy Cockpit
   Shrink Plan v0.1 is prior planning/gate context for capability-by-capability
   compatibility reduction. It is no longer the latest shrink implementation

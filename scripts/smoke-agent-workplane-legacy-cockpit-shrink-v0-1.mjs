@@ -14,6 +14,8 @@ const legacyCompatibilityPanelFile =
 const augnesCockpitFile = "components/augnes-cockpit.tsx";
 const cockpitPageFile = "app/cockpit/page.tsx";
 const shrinkDoc = "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md";
+const remainingCapabilityMigrationDoc =
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md";
 const shrinkPlanDoc =
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md";
 const browserRegressionDoc =
@@ -22,6 +24,10 @@ const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile =
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs";
+const runtimeSmokeFile =
+  "scripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs";
+const remainingCapabilityMigrationSmokeFile =
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs";
 
 const allowedChangedFiles = [
   agentWorkplaneFile,
@@ -29,6 +35,7 @@ const allowedChangedFiles = [
   cockpitPageFile,
   augnesCockpitFile,
   shrinkDoc,
+  remainingCapabilityMigrationDoc,
   shrinkPlanDoc,
   browserRegressionDoc,
   "lib/workplane/workplane-browser-regression.ts",
@@ -41,6 +48,8 @@ const allowedChangedFiles = [
   indexDoc,
   packageJsonFile,
   smokeFile,
+  runtimeSmokeFile,
+  remainingCapabilityMigrationSmokeFile,
   "scripts/smoke-agent-workplane-shell-v0-1.mjs",
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
