@@ -13,6 +13,13 @@ update candidates.
 Intent Projection is allowed to create view projections and draft candidate
 packets. It is not allowed to execute those candidates.
 
+Runner / Workplane Metrics v0.1 now reads Intent Projection output as one of
+its signals. Metrics are documented in
+`docs/AUGNES_WORKFLOW_METRICS_V0_1.md`; they measure reversibility, debug
+coverage, projected-vs-recovered DeltaBatch identity separation, handoff loss,
+Cockpit absorption readiness, and dogfood readiness without adding execution
+authority or auto-apply decisions.
+
 ## 2. Why This Exists
 
 Agent Workplane now has stable panel and node IDs, recovered runner DeltaBatch
@@ -356,10 +363,9 @@ No legacy Cockpit functionality is deleted.
 
 ## 24. Recommended Next Phase
 
-Recommended next phase: Runner / Workplane Metrics v0.1 before Legacy Cockpit
-Shrink Plan v0.1.
+Runner / Workplane Metrics v0.1 is the implemented follow-on before Legacy
+Cockpit Shrink Plan v0.1.
 
-Reason: Intent Projection keeps native Workplane and GuideBrief context
-distinguishable, but the system still needs lightweight metrics for whether
-runner DeltaBatch review, projected Delta Projection preview, stale warnings,
-and draft candidates are actually useful before planning Cockpit shrinkage.
+After a metrics baseline, recommended next phase is Legacy Cockpit Shrink Plan
+v0.1 if native absorption is ready, otherwise Longer Augnes-on-Augnes Dogfood
+v0.1.

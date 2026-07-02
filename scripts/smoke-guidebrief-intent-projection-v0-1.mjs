@@ -54,6 +54,32 @@ const existingSmokeFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const followOnRunnerWorkplaneMetricsFiles = [
+  "types/augnes-workflow-metrics.ts",
+  "lib/metrics/runner-workplane-metrics.ts",
+  "components/workplane/workplane-metrics-panel.tsx",
+  "docs/AUGNES_WORKFLOW_METRICS_V0_1.md",
+  "scripts/smoke-runner-workplane-metrics-v0-1.mjs",
+  "components/workplane/agent-workplane.tsx",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/GUIDEBRIEF_INTENT_PROJECTION_V0_1.md",
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-guidebrief-intent-projection-v0-1.mjs",
+  "scripts/smoke-guide-workplane-debug-context-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+];
+
 const requiredFiles = [
   typeFile,
   helperFile,
@@ -82,6 +108,7 @@ const requiredFiles = [
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...existingSmokeFiles,
+  ...followOnRunnerWorkplaneMetricsFiles,
 ]);
 
 const textByFile = loadTextByFile(requiredFiles);
@@ -225,7 +252,8 @@ function assertDocsAndPointers() {
       "no delta auto-apply",
       "no `localStorage` or `sessionStorage` durable view mode",
       "no legacy Cockpit shrink or deletion",
-      "Recommended next phase: Runner / Workplane Metrics v0.1",
+      "Runner / Workplane Metrics v0.1 is the implemented follow-on",
+      "docs/AUGNES_WORKFLOW_METRICS_V0_1.md",
     ],
     { label: docFile },
   );

@@ -110,6 +110,32 @@ const followOnGuideBriefIntentProjectionFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const followOnRunnerWorkplaneMetricsFiles = [
+  "types/augnes-workflow-metrics.ts",
+  "lib/metrics/runner-workplane-metrics.ts",
+  "components/workplane/workplane-metrics-panel.tsx",
+  "docs/AUGNES_WORKFLOW_METRICS_V0_1.md",
+  "scripts/smoke-runner-workplane-metrics-v0-1.mjs",
+  "components/workplane/agent-workplane.tsx",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/GUIDEBRIEF_INTENT_PROJECTION_V0_1.md",
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-guidebrief-intent-projection-v0-1.mjs",
+  "scripts/smoke-guide-workplane-debug-context-v0-1.mjs",
+  "scripts/smoke-guide-brief-v0-1.mjs",
+  "scripts/smoke-guide-brief-route-v0-1.mjs",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "scripts/smoke-workplane-runner-deltabatch-integration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+];
+
 const followOnHandoffCapsuleAppToolFiles = [
   "docs/HANDOFF_CAPSULE_CONTRACT_V0_1.md",
   "scripts/smoke-handoff-capsule-v0-1.mjs",
@@ -239,6 +265,7 @@ const allowedChangedFiles = new Set([
   ...followOnChatgptAppGuideBriefToolFiles,
   ...followOnGuideWorkplaneDebugContextFiles,
   ...followOnGuideBriefIntentProjectionFiles,
+  ...followOnRunnerWorkplaneMetricsFiles,
   ...followOnHandoffCapsuleAppToolFiles,
   ...followOnAutonomyContractCodexSkillFiles,
   ...phase8fAutonomyContractCopyExportFiles,
@@ -656,7 +683,8 @@ function assertChangedFileBoundary() {
         phase9aAutonomyRunnerPreflightFiles.includes(file) ||
         phase8fAutonomyContractCopyExportFiles.includes(file) ||
         followOnGuideWorkplaneDebugContextFiles.includes(file) ||
-        followOnGuideBriefIntentProjectionFiles.includes(file),
+        followOnGuideBriefIntentProjectionFiles.includes(file) ||
+        followOnRunnerWorkplaneMetricsFiles.includes(file),
       `Phase 6B must not change UI files outside exact Phase 6C/7C/7F Web follow-on scope or exact Phase 8C/8F Autonomy Web preview files: ${file}`,
     );
     assert(
