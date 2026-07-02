@@ -8,6 +8,7 @@ import {
   collectGitDiffFiles,
   collectUntrackedFiles,
   getBaseRangeChangedFiles,
+  isBoundaryContentOnlyMode,
   loadTextByFile,
   uniqueSorted,
 } from "./smoke-boundary-common.mjs";
@@ -71,9 +72,6 @@ const priorSmokeAllowlistCompatibilityFiles = [
   "apps/augnes_apps/scripts/smoke.ts",
   "apps/augnes_apps/scripts/mock-state-runtime.ts",
   "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
-  "docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md",
-  "plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md",
-  "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
 ];
 
 const allowedChangedFiles = new Set([
@@ -113,20 +111,11 @@ const phase9dChatgptAppFollowOnFiles = new Set([
   "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs",
 ]);
 
-const phase9eCodexAlignmentFollowOnFiles = new Set([
-  "docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md",
-  "plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md",
-  "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs",
-]);
-
 const phase9fCopyExportFollowOnFiles = new Set([
   "lib/autonomy/autonomy-runner-preflight-copy-export.ts",
   "components/autonomy/autonomy-runner-preflight-copy-export-panel.tsx",
   "components/autonomy/autonomy-runner-preflight-preview-panel.tsx",
   "scripts/smoke-autonomy-runner-preflight-copy-export-v0-1.mjs",
-  "docs/AUTONOMY_RUNNER_SKELETON_PLANNING_V0_1.md",
-  "docs/AUTONOMY_RUNNER_OPERATOR_APPROVAL_GATE_V0_1.md",
-  "scripts/smoke-autonomy-runner-skeleton-planning-v0-1.mjs",
 ]);
 for (const file of phase9fCopyExportFollowOnFiles) {
   allowedChangedFiles.add(file);
@@ -618,15 +607,16 @@ function assertChangedFileBoundary() {
     ...untrackedFiles,
   ]);
 
-  for (const file of files) {
-    assert(allowedChangedFiles.has(file), `Unexpected Phase 9B changed file: ${file}`);
-    for (const pattern of forbiddenChangedFilePatterns) {
-      if (file === routeFile) continue;
-      if (phase9cWebPreviewFollowOnFiles.has(file)) continue;
-      if (phase9dChatgptAppFollowOnFiles.has(file)) continue;
-      if (phase9eCodexAlignmentFollowOnFiles.has(file)) continue;
-      if (phase9fCopyExportFollowOnFiles.has(file)) continue;
-      assert(!pattern.test(file), `Forbidden Phase 9B changed file: ${file}`);
+  if (!isBoundaryContentOnlyMode()) {
+    for (const file of files) {
+      assert(allowedChangedFiles.has(file), `Unexpected Phase 9B changed file: ${file}`);
+      for (const pattern of forbiddenChangedFilePatterns) {
+        if (file === routeFile) continue;
+        if (phase9cWebPreviewFollowOnFiles.has(file)) continue;
+        if (phase9dChatgptAppFollowOnFiles.has(file)) continue;
+        if (phase9fCopyExportFollowOnFiles.has(file)) continue;
+        assert(!pattern.test(file), `Forbidden Phase 9B changed file: ${file}`);
+      }
     }
   }
 

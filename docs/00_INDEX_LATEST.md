@@ -29,50 +29,20 @@
 이 포인터들은 Active set을 늘리거나 새 권위를 만들지 않는다. 최근
 Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이다.
 
-### Post-#868 development posture pointer (repo-local, non-SSOT)
+### Active development completion posture pointer (repo-local, non-SSOT)
 
-PR #868 is merged. Current route planning starts from:
-
-```text
-/ = public Augnes surface
-/perspective = Perspective detail
-/workbench = cockpit/workbench
-```
-
-- `docs/POST_868_DEVELOPMENT_POSTURE.md`: short non-authority posture /
-  guardrail note. It is not a roadmap, not SSOT, and not PR sequencing
-  authority. New slices must come from explicit operator task prompts, not from
-  mining old or new roadmap docs. Current posture is Core first, Handoff first,
-  Conversation first, Web last.
-- `docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md`: superseded
-  historical roadmap content preserved with a prominent live compatibility
-  banner. v0.2.1 FULL is superseded for current PR sequencing and must not be
-  used for new slice selection.
-- `docs/archive/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL_SUPERSEDED_2026_06_30.md`:
-  archived historical v0.2.1 FULL content for older slice provenance only.
-- `scripts/smoke-post-868-roadmap-supersession-cleanup-v0-1.mjs`
-  (`npm run smoke:post-868-roadmap-supersession-cleanup-v0-1`): focused static
-  smoke for the superseded live roadmap banner, archived roadmap,
-  post-#868 posture note, latest-index preference, and current-planning
-  authority boundary.
-- `docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md`: repo-grounded
-  post-#868 non-UI runtime gap reconciliation. It treats PR #868 as the frozen
-  web baseline, keeps `/`, `/perspective`, and `/workbench` as the route model
-  baseline, classifies v0.2.1 slice anchors into done, done_but_ui_excluded,
-  still_valid, blocked, and superseded, moves UI/Cockpit/browser/public-surface
-  work to Web last backlog, records completed runtime/store/helper no-repeat
-  surfaces, keeps forbidden capabilities blocked, and selects exactly one next
-  non-UI implementation slice: `dogfooding_record_runtime_store_route_v0_1`.
-- `fixtures/post-868-non-ui-runtime-gap-reconciliation.sample.v0.1.json`:
-  deterministic public-safe fixture mirroring the post-#868 reconciliation
-  classifications, blocked capabilities, Web last backlog, no-repeat surfaces,
-  authority boundary, and selected next slice.
-- `scripts/smoke-post-868-non-ui-runtime-gap-reconciliation-v0-1.mjs`
-  (`npm run smoke:post-868-non-ui-runtime-gap-reconciliation-v0-1`): focused
-  static smoke for required classification categories, blocked capabilities,
-  selected next slice, Web last boundary, no web-priority inversion wording,
-  no opened product-write/GitHub/live-provider/release capability, and exact
-  changed-file scope.
+- `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`: active development
+  posture for functional goal completion, measurable capability improvement,
+  performance improvement, behavior-focused tests, user-visible or
+  operator-visible capability, and implementation over planning-only work.
+  Planning-only, approval-gate-only, smoke-only, and boundary-only PRs are not
+  the default. Docs and smokes support implementation, not replace it. Older
+  read-only, preview-only, no-run, and approval-gate documents must not be used
+  as current PR sequencing authority.
+- `docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md`: retained only as
+  a historical compatibility path for older docs, fixtures, and regression
+  smokes that still cite completed slice anchors. It is not active planning
+  authority and must not be used for new slice selection.
 - `docs/AUGNES_DELTA_CONTRACT_V0_1.md`: repo-local contract/design pointer for
   AugnesDelta, the common semantic change unit across Perspective, memory,
   artifact, code, research, handoff, world-state, and agent-plan changes. It
@@ -493,24 +463,6 @@ PR #868 is merged. Current route planning starts from:
   product-write, budget spend, auto-apply, file download/export-to-disk,
   merge/publish/retry/replay/deploy behavior, write-capable App/MCP tool, or
   external side effect. This index pointer is not roadmap authority.
-  Phase 9E Codex Autonomy Runner Preflight consumption alignment v0.1 adds
-  repo-local non-SSOT pointers for
-  `docs/CODEX_AUTONOMY_RUNNER_PREFLIGHT_CONSUMPTION_V0_1.md`,
-  `plugins/augnes-operator/skills/augnes-autonomy-runner-preflight/SKILL.md`,
-  and `scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs` (`npm run
-  smoke:codex-autonomy-runner-preflight-v0-1`). Autonomy Runner Preflight is
-  planning context only, Autonomy Dry-Run Plan is preview context only,
-  readiness is not authorization, `dry_run_only` and `would_execute: false`
-  must be preserved, and blockers/warnings, review requirements,
-  budget/stop/staleness/authority assessment boundaries, public safety, and
-  source refs must be carried forward. Phase 9E adds no API route, UI,
-  App/MCP tool, actual runner, scheduler, daemon, background work, DB write,
-  provider/OpenAI call, GitHub actuation, Codex execution from Augnes product
-  code, proof/evidence write, memory mutation, durable Perspective apply,
-  handoff execution, branch/PR creation from product code, budget spend,
-  auto-apply, product-write, merge/publish/retry/replay/deploy behavior,
-  write-capable skill/tool behavior, or external side effect. This index
-  pointer is not roadmap authority.
   Phase 9F Autonomy Runner Preflight / Dry-Run local copy and manual-copy
   preview v0.1 adds repo-local non-SSOT pointers for
   `lib/autonomy/autonomy-runner-preflight-copy-export.ts`,
@@ -529,30 +481,6 @@ PR #868 is merged. Current route planning starts from:
   Perspective apply, handoff execution, branch/PR creation from product code,
   product-write, budget spend, auto-apply, merge/deploy/retry/replay behavior,
   or external side effect. This index pointer is not roadmap authority.
-  Phase 9G explicit operator-approved Autonomy Runner skeleton planning v0.1
-  adds repo-local non-SSOT pointers for
-  `docs/AUTONOMY_RUNNER_SKELETON_PLANNING_V0_1.md`,
-  `docs/AUTONOMY_RUNNER_OPERATOR_APPROVAL_GATE_V0_1.md`, and
-  `scripts/smoke-autonomy-runner-skeleton-planning-v0-1.mjs` (`npm run
-  smoke:autonomy-runner-skeleton-planning-v0-1`). Phase 9G is planning only,
-  does not implement a runner skeleton, and does not add execution authority.
-  Any future runner skeleton requires separate explicit operator approval.
-  In Phase 9G, preflight remains planning context, dry-run remains preview
-  context, readiness remains not authorization, and operator approval is not
-  implied by readiness, dry-run, copy/manual-copy packets, App/MCP tool calls,
-  Codex summaries, browser visibility, smoke tests, or merged PRs. The docs
-  define run ledger/write policy, pause/stop/cancel, manual confirmation, tool
-  execution whitelist, and
-  Codex/GitHub/provider/OpenAI/DB/proof/evidence/memory/Perspective/handoff/branch-PR/budget/external boundaries as future
-  prerequisites only. Phase 9G adds no API route, UI, App/MCP tool, actual
-  runner, runner skeleton implementation, scheduler, daemon, background work,
-  queue, worker, DB schema/migration, DB write, provider/OpenAI call, GitHub
-  actuation, Codex execution from Augnes product code, proof/evidence write,
-  memory mutation, durable Perspective apply, handoff execution,
-  branch/PR creation from product code, budget spend, auto-apply, file
-  download/export-to-disk, external posting, product-write,
-  merge/publish/retry/replay/deploy behavior, or external side effect. This
-  index pointer is not roadmap authority.
   Phase 9 Autonomy Runner / Scheduled Hunt execution v0.1 adds local bounded
   runner execution pointers for `docs/AUTONOMY_RUNNER_EXECUTION_V0_1.md`,
   `types/autonomy-runner-execution.ts`, `lib/autonomy/runner.ts`,

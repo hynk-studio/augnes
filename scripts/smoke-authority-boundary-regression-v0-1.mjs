@@ -15,9 +15,7 @@ const workflowPath = ".github/workflows/authority-boundary-smoke.yml";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const roadmapPath = "docs/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL.md";
-const archivedSupersededRoadmapPaths = [
-  "docs/archive/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL_SUPERSEDED_2026_06_30.md",
-];
+const archivedSupersededRoadmapPaths = [];
 const privacyDocsPath = "docs/PRIVACY_REDACTION_RUNTIME_GUARD_V0_1.md";
 const exportPolicyDocsPath = "docs/LOCAL_DATA_EXPORT_IMPORT_POLICY_V0_1.md";
 
@@ -604,9 +602,7 @@ function assertStaticRepoScan() {
 function assertArchivedSupersededRoadmapExclusions() {
   assert.deepEqual(
     archivedSupersededRoadmapPaths,
-    [
-      "docs/archive/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL_SUPERSEDED_2026_06_30.md",
-    ],
+    [],
     "archived superseded roadmap exclusion must stay exact",
   );
   for (const filePath of archivedSupersededRoadmapPaths) {

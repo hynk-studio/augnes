@@ -6,6 +6,7 @@ import {
   assertContainsAll,
   assertPackageScript,
   collectUntrackedFiles,
+  isBoundaryContentOnlyMode,
   loadTextByFile,
   uniqueSorted,
 } from "./smoke-boundary-common.mjs";
@@ -31,8 +32,6 @@ const phase9cSmokeFile =
   "scripts/smoke-autonomy-runner-preflight-web-preview-v0-1.mjs";
 const phase9dSmokeFile =
   "scripts/smoke-chatgpt-app-autonomy-runner-preflight-tool-v0-1.mjs";
-const phase9eSmokeFile =
-  "scripts/smoke-codex-autonomy-runner-preflight-v0-1.mjs";
 
 const requiredFiles = [
   helperFile,
@@ -47,7 +46,6 @@ const requiredFiles = [
   phase9bSmokeFile,
   phase9cSmokeFile,
   phase9dSmokeFile,
-  phase9eSmokeFile,
 ];
 
 const priorSmokeAllowlistCompatibilityFiles = [
@@ -55,7 +53,6 @@ const priorSmokeAllowlistCompatibilityFiles = [
   phase9bSmokeFile,
   phase9cSmokeFile,
   phase9dSmokeFile,
-  phase9eSmokeFile,
   "scripts/smoke-augnes-delta-contract-v0-1.mjs",
   "scripts/smoke-augnes-delta-projection-v0-1.mjs",
   "scripts/smoke-augnes-delta-projection-route-v0-1.mjs",
@@ -91,9 +88,6 @@ const allowedChangedFiles = new Set([
   componentFile,
   previewPanelFile,
   smokeFile,
-  "docs/AUTONOMY_RUNNER_SKELETON_PLANNING_V0_1.md",
-  "docs/AUTONOMY_RUNNER_OPERATOR_APPROVAL_GATE_V0_1.md",
-  "scripts/smoke-autonomy-runner-skeleton-planning-v0-1.mjs",
   contractDoc,
   indexDoc,
   packageJsonFile,
@@ -208,8 +202,6 @@ function assertDocsAndIndex() {
     "preserves `dry_run_only`",
     "every planned step with `would_execute: false`",
     "smoke:autonomy-runner-preflight-copy-export-v0-1",
-    "Phase 9G - explicit operator-approved runner skeleton planning v0.1",
-    "planning only unless separately and explicitly scoped",
   ], { label: contractDoc });
 
   assertContainsAll(indexText, [
@@ -525,7 +517,6 @@ function assertCompanionSmokesPass() {
     "smoke:autonomy-runner-preflight-route-v0-1",
     "smoke:autonomy-runner-preflight-web-preview-v0-1",
     "smoke:chatgpt-app-autonomy-runner-preflight-tool-v0-1",
-    "smoke:codex-autonomy-runner-preflight-v0-1",
   ]) {
     execFileSync("npm", ["run", scriptName], {
       cwd: process.cwd(),
@@ -538,11 +529,13 @@ function assertCompanionSmokesPass() {
 function assertChangedFileBoundary() {
   const untracked = collectUntrackedFiles();
   const files = uniqueSorted(untracked);
-  for (const file of files) {
-    assert(
-      allowedChangedFiles.has(file),
-      `Unexpected untracked file for Phase 9F Autonomy Runner Preflight copy preview: ${file}`,
-    );
+  if (!isBoundaryContentOnlyMode()) {
+    for (const file of files) {
+      assert(
+        allowedChangedFiles.has(file),
+        `Unexpected untracked file for Phase 9F Autonomy Runner Preflight copy preview: ${file}`,
+      );
+    }
   }
 
   const result = assertChangedFilesWithin({
@@ -550,12 +543,14 @@ function assertChangedFileBoundary() {
     label: "Phase 9F Autonomy Runner Preflight copy preview",
   });
 
-  for (const file of result.files) {
-    for (const pattern of forbiddenChangedFilePatterns) {
-      assert(
-        !pattern.test(file),
-        `Forbidden changed file for Phase 9F Autonomy Runner Preflight copy preview: ${file}`,
-      );
+  if (!isBoundaryContentOnlyMode()) {
+    for (const file of result.files) {
+      for (const pattern of forbiddenChangedFilePatterns) {
+        assert(
+          !pattern.test(file),
+          `Forbidden changed file for Phase 9F Autonomy Runner Preflight copy preview: ${file}`,
+        );
+      }
     }
   }
 

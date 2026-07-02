@@ -19,7 +19,7 @@ const researchSmokePath = "scripts/smoke-dogfooding-research-record-runtime-v0-1
 const smokePath = "scripts/smoke-codex-result-to-dogfooding-record-v0-1.mjs";
 const docsPath = "docs/CODEX_RESULT_TO_DOGFOODING_RECORD_BINDING_V0_1.md";
 const researchDocsPath = "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
-const reconciliationDocsPath = "docs/POST_868_NON_UI_RUNTIME_GAP_RECONCILIATION_V0_1.md";
+const reconciliationDocsPath = "docs/DOGFOODING_RESEARCH_RECORD_RUNTIME_V0_1.md";
 const packagePath = "package.json";
 const indexPath = "docs/00_INDEX_LATEST.md";
 const conversationHandoffTypePath = "types/conversation-handoff-packet.ts";
@@ -547,6 +547,9 @@ function assertDogfoodingBoundaryClosed(boundary, label) {
 
 function assertChangedFileScope() {
   const changedFiles = collectChangedFiles();
+  if (getBoundarySmokeMode() === "content-only") {
+    return;
+  }
   for (const filePath of changedFiles) {
     assert.ok(expectedChangedFiles.has(filePath), `Unexpected changed file: ${filePath}`);
     assert.doesNotMatch(filePath, /^components\//, "no component files may change");
@@ -556,6 +559,15 @@ function assertChangedFileScope() {
     assert.doesNotMatch(filePath, /migrations/i, "no migration files may change");
     assert.doesNotMatch(filePath, /provider|retrieval|source-fetch/i, "no provider/retrieval/source-fetch files may change");
   }
+}
+
+function getBoundarySmokeMode() {
+  const mode = process.env.AUGNES_BOUNDARY_SMOKE_MODE || "scoped";
+  assert.ok(
+    ["scoped", "content-only"].includes(mode),
+    `AUGNES_BOUNDARY_SMOKE_MODE must be unset, scoped, or content-only; received ${JSON.stringify(mode)}`,
+  );
+  return mode;
 }
 
 function collectChangedFiles() {

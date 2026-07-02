@@ -10,26 +10,19 @@ that cite specific historical slice anchors.
 It is not current PR sequencing authority.
 Do not use this file for new slice selection.
 
-Current post-#868 posture/guardrail note:
+Current active development posture:
 
 ```text
-docs/POST_868_DEVELOPMENT_POSTURE.md
+docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md
 ```
 
-This posture note is not a roadmap, not SSOT, and not PR sequencing authority.
-It is a guardrail only.
+The active posture prioritizes functional goal completion, measurable capability
+improvement, behavior-focused tests, and implementation over planning-only work.
+It is not a roadmap, not SSOT, and not PR sequencing authority.
 
 There is no replacement long-form roadmap authority.
-The current non-authority posture is Core first, Handoff first, Conversation
-first, Web last.
 New slice selection must come from explicit operator task prompts, not from
 this file or roadmap tables.
-
-The archived copy is preserved at:
-
-```text
-docs/archive/AUGNES_INTEGRATED_DEVELOPMENT_ROADMAP_V0_2_1_FULL_SUPERSEDED_2026_06_30.md
-```
 
 Post-#868 route model:
 
@@ -2861,10 +2854,9 @@ automatic promotion
 # 6. 추천 PR 순서 전체 목록
 
 Warning: do not use this section for current sequencing. This table is retained
-as historical v0.2.1 FULL provenance only. The current non-authority posture is
-Core first, Handoff first, Conversation first, Web last. New slice selection
-comes from explicit operator task prompts; `docs/POST_868_DEVELOPMENT_POSTURE.md`
-is a non-authority guardrail only.
+as historical v0.2.1 FULL provenance only. New slice selection comes from
+explicit operator task prompts; `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`
+is the active non-authority development posture.
 
 아래는 실제 진행 순서다. 이 순서는 remaining development의 전체 항목을 유지하되, Research/ROI의 P0를 앞으로 당기고 Git Ledger/Product Write를 뒤로 미룬다.
 
