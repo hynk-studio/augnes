@@ -14,6 +14,8 @@ const pageFile = "app/page.tsx";
 const publicHomeFile = "components/augnes-public-home-surface.tsx";
 const homeComponentFile = "components/human-surface/human-surface-home.tsx";
 const blankStateFile = "components/human-surface/blank-state-panel.tsx";
+const blankStateReviewEntryGridFile =
+  "components/human-surface/blank-state-review-entry-grid.tsx";
 const modePresetFile = "components/human-surface/mode-preset-selector.tsx";
 const currentPerspectiveCardFile =
   "components/human-surface/current-perspective-card.tsx";
@@ -21,8 +23,14 @@ const recentDeltasFile = "components/human-surface/recent-deltas-preview.tsx";
 const surfaceLinkGridFile = "components/human-surface/surface-link-grid.tsx";
 const currentPerspectiveReadFile =
   "lib/human-surface/read-current-perspective.ts";
+const blankStateReviewEntriesReadFile =
+  "lib/human-surface/blank-state-review-entries.ts";
 const humanSurfaceDoc = "docs/HUMAN_SURFACE_V0_1.md";
+const blankStateReviewEntryAbsorptionDoc =
+  "docs/BLANK_STATE_REVIEW_ENTRY_ABSORPTION_V0_1.md";
 const smokeFile = "scripts/smoke-human-surface-home-v0-1.mjs";
+const blankStateReviewEntryAbsorptionSmokeFile =
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs";
 const packageJsonFile = "package.json";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const globalsCssFile = "app/globals.css";
@@ -124,13 +132,17 @@ const requiredFiles = [
   publicHomeFile,
   homeComponentFile,
   blankStateFile,
+  blankStateReviewEntryGridFile,
   modePresetFile,
   currentPerspectiveCardFile,
   recentDeltasFile,
   surfaceLinkGridFile,
   currentPerspectiveReadFile,
+  blankStateReviewEntriesReadFile,
   humanSurfaceDoc,
+  blankStateReviewEntryAbsorptionDoc,
   smokeFile,
+  blankStateReviewEntryAbsorptionSmokeFile,
   packageJsonFile,
   indexDoc,
   globalsCssFile,
@@ -256,12 +268,21 @@ const pageText = textByFile.get(pageFile);
 const publicHomeText = textByFile.get(publicHomeFile);
 const homeText = textByFile.get(homeComponentFile);
 const blankStateText = textByFile.get(blankStateFile);
+const blankStateReviewEntryGridText = textByFile.get(
+  blankStateReviewEntryGridFile,
+);
 const modePresetText = textByFile.get(modePresetFile);
 const currentCardText = textByFile.get(currentPerspectiveCardFile);
 const recentDeltasText = textByFile.get(recentDeltasFile);
 const surfaceLinksText = textByFile.get(surfaceLinkGridFile);
 const readHelperText = textByFile.get(currentPerspectiveReadFile);
+const blankStateReviewEntriesText = textByFile.get(
+  blankStateReviewEntriesReadFile,
+);
 const docText = textByFile.get(humanSurfaceDoc);
+const blankStateReviewEntryAbsorptionDocText = textByFile.get(
+  blankStateReviewEntryAbsorptionDoc,
+);
 const smokeText = textByFile.get(smokeFile);
 const packageJsonText = textByFile.get(packageJsonFile);
 const indexText = textByFile.get(indexDoc);
@@ -271,6 +292,7 @@ assertPackageJsonScript();
 assertIndexPointer();
 assertHomeRoute();
 assertHumanSurfaceComponents();
+assertBlankStateReviewEntries();
 assertModePresets();
 assertCurrentPerspectiveCard();
 assertRecentDeltasPreview();
@@ -337,6 +359,7 @@ console.log(
       index_pointer_checked: true,
       home_route_checked: true,
       blank_state_checked: true,
+      blank_state_review_entries_checked: true,
       mode_presets_checked: true,
       current_working_perspective_card_checked: true,
       recent_deltas_preview_checked: true,
@@ -412,6 +435,8 @@ function assertHumanSurfaceComponents() {
       "HumanSurfaceHome",
       "readCurrentPerspectiveForHumanSurface",
       "BlankStatePanel",
+      "buildBlankStateReviewEntries",
+      "readRunnerDeltaBatchesForWorkplane",
       "CurrentPerspectiveCard",
       "RecentDeltasPreview",
       "SurfaceLinkGrid",
@@ -422,13 +447,73 @@ function assertHumanSurfaceComponents() {
     { label: homeComponentFile },
   );
 
-  assertContainsAll(blankStateText, ["The Blank State", "Read-only boundary"], {
-    label: blankStateFile,
-  });
+  assertContainsAll(
+    blankStateText,
+    [
+      "The Blank State",
+      "BlankStateReviewEntryGrid",
+      "Read-only boundary",
+      "Blank State Review Entry Absorption v0.1",
+    ],
+    {
+      label: blankStateFile,
+    },
+  );
 
   assertContainsAll(cssText, ["human-surface-home", "human-surface-mode-grid"], {
     label: globalsCssFile,
   });
+}
+
+function assertBlankStateReviewEntries() {
+  const requiredEntryIds = [
+    "continue_current_work_entry",
+    "review_pending_proposals_entry",
+    "choose_perspective_lens_entry",
+    "prepare_codex_handoff_entry",
+    "review_runner_deltabatch_entry",
+    "automation_mode_entry",
+    "user_judgment_summary_entry",
+  ];
+
+  assertContainsAll(
+    blankStateReviewEntriesText,
+    [
+      "BLANK_STATE_REVIEW_ENTRY_IDS",
+      ...requiredEntryIds.map((id) => `"${id}"`),
+      'href: "/workbench#work_queue"',
+      'href: "/workbench#review_queue"',
+      'href: "/perspective"',
+      'href: "/workbench#handoff_builder_preview"',
+      'href: "/workbench#runner_delta_batch"',
+      'href: "/workbench#authority_boundary"',
+      "No approve, apply, reject, or commit control.",
+      "No runner execution, tick, recovery, or scheduling.",
+    ],
+    { label: blankStateReviewEntriesReadFile },
+  );
+
+  assertContainsAll(
+    blankStateReviewEntryGridText,
+    [
+      'data-blank-state-review-entry-grid="v0.1"',
+      "data-blank-state-entry-id={entry.capability_id}",
+      "data-blank-state-entry-target={entry.target_label}",
+      "data-blank-state-entry-source-status={entry.source_status}",
+      "href={entry.href}",
+    ],
+    { label: blankStateReviewEntryGridFile },
+  );
+
+  assertContainsAll(
+    blankStateReviewEntryAbsorptionDocText,
+    [
+      "Blank State Review Entry Absorption v0.1",
+      ...requiredEntryIds.map((id) => `\`${id}\``),
+      "This PR adds high-level entry, summary, and navigation only.",
+    ],
+    { label: blankStateReviewEntryAbsorptionDoc },
+  );
 }
 
 function assertModePresets() {
@@ -561,6 +646,8 @@ function assertNoMutationOrActuationCode() {
     recentDeltasText,
     surfaceLinksText,
     readHelperText,
+    blankStateReviewEntriesText,
+    blankStateReviewEntryGridText,
     publicHomeText,
   ].join("\n");
 

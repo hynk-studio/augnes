@@ -690,6 +690,7 @@
     "smoke:current-working-perspective-v0-1": "node scripts/smoke-current-working-perspective-v0-1.mjs",
     "smoke:current-working-perspective-route-v0-1": "node scripts/smoke-current-working-perspective-route-v0-1.mjs",
     "smoke:human-surface-home-v0-1": "node scripts/smoke-human-surface-home-v0-1.mjs",
+    "smoke:blank-state-review-entry-absorption-v0-1": "node scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
     "smoke:perspective-human-timeline-v0-1": "node scripts/smoke-perspective-human-timeline-v0-1.mjs",
     "smoke:agent-workplane-shell-v0-1": "node scripts/smoke-agent-workplane-shell-v0-1.mjs",
     "smoke:agent-workplane-panels-v0-1": "node scripts/smoke-agent-workplane-panels-v0-1.mjs",

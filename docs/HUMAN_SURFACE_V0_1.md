@@ -16,6 +16,17 @@ proof/evidence writes, durable Perspective state apply, memory mutation,
 product-write, scheduler/autonomy runner, merge/publish/retry/replay/deploy
 behavior, or external side effects.
 
+Blank State Review Entry Absorption v0.1 implements the PR 2 Legacy Cockpit
+decomposition step on `/`. It adds native high-level Blank State entries for
+Continue Current Work, Review Pending Proposals, Choose Perspective Lens,
+Prepare Codex Handoff, Review Runner DeltaBatch, Automation Mode, and User
+Judgment Summary. These entries are links and summaries only: they do not add
+apply, approve, reject, commit, runner execution, Codex launch, provider calls,
+GitHub actuation, DB writes, proof/evidence writes, durable memory apply,
+Perspective apply, delta auto-apply, localStorage/sessionStorage writes, server
+actions, new routes, `/cockpit` deletion, or `components/augnes-cockpit.tsx`
+deletion.
+
 ## 2. Home Surface
 
 The Human Surface Home renders:
@@ -25,7 +36,8 @@ The Human Surface Home renders:
 - links to `/perspective` and `/workbench`
 - Guided Blank State copy
 - display-only mode presets
-- read-only start-intent cards
+- Blank State Review Entry Absorption v0.1 seven-entry review grid
+- read-only review entry cards
 - Current Working Perspective summary
 - recent important delta and review queue hints
 - surface links for Perspective, Workbench, and future Guide / ChatGPT / Codex
@@ -81,6 +93,35 @@ Phase 4A mode presets are local/display only:
 
 Mode preset display does not create work, run agents, write records, launch
 Codex, call providers, persist state, mutate memory, or grant authority.
+
+## 4A. Blank State Review Entry Absorption
+
+Blank State Review Entry Absorption v0.1 renders exactly seven native entry
+cards with stable `data-blank-state-entry-id` markers:
+
+- `continue_current_work_entry`
+- `review_pending_proposals_entry`
+- `choose_perspective_lens_entry`
+- `prepare_codex_handoff_entry`
+- `review_runner_deltabatch_entry`
+- `automation_mode_entry`
+- `user_judgment_summary_entry`
+
+The entries use existing read-only Current Working Perspective context plus the
+existing recovered runner DeltaBatch Workplane read helper. Runtime-unavailable
+states use explicit fixture, empty, or fallback copy instead of fabricated live
+counts.
+
+Targets are `/workbench#work_queue`, `/workbench#review_queue`,
+`/perspective`, `/workbench#handoff_builder_preview`,
+`/workbench#runner_delta_batch`, and `/workbench#authority_boundary`.
+
+Blank State remains high-level entry, summary, and navigation. Detailed
+proposal diff, before/after preview, manual preview editor, Perspective lens
+detail edit, memory proposal review, local draft review, source refs, impact
+analysis, stale/fallback warning review, needs-user-judgment lane, authority
+boundary review, and proposal status history stay assigned to Workplane State
+Proposal Review or Agent Workplane follow-on work.
 
 ## 5. Current Working Perspective Display
 
@@ -218,6 +259,20 @@ Phase 5 Agent Workplane remains future work.
   durable Perspective apply, memory mutation, scheduler/autonomy runner, or
   external side effect files are added
 - changed-file boundary remains focused on Phase 4A files
+
+`npm run smoke:blank-state-review-entry-absorption-v0-1` checks:
+
+- package script pointer
+- Human Surface home wiring
+- all seven required `blank_state` entry IDs
+- stable `data-blank-state-entry-id` markers
+- Workplane/Perspective targets
+- source/fallback and authority notes
+- no mutation controls, server action, localStorage/sessionStorage writes, new
+  routes, DB/proof/evidence writes, provider/OpenAI/GitHub/Codex calls, runner
+  execution/tick/recovery/scheduling, durable memory apply, Perspective apply,
+  delta auto-apply, `/cockpit` deletion, or `components/augnes-cockpit.tsx`
+  deletion
 
 `npm run smoke:perspective-human-timeline-v0-1` checks:
 
