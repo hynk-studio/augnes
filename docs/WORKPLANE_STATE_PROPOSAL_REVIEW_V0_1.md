@@ -187,3 +187,8 @@ That follow-on is now implemented in
 reject, durable memory apply, and Perspective apply controls remain blocked
 until a separate authority contract exists. Cockpit route removal remains gated
 until unique useful capability count is verified as 0.
+
+Route-removal readiness follow-on:
+`docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md` verifies
+`unique_useful_cockpit_capability_count: 0` and `zero_count_verified: true`,
+while keeping route and component deletion disabled for that readiness-only PR.

@@ -143,6 +143,16 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   proof/evidence write, durable memory apply, Perspective apply, delta
   auto-apply, new route, `/cockpit` deletion, or
   `components/augnes-cockpit.tsx` deletion.
+- `docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md`: Cockpit Route Removal
+  Readiness v0.1 verifies the post-PR #941 zero-count state before any
+  deletion PR. The deterministic readiness model classifies every remaining
+  Legacy Cockpit capability as migrated to Blank State, Workplane, State
+  Proposal Review, Manual Controls Migration review, blocked until authority
+  contract, obsolete delete, or forbidden delete. It reports
+  `unique_useful_cockpit_capability_count: 0`,
+  `zero_count_verified: true`, `route_removal_allowed: false`, and
+  `component_removal_allowed: false`. It does not delete `/cockpit` or
+  `components/augnes-cockpit.tsx` and adds no authority.
 - `docs/AGENT_WORKPLANE_V0_1.md`: Phase 5A read-only Agent Workplane shell
   pointer for reframing `/workbench` as the backend work surface for
   agent/operator Trace context, projection candidates, handoff context,

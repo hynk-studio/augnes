@@ -66,6 +66,24 @@ const followOnCockpitManualControlsMigrationFiles = [
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
 ];
 
+const followOnCockpitRouteRemovalReadinessFiles = [
+  "types/cockpit-route-removal-readiness.ts",
+  "lib/workplane/cockpit-route-removal-readiness.ts",
+  "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
+  "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
+  "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "package.json",
+  "scripts/smoke-cockpit-route-removal-readiness-v0-1.mjs",
+  "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
+  "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
+];
+
 const allowedChangedFiles = [
   migrationDoc,
   smokeFile,
@@ -79,6 +97,7 @@ const allowedChangedFiles = [
   runtimeSmokeFile,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
+  ...followOnCockpitRouteRemovalReadinessFiles,
 ];
 
 const destinationValues = [

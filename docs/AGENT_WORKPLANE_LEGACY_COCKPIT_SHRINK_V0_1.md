@@ -27,6 +27,12 @@ local-write/apply/commit/reject controls blocked until a separate authority
 contract, and classifies obsolete manual/execution residue as delete
 candidates.
 
+The PR 5 readiness follow-on is documented in
+`docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md`. It verifies
+`unique_useful_cockpit_capability_count: 0` and `zero_count_verified: true`,
+while keeping `/cockpit` and `components/augnes-cockpit.tsx` unchanged for the
+readiness-only PR.
+
 ## Route Split
 
 - /workbench no longer mounts full AugnesCockpit.
@@ -82,6 +88,10 @@ Retained local-write/apply/commit/reject controls remain reachable through
 /cockpit until separately handled under a future authority contract or deleted
 with route removal. Safe manual preview/copy review rows are now native in
 Workplane State Proposal Review.
+
+The route-removal readiness model verifies that those blocked controls do not
+keep Cockpit alive as a product surface because their blocked status and
+authority boundary are represented natively in Workplane review.
 
 ## Runtime Verification
 

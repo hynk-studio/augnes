@@ -29,6 +29,14 @@ rows, blocked local-write/apply/commit/reject controls remain blocked until a
 separate authority contract, and obsolete Cockpit manual controls are delete
 candidates rather than migration targets.
 
+PR 5 readiness update: Cockpit Route Removal Readiness v0.1 is now implemented
+in `docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md`. The readiness model reports
+`unique_useful_cockpit_capability_count: 0` and `zero_count_verified: true`,
+but keeps `route_removal_allowed: false` and `component_removal_allowed: false`
+because this readiness PR does not delete `/cockpit` or
+`components/augnes-cockpit.tsx`. The result unlocks a future explicit Cockpit
+Route Removal v0.1 PR if the zero-count verification remains true.
+
 ## Destination Model
 
 Destination values:
@@ -206,7 +214,19 @@ until a separate authority contract exists. Delete obsolete controls.
 Implementation:
 `docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md`.
 
-PR 5: Cockpit Route Removal v0.1
+PR 5 readiness: Cockpit Route Removal Readiness v0.1
+
+Purpose: Verify that `/cockpit` unique useful capability count is 0 before
+route/component removal.
+
+Implementation:
+`docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md`.
+
+Result: `unique_useful_cockpit_capability_count: 0`,
+`zero_count_verified: true`, `route_removal_allowed: false`, and
+`component_removal_allowed: false`.
+
+Future PR: PR 5: Cockpit Route Removal v0.1
 
 Purpose: Remove `/cockpit` and `components/augnes-cockpit.tsx` only when unique
 useful capability count is 0.
