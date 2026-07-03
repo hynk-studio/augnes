@@ -371,8 +371,10 @@ const followOnCockpitRouteRemovalFiles = [
   "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
   "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
   "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md",
   "package.json",
   "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/smoke-cockpit-post-removal-cleanup-v0-1.mjs",
   "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
   "scripts/smoke-cockpit-route-removal-readiness-v0-1.mjs",
   "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
@@ -423,6 +425,7 @@ const allowedChangedFiles = new Set([
   ...followOnCockpitRouteRemovalFiles,
   "lib/workplane/legacy-cockpit-control-inventory.ts",
   "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
   "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
@@ -842,11 +845,28 @@ function assertExpectedSourceFileDeletion() {
     ]).files,
   ]);
 
-  assert.deepEqual(
-    deletedFiles,
-    [cockpitPageFile, augnesCockpitFile, legacyCompatibilityPanelFile].sort(),
-    "Only the Cockpit route/component/compatibility pointer deletions are allowed",
-  );
+  const removedCockpitProductFiles = [
+    cockpitPageFile,
+    augnesCockpitFile,
+    legacyCompatibilityPanelFile,
+  ];
+  const retiredPreRemovalSmokeFiles = [
+    "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+    "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+    "scripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+    "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+  ];
+  const allowedDeletedFiles = new Set([
+    ...removedCockpitProductFiles,
+    ...retiredPreRemovalSmokeFiles,
+  ]);
+
+  for (const file of deletedFiles) {
+    assert(allowedDeletedFiles.has(file), `Unexpected deleted file: ${file}`);
+  }
+  for (const file of removedCockpitProductFiles) {
+    assert(!existsSync(file), `${file} must remain absent after route removal`);
+  }
 }
 
 function assertNoNewRoute() {
@@ -930,6 +950,10 @@ function assertOnlyExpectedCockpitDeletion() {
     `D\t${cockpitPageFile}`,
     `D\t${augnesCockpitFile}`,
     `D\t${legacyCompatibilityPanelFile}`,
+    "D\tscripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+    "D\tscripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+    "D\tscripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+    "D\tscripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
   ]);
   const unexpectedDeletion = deletionNameStatus.find(
     (line) => line.startsWith("D") && !allowedDeletions.has(line),

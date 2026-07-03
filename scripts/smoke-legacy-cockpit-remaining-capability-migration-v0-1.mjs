@@ -21,6 +21,7 @@ const shrinkSmokeFile =
 const runtimeSmokeFile =
   "scripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs";
 const routeRemovalDoc = "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md";
+const cleanupDoc = "docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md";
 
 const followOnWorkplaneStateProposalReviewFiles = [
   "types/workplane-state-proposal-review.ts",
@@ -87,6 +88,7 @@ const followOnCockpitRouteRemovalReadinessFiles = [
 
 const followOnCockpitRouteRemovalFiles = [
   routeRemovalDoc,
+  cleanupDoc,
   "app/cockpit/page.tsx",
   "components/augnes-cockpit.tsx",
   "components/workplane/legacy-cockpit-compatibility-panel.tsx",
@@ -107,6 +109,7 @@ const followOnCockpitRouteRemovalFiles = [
   "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
   "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
   "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/smoke-cockpit-post-removal-cleanup-v0-1.mjs",
   "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
   "scripts/smoke-cockpit-route-removal-readiness-v0-1.mjs",
   "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",

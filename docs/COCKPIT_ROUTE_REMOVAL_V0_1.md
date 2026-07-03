@@ -90,15 +90,14 @@ through normal repository change control only.
 Required validation:
 
 - `npm run typecheck`
+- `npm run smoke:cockpit-post-removal-cleanup-v0-1`
 - `npm run smoke:cockpit-route-removal-v0-1`
 - `npm run smoke:cockpit-route-removal-readiness-v0-1`
 - `npm run smoke:cockpit-manual-controls-migration-v0-1`
 - `npm run smoke:workplane-state-proposal-review-v0-1`
 - `npm run smoke:legacy-cockpit-remaining-capability-migration-v0-1`
-- `npm run smoke:agent-workplane-legacy-cockpit-shrink-v0-1`
 - `npm run smoke:agent-workplane-node-contract-v0-1`
 - `npm run smoke:agent-workplane-panels-v0-1`
-- `npm run smoke:agent-workplane-cockpit-inheritance-v0-1`
 - `npm run smoke:blank-state-review-entry-absorption-v0-1`
 - `git diff --check`
 - `git diff --cached --check`
@@ -109,7 +108,12 @@ Runtime validation, when a local dev server is available:
 
 ## Follow-Up Cleanup
 
+Post-removal cleanup is documented in
+`docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md`. It retires stale route-split and
+retained Cockpit smokes after Cockpit removal while preserving the native
+post-removal smokes that validate `/cockpit` absence and migrated capability
+coverage.
+
 No migrated Blank State, Workplane, State Proposal Review, or Manual Controls
-Migration capability should be removed as part of Cockpit deletion. Future
-cleanup can remove stale historical planning smokes or docs only under a
-separate explicit cleanup scope.
+Migration capability should be removed as part of Cockpit deletion or the
+post-removal cleanup.

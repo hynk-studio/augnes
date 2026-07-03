@@ -38,6 +38,10 @@ The explicit deletion follow-on is documented in
 `components/augnes-cockpit.tsx`, and the Workplane compatibility pointer after
 zero-count readiness was verified.
 
+The final cleanup follow-on is documented in
+`docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md`. It retired stale retained-route
+smokes that only verified the temporary `/cockpit` compatibility state.
+
 ## Route Split
 
 - /workbench no longer mounts full AugnesCockpit.
@@ -114,37 +118,22 @@ Current runtime validation belongs to
 return 200 while `/cockpit` returns 404 or the framework default not-found
 response with no Cockpit shell.
 
-### Historical Commands
+### Retired Historical Commands
 
-Start a local dev server:
+Cockpit Post-Removal Cleanup v0.1 retires the old route-split runtime checker
+and static smoke:
 
-```bash
-AUGNES_DB_PATH=/tmp/augnes-runtime-check.db npm run dev -- --port 3000
-```
+- `runtime:agent-workplane-legacy-cockpit-check-v0-1`
+- `smoke:agent-workplane-legacy-cockpit-runtime-check-v0-1`
 
-Then run the route checker:
+Those commands expected HTTP 200 for both `/workbench` and the temporary
+retained `/cockpit` route. After Cockpit Route Removal v0.1, that retained-route
+expectation is obsolete and must not be treated as current validation.
 
-```bash
-npm run runtime:agent-workplane-legacy-cockpit-check-v0-1
-```
+Current route/component absence is validated by:
 
-Static coverage for this runtime helper is checked with:
-
-```bash
-npm run smoke:agent-workplane-legacy-cockpit-runtime-check-v0-1
-```
-
-### Expected Output
-
-The historical runtime checker printed JSON with `pass: true`, HTTP 200 status
-for `/workbench` and `/cockpit`, and retained-route facts. After Cockpit Route
-Removal v0.1 those retained-route markers must be absent.
-
-The final line should be:
-
-```text
-PASS runtime:agent-workplane-legacy-cockpit-runtime-check-v0-1
-```
+- `npm run smoke:cockpit-route-removal-v0-1`
+- `npm run runtime:cockpit-route-removal-check-v0-1`
 
 ### Failure Conditions
 

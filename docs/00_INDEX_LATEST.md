@@ -167,6 +167,15 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   DB, provider/OpenAI, GitHub, Codex, runner, proof/evidence, memory apply,
   Perspective apply, delta apply, localStorage/sessionStorage, or product-write
   authority.
+- `docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md`: Cockpit Post-Removal Cleanup
+  v0.1 retires stale pre-removal route-split smokes that only verified the
+  temporary retained `/cockpit` state. It removes those package scripts while
+  keeping `smoke:cockpit-route-removal-v0-1`,
+  `smoke:cockpit-route-removal-readiness-v0-1`, native State Proposal Review,
+  Manual Controls Migration, Blank State, and Workplane panel/node smokes
+  authoritative. It changes no product UI, route, component, API, DB,
+  provider/OpenAI, GitHub, Codex, runner, proof/evidence, memory apply,
+  Perspective apply, delta apply, or product-write authority.
 - `docs/AGENT_WORKPLANE_V0_1.md`: Phase 5A read-only Agent Workplane shell
   pointer for reframing `/workbench` as the backend work surface for
   agent/operator Trace context, projection candidates, handoff context,

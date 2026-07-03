@@ -24,6 +24,7 @@ const migrationDoc =
 const shrinkDoc = "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md";
 const agentWorkplaneDoc = "docs/AGENT_WORKPLANE_V0_1.md";
 const routeRemovalDoc = "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md";
+const cleanupDoc = "docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs";
@@ -169,6 +170,7 @@ const followOnCockpitRouteRemovalReadinessFiles = [
 
 const followOnCockpitRouteRemovalFiles = [
   routeRemovalDoc,
+  cleanupDoc,
   "app/cockpit/page.tsx",
   "components/augnes-cockpit.tsx",
   "components/workplane/legacy-cockpit-compatibility-panel.tsx",
@@ -188,12 +190,14 @@ const followOnCockpitRouteRemovalFiles = [
   "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
   "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
   "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/smoke-cockpit-post-removal-cleanup-v0-1.mjs",
   "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
   "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
   "scripts/smoke-agent-workplane-shell-v0-1.mjs",
   "scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
   "lib/workplane/legacy-cockpit-control-inventory.ts",
   "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
   "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
@@ -222,7 +226,6 @@ const expectedChangedFiles = [
   smokeFile,
   stateProposalSmokeFile,
   migrationSmokeFile,
-  shrinkSmokeFile,
   blankStateSmokeFile,
   panelsSmokeFile,
   ...followOnWorkplaneStateProposalReviewFiles,
@@ -245,7 +248,6 @@ const textByFile = loadTextByFile([
   packageJsonFile,
   stateProposalSmokeFile,
   migrationSmokeFile,
-  shrinkSmokeFile,
   blankStateSmokeFile,
   panelsSmokeFile,
   routeRemovalDoc,
