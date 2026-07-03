@@ -158,7 +158,7 @@ export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
       "It can inspect Current Working Perspective, Augnes Delta Projection context, and recovered runner DeltaBatch ledger readback.",
       "Recovered runner DeltaBatches are review-only context and are separate from projected Delta Projection batches.",
       "It does not execute agents, recover DeltaBatches, tick or schedule runners, apply deltas, write proof/evidence, call providers, call GitHub, launch Codex, merge, publish, retry, replay, deploy, or mutate state.",
-      "Existing Cockpit content is preserved as compatibility content for operator continuity.",
+      "Legacy Cockpit has been removed as a product surface; migrated capabilities now live in Blank State, Agent Workplane, State Proposal Review, and Manual Controls Migration rows.",
     ],
   };
 
