@@ -34,6 +34,7 @@ const requiredBlankStateEntryIds = [
 
 const packageJsonFile = "package.json";
 const removalDoc = "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md";
+const cleanupDoc = "docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md";
 const readinessDoc = "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md";
 const shrinkDoc = "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md";
 const migrationDoc =
@@ -66,6 +67,7 @@ const expectedChangedFiles = [
   "lib/metrics/runner-workplane-metrics.ts",
   "lib/guide/workplane-intent-projection.ts",
   removalDoc,
+  cleanupDoc,
   readinessDoc,
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
   "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
@@ -80,6 +82,7 @@ const expectedChangedFiles = [
   packageJsonFile,
   smokeFile,
   runtimeFile,
+  "scripts/smoke-cockpit-post-removal-cleanup-v0-1.mjs",
   "scripts/smoke-cockpit-route-removal-readiness-v0-1.mjs",
   "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
   "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
@@ -93,6 +96,7 @@ const expectedChangedFiles = [
   "scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
   "lib/workplane/legacy-cockpit-control-inventory.ts",
   "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
   "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",

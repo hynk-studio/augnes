@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import {
   buildCockpitRouteRemovalReadiness,
   COCKPIT_ROUTE_REMOVAL_CAPABILITY_RECORDS,
@@ -23,6 +24,7 @@ const typeFile = "types/cockpit-route-removal-readiness.ts";
 const helperFile = "lib/workplane/cockpit-route-removal-readiness.ts";
 const docFile = "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md";
 const removalDocFile = "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md";
+const cleanupDocFile = "docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const migrationDoc =
   "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md";
@@ -163,6 +165,7 @@ const expectedChangedFiles = [
   "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
   "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
   removalDocFile,
+  cleanupDocFile,
   "app/cockpit/page.tsx",
   "components/augnes-cockpit.tsx",
   "components/workplane/legacy-cockpit-compatibility-panel.tsx",
@@ -178,6 +181,7 @@ const expectedChangedFiles = [
   "lib/metrics/runner-workplane-metrics.ts",
   "lib/guide/workplane-intent-projection.ts",
   "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/smoke-cockpit-post-removal-cleanup-v0-1.mjs",
   "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
   "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
@@ -186,6 +190,7 @@ const expectedChangedFiles = [
   "scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
   "lib/workplane/legacy-cockpit-control-inventory.ts",
   "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
   "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
@@ -547,18 +552,16 @@ function assertRouteRemovalState() {
     "--diff-filter=D",
     "HEAD",
   ]).files;
-  assert(
-    deletedFiles.includes("app/cockpit/page.tsx"),
-    "app/cockpit/page.tsx must be deleted by route-removal PR",
-  );
-  assert(
-    deletedFiles.includes("components/augnes-cockpit.tsx"),
-    "components/augnes-cockpit.tsx must be deleted by route-removal PR",
-  );
-  assert(
-    deletedFiles.includes("components/workplane/legacy-cockpit-compatibility-panel.tsx"),
-    "legacy compatibility panel must be deleted by route-removal PR",
-  );
+  for (const file of [
+    "app/cockpit/page.tsx",
+    "components/augnes-cockpit.tsx",
+    "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  ]) {
+    assert(
+      deletedFiles.includes(file) || !existsSync(file),
+      `${file} must be absent after route removal`,
+    );
+  }
 }
 
 function assertNoMutationOrAuthorityText() {

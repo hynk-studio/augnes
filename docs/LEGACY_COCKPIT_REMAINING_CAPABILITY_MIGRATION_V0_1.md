@@ -42,6 +42,11 @@ PR 5 deletion update: Cockpit Route Removal v0.1 is implemented in
 were removed after `unique_useful_cockpit_capability_count: 0` and
 `zero_count_verified: true` were verified.
 
+Post-removal cleanup update: Cockpit Post-Removal Cleanup v0.1 is implemented
+in `docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md`. It retires temporary
+route-split and retained Cockpit smokes after route removal while keeping
+post-removal and native capability smokes authoritative.
+
 ## Destination Model
 
 Destination values:
@@ -242,6 +247,19 @@ Implementation:
 Result: route removal completed after unique useful capability count was
 verified as 0.
 
+Post-removal cleanup: Cockpit Post-Removal Cleanup v0.1
+
+Purpose: Retire stale retained-route smoke scripts after Cockpit Route Removal
+v0.1 and keep post-removal/native capability smokes authoritative.
+
+Implementation:
+`docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md`.
+
+Result: route split / retained Cockpit smokes were temporary and are now retired
+after route removal. Cockpit route/component/pointer removal remains validated
+by `smoke:cockpit-route-removal-v0-1`, and migrated surfaces remain validated
+by their own native smokes.
+
 ## Completion Criteria
 
 - `/cockpit` unique useful capability count = 0.
@@ -274,4 +292,5 @@ This original migration-map PR did not:
 
 Later PRs implemented the mapped destinations, verified
 `unique_useful_cockpit_capability_count: 0`, and completed Cockpit Route Removal
-v0.1.
+v0.1. Cockpit Post-Removal Cleanup v0.1 later retired stale retained-route
+smokes without changing product behavior or authority.

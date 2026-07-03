@@ -220,6 +220,10 @@ Cockpit Route Removal v0.1 later removed `/cockpit`,
 `components/augnes-cockpit.tsx`, and the Workplane compatibility pointer after
 this zero-count verification.
 
+Cockpit Post-Removal Cleanup v0.1
+(`docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md`) later retired the temporary
+retained-route smokes that only made sense before `/cockpit` was removed.
+
 ## Validation
 
 Primary smoke:
@@ -234,7 +238,7 @@ Related checks:
 npm run smoke:cockpit-manual-controls-migration-v0-1
 npm run smoke:workplane-state-proposal-review-v0-1
 npm run smoke:legacy-cockpit-remaining-capability-migration-v0-1
-npm run smoke:agent-workplane-legacy-cockpit-shrink-v0-1
+npm run smoke:cockpit-post-removal-cleanup-v0-1
 npm run smoke:blank-state-review-entry-absorption-v0-1
 ```
 
@@ -246,3 +250,6 @@ That PR removed `/cockpit`, `components/augnes-cockpit.tsx`, and obsolete
 Cockpit shell/pointer code because `zero_count_verified` remained true. It did
 not add apply/commit/reject/provider/GitHub/Codex/runner/product-write
 authority.
+
+Post-removal cleanup:
+`docs/COCKPIT_POST_REMOVAL_CLEANUP_V0_1.md`.
