@@ -115,8 +115,8 @@ Build the most useful next Augnes capability when the user has not set a
 tighter scope fence. Broad categories such as runtime behavior, API routes,
 App/MCP tools, DB schema, local persistence, provider integration, retrieval,
 research capability implementation, proof/evidence paths, package scripts,
-Perspective promotion workflows, UI/Cockpit changes, and substantial refactors
-are not blanket-forbidden by default.
+Perspective promotion workflows, UI changes, legacy-surface migration docs, and
+substantial refactors are not blanket-forbidden by default.
 
 Required discipline:
 

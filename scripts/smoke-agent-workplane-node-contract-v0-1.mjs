@@ -394,6 +394,68 @@ const followOnCockpitRouteRemovalFiles = [
   "types/workplane-browser-regression.ts",
 ];
 
+const followOnPerspectiveCockpitRouteNamespaceCleanupMovedRouteFiles = [
+  "codex-former/capture-review-inbox-fixture/page.tsx",
+  "codex-former/constellation-preview-fixture/page.tsx",
+  "codex-former/local-adapter-operator-flow/operator-flow-surface.module.css",
+  "codex-former/local-adapter-operator-flow/operator-flow-surface.tsx",
+  "codex-former/local-adapter-operator-flow/page.tsx",
+  "codex-former/local-adapter-snapshot-fixture/page.tsx",
+  "codex-former/local-adapter-validate-result-fixture/page.tsx",
+  "codex-former/local-adapter-validate-result-fixture/validate-result-fixture-surface.module.css",
+  "codex-former/local-adapter-validate-result-fixture/validate-result-fixture-surface.tsx",
+  "codex-former/session-perspective-panel-fixture/page.tsx",
+  "memory-boundary-review-inbox/memory-boundary-review-inbox-surface.module.css",
+  "memory-boundary-review-inbox/memory-boundary-review-inbox-surface.tsx",
+  "memory-boundary-review-inbox/page.tsx",
+  "memory-items/page.tsx",
+  "memory-items/perspective-memory-items-surface.module.css",
+  "memory-items/perspective-memory-items-surface.tsx",
+  "memory-items/reuse/page.tsx",
+  "memory-items/reuse/perspective-memory-item-reuse-workspace-surface.module.css",
+  "memory-items/reuse/perspective-memory-item-reuse-workspace-surface.tsx",
+  "memory-items/review/page.tsx",
+  "memory-items/review/perspective-memory-item-review-workspace-surface.module.css",
+  "memory-items/review/perspective-memory-item-review-workspace-surface.tsx",
+  "memory-items/search/page.tsx",
+  "memory-items/search/perspective-memory-item-search-surface.module.css",
+  "memory-items/search/perspective-memory-item-search-surface.tsx",
+  "memory-review-queue/local/local-memory-review-queue-surface.module.css",
+  "memory-review-queue/local/local-memory-review-queue-surface.tsx",
+  "memory-review-queue/local/page.tsx",
+];
+
+const followOnPerspectiveCockpitRouteNamespaceCleanupDeletedRouteFiles =
+  followOnPerspectiveCockpitRouteNamespaceCleanupMovedRouteFiles.map(
+    (file) => `app/cockpit/perspective/${file}`,
+  );
+
+const followOnPerspectiveCockpitRouteNamespaceCleanupFiles = [
+  "AGENTS.md",
+  "SUBMISSION.md",
+  "docs/PERSPECTIVE_COCKPIT_ROUTE_NAMESPACE_CLEANUP_V0_1.md",
+  "docs/COCKPIT_MVP_UI_POLISH_PLAN.md",
+  "docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md",
+  "docs/COCKPIT_PERSPECTIVE_IA_V0_1.md",
+  "docs/PROMOTION_READINESS_REVIEW_HUB_COCKPIT_ENTRYPOINT_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "scripts/smoke-perspective-cockpit-route-namespace-cleanup-v0-1.mjs",
+  ...followOnPerspectiveCockpitRouteNamespaceCleanupMovedRouteFiles.flatMap(
+    (file) => [`app/perspective/${file}`, `app/cockpit/perspective/${file}`],
+  ),
+  "lib/perspective-ingest/codex-former-capture-review-inbox-fixture-surface.ts",
+  "lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts",
+  "lib/perspective-ingest/codex-former-local-adapter-snapshot-fixture-surface.ts",
+  "lib/perspective-ingest/codex-former-local-adapter-validate-result-fixture-surface.ts",
+  "lib/perspective-ingest/codex-former-session-perspective-panel-fixture-surface.ts",
+  "lib/perspective-ingest/perspective-memory-item-reuse-packet.ts",
+  "lib/perspective-ingest/perspective-memory-item-review-workspace.ts",
+  "lib/perspective-ingest/perspective-memory-item-search.ts",
+  "lib/perspective-ingest/perspective-memory-item.ts",
+  "lib/perspective-ingest/perspective-memory-local-review-queue.ts",
+  "lib/perspective-ingest/perspective-memory-product-persistence-boundary.ts",
+];
+
 
 const requiredFiles = [
   typeContractFile,
@@ -423,6 +485,7 @@ const allowedChangedFiles = new Set([
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitRouteRemovalFiles,
+  ...followOnPerspectiveCockpitRouteNamespaceCleanupFiles,
   "lib/workplane/legacy-cockpit-control-inventory.ts",
   "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
   "scripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
@@ -859,6 +922,7 @@ function assertExpectedSourceFileDeletion() {
   const allowedDeletedFiles = new Set([
     ...removedCockpitProductFiles,
     ...retiredPreRemovalSmokeFiles,
+    ...followOnPerspectiveCockpitRouteNamespaceCleanupDeletedRouteFiles,
   ]);
 
   for (const file of deletedFiles) {
@@ -954,6 +1018,9 @@ function assertOnlyExpectedCockpitDeletion() {
     "D\tscripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
     "D\tscripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
     "D\tscripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+    ...followOnPerspectiveCockpitRouteNamespaceCleanupDeletedRouteFiles.map(
+      (file) => `D\t${file}`,
+    ),
   ]);
   const unexpectedDeletion = deletionNameStatus.find(
     (line) => line.startsWith("D") && !allowedDeletions.has(line),

@@ -21,9 +21,9 @@ import {
 import styles from "./memory-boundary-review-inbox-surface.module.css";
 
 const LOCAL_MEMORY_REVIEW_QUEUE_ROUTE =
-  "/cockpit/perspective/memory-review-queue/local";
+  "/perspective/memory-review-queue/local";
 const OPERATOR_FLOW_ROUTE =
-  "/cockpit/perspective/codex-former/local-adapter-operator-flow";
+  "/perspective/codex-former/local-adapter-operator-flow";
 const allItemConfirmations: Required<PerspectiveMemoryItemUserConfirmation> = {
   user_confirmed_create_persisted_perspective_memory_item: true,
   user_confirmed_not_core_decision: true,

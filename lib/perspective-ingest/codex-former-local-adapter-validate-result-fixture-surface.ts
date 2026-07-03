@@ -8,7 +8,7 @@ import type {
 } from "@/lib/perspective-ingest/codex-former-local-adapter-validate-result-snapshots";
 
 export const CODEX_FORMER_LOCAL_ADAPTER_VALIDATE_RESULT_FIXTURE_SURFACE_ROUTE =
-  "/cockpit/perspective/codex-former/local-adapter-validate-result-fixture";
+  "/perspective/codex-former/local-adapter-validate-result-fixture";
 
 export type ValidateResultFixtureSurfaceFilter =
   | "all"

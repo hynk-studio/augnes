@@ -14,7 +14,7 @@ export const PERSPECTIVE_MEMORY_ITEM_REVIEW_SELECTION_SUMMARY_VERSION =
 export const PERSPECTIVE_MEMORY_ITEM_REVIEW_GUIDANCE_VERSION =
   "perspective_memory_item_review_guidance.v0.1";
 export const PERSPECTIVE_MEMORY_ITEM_REVIEW_WORKSPACE_ROUTE =
-  "/cockpit/perspective/memory-items/review";
+  "/perspective/memory-items/review";
 
 const REVIEW_ARRAY_LIMIT = 80;
 const REVIEW_TEXT_LIMIT = 300;

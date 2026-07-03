@@ -1,5 +1,11 @@
 # Submission Message
 
+Historical Legacy Cockpit artifact.
+This document describes pre-removal Cockpit-era architecture or validation.
+It is not current product IA.
+Current product structure is Blank State + Agent Workplane + GuideBrief.
+Legacy Cockpit has been removed as a product surface.
+
 Submission: Augnes - Temporal State Trajectories for AI Work
 
 GitHub: https://github.com/Aurna-code/augnes

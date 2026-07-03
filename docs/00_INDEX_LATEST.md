@@ -176,6 +176,14 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   authoritative. It changes no product UI, route, component, API, DB,
   provider/OpenAI, GitHub, Codex, runner, proof/evidence, memory apply,
   Perspective apply, delta apply, or product-write authority.
+- `docs/PERSPECTIVE_COCKPIT_ROUTE_NAMESPACE_CLEANUP_V0_1.md`: Perspective
+  Cockpit Route Namespace Cleanup v0.1 moves remaining live
+  `app/cockpit/perspective/**` route files into the current
+  `app/perspective/**` namespace. It preserves Perspective Memory, boundary
+  review, local review queue, and Codex-former Perspective adapter surfaces
+  while keeping Legacy Cockpit removed as a product surface and adding no API,
+  DB, provider/OpenAI, GitHub, Codex, runner, proof/evidence, memory apply,
+  Perspective apply, delta apply, or product-write authority.
 - `docs/AGENT_WORKPLANE_V0_1.md`: Phase 5A read-only Agent Workplane shell
   pointer for reframing `/workbench` as the backend work surface for
   agent/operator Trace context, projection candidates, handoff context,

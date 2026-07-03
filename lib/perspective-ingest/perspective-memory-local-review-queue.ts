@@ -12,7 +12,7 @@ import type {
 } from "@/lib/perspective-ingest/codex-former-local-adapter-operator-flow";
 
 export const PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_ROUTE =
-  "/cockpit/perspective/memory-review-queue/local";
+  "/perspective/memory-review-queue/local";
 export const PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_STORAGE_NAMESPACE =
   "augnes.perspectiveMemory.localReviewQueue.v0.1";
 export const PERSPECTIVE_MEMORY_LOCAL_REVIEW_QUEUE_VERSION =

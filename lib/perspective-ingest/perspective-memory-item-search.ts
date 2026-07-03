@@ -14,7 +14,7 @@ export const PERSPECTIVE_MEMORY_ITEM_SEARCH_MAX_LIMIT = 100;
 export const PERSPECTIVE_MEMORY_ITEM_SEARCH_SNIPPET_MAX_CHARS = 160;
 
 export const PERSPECTIVE_MEMORY_ITEM_SEARCH_ROUTE =
-  "/cockpit/perspective/memory-items/search";
+  "/perspective/memory-items/search";
 
 export const PERSPECTIVE_MEMORY_ITEM_SEARCH_FIELDS = [
   "item_id",

@@ -1,5 +1,11 @@
 # Promotion Readiness Review Hub Cockpit Entrypoint v0.1
 
+Historical Legacy Cockpit artifact.
+This document describes pre-removal Cockpit-era architecture or validation.
+It is not current product IA.
+Current product structure is Blank State + Agent Workplane + GuideBrief.
+Legacy Cockpit has been removed as a product surface.
+
 Slice name: `promotion_readiness_review_hub_cockpit_entrypoint_v0_1`
 
 Purpose: read/display-only home/cockpit entrypoint to the promotion readiness

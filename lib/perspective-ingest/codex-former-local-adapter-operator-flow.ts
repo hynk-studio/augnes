@@ -9,7 +9,7 @@ import type {
 } from "@/lib/perspective-ingest/codex-former-local-adapter-validate-result-snapshots";
 
 export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_ROUTE =
-  "/cockpit/perspective/codex-former/local-adapter-operator-flow";
+  "/perspective/codex-former/local-adapter-operator-flow";
 export const CODEX_FORMER_LOCAL_ADAPTER_OPERATOR_FLOW_VALIDATE_ROUTE =
   "/api/perspective/codex-former/local-adapter-operator-flow/validate";
 export const CODEX_FORMER_LOCAL_ADAPTER_RETURNED_ENVELOPE_INTAKE_DIR =

@@ -10,7 +10,7 @@ import {
 } from "@/lib/perspective-ingest/codex-former-local-adapter-snapshot-surface-integration";
 
 export const CODEX_FORMER_LOCAL_ADAPTER_SNAPSHOT_FIXTURE_SURFACE_ROUTE =
-  "/cockpit/perspective/codex-former/local-adapter-snapshot-fixture";
+  "/perspective/codex-former/local-adapter-snapshot-fixture";
 
 export type LocalAdapterSnapshotFixtureSurfaceFilter =
   | "all"

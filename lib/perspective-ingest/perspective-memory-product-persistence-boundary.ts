@@ -17,7 +17,7 @@ export const PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_RECORD_LIST_VERSION
 export const PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_API_ROUTE =
   "/api/perspective/memory/product-persistence-boundary/records";
 export const PERSPECTIVE_MEMORY_BOUNDARY_REVIEW_INBOX_ROUTE =
-  "/cockpit/perspective/memory-boundary-review-inbox";
+  "/perspective/memory-boundary-review-inbox";
 export const PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_MAX_RECORDS = 100;
 
 export const PERSPECTIVE_MEMORY_PRODUCT_PERSISTENCE_BOUNDARY_STATUSES = [

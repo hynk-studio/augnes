@@ -11,7 +11,7 @@ export const PERSPECTIVE_MEMORY_ITEM_LIST_VERSION =
 export const PERSPECTIVE_MEMORY_ITEM_API_ROUTE =
   "/api/perspective/memory/items";
 export const PERSPECTIVE_MEMORY_ITEMS_ROUTE =
-  "/cockpit/perspective/memory-items";
+  "/perspective/memory-items";
 export const PERSPECTIVE_MEMORY_ITEM_STORE_BACKEND = "sqlite:lib/db.ts";
 export const PERSPECTIVE_MEMORY_ITEM_MAX_ITEMS = 100;
 

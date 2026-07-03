@@ -1,5 +1,11 @@
 # Cockpit Six-Tab MVP Functional Map
 
+Historical Legacy Cockpit artifact.
+This document describes pre-removal Cockpit-era architecture or validation.
+It is not current product IA.
+Current product structure is Blank State + Agent Workplane + GuideBrief.
+Legacy Cockpit has been removed as a product surface.
+
 Status: superseded. Superseded by `COCKPIT_PERSPECTIVE_IA_V0_1.md` for the
 current Cockpit target IA: `Overview / Work / Perspective / Bridge / Operator`.
 This document remains as historical context for the earlier six-tab shell and

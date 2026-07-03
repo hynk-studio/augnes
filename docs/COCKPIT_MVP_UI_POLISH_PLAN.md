@@ -1,5 +1,11 @@
 # Cockpit MVP UI Polish Plan
 
+Historical Legacy Cockpit artifact.
+This document describes pre-removal Cockpit-era architecture or validation.
+It is not current product IA.
+Current product structure is Blank State + Agent Workplane + GuideBrief.
+Legacy Cockpit has been removed as a product surface.
+
 This plan sequences the Cockpit MVP polish work after GitHub App/token
 management v0.1 closeout. It keeps product UI polish separate from future
 authority-expanding work.
