@@ -22,11 +22,11 @@ import {
 import styles from "./perspective-memory-items-surface.module.css";
 
 const BOUNDARY_INBOX_ROUTE =
-  "/cockpit/perspective/memory-boundary-review-inbox";
+  "/perspective/memory-boundary-review-inbox";
 const LOCAL_MEMORY_REVIEW_QUEUE_ROUTE =
-  "/cockpit/perspective/memory-review-queue/local";
+  "/perspective/memory-review-queue/local";
 const OPERATOR_FLOW_ROUTE =
-  "/cockpit/perspective/codex-former/local-adapter-operator-flow";
+  "/perspective/codex-former/local-adapter-operator-flow";
 
 const itemFilters = [
   "all",

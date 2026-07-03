@@ -100,9 +100,9 @@ const PASS_FIXTURE_PATH =
 const BLOCKED_FIXTURE_PATH =
   "reports/fixtures/2026-06-10-codex-former-constellation-preview-data-blocked.json";
 export const CODEX_FORMER_SESSION_PANEL_FIXTURE_ROUTE =
-  "/cockpit/perspective/codex-former/session-perspective-panel-fixture";
+  "/perspective/codex-former/session-perspective-panel-fixture";
 export const CODEX_FORMER_CONSTELLATION_PREVIEW_FIXTURE_ROUTE =
-  "/cockpit/perspective/codex-former/constellation-preview-fixture";
+  "/perspective/codex-former/constellation-preview-fixture";
 
 const supportedScenarioIds: CodexFormerSessionPanelScenarioId[] = [
   "not-prepared",

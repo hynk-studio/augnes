@@ -902,7 +902,7 @@ export function LocalMemoryReviewQueueSurface() {
               </button>
               <a
                 className={styles.linkButton}
-                href="/cockpit/perspective/codex-former/local-adapter-operator-flow"
+                href="/perspective/codex-former/local-adapter-operator-flow"
               >
                 Back to operator flow
               </a>

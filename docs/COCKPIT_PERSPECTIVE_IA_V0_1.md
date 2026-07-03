@@ -1,5 +1,11 @@
 # Cockpit Perspective IA v0.1
 
+Historical Legacy Cockpit artifact.
+This document describes pre-removal Cockpit-era architecture or validation.
+It is not current product IA.
+Current product structure is Blank State + Agent Workplane + GuideBrief.
+Legacy Cockpit has been removed as a product surface.
+
 ## Summary
 
 Current Cockpit top-level tabs are:

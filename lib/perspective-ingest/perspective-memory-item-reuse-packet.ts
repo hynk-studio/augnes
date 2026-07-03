@@ -8,7 +8,7 @@ export const PERSPECTIVE_MEMORY_REUSE_PACKET_VERSION =
 export const PERSPECTIVE_MEMORY_REUSE_WORKSPACE_VERSION =
   "perspective_memory_reuse_workspace.v0.1";
 export const PERSPECTIVE_MEMORY_REUSE_WORKSPACE_ROUTE =
-  "/cockpit/perspective/memory-items/reuse";
+  "/perspective/memory-items/reuse";
 export const PERSPECTIVE_MEMORY_REUSE_TARGET_MODE = "codex";
 
 const REUSE_TEXT_LIMIT = 900;

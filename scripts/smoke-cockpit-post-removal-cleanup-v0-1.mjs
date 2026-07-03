@@ -89,8 +89,69 @@ const remainingAuthoritativePackageScripts = [
   ],
 ];
 
+const followOnPerspectiveCockpitRouteNamespaceCleanupFiles = [
+  "AGENTS.md",
+  "SUBMISSION.md",
+  "docs/PERSPECTIVE_COCKPIT_ROUTE_NAMESPACE_CLEANUP_V0_1.md",
+  "docs/COCKPIT_MVP_UI_POLISH_PLAN.md",
+  "docs/COCKPIT_SIX_TAB_MVP_FUNCTIONAL_MAP.md",
+  "docs/COCKPIT_PERSPECTIVE_IA_V0_1.md",
+  "docs/PROMOTION_READINESS_REVIEW_HUB_COCKPIT_ENTRYPOINT_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
+  "scripts/smoke-perspective-cockpit-route-namespace-cleanup-v0-1.mjs",
+  ...[
+    "codex-former/capture-review-inbox-fixture/page.tsx",
+    "codex-former/constellation-preview-fixture/page.tsx",
+    "codex-former/local-adapter-operator-flow/operator-flow-surface.module.css",
+    "codex-former/local-adapter-operator-flow/operator-flow-surface.tsx",
+    "codex-former/local-adapter-operator-flow/page.tsx",
+    "codex-former/local-adapter-snapshot-fixture/page.tsx",
+    "codex-former/local-adapter-validate-result-fixture/page.tsx",
+    "codex-former/local-adapter-validate-result-fixture/validate-result-fixture-surface.module.css",
+    "codex-former/local-adapter-validate-result-fixture/validate-result-fixture-surface.tsx",
+    "codex-former/session-perspective-panel-fixture/page.tsx",
+    "memory-boundary-review-inbox/memory-boundary-review-inbox-surface.module.css",
+    "memory-boundary-review-inbox/memory-boundary-review-inbox-surface.tsx",
+    "memory-boundary-review-inbox/page.tsx",
+    "memory-items/page.tsx",
+    "memory-items/perspective-memory-items-surface.module.css",
+    "memory-items/perspective-memory-items-surface.tsx",
+    "memory-items/reuse/page.tsx",
+    "memory-items/reuse/perspective-memory-item-reuse-workspace-surface.module.css",
+    "memory-items/reuse/perspective-memory-item-reuse-workspace-surface.tsx",
+    "memory-items/review/page.tsx",
+    "memory-items/review/perspective-memory-item-review-workspace-surface.module.css",
+    "memory-items/review/perspective-memory-item-review-workspace-surface.tsx",
+    "memory-items/search/page.tsx",
+    "memory-items/search/perspective-memory-item-search-surface.module.css",
+    "memory-items/search/perspective-memory-item-search-surface.tsx",
+    "memory-review-queue/local/local-memory-review-queue-surface.module.css",
+    "memory-review-queue/local/local-memory-review-queue-surface.tsx",
+    "memory-review-queue/local/page.tsx",
+  ].flatMap((file) => [
+    `app/perspective/${file}`,
+    `app/cockpit/perspective/${file}`,
+  ]),
+  "lib/perspective-ingest/codex-former-capture-review-inbox-fixture-surface.ts",
+  "lib/perspective-ingest/codex-former-local-adapter-operator-flow.ts",
+  "lib/perspective-ingest/codex-former-local-adapter-snapshot-fixture-surface.ts",
+  "lib/perspective-ingest/codex-former-local-adapter-validate-result-fixture-surface.ts",
+  "lib/perspective-ingest/codex-former-session-perspective-panel-fixture-surface.ts",
+  "lib/perspective-ingest/perspective-memory-item-reuse-packet.ts",
+  "lib/perspective-ingest/perspective-memory-item-review-workspace.ts",
+  "lib/perspective-ingest/perspective-memory-item-search.ts",
+  "lib/perspective-ingest/perspective-memory-item.ts",
+  "lib/perspective-ingest/perspective-memory-local-review-queue.ts",
+  "lib/perspective-ingest/perspective-memory-product-persistence-boundary.ts",
+];
+
+const followOnPerspectiveCockpitRouteNamespaceCleanupFileSet = new Set(
+  followOnPerspectiveCockpitRouteNamespaceCleanupFiles,
+);
+
 const expectedChangedFiles = [
   cleanupDoc,
+  ...followOnPerspectiveCockpitRouteNamespaceCleanupFiles,
   indexDoc,
   routeRemovalDoc,
   readinessDoc,
@@ -303,6 +364,9 @@ function assertNoForbiddenChangedPaths(files) {
   ];
 
   for (const file of files) {
+    if (followOnPerspectiveCockpitRouteNamespaceCleanupFileSet.has(file)) {
+      continue;
+    }
     for (const pattern of forbiddenPatterns) {
       assert(!pattern.test(file), `Forbidden cleanup path changed: ${file}`);
     }
