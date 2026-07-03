@@ -2,10 +2,15 @@
  * Type-only Workplane State Proposal Review v0.1 contract.
  *
  * This file defines read-only proposal review context for Agent Workplane. It
- * imports nothing, performs no reads or writes, calls no routes, providers,
- * OpenAI, GitHub, Codex, runner runtime, proof/evidence, memory apply,
- * Perspective apply, or delta apply helpers, and has no side effects.
+ * performs no reads or writes, calls no routes, providers, OpenAI, GitHub,
+ * Codex, runner runtime, proof/evidence, memory apply, Perspective apply, or
+ * delta apply helpers, and has no side effects.
  */
+
+import type {
+  CockpitManualControlMigrationRecord,
+  CockpitManualControlMigrationSummary,
+} from "./cockpit-manual-controls-migration";
 
 export const WORKPLANE_STATE_PROPOSAL_REVIEW_VERSION =
   "workplane_state_proposal_review.v0.1" as const;
@@ -24,6 +29,7 @@ export const WORKPLANE_STATE_PROPOSAL_REVIEW_GROUP_IDS = [
   "needs_user_judgment_lane",
   "stale_fallback_warning_review",
   "authority_boundary_review",
+  "manual_control_migration_review",
 ] as const;
 
 export const WORKPLANE_STATE_PROPOSAL_REVIEW_ITEM_KINDS = [
@@ -39,6 +45,10 @@ export const WORKPLANE_STATE_PROPOSAL_REVIEW_ITEM_KINDS = [
   "status_history",
   "stale_fallback_warning",
   "authority_boundary",
+  "manual_control_migration",
+  "blocked_local_write_control",
+  "obsolete_cockpit_control",
+  "copy_export_review",
 ] as const;
 
 export const WORKPLANE_STATE_PROPOSAL_REVIEW_RISK_LEVELS = [
@@ -89,6 +99,7 @@ export interface WorkplaneStateProposalReviewItem {
   source_refs: string[];
   needs_user_judgment: boolean;
   authority_note: string;
+  manual_control_migration_record?: CockpitManualControlMigrationRecord;
 }
 
 export interface WorkplaneStateProposalReviewGroup {
@@ -140,6 +151,9 @@ export interface WorkplaneStateProposalReviewSummary {
   source_ref_count: number;
   needs_user_judgment_count: number;
   fallback_warning_count: number;
+  manual_control_migration_count: number;
+  blocked_manual_control_count: number;
+  obsolete_manual_control_count: number;
   field_diff_count: number;
   before_after_preview_count: number;
 }
@@ -163,6 +177,10 @@ export interface WorkplaneStateProposalReviewRead {
   proposal_status_history: WorkplaneStateProposalReviewItem[];
   needs_user_judgment: WorkplaneStateProposalReviewItem[];
   stale_fallback_warnings: WorkplaneStateProposalReviewItem[];
+  manual_control_migration_summary: CockpitManualControlMigrationSummary;
+  migrated_manual_control_reviews: WorkplaneStateProposalReviewItem[];
+  blocked_manual_control_reviews: WorkplaneStateProposalReviewItem[];
+  obsolete_manual_control_reviews: WorkplaneStateProposalReviewItem[];
   authority_boundary: WorkplaneStateProposalReviewAuthorityBoundary;
   source_refs: string[];
   validation_summary: WorkplaneStateProposalReviewValidationSummary;

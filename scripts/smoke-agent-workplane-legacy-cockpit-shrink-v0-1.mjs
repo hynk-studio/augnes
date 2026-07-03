@@ -53,6 +53,27 @@ const followOnWorkplaneStateProposalReviewFiles = [
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
 ];
 
+const followOnCockpitManualControlsMigrationFiles = [
+  "types/cockpit-manual-controls-migration.ts",
+  "lib/workplane/cockpit-manual-controls-migration.ts",
+  "types/workplane-state-proposal-review.ts",
+  "lib/workplane/workplane-state-proposal-review.ts",
+  "components/workplane/state-proposal-review-panel.tsx",
+  "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
+  "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md",
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
+  "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+];
+
 const allowedChangedFiles = [
   agentWorkplaneFile,
   legacyCompatibilityPanelFile,
@@ -90,6 +111,7 @@ const allowedChangedFiles = [
   "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
   "scripts/smoke-agent-workplane-run-postmortem-detail-v0-1.mjs",
   ...followOnWorkplaneStateProposalReviewFiles,
+  ...followOnCockpitManualControlsMigrationFiles,
 ];
 
 const textByFile = loadTextByFile([
@@ -161,6 +183,8 @@ assertContainsAll(shrinkDocText, [
   "Native Agent Workplane panels remain the primary operational surface.",
   "Retained compatibility",
   "full six-tab Cockpit shell, now only at /cockpit",
+  "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
+  "Safe manual preview/copy review rows are now native in Workplane State Proposal Review.",
   "No hidden feature loss",
 ]);
 assertContainsAll(indexText, [shrinkDoc], { label: indexDoc });

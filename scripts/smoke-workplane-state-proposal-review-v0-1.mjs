@@ -13,11 +13,16 @@ import {
 
 const typeFile = "types/workplane-state-proposal-review.ts";
 const helperFile = "lib/workplane/workplane-state-proposal-review.ts";
+const manualControlsTypeFile = "types/cockpit-manual-controls-migration.ts";
+const manualControlsHelperFile =
+  "lib/workplane/cockpit-manual-controls-migration.ts";
 const panelFile = "components/workplane/state-proposal-review-panel.tsx";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
 const nodeTypeFile = "types/agent-workplane-node.ts";
 const nodeContextFile = "lib/workplane/workplane-node-context.ts";
 const docFile = "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md";
+const manualControlsDoc =
+  "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const migrationDoc =
   "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md";
@@ -27,6 +32,8 @@ const shrinkDoc = "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md";
 const nodeContractDoc = "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-workplane-state-proposal-review-v0-1.mjs";
+const manualControlsSmokeFile =
+  "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs";
 const nodeContractSmokeFile =
   "scripts/smoke-agent-workplane-node-contract-v0-1.mjs";
 const panelsSmokeFile = "scripts/smoke-agent-workplane-panels-v0-1.mjs";
@@ -55,6 +62,7 @@ const requiredGroupIds = [
   "needs_user_judgment_lane",
   "stale_fallback_warning_review",
   "authority_boundary_review",
+  "manual_control_migration_review",
 ];
 
 const requiredItemKinds = [
@@ -70,6 +78,10 @@ const requiredItemKinds = [
   "status_history",
   "stale_fallback_warning",
   "authority_boundary",
+  "manual_control_migration",
+  "blocked_local_write_control",
+  "obsolete_cockpit_control",
+  "copy_export_review",
 ];
 
 const requiredRiskLevels = ["low", "medium", "high"];
@@ -108,11 +120,14 @@ const requiredAuthorityFields = [
 const expectedChangedFiles = [
   typeFile,
   helperFile,
+  manualControlsTypeFile,
+  manualControlsHelperFile,
   panelFile,
   agentWorkplaneFile,
   nodeTypeFile,
   nodeContextFile,
   docFile,
+  manualControlsDoc,
   indexDoc,
   migrationDoc,
   blankStateDoc,
@@ -121,6 +136,7 @@ const expectedChangedFiles = [
   nodeContractDoc,
   packageJsonFile,
   smokeFile,
+  manualControlsSmokeFile,
   nodeContractSmokeFile,
   panelsSmokeFile,
   reviewMemorySmokeFile,
@@ -132,11 +148,14 @@ const expectedChangedFiles = [
 const textByFile = loadTextByFile([
   typeFile,
   helperFile,
+  manualControlsTypeFile,
+  manualControlsHelperFile,
   panelFile,
   agentWorkplaneFile,
   nodeTypeFile,
   nodeContextFile,
   docFile,
+  manualControlsDoc,
   indexDoc,
   migrationDoc,
   blankStateDoc,
@@ -144,6 +163,7 @@ const textByFile = loadTextByFile([
   shrinkDoc,
   nodeContractDoc,
   packageJsonFile,
+  manualControlsSmokeFile,
   nodeContractSmokeFile,
   panelsSmokeFile,
   reviewMemorySmokeFile,
@@ -231,6 +251,11 @@ function assertStaticContracts() {
       "proposal_status_history",
       "needs_user_judgment",
       "stale_fallback_warnings",
+      "manual_control_migration_summary",
+      "migrated_manual_control_reviews",
+      "blocked_manual_control_reviews",
+      "obsolete_manual_control_reviews",
+      "manual_control_migration_record",
       "authority_boundary",
       "source_refs",
       "validation_summary",
@@ -259,6 +284,7 @@ function assertStaticContracts() {
     helperText,
     [
       "buildWorkplaneStateProposalReviewRead",
+      "buildCockpitManualControlsMigrationRead",
       "WORKPLANE_STATE_PROPOSAL_REVIEW_SMOKE_REFS",
       "STATE_PROPOSAL_REVIEW_AUTHORITY_BOUNDARY",
       "WorkplaneContextRead",
@@ -268,6 +294,7 @@ function assertStaticContracts() {
       ...requiredItemKinds,
       "read_only_no_apply",
       "smoke:workplane-state-proposal-review-v0-1",
+      "smoke:cockpit-manual-controls-migration-v0-1",
     ],
     { label: helperFile },
   );
@@ -285,6 +312,11 @@ function assertStaticContracts() {
       "data-state-proposal-review-source-status={read.source_status}",
       "data-state-proposal-review-group-id={group.group_id}",
       "data-state-proposal-review-item-kind={item.item_kind}",
+      'data-cockpit-manual-controls-migration="v0.1"',
+      "data-cockpit-manual-control-id={manualControlRecord?.control_id}",
+      "data-cockpit-manual-control-migration-status={",
+      "data-cockpit-manual-control-destination={manualControlRecord?.destination}",
+      "data-cockpit-manual-control-authority-class={",
       "State Proposal Review is for reviewing proposed state changes before",
       "This panel does not approve, reject, commit, apply memory, apply Perspective, or auto-apply deltas.",
     ],
@@ -338,14 +370,19 @@ function assertStaticContracts() {
       label: "Workplane State Proposal Review backlink",
     });
   }
+  assertContainsAll(docText, [manualControlsDoc], {
+    label: `${docFile} manual controls backlink`,
+  });
 
   assertContainsAll(
     migrationText,
     [
       "PR 3 implementation update",
+      "PR 4 implementation update",
       "Workplane State Proposal Review v0.1 is now implemented",
       "workplane_state_proposal_review",
       "apply/approve/reject/commit authority blocked",
+      manualControlsDoc,
     ],
     { label: migrationDoc },
   );
@@ -365,6 +402,7 @@ function assertStaticContracts() {
       "Authority Boundary",
       "Validation",
       "Next PR: Cockpit Manual Controls Migration v0.1",
+      "manual_control_migration_review",
       ...requiredGroupIds,
       ...requiredAuthorityFields,
     ],
@@ -425,6 +463,11 @@ function assertHelperBehavior() {
     assert(read.proposal_status_history.length > 0);
     assert(read.needs_user_judgment.length > 0);
     assert(read.stale_fallback_warnings.length > 0);
+    assert(read.manual_control_migration_summary);
+    assert(read.migrated_manual_control_reviews.length >= 7);
+    assert(read.blocked_manual_control_reviews.length >= 5);
+    assert(read.obsolete_manual_control_reviews.length >= 3);
+    assert(read.proposal_groups.some((group) => group.group_id === "manual_control_migration_review"));
     assert(read.proposal_groups.some((group) => group.review_items.some((item) => item.status === "empty" || item.status === "fallback")));
 
     console.log(JSON.stringify({
@@ -433,6 +476,7 @@ function assertHelperBehavior() {
       source_status: read.source_status,
       group_count: read.proposal_groups.length,
       item_count: read.summary.item_count,
+      manual_control_migration_count: read.manual_control_migration_summary.total_record_count,
       authority_false_count: requiredAuthorityFields.filter((field) => read.authority_boundary[field] === false).length,
       has_empty_or_fallback_row: read.proposal_groups.some((group) => group.review_items.some((item) => item.status === "empty" || item.status === "fallback"))
     }));

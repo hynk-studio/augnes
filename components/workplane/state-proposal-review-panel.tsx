@@ -91,6 +91,7 @@ export function StateProposalReviewPanel({
       data-workplane-node-status={read.status}
       data-state-proposal-review-authority-boundary="read_only_no_apply"
       data-state-proposal-review-source-status={read.source_status}
+      data-cockpit-manual-controls-migration="v0.1"
       style={panelStyle}
     >
       <div style={headingStyle}>
@@ -106,6 +107,14 @@ export function StateProposalReviewPanel({
         memory, apply Perspective, or auto-apply deltas.
       </p>
 
+      <p style={workplaneCopyStyle}>
+        Safe manual preview/copy controls are now reviewable in Workplane State
+        Proposal Review. Local-write/apply/commit/reject controls remain
+        blocked until a separate authority contract. Obsolete external
+        execution and duplicate Cockpit shell controls are delete candidates,
+        not migration targets.
+      </p>
+
       <WorkplanePanelMetricGrid>
         <WorkplanePanelMetric label="Groups" value={read.summary.group_count} />
         <WorkplanePanelMetric label="Review rows" value={read.summary.item_count} />
@@ -117,7 +126,39 @@ export function StateProposalReviewPanel({
           label="User judgment"
           value={read.summary.needs_user_judgment_count}
         />
+        <WorkplanePanelMetric
+          label="Manual migrated"
+          value={read.summary.manual_control_migration_count}
+        />
+        <WorkplanePanelMetric
+          label="Manual blocked"
+          value={read.summary.blocked_manual_control_count}
+        />
+        <WorkplanePanelMetric
+          label="Obsolete controls"
+          value={read.summary.obsolete_manual_control_count}
+        />
       </WorkplanePanelMetricGrid>
+
+      <section
+        aria-label="Cockpit manual controls migration summary"
+        data-cockpit-manual-controls-migration="v0.1"
+        style={groupStyle}
+      >
+        <h3 style={{ margin: 0, fontSize: "0.82rem", color: "#0f172a" }}>
+          Cockpit manual controls migration
+        </h3>
+        <p style={workplaneCopyStyle}>
+          Migrated review rows:{" "}
+          {read.manual_control_migration_summary.migrated_native_review_count}.
+          Blocked controls:{" "}
+          {read.manual_control_migration_summary.retained_blocked_count +
+            read.manual_control_migration_summary
+              .needs_authority_contract_count}
+          . Obsolete delete candidates:{" "}
+          {read.manual_control_migration_summary.obsolete_delete_count}.
+        </p>
+      </section>
 
       <div style={groupGridStyle}>
         {read.proposal_groups.map((group) => (
@@ -193,9 +234,19 @@ function ReviewGroup({
 }
 
 function ReviewItem({ item }: { item: WorkplaneStateProposalReviewItem }) {
+  const manualControlRecord = item.manual_control_migration_record;
+
   return (
     <li
       data-state-proposal-review-item-kind={item.item_kind}
+      data-cockpit-manual-control-id={manualControlRecord?.control_id}
+      data-cockpit-manual-control-migration-status={
+        manualControlRecord?.migration_status
+      }
+      data-cockpit-manual-control-destination={manualControlRecord?.destination}
+      data-cockpit-manual-control-authority-class={
+        manualControlRecord?.authority_class
+      }
       style={itemStyle}
     >
       <span style={workplaneBadgeStyle}>{item.item_kind}</span>
@@ -222,6 +273,16 @@ function ReviewItem({ item }: { item: WorkplaneStateProposalReviewItem }) {
       <span style={workplaneCopyStyle}>
         Source refs: {item.source_refs.slice(0, 4).join("; ") || "none"}.
       </span>
+      {manualControlRecord ? (
+        <span style={workplaneCopyStyle}>
+          Manual control: {manualControlRecord.control_id}. Destination:{" "}
+          {manualControlRecord.destination}. Migration status:{" "}
+          {manualControlRecord.migration_status}. Authority class:{" "}
+          {manualControlRecord.authority_class}. Blocked until:{" "}
+          {manualControlRecord.blocked_until}. Delete when:{" "}
+          {manualControlRecord.delete_when}.
+        </span>
+      ) : null}
       <small style={workplaneCopyStyle}>{item.authority_note}</small>
     </li>
   );

@@ -13,7 +13,8 @@ Replacement Browser Regression v0.1, plus Agent Workplane Bridge Trace Detail
 v0.1, plus Agent Workplane Review / Memory Proposal Detail v0.1, plus Agent
 Workplane Run Postmortem Detail v0.1, plus Legacy Cockpit Local UI Control
 Classification v0.1, plus Augnes Dogfood Metrics Baseline v0.2, plus
-Workplane State Proposal Review v0.1.
+Workplane State Proposal Review v0.1, plus Cockpit Manual Controls Migration
+v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -190,6 +191,21 @@ proof/evidence write, durable memory apply, Perspective apply, delta
 auto-apply, localStorage/sessionStorage durable mode, or Legacy Cockpit
 deletion, shrink, hiding, or disabling.
 
+Cockpit Manual Controls Migration v0.1 is documented in
+`docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md`. State Proposal Review now
+renders safe manual preview/copy controls as native review rows, including
+manual preview editor, manual gravity preview, formation basis preview, local
+draft review visibility, copy/export review packet, manual source ref review,
+and proposal preview gap review. It also renders blocked rows for
+local-write, localStorage draft, proposal commit/reject, durable memory apply,
+and Perspective apply controls until a separate authority contract exists, and
+delete-candidate rows for obsolete external execution and duplicate Cockpit
+manual shell copy. It adds no local-write/apply/approve/reject/commit
+authority, provider/OpenAI/GitHub/Codex execution, runner execution/tick/
+recovery/scheduled behavior, product DB write, proof/evidence write, durable
+memory apply, Perspective apply, delta auto-apply, Cockpit route deletion, or
+AugnesCockpit component deletion.
+
 Agent Workplane Run Postmortem Detail v0.1 is documented in
 `docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md`. `/workbench` now renders
 a read-only `RunPostmortemDetailPanel` with
@@ -272,6 +288,10 @@ Agent Workplane renders:
   Perspective, local draft, manual preview, manual gravity, formation basis,
   proposal history, needs-user-judgment, stale/fallback warnings, source refs,
   and authority boundaries
+- Cockpit Manual Controls Migration v0.1 as read-only State Proposal Review
+  rows for safe manual preview/copy controls, blocked local-write/apply/
+  commit/reject controls, and obsolete Cockpit manual control delete
+  candidates
 - Agent Workplane Run Postmortem Detail v0.1 as a read-only native
   run/postmortem panel for source-backed run summaries, step refs, event refs,
   recovered DeltaBatch summaries, timeline rows, postmortem signals,
