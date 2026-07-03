@@ -149,6 +149,13 @@ authority contract, and obsolete controls are delete candidates.
 PR 5 must still verify that unique useful Cockpit capability count is 0 before
 removing `/cockpit` or deleting `components/augnes-cockpit.tsx`.
 
+PR 5 readiness follow-on: `docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md`
+performs that zero-count verification. It reports
+`unique_useful_cockpit_capability_count: 0` and `zero_count_verified: true`
+while keeping `route_removal_allowed: false` and
+`component_removal_allowed: false` because the readiness PR does not delete the
+route or component.
+
 ## Validation
 
 Primary smoke:
@@ -173,5 +180,6 @@ local-write controls.
 
 ## Next PR
 
-Next PR: Cockpit Route Removal Readiness or Cockpit Route Removal v0.1 only
-after unique useful capability count is verified as 0.
+Next PR: Cockpit Route Removal v0.1 only after
+`docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md` remains
+`zero_count_verified: true`.
