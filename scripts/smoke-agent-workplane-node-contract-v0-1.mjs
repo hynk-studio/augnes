@@ -325,6 +325,30 @@ const followOnLegacyCockpitLocalControlClassificationFiles = [
   "package.json",
 ];
 
+const followOnWorkplaneStateProposalReviewFiles = [
+  "types/workplane-state-proposal-review.ts",
+  "lib/workplane/workplane-state-proposal-review.ts",
+  "components/workplane/state-proposal-review-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
+  "docs/BLANK_STATE_REVIEW_ENTRY_ABSORPTION_V0_1.md",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "package.json",
+  "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+];
+
 
 const requiredFiles = [
   typeContractFile,
@@ -353,6 +377,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneReviewMemoryDetailFiles,
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
+  ...followOnWorkplaneStateProposalReviewFiles,
 ]);
 
 const requiredFields = [
@@ -383,6 +408,7 @@ const stablePanelIds = [
   "current_perspective",
   "delta_projection",
   "review_queue",
+  "state_proposal_review",
   "evidence_handoff",
   "workplane_inspector",
   "projection_candidates",
@@ -405,6 +431,7 @@ const absorptionTargetNodeIds = [
   "runner_delta_batch",
   "run_postmortem",
   "trace_diagnostics",
+  "state_proposal_review",
 ];
 
 const requiredNodeKinds = [
@@ -412,6 +439,7 @@ const requiredNodeKinds = [
   "preview_panel",
   "compatibility_panel",
   "debug_context_source",
+  "proposal_review_context",
   "handoff_context_source",
   "runner_context_source",
   "trace_context_source",
@@ -423,6 +451,9 @@ const requiredStatuses = [
   "preview_only",
   "compatibility_only",
   "not_materialized",
+  "empty",
+  "needs_review",
+  "blocked",
   "stale",
   "fallback",
 ];

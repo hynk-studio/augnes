@@ -25,6 +25,7 @@ export const AGENT_WORKPLANE_REQUIRED_PANEL_IDS = [
   "delta_projection",
   "review_queue",
   "review_memory_detail",
+  "state_proposal_review",
   "evidence_handoff",
   "workplane_inspector",
   "projection_candidates",
@@ -47,6 +48,7 @@ export const AGENT_WORKPLANE_ABSORPTION_TARGET_NODE_IDS = [
   "runner_delta_batch",
   "run_postmortem",
   "trace_diagnostics",
+  "state_proposal_review",
 ] as const satisfies readonly AgentWorkplanePanelId[];
 
 export const AGENT_WORKPLANE_PANEL_REGISTRY: ReadonlyArray<{
@@ -97,6 +99,15 @@ export const AGENT_WORKPLANE_PANEL_REGISTRY: ReadonlyArray<{
     title: "Review / Memory Proposal Detail",
     summary:
       "Review and memory/Perspective proposal visibility derived from Workplane review queue and projected deltas.",
+  },
+  {
+    panel_id: "state_proposal_review",
+    node_id: "state_proposal_review",
+    kind: "proposal_review_context",
+    status: "partial",
+    title: "Workplane State Proposal Review",
+    summary:
+      "Research-critical proposal diff, before/after preview, impact, memory, Perspective, draft, manual preview, judgment, stale/fallback, and authority-boundary review context.",
   },
   {
     panel_id: "evidence_handoff",
@@ -242,6 +253,7 @@ const NODE_CONTEXT_SMOKES = [
   "smoke:workplane-runner-deltabatch-integration-v0-1",
   "smoke:agent-workplane-bridge-trace-detail-v0-1",
   "smoke:agent-workplane-review-memory-detail-v0-1",
+  "smoke:workplane-state-proposal-review-v0-1",
   "smoke:agent-workplane-run-postmortem-detail-v0-1",
 ] as const;
 
@@ -542,6 +554,7 @@ function stalenessForPanel(
       "trace_bridge",
       "trace_diagnostics",
       "review_memory_detail",
+      "state_proposal_review",
     ].includes(panelId)
   ) {
     return {
@@ -587,6 +600,7 @@ function fallbackForPanel(
       "trace_bridge",
       "trace_diagnostics",
       "review_memory_detail",
+      "state_proposal_review",
     ].includes(panelId)
   ) {
     const status = context.source_status.delta_projection;
@@ -624,6 +638,7 @@ function validationForPanel(
       "trace_bridge",
       "source_ref_bridge",
       "review_memory_detail",
+      "state_proposal_review",
     ].includes(panelId)
   ) {
     smokeRefs.add("smoke:agent-workplane-projection-handoff-v0-1");
@@ -637,6 +652,11 @@ function validationForPanel(
   if (panelId === "review_memory_detail") {
     smokeRefs.add("smoke:agent-workplane-review-memory-detail-v0-1");
     smokeRefs.add("smoke:workplane-native-browser-regression-v0-1");
+  }
+
+  if (panelId === "state_proposal_review") {
+    smokeRefs.add("smoke:workplane-state-proposal-review-v0-1");
+    smokeRefs.add("smoke:agent-workplane-review-memory-detail-v0-1");
   }
 
   if (isRunnerContextPanel(panelId)) {
@@ -701,6 +721,12 @@ function debugNotesForPanel(
     );
   }
 
+  if (panelId === "state_proposal_review") {
+    notes.push(
+      "State Proposal Review is read-only proposal review context for field-level diffs, before/after previews, impact, memory, Perspective, draft, stale/fallback, user judgment, and authority-boundary review.",
+    );
+  }
+
   if (panelId === "run_postmortem") {
     notes.push(
       "Run Postmortem detail is source-backed read-only visibility from recovered runner DeltaBatch readback and remains not runner authority and not shrink authority.",
@@ -724,7 +750,7 @@ function sourceRefsForPanel(
     return refs.length > 0 ? refs : ["not_materialized:runner_delta_batch_source"];
   }
 
-  if (panelId === "review_memory_detail") {
+  if (panelId === "review_memory_detail" || panelId === "state_proposal_review") {
     return uniqueStrings([
       ...collectCurrentPerspectiveSourceRefs(context),
       ...collectDeltaProjectionSourceRefs(context),
@@ -810,6 +836,7 @@ function relatedDeltaIdsForPanel(
       "projection_candidates",
       "review_queue",
       "review_memory_detail",
+      "state_proposal_review",
       "workplane_inspector",
       "source_ref_bridge",
       "perspective_delta",
@@ -838,6 +865,7 @@ function relatedBatchIdsForPanel(
     [
       "delta_projection",
       "projected_delta_batch",
+      "state_proposal_review",
       "workplane_inspector",
       "source_ref_bridge",
       "trace_bridge",
@@ -861,6 +889,7 @@ function relatedHandoffRefsForPanel(
       "handoff_context",
       "source_ref_bridge",
       "review_memory_detail",
+      "state_proposal_review",
       "legacy_cockpit_compatibility",
     ].includes(panelId)
   ) {

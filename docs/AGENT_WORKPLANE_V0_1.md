@@ -12,7 +12,8 @@ Dogfood v0.1, plus Legacy Cockpit Shrink Plan v0.1, plus Workplane Native
 Replacement Browser Regression v0.1, plus Agent Workplane Bridge Trace Detail
 v0.1, plus Agent Workplane Review / Memory Proposal Detail v0.1, plus Agent
 Workplane Run Postmortem Detail v0.1, plus Legacy Cockpit Local UI Control
-Classification v0.1, plus Augnes Dogfood Metrics Baseline v0.2.
+Classification v0.1, plus Augnes Dogfood Metrics Baseline v0.2, plus
+Workplane State Proposal Review v0.1.
 
 Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
 
@@ -173,6 +174,22 @@ scheduled behavior, product DB write, proof/evidence write, durable memory
 apply, Perspective apply, delta auto-apply, product UI action authority, or
 Legacy Cockpit deletion, shrink, hiding, or disabling.
 
+Workplane State Proposal Review v0.1 is documented in
+`docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md`. `/workbench` now renders a
+read-only `StateProposalReviewPanel` with
+`data-workplane-state-proposal-review-panel="v0.1"` and
+`data-workplane-panel-id="state_proposal_review"`. It preserves
+research-critical proposal review context from Legacy Cockpit: field-level
+proposal diffs, before/after previews, proposal impact, memory proposal review,
+Perspective lens detail, local draft review, manual preview, manual gravity,
+formation basis, proposal status history, needs-user-judgment, stale/fallback
+warnings, source refs, and authority boundary review. It adds no
+apply/approve/reject/commit authority, provider/OpenAI/GitHub/Codex execution,
+runner execution/tick/recovery/scheduled behavior, product DB write,
+proof/evidence write, durable memory apply, Perspective apply, delta
+auto-apply, localStorage/sessionStorage durable mode, or Legacy Cockpit
+deletion, shrink, hiding, or disabling.
+
 Agent Workplane Run Postmortem Detail v0.1 is documented in
 `docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md`. `/workbench` now renders
 a read-only `RunPostmortemDetailPanel` with
@@ -250,6 +267,11 @@ Agent Workplane renders:
   review/memory panel for durable memory review candidates, Perspective review
   candidates, validation-required and user-decision lanes, candidate source
   refs, explicit no-apply boundaries, and explicit remaining gaps
+- Workplane State Proposal Review v0.1 as a read-only native proposal review
+  lane for field-level diffs, before/after previews, impact, memory,
+  Perspective, local draft, manual preview, manual gravity, formation basis,
+  proposal history, needs-user-judgment, stale/fallback warnings, source refs,
+  and authority boundaries
 - Agent Workplane Run Postmortem Detail v0.1 as a read-only native
   run/postmortem panel for source-backed run summaries, step refs, event refs,
   recovered DeltaBatch summaries, timeline rows, postmortem signals,

@@ -16,6 +16,11 @@ This PR adds high-level entry, summary, and navigation only. It does not move
 detailed proposal review, preview editing, local-write controls, or Cockpit
 shell behavior into Blank State.
 
+PR 3 follow-on: `docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md` implements the
+native Workplane State Proposal Review lane that the Blank State review entries
+can route toward for proposal, memory, Perspective, draft, stale/fallback, and
+authority-boundary review.
+
 ## Implemented Entries
 
 The native Blank State review entry grid renders exactly these seven entries:
@@ -84,3 +89,6 @@ This PR adds no:
 - no product route, Cockpit route, Cockpit component, provider, GitHub, Codex,
   runner execution, DB, proof/evidence, memory, Perspective apply, or delta
   apply paths changed
+
+The next implementation PR unlocked by this slice is Workplane State Proposal
+Review v0.1.
