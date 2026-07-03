@@ -97,8 +97,8 @@ export function ContinuityRelayWorkplanePanel({
         />
         <RelaySection
           title="Watch"
-          anchors={relay.stale_or_gap_warnings}
-          emptyText="No stale or gap warnings materialized."
+          anchors={relay.warn_anchors}
+          emptyText="No warnings materialized."
         />
         <RelaySection
           title="Stop If Missing"

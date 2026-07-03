@@ -119,6 +119,9 @@ assertContainsAll(
     "Continue from here",
     "Preserve",
     "Watch",
+    "label=\"Watch\" value={relay.warn_anchors.length}",
+    "anchors={relay.warn_anchors}",
+    "No warnings materialized.",
     "Stop If Missing",
     "Next Focus",
     "Read-only/advisory",
@@ -127,6 +130,10 @@ assertContainsAll(
     "nodeId=\"handoff_context\"",
   ],
   { label: panelFile },
+);
+assert(
+  !panelText.includes("anchors={relay.stale_or_gap_warnings}"),
+  `${panelFile} Watch section must render warn_anchors to match the metric`,
 );
 
 assertContainsAll(
