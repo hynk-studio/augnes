@@ -1,4 +1,5 @@
 import type { HandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
+import type { HandoffContextRelayRationale } from "@/types/handoff-context-relay-rationale";
 
 export const HANDOFF_COPY_EXPORT_PACKET_VERSION = "handoff_copy_export.v0.1";
 export const HANDOFF_COPY_EXPORT_PACKET_KIND =
@@ -43,6 +44,9 @@ export type HandoffCopyExportInputSummary = {
   optional_check_count: number;
   route_ref_count: number;
   docs_ref_count: number;
+  context_rationale_selected_ref_count: number;
+  context_rationale_warning_count: number;
+  context_rationale_stop_count: number;
 };
 
 export type HandoffCopyExportJsonPacket = {
@@ -69,6 +73,7 @@ export type HandoffCopyExportJsonPacket = {
   needs_user_judgment: unknown[];
   unresolved_user_judgment: unknown[];
   selected_delta_refs: unknown[];
+  context_relay_rationale: HandoffContextRelayRationale | null;
   source_refs: unknown;
   expected_files: string[];
   forbidden_files: string[];
@@ -117,6 +122,7 @@ const COPY_EXPORT_BOUNDARY_STATEMENT = [
 
 export function buildHandoffCapsuleMarkdownCopyPacket(
   preview: HandoffCapsulePreviewForWeb,
+  contextRelayRationale?: HandoffContextRelayRationale | null,
 ): string {
   const capsule = preview.capsule;
   const lines = [
@@ -147,6 +153,8 @@ export function buildHandoffCapsuleMarkdownCopyPacket(
     "## Source Refs",
     ...formatSourceRefsForCopy(capsule.source_refs),
     "",
+    ...formatContextRelayRationaleForCopy(contextRelayRationale),
+    "",
     "## Validation Expectations",
     ...formatNamedList(
       "required_check",
@@ -176,6 +184,7 @@ export function buildHandoffCapsuleMarkdownCopyPacket(
 
 export function buildCodexLaunchCardMarkdownCopyPacket(
   preview: HandoffCapsulePreviewForWeb,
+  contextRelayRationale?: HandoffContextRelayRationale | null,
 ): string {
   const launchCard = preview.launch_card;
   const lines = [
@@ -224,6 +233,8 @@ export function buildCodexLaunchCardMarkdownCopyPacket(
     "## Source Refs",
     ...formatSourceRefsForCopy(launchCard.source_refs),
     "",
+    ...formatContextRelayRationaleForCopy(contextRelayRationale),
+    "",
     "## Authority Boundary",
     ...formatAuthorityBoundaryForCopy(launchCard.authority_boundary),
     "",
@@ -239,6 +250,7 @@ export function buildCodexLaunchCardMarkdownCopyPacket(
 
 export function buildCombinedHandoffLaunchMarkdownCopyPacket(
   preview: HandoffCapsulePreviewForWeb,
+  contextRelayRationale?: HandoffContextRelayRationale | null,
 ): string {
   return normalizeHandoffCopyText(
     [
@@ -254,17 +266,18 @@ export function buildCombinedHandoffLaunchMarkdownCopyPacket(
       "- Suggestions are advisory only.",
       "- Unresolved user judgment remains unresolved.",
       "",
-      buildHandoffCapsuleMarkdownCopyPacket(preview),
+      buildHandoffCapsuleMarkdownCopyPacket(preview, contextRelayRationale),
       "",
       "---",
       "",
-      buildCodexLaunchCardMarkdownCopyPacket(preview),
+      buildCodexLaunchCardMarkdownCopyPacket(preview, contextRelayRationale),
     ].join("\n"),
   );
 }
 
 export function buildHandoffCopyExportJsonPacket(
   preview: HandoffCapsulePreviewForWeb,
+  contextRelayRationale?: HandoffContextRelayRationale | null,
 ): HandoffCopyExportJsonPacket {
   const capsule = preview.capsule;
   const launchCard = preview.launch_card;
@@ -278,7 +291,10 @@ export function buildHandoffCopyExportJsonPacket(
     capsule_id: capsule.capsule_id,
     launch_card_id: launchCard.launch_card_id,
     source_guide_brief_ref: capsule.source_guide_brief_ref,
-    packet_input_summary: buildHandoffCopyExportInputSummary(preview),
+    packet_input_summary: buildHandoffCopyExportInputSummary(
+      preview,
+      contextRelayRationale,
+    ),
     source_status: preview.source_status,
     fallback_reasons: [...preview.fallback_reasons],
     warnings: [...preview.warnings],
@@ -293,6 +309,7 @@ export function buildHandoffCopyExportJsonPacket(
     needs_user_judgment: capsule.needs_user_judgment,
     unresolved_user_judgment: launchCard.unresolved_user_judgment,
     selected_delta_refs: capsule.selected_delta_refs,
+    context_relay_rationale: contextRelayRationale ?? null,
     source_refs: capsule.source_refs,
     expected_files: [...launchCard.expected_files],
     forbidden_files: [...launchCard.forbidden_files],
@@ -314,11 +331,24 @@ export function buildHandoffCopyExportJsonPacket(
 
 export function buildHandoffCopyExportPreview(
   preview: HandoffCapsulePreviewForWeb,
+  contextRelayRationale?: HandoffContextRelayRationale | null,
 ): HandoffCopyExportPreview {
-  const capsuleMarkdown = buildHandoffCapsuleMarkdownCopyPacket(preview);
-  const launchCardMarkdown = buildCodexLaunchCardMarkdownCopyPacket(preview);
-  const combinedMarkdown = buildCombinedHandoffLaunchMarkdownCopyPacket(preview);
-  const jsonPreview = buildHandoffCopyExportJsonPacket(preview);
+  const capsuleMarkdown = buildHandoffCapsuleMarkdownCopyPacket(
+    preview,
+    contextRelayRationale,
+  );
+  const launchCardMarkdown = buildCodexLaunchCardMarkdownCopyPacket(
+    preview,
+    contextRelayRationale,
+  );
+  const combinedMarkdown = buildCombinedHandoffLaunchMarkdownCopyPacket(
+    preview,
+    contextRelayRationale,
+  );
+  const jsonPreview = buildHandoffCopyExportJsonPacket(
+    preview,
+    contextRelayRationale,
+  );
   const jsonText = canonicalJsonStringify(jsonPreview);
   const fingerprint = buildHandoffCopyExportFingerprint({
     packet_kind: HANDOFF_COPY_EXPORT_PACKET_KIND,
@@ -328,6 +358,7 @@ export function buildHandoffCopyExportPreview(
     fallback_reasons: jsonPreview.fallback_reasons,
     warnings: jsonPreview.warnings,
     gaps: jsonPreview.gaps,
+    context_relay_rationale: jsonPreview.context_relay_rationale,
     boundary_flags: jsonPreview.boundary_flags,
   });
 
@@ -354,6 +385,7 @@ export function buildHandoffCopyExportPreview(
 
 export function buildHandoffCopyExportInputSummary(
   preview: HandoffCapsulePreviewForWeb,
+  contextRelayRationale?: HandoffContextRelayRationale | null,
 ): HandoffCopyExportInputSummary {
   return {
     scope: preview.capsule.scope,
@@ -374,6 +406,12 @@ export function buildHandoffCopyExportInputSummary(
     optional_check_count: preview.launch_card.optional_checks.length,
     route_ref_count: preview.route_refs.length,
     docs_ref_count: preview.docs_refs.length,
+    context_rationale_selected_ref_count:
+      contextRelayRationale?.selected_refs.length ?? 0,
+    context_rationale_warning_count:
+      contextRelayRationale?.stale_or_gap_warnings.length ?? 0,
+    context_rationale_stop_count:
+      contextRelayRationale?.stop_if_missing.length ?? 0,
   };
 }
 
@@ -487,6 +525,66 @@ export function formatCodexLaunchCardFieldsForCopy(
     "No status may mean executed.",
     "Suggestions are advisory only.",
     "Unresolved user judgment remains unresolved.",
+  ];
+}
+
+export function formatContextRelayRationaleForCopy(
+  contextRelayRationale?: HandoffContextRelayRationale | null,
+): string[] {
+  if (!contextRelayRationale) {
+    return [
+      "## Context Relay Rationale",
+      "- none supplied",
+      "- Re-copy from /workbench after the Continuity Relay and handoff preview are available.",
+    ];
+  }
+
+  return [
+    "## Context Relay Rationale",
+    `- rationale_version: ${contextRelayRationale.rationale_version}`,
+    `- selected_ref_count: ${contextRelayRationale.selected_refs.length}`,
+    `- why_included_count: ${contextRelayRationale.why_included.length}`,
+    `- stale_or_gap_warning_count: ${contextRelayRationale.stale_or_gap_warnings.length}`,
+    `- stop_if_missing_count: ${contextRelayRationale.stop_if_missing.length}`,
+    "",
+    "### Selected Refs",
+    ...formatList(
+      contextRelayRationale.selected_refs.map(
+        (item) =>
+          `${item.ref_id}: ${item.reason_category} - ${item.summary}`,
+      ),
+    ),
+    "",
+    "### Why Included",
+    ...formatList(
+      contextRelayRationale.why_included.map(
+        (item) =>
+          `${item.ref_id}: ${item.reason_category} - ${item.rationale}`,
+      ),
+    ),
+    "",
+    "### Stale Or Gap Warnings",
+    ...formatList(
+      contextRelayRationale.stale_or_gap_warnings.map(
+        (item) => `${item.warning_id}: ${item.summary}`,
+      ),
+    ),
+    "",
+    "### Stop If Missing",
+    ...formatList(
+      contextRelayRationale.stop_if_missing.map(
+        (item) => `${item.stop_id}: ${item.summary}`,
+      ),
+    ),
+    "",
+    "### Expected Return Signal",
+    ...formatList([
+      ...contextRelayRationale.expected_return_signal.required_fields,
+      ...contextRelayRationale.expected_return_signal.context_feedback_fields,
+    ]),
+    "",
+    "### Context Rationale Boundary",
+    ...formatAuthorityBoundaryForCopy(contextRelayRationale.authority_boundary),
   ];
 }
 

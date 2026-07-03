@@ -24,6 +24,20 @@ const panelShellFile = "components/workplane/workplane-panel-shell.tsx";
 const workQueuePanelFile = "components/workplane/work-queue-panel.tsx";
 const continuityRelayPanelFile =
   "components/workplane/continuity-relay-workplane-panel.tsx";
+const handoffRationaleTypeFile =
+  "types/handoff-context-relay-rationale.ts";
+const handoffRationaleHelperFile =
+  "lib/handoff/handoff-context-relay-rationale.ts";
+const handoffRationalePanelFile =
+  "components/handoff/handoff-context-relay-rationale-panel.tsx";
+const handoffCopyExportHelperFile =
+  "lib/handoff/handoff-capsule-copy-export.ts";
+const handoffCopyExportPanelFile =
+  "components/handoff/handoff-copy-export-panel.tsx";
+const handoffRationaleSmokeFile =
+  "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
+const handoffCopyExportSmokeFile =
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -313,6 +327,20 @@ const followOnWorkplaneContinuityRelayFiles = [
   "package.json",
 ];
 
+const followOnHandoffContextRelayRationaleFiles = [
+  handoffRationaleTypeFile,
+  handoffRationaleHelperFile,
+  handoffRationalePanelFile,
+  handoffCopyExportHelperFile,
+  handoffCopyExportPanelFile,
+  "components/workplane/agent-workplane.tsx",
+  handoffRationaleSmokeFile,
+  handoffCopyExportSmokeFile,
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-workplane-continuity-relay-v0-1.mjs",
+  "package.json",
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -515,6 +543,11 @@ const requiredFiles = [
   workplaneOverviewFile,
   workplaneBoundaryFile,
   ...panelFiles,
+  handoffRationaleTypeFile,
+  handoffRationaleHelperFile,
+  handoffRationalePanelFile,
+  handoffCopyExportHelperFile,
+  handoffCopyExportPanelFile,
   contextReaderFile,
   agentWorkplaneDoc,
   packageJsonFile,
@@ -629,6 +662,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneReviewMemoryDetailFiles,
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
   ...followOnWorkplaneContinuityRelayFiles,
+  ...followOnHandoffContextRelayRationaleFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -687,6 +721,13 @@ const boundaryText = textByFile.get(workplaneBoundaryFile);
 const panelShellText = textByFile.get(panelShellFile);
 const workQueueText = textByFile.get(workQueuePanelFile);
 const continuityRelayText = textByFile.get(continuityRelayPanelFile);
+const handoffRationaleTypeText = textByFile.get(handoffRationaleTypeFile);
+const handoffRationaleHelperText = textByFile.get(handoffRationaleHelperFile);
+const handoffRationalePanelText = textByFile.get(handoffRationalePanelFile);
+const handoffCopyExportHelperText = textByFile.get(
+  handoffCopyExportHelperFile,
+);
+const handoffCopyExportPanelText = textByFile.get(handoffCopyExportPanelFile);
 const currentPerspectiveText = textByFile.get(currentPerspectivePanelFile);
 const deltaProjectionText = textByFile.get(deltaProjectionPanelFile);
 const reviewQueueText = textByFile.get(reviewQueuePanelFile);
@@ -705,6 +746,7 @@ assertIndexPointer();
 assertWorkbenchRouteStillShell();
 assertShellComposition();
 assertPanelComponents();
+assertHandoffContextRelayRationaleFollowOn();
 assertWorkplaneContextReader();
 assertDocs();
 assertFollowOnSmokeCompatibility();
@@ -1024,6 +1066,81 @@ function assertPanelComponents() {
       "launch Codex",
     ],
     { label: workplaneBoundaryFile },
+  );
+}
+
+function assertHandoffContextRelayRationaleFollowOn() {
+  assertContainsAll(
+    handoffRationaleTypeText,
+    [
+      "handoff_context_relay_rationale.v0.1",
+      "selected_refs",
+      "why_included",
+      "stale_or_gap_warnings",
+      "stop_if_missing",
+      "expected_return_signal",
+      "authority_boundary",
+      "can_send_handoff: false",
+      "can_execute_codex: false",
+      "can_mutate_memory: false",
+    ],
+    { label: handoffRationaleTypeFile },
+  );
+  assertContainsAll(
+    handoffRationaleHelperText,
+    [
+      "buildHandoffContextRelayRationale",
+      "WorkplaneContinuityRelay",
+      "WORKPLANE_CONTINUITY_RELAY_VERSION",
+      "preserve_current_work",
+      "context_helpful_or_stale_refs",
+      "can_send_handoff: false",
+      "can_execute_codex: false",
+    ],
+    { label: handoffRationaleHelperFile },
+  );
+  assertContainsAll(
+    handoffRationalePanelText,
+    [
+      "HandoffContextRelayRationalePanel",
+      "Relay rationale",
+      "selected refs",
+      "stale/gaps",
+      "stop if missing",
+      "return signal",
+      "Read-only context compilation",
+    ],
+    { label: handoffRationalePanelFile },
+  );
+  assertContainsAll(
+    handoffCopyExportHelperText,
+    [
+      "context_relay_rationale",
+      "formatContextRelayRationaleForCopy",
+      "## Context Relay Rationale",
+      "### Expected Return Signal",
+    ],
+    { label: handoffCopyExportHelperFile },
+  );
+  assertContainsAll(
+    handoffCopyExportPanelText,
+    [
+      "contextRelayRationale",
+      "context rationale",
+      "why-included rationale",
+      "expected return signal",
+    ],
+    { label: handoffCopyExportPanelFile },
+  );
+  assertContainsAll(
+    agentWorkplaneText,
+    [
+      "buildHandoffContextRelayRationale",
+      "continuity_relay: context.continuity_relay",
+      "HandoffContextRelayRationalePanel",
+      "contextRelayRationale={handoffContextRationale}",
+    ],
+    { label: agentWorkplaneFile },
   );
 }
 

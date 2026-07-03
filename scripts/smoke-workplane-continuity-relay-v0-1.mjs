@@ -21,6 +21,20 @@ const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-workplane-continuity-relay-v0-1.mjs";
 const panelsSmokeFile = "scripts/smoke-agent-workplane-panels-v0-1.mjs";
 const nodeSmokeFile = "scripts/smoke-agent-workplane-node-contract-v0-1.mjs";
+const handoffRationaleTypeFile =
+  "types/handoff-context-relay-rationale.ts";
+const handoffRationaleHelperFile =
+  "lib/handoff/handoff-context-relay-rationale.ts";
+const handoffRationalePanelFile =
+  "components/handoff/handoff-context-relay-rationale-panel.tsx";
+const handoffCopyExportHelperFile =
+  "lib/handoff/handoff-capsule-copy-export.ts";
+const handoffCopyExportPanelFile =
+  "components/handoff/handoff-copy-export-panel.tsx";
+const handoffRationaleSmokeFile =
+  "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
+const handoffCopyExportSmokeFile =
+  "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -34,6 +48,13 @@ const allowedChangedFiles = [
   smokeFile,
   panelsSmokeFile,
   nodeSmokeFile,
+  handoffRationaleTypeFile,
+  handoffRationaleHelperFile,
+  handoffRationalePanelFile,
+  handoffCopyExportHelperFile,
+  handoffCopyExportPanelFile,
+  handoffRationaleSmokeFile,
+  handoffCopyExportSmokeFile,
 ];
 
 const textByFile = loadTextByFile(allowedChangedFiles);
