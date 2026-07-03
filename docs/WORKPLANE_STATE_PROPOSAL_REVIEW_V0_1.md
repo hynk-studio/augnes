@@ -34,6 +34,12 @@ The panel renders grouped lanes for:
 Each lane has a status, summary, source refs, gaps, authority note, and at
 least one review row or explicit empty/fallback row.
 
+PR 4 follow-on: Cockpit Manual Controls Migration v0.1 is documented in
+`docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md`. The State Proposal Review
+read model now also renders `manual_control_migration_review` so safe manual
+preview/copy controls, blocked local-write/apply controls, and obsolete
+Cockpit manual controls are visible as native Workplane review rows.
+
 ## Data Model
 
 `types/workplane-state-proposal-review.ts` defines
@@ -57,6 +63,10 @@ least one review row or explicit empty/fallback row.
 - `proposal_status_history`
 - `needs_user_judgment`
 - `stale_fallback_warnings`
+- `manual_control_migration_summary`
+- `migrated_manual_control_reviews`
+- `blocked_manual_control_reviews`
+- `obsolete_manual_control_reviews`
 - `authority_boundary`
 - `source_refs`
 - `validation_summary`
@@ -99,6 +109,14 @@ Inside the panel, group and item markers use:
 
 - `data-state-proposal-review-group-id`
 - `data-state-proposal-review-item-kind`
+
+Manual controls migration rows additionally expose:
+
+- `data-cockpit-manual-controls-migration="v0.1"`
+- `data-cockpit-manual-control-id`
+- `data-cockpit-manual-control-migration-status`
+- `data-cockpit-manual-control-destination`
+- `data-cockpit-manual-control-authority-class`
 
 ## Authority Boundary
 
@@ -164,6 +182,8 @@ and all required group IDs.
 
 Next PR: Cockpit Manual Controls Migration v0.1.
 
-That PR may move safe preview/copy controls. Local-write, apply, commit,
+That follow-on is now implemented in
+`docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md`. Local-write, apply, commit,
 reject, durable memory apply, and Perspective apply controls remain blocked
-until a separate authority contract exists.
+until a separate authority contract exists. Cockpit route removal remains gated
+until unique useful capability count is verified as 0.

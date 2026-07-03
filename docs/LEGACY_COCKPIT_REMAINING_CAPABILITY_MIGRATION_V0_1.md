@@ -22,6 +22,13 @@ implemented in `docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md`. The native
 capabilities as read-only review context and keeps apply/approve/reject/commit
 authority blocked.
 
+PR 4 implementation update: Cockpit Manual Controls Migration v0.1 is now
+implemented in `docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md`. Safe manual
+preview/copy controls are visible as native Workplane State Proposal Review
+rows, blocked local-write/apply/commit/reject controls remain blocked until a
+separate authority contract, and obsolete Cockpit manual controls are delete
+candidates rather than migration targets.
+
 ## Destination Model
 
 Destination values:
@@ -195,6 +202,9 @@ PR 4: Cockpit Manual Controls Migration v0.1
 
 Purpose: Move safe preview/copy controls. Keep local-write controls blocked
 until a separate authority contract exists. Delete obsolete controls.
+
+Implementation:
+`docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md`.
 
 PR 5: Cockpit Route Removal v0.1
 

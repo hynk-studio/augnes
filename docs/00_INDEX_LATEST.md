@@ -127,6 +127,22 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   or GitHub calls, Codex or runner execution, product DB write, proof/evidence
   write, durable memory apply, Perspective apply, delta auto-apply, new route,
   `/cockpit` deletion, or `components/augnes-cockpit.tsx` deletion.
+- `docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md`: Cockpit Manual Controls
+  Migration v0.1 implements PR 4 of the Legacy Cockpit decomposition program
+  by representing safe manual preview/copy controls as native Workplane State
+  Proposal Review rows. It covers `manual_preview_editor`,
+  `manual_gravity_preview`, `formation_basis_preview`,
+  `local_draft_review_visibility`, `copy_export_review_packet`,
+  `manual_source_ref_review`, and `proposal_preview_gap_review`; keeps
+  `local_write_manual_controls`, `local_storage_draft_controls`,
+  `proposal_commit_reject_controls`, `durable_memory_apply_controls`, and
+  `perspective_apply_controls` blocked until a separate authority contract;
+  and marks obsolete external execution/manual shell copy as delete
+  candidates. It adds no local-write/apply/approve/reject/commit authority,
+  provider or GitHub calls, Codex or runner execution, product DB write,
+  proof/evidence write, durable memory apply, Perspective apply, delta
+  auto-apply, new route, `/cockpit` deletion, or
+  `components/augnes-cockpit.tsx` deletion.
 - `docs/AGENT_WORKPLANE_V0_1.md`: Phase 5A read-only Agent Workplane shell
   pointer for reframing `/workbench` as the backend work surface for
   agent/operator Trace context, projection candidates, handoff context,

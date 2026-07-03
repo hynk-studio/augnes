@@ -20,6 +20,13 @@ The PR 3 follow-on is documented in
 research-critical proposal review lane into native Agent Workplane while
 leaving `/cockpit` retained compatibility unchanged.
 
+The PR 4 follow-on is documented in
+`docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md`. It moves safe manual
+preview/copy controls into native Workplane State Proposal Review rows, keeps
+local-write/apply/commit/reject controls blocked until a separate authority
+contract, and classifies obsolete manual/execution residue as delete
+candidates.
+
 ## Route Split
 
 - /workbench no longer mounts full AugnesCockpit.
@@ -52,6 +59,10 @@ capabilities that Step 7 depends on:
   review, Perspective lens detail, local draft review, manual preview, manual
   gravity, formation basis, proposal status history, needs-user-judgment,
   stale/fallback warnings, and authority boundary review.
+- Safe manual preview/copy controls through StateProposalReviewPanel manual
+  controls migration rows, including manual preview, manual gravity, formation
+  basis, local draft visibility, copy/export packet review, manual source refs,
+  and preview gap review.
 - Validation/smoke visibility through Trace / Diagnostics, Evidence/Handoff,
   Workplane Inspector, metrics, and source-backed docs/smoke refs.
 
@@ -61,13 +72,16 @@ Retained compatibility remains explicit rather than embedded in the primary
 surface:
 
 - detailed legacy Cockpit local UI controls
-- local-write/manual/local-draft controls
+- local-write/apply/commit/reject controls that still require a separate
+  authority contract
 - controls that still require a separate authority contract before native
   absorption
 - full six-tab Cockpit shell, now only at /cockpit
 
-Retained local-write/manual/local-draft controls remain reachable through
-/cockpit until separately absorbed under a future authority contract.
+Retained local-write/apply/commit/reject controls remain reachable through
+/cockpit until separately handled under a future authority contract or deleted
+with route removal. Safe manual preview/copy review rows are now native in
+Workplane State Proposal Review.
 
 ## Runtime Verification
 

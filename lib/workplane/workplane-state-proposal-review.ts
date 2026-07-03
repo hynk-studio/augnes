@@ -21,9 +21,12 @@ import type {
   WorkplaneReviewMemoryDetailRead,
 } from "@/types/workplane-review-memory-detail";
 import type { WorkplaneContextRead } from "./read-workplane-context";
+import { buildCockpitManualControlsMigrationRead } from "./cockpit-manual-controls-migration";
+import type { CockpitManualControlMigrationRecord } from "@/types/cockpit-manual-controls-migration";
 
 export const WORKPLANE_STATE_PROPOSAL_REVIEW_SMOKE_REFS = [
   "smoke:workplane-state-proposal-review-v0-1",
+  "smoke:cockpit-manual-controls-migration-v0-1",
   "smoke:agent-workplane-node-contract-v0-1",
   "smoke:agent-workplane-panels-v0-1",
   "smoke:agent-workplane-review-memory-detail-v0-1",
@@ -79,6 +82,11 @@ export function buildWorkplaneStateProposalReviewRead({
     node_context_read,
     review_memory_detail,
   });
+  const manualControlsMigration = buildCockpitManualControlsMigrationRead();
+  const allSourceRefs = uniqueStrings([
+    ...sourceRefs,
+    ...manualControlsMigration.source_refs,
+  ]);
   const asOf = chooseLatestTimestamp(
     chooseLatestTimestamp(
       workplane_context.current_perspective_read.data.as_of,
@@ -127,6 +135,20 @@ export function buildWorkplaneStateProposalReviewRead({
     source_refs: sourceRefs,
   });
   const authorityBoundaryItems = authorityBoundaryReviewItems(sourceRefs);
+  const migratedManualControlReviews = manualControlMigrationItems(
+    manualControlsMigration.migrated_records,
+  );
+  const blockedManualControlReviews = manualControlMigrationItems(
+    manualControlsMigration.blocked_records,
+  );
+  const obsoleteManualControlReviews = manualControlMigrationItems(
+    manualControlsMigration.obsolete_records,
+  );
+  const manualControlMigrationReviews = [
+    ...migratedManualControlReviews,
+    ...blockedManualControlReviews,
+    ...obsoleteManualControlReviews,
+  ];
 
   const groups: WorkplaneStateProposalReviewGroup[] = [
     group({
@@ -255,6 +277,16 @@ export function buildWorkplaneStateProposalReviewRead({
       review_items: authorityBoundaryItems,
       gaps: [],
     }),
+    group({
+      group_id: "manual_control_migration_review",
+      title: "Manual controls migration",
+      summary:
+        "Safe manual preview/copy controls are represented as Workplane review rows; local-write/apply controls remain blocked; obsolete Cockpit controls are delete candidates.",
+      review_items: manualControlMigrationReviews,
+      gaps: [
+        "Rows are static migration evidence, not live migrated product actions or authority grants.",
+      ],
+    }),
   ];
 
   return {
@@ -277,6 +309,9 @@ export function buildWorkplaneStateProposalReviewRead({
       fallback_warning_count: staleFallbackWarnings.filter(
         (item) => item.status === "fallback",
       ).length,
+      manual_control_migration_count: migratedManualControlReviews.length,
+      blocked_manual_control_count: blockedManualControlReviews.length,
+      obsolete_manual_control_count: obsoleteManualControlReviews.length,
       field_diff_count: fieldLevelDiffs.length,
       before_after_preview_count: beforeAfterPreviews.length,
     },
@@ -291,8 +326,12 @@ export function buildWorkplaneStateProposalReviewRead({
     proposal_status_history: proposalStatusHistory,
     needs_user_judgment: needsUserJudgment,
     stale_fallback_warnings: staleFallbackWarnings,
+    manual_control_migration_summary: manualControlsMigration.summary,
+    migrated_manual_control_reviews: migratedManualControlReviews,
+    blocked_manual_control_reviews: blockedManualControlReviews,
+    obsolete_manual_control_reviews: obsoleteManualControlReviews,
     authority_boundary: STATE_PROPOSAL_REVIEW_AUTHORITY_BOUNDARY,
-    source_refs: sourceRefs,
+    source_refs: allSourceRefs,
     validation_summary: {
       status: "partial",
       smoke_refs: [...WORKPLANE_STATE_PROPOSAL_REVIEW_SMOKE_REFS],
@@ -718,6 +757,78 @@ function authorityBoundaryReviewItems(
         "This panel displays candidate actions as review labels only and renders no mutation controls.",
     },
   ];
+}
+
+function manualControlMigrationItems(
+  records: CockpitManualControlMigrationRecord[],
+): WorkplaneStateProposalReviewItem[] {
+  return records.map((record) => ({
+    item_id: `manual_control_migration_review:${record.control_id}`,
+    item_kind: itemKindForManualControlRecord(record),
+    title: record.title,
+    status: statusForManualControlRecord(record),
+    before_label: "Legacy Cockpit control",
+    after_label: "Native migration decision",
+    field_path: `cockpit_manual_controls.${record.control_id}`,
+    before_value_preview: record.control_class,
+    after_value_preview: `${record.destination} / ${record.migration_status}`,
+    impact_summary: record.reason,
+    risk_level: riskForManualControlRecord(record),
+    source_refs: record.source_refs,
+    needs_user_judgment:
+      record.destination === "blocked_until_authority_contract" ||
+      record.destination === "delete",
+    authority_note: record.authority_note,
+    manual_control_migration_record: record,
+  }));
+}
+
+function itemKindForManualControlRecord(
+  record: CockpitManualControlMigrationRecord,
+): WorkplaneStateProposalReviewItemKind {
+  if (record.control_id === "copy_export_review_packet") {
+    return "copy_export_review";
+  }
+  if (record.destination === "blocked_until_authority_contract") {
+    return "blocked_local_write_control";
+  }
+  if (record.destination === "delete") {
+    return "obsolete_cockpit_control";
+  }
+  return "manual_control_migration";
+}
+
+function statusForManualControlRecord(
+  record: CockpitManualControlMigrationRecord,
+): WorkplaneStateProposalReviewStatus {
+  if (record.migration_status === "migrated_native_review") {
+    return "ready";
+  }
+  if (
+    record.migration_status === "retained_blocked" ||
+    record.migration_status === "needs_authority_contract"
+  ) {
+    return "blocked";
+  }
+  if (record.migration_status === "obsolete_delete") {
+    return "blocked";
+  }
+  return "partial";
+}
+
+function riskForManualControlRecord(
+  record: CockpitManualControlMigrationRecord,
+): WorkplaneStateProposalReviewRiskLevel {
+  if (
+    record.destination === "blocked_until_authority_contract" ||
+    record.authority_class === "external_execution_forbidden"
+  ) {
+    return "high";
+  }
+  if (record.destination === "delete") {
+    return "medium";
+  }
+  return "low";
 }
 
 function group({

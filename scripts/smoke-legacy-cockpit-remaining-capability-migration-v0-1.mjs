@@ -45,6 +45,27 @@ const followOnWorkplaneStateProposalReviewFiles = [
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
 ];
 
+const followOnCockpitManualControlsMigrationFiles = [
+  "types/cockpit-manual-controls-migration.ts",
+  "lib/workplane/cockpit-manual-controls-migration.ts",
+  "types/workplane-state-proposal-review.ts",
+  "lib/workplane/workplane-state-proposal-review.ts",
+  "components/workplane/state-proposal-review-panel.tsx",
+  "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
+  "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md",
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
+  "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+];
+
 const allowedChangedFiles = [
   migrationDoc,
   smokeFile,
@@ -57,6 +78,7 @@ const allowedChangedFiles = [
   shrinkSmokeFile,
   runtimeSmokeFile,
   ...followOnWorkplaneStateProposalReviewFiles,
+  ...followOnCockpitManualControlsMigrationFiles,
 ];
 
 const destinationValues = [
@@ -179,6 +201,8 @@ assertContainsAll(
     "PR 3: Workplane State Proposal Review v0.1",
     "PR 4: Cockpit Manual Controls Migration v0.1",
     "PR 5: Cockpit Route Removal v0.1",
+    "PR 4 implementation update",
+    "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
     "## Completion Criteria",
     "`/cockpit` is temporary retained compatibility, not a long-term product surface.",
     "Cockpit unique useful capability count must reach 0 before route removal.",
@@ -416,7 +440,10 @@ function assertChangedFilesBoundary() {
 }
 
 function assertNoProductUiOrAuthorityPaths(files) {
-  const allowedFollowOnFiles = new Set(followOnWorkplaneStateProposalReviewFiles);
+  const allowedFollowOnFiles = new Set([
+    ...followOnWorkplaneStateProposalReviewFiles,
+    ...followOnCockpitManualControlsMigrationFiles,
+  ]);
   const forbiddenPathPatterns = [
     /^app\//,
     /^components\//,
