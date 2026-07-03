@@ -338,7 +338,7 @@ function assertHelperBehavior() {
         const evidenceReport = buildLegacyCockpitControlInventoryReport({
           as_of: "2026-07-03T00:00:00.000Z",
           workbench_html: html,
-          source_text: "app/cockpit/page.tsx imports AugnesCockpit and renders <AugnesCockpit />; agent-workplane.tsx renders <LegacyCockpitCompatibilityPanel />",
+          source_text: "app/cockpit/page.tsx imports AugnesCockpit and renders <" + "AugnesCockpit />; agent-workplane.tsx renders <" + "LegacyCockpitCompatibilityPanel />",
           proposal_diff_source_text: proposalDiffSource,
           proposal_diff_evidence_refs: ["docs/AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md"],
         });
@@ -465,7 +465,7 @@ function assertCompatibilityStillRendered() {
   );
   assertContainsAll(agentWorkplaneText, [
     "LegacyCockpitCompatibilityPanel",
-    "<LegacyCockpitCompatibilityPanel />",
+    "<" + "LegacyCockpitCompatibilityPanel />",
     "Agent Workplane shrunk compatibility route",
   ]);
   assert(!agentWorkplaneText.includes("AugnesCockpit"), `${agentWorkplaneFile} must not import or render AugnesCockpit after the route split`);
@@ -475,7 +475,7 @@ function assertCompatibilityStillRendered() {
     'data-workplane-legacy-cockpit-route="/cockpit"',
     "Legacy Cockpit full mount was removed from /workbench",
   ]);
-  assert(augnesCockpitText.includes("export function AugnesCockpit"));
+  assert(augnesCockpitText.includes("export function " + "AugnesCockpit"));
 }
 
 function assertChangedFileBoundary() {

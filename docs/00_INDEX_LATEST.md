@@ -114,8 +114,8 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   markers. It adds no apply/approve/reject/commit authority, provider/OpenAI
   call, GitHub actuation, Codex execution, runner execution/tick/recovery/
   scheduling, product DB write, proof/evidence write, durable memory apply,
-  Perspective apply, delta auto-apply, new route, `/cockpit` deletion, or
-  `components/augnes-cockpit.tsx` deletion.
+	  Perspective apply, delta auto-apply, or new route. Later PRs completed
+	  Cockpit route/component removal after zero-count readiness was verified.
 - `docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md`: Workplane State Proposal
   Review v0.1 implements PR 3 of the Legacy Cockpit decomposition program by
   rendering a native read-only `state_proposal_review` lane in `/workbench`.
@@ -125,8 +125,9 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   needs-user-judgment, stale/fallback warnings, source refs, and authority
   boundary review. It adds no apply/approve/reject/commit authority, provider
   or GitHub calls, Codex or runner execution, product DB write, proof/evidence
-  write, durable memory apply, Perspective apply, delta auto-apply, new route,
-  `/cockpit` deletion, or `components/augnes-cockpit.tsx` deletion.
+	  write, durable memory apply, Perspective apply, delta auto-apply, or new
+	  route. Later PRs completed Cockpit route/component removal after
+	  zero-count readiness was verified.
 - `docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md`: Cockpit Manual Controls
   Migration v0.1 implements PR 4 of the Legacy Cockpit decomposition program
   by representing safe manual preview/copy controls as native Workplane State
@@ -140,25 +141,39 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   and marks obsolete external execution/manual shell copy as delete
   candidates. It adds no local-write/apply/approve/reject/commit authority,
   provider or GitHub calls, Codex or runner execution, product DB write,
-  proof/evidence write, durable memory apply, Perspective apply, delta
-  auto-apply, new route, `/cockpit` deletion, or
-  `components/augnes-cockpit.tsx` deletion.
+	  proof/evidence write, durable memory apply, Perspective apply, delta
+	  auto-apply, or new route. Later PRs completed Cockpit route/component
+	  removal after zero-count readiness was verified.
 - `docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md`: Cockpit Route Removal
-  Readiness v0.1 verifies the post-PR #941 zero-count state before any
-  deletion PR. The deterministic readiness model classifies every remaining
+  Readiness v0.1 verifies the post-PR #941 zero-count state that unlocked the
+  explicit deletion PR. The deterministic readiness model classifies every remaining
   Legacy Cockpit capability as migrated to Blank State, Workplane, State
   Proposal Review, Manual Controls Migration review, blocked until authority
   contract, obsolete delete, or forbidden delete. It reports
   `unique_useful_cockpit_capability_count: 0`,
   `zero_count_verified: true`, `route_removal_allowed: false`, and
-  `component_removal_allowed: false`. It does not delete `/cockpit` or
-  `components/augnes-cockpit.tsx` and adds no authority.
+  `component_removal_allowed: false`. It now also records
+  `removal_completed: true`, `cockpit_route_present: false`,
+  `augnes_cockpit_component_present: false`, and
+  `legacy_workplane_compatibility_panel_present: false` after
+  Cockpit Route Removal v0.1.
+- `docs/COCKPIT_ROUTE_REMOVAL_V0_1.md`: Cockpit Route Removal v0.1 is the
+  explicit deletion PR after readiness verification. It removes `/cockpit`,
+  deletes `components/augnes-cockpit.tsx`, deletes
+  `components/workplane/legacy-cockpit-compatibility-panel.tsx`, removes the
+  Workplane compatibility pointer and active `legacy_cockpit_compatibility`
+  node/panel identity, and preserves migrated Blank State, Workplane, State
+  Proposal Review, and Manual Controls Migration capabilities. It adds no API,
+  DB, provider/OpenAI, GitHub, Codex, runner, proof/evidence, memory apply,
+  Perspective apply, delta apply, localStorage/sessionStorage, or product-write
+  authority.
 - `docs/AGENT_WORKPLANE_V0_1.md`: Phase 5A read-only Agent Workplane shell
   pointer for reframing `/workbench` as the backend work surface for
   agent/operator Trace context, projection candidates, handoff context,
   Evidence pointers, validation context, Current Working Perspective context,
-  Augnes Delta Projection context, and legacy Cockpit compatibility content.
-  Phase 5A preserves existing Cockpit reachability and adds no DB
+  Augnes Delta Projection context, and native proposal/manual review context.
+  Legacy Cockpit route/component removal is completed in Cockpit Route Removal
+  v0.1. Phase 5A preserved existing Cockpit reachability at the time and adds no DB
   schema/migration, DB write, MCP/App tool, provider/OpenAI call, GitHub
   actuation, Codex execution, proof/evidence write, durable Perspective apply,
   memory mutation, product-write, scheduler/autonomy runner,
@@ -166,8 +181,9 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   Phase 5B adds focused read-only Agent Workplane panels for Work Queue,
   Current Perspective, Delta Projection, Review Queue, Evidence/Handoff, and
   Workplane Inspector context. It preserves the `/workbench` route, the Phase
-  5A shell/header/overview/boundary, source/fallback disclosure, and legacy
-  Cockpit compatibility content, and adds no DB schema/migration, DB write,
+  5A shell/header/overview/boundary, and source/fallback disclosure. Later
+  Cockpit decomposition PRs removed the legacy Cockpit route/component after
+  zero-count readiness. It adds no DB schema/migration, DB write,
   API write route, MCP/App tool, provider/OpenAI call, GitHub actuation, Codex
   execution, proof/evidence write, durable Perspective apply, memory mutation,
   product-write, scheduler/autonomy runner, merge/publish/retry/replay/deploy
@@ -194,10 +210,11 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   merge/publish/retry/replay/deploy behavior, or external side effect.
 - `docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md`: Agent
   Workplane Cockpit Capability Inventory v0.1 records useful legacy Cockpit
-  capabilities, why agents use them, current native replacements, retained
-  compatibility paths, absorption targets, statuses, source refs, validation
-  coverage, and recommended next actions. It states that legacy Cockpit must
-  not be removed until native replacement and validation exist, and adds no
+  capabilities, why agents use them, current native replacements, post-removal
+  coverage, absorption targets, statuses, source refs, validation coverage, and
+  recommended next actions. It now points to Cockpit Route Removal v0.1, where
+  Legacy Cockpit was removed after native replacement and validation existed,
+  and adds no
   GuideBrief debug panel, GuideBrief intent projection, Workplane node/panel
   contract, Runner / DeltaBatch Workplane integration, runner behavior,
   external actuation, provider/OpenAI call, GitHub execution behavior, Codex
@@ -205,10 +222,10 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
 - `docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md`: Agent Workplane
   Native Absorption Map v0.1 maps Work Brief, Handoff, Perspective, Bridge,
   Operator visibility, Runner outputs, Postmortem, and Trace context to native
-  Agent Workplane panels/nodes or explicit retained compatibility paths. It
-  recommends Agent Workplane Node / Panel Contract v0.1 as the next phase and
-  keeps legacy Cockpit deletion blocked until native replacement and validation
-  exist.
+  Agent Workplane panels/nodes, native review rows, blocked-authority
+  classifications, or delete classifications. It points to Cockpit Route
+  Removal v0.1 after native replacement and validation reached zero useful
+  Cockpit-only capability count.
 - `docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md`: Agent Workplane Node / Panel
   Contract v0.1 defines stable Workplane panel IDs, node IDs, node kinds,
   conservative statuses, authority boundary, validation summary, staleness,
@@ -329,25 +346,22 @@ Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이�
   DB write, no proof/evidence write, no durable memory/Perspective/delta apply,
   no local-write native absorption, and no Legacy Cockpit deletion/shrink/hide.
 - `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md`: Legacy Cockpit
-  Shrink v0.1 is the real route split implementation. `/workbench` no longer
-  imports or mounts full `AugnesCockpit`; it keeps only a compact
-  `LegacyCockpitCompatibilityPanel` pointer/status panel. `/cockpit` is the
-  explicit retained full Legacy Cockpit compatibility route for detailed
-  legacy local UI controls and local-write/manual/local-draft controls until a
-  separate native authority contract exists. Native Agent Workplane remains
-  the primary operational surface. This adds no API write route, server
+  Shrink v0.1 is the historical route split implementation. `/workbench` no
+  longer imported or mounted full `AugnesCockpit`, then later Cockpit Route
+  Removal v0.1 removed `/cockpit`, `components/augnes-cockpit.tsx`, and the
+  Workplane compatibility pointer after zero-count readiness. Native Agent
+  Workplane remains the primary operational surface. This adds no API write route, server
   action, provider/OpenAI/GitHub/Codex/runner execution, product DB write,
   proof/evidence write, durable memory/Perspective/delta apply, publish,
   merge, retry, replay, or deploy authority.
 - `docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md`: Legacy
   Cockpit Remaining Capability Migration Map v0.1 classifies the useful
-  capabilities still retained after the route split shrink and assigns final
+  capabilities that were still retained after the route split shrink and assigns final
   destinations to Blank State, Agent Workplane, Workplane State Proposal
-  Review, blocked authority-contract lanes, or deletion. `/cockpit` remains
-  temporary retained compatibility, not a long-term product surface. The map
-  does not move UI, does not delete `/cockpit` or
-  `components/augnes-cockpit.tsx`, and blocks route removal until Cockpit
-  unique useful capability count reaches 0.
+  Review, blocked authority-contract lanes, or deletion. The map led to
+  zero-count readiness and Cockpit Route Removal v0.1, where `/cockpit` and
+  `components/augnes-cockpit.tsx` were removed after Cockpit unique useful
+  capability count reached 0.
 - `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md`: Legacy Cockpit
   Shrink Plan v0.1 is prior planning/gate context for capability-by-capability
   compatibility reduction. It is no longer the latest shrink implementation

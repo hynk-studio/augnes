@@ -24,7 +24,6 @@ export const AGENT_WORKPLANE_PANEL_IDS = [
   "handoff_builder_preview",
   "run_postmortem",
   "trace_diagnostics",
-  "legacy_cockpit_compatibility",
   "current_objective",
   "handoff_context",
   "perspective_delta",
@@ -38,7 +37,6 @@ export const AGENT_WORKPLANE_PANEL_IDS = [
 export const AGENT_WORKPLANE_NODE_KINDS = [
   "native_panel",
   "preview_panel",
-  "compatibility_panel",
   "debug_context_source",
   "proposal_review_context",
   "handoff_context_source",
@@ -50,7 +48,6 @@ export const AGENT_WORKPLANE_NODE_STATUSES = [
   "ready",
   "partial",
   "preview_only",
-  "compatibility_only",
   "not_materialized",
   "empty",
   "needs_review",

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import {
   assertContainsAll,
   assertPackageScript,
@@ -17,6 +18,8 @@ const workplaneOverviewFile = "components/workplane/workplane-overview.tsx";
 const workplaneBoundaryFile = "components/workplane/workplane-boundary-card.tsx";
 const compatibilityPanelFile =
   "components/workplane/legacy-cockpit-compatibility-panel.tsx";
+const augnesCockpitFile = "components/augnes-cockpit.tsx";
+const cockpitPageFile = "app/cockpit/page.tsx";
 const panelShellFile = "components/workplane/workplane-panel-shell.tsx";
 const workQueuePanelFile = "components/workplane/work-queue-panel.tsx";
 const currentPerspectivePanelFile =
@@ -318,6 +321,40 @@ const followOnLegacyCockpitLocalControlClassificationFiles = [
   "package.json",
 ];
 
+const followOnCockpitRouteRemovalFiles = [
+  cockpitPageFile,
+  augnesCockpitFile,
+  compatibilityPanelFile,
+  "types/cockpit-route-removal-readiness.ts",
+  "lib/workplane/cockpit-route-removal-readiness.ts",
+  "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md",
+  "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md",
+  "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
+  "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md",
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
+  "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/smoke-cockpit-route-removal-readiness-v0-1.mjs",
+  "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
+  "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
+  "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",
+  "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
+  "scripts/smoke-agent-workplane-run-postmortem-detail-v0-1.mjs",
+  "scripts/smoke-augnes-dogfood-metrics-baseline-v0-2.mjs",
+  "scripts/smoke-legacy-cockpit-local-control-classification-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+];
+
 
 const followOnWebGuidePanelFiles = [
   "components/guide/guide-brief-panel.tsx",
@@ -349,7 +386,6 @@ const requiredFiles = [
   workplaneHeaderFile,
   workplaneOverviewFile,
   workplaneBoundaryFile,
-  compatibilityPanelFile,
   panelShellFile,
   workQueuePanelFile,
   currentPerspectivePanelFile,
@@ -456,6 +492,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneReviewMemoryDetailFiles,
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
+  ...followOnCockpitRouteRemovalFiles,
   "app/cockpit/page.tsx",
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
@@ -503,7 +540,6 @@ const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
 const headerText = textByFile.get(workplaneHeaderFile);
 const overviewText = textByFile.get(workplaneOverviewFile);
 const boundaryText = textByFile.get(workplaneBoundaryFile);
-const compatibilityText = textByFile.get(compatibilityPanelFile);
 const panelText = [
   textByFile.get(panelShellFile),
   textByFile.get(workQueuePanelFile),
@@ -577,7 +613,7 @@ console.log(
       index_pointer_checked: true,
       workbench_route_checked: true,
       agent_workplane_shell_checked: true,
-      cockpit_compatibility_checked: true,
+      cockpit_compatibility_removed_checked: true,
       current_working_perspective_context_checked: true,
       delta_projection_context_checked: true,
       no_new_authority_code_checked: true,
@@ -641,7 +677,7 @@ function assertWorkbenchRouteShell() {
     { label: workbenchPageFile },
   );
   assert(
-    !workbenchPageText.includes("<AugnesCockpit"),
+    !workbenchPageText.includes("<" + "AugnesCockpit"),
     `${workbenchPageFile} should route through the Agent Workplane shell, not direct Cockpit rendering`,
   );
 }
@@ -651,9 +687,7 @@ function assertWorkplaneComponents() {
     agentWorkplaneText,
     [
       "Agent Workplane",
-      "LegacyCockpitCompatibilityPanel",
-      "<LegacyCockpitCompatibilityPanel />",
-      "Agent Workplane shrunk compatibility route",
+      "StateProposalReviewPanel",
       "WorkplaneOverview",
       "WorkQueuePanel",
       "CurrentPerspectiveWorkplanePanel",
@@ -667,6 +701,12 @@ function assertWorkplaneComponents() {
     { label: agentWorkplaneFile },
   );
   assert(!agentWorkplaneText.includes("AugnesCockpit"), `${agentWorkplaneFile} must not import or render AugnesCockpit after the route split`);
+  assert(!agentWorkplaneText.includes("LegacyCockpitCompatibilityPanel"), `${agentWorkplaneFile} must not render the removed compatibility panel`);
+  assert(!agentWorkplaneText.includes("legacy_cockpit_compatibility"), `${agentWorkplaneFile} must not expose the removed compatibility node`);
+  assert(!agentWorkplaneText.includes('href="/cockpit"'), `${agentWorkplaneFile} must not link to the removed /cockpit route`);
+  assert(!existsSync(compatibilityPanelFile), `${compatibilityPanelFile} must be deleted`);
+  assert(!existsSync(augnesCockpitFile), `${augnesCockpitFile} must be deleted`);
+  assert(!existsSync(cockpitPageFile), `${cockpitPageFile} must be deleted`);
   assertContainsAll(
     panelText,
     [
@@ -727,17 +767,6 @@ function assertWorkplaneComponents() {
     ],
     { label: workplaneBoundaryFile },
   );
-  assertContainsAll(
-    compatibilityText,
-    [
-      "Legacy Cockpit route split",
-      "Compatibility pointer",
-      'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
-      'data-workplane-legacy-cockpit-route="/cockpit"',
-      "Legacy Cockpit full mount was removed from /workbench",
-    ],
-    { label: compatibilityPanelFile },
-  );
 }
 
 function assertWorkplaneContextReader() {
@@ -774,7 +803,7 @@ function assertDocs() {
     docText,
     [
       "Agent Workplane v0.1",
-      "Existing Cockpit Preservation",
+      "Cockpit Removal",
       "Data Sources and Fallback",
       "Trace context summary",
       "No handoff refs",
@@ -795,7 +824,6 @@ function assertNoNewAuthorityCode() {
     headerText,
     overviewText,
     boundaryText,
-    compatibilityText,
     panelText,
     contextReaderText,
   ].join("\n");

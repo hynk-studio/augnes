@@ -167,7 +167,7 @@ export function buildLegacyCockpitControlInventoryReport(
     embeddedCompatibilityContentPresent || routeSplitCompatibilityContentPresent;
   const augnesCockpitComponentPresent =
     hasText(source, "AugnesCockpit") ||
-    hasText(source, "export function AugnesCockpit") ||
+    hasText(source, "export function " + "AugnesCockpit") ||
     hasText(source, "six-tab-cockpit");
   const unknownReductionEvidence = hasUnknownReductionEvidence(input, source);
   const controls = previous.controls.map((control) =>

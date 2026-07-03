@@ -17,7 +17,6 @@ import { DeltaBatchPanel } from "@/components/workplane/delta-batch-panel";
 import { DeltaProjectionWorkplanePanel } from "@/components/workplane/delta-projection-workplane-panel";
 import { EvidenceHandoffWorkplanePanel } from "@/components/workplane/evidence-handoff-workplane-panel";
 import { HandoffBuilderPreviewPanel } from "@/components/workplane/handoff-builder-preview-panel";
-import { LegacyCockpitCompatibilityPanel } from "@/components/workplane/legacy-cockpit-compatibility-panel";
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
 import { ReviewMemoryDetailPanel } from "@/components/workplane/review-memory-detail-panel";
 import { ReviewQueueWorkplanePanel } from "@/components/workplane/review-queue-workplane-panel";
@@ -265,12 +264,6 @@ export async function AgentWorkplane() {
             </section>
           </section>
 
-          <section
-            aria-label="Agent Workplane shrunk compatibility route"
-            style={{ minWidth: 0 }}
-          >
-            <LegacyCockpitCompatibilityPanel />
-          </section>
         </section>
       </div>
     </div>

@@ -32,7 +32,6 @@ export const WORKPLANE_BRIDGE_TRACE_DETAIL_REQUIRED_REF_KINDS = [
   "smoke",
   "docs",
   "repo",
-  "legacy_cockpit_compatibility",
 ] as const satisfies readonly WorkplaneBridgeTraceRefKind[];
 
 export const WORKPLANE_BRIDGE_TRACE_DETAIL_REQUIRED_BRIDGE_ROWS = [
@@ -41,7 +40,6 @@ export const WORKPLANE_BRIDGE_TRACE_DETAIL_REQUIRED_BRIDGE_ROWS = [
   "delta_projection",
   "projected_delta_batch",
   "runner_delta_batch",
-  "legacy_cockpit_compatibility",
 ] as const;
 
 export const WORKPLANE_BRIDGE_TRACE_DETAIL_SMOKE_REFS = [
@@ -214,10 +212,17 @@ function buildDetailRefs(
     summary: "Bridge/trace detail documentation pointer.",
   });
   pushRef({
-    refId: "legacy_cockpit_compatibility:retained",
-    sourcePanelId: "legacy_cockpit_compatibility",
-    sourceNodeId: "legacy_cockpit_compatibility",
-    summary: "Legacy Cockpit compatibility path remains rendered.",
+    refId: "docs:COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md",
+    sourcePanelId: "source_ref_bridge",
+    sourceNodeId: "source_ref_bridge",
+    summary:
+      "Route removal readiness verified unique useful Cockpit-only capability count is 0.",
+  });
+  pushRef({
+    refId: "docs:COCKPIT_ROUTE_REMOVAL_V0_1.md",
+    sourcePanelId: "source_ref_bridge",
+    sourceNodeId: "source_ref_bridge",
+    summary: "Cockpit route/component removal documentation pointer.",
   });
 
   for (const smokeRef of WORKPLANE_BRIDGE_TRACE_DETAIL_SMOKE_REFS) {
@@ -348,14 +353,15 @@ function buildBridgeRows(
       authority_summary: "Runner DeltaBatch readback does not execute, tick, schedule, recover, or write runner ledger state.",
     },
     {
-      row_id: "legacy_cockpit_compatibility",
-      title: "Legacy Cockpit compatibility",
-      source_panel_id: "legacy_cockpit_compatibility",
-      source_node_id: "legacy_cockpit_compatibility",
+      row_id: "cockpit_route_removal_evidence",
+      title: "Cockpit route removal evidence",
+      source_panel_id: "source_ref_bridge",
+      source_node_id: "source_ref_bridge",
       trace_role:
-        "Compatibility path remains rendered and reachable for rollback and useful legacy detail.",
-      ref_kinds: ["legacy_cockpit_compatibility"],
-      authority_summary: "Compatibility is retained; this PR does not delete, shrink, hide, or disable Legacy Cockpit.",
+        "Route removal evidence verifies Cockpit-only useful capability count is 0 and native surfaces carry migrated review context.",
+      ref_kinds: ["docs", "smoke"],
+      authority_summary:
+        "Route removal evidence does not add apply, execution, provider, runner, DB, proof, evidence, memory, Perspective, or delta authority.",
     },
   ] as const;
 
@@ -801,9 +807,6 @@ function classifyRefKind(ref: string): WorkplaneBridgeTraceRefKind {
   if (ref.startsWith("smoke:")) return "smoke";
   if (ref.startsWith("docs:") || ref.startsWith("docs/")) return "docs";
   if (ref.startsWith("repo:")) return "repo";
-  if (ref.startsWith("legacy_cockpit_compatibility:")) {
-    return "legacy_cockpit_compatibility";
-  }
   return "repo";
 }
 

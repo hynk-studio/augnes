@@ -265,6 +265,44 @@ const followOnLegacyCockpitLocalControlClassificationFiles = [
   "package.json",
 ];
 
+const followOnCockpitRouteRemovalFiles = [
+  "app/cockpit/page.tsx",
+  "components/augnes-cockpit.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "types/cockpit-route-removal-readiness.ts",
+  "lib/workplane/cockpit-route-removal-readiness.ts",
+  "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md",
+  "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md",
+  "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
+  "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
+  "scripts/smoke-cockpit-route-removal-readiness-v0-1.mjs",
+  "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
+  "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "lib/guide/workplane-intent-projection.ts",
+  "lib/metrics/runner-workplane-metrics.ts",
+  "lib/workplane/workplane-bridge-trace-detail.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "lib/workplane/workplane-review-memory-detail.ts",
+  "lib/workplane/workplane-run-postmortem-detail.ts",
+  "types/workplane-bridge-trace-detail.ts",
+  "types/workplane-browser-regression.ts",
+];
+
 
 const allowedChangedFiles = new Set([
   ...requiredFiles,
@@ -281,12 +319,16 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneReviewMemoryDetailFiles,
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
+  ...followOnCockpitRouteRemovalFiles,
   "app/cockpit/page.tsx",
+  "components/augnes-cockpit.tsx",
   "components/workplane/legacy-cockpit-compatibility-panel.tsx",
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
   "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
   "docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
   "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
   "scripts/smoke-legacy-cockpit-local-control-classification-v0-1.mjs",
@@ -295,6 +337,7 @@ const allowedChangedFiles = new Set([
 const validStatuses = new Set([
   "native_complete",
   "partially_native",
+  "migrated_or_blocked_after_readiness",
   "legacy_only_still_useful",
   "obsolete",
   "remove_later",
@@ -357,7 +400,9 @@ assertContainsAll(indexText, [inventoryDoc, absorptionMapDoc], {
 assertContainsAll(
   inventoryText,
   [
-    "Legacy Cockpit must not be removed until native replacement and validation exist.",
+    "Legacy Cockpit was not removed until native replacement and validation existed.",
+    "Cockpit Route Removal v0.1 later removed `/cockpit`",
+    "`unique_useful_cockpit_capability_count: 0` was verified.",
     "no provider/OpenAI call",
     "no GitHub execution behavior",
     "no Codex execution behavior",
@@ -371,7 +416,9 @@ assertContainsAll(
 assertContainsAll(
   mapText,
   [
-    "Legacy Cockpit must not be removed until native replacement and validation exist.",
+    "Legacy Cockpit was removed only after native replacement and validation existed.",
+    "Cockpit Route Removal v0.1 removed `/cockpit`",
+    "No active compatibility path remains after route removal.",
     "Work Queue / Current Objective",
     "Handoff Builder / Handoff Capsule / Codex packet panel",
     "Current Perspective / Perspective Delta / Timeline context",
@@ -416,8 +463,8 @@ console.log(
       required_inventory_fields_checked: requiredInventoryFields,
       valid_statuses_checked: [...validStatuses],
       useful_inheritance_paths_checked: true,
-      legacy_cockpit_removal_stopline_checked: true,
-      no_source_file_deletion_checked: true,
+      legacy_cockpit_route_removal_checked: true,
+      cockpit_source_deletion_checked: true,
       no_provider_openai_github_codex_execution_added: true,
       no_durable_memory_or_perspective_apply_added: true,
       no_new_runner_behavior_added: true,
@@ -549,7 +596,15 @@ function assertNoSourceFileDeletion() {
     ...collectDiffNameOnly(["diff", "--name-only", "--diff-filter=D", "origin/main...HEAD"]),
   ]);
 
-  assert.deepEqual(deletedFiles, [], "No source file deletion is allowed");
+  assert.deepEqual(
+    deletedFiles,
+    [
+      "app/cockpit/page.tsx",
+      "components/augnes-cockpit.tsx",
+      "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+    ].sort(),
+    "Only the Cockpit route/component/compatibility pointer deletions are allowed",
+  );
 }
 
 function assertNoRuntimeAuthorityFilesChanged() {
@@ -586,6 +641,7 @@ function assertNoRuntimeAuthorityFilesChanged() {
       (followOnAgentWorkplaneReviewMemoryDetailFiles.includes(file) ||
         followOnAgentWorkplaneRunPostmortemDetailFiles.includes(file)) ||
       followOnLegacyCockpitLocalControlClassificationFiles.includes(file) ||
+      followOnCockpitRouteRemovalFiles.includes(file) ||
       file === "app/cockpit/page.tsx" ||
       file === "lib/workplane/legacy-cockpit-control-inventory.ts"
     ) {

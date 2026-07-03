@@ -16,7 +16,7 @@ Classification v0.1, plus Augnes Dogfood Metrics Baseline v0.2, plus
 Workplane State Proposal Review v0.1, plus Cockpit Manual Controls Migration
 v0.1.
 
-Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, and existing Cockpit compatibility content.
+Scope: `/workbench` is reframed as Agent Workplane: a backend work surface for agent/operator traces, projection candidates, handoff context, evidence pointers, validation context, native State Proposal Review, and native Manual Controls Migration review rows.
 
 Phase 5A adds a read-only Workplane shell, header, overview cards, boundary card, compatibility panel, a thin workplane context read helper, this document, and a focused static smoke. It preserves the existing Cockpit content instead of deleting or replacing it.
 
@@ -203,8 +203,9 @@ delete-candidate rows for obsolete external execution and duplicate Cockpit
 manual shell copy. It adds no local-write/apply/approve/reject/commit
 authority, provider/OpenAI/GitHub/Codex execution, runner execution/tick/
 recovery/scheduled behavior, product DB write, proof/evidence write, durable
-memory apply, Perspective apply, delta auto-apply, Cockpit route deletion, or
-AugnesCockpit component deletion.
+memory apply, Perspective apply, or delta auto-apply. Later Cockpit Route
+Removal v0.1 deleted the route/component after zero-count readiness was
+verified.
 
 Agent Workplane Run Postmortem Detail v0.1 is documented in
 `docs/AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md`. `/workbench` now renders
@@ -214,8 +215,8 @@ a read-only `RunPostmortemDetailPanel` with
 postmortem detail, run_id, step refs, event refs, recovered DeltaBatch,
 validation status, source refs, no runner execution, no runner tick, no
 DeltaBatch recovery, no durable memory apply, no Perspective apply, and
-retained legacy compatibility explicit without adding runner authority or
-shrink authority. It adds no route, API write route, server action, chat
+route-removal evidence explicit without adding runner authority or
+deletion authority. It adds no route, API write route, server action, chat
 composer, provider/OpenAI/GitHub/Codex execution, runner execution/tick/
 recovery/scheduled behavior, product DB write, proof/evidence write, durable
 memory apply, Perspective apply, delta auto-apply, product UI action
@@ -305,20 +306,21 @@ Agent Workplane renders:
   path, not through product render
 - stable `data-workplane-panel-id`, `data-workplane-node-id`,
   `data-workplane-node-kind`, and `data-workplane-node-status` metadata on key
-  native panels and the legacy compatibility path
-- compact Legacy Cockpit compatibility pointer content
+  native panels
+- native State Proposal Review and Manual Controls Migration review rows
 
-## 3. Existing Cockpit Preservation
+## 3. Cockpit Removal
 
-Legacy Cockpit Shrink v0.1 removes the full `AugnesCockpit` mount from
-`/workbench`. `LegacyCockpitCompatibilityPanel` now renders a compact
-pointer/status panel, and the full Cockpit remains reachable at `/cockpit`.
+Legacy Cockpit Shrink v0.1 removed the full `AugnesCockpit` mount from
+`/workbench`. Cockpit Route Removal v0.1 later removed `/cockpit`,
+`components/augnes-cockpit.tsx`, and the Workplane compatibility pointer after
+zero-count readiness was verified.
 
-This preserves existing Work Brief, Handoff, Perspective, Bridge, Operator,
-trace, diagnostic, local-write/manual, and local-draft visibility through the
-explicit compatibility route while the surrounding information architecture
-moves from Cockpit-as-main-human-product-surface to
-Agent-Workplane-as-backend/operator-surface.
+Migrated Work Brief, Handoff, Perspective, Bridge, Operator, trace, diagnostic,
+manual preview/copy, and local-draft visibility now live in Blank State, Agent
+Workplane, Workplane State Proposal Review, or Manual Controls Migration review
+rows. Blocked local-write/apply/commit/reject controls remain blocked until a
+separate authority contract exists.
 
 Phase 5B adds focused Agent Workplane panels around the existing compatibility
 content. Phase 5C adds preview skeleton panels after those panels. Phase 5D
@@ -545,7 +547,7 @@ Cleanup includes:
   390px
 - safe wrapping for long delta ids, pointer refs, gaps, diagnostics, and
   fallback text
-- containment for legacy Cockpit compatibility content without deleting it
+- removal of legacy Cockpit compatibility content after zero-count readiness
 - old-label cleanup so `/workbench` is not framed as the primary human product
   surface
 - accessibility / semantics cleanup for headings, sections, nav anchors, lists,
@@ -565,7 +567,7 @@ Phase 5 v0.1 is ready for the next phase only when:
 
 - Agent Workplane remains distinct from Human Surface and Perspective Human
   Timeline
-- Cockpit compatibility content remains reachable
+- Cockpit route/component removal is complete after zero-count readiness
 - source/fallback status remains visible
 - trace/diagnostics remain bounded rather than raw dumps
 - no hidden execution authority or write/apply controls are introduced
@@ -611,10 +613,10 @@ memory apply, Perspective apply, delta auto-apply, or external side effect.
 Recovered runner DeltaBatch node/panel integration is documented in
 `docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md`.
 
-Legacy Cockpit compatibility remains explicit through
-`legacy_cockpit_compatibility` with `compatibility_panel` /
-`compatibility_only` metadata. Legacy Cockpit must not be removed until native
-replacement and validation exist.
+Legacy Cockpit compatibility is removed from active Workplane node/panel
+metadata. Cockpit Route Removal v0.1 removed `/cockpit`,
+`components/augnes-cockpit.tsx`, and the compatibility pointer after native
+replacement and validation reached zero useful Cockpit-only capability count.
 
 Legacy Cockpit Shrink Plan v0.1 now records the future gate model for any
 candidate reduction in
@@ -628,11 +630,11 @@ delete, shrink, hide, remove, disable, or weaken any compatibility content.
 - package script pointer exists
 - `/workbench` route still exists
 - `/workbench` renders `AgentWorkplane`
-- Agent Workplane shell/header/overview/boundary/compatibility components exist
+- Agent Workplane shell/header/overview/boundary/native review components exist
 - links to `/` and `/perspective` exist
 - visible copy includes `Agent Workplane`
 - visible copy includes read-only/no hidden execution authority boundary
-- existing `AugnesCockpit` compatibility content remains reachable
+- legacy Cockpit route/component/pointer markers are absent
 - Workplane context uses Current Working Perspective and Delta Projection read helpers
 - no mutating HTTP method, provider/OpenAI/GitHub/Codex execution, proof/evidence write, scheduler/autonomy runner, or route/write behavior is introduced in the new Workplane files
 
@@ -640,7 +642,7 @@ delete, shrink, hide, remove, disable, or weaken any compatibility content.
 
 - package script pointer exists
 - `/workbench` still routes through `AgentWorkplane`
-- shell/header/overview/boundary/legacy compatibility content remain reachable
+- shell/header/overview/boundary/native review content remain reachable
 - Work Queue, Current Perspective, Delta Projection, Review Queue,
   Evidence/Handoff, and Workplane Inspector panel components exist
 - panel copy includes read-only, pointer-only, source/fallback, and no hidden
@@ -671,10 +673,11 @@ delete, shrink, hide, remove, disable, or weaken any compatibility content.
 - package script pointer exists
 - `/workbench` still renders `AgentWorkplane`
 - Phase 5A shell, Phase 5B panels, and Phase 5C preview panels still compose
-- legacy `AugnesCockpit` compatibility remains reachable
+- native State Proposal Review and Manual Controls Migration content remain
+  reachable
 - visible copy keeps `Agent Workplane`, `Backend work surface`, `Read-only
-  operator view`, `No hidden execution authority`, `legacy Cockpit
-  compatibility content`, and source/fallback status
+  operator view`, `No hidden execution authority`, native review context, and
+  source/fallback status
 - route model, Human Surface, Perspective Human Timeline, and API routes are not
   changed
 - no DB schema/migration, DB write, MCP/App tool, provider/OpenAI/GitHub runtime
@@ -730,8 +733,8 @@ delete, shrink, hide, remove, disable, or weaken any compatibility content.
 - required capability rows, allowed shrink readiness values, recommended
   actions, shrink gates, DeltaBatch identity separation, and current
   needs-review/watch readiness are documented
-- `LegacyCockpitCompatibilityPanel` and `AugnesCockpit` still exist and
-  `AgentWorkplane` renders the compact compatibility pointer
+- Legacy Cockpit route/component/pointer references are absent from active
+  Workplane code after Cockpit Route Removal v0.1
 - no API write route, server action, provider/OpenAI/GitHub/Codex path, runner behavior, product
   DB writes, proof/evidence writes, durable memory apply, Perspective apply,
   delta auto-apply, or broad source deletion are added
@@ -741,18 +744,17 @@ delete, shrink, hide, remove, disable, or weaken any compatibility content.
 - the Workplane Native Replacement Browser Regression type, pure parser,
   GET-only runner, docs, index pointers, package scripts, and smoke exist
 - required native replacement markers, GuideBrief debug/intent projection
-  markers, Workplane metrics marker, Legacy Cockpit compatibility marker, and
+  markers, Workplane metrics marker, route-removal absence checks, and
   DeltaBatch identity pairs are encoded in the helper
 - deterministic fixture HTML returns browser-regression passed/partial status
   as appropriate while keeping shrink gated by dogfood/metrics/human review
-- missing compatibility, DeltaBatch identity collision, and mutation controls
-  block shrink recommendations
-- `LegacyCockpitCompatibilityPanel` remains rendered as a compact pointer
-  while full `AugnesCockpit` is retained at `/cockpit`
+- legacy Cockpit marker presence, DeltaBatch identity collision, and mutation
+  controls block route-removal recommendations
+- `LegacyCockpitCompatibilityPanel`, `AugnesCockpit`, `/cockpit` route pointer,
+  and Cockpit shell markers are absent from `/workbench`
 - no API route, server action, provider/OpenAI/GitHub/Codex execution path, runner behavior, DB writes,
   proof/evidence writes, durable memory apply, Perspective apply, delta
-  auto-apply, broad source deletion, or Legacy Cockpit deletion/shrink/hide are
-  added
+  auto-apply, or unauthorized authority changes are added
 
 `npm run smoke:agent-workplane-run-postmortem-detail-v0-1` checks:
 

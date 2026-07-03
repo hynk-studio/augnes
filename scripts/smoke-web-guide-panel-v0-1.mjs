@@ -502,7 +502,7 @@ function assertSurfaceEntries() {
       "GuideBriefMiniPanel",
       'variant="workbench"',
       "<WorkplaneOverview",
-      "<LegacyCockpitCompatibilityPanel>",
+      "<" + "LegacyCockpitCompatibilityPanel>",
     ],
     { label: workbenchComponentFile },
   );

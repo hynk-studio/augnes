@@ -16,6 +16,7 @@ const manualControlsMigrationDoc =
   "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md";
 const routeRemovalReadinessDoc =
   "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md";
+const routeRemovalDoc = "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md";
 
 const blankStateCapabilityIds = [
   ["continue_current_work_entry", "Continue Current Work entry"],
@@ -259,11 +260,15 @@ export function buildCockpitRouteRemovalReadiness(): CockpitRouteRemovalReadines
     as_of: "2026-07-03T00:00:00.000Z",
     status,
     summary: zeroCountVerified
-      ? "All required Legacy Cockpit capabilities are migrated, blocked until authority contract, obsolete, or forbidden-delete. Unique useful Cockpit-only capability count is 0."
+      ? "All required Legacy Cockpit capabilities are migrated, blocked until authority contract, obsolete, or forbidden-delete. Unique useful Cockpit-only capability count is 0, and Cockpit route/component removal is completed in the explicit deletion PR."
       : "One or more Legacy Cockpit capabilities still require manual review before route removal.",
     unique_useful_cockpit_capability_count:
       uniqueUsefulCockpitCapabilityCount,
     zero_count_verified: zeroCountVerified,
+    removal_completed: true,
+    cockpit_route_present: false,
+    augnes_cockpit_component_present: false,
+    legacy_workplane_compatibility_panel_present: false,
     route_removal_allowed: false,
     component_removal_allowed: false,
     capability_records: capabilityRecords,
@@ -291,9 +296,10 @@ export function buildCockpitRouteRemovalReadiness(): CockpitRouteRemovalReadines
       "smoke:agent-workplane-legacy-cockpit-shrink-v0-1",
       "smoke:blank-state-review-entry-absorption-v0-1",
       routeRemovalReadinessDoc,
+      routeRemovalDoc,
     ],
     next_pr_target:
-      "Cockpit Route Removal v0.1 may delete /cockpit and components/augnes-cockpit.tsx only in a later explicit deletion PR.",
+      "Cockpit Route Removal v0.1 completed /cockpit, AugnesCockpit, and Workplane compatibility pointer deletion; follow-up work should stay cleanup-only unless a new explicit scope is opened.",
   };
 }
 

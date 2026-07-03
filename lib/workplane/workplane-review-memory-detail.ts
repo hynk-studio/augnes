@@ -41,7 +41,6 @@ export const WORKPLANE_REVIEW_MEMORY_DETAIL_REQUIRED_PANEL_IDS = [
   "review_memory_detail",
   "workplane_inspector",
   "source_ref_bridge",
-  "legacy_cockpit_compatibility",
 ] as const;
 
 export const WORKPLANE_REVIEW_MEMORY_DETAIL_SMOKE_REFS = [
@@ -87,7 +86,7 @@ const REVIEW_MEMORY_AUTHORITY_BOUNDARY: WorkplaneReviewMemoryAuthorityBoundary =
     "Review / memory proposal detail is read-only visibility only.",
     "It can display durable memory review candidates and Perspective review candidates, but it cannot apply durable memory, apply Perspective, auto-apply deltas, approve, reject, commit, or mutate proposal state.",
     "It does not write DB state, write runner ledger state, record proof, create evidence, update work, mutate memory, call providers, call GitHub, actuate GitHub, execute Codex, execute runner, schedule runner, recover DeltaBatch, create branches or PRs, send handoffs, merge, publish, retry, replay, deploy, delete Legacy Cockpit, shrink Legacy Cockpit, or hide Legacy Cockpit.",
-    "Legacy Cockpit compatibility remains rendered for rollback and detailed legacy review context.",
+    "Legacy Cockpit route/component removal is documented separately; proposal and memory review remain native read-only Workplane context.",
   ],
 };
 
@@ -111,7 +110,8 @@ export function buildWorkplaneReviewMemoryDetailRead(
     ...decisionItems.flatMap((item) => item.source_refs),
     ...gapDetails.flatMap((gap) => gap.source_refs),
     "docs:AGENT_WORKPLANE_REVIEW_MEMORY_DETAIL_V0_1.md",
-    "legacy_cockpit_compatibility:retained",
+    "docs:COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md",
+    "docs:COCKPIT_ROUTE_REMOVAL_V0_1.md",
   ]);
 
   return {

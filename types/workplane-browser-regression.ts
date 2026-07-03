@@ -35,7 +35,7 @@ export type WorkplaneBrowserRegressionSurface =
   | "delta_projection"
   | "projected_delta_batch"
   | "runner_delta_batch"
-  | "legacy_cockpit_compatibility"
+  | "cockpit_route_removal"
   | "native_replacement"
   | "shrink_readiness";
 

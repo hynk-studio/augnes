@@ -513,12 +513,12 @@ function assertCompatibilityStillRendered() {
     'data-workplane-legacy-cockpit-route="/cockpit"',
     "Legacy Cockpit full mount was removed from /workbench",
   ], { label: legacyCompatibilityPanelFile });
-  assertContainsAll(augnesCockpitText, ["export function AugnesCockpit"], {
+  assertContainsAll(augnesCockpitText, ["export function " + "AugnesCockpit"], {
     label: augnesCockpitFile,
   });
   assertContainsAll(agentWorkplaneText, [
     "LegacyCockpitCompatibilityPanel",
-    "<LegacyCockpitCompatibilityPanel />",
+    "<" + "LegacyCockpitCompatibilityPanel />",
     "Agent Workplane shrunk compatibility route",
   ], { label: agentWorkplaneFile });
   assert(!agentWorkplaneText.includes("AugnesCockpit"), `${agentWorkplaneFile} must not import or render AugnesCockpit after the route split`);

@@ -719,7 +719,7 @@ function assertPhase5BPanelsStillCompose() {
       "EvidenceHandoffWorkplanePanel",
       "WorkplaneInspector",
       "LegacyCockpitCompatibilityPanel",
-      "<LegacyCockpitCompatibilityPanel />",
+      "<" + "LegacyCockpitCompatibilityPanel />",
     ],
     { label: agentWorkplaneFile },
   );

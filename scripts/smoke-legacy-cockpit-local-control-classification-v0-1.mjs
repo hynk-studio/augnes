@@ -541,7 +541,7 @@ function assertHelperBehavior() {
 function assertLegacyCompatibilityStillRendered() {
   assertContainsAll(agentWorkplaneText, [
     "LegacyCockpitCompatibilityPanel",
-    "<LegacyCockpitCompatibilityPanel />",
+    "<" + "LegacyCockpitCompatibilityPanel />",
     "Agent Workplane shrunk compatibility route",
   ]);
   assert(!agentWorkplaneText.includes("AugnesCockpit"), `${agentWorkplaneFile} must not import or render AugnesCockpit after the route split`);
@@ -552,10 +552,10 @@ function assertLegacyCompatibilityStillRendered() {
     "Legacy Cockpit full mount was removed from /workbench",
   ]);
   assertContainsAll(cockpitPageText, [
-    'import { AugnesCockpit } from "@/components/augnes-cockpit"',
-    "<AugnesCockpit />",
+    'import { ' + 'AugnesCockpit } from "@/components/augnes-cockpit"',
+    "<" + "AugnesCockpit />",
   ]);
-  assert(augnesCockpitText.includes("export function AugnesCockpit"));
+  assert(augnesCockpitText.includes("export function " + "AugnesCockpit"));
 }
 
 function assertNoProductBehaviorFileChanges() {

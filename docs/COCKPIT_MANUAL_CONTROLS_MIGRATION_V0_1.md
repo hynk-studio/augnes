@@ -5,9 +5,10 @@
 Status: PR 4 implementation for Legacy Cockpit decomposition.
 
 This slice migrates safe Legacy Cockpit manual preview/copy review affordances
-into native Workplane State Proposal Review rows. `/cockpit` remains temporary
-retained compatibility and is not deleted in this PR.
-`components/augnes-cockpit.tsx` remains present and unchanged.
+into native Workplane State Proposal Review rows. This PR did not delete
+`/cockpit` or `components/augnes-cockpit.tsx`; Cockpit Route Removal v0.1 later
+removed both after zero-count readiness was verified in
+`docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md`.
 
 The migrated rows are read-only, preview-only, or copy-only review context.
 They are not apply, approve, reject, commit, local-write, durable-memory apply,
@@ -139,9 +140,9 @@ execution, runner execution/tick/recovery/scheduling, product DB write,
 proof/evidence write, durable memory apply, Perspective apply, delta
 auto-apply, or localStorage/sessionStorage write.
 
-## What Remains Before Cockpit Route Removal
+## Route Removal Follow-Up
 
-This PR does not declare the Cockpit unique useful capability count to be 0.
+This PR did not declare the Cockpit unique useful capability count to be 0.
 Safe manual preview/copy controls are now represented natively, blocked
 local-write/apply/commit/reject controls remain blocked until a separate
 authority contract, and obsolete controls are delete candidates.
@@ -155,6 +156,10 @@ performs that zero-count verification. It reports
 while keeping `route_removal_allowed: false` and
 `component_removal_allowed: false` because the readiness PR does not delete the
 route or component.
+
+Route removal follow-on: `docs/COCKPIT_ROUTE_REMOVAL_V0_1.md` removed
+`/cockpit`, `components/augnes-cockpit.tsx`, and the Workplane compatibility
+pointer after that zero-count verification.
 
 ## Validation
 
@@ -178,8 +183,6 @@ Runtime validation may start a temp-DB dev server and verify server-rendered
 marker, required manual control IDs, and no native migrated status for blocked
 local-write controls.
 
-## Next PR
+## Route Removal
 
-Next PR: Cockpit Route Removal v0.1 only after
-`docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md` remains
-`zero_count_verified: true`.
+Route removal is documented in `docs/COCKPIT_ROUTE_REMOVAL_V0_1.md`.

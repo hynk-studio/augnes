@@ -718,6 +718,8 @@
     "smoke:workplane-state-proposal-review-v0-1": "node scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
     "smoke:cockpit-manual-controls-migration-v0-1": "node scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
     "smoke:cockpit-route-removal-readiness-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-cockpit-route-removal-readiness-v0-1.mjs",
+    "smoke:cockpit-route-removal-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-cockpit-route-removal-v0-1.mjs",
+    "runtime:cockpit-route-removal-check-v0-1": "node scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
     "smoke:agent-workplane-run-postmortem-detail-v0-1": "node scripts/smoke-agent-workplane-run-postmortem-detail-v0-1.mjs",
     "smoke:legacy-cockpit-local-control-classification-v0-1": "node scripts/smoke-legacy-cockpit-local-control-classification-v0-1.mjs",
     "smoke:legacy-cockpit-control-inventory-v0-1": "node scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",

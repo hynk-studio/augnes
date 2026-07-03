@@ -658,35 +658,51 @@ function buildLegacyCockpitMetrics(
 ): LegacyCockpitReadinessMetrics {
   const inventoryText = input.cockpit_inventory_text ?? "";
   const mapText = input.native_absorption_map_text ?? "";
+  const zeroCountVerified =
+    /unique_useful_cockpit_capability_count:\s*0/i.test(mapText) ||
+    /zero_count_verified:\s*true/i.test(mapText) ||
+    /Cockpit Route Removal v0\.1/i.test(mapText);
   const pendingMarkers = [
     "needs_native_absorption",
     "legacy_only_still_useful",
     "partial native replacement exists",
     "partial native replacement",
   ];
-  const dependencyScore = pendingMarkers.filter(
-    (marker) => inventoryText.includes(marker) || mapText.includes(marker),
-  ).length;
-  const legacyPanel = input.node_context_read?.panels.find(
-    (panel) => panel.panel_id === "legacy_cockpit_compatibility",
+  const dependencyScore = zeroCountVerified
+    ? 0
+    : pendingMarkers.filter(
+        (marker) => inventoryText.includes(marker) || mapText.includes(marker),
+      ).length;
+  const activeCockpitRouteMention = /retained compatibility route|remains reachable at \/cockpit/i.test(
+    `${inventoryText}\n${mapText}`,
   );
-  const hasCompatibilityPath = Boolean(legacyPanel);
+  const hasCompatibilityPath = !zeroCountVerified && activeCockpitRouteMention;
   const status: AugnesMetricStatus =
-    dependencyScore > 0 || hasCompatibilityPath ? "watch" : "unknown";
+    zeroCountVerified
+      ? "healthy"
+      : dependencyScore > 0 || hasCompatibilityPath
+        ? "watch"
+        : "unknown";
   const metric = signalMetric({
     metric_id: "cockpit_compatibility_dependency_signal",
     group_id: "cockpit_absorption",
     label: "Cockpit compatibility dependency",
-    value: hasCompatibilityPath || dependencyScore > 0 ? 1 : null,
+    value: zeroCountVerified ? 0 : hasCompatibilityPath || dependencyScore > 0 ? 1 : null,
     status,
     summary:
-      "Signals whether Legacy Cockpit compatibility remains a dependency before shrink planning.",
+      "Signals whether Legacy Cockpit compatibility remains a dependency after route-removal readiness.",
     source_refs: [
       "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
       "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+      "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md",
+      "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md",
     ],
     caveats:
-      dependencyScore === 0 && !hasCompatibilityPath
+      zeroCountVerified
+        ? [
+            "Route removal readiness verified unique useful Cockpit-only capability count is 0; this metric does not grant product deletion authority.",
+          ]
+        : dependencyScore === 0 && !hasCompatibilityPath
         ? [
             "Cockpit readiness docs were not supplied to the metrics helper; dependency status remains unknown.",
           ]
@@ -699,7 +715,9 @@ function buildLegacyCockpitMetrics(
     group_id: "cockpit_absorption",
     cockpit_compatibility_dependency_signal: metric,
     summary:
-      status === "watch"
+      status === "healthy"
+        ? "Legacy Cockpit route/component removal readiness is verified; Cockpit is no longer an active Workplane dependency."
+        : status === "watch"
         ? "Legacy Cockpit compatibility remains relevant; shrink should wait for a metrics baseline and explicit shrink plan."
         : "Legacy Cockpit shrink readiness is unknown until inventory and absorption data are reviewed.",
     shrink_readiness_status: status,

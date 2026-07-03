@@ -133,7 +133,6 @@ The v0.1 stable Workplane panel IDs are:
 - `handoff_builder_preview`
 - `run_postmortem`
 - `trace_diagnostics`
-- `legacy_cockpit_compatibility`
 
 The v0.1 absorption-map target IDs are:
 
@@ -163,7 +162,6 @@ Allowed node kinds are:
 
 - `native_panel`
 - `preview_panel`
-- `compatibility_panel`
 - `debug_context_source`
 - `proposal_review_context`
 - `handoff_context_source`
@@ -182,8 +180,6 @@ Allowed node statuses are:
   not completely absorbed yet.
 - `preview_only`: visible as preview context without write or execution
   authority.
-- `compatibility_only`: reachable through the explicit legacy compatibility
-  path.
 - `not_materialized`: reserved in the contract but not backed by a live source
   yet.
 - `empty`: a native panel exists but has no materialized source rows.
@@ -273,18 +269,20 @@ Delta Projection staleness is bounded by its `as_of` timestamp.
 fallback, empty fallback, or not materialized. Fixture fallback must remain
 visible and must not be presented as live runtime state.
 
-## 13. Legacy Cockpit Compatibility
+## 13. Legacy Cockpit Removal
 
-Legacy Cockpit compatibility is represented explicitly:
+Legacy Cockpit compatibility was represented explicitly during the route split
+stage, then removed in Cockpit Route Removal v0.1 after zero-count readiness was
+verified.
 
-- `panel_id`: `legacy_cockpit_compatibility`
-- `node_id`: `legacy_cockpit_compatibility`
-- `kind`: `compatibility_panel`
-- `status`: `compatibility_only`
+- `/cockpit` route removed.
+- `components/augnes-cockpit.tsx` removed.
+- `components/workplane/legacy-cockpit-compatibility-panel.tsx` removed.
+- `legacy_cockpit_compatibility` is not an active Workplane panel or node ID.
 
-Legacy Cockpit must not be removed until native replacement and validation
-exist. This contract preserves compatibility reachability and only adds stable
-metadata for future inheritance work.
+Route removal is documented in `docs/COCKPIT_ROUTE_REMOVAL_V0_1.md`. Migrated
+capabilities remain represented in Blank State, Agent Workplane, Workplane State
+Proposal Review, and Manual Controls Migration rows.
 
 ## 14. UI Metadata
 
@@ -302,9 +300,9 @@ It renders them as:
 - `data-workplane-node-kind`
 - `data-workplane-node-status`
 
-`LegacyCockpitCompatibilityPanel` renders the same metadata directly for the
-retained compatibility path. No new visible buttons, controls, forms, or action
-surfaces are added.
+The removed Legacy Cockpit compatibility panel is no longer part of active
+metadata. No new visible buttons, controls, forms, or action surfaces are added
+by this contract.
 
 ## 15. Not Implemented Yet
 

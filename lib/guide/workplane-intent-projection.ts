@@ -535,7 +535,6 @@ function prioritizedPanelsForIntent({
       "work_queue",
       "review_queue",
       "trace_diagnostics",
-      "legacy_cockpit_compatibility",
       "workplane_inspector",
       selected ?? "",
     ]);

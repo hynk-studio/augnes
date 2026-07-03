@@ -22,6 +22,7 @@ import {
 const typeFile = "types/cockpit-route-removal-readiness.ts";
 const helperFile = "lib/workplane/cockpit-route-removal-readiness.ts";
 const docFile = "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md";
+const removalDocFile = "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const migrationDoc =
   "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md";
@@ -156,6 +157,45 @@ const expectedChangedFiles = [
   manualControlsDoc,
   stateProposalDoc,
   shrinkDoc,
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  removalDocFile,
+  "app/cockpit/page.tsx",
+  "components/augnes-cockpit.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "types/workplane-browser-regression.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "types/workplane-bridge-trace-detail.ts",
+  "lib/workplane/workplane-bridge-trace-detail.ts",
+  "lib/workplane/workplane-run-postmortem-detail.ts",
+  "lib/workplane/workplane-review-memory-detail.ts",
+  "lib/metrics/runner-workplane-metrics.ts",
+  "lib/guide/workplane-intent-projection.ts",
+  "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
+  "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",
+  "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
+  "scripts/smoke-agent-workplane-run-postmortem-detail-v0-1.mjs",
+  "scripts/smoke-augnes-dogfood-metrics-baseline-v0-2.mjs",
+  "scripts/smoke-legacy-cockpit-local-control-classification-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
   packageJsonFile,
   smokeFile,
   manualControlsSmokeFile,
@@ -174,6 +214,7 @@ const textByFile = loadTextByFile([
   manualControlsDoc,
   stateProposalDoc,
   shrinkDoc,
+  removalDocFile,
   packageJsonFile,
 ]);
 
@@ -185,6 +226,7 @@ const migrationDocText = textByFile.get(migrationDoc);
 const manualControlsDocText = textByFile.get(manualControlsDoc);
 const stateProposalDocText = textByFile.get(stateProposalDoc);
 const shrinkDocText = textByFile.get(shrinkDoc);
+const removalDocText = textByFile.get(removalDocFile);
 const packageJsonText = textByFile.get(packageJsonFile);
 
 assertPackageScript({
@@ -198,7 +240,7 @@ assertStaticContracts();
 const behavior = assertHelperBehavior();
 const changedFiles = assertChangedFilesBoundary();
 assertNoForbiddenPaths(changedFiles.files);
-assertNoRouteOrComponentDeletion();
+assertRouteRemovalState();
 assertNoMutationOrAuthorityText();
 
 console.log(
@@ -218,7 +260,7 @@ console.log(
       authority_fields_false_checked: requiredAuthorityFields,
       helper_behavior: behavior,
       changed_files_boundary: changedFiles,
-      no_route_or_component_deletion_checked: true,
+      route_removal_state_checked: true,
       no_authority_paths_changed_checked: true,
     },
     null,
@@ -243,6 +285,10 @@ function assertStaticContracts() {
       ...requiredAuthorityFields,
       "unique_useful_cockpit_capability_count",
       "zero_count_verified",
+      "removal_completed: true",
+      "cockpit_route_present: false",
+      "augnes_cockpit_component_present: false",
+      "legacy_workplane_compatibility_panel_present: false",
       "route_removal_allowed: false",
       "component_removal_allowed: false",
     ],
@@ -268,6 +314,10 @@ function assertStaticContracts() {
       "COCKPIT_ROUTE_REMOVAL_REQUIRED_CAPABILITY_IDS",
       "unique_useful_cockpit_capability_count",
       "zero_count_verified",
+      "removal_completed: true",
+      "cockpit_route_present: false",
+      "augnes_cockpit_component_present: false",
+      "legacy_workplane_compatibility_panel_present: false",
       "route_removal_allowed: false",
       "component_removal_allowed: false",
       ...requiredCapabilityIds,
@@ -287,10 +337,14 @@ function assertStaticContracts() {
       "Obsolete And Forbidden Delete Controls",
       "Readiness Result",
       "Authority Boundary",
-      "No Deletion In This PR",
-      "Next PR",
+      "No Deletion In The Readiness PR",
+      "Route Removal",
       "unique_useful_cockpit_capability_count",
       "zero_count_verified",
+      "removal_completed: true",
+      "cockpit_route_present: false",
+      "augnes_cockpit_component_present: false",
+      "legacy_workplane_compatibility_panel_present: false",
       "ready_for_route_removal",
       "route_removal_allowed: false",
       "component_removal_allowed: false",
@@ -300,17 +354,20 @@ function assertStaticContracts() {
     { label: docFile },
   );
 
-  assertContainsAll(indexText, [docFile], { label: indexDoc });
-  assertContainsAll(migrationDocText, [docFile, "PR 5 readiness update"], {
+  assertContainsAll(indexText, [docFile, removalDocFile], { label: indexDoc });
+  assertContainsAll(migrationDocText, [docFile, removalDocFile, "PR 5 readiness update"], {
     label: migrationDoc,
   });
-  assertContainsAll(manualControlsDocText, [docFile], {
+  assertContainsAll(manualControlsDocText, [docFile, removalDocFile], {
     label: manualControlsDoc,
   });
-  assertContainsAll(stateProposalDocText, [docFile], {
+  assertContainsAll(stateProposalDocText, [docFile, removalDocFile], {
     label: stateProposalDoc,
   });
-  assertContainsAll(shrinkDocText, [docFile], { label: shrinkDoc });
+  assertContainsAll(shrinkDocText, [docFile, removalDocFile], { label: shrinkDoc });
+  assertContainsAll(removalDocText, [docFile, "Cockpit Route Removal v0.1"], {
+    label: removalDocFile,
+  });
 }
 
 function assertHelperBehavior() {
@@ -323,6 +380,10 @@ function assertHelperBehavior() {
   assert.equal(read.status, "ready_for_route_removal");
   assert.equal(read.unique_useful_cockpit_capability_count, 0);
   assert.equal(read.zero_count_verified, true);
+  assert.equal(read.removal_completed, true);
+  assert.equal(read.cockpit_route_present, false);
+  assert.equal(read.augnes_cockpit_component_present, false);
+  assert.equal(read.legacy_workplane_compatibility_panel_present, false);
   assert.equal(read.route_removal_allowed, false);
   assert.equal(read.component_removal_allowed, false);
   assert.equal(read.blocking_conditions.length, 0);
@@ -397,6 +458,7 @@ function assertHelperBehavior() {
     unique_useful_cockpit_capability_count:
       read.unique_useful_cockpit_capability_count,
     zero_count_verified: read.zero_count_verified,
+    removal_completed: read.removal_completed,
     route_removal_allowed: read.route_removal_allowed,
     component_removal_allowed: read.component_removal_allowed,
     record_count: read.capability_records.length,
@@ -463,9 +525,6 @@ function assertChangedFilesBoundary() {
 
 function assertNoForbiddenPaths(files) {
   const forbiddenPatterns = [
-    /^app\/cockpit\/page\.(tsx|ts|jsx|js)$/,
-    /^components\/augnes-cockpit\.tsx$/,
-    /^components\/workplane\//,
     /^app\/api\//,
     /^db\//,
     /^migrations\//,
@@ -481,20 +540,24 @@ function assertNoForbiddenPaths(files) {
   }
 }
 
-function assertNoRouteOrComponentDeletion() {
+function assertRouteRemovalState() {
   const deletedFiles = collectGitDiffFiles([
     "diff",
     "--name-only",
     "--diff-filter=D",
-    "origin/main...HEAD",
+    "HEAD",
   ]).files;
   assert(
-    !deletedFiles.includes("app/cockpit/page.tsx"),
-    "app/cockpit/page.tsx must not be deleted in readiness PR",
+    deletedFiles.includes("app/cockpit/page.tsx"),
+    "app/cockpit/page.tsx must be deleted by route-removal PR",
   );
   assert(
-    !deletedFiles.includes("components/augnes-cockpit.tsx"),
-    "components/augnes-cockpit.tsx must not be deleted in readiness PR",
+    deletedFiles.includes("components/augnes-cockpit.tsx"),
+    "components/augnes-cockpit.tsx must be deleted by route-removal PR",
+  );
+  assert(
+    deletedFiles.includes("components/workplane/legacy-cockpit-compatibility-panel.tsx"),
+    "legacy compatibility panel must be deleted by route-removal PR",
   );
 }
 
