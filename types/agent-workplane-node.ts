@@ -11,6 +11,7 @@ export const AGENT_WORKPLANE_NODE_CONTRACT_VERSION =
 
 export const AGENT_WORKPLANE_PANEL_IDS = [
   "work_queue",
+  "continuity_relay",
   "current_perspective",
   "delta_projection",
   "review_queue",

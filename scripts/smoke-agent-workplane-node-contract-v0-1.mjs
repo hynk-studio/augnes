@@ -35,6 +35,13 @@ const requiredPanelMetadata = [
     status: "partial",
   },
   {
+    file: "components/workplane/continuity-relay-workplane-panel.tsx",
+    panelId: "continuity_relay",
+    nodeId: "handoff_context",
+    kind: "handoff_context_source",
+    status: "dynamic",
+  },
+  {
     file: "components/workplane/current-perspective-workplane-panel.tsx",
     panelId: "current_perspective",
     nodeId: "current_perspective",
@@ -315,6 +322,20 @@ const followOnAgentWorkplaneRunPostmortemDetailFiles = [
   "package.json",
 ];
 
+const followOnWorkplaneContinuityRelayFiles = [
+  "types/workplane-continuity-relay.ts",
+  "lib/workplane/workplane-continuity-relay.ts",
+  "components/workplane/continuity-relay-workplane-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/workplane/read-workplane-context.ts",
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "scripts/smoke-workplane-continuity-relay-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "package.json",
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -482,6 +503,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneBridgeTraceDetailFiles,
   ...followOnAgentWorkplaneReviewMemoryDetailFiles,
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
+  ...followOnWorkplaneContinuityRelayFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitRouteRemovalFiles,
