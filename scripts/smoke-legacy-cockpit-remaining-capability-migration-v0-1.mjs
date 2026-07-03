@@ -20,6 +20,7 @@ const shrinkSmokeFile =
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs";
 const runtimeSmokeFile =
   "scripts/smoke-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs";
+const routeRemovalDoc = "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md";
 
 const followOnWorkplaneStateProposalReviewFiles = [
   "types/workplane-state-proposal-review.ts",
@@ -84,6 +85,49 @@ const followOnCockpitRouteRemovalReadinessFiles = [
   "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
 ];
 
+const followOnCockpitRouteRemovalFiles = [
+  routeRemovalDoc,
+  "app/cockpit/page.tsx",
+  "components/augnes-cockpit.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "types/workplane-browser-regression.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "types/workplane-bridge-trace-detail.ts",
+  "lib/workplane/workplane-bridge-trace-detail.ts",
+  "lib/workplane/workplane-run-postmortem-detail.ts",
+  "lib/workplane/workplane-review-memory-detail.ts",
+  "lib/metrics/runner-workplane-metrics.ts",
+  "lib/guide/workplane-intent-projection.ts",
+  "docs/AGENT_WORKPLANE_V0_1.md",
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
+  "scripts/smoke-cockpit-route-removal-readiness-v0-1.mjs",
+  "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
+  "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
+  "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",
+  "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
+  "scripts/smoke-agent-workplane-run-postmortem-detail-v0-1.mjs",
+  "scripts/smoke-augnes-dogfood-metrics-baseline-v0-2.mjs",
+  "scripts/smoke-legacy-cockpit-local-control-classification-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+];
+
 const allowedChangedFiles = [
   migrationDoc,
   smokeFile,
@@ -98,6 +142,7 @@ const allowedChangedFiles = [
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
   ...followOnCockpitRouteRemovalReadinessFiles,
+  ...followOnCockpitRouteRemovalFiles,
 ];
 
 const destinationValues = [
@@ -223,11 +268,16 @@ assertContainsAll(
     "PR 4 implementation update",
     "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
     "## Completion Criteria",
-    "`/cockpit` is temporary retained compatibility, not a long-term product surface.",
+    "At the time of this map, `/cockpit` was temporary retained compatibility, not a",
     "Cockpit unique useful capability count must reach 0 before route removal.",
+    "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md",
+    routeRemovalDoc,
+    "`unique_useful_cockpit_capability_count: 0`",
+    "`zero_count_verified: true`",
+    "route removal completed",
     "local-write/apply/commit/reject controls are blocked until a separate authority contract.",
     "local-write/apply controls are not migrated without authority contract.",
-    "This PR does not move UI yet and does not delete Cockpit yet.",
+    "This original migration-map PR did not",
     ...researchCriticalPhrases,
   ],
   { label: migrationDoc },
@@ -270,9 +320,7 @@ console.log(
       minimum_capability_count_checked: minimumCapabilityIds.length,
       destination_counts: countByDestination(rowsByCapabilityId),
       changed_files_boundary: changedFilesBoundary,
-      no_product_ui_files_changed_checked: true,
-      no_app_route_files_changed_checked: true,
-      no_components_changed_checked: true,
+      route_removal_follow_on_checked: true,
       no_authority_paths_changed_checked: true,
     },
     null,
@@ -462,6 +510,8 @@ function assertNoProductUiOrAuthorityPaths(files) {
   const allowedFollowOnFiles = new Set([
     ...followOnWorkplaneStateProposalReviewFiles,
     ...followOnCockpitManualControlsMigrationFiles,
+    ...followOnCockpitRouteRemovalReadinessFiles,
+    ...followOnCockpitRouteRemovalFiles,
   ]);
   const forbiddenPathPatterns = [
     /^app\//,

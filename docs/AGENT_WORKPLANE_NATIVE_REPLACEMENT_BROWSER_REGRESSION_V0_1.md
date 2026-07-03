@@ -5,16 +5,17 @@
 Status: Browser Regression for Native Workplane Replacement v0.1.
 
 Scope: repeatable browser/server-rendered regression coverage for native Agent
-Workplane replacement surfaces and the Legacy Cockpit Shrink v0.1 route split.
-This is not a deletion PR and not a UI behavior redesign PR.
+Workplane replacement surfaces after Legacy Cockpit route removal. This is not
+runtime deletion authority and not a UI behavior redesign PR.
 
 This slice adds a type contract, pure HTML parsing helper, local GET-only
-runner, documentation, package scripts, and smoke coverage. After the real
-shrink, it expects `/workbench` to render a compact compatibility pointer and
-to leave the full six-tab Cockpit shell at `/cockpit`.
+runner, documentation, package scripts, and smoke coverage. After Cockpit Route
+Removal v0.1, it expects `/workbench` to render native Workplane review
+markers and to omit the compact compatibility pointer, `/cockpit` link, full
+six-tab Cockpit shell, and `AugnesCockpit` component markers.
 
-browser regression is evidence, not shrink authority. Browser regression is
-also not merge/deletion authority. Metrics are signals, not shrink authority.
+browser regression is evidence, not route-removal authority. Browser regression
+is also not merge/deletion authority. Metrics are signals, not authority.
 Dogfood reports are evidence, not authority.
 Future native absorption of retained local-write/manual controls requires a
 separate authority contract.
@@ -56,32 +57,31 @@ Follow-on repeated dogfood/metrics baseline is documented in
 server-rendered browser regression evidence to repeated dogfood/metrics
 signals, but it remains evidence/signaling only. A
 `browser_regression_passed_shrink_gated` recommendation means structural
-browser evidence passed while shrink still waits on metrics, dogfood,
-local-control, rollback, and human review gates.
+browser evidence passed while native capability evidence still needs review.
 
-Follow-on Legacy Cockpit DOM/manual control inventory and proposal diff
-preflight is documented in
-`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md`. It reuses
-server-rendered `/workbench` compatibility evidence to reduce the #933 unknown
-bucket only when DOM/manual evidence exists, and it keeps browser regression
-as evidence rather than shrink authority.
+Follow-on Cockpit Route Removal v0.1 is documented in
+`docs/COCKPIT_ROUTE_REMOVAL_V0_1.md`. It removed `/cockpit`,
+`components/augnes-cockpit.tsx`, and the Workplane compatibility pointer after
+zero-count readiness was verified.
 
-## 2. Why Browser Regression Exists
+## 2. Why It Still Exists After Route Removal
 
-Legacy Cockpit remains reachable at `/cockpit` as explicit compatibility while
-native Agent Workplane surfaces absorb useful AI-operational capabilities.
-The Legacy Cockpit Shrink v0.1 route split requires browser or server-rendered
-coverage because static docs and helper contracts are not enough to prove the
-replacement surfaces still render together.
+Cockpit Route Removal v0.1 removed `/cockpit` as a product route. Native Agent
+Workplane, Workplane State Proposal Review, and Manual Controls Migration rows
+now carry the useful review coverage. Browser or server-rendered coverage is
+still useful because static docs and helper contracts are not enough to prove
+the native replacement surfaces still render together.
 
-The regression exists before any shrink candidate to prove:
+The regression now exists to prove:
 
-Why it happens before any shrink candidate: a future candidate must already
-have evidence that native replacement surfaces are reachable and explainable
-while compatibility rollback remains reachable.
+Why it still exists after route removal: the final product surface must prove
+native replacement surfaces are reachable and Cockpit route/component/pointer
+markers are absent.
 
-- Legacy Cockpit compatibility remains reachable through `/cockpit`.
-- `/workbench` exposes the compact compatibility pointer.
+- Cockpit Route Removal v0.1 removed `/cockpit`.
+- `/workbench` no longer exposes the compact compatibility pointer.
+- `/workbench` renders Workplane State Proposal Review.
+- `/workbench` renders Manual Controls Migration review rows.
 - The full six-tab Cockpit shell is absent from `/workbench`.
 - Native replacement panels are rendered.
 - Stable `data-workplane-*` panel/node IDs are present.
@@ -101,10 +101,11 @@ The regression validates server-rendered or browser DOM HTML for:
 - required native panel markers;
 - required GuideBrief debug, intent projection, intent mode, and metrics
   markers;
-- required Legacy Cockpit compatibility marker and route-split markers;
-- visible/server-rendered section text for `Agent Workplane`, `Legacy Cockpit
-  compatibility`, `GuideBrief Workplane Debug Context`, `GuideBrief Intent
-  Projection`, `Workplane Intent Mode`, `Runner / Workplane Metrics`,
+- required State Proposal Review and Manual Controls Migration markers;
+- absence of Legacy Cockpit compatibility marker and route-split markers;
+- visible/server-rendered section text for `Agent Workplane`, `State Proposal
+  Review`, `Manual controls migration`, `GuideBrief Workplane Debug Context`,
+  `GuideBrief Intent Projection`, `Workplane Intent Mode`, `Runner / Workplane Metrics`,
   `Projected Delta Batch`, `Recovered Runner DeltaBatch`, `Observed`,
   `Inferred`, `Suggested`, `Needs user judgment`, `Metrics are signals`, `not
   authority`, `reversible`, and `non-executable`;
@@ -113,17 +114,17 @@ The regression validates server-rendered or browser DOM HTML for:
   Review / memory proposal visibility, Validation / smoke visibility, and
   local UI controls;
 - no-control checks in native replacement/debug/projection/metrics areas;
-- recommendation logic that blocks shrink unless regression, dogfood, metrics,
-  and explicit human review all pass.
+- recommendation logic that blocks route-removal acceptance if Cockpit markers,
+  mutation controls, or missing native markers are observed.
 
 ## 4. What It Does Not Validate
 
-This regression does not prove that native replacement is complete enough to
-delete retained compatibility content. It does not measure live resume latency, live
+This regression does not prove that native replacement is complete enough for
+future feature expansion. It does not measure live resume latency, live
 review burden, dogfood usefulness, operator satisfaction, or human approval.
-It does not validate local-write legacy controls beyond retaining compatibility
-and pointing to
-`docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md`.
+It does not validate local-write legacy controls beyond confirming they remain
+blocked in native review rows and pointing to
+`docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md`.
 It does not run a browser interaction suite by itself.
 
 It also does not start the dev server. The runner expects an already-running
@@ -174,15 +175,19 @@ Native replacement panel markers:
 - `data-workplane-run-postmortem-detail-panel="v0.1"`
 - `data-workplane-panel-id="trace_diagnostics"`
 
-Required compatibility marker:
+Required route-removal/native review markers:
 
-- `data-workplane-panel-id="legacy_cockpit_compatibility"`
-- `data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"`
+- `data-workplane-state-proposal-review-panel="v0.1"`
+- `data-cockpit-manual-controls-migration="v0.1"`
+
+Forbidden `/workbench` markers after route removal:
+
+- `legacy_cockpit_compatibility`
 - `data-workplane-legacy-cockpit-route="/cockpit"`
-
-Forbidden `/workbench` marker after shrink:
-
+- `href="/cockpit"`
 - `six-tab-cockpit`
+- `cockpit-shell`
+- `AugnesCockpit`
 
 Required GuideBrief / metrics markers:
 
@@ -247,28 +252,27 @@ The helper maps legacy Cockpit capabilities to native markers:
 - Validation / smoke visibility -> `source_ref_bridge`,
   `trace_diagnostics`, `evidence_handoff`, validation summary copy, evidence
   refs copy, and diagnostic refs copy
-- Local UI controls -> `legacy_cockpit_compatibility` retained, with
-  classification evidence in
-  `docs/AGENT_WORKPLANE_LEGACY_COCKPIT_LOCAL_CONTROL_CLASSIFICATION_V0_1.md`;
-  local-write controls are not natively shrunk
+- Local UI controls -> `data-cockpit-manual-controls-migration="v0.1"` in
+  Workplane State Proposal Review, with safe manual preview/copy rows native
+  and local-write controls blocked until a separate authority contract
 
 Capability checks can pass, be partial, or require review. Partial and
-needs-review statuses block shrink authority.
+needs-review statuses block product-readiness claims.
 
 ## 11. Recommendation Logic
 
 The report recommends:
 
 - `do_not_shrink` if any required marker is missing;
-- `do_not_shrink` if the Legacy Cockpit compatibility marker is missing;
+- `do_not_shrink` if any Legacy Cockpit compatibility marker, route marker, or
+  shell marker is still present;
 - `do_not_shrink` if any no-control check fails;
 - `do_not_shrink` if DeltaBatch identities collide or are missing;
 - `browser_regression_passed_shrink_gated` when browser regression markers pass
   but dogfood/metrics/capability readiness remains `watch`, `needs_review`, or
   partial;
 - `eligible_for_shrink_candidate_review` only when regression passes and the
-  other gates are also healthy, with a dedicated future review PR and no
-  automatic deletion.
+  other gates are also healthy, with no automatic authority expansion.
 
 ## 12. How To Run
 
@@ -323,14 +327,13 @@ DeltaBatch identity status, and recommendation.
 
 ## 14. Authority Boundary
 
-This regression and route-split validation add:
+This regression and route-removal validation add:
 
-- no Legacy Cockpit deletion
-- no source component deletion
-- no hiding of retained Cockpit compatibility
-- no removal of compatibility path
+- no runtime deletion authority
+- no source component deletion outside Cockpit Route Removal v0.1
+- no retained Cockpit compatibility path
 - no API write route
-- no product route beyond the explicit `/cockpit` compatibility route
+- no product route beyond the native Workplane route
 - no server action
 - no chat composer
 - no execution button
@@ -349,19 +352,20 @@ This regression and route-split validation add:
 - no localStorage/sessionStorage durable view mode
 - no new local-write product controls
 
-No Legacy Cockpit source is deleted. No compatibility path is removed. Future
-native absorption of retained local-write/manual controls requires a separate
-authority contract.
+Cockpit Route Removal v0.1 deleted the route/component/pointer through normal
+source control. The browser-regression model itself exposes no deletion
+authority. Future native absorption of blocked local-write/manual controls
+requires a separate authority contract.
 
-## 15. How This Feeds Shrink Review
+## 15. How This Feeds Route Removal Review
 
-This regression supplies Gate 7 evidence for the Legacy Cockpit Shrink Plan:
-native replacement and compatibility rollback reachability. It does not satisfy
-the metrics, dogfood, native absorption, rollback, or explicit human-approval
-gates by itself.
+This regression supplies post-removal evidence that native replacement surfaces
+still render and Cockpit route/component/pointer markers are absent. It does
+not satisfy metrics, dogfood, native absorption, rollback, or explicit
+human-approval gates by itself.
 
-Shrink remains blocked unless browser regression, dogfood, metrics, and
-explicit human review all pass.
+Future product-readiness claims remain blocked unless browser regression,
+dogfood, metrics, and explicit human review all pass.
 
 ## 16. Not Implemented Yet
 
@@ -373,11 +377,10 @@ This slice does not implement:
 - click/keyboard interaction checks;
 - local-write control classification;
 - source-backed Run Postmortem fields;
-- any Legacy Cockpit shrink candidate.
+- any new Legacy Cockpit route or compatibility pointer.
 
 ## 17. Recommended Next Phase
 
 If this regression reports partial readiness, run another dogfood/metrics
-baseline. Only if every gate is satisfied should Augnes consider Legacy
-Cockpit Shrink Candidate v0.1 as a dedicated planning/removal-candidate PR.
-No automatic deletion is allowed.
+baseline or a focused native-surface regression fix. No automatic authority
+expansion is allowed.

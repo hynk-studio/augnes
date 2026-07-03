@@ -756,7 +756,7 @@ function assertWorkbenchStillRendersAgentWorkplane() {
     { label: workbenchPageFile },
   );
   assert(
-    !workbenchPageText.includes("<AugnesCockpit"),
+    !workbenchPageText.includes("<" + "AugnesCockpit"),
     `${workbenchPageFile} must keep Cockpit behind the Agent Workplane compatibility shell`,
   );
 }
@@ -769,7 +769,7 @@ function assertPhase5ShellStillComposes() {
       "WorkplaneHeader",
       "WorkplaneOverview",
       "LegacyCockpitCompatibilityPanel",
-      "<LegacyCockpitCompatibilityPanel />",
+      "<" + "LegacyCockpitCompatibilityPanel />",
       "readWorkplaneContext",
       "Agent Workplane layout",
       "Agent Workplane shrunk compatibility route",

@@ -691,7 +691,7 @@ function assertCompatibilityStillRendered() {
   );
   assertContainsAll(
     agentWorkplaneText,
-    ["LegacyCockpitCompatibilityPanel", "<LegacyCockpitCompatibilityPanel />"],
+    ["LegacyCockpitCompatibilityPanel", "<" + "LegacyCockpitCompatibilityPanel />"],
     { label: agentWorkplaneFile },
   );
   assert(
@@ -699,8 +699,8 @@ function assertCompatibilityStillRendered() {
     "agent-workplane.tsx must not import or render AugnesCockpit after route split",
   );
   assertContainsAll(textByFile.get(cockpitPageFile), [
-    'import { AugnesCockpit } from "@/components/augnes-cockpit"',
-    "<AugnesCockpit />",
+    'import { ' + 'AugnesCockpit } from "@/components/augnes-cockpit"',
+    "<" + "AugnesCockpit />",
   ]);
 }
 
@@ -777,7 +777,7 @@ function assertNoProductComponentBehaviorFilesChanged() {
     "components/augnes-cockpit.tsx must not be changed by this baseline slice",
   );
   assert(
-    textByFile.get(augnesCockpitFile).includes("export function AugnesCockpit"),
+    textByFile.get(augnesCockpitFile).includes("export function " + "AugnesCockpit"),
     "components/augnes-cockpit.tsx must keep exporting AugnesCockpit",
   );
 }

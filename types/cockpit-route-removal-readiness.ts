@@ -92,6 +92,10 @@ export interface CockpitRouteRemovalReadinessRead {
   summary: string;
   unique_useful_cockpit_capability_count: number;
   zero_count_verified: boolean;
+  removal_completed: true;
+  cockpit_route_present: false;
+  augnes_cockpit_component_present: false;
+  legacy_workplane_compatibility_panel_present: false;
   route_removal_allowed: false;
   component_removal_allowed: false;
   capability_records: CockpitRouteRemovalCapabilityRecord[];

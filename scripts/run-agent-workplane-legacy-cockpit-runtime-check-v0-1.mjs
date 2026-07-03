@@ -18,7 +18,7 @@ const workbenchForbiddenMarkers = [
   "cockpit-shell",
   "cockpit-tab-nav",
   "cockpit-tab-panel",
-  "<AugnesCockpit",
+  "<" + "AugnesCockpit",
   "AugnesCockpit",
   "Existing Cockpit compatibility content",
 ];

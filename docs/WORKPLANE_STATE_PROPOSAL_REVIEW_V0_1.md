@@ -11,7 +11,8 @@ Workplane destination for research-critical proposal review context.
 The panel migrates the `workplane_state_proposal_review` capabilities from the
 Legacy Cockpit migration map into `/workbench` as read-only, preview-only
 review context. It does not preserve Cockpit as the place for these
-capabilities, and it does not delete `/cockpit` yet.
+capabilities. This PR did not delete `/cockpit`; Cockpit Route Removal v0.1
+later removed the route/component after zero-count readiness was verified.
 
 ## Research-Critical Capabilities Migrated
 
@@ -192,3 +193,7 @@ Route-removal readiness follow-on:
 `docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md` verifies
 `unique_useful_cockpit_capability_count: 0` and `zero_count_verified: true`,
 while keeping route and component deletion disabled for that readiness-only PR.
+
+Route-removal follow-on: `docs/COCKPIT_ROUTE_REMOVAL_V0_1.md` removed
+`/cockpit`, `components/augnes-cockpit.tsx`, and the Workplane compatibility
+pointer after that zero-count verification.

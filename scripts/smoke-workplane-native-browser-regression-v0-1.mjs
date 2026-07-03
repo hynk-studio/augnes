@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 
 import {
   assertChangedFilesWithin,
@@ -181,19 +182,49 @@ const allowedChangedFiles = [
   ...existingSmokeAllowlistFiles,
   shrinkDoc,
   cockpitPageFile,
+  augnesCockpitFile,
   legacyCompatibilityPanelFile,
+  "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md",
+  "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md",
+  "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
+  "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md",
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "types/cockpit-route-removal-readiness.ts",
+  "lib/workplane/cockpit-route-removal-readiness.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "lib/guide/workplane-intent-projection.ts",
+  "lib/metrics/runner-workplane-metrics.ts",
+  "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
+  "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/smoke-cockpit-route-removal-readiness-v0-1.mjs",
+  "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
+  "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
   "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
   "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
 ];
 
 const requiredFiles = [
-  ...browserRegressionSliceFiles,
+  typeFile,
+  helperFile,
+  runScriptFile,
+  smokeFile,
+  docFile,
+  packageJsonFile,
+  indexDoc,
+  agentWorkplaneDoc,
+  shrinkPlanDoc,
+  shrinkDoc,
+  dogfoodDoc,
+  metricsDoc,
   agentWorkplaneFile,
-  augnesCockpitFile,
-  cockpitPageFile,
-  legacyCompatibilityPanelFile,
 ];
 
 const requiredStatuses = [
@@ -213,7 +244,7 @@ const requiredSurfaces = [
   "delta_projection",
   "projected_delta_batch",
   "runner_delta_batch",
-  "legacy_cockpit_compatibility",
+  "cockpit_route_removal",
   "native_replacement",
   "shrink_readiness",
 ];
@@ -336,13 +367,13 @@ console.log(
       helper_exports_checked: true,
       fixture_report_status: behavior.full.status,
       fixture_recommendation_decision: behavior.full.recommendation.decision,
-      missing_legacy_status: behavior.missingLegacy.status,
+      active_legacy_status: behavior.activeLegacy.status,
       identity_collision_status: behavior.identityCollision.status,
       mutation_control_status: behavior.mutationControl.status,
       capability_checks_checked: requiredCapabilities,
       deltabatch_identity_guard_checked: true,
       no_product_component_behavior_files_changed: true,
-      legacy_cockpit_compatibility_retained_checked: true,
+      cockpit_route_removal_checked: true,
       no_route_or_authority_added_checked: true,
       no_source_deletion_checked: true,
       changed_files_boundary: changedFilesBoundary,
@@ -371,8 +402,7 @@ function assertDocsAndPointers() {
   assertContainsAll(
     docText,
     [
-      "Why Browser Regression Exists",
-      "Why it happens before any shrink candidate",
+      "Why It Still Exists After Route Removal",
       "What It Validates",
       "What It Does Not Validate",
       "Server-Rendered HTML Fallback Model",
@@ -386,16 +416,16 @@ function assertDocsAndPointers() {
       "npm run smoke:workplane-native-browser-regression-v0-1",
       "Output Report Shape",
       "Authority Boundary",
-      "How This Feeds Shrink Review",
+      "How This Feeds Route Removal Review",
       "Not Implemented Yet",
       "Recommended Next Phase",
-      "browser regression is evidence, not shrink authority",
-      "Metrics are signals, not shrink authority",
+      "browser regression is evidence, not route-removal authority",
+      "Metrics are signals, not authority",
       "Dogfood reports are evidence, not authority",
-      "Legacy Cockpit compatibility remains reachable through `/cockpit`",
-      "`/workbench` exposes the compact compatibility pointer",
+      "Cockpit Route Removal v0.1 removed `/cockpit`",
+      "`/workbench` no longer exposes the compact compatibility pointer",
       "The full six-tab Cockpit shell is absent from `/workbench`",
-      "no product route beyond the explicit `/cockpit` compatibility route",
+      "no product route beyond the native Workplane route",
       "no API write route",
       "no server action",
       "no chat composer",
@@ -411,9 +441,9 @@ function assertDocsAndPointers() {
       "no Perspective apply",
       "no delta auto-apply",
       "no localStorage/sessionStorage durable view mode",
-      'data-workplane-panel-id="legacy_cockpit_compatibility"',
-      'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
-      'data-workplane-legacy-cockpit-route="/cockpit"',
+      'data-workplane-state-proposal-review-panel="v0.1"',
+      'data-cockpit-manual-controls-migration="v0.1"',
+      "legacy_cockpit_compatibility",
       "six-tab-cockpit",
       'data-workplane-panel-id="delta_projection"',
       'data-workplane-panel-id="projected_delta_batch"',
@@ -486,8 +516,8 @@ function assertHelperStaticShape() {
       "delta_projection",
       "projected_delta_batch",
       "runner_delta_batch",
-      "workbench_full_mount_removed",
-      "/cockpit",
+      "state_proposal_review_panel_marker",
+      "manual_controls_migration_marker",
       "six-tab-cockpit",
       "do_not_shrink",
       "browser_regression_passed_shrink_gated",
@@ -555,15 +585,15 @@ function assertHelperBehavior() {
       assert(full.capability_checks.some((check) => check.capability_id === capabilityId), capabilityId);
     }
 
-    const missingLegacy = buildWorkplaneBrowserRegressionReport({
-      html: fixture.replace(/data-workplane-panel-id="legacy_cockpit_compatibility"/g, "data-workplane-panel-id=\\"missing_legacy\\""),
+    const activeLegacy = buildWorkplaneBrowserRegressionReport({
+      html: fixture + "<section data-workplane-panel-id=\\"legacy_cockpit_compatibility\\" data-workplane-legacy-cockpit-route=\\"/cockpit\\">Legacy Cockpit route split</section>",
       metrics_status: "watch",
       dogfood_status: "needs_review",
       cockpit_shrink_readiness: "needs_review"
     });
-    assert.equal(missingLegacy.status, "blocked");
-    assert.equal(missingLegacy.legacy_compatibility_status, "blocked");
-    assert.equal(missingLegacy.recommendation.decision, "do_not_shrink");
+    assert.equal(activeLegacy.status, "blocked");
+    assert.equal(activeLegacy.legacy_compatibility_status, "blocked");
+    assert.equal(activeLegacy.recommendation.decision, "do_not_shrink");
 
     const identityCollision = buildWorkplaneBrowserRegressionReport({
       html: fixture.replace(
@@ -593,8 +623,8 @@ function assertHelperBehavior() {
 
     const fullCockpitStillMounted = buildWorkplaneBrowserRegressionReport({
       html: fixture.replace(
-        "Legacy Cockpit route split",
-        "Legacy Cockpit route split <main class=\\"six-tab-cockpit\\">Legacy full shell</main>"
+        "State Proposal Review",
+        "State Proposal Review <main class=\\"six-tab-cockpit\\">Legacy full shell</main>"
       ),
       metrics_status: "watch",
       dogfood_status: "needs_review",
@@ -603,7 +633,7 @@ function assertHelperBehavior() {
     assert.equal(fullCockpitStillMounted.status, "blocked");
     assert.equal(fullCockpitStillMounted.legacy_compatibility_status, "blocked");
     assert.equal(fullCockpitStillMounted.recommendation.decision, "do_not_shrink");
-    console.log(JSON.stringify({ full, missingLegacy, identityCollision, mutationControl, fullCockpitStillMounted }));
+    console.log(JSON.stringify({ full, activeLegacy, identityCollision, mutationControl, fullCockpitStillMounted }));
   `;
 
   const output = execFileSync("node", ["--import", "tsx", "--eval", code], {
@@ -638,6 +668,13 @@ function buildFixtureHtml() {
     <section data-workplane-panel-id="projected_delta_batch" data-workplane-node-id="perspective_delta">Projected Delta Batch</section>
     <section data-workplane-panel-id="delta_batch" data-workplane-node-id="runner_delta_batch">Recovered Runner DeltaBatch</section>
     <section data-workplane-panel-id="review_queue" data-workplane-node-id="authority_validation_debug">Review Queue Needs user judgment</section>
+    <section data-workplane-state-proposal-review-panel="v0.1" data-workplane-panel-id="state_proposal_review" data-workplane-node-id="state_proposal_review">
+      State Proposal Review manual controls migration
+      <section data-cockpit-manual-controls-migration="v0.1">
+        <span data-cockpit-manual-control-id="manual_preview_editor">manual preview</span>
+        <span data-cockpit-manual-control-id="local_write_manual_controls">blocked local write</span>
+      </section>
+    </section>
     <section data-workplane-review-memory-detail-panel="v0.1">
       <section data-workplane-panel-id="review_memory_detail" data-workplane-node-id="authority_validation_debug">Review / memory proposal detail durable memory review Perspective review validation required needs user judgment source refs no durable memory apply no Perspective apply legacy compatibility retained</section>
     </section>
@@ -650,40 +687,17 @@ function buildFixtureHtml() {
     <section data-workplane-panel-id="handoff_builder_preview" data-workplane-node-id="handoff_context">Handoff Builder preview</section>
     <section data-workplane-run-postmortem-detail-panel="v0.1"><section data-workplane-panel-id="run_postmortem" data-workplane-node-id="run_postmortem">Run Postmortem detail source-backed run postmortem run_id step refs event refs recovered DeltaBatch validation status source refs no runner execution no runner tick no DeltaBatch recovery no durable memory apply no Perspective apply legacy compatibility retained</section></section>
     <section data-workplane-panel-id="trace_diagnostics" data-workplane-node-id="trace_bridge">Trace Diagnostics Validation summary</section>
-    <section
-      data-workplane-panel-id="legacy_cockpit_compatibility"
-      data-workplane-node-id="legacy_cockpit_compatibility"
-      data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"
-      data-workplane-legacy-cockpit-route="/cockpit"
-    >
-      Legacy Cockpit route split
-      Legacy Cockpit full mount was removed from /workbench.
-      Full Legacy Cockpit remains reachable at /cockpit.
-    </section>
   `;
 }
 
 function assertCompatibilityStillRendered() {
-  assertContainsAll(
-    agentWorkplaneText,
-    [
-      "LegacyCockpitCompatibilityPanel",
-      "<LegacyCockpitCompatibilityPanel />",
-    ],
-    { label: agentWorkplaneFile },
-  );
+  assert(!agentWorkplaneText.includes("LegacyCockpitCompatibilityPanel"), `${agentWorkplaneFile} must not render the removed compatibility panel`);
+  assert(!agentWorkplaneText.includes("legacy_cockpit_compatibility"), `${agentWorkplaneFile} must not expose the removed compatibility node`);
+  assert(!agentWorkplaneText.includes('href="/cockpit"'), `${agentWorkplaneFile} must not link to the removed /cockpit route`);
   assert(!agentWorkplaneText.includes("AugnesCockpit"), `${agentWorkplaneFile} must not import or render AugnesCockpit`);
-  assertContainsAll(textByFile.get(legacyCompatibilityPanelFile), [
-    'data-workplane-panel-id="legacy_cockpit_compatibility"',
-    'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
-    'data-workplane-legacy-cockpit-route="/cockpit"',
-    "Legacy Cockpit full mount was removed from /workbench",
-  ]);
-  assertContainsAll(textByFile.get(cockpitPageFile), [
-    'import { AugnesCockpit } from "@/components/augnes-cockpit"',
-    "<AugnesCockpit />",
-  ]);
-  assert(textByFile.get(augnesCockpitFile).includes("export function AugnesCockpit"));
+  assert(!existsSync(legacyCompatibilityPanelFile), `${legacyCompatibilityPanelFile} must be deleted`);
+  assert(!existsSync(cockpitPageFile), `${cockpitPageFile} must be deleted`);
+  assert(!existsSync(augnesCockpitFile), `${augnesCockpitFile} must be deleted`);
 }
 
 function assertNoProductComponentBehaviorFilesChanged() {
@@ -704,7 +718,15 @@ function assertNoProductComponentBehaviorFilesChanged() {
         agentWorkplaneFile,
         legacyCompatibilityPanelFile,
         cockpitPageFile,
+        augnesCockpitFile,
         "lib/workplane/workplane-browser-regression.ts",
+        "lib/workplane/cockpit-route-removal-readiness.ts",
+        "lib/workplane/workplane-node-context.ts",
+        "lib/workplane/workplane-bridge-trace-detail.ts",
+        "lib/workplane/workplane-review-memory-detail.ts",
+        "lib/workplane/workplane-run-postmortem-detail.ts",
+        "lib/guide/workplane-intent-projection.ts",
+        "lib/metrics/runner-workplane-metrics.ts",
       ].includes(file)
     ) {
       continue;
@@ -741,17 +763,26 @@ function assertNoRouteOrAuthorityPathAdded() {
 }
 
 function assertNoSourceDeletion() {
-  for (const file of collectGitDiffFiles(["diff", "--name-only", "--diff-filter=D", "HEAD"]).files) {
-    assert.fail(`No source deletion allowed: ${file}`);
-  }
+  const deletedFiles = uniqueSorted(
+    collectGitDiffFiles(["diff", "--name-only", "--diff-filter=D", "HEAD"]).files,
+  );
+  assert.deepEqual(
+    deletedFiles,
+    [cockpitPageFile, augnesCockpitFile, legacyCompatibilityPanelFile].sort(),
+    "Only the Cockpit route/component/compatibility pointer deletions are allowed",
+  );
   const baseRangeDeleted = collectGitDiffFiles([
     "diff",
     "--name-only",
     "--diff-filter=D",
     "origin/main...HEAD",
   ]);
-  for (const file of baseRangeDeleted.files) {
-    assert.fail(`No broad source deletion allowed: ${file}`);
+  if (baseRangeDeleted.files.length > 0) {
+    assert.deepEqual(
+      uniqueSorted(baseRangeDeleted.files),
+      [cockpitPageFile, augnesCockpitFile, legacyCompatibilityPanelFile].sort(),
+      "Only the Cockpit route/component/compatibility pointer deletions are allowed",
+    );
   }
 }
 

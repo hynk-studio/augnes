@@ -5,7 +5,8 @@
 Status: remaining capability migration map after route split shrink.
 
 This is the remaining capability migration map after the route split shrink.
-`/cockpit` is temporary retained compatibility, not a long-term product surface.
+At the time of this map, `/cockpit` was temporary retained compatibility, not a
+long-term product surface.
 The goal is to move each useful remaining Cockpit capability to Blank State,
 Workplane, Workplane State Proposal Review, a dedicated review or edit surface,
 or delete it when it is obsolete.
@@ -33,9 +34,13 @@ PR 5 readiness update: Cockpit Route Removal Readiness v0.1 is now implemented
 in `docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md`. The readiness model reports
 `unique_useful_cockpit_capability_count: 0` and `zero_count_verified: true`,
 but keeps `route_removal_allowed: false` and `component_removal_allowed: false`
-because this readiness PR does not delete `/cockpit` or
-`components/augnes-cockpit.tsx`. The result unlocks a future explicit Cockpit
-Route Removal v0.1 PR if the zero-count verification remains true.
+because the readiness model itself does not grant runtime deletion authority.
+
+PR 5 deletion update: Cockpit Route Removal v0.1 is implemented in
+`docs/COCKPIT_ROUTE_REMOVAL_V0_1.md`. `/cockpit`,
+`components/augnes-cockpit.tsx`, and the Workplane legacy compatibility pointer
+were removed after `unique_useful_cockpit_capability_count: 0` and
+`zero_count_verified: true` were verified.
 
 ## Destination Model
 
@@ -163,7 +168,7 @@ Allowed `risk_level` values:
 | `duplicate_bridge_summary_copy` | Cockpit duplicate Bridge summary copy | Duplicate Bridge summary copy. | Duplicate after Source Ref Bridge detail exists. | Creates stale bridge guidance. | No unique research value once source refs are native. | `low` | `delete` | `obsolete_delete` | After Workplane Source Ref Bridge detail is native. | None. | Static smoke for deletion. | No migration. | PR 5 |
 | `duplicate_operator_visibility_copy` | Cockpit duplicate operator visibility copy | Duplicate operator visibility copy. | Duplicate after Blank State judgment and Workplane review queues exist. | Can confuse authority status. | No unique research value. | `low` | `delete` | `obsolete_delete` | After native judgment and review queues exist. | None. | Static smoke for deletion. | No migration. | PR 5 |
 | `obsolete_external_execution_controls` | Historical Cockpit external execution residue | Obsolete external execution controls and copy. | No valid user value in product surface. | Must not be inherited by agents. | No research value. | `high` | `delete` | `obsolete_delete` | Immediately or during route removal if present only as residue. | None. | Static smoke proves external execution controls absent. | No provider/OpenAI/GitHub/Codex/runner authority. | PR 4 or PR 5 |
-| `compatibility_island_explainer_copy` | Workbench compatibility pointer and Cockpit explainer copy | Compatibility island explainer copy. | Temporary orientation only. | Tells agents why Cockpit remains reachable. | No long-term research value. | `low` | `delete` | `obsolete_delete` | When `/cockpit` is removed or becomes deprecated redirect. | None. | Static smoke for absence after route removal. | No migration. | PR 5 |
+| `compatibility_island_explainer_copy` | Removed Workbench compatibility pointer and Cockpit explainer copy | Compatibility island explainer copy. | Temporary orientation only before route removal. | Historical explanation only; `/cockpit` was removed in Cockpit Route Removal v0.1. | No long-term research value. | `low` | `delete` | `obsolete_delete` | Completed when `/cockpit` was removed in Cockpit Route Removal v0.1. | None. | Static smoke for absence after route removal. | No migration. | PR 5 |
 
 ## Required Destination Decisions
 
@@ -226,10 +231,16 @@ Result: `unique_useful_cockpit_capability_count: 0`,
 `zero_count_verified: true`, `route_removal_allowed: false`, and
 `component_removal_allowed: false`.
 
-Future PR: PR 5: Cockpit Route Removal v0.1
+PR 5: Cockpit Route Removal v0.1
 
 Purpose: Remove `/cockpit` and `components/augnes-cockpit.tsx` only when unique
 useful capability count is 0.
+
+Implementation:
+`docs/COCKPIT_ROUTE_REMOVAL_V0_1.md`.
+
+Result: route removal completed after unique useful capability count was
+verified as 0.
 
 ## Completion Criteria
 
@@ -245,7 +256,7 @@ useful capability count is 0.
 
 ## Explicit Non-Goals
 
-This PR does not:
+This original migration-map PR did not:
 
 - change product UI
 - add apply/commit/reject authority
@@ -260,3 +271,7 @@ This PR does not:
 - auto-apply deltas
 - delete `/cockpit`
 - delete `components/augnes-cockpit.tsx`
+
+Later PRs implemented the mapped destinations, verified
+`unique_useful_cockpit_capability_count: 0`, and completed Cockpit Route Removal
+v0.1.

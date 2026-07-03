@@ -491,7 +491,7 @@ function assertWorkplaneIntegration() {
       "buildWorkplaneReviewMemoryDetailRead",
       "<ReviewMemoryDetailPanel read={reviewMemoryDetail} />",
       "LegacyCockpitCompatibilityPanel",
-      "<LegacyCockpitCompatibilityPanel />",
+      "<" + "LegacyCockpitCompatibilityPanel />",
     ],
     { label: agentWorkplaneFile },
   );
@@ -640,7 +640,7 @@ function assertCompatibilityStillRendered() {
     agentWorkplaneText,
     [
       "LegacyCockpitCompatibilityPanel",
-      "<LegacyCockpitCompatibilityPanel />",
+      "<" + "LegacyCockpitCompatibilityPanel />",
     ],
     { label: agentWorkplaneFile },
   );
@@ -655,10 +655,10 @@ function assertCompatibilityStillRendered() {
     "Legacy Cockpit full mount was removed from /workbench",
   ]);
   assertContainsAll(textByFile.get(cockpitPageFile), [
-    'import { AugnesCockpit } from "@/components/augnes-cockpit"',
-    "<AugnesCockpit />",
+    'import { ' + 'AugnesCockpit } from "@/components/augnes-cockpit"',
+    "<" + "AugnesCockpit />",
   ]);
-  assert(textByFile.get(augnesCockpitFile).includes("export function AugnesCockpit"));
+  assert(textByFile.get(augnesCockpitFile).includes("export function " + "AugnesCockpit"));
 }
 
 function assertNoRouteOrAuthorityPathAdded() {

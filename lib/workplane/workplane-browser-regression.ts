@@ -50,17 +50,15 @@ export const WORKPLANE_BROWSER_REGRESSION_REQUIRED_MARKERS: RequiredMarker[] = [
     marker: 'data-workplane-run-postmortem-detail-panel="v0.1"',
   },
   panelMarker("trace_diagnostics", "native_replacement"),
-  panelMarker("legacy_cockpit_compatibility", "legacy_cockpit_compatibility"),
   {
-    check_id: "legacy_cockpit_shrink_marker",
-    surface: "legacy_cockpit_compatibility",
-    marker:
-      'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
+    check_id: "state_proposal_review_panel_marker",
+    surface: "native_replacement",
+    marker: 'data-workplane-state-proposal-review-panel="v0.1"',
   },
   {
-    check_id: "legacy_cockpit_route_marker",
-    surface: "legacy_cockpit_compatibility",
-    marker: 'data-workplane-legacy-cockpit-route="/cockpit"',
+    check_id: "manual_controls_migration_marker",
+    surface: "native_replacement",
+    marker: 'data-cockpit-manual-controls-migration="v0.1"',
   },
   {
     check_id: "guidebrief_debug_panel_marker",
@@ -108,9 +106,8 @@ export const WORKPLANE_BROWSER_REGRESSION_DELTABATCH_IDENTITY_CHECKS: IdentityCh
 
 export const WORKPLANE_BROWSER_REGRESSION_REQUIRED_SECTION_TEXT = [
   "Agent Workplane",
-  "Legacy Cockpit route split",
-  "Legacy Cockpit full mount was removed from /workbench",
-  "Full Legacy Cockpit remains reachable at /cockpit",
+  "State Proposal Review",
+  "Manual controls migration",
   "GuideBrief Workplane Debug Context",
   "GuideBrief Intent Projection",
   "Workplane Intent Mode",
@@ -285,14 +282,15 @@ export const WORKPLANE_BROWSER_REGRESSION_CAPABILITY_CHECKS: CapabilityDefinitio
     },
     {
       capability_id: "local_ui_controls",
-      legacy_surface: "Useful legacy Cockpit local UI controls",
+      legacy_surface: "Former useful legacy Cockpit local UI controls",
       native_markers: [
-        'data-workplane-panel-id="legacy_cockpit_compatibility"',
-        'data-workplane-legacy-cockpit-route="/cockpit"',
+        'data-cockpit-manual-controls-migration="v0.1"',
+        'data-cockpit-manual-control-id="manual_preview_editor"',
+        'data-cockpit-manual-control-id="local_write_manual_controls"',
       ],
       recommended_next_check:
-        "Retain full local controls at /cockpit; classify native absorption in a separate authority contract.",
-      status_when_present: "needs_review",
+        "Keep safe manual preview/copy rows in State Proposal Review and keep local-write/apply controls blocked until a separate authority contract.",
+      status_when_present: "partial",
     },
   ];
 
@@ -326,6 +324,8 @@ const FULL_COCKPIT_SHELL_MARKERS = [
   "six-tab-cockpit",
   'className="six-tab-cockpit"',
   'class="six-tab-cockpit"',
+  "cockpit-shell",
+  "AugnesCockpit",
 ] as const;
 
 const DEFAULT_AUTHORITY_BOUNDARY: WorkplaneBrowserRegressionAuthorityBoundary = {
@@ -389,9 +389,9 @@ export function buildWorkplaneBrowserRegressionReport(
       identityMarkerCheck(identity, html),
     );
   const legacyCompatibilityStatus =
-    hasMarker(html, LEGACY_COMPATIBILITY_MARKER) &&
-    hasMarker(html, LEGACY_SHRINK_MARKER) &&
-    hasMarker(html, LEGACY_ROUTE_MARKER) &&
+    !hasMarker(html, LEGACY_COMPATIBILITY_MARKER) &&
+    !hasMarker(html, LEGACY_SHRINK_MARKER) &&
+    !hasMarker(html, LEGACY_ROUTE_MARKER) &&
     !hasFullCockpitShell(html)
       ? "passed"
       : "blocked";
@@ -496,13 +496,12 @@ function markerCheck(
   html: string,
 ): WorkplaneBrowserRegressionMarkerCheck {
   const found = hasMarker(html, required.marker);
-  const isLegacy = required.surface === "legacy_cockpit_compatibility";
   return {
     check_id: required.check_id,
     surface: required.surface,
     marker: required.marker,
     found,
-    status: found ? "passed" : isLegacy ? "blocked" : "failed",
+    status: found ? "passed" : "failed",
     summary: found
       ? `${required.marker} is present.`
       : `${required.marker} is missing.`,
@@ -590,10 +589,12 @@ function capabilityCheck(
       capability_id: definition.capability_id,
       legacy_surface: definition.legacy_surface,
       native_markers: definition.native_markers,
-      compatibility_marker: LEGACY_COMPATIBILITY_MARKER,
+      compatibility_marker: "legacy Cockpit markers must be absent",
       status: "blocked",
-      summary: "Compatibility marker is missing, so capability regression is blocked.",
-      recommended_next_check: "Restore Legacy Cockpit compatibility before any shrink review.",
+      summary:
+        "Legacy Cockpit markers or shell are still present, so route-removal regression is blocked.",
+      recommended_next_check:
+        "Remove active Cockpit route/component/pointer markers before accepting route removal.",
     };
   }
 
@@ -612,10 +613,10 @@ function capabilityCheck(
     capability_id: definition.capability_id,
     legacy_surface: definition.legacy_surface,
     native_markers: definition.native_markers,
-    compatibility_marker: LEGACY_COMPATIBILITY_MARKER,
+    compatibility_marker: "legacy Cockpit markers absent",
     status,
     summary: allPresent
-      ? `${definition.capability_id} has native markers and compatibility remains present.`
+      ? `${definition.capability_id} has native markers and Legacy Cockpit markers are absent.`
       : somePresent
         ? `${definition.capability_id} has partial native marker coverage.`
         : `${definition.capability_id} native marker coverage is missing.`,
@@ -646,7 +647,7 @@ function buildRecommendation({
 }): WorkplaneBrowserRegressionReport["recommendation"] {
   const blockers: string[] = [];
   if (legacyCompatibilityStatus !== "passed") {
-    blockers.push("Legacy Cockpit compatibility marker is missing.");
+    blockers.push("Legacy Cockpit compatibility marker, route marker, or shell is still present.");
   }
   for (const check of markerChecks) {
     if (check.status === "failed" || check.status === "blocked") {
@@ -672,8 +673,8 @@ function buildRecommendation({
     return {
       status: legacyCompatibilityStatus === "blocked" ? "blocked" : "failed",
       decision: "do_not_shrink",
-      summary: "Do not shrink Legacy Cockpit; browser regression blockers remain.",
-      next_phase: "Fix browser regression blockers before any shrink candidate.",
+      summary: "Do not accept Cockpit route removal; browser regression blockers remain.",
+      next_phase: "Fix route-removal browser regression blockers before deletion closeout.",
       blockers,
     };
   }
@@ -690,11 +691,11 @@ function buildRecommendation({
       status: "partial",
       decision: "browser_regression_passed_shrink_gated",
       summary:
-        "Browser regression markers passed, but shrink remains gated by capability, dogfood, metrics, and human review.",
+        "Browser regression markers passed, but remaining native capability evidence still needs review.",
       next_phase:
-        "Run another dogfood/metrics baseline if readiness remains watch/needs_review; consider a shrink candidate PR only after every gate passes.",
+        "Keep native capability, dogfood, metrics, and human review evidence separate from product authority.",
       blockers: [
-        "Browser regression is evidence, not shrink authority.",
+        "Browser regression is evidence, not product authority.",
         "Metrics/dogfood/capability readiness still require review.",
       ],
     };
@@ -704,9 +705,9 @@ function buildRecommendation({
     status: "passed",
     decision: "eligible_for_shrink_candidate_review",
     summary:
-      "Browser regression passed; a dedicated shrink candidate planning PR may be considered only if all other gates and human approval also pass.",
+      "Browser regression passed; Cockpit route-removal HTML expectations are satisfied.",
     next_phase:
-      "Open Legacy Cockpit Shrink Candidate v0.1 as a dedicated review PR; do not auto-delete anything.",
+      "Use the dedicated Cockpit Route Removal validation and runtime checks for deletion closeout.",
     blockers: [],
   };
 }
@@ -821,9 +822,6 @@ function surfaceForMarker(marker: string): WorkplaneBrowserRegressionSurface {
   if (marker.includes("delta_projection")) return "delta_projection";
   if (marker.includes("projected_delta_batch")) return "projected_delta_batch";
   if (marker.includes("delta_batch")) return "runner_delta_batch";
-  if (marker.includes("legacy_cockpit_compatibility")) {
-    return "legacy_cockpit_compatibility";
-  }
   return "native_replacement";
 }
 
@@ -837,7 +835,9 @@ function sectionSurface(text: string): WorkplaneBrowserRegressionSurface {
   if (/Metrics|signals|authority/i.test(text)) return "workplane_metrics";
   if (/Projected Delta Batch/i.test(text)) return "projected_delta_batch";
   if (/Recovered Runner DeltaBatch/i.test(text)) return "runner_delta_batch";
-  if (/Legacy Cockpit/i.test(text)) return "legacy_cockpit_compatibility";
+  if (/Cockpit Route Removal|Manual controls migration|State Proposal Review/i.test(text)) {
+    return "cockpit_route_removal";
+  }
   return "agent_workplane";
 }
 

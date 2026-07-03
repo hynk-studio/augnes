@@ -34,7 +34,6 @@ export const AGENT_WORKPLANE_REQUIRED_PANEL_IDS = [
   "handoff_builder_preview",
   "run_postmortem",
   "trace_diagnostics",
-  "legacy_cockpit_compatibility",
 ] as const satisfies readonly AgentWorkplanePanelId[];
 
 export const AGENT_WORKPLANE_ABSORPTION_TARGET_NODE_IDS = [
@@ -175,14 +174,6 @@ export const AGENT_WORKPLANE_PANEL_REGISTRY: ReadonlyArray<{
     status: "partial",
     title: "Trace / Diagnostics",
     summary: "Bounded gaps, diagnostics, validation summaries, and review notes.",
-  },
-  {
-    panel_id: "legacy_cockpit_compatibility",
-    node_id: "legacy_cockpit_compatibility",
-    kind: "compatibility_panel",
-    status: "compatibility_only",
-    title: "Legacy Cockpit compatibility",
-    summary: "Explicit retained compatibility path for useful legacy Cockpit content.",
   },
   {
     panel_id: "current_objective",
@@ -668,10 +659,6 @@ function validationForPanel(
     smokeRefs.add("smoke:workplane-native-browser-regression-v0-1");
   }
 
-  if (panelId === "legacy_cockpit_compatibility") {
-    smokeRefs.add("smoke:agent-workplane-cockpit-inheritance-v0-1");
-  }
-
   return buildValidationSummary([...smokeRefs]);
 }
 
@@ -682,12 +669,6 @@ function debugNotesForPanel(
   const notes = [
     "Stable panel/node metadata only; no visible control or action authority is added.",
   ];
-
-  if (panelId === "legacy_cockpit_compatibility") {
-    notes.push(
-      "Legacy Cockpit remains an explicit compatibility path until native replacement and validation exist.",
-    );
-  }
 
   if (
     panelId === "run_postmortem" ||
@@ -890,7 +871,6 @@ function relatedHandoffRefsForPanel(
       "source_ref_bridge",
       "review_memory_detail",
       "state_proposal_review",
-      "legacy_cockpit_compatibility",
     ].includes(panelId)
   ) {
     return collectHandoffRefs(context);

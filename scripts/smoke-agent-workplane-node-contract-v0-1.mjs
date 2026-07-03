@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import {
   assertContainsAll,
   assertPackageScript,
@@ -22,6 +23,8 @@ const smokeFile = "scripts/smoke-agent-workplane-node-contract-v0-1.mjs";
 const panelShellFile = "components/workplane/workplane-panel-shell.tsx";
 const legacyCompatibilityPanelFile =
   "components/workplane/legacy-cockpit-compatibility-panel.tsx";
+const augnesCockpitFile = "components/augnes-cockpit.tsx";
+const cockpitPageFile = "app/cockpit/page.tsx";
 
 const requiredPanelMetadata = [
   {
@@ -116,6 +119,8 @@ const existingWorkplaneSmokeFiles = [
   "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
   "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
 ];
 
 const followOnWorkplaneRunnerDeltaBatchIntegrationFiles = [
@@ -349,6 +354,44 @@ const followOnWorkplaneStateProposalReviewFiles = [
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
 ];
 
+const followOnCockpitRouteRemovalFiles = [
+  "app/cockpit/page.tsx",
+  "components/augnes-cockpit.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "types/cockpit-route-removal-readiness.ts",
+  "lib/workplane/cockpit-route-removal-readiness.ts",
+  "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md",
+  "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md",
+  "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
+  "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "package.json",
+  "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
+  "scripts/smoke-cockpit-route-removal-readiness-v0-1.mjs",
+  "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
+  "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "lib/guide/workplane-intent-projection.ts",
+  "lib/metrics/runner-workplane-metrics.ts",
+  "lib/workplane/workplane-bridge-trace-detail.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "lib/workplane/workplane-review-memory-detail.ts",
+  "lib/workplane/workplane-run-postmortem-detail.ts",
+  "types/workplane-bridge-trace-detail.ts",
+  "types/workplane-browser-regression.ts",
+];
+
 
 const requiredFiles = [
   typeContractFile,
@@ -359,7 +402,6 @@ const requiredFiles = [
   packageJsonFile,
   smokeFile,
   panelShellFile,
-  legacyCompatibilityPanelFile,
   ...requiredPanelMetadata.map((panel) => panel.file),
 ];
 
@@ -378,6 +420,19 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
+  ...followOnCockpitRouteRemovalFiles,
+  "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",
+  "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
+  "scripts/smoke-agent-workplane-run-postmortem-detail-v0-1.mjs",
+  "scripts/smoke-augnes-dogfood-metrics-baseline-v0-2.mjs",
+  "scripts/smoke-legacy-cockpit-local-control-classification-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
 ]);
 
 const requiredFields = [
@@ -417,7 +472,6 @@ const stablePanelIds = [
   "handoff_builder_preview",
   "run_postmortem",
   "trace_diagnostics",
-  "legacy_cockpit_compatibility",
 ];
 
 const absorptionTargetNodeIds = [
@@ -437,7 +491,6 @@ const absorptionTargetNodeIds = [
 const requiredNodeKinds = [
   "native_panel",
   "preview_panel",
-  "compatibility_panel",
   "debug_context_source",
   "proposal_review_context",
   "handoff_context_source",
@@ -449,7 +502,6 @@ const requiredStatuses = [
   "ready",
   "partial",
   "preview_only",
-  "compatibility_only",
   "not_materialized",
   "empty",
   "needs_review",
@@ -481,7 +533,6 @@ const agentWorkplaneDocText = textByFile.get(agentWorkplaneDoc);
 const indexText = textByFile.get(indexDoc);
 const packageJsonText = textByFile.get(packageJsonFile);
 const panelShellText = textByFile.get(panelShellFile);
-const legacyCompatibilityText = textByFile.get(legacyCompatibilityPanelFile);
 
 assertPackageScript({
   packageJsonText,
@@ -498,10 +549,10 @@ assertDocs();
 assertPanelShellMetadata();
 assertPanelMetadata();
 assertPanelIdentityPairsUnique();
-assertLegacyCompatibilityMetadata();
+assertLegacyCompatibilityRemoved();
 assertNodeContextHelper();
 assertChangedFileBoundary();
-assertNoSourceFileDeletion();
+assertExpectedSourceFileDeletion();
 assertNoNewRoute();
 assertNoForbiddenRuntimeAuthority();
 
@@ -526,10 +577,10 @@ console.log(
         (panel) => panel.panelId,
       ),
       key_panel_identity_pairs_unique_checked: true,
-      legacy_cockpit_compatibility_metadata_checked: true,
+      legacy_cockpit_compatibility_removed_checked: true,
       node_context_registry_checked: true,
       source_fallback_staleness_authority_validation_checked: true,
-      no_legacy_cockpit_deletion_checked: true,
+      cockpit_route_removal_deletion_checked: true,
       no_guidebrief_debug_or_intent_projection_added: true,
       no_runner_execution_recovery_write_or_scheduler_behavior_added: true,
       no_route_provider_openai_github_codex_db_or_persistence_added: true,
@@ -587,7 +638,8 @@ function assertDocs() {
       "Authority Boundary Expectations",
       "Validation Summary Expectations",
       "Staleness and Fallback Expectations",
-      "Legacy Cockpit Compatibility",
+      "Legacy Cockpit Removal",
+      "Cockpit Route Removal v0.1",
       "Not Implemented Yet",
       "no GuideBrief debug panel",
       "no GuideBrief intent projection",
@@ -600,8 +652,8 @@ function assertDocs() {
       "no provider/OpenAI/GitHub/Codex execution",
       "no durable memory apply",
       "no Perspective apply",
-      "no legacy Cockpit deletion",
-      "Legacy Cockpit must not be removed until native replacement and validation exist.",
+      "legacy_cockpit_compatibility` is not an active Workplane panel or node ID.",
+      "components/workplane/legacy-cockpit-compatibility-panel.tsx` removed.",
       ...stablePanelIds,
       ...absorptionTargetNodeIds,
       ...requiredNodeKinds,
@@ -620,7 +672,7 @@ function assertDocs() {
       "data-workplane-node-status",
       "read-only node context helper",
       "does not add a route, DB write, persistence, runner execution",
-      "legacy_cockpit_compatibility",
+      "legacy Cockpit route/component/pointer markers are absent",
       "docs/AGENT_WORKPLANE_RUNNER_DELTABATCH_INTEGRATION_V0_1.md",
     ],
     { label: agentWorkplaneDoc },
@@ -704,17 +756,15 @@ function assertPanelIdentityPairsUnique() {
   );
 }
 
-function assertLegacyCompatibilityMetadata() {
-  assertContainsAll(
-    legacyCompatibilityText,
-    [
-      'data-workplane-panel-id="legacy_cockpit_compatibility"',
-      'data-workplane-node-id="legacy_cockpit_compatibility"',
-      'data-workplane-node-kind="compatibility_panel"',
-      'data-workplane-node-status="compatibility_only"',
-    ],
-    { label: legacyCompatibilityPanelFile },
-  );
+function assertLegacyCompatibilityRemoved() {
+  assert(!existsSync(legacyCompatibilityPanelFile), `${legacyCompatibilityPanelFile} must be deleted`);
+  assert(!existsSync(augnesCockpitFile), `${augnesCockpitFile} must be deleted`);
+  assert(!existsSync(cockpitPageFile), `${cockpitPageFile} must be deleted`);
+  for (const text of [typeText, helperText]) {
+    assert(!text.includes("legacy_cockpit_compatibility"), "legacy_cockpit_compatibility must not remain in active node contracts");
+    assert(!text.includes("compatibility_panel"), "compatibility_panel must not remain in active node contracts");
+    assert(!text.includes("compatibility_only"), "compatibility_only must not remain in active node contracts");
+  }
 }
 
 function assertNodeContextHelper() {
@@ -780,7 +830,7 @@ function assertChangedFileBoundary() {
   }
 }
 
-function assertNoSourceFileDeletion() {
+function assertExpectedSourceFileDeletion() {
   const deletedFiles = uniqueSorted([
     ...collectGitDiffFiles(["diff", "--name-only", "--diff-filter=D", "HEAD"])
       .files,
@@ -792,7 +842,11 @@ function assertNoSourceFileDeletion() {
     ]).files,
   ]);
 
-  assert.deepEqual(deletedFiles, [], "No source file deletion is allowed");
+  assert.deepEqual(
+    deletedFiles,
+    [cockpitPageFile, augnesCockpitFile, legacyCompatibilityPanelFile].sort(),
+    "Only the Cockpit route/component/compatibility pointer deletions are allowed",
+  );
 }
 
 function assertNoNewRoute() {
@@ -811,7 +865,6 @@ function assertNoForbiddenRuntimeAuthority() {
   const implementationText = [
     helperText,
     panelShellText,
-    legacyCompatibilityText,
     ...requiredPanelMetadata.map((panel) => textByFile.get(panel.file)),
   ].join("\n");
 
@@ -868,17 +921,20 @@ function assertNoForbiddenRuntimeAuthority() {
     );
   }
 
-  assertNoBroadCockpitDeletion();
+  assertOnlyExpectedCockpitDeletion();
 }
 
-function assertNoBroadCockpitDeletion() {
+function assertOnlyExpectedCockpitDeletion() {
   const deletionNameStatus = collectNameStatus(["diff", "--name-status", "HEAD"]);
-  const cockpitDeletion = deletionNameStatus.find(
-    (line) =>
-      line.startsWith("D") &&
-      /(^|\/)(augnes-cockpit|cockpit|components\/workplane)\b/i.test(line),
+  const allowedDeletions = new Set([
+    `D\t${cockpitPageFile}`,
+    `D\t${augnesCockpitFile}`,
+    `D\t${legacyCompatibilityPanelFile}`,
+  ]);
+  const unexpectedDeletion = deletionNameStatus.find(
+    (line) => line.startsWith("D") && !allowedDeletions.has(line),
   );
-  assert(!cockpitDeletion, `No legacy Cockpit deletion allowed: ${cockpitDeletion}`);
+  assert(!unexpectedDeletion, `Unexpected source deletion: ${unexpectedDeletion}`);
 }
 
 function changedAndUntrackedFiles() {

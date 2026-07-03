@@ -2,20 +2,22 @@
 
 ## Status And Scope
 
-Status: PR 5 readiness verification for Legacy Cockpit decomposition.
+Status: PR 5 readiness verification completed; Cockpit Route Removal v0.1
+consumed the verified zero-count gate.
 
-This PR verifies whether `/cockpit` can be removed after PR #941 Cockpit
+This readiness PR verified whether `/cockpit` could be removed after PR #941 Cockpit
 Manual Controls Migration v0.1. It adds a deterministic route-removal
 readiness model, a zero-count verification report, and smoke coverage.
 
-This PR does not delete `/cockpit`. This PR does not delete
+The readiness PR did not delete `/cockpit`. It did not delete
 `components/augnes-cockpit.tsx`. It does not change product UI, app routes,
 Workplane panels, Blank State UI, API routes, DB/migrations, provider/OpenAI,
 GitHub, Codex, runner, proof/evidence, memory, Perspective, or delta apply
 paths.
 
-`/cockpit` remains temporary retained compatibility, not a long-term product
-surface, until a later explicit deletion PR.
+The later explicit deletion PR is documented in
+`docs/COCKPIT_ROUTE_REMOVAL_V0_1.md`. After that PR, `/cockpit` is removed as a
+product surface.
 
 ## Why This Follows PR #941
 
@@ -167,8 +169,16 @@ Blank State, Agent Workplane, Workplane State Proposal Review, or Manual
 Controls Migration review, or is blocked/obsolete/forbidden-delete.
 
 `route_removal_allowed` and `component_removal_allowed` remain false because
-this is a readiness PR. Actual route and component removal requires a later
-explicit deletion PR.
+the readiness model itself does not grant runtime deletion authority. Actual
+route and component removal was performed by the later explicit deletion PR:
+`docs/COCKPIT_ROUTE_REMOVAL_V0_1.md`.
+
+Post-removal state:
+
+- `removal_completed: true`
+- `cockpit_route_present: false`
+- `augnes_cockpit_component_present: false`
+- `legacy_workplane_compatibility_panel_present: false`
 
 ## Authority Boundary
 
@@ -199,12 +209,16 @@ The readiness authority boundary explicitly denies:
 
 All fields are false.
 
-## No Deletion In This PR
+## No Deletion In The Readiness PR
 
-This PR is read-only verification and docs/smoke only. It does not remove
+The readiness PR was read-only verification and docs/smoke only. It did not remove
 `/cockpit`, delete `components/augnes-cockpit.tsx`, add redirects, change
 routes, change Workplane panels, change Blank State UI, add mutation authority,
 or add provider/GitHub/Codex/runner/product-write behavior.
+
+Cockpit Route Removal v0.1 later removed `/cockpit`,
+`components/augnes-cockpit.tsx`, and the Workplane compatibility pointer after
+this zero-count verification.
 
 ## Validation
 
@@ -224,9 +238,11 @@ npm run smoke:agent-workplane-legacy-cockpit-shrink-v0-1
 npm run smoke:blank-state-review-entry-absorption-v0-1
 ```
 
-## Next PR
+## Route Removal
 
-Next PR: Cockpit Route Removal v0.1, only if `zero_count_verified` remains
-true. That future PR may delete `/cockpit` and
-`components/augnes-cockpit.tsx` after running route/component removal
-regression checks.
+Route removal: `docs/COCKPIT_ROUTE_REMOVAL_V0_1.md`.
+
+That PR removed `/cockpit`, `components/augnes-cockpit.tsx`, and obsolete
+Cockpit shell/pointer code because `zero_count_verified` remained true. It did
+not add apply/commit/reject/provider/GitHub/Codex/runner/product-write
+authority.

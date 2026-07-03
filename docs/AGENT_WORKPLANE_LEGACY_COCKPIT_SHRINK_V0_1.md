@@ -2,23 +2,23 @@
 
 ## Status
 
-Status: real shrink implemented by route split.
+Status: historical route split; Cockpit route removal completed later.
 
 This PR performs the Legacy Cockpit Shrink v0.1 that prior plan, regression,
 inventory, dogfood, and metrics slices prepared but did not execute.
 The browser regression context remains documented in
 `docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md`.
 
-Remaining capability migration after this route split is mapped in
+Remaining capability migration after this route split was mapped in
 `docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md`. That map treats
 `/cockpit` as temporary retained compatibility, not a long-term product
-surface, and keeps Cockpit route removal blocked until unique useful capability
-count reaches 0.
+surface, and kept Cockpit route removal blocked until unique useful capability
+count reached 0.
 
 The PR 3 follow-on is documented in
 `docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md`. It moves the
 research-critical proposal review lane into native Agent Workplane while
-leaving `/cockpit` retained compatibility unchanged.
+leaving `/cockpit` retained compatibility unchanged at that stage.
 
 The PR 4 follow-on is documented in
 `docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md`. It moves safe manual
@@ -33,14 +33,19 @@ The PR 5 readiness follow-on is documented in
 while keeping `/cockpit` and `components/augnes-cockpit.tsx` unchanged for the
 readiness-only PR.
 
+The explicit deletion follow-on is documented in
+`docs/COCKPIT_ROUTE_REMOVAL_V0_1.md`. It removed `/cockpit`,
+`components/augnes-cockpit.tsx`, and the Workplane compatibility pointer after
+zero-count readiness was verified.
+
 ## Route Split
 
 - /workbench no longer mounts full AugnesCockpit.
-- /workbench keeps a compact `LegacyCockpitCompatibilityPanel` pointer/status
-  panel with `data-workplane-panel-id="legacy_cockpit_compatibility"`.
-- /cockpit preserves full Legacy Cockpit compatibility.
-- `app/cockpit/page.tsx` imports and renders `AugnesCockpit`.
-- `components/augnes-cockpit.tsx` remains present.
+- The former compact `LegacyCockpitCompatibilityPanel` pointer/status panel was
+  removed in Cockpit Route Removal v0.1.
+- /cockpit was removed in Cockpit Route Removal v0.1.
+- `app/cockpit/page.tsx` was deleted.
+- `components/augnes-cockpit.tsx` was deleted.
 
 Native Agent Workplane panels remain the primary operational surface.
 
@@ -72,35 +77,44 @@ capabilities that Step 7 depends on:
 - Validation/smoke visibility through Trace / Diagnostics, Evidence/Handoff,
   Workplane Inspector, metrics, and source-backed docs/smoke refs.
 
-## Retained Compatibility
+## Compatibility Removal
 
-Retained compatibility remains explicit rather than embedded in the primary
-surface:
+The compatibility route and Workplane pointer are removed rather than embedded
+in the primary surface:
 
 - detailed legacy Cockpit local UI controls
 - local-write/apply/commit/reject controls that still require a separate
   authority contract
 - controls that still require a separate authority contract before native
   absorption
-- full six-tab Cockpit shell, now only at /cockpit
+- full six-tab Cockpit shell, removed with `/cockpit`
 
-Retained local-write/apply/commit/reject controls remain reachable through
-/cockpit until separately handled under a future authority contract or deleted
-with route removal. Safe manual preview/copy review rows are now native in
-Workplane State Proposal Review.
+Local-write/apply/commit/reject controls are not reachable through a retained
+Cockpit product route. Their blocked status is represented in Workplane State
+Proposal Review manual controls migration rows until a separate authority
+contract exists. Safe manual preview/copy review rows are native in Workplane
+State Proposal Review.
 
 The route-removal readiness model verifies that those blocked controls do not
 keep Cockpit alive as a product surface because their blocked status and
 authority boundary are represented natively in Workplane review.
 
-## Runtime Verification
+## Historical Runtime Verification
 
-Runtime verification proves the route split through a live local Next server.
+Runtime verification originally proved the route split through a live local Next server.
 It only performs HTTP GET checks against the rendered routes and adds no
 authority changes, mutation route, runner behavior, or product write path.
 No authority changes are introduced by this runtime verification helper.
 
-### Required Commands
+### Current Runtime Expectation
+
+Cockpit Route Removal v0.1 supersedes the retained-route runtime expectation.
+Current runtime validation belongs to
+`npm run runtime:cockpit-route-removal-check-v0-1` and expects `/workbench` to
+return 200 while `/cockpit` returns 404 or the framework default not-found
+response with no Cockpit shell.
+
+### Historical Commands
 
 Start a local dev server:
 
@@ -122,17 +136,9 @@ npm run smoke:agent-workplane-legacy-cockpit-runtime-check-v0-1
 
 ### Expected Output
 
-The runtime checker prints JSON with `pass: true`, HTTP 200 status for
-`/workbench` and `/cockpit`, and these route facts:
-
-- `/workbench` contains
-  `data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"`.
-- `/workbench` contains `data-workplane-legacy-cockpit-route="/cockpit"`.
-- `/workbench` contains the compact Legacy Cockpit compatibility panel.
-- `/workbench` does not contain full Cockpit shell markers.
-- `/cockpit` contains the Legacy Cockpit page heading.
-- `/cockpit` contains the retained AugnesCockpit shell markers.
-- `/cockpit` contains the existing six-tab shell marker or current equivalent.
+The historical runtime checker printed JSON with `pass: true`, HTTP 200 status
+for `/workbench` and `/cockpit`, and retained-route facts. After Cockpit Route
+Removal v0.1 those retained-route markers must be absent.
 
 The final line should be:
 
@@ -142,19 +148,17 @@ PASS runtime:agent-workplane-legacy-cockpit-runtime-check-v0-1
 
 ### Failure Conditions
 
-The runtime checker fails if any of these conditions are observed:
+The current route-removal runtime checker fails if any of these conditions are
+observed:
 
 - /workbench returns any status other than HTTP 200.
-- /cockpit returns any status other than HTTP 200.
-- /workbench is missing the shrink marker.
-- /workbench is missing the retained `/cockpit` route pointer.
-- /workbench is missing the compact Legacy Cockpit compatibility panel.
-- /workbench still contains the full six-tab Cockpit shell.
-- /workbench still contains embedded AugnesCockpit compatibility island markers.
-- /cockpit is missing the Legacy Cockpit page heading.
-- /cockpit is missing AugnesCockpit shell markers.
-- /cockpit is missing the six-tab shell marker or current equivalent.
-- /cockpit no longer proves the retained compatibility route exists.
+- /workbench contains `legacy_cockpit_compatibility`.
+- /workbench contains `href="/cockpit"`.
+- /workbench contains full six-tab Cockpit shell markers.
+- /workbench contains embedded AugnesCockpit compatibility island markers.
+- /cockpit returns a product Cockpit route instead of 404/framework not-found.
+- /cockpit renders AugnesCockpit, cockpit-shell, six-tab-cockpit, or retained
+  compatibility route content.
 
 ## Deprecated Or Blocked
 
@@ -163,7 +167,7 @@ deploy, provider/OpenAI execution, GitHub actuation, Codex launch/execution,
 runner execution, proof/evidence writes, durable memory apply, Perspective
 apply, and delta auto-apply remain absent unless separately authorized.
 
-This shrink adds no API route, API write route, server action, provider call,
+This shrink and later route removal add no API route, API write route, server action, provider call,
 OpenAI call, GitHub call, Codex execution, runner execution, runner tick,
 runner recovery, runner scheduling, product DB write, proof/evidence write,
 durable memory apply, Perspective apply, delta apply, publish, merge, retry,
@@ -171,13 +175,15 @@ replay, or deploy authority.
 
 ## No Hidden Feature Loss
 
-No hidden feature loss is introduced by the route split.
+No hidden feature loss is introduced by the route split or later route removal.
 
 No useful retained capability is silently lost:
 
-- retained controls are reachable at /cockpit
-- no source component is deleted
-- rollback is route-based: /cockpit remains available
+- migrated capabilities are represented in Blank State, Agent Workplane,
+  Workplane State Proposal Review, and Manual Controls Migration rows
+- blocked controls remain blocked until a separate authority contract
+- obsolete shell/copy/execution residue is deleted or forbidden-delete
 
-The shrink removes the full Legacy Cockpit island from /workbench while keeping
-the retained compatibility path explicit and reviewable.
+The shrink removed the full Legacy Cockpit island from /workbench. Cockpit Route
+Removal v0.1 then removed the retained compatibility path after zero-count
+readiness was verified.

@@ -51,7 +51,6 @@ export const WORKPLANE_RUN_POSTMORTEM_DETAIL_REQUIRED_PANEL_IDS = [
   "delta_batch",
   "review_memory_detail",
   "source_ref_bridge",
-  "legacy_cockpit_compatibility",
 ] as const;
 
 export const WORKPLANE_RUN_POSTMORTEM_DETAIL_SMOKE_REFS = [
@@ -98,7 +97,7 @@ const RUN_POSTMORTEM_AUTHORITY_BOUNDARY: WorkplaneRunPostmortemAuthorityBoundary
     "Run Postmortem detail is read-only run visibility only.",
     "It can display recovered runner DeltaBatch readback, run ids, step refs, event refs, validation status, source refs, and gaps, but it cannot execute runner work, tick a runner, schedule a runner, recover DeltaBatches, apply memory, apply Perspective, auto-apply deltas, approve, reject, commit, or mutate state.",
     "It does not write DB state, write runner ledger state, record proof, create evidence, update work, mutate memory, call providers, call GitHub, actuate GitHub, execute Codex, execute runner, schedule runner, recover DeltaBatch, create branches or PRs, send handoffs, merge, publish, retry, replay, deploy, delete Legacy Cockpit, shrink Legacy Cockpit, or hide Legacy Cockpit.",
-    "Legacy Cockpit compatibility remains rendered for rollback and detailed legacy trace/evidence/review context.",
+    "Legacy Cockpit route/component removal is documented separately; this panel remains native read-only run visibility.",
   ],
 };
 
@@ -136,7 +135,8 @@ export function buildWorkplaneRunPostmortemDetailRead(
     ...postmortemSignals.flatMap((signal) => signal.source_refs),
     ...gapDetails.flatMap((gap) => gap.source_refs),
     "docs:AGENT_WORKPLANE_RUN_POSTMORTEM_DETAIL_V0_1.md",
-    "legacy_cockpit_compatibility:retained",
+    "docs:COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md",
+    "docs:COCKPIT_ROUTE_REMOVAL_V0_1.md",
   ]);
 
   return {
@@ -535,14 +535,14 @@ function buildGapDetails(
     },
     {
       gap_id: "missing_legacy_local_ui_control_classification",
-      status: "needs_review",
+      status: "partial",
       summary:
-        "Useful legacy local UI controls still need a separate classification before compatibility shrink can be considered.",
+        "Legacy local UI control review moved to the native manual controls migration rows before route removal.",
       required_next_step:
-        "Classify read/copy-only versus local-write legacy controls in a separate authority slice.",
+        "Keep blocked local-write/apply controls under the separate authority-contract boundary; do not reintroduce Cockpit as a review surface.",
       source_refs: [
-        "docs:AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_PLAN_V0_1.md",
-        "legacy_cockpit_compatibility:retained",
+        "docs:COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
+        "docs:COCKPIT_ROUTE_REMOVAL_V0_1.md",
       ],
     },
   ];

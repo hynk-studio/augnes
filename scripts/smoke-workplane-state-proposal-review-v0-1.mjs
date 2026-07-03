@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import {
   assertContainsAll,
   assertPackageScript,
@@ -23,6 +24,7 @@ const nodeContextFile = "lib/workplane/workplane-node-context.ts";
 const docFile = "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md";
 const manualControlsDoc =
   "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md";
+const routeRemovalDoc = "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md";
 const indexDoc = "docs/00_INDEX_LATEST.md";
 const migrationDoc =
   "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md";
@@ -135,6 +137,41 @@ const followOnCockpitRouteRemovalReadinessFiles = [
   "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
 ];
 
+const followOnCockpitRouteRemovalFiles = [
+  routeRemovalDoc,
+  "app/cockpit/page.tsx",
+  "components/augnes-cockpit.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "types/workplane-browser-regression.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "types/workplane-bridge-trace-detail.ts",
+  "lib/workplane/workplane-bridge-trace-detail.ts",
+  "lib/workplane/workplane-run-postmortem-detail.ts",
+  "lib/workplane/workplane-review-memory-detail.ts",
+  "lib/metrics/runner-workplane-metrics.ts",
+  "lib/guide/workplane-intent-projection.ts",
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_REPLACEMENT_BROWSER_REGRESSION_V0_1.md",
+  "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "scripts/smoke-agent-workplane-shell-v0-1.mjs",
+  "scripts/smoke-workplane-native-browser-regression-v0-1.mjs",
+  "lib/workplane/legacy-cockpit-control-inventory.ts",
+  "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-plan-v0-1.mjs",
+  "scripts/smoke-agent-workplane-projection-handoff-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
+  "scripts/smoke-agent-workplane-bridge-trace-detail-v0-1.mjs",
+  "scripts/smoke-agent-workplane-review-memory-detail-v0-1.mjs",
+  "scripts/smoke-agent-workplane-run-postmortem-detail-v0-1.mjs",
+  "scripts/smoke-augnes-dogfood-metrics-baseline-v0-2.mjs",
+  "scripts/smoke-legacy-cockpit-local-control-classification-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
+  "scripts/smoke-web-guide-panel-v0-1.mjs",
+];
+
 const expectedChangedFiles = [
   typeFile,
   helperFile,
@@ -162,6 +199,7 @@ const expectedChangedFiles = [
   migrationSmokeFile,
   shrinkSmokeFile,
   ...followOnCockpitRouteRemovalReadinessFiles,
+  ...followOnCockpitRouteRemovalFiles,
 ];
 
 const textByFile = loadTextByFile([
@@ -189,8 +227,7 @@ const textByFile = loadTextByFile([
   blankStateSmokeFile,
   migrationSmokeFile,
   shrinkSmokeFile,
-  augnesCockpitFile,
-  cockpitPageFile,
+  routeRemovalDoc,
 ]);
 
 const typeText = textByFile.get(typeFile);
@@ -215,6 +252,7 @@ assertPackageScript({
     "node scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
 });
 
+assertRouteRemovalFilesAbsent();
 assertStaticContracts();
 const behavior = assertHelperBehavior();
 const changedFiles = assertChangedFilesBoundary();
@@ -350,11 +388,11 @@ function assertStaticContracts() {
       "stateProposalReview",
       "<StateProposalReviewPanel read={stateProposalReview} />",
       "ReviewMemoryDetailPanel",
-      "LegacyCockpitCompatibilityPanel",
     ],
     { label: agentWorkplaneFile },
   );
   assert(!agentWorkplaneText.includes("AugnesCockpit"));
+  assert(!agentWorkplaneText.includes("LegacyCockpitCompatibilityPanel"));
 
   assertContainsAll(
     nodeTypeText,
@@ -421,6 +459,7 @@ function assertStaticContracts() {
       "Authority Boundary",
       "Validation",
       "Next PR: Cockpit Manual Controls Migration v0.1",
+      routeRemovalDoc,
       "manual_control_migration_review",
       ...requiredGroupIds,
       ...requiredAuthorityFields,
@@ -432,6 +471,14 @@ function assertStaticContracts() {
     ["state_proposal_review", "proposal_review_context", "needs_review"],
     { label: nodeContractDoc },
   );
+  assertContainsAll(textByFile.get(routeRemovalDoc), [docFile], {
+    label: routeRemovalDoc,
+  });
+}
+
+function assertRouteRemovalFilesAbsent() {
+  assert(!existsSync(augnesCockpitFile), `${augnesCockpitFile} must be removed`);
+  assert(!existsSync(cockpitPageFile), `${cockpitPageFile} must be removed`);
 }
 
 function assertHelperBehavior() {
@@ -543,8 +590,6 @@ function assertChangedFilesBoundary() {
 
 function assertNoForbiddenPaths(files) {
   const forbiddenPatterns = [
-    /^app\/cockpit\/page\.(tsx|ts|jsx|js)$/,
-    /^components\/augnes-cockpit\.tsx$/,
     /^app\/api\//,
     /^db\//,
     /^migrations\//,

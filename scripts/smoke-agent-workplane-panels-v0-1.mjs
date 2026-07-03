@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import {
   assertContainsAll,
   assertPackageScript,
@@ -17,6 +18,8 @@ const workplaneOverviewFile = "components/workplane/workplane-overview.tsx";
 const workplaneBoundaryFile = "components/workplane/workplane-boundary-card.tsx";
 const compatibilityPanelFile =
   "components/workplane/legacy-cockpit-compatibility-panel.tsx";
+const augnesCockpitFile = "components/augnes-cockpit.tsx";
+const cockpitPageFile = "app/cockpit/page.tsx";
 const panelShellFile = "components/workplane/workplane-panel-shell.tsx";
 const workQueuePanelFile = "components/workplane/work-queue-panel.tsx";
 const currentPerspectivePanelFile =
@@ -354,6 +357,46 @@ const followOnCockpitManualControlsMigrationFiles = [
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
 ];
 
+const followOnCockpitRouteRemovalFiles = [
+  "app/cockpit/page.tsx",
+  "components/augnes-cockpit.tsx",
+  "components/workplane/legacy-cockpit-compatibility-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "types/cockpit-route-removal-readiness.ts",
+  "lib/workplane/cockpit-route-removal-readiness.ts",
+  "docs/COCKPIT_ROUTE_REMOVAL_V0_1.md",
+  "docs/COCKPIT_ROUTE_REMOVAL_READINESS_V0_1.md",
+  "docs/COCKPIT_MANUAL_CONTROLS_MIGRATION_V0_1.md",
+  "docs/WORKPLANE_STATE_PROPOSAL_REVIEW_V0_1.md",
+  "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
+  "docs/LEGACY_COCKPIT_REMAINING_CAPABILITY_MIGRATION_V0_1.md",
+  "docs/AGENT_WORKPLANE_NODE_CONTRACT_V0_1.md",
+  "docs/AGENT_WORKPLANE_COCKPIT_CAPABILITY_INVENTORY_V0_1.md",
+  "docs/AGENT_WORKPLANE_NATIVE_ABSORPTION_MAP_V0_1.md",
+  "docs/00_INDEX_LATEST.md",
+  "package.json",
+  "scripts/smoke-cockpit-route-removal-v0-1.mjs",
+  "scripts/run-cockpit-route-removal-runtime-check-v0-1.mjs",
+  "scripts/smoke-cockpit-route-removal-readiness-v0-1.mjs",
+  "scripts/smoke-cockpit-manual-controls-migration-v0-1.mjs",
+  "scripts/smoke-workplane-state-proposal-review-v0-1.mjs",
+  "scripts/smoke-legacy-cockpit-remaining-capability-migration-v0-1.mjs",
+  "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "scripts/smoke-agent-workplane-cockpit-inheritance-v0-1.mjs",
+  "lib/guide/workplane-intent-projection.ts",
+  "lib/metrics/runner-workplane-metrics.ts",
+  "lib/workplane/workplane-bridge-trace-detail.ts",
+  "lib/workplane/workplane-browser-regression.ts",
+  "lib/workplane/workplane-review-memory-detail.ts",
+  "lib/workplane/workplane-run-postmortem-detail.ts",
+  "types/workplane-bridge-trace-detail.ts",
+  "types/workplane-browser-regression.ts",
+];
+
 
 const followOnWebGuidePanelFiles = [
   "components/guide/guide-brief-panel.tsx",
@@ -395,7 +438,6 @@ const requiredFiles = [
   workplaneHeaderFile,
   workplaneOverviewFile,
   workplaneBoundaryFile,
-  compatibilityPanelFile,
   ...panelFiles,
   contextReaderFile,
   agentWorkplaneDoc,
@@ -513,11 +555,13 @@ const allowedChangedFiles = new Set([
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
+  ...followOnCockpitRouteRemovalFiles,
   "app/cockpit/page.tsx",
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_SHRINK_V0_1.md",
   "docs/AGENT_WORKPLANE_LEGACY_COCKPIT_CONTROL_INVENTORY_V0_1.md",
   "lib/workplane/legacy-cockpit-control-inventory.ts",
   "docs/AUGNES_DOGFOOD_METRICS_BASELINE_V0_2.md",
+  "scripts/run-agent-workplane-legacy-cockpit-runtime-check-v0-1.mjs",
   "scripts/smoke-agent-workplane-legacy-cockpit-shrink-v0-1.mjs",
   "scripts/smoke-legacy-cockpit-control-inventory-v0-1.mjs",
   ...followOnWebGuidePanelFiles,
@@ -561,7 +605,6 @@ const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
 const headerText = textByFile.get(workplaneHeaderFile);
 const overviewText = textByFile.get(workplaneOverviewFile);
 const boundaryText = textByFile.get(workplaneBoundaryFile);
-const compatibilityText = textByFile.get(compatibilityPanelFile);
 const panelShellText = textByFile.get(panelShellFile);
 const workQueueText = textByFile.get(workQueuePanelFile);
 const currentPerspectiveText = textByFile.get(currentPerspectivePanelFile);
@@ -638,7 +681,7 @@ console.log(
       workbench_route_checked: true,
       shell_composition_checked: true,
       panel_components_checked: true,
-      cockpit_compatibility_checked: true,
+      cockpit_compatibility_removed_checked: true,
       current_working_perspective_context_checked: true,
       delta_projection_context_checked: true,
       follow_on_smoke_compatibility_checked: true,
@@ -715,7 +758,7 @@ function assertWorkbenchRouteStillShell() {
     { label: workbenchPageFile },
   );
   assert(
-    !workbenchPageText.includes("<AugnesCockpit"),
+    !workbenchPageText.includes("<" + "AugnesCockpit"),
     `${workbenchPageFile} should keep Cockpit behind the Agent Workplane compatibility shell`,
   );
 }
@@ -733,15 +776,19 @@ function assertShellComposition() {
       "ReviewQueueWorkplanePanel",
       "EvidenceHandoffWorkplanePanel",
       "WorkplaneInspector",
-      "LegacyCockpitCompatibilityPanel",
-      "<LegacyCockpitCompatibilityPanel />",
-      "Agent Workplane shrunk compatibility route",
+      "StateProposalReviewPanel",
       "readWorkplaneContext",
       "Agent Workplane panels",
     ],
     { label: agentWorkplaneFile },
   );
   assert(!agentWorkplaneText.includes("AugnesCockpit"), `${agentWorkplaneFile} must not import or render AugnesCockpit after the route split`);
+  assert(!agentWorkplaneText.includes("LegacyCockpitCompatibilityPanel"), `${agentWorkplaneFile} must not render the removed compatibility panel`);
+  assert(!agentWorkplaneText.includes("legacy_cockpit_compatibility"), `${agentWorkplaneFile} must not expose the removed compatibility node`);
+  assert(!agentWorkplaneText.includes('href="/cockpit"'), `${agentWorkplaneFile} must not link to the removed /cockpit route`);
+  assert(!existsSync(compatibilityPanelFile), `${compatibilityPanelFile} must be deleted`);
+  assert(!existsSync(augnesCockpitFile), `${augnesCockpitFile} must be deleted`);
+  assert(!existsSync(cockpitPageFile), `${cockpitPageFile} must be deleted`);
   assertContainsAll(
     headerText,
     [
@@ -763,17 +810,6 @@ function assertShellComposition() {
       "Source / fallback status",
     ],
     { label: workplaneOverviewFile },
-  );
-  assertContainsAll(
-    compatibilityText,
-    [
-      "Legacy Cockpit route split",
-      "Compatibility pointer",
-      'data-workplane-legacy-cockpit-shrink="workbench_full_mount_removed"',
-      'data-workplane-legacy-cockpit-route="/cockpit"',
-      "Legacy Cockpit full mount was removed from /workbench",
-    ],
-    { label: compatibilityPanelFile },
   );
 }
 
@@ -974,7 +1010,6 @@ function assertNoNewAuthorityCode() {
     headerText,
     overviewText,
     boundaryText,
-    compatibilityText,
     panelShellText,
     workQueueText,
     currentPerspectiveText,

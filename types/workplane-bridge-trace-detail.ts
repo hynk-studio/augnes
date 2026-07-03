@@ -33,8 +33,7 @@ export type WorkplaneBridgeTraceRefKind =
   | "snapshot"
   | "smoke"
   | "docs"
-  | "repo"
-  | "legacy_cockpit_compatibility";
+  | "repo";
 
 export interface WorkplaneBridgeTraceDetailRef {
   ref_id: string;
