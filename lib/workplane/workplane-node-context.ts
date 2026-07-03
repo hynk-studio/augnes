@@ -21,6 +21,7 @@ import type { WorkplaneContextRead } from "./read-workplane-context";
 
 export const AGENT_WORKPLANE_REQUIRED_PANEL_IDS = [
   "work_queue",
+  "continuity_relay",
   "current_perspective",
   "delta_projection",
   "review_queue",
@@ -65,6 +66,15 @@ export const AGENT_WORKPLANE_PANEL_REGISTRY: ReadonlyArray<{
     status: "partial",
     title: "Work Queue",
     summary: "Active goals, active work ids, and next candidate queue hints.",
+  },
+  {
+    panel_id: "continuity_relay",
+    node_id: "handoff_context",
+    kind: "handoff_context_source",
+    status: "partial",
+    title: "Continuity Relay",
+    summary:
+      "Compact preserve, warning, stop-if-missing, and next-focus anchors derived from CWP, GuideBrief, and Workplane source status.",
   },
   {
     panel_id: "current_perspective",
@@ -240,6 +250,7 @@ const NODE_CONTEXT_SMOKES = [
   "smoke:agent-workplane-node-contract-v0-1",
   "smoke:agent-workplane-shell-v0-1",
   "smoke:agent-workplane-panels-v0-1",
+  "smoke:workplane-continuity-relay-v0-1",
   "smoke:agent-workplane-projection-handoff-v0-1",
   "smoke:workplane-runner-deltabatch-integration-v0-1",
   "smoke:agent-workplane-bridge-trace-detail-v0-1",
@@ -291,6 +302,7 @@ export function buildAgentWorkplaneNodeContextRead(
     "smoke:agent-workplane-node-contract-v0-1",
     "smoke:agent-workplane-cockpit-inheritance-v0-1",
     "smoke:workplane-runner-deltabatch-integration-v0-1",
+    "smoke:workplane-continuity-relay-v0-1",
   ]);
   const sourceRefs = collectWorkplaneSourceRefs(context);
   const panels = AGENT_WORKPLANE_PANEL_REGISTRY.map((entry) =>
@@ -492,6 +504,7 @@ function updatedAtForPanel(
   if (
     [
       "work_queue",
+      "continuity_relay",
       "current_perspective",
       "review_queue",
       "review_memory_detail",
@@ -534,6 +547,7 @@ function stalenessForPanel(
 
   if (
     [
+      "continuity_relay",
       "delta_projection",
       "projection_candidates",
       "projected_delta_batch",
@@ -580,6 +594,7 @@ function fallbackForPanel(
 
   if (
     [
+      "continuity_relay",
       "delta_projection",
       "projection_candidates",
       "projected_delta_batch",
@@ -618,6 +633,7 @@ function validationForPanel(
   const smokeRefs = new Set<string>(NODE_CONTEXT_SMOKES);
   if (
     [
+      "continuity_relay",
       "projection_candidates",
       "projected_delta_batch",
       "delta_batch",
@@ -657,6 +673,11 @@ function validationForPanel(
   if (panelId === "run_postmortem") {
     smokeRefs.add("smoke:agent-workplane-run-postmortem-detail-v0-1");
     smokeRefs.add("smoke:workplane-native-browser-regression-v0-1");
+  }
+
+  if (panelId === "continuity_relay") {
+    smokeRefs.add("smoke:workplane-continuity-relay-v0-1");
+    smokeRefs.add("smoke:guide-brief-v0-1");
   }
 
   return buildValidationSummary([...smokeRefs]);
@@ -714,6 +735,12 @@ function debugNotesForPanel(
     );
   }
 
+  if (panelId === "continuity_relay") {
+    notes.push(
+      "Continuity Relay is a deterministic read-only bridge from Current Working Perspective and GuideBrief context into next-session working anchors; it is not handoff send, durable memory, Perspective apply, proof/evidence, provider, GitHub, Codex, or runner authority.",
+    );
+  }
+
   return notes;
 }
 
@@ -731,10 +758,15 @@ function sourceRefsForPanel(
     return refs.length > 0 ? refs : ["not_materialized:runner_delta_batch_source"];
   }
 
-  if (panelId === "review_memory_detail" || panelId === "state_proposal_review") {
+  if (
+    panelId === "continuity_relay" ||
+    panelId === "review_memory_detail" ||
+    panelId === "state_proposal_review"
+  ) {
     return uniqueStrings([
       ...collectCurrentPerspectiveSourceRefs(context),
       ...collectDeltaProjectionSourceRefs(context),
+      ...context.continuity_relay.source_refs.source_refs,
     ]);
   }
 
@@ -756,6 +788,7 @@ function sourceRefsForPanel(
       "projection_candidates",
       "projected_delta_batch",
       "handoff_builder_preview",
+      "continuity_relay",
       "evidence_handoff",
       "handoff_context",
       "perspective_delta",
@@ -816,6 +849,7 @@ function relatedDeltaIdsForPanel(
       "projected_delta_batch",
       "projection_candidates",
       "review_queue",
+      "continuity_relay",
       "review_memory_detail",
       "state_proposal_review",
       "workplane_inspector",
@@ -845,6 +879,7 @@ function relatedBatchIdsForPanel(
   if (
     [
       "delta_projection",
+      "continuity_relay",
       "projected_delta_batch",
       "state_proposal_review",
       "workplane_inspector",
@@ -867,6 +902,7 @@ function relatedHandoffRefsForPanel(
     [
       "evidence_handoff",
       "handoff_builder_preview",
+      "continuity_relay",
       "handoff_context",
       "source_ref_bridge",
       "review_memory_detail",
@@ -894,6 +930,7 @@ function relatedEventIdsForPanel(
   if (
     [
       "work_queue",
+      "continuity_relay",
       "current_objective",
       "workplane_inspector",
       "source_ref_bridge",
@@ -917,6 +954,7 @@ function collectWorkplaneSourceRefs(context: WorkplaneContextRead) {
     ...collectCurrentPerspectiveSourceRefs(context),
     ...collectDeltaProjectionSourceRefs(context),
     ...collectRunnerDeltaBatchSourceRefs(context),
+    ...context.continuity_relay.source_refs.source_refs,
   ]);
 }
 

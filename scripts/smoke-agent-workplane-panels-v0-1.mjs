@@ -22,6 +22,8 @@ const augnesCockpitFile = "components/augnes-cockpit.tsx";
 const cockpitPageFile = "app/cockpit/page.tsx";
 const panelShellFile = "components/workplane/workplane-panel-shell.tsx";
 const workQueuePanelFile = "components/workplane/work-queue-panel.tsx";
+const continuityRelayPanelFile =
+  "components/workplane/continuity-relay-workplane-panel.tsx";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -297,6 +299,20 @@ const followOnAgentWorkplaneRunPostmortemDetailFiles = [
   "package.json",
 ];
 
+const followOnWorkplaneContinuityRelayFiles = [
+  "types/workplane-continuity-relay.ts",
+  "lib/workplane/workplane-continuity-relay.ts",
+  "components/workplane/continuity-relay-workplane-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "lib/workplane/read-workplane-context.ts",
+  "types/agent-workplane-node.ts",
+  "lib/workplane/workplane-node-context.ts",
+  "scripts/smoke-workplane-continuity-relay-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-agent-workplane-node-contract-v0-1.mjs",
+  "package.json",
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -484,6 +500,7 @@ const followOnChatgptAppGuideBriefToolFiles = [
 const panelFiles = [
   panelShellFile,
   workQueuePanelFile,
+  continuityRelayPanelFile,
   currentPerspectivePanelFile,
   deltaProjectionPanelFile,
   reviewQueuePanelFile,
@@ -611,6 +628,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneBridgeTraceDetailFiles,
   ...followOnAgentWorkplaneReviewMemoryDetailFiles,
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
+  ...followOnWorkplaneContinuityRelayFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -668,6 +686,7 @@ const overviewText = textByFile.get(workplaneOverviewFile);
 const boundaryText = textByFile.get(workplaneBoundaryFile);
 const panelShellText = textByFile.get(panelShellFile);
 const workQueueText = textByFile.get(workQueuePanelFile);
+const continuityRelayText = textByFile.get(continuityRelayPanelFile);
 const currentPerspectiveText = textByFile.get(currentPerspectivePanelFile);
 const deltaProjectionText = textByFile.get(deltaProjectionPanelFile);
 const reviewQueueText = textByFile.get(reviewQueuePanelFile);
@@ -831,6 +850,7 @@ function assertShellComposition() {
       "Agent Workplane",
       "WorkplaneHeader",
       "WorkplaneOverview",
+      "ContinuityRelayWorkplanePanel",
       "WorkQueuePanel",
       "CurrentPerspectiveWorkplanePanel",
       "DeltaProjectionWorkplanePanel",
@@ -898,6 +918,22 @@ function assertPanelComponents() {
       "WorkplaneContextRead",
     ],
     { label: workQueuePanelFile },
+  );
+  assertContainsAll(
+    continuityRelayText,
+    [
+      "ContinuityRelayWorkplanePanel",
+      "Continuity Relay",
+      "Continue from here",
+      "Preserve",
+      "Watch",
+      "Stop If Missing",
+      "Next Focus",
+      "Read-only/advisory",
+      "WorkplaneContextRead",
+      'panelId="continuity_relay"',
+    ],
+    { label: continuityRelayPanelFile },
   );
   assertContainsAll(
     currentPerspectiveText,
@@ -997,8 +1033,10 @@ function assertWorkplaneContextReader() {
     [
       "readCurrentPerspectiveForHumanSurface",
       "readDeltaProjectionForHumanSurface",
+      "buildWorkplaneContinuityRelay",
       "current_perspective_read",
       "delta_projection_read",
+      "continuity_relay",
       "source_status",
       "fallback_reason",
       "authority_boundary",

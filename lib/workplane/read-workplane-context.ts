@@ -10,6 +10,9 @@ import {
   readRunnerDeltaBatchesForWorkplane,
   type WorkplaneRunnerDeltaBatchRead,
 } from "@/lib/workplane/read-runner-delta-batches-for-workplane";
+import { buildWorkplaneContinuityRelay } from "@/lib/workplane/workplane-continuity-relay";
+import type { GuideBrief } from "@/types/guide-brief";
+import type { WorkplaneContinuityRelay } from "@/types/workplane-continuity-relay";
 
 export const WORKPLANE_SCOPE = "project:augnes" as const;
 
@@ -82,6 +85,7 @@ export type WorkplaneContextRead = {
   current_perspective_read: HumanSurfaceCurrentPerspectiveRead;
   delta_projection_read: HumanSurfaceDeltaProjectionRead;
   runner_delta_batch_read: WorkplaneRunnerDeltaBatchRead;
+  continuity_relay: WorkplaneContinuityRelay;
   overview: WorkplaneOverviewSummary;
   source_status: {
     current_perspective: HumanSurfaceCurrentPerspectiveRead["source_status"];
@@ -97,7 +101,13 @@ export type WorkplaneContextRead = {
   workplane_notes: string[];
 };
 
-export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
+export type WorkplaneContextReadOptions = {
+  guide_brief?: GuideBrief | null;
+};
+
+export async function readWorkplaneContext(
+  options: WorkplaneContextReadOptions = {},
+): Promise<WorkplaneContextRead> {
   const [currentPerspectiveRead, deltaProjectionRead, runnerDeltaBatchRead] =
     await Promise.all([
     readCurrentPerspectiveForHumanSurface(),
@@ -162,7 +172,7 @@ export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
     ],
   };
 
-  return {
+  const contextWithoutRelay = {
     current_perspective_read: currentPerspectiveRead,
     delta_projection_read: deltaProjectionRead,
     runner_delta_batch_read: runnerDeltaBatchRead,
@@ -233,5 +243,13 @@ export async function readWorkplaneContext(): Promise<WorkplaneContextRead> {
       "Recovered runner DeltaBatches are read from the runner ledger for Workplane review context only.",
       "Projected Delta Projection batches remain separate from recovered runner DeltaBatches.",
     ],
+  } satisfies Omit<WorkplaneContextRead, "continuity_relay">;
+
+  return {
+    ...contextWithoutRelay,
+    continuity_relay: buildWorkplaneContinuityRelay({
+      workplane_context: contextWithoutRelay,
+      guide_brief: options.guide_brief,
+    }),
   };
 }

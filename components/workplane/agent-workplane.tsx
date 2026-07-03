@@ -17,6 +17,7 @@ import { DeltaBatchPanel } from "@/components/workplane/delta-batch-panel";
 import { DeltaProjectionWorkplanePanel } from "@/components/workplane/delta-projection-workplane-panel";
 import { EvidenceHandoffWorkplanePanel } from "@/components/workplane/evidence-handoff-workplane-panel";
 import { HandoffBuilderPreviewPanel } from "@/components/workplane/handoff-builder-preview-panel";
+import { ContinuityRelayWorkplanePanel } from "@/components/workplane/continuity-relay-workplane-panel";
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
 import { ReviewMemoryDetailPanel } from "@/components/workplane/review-memory-detail-panel";
 import { ReviewQueueWorkplanePanel } from "@/components/workplane/review-queue-workplane-panel";
@@ -125,15 +126,14 @@ const previewCopyStyle: CSSProperties = {
 };
 
 export async function AgentWorkplane() {
+  const guideBrief = readGuideBriefForWeb();
   const [
     context,
-    guideBrief,
     handoffPreview,
     autonomyPreview,
     autonomyRunnerPreflightPreview,
   ] = await Promise.all([
-    readWorkplaneContext(),
-    Promise.resolve(readGuideBriefForWeb()),
+    readWorkplaneContext({ guide_brief: guideBrief }),
     Promise.resolve(readHandoffCapsulePreviewForWeb()),
     Promise.resolve(readAutonomyContractPreviewForWeb()),
     Promise.resolve(readAutonomyRunnerPreflightPreviewForWeb()),
@@ -189,6 +189,7 @@ export async function AgentWorkplane() {
         <WorkplaneHeader />
         <WorkplaneOverview context={context} />
         <GuideBriefMiniPanel guideBrief={guideBrief} variant="workbench" />
+        <ContinuityRelayWorkplanePanel context={context} />
         <GuideWorkplaneDebugPanel debugContext={workplaneDebugContext} />
         <GuideIntentProjectionPanel projection={workplaneIntentProjection} />
         <WorkplaneIntentModePanel
