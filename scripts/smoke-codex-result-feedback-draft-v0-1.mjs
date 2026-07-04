@@ -25,6 +25,14 @@ const dogfoodReuseProposalPanelFile =
   "components/dogfood-reuse-record-proposal-panel.tsx";
 const dogfoodReuseProposalSmokeFile =
   "scripts/smoke-dogfood-reuse-record-proposal-v0-1.mjs";
+const dogfoodReuseDecisionTypeFile =
+  "types/dogfood-reuse-operator-decision-preview.ts";
+const dogfoodReuseDecisionHelperFile =
+  "lib/dogfooding/dogfood-reuse-operator-decision-preview.ts";
+const dogfoodReuseDecisionPanelFile =
+  "components/dogfood-reuse-operator-decision-preview-panel.tsx";
+const dogfoodReuseDecisionSmokeFile =
+  "scripts/smoke-dogfood-reuse-operator-decision-preview-v0-1.mjs";
 const normalizerFile = "lib/dogfooding/codex-result-report-normalizer.ts";
 const handoffRationaleTypeFile = "types/handoff-context-relay-rationale.ts";
 const handoffRationaleHelperFile = "lib/handoff/handoff-context-relay-rationale.ts";
@@ -48,6 +56,10 @@ const allowedChangedFiles = [
   dogfoodReuseProposalHelperFile,
   dogfoodReuseProposalPanelFile,
   dogfoodReuseProposalSmokeFile,
+  dogfoodReuseDecisionTypeFile,
+  dogfoodReuseDecisionHelperFile,
+  dogfoodReuseDecisionPanelFile,
+  dogfoodReuseDecisionSmokeFile,
 ];
 
 const textByFile = loadTextByFile([
@@ -183,11 +195,14 @@ assertContainsAll(
   [
     "CodexResultFeedbackDraftPanel",
     "DogfoodReuseRecordProposalPanel",
+    "DogfoodReuseOperatorDecisionPreviewPanel",
     "buildCodexResultFeedbackDraft",
     "buildDogfoodReuseRecordProposal",
+    "buildDogfoodReuseOperatorDecisionPreview",
     "handoff_context_rationale: handoffContextRationale",
     "result_report: null",
     "feedback_draft: codexResultFeedbackDraft",
+    "proposal: dogfoodReuseRecordProposal",
     "draft={codexResultFeedbackDraft}",
   ],
   { label: agentWorkplaneFile },
