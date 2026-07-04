@@ -15,6 +15,7 @@ import { GuideWorkplaneDebugPanel } from "@/components/guide/guide-workplane-deb
 import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
 import { HandoffContextApplyOperatorDecisionPreviewPanel } from "@/components/handoff/handoff-context-apply-operator-decision-preview-panel";
 import { HandoffContextApplyPreviewPanel } from "@/components/handoff/handoff-context-apply-preview-panel";
+import { HandoffContextApplyWriteContractPreviewPanel } from "@/components/handoff/handoff-context-apply-write-contract-preview-panel";
 import { HandoffCopyExportPanel } from "@/components/handoff/handoff-copy-export-panel";
 import { HandoffCapsulePreviewPanel } from "@/components/handoff/handoff-capsule-preview-panel";
 import { HandoffContextRelayRationalePanel } from "@/components/handoff/handoff-context-relay-rationale-panel";
@@ -60,6 +61,7 @@ import {
 } from "@/lib/guide/workplane-intent-projection";
 import { buildHandoffContextApplyOperatorDecisionPreviewV01 } from "@/lib/handoff/handoff-context-apply-operator-decision-preview";
 import { buildHandoffContextApplyPreviewV01 } from "@/lib/handoff/handoff-context-apply-preview";
+import { buildHandoffContextApplyWriteContractPreviewV01 } from "@/lib/handoff/handoff-context-apply-write-contract-preview";
 import { buildHandoffContextUpdateOperatorDecisionPreviewV01 } from "@/lib/handoff/handoff-context-update-operator-decision-preview";
 import { buildHandoffContextUpdatePreviewV01 } from "@/lib/handoff/handoff-context-update-preview";
 import { readHandoffContextUpdateRecordReviewForWebV01 } from "@/lib/handoff/read-handoff-context-update-record-review-for-web";
@@ -301,6 +303,16 @@ export async function AgentWorkplane() {
         "workbench:handoff_context_apply_operator_decision_preview",
       ],
     });
+  const handoffContextApplyWriteContractPreview =
+    buildHandoffContextApplyWriteContractPreviewV01({
+      apply_operator_decision_preview:
+        handoffContextApplyOperatorDecisionPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:handoff_context_apply_write_contract_preview",
+      ],
+    });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -395,6 +407,9 @@ export async function AgentWorkplane() {
               />
               <HandoffContextApplyOperatorDecisionPreviewPanel
                 preview={handoffContextApplyOperatorDecisionPreview}
+              />
+              <HandoffContextApplyWriteContractPreviewPanel
+                preview={handoffContextApplyWriteContractPreview}
               />
               <HandoffCopyExportPanel
                 preview={handoffPreview}

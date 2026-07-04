@@ -45,6 +45,14 @@ const applyDecisionPanelFile =
   "components/handoff/handoff-context-apply-operator-decision-preview-panel.tsx";
 const applyDecisionSmokeFile =
   "scripts/smoke-handoff-context-apply-operator-decision-preview-v0-1.mjs";
+const applyWriteContractTypeFile =
+  "types/handoff-context-apply-write-contract-preview.ts";
+const applyWriteContractHelperFile =
+  "lib/handoff/handoff-context-apply-write-contract-preview.ts";
+const applyWriteContractPanelFile =
+  "components/handoff/handoff-context-apply-write-contract-preview-panel.tsx";
+const applyWriteContractSmokeFile =
+  "scripts/smoke-handoff-context-apply-write-contract-preview-v0-1.mjs";
 const decisionSmokeFile =
   "scripts/smoke-handoff-context-update-operator-decision-preview-v0-1.mjs";
 const previewSmokeFile =
@@ -70,6 +78,10 @@ const allowedChangedFiles = [
   applyDecisionHelperFile,
   applyDecisionPanelFile,
   applyDecisionSmokeFile,
+  applyWriteContractTypeFile,
+  applyWriteContractHelperFile,
+  applyWriteContractPanelFile,
+  applyWriteContractSmokeFile,
   decisionSmokeFile,
   previewSmokeFile,
   metricAdjustmentSmokeFile,
