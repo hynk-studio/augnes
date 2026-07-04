@@ -50,6 +50,14 @@ const codexResultReportNormalizerFile =
   "lib/dogfooding/codex-result-report-normalizer.ts";
 const codexResultReportFixtureFile =
   "fixtures/codex-result-report-ingestion.sample.v0.1.json";
+const dogfoodReuseProposalTypeFile =
+  "types/dogfood-reuse-record-proposal.ts";
+const dogfoodReuseProposalHelperFile =
+  "lib/dogfooding/dogfood-reuse-record-proposal.ts";
+const dogfoodReuseProposalPanelFile =
+  "components/dogfood-reuse-record-proposal-panel.tsx";
+const dogfoodReuseProposalSmokeFile =
+  "scripts/smoke-dogfood-reuse-record-proposal-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -363,6 +371,19 @@ const followOnCodexResultFeedbackDraftFiles = [
   packageJsonFile,
 ];
 
+const followOnDogfoodReuseRecordProposalFiles = [
+  dogfoodReuseProposalTypeFile,
+  dogfoodReuseProposalHelperFile,
+  dogfoodReuseProposalPanelFile,
+  dogfoodReuseProposalSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+  codexResultFeedbackSmokeFile,
+  handoffRationaleSmokeFile,
+  "scripts/smoke-workplane-continuity-relay-v0-1.mjs",
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -575,6 +596,9 @@ const requiredFiles = [
   codexResultFeedbackPanelFile,
   codexResultReportNormalizerFile,
   codexResultReportFixtureFile,
+  dogfoodReuseProposalTypeFile,
+  dogfoodReuseProposalHelperFile,
+  dogfoodReuseProposalPanelFile,
   contextReaderFile,
   agentWorkplaneDoc,
   packageJsonFile,
@@ -691,6 +715,7 @@ const allowedChangedFiles = new Set([
   ...followOnWorkplaneContinuityRelayFiles,
   ...followOnHandoffContextRelayRationaleFiles,
   ...followOnCodexResultFeedbackDraftFiles,
+  ...followOnDogfoodReuseRecordProposalFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -766,6 +791,15 @@ const codexResultFeedbackPanelText = textByFile.get(
 const codexResultReportNormalizerText = textByFile.get(
   codexResultReportNormalizerFile,
 );
+const dogfoodReuseProposalTypeText = textByFile.get(
+  dogfoodReuseProposalTypeFile,
+);
+const dogfoodReuseProposalHelperText = textByFile.get(
+  dogfoodReuseProposalHelperFile,
+);
+const dogfoodReuseProposalPanelText = textByFile.get(
+  dogfoodReuseProposalPanelFile,
+);
 const currentPerspectiveText = textByFile.get(currentPerspectivePanelFile);
 const deltaProjectionText = textByFile.get(deltaProjectionPanelFile);
 const reviewQueueText = textByFile.get(reviewQueuePanelFile);
@@ -786,6 +820,7 @@ assertShellComposition();
 assertPanelComponents();
 assertHandoffContextRelayRationaleFollowOn();
 assertCodexResultFeedbackDraftFollowOn();
+assertDogfoodReuseRecordProposalFollowOn();
 assertWorkplaneContextReader();
 assertDocs();
 assertFollowOnSmokeCompatibility();
@@ -1271,6 +1306,72 @@ function assertCodexResultFeedbackDraftFollowOn() {
   assert(
     !agentWorkplaneText.includes("normalizeCodexResultReportV01("),
     "Agent Workplane must not normalize a sample Codex result report",
+  );
+}
+
+function assertDogfoodReuseRecordProposalFollowOn() {
+  assertContainsAll(
+    dogfoodReuseProposalTypeText,
+    [
+      "dogfood_reuse_record_proposal.v0.1",
+      "proposed_dogfood_signal",
+      "proposed_reuse_classifications",
+      "operator_review_checklist",
+      "blocked_reasons",
+      "insufficient_data_reasons",
+      "candidate_material_only: true",
+      "source_of_truth: false",
+      "can_write_db: false",
+      "can_write_dogfood_ledger: false",
+      "can_update_metrics: false",
+      "can_mutate_memory: false",
+      "can_apply_project_perspective: false",
+      "can_execute_codex: false",
+      "can_send_handoff: false",
+    ],
+    { label: dogfoodReuseProposalTypeFile },
+  );
+  assertContainsAll(
+    dogfoodReuseProposalHelperText,
+    [
+      "buildDogfoodReuseRecordProposal",
+      "CodexResultFeedbackDraft",
+      "blocked_missing_feedback_draft",
+      "blocked_missing_codex_result_report",
+      "missing_explicit_context_feedback",
+      "can_write_dogfood_ledger: false",
+      "can_update_metrics: false",
+      "can_mutate_memory: false",
+      "can_apply_project_perspective: false",
+      "can_execute_codex: false",
+      "can_send_handoff: false",
+    ],
+    { label: dogfoodReuseProposalHelperFile },
+  );
+  assertContainsAll(
+    dogfoodReuseProposalPanelText,
+    [
+      "DogfoodReuseRecordProposalPanel",
+      "Reuse record proposal",
+      "expected vs observed",
+      "reuse classifications",
+      "operator review",
+      "Read-only candidate proposal",
+      "can_write_dogfood_ledger",
+      "can_update_metrics",
+    ],
+    { label: dogfoodReuseProposalPanelFile },
+  );
+  assertContainsAll(
+    agentWorkplaneText,
+    [
+      "DogfoodReuseRecordProposalPanel",
+      "buildDogfoodReuseRecordProposal",
+      "feedback_draft: codexResultFeedbackDraft",
+      "proposal={dogfoodReuseRecordProposal}",
+      "result_report: null",
+    ],
+    { label: agentWorkplaneFile },
   );
 }
 
