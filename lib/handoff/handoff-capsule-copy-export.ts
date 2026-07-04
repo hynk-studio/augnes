@@ -104,6 +104,10 @@ export type HandoffCopyExportPreview = {
   character_counts: Record<HandoffCopyExportMode, number>;
 };
 
+type HandoffMarkdownCopyPacketOptions = {
+  include_context_relay_rationale?: boolean;
+};
+
 const COPY_EXPORT_BOUNDARY_STATEMENT = [
   "Local clipboard/manual copy preview only.",
   "Copying does not send a handoff.",
@@ -123,8 +127,11 @@ const COPY_EXPORT_BOUNDARY_STATEMENT = [
 export function buildHandoffCapsuleMarkdownCopyPacket(
   preview: HandoffCapsulePreviewForWeb,
   contextRelayRationale?: HandoffContextRelayRationale | null,
+  options: HandoffMarkdownCopyPacketOptions = {},
 ): string {
   const capsule = preview.capsule;
+  const includeContextRelayRationale =
+    options.include_context_relay_rationale ?? true;
   const lines = [
     "# Handoff Capsule Copy Packet",
     "",
@@ -153,8 +160,9 @@ export function buildHandoffCapsuleMarkdownCopyPacket(
     "## Source Refs",
     ...formatSourceRefsForCopy(capsule.source_refs),
     "",
-    ...formatContextRelayRationaleForCopy(contextRelayRationale),
-    "",
+    ...(includeContextRelayRationale
+      ? [...formatContextRelayRationaleForCopy(contextRelayRationale), ""]
+      : []),
     "## Validation Expectations",
     ...formatNamedList(
       "required_check",
@@ -185,8 +193,11 @@ export function buildHandoffCapsuleMarkdownCopyPacket(
 export function buildCodexLaunchCardMarkdownCopyPacket(
   preview: HandoffCapsulePreviewForWeb,
   contextRelayRationale?: HandoffContextRelayRationale | null,
+  options: HandoffMarkdownCopyPacketOptions = {},
 ): string {
   const launchCard = preview.launch_card;
+  const includeContextRelayRationale =
+    options.include_context_relay_rationale ?? true;
   const lines = [
     "# Codex Launch Card Copy Packet",
     "",
@@ -233,8 +244,9 @@ export function buildCodexLaunchCardMarkdownCopyPacket(
     "## Source Refs",
     ...formatSourceRefsForCopy(launchCard.source_refs),
     "",
-    ...formatContextRelayRationaleForCopy(contextRelayRationale),
-    "",
+    ...(includeContextRelayRationale
+      ? [...formatContextRelayRationaleForCopy(contextRelayRationale), ""]
+      : []),
     "## Authority Boundary",
     ...formatAuthorityBoundaryForCopy(launchCard.authority_boundary),
     "",
@@ -266,11 +278,17 @@ export function buildCombinedHandoffLaunchMarkdownCopyPacket(
       "- Suggestions are advisory only.",
       "- Unresolved user judgment remains unresolved.",
       "",
-      buildHandoffCapsuleMarkdownCopyPacket(preview, contextRelayRationale),
+      ...formatContextRelayRationaleForCopy(contextRelayRationale),
+      "",
+      buildHandoffCapsuleMarkdownCopyPacket(preview, contextRelayRationale, {
+        include_context_relay_rationale: false,
+      }),
       "",
       "---",
       "",
-      buildCodexLaunchCardMarkdownCopyPacket(preview, contextRelayRationale),
+      buildCodexLaunchCardMarkdownCopyPacket(preview, contextRelayRationale, {
+        include_context_relay_rationale: false,
+      }),
     ].join("\n"),
   );
 }

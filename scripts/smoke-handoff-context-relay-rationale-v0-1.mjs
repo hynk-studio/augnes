@@ -327,6 +327,24 @@ assert(
   copyPreview.combined_markdown.includes("## Context Relay Rationale"),
   "combined copy packet must include the context relay rationale",
 );
+assert.equal(
+  countOccurrences(copyPreview.combined_markdown, "## Context Relay Rationale"),
+  1,
+  "combined copy packet must include Context Relay Rationale exactly once",
+);
+assert.equal(
+  countOccurrences(copyPreview.capsule_markdown, "## Context Relay Rationale"),
+  1,
+  "standalone Handoff Capsule copy packet must include Context Relay Rationale",
+);
+assert.equal(
+  countOccurrences(
+    copyPreview.launch_card_markdown,
+    "## Context Relay Rationale",
+  ),
+  1,
+  "standalone Codex Launch Card copy packet must include Context Relay Rationale",
+);
 assert(
   copyPreview.combined_markdown.includes("### Expected Return Signal"),
   "combined copy packet must include expected return signal",
@@ -412,4 +430,8 @@ function assertNoForbiddenRuntimeCode(file, text) {
   for (const pattern of forbiddenPatterns) {
     assert(!pattern.test(text), `${file} must not include ${pattern}`);
   }
+}
+
+function countOccurrences(text, needle) {
+  return text.split(needle).length - 1;
 }

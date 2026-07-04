@@ -335,6 +335,7 @@ function assertHelper() {
     "formatContextRelayRationaleForCopy",
     "context_relay_rationale",
     "context_rationale_selected_ref_count",
+    "include_context_relay_rationale",
     "## Context Relay Rationale",
     "### Why Included",
     "### Expected Return Signal",
