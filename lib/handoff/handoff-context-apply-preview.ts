@@ -36,7 +36,13 @@ export function buildHandoffContextApplyPreviewV01(
   input: HandoffContextApplyPreviewInput = {},
 ): HandoffContextApplyPreview {
   const recordReview = input.record_review ?? null;
-  const selectedRecord = input.selected_record ?? null;
+  const selectedRecordLike = input.selected_record ?? null;
+  const selectedRecord = isFullOperatorApprovedRecordMaterial(selectedRecordLike)
+    ? selectedRecordLike
+    : null;
+  const selectedRecordMaterialProblems = selectedRecordLike
+    ? fullRecordMaterialProblems(selectedRecordLike)
+    : [];
   const scope =
     input.scope ?? recordReview?.scope ?? OPERATOR_APPROVED_HANDOFF_CONTEXT_UPDATE_SCOPE;
   const asOf = input.as_of ?? recordReview?.as_of ?? new Date(0).toISOString();
@@ -46,11 +52,15 @@ export function buildHandoffContextApplyPreviewV01(
     currentContext,
   });
   const currentSelectedRefSet = new Set(currentSelectedRefs);
-  const selectedSummary = selectRecordSummary(recordReview, selectedRecord);
-  const selectedRecordRef = selectedRecord?.record_id ?? selectedSummary?.record_id ?? null;
+  const selectedSummary = selectRecordSummary(recordReview, selectedRecordLike);
+  const selectedRecordRef =
+    operatorApprovedRecordRef(selectedRecordLike) ??
+    selectedSummary?.record_id ??
+    null;
   const selectedRecordFound =
-    Boolean(selectedRecord) || Boolean(selectedSummary);
-  const selectedFullRecordSupplied = isOperatorApprovedRecord(selectedRecord);
+    Boolean(operatorApprovedRecordRef(selectedRecordLike)) ||
+    Boolean(selectedSummary);
+  const selectedFullRecordSupplied = Boolean(selectedRecord);
   const reviewProblemRecordIds =
     recordReview?.evidence_summary.problem_record_ids ?? [];
   const sourceRefs = uniqueSortedStrings([
@@ -90,6 +100,7 @@ export function buildHandoffContextApplyPreviewV01(
   if (selectedRecordFound && !selectedFullRecordSupplied) {
     insufficientDataReasons.push("no_apply_material");
     insufficientDataReasons.push("selected_full_record_material_missing");
+    insufficientDataReasons.push(...selectedRecordMaterialProblems);
   }
 
   const delta = emptyDelta();
@@ -103,7 +114,7 @@ export function buildHandoffContextApplyPreviewV01(
   };
   const missingEvidence = [...(recordReview?.evidence_summary.missing_evidence ?? [])];
 
-  if (selectedFullRecordSupplied) {
+  if (selectedRecord) {
     mapSelectedCandidates({
       candidates: selectedRecord.approved_candidate_material
         .selected_ref_add_candidates,
@@ -351,7 +362,7 @@ export function createHandoffContextApplyPreviewAuthorityBoundaryV01(): HandoffC
 
 function selectRecordSummary(
   recordReview: ApprovedHandoffContextUpdateRecordReview | null,
-  selectedRecord: OperatorApprovedHandoffContextUpdateRecord | null,
+  selectedRecord: unknown,
 ): ApprovedHandoffContextUpdateRecordSummary | null {
   if (!recordReview) return null;
   if (recordReview.selected_record_summary) return recordReview.selected_record_summary;
@@ -362,7 +373,7 @@ function selectRecordSummary(
   ) {
     return null;
   }
-  const selectedRecordId = selectedRecord?.record_id ?? null;
+  const selectedRecordId = operatorApprovedRecordRef(selectedRecord);
   if (selectedRecordId) {
     const matchingSummary = recordReview.record_summaries.find(
       (summary) =>
@@ -573,9 +584,8 @@ function buildEvidenceSummary({
     applyCandidates.every((candidate) => candidate.evidence_refs.length > 0);
   return {
     has_record_review: Boolean(recordReview),
-    has_selected_record: Boolean(selectedRecord) || Boolean(
-      recordReview?.selected_record_summary,
-    ),
+    has_selected_record:
+      Boolean(selectedRecord) || Boolean(recordReview?.selected_record_summary),
     has_full_record_material: Boolean(selectedRecord),
     has_source_refs: sourceRefs.length > 0,
     has_evidence_refs: evidenceRefs.length > 0,
@@ -672,15 +682,95 @@ function emptyDelta(): HandoffContextApplyPreviewDelta {
   };
 }
 
-function isOperatorApprovedRecord(
-  record: OperatorApprovedHandoffContextUpdateRecord | null,
+function isFullOperatorApprovedRecordMaterial(
+  record: unknown,
 ): record is OperatorApprovedHandoffContextUpdateRecord {
-  return (
-    record?.record_version ===
-      OPERATOR_APPROVED_HANDOFF_CONTEXT_UPDATE_RECORD_VERSION &&
-    typeof record.record_id === "string" &&
-    record.record_id.length > 0
-  );
+  return fullRecordMaterialProblems(record).length === 0;
+}
+
+function fullRecordMaterialProblems(record: unknown): string[] {
+  const reasons: string[] = [];
+  if (!operatorApprovedRecordRef(record)) {
+    return ["selected_record_full_material_invalid"];
+  }
+  const recordValue = isRecord(record) ? record : null;
+  const approvedMaterial = getRecord(recordValue, "approved_candidate_material");
+  const carryForwardMaterial = getRecord(recordValue, "carry_forward_material");
+  const decisionPreviewRefs = getRecord(recordValue, "decision_preview_refs");
+  const updatePreviewRefs = getRecord(recordValue, "update_preview_refs");
+  const evidenceSummary = getRecord(recordValue, "evidence_summary");
+
+  if (
+    !hasArrayFields(approvedMaterial, [
+      "selected_ref_add_candidates",
+      "selected_ref_reinforcement_candidates",
+      "warning_update_candidates",
+      "context_diet_candidates",
+      "keep_unknown_candidates",
+      "expected_return_signal_candidates",
+    ])
+  ) {
+    reasons.push("selected_record_approved_candidate_material_invalid");
+  }
+  if (
+    !hasArrayFields(carryForwardMaterial, [
+      "unresolved_blockers",
+      "missing_evidence",
+      "stop_if_missing_candidates",
+      "rejected_or_excluded_candidates",
+    ])
+  ) {
+    reasons.push("selected_record_carry_forward_material_invalid");
+  }
+  if (
+    !isStringArray(recordValue?.source_refs) ||
+    !isStringArray(decisionPreviewRefs?.source_refs) ||
+    !isStringArray(updatePreviewRefs?.source_refs) ||
+    !isStringArray(updatePreviewRefs?.evidence_refs) ||
+    !isStringArray(evidenceSummary?.evidence_refs)
+  ) {
+    reasons.push("selected_record_source_or_evidence_refs_invalid");
+  }
+  return reasons.length > 0
+    ? uniqueSortedStrings(["selected_record_full_material_invalid", ...reasons])
+    : [];
+}
+
+function operatorApprovedRecordRef(record: unknown): string | null {
+  if (!isRecord(record)) return null;
+  if (
+    record.record_version !==
+    OPERATOR_APPROVED_HANDOFF_CONTEXT_UPDATE_RECORD_VERSION
+  ) {
+    return null;
+  }
+  return typeof record.record_id === "string" && record.record_id.length > 0
+    ? record.record_id
+    : null;
+}
+
+function hasArrayFields(
+  value: Record<string, unknown> | null,
+  fields: string[],
+): boolean {
+  if (!value) return false;
+  return fields.every((field) => Array.isArray(value[field]));
+}
+
+function getRecord(
+  value: Record<string, unknown> | null,
+  field: string,
+): Record<string, unknown> | null {
+  const nested = value?.[field];
+  return isRecord(nested) ? nested : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
 function uniqueSortedStrings(values: string[]): string[] {

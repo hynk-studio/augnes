@@ -109,6 +109,9 @@ assertContainsAll(
     "createHandoffContextApplyPreviewAuthorityBoundaryV01",
     "no_apply_material",
     "selected_full_record_material_missing",
+    "selected_record_full_material_invalid",
+    "selected_record_approved_candidate_material_invalid",
+    "selected_record_carry_forward_material_invalid",
     "unknown_selected_ref_candidate",
     "selected_ref_candidate_missing_evidence",
     "current_handoff_context_missing",
@@ -219,6 +222,40 @@ assert.equal(summaryOnlyPreview.input_summary.apply_candidate_count, 0);
 assert.equal(
   summaryOnlyPreview.proposed_apply_delta.selected_refs_to_add.length,
   0,
+);
+
+let partialSelectedRecordPreview;
+assert.doesNotThrow(() => {
+  partialSelectedRecordPreview = buildHandoffContextApplyPreviewV01({
+    record_review: validReview,
+    selected_record: {
+      record_version: "operator_approved_handoff_context_update_record.v0.1",
+      record_id: validRecord.record_id,
+    },
+    as_of: "2026-07-04T10:05:30.000Z",
+  });
+});
+assert(
+  ["insufficient_data", "blocked"].includes(
+    partialSelectedRecordPreview.preview_status,
+  ),
+);
+assert.equal(
+  partialSelectedRecordPreview.input_summary.selected_full_record_supplied,
+  false,
+);
+assert.equal(partialSelectedRecordPreview.input_summary.apply_candidate_count, 0);
+assert.equal(
+  partialSelectedRecordPreview.proposed_apply_delta.selected_refs_to_add.length,
+  0,
+);
+assert(
+  partialSelectedRecordPreview.insufficient_data_reasons.includes(
+    "selected_record_full_material_invalid",
+  ) ||
+    partialSelectedRecordPreview.blocked_reasons.includes(
+      "selected_record_full_material_invalid",
+    ),
 );
 
 const positivePreview = buildHandoffContextApplyPreviewV01({
@@ -464,6 +501,7 @@ console.log(
       pass: true,
       no_records_checked: true,
       summary_only_no_apply_material_checked: true,
+      partial_selected_record_no_throw_checked: true,
       positive_mapping_checked: true,
       invalid_record_review_blocked_checked: true,
       selected_record_missing_checked: true,
