@@ -16,6 +16,7 @@ import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-c
 import { HandoffCopyExportPanel } from "@/components/handoff/handoff-copy-export-panel";
 import { HandoffCapsulePreviewPanel } from "@/components/handoff/handoff-capsule-preview-panel";
 import { HandoffContextRelayRationalePanel } from "@/components/handoff/handoff-context-relay-rationale-panel";
+import { HandoffContextUpdateOperatorDecisionPreviewPanel } from "@/components/handoff/handoff-context-update-operator-decision-preview-panel";
 import { HandoffContextUpdatePreviewPanel } from "@/components/handoff/handoff-context-update-preview-panel";
 import { HandoffPreviewBoundaryCard } from "@/components/handoff/handoff-preview-boundary-card";
 import { PerspectiveNextWorkCandidateUpdatePreviewPanel } from "@/components/perspective-next-work-candidate-update-preview-panel";
@@ -54,6 +55,7 @@ import {
   buildWorkplaneIntentProjection,
   WORKPLANE_INTENT_PROJECTION_DEFAULT_INPUT,
 } from "@/lib/guide/workplane-intent-projection";
+import { buildHandoffContextUpdateOperatorDecisionPreviewV01 } from "@/lib/handoff/handoff-context-update-operator-decision-preview";
 import { buildHandoffContextUpdatePreviewV01 } from "@/lib/handoff/handoff-context-update-preview";
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
 import { buildHandoffContextRelayRationale } from "@/lib/handoff/handoff-context-relay-rationale";
@@ -256,6 +258,15 @@ export async function AgentWorkplane() {
       "workbench:default_handoff_context_update_preview",
     ],
   });
+  const handoffContextUpdateOperatorDecisionPreview =
+    buildHandoffContextUpdateOperatorDecisionPreviewV01({
+      handoff_context_update_preview: handoffContextUpdatePreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:default_handoff_context_update_operator_decision_preview",
+      ],
+    });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -338,6 +349,9 @@ export async function AgentWorkplane() {
               />
               <HandoffContextUpdatePreviewPanel
                 preview={handoffContextUpdatePreview}
+              />
+              <HandoffContextUpdateOperatorDecisionPreviewPanel
+                preview={handoffContextUpdateOperatorDecisionPreview}
               />
               <HandoffCopyExportPanel
                 preview={handoffPreview}

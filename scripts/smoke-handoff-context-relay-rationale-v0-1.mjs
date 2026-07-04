@@ -75,6 +75,14 @@ const handoffContextUpdatePreviewPanelFile =
   "components/handoff/handoff-context-update-preview-panel.tsx";
 const handoffContextUpdatePreviewSmokeFile =
   "scripts/smoke-handoff-context-update-preview-v0-1.mjs";
+const handoffContextUpdateOperatorDecisionTypeFile =
+  "types/handoff-context-update-operator-decision-preview.ts";
+const handoffContextUpdateOperatorDecisionHelperFile =
+  "lib/handoff/handoff-context-update-operator-decision-preview.ts";
+const handoffContextUpdateOperatorDecisionPanelFile =
+  "components/handoff/handoff-context-update-operator-decision-preview-panel.tsx";
+const handoffContextUpdateOperatorDecisionSmokeFile =
+  "scripts/smoke-handoff-context-update-operator-decision-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -114,6 +122,10 @@ const allowedChangedFiles = [
   handoffContextUpdatePreviewHelperFile,
   handoffContextUpdatePreviewPanelFile,
   handoffContextUpdatePreviewSmokeFile,
+  handoffContextUpdateOperatorDecisionTypeFile,
+  handoffContextUpdateOperatorDecisionHelperFile,
+  handoffContextUpdateOperatorDecisionPanelFile,
+  handoffContextUpdateOperatorDecisionSmokeFile,
 ];
 
 const textByFile = loadTextByFile([

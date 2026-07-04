@@ -30,6 +30,14 @@ const handoffRationaleHelperFile =
 const handoffRationaleSmokeFile =
   "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
 const agentWorkplaneSmokeFile = "scripts/smoke-agent-workplane-panels-v0-1.mjs";
+const handoffContextUpdateOperatorDecisionTypeFile =
+  "types/handoff-context-update-operator-decision-preview.ts";
+const handoffContextUpdateOperatorDecisionHelperFile =
+  "lib/handoff/handoff-context-update-operator-decision-preview.ts";
+const handoffContextUpdateOperatorDecisionPanelFile =
+  "components/handoff/handoff-context-update-operator-decision-preview-panel.tsx";
+const handoffContextUpdateOperatorDecisionSmokeFile =
+  "scripts/smoke-handoff-context-update-operator-decision-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -41,6 +49,10 @@ const allowedChangedFiles = [
   metricAdjustmentSmokeFile,
   handoffRationaleSmokeFile,
   agentWorkplaneSmokeFile,
+  handoffContextUpdateOperatorDecisionTypeFile,
+  handoffContextUpdateOperatorDecisionHelperFile,
+  handoffContextUpdateOperatorDecisionPanelFile,
+  handoffContextUpdateOperatorDecisionSmokeFile,
 ];
 
 const textByFile = loadTextByFile([
