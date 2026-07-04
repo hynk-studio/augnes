@@ -30,6 +30,13 @@ const writeSmokeFile =
   "scripts/smoke-handoff-context-update-write-v0-1.mjs";
 const agentWorkplaneSmokeFile =
   "scripts/smoke-agent-workplane-panels-v0-1.mjs";
+const applyPreviewTypeFile = "types/handoff-context-apply-preview.ts";
+const applyPreviewHelperFile =
+  "lib/handoff/handoff-context-apply-preview.ts";
+const applyPreviewPanelFile =
+  "components/handoff/handoff-context-apply-preview-panel.tsx";
+const applyPreviewSmokeFile =
+  "scripts/smoke-handoff-context-apply-preview-v0-1.mjs";
 const decisionSmokeFile =
   "scripts/smoke-handoff-context-update-operator-decision-preview-v0-1.mjs";
 const previewSmokeFile =
@@ -47,6 +54,10 @@ const allowedChangedFiles = [
   reviewSmokeFile,
   writeSmokeFile,
   agentWorkplaneSmokeFile,
+  applyPreviewTypeFile,
+  applyPreviewHelperFile,
+  applyPreviewPanelFile,
+  applyPreviewSmokeFile,
   decisionSmokeFile,
   previewSmokeFile,
   metricAdjustmentSmokeFile,

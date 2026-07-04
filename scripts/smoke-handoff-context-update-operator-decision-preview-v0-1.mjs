@@ -53,6 +53,14 @@ const handoffContextUpdateRecordReviewSmokeFile =
   "scripts/smoke-handoff-context-update-record-review-v0-1.mjs";
 const handoffContextUpdateRecordReviewDbReadSmokeFile =
   "scripts/smoke-handoff-context-update-record-review-db-read-v0-1.mjs";
+const handoffContextApplyPreviewTypeFile =
+  "types/handoff-context-apply-preview.ts";
+const handoffContextApplyPreviewHelperFile =
+  "lib/handoff/handoff-context-apply-preview.ts";
+const handoffContextApplyPreviewPanelFile =
+  "components/handoff/handoff-context-apply-preview-panel.tsx";
+const handoffContextApplyPreviewSmokeFile =
+  "scripts/smoke-handoff-context-apply-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -75,6 +83,10 @@ const allowedChangedFiles = [
   handoffContextUpdateRecordReviewPanelFile,
   handoffContextUpdateRecordReviewSmokeFile,
   handoffContextUpdateRecordReviewDbReadSmokeFile,
+  handoffContextApplyPreviewTypeFile,
+  handoffContextApplyPreviewHelperFile,
+  handoffContextApplyPreviewPanelFile,
+  handoffContextApplyPreviewSmokeFile,
 ];
 
 const textByFile = loadTextByFile([
