@@ -15,6 +15,14 @@ const helperFile = "lib/handoff/handoff-context-apply-preview.ts";
 const panelFile = "components/handoff/handoff-context-apply-preview-panel.tsx";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
 const smokeFile = "scripts/smoke-handoff-context-apply-preview-v0-1.mjs";
+const applyDecisionTypeFile =
+  "types/handoff-context-apply-operator-decision-preview.ts";
+const applyDecisionHelperFile =
+  "lib/handoff/handoff-context-apply-operator-decision-preview.ts";
+const applyDecisionPanelFile =
+  "components/handoff/handoff-context-apply-operator-decision-preview-panel.tsx";
+const applyDecisionSmokeFile =
+  "scripts/smoke-handoff-context-apply-operator-decision-preview-v0-1.mjs";
 const recordReviewTypeFile =
   "types/handoff-context-update-record-review.ts";
 const recordReviewHelperFile =
@@ -43,6 +51,10 @@ const allowedChangedFiles = [
   typeFile,
   helperFile,
   panelFile,
+  applyDecisionTypeFile,
+  applyDecisionHelperFile,
+  applyDecisionPanelFile,
+  applyDecisionSmokeFile,
   agentWorkplaneFile,
   smokeFile,
   recordReviewSmokeFile,

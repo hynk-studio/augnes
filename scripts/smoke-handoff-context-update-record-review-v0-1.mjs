@@ -28,6 +28,14 @@ const applyPreviewPanelFile =
   "components/handoff/handoff-context-apply-preview-panel.tsx";
 const applyPreviewSmokeFile =
   "scripts/smoke-handoff-context-apply-preview-v0-1.mjs";
+const applyDecisionTypeFile =
+  "types/handoff-context-apply-operator-decision-preview.ts";
+const applyDecisionHelperFile =
+  "lib/handoff/handoff-context-apply-operator-decision-preview.ts";
+const applyDecisionPanelFile =
+  "components/handoff/handoff-context-apply-operator-decision-preview-panel.tsx";
+const applyDecisionSmokeFile =
+  "scripts/smoke-handoff-context-apply-operator-decision-preview-v0-1.mjs";
 const packageJsonFile = "package.json";
 const writeSmokeFile =
   "scripts/smoke-handoff-context-update-write-v0-1.mjs";
@@ -54,6 +62,10 @@ const allowedChangedFiles = [
   applyPreviewHelperFile,
   applyPreviewPanelFile,
   applyPreviewSmokeFile,
+  applyDecisionTypeFile,
+  applyDecisionHelperFile,
+  applyDecisionPanelFile,
+  applyDecisionSmokeFile,
   packageJsonFile,
   writeSmokeFile,
   decisionSmokeFile,

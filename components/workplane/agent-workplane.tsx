@@ -13,6 +13,7 @@ import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { GuideIntentProjectionPanel } from "@/components/guide/guide-intent-projection-panel";
 import { GuideWorkplaneDebugPanel } from "@/components/guide/guide-workplane-debug-panel";
 import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
+import { HandoffContextApplyOperatorDecisionPreviewPanel } from "@/components/handoff/handoff-context-apply-operator-decision-preview-panel";
 import { HandoffContextApplyPreviewPanel } from "@/components/handoff/handoff-context-apply-preview-panel";
 import { HandoffCopyExportPanel } from "@/components/handoff/handoff-copy-export-panel";
 import { HandoffCapsulePreviewPanel } from "@/components/handoff/handoff-capsule-preview-panel";
@@ -57,6 +58,7 @@ import {
   buildWorkplaneIntentProjection,
   WORKPLANE_INTENT_PROJECTION_DEFAULT_INPUT,
 } from "@/lib/guide/workplane-intent-projection";
+import { buildHandoffContextApplyOperatorDecisionPreviewV01 } from "@/lib/handoff/handoff-context-apply-operator-decision-preview";
 import { buildHandoffContextApplyPreviewV01 } from "@/lib/handoff/handoff-context-apply-preview";
 import { buildHandoffContextUpdateOperatorDecisionPreviewV01 } from "@/lib/handoff/handoff-context-update-operator-decision-preview";
 import { buildHandoffContextUpdatePreviewV01 } from "@/lib/handoff/handoff-context-update-preview";
@@ -290,6 +292,15 @@ export async function AgentWorkplane() {
       "workbench:handoff_context_apply_preview",
     ],
   });
+  const handoffContextApplyOperatorDecisionPreview =
+    buildHandoffContextApplyOperatorDecisionPreviewV01({
+      apply_preview: handoffContextApplyPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:handoff_context_apply_operator_decision_preview",
+      ],
+    });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -381,6 +392,9 @@ export async function AgentWorkplane() {
               />
               <HandoffContextApplyPreviewPanel
                 preview={handoffContextApplyPreview}
+              />
+              <HandoffContextApplyOperatorDecisionPreviewPanel
+                preview={handoffContextApplyOperatorDecisionPreview}
               />
               <HandoffCopyExportPanel
                 preview={handoffPreview}
