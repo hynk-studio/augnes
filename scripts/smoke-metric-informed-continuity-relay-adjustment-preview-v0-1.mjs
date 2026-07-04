@@ -53,6 +53,14 @@ const handoffContextUpdateOperatorDecisionPanelFile =
   "components/handoff/handoff-context-update-operator-decision-preview-panel.tsx";
 const handoffContextUpdateOperatorDecisionSmokeFile =
   "scripts/smoke-handoff-context-update-operator-decision-preview-v0-1.mjs";
+const handoffContextUpdateWriteTypeFile =
+  "types/handoff-context-update-write.ts";
+const handoffContextUpdateWriteHelperFile =
+  "lib/handoff/handoff-context-update-write.ts";
+const handoffContextUpdateWriteRouteFile =
+  "app/api/handoff/context-updates/route.ts";
+const handoffContextUpdateWriteSmokeFile =
+  "scripts/smoke-handoff-context-update-write-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -75,6 +83,10 @@ const allowedChangedFiles = [
   handoffContextUpdateOperatorDecisionHelperFile,
   handoffContextUpdateOperatorDecisionPanelFile,
   handoffContextUpdateOperatorDecisionSmokeFile,
+  handoffContextUpdateWriteTypeFile,
+  handoffContextUpdateWriteHelperFile,
+  handoffContextUpdateWriteRouteFile,
+  handoffContextUpdateWriteSmokeFile,
 ];
 
 const textByFile = loadTextByFile([
@@ -446,7 +458,11 @@ assert.deepEqual(
   )}`,
 );
 for (const file of changedFilesBoundary.files) {
-  assert(!/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file), "no new route file is allowed");
+  assert(
+    file === handoffContextUpdateWriteRouteFile ||
+      !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file),
+    "no new route file is allowed except the follow-on handoff context update write route",
+  );
 }
 
 console.log(

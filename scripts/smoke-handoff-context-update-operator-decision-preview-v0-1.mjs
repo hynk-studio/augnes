@@ -33,6 +33,14 @@ const metricInformedContinuityRelayAdjustmentSmokeFile =
 const handoffContextRelayRationaleSmokeFile =
   "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
 const agentWorkplaneSmokeFile = "scripts/smoke-agent-workplane-panels-v0-1.mjs";
+const handoffContextUpdateWriteTypeFile =
+  "types/handoff-context-update-write.ts";
+const handoffContextUpdateWriteHelperFile =
+  "lib/handoff/handoff-context-update-write.ts";
+const handoffContextUpdateWriteRouteFile =
+  "app/api/handoff/context-updates/route.ts";
+const handoffContextUpdateWriteSmokeFile =
+  "scripts/smoke-handoff-context-update-write-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -45,6 +53,10 @@ const allowedChangedFiles = [
   metricInformedContinuityRelayAdjustmentSmokeFile,
   handoffContextRelayRationaleSmokeFile,
   agentWorkplaneSmokeFile,
+  handoffContextUpdateWriteTypeFile,
+  handoffContextUpdateWriteHelperFile,
+  handoffContextUpdateWriteRouteFile,
+  handoffContextUpdateWriteSmokeFile,
 ];
 
 const textByFile = loadTextByFile([
@@ -433,7 +445,11 @@ assert.deepEqual(
   )}`,
 );
 for (const file of changedFilesBoundary.files) {
-  assert(!/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file), "no route file is allowed");
+  assert(
+    file === handoffContextUpdateWriteRouteFile ||
+      !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file),
+    "no route file is allowed except the follow-on handoff context update write route",
+  );
 }
 
 console.log(
