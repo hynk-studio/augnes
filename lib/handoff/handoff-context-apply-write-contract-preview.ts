@@ -55,6 +55,7 @@ export function buildHandoffContextApplyWriteContractPreviewV01({
   const missingEvidence = uniqueSortedStrings([
     ...(preview?.missing_evidence ?? []),
     ...(preview?.evidence_summary.missing_evidence ?? []),
+    ...(preview?.readiness.current_missing_evidence ?? []),
   ]);
   const refusalReasons = buildRefusalReasons({
     current_handoff_packet_fingerprint,
@@ -540,6 +541,9 @@ function buildInsufficientDataReasons({
     ...(preview && !preview.readiness.ready_for_future_apply_write
       ? ["decision_preview_not_ready_for_future_apply_write"]
       : []),
+    ...(preview?.readiness.current_missing_evidence.length
+      ? ["source_decision_current_missing_evidence_present"]
+      : []),
     ...(preview?.would_apply_preview.proposed_record_kind !==
     "handoff_context_apply_write_candidate.v0.1"
       ? ["apply_write_candidate_kind_missing_or_invalid"]
@@ -590,6 +594,12 @@ function buildBlockedReasons({
       ? ["blocked_apply_operator_decision_preview_status"]
       : []),
     ...(preview?.blocking_reasons ?? []),
+    ...(preview?.readiness.current_blockers.length
+      ? [
+          "source_decision_current_blockers_present",
+          ...preview.readiness.current_blockers,
+        ]
+      : []),
     ...(sourceStatus.authority_boundary !== "valid_read_only"
       ? ["blocked_decision_preview_authority_boundary_invalid"]
       : []),

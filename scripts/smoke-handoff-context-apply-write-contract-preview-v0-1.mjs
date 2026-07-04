@@ -270,6 +270,65 @@ const reviewReadySource = contractFor({
 });
 assert.equal(reviewReadySource.readiness.ready_for_future_write_scope, false);
 
+const readinessBlockerSource = contractFor({
+  apply_operator_decision_preview: decisionPreview({
+    decision_preview_status: "ready_for_future_apply_write",
+    recommended_operator_decision: "approve_for_future_apply_write",
+    ready_for_future_apply_write: true,
+    blocking_reasons: [],
+    missing_evidence: [],
+    current_blockers: ["blocked-in-readiness"],
+  }),
+  current_handoff_packet_fingerprint: "packet-fingerprint:durable-contract",
+  current_handoff_context_ref: "handoff-context:durable-contract",
+  requested_operator_ref: "operator:durable-contract",
+  requested_idempotency_key: "idempotency:durable-contract",
+});
+assert.equal(
+  readinessBlockerSource.readiness.ready_for_future_write_scope,
+  false,
+);
+assert(
+  ["blocked", "insufficient_data"].includes(
+    readinessBlockerSource.contract_preview_status,
+  ),
+);
+assert(
+  readinessBlockerSource.blocked_reasons.includes(
+    "source_decision_current_blockers_present",
+  ) ||
+    readinessBlockerSource.readiness.current_blockers.includes(
+      "blocked-in-readiness",
+    ),
+);
+
+const readinessMissingEvidenceSource = contractFor({
+  apply_operator_decision_preview: decisionPreview({
+    decision_preview_status: "ready_for_future_apply_write",
+    recommended_operator_decision: "approve_for_future_apply_write",
+    ready_for_future_apply_write: true,
+    blocking_reasons: [],
+    missing_evidence: [],
+    current_missing_evidence: ["missing-in-readiness"],
+  }),
+  current_handoff_packet_fingerprint: "packet-fingerprint:durable-contract",
+  current_handoff_context_ref: "handoff-context:durable-contract",
+  requested_operator_ref: "operator:durable-contract",
+  requested_idempotency_key: "idempotency:durable-contract",
+});
+assert.equal(
+  readinessMissingEvidenceSource.readiness.ready_for_future_write_scope,
+  false,
+);
+assert(
+  readinessMissingEvidenceSource.missing_evidence.includes(
+    "missing-in-readiness",
+  ) ||
+    readinessMissingEvidenceSource.insufficient_data_reasons.includes(
+      "source_decision_current_missing_evidence_present",
+    ),
+);
+
 const missingFingerprint = contractFor({
   apply_operator_decision_preview: readyDecisionPreview(),
   current_handoff_context_ref: "handoff-context:durable-contract",
@@ -571,9 +630,14 @@ function decisionPreview({
   blocking_reasons = [],
   insufficient_data_reasons = [],
   missing_evidence = [],
+  current_blockers,
+  current_missing_evidence,
   carry_forward_overrides = {},
   authority_overrides = {},
 }) {
+  const readinessCurrentBlockers = current_blockers ?? blocking_reasons;
+  const readinessCurrentMissingEvidence =
+    current_missing_evidence ?? missing_evidence;
   const wouldApplyPreview = {
     proposed_record_kind:
       live_candidates.length > 0
@@ -662,8 +726,8 @@ function decisionPreview({
       requires_no_problem_records: true,
       requires_read_only_apply_preview: true,
       requires_operator_confirmation: true,
-      current_blockers: blocking_reasons,
-      current_missing_evidence: missing_evidence,
+      current_blockers: readinessCurrentBlockers,
+      current_missing_evidence: readinessCurrentMissingEvidence,
     },
     approval_requirements: [
       "operator confirms separate apply write scope is required",
