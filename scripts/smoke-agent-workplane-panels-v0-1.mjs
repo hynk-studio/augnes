@@ -141,6 +141,14 @@ const handoffContextApplyPreviewPanelFile =
   "components/handoff/handoff-context-apply-preview-panel.tsx";
 const handoffContextApplyPreviewSmokeFile =
   "scripts/smoke-handoff-context-apply-preview-v0-1.mjs";
+const handoffContextApplyDecisionTypeFile =
+  "types/handoff-context-apply-operator-decision-preview.ts";
+const handoffContextApplyDecisionHelperFile =
+  "lib/handoff/handoff-context-apply-operator-decision-preview.ts";
+const handoffContextApplyDecisionPanelFile =
+  "components/handoff/handoff-context-apply-operator-decision-preview-panel.tsx";
+const handoffContextApplyDecisionSmokeFile =
+  "scripts/smoke-handoff-context-apply-operator-decision-preview-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -595,6 +603,24 @@ const followOnHandoffContextApplyPreviewFiles = [
   smokeFile,
 ];
 
+const followOnHandoffContextApplyOperatorDecisionPreviewFiles = [
+  handoffContextApplyDecisionTypeFile,
+  handoffContextApplyDecisionHelperFile,
+  handoffContextApplyDecisionPanelFile,
+  handoffContextApplyDecisionSmokeFile,
+  handoffContextApplyPreviewSmokeFile,
+  handoffContextUpdateRecordReviewDbReadSmokeFile,
+  handoffContextUpdateRecordReviewSmokeFile,
+  handoffContextUpdateWriteSmokeFile,
+  handoffContextUpdateOperatorDecisionSmokeFile,
+  handoffContextUpdatePreviewSmokeFile,
+  metricInformedContinuityRelayAdjustmentSmokeFile,
+  handoffRationaleSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -940,6 +966,7 @@ const allowedChangedFiles = new Set([
   ...followOnHandoffContextUpdateWriteFiles,
   ...followOnHandoffContextUpdateRecordReviewFiles,
   ...followOnHandoffContextApplyPreviewFiles,
+  ...followOnHandoffContextApplyOperatorDecisionPreviewFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
