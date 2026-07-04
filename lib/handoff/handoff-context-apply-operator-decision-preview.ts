@@ -620,19 +620,47 @@ function determineRecommendedOperatorDecision({
   if (decisionPreviewStatus === "ready_for_operator_review") {
     return "review_for_future_apply_write";
   }
-  if (decisionPreviewStatus === "blocked" || blockingReasons.length > 0) {
-    return "defer_until_blockers_resolved";
-  }
   if (
-    !preview ||
-    insufficientDataReasons.includes("selected_full_record_material_missing") ||
-    insufficientDataReasons.includes("apply_preview_no_selected_record") ||
-    insufficientDataReasons.includes("apply_preview_missing") ||
-    missingEvidence.length > 0
+    shouldDeferUntilApplyMaterialSupplied({
+      preview,
+      insufficientDataReasons,
+      missingEvidence,
+    })
   ) {
     return "defer_until_record_material_supplied";
   }
+  if (decisionPreviewStatus === "blocked" || blockingReasons.length > 0) {
+    return "defer_until_blockers_resolved";
+  }
   return "keep_preview_only";
+}
+
+function shouldDeferUntilApplyMaterialSupplied({
+  preview,
+  insufficientDataReasons,
+  missingEvidence,
+}: {
+  preview: HandoffContextApplyPreview | null;
+  insufficientDataReasons: string[];
+  missingEvidence: string[];
+}): boolean {
+  if (!preview || missingEvidence.length > 0) return true;
+  const materialSupplyReasons = new Set([
+    "apply_preview_missing",
+    "apply_preview_wrong_version",
+    "apply_preview_malformed",
+    "apply_preview_delta_missing_or_invalid",
+    "apply_preview_input_summary_missing_or_invalid",
+    "apply_preview_evidence_summary_missing_or_invalid",
+    "apply_preview_conflict_summary_missing_or_invalid",
+    "apply_preview_authority_boundary_missing_or_invalid",
+    "selected_full_record_material_missing",
+    "apply_preview_no_selected_record",
+    "apply_candidate_material_missing",
+  ]);
+  return insufficientDataReasons.some((reason) =>
+    materialSupplyReasons.has(reason),
+  );
 }
 
 function buildEvidenceSummary({

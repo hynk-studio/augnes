@@ -187,6 +187,10 @@ const missingPreviewDecision =
   });
 assert.equal(missingPreviewDecision.decision_preview_status, "insufficient_data");
 assert.equal(missingPreviewDecision.readiness.ready_for_future_apply_write, false);
+assert.equal(
+  missingPreviewDecision.recommended_operator_decision,
+  "defer_until_record_material_supplied",
+);
 assert(
   missingPreviewDecision.insufficient_data_reasons.includes(
     "apply_preview_missing",
@@ -216,6 +220,10 @@ assert(
       "blocked_wrong_apply_preview_version",
     ),
 );
+assert.notEqual(
+  wrongVersionDecision.recommended_operator_decision,
+  "defer_until_blockers_resolved",
+);
 
 let malformedPreviewDecision;
 assert.doesNotThrow(() => {
@@ -237,6 +245,10 @@ assert.equal(
   false,
 );
 assertWouldApplyLiveMaterialEmpty(malformedPreviewDecision);
+assert.equal(
+  malformedPreviewDecision.recommended_operator_decision,
+  "defer_until_record_material_supplied",
+);
 assert(
   [
     ...malformedPreviewDecision.insufficient_data_reasons,
@@ -284,6 +296,10 @@ const blockedStatusDecision = decisionForPreview(applyPreview({
   blocked_reasons: ["record_review_problem_record:hcu-record:durable-problem"],
 }));
 assert.equal(blockedStatusDecision.decision_preview_status, "blocked");
+assert.equal(
+  blockedStatusDecision.recommended_operator_decision,
+  "defer_until_blockers_resolved",
+);
 
 const summaryOnlyDecision = decisionForPreview(applyPreview({
   preview_status: "insufficient_data",
@@ -477,6 +493,10 @@ const reviewOnlyDecision = decisionForPreview(applyPreview({
 assert.equal(
   reviewOnlyDecision.decision_preview_status,
   "ready_for_operator_review",
+);
+assert.equal(
+  reviewOnlyDecision.recommended_operator_decision,
+  "review_for_future_apply_write",
 );
 assert.equal(reviewOnlyDecision.readiness.ready_for_future_apply_write, false);
 assert.equal(
