@@ -143,9 +143,17 @@ assertContainsAll(
   [
     "CodexResultFeedbackDraftPanel",
     "Feedback draft",
+    "sample fixture preview",
+    "source status",
+    "result report",
+    "report fingerprint",
     "expected vs observed",
     "skipped checks",
     "reuse outcome",
+    "stale",
+    "missing",
+    "noisy",
+    "misleading",
     "carry forward",
     "insufficient data",
     "Read-only candidate material",
@@ -245,6 +253,14 @@ const draft = buildCodexResultFeedbackDraft({
 assert.equal(draft.draft_version, CODEX_RESULT_FEEDBACK_DRAFT_VERSION);
 assert.equal(draft.source_status.handoff_context_rationale, "supplied");
 assert.equal(draft.source_status.codex_result_report, "supplied");
+assert.equal(
+  draft.result_report_refs.result_report_ref,
+  fixture.safe_input_example.report_id,
+);
+assert(
+  draft.result_report_refs.result_report_fingerprint,
+  "fixture-backed draft must expose a result report fingerprint",
+);
 assert.equal(draft.authority_boundary.read_only, true);
 assert.equal(draft.authority_boundary.candidate_material_only, true);
 assert.equal(draft.authority_boundary.source_of_truth, false);
@@ -310,8 +326,8 @@ assert(draft.carry_forward_suggestions.next_handoff_adjustments.length > 0);
 
 const reusableRefs = rationale.selected_refs
   .filter((ref) => !ref.ref_id.startsWith("missing:"))
-  .slice(0, 3);
-assert(reusableRefs.length >= 3, "fixture rationale must expose selected refs");
+  .slice(0, 5);
+assert(reusableRefs.length >= 5, "fixture rationale must expose selected refs");
 const explicitFeedbackReport = normalizeCodexResultReportV01({
   ...fixture.safe_input_example,
   report_id: "codex-result-report:feedback-draft-explicit-context",
@@ -319,6 +335,8 @@ const explicitFeedbackReport = normalizeCodexResultReportV01({
     `context-helpful-ref:${reusableRefs[0].ref_id}`,
     `context-stale-ref:${reusableRefs[1].ref_id}`,
     `context-missing-ref:${reusableRefs[2].ref_id}`,
+    `context-noisy-ref:${reusableRefs[3].ref_id}`,
+    `context-misleading-ref:${reusableRefs[4].ref_id}`,
     "next-relay-update:ask for context classification in the next result",
   ],
 });
@@ -343,6 +361,18 @@ assert(
     (ref) => ref.ref_id === reusableRefs[2].ref_id,
   ),
   "explicit missing context feedback must classify missing_refs",
+);
+assert(
+  explicitFeedbackDraft.reuse_outcome_draft.noisy_refs.some(
+    (ref) => ref.ref_id === reusableRefs[3].ref_id,
+  ),
+  "explicit noisy context feedback must classify noisy_refs",
+);
+assert(
+  explicitFeedbackDraft.reuse_outcome_draft.misleading_refs.some(
+    (ref) => ref.ref_id === reusableRefs[4].ref_id,
+  ),
+  "explicit misleading context feedback must classify misleading_refs",
 );
 assert(
   explicitFeedbackDraft.observed_return_signal.next_relay_update_suggestions

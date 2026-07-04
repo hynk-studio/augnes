@@ -41,6 +41,8 @@ export function CodexResultFeedbackDraftPanel({
         GitHub, Codex, or handoff delivery.
       </p>
 
+      <SourceStatusSection draft={draft} />
+
       <WorkplanePanelMetricGrid>
         <WorkplanePanelMetric
           label="Matched"
@@ -168,8 +170,63 @@ function ReuseOutcomeSection({
         label="helpful"
         refs={draft.reuse_outcome_draft.helpful_refs}
       />
-      <ReuseRefList label="unknown" refs={draft.reuse_outcome_draft.unknown_refs} />
+      <ReuseRefList label="stale" refs={draft.reuse_outcome_draft.stale_refs} />
+      <ReuseRefList
+        label="missing"
+        refs={draft.reuse_outcome_draft.missing_refs}
+      />
+      <ReuseRefList label="noisy" refs={draft.reuse_outcome_draft.noisy_refs} />
+      <ReuseRefList
+        label="misleading"
+        refs={draft.reuse_outcome_draft.misleading_refs}
+      />
+      <ReuseRefList
+        label="unknown"
+        refs={draft.reuse_outcome_draft.unknown_refs}
+      />
     </section>
+  );
+}
+
+function SourceStatusSection({
+  draft,
+}: {
+  draft: CodexResultFeedbackDraft;
+}) {
+  const sampleFixtureBacked = isSampleFixtureBacked(draft);
+
+  return (
+    <section
+      aria-label="Codex result feedback source status"
+      style={workplaneItemStyle}
+    >
+      <span style={workplaneBadgeStyle}>
+        {sampleFixtureBacked ? "sample fixture preview" : "source status"}
+      </span>
+      <strong>source status</strong>
+      <span style={workplaneCopyStyle}>
+        handoff_context_rationale{" "}
+        {draft.source_status.handoff_context_rationale};
+        codex_result_report {draft.source_status.codex_result_report};
+        report_status {draft.source_status.codex_result_report_status}
+      </span>
+      <span style={workplaneCopyStyle}>
+        result report {draft.result_report_refs.result_report_ref ?? "missing"}
+      </span>
+      <span style={workplaneCopyStyle}>
+        report fingerprint{" "}
+        {draft.result_report_refs.result_report_fingerprint ?? "missing"}
+      </span>
+    </section>
+  );
+}
+
+function isSampleFixtureBacked(draft: CodexResultFeedbackDraft) {
+  return (
+    draft.result_report_refs.result_report_ref?.includes("sample") === true ||
+    draft.result_report_refs.source_refs.some((ref) =>
+      ref.includes("codex_result_report_ingestion_v0_1"),
+    )
   );
 }
 
@@ -233,9 +290,11 @@ function ReuseRefList({
 }) {
   return (
     <section aria-label={`Codex result ${label} context refs`}>
-      <strong>{label}</strong>
+      <strong>
+        {label} ({refs.length})
+      </strong>
       <ul style={workplaneListStyle}>
-        {refs.slice(0, 4).map((ref) => (
+        {refs.slice(0, 3).map((ref) => (
           <li key={ref.ref_id} style={workplaneItemStyle}>
             <span style={workplaneCopyStyle}>{ref.label}</span>
             <span style={workplaneCopyStyle}>{ref.reason_category}</span>
