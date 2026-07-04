@@ -43,6 +43,14 @@ const codexResultFeedbackPanelFile =
   "components/codex-result-feedback-draft-panel.tsx";
 const codexResultFeedbackSmokeFile =
   "scripts/smoke-codex-result-feedback-draft-v0-1.mjs";
+const dogfoodReuseProposalTypeFile =
+  "types/dogfood-reuse-record-proposal.ts";
+const dogfoodReuseProposalHelperFile =
+  "lib/dogfooding/dogfood-reuse-record-proposal.ts";
+const dogfoodReuseProposalPanelFile =
+  "components/dogfood-reuse-record-proposal-panel.tsx";
+const dogfoodReuseProposalSmokeFile =
+  "scripts/smoke-dogfood-reuse-record-proposal-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -67,6 +75,10 @@ const allowedChangedFiles = [
   codexResultFeedbackHelperFile,
   codexResultFeedbackPanelFile,
   codexResultFeedbackSmokeFile,
+  dogfoodReuseProposalTypeFile,
+  dogfoodReuseProposalHelperFile,
+  dogfoodReuseProposalPanelFile,
+  dogfoodReuseProposalSmokeFile,
 ];
 
 const textByFile = loadTextByFile(allowedChangedFiles);

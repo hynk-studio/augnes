@@ -17,6 +17,14 @@ const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-codex-result-feedback-draft-v0-1.mjs";
 const workplanePanelsSmokeFile = "scripts/smoke-agent-workplane-panels-v0-1.mjs";
+const dogfoodReuseProposalTypeFile =
+  "types/dogfood-reuse-record-proposal.ts";
+const dogfoodReuseProposalHelperFile =
+  "lib/dogfooding/dogfood-reuse-record-proposal.ts";
+const dogfoodReuseProposalPanelFile =
+  "components/dogfood-reuse-record-proposal-panel.tsx";
+const dogfoodReuseProposalSmokeFile =
+  "scripts/smoke-dogfood-reuse-record-proposal-v0-1.mjs";
 const normalizerFile = "lib/dogfooding/codex-result-report-normalizer.ts";
 const handoffRationaleTypeFile = "types/handoff-context-relay-rationale.ts";
 const handoffRationaleHelperFile = "lib/handoff/handoff-context-relay-rationale.ts";
@@ -36,6 +44,10 @@ const allowedChangedFiles = [
   workplanePanelsSmokeFile,
   handoffRationaleSmokeFile,
   continuityRelaySmokeFile,
+  dogfoodReuseProposalTypeFile,
+  dogfoodReuseProposalHelperFile,
+  dogfoodReuseProposalPanelFile,
+  dogfoodReuseProposalSmokeFile,
 ];
 
 const textByFile = loadTextByFile([
@@ -170,9 +182,12 @@ assertContainsAll(
   agentWorkplaneText,
   [
     "CodexResultFeedbackDraftPanel",
+    "DogfoodReuseRecordProposalPanel",
     "buildCodexResultFeedbackDraft",
+    "buildDogfoodReuseRecordProposal",
     "handoff_context_rationale: handoffContextRationale",
     "result_report: null",
+    "feedback_draft: codexResultFeedbackDraft",
     "draft={codexResultFeedbackDraft}",
   ],
   { label: agentWorkplaneFile },

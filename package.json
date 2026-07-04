@@ -735,6 +735,7 @@
     "smoke:handoff-capsule-copy-export-v0-1": "node scripts/smoke-handoff-capsule-copy-export-v0-1.mjs",
     "smoke:handoff-context-relay-rationale-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-handoff-context-relay-rationale-v0-1.mjs",
     "smoke:codex-result-feedback-draft-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-codex-result-feedback-draft-v0-1.mjs",
+    "smoke:dogfood-reuse-record-proposal-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-dogfood-reuse-record-proposal-v0-1.mjs",
     "smoke:autonomy-contract-v0-1": "node scripts/smoke-autonomy-contract-v0-1.mjs",
     "smoke:autonomy-contract-route-v0-1": "node scripts/smoke-autonomy-contract-route-v0-1.mjs",
     "smoke:autonomy-contract-web-preview-v0-1": "node scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
