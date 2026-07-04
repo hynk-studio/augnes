@@ -17,6 +17,7 @@ import { HandoffCopyExportPanel } from "@/components/handoff/handoff-copy-export
 import { HandoffCapsulePreviewPanel } from "@/components/handoff/handoff-capsule-preview-panel";
 import { HandoffContextRelayRationalePanel } from "@/components/handoff/handoff-context-relay-rationale-panel";
 import { HandoffPreviewBoundaryCard } from "@/components/handoff/handoff-preview-boundary-card";
+import { PerspectiveNextWorkCandidateUpdatePreviewPanel } from "@/components/perspective-next-work-candidate-update-preview-panel";
 import { CurrentPerspectiveWorkplanePanel } from "@/components/workplane/current-perspective-workplane-panel";
 import { DeltaBatchPanel } from "@/components/workplane/delta-batch-panel";
 import { DeltaProjectionWorkplanePanel } from "@/components/workplane/delta-projection-workplane-panel";
@@ -54,6 +55,7 @@ import {
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
 import { buildHandoffContextRelayRationale } from "@/lib/handoff/handoff-context-relay-rationale";
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
+import { buildPerspectiveNextWorkCandidateUpdatePreviewV01 } from "@/lib/perspective/perspective-next-work-candidate-update-preview";
 import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-view-projection";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
 import { buildWorkplaneBridgeTraceDetailRead } from "@/lib/workplane/workplane-bridge-trace-detail";
@@ -219,6 +221,16 @@ export async function AgentWorkplane() {
         "workbench_default_does_not_read_or_write_reuse_ledger_store",
       ],
     });
+  const perspectiveNextWorkCandidateUpdatePreview =
+    buildPerspectiveNextWorkCandidateUpdatePreviewV01({
+      metric_preview: dogfoodMetricCandidatePreview,
+      ledger_records: [],
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:default_empty_perspective_next_work_candidate_update_preview",
+      ],
+    });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -292,6 +304,9 @@ export async function AgentWorkplane() {
               />
               <DogfoodMetricCandidatePreviewPanel
                 preview={dogfoodMetricCandidatePreview}
+              />
+              <PerspectiveNextWorkCandidateUpdatePreviewPanel
+                preview={perspectiveNextWorkCandidateUpdatePreview}
               />
               <HandoffCopyExportPanel
                 preview={handoffPreview}

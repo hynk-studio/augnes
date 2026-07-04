@@ -47,6 +47,14 @@ const dogfoodMetricCandidateRouteFile =
   "app/api/dogfooding/reuse-ledger/metric-preview/route.ts";
 const dogfoodMetricCandidateSmokeFile =
   "scripts/smoke-dogfood-metric-candidate-preview-v0-1.mjs";
+const perspectiveNextWorkCandidateTypeFile =
+  "types/perspective-next-work-candidate-update-preview.ts";
+const perspectiveNextWorkCandidateHelperFile =
+  "lib/perspective/perspective-next-work-candidate-update-preview.ts";
+const perspectiveNextWorkCandidatePanelFile =
+  "components/perspective-next-work-candidate-update-preview-panel.tsx";
+const perspectiveNextWorkCandidateSmokeFile =
+  "scripts/smoke-perspective-next-work-candidate-update-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -69,6 +77,10 @@ const allowedChangedFiles = [
   dogfoodMetricCandidatePanelFile,
   dogfoodMetricCandidateRouteFile,
   dogfoodMetricCandidateSmokeFile,
+  perspectiveNextWorkCandidateTypeFile,
+  perspectiveNextWorkCandidateHelperFile,
+  perspectiveNextWorkCandidatePanelFile,
+  perspectiveNextWorkCandidateSmokeFile,
 ];
 
 const textByFile = loadTextByFile([
