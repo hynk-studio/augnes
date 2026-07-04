@@ -91,6 +91,14 @@ const handoffContextUpdateWriteRouteFile =
   "app/api/handoff/context-updates/route.ts";
 const handoffContextUpdateWriteSmokeFile =
   "scripts/smoke-handoff-context-update-write-v0-1.mjs";
+const handoffContextUpdateRecordReviewTypeFile =
+  "types/handoff-context-update-record-review.ts";
+const handoffContextUpdateRecordReviewHelperFile =
+  "lib/handoff/handoff-context-update-record-review.ts";
+const handoffContextUpdateRecordReviewPanelFile =
+  "components/handoff/handoff-context-update-record-review-panel.tsx";
+const handoffContextUpdateRecordReviewSmokeFile =
+  "scripts/smoke-handoff-context-update-record-review-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -138,6 +146,10 @@ const allowedChangedFiles = [
   handoffContextUpdateWriteHelperFile,
   handoffContextUpdateWriteRouteFile,
   handoffContextUpdateWriteSmokeFile,
+  handoffContextUpdateRecordReviewTypeFile,
+  handoffContextUpdateRecordReviewHelperFile,
+  handoffContextUpdateRecordReviewPanelFile,
+  handoffContextUpdateRecordReviewSmokeFile,
 ];
 
 const textByFile = loadTextByFile([

@@ -31,6 +31,14 @@ const updatePreviewSmokeFile =
   "scripts/smoke-handoff-context-update-preview-v0-1.mjs";
 const workplaneSmokeFile = "scripts/smoke-agent-workplane-panels-v0-1.mjs";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
+const handoffContextUpdateRecordReviewTypeFile =
+  "types/handoff-context-update-record-review.ts";
+const handoffContextUpdateRecordReviewHelperFile =
+  "lib/handoff/handoff-context-update-record-review.ts";
+const handoffContextUpdateRecordReviewPanelFile =
+  "components/handoff/handoff-context-update-record-review-panel.tsx";
+const handoffContextUpdateRecordReviewSmokeFile =
+  "scripts/smoke-handoff-context-update-record-review-v0-1.mjs";
 const metricInformedContinuityRelayAdjustmentSmokeFile =
   "scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs";
 const handoffContextRelayRationaleSmokeFile =
@@ -44,7 +52,12 @@ const allowedChangedFiles = [
   packageJsonFile,
   decisionSmokeFile,
   updatePreviewSmokeFile,
+  agentWorkplaneFile,
   workplaneSmokeFile,
+  handoffContextUpdateRecordReviewTypeFile,
+  handoffContextUpdateRecordReviewHelperFile,
+  handoffContextUpdateRecordReviewPanelFile,
+  handoffContextUpdateRecordReviewSmokeFile,
   metricInformedContinuityRelayAdjustmentSmokeFile,
   handoffContextRelayRationaleSmokeFile,
 ];
@@ -759,7 +772,10 @@ for (const file of changedAndUntrackedFiles) {
 const appRouteFiles = changedAndUntrackedFiles.filter((file) =>
   /^app\/api\/.*\/route\.ts$/.test(file),
 );
-assert.deepEqual(appRouteFiles, [routeFile], "only the context update route is allowed");
+assert(
+  appRouteFiles.every((file) => file === routeFile),
+  "only the context update route is allowed when a route file is changed",
+);
 
 console.log(
   JSON.stringify(
