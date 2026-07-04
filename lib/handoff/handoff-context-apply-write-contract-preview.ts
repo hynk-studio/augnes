@@ -21,8 +21,6 @@ import {
 
 const FALLBACK_AS_OF = "1970-01-01T00:00:00.000Z" as const;
 const DEFAULT_SCOPE = "project:augnes" as const;
-const APPLY_DECISION_PREVIEW_REF =
-  HANDOFF_CONTEXT_APPLY_OPERATOR_DECISION_PREVIEW_VERSION;
 
 export function buildHandoffContextApplyWriteContractPreviewV01({
   apply_operator_decision_preview,
@@ -45,9 +43,13 @@ export function buildHandoffContextApplyWriteContractPreviewV01({
   )
     ? apply_operator_decision_preview
     : null;
+  const applyDecisionPreviewRef = preview
+    ? buildApplyDecisionPreviewInstanceRef(preview)
+    : null;
   const sourceStatus = buildSourceStatus({ preview, sourcePreviewStatus });
   const wouldWriteMaterial = buildWouldWriteMaterialPreview({
     preview,
+    applyDecisionPreviewRef,
     current_handoff_context_ref,
     current_handoff_packet_fingerprint,
   });
@@ -127,7 +129,11 @@ export function buildHandoffContextApplyWriteContractPreviewV01({
     preview_version: HANDOFF_CONTEXT_APPLY_WRITE_CONTRACT_PREVIEW_VERSION,
     scope: scope ?? preview?.scope ?? DEFAULT_SCOPE,
     as_of: as_of ?? preview?.as_of ?? FALLBACK_AS_OF,
-    source_refs: buildSourceRefs({ preview, source_refs }),
+    source_refs: buildSourceRefs({
+      preview,
+      source_refs,
+      applyDecisionPreviewRef,
+    }),
     contract_preview_status: contractPreviewStatus,
     recommended_next_action: recommendedNextAction,
     input_summary: {
@@ -163,7 +169,7 @@ export function buildHandoffContextApplyWriteContractPreviewV01({
       refusal_reason_count: refusalReasons.length,
     },
     source_status: sourceStatus,
-    future_write_contract: buildFutureWriteContract(),
+    future_write_contract: buildFutureWriteContract(applyDecisionPreviewRef),
     would_write_material_preview: wouldWriteMaterial,
     carry_forward_review_only_material: carryForward,
     readiness,
@@ -392,10 +398,12 @@ function buildSourceStatus({
 
 function buildWouldWriteMaterialPreview({
   preview,
+  applyDecisionPreviewRef,
   current_handoff_context_ref,
   current_handoff_packet_fingerprint,
 }: {
   preview: HandoffContextApplyOperatorDecisionPreview | null;
+  applyDecisionPreviewRef: string | null;
   current_handoff_context_ref?: string;
   current_handoff_packet_fingerprint?: string;
 }): HandoffContextApplyWouldWriteMaterialPreview {
@@ -422,7 +430,7 @@ function buildWouldWriteMaterialPreview({
     source_refs: uniqueSortedStrings(wouldApply?.source_refs ?? []),
     evidence_refs: uniqueSortedStrings(wouldApply?.evidence_refs ?? []),
     selected_record_ref: wouldApply?.selected_record_ref ?? null,
-    apply_decision_preview_ref: preview ? APPLY_DECISION_PREVIEW_REF : null,
+    apply_decision_preview_ref: applyDecisionPreviewRef,
     current_handoff_context_ref:
       hasPublicSafeValue(current_handoff_context_ref)
         ? current_handoff_context_ref
@@ -826,7 +834,9 @@ function buildEvidenceSummary({
   };
 }
 
-function buildFutureWriteContract(): HandoffContextApplyFutureWriteContract {
+function buildFutureWriteContract(
+  applyDecisionPreviewRef: string | null,
+): HandoffContextApplyFutureWriteContract {
   return {
     proposed_record_kind: "handoff_context_apply_write_contract.v0.1",
     proposed_receipt_kind: "handoff_context_apply_write_contract_receipt.v0.1",
@@ -855,6 +865,7 @@ function buildFutureWriteContract(): HandoffContextApplyFutureWriteContract {
       "selected operator-approved handoff context update record ref",
     ],
     required_apply_decision_preview_ref: [
+      applyDecisionPreviewRef ?? "concrete apply decision preview instance ref",
       HANDOFF_CONTEXT_APPLY_OPERATOR_DECISION_PREVIEW_VERSION,
     ],
     required_source_refs: ["source refs from the apply decision preview"],
@@ -919,15 +930,35 @@ function buildWouldNotWrite(): string[] {
 function buildSourceRefs({
   preview,
   source_refs,
+  applyDecisionPreviewRef,
 }: {
   preview: HandoffContextApplyOperatorDecisionPreview | null;
   source_refs?: string[];
+  applyDecisionPreviewRef: string | null;
 }): string[] {
   return uniqueSortedStrings([
     ...(source_refs ?? []),
     ...(preview?.source_refs ?? []),
+    ...(preview ? [HANDOFF_CONTEXT_APPLY_OPERATOR_DECISION_PREVIEW_VERSION] : []),
+    ...(applyDecisionPreviewRef ? [applyDecisionPreviewRef] : []),
     HANDOFF_CONTEXT_APPLY_WRITE_CONTRACT_PREVIEW_VERSION,
   ]);
+}
+
+function buildApplyDecisionPreviewInstanceRef(
+  preview: HandoffContextApplyOperatorDecisionPreview,
+): string {
+  return [
+    "apply-decision-preview",
+    `v=${safeRefComponent(preview.preview_version)}`,
+    `t=${safeRefComponent(preview.as_of)}`,
+    `r=${safeRefComponent(preview.would_apply_preview.selected_record_ref ?? "none")}`,
+    `s=${safeRefComponent(preview.decision_preview_status)}`,
+  ].join("|");
+}
+
+function safeRefComponent(value: string): string {
+  return value.replace(/[\s\x00-\x1f\x7f|]/g, "_").slice(0, 120);
 }
 
 function missingPublicSafeReason(reason: string, value?: string): string[] {

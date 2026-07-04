@@ -467,6 +467,53 @@ assert.equal(
 );
 assert.equal(readyContract.evidence_summary.has_source_refs, true);
 assert.equal(readyContract.evidence_summary.has_evidence_refs, true);
+const readyApplyDecisionPreviewRef =
+  readyContract.would_write_material_preview.apply_decision_preview_ref;
+assert.notEqual(
+  readyApplyDecisionPreviewRef,
+  "handoff_context_apply_operator_decision_preview.v0.1",
+);
+assert(
+  readyApplyDecisionPreviewRef.includes(
+    "handoff_context_apply_operator_decision_preview.v0.1",
+  ),
+);
+assert(readyApplyDecisionPreviewRef.includes("2026-07-04T12:31:00.000Z"));
+assert(
+  readyApplyDecisionPreviewRef.includes("hcu-record:durable-apply-contract"),
+);
+assert(
+  readyContract.future_write_contract.required_apply_decision_preview_ref.includes(
+    readyApplyDecisionPreviewRef,
+  ),
+);
+const alternateAsOfContract = contractFor({
+  apply_operator_decision_preview: readyDecisionPreview({
+    as_of: "2026-07-04T12:32:00.000Z",
+  }),
+  current_handoff_packet_fingerprint: "packet-fingerprint:durable-contract",
+  current_handoff_context_ref: "handoff-context:durable-contract",
+  requested_operator_ref: "operator:durable-contract",
+  requested_idempotency_key: "idempotency:durable-contract",
+});
+const alternateSelectedRecordContract = contractFor({
+  apply_operator_decision_preview: readyDecisionPreview({
+    selected_record_ref: "hcu-record:durable-apply-contract-alt",
+  }),
+  current_handoff_packet_fingerprint: "packet-fingerprint:durable-contract",
+  current_handoff_context_ref: "handoff-context:durable-contract",
+  requested_operator_ref: "operator:durable-contract",
+  requested_idempotency_key: "idempotency:durable-contract",
+});
+assert.notEqual(
+  readyApplyDecisionPreviewRef,
+  alternateAsOfContract.would_write_material_preview.apply_decision_preview_ref,
+);
+assert.notEqual(
+  readyApplyDecisionPreviewRef,
+  alternateSelectedRecordContract.would_write_material_preview
+    .apply_decision_preview_ref,
+);
 assertAuthorityFalse(readyContract.authority_boundary);
 
 const reviewOnlyCarryForward = contractFor({
@@ -604,11 +651,12 @@ function contractFor(input) {
   });
 }
 
-function readyDecisionPreview() {
+function readyDecisionPreview(overrides = {}) {
   return decisionPreview({
     decision_preview_status: "ready_for_future_apply_write",
     recommended_operator_decision: "approve_for_future_apply_write",
     ready_for_future_apply_write: true,
+    ...overrides,
   });
 }
 
@@ -632,6 +680,8 @@ function decisionPreview({
   missing_evidence = [],
   current_blockers,
   current_missing_evidence,
+  as_of = "2026-07-04T12:31:00.000Z",
+  selected_record_ref = "hcu-record:durable-apply-contract",
   carry_forward_overrides = {},
   authority_overrides = {},
 }) {
@@ -663,13 +713,13 @@ function decisionPreview({
     ),
     source_refs: ["source-ref:durable-apply-contract"],
     evidence_refs: ["evidence-ref:durable-apply-contract"],
-    selected_record_ref: "hcu-record:durable-apply-contract",
+    selected_record_ref,
     review_summary: "Synthetic decision preview for write contract smoke.",
   };
   return {
     preview_version: "handoff_context_apply_operator_decision_preview.v0.1",
     scope: "project:augnes",
-    as_of: "2026-07-04T12:31:00.000Z",
+    as_of,
     source_refs: ["decision-preview-source:durable-apply-contract"],
     decision_preview_status,
     recommended_operator_decision,
@@ -684,7 +734,7 @@ function decisionPreview({
     input_summary: {
       has_apply_preview: true,
       apply_preview_status: "apply_candidates_available",
-      selected_record_ref: "hcu-record:durable-apply-contract",
+      selected_record_ref,
       selected_full_record_supplied: true,
       apply_candidate_count: live_candidates.length,
       selected_ref_add_count: wouldApplyPreview.selected_refs_to_add.length,
