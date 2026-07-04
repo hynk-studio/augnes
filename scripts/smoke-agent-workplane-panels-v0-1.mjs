@@ -58,6 +58,14 @@ const dogfoodReuseProposalPanelFile =
   "components/dogfood-reuse-record-proposal-panel.tsx";
 const dogfoodReuseProposalSmokeFile =
   "scripts/smoke-dogfood-reuse-record-proposal-v0-1.mjs";
+const dogfoodReuseDecisionTypeFile =
+  "types/dogfood-reuse-operator-decision-preview.ts";
+const dogfoodReuseDecisionHelperFile =
+  "lib/dogfooding/dogfood-reuse-operator-decision-preview.ts";
+const dogfoodReuseDecisionPanelFile =
+  "components/dogfood-reuse-operator-decision-preview-panel.tsx";
+const dogfoodReuseDecisionSmokeFile =
+  "scripts/smoke-dogfood-reuse-operator-decision-preview-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -384,6 +392,20 @@ const followOnDogfoodReuseRecordProposalFiles = [
   "scripts/smoke-workplane-continuity-relay-v0-1.mjs",
 ];
 
+const followOnDogfoodReuseOperatorDecisionPreviewFiles = [
+  dogfoodReuseDecisionTypeFile,
+  dogfoodReuseDecisionHelperFile,
+  dogfoodReuseDecisionPanelFile,
+  dogfoodReuseDecisionSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+  dogfoodReuseProposalSmokeFile,
+  codexResultFeedbackSmokeFile,
+  handoffRationaleSmokeFile,
+  "scripts/smoke-workplane-continuity-relay-v0-1.mjs",
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -599,6 +621,9 @@ const requiredFiles = [
   dogfoodReuseProposalTypeFile,
   dogfoodReuseProposalHelperFile,
   dogfoodReuseProposalPanelFile,
+  dogfoodReuseDecisionTypeFile,
+  dogfoodReuseDecisionHelperFile,
+  dogfoodReuseDecisionPanelFile,
   contextReaderFile,
   agentWorkplaneDoc,
   packageJsonFile,
@@ -716,6 +741,7 @@ const allowedChangedFiles = new Set([
   ...followOnHandoffContextRelayRationaleFiles,
   ...followOnCodexResultFeedbackDraftFiles,
   ...followOnDogfoodReuseRecordProposalFiles,
+  ...followOnDogfoodReuseOperatorDecisionPreviewFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -800,6 +826,15 @@ const dogfoodReuseProposalHelperText = textByFile.get(
 const dogfoodReuseProposalPanelText = textByFile.get(
   dogfoodReuseProposalPanelFile,
 );
+const dogfoodReuseDecisionTypeText = textByFile.get(
+  dogfoodReuseDecisionTypeFile,
+);
+const dogfoodReuseDecisionHelperText = textByFile.get(
+  dogfoodReuseDecisionHelperFile,
+);
+const dogfoodReuseDecisionPanelText = textByFile.get(
+  dogfoodReuseDecisionPanelFile,
+);
 const currentPerspectiveText = textByFile.get(currentPerspectivePanelFile);
 const deltaProjectionText = textByFile.get(deltaProjectionPanelFile);
 const reviewQueueText = textByFile.get(reviewQueuePanelFile);
@@ -821,6 +856,7 @@ assertPanelComponents();
 assertHandoffContextRelayRationaleFollowOn();
 assertCodexResultFeedbackDraftFollowOn();
 assertDogfoodReuseRecordProposalFollowOn();
+assertDogfoodReuseOperatorDecisionPreviewFollowOn();
 assertWorkplaneContextReader();
 assertDocs();
 assertFollowOnSmokeCompatibility();
@@ -1369,6 +1405,89 @@ function assertDogfoodReuseRecordProposalFollowOn() {
       "buildDogfoodReuseRecordProposal",
       "feedback_draft: codexResultFeedbackDraft",
       "proposal={dogfoodReuseRecordProposal}",
+      "result_report: null",
+    ],
+    { label: agentWorkplaneFile },
+  );
+}
+
+function assertDogfoodReuseOperatorDecisionPreviewFollowOn() {
+  assertContainsAll(
+    dogfoodReuseDecisionTypeText,
+    [
+      "dogfood_reuse_operator_decision_preview.v0.1",
+      "decision_preview_status",
+      "recommended_operator_decision",
+      "write_readiness",
+      "approval_requirements",
+      "would_write_preview",
+      "would_not_write",
+      "blocked_missing_proposal",
+      "ready_for_operator_decision",
+      "candidate_material_only: true",
+      "source_of_truth: false",
+      "can_persist_decision: false",
+      "can_write_db: false",
+      "can_write_dogfood_ledger: false",
+      "can_update_metrics: false",
+      "can_mutate_memory: false",
+      "can_apply_project_perspective: false",
+      "can_execute_codex: false",
+      "can_send_handoff: false",
+    ],
+    { label: dogfoodReuseDecisionTypeFile },
+  );
+  assertContainsAll(
+    dogfoodReuseDecisionHelperText,
+    [
+      "buildDogfoodReuseOperatorDecisionPreview",
+      "DogfoodReuseRecordProposal",
+      "blocked_missing_proposal",
+      "blocked_missing_actual_result_report",
+      "blocked_missing_explicit_context_feedback",
+      "proposal_ready_for_operator_review",
+      "approve_for_future_write",
+      "durable dogfood ledger row",
+      "dogfood metric update",
+      "Perspective state",
+      "memory item",
+      "promotion decision",
+      "Formation Receipt",
+      "GitHub/Codex action",
+      "handoff send",
+      "can_persist_decision: false",
+      "can_write_dogfood_ledger: false",
+      "can_update_metrics: false",
+      "can_mutate_memory: false",
+      "can_apply_project_perspective: false",
+      "can_execute_codex: false",
+      "can_send_handoff: false",
+    ],
+    { label: dogfoodReuseDecisionHelperFile },
+  );
+  assertContainsAll(
+    dogfoodReuseDecisionPanelText,
+    [
+      "DogfoodReuseOperatorDecisionPreviewPanel",
+      "Operator decision preview",
+      "write readiness",
+      "approval requirements",
+      "would write preview",
+      "would not write",
+      "Read-only decision preview",
+      "can_persist_decision",
+      "can_write_dogfood_ledger",
+      "can_update_metrics",
+    ],
+    { label: dogfoodReuseDecisionPanelFile },
+  );
+  assertContainsAll(
+    agentWorkplaneText,
+    [
+      "DogfoodReuseOperatorDecisionPreviewPanel",
+      "buildDogfoodReuseOperatorDecisionPreview",
+      "proposal: dogfoodReuseRecordProposal",
+      "preview={dogfoodReuseOperatorDecisionPreview}",
       "result_report: null",
     ],
     { label: agentWorkplaneFile },

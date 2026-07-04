@@ -6,6 +6,7 @@ import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-polic
 import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
 import { AutonomyRunnerPreflightPreviewPanel } from "@/components/autonomy/autonomy-runner-preflight-preview-panel";
 import { CodexResultFeedbackDraftPanel } from "@/components/codex-result-feedback-draft-panel";
+import { DogfoodReuseOperatorDecisionPreviewPanel } from "@/components/dogfood-reuse-operator-decision-preview-panel";
 import { DogfoodReuseRecordProposalPanel } from "@/components/dogfood-reuse-record-proposal-panel";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { GuideIntentProjectionPanel } from "@/components/guide/guide-intent-projection-panel";
@@ -38,6 +39,7 @@ import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
 import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-contract-for-web";
 import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
 import { buildCodexResultFeedbackDraft } from "@/lib/dogfooding/codex-result-feedback-draft";
+import { buildDogfoodReuseOperatorDecisionPreview } from "@/lib/dogfooding/dogfood-reuse-operator-decision-preview";
 import { buildDogfoodReuseRecordProposal } from "@/lib/dogfooding/dogfood-reuse-record-proposal";
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
 import {
@@ -173,6 +175,10 @@ export async function AgentWorkplane() {
   const dogfoodReuseRecordProposal = buildDogfoodReuseRecordProposal({
     feedback_draft: codexResultFeedbackDraft,
   });
+  const dogfoodReuseOperatorDecisionPreview =
+    buildDogfoodReuseOperatorDecisionPreview({
+      proposal: dogfoodReuseRecordProposal,
+    });
   const workplaneDebugContext = buildGuideWorkplaneDebugContext({
     node_context_read: workplaneNodeContext,
     selection: {
@@ -266,6 +272,9 @@ export async function AgentWorkplane() {
               <CodexResultFeedbackDraftPanel draft={codexResultFeedbackDraft} />
               <DogfoodReuseRecordProposalPanel
                 proposal={dogfoodReuseRecordProposal}
+              />
+              <DogfoodReuseOperatorDecisionPreviewPanel
+                preview={dogfoodReuseOperatorDecisionPreview}
               />
               <HandoffCopyExportPanel
                 preview={handoffPreview}

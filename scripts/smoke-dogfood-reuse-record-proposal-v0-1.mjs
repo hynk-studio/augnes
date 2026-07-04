@@ -13,9 +13,16 @@ import {
 const typeFile = "types/dogfood-reuse-record-proposal.ts";
 const helperFile = "lib/dogfooding/dogfood-reuse-record-proposal.ts";
 const panelFile = "components/dogfood-reuse-record-proposal-panel.tsx";
+const decisionTypeFile = "types/dogfood-reuse-operator-decision-preview.ts";
+const decisionHelperFile =
+  "lib/dogfooding/dogfood-reuse-operator-decision-preview.ts";
+const decisionPanelFile =
+  "components/dogfood-reuse-operator-decision-preview-panel.tsx";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
 const packageJsonFile = "package.json";
 const smokeFile = "scripts/smoke-dogfood-reuse-record-proposal-v0-1.mjs";
+const decisionSmokeFile =
+  "scripts/smoke-dogfood-reuse-operator-decision-preview-v0-1.mjs";
 const feedbackTypeFile = "types/codex-result-feedback-draft.ts";
 const feedbackHelperFile = "lib/dogfooding/codex-result-feedback-draft.ts";
 const feedbackPanelFile = "components/codex-result-feedback-draft-panel.tsx";
@@ -31,9 +38,13 @@ const allowedChangedFiles = [
   typeFile,
   helperFile,
   panelFile,
+  decisionTypeFile,
+  decisionHelperFile,
+  decisionPanelFile,
   agentWorkplaneFile,
   packageJsonFile,
   smokeFile,
+  decisionSmokeFile,
   feedbackSmokeFile,
   workplanePanelsSmokeFile,
   handoffRationaleSmokeFile,
@@ -167,7 +178,10 @@ assertContainsAll(
   [
     "DogfoodReuseRecordProposalPanel",
     "buildDogfoodReuseRecordProposal",
+    "DogfoodReuseOperatorDecisionPreviewPanel",
+    "buildDogfoodReuseOperatorDecisionPreview",
     "feedback_draft: codexResultFeedbackDraft",
+    "proposal: dogfoodReuseRecordProposal",
     "proposal={dogfoodReuseRecordProposal}",
     "result_report: null",
   ],

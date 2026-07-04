@@ -51,6 +51,14 @@ const dogfoodReuseProposalPanelFile =
   "components/dogfood-reuse-record-proposal-panel.tsx";
 const dogfoodReuseProposalSmokeFile =
   "scripts/smoke-dogfood-reuse-record-proposal-v0-1.mjs";
+const dogfoodReuseDecisionTypeFile =
+  "types/dogfood-reuse-operator-decision-preview.ts";
+const dogfoodReuseDecisionHelperFile =
+  "lib/dogfooding/dogfood-reuse-operator-decision-preview.ts";
+const dogfoodReuseDecisionPanelFile =
+  "components/dogfood-reuse-operator-decision-preview-panel.tsx";
+const dogfoodReuseDecisionSmokeFile =
+  "scripts/smoke-dogfood-reuse-operator-decision-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -79,6 +87,10 @@ const allowedChangedFiles = [
   dogfoodReuseProposalHelperFile,
   dogfoodReuseProposalPanelFile,
   dogfoodReuseProposalSmokeFile,
+  dogfoodReuseDecisionTypeFile,
+  dogfoodReuseDecisionHelperFile,
+  dogfoodReuseDecisionPanelFile,
+  dogfoodReuseDecisionSmokeFile,
 ];
 
 const textByFile = loadTextByFile(allowedChangedFiles);
