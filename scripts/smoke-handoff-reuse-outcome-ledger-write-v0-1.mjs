@@ -364,6 +364,67 @@ try {
     ),
     "forbidden_action_requested:requested_actions.update_metrics",
   );
+  assertRefused(
+    ledger.writeHandoffReuseOutcomeLedgerRecordV01(
+      omitField(
+        {
+          ...approvalPayload(readyDecision),
+          approved_by: "operator-ref:/Users/test",
+        },
+        "operator_ref",
+      ),
+      db,
+    ),
+    "approved_by_missing_or_invalid",
+  );
+  assertRefused(
+    ledger.writeHandoffReuseOutcomeLedgerRecordV01(
+      {
+        ...approvalPayload(readyDecision),
+        operator_ref: "operator-ref:ghp_secret-token",
+      },
+      db,
+    ),
+    "operator_ref_missing_or_invalid",
+  );
+
+  const approvedByFallbackRef = "operator-ref:ledger-smoke-approved-by-fallback";
+  assertActorFallbackValidation(
+    omitField(
+      {
+        ...approvalPayload(readyDecision),
+        operator_ref: approvedByFallbackRef,
+      },
+      "approved_by",
+    ),
+    approvedByFallbackRef,
+    approvedByFallbackRef,
+  );
+  const operatorRefFallbackRef = "operator-ref:ledger-smoke-operator-ref-fallback";
+  assertActorFallbackValidation(
+    omitField(
+      {
+        ...approvalPayload(readyDecision),
+        approved_by: operatorRefFallbackRef,
+      },
+      "operator_ref",
+    ),
+    operatorRefFallbackRef,
+    operatorRefFallbackRef,
+  );
+  assertRefused(
+    ledger.writeHandoffReuseOutcomeLedgerRecordV01(
+      omitField(
+        {
+          ...approvalPayload(readyDecision),
+          operator_ref: "operator-ref:sk-secret-token",
+        },
+        "approved_by",
+      ),
+      db,
+    ),
+    "approved_by_missing_or_invalid",
+  );
 
   const missingNestedArraysResult = assertMalformedPreviewRefused(
     db,
@@ -426,6 +487,8 @@ try {
   assert(record);
   assert.equal(record.record_version, "handoff_reuse_outcome_ledger_record.v0.1");
   assert.equal(record.operator_decision, "approve_for_future_write");
+  assert.equal(record.operator_approval.approved_by, "operator-ref:ledger-smoke-reviewer");
+  assert.equal(record.operator_approval.operator_ref, "operator-ref:ledger-smoke-reviewer");
   assert.equal(record.result_report_ref, readyDecision.proposal_refs.result_report_ref);
   assert.equal(
     record.result_report_fingerprint,
@@ -589,6 +652,8 @@ console.log(
       pass: true,
       default_workbench_refused: true,
       sample_fixture_refused: true,
+      unsafe_operator_actor_refs_refused: true,
+      safe_operator_actor_fallback_checked: true,
       malformed_nested_preview_refused: true,
       positive_write_record_count: 1,
       duplicate_prevented: true,
@@ -709,6 +774,7 @@ function approvalPayload(decisionPreview) {
     idempotency_key:
       "handoff-reuse-outcome-ledger:operator-smoke:2026-07-04",
     approved_by: "operator-ref:ledger-smoke-reviewer",
+    operator_ref: "operator-ref:ledger-smoke-reviewer",
     approved_at: "2026-07-04T03:30:00.000Z",
     checklist_confirmations: allChecklistConfirmations(),
     review_note: "Synthetic operator-provided smoke approval.",
@@ -739,6 +805,18 @@ function assertRefused(result, expectedReason) {
     `${expectedReason} must be included in ${result.receipt.refusal_reasons.join(", ")}`,
   );
   assertReceiptDeniesSideEffects(result.receipt);
+}
+
+function assertActorFallbackValidation(
+  payload,
+  expectedApprovedBy,
+  expectedOperatorRef,
+) {
+  const validation =
+    ledger.validateHandoffReuseOutcomeLedgerWriteInputV01(payload);
+  assert.equal(validation.ok, true);
+  assert.equal(validation.approved_by, expectedApprovedBy);
+  assert.equal(validation.operator_ref, expectedOperatorRef);
 }
 
 function assertMalformedPreviewRefused(db, mutator, expectedReason) {

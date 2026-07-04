@@ -253,11 +253,19 @@ export function validateHandoffReuseOutcomeLedgerWriteInputV01(
     reasons.push("idempotency_key_missing_or_invalid");
   }
 
+  const suppliedApprovedBy = asNonEmptyString(input.approved_by);
+  const suppliedOperatorRef = asNonEmptyString(input.operator_ref);
+  const safeApprovedBy = asSafePublicRef(input.approved_by);
+  const safeOperatorRef = asSafePublicRef(input.operator_ref);
   const approvedBy =
-    asNonEmptyString(input.approved_by) ?? asNonEmptyString(input.operator_ref);
-  const operatorRef = asNonEmptyString(input.operator_ref) ?? approvedBy;
-  if (!approvedBy || !operatorRef) {
-    reasons.push("operator_approval_actor_missing");
+    safeApprovedBy ?? (suppliedApprovedBy ? null : safeOperatorRef);
+  const operatorRef =
+    safeOperatorRef ?? (suppliedOperatorRef ? null : safeApprovedBy);
+  if (!approvedBy) {
+    reasons.push("approved_by_missing_or_invalid");
+  }
+  if (!operatorRef) {
+    reasons.push("operator_ref_missing_or_invalid");
   }
 
   const approvedAt = asNonEmptyString(input.approved_at);
@@ -1100,6 +1108,11 @@ function asNonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : null;
+}
+
+function asSafePublicRef(value: unknown): string | null {
+  const ref = asNonEmptyString(value);
+  return ref && isSafePublicRef(ref) ? ref : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
