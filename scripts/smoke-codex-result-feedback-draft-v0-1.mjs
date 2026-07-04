@@ -40,6 +40,11 @@ const handoffRationaleSmokeFile =
   "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
 const continuityRelaySmokeFile =
   "scripts/smoke-workplane-continuity-relay-v0-1.mjs";
+const ledgerTypeFile = "types/handoff-reuse-outcome-ledger.ts";
+const ledgerHelperFile = "lib/dogfooding/handoff-reuse-outcome-ledger.ts";
+const ledgerRouteFile = "app/api/dogfooding/reuse-ledger/route.ts";
+const ledgerSmokeFile =
+  "scripts/smoke-handoff-reuse-outcome-ledger-write-v0-1.mjs";
 const fixtureFile = "fixtures/codex-result-report-ingestion.sample.v0.1.json";
 
 const allowedChangedFiles = [
@@ -60,6 +65,10 @@ const allowedChangedFiles = [
   dogfoodReuseDecisionHelperFile,
   dogfoodReuseDecisionPanelFile,
   dogfoodReuseDecisionSmokeFile,
+  ledgerTypeFile,
+  ledgerHelperFile,
+  ledgerRouteFile,
+  ledgerSmokeFile,
 ];
 
 const textByFile = loadTextByFile([

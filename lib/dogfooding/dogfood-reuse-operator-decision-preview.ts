@@ -377,6 +377,8 @@ function buildWouldWritePreview(
     proposed_record_kind: proposal?.proposed_record_kind ?? null,
     proposed_dogfood_signal_summary: buildDogfoodSignalSummary(proposal),
     proposed_reuse_bucket_counts: buildBucketCounts(proposal),
+    proposed_reuse_classifications:
+      proposal?.proposed_reuse_classifications ?? null,
     proposed_expected_observed_summary:
       proposal?.proposed_expected_observed_summary ?? null,
     evidence_refs: proposal?.evidence_summary.evidence_refs ?? [],

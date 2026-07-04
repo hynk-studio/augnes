@@ -59,6 +59,11 @@ const dogfoodReuseDecisionPanelFile =
   "components/dogfood-reuse-operator-decision-preview-panel.tsx";
 const dogfoodReuseDecisionSmokeFile =
   "scripts/smoke-dogfood-reuse-operator-decision-preview-v0-1.mjs";
+const ledgerTypeFile = "types/handoff-reuse-outcome-ledger.ts";
+const ledgerHelperFile = "lib/dogfooding/handoff-reuse-outcome-ledger.ts";
+const ledgerRouteFile = "app/api/dogfooding/reuse-ledger/route.ts";
+const ledgerSmokeFile =
+  "scripts/smoke-handoff-reuse-outcome-ledger-write-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -91,6 +96,10 @@ const allowedChangedFiles = [
   dogfoodReuseDecisionHelperFile,
   dogfoodReuseDecisionPanelFile,
   dogfoodReuseDecisionSmokeFile,
+  ledgerTypeFile,
+  ledgerHelperFile,
+  ledgerRouteFile,
+  ledgerSmokeFile,
 ];
 
 const textByFile = loadTextByFile(allowedChangedFiles);
