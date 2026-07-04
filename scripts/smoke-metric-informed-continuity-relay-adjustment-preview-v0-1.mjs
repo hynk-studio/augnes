@@ -37,6 +37,14 @@ const handoffContextSmokeFile =
   "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
 const ledgerSmokeFile =
   "scripts/smoke-handoff-reuse-outcome-ledger-write-v0-1.mjs";
+const handoffContextUpdatePreviewTypeFile =
+  "types/handoff-context-update-preview.ts";
+const handoffContextUpdatePreviewHelperFile =
+  "lib/handoff/handoff-context-update-preview.ts";
+const handoffContextUpdatePreviewPanelFile =
+  "components/handoff/handoff-context-update-preview-panel.tsx";
+const handoffContextUpdatePreviewSmokeFile =
+  "scripts/smoke-handoff-context-update-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -51,6 +59,10 @@ const allowedChangedFiles = [
   workplaneContinuitySmokeFile,
   handoffContextSmokeFile,
   ledgerSmokeFile,
+  handoffContextUpdatePreviewTypeFile,
+  handoffContextUpdatePreviewHelperFile,
+  handoffContextUpdatePreviewPanelFile,
+  handoffContextUpdatePreviewSmokeFile,
 ];
 
 const textByFile = loadTextByFile([

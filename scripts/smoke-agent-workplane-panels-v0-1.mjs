@@ -97,6 +97,14 @@ const metricInformedContinuityRelayAdjustmentPanelFile =
   "components/workplane/metric-informed-continuity-relay-adjustment-preview-panel.tsx";
 const metricInformedContinuityRelayAdjustmentSmokeFile =
   "scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs";
+const handoffContextUpdatePreviewTypeFile =
+  "types/handoff-context-update-preview.ts";
+const handoffContextUpdatePreviewHelperFile =
+  "lib/handoff/handoff-context-update-preview.ts";
+const handoffContextUpdatePreviewPanelFile =
+  "components/handoff/handoff-context-update-preview-panel.tsx";
+const handoffContextUpdatePreviewSmokeFile =
+  "scripts/smoke-handoff-context-update-preview-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -481,6 +489,18 @@ const followOnMetricInformedContinuityRelayAdjustmentPreviewFiles = [
   packageJsonFile,
 ];
 
+const followOnHandoffContextUpdatePreviewFiles = [
+  handoffContextUpdatePreviewTypeFile,
+  handoffContextUpdatePreviewHelperFile,
+  handoffContextUpdatePreviewPanelFile,
+  handoffContextUpdatePreviewSmokeFile,
+  agentWorkplaneFile,
+  smokeFile,
+  packageJsonFile,
+  metricInformedContinuityRelayAdjustmentSmokeFile,
+  handoffRationaleSmokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -821,6 +841,7 @@ const allowedChangedFiles = new Set([
   ...followOnDogfoodMetricCandidatePreviewFiles,
   ...followOnPerspectiveNextWorkCandidateUpdatePreviewFiles,
   ...followOnMetricInformedContinuityRelayAdjustmentPreviewFiles,
+  ...followOnHandoffContextUpdatePreviewFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
