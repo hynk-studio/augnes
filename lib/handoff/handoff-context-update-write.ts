@@ -588,7 +588,7 @@ export function listHandoffContextUpdateRecordsV01(
     .prepare(
       `SELECT * FROM handoff_context_update_records
        WHERE ${clauses.join(" AND ")}
-       ORDER BY created_at ASC, record_id ASC
+       ORDER BY created_at DESC, record_id DESC
        LIMIT ?`,
     )
     .all(...params, limit) as HandoffContextUpdateWriteRow[];
@@ -780,6 +780,12 @@ function validateDecisionPreviewReadinessV01(
   const writeReadiness = getRecord(preview, "write_readiness");
   if (writeReadiness?.write_ready !== true) {
     reasons.push("write_readiness_not_ready");
+  }
+  if (arrayLength(writeReadiness?.current_blockers) > 0) {
+    reasons.push("write_readiness_current_blockers_present");
+  }
+  if (arrayLength(writeReadiness?.current_missing_evidence) > 0) {
+    reasons.push("write_readiness_current_missing_evidence_present");
   }
   const blockingReasons = asArray(preview.blocking_reasons);
   if (arrayLength(blockingReasons) > 0) {

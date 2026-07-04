@@ -111,6 +111,8 @@ assertContainsAll(
     "decision_preview_version_invalid",
     "decision_preview_status_not_ready_for_future_write",
     "write_readiness_not_ready",
+    "write_readiness_current_blockers_present",
+    "write_readiness_current_missing_evidence_present",
     "selected_ref_candidate_missing_evidence",
     "selected_ref_candidate_unknown_ref",
     "sample_fixture_default_or_smoke_material_refused",
@@ -242,6 +244,38 @@ try {
     ),
     "write_readiness_not_ready",
   );
+  assertRefused(
+    writer.writeOperatorApprovedHandoffContextUpdateV01(
+      approvalPayload({
+        ...cloneJson(readyDecision),
+        blocking_reasons: [],
+        missing_evidence: [],
+        write_readiness: {
+          ...readyDecision.write_readiness,
+          current_blockers: ["blocked-in-readiness"],
+        },
+      }),
+      { db },
+    ),
+    "write_readiness_current_blockers_present",
+  );
+  assert.equal(writer.handoffContextUpdateWriteSchemaExistsV01(db), false);
+  assertRefused(
+    writer.writeOperatorApprovedHandoffContextUpdateV01(
+      approvalPayload({
+        ...cloneJson(readyDecision),
+        blocking_reasons: [],
+        missing_evidence: [],
+        write_readiness: {
+          ...readyDecision.write_readiness,
+          current_missing_evidence: ["missing-in-readiness"],
+        },
+      }),
+      { db },
+    ),
+    "write_readiness_current_missing_evidence_present",
+  );
+  assert.equal(writer.handoffContextUpdateWriteSchemaExistsV01(db), false);
   assertRefused(
     writer.writeOperatorApprovedHandoffContextUpdateV01(
       approvalPayload({
@@ -595,6 +629,30 @@ try {
     "idempotency_key_conflict",
   );
   assert.equal(countRecords(writer, db), 1);
+
+  const laterPayload = approvalPayload(readyDecision);
+  laterPayload.idempotency_key =
+    "handoff-context-update:operator-approved:2026-07-04-beta";
+  laterPayload.operator_approval.approved_at = "2026-07-04T13:05:00.000Z";
+  const secondWrite = writer.writeOperatorApprovedHandoffContextUpdateV01(
+    laterPayload,
+    { db },
+  );
+  assert.equal(
+    secondWrite.status,
+    "written",
+    `second positive write refused: ${secondWrite.receipt.refusal_reasons.join(
+      ", ",
+    )}`,
+  );
+  const listedRecentFirst = writer.listHandoffContextUpdateRecordsV01({ db });
+  assert.equal(listedRecentFirst.status, "listed");
+  assert.equal(listedRecentFirst.records.length, 2);
+  assert.equal(
+    listedRecentFirst.records[0].idempotency_key,
+    laterPayload.idempotency_key,
+    "listHandoffContextUpdateRecordsV01 must return recent records first",
+  );
 } finally {
   db.close();
   rmSync(dbPath, { force: true });
@@ -708,7 +766,7 @@ console.log(
     {
       smoke: "handoff-context-update-write-v0-1",
       pass: true,
-      positive_write_record_count: 1,
+      positive_write_record_count: 2,
       read_by_record_id_checked: true,
       read_by_idempotency_key_checked: true,
       duplicate_prevented: true,
