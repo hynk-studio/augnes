@@ -67,6 +67,14 @@ const metricInformedContinuityRelayAdjustmentPanelFile =
   "components/workplane/metric-informed-continuity-relay-adjustment-preview-panel.tsx";
 const metricInformedContinuityRelayAdjustmentSmokeFile =
   "scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs";
+const handoffContextUpdatePreviewTypeFile =
+  "types/handoff-context-update-preview.ts";
+const handoffContextUpdatePreviewHelperFile =
+  "lib/handoff/handoff-context-update-preview.ts";
+const handoffContextUpdatePreviewPanelFile =
+  "components/handoff/handoff-context-update-preview-panel.tsx";
+const handoffContextUpdatePreviewSmokeFile =
+  "scripts/smoke-handoff-context-update-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -102,6 +110,10 @@ const allowedChangedFiles = [
   metricInformedContinuityRelayAdjustmentHelperFile,
   metricInformedContinuityRelayAdjustmentPanelFile,
   metricInformedContinuityRelayAdjustmentSmokeFile,
+  handoffContextUpdatePreviewTypeFile,
+  handoffContextUpdatePreviewHelperFile,
+  handoffContextUpdatePreviewPanelFile,
+  handoffContextUpdatePreviewSmokeFile,
 ];
 
 const textByFile = loadTextByFile([

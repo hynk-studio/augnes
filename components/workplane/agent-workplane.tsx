@@ -16,6 +16,7 @@ import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-c
 import { HandoffCopyExportPanel } from "@/components/handoff/handoff-copy-export-panel";
 import { HandoffCapsulePreviewPanel } from "@/components/handoff/handoff-capsule-preview-panel";
 import { HandoffContextRelayRationalePanel } from "@/components/handoff/handoff-context-relay-rationale-panel";
+import { HandoffContextUpdatePreviewPanel } from "@/components/handoff/handoff-context-update-preview-panel";
 import { HandoffPreviewBoundaryCard } from "@/components/handoff/handoff-preview-boundary-card";
 import { PerspectiveNextWorkCandidateUpdatePreviewPanel } from "@/components/perspective-next-work-candidate-update-preview-panel";
 import { CurrentPerspectiveWorkplanePanel } from "@/components/workplane/current-perspective-workplane-panel";
@@ -53,6 +54,7 @@ import {
   buildWorkplaneIntentProjection,
   WORKPLANE_INTENT_PROJECTION_DEFAULT_INPUT,
 } from "@/lib/guide/workplane-intent-projection";
+import { buildHandoffContextUpdatePreviewV01 } from "@/lib/handoff/handoff-context-update-preview";
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
 import { buildHandoffContextRelayRationale } from "@/lib/handoff/handoff-context-relay-rationale";
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
@@ -244,6 +246,16 @@ export async function AgentWorkplane() {
         "workbench:default_metric_informed_continuity_relay_adjustment_preview",
       ],
     });
+  const handoffContextUpdatePreview = buildHandoffContextUpdatePreviewV01({
+    handoff_context_relay_rationale: handoffContextRationale,
+    metric_informed_relay_adjustment_preview:
+      metricInformedContinuityRelayAdjustmentPreview,
+    scope: "project:augnes",
+    as_of: workplaneMetrics.as_of,
+    source_refs: [
+      "workbench:default_handoff_context_update_preview",
+    ],
+  });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -323,6 +335,9 @@ export async function AgentWorkplane() {
               />
               <MetricInformedContinuityRelayAdjustmentPreviewPanel
                 preview={metricInformedContinuityRelayAdjustmentPreview}
+              />
+              <HandoffContextUpdatePreviewPanel
+                preview={handoffContextUpdatePreview}
               />
               <HandoffCopyExportPanel
                 preview={handoffPreview}
