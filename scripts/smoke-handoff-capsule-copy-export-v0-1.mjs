@@ -13,6 +13,16 @@ import {
 const helperFile = "lib/handoff/handoff-capsule-copy-export.ts";
 const componentFile = "components/handoff/handoff-copy-export-panel.tsx";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
+const handoffRationaleTypeFile =
+  "types/handoff-context-relay-rationale.ts";
+const handoffRationaleHelperFile =
+  "lib/handoff/handoff-context-relay-rationale.ts";
+const handoffRationalePanelFile =
+  "components/handoff/handoff-context-relay-rationale-panel.tsx";
+const handoffRationaleSmokeFile =
+  "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
+const continuityRelaySmokeFile =
+  "scripts/smoke-workplane-continuity-relay-v0-1.mjs";
 const readHelperFile = "lib/handoff/read-handoff-capsule-for-web.ts";
 const boundaryCardFile =
   "components/handoff/handoff-preview-boundary-card.tsx";
@@ -39,6 +49,11 @@ const requiredFiles = [
   helperFile,
   componentFile,
   agentWorkplaneFile,
+  handoffRationaleTypeFile,
+  handoffRationaleHelperFile,
+  handoffRationalePanelFile,
+  handoffRationaleSmokeFile,
+  continuityRelaySmokeFile,
   readHelperFile,
   boundaryCardFile,
   capsulePanelFile,
@@ -117,6 +132,11 @@ const allowedChangedFiles = new Set([
   helperFile,
   componentFile,
   agentWorkplaneFile,
+  handoffRationaleTypeFile,
+  handoffRationaleHelperFile,
+  handoffRationalePanelFile,
+  handoffRationaleSmokeFile,
+  continuityRelaySmokeFile,
   readHelperFile,
   boundaryCardFile,
   capsulePanelFile,
@@ -226,6 +246,9 @@ const textByFile = loadTextByFile(requiredFiles);
 const helperText = textByFile.get(helperFile);
 const componentText = textByFile.get(componentFile);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
+const handoffRationaleTypeText = textByFile.get(handoffRationaleTypeFile);
+const handoffRationaleHelperText = textByFile.get(handoffRationaleHelperFile);
+const handoffRationalePanelText = textByFile.get(handoffRationalePanelFile);
 const readHelperText = textByFile.get(readHelperFile);
 const boundaryCardText = textByFile.get(boundaryCardFile);
 const capsulePanelText = textByFile.get(capsulePanelFile);
@@ -243,6 +266,7 @@ const codexSkillSmokeText = textByFile.get(codexSkillSmokeFile);
 assertPackageJsonScript();
 assertHelper();
 assertComponent();
+assertHandoffContextRelayRationale();
 assertWorkbenchIntegration();
 assertDocsAndIndex();
 assertPriorPhaseBoundaries();
@@ -308,6 +332,13 @@ function assertHelper() {
     "formatSourceStatusForCopy",
     "formatObservedInferredSuggestedJudgmentForCopy",
     "formatCodexLaunchCardFieldsForCopy",
+    "formatContextRelayRationaleForCopy",
+    "context_relay_rationale",
+    "context_rationale_selected_ref_count",
+    "include_context_relay_rationale",
+    "## Context Relay Rationale",
+    "### Why Included",
+    "### Expected Return Signal",
     "Local clipboard/manual copy preview only.",
     "Copying does not send a handoff.",
     "Copying does not launch Codex.",
@@ -336,6 +367,10 @@ function assertHelper() {
     "source_status",
     "warnings",
     "gaps",
+    "selected_refs",
+    "why_included",
+    "stop_if_missing",
+    "expected_return_signal",
   ], { label: helperFile });
 
   assertNoPatterns(helperFile, helperText, [
@@ -391,6 +426,12 @@ function assertComponent() {
     "stale",
     "unavailable",
     "source/fallback status",
+    "contextRelayRationale",
+    "context rationale",
+    "why-included rationale",
+    "stale/gap warnings",
+    "stop-if-missing blockers",
+    "expected return signal",
   ], { label: componentFile });
 
   assert(
@@ -421,16 +462,58 @@ function assertComponent() {
   ]);
 }
 
+function assertHandoffContextRelayRationale() {
+  assertContainsAll(handoffRationaleTypeText, [
+    "handoff_context_relay_rationale.v0.1",
+    "selected_refs",
+    "why_included",
+    "stale_or_gap_warnings",
+    "stop_if_missing",
+    "expected_return_signal",
+    "authority_boundary",
+    "can_send_handoff: false",
+    "can_execute_codex: false",
+    "can_mutate_memory: false",
+  ], { label: handoffRationaleTypeFile });
+  assertContainsAll(handoffRationaleHelperText, [
+    "buildHandoffContextRelayRationale",
+    "WorkplaneContinuityRelay",
+    "WORKPLANE_CONTINUITY_RELAY_VERSION",
+    "preserve_current_work",
+    "context_helpful_or_stale_refs",
+    "No handoff send.",
+    "can_send_handoff: false",
+    "can_execute_codex: false",
+  ], { label: handoffRationaleHelperFile });
+  assert(
+    !handoffRationaleHelperText.includes("buildWorkplaneContinuityRelay"),
+    `${handoffRationaleHelperFile} must consume the existing relay, not rebuild it`,
+  );
+  assertContainsAll(handoffRationalePanelText, [
+    "HandoffContextRelayRationalePanel",
+    "Relay rationale",
+    "selected refs",
+    "stale/gaps",
+    "stop if missing",
+    "return signal",
+    "Read-only context compilation",
+  ], { label: handoffRationalePanelFile });
+}
+
 function assertWorkbenchIntegration() {
   assertContainsAll(agentWorkplaneText, [
     "HandoffCopyExportPanel",
     "HandoffCapsulePreviewPanel",
     "CodexLaunchCardPreviewPanel",
+    "HandoffContextRelayRationalePanel",
+    "buildHandoffContextRelayRationale",
+    "continuity_relay: context.continuity_relay",
+    "contextRelayRationale={handoffContextRationale}",
     "HandoffPreviewBoundaryCard",
     "GuideBriefMiniPanel",
+    "ContinuityRelayWorkplanePanel",
     "HandoffBuilderPreviewPanel",
-    "LegacyCockpitCompatibilityPanel",
-    "RunPostmortemSkeletonPanel",
+    "RunPostmortemDetailPanel",
     "TraceDiagnosticsPanel",
   ], { label: agentWorkplaneFile });
 }
@@ -545,6 +628,8 @@ function assertNoForbiddenCode() {
   const changedRuntimeTexts = [
     [helperFile, helperText],
     [componentFile, componentText],
+    [handoffRationaleHelperFile, handoffRationaleHelperText],
+    [handoffRationalePanelFile, handoffRationalePanelText],
     [agentWorkplaneFile, agentWorkplaneText],
     [readHelperFile, readHelperText],
     [boundaryCardFile, boundaryCardText],

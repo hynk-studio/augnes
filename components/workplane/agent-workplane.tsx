@@ -11,6 +11,7 @@ import { GuideWorkplaneDebugPanel } from "@/components/guide/guide-workplane-deb
 import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
 import { HandoffCopyExportPanel } from "@/components/handoff/handoff-copy-export-panel";
 import { HandoffCapsulePreviewPanel } from "@/components/handoff/handoff-capsule-preview-panel";
+import { HandoffContextRelayRationalePanel } from "@/components/handoff/handoff-context-relay-rationale-panel";
 import { HandoffPreviewBoundaryCard } from "@/components/handoff/handoff-preview-boundary-card";
 import { CurrentPerspectiveWorkplanePanel } from "@/components/workplane/current-perspective-workplane-panel";
 import { DeltaBatchPanel } from "@/components/workplane/delta-batch-panel";
@@ -43,6 +44,7 @@ import {
   WORKPLANE_INTENT_PROJECTION_DEFAULT_INPUT,
 } from "@/lib/guide/workplane-intent-projection";
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
+import { buildHandoffContextRelayRationale } from "@/lib/handoff/handoff-context-relay-rationale";
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
 import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-view-projection";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
@@ -156,6 +158,10 @@ export async function AgentWorkplane() {
     workplane_context: context,
     node_context_read: workplaneNodeContext,
   });
+  const handoffContextRationale = buildHandoffContextRelayRationale({
+    continuity_relay: context.continuity_relay,
+    handoff_preview: handoffPreview,
+  });
   const workplaneDebugContext = buildGuideWorkplaneDebugContext({
     node_context_read: workplaneNodeContext,
     selection: {
@@ -243,7 +249,13 @@ export async function AgentWorkplane() {
               <HandoffBuilderPreviewPanel context={context} />
               <HandoffCapsulePreviewPanel preview={handoffPreview} />
               <CodexLaunchCardPreviewPanel preview={handoffPreview} />
-              <HandoffCopyExportPanel preview={handoffPreview} />
+              <HandoffContextRelayRationalePanel
+                rationale={handoffContextRationale}
+              />
+              <HandoffCopyExportPanel
+                preview={handoffPreview}
+                contextRelayRationale={handoffContextRationale}
+              />
               <HandoffPreviewBoundaryCard
                 capsuleAuthority={handoffPreview.capsule.authority_boundary}
                 launchCardAuthority={

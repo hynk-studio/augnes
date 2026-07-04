@@ -5,6 +5,7 @@ import {
   type HandoffCopyExportMode,
 } from "@/lib/handoff/handoff-capsule-copy-export";
 import type { HandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
+import type { HandoffContextRelayRationale } from "@/types/handoff-context-relay-rationale";
 import {
   WorkplanePanelMetric,
   WorkplanePanelMetricGrid,
@@ -18,6 +19,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 
 type HandoffCopyExportPanelProps = {
   preview: HandoffCapsulePreviewForWeb;
+  contextRelayRationale?: HandoffContextRelayRationale | null;
 };
 
 type CopyState = {
@@ -91,10 +93,11 @@ const statusStyle: CSSProperties = {
 
 export function HandoffCopyExportPanel({
   preview,
+  contextRelayRationale = null,
 }: HandoffCopyExportPanelProps) {
   const copyPreview = useMemo(
-    () => buildHandoffCopyExportPreview(preview),
-    [preview],
+    () => buildHandoffCopyExportPreview(preview, contextRelayRationale),
+    [preview, contextRelayRationale],
   );
   const [copyState, setCopyState] = useState<CopyState>({
     status: "idle",
@@ -175,6 +178,13 @@ export function HandoffCopyExportPanel({
           value={copyState.lastCopiedCharacterCount}
         />
         <WorkplanePanelMetric label="Copy status" value={copyState.status} />
+        <WorkplanePanelMetric
+          label="Rationale refs"
+          value={
+            copyPreview.packet_input_summary
+              .context_rationale_selected_ref_count
+          }
+        />
       </WorkplanePanelMetricGrid>
 
       <section aria-label="Handoff copy packet actions" style={buttonGridStyle}>
@@ -227,6 +237,34 @@ export function HandoffCopyExportPanel({
       </section>
 
       <BoundaryFlags flags={copyPreview.boundary_flags} />
+
+      <section
+        aria-label="Handoff copy context relay rationale summary"
+        style={workplaneItemStyle}
+      >
+        <span style={workplaneBadgeStyle}>context rationale</span>
+        <strong>
+          {copyPreview.json_preview.context_relay_rationale
+            ? copyPreview.json_preview.context_relay_rationale.rationale_version
+            : "none supplied"}
+        </strong>
+        <span style={workplaneCopyStyle}>
+          selected refs{" "}
+          {
+            copyPreview.packet_input_summary
+              .context_rationale_selected_ref_count
+          }
+          ; warnings{" "}
+          {copyPreview.packet_input_summary.context_rationale_warning_count};
+          stop-if-missing{" "}
+          {copyPreview.packet_input_summary.context_rationale_stop_count}
+        </span>
+        <span style={workplaneCopyStyle}>
+          Copied packets include selected refs, why-included rationale,
+          stale/gap warnings, stop-if-missing blockers, non-goals, and expected
+          return signal when the rationale is supplied.
+        </span>
+      </section>
 
       <section
         aria-label="Handoff copy source fallback status"
