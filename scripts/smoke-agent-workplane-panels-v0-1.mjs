@@ -81,6 +81,14 @@ const dogfoodMetricCandidateRouteFile =
   "app/api/dogfooding/reuse-ledger/metric-preview/route.ts";
 const dogfoodMetricCandidateSmokeFile =
   "scripts/smoke-dogfood-metric-candidate-preview-v0-1.mjs";
+const perspectiveNextWorkCandidateTypeFile =
+  "types/perspective-next-work-candidate-update-preview.ts";
+const perspectiveNextWorkCandidateHelperFile =
+  "lib/perspective/perspective-next-work-candidate-update-preview.ts";
+const perspectiveNextWorkCandidatePanelFile =
+  "components/perspective-next-work-candidate-update-preview-panel.tsx";
+const perspectiveNextWorkCandidateSmokeFile =
+  "scripts/smoke-perspective-next-work-candidate-update-preview-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -445,6 +453,16 @@ const followOnDogfoodMetricCandidatePreviewFiles = [
   packageJsonFile,
 ];
 
+const followOnPerspectiveNextWorkCandidateUpdatePreviewFiles = [
+  perspectiveNextWorkCandidateTypeFile,
+  perspectiveNextWorkCandidateHelperFile,
+  perspectiveNextWorkCandidatePanelFile,
+  perspectiveNextWorkCandidateSmokeFile,
+  agentWorkplaneFile,
+  smokeFile,
+  packageJsonFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -783,6 +801,7 @@ const allowedChangedFiles = new Set([
   ...followOnDogfoodReuseOperatorDecisionPreviewFiles,
   ...followOnHandoffReuseOutcomeLedgerWriteFiles,
   ...followOnDogfoodMetricCandidatePreviewFiles,
+  ...followOnPerspectiveNextWorkCandidateUpdatePreviewFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,

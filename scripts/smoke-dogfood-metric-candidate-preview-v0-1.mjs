@@ -32,6 +32,14 @@ const decisionSmokeFile =
 const proposalSmokeFile =
   "scripts/smoke-dogfood-reuse-record-proposal-v0-1.mjs";
 const feedbackSmokeFile = "scripts/smoke-codex-result-feedback-draft-v0-1.mjs";
+const perspectiveNextWorkCandidateTypeFile =
+  "types/perspective-next-work-candidate-update-preview.ts";
+const perspectiveNextWorkCandidateHelperFile =
+  "lib/perspective/perspective-next-work-candidate-update-preview.ts";
+const perspectiveNextWorkCandidatePanelFile =
+  "components/perspective-next-work-candidate-update-preview-panel.tsx";
+const perspectiveNextWorkCandidateSmokeFile =
+  "scripts/smoke-perspective-next-work-candidate-update-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -46,6 +54,10 @@ const allowedChangedFiles = [
   decisionSmokeFile,
   proposalSmokeFile,
   feedbackSmokeFile,
+  perspectiveNextWorkCandidateTypeFile,
+  perspectiveNextWorkCandidateHelperFile,
+  perspectiveNextWorkCandidatePanelFile,
+  perspectiveNextWorkCandidateSmokeFile,
 ];
 
 const textByFile = loadTextByFile([
