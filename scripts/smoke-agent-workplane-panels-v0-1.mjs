@@ -38,6 +38,18 @@ const handoffRationaleSmokeFile =
   "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
 const handoffCopyExportSmokeFile =
   "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs";
+const codexResultFeedbackTypeFile =
+  "types/codex-result-feedback-draft.ts";
+const codexResultFeedbackHelperFile =
+  "lib/dogfooding/codex-result-feedback-draft.ts";
+const codexResultFeedbackPanelFile =
+  "components/codex-result-feedback-draft-panel.tsx";
+const codexResultFeedbackSmokeFile =
+  "scripts/smoke-codex-result-feedback-draft-v0-1.mjs";
+const codexResultReportNormalizerFile =
+  "lib/dogfooding/codex-result-report-normalizer.ts";
+const codexResultReportFixtureFile =
+  "fixtures/codex-result-report-ingestion.sample.v0.1.json";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -341,6 +353,16 @@ const followOnHandoffContextRelayRationaleFiles = [
   "package.json",
 ];
 
+const followOnCodexResultFeedbackDraftFiles = [
+  codexResultFeedbackTypeFile,
+  codexResultFeedbackHelperFile,
+  codexResultFeedbackPanelFile,
+  agentWorkplaneFile,
+  codexResultFeedbackSmokeFile,
+  smokeFile,
+  packageJsonFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -548,6 +570,11 @@ const requiredFiles = [
   handoffRationalePanelFile,
   handoffCopyExportHelperFile,
   handoffCopyExportPanelFile,
+  codexResultFeedbackTypeFile,
+  codexResultFeedbackHelperFile,
+  codexResultFeedbackPanelFile,
+  codexResultReportNormalizerFile,
+  codexResultReportFixtureFile,
   contextReaderFile,
   agentWorkplaneDoc,
   packageJsonFile,
@@ -663,6 +690,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneRunPostmortemDetailFiles,
   ...followOnWorkplaneContinuityRelayFiles,
   ...followOnHandoffContextRelayRationaleFiles,
+  ...followOnCodexResultFeedbackDraftFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -728,6 +756,16 @@ const handoffCopyExportHelperText = textByFile.get(
   handoffCopyExportHelperFile,
 );
 const handoffCopyExportPanelText = textByFile.get(handoffCopyExportPanelFile);
+const codexResultFeedbackTypeText = textByFile.get(codexResultFeedbackTypeFile);
+const codexResultFeedbackHelperText = textByFile.get(
+  codexResultFeedbackHelperFile,
+);
+const codexResultFeedbackPanelText = textByFile.get(
+  codexResultFeedbackPanelFile,
+);
+const codexResultReportNormalizerText = textByFile.get(
+  codexResultReportNormalizerFile,
+);
 const currentPerspectiveText = textByFile.get(currentPerspectivePanelFile);
 const deltaProjectionText = textByFile.get(deltaProjectionPanelFile);
 const reviewQueueText = textByFile.get(reviewQueuePanelFile);
@@ -747,6 +785,7 @@ assertWorkbenchRouteStillShell();
 assertShellComposition();
 assertPanelComponents();
 assertHandoffContextRelayRationaleFollowOn();
+assertCodexResultFeedbackDraftFollowOn();
 assertWorkplaneContextReader();
 assertDocs();
 assertFollowOnSmokeCompatibility();
@@ -1141,6 +1180,97 @@ function assertHandoffContextRelayRationaleFollowOn() {
       "contextRelayRationale={handoffContextRationale}",
     ],
     { label: agentWorkplaneFile },
+  );
+}
+
+function assertCodexResultFeedbackDraftFollowOn() {
+  assertContainsAll(
+    codexResultFeedbackTypeText,
+    [
+      "codex_result_feedback_draft.v0.1",
+      "expected_observed_delta",
+      "reuse_outcome_draft",
+      "carry_forward_suggestions",
+      "insufficient_data_reasons",
+      "candidate_material_only: true",
+      "source_of_truth: false",
+      "can_write_db: false",
+      "can_write_dogfood_ledger: false",
+      "can_mutate_memory: false",
+      "can_execute_codex: false",
+      "can_send_handoff: false",
+      "can_create_pr: false",
+      "can_merge_pr: false",
+    ],
+    { label: codexResultFeedbackTypeFile },
+  );
+  assertContainsAll(
+    codexResultFeedbackHelperText,
+    [
+      "buildCodexResultFeedbackDraft",
+      "CodexResultReportIngestionRecordV01",
+      "HandoffContextRelayRationale",
+      "expected_return_signal",
+      "observed_return_signal",
+      "missing_context_reuse_feedback_signal",
+      "missing_handoff_context_rationale",
+      "missing_codex_result_report",
+      "can_write_db: false",
+      "can_write_dogfood_ledger: false",
+      "can_execute_codex: false",
+      "can_send_handoff: false",
+    ],
+    { label: codexResultFeedbackHelperFile },
+  );
+  assertContainsAll(
+    codexResultFeedbackPanelText,
+    [
+      "CodexResultFeedbackDraftPanel",
+      "Feedback draft",
+      "expected vs observed",
+      "reuse outcome",
+      "carry forward",
+      "Read-only candidate material",
+    ],
+    { label: codexResultFeedbackPanelFile },
+  );
+  assertContainsAll(
+    codexResultReportNormalizerText,
+    [
+      "normalizeCodexResultReportV01",
+      "CodexResultReportIngestionRecordV01",
+      "changed_file_refs",
+      "observed_check_refs",
+      "skipped_check_refs",
+      "not_done_refs",
+      "expected_observed_delta_refs",
+    ],
+    { label: codexResultReportNormalizerFile },
+  );
+  assertContainsAll(
+    agentWorkplaneText,
+    [
+      "CodexResultFeedbackDraftPanel",
+      "buildCodexResultFeedbackDraft",
+      "handoff_context_rationale: handoffContextRationale",
+      "result_report: null",
+      "draft={codexResultFeedbackDraft}",
+    ],
+    { label: agentWorkplaneFile },
+  );
+  assert(
+    !agentWorkplaneText.includes(
+      "codex-result-report-ingestion.sample.v0.1.json",
+    ),
+    "Agent Workplane must not import the sample Codex result fixture",
+  );
+  assert(
+    !agentWorkplaneText.includes("codexResultReportSample.safe_input_example"),
+    "Agent Workplane must not normalize sample Codex result input",
+  );
+  assert(
+    !agentWorkplaneText.includes("normalizeCodexResultReportV01("),
+    "Agent Workplane must not normalize a sample Codex result report",
   );
 }
 

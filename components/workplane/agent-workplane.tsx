@@ -5,6 +5,7 @@ import { AutonomyCopyExportPanel } from "@/components/autonomy/autonomy-copy-exp
 import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-policy-preview-panel";
 import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
 import { AutonomyRunnerPreflightPreviewPanel } from "@/components/autonomy/autonomy-runner-preflight-preview-panel";
+import { CodexResultFeedbackDraftPanel } from "@/components/codex-result-feedback-draft-panel";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { GuideIntentProjectionPanel } from "@/components/guide/guide-intent-projection-panel";
 import { GuideWorkplaneDebugPanel } from "@/components/guide/guide-workplane-debug-panel";
@@ -35,6 +36,7 @@ import { WorkplaneInspector } from "@/components/workplane/workplane-inspector";
 import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
 import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-contract-for-web";
 import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
+import { buildCodexResultFeedbackDraft } from "@/lib/dogfooding/codex-result-feedback-draft";
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
 import {
   buildGuideWorkplaneDebugContext,
@@ -162,6 +164,10 @@ export async function AgentWorkplane() {
     continuity_relay: context.continuity_relay,
     handoff_preview: handoffPreview,
   });
+  const codexResultFeedbackDraft = buildCodexResultFeedbackDraft({
+    handoff_context_rationale: handoffContextRationale,
+    result_report: null,
+  });
   const workplaneDebugContext = buildGuideWorkplaneDebugContext({
     node_context_read: workplaneNodeContext,
     selection: {
@@ -252,6 +258,7 @@ export async function AgentWorkplane() {
               <HandoffContextRelayRationalePanel
                 rationale={handoffContextRationale}
               />
+              <CodexResultFeedbackDraftPanel draft={codexResultFeedbackDraft} />
               <HandoffCopyExportPanel
                 preview={handoffPreview}
                 contextRelayRationale={handoffContextRationale}

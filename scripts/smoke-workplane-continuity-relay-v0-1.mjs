@@ -35,6 +35,14 @@ const handoffRationaleSmokeFile =
   "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
 const handoffCopyExportSmokeFile =
   "scripts/smoke-handoff-capsule-copy-export-v0-1.mjs";
+const codexResultFeedbackTypeFile =
+  "types/codex-result-feedback-draft.ts";
+const codexResultFeedbackHelperFile =
+  "lib/dogfooding/codex-result-feedback-draft.ts";
+const codexResultFeedbackPanelFile =
+  "components/codex-result-feedback-draft-panel.tsx";
+const codexResultFeedbackSmokeFile =
+  "scripts/smoke-codex-result-feedback-draft-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -55,6 +63,10 @@ const allowedChangedFiles = [
   handoffCopyExportPanelFile,
   handoffRationaleSmokeFile,
   handoffCopyExportSmokeFile,
+  codexResultFeedbackTypeFile,
+  codexResultFeedbackHelperFile,
+  codexResultFeedbackPanelFile,
+  codexResultFeedbackSmokeFile,
 ];
 
 const textByFile = loadTextByFile(allowedChangedFiles);
