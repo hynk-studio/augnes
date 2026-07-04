@@ -742,6 +742,7 @@
     "smoke:perspective-next-work-candidate-update-preview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-next-work-candidate-update-preview-v0-1.mjs",
     "smoke:metric-informed-continuity-relay-adjustment-preview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs",
     "smoke:handoff-context-update-preview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-handoff-context-update-preview-v0-1.mjs",
+    "smoke:handoff-context-update-operator-decision-preview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-handoff-context-update-operator-decision-preview-v0-1.mjs",
     "smoke:autonomy-contract-v0-1": "node scripts/smoke-autonomy-contract-v0-1.mjs",
     "smoke:autonomy-contract-route-v0-1": "node scripts/smoke-autonomy-contract-route-v0-1.mjs",
     "smoke:autonomy-contract-web-preview-v0-1": "node scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
