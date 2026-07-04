@@ -55,6 +55,18 @@ const ledgerHelperFile = "lib/dogfooding/handoff-reuse-outcome-ledger.ts";
 const ledgerRouteFile = "app/api/dogfooding/reuse-ledger/route.ts";
 const ledgerSmokeFile =
   "scripts/smoke-handoff-reuse-outcome-ledger-write-v0-1.mjs";
+const dogfoodMetricCandidateSmokeFile =
+  "scripts/smoke-dogfood-metric-candidate-preview-v0-1.mjs";
+const perspectiveNextWorkCandidateSmokeFile =
+  "scripts/smoke-perspective-next-work-candidate-update-preview-v0-1.mjs";
+const metricInformedContinuityRelayAdjustmentTypeFile =
+  "types/metric-informed-continuity-relay-adjustment-preview.ts";
+const metricInformedContinuityRelayAdjustmentHelperFile =
+  "lib/workplane/metric-informed-continuity-relay-adjustment-preview.ts";
+const metricInformedContinuityRelayAdjustmentPanelFile =
+  "components/workplane/metric-informed-continuity-relay-adjustment-preview-panel.tsx";
+const metricInformedContinuityRelayAdjustmentSmokeFile =
+  "scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -84,6 +96,12 @@ const allowedChangedFiles = [
   ledgerHelperFile,
   ledgerRouteFile,
   ledgerSmokeFile,
+  dogfoodMetricCandidateSmokeFile,
+  perspectiveNextWorkCandidateSmokeFile,
+  metricInformedContinuityRelayAdjustmentTypeFile,
+  metricInformedContinuityRelayAdjustmentHelperFile,
+  metricInformedContinuityRelayAdjustmentPanelFile,
+  metricInformedContinuityRelayAdjustmentSmokeFile,
 ];
 
 const textByFile = loadTextByFile([

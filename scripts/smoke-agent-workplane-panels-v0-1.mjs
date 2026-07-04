@@ -89,6 +89,14 @@ const perspectiveNextWorkCandidatePanelFile =
   "components/perspective-next-work-candidate-update-preview-panel.tsx";
 const perspectiveNextWorkCandidateSmokeFile =
   "scripts/smoke-perspective-next-work-candidate-update-preview-v0-1.mjs";
+const metricInformedContinuityRelayAdjustmentTypeFile =
+  "types/metric-informed-continuity-relay-adjustment-preview.ts";
+const metricInformedContinuityRelayAdjustmentHelperFile =
+  "lib/workplane/metric-informed-continuity-relay-adjustment-preview.ts";
+const metricInformedContinuityRelayAdjustmentPanelFile =
+  "components/workplane/metric-informed-continuity-relay-adjustment-preview-panel.tsx";
+const metricInformedContinuityRelayAdjustmentSmokeFile =
+  "scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -463,6 +471,16 @@ const followOnPerspectiveNextWorkCandidateUpdatePreviewFiles = [
   packageJsonFile,
 ];
 
+const followOnMetricInformedContinuityRelayAdjustmentPreviewFiles = [
+  metricInformedContinuityRelayAdjustmentTypeFile,
+  metricInformedContinuityRelayAdjustmentHelperFile,
+  metricInformedContinuityRelayAdjustmentPanelFile,
+  metricInformedContinuityRelayAdjustmentSmokeFile,
+  agentWorkplaneFile,
+  smokeFile,
+  packageJsonFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -802,6 +820,7 @@ const allowedChangedFiles = new Set([
   ...followOnHandoffReuseOutcomeLedgerWriteFiles,
   ...followOnDogfoodMetricCandidatePreviewFiles,
   ...followOnPerspectiveNextWorkCandidateUpdatePreviewFiles,
+  ...followOnMetricInformedContinuityRelayAdjustmentPreviewFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,

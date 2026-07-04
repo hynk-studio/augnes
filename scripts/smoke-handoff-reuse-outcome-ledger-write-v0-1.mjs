@@ -52,6 +52,14 @@ const perspectiveNextWorkCandidatePanelFile =
   "components/perspective-next-work-candidate-update-preview-panel.tsx";
 const perspectiveNextWorkCandidateSmokeFile =
   "scripts/smoke-perspective-next-work-candidate-update-preview-v0-1.mjs";
+const metricInformedContinuityRelayAdjustmentTypeFile =
+  "types/metric-informed-continuity-relay-adjustment-preview.ts";
+const metricInformedContinuityRelayAdjustmentHelperFile =
+  "lib/workplane/metric-informed-continuity-relay-adjustment-preview.ts";
+const metricInformedContinuityRelayAdjustmentPanelFile =
+  "components/workplane/metric-informed-continuity-relay-adjustment-preview-panel.tsx";
+const metricInformedContinuityRelayAdjustmentSmokeFile =
+  "scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -76,6 +84,10 @@ const allowedChangedFiles = [
   perspectiveNextWorkCandidateHelperFile,
   perspectiveNextWorkCandidatePanelFile,
   perspectiveNextWorkCandidateSmokeFile,
+  metricInformedContinuityRelayAdjustmentTypeFile,
+  metricInformedContinuityRelayAdjustmentHelperFile,
+  metricInformedContinuityRelayAdjustmentPanelFile,
+  metricInformedContinuityRelayAdjustmentSmokeFile,
   agentWorkplaneFile,
 ];
 
