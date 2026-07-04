@@ -113,6 +113,8 @@ assertContainsAll(
   [
     "buildHandoffContextApplyOperatorDecisionPreviewV01",
     "createHandoffContextApplyOperatorDecisionAuthorityBoundaryV01",
+    "apply_preview_malformed",
+    "apply_preview_delta_missing_or_invalid",
     "apply_preview_wrong_version",
     "selected_full_record_material_missing",
     "apply_candidate_material_missing",
@@ -213,6 +215,43 @@ assert(
     wrongVersionDecision.blocking_reasons.includes(
       "blocked_wrong_apply_preview_version",
     ),
+);
+
+let malformedPreviewDecision;
+assert.doesNotThrow(() => {
+  malformedPreviewDecision =
+    buildHandoffContextApplyOperatorDecisionPreviewV01({
+      apply_preview: {
+        preview_version: "handoff_context_apply_preview.v0.1",
+      },
+      as_of: "2026-07-04T11:00:20.000Z",
+    });
+});
+assert(
+  ["insufficient_data", "blocked"].includes(
+    malformedPreviewDecision.decision_preview_status,
+  ),
+);
+assert.equal(
+  malformedPreviewDecision.readiness.ready_for_future_apply_write,
+  false,
+);
+assertWouldApplyLiveMaterialEmpty(malformedPreviewDecision);
+assert(
+  [
+    ...malformedPreviewDecision.insufficient_data_reasons,
+    ...malformedPreviewDecision.blocking_reasons,
+  ].some((reason) =>
+    [
+      "apply_preview_malformed",
+      "apply_preview_delta_missing_or_invalid",
+      "apply_preview_input_summary_missing_or_invalid",
+      "apply_preview_evidence_summary_missing_or_invalid",
+      "apply_preview_conflict_summary_missing_or_invalid",
+      "apply_preview_authority_boundary_missing_or_invalid",
+    ].includes(reason),
+  ),
+  "malformed correct-version apply_preview must expose an explicit shape reason",
 );
 
 const noRecordsDecision = decisionForPreview(applyPreview({
@@ -518,6 +557,7 @@ console.log(
       pass: true,
       missing_apply_preview_checked: true,
       wrong_version_checked: true,
+      malformed_correct_version_checked: true,
       insufficient_preview_statuses_checked: true,
       blocked_conflicts_checked: true,
       invalid_authority_checked: true,
@@ -723,6 +763,27 @@ function assertAuthorityFalse(authority) {
     if (field === "notes") continue;
     assert.equal(value, false, `${field} should be false`);
   }
+}
+
+function assertWouldApplyLiveMaterialEmpty(decision) {
+  assert.equal(decision.would_apply_preview.selected_refs_to_add.length, 0);
+  assert.equal(
+    decision.would_apply_preview.selected_refs_to_reinforce.length,
+    0,
+  );
+  assert.equal(
+    decision.would_apply_preview.warnings_to_add_or_strengthen.length,
+    0,
+  );
+  assert.equal(
+    decision.would_apply_preview.context_refs_to_deprioritize.length,
+    0,
+  );
+  assert.equal(decision.would_apply_preview.context_refs_to_exclude.length, 0);
+  assert.equal(
+    decision.would_apply_preview.expected_return_signal_updates.length,
+    0,
+  );
 }
 
 function assertNoForbiddenDecisionRuntimeCall(label, text) {

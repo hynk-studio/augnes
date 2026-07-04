@@ -40,7 +40,9 @@ export function buildHandoffContextApplyOperatorDecisionPreviewV01({
   source_refs,
 }: HandoffContextApplyOperatorDecisionPreviewInput = {}): HandoffContextApplyOperatorDecisionPreview {
   const sourcePreviewStatus = getApplyPreviewSourceStatus(apply_preview);
-  const preview = isHandoffContextApplyPreview(apply_preview)
+  const applyPreviewShapeProblems =
+    buildApplyPreviewShapeProblems(apply_preview);
+  const preview = isCompleteHandoffContextApplyPreviewShape(apply_preview)
     ? apply_preview
     : null;
   const liveMaterial = collectLiveApplyMaterial(preview);
@@ -50,6 +52,7 @@ export function buildHandoffContextApplyOperatorDecisionPreviewV01({
   const insufficientDataReasons = buildInsufficientDataReasons({
     preview,
     sourcePreviewStatus,
+    applyPreviewShapeProblems,
     liveMaterial,
     missingEvidence,
   });
@@ -215,16 +218,130 @@ interface LiveApplyMaterial {
 
 function getApplyPreviewSourceStatus(value: unknown): ApplyPreviewSourceStatus {
   if (!value) return "missing";
-  return isHandoffContextApplyPreview(value) ? "supplied" : "wrong_version";
+  return hasApplyPreviewVersion(value) ? "supplied" : "wrong_version";
 }
 
-function isHandoffContextApplyPreview(
+function hasApplyPreviewVersion(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    value.preview_version === HANDOFF_CONTEXT_APPLY_PREVIEW_VERSION
+  );
+}
+
+function isCompleteHandoffContextApplyPreviewShape(
   value: unknown,
 ): value is HandoffContextApplyPreview {
   return (
-    Boolean(value && typeof value === "object") &&
-    (value as { preview_version?: unknown }).preview_version ===
-      HANDOFF_CONTEXT_APPLY_PREVIEW_VERSION
+    hasApplyPreviewVersion(value) &&
+    buildApplyPreviewShapeProblems(value).length === 0
+  );
+}
+
+function buildApplyPreviewShapeProblems(value: unknown): string[] {
+  if (!hasApplyPreviewVersion(value)) return [];
+  if (!isRecord(value)) return ["apply_preview_malformed"];
+
+  const problems: string[] = [];
+  const proposedApplyDelta = recordField(value, "proposed_apply_delta");
+  if (
+    !hasArrayFields(proposedApplyDelta, [
+      "selected_refs_to_add",
+      "selected_refs_to_reinforce",
+      "warnings_to_add_or_strengthen",
+      "context_refs_to_deprioritize",
+      "context_refs_to_exclude",
+      "keep_unknown_as_review_only",
+      "expected_return_signal_updates",
+      "carry_forward_stop_if_missing",
+      "rejected_or_excluded_review_notes",
+    ])
+  ) {
+    problems.push("apply_preview_delta_missing_or_invalid");
+  }
+
+  const inputSummary = recordField(value, "input_summary");
+  if (
+    !inputSummary ||
+    typeof inputSummary.selected_full_record_supplied !== "boolean" ||
+    typeof inputSummary.apply_candidate_count !== "number"
+  ) {
+    problems.push("apply_preview_input_summary_missing_or_invalid");
+  }
+
+  const conflictSummary = recordField(value, "conflict_summary");
+  if (
+    !hasArrayFields(conflictSummary, [
+      "duplicate_selected_refs",
+      "unknown_selected_ref_attempts",
+      "missing_evidence_candidates",
+      "stale_or_noisy_candidates",
+      "conflicting_candidate_ids",
+      "blocked_apply_reasons",
+    ])
+  ) {
+    problems.push("apply_preview_conflict_summary_missing_or_invalid");
+  }
+
+  const evidenceSummary = recordField(value, "evidence_summary");
+  if (
+    !hasArrayFields(evidenceSummary, [
+      "source_refs",
+      "evidence_refs",
+      "missing_evidence",
+      "problem_record_ids",
+    ]) ||
+    !hasBooleanFields(evidenceSummary, [
+      "all_apply_candidates_evidence_backed",
+      "no_live_handoff_mutation_confirmed",
+      "no_handoff_send_confirmed",
+      "no_provider_github_codex_confirmed",
+    ])
+  ) {
+    problems.push("apply_preview_evidence_summary_missing_or_invalid");
+  }
+
+  const authorityBoundary = recordField(value, "authority_boundary");
+  if (
+    !hasBooleanFields(authorityBoundary, [
+      "read_only_apply_preview",
+      "advisory_only",
+      "source_of_truth",
+      ...applyPreviewFalseAuthorityFields,
+    ])
+  ) {
+    problems.push("apply_preview_authority_boundary_missing_or_invalid");
+  }
+
+  return problems.length
+    ? uniqueSortedStrings(["apply_preview_malformed", ...problems])
+    : [];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function recordField(
+  value: Record<string, unknown>,
+  field: string,
+): Record<string, unknown> | null {
+  const nested = value[field];
+  return isRecord(nested) ? nested : null;
+}
+
+function hasArrayFields(
+  value: Record<string, unknown> | null,
+  fields: string[],
+): boolean {
+  return Boolean(value && fields.every((field) => Array.isArray(value[field])));
+}
+
+function hasBooleanFields(
+  value: Record<string, unknown> | null,
+  fields: string[],
+): boolean {
+  return Boolean(
+    value && fields.every((field) => typeof value[field] === "boolean"),
   );
 }
 
@@ -293,11 +410,13 @@ function buildMissingEvidence({
 function buildInsufficientDataReasons({
   preview,
   sourcePreviewStatus,
+  applyPreviewShapeProblems,
   liveMaterial,
   missingEvidence,
 }: {
   preview: HandoffContextApplyPreview | null;
   sourcePreviewStatus: ApplyPreviewSourceStatus;
+  applyPreviewShapeProblems: string[];
   liveMaterial: LiveApplyMaterial;
   missingEvidence: string[];
 }): string[] {
@@ -321,6 +440,7 @@ function buildInsufficientDataReasons({
     ...(preview && countLiveApplyMaterial(liveMaterial) === 0
       ? ["apply_candidate_material_missing"]
       : []),
+    ...applyPreviewShapeProblems,
     ...(preview?.insufficient_data_reasons ?? []),
     ...missingEvidence,
   ]);
