@@ -364,6 +364,52 @@ try {
     ),
     "forbidden_action_requested:requested_actions.update_metrics",
   );
+
+  const missingNestedArraysResult = assertMalformedPreviewRefused(
+    db,
+    (preview) => {
+      delete preview.blocking_reasons;
+      delete preview.missing_evidence;
+    },
+    "decision_preview_blocking_reasons_invalid",
+  );
+  assert(
+    missingNestedArraysResult.receipt.refusal_reasons.includes(
+      "decision_preview_missing_evidence_invalid",
+    ),
+    "missing malformed missing_evidence refusal reason",
+  );
+  assertMalformedPreviewRefused(
+    db,
+    (preview) => {
+      preview.source_status = "not-a-source-status-object";
+    },
+    "decision_preview_source_status_invalid",
+  );
+  assertMalformedPreviewRefused(
+    db,
+    (preview) => {
+      preview.proposal_refs = "not-a-proposal-refs-object";
+    },
+    "decision_preview_proposal_refs_invalid",
+  );
+  assertMalformedPreviewRefused(
+    db,
+    (preview) => {
+      delete preview.would_write_preview;
+    },
+    "decision_preview_would_write_preview_invalid",
+  );
+  assertMalformedPreviewRefused(
+    db,
+    (preview) => {
+      preview.authority_boundary = {
+        read_only: true,
+        candidate_material_only: "yes",
+      };
+    },
+    "decision_preview_authority_boundary_invalid",
+  );
   assert.equal(ledger.handoffReuseOutcomeLedgerStoreSchemaExistsV01(db), false);
 
   const writeResult = ledger.writeHandoffReuseOutcomeLedgerRecordV01(
@@ -458,6 +504,29 @@ try {
   assert.equal(refusedRouteJson.receipt.wrote, false);
   assert.equal(existsSync(routeDbPath), false);
 
+  const malformedRouteResponse = await ledgerRoute.POST(
+    routeRequest("POST", {
+      action: "write",
+      db_path: routeDbPath,
+      input: approvalPayload(
+        malformedDecisionPreview((preview) => {
+          preview.would_write_preview = "not-a-would-write-preview-object";
+        }),
+      ),
+    }),
+  );
+  assert.equal(malformedRouteResponse.status, 400);
+  const malformedRouteJson = await malformedRouteResponse.json();
+  assert.equal(malformedRouteJson.store_result.status, "refused");
+  assert.equal(malformedRouteJson.receipt.wrote, false);
+  assert(
+    malformedRouteJson.receipt.refusal_reasons.includes(
+      "decision_preview_would_write_preview_invalid",
+    ),
+    "route malformed preview refusal reason must be returned",
+  );
+  assert.equal(existsSync(routeDbPath), false);
+
   const writeRouteResponse = await ledgerRoute.POST(
     routeRequest("POST", {
       action: "write",
@@ -520,8 +589,10 @@ console.log(
       pass: true,
       default_workbench_refused: true,
       sample_fixture_refused: true,
+      malformed_nested_preview_refused: true,
       positive_write_record_count: 1,
       duplicate_prevented: true,
+      route_malformed_preview_refused_without_db: true,
       route_write_and_read_checked: true,
       receipt_no_metric_update: true,
       receipt_no_memory_mutation: true,
@@ -668,6 +739,22 @@ function assertRefused(result, expectedReason) {
     `${expectedReason} must be included in ${result.receipt.refusal_reasons.join(", ")}`,
   );
   assertReceiptDeniesSideEffects(result.receipt);
+}
+
+function assertMalformedPreviewRefused(db, mutator, expectedReason) {
+  const result = ledger.writeHandoffReuseOutcomeLedgerRecordV01(
+    approvalPayload(malformedDecisionPreview(mutator)),
+    db,
+  );
+  assertRefused(result, expectedReason);
+  assert.equal(ledger.handoffReuseOutcomeLedgerStoreSchemaExistsV01(db), false);
+  return result;
+}
+
+function malformedDecisionPreview(mutator) {
+  const preview = cloneJson(readyDecision);
+  mutator(preview);
+  return preview;
 }
 
 function countRecords(db) {

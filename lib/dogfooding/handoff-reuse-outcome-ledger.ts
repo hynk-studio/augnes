@@ -215,24 +215,30 @@ export function validateHandoffReuseOutcomeLedgerWriteInputV01(
     });
   }
 
-  const decisionPreview = isRecord(input.decision_preview)
-    ? (input.decision_preview as unknown as DogfoodReuseOperatorDecisionPreview)
+  const decisionPreviewRecord = getRecord(input, "decision_preview");
+  const decisionPreview = decisionPreviewRecord
+    ? (decisionPreviewRecord as unknown as DogfoodReuseOperatorDecisionPreview)
     : null;
   if (!decisionPreview) reasons.push("decision_preview_missing");
   if (
-    decisionPreview &&
-    decisionPreview.preview_version !== DOGFOOD_REUSE_OPERATOR_DECISION_PREVIEW_VERSION
+    decisionPreviewRecord &&
+    decisionPreviewRecord.preview_version !==
+      DOGFOOD_REUSE_OPERATOR_DECISION_PREVIEW_VERSION
   ) {
     reasons.push("decision_preview_version_invalid");
   }
-  if (decisionPreview?.write_readiness?.write_ready !== true) {
+  const writeReadiness = getRecord(decisionPreviewRecord, "write_readiness");
+  if (writeReadiness?.write_ready !== true) {
     reasons.push("decision_preview_not_write_ready");
   }
-  if (decisionPreview?.decision_preview_status !== "ready_for_operator_decision") {
+  if (
+    decisionPreviewRecord?.decision_preview_status !==
+    "ready_for_operator_decision"
+  ) {
     reasons.push("decision_preview_status_not_ready_for_operator_decision");
   }
   if (
-    decisionPreview?.recommended_operator_decision !==
+    decisionPreviewRecord?.recommended_operator_decision !==
     "approve_for_future_write"
   ) {
     reasons.push("recommended_operator_decision_not_approve_for_future_write");
@@ -271,55 +277,129 @@ export function validateHandoffReuseOutcomeLedgerWriteInputV01(
     }
   }
 
-  if ((decisionPreview?.blocking_reasons.length ?? 0) > 0) {
+  const previewSourceRefs = decisionPreviewRecord
+    ? asArray(decisionPreviewRecord.source_refs)
+    : null;
+  if (decisionPreviewRecord && !previewSourceRefs) {
+    reasons.push("decision_preview_source_refs_invalid");
+  }
+
+  const blockingReasons = decisionPreviewRecord
+    ? asArray(decisionPreviewRecord.blocking_reasons)
+    : null;
+  if (decisionPreviewRecord && !blockingReasons) {
+    reasons.push("decision_preview_blocking_reasons_invalid");
+  }
+  if (arrayLength(blockingReasons) > 0) {
     reasons.push("decision_preview_blocking_reasons_present");
   }
-  if ((decisionPreview?.missing_evidence.length ?? 0) > 0) {
+  const missingEvidence = decisionPreviewRecord
+    ? asArray(decisionPreviewRecord.missing_evidence)
+    : null;
+  if (decisionPreviewRecord && !missingEvidence) {
+    reasons.push("decision_preview_missing_evidence_invalid");
+  }
+  if (arrayLength(missingEvidence) > 0) {
     reasons.push("decision_preview_missing_evidence_present");
   }
-  if (decisionPreview?.source_status.codex_result_report !== "supplied") {
+
+  const sourceStatus = getRecord(decisionPreviewRecord, "source_status");
+  if (decisionPreviewRecord && !sourceStatus) {
+    reasons.push("decision_preview_source_status_invalid");
+  }
+  if (sourceStatus?.codex_result_report !== "supplied") {
     reasons.push("codex_result_report_not_supplied");
   }
 
-  const proposalRefs = decisionPreview?.proposal_refs;
-  if (!proposalRefs?.result_report_ref) {
+  const proposalRefs = getRecord(decisionPreviewRecord, "proposal_refs");
+  if (decisionPreviewRecord && !proposalRefs) {
+    reasons.push("decision_preview_proposal_refs_invalid");
+  }
+  if (!asNonEmptyString(proposalRefs?.result_report_ref)) {
     reasons.push("result_report_ref_missing");
   }
-  if (!proposalRefs?.result_report_fingerprint) {
+  if (!asNonEmptyString(proposalRefs?.result_report_fingerprint)) {
     reasons.push("result_report_fingerprint_missing");
   }
   if (proposalRefs?.proposal_status !== "proposal_ready_for_operator_review") {
     reasons.push("proposal_status_not_ready_for_operator_review");
   }
-  if (!proposalRefs?.feedback_draft_ref) {
+  if (!asNonEmptyString(proposalRefs?.feedback_draft_ref)) {
     reasons.push("feedback_draft_ref_missing");
   }
-  if (!proposalRefs?.context_relay_rationale_ref) {
+  if (!asNonEmptyString(proposalRefs?.context_relay_rationale_ref)) {
     reasons.push("context_relay_rationale_ref_missing");
   }
-  if (!proposalRefs?.continuity_relay_ref) {
+  if (!asNonEmptyString(proposalRefs?.continuity_relay_ref)) {
     reasons.push("continuity_relay_ref_missing");
   }
-  if (!decisionPreview?.would_write_preview.proposed_record_kind) {
-    reasons.push("proposed_record_kind_missing");
-  }
-  if (!decisionPreview?.would_write_preview.proposed_expected_observed_summary) {
-    reasons.push("expected_observed_summary_missing");
-  }
-  if (!decisionPreview?.would_write_preview.proposed_reuse_classifications) {
-    reasons.push("reuse_classifications_missing");
+  const proposalSourceRefs = proposalRefs
+    ? asArray(proposalRefs.source_refs)
+    : null;
+  if (proposalRefs && !proposalSourceRefs) {
+    reasons.push("decision_preview_proposal_refs_invalid");
   }
 
-  const authorityBoundary = decisionPreview?.authority_boundary;
+  const wouldWritePreview = getRecord(
+    decisionPreviewRecord,
+    "would_write_preview",
+  );
+  if (decisionPreviewRecord && !wouldWritePreview) {
+    reasons.push("decision_preview_would_write_preview_invalid");
+  }
+  if (!asNonEmptyString(wouldWritePreview?.proposed_record_kind)) {
+    reasons.push("proposed_record_kind_missing");
+  }
+  const expectedObservedSummary = getRecord(
+    wouldWritePreview,
+    "proposed_expected_observed_summary",
+  );
+  if (!expectedObservedSummary) {
+    reasons.push("expected_observed_summary_missing");
+  }
+  const reuseClassifications = getRecord(
+    wouldWritePreview,
+    "proposed_reuse_classifications",
+  );
+  if (!reuseClassifications) {
+    reasons.push("reuse_classifications_missing");
+  }
+  const dogfoodSignalSummary = getRecord(
+    wouldWritePreview,
+    "proposed_dogfood_signal_summary",
+  );
+  const carryForwardCandidates = getRecord(
+    wouldWritePreview,
+    "carry_forward_candidates",
+  );
   if (
-    authorityBoundary?.read_only !== true ||
-    authorityBoundary?.candidate_material_only !== true ||
-    authorityBoundary?.source_of_truth !== false
+    wouldWritePreview &&
+    (!dogfoodSignalSummary ||
+      !carryForwardCandidates ||
+      !asArray(dogfoodSignalSummary.skipped_or_unverified_checks) ||
+      !asArray(dogfoodSignalSummary.not_done_items))
+  ) {
+    reasons.push("decision_preview_would_write_preview_invalid");
+  }
+
+  const authorityBoundary = getRecord(
+    decisionPreviewRecord,
+    "authority_boundary",
+  );
+  if (
+    decisionPreviewRecord &&
+    (!authorityBoundary ||
+      authorityBoundary.read_only !== true ||
+      authorityBoundary.candidate_material_only !== true ||
+      authorityBoundary.source_of_truth !== false)
   ) {
     reasons.push("decision_preview_authority_boundary_invalid");
   }
   for (const field of previewForbiddenAuthorityFields) {
-    if (authorityBoundary && authorityBoundary[field] !== false) {
+    if (
+      authorityBoundary &&
+      !hasBooleanFalseAuthorityBoundary(authorityBoundary, field)
+    ) {
       reasons.push(`decision_preview_authority_field_not_false:${field}`);
     }
   }
@@ -327,7 +407,10 @@ export function validateHandoffReuseOutcomeLedgerWriteInputV01(
   if (decisionPreview && isSampleFixtureBacked(decisionPreview)) {
     reasons.push("sample_fixture_backed_preview_refused");
   }
-  if (decisionPreview && isDefaultWorkbenchMissingResultPath(decisionPreview)) {
+  if (
+    decisionPreviewRecord &&
+    isDefaultWorkbenchMissingResultPath(decisionPreviewRecord)
+  ) {
     reasons.push("default_workbench_missing_result_path_refused");
   }
 
@@ -806,7 +889,7 @@ function createReceipt({
   record: HandoffReuseOutcomeLedgerRecord | null;
 }): HandoffReuseOutcomeLedgerWriteReceipt {
   const sourceRefs = uniqueSortedStrings([
-    ...(validation.decision_preview?.source_refs ?? []),
+    ...sourceRefsFromDecisionPreview(validation.decision_preview),
     ...(record?.source_refs ?? []),
   ]);
   return {
@@ -943,13 +1026,13 @@ function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function isDefaultWorkbenchMissingResultPath(
-  preview: DogfoodReuseOperatorDecisionPreview,
-): boolean {
+function isDefaultWorkbenchMissingResultPath(preview: unknown): boolean {
+  const sourceStatus = getRecord(preview, "source_status");
+  const proposalRefs = getRecord(preview, "proposal_refs");
   return (
-    preview.source_status.codex_result_report === "missing" ||
-    preview.proposal_refs.result_report_ref === null ||
-    preview.proposal_refs.result_report_fingerprint === null
+    sourceStatus?.codex_result_report === "missing" ||
+    proposalRefs?.result_report_ref === null ||
+    proposalRefs?.result_report_fingerprint === null
   );
 }
 
@@ -1021,6 +1104,41 @@ function asNonEmptyString(value: unknown): string | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function asArray(value: unknown): unknown[] | null {
+  return Array.isArray(value) ? value : null;
+}
+
+function arrayLength(value: unknown): number {
+  return asArray(value)?.length ?? 0;
+}
+
+function getRecord(
+  value: unknown,
+  field: string,
+): Record<string, unknown> | null {
+  if (!isRecord(value)) return null;
+  const nested = value[field];
+  return isRecord(nested) ? nested : null;
+}
+
+function hasBooleanFalseAuthorityBoundary(
+  boundary: Record<string, unknown>,
+  field: string,
+): boolean {
+  return boundary[field] === false;
+}
+
+function sourceRefsFromDecisionPreview(value: unknown): string[] {
+  if (!isRecord(value)) return [];
+  return stringsFromArray(value.source_refs);
+}
+
+function stringsFromArray(value: unknown): string[] {
+  return (asArray(value) ?? []).filter(
+    (entry): entry is string => typeof entry === "string",
+  );
 }
 
 function uniqueSortedStrings(values: readonly string[]): string[] {
