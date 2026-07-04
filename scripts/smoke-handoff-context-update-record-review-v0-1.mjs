@@ -12,11 +12,15 @@ import {
 
 const typeFile = "types/handoff-context-update-record-review.ts";
 const helperFile = "lib/handoff/handoff-context-update-record-review.ts";
+const readForWebHelperFile =
+  "lib/handoff/read-handoff-context-update-record-review-for-web.ts";
 const panelFile =
   "components/handoff/handoff-context-update-record-review-panel.tsx";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
 const smokeFile =
   "scripts/smoke-handoff-context-update-record-review-v0-1.mjs";
+const dbReadSmokeFile =
+  "scripts/smoke-handoff-context-update-record-review-db-read-v0-1.mjs";
 const packageJsonFile = "package.json";
 const writeSmokeFile =
   "scripts/smoke-handoff-context-update-write-v0-1.mjs";
@@ -34,9 +38,11 @@ const agentWorkplaneSmokeFile =
 const allowedChangedFiles = [
   typeFile,
   helperFile,
+  readForWebHelperFile,
   panelFile,
   agentWorkplaneFile,
   smokeFile,
+  dbReadSmokeFile,
   packageJsonFile,
   writeSmokeFile,
   decisionSmokeFile,
@@ -129,9 +135,8 @@ assertContainsAll(
   agentWorkplaneText,
   [
     "HandoffContextUpdateRecordReviewPanel",
-    "buildApprovedHandoffContextUpdateRecordReviewV01",
-    "records: []",
-    "workbench:default_empty_handoff_context_update_record_review",
+    "readHandoffContextUpdateRecordReviewForWebV01",
+    "workbench:handoff_context_update_record_review",
   ],
   { label: agentWorkplaneFile },
 );
@@ -147,6 +152,10 @@ assert(!panelText.includes("<button"), "record review panel must not add buttons
 assert(
   !agentWorkplaneText.includes("writeOperatorApprovedHandoffContextUpdateV01"),
   "Workbench must not import or call the handoff context update write helper",
+);
+assert(
+  !agentWorkplaneText.includes("buildApprovedHandoffContextUpdateRecordReviewV01"),
+  "Workbench should use the DB-backed read-for-web review helper",
 );
 assert(
   !agentWorkplaneText.includes("ensureHandoffContextUpdateWriteSchemaV01"),
