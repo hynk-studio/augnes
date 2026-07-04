@@ -74,6 +74,14 @@ const handoffContextApplyDecisionPanelFile =
   "components/handoff/handoff-context-apply-operator-decision-preview-panel.tsx";
 const handoffContextApplyDecisionSmokeFile =
   "scripts/smoke-handoff-context-apply-operator-decision-preview-v0-1.mjs";
+const handoffContextApplyWriteContractTypeFile =
+  "types/handoff-context-apply-write-contract-preview.ts";
+const handoffContextApplyWriteContractHelperFile =
+  "lib/handoff/handoff-context-apply-write-contract-preview.ts";
+const handoffContextApplyWriteContractPanelFile =
+  "components/handoff/handoff-context-apply-write-contract-preview-panel.tsx";
+const handoffContextApplyWriteContractSmokeFile =
+  "scripts/smoke-handoff-context-apply-write-contract-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -107,6 +115,10 @@ const allowedChangedFiles = [
   handoffContextApplyDecisionHelperFile,
   handoffContextApplyDecisionPanelFile,
   handoffContextApplyDecisionSmokeFile,
+  handoffContextApplyWriteContractTypeFile,
+  handoffContextApplyWriteContractHelperFile,
+  handoffContextApplyWriteContractPanelFile,
+  handoffContextApplyWriteContractSmokeFile,
 ];
 
 const textByFile = loadTextByFile([

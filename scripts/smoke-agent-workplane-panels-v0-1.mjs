@@ -149,6 +149,14 @@ const handoffContextApplyDecisionPanelFile =
   "components/handoff/handoff-context-apply-operator-decision-preview-panel.tsx";
 const handoffContextApplyDecisionSmokeFile =
   "scripts/smoke-handoff-context-apply-operator-decision-preview-v0-1.mjs";
+const handoffContextApplyWriteContractTypeFile =
+  "types/handoff-context-apply-write-contract-preview.ts";
+const handoffContextApplyWriteContractHelperFile =
+  "lib/handoff/handoff-context-apply-write-contract-preview.ts";
+const handoffContextApplyWriteContractPanelFile =
+  "components/handoff/handoff-context-apply-write-contract-preview-panel.tsx";
+const handoffContextApplyWriteContractSmokeFile =
+  "scripts/smoke-handoff-context-apply-write-contract-preview-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -621,6 +629,25 @@ const followOnHandoffContextApplyOperatorDecisionPreviewFiles = [
   smokeFile,
 ];
 
+const followOnHandoffContextApplyWriteContractPreviewFiles = [
+  handoffContextApplyWriteContractTypeFile,
+  handoffContextApplyWriteContractHelperFile,
+  handoffContextApplyWriteContractPanelFile,
+  handoffContextApplyWriteContractSmokeFile,
+  handoffContextApplyDecisionSmokeFile,
+  handoffContextApplyPreviewSmokeFile,
+  handoffContextUpdateRecordReviewDbReadSmokeFile,
+  handoffContextUpdateRecordReviewSmokeFile,
+  handoffContextUpdateWriteSmokeFile,
+  handoffContextUpdateOperatorDecisionSmokeFile,
+  handoffContextUpdatePreviewSmokeFile,
+  metricInformedContinuityRelayAdjustmentSmokeFile,
+  handoffRationaleSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -967,6 +994,7 @@ const allowedChangedFiles = new Set([
   ...followOnHandoffContextUpdateRecordReviewFiles,
   ...followOnHandoffContextApplyPreviewFiles,
   ...followOnHandoffContextApplyOperatorDecisionPreviewFiles,
+  ...followOnHandoffContextApplyWriteContractPreviewFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
