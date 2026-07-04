@@ -93,6 +93,13 @@ assertContainsAll(
   [
     "buildApprovedHandoffContextUpdateRecordReviewV01",
     "createApprovedHandoffContextUpdateRecordReviewAuthorityBoundaryV01",
+    "record_id_missing",
+    "operator_approval_missing_or_invalid",
+    "source_refs_missing_or_invalid",
+    "approved_candidate_material_missing_or_invalid",
+    "carry_forward_material_missing_or_invalid",
+    "no_side_effects_missing_or_invalid",
+    "hasCandidateArrayFields",
     "record_fingerprint_missing",
     "write_validation_hash_missing",
     "authority_${field}_true",
@@ -173,6 +180,33 @@ assert.equal(emptyReview.review_status, "no_records");
 assert.equal(emptyReview.input_summary.supplied_record_count, 0);
 assertReviewAuthorityFalse(emptyReview);
 
+const partialRecordReview = buildApprovedHandoffContextUpdateRecordReviewV01({
+  records: [
+    {
+      record_version: "operator_approved_handoff_context_update_record.v0.1",
+      record_fingerprint: "record-fingerprint:durable-partial",
+      write_validation: {
+        validation_hash: "validation-hash:durable-partial",
+      },
+    },
+  ],
+  scope: "project:augnes",
+  as_of: "2026-07-04T08:00:30.000Z",
+});
+assert.equal(partialRecordReview.review_status, "invalid_records");
+assert.equal(partialRecordReview.input_summary.valid_record_count, 0);
+assert(partialRecordReview.evidence_summary.problem_record_ids.includes("malformed_record:1"));
+assert(
+  partialRecordReview.record_summaries[0].problem_reasons.includes(
+    "record_id_missing",
+  ),
+);
+assert(
+  partialRecordReview.record_summaries[0].problem_reasons.includes(
+    "operator_approval_missing_or_invalid",
+  ),
+);
+
 const validRecord = approvedRecord({
   record_id: "hcu-record:durable-alpha",
   idempotency_key: "hcu-idempotency:durable-alpha",
@@ -231,6 +265,44 @@ assert.equal(
   0,
 );
 assert.equal(oneRecordReview.input_summary.handoff_sent_count, 0);
+
+const emptyCandidateRecord = recordWithEmptyCandidateArrays({
+  record_id: "hcu-record:durable-empty-candidates",
+  idempotency_key: "hcu-idempotency:durable-empty-candidates",
+  created_at: "2026-07-04T08:02:30.000Z",
+  operator_ref: "operator-ref:durable-empty-candidates",
+  approved_by: "operator:durable-reviewer",
+  record_fingerprint: "record-fingerprint:durable-empty-candidates",
+  validation_hash: "validation-hash:durable-empty-candidates",
+});
+const emptyCandidateReview = buildApprovedHandoffContextUpdateRecordReviewV01({
+  records: [emptyCandidateRecord],
+  scope: "project:augnes",
+  as_of: "2026-07-04T08:02:45.000Z",
+});
+assert.equal(emptyCandidateReview.review_status, "records_available");
+assert.equal(emptyCandidateReview.input_summary.valid_record_count, 1);
+assert.deepEqual(emptyCandidateReview.record_summaries[0].problem_reasons, []);
+assert.equal(
+  emptyCandidateReview.approved_material_summary.selected_ref_add_count,
+  0,
+);
+assert.equal(
+  emptyCandidateReview.approved_material_summary.selected_ref_reinforcement_count,
+  0,
+);
+assert.equal(emptyCandidateReview.approved_material_summary.warning_update_count, 0);
+assert.equal(emptyCandidateReview.approved_material_summary.context_diet_count, 0);
+assert.equal(emptyCandidateReview.approved_material_summary.keep_unknown_count, 0);
+assert.equal(
+  emptyCandidateReview.approved_material_summary.expected_return_signal_count,
+  0,
+);
+assert.equal(emptyCandidateReview.approved_material_summary.stop_if_missing_count, 0);
+assert.equal(
+  emptyCandidateReview.approved_material_summary.rejected_or_excluded_count,
+  0,
+);
 
 const selectedReview = buildApprovedHandoffContextUpdateRecordReviewV01({
   records: [validRecord],
@@ -600,6 +672,40 @@ function approvedRecord({
     ],
     record_fingerprint,
   };
+}
+
+function recordWithEmptyCandidateArrays(input) {
+  const record = approvedRecord(input);
+  record.approved_candidate_material = {
+    selected_ref_add_candidates: [],
+    selected_ref_reinforcement_candidates: [],
+    warning_update_candidates: [],
+    context_diet_candidates: [],
+    keep_unknown_candidates: [],
+    expected_return_signal_candidates: [],
+  };
+  record.carry_forward_material = {
+    unresolved_blockers: [],
+    missing_evidence: [],
+    stop_if_missing_candidates: [],
+    rejected_or_excluded_candidates: [],
+  };
+  record.evidence_summary = {
+    ...record.evidence_summary,
+    has_candidate_material: false,
+    has_selected_ref_signal: false,
+    has_warning_signal: false,
+    has_context_diet_signal: false,
+    has_stop_if_missing_signal: false,
+    has_expected_return_signal: false,
+    has_unknown_signal: false,
+    evidence_refs: ["evidence-ref:durable-empty-candidates"],
+  };
+  record.update_preview_refs = {
+    ...record.update_preview_refs,
+    evidence_refs: ["evidence-ref:durable-empty-candidates"],
+  };
+  return record;
 }
 
 function candidate(suffix, kind, evidenceRef) {

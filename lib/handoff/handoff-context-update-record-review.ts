@@ -271,6 +271,63 @@ function recordProblems({
   ) {
     reasons.push("record_version_invalid");
   }
+  if (!asString(record.record_id)) {
+    reasons.push("record_id_missing");
+  }
+  if (!asString(record.idempotency_key)) {
+    reasons.push("idempotency_key_missing");
+  }
+  if (!isValidDateString(record.created_at)) {
+    reasons.push("created_at_missing_or_invalid");
+  }
+  if (record.scope !== OPERATOR_APPROVED_HANDOFF_CONTEXT_UPDATE_SCOPE) {
+    reasons.push("scope_invalid");
+  }
+  if (record.operator_decision !== "approve_for_future_write") {
+    reasons.push("operator_decision_invalid");
+  }
+  validateOperatorApprovalShape(record, reasons);
+  if (!isNonEmptyStringArray(record.source_refs)) {
+    reasons.push("source_refs_missing_or_invalid");
+  }
+  if (!isDecisionPreviewRefsShape(getRecord(record, "decision_preview_refs"))) {
+    reasons.push("decision_preview_refs_missing_or_invalid");
+  }
+  if (!isUpdatePreviewRefsShape(getRecord(record, "update_preview_refs"))) {
+    reasons.push("update_preview_refs_missing_or_invalid");
+  }
+  if (
+    !hasCandidateArrayFields(
+      getRecord(record, "approved_candidate_material"),
+      [
+        "selected_ref_add_candidates",
+        "selected_ref_reinforcement_candidates",
+        "warning_update_candidates",
+        "context_diet_candidates",
+        "keep_unknown_candidates",
+        "expected_return_signal_candidates",
+      ],
+    )
+  ) {
+    reasons.push("approved_candidate_material_missing_or_invalid");
+  }
+  if (
+    !hasCandidateArrayFields(getRecord(record, "carry_forward_material"), [
+      "stop_if_missing_candidates",
+      "rejected_or_excluded_candidates",
+    ])
+  ) {
+    reasons.push("carry_forward_material_missing_or_invalid");
+  }
+  if (!isEvidenceSummaryShape(getRecord(record, "evidence_summary"))) {
+    reasons.push("evidence_summary_missing_or_invalid");
+  }
+  if (!isAuthorityBoundaryShape(getRecord(record, "authority_boundary"))) {
+    reasons.push("authority_boundary_missing_or_invalid");
+  }
+  if (!isNoSideEffectsShape(getRecord(record, "no_side_effects"))) {
+    reasons.push("no_side_effects_missing_or_invalid");
+  }
   if (!asString(record.record_fingerprint)) {
     reasons.push("record_fingerprint_missing");
   }
@@ -288,6 +345,89 @@ function recordProblems({
     }
   }
   return uniqueSortedStrings(reasons);
+}
+
+function validateOperatorApprovalShape(
+  record: Record<string, unknown>,
+  reasons: string[],
+): void {
+  const operatorApproval = getRecord(record, "operator_approval");
+  if (!operatorApproval) {
+    reasons.push("operator_approval_missing_or_invalid");
+    return;
+  }
+  if (!asString(operatorApproval.approved_by)) {
+    reasons.push("operator_approval_approved_by_missing");
+  }
+  if (!asString(operatorApproval.operator_ref)) {
+    reasons.push("operator_approval_operator_ref_missing");
+  }
+  if (!isValidDateString(operatorApproval.approved_at)) {
+    reasons.push("operator_approval_approved_at_missing_or_invalid");
+  }
+}
+
+function isDecisionPreviewRefsShape(
+  refs: Record<string, unknown> | null,
+): boolean {
+  return Boolean(
+    refs &&
+      asString(refs.preview_version) &&
+      asString(refs.decision_preview_status) &&
+      asString(refs.recommended_operator_decision) &&
+      typeof refs.write_ready === "boolean" &&
+      isValidDateString(refs.preview_as_of) &&
+      isStringArray(refs.source_refs),
+  );
+}
+
+function isUpdatePreviewRefsShape(
+  refs: Record<string, unknown> | null,
+): boolean {
+  if (!refs) return false;
+  return Boolean(
+    hasNullableStringField(refs, "update_preview_ref") &&
+      hasNullableStringField(refs, "update_preview_version") &&
+      hasNullableStringField(refs, "update_preview_candidate_status") &&
+      isStringArray(refs.source_refs) &&
+      isStringArray(refs.evidence_refs),
+  );
+}
+
+function isEvidenceSummaryShape(
+  evidenceSummary: Record<string, unknown> | null,
+): boolean {
+  return Boolean(
+    evidenceSummary &&
+      isStringArray(evidenceSummary.evidence_refs) &&
+      isStringArray(evidenceSummary.missing_evidence),
+  );
+}
+
+function isAuthorityBoundaryShape(
+  authority: Record<string, unknown> | null,
+): boolean {
+  if (!authority) return false;
+  return Object.keys(summarizeRecordAuthority(authority)).every(
+    (field) => typeof authority[field] === "boolean",
+  );
+}
+
+function isNoSideEffectsShape(
+  noSideEffects: Record<string, unknown> | null,
+): boolean {
+  if (!noSideEffects) return false;
+  return Object.keys(summarizeNoSideEffects(noSideEffects)).every(
+    (field) => typeof noSideEffects[field] === "boolean",
+  );
+}
+
+function hasCandidateArrayFields(
+  material: Record<string, unknown> | null,
+  fields: string[],
+): boolean {
+  if (!material) return false;
+  return fields.every((field) => isRecordArray(material[field]));
 }
 
 function summarizeRecordAuthority(
@@ -650,6 +790,30 @@ function stringArrayFromPath(
     : [];
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.every((item): item is string => typeof item === "string")
+  );
+}
+
+function isNonEmptyStringArray(value: unknown): value is string[] {
+  return isStringArray(value) && value.length > 0;
+}
+
+function isRecordArray(value: unknown): value is Record<string, unknown>[] {
+  return Array.isArray(value) && value.every(isRecord);
+}
+
+function hasNullableStringField(
+  record: Record<string, unknown>,
+  field: string,
+): boolean {
+  if (!Object.prototype.hasOwnProperty.call(record, field)) return false;
+  const value = record[field];
+  return value === null || Boolean(asString(value));
+}
+
 function getRecord(
   record: Record<string, unknown> | null,
   field: string,
@@ -660,6 +824,10 @@ function getRecord(
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function isValidDateString(value: unknown): value is string {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
