@@ -38,6 +38,16 @@ const ledgerRouteFile = "app/api/dogfooding/reuse-ledger/route.ts";
 const ledgerSmokeFile =
   "scripts/smoke-handoff-reuse-outcome-ledger-write-v0-1.mjs";
 const fixtureFile = "fixtures/codex-result-report-ingestion.sample.v0.1.json";
+const dogfoodMetricCandidateTypeFile =
+  "types/dogfood-metric-candidate-preview.ts";
+const dogfoodMetricCandidateHelperFile =
+  "lib/dogfooding/dogfood-metric-candidate-preview.ts";
+const dogfoodMetricCandidatePanelFile =
+  "components/dogfood-metric-candidate-preview-panel.tsx";
+const dogfoodMetricCandidateRouteFile =
+  "app/api/dogfooding/reuse-ledger/metric-preview/route.ts";
+const dogfoodMetricCandidateSmokeFile =
+  "scripts/smoke-dogfood-metric-candidate-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -58,6 +68,11 @@ const allowedChangedFiles = [
   ledgerHelperFile,
   ledgerRouteFile,
   ledgerSmokeFile,
+  dogfoodMetricCandidateTypeFile,
+  dogfoodMetricCandidateHelperFile,
+  dogfoodMetricCandidatePanelFile,
+  dogfoodMetricCandidateRouteFile,
+  dogfoodMetricCandidateSmokeFile,
 ];
 
 const textByFile = loadTextByFile([

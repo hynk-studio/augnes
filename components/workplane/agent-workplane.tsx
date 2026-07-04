@@ -6,6 +6,7 @@ import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-polic
 import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
 import { AutonomyRunnerPreflightPreviewPanel } from "@/components/autonomy/autonomy-runner-preflight-preview-panel";
 import { CodexResultFeedbackDraftPanel } from "@/components/codex-result-feedback-draft-panel";
+import { DogfoodMetricCandidatePreviewPanel } from "@/components/dogfood-metric-candidate-preview-panel";
 import { DogfoodReuseOperatorDecisionPreviewPanel } from "@/components/dogfood-reuse-operator-decision-preview-panel";
 import { DogfoodReuseRecordProposalPanel } from "@/components/dogfood-reuse-record-proposal-panel";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
@@ -39,6 +40,7 @@ import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
 import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-contract-for-web";
 import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
 import { buildCodexResultFeedbackDraft } from "@/lib/dogfooding/codex-result-feedback-draft";
+import { buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01 } from "@/lib/dogfooding/dogfood-metric-candidate-preview";
 import { buildDogfoodReuseOperatorDecisionPreview } from "@/lib/dogfooding/dogfood-reuse-operator-decision-preview";
 import { buildDogfoodReuseRecordProposal } from "@/lib/dogfooding/dogfood-reuse-record-proposal";
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
@@ -205,6 +207,18 @@ export async function AgentWorkplane() {
     debug_context: workplaneDebugContext,
     intent_projection: workplaneIntentProjection,
   });
+  const dogfoodMetricCandidatePreview =
+    buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01({
+      records: [],
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:default_empty_handoff_reuse_ledger_metric_preview",
+      ],
+      insufficient_data_reasons: [
+        "workbench_default_does_not_read_or_write_reuse_ledger_store",
+      ],
+    });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -275,6 +289,9 @@ export async function AgentWorkplane() {
               />
               <DogfoodReuseOperatorDecisionPreviewPanel
                 preview={dogfoodReuseOperatorDecisionPreview}
+              />
+              <DogfoodMetricCandidatePreviewPanel
+                preview={dogfoodMetricCandidatePreview}
               />
               <HandoffCopyExportPanel
                 preview={handoffPreview}
