@@ -238,6 +238,7 @@ export function buildHandoffContextApplyPreviewV01(
     conflictSummary.stale_or_noisy_candidates,
   );
   conflictSummary.conflicting_candidate_ids = uniqueSortedStrings([
+    ...conflictSummary.conflicting_candidate_ids,
     ...conflictSummary.duplicate_selected_refs,
     ...conflictSummary.unknown_selected_ref_attempts,
     ...conflictSummary.missing_evidence_candidates,
@@ -459,6 +460,13 @@ function mapSelectedCandidates({
     }
     if (currentSelectedRefSet.has(candidate.ref_id)) {
       conflictSummary.duplicate_selected_refs.push(candidate.ref_id);
+      if (kind === "selected_ref_add") {
+        conflictSummary.conflicting_candidate_ids.push(candidate.candidate_id);
+        blockedReasons.push(
+          `duplicate_selected_ref_add_candidate:${candidate.candidate_id}`,
+        );
+        continue;
+      }
     }
     target.push(
       toApplyCandidate({

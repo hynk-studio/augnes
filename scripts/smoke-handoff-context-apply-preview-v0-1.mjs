@@ -114,6 +114,7 @@ assertContainsAll(
     "selected_record_carry_forward_material_invalid",
     "unknown_selected_ref_candidate",
     "selected_ref_candidate_missing_evidence",
+    "duplicate_selected_ref_add_candidate",
     "current_handoff_context_missing",
     "selected_refs_to_add",
     "selected_refs_to_reinforce",
@@ -453,9 +454,26 @@ const duplicatePreview = buildHandoffContextApplyPreviewV01({
   current_selected_refs: ["context-ref:durable-apply-add"],
   as_of: "2026-07-04T10:15:00.000Z",
 });
+assert.equal(duplicatePreview.preview_status, "blocked");
 assert(
   duplicatePreview.conflict_summary.duplicate_selected_refs.includes(
     "context-ref:durable-apply-add",
+  ),
+);
+assert(
+  duplicatePreview.conflict_summary.conflicting_candidate_ids.includes(
+    "candidate:durable-apply-add",
+  ),
+);
+assert.equal(
+  duplicatePreview.proposed_apply_delta.selected_refs_to_add.some(
+    (candidate) => candidate.ref_id === "context-ref:durable-apply-add",
+  ),
+  false,
+);
+assert(
+  duplicatePreview.blocked_reasons.includes(
+    "duplicate_selected_ref_add_candidate:candidate:durable-apply-add",
   ),
 );
 
