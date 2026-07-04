@@ -71,6 +71,16 @@ const ledgerHelperFile = "lib/dogfooding/handoff-reuse-outcome-ledger.ts";
 const ledgerRouteFile = "app/api/dogfooding/reuse-ledger/route.ts";
 const ledgerSmokeFile =
   "scripts/smoke-handoff-reuse-outcome-ledger-write-v0-1.mjs";
+const dogfoodMetricCandidateTypeFile =
+  "types/dogfood-metric-candidate-preview.ts";
+const dogfoodMetricCandidateHelperFile =
+  "lib/dogfooding/dogfood-metric-candidate-preview.ts";
+const dogfoodMetricCandidatePanelFile =
+  "components/dogfood-metric-candidate-preview-panel.tsx";
+const dogfoodMetricCandidateRouteFile =
+  "app/api/dogfooding/reuse-ledger/metric-preview/route.ts";
+const dogfoodMetricCandidateSmokeFile =
+  "scripts/smoke-dogfood-metric-candidate-preview-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -424,6 +434,17 @@ const followOnHandoffReuseOutcomeLedgerWriteFiles = [
   packageJsonFile,
 ];
 
+const followOnDogfoodMetricCandidatePreviewFiles = [
+  dogfoodMetricCandidateTypeFile,
+  dogfoodMetricCandidateHelperFile,
+  dogfoodMetricCandidatePanelFile,
+  dogfoodMetricCandidateRouteFile,
+  dogfoodMetricCandidateSmokeFile,
+  agentWorkplaneFile,
+  smokeFile,
+  packageJsonFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -761,6 +782,7 @@ const allowedChangedFiles = new Set([
   ...followOnDogfoodReuseRecordProposalFiles,
   ...followOnDogfoodReuseOperatorDecisionPreviewFiles,
   ...followOnHandoffReuseOutcomeLedgerWriteFiles,
+  ...followOnDogfoodMetricCandidatePreviewFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -1676,6 +1698,7 @@ function assertChangedFileBoundary() {
         followOnGuideBriefRouteFiles.includes(file) ||
         file === "app/api/augnes/read/autonomy-contract/route.ts" ||
         file === ledgerRouteFile ||
+        followOnDogfoodMetricCandidatePreviewFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -1685,6 +1708,7 @@ function assertChangedFileBoundary() {
         followOnGuideBriefRouteFiles.includes(file) ||
         file === "app/api/augnes/read/autonomy-contract/route.ts" ||
         file === ledgerRouteFile ||
+        followOnDogfoodMetricCandidatePreviewFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
