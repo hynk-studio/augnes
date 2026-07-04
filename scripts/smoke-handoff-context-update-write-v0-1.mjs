@@ -35,10 +35,14 @@ const handoffContextUpdateRecordReviewTypeFile =
   "types/handoff-context-update-record-review.ts";
 const handoffContextUpdateRecordReviewHelperFile =
   "lib/handoff/handoff-context-update-record-review.ts";
+const handoffContextUpdateRecordReviewReadForWebHelperFile =
+  "lib/handoff/read-handoff-context-update-record-review-for-web.ts";
 const handoffContextUpdateRecordReviewPanelFile =
   "components/handoff/handoff-context-update-record-review-panel.tsx";
 const handoffContextUpdateRecordReviewSmokeFile =
   "scripts/smoke-handoff-context-update-record-review-v0-1.mjs";
+const handoffContextUpdateRecordReviewDbReadSmokeFile =
+  "scripts/smoke-handoff-context-update-record-review-db-read-v0-1.mjs";
 const metricInformedContinuityRelayAdjustmentSmokeFile =
   "scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs";
 const handoffContextRelayRationaleSmokeFile =
@@ -56,8 +60,10 @@ const allowedChangedFiles = [
   workplaneSmokeFile,
   handoffContextUpdateRecordReviewTypeFile,
   handoffContextUpdateRecordReviewHelperFile,
+  handoffContextUpdateRecordReviewReadForWebHelperFile,
   handoffContextUpdateRecordReviewPanelFile,
   handoffContextUpdateRecordReviewSmokeFile,
+  handoffContextUpdateRecordReviewDbReadSmokeFile,
   metricInformedContinuityRelayAdjustmentSmokeFile,
   handoffContextRelayRationaleSmokeFile,
 ];

@@ -56,9 +56,9 @@ import {
   buildWorkplaneIntentProjection,
   WORKPLANE_INTENT_PROJECTION_DEFAULT_INPUT,
 } from "@/lib/guide/workplane-intent-projection";
-import { buildApprovedHandoffContextUpdateRecordReviewV01 } from "@/lib/handoff/handoff-context-update-record-review";
 import { buildHandoffContextUpdateOperatorDecisionPreviewV01 } from "@/lib/handoff/handoff-context-update-operator-decision-preview";
 import { buildHandoffContextUpdatePreviewV01 } from "@/lib/handoff/handoff-context-update-preview";
+import { readHandoffContextUpdateRecordReviewForWebV01 } from "@/lib/handoff/read-handoff-context-update-record-review-for-web";
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
 import { buildHandoffContextRelayRationale } from "@/lib/handoff/handoff-context-relay-rationale";
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
@@ -270,12 +270,10 @@ export async function AgentWorkplane() {
       ],
     });
   const handoffContextUpdateRecordReview =
-    buildApprovedHandoffContextUpdateRecordReviewV01({
-      records: [],
-      scope: "project:augnes",
+    readHandoffContextUpdateRecordReviewForWebV01({
       as_of: workplaneMetrics.as_of,
       source_refs: [
-        "workbench:default_empty_handoff_context_update_record_review",
+        "workbench:handoff_context_update_record_review",
       ],
     });
 
