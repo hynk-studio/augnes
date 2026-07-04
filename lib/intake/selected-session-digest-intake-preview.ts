@@ -28,6 +28,21 @@ const knownSourceKinds = [
   "manual_operator_digest",
 ] as const satisfies readonly SelectedSessionDigestSourceKind[];
 
+const structuredDigestFreeTextFields = [
+  "title",
+  "summary",
+  "goals",
+  "decisions",
+  "open_questions",
+  "next_actions",
+  "risks",
+  "reusable_context",
+  "review_only",
+  "rejected_or_review_only",
+] as const;
+
+type StructuredDigestFreeTextField =
+  (typeof structuredDigestFreeTextFields)[number];
 type DigestStatus = SelectedSessionDigestIntakeSourceStatus["digest"];
 type RawTextStatus = SelectedSessionDigestIntakeSourceStatus["raw_text"];
 type RefInput = {
@@ -80,6 +95,8 @@ export function buildSelectedSessionDigestIntakePreviewV01({
     ...rawEvidenceRefTokens,
   ]);
   const rawUnsafeMarkers = detectRawTextUnsafeMarkers(rawTextPreview.raw_text);
+  const structuredDigestUnsafeScan =
+    buildStructuredDigestUnsafeScan(structuredDigest);
   const unsafeRefReasons = buildUnsafeRefReasons([
     { label: "source_ref", values: [source_ref] },
     { label: "operator_ref", values: [operator_ref] },
@@ -114,6 +131,7 @@ export function buildSelectedSessionDigestIntakePreviewV01({
   const candidateMaterial = mergeCandidateMaterial([
     buildStructuredDigestCandidateMaterial({
       digest: structuredDigest,
+      unsafeFields: structuredDigestUnsafeScan.unsafeFields,
       context: candidateBuildContext,
     }),
     buildRawTextCandidateMaterial({
@@ -136,6 +154,7 @@ export function buildSelectedSessionDigestIntakePreviewV01({
     rawTextStatus,
     unsafeRefReasons,
     rawUnsafeMarkers,
+    structuredDigestUnsafeReasons: structuredDigestUnsafeScan.reasons,
   });
   const missingEvidence = ingestableCandidateCount > 0 && safeEvidenceRefs.length === 0
     ? ["evidence_refs_missing_for_future_ingest_contract"]
@@ -161,7 +180,11 @@ export function buildSelectedSessionDigestIntakePreviewV01({
     ingestableCandidateCount,
     blockedReasons,
     insufficientDataReasons,
-    unsafeRefReasons,
+    unsafeRefReasons: uniqueSortedStrings([
+      ...unsafeRefReasons,
+      ...rawUnsafeMarkers,
+      ...structuredDigestUnsafeScan.reasons,
+    ]),
     missingEvidence,
   });
   const intakePreviewStatus = determineIntakePreviewStatus({
@@ -209,7 +232,11 @@ export function buildSelectedSessionDigestIntakePreviewV01({
       candidate_count: candidateCount,
       source_ref_count: outputSourceRefs.length,
       evidence_ref_count: safeEvidenceRefs.length,
-      unsafe_ref_count: unsafeRefReasons.length + rawUnsafeMarkers.length,
+      unsafe_ref_count: uniqueSortedStrings([
+        ...unsafeRefReasons,
+        ...rawUnsafeMarkers,
+        ...structuredDigestUnsafeScan.reasons,
+      ]).length,
       missing_reason_count: insufficientDataReasons.length,
       blocked_reason_count: blockedReasons.length,
     },
@@ -230,7 +257,12 @@ export function buildSelectedSessionDigestIntakePreviewV01({
       has_session_or_project_ref:
         isPublicSafeRef(resolvedSessionRef ?? "") ||
         isPublicSafeRef(resolvedProjectRef ?? ""),
-      has_unsafe_refs: unsafeRefReasons.length + rawUnsafeMarkers.length > 0,
+      has_unsafe_refs:
+        uniqueSortedStrings([
+          ...unsafeRefReasons,
+          ...rawUnsafeMarkers,
+          ...structuredDigestUnsafeScan.reasons,
+        ]).length > 0,
       has_missing_evidence: missingEvidence.length > 0,
       source_refs: outputSourceRefs,
       evidence_refs: safeEvidenceRefs,
@@ -238,6 +270,7 @@ export function buildSelectedSessionDigestIntakePreviewV01({
       unsafe_refs: uniqueSortedStrings([
         ...unsafeRefReasons,
         ...rawUnsafeMarkers,
+        ...structuredDigestUnsafeScan.reasons,
       ]),
     },
     blocked_reasons: blockedReasons,
@@ -245,6 +278,7 @@ export function buildSelectedSessionDigestIntakePreviewV01({
     unsafe_ref_reasons: uniqueSortedStrings([
       ...unsafeRefReasons,
       ...rawUnsafeMarkers,
+      ...structuredDigestUnsafeScan.reasons,
     ]),
     privacy_review_notes: buildPrivacyReviewNotes(rawTextStatus),
     operator_review_checklist: buildOperatorReviewChecklist(),
@@ -463,9 +497,11 @@ function buildRawTextExtractedPreview(rawText?: string): RawTextPreviewBuild {
 
 function buildStructuredDigestCandidateMaterial({
   digest,
+  unsafeFields,
   context,
 }: {
   digest: Record<string, unknown> | null;
+  unsafeFields: Set<StructuredDigestFreeTextField>;
   context: CandidateBuildContext;
 }): SelectedSessionDigestIntakeCandidateMaterial {
   const material = emptyCandidateMaterial();
@@ -473,8 +509,8 @@ function buildStructuredDigestCandidateMaterial({
 
   let index = 0;
   for (const value of [
-    ...fieldToStrings(digest, "title"),
-    ...fieldToStrings(digest, "summary"),
+    ...safeStructuredFieldStrings(digest, "title", unsafeFields),
+    ...safeStructuredFieldStrings(digest, "summary", unsafeFields),
   ]) {
     addCandidate(material, {
       kind: "session_summary",
@@ -486,7 +522,7 @@ function buildStructuredDigestCandidateMaterial({
       index: index++,
     });
   }
-  for (const value of fieldToStrings(digest, "goals")) {
+  for (const value of safeStructuredFieldStrings(digest, "goals", unsafeFields)) {
     addCandidate(material, {
       kind: "user_goal",
       label: "Structured user goal",
@@ -497,7 +533,11 @@ function buildStructuredDigestCandidateMaterial({
       index: index++,
     });
   }
-  for (const value of fieldToStrings(digest, "decisions")) {
+  for (const value of safeStructuredFieldStrings(
+    digest,
+    "decisions",
+    unsafeFields,
+  )) {
     addCandidate(material, {
       kind: "decision",
       label: "Structured decision",
@@ -508,7 +548,11 @@ function buildStructuredDigestCandidateMaterial({
       index: index++,
     });
   }
-  for (const value of fieldToStrings(digest, "open_questions")) {
+  for (const value of safeStructuredFieldStrings(
+    digest,
+    "open_questions",
+    unsafeFields,
+  )) {
     addCandidate(material, {
       kind: "open_question",
       label: "Structured open question",
@@ -519,7 +563,11 @@ function buildStructuredDigestCandidateMaterial({
       index: index++,
     });
   }
-  for (const value of fieldToStrings(digest, "next_actions")) {
+  for (const value of safeStructuredFieldStrings(
+    digest,
+    "next_actions",
+    unsafeFields,
+  )) {
     addCandidate(material, {
       kind: "next_action",
       label: "Structured next action",
@@ -556,7 +604,7 @@ function buildStructuredDigestCandidateMaterial({
       index: index++,
     });
   }
-  for (const value of fieldToStrings(digest, "risks")) {
+  for (const value of safeStructuredFieldStrings(digest, "risks", unsafeFields)) {
     addCandidate(material, {
       kind: "risk_or_blocker",
       label: "Structured risk or blocker",
@@ -567,7 +615,11 @@ function buildStructuredDigestCandidateMaterial({
       index: index++,
     });
   }
-  for (const value of fieldToStrings(digest, "reusable_context")) {
+  for (const value of safeStructuredFieldStrings(
+    digest,
+    "reusable_context",
+    unsafeFields,
+  )) {
     addCandidate(material, {
       kind: "reusable_context",
       label: "Structured reusable context",
@@ -579,8 +631,12 @@ function buildStructuredDigestCandidateMaterial({
     });
   }
   for (const value of [
-    ...fieldToStrings(digest, "review_only"),
-    ...fieldToStrings(digest, "rejected_or_review_only"),
+    ...safeStructuredFieldStrings(digest, "review_only", unsafeFields),
+    ...safeStructuredFieldStrings(
+      digest,
+      "rejected_or_review_only",
+      unsafeFields,
+    ),
   ]) {
     addCandidate(material, {
       kind: "rejected_or_review_only",
@@ -773,15 +829,18 @@ function buildBlockedReasons({
   rawTextStatus,
   unsafeRefReasons,
   rawUnsafeMarkers,
+  structuredDigestUnsafeReasons,
 }: {
   rawTextStatus: RawTextStatus;
   unsafeRefReasons: string[];
   rawUnsafeMarkers: string[];
+  structuredDigestUnsafeReasons: string[];
 }): string[] {
   return uniqueSortedStrings([
     ...(rawTextStatus === "too_large" ? ["blocked_raw_text_too_large"] : []),
     ...unsafeRefReasons,
     ...rawUnsafeMarkers,
+    ...structuredDigestUnsafeReasons,
   ]);
 }
 
@@ -1160,22 +1219,103 @@ function buildUnsafeRefReasons(refInputs: RefInput[]): string[] {
   return uniqueSortedStrings(reasons);
 }
 
+function buildStructuredDigestUnsafeScan(
+  digest: Record<string, unknown> | null,
+): {
+  reasons: string[];
+  unsafeFields: Set<StructuredDigestFreeTextField>;
+} {
+  const unsafeFields = new Set<StructuredDigestFreeTextField>();
+  const reasons: string[] = [];
+  if (!digest) return { reasons, unsafeFields };
+
+  for (const field of structuredDigestFreeTextFields) {
+    const fieldHasUnsafeMarker = fieldToStrings(digest, field).some(
+      (value) => detectUnsafeTextMarkerKinds(value).length > 0,
+    );
+    if (!fieldHasUnsafeMarker) continue;
+    unsafeFields.add(field);
+    reasons.push(
+      "structured_digest_contains_secret_or_private_marker",
+      structuredDigestUnsafeFieldReason(field),
+    );
+  }
+
+  return {
+    reasons: uniqueSortedStrings(reasons),
+    unsafeFields,
+  };
+}
+
+function structuredDigestUnsafeFieldReason(
+  field: StructuredDigestFreeTextField,
+): string {
+  switch (field) {
+    case "title":
+      return "structured_digest_title_unsafe";
+    case "summary":
+      return "structured_digest_summary_unsafe";
+    case "goals":
+      return "structured_digest_goals_unsafe";
+    case "decisions":
+      return "structured_digest_decisions_unsafe";
+    case "open_questions":
+      return "structured_digest_open_questions_unsafe";
+    case "next_actions":
+      return "structured_digest_next_actions_unsafe";
+    case "risks":
+      return "structured_digest_risks_unsafe";
+    case "reusable_context":
+      return "structured_digest_reusable_context_unsafe";
+    case "review_only":
+      return "structured_digest_review_only_unsafe";
+    case "rejected_or_review_only":
+      return "structured_digest_rejected_or_review_only_unsafe";
+  }
+}
+
 function detectRawTextUnsafeMarkers(rawText: string): string[] {
   if (!rawText) return [];
+  return detectUnsafeTextMarkerKinds(rawText).map(rawTextUnsafeMarkerReason);
+}
+
+function rawTextUnsafeMarkerReason(marker: string): string {
+  switch (marker) {
+    case "token_like_secret_marker":
+      return "raw_text_contains_token_like_secret_marker";
+    case "embedded_credential_url_marker":
+      return "raw_text_contains_embedded_credential_url_marker";
+    case "private_path_marker":
+      return "raw_text_contains_private_path_marker";
+    case "secret_label_marker":
+      return "raw_text_contains_secret_label_marker";
+    default:
+      return `raw_text_contains_${marker}`;
+  }
+}
+
+function detectUnsafeTextMarkerKinds(value: string): string[] {
   return uniqueSortedStrings([
-    ...(rawTextTokenLikeSecretPattern.test(rawText)
-      ? ["raw_text_contains_token_like_secret_marker"]
+    ...(rawTextTokenLikeSecretPattern.test(value)
+      ? ["token_like_secret_marker"]
       : []),
-    ...(rawTextEmbeddedCredentialUrlPattern.test(rawText)
-      ? ["raw_text_contains_embedded_credential_url_marker"]
+    ...(rawTextEmbeddedCredentialUrlPattern.test(value)
+      ? ["embedded_credential_url_marker"]
       : []),
-    ...(/\/Users\/|\/home\/|(?:^|\s)\.env\b/i.test(rawText)
-      ? ["raw_text_contains_private_path_marker"]
+    ...(privatePathOrEnvTextPattern.test(value)
+      ? ["private_path_marker"]
       : []),
-    ...(/\b(password:|secret:)/i.test(rawText)
-      ? ["raw_text_contains_secret_label_marker"]
-      : []),
+    ...(secretLabelTextPattern.test(value) ? ["secret_label_marker"] : []),
   ]);
+}
+
+function safeStructuredFieldStrings(
+  digest: Record<string, unknown>,
+  field: StructuredDigestFreeTextField,
+  unsafeFields: Set<StructuredDigestFreeTextField>,
+): string[] {
+  if (unsafeFields.has(field)) return [];
+  return fieldToStrings(digest, field);
 }
 
 function fieldToStrings(
@@ -1240,6 +1380,8 @@ const rawTextTokenLikeSecretPattern =
   /(^|[\s:/@|=])(sk-|ghp_|github_pat_|xoxb-)/i;
 const rawTextEmbeddedCredentialUrlPattern =
   /(^|[\s:|=])[a-z][a-z0-9+.-]*:\/\/[^/\s]+@/i;
+const privatePathOrEnvTextPattern = /\/Users\/|\/home\/|(^|[\s:/@|=])\.env\b/i;
+const secretLabelTextPattern = /\b(password:|secret:)/i;
 
 function truncateSnippet(value: string): string {
   const trimmed = value.replace(/\s+/g, " ").trim();

@@ -103,6 +103,9 @@ assertContainsAll(
     "raw_text_contains_embedded_credential_url_marker",
     "tokenLikeSecretRefPattern",
     "embeddedCredentialUrlRefPattern",
+    "structured_digest_contains_secret_or_private_marker",
+    "structured_digest_summary_unsafe",
+    "safeStructuredFieldStrings",
     "source_kind_unknown",
     "source_ref_missing",
     "operator_ref_missing",
@@ -490,6 +493,86 @@ assert(
   ),
 );
 
+const unsafeStructuredSecretText = buildSelectedSessionDigestIntakePreviewV01({
+  digest: {
+    summary: "password: hunter2",
+    decisions: ["Keep this out of candidates"],
+    evidence_refs: ["evidence:safe-structured-secret"],
+    session_ref: "session:safe-structured-secret",
+  },
+  source_kind: "chatgpt_session_digest",
+  source_ref: "source:safe-structured-secret",
+  operator_ref: "operator:reviewer",
+});
+assert.equal(
+  unsafeStructuredSecretText.readiness.ready_for_operator_review,
+  false,
+);
+assert.equal(
+  unsafeStructuredSecretText.readiness.ready_for_future_ingest_contract_preview,
+  false,
+);
+assert.equal(
+  unsafeStructuredSecretText.recommended_next_action,
+  "resolve_unsafe_refs",
+);
+assert(
+  unsafeStructuredSecretText.unsafe_ref_reasons.includes(
+    "structured_digest_contains_secret_or_private_marker",
+  ) ||
+    unsafeStructuredSecretText.blocked_reasons.includes(
+      "structured_digest_contains_secret_or_private_marker",
+    ),
+);
+assert(
+  unsafeStructuredSecretText.unsafe_ref_reasons.includes(
+    "structured_digest_summary_unsafe",
+  ),
+);
+assertCandidateMaterialDoesNotLeak(unsafeStructuredSecretText, [
+  "hunter2",
+  "password:",
+]);
+
+const unsafeStructuredNamespacedCredentialUrl =
+  buildSelectedSessionDigestIntakePreviewV01({
+    digest: {
+      summary: "source:https://user:pass@example.com/private",
+      evidence_refs: ["evidence:safe-structured-credential-url"],
+      session_ref: "session:safe-structured-credential-url",
+    },
+    source_kind: "chatgpt_session_digest",
+    source_ref: "source:safe-structured-credential-url",
+    operator_ref: "operator:reviewer",
+  });
+assert.equal(
+  unsafeStructuredNamespacedCredentialUrl.readiness.ready_for_operator_review,
+  false,
+);
+assert.equal(
+  unsafeStructuredNamespacedCredentialUrl.readiness
+    .ready_for_future_ingest_contract_preview,
+  false,
+);
+assert.equal(
+  unsafeStructuredNamespacedCredentialUrl.recommended_next_action,
+  "resolve_unsafe_refs",
+);
+assert(
+  unsafeStructuredNamespacedCredentialUrl.unsafe_ref_reasons.includes(
+    "structured_digest_contains_secret_or_private_marker",
+  ),
+);
+assert(
+  unsafeStructuredNamespacedCredentialUrl.unsafe_ref_reasons.includes(
+    "structured_digest_summary_unsafe",
+  ),
+);
+assertCandidateMaterialDoesNotLeak(unsafeStructuredNamespacedCredentialUrl, [
+  "user:pass",
+  "source:https://user:pass@example.com/private",
+]);
+
 const reviewOnly = buildSelectedSessionDigestIntakePreviewV01({
   digest: {
     review_only: ["This rejected material should remain review-only."],
@@ -587,6 +670,35 @@ function assertCandidateFlagsFalse(candidates) {
     assert.equal(candidate.would_mutate_cwp, false);
     assert.equal(candidate.would_create_handoff, false);
   }
+}
+
+function assertCandidateMaterialDoesNotLeak(preview, forbiddenFragments) {
+  for (const candidate of flattenCandidateMaterial(preview.candidate_material)) {
+    for (const field of ["candidate_id", "summary", "raw_excerpt"]) {
+      const value = candidate[field] ?? "";
+      for (const fragment of forbiddenFragments) {
+        assert(
+          !value.includes(fragment),
+          `${field} must not leak ${fragment}`,
+        );
+      }
+    }
+  }
+}
+
+function flattenCandidateMaterial(material) {
+  return [
+    ...material.session_summary_candidates,
+    ...material.user_goal_candidates,
+    ...material.decision_candidates,
+    ...material.open_question_candidates,
+    ...material.next_action_candidates,
+    ...material.evidence_ref_candidates,
+    ...material.source_ref_candidates,
+    ...material.risk_or_blocker_candidates,
+    ...material.reusable_context_candidates,
+    ...material.rejected_or_review_only_candidates,
+  ];
 }
 
 function assertNoForbiddenRuntimeCall(label, text) {
