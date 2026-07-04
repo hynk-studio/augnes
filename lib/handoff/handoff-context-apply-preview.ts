@@ -37,12 +37,25 @@ export function buildHandoffContextApplyPreviewV01(
 ): HandoffContextApplyPreview {
   const recordReview = input.record_review ?? null;
   const selectedRecordLike = input.selected_record ?? null;
-  const selectedRecord = isFullOperatorApprovedRecordMaterial(selectedRecordLike)
+  const selectedRecordInputRef = operatorApprovedRecordRef(selectedRecordLike);
+  const selectedRecordCandidate = isFullOperatorApprovedRecordMaterial(selectedRecordLike)
     ? selectedRecordLike
     : null;
   const selectedRecordMaterialProblems = selectedRecordLike
     ? fullRecordMaterialProblems(selectedRecordLike)
     : [];
+  const selectedRecordCompatibilityProblems = selectedRecordInputRef
+    ? selectedRecordReviewCompatibilityProblems(
+        recordReview,
+        selectedRecordInputRef,
+      )
+    : [];
+  const selectedRecord =
+    selectedRecordCandidate &&
+    recordReview &&
+    selectedRecordCompatibilityProblems.length === 0
+      ? selectedRecordCandidate
+      : null;
   const scope =
     input.scope ?? recordReview?.scope ?? OPERATOR_APPROVED_HANDOFF_CONTEXT_UPDATE_SCOPE;
   const asOf = input.as_of ?? recordReview?.as_of ?? new Date(0).toISOString();
@@ -54,11 +67,12 @@ export function buildHandoffContextApplyPreviewV01(
   const currentSelectedRefSet = new Set(currentSelectedRefs);
   const selectedSummary = selectRecordSummary(recordReview, selectedRecordLike);
   const selectedRecordRef =
-    operatorApprovedRecordRef(selectedRecordLike) ??
     selectedSummary?.record_id ??
+    recordReview?.input_summary.selected_record_id ??
+    selectedRecordInputRef ??
     null;
   const selectedRecordFound =
-    Boolean(operatorApprovedRecordRef(selectedRecordLike)) ||
+    Boolean(selectedRecord) ||
     Boolean(selectedSummary);
   const selectedFullRecordSupplied = Boolean(selectedRecord);
   const reviewProblemRecordIds =
@@ -77,6 +91,7 @@ export function buildHandoffContextApplyPreviewV01(
     ...reviewProblemRecordIds.map(
       (recordId) => `record_review_problem_record:${recordId}`,
     ),
+    ...selectedRecordCompatibilityProblems,
     ...(selectedRecord?.carry_forward_material.unresolved_blockers ?? []),
   ]);
   const insufficientDataReasons: string[] = [];
@@ -367,27 +382,64 @@ function selectRecordSummary(
 ): ApprovedHandoffContextUpdateRecordSummary | null {
   if (!recordReview) return null;
   if (recordReview.selected_record_summary) return recordReview.selected_record_summary;
-  if (
-    recordReview.input_summary.selected_record_id &&
-    !recordReview.input_summary.selected_record_found &&
-    !selectedRecord
-  ) {
-    return null;
+  if (recordReview.input_summary.selected_record_id) {
+    if (!recordReview.input_summary.selected_record_found) return null;
+    return (
+      recordReview.record_summaries.find(
+        (summary) =>
+          summary.record_id === recordReview.input_summary.selected_record_id &&
+          summary.problem_reasons.length === 0,
+      ) ?? null
+    );
   }
   const selectedRecordId = operatorApprovedRecordRef(selectedRecord);
   if (selectedRecordId) {
-    const matchingSummary = recordReview.record_summaries.find(
-      (summary) =>
-        summary.record_id === selectedRecordId &&
-        summary.problem_reasons.length === 0,
+    return (
+      recordReview.record_summaries.find(
+        (summary) =>
+          summary.record_id === selectedRecordId &&
+          summary.problem_reasons.length === 0,
+      ) ?? null
     );
-    if (matchingSummary) return matchingSummary;
   }
   return (
     recordReview.record_summaries.find(
       (summary) => summary.problem_reasons.length === 0,
     ) ?? null
   );
+}
+
+function selectedRecordReviewCompatibilityProblems(
+  recordReview: ApprovedHandoffContextUpdateRecordReview | null,
+  selectedRecordId: string,
+): string[] {
+  if (!recordReview) return [];
+  const reasons: string[] = [];
+  const reviewSelectedId = recordReview.input_summary.selected_record_id;
+  if (reviewSelectedId) {
+    if (selectedRecordId !== reviewSelectedId) {
+      reasons.push("selected_record_mismatch_with_review_selection");
+    }
+    if (!recordReview.input_summary.selected_record_found) {
+      reasons.push("selected_record_not_in_review");
+    }
+  }
+  const selectedSummaryId = recordReview.selected_record_summary?.record_id ?? null;
+  if (selectedSummaryId && selectedRecordId !== selectedSummaryId) {
+    reasons.push("selected_record_mismatch_with_review_selection");
+  }
+  if (
+    !reviewSelectedId &&
+    !selectedSummaryId &&
+    !recordReview.record_summaries.some(
+      (summary) =>
+        summary.record_id === selectedRecordId &&
+        summary.problem_reasons.length === 0,
+    )
+  ) {
+    reasons.push("selected_record_not_in_review");
+  }
+  return uniqueSortedStrings(reasons);
 }
 
 function determinePreviewStatus({

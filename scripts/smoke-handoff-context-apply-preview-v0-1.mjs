@@ -112,6 +112,8 @@ assertContainsAll(
     "selected_record_full_material_invalid",
     "selected_record_approved_candidate_material_invalid",
     "selected_record_carry_forward_material_invalid",
+    "selected_record_mismatch_with_review_selection",
+    "selected_record_not_in_review",
     "unknown_selected_ref_candidate",
     "selected_ref_candidate_missing_evidence",
     "duplicate_selected_ref_add_candidate",
@@ -209,6 +211,18 @@ const validReview = buildApprovedHandoffContextUpdateRecordReviewV01({
   scope: "project:augnes",
   as_of: "2026-07-04T10:04:00.000Z",
 });
+const mismatchedFullRecord = approvedApplyRecord({
+  record_id: "hcu-record:durable-apply-beta",
+  idempotency_key: "hcu-idempotency:durable-apply-beta",
+  created_at: "2026-07-04T10:04:30.000Z",
+});
+const reviewSelectingAlphaWithBetaPresent =
+  buildApprovedHandoffContextUpdateRecordReviewV01({
+    records: [validRecord, mismatchedFullRecord],
+    selected_record_id: validRecord.record_id,
+    scope: "project:augnes",
+    as_of: "2026-07-04T10:04:45.000Z",
+  });
 
 const summaryOnlyPreview = buildHandoffContextApplyPreviewV01({
   record_review: validReview,
@@ -256,6 +270,67 @@ assert(
   ) ||
     partialSelectedRecordPreview.blocked_reasons.includes(
       "selected_record_full_material_invalid",
+    ),
+);
+
+const mismatchedSelectedRecordPreview = buildHandoffContextApplyPreviewV01({
+  record_review: reviewSelectingAlphaWithBetaPresent,
+  selected_record: mismatchedFullRecord,
+  current_selected_refs: ["context-ref:durable-current-anchor"],
+  as_of: "2026-07-04T10:05:40.000Z",
+});
+assert(
+  ["insufficient_data", "blocked"].includes(
+    mismatchedSelectedRecordPreview.preview_status,
+  ),
+);
+assert.equal(
+  mismatchedSelectedRecordPreview.input_summary.apply_candidate_count,
+  0,
+);
+assert.deepEqual(
+  mismatchedSelectedRecordPreview.proposed_apply_delta.selected_refs_to_add,
+  [],
+);
+assert(
+  mismatchedSelectedRecordPreview.blocked_reasons.includes(
+    "selected_record_mismatch_with_review_selection",
+  ) ||
+    mismatchedSelectedRecordPreview.insufficient_data_reasons.includes(
+      "selected_record_mismatch_with_review_selection",
+    ),
+);
+
+const noExplicitSelectionReview = buildApprovedHandoffContextUpdateRecordReviewV01({
+  records: [validRecord],
+  scope: "project:augnes",
+  as_of: "2026-07-04T10:05:45.000Z",
+});
+const selectedRecordNotInReviewPreview = buildHandoffContextApplyPreviewV01({
+  record_review: noExplicitSelectionReview,
+  selected_record: mismatchedFullRecord,
+  current_selected_refs: ["context-ref:durable-current-anchor"],
+  as_of: "2026-07-04T10:05:50.000Z",
+});
+assert(
+  ["insufficient_data", "blocked"].includes(
+    selectedRecordNotInReviewPreview.preview_status,
+  ),
+);
+assert.equal(
+  selectedRecordNotInReviewPreview.input_summary.apply_candidate_count,
+  0,
+);
+assert.deepEqual(
+  selectedRecordNotInReviewPreview.proposed_apply_delta.selected_refs_to_add,
+  [],
+);
+assert(
+  selectedRecordNotInReviewPreview.blocked_reasons.includes(
+    "selected_record_not_in_review",
+  ) ||
+    selectedRecordNotInReviewPreview.insufficient_data_reasons.includes(
+      "selected_record_not_in_review",
     ),
 );
 
@@ -520,6 +595,8 @@ console.log(
       no_records_checked: true,
       summary_only_no_apply_material_checked: true,
       partial_selected_record_no_throw_checked: true,
+      selected_record_mismatch_checked: true,
+      selected_record_not_in_review_checked: true,
       positive_mapping_checked: true,
       invalid_record_review_blocked_checked: true,
       selected_record_missing_checked: true,
