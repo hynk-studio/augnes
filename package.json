@@ -737,6 +737,7 @@
     "smoke:codex-result-feedback-draft-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-codex-result-feedback-draft-v0-1.mjs",
     "smoke:dogfood-reuse-record-proposal-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-dogfood-reuse-record-proposal-v0-1.mjs",
     "smoke:dogfood-reuse-operator-decision-preview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-dogfood-reuse-operator-decision-preview-v0-1.mjs",
+    "smoke:handoff-reuse-outcome-ledger-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-handoff-reuse-outcome-ledger-write-v0-1.mjs",
     "smoke:autonomy-contract-v0-1": "node scripts/smoke-autonomy-contract-v0-1.mjs",
     "smoke:autonomy-contract-route-v0-1": "node scripts/smoke-autonomy-contract-route-v0-1.mjs",
     "smoke:autonomy-contract-web-preview-v0-1": "node scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",

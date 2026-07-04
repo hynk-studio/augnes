@@ -13,6 +13,7 @@ import type { CodexResultFeedbackDraftConfidence } from "@/types/codex-result-fe
 import type {
   DogfoodReuseCarryForwardCandidates,
   DogfoodReuseExpectedObservedSummary,
+  DogfoodReuseProposedClassifications,
   DogfoodReuseRecordProposalKind,
   DogfoodReuseRecordProposalStatus,
 } from "@/types/dogfood-reuse-record-proposal";
@@ -114,6 +115,7 @@ export interface DogfoodReuseWouldWritePreview {
   proposed_record_kind: DogfoodReuseRecordProposalKind | null;
   proposed_dogfood_signal_summary: DogfoodReuseDogfoodSignalSummary;
   proposed_reuse_bucket_counts: DogfoodReuseBucketCounts;
+  proposed_reuse_classifications: DogfoodReuseProposedClassifications | null;
   proposed_expected_observed_summary:
     | DogfoodReuseExpectedObservedSummary
     | null;
