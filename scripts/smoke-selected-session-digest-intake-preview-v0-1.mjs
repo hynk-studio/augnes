@@ -19,6 +19,14 @@ const smokeFile =
 const agentWorkplaneSmokeFile = "scripts/smoke-agent-workplane-panels-v0-1.mjs";
 const writeContractSmokeFile =
   "scripts/smoke-handoff-context-apply-write-contract-preview-v0-1.mjs";
+const workbenchDogfoodLoopSpineOverviewTypeFile =
+  "types/workbench-dogfood-loop-spine-overview.ts";
+const workbenchDogfoodLoopSpineOverviewHelperFile =
+  "lib/workplane/workbench-dogfood-loop-spine-overview.ts";
+const workbenchDogfoodLoopSpineOverviewPanelFile =
+  "components/workplane/workbench-dogfood-loop-spine-overview-panel.tsx";
+const workbenchDogfoodLoopSpineOverviewSmokeFile =
+  "scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs";
 const packageJsonFile = "package.json";
 
 const allowedChangedFiles = [
@@ -29,6 +37,10 @@ const allowedChangedFiles = [
   smokeFile,
   agentWorkplaneSmokeFile,
   writeContractSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewPanelFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
   "scripts/smoke-handoff-context-apply-operator-decision-preview-v0-1.mjs",
   "scripts/smoke-handoff-context-apply-preview-v0-1.mjs",
   "scripts/smoke-handoff-context-update-record-review-db-read-v0-1.mjs",

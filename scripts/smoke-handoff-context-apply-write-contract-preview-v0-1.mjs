@@ -52,6 +52,14 @@ const selectedSessionDigestIntakePanelFile =
   "components/intake/selected-session-digest-intake-preview-panel.tsx";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
+const workbenchDogfoodLoopSpineOverviewTypeFile =
+  "types/workbench-dogfood-loop-spine-overview.ts";
+const workbenchDogfoodLoopSpineOverviewHelperFile =
+  "lib/workplane/workbench-dogfood-loop-spine-overview.ts";
+const workbenchDogfoodLoopSpineOverviewPanelFile =
+  "components/workplane/workbench-dogfood-loop-spine-overview-panel.tsx";
+const workbenchDogfoodLoopSpineOverviewSmokeFile =
+  "scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs";
 const packageJsonFile = "package.json";
 
 const allowedChangedFiles = [
@@ -74,6 +82,10 @@ const allowedChangedFiles = [
   selectedSessionDigestIntakeHelperFile,
   selectedSessionDigestIntakePanelFile,
   selectedSessionDigestIntakeSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewPanelFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
   packageJsonFile,
 ];
 

@@ -40,6 +40,7 @@ import { RunnerDeltaBatchPanel } from "@/components/workplane/runner-delta-batch
 import { SourceRefBridgeDetailPanel } from "@/components/workplane/source-ref-bridge-detail-panel";
 import { StateProposalReviewPanel } from "@/components/workplane/state-proposal-review-panel";
 import { TraceDiagnosticsPanel } from "@/components/workplane/trace-diagnostics-panel";
+import { WorkbenchDogfoodLoopSpineOverviewPanel } from "@/components/workplane/workbench-dogfood-loop-spine-overview-panel";
 import { WorkplaneIntentModePanel } from "@/components/workplane/workplane-intent-mode-panel";
 import { WorkplaneMetricsPanel } from "@/components/workplane/workplane-metrics-panel";
 import { WorkQueuePanel } from "@/components/workplane/work-queue-panel";
@@ -72,6 +73,7 @@ import { buildSelectedSessionDigestIntakePreviewV01 } from "@/lib/intake/selecte
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
 import { buildPerspectiveNextWorkCandidateUpdatePreviewV01 } from "@/lib/perspective/perspective-next-work-candidate-update-preview";
 import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-view-projection";
+import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
 import { buildMetricInformedContinuityRelayAdjustmentPreviewV01 } from "@/lib/workplane/metric-informed-continuity-relay-adjustment-preview";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
 import { buildWorkplaneBridgeTraceDetailRead } from "@/lib/workplane/workplane-bridge-trace-detail";
@@ -323,6 +325,32 @@ export async function AgentWorkplane() {
         "workbench:handoff_context_apply_write_contract_preview",
       ],
     });
+  const workbenchDogfoodLoopSpineOverview =
+    buildWorkbenchDogfoodLoopSpineOverviewV01({
+      selected_session_digest_intake_preview:
+        selectedSessionDigestIntakePreview,
+      codex_result_feedback_draft: codexResultFeedbackDraft,
+      dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
+      dogfood_reuse_operator_decision_preview:
+        dogfoodReuseOperatorDecisionPreview,
+      dogfood_metric_candidate_preview: dogfoodMetricCandidatePreview,
+      perspective_next_work_candidate_update_preview:
+        perspectiveNextWorkCandidateUpdatePreview,
+      metric_informed_continuity_relay_adjustment_preview:
+        metricInformedContinuityRelayAdjustmentPreview,
+      handoff_context_update_preview: handoffContextUpdatePreview,
+      handoff_context_update_operator_decision_preview:
+        handoffContextUpdateOperatorDecisionPreview,
+      handoff_context_update_record_review: handoffContextUpdateRecordReview,
+      handoff_context_apply_preview: handoffContextApplyPreview,
+      handoff_context_apply_operator_decision_preview:
+        handoffContextApplyOperatorDecisionPreview,
+      handoff_context_apply_write_contract_preview:
+        handoffContextApplyWriteContractPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:dogfood_loop_spine_overview"],
+    });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -373,6 +401,10 @@ export async function AgentWorkplane() {
                 behavior.
               </p>
             </div>
+
+            <WorkbenchDogfoodLoopSpineOverviewPanel
+              preview={workbenchDogfoodLoopSpineOverview}
+            />
 
             <section
               aria-label="Agent Workplane Phase 5C preview panels"

@@ -165,6 +165,14 @@ const selectedSessionDigestIntakePanelFile =
   "components/intake/selected-session-digest-intake-preview-panel.tsx";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
+const workbenchDogfoodLoopSpineOverviewTypeFile =
+  "types/workbench-dogfood-loop-spine-overview.ts";
+const workbenchDogfoodLoopSpineOverviewHelperFile =
+  "lib/workplane/workbench-dogfood-loop-spine-overview.ts";
+const workbenchDogfoodLoopSpineOverviewPanelFile =
+  "components/workplane/workbench-dogfood-loop-spine-overview-panel.tsx";
+const workbenchDogfoodLoopSpineOverviewSmokeFile =
+  "scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -667,6 +675,16 @@ const followOnSelectedSessionDigestIntakePreviewFiles = [
   smokeFile,
 ];
 
+const followOnWorkbenchDogfoodLoopSpineOverviewFiles = [
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewPanelFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -888,6 +906,9 @@ const requiredFiles = [
   selectedSessionDigestIntakeTypeFile,
   selectedSessionDigestIntakeHelperFile,
   selectedSessionDigestIntakePanelFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewPanelFile,
   contextReaderFile,
   agentWorkplaneDoc,
   packageJsonFile,
@@ -1018,6 +1039,7 @@ const allowedChangedFiles = new Set([
   ...followOnHandoffContextApplyOperatorDecisionPreviewFiles,
   ...followOnHandoffContextApplyWriteContractPreviewFiles,
   ...followOnSelectedSessionDigestIntakePreviewFiles,
+  ...followOnWorkbenchDogfoodLoopSpineOverviewFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -1120,6 +1142,15 @@ const selectedSessionDigestIntakeHelperText = textByFile.get(
 const selectedSessionDigestIntakePanelText = textByFile.get(
   selectedSessionDigestIntakePanelFile,
 );
+const workbenchDogfoodLoopSpineOverviewTypeText = textByFile.get(
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+);
+const workbenchDogfoodLoopSpineOverviewHelperText = textByFile.get(
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+);
+const workbenchDogfoodLoopSpineOverviewPanelText = textByFile.get(
+  workbenchDogfoodLoopSpineOverviewPanelFile,
+);
 const currentPerspectiveText = textByFile.get(currentPerspectivePanelFile);
 const deltaProjectionText = textByFile.get(deltaProjectionPanelFile);
 const reviewQueueText = textByFile.get(reviewQueuePanelFile);
@@ -1140,6 +1171,7 @@ assertShellComposition();
 assertPanelComponents();
 assertHandoffContextRelayRationaleFollowOn();
 assertSelectedSessionDigestIntakePreviewFollowOn();
+assertWorkbenchDogfoodLoopSpineOverviewFollowOn();
 assertCodexResultFeedbackDraftFollowOn();
 assertDogfoodReuseRecordProposalFollowOn();
 assertDogfoodReuseOperatorDecisionPreviewFollowOn();
@@ -1631,6 +1663,103 @@ function assertSelectedSessionDigestIntakePreviewFollowOn() {
       selectedSessionDigestIntakePanelText,
     ),
     "Selected digest intake panel must not render import/write/apply/approve/send buttons",
+  );
+}
+
+function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
+  assertContainsAll(
+    workbenchDogfoodLoopSpineOverviewTypeText,
+    [
+      "workbench_dogfood_loop_spine_overview.v0.1",
+      "WorkbenchDogfoodLoopSpineOverview",
+      "selected_session_intake",
+      "codex_result_feedback",
+      "dogfood_reuse_proposal",
+      "handoff_context_apply_write_contract",
+      "recommended_next_operator_action",
+      "can_write_db: false",
+      "can_create_schema: false",
+      "can_write_memory: false",
+      "can_mutate_current_working_perspective: false",
+      "can_apply_handoff_context: false",
+      "can_write_selected_refs_to_live_handoff: false",
+      "can_send_handoff: false",
+      "can_call_provider_openai: false",
+      "can_call_github: false",
+      "can_execute_codex: false",
+      "can_render_workbench_action_button: false",
+    ],
+    { label: workbenchDogfoodLoopSpineOverviewTypeFile },
+  );
+  assertContainsAll(
+    workbenchDogfoodLoopSpineOverviewHelperText,
+    [
+      "buildWorkbenchDogfoodLoopSpineOverviewV01",
+      "createWorkbenchDogfoodLoopSpineOverviewAuthorityBoundaryV01",
+      "selected_session_digest_intake_preview",
+      "codex_result_feedback_draft",
+      "dogfood_reuse_record_proposal",
+      "handoff_context_apply_write_contract_preview",
+      "missing_codex_result_report",
+      "current_handoff_packet_fingerprint_missing",
+      "does_not_write_memory",
+      "does_not_apply_live_handoff_context",
+      "can_call_provider_openai: false",
+      "can_call_github: false",
+      "can_execute_codex: false",
+    ],
+    { label: workbenchDogfoodLoopSpineOverviewHelperFile },
+  );
+  assertContainsAll(
+    workbenchDogfoodLoopSpineOverviewPanelText,
+    [
+      "Workbench Dogfood Loop Spine Overview",
+      "recommended next operator action",
+      "spine steps",
+      "would not",
+      "authority boundary",
+      "can_apply_handoff_context",
+      "can_write_selected_refs_to_live_handoff",
+      "can_send_handoff",
+    ],
+    { label: workbenchDogfoodLoopSpineOverviewPanelFile },
+  );
+  assertContainsAll(
+    agentWorkplaneText,
+    [
+      "WorkbenchDogfoodLoopSpineOverviewPanel",
+      "buildWorkbenchDogfoodLoopSpineOverviewV01",
+      "workbenchDogfoodLoopSpineOverview",
+      "workbench:dogfood_loop_spine_overview",
+      "preview={workbenchDogfoodLoopSpineOverview}",
+    ],
+    { label: agentWorkplaneFile },
+  );
+
+  const start = agentWorkplaneText.indexOf(
+    "const workbenchDogfoodLoopSpineOverview",
+  );
+  const end = agentWorkplaneText.indexOf("return (");
+  assert(start !== -1, "Agent Workplane must build dogfood spine overview");
+  assert(end > start, "Dogfood spine overview block must be bounded");
+  const snippet = agentWorkplaneText.slice(start, end);
+  assert(!snippet.includes("digest:"), "Overview must not pass digest material");
+  assert(!snippet.includes("raw_text:"), "Overview must not pass raw digest text");
+  assert(!snippet.includes("sample"), "Overview must not pass sample material");
+  assert(!snippet.includes("fixture"), "Overview must not pass fixture material");
+  assert(
+    !snippet.includes("result_report:"),
+    "Overview must not pass raw Codex result reports",
+  );
+  assert(
+    !workbenchDogfoodLoopSpineOverviewPanelText.includes("<button"),
+    "Dogfood loop spine overview panel must not add buttons",
+  );
+  assert(
+    !/<button[^>]*>[^<]*(Import|Write|Apply|Approve|Send|Launch|Run|Merge|Retry|Execute)/i.test(
+      workbenchDogfoodLoopSpineOverviewPanelText,
+    ),
+    "Dogfood loop spine overview panel must not render action buttons",
   );
 }
 
