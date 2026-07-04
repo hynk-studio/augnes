@@ -91,8 +91,10 @@ assertContainsAll(
     "handoff_context_update_review_schema_missing",
     "handoff_context_update_review_read_failed",
     "handoff_context_update_review_selected_record_not_found",
-    "listHandoffContextUpdateRecordsV01",
-    "readHandoffContextUpdateRecordByIdV01",
+    "HANDOFF_CONTEXT_UPDATE_WRITE_TABLE",
+    "record_json",
+    "receipt_json",
+    "no_side_effects",
     "buildApprovedHandoffContextUpdateRecordReviewV01",
   ],
   { label: helperFile },
@@ -254,7 +256,7 @@ assertReviewAuthorityFalse(positiveReview);
 const selectedReview = reader.readHandoffContextUpdateRecordReviewForWebV01({
   db_path: dbPath,
   selected_record_id: positiveReview.record_summaries[1].record_id,
-  limit: 10,
+  limit: 1,
   as_of: "2026-07-04T09:05:00.000Z",
 });
 assert.equal(selectedReview.review_status, "selected_record_available");
@@ -335,6 +337,116 @@ assert(
   ),
 );
 
+setupDb = new Database(dbPath);
+try {
+  const baseRow = setupDb
+    .prepare(
+      `SELECT record_json, receipt_json
+       FROM handoff_context_update_records
+       WHERE idempotency_key = ?`,
+    )
+    .get("handoff-context-update:operator-approved:db-read-beta");
+  assert(baseRow, "positive setup row must be available for bad receipt fixture");
+  const badReceiptRecordId =
+    "handoff-context-update-record:durable-bad-receipt-db-read";
+  const badReceiptIdempotencyKey =
+    "handoff-context-update:operator-approved:db-read-bad-receipt";
+  const badReceiptCreatedAt = "2026-07-04T13:30:00.000Z";
+  const badReceiptFingerprint = "record-fingerprint:db-read-bad-receipt";
+  const badReceiptValidationHash = "validation-hash:db-read-bad-receipt";
+  const badReceiptRecord = persistedRecordFixtureFromBase(baseRow.record_json, {
+    recordId: badReceiptRecordId,
+    idempotencyKey: badReceiptIdempotencyKey,
+    createdAt: badReceiptCreatedAt,
+    recordFingerprint: badReceiptFingerprint,
+    validationHash: badReceiptValidationHash,
+  });
+  assert.equal(
+    Object.hasOwn(badReceiptRecord, "no_side_effects"),
+    false,
+    "bad receipt regression row must rely on persisted receipt_json no_side_effects",
+  );
+  const badReceipt = persistedReceiptFixtureFromBase(baseRow.receipt_json, {
+    recordId: badReceiptRecordId,
+    idempotencyKey: badReceiptIdempotencyKey,
+    createdAt: badReceiptCreatedAt,
+    recordFingerprint: badReceiptFingerprint,
+    validationHash: badReceiptValidationHash,
+    noSideEffects: {
+      ...noSideEffects(),
+      provider_called: true,
+    },
+  });
+  setupDb
+    .prepare(
+      `INSERT INTO handoff_context_update_records (
+        record_id,
+        idempotency_key,
+        created_at,
+        scope,
+        operator_ref,
+        record_fingerprint,
+        record_json,
+        receipt_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      badReceiptRecordId,
+      badReceiptIdempotencyKey,
+      badReceiptCreatedAt,
+      "project:augnes",
+      "operator-ref:db-read-bad-receipt",
+      badReceiptFingerprint,
+      JSON.stringify(badReceiptRecord),
+      JSON.stringify(badReceipt),
+    );
+} finally {
+  setupDb.close();
+}
+
+const badReceiptReview = reader.readHandoffContextUpdateRecordReviewForWebV01({
+  db_path: dbPath,
+  limit: 1,
+  as_of: "2026-07-04T09:08:00.000Z",
+});
+assert.equal(badReceiptReview.review_status, "invalid_records");
+const badReceiptSummary = badReceiptReview.record_summaries.find(
+  (summary) =>
+    summary.record_id ===
+    "handoff-context-update-record:durable-bad-receipt-db-read",
+);
+assert(badReceiptSummary, "bad receipt record must be summarized");
+assert(
+  badReceiptSummary.problem_reasons.includes(
+    "no_side_effects_provider_called_true",
+  ),
+);
+assert.equal(
+  badReceiptReview.evidence_summary.all_records_confirm_no_provider_github_codex,
+  false,
+);
+
+const selectedBadReceiptReview =
+  reader.readHandoffContextUpdateRecordReviewForWebV01({
+    db_path: dbPath,
+    selected_record_id:
+      "handoff-context-update-record:durable-bad-receipt-db-read",
+    limit: 1,
+    as_of: "2026-07-04T09:09:00.000Z",
+  });
+const selectedBadReceiptSummary =
+  selectedBadReceiptReview.record_summaries.find(
+    (summary) =>
+      summary.record_id ===
+      "handoff-context-update-record:durable-bad-receipt-db-read",
+  );
+assert(selectedBadReceiptSummary, "selected bad receipt record must be read");
+assert(
+  selectedBadReceiptSummary.problem_reasons.includes(
+    "no_side_effects_provider_called_true",
+  ),
+);
+
 rmSync(dbPath, { force: true });
 
 const changedFilesBoundary = assertChangedFilesWithin({
@@ -373,6 +485,7 @@ console.log(
       positive_db_read_checked: true,
       selected_record_checked: true,
       malformed_db_record_checked: true,
+      persisted_receipt_no_side_effects_checked: true,
       workbench_read_helper_checked: true,
       no_route_changed: true,
       authority_boundary_checked: true,
@@ -678,6 +791,53 @@ function noSideEffects() {
   };
 }
 
+function persistedRecordFixtureFromBase(
+  recordJson,
+  { recordId, idempotencyKey, createdAt, recordFingerprint, validationHash },
+) {
+  const record = JSON.parse(recordJson);
+  record.record_id = recordId;
+  record.idempotency_key = idempotencyKey;
+  record.created_at = createdAt;
+  record.operator_approval = {
+    ...record.operator_approval,
+    approved_at: createdAt,
+    approved_by: "operator-ref:db-read-bad-receipt",
+    operator_ref: "operator-ref:db-read-bad-receipt",
+  };
+  record.write_validation = {
+    ...record.write_validation,
+    validation_hash: validationHash,
+  };
+  record.record_fingerprint = recordFingerprint;
+  delete record.no_side_effects;
+  return record;
+}
+
+function persistedReceiptFixtureFromBase(
+  receiptJson,
+  {
+    recordId,
+    idempotencyKey,
+    createdAt,
+    recordFingerprint,
+    validationHash,
+    noSideEffects,
+  },
+) {
+  const receipt = JSON.parse(receiptJson);
+  return {
+    ...receipt,
+    record_id: recordId,
+    idempotency_key: idempotencyKey,
+    created_at: createdAt,
+    validation_hash: validationHash,
+    record_fingerprint: recordFingerprint,
+    store_ref: `handoff_context_update_records:${recordId}`,
+    no_side_effects: noSideEffects,
+  };
+}
+
 function assertReviewAuthorityFalse(review) {
   for (const [field, value] of Object.entries(review.authority_boundary)) {
     if (field === "read_only_record_review") {
@@ -704,6 +864,11 @@ function assertNoForbiddenReadHelperRuntimeCall(label, text) {
     "sendHandoff(",
     "writeSelectedRef",
     "applyPerspective(",
+    "withStoreNoSideEffects",
+    "listResult.no_side_effects",
+    "selectedResult.no_side_effects",
+    "listHandoffContextUpdateRecordsV01",
+    "readHandoffContextUpdateRecordByIdV01",
   ]) {
     assert(!text.includes(forbidden), `${label} must not include ${forbidden}`);
   }
