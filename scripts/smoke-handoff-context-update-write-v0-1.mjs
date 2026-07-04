@@ -47,6 +47,14 @@ const metricInformedContinuityRelayAdjustmentSmokeFile =
   "scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs";
 const handoffContextRelayRationaleSmokeFile =
   "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
+const handoffContextApplyPreviewTypeFile =
+  "types/handoff-context-apply-preview.ts";
+const handoffContextApplyPreviewHelperFile =
+  "lib/handoff/handoff-context-apply-preview.ts";
+const handoffContextApplyPreviewPanelFile =
+  "components/handoff/handoff-context-apply-preview-panel.tsx";
+const handoffContextApplyPreviewSmokeFile =
+  "scripts/smoke-handoff-context-apply-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -64,6 +72,10 @@ const allowedChangedFiles = [
   handoffContextUpdateRecordReviewPanelFile,
   handoffContextUpdateRecordReviewSmokeFile,
   handoffContextUpdateRecordReviewDbReadSmokeFile,
+  handoffContextApplyPreviewTypeFile,
+  handoffContextApplyPreviewHelperFile,
+  handoffContextApplyPreviewPanelFile,
+  handoffContextApplyPreviewSmokeFile,
   metricInformedContinuityRelayAdjustmentSmokeFile,
   handoffContextRelayRationaleSmokeFile,
 ];

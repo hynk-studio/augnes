@@ -133,6 +133,14 @@ const handoffContextUpdateRecordReviewSmokeFile =
   "scripts/smoke-handoff-context-update-record-review-v0-1.mjs";
 const handoffContextUpdateRecordReviewDbReadSmokeFile =
   "scripts/smoke-handoff-context-update-record-review-db-read-v0-1.mjs";
+const handoffContextApplyPreviewTypeFile =
+  "types/handoff-context-apply-preview.ts";
+const handoffContextApplyPreviewHelperFile =
+  "lib/handoff/handoff-context-apply-preview.ts";
+const handoffContextApplyPreviewPanelFile =
+  "components/handoff/handoff-context-apply-preview-panel.tsx";
+const handoffContextApplyPreviewSmokeFile =
+  "scripts/smoke-handoff-context-apply-preview-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -570,6 +578,23 @@ const followOnHandoffContextUpdateRecordReviewFiles = [
   smokeFile,
 ];
 
+const followOnHandoffContextApplyPreviewFiles = [
+  handoffContextApplyPreviewTypeFile,
+  handoffContextApplyPreviewHelperFile,
+  handoffContextApplyPreviewPanelFile,
+  handoffContextApplyPreviewSmokeFile,
+  handoffContextUpdateRecordReviewSmokeFile,
+  handoffContextUpdateRecordReviewDbReadSmokeFile,
+  handoffContextUpdateWriteSmokeFile,
+  handoffContextUpdateOperatorDecisionSmokeFile,
+  handoffContextUpdatePreviewSmokeFile,
+  metricInformedContinuityRelayAdjustmentSmokeFile,
+  handoffRationaleSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -914,6 +939,7 @@ const allowedChangedFiles = new Set([
   ...followOnHandoffContextUpdateOperatorDecisionPreviewFiles,
   ...followOnHandoffContextUpdateWriteFiles,
   ...followOnHandoffContextUpdateRecordReviewFiles,
+  ...followOnHandoffContextApplyPreviewFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
