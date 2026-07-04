@@ -57,6 +57,14 @@ const handoffRationaleSmokeFile =
   "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
 const agentWorkplaneSmokeFile =
   "scripts/smoke-agent-workplane-panels-v0-1.mjs";
+const selectedSessionDigestIntakeTypeFile =
+  "types/selected-session-digest-intake-preview.ts";
+const selectedSessionDigestIntakeHelperFile =
+  "lib/intake/selected-session-digest-intake-preview.ts";
+const selectedSessionDigestIntakePanelFile =
+  "components/intake/selected-session-digest-intake-preview-panel.tsx";
+const selectedSessionDigestIntakeSmokeFile =
+  "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -85,6 +93,10 @@ const allowedChangedFiles = [
   metricAdjustmentSmokeFile,
   handoffRationaleSmokeFile,
   agentWorkplaneSmokeFile,
+  selectedSessionDigestIntakeTypeFile,
+  selectedSessionDigestIntakeHelperFile,
+  selectedSessionDigestIntakePanelFile,
+  selectedSessionDigestIntakeSmokeFile,
 ];
 
 const textByFile = loadTextByFile([

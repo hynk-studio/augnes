@@ -23,6 +23,7 @@ import { HandoffContextUpdateOperatorDecisionPreviewPanel } from "@/components/h
 import { HandoffContextUpdatePreviewPanel } from "@/components/handoff/handoff-context-update-preview-panel";
 import { HandoffContextUpdateRecordReviewPanel } from "@/components/handoff/handoff-context-update-record-review-panel";
 import { HandoffPreviewBoundaryCard } from "@/components/handoff/handoff-preview-boundary-card";
+import { SelectedSessionDigestIntakePreviewPanel } from "@/components/intake/selected-session-digest-intake-preview-panel";
 import { PerspectiveNextWorkCandidateUpdatePreviewPanel } from "@/components/perspective-next-work-candidate-update-preview-panel";
 import { CurrentPerspectiveWorkplanePanel } from "@/components/workplane/current-perspective-workplane-panel";
 import { DeltaBatchPanel } from "@/components/workplane/delta-batch-panel";
@@ -67,6 +68,7 @@ import { buildHandoffContextUpdatePreviewV01 } from "@/lib/handoff/handoff-conte
 import { readHandoffContextUpdateRecordReviewForWebV01 } from "@/lib/handoff/read-handoff-context-update-record-review-for-web";
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
 import { buildHandoffContextRelayRationale } from "@/lib/handoff/handoff-context-relay-rationale";
+import { buildSelectedSessionDigestIntakePreviewV01 } from "@/lib/intake/selected-session-digest-intake-preview";
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
 import { buildPerspectiveNextWorkCandidateUpdatePreviewV01 } from "@/lib/perspective/perspective-next-work-candidate-update-preview";
 import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-view-projection";
@@ -223,6 +225,14 @@ export async function AgentWorkplane() {
     debug_context: workplaneDebugContext,
     intent_projection: workplaneIntentProjection,
   });
+  const selectedSessionDigestIntakePreview =
+    buildSelectedSessionDigestIntakePreviewV01({
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:selected_session_digest_intake_preview_empty_input",
+      ],
+    });
   const dogfoodMetricCandidatePreview =
     buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01({
       records: [],
@@ -376,6 +386,9 @@ export async function AgentWorkplane() {
               <CodexLaunchCardPreviewPanel preview={handoffPreview} />
               <HandoffContextRelayRationalePanel
                 rationale={handoffContextRationale}
+              />
+              <SelectedSessionDigestIntakePreviewPanel
+                preview={selectedSessionDigestIntakePreview}
               />
               <CodexResultFeedbackDraftPanel draft={codexResultFeedbackDraft} />
               <DogfoodReuseRecordProposalPanel

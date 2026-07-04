@@ -61,6 +61,14 @@ const metricAdjustmentSmokeFile =
   "scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs";
 const handoffRationaleSmokeFile =
   "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
+const selectedSessionDigestIntakeTypeFile =
+  "types/selected-session-digest-intake-preview.ts";
+const selectedSessionDigestIntakeHelperFile =
+  "lib/intake/selected-session-digest-intake-preview.ts";
+const selectedSessionDigestIntakePanelFile =
+  "components/intake/selected-session-digest-intake-preview-panel.tsx";
+const selectedSessionDigestIntakeSmokeFile =
+  "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const packageJsonFile = "package.json";
 
 const allowedChangedFiles = [
@@ -86,6 +94,10 @@ const allowedChangedFiles = [
   previewSmokeFile,
   metricAdjustmentSmokeFile,
   handoffRationaleSmokeFile,
+  selectedSessionDigestIntakeTypeFile,
+  selectedSessionDigestIntakeHelperFile,
+  selectedSessionDigestIntakePanelFile,
+  selectedSessionDigestIntakeSmokeFile,
   packageJsonFile,
 ];
 

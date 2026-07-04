@@ -157,6 +157,14 @@ const handoffContextApplyWriteContractPanelFile =
   "components/handoff/handoff-context-apply-write-contract-preview-panel.tsx";
 const handoffContextApplyWriteContractSmokeFile =
   "scripts/smoke-handoff-context-apply-write-contract-preview-v0-1.mjs";
+const selectedSessionDigestIntakeTypeFile =
+  "types/selected-session-digest-intake-preview.ts";
+const selectedSessionDigestIntakeHelperFile =
+  "lib/intake/selected-session-digest-intake-preview.ts";
+const selectedSessionDigestIntakePanelFile =
+  "components/intake/selected-session-digest-intake-preview-panel.tsx";
+const selectedSessionDigestIntakeSmokeFile =
+  "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const currentPerspectivePanelFile =
   "components/workplane/current-perspective-workplane-panel.tsx";
 const deltaProjectionPanelFile =
@@ -648,6 +656,17 @@ const followOnHandoffContextApplyWriteContractPreviewFiles = [
   smokeFile,
 ];
 
+const followOnSelectedSessionDigestIntakePreviewFiles = [
+  selectedSessionDigestIntakeTypeFile,
+  selectedSessionDigestIntakeHelperFile,
+  selectedSessionDigestIntakePanelFile,
+  selectedSessionDigestIntakeSmokeFile,
+  handoffContextApplyWriteContractSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -866,6 +885,9 @@ const requiredFiles = [
   dogfoodReuseDecisionTypeFile,
   dogfoodReuseDecisionHelperFile,
   dogfoodReuseDecisionPanelFile,
+  selectedSessionDigestIntakeTypeFile,
+  selectedSessionDigestIntakeHelperFile,
+  selectedSessionDigestIntakePanelFile,
   contextReaderFile,
   agentWorkplaneDoc,
   packageJsonFile,
@@ -995,6 +1017,7 @@ const allowedChangedFiles = new Set([
   ...followOnHandoffContextApplyPreviewFiles,
   ...followOnHandoffContextApplyOperatorDecisionPreviewFiles,
   ...followOnHandoffContextApplyWriteContractPreviewFiles,
+  ...followOnSelectedSessionDigestIntakePreviewFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -1088,6 +1111,15 @@ const dogfoodReuseDecisionHelperText = textByFile.get(
 const dogfoodReuseDecisionPanelText = textByFile.get(
   dogfoodReuseDecisionPanelFile,
 );
+const selectedSessionDigestIntakeTypeText = textByFile.get(
+  selectedSessionDigestIntakeTypeFile,
+);
+const selectedSessionDigestIntakeHelperText = textByFile.get(
+  selectedSessionDigestIntakeHelperFile,
+);
+const selectedSessionDigestIntakePanelText = textByFile.get(
+  selectedSessionDigestIntakePanelFile,
+);
 const currentPerspectiveText = textByFile.get(currentPerspectivePanelFile);
 const deltaProjectionText = textByFile.get(deltaProjectionPanelFile);
 const reviewQueueText = textByFile.get(reviewQueuePanelFile);
@@ -1107,6 +1139,7 @@ assertWorkbenchRouteStillShell();
 assertShellComposition();
 assertPanelComponents();
 assertHandoffContextRelayRationaleFollowOn();
+assertSelectedSessionDigestIntakePreviewFollowOn();
 assertCodexResultFeedbackDraftFollowOn();
 assertDogfoodReuseRecordProposalFollowOn();
 assertDogfoodReuseOperatorDecisionPreviewFollowOn();
@@ -1504,6 +1537,100 @@ function assertHandoffContextRelayRationaleFollowOn() {
       "contextRelayRationale={handoffContextRationale}",
     ],
     { label: agentWorkplaneFile },
+  );
+}
+
+function assertSelectedSessionDigestIntakePreviewFollowOn() {
+  assertContainsAll(
+    selectedSessionDigestIntakeTypeText,
+    [
+      "selected_session_digest_intake_preview.v0.1",
+      "SelectedSessionDigestIntakeCandidate",
+      "ready_for_operator_review",
+      "future_ingest_contract_preview",
+      "would_not_ingest",
+      "can_write_db: false",
+      "can_create_schema: false",
+      "can_create_ingest_record: false",
+      "can_write_memory: false",
+      "can_mutate_current_working_perspective: false",
+      "can_mutate_handoff_context: false",
+      "can_write_selected_refs_to_live_handoff: false",
+      "can_send_handoff: false",
+      "can_call_provider_openai: false",
+      "can_call_github: false",
+      "can_execute_codex: false",
+    ],
+    { label: selectedSessionDigestIntakeTypeFile },
+  );
+  assertContainsAll(
+    selectedSessionDigestIntakeHelperText,
+    [
+      "buildSelectedSessionDigestIntakePreviewV01",
+      "SELECTED_SESSION_DIGEST_RAW_TEXT_MAX_LENGTH",
+      "raw_text_extraction_is_deterministic_and_not_semantic_summary",
+      "selected_session_digest_ingest_candidate.v0.1",
+      "does_not_write_db_rows",
+      "does_not_write_memory",
+      "does_not_mutate_current_working_perspective",
+      "does_not_mutate_handoff_context",
+      "does_not_write_selected_refs_to_active_handoff_packet",
+      "does_not_send_handoffs",
+      "does_not_call_provider_openai",
+      "does_not_call_github",
+      "does_not_execute_codex",
+      "can_create_ingest_record: false",
+    ],
+    { label: selectedSessionDigestIntakeHelperFile },
+  );
+  assertContainsAll(
+    selectedSessionDigestIntakePanelText,
+    [
+      "Selected Session Digest Intake Preview",
+      "candidate counts by bucket",
+      "extracted preview counts",
+      "future ingest contract requirements",
+      "privacy review",
+      "would not ingest",
+      "authority boundary flags",
+      "can_create_ingest_record",
+      "can_write_selected_refs_to_live_handoff",
+      "can_send_handoff",
+    ],
+    { label: selectedSessionDigestIntakePanelFile },
+  );
+  assertContainsAll(
+    agentWorkplaneText,
+    [
+      "SelectedSessionDigestIntakePreviewPanel",
+      "buildSelectedSessionDigestIntakePreviewV01",
+      "selectedSessionDigestIntakePreview",
+      "workbench:selected_session_digest_intake_preview_empty_input",
+      "preview={selectedSessionDigestIntakePreview}",
+    ],
+    { label: agentWorkplaneFile },
+  );
+
+  const start = agentWorkplaneText.indexOf(
+    "const selectedSessionDigestIntakePreview",
+  );
+  const end = agentWorkplaneText.indexOf("const dogfoodMetricCandidatePreview");
+  assert(start !== -1, "Agent Workplane must build selected digest intake preview");
+  assert(end > start, "Selected digest intake preview block must be bounded");
+  const snippet = agentWorkplaneText.slice(start, end);
+  assert(!snippet.includes("digest:"), "Workbench default must not pass digest");
+  assert(!snippet.includes("raw_text:"), "Workbench default must not pass raw_text");
+  assert(!snippet.includes("sample"), "Workbench default must not pass sample material");
+  assert(!snippet.includes("fixture"), "Workbench default must not pass fixture material");
+  assert(
+    !selectedSessionDigestIntakePanelText.includes("<button"),
+    "Selected digest intake panel must not add buttons",
+  );
+  assert(
+    !/<button[^>]*>[^<]*(Import|Write|Apply|Approve|Send)/i.test(
+      selectedSessionDigestIntakePanelText,
+    ),
+    "Selected digest intake panel must not render import/write/apply/approve/send buttons",
   );
 }
 
