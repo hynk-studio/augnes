@@ -71,6 +71,14 @@ const handoffContextApplyWriteContractPanelFile =
   "components/handoff/handoff-context-apply-write-contract-preview-panel.tsx";
 const handoffContextApplyWriteContractSmokeFile =
   "scripts/smoke-handoff-context-apply-write-contract-preview-v0-1.mjs";
+const selectedSessionDigestIntakeTypeFile =
+  "types/selected-session-digest-intake-preview.ts";
+const selectedSessionDigestIntakeHelperFile =
+  "lib/intake/selected-session-digest-intake-preview.ts";
+const selectedSessionDigestIntakePanelFile =
+  "components/intake/selected-session-digest-intake-preview-panel.tsx";
+const selectedSessionDigestIntakeSmokeFile =
+  "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -100,6 +108,10 @@ const allowedChangedFiles = [
   handoffContextApplyWriteContractHelperFile,
   handoffContextApplyWriteContractPanelFile,
   handoffContextApplyWriteContractSmokeFile,
+  selectedSessionDigestIntakeTypeFile,
+  selectedSessionDigestIntakeHelperFile,
+  selectedSessionDigestIntakePanelFile,
+  selectedSessionDigestIntakeSmokeFile,
   metricInformedContinuityRelayAdjustmentSmokeFile,
   handoffContextRelayRationaleSmokeFile,
 ];
