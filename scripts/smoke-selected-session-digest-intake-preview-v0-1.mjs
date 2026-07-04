@@ -100,6 +100,9 @@ assertContainsAll(
     "createSelectedSessionDigestIntakeAuthorityBoundaryV01",
     "raw_text_extraction_is_deterministic_and_not_semantic_summary",
     "raw_text_over_max_length_not_extracted",
+    "raw_text_contains_embedded_credential_url_marker",
+    "tokenLikeSecretRefPattern",
+    "embeddedCredentialUrlRefPattern",
     "source_kind_unknown",
     "source_ref_missing",
     "operator_ref_missing",
@@ -338,6 +341,28 @@ assert.equal(
   "raw_text dates and quoted ids alone must not fabricate candidates",
 );
 
+const unsafeRawText = buildSelectedSessionDigestIntakePreviewV01({
+  raw_text:
+    "Summary: source:sk-private evidence:https://user:pass@example.com/proof",
+  source_kind: "manual_operator_digest",
+  source_ref: "source:unsafe-raw-text",
+  operator_ref: "operator:reviewer",
+  session_ref: "session:unsafe-raw-text",
+});
+assert.equal(unsafeRawText.source_status.raw_text, "unsafe");
+assert.equal(unsafeRawText.readiness.ready_for_operator_review, false);
+assert.equal(unsafeRawText.recommended_next_action, "resolve_unsafe_refs");
+assert(
+  unsafeRawText.unsafe_ref_reasons.includes(
+    "raw_text_contains_token_like_secret_marker",
+  ),
+);
+assert(
+  unsafeRawText.unsafe_ref_reasons.includes(
+    "raw_text_contains_embedded_credential_url_marker",
+  ),
+);
+
 const unknownSourceKind = buildSelectedSessionDigestIntakePreviewV01({
   digest: {
     summary: "Candidate with unknown source kind.",
@@ -388,6 +413,7 @@ assert.equal(missingOperatorRef.recommended_next_action, "supply_operator_ref");
 
 for (const [label, input] of [
   ["source_ref", { source_ref: "/Users/private/session" }],
+  ["source_ref", { source_ref: "source:sk-private" }],
   ["operator_ref", { operator_ref: "ghp_secret" }],
   ["session_ref", { session_ref: "../private-session" }],
   ["project_ref", { project_ref: "C:\\private\\project" }],
@@ -422,6 +448,47 @@ for (const [label, input] of [
     `${label} should be named in unsafe_ref_reasons`,
   );
 }
+
+const unsafeNamespacedEvidenceRef = buildSelectedSessionDigestIntakePreviewV01({
+  digest: {
+    summary: "Namespaced token-like evidence ref should block.",
+    evidence_refs: ["evidence:ghp_secret"],
+    session_ref: "session:namespaced-evidence-secret",
+  },
+  source_kind: "chatgpt_session_digest",
+  source_ref: "source:namespaced-evidence-secret",
+  operator_ref: "operator:reviewer",
+});
+assert.equal(
+  unsafeNamespacedEvidenceRef.readiness.ready_for_operator_review,
+  false,
+);
+assert(
+  unsafeNamespacedEvidenceRef.unsafe_ref_reasons.includes(
+    "evidence_ref_unsafe",
+  ),
+);
+
+const unsafeNamespacedSourceRefs = buildSelectedSessionDigestIntakePreviewV01({
+  digest: {
+    summary: "Namespaced credentialed source ref should block.",
+    source_refs: ["source:https://user:pass@example.com/evidence"],
+    evidence_refs: ["evidence:namespaced-source-credential"],
+    session_ref: "session:namespaced-source-credential",
+  },
+  source_kind: "chatgpt_session_digest",
+  source_ref: "source:namespaced-source-credential",
+  operator_ref: "operator:reviewer",
+});
+assert.equal(
+  unsafeNamespacedSourceRefs.readiness.ready_for_operator_review,
+  false,
+);
+assert(
+  unsafeNamespacedSourceRefs.unsafe_ref_reasons.includes(
+    "source_refs_unsafe",
+  ),
+);
 
 const reviewOnly = buildSelectedSessionDigestIntakePreviewV01({
   digest: {

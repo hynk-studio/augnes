@@ -1163,8 +1163,11 @@ function buildUnsafeRefReasons(refInputs: RefInput[]): string[] {
 function detectRawTextUnsafeMarkers(rawText: string): string[] {
   if (!rawText) return [];
   return uniqueSortedStrings([
-    ...(/(?:^|\s)(sk-|ghp_|github_pat_|xoxb-)/i.test(rawText)
+    ...(rawTextTokenLikeSecretPattern.test(rawText)
       ? ["raw_text_contains_token_like_secret_marker"]
+      : []),
+    ...(rawTextEmbeddedCredentialUrlPattern.test(rawText)
+      ? ["raw_text_contains_embedded_credential_url_marker"]
       : []),
     ...(/\/Users\/|\/home\/|(?:^|\s)\.env\b/i.test(rawText)
       ? ["raw_text_contains_private_path_marker"]
@@ -1223,12 +1226,20 @@ function isPublicSafeRef(value: string): boolean {
   if (value.includes("\\") || value.includes("../") || value.includes("..\\")) {
     return false;
   }
-  if (/^(sk-|ghp_|github_pat_|xoxb-)/i.test(value)) return false;
-  if (/^[a-z][a-z0-9+.-]*:\/\/[^/\s]+@/i.test(value)) return false;
+  if (tokenLikeSecretRefPattern.test(value)) return false;
+  if (embeddedCredentialUrlRefPattern.test(value)) return false;
   if (/(^|[/:])(\.env)([/:]|$)/i.test(value)) return false;
   if (/(\/Users\/|\/home\/|password:|secret:)/i.test(value)) return false;
   return true;
 }
+
+const tokenLikeSecretRefPattern = /(^|[:/@|=])(sk-|ghp_|github_pat_|xoxb-)/i;
+const embeddedCredentialUrlRefPattern =
+  /(^|[:|=])[a-z][a-z0-9+.-]*:\/\/[^/\s]+@/i;
+const rawTextTokenLikeSecretPattern =
+  /(^|[\s:/@|=])(sk-|ghp_|github_pat_|xoxb-)/i;
+const rawTextEmbeddedCredentialUrlPattern =
+  /(^|[\s:|=])[a-z][a-z0-9+.-]*:\/\/[^/\s]+@/i;
 
 function truncateSnippet(value: string): string {
   const trimmed = value.replace(/\s+/g, " ").trim();
