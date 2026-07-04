@@ -1251,13 +1251,26 @@ function assertCodexResultFeedbackDraftFollowOn() {
     agentWorkplaneText,
     [
       "CodexResultFeedbackDraftPanel",
-      "codex-result-report-ingestion.sample.v0.1.json",
-      "normalizeCodexResultReportV01",
       "buildCodexResultFeedbackDraft",
       "handoff_context_rationale: handoffContextRationale",
+      "result_report: null",
       "draft={codexResultFeedbackDraft}",
     ],
     { label: agentWorkplaneFile },
+  );
+  assert(
+    !agentWorkplaneText.includes(
+      "codex-result-report-ingestion.sample.v0.1.json",
+    ),
+    "Agent Workplane must not import the sample Codex result fixture",
+  );
+  assert(
+    !agentWorkplaneText.includes("codexResultReportSample.safe_input_example"),
+    "Agent Workplane must not normalize sample Codex result input",
+  );
+  assert(
+    !agentWorkplaneText.includes("normalizeCodexResultReportV01("),
+    "Agent Workplane must not normalize a sample Codex result report",
   );
 }
 

@@ -170,14 +170,28 @@ assertContainsAll(
   agentWorkplaneText,
   [
     "CodexResultFeedbackDraftPanel",
-    "codex-result-report-ingestion.sample.v0.1.json",
-    "normalizeCodexResultReportV01",
     "buildCodexResultFeedbackDraft",
     "handoff_context_rationale: handoffContextRationale",
-    "result_report: codexResultReport",
+    "result_report: null",
     "draft={codexResultFeedbackDraft}",
   ],
   { label: agentWorkplaneFile },
+);
+assert(
+  !agentWorkplaneText.includes("codex-result-report-ingestion.sample.v0.1.json"),
+  "default AgentWorkplane render must not import the Codex result sample fixture",
+);
+assert(
+  !agentWorkplaneText.includes("codexResultReportSample.safe_input_example"),
+  "default AgentWorkplane render must not normalize sample fixture input",
+);
+assert(
+  !agentWorkplaneText.includes("normalizeCodexResultReportV01("),
+  "default AgentWorkplane render must not normalize a sample result report",
+);
+assert(
+  !agentWorkplaneText.includes("result_report: codexResultReport"),
+  "default AgentWorkplane render must not pass a fixture-backed report",
 );
 
 assertContainsAll(
@@ -324,6 +338,24 @@ assert(
 assert(draft.carry_forward_suggestions.next_relay_update_suggestions.length > 0);
 assert(draft.carry_forward_suggestions.next_handoff_adjustments.length > 0);
 
+const defaultWorkbenchDraft = buildCodexResultFeedbackDraft({
+  handoff_context_rationale: rationale,
+  result_report: null,
+});
+assert.equal(defaultWorkbenchDraft.candidate_status, "insufficient_data");
+assert.equal(defaultWorkbenchDraft.source_status.codex_result_report, "missing");
+assert.equal(defaultWorkbenchDraft.result_report_refs.result_report_ref, null);
+assert.equal(
+  defaultWorkbenchDraft.result_report_refs.result_report_fingerprint,
+  null,
+);
+assert(
+  defaultWorkbenchDraft.insufficient_data_reasons.includes(
+    "missing_codex_result_report",
+  ),
+  "default Workbench draft must surface missing Codex result report",
+);
+
 const reusableRefs = rationale.selected_refs
   .filter((ref) => !ref.ref_id.startsWith("missing:"))
   .slice(0, 5);
@@ -441,6 +473,7 @@ console.log(
       authority_boundary_checked: true,
       consumed_handoff_context_rationale: true,
       consumed_codex_result_report: true,
+      default_workbench_missing_result_checked: true,
       changed_files_checked: changedFilesBoundary.checked,
       changed_files_skipped: changedFilesBoundary.skipped,
       changed_files_observed: changedFilesBoundary.files,

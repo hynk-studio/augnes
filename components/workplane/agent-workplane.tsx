@@ -36,9 +36,7 @@ import { WorkplaneInspector } from "@/components/workplane/workplane-inspector";
 import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
 import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-contract-for-web";
 import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
-import codexResultReportSample from "@/fixtures/codex-result-report-ingestion.sample.v0.1.json";
 import { buildCodexResultFeedbackDraft } from "@/lib/dogfooding/codex-result-feedback-draft";
-import { normalizeCodexResultReportV01 } from "@/lib/dogfooding/codex-result-report-normalizer";
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
 import {
   buildGuideWorkplaneDebugContext,
@@ -166,12 +164,9 @@ export async function AgentWorkplane() {
     continuity_relay: context.continuity_relay,
     handoff_preview: handoffPreview,
   });
-  const codexResultReport = normalizeCodexResultReportV01(
-    codexResultReportSample.safe_input_example,
-  );
   const codexResultFeedbackDraft = buildCodexResultFeedbackDraft({
     handoff_context_rationale: handoffContextRationale,
-    result_report: codexResultReport,
+    result_report: null,
   });
   const workplaneDebugContext = buildGuideWorkplaneDebugContext({
     node_context_read: workplaneNodeContext,
