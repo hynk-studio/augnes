@@ -28,11 +28,23 @@ const dogfoodMetricSmokeFile =
 const ledgerTypeFile = "types/handoff-reuse-outcome-ledger.ts";
 const ledgerSmokeFile =
   "scripts/smoke-handoff-reuse-outcome-ledger-write-v0-1.mjs";
+const handoffContextSmokeFile =
+  "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
+const workplaneContinuitySmokeFile =
+  "scripts/smoke-workplane-continuity-relay-v0-1.mjs";
 const decisionSmokeFile =
   "scripts/smoke-dogfood-reuse-operator-decision-preview-v0-1.mjs";
 const proposalSmokeFile =
   "scripts/smoke-dogfood-reuse-record-proposal-v0-1.mjs";
 const feedbackSmokeFile = "scripts/smoke-codex-result-feedback-draft-v0-1.mjs";
+const metricInformedContinuityRelayAdjustmentTypeFile =
+  "types/metric-informed-continuity-relay-adjustment-preview.ts";
+const metricInformedContinuityRelayAdjustmentHelperFile =
+  "lib/workplane/metric-informed-continuity-relay-adjustment-preview.ts";
+const metricInformedContinuityRelayAdjustmentPanelFile =
+  "components/workplane/metric-informed-continuity-relay-adjustment-preview-panel.tsx";
+const metricInformedContinuityRelayAdjustmentSmokeFile =
+  "scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -44,9 +56,15 @@ const allowedChangedFiles = [
   packageJsonFile,
   dogfoodMetricSmokeFile,
   ledgerSmokeFile,
+  handoffContextSmokeFile,
+  workplaneContinuitySmokeFile,
   decisionSmokeFile,
   proposalSmokeFile,
   feedbackSmokeFile,
+  metricInformedContinuityRelayAdjustmentTypeFile,
+  metricInformedContinuityRelayAdjustmentHelperFile,
+  metricInformedContinuityRelayAdjustmentPanelFile,
+  metricInformedContinuityRelayAdjustmentSmokeFile,
 ];
 
 const textByFile = loadTextByFile([

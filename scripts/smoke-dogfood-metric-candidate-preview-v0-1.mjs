@@ -27,6 +27,10 @@ const ledgerHelperFile = "lib/dogfooding/handoff-reuse-outcome-ledger.ts";
 const ledgerRouteFile = "app/api/dogfooding/reuse-ledger/route.ts";
 const ledgerSmokeFile =
   "scripts/smoke-handoff-reuse-outcome-ledger-write-v0-1.mjs";
+const handoffContextSmokeFile =
+  "scripts/smoke-handoff-context-relay-rationale-v0-1.mjs";
+const workplaneContinuitySmokeFile =
+  "scripts/smoke-workplane-continuity-relay-v0-1.mjs";
 const decisionSmokeFile =
   "scripts/smoke-dogfood-reuse-operator-decision-preview-v0-1.mjs";
 const proposalSmokeFile =
@@ -40,6 +44,14 @@ const perspectiveNextWorkCandidatePanelFile =
   "components/perspective-next-work-candidate-update-preview-panel.tsx";
 const perspectiveNextWorkCandidateSmokeFile =
   "scripts/smoke-perspective-next-work-candidate-update-preview-v0-1.mjs";
+const metricInformedContinuityRelayAdjustmentTypeFile =
+  "types/metric-informed-continuity-relay-adjustment-preview.ts";
+const metricInformedContinuityRelayAdjustmentHelperFile =
+  "lib/workplane/metric-informed-continuity-relay-adjustment-preview.ts";
+const metricInformedContinuityRelayAdjustmentPanelFile =
+  "components/workplane/metric-informed-continuity-relay-adjustment-preview-panel.tsx";
+const metricInformedContinuityRelayAdjustmentSmokeFile =
+  "scripts/smoke-metric-informed-continuity-relay-adjustment-preview-v0-1.mjs";
 
 const allowedChangedFiles = [
   typeFile,
@@ -51,6 +63,8 @@ const allowedChangedFiles = [
   smokeFile,
   packageJsonFile,
   ledgerSmokeFile,
+  handoffContextSmokeFile,
+  workplaneContinuitySmokeFile,
   decisionSmokeFile,
   proposalSmokeFile,
   feedbackSmokeFile,
@@ -58,6 +72,10 @@ const allowedChangedFiles = [
   perspectiveNextWorkCandidateHelperFile,
   perspectiveNextWorkCandidatePanelFile,
   perspectiveNextWorkCandidateSmokeFile,
+  metricInformedContinuityRelayAdjustmentTypeFile,
+  metricInformedContinuityRelayAdjustmentHelperFile,
+  metricInformedContinuityRelayAdjustmentPanelFile,
+  metricInformedContinuityRelayAdjustmentSmokeFile,
 ];
 
 const textByFile = loadTextByFile([

@@ -24,6 +24,7 @@ import { DeltaProjectionWorkplanePanel } from "@/components/workplane/delta-proj
 import { EvidenceHandoffWorkplanePanel } from "@/components/workplane/evidence-handoff-workplane-panel";
 import { HandoffBuilderPreviewPanel } from "@/components/workplane/handoff-builder-preview-panel";
 import { ContinuityRelayWorkplanePanel } from "@/components/workplane/continuity-relay-workplane-panel";
+import { MetricInformedContinuityRelayAdjustmentPreviewPanel } from "@/components/workplane/metric-informed-continuity-relay-adjustment-preview-panel";
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
 import { ReviewMemoryDetailPanel } from "@/components/workplane/review-memory-detail-panel";
 import { ReviewQueueWorkplanePanel } from "@/components/workplane/review-queue-workplane-panel";
@@ -57,6 +58,7 @@ import { buildHandoffContextRelayRationale } from "@/lib/handoff/handoff-context
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
 import { buildPerspectiveNextWorkCandidateUpdatePreviewV01 } from "@/lib/perspective/perspective-next-work-candidate-update-preview";
 import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-view-projection";
+import { buildMetricInformedContinuityRelayAdjustmentPreviewV01 } from "@/lib/workplane/metric-informed-continuity-relay-adjustment-preview";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
 import { buildWorkplaneBridgeTraceDetailRead } from "@/lib/workplane/workplane-bridge-trace-detail";
 import { buildAgentWorkplaneNodeContextRead } from "@/lib/workplane/workplane-node-context";
@@ -231,6 +233,17 @@ export async function AgentWorkplane() {
         "workbench:default_empty_perspective_next_work_candidate_update_preview",
       ],
     });
+  const metricInformedContinuityRelayAdjustmentPreview =
+    buildMetricInformedContinuityRelayAdjustmentPreviewV01({
+      continuity_relay: context.continuity_relay,
+      perspective_next_work_candidate_update_preview:
+        perspectiveNextWorkCandidateUpdatePreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:default_metric_informed_continuity_relay_adjustment_preview",
+      ],
+    });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -307,6 +320,9 @@ export async function AgentWorkplane() {
               />
               <PerspectiveNextWorkCandidateUpdatePreviewPanel
                 preview={perspectiveNextWorkCandidateUpdatePreview}
+              />
+              <MetricInformedContinuityRelayAdjustmentPreviewPanel
+                preview={metricInformedContinuityRelayAdjustmentPreview}
               />
               <HandoffCopyExportPanel
                 preview={handoffPreview}
