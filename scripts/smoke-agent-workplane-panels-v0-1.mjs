@@ -456,6 +456,27 @@ const perspectiveUnitRecordReviewPanelFile =
   "components/workplane/perspective-unit-record-review-panel.tsx";
 const perspectiveUnitScopedWriteSmokeFile =
   "scripts/smoke-perspective-unit-scoped-write-v0-1.mjs";
+const continuityRelayScopedWritePreviewTypeFile =
+  "types/continuity-relay-scoped-write-preview.ts";
+const continuityRelayScopedWritePreviewHelperFile =
+  "lib/workplane/continuity-relay-scoped-write-preview.ts";
+const continuityRelayScopedWritePreviewPanelFile =
+  "components/workplane/continuity-relay-scoped-write-preview-panel.tsx";
+const continuityRelayWriteTypeFile = "types/continuity-relay-write.ts";
+const continuityRelayWriteHelperFile =
+  "lib/workplane/continuity-relay-write.ts";
+const continuityRelayRouteFile =
+  "app/api/workplane/continuity-relays/route.ts";
+const continuityRelayRecordReviewTypeFile =
+  "types/continuity-relay-record-review.ts";
+const continuityRelayRecordReviewHelperFile =
+  "lib/workplane/continuity-relay-record-review.ts";
+const continuityRelayRecordReviewForWebFile =
+  "lib/workplane/read-continuity-relay-record-review-for-web.ts";
+const continuityRelayRecordReviewPanelFile =
+  "components/workplane/continuity-relay-record-review-panel.tsx";
+const continuityRelayScopedWriteSmokeFile =
+  "scripts/smoke-continuity-relay-scoped-write-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -1238,6 +1259,26 @@ const followOnPerspectiveUnitScopedWriteFiles = [
   smokeFile,
 ];
 
+const followOnContinuityRelayScopedWriteFiles = [
+  continuityRelayScopedWritePreviewTypeFile,
+  continuityRelayScopedWritePreviewHelperFile,
+  continuityRelayScopedWritePreviewPanelFile,
+  continuityRelayWriteTypeFile,
+  continuityRelayWriteHelperFile,
+  continuityRelayRouteFile,
+  continuityRelayRecordReviewTypeFile,
+  continuityRelayRecordReviewHelperFile,
+  continuityRelayRecordReviewForWebFile,
+  continuityRelayRecordReviewPanelFile,
+  continuityRelayScopedWriteSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1652,6 +1693,7 @@ const allowedChangedFiles = new Set([
   ...followOnPerspectiveRelayUpdateDecisionWriteContractFiles,
   ...followOnPerspectiveNextWorkBiasScopedWriteFiles,
   ...followOnPerspectiveUnitScopedWriteFiles,
+  ...followOnContinuityRelayScopedWriteFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -2900,6 +2942,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "PerspectiveNextWorkBiasRecordReviewPanel",
       "PerspectiveUnitScopedWritePreviewPanel",
       "PerspectiveUnitRecordReviewPanel",
+      "ContinuityRelayScopedWritePreviewPanel",
+      "ContinuityRelayRecordReviewPanel",
       "buildDogfoodMetricSnapshotPreviewV01",
       "buildDogfoodMetricSnapshotOperatorDecisionPreviewV01",
       "readDogfoodMetricSnapshotRecordReviewForWebV01",
@@ -2914,6 +2958,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "readPerspectiveNextWorkBiasRecordReviewForWebV01",
       "buildPerspectiveUnitScopedWritePreviewV01",
       "readPerspectiveUnitRecordReviewForWebV01",
+      "buildContinuityRelayScopedWritePreviewV01",
+      "readContinuityRelayRecordReviewForWebV01",
       "const codexResultReportIntakePreview",
       "const codexResultReportIntakeDecisionPreview",
       "const codexResultReportIntakeRecordReview",
@@ -2938,6 +2984,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "const perspectiveNextWorkBiasRecordReview",
       "const perspectiveUnitScopedWritePreview",
       "const perspectiveUnitRecordReview",
+      "const continuityRelayScopedWritePreview",
+      "const continuityRelayRecordReview",
       "preview={codexResultReportIntakePreview}",
       "preview={codexResultReportIntakeDecisionPreview}",
       "review={codexResultReportIntakeRecordReview}",
@@ -2962,6 +3010,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "review={perspectiveNextWorkBiasRecordReview}",
       "preview={perspectiveUnitScopedWritePreview}",
       "review={perspectiveUnitRecordReview}",
+      "preview={continuityRelayScopedWritePreview}",
+      "review={continuityRelayRecordReview}",
       "codex_result_report_intake_preview: codexResultReportIntakePreview",
       "codex_result_report_intake_decision_preview:\n        codexResultReportIntakeDecisionPreview",
       "codex_result_report_intake_record_review:\n        codexResultReportIntakeRecordReview",
@@ -2986,6 +3036,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "perspective_next_work_bias_record_review:\n        perspectiveNextWorkBiasRecordReview",
       "perspective_unit_scoped_write_preview:\n        perspectiveUnitScopedWritePreview",
       "perspective_unit_record_review:\n        perspectiveUnitRecordReview",
+      "continuity_relay_scoped_write_preview:\n        continuityRelayScopedWritePreview",
+      "continuity_relay_record_review: continuityRelayRecordReview",
     ],
     { label: agentWorkplaneFile },
   );
@@ -3058,6 +3110,22 @@ function assertCodexResultReportIntakeResidueFollowOn() {
   assert(
     snippet.includes("perspective_unit_record_review:"),
     "Agent Workplane must pass PerspectiveUnit record review to the spine overview",
+  );
+  assert(
+    snippet.includes("buildContinuityRelayScopedWritePreviewV01"),
+    "Agent Workplane must build ContinuityRelay scoped write preview",
+  );
+  assert(
+    snippet.includes("readContinuityRelayRecordReviewForWebV01"),
+    "Agent Workplane must read ContinuityRelay review through no-DB helper",
+  );
+  assert(
+    snippet.includes("continuity_relay_scoped_write_preview:"),
+    "Agent Workplane must pass ContinuityRelay scoped write preview to the spine overview",
+  );
+  assert(
+    snippet.includes("continuity_relay_record_review:"),
+    "Agent Workplane must pass ContinuityRelay record review to the spine overview",
   );
   assert(!snippet.includes("new Database"), "Workbench must not open DB");
   assert(!snippet.includes("fetch("), "Workbench must not fetch records");
@@ -3606,6 +3674,7 @@ function assertChangedFileBoundary() {
         followOnPerspectiveRelayUpdateDecisionWriteContractFiles.includes(file) ||
         followOnPerspectiveNextWorkBiasScopedWriteFiles.includes(file) ||
         followOnPerspectiveUnitScopedWriteFiles.includes(file) ||
+        followOnContinuityRelayScopedWriteFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3628,6 +3697,7 @@ function assertChangedFileBoundary() {
         followOnPerspectiveRelayUpdateDecisionWriteContractFiles.includes(file) ||
         followOnPerspectiveNextWorkBiasScopedWriteFiles.includes(file) ||
         followOnPerspectiveUnitScopedWriteFiles.includes(file) ||
+        followOnContinuityRelayScopedWriteFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );

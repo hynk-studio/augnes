@@ -52,6 +52,8 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   perspective_next_work_bias_record_review,
   perspective_unit_scoped_write_preview,
   perspective_unit_record_review,
+  continuity_relay_scoped_write_preview,
+  continuity_relay_record_review,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -140,6 +142,11 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
     perspectiveUnitRecordStep({
       recordReview: perspective_unit_record_review,
       scopedWritePreview: perspective_unit_scoped_write_preview,
+    }),
+    continuityRelayScopedWriteStep(continuity_relay_scoped_write_preview),
+    continuityRelayRecordStep({
+      recordReview: continuity_relay_record_review,
+      scopedWritePreview: continuity_relay_scoped_write_preview,
     }),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
@@ -1691,6 +1698,120 @@ function perspectiveUnitRecordStep({
   });
 }
 
+function continuityRelayScopedWriteStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["continuity_relay_scoped_write_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "continuity_relay_scoped_write",
+      label: "ContinuityRelay scoped write",
+      recommended_next_action: "review_perspective_relay_update_write_contract",
+      summary: "No ContinuityRelay scoped write preview supplied.",
+    });
+  }
+
+  return makeStep({
+    step_id: "continuity_relay_scoped_write",
+    label: "ContinuityRelay scoped write",
+    status: mapContinuityRelayScopedWriteStatus(
+      preview.scoped_write_preview_status,
+    ),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.input_summary.continuity_relay_entry_count,
+    blockers: [
+      ...preview.blocking_reasons,
+      ...preview.refusal_reasons,
+      ...preview.write_readiness.current_blockers,
+      ...preview.write_readiness.current_refusal_reasons,
+    ],
+    material_gaps: [
+      ...preview.write_readiness.current_insufficient_data,
+      ...(preview.input_summary.selected_continuity_relay_candidate_count === 0
+        ? ["selected_continuity_relay_candidate_refs_missing_for_scoped_write"]
+        : []),
+    ],
+    missing_evidence: [
+      ...preview.missing_evidence,
+      ...preview.write_readiness.current_missing_evidence,
+    ],
+    recommended_next_action: preview.write_readiness.write_ready
+      ? "write_continuity_relay_record"
+      : preview.input_summary.selected_continuity_relay_candidate_count > 0
+        ? "review_continuity_relay_scoped_write"
+        : "review_perspective_relay_update_write_contract",
+    evidence_present: preview.evidence_summary.has_evidence_refs,
+    summary: `ContinuityRelay scoped write preview is ${preview.scoped_write_preview_status}; entry_count ${preview.input_summary.continuity_relay_entry_count}; write_ready ${String(preview.write_readiness.write_ready)}; related PerspectiveUnit and NextWorkBias records are advisory only; only scoped local ContinuityRelay record/receipt write is in scope.`,
+  });
+}
+
+function continuityRelayRecordStep({
+  recordReview,
+  scopedWritePreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["continuity_relay_record_review"];
+  scopedWritePreview: WorkbenchDogfoodLoopSpineOverviewInput["continuity_relay_scoped_write_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "continuity_relay_record",
+      label: "ContinuityRelay record",
+      recommended_next_action: "review_continuity_relay_scoped_write",
+      summary: "No ContinuityRelay record review supplied.",
+    });
+  }
+
+  const hasRecords =
+    ["records_available", "selected_record_found"].includes(
+      recordReview.review_status,
+    ) && recordReview.input_summary.valid_record_count > 0;
+  const scopedWriteReady =
+    scopedWritePreview?.scoped_write_preview_status ===
+      "ready_for_future_continuity_relay_record_write" &&
+    scopedWritePreview.write_readiness.write_ready;
+
+  return makeStep({
+    step_id: "continuity_relay_record",
+    label: "ContinuityRelay record",
+    status: hasRecords
+      ? "candidate_material_available"
+      : recordReview.review_status === "schema_missing"
+        ? "no_current_material"
+        : recordReview.review_status === "records_invalid"
+          ? "blocked"
+          : scopedWriteReady
+            ? "ready_for_future_contract_review"
+            : "insufficient_data",
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count: recordReview.input_summary.valid_record_count,
+    blockers: [
+      ...recordReview.blocked_reasons,
+      ...(recordReview.evidence_summary.has_receipt_side_effect_problem
+        ? ["continuity_relay_record_side_effect_problem"]
+        : []),
+    ],
+    material_gaps: [
+      ...recordReview.insufficient_data_reasons,
+      ...(!hasRecords && scopedWriteReady
+        ? ["continuity_relay_record_missing_after_scoped_write_preview"]
+        : []),
+      ...(!hasRecords && !scopedWriteReady
+        ? ["continuity_relay_scoped_write_missing_or_not_ready"]
+        : []),
+    ],
+    missing_evidence: [
+      ...recordReview.evidence_summary.missing_evidence,
+      ...(scopedWritePreview?.missing_evidence ?? []),
+    ],
+    recommended_next_action: hasRecords
+      ? "review_continuity_relay_record"
+      : scopedWriteReady
+        ? "write_continuity_relay_record"
+        : "review_continuity_relay_scoped_write",
+    evidence_present: recordReview.evidence_summary.has_records,
+    summary: `ContinuityRelay record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; scoped_write_ready ${String(scopedWriteReady)}; future follow-on actions prepare_current_working_perspective_update_contract and prepare_handoff_context_update_contract remain separate; no CWP mutation, live relay update, handoff apply/send, memory, metric, upstream ledger, PerspectiveUnit, NextWorkBias, or external write authority.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -2336,7 +2457,9 @@ function determineRecommendedNextOperatorAction({
       blocker.startsWith("perspective_next_work_bias_scoped_write:") ||
       blocker.startsWith("perspective_next_work_bias_record:") ||
       blocker.startsWith("perspective_unit_scoped_write:") ||
-      blocker.startsWith("perspective_unit_record:"),
+      blocker.startsWith("perspective_unit_record:") ||
+      blocker.startsWith("continuity_relay_scoped_write:") ||
+      blocker.startsWith("continuity_relay_record:"),
     )
   ) {
     if (
@@ -2363,6 +2486,13 @@ function determineRecommendedNextOperatorAction({
       )
     ) {
       return "resolve_next_work_signal_blockers";
+    }
+    if (
+      top_blockers.some((blocker) =>
+        blocker.startsWith("continuity_relay"),
+      )
+    ) {
+      return "resolve_continuity_relay_blockers";
     }
     if (
       top_blockers.some((blocker) =>
@@ -2401,6 +2531,32 @@ function determineRecommendedNextOperatorAction({
     const perspectiveNextWorkBiasRecordStep = steps.find(
       (step) => step.step_id === "perspective_next_work_bias_record",
     );
+    const continuityRelayScopedWriteStep = steps.find(
+      (step) => step.step_id === "continuity_relay_scoped_write",
+    );
+    const continuityRelayRecordStep = steps.find(
+      (step) => step.step_id === "continuity_relay_record",
+    );
+    if (
+      continuityRelayRecordStep?.recommended_next_action ===
+      "write_continuity_relay_record"
+    ) {
+      return "write_continuity_relay_record";
+    }
+    if (
+      continuityRelayRecordStep?.recommended_next_action ===
+        "review_continuity_relay_record" &&
+      continuityRelayRecordStep.material_count > 0
+    ) {
+      return "review_continuity_relay_record";
+    }
+    if (
+      continuityRelayScopedWriteStep?.recommended_next_action ===
+        "review_continuity_relay_scoped_write" &&
+      continuityRelayScopedWriteStep.material_count > 0
+    ) {
+      return "review_continuity_relay_scoped_write";
+    }
     if (
       perspectiveUnitRecordStep?.recommended_next_action ===
       "write_perspective_unit_record"
@@ -2602,6 +2758,12 @@ function determineRecommendedNextOperatorAction({
   const perspectiveUnitRecordStep = steps.find(
     (step) => step.step_id === "perspective_unit_record",
   );
+  const continuityRelayScopedWriteStep = steps.find(
+    (step) => step.step_id === "continuity_relay_scoped_write",
+  );
+  const continuityRelayRecordStep = steps.find(
+    (step) => step.step_id === "continuity_relay_record",
+  );
   if (
     codexResultRecord?.recommended_next_action ===
     "write_codex_result_report_candidate_ingest_record"
@@ -2637,6 +2799,26 @@ function determineRecommendedNextOperatorAction({
     "write_perspective_relay_update_decision_record"
   ) {
     return "write_perspective_relay_update_decision_record";
+  }
+  if (
+    continuityRelayRecordStep?.recommended_next_action ===
+    "write_continuity_relay_record"
+  ) {
+    return "write_continuity_relay_record";
+  }
+  if (
+    continuityRelayRecordStep?.recommended_next_action ===
+      "review_continuity_relay_record" &&
+    continuityRelayRecordStep.material_count > 0
+  ) {
+    return "review_continuity_relay_record";
+  }
+  if (
+    continuityRelayScopedWriteStep?.recommended_next_action ===
+      "review_continuity_relay_scoped_write" &&
+    continuityRelayScopedWriteStep.material_count > 0
+  ) {
+    return "review_continuity_relay_scoped_write";
   }
   if (
     perspectiveUnitRecordStep?.recommended_next_action ===
@@ -3059,6 +3241,22 @@ function mapPerspectiveUnitScopedWriteStatus(
   return "insufficient_data";
 }
 
+function mapContinuityRelayScopedWriteStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_perspective_relay_update_write_contract") {
+    return "no_current_material";
+  }
+  if (status === "ready_for_future_continuity_relay_record_write") {
+    return "ready_for_future_contract_review";
+  }
+  if (status === "ready_for_operator_review") return "ready_for_operator_review";
+  if (status === "blocked") return "blocked";
+  if (status === "needs_more_evidence") return "insufficient_data";
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
 function mapCandidateStatus(status: string): WorkbenchDogfoodLoopSpineStepStatus {
   if (status === "insufficient_data") return "insufficient_data";
   if (status.includes("needs_operator_review")) {
@@ -3320,6 +3518,7 @@ function buildReviewChecklist(): string[] {
     "confirm_codex_result_feedback_uses_a_real_result_report_before_reuse_review",
     "confirm_reuse_and_metric_candidates_have source_refs and evidence_refs",
     "confirm_next_work_and_relay_candidates remain preview-only",
+    "confirm_continuity_relay_records_are_scoped_local_records_not_live_relay_updates",
     "confirm_handoff_update_and_apply previews do not mutate live state",
     "confirm_apply_write_contract_missing current packet/context/operator material before any separate write slice",
   ];
@@ -3335,7 +3534,7 @@ function buildWouldNotDo(): string[] {
     "does_not_mutate_current_working_perspective",
     "does_not_write_perspective_unit",
     "does_not_write_next_work_bias",
-    "does_not_write_continuity_relay",
+    "does_not_update_live_continuity_relay_state",
     "does_not_apply_live_handoff_context",
     "does_not_write_selected_refs_to_live_packet",
     "does_not_send_handoff",
@@ -3354,7 +3553,7 @@ function buildNonGoals(): string[] {
     "perspective_unit_durable_mutation",
     "next_work_bias_durable_mutation",
     "cwp_mutation",
-    "continuity_relay_write",
+    "live_continuity_relay_update",
     "live_handoff_context_apply_write",
     "selected_refs_live_packet_write",
     "handoff_send",

@@ -306,6 +306,27 @@ const perspectiveUnitRecordReviewPanelFile =
   "components/workplane/perspective-unit-record-review-panel.tsx";
 const perspectiveUnitScopedWriteSmokeFile =
   "scripts/smoke-perspective-unit-scoped-write-v0-1.mjs";
+const continuityRelayScopedWritePreviewTypeFile =
+  "types/continuity-relay-scoped-write-preview.ts";
+const continuityRelayScopedWritePreviewHelperFile =
+  "lib/workplane/continuity-relay-scoped-write-preview.ts";
+const continuityRelayScopedWritePreviewPanelFile =
+  "components/workplane/continuity-relay-scoped-write-preview-panel.tsx";
+const continuityRelayWriteTypeFile = "types/continuity-relay-write.ts";
+const continuityRelayWriteHelperFile =
+  "lib/workplane/continuity-relay-write.ts";
+const continuityRelayRouteFile =
+  "app/api/workplane/continuity-relays/route.ts";
+const continuityRelayRecordReviewTypeFile =
+  "types/continuity-relay-record-review.ts";
+const continuityRelayRecordReviewHelperFile =
+  "lib/workplane/continuity-relay-record-review.ts";
+const continuityRelayRecordReviewForWebFile =
+  "lib/workplane/read-continuity-relay-record-review-for-web.ts";
+const continuityRelayRecordReviewPanelFile =
+  "components/workplane/continuity-relay-record-review-panel.tsx";
+const continuityRelayScopedWriteSmokeFile =
+  "scripts/smoke-continuity-relay-scoped-write-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -468,6 +489,17 @@ const allowedChangedFiles = [
   perspectiveUnitRecordReviewForWebFile,
   perspectiveUnitRecordReviewPanelFile,
   perspectiveUnitScopedWriteSmokeFile,
+  continuityRelayScopedWritePreviewTypeFile,
+  continuityRelayScopedWritePreviewHelperFile,
+  continuityRelayScopedWritePreviewPanelFile,
+  continuityRelayWriteTypeFile,
+  continuityRelayWriteHelperFile,
+  continuityRelayRouteFile,
+  continuityRelayRecordReviewTypeFile,
+  continuityRelayRecordReviewHelperFile,
+  continuityRelayRecordReviewForWebFile,
+  continuityRelayRecordReviewPanelFile,
+  continuityRelayScopedWriteSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -526,6 +558,8 @@ assertContainsAll(
     "perspective_next_work_bias_record",
     "perspective_unit_scoped_write",
     "perspective_unit_record",
+    "continuity_relay_scoped_write",
+    "continuity_relay_record",
     "review_expected_observed_delta_candidates",
     "write_expected_observed_delta_record",
     "review_reuse_outcome_candidate_bridge",
@@ -536,6 +570,11 @@ assertContainsAll(
     "review_handoff_reuse_outcome_ledger_record",
     "resolve_reuse_outcome_bridge_blockers",
     "review_dogfood_metric_snapshot_candidates",
+    "review_continuity_relay_scoped_write",
+    "write_continuity_relay_record",
+    "review_continuity_relay_record",
+    "resolve_continuity_relay_blockers",
+    "prepare_handoff_context_update_contract",
     "write_dogfood_metric_snapshot_record",
     "review_dogfood_metric_snapshot_record",
     "review_next_work_signal_refresh",
@@ -559,7 +598,12 @@ assertContainsAll(
     "review_perspective_unit_record",
     "resolve_perspective_unit_blockers",
     "prepare_continuity_relay_write_slice",
+    "review_continuity_relay_scoped_write",
+    "write_continuity_relay_record",
+    "review_continuity_relay_record",
+    "resolve_continuity_relay_blockers",
     "prepare_current_working_perspective_update_contract",
+    "prepare_handoff_context_update_contract",
     "prepare_perspective_next_work_update_decision",
     "prepare_continuity_relay_update_contract",
     "resolve_next_work_signal_blockers",
@@ -625,6 +669,8 @@ assertContainsAll(
     "perspective_next_work_bias_record_review",
     "perspective_unit_scoped_write_preview",
     "perspective_unit_record_review",
+    "continuity_relay_scoped_write_preview",
+    "continuity_relay_record_review",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
     "selectedSessionDigestDurableIngestRecordStep",
@@ -651,6 +697,8 @@ assertContainsAll(
     "perspectiveNextWorkBiasRecordStep",
     "perspectiveUnitScopedWriteStep",
     "perspectiveUnitRecordStep",
+    "continuityRelayScopedWriteStep",
+    "continuityRelayRecordStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -684,7 +732,12 @@ assertContainsAll(
     "review_perspective_unit_record",
     "resolve_perspective_unit_blockers",
     "prepare_continuity_relay_write_slice",
+    "review_continuity_relay_scoped_write",
+    "write_continuity_relay_record",
+    "review_continuity_relay_record",
+    "resolve_continuity_relay_blockers",
     "prepare_current_working_perspective_update_contract",
+    "prepare_handoff_context_update_contract",
     "does_not_call_expected_observed_delta_route_from_workbench_overview",
     "does_not_write_reuse_outcome_ledger_or_dogfood_metrics",
     "does_not_write_memory",
@@ -733,6 +786,8 @@ assertContainsAll(
     "perspective_next_work_bias_record_review:\n        perspectiveNextWorkBiasRecordReview",
     "perspective_unit_scoped_write_preview:\n        perspectiveUnitScopedWritePreview",
     "perspective_unit_record_review:\n        perspectiveUnitRecordReview",
+    "continuity_relay_scoped_write_preview:\n        continuityRelayScopedWritePreview",
+    "continuity_relay_record_review: continuityRelayRecordReview",
     "workbench:dogfood_loop_spine_overview",
     "handoff_context_apply_write_contract_preview",
   ],
@@ -860,7 +915,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 39);
+assert.equal(emptyOverview.spine_steps.length, 41);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -1914,7 +1969,8 @@ function assertNoForbiddenChangedPaths() {
         file === nextWorkSignalDecisionRouteFile ||
         file === perspectiveRelayUpdateDecisionRouteFile ||
         file === perspectiveNextWorkBiasRouteFile ||
-        file === perspectiveUnitRouteFile,
+        file === perspectiveUnitRouteFile ||
+        file === continuityRelayRouteFile,
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);
