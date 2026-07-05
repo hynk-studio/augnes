@@ -32,6 +32,10 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   codex_result_report_intake_decision_preview,
   codex_result_report_intake_record_review,
   work_episode_residue_candidate_preview,
+  expected_observed_delta_preview,
+  expected_observed_delta_decision_preview,
+  expected_observed_delta_record_review,
+  reuse_outcome_candidate_bridge_preview,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -72,6 +76,12 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       decisionPreview: codex_result_report_intake_decision_preview,
     }),
     workEpisodeResidueCandidateStep(work_episode_residue_candidate_preview),
+    expectedObservedDeltaStep(expected_observed_delta_preview),
+    expectedObservedDeltaRecordStep({
+      recordReview: expected_observed_delta_record_review,
+      decisionPreview: expected_observed_delta_decision_preview,
+    }),
+    reuseOutcomeCandidateBridgeStep(reuse_outcome_candidate_bridge_preview),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -108,10 +118,13 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       step.missing_evidence.map((reason) => `${step.step_id}: ${reason}`),
     ),
   );
-  const currentMaterialGaps = limitReasons(
+  const currentMaterialGaps = limitReasonsWithPriority(
     steps.flatMap((step) =>
       step.material_gaps.map((reason) => `${step.step_id}: ${reason}`),
     ),
+    [
+      /current_handoff_packet_fingerprint|current_handoff_context_ref|operator_approval_material/i,
+    ],
   );
   const recommendedNextOperatorAction = determineRecommendedNextOperatorAction({
     steps,
@@ -714,6 +727,144 @@ function workEpisodeResidueCandidateStep(
           : "supply_codex_result_report",
     evidence_present: preview.evidence_summary.has_codex_result_material,
     summary: `Work episode residue candidate preview is ${preview.residue_preview_status}; residue_candidate_count ${preview.input_summary.residue_candidate_count}; next ${preview.recommended_next_action}.`,
+  });
+}
+
+function expectedObservedDeltaStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["expected_observed_delta_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "expected_observed_delta",
+      label: "ExpectedObservedDelta candidate",
+      recommended_next_action: "supply_codex_result_report",
+      summary: "No ExpectedObservedDelta preview supplied.",
+    });
+  }
+
+  return makeStep({
+    step_id: "expected_observed_delta",
+    label: "ExpectedObservedDelta candidate",
+    status:
+      preview.delta_preview_status === "no_result_material"
+        ? "no_current_material"
+        : mapExpectedObservedDeltaStatus(preview.delta_preview_status),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.input_summary.delta_candidate_count,
+    blockers: preview.blocked_reasons,
+    material_gaps: [
+      ...preview.insufficient_data_reasons,
+      ...(preview.evidence_summary.has_expected_material
+        ? []
+        : ["expected_material_missing"]),
+      ...(preview.evidence_summary.has_observed_material
+        ? []
+        : ["observed_material_missing"]),
+    ],
+    missing_evidence: preview.evidence_summary.missing_evidence,
+    recommended_next_action:
+      preview.delta_preview_status === "ready_for_operator_review" ||
+      preview.input_summary.delta_candidate_count > 0
+        ? "review_expected_observed_delta_candidates"
+        : preview.delta_preview_status === "insufficient_expected_material"
+          ? "prepare_expected_observed_delta_preview"
+          : "supply_codex_result_report",
+    evidence_present: preview.evidence_summary.has_result_material,
+    summary: `ExpectedObservedDelta preview is ${preview.delta_preview_status}; delta_candidate_count ${preview.input_summary.delta_candidate_count}; expected ${preview.input_summary.expected_signal_count}; observed ${preview.input_summary.observed_signal_count}; next ${preview.recommended_next_action}.`,
+  });
+}
+
+function expectedObservedDeltaRecordStep({
+  recordReview,
+  decisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["expected_observed_delta_record_review"];
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["expected_observed_delta_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "expected_observed_delta_record",
+      label: "ExpectedObservedDelta local record",
+      recommended_next_action: "review_expected_observed_delta_candidates",
+      summary: "No ExpectedObservedDelta record review supplied.",
+    });
+  }
+
+  const decisionReady =
+    decisionPreview?.decision_preview_status ===
+      "ready_for_future_delta_record_write" &&
+    decisionPreview.write_readiness.write_ready === true;
+  const hasRecords = recordReview.input_summary.valid_record_count > 0;
+
+  return makeStep({
+    step_id: "expected_observed_delta_record",
+    label: "ExpectedObservedDelta local record",
+    status: mapRecordReviewStatus(recordReview.review_status),
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count:
+      recordReview.input_summary.valid_record_count +
+      recordReview.input_summary.selected_delta_candidate_ref_count,
+    blockers: [
+      ...recordReview.blocked_reasons,
+      ...(recordReview.input_summary.receipt_side_effect_problem_count > 0
+        ? ["expected_observed_delta_record_side_effect_problem"]
+        : []),
+      ...(decisionPreview?.blocking_reasons ?? []),
+      ...(decisionPreview?.refusal_reasons ?? []),
+    ],
+    material_gaps: [
+      ...recordReview.insufficient_data_reasons,
+      ...(decisionReady && !hasRecords
+        ? ["expected_observed_delta_record_missing_after_operator_decision"]
+        : []),
+      ...(!decisionReady && !hasRecords
+        ? ["expected_observed_delta_operator_decision_missing_or_not_ready"]
+        : []),
+    ],
+    missing_evidence: [
+      ...recordReview.evidence_summary.missing_evidence,
+      ...(decisionPreview?.missing_evidence ?? []),
+    ],
+    recommended_next_action: hasRecords
+      ? "review_reuse_outcome_candidate_bridge"
+      : decisionReady
+        ? "write_expected_observed_delta_record"
+        : "review_expected_observed_delta_candidates",
+    evidence_present: recordReview.evidence_summary.has_records,
+    summary: `ExpectedObservedDelta record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; decision_ready ${String(decisionReady)}.`,
+  });
+}
+
+function reuseOutcomeCandidateBridgeStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["reuse_outcome_candidate_bridge_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "reuse_outcome_candidate_bridge",
+      label: "Reuse outcome candidate bridge",
+      recommended_next_action: "review_expected_observed_delta_candidates",
+      summary: "No reuse outcome candidate bridge preview supplied.",
+    });
+  }
+
+  return makeStep({
+    step_id: "reuse_outcome_candidate_bridge",
+    label: "Reuse outcome candidate bridge",
+    status:
+      preview.bridge_preview_status === "no_delta_material"
+        ? "no_current_material"
+        : mapReuseOutcomeBridgeStatus(preview.bridge_preview_status),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.input_summary.bridge_candidate_count,
+    blockers: preview.blocked_reasons,
+    material_gaps: preview.insufficient_data_reasons,
+    missing_evidence: preview.evidence_summary.missing_evidence,
+    recommended_next_action:
+      preview.input_summary.bridge_candidate_count > 0
+        ? "review_reuse_outcome_candidate_bridge"
+        : "review_expected_observed_delta_candidates",
+    evidence_present: preview.evidence_summary.has_delta_material,
+    summary: `Reuse outcome candidate bridge is ${preview.bridge_preview_status}; bridge_candidate_count ${preview.input_summary.bridge_candidate_count}; next ${preview.recommended_next_action}; no reuse ledger or dogfood metric write authority.`,
   });
 }
 
@@ -1343,6 +1494,15 @@ function determineRecommendedNextOperatorAction({
   ) {
     return "resolve_codex_result_report_intake_blockers";
   }
+  if (
+    top_blockers.some((blocker) =>
+      blocker.startsWith("expected_observed_delta:") ||
+      blocker.startsWith("expected_observed_delta_record:") ||
+      blocker.startsWith("reuse_outcome_candidate_bridge:"),
+    )
+  ) {
+    return "resolve_expected_observed_delta_blockers";
+  }
   if (top_blockers.length > 0) return "resolve_blockers_or_missing_evidence";
   if (steps[0]?.recommended_next_action === "supply_selected_session_digest") {
     return "supply_selected_session_digest";
@@ -1450,11 +1610,40 @@ function determineRecommendedNextOperatorAction({
   const codexResultRecord = steps.find(
     (step) => step.step_id === "codex_result_report_candidate_ingest_record",
   );
+  const expectedObservedDeltaStep = steps.find(
+    (step) => step.step_id === "expected_observed_delta",
+  );
+  const expectedObservedDeltaRecordStep = steps.find(
+    (step) => step.step_id === "expected_observed_delta_record",
+  );
+  const reuseOutcomeBridgeStep = steps.find(
+    (step) => step.step_id === "reuse_outcome_candidate_bridge",
+  );
   if (
     codexResultRecord?.recommended_next_action ===
     "write_codex_result_report_candidate_ingest_record"
   ) {
     return "write_codex_result_report_candidate_ingest_record";
+  }
+  if (
+    expectedObservedDeltaRecordStep?.recommended_next_action ===
+    "write_expected_observed_delta_record"
+  ) {
+    return "write_expected_observed_delta_record";
+  }
+  if (
+    reuseOutcomeBridgeStep?.recommended_next_action ===
+    "review_reuse_outcome_candidate_bridge" &&
+    reuseOutcomeBridgeStep.material_count > 0
+  ) {
+    return "review_reuse_outcome_candidate_bridge";
+  }
+  if (
+    expectedObservedDeltaStep?.recommended_next_action ===
+    "review_expected_observed_delta_candidates" &&
+    expectedObservedDeltaStep.material_count > 0
+  ) {
+    return "review_expected_observed_delta_candidates";
   }
   if (
     codexResultRecord?.recommended_next_action ===
@@ -1492,6 +1681,15 @@ function determineRecommendedNextOperatorAction({
     )
   ) {
     return "supply_codex_result_report";
+  }
+  const applyWriteContractStep = steps.find(
+    (step) => step.step_id === "handoff_context_apply_write_contract",
+  );
+  if (
+    applyWriteContractStep?.recommended_next_action ===
+    "supply_current_handoff_packet_fingerprint"
+  ) {
+    return "supply_current_handoff_packet_fingerprint";
   }
   if (
     current_material_gaps.some((gap) =>
@@ -1583,6 +1781,30 @@ function mapCandidateResidueStatus(
   return "insufficient_data";
 }
 
+function mapExpectedObservedDeltaStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_result_material") return "no_current_material";
+  if (status === "ready_for_operator_review") return "ready_for_operator_review";
+  if (status === "delta_candidates_available") {
+    return "candidate_material_available";
+  }
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function mapReuseOutcomeBridgeStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_delta_material") return "no_current_material";
+  if (status === "ready_for_operator_review") return "ready_for_operator_review";
+  if (status === "reuse_outcome_candidates_available") {
+    return "candidate_material_available";
+  }
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
 function mapCandidateStatus(status: string): WorkbenchDogfoodLoopSpineStepStatus {
   if (status === "insufficient_data") return "insufficient_data";
   if (status.includes("needs_operator_review")) {
@@ -1619,7 +1841,9 @@ function mapRecordReviewStatus(
   if (status === "selected_record_available" || status === "records_available") {
     return "candidate_material_available";
   }
-  if (status === "invalid_records") return "blocked";
+  if (status === "invalid_records" || status === "records_invalid") {
+    return "blocked";
+  }
   return "insufficient_data";
 }
 
@@ -1832,6 +2056,9 @@ function buildReviewChecklist(): string[] {
     "confirm_selected_session_digest_candidate_ingest_records_remain_candidate_storage_not_memory",
     "confirm_codex_result_report_intake_uses_real_result_report_material_before_residue_review",
     "confirm_work_episode_residue_candidates_remain_preview_only",
+    "confirm_expected_observed_delta_candidates_do_not_treat_skipped_checks_not_done_items_prs_or_changed_files_as_completion",
+    "confirm_expected_observed_delta_record_write_readiness_is_scoped_to_local_delta_record_only",
+    "confirm_reuse_outcome_candidate_bridge_is_candidate_material_not_reuse_ledger_write",
     "confirm_codex_result_feedback_uses_a_real_result_report_before_reuse_review",
     "confirm_reuse_and_metric_candidates_have source_refs and evidence_refs",
     "confirm_next_work_and_relay_candidates remain preview-only",
@@ -1844,7 +2071,7 @@ function buildWouldNotDo(): string[] {
   return [
     "does_not_write_selected_digest_ingest_record_from_workbench_overview",
     "does_not_promote_selected_digest_ingest_records_to_memory_or_perspective",
-    "does_not_write_work_episode_residue_or_expected_observed_delta",
+    "does_not_write_work_episode_residue_from_workbench_overview",
     "does_not_write_reuse_outcome_ledger_or_dogfood_metrics",
     "does_not_write_memory",
     "does_not_mutate_current_working_perspective",
@@ -1854,7 +2081,8 @@ function buildWouldNotDo(): string[] {
     "does_not_apply_live_handoff_context",
     "does_not_write_selected_refs_to_live_packet",
     "does_not_send_handoff",
-    "does_not_write_db_rows_or_create_schema_or_routes",
+    "does_not_call_expected_observed_delta_route_from_workbench_overview",
+    "does_not_write_db_rows_or_create_schema_from_workbench_overview",
     "does_not_call_provider_openai_github_or_codex",
     "does_not_create_graph_vector_rag_crawler_or_browser_observer",
     "does_not_render_workbench_action_buttons",
@@ -1907,6 +2135,20 @@ function firstAvailableAsOf(steps: SpineStepBuild[]): string | null {
 
 function limitReasons(reasons: string[]): string[] {
   return uniqueStringsInOrder(reasons).slice(0, 20);
+}
+
+function limitReasonsWithPriority(
+  reasons: string[],
+  priorityPatterns: RegExp[],
+): string[] {
+  const uniqueReasons = uniqueStringsInOrder(reasons);
+  const priorityReasons = uniqueReasons.filter((reason) =>
+    priorityPatterns.some((pattern) => pattern.test(reason)),
+  );
+  const remainingReasons = uniqueReasons.filter(
+    (reason) => !priorityReasons.includes(reason),
+  );
+  return [...priorityReasons, ...remainingReasons].slice(0, 20);
 }
 
 function uniqueSortedStrings(values: string[]): string[] {

@@ -9,6 +9,10 @@ import { CodexResultFeedbackDraftPanel } from "@/components/codex-result-feedbac
 import { DogfoodMetricCandidatePreviewPanel } from "@/components/dogfood-metric-candidate-preview-panel";
 import { DogfoodReuseOperatorDecisionPreviewPanel } from "@/components/dogfood-reuse-operator-decision-preview-panel";
 import { DogfoodReuseRecordProposalPanel } from "@/components/dogfood-reuse-record-proposal-panel";
+import { ExpectedObservedDeltaDecisionPanel } from "@/components/dogfooding/expected-observed-delta-decision-panel";
+import { ExpectedObservedDeltaPreviewPanel } from "@/components/dogfooding/expected-observed-delta-preview-panel";
+import { ExpectedObservedDeltaRecordReviewPanel } from "@/components/dogfooding/expected-observed-delta-record-review-panel";
+import { ReuseOutcomeCandidateBridgePreviewPanel } from "@/components/dogfooding/reuse-outcome-candidate-bridge-preview-panel";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { GuideIntentProjectionPanel } from "@/components/guide/guide-intent-projection-panel";
 import { GuideWorkplaneDebugPanel } from "@/components/guide/guide-workplane-debug-panel";
@@ -63,6 +67,10 @@ import { buildCodexResultFeedbackDraft } from "@/lib/dogfooding/codex-result-fee
 import { buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01 } from "@/lib/dogfooding/dogfood-metric-candidate-preview";
 import { buildDogfoodReuseOperatorDecisionPreview } from "@/lib/dogfooding/dogfood-reuse-operator-decision-preview";
 import { buildDogfoodReuseRecordProposal } from "@/lib/dogfooding/dogfood-reuse-record-proposal";
+import { buildExpectedObservedDeltaOperatorDecisionPreviewV01 } from "@/lib/dogfooding/expected-observed-delta-decision";
+import { buildExpectedObservedDeltaPreviewV01 } from "@/lib/dogfooding/expected-observed-delta-preview";
+import { readExpectedObservedDeltaRecordReviewForWebV01 } from "@/lib/dogfooding/read-expected-observed-delta-record-review-for-web";
+import { buildReuseOutcomeCandidateBridgePreviewV01 } from "@/lib/dogfooding/reuse-outcome-candidate-bridge-preview";
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
 import {
   buildGuideWorkplaneDebugContext,
@@ -332,6 +340,38 @@ export async function AgentWorkplane() {
       as_of: workplaneMetrics.as_of,
       source_refs: ["workbench:work_episode_residue_candidate_preview"],
     });
+  const expectedObservedDeltaPreview = buildExpectedObservedDeltaPreviewV01({
+    work_episode_residue_candidate_preview: workEpisodeResidueCandidatePreview,
+    codex_result_report_intake_record_review:
+      codexResultReportIntakeRecordReview,
+    codex_result_report_intake_preview: codexResultReportIntakePreview,
+    scope: "project:augnes",
+    as_of: workplaneMetrics.as_of,
+    source_refs: ["workbench:expected_observed_delta_preview"],
+  });
+  const expectedObservedDeltaDecisionPreview =
+    buildExpectedObservedDeltaOperatorDecisionPreviewV01({
+      expected_observed_delta_preview: expectedObservedDeltaPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:expected_observed_delta_decision_preview"],
+    });
+  const expectedObservedDeltaRecordReview =
+    readExpectedObservedDeltaRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:expected_observed_delta_record_review"],
+    });
+  const reuseOutcomeCandidateBridgePreview =
+    buildReuseOutcomeCandidateBridgePreviewV01({
+      expected_observed_delta_preview: expectedObservedDeltaPreview,
+      expected_observed_delta_record_review: expectedObservedDeltaRecordReview,
+      work_episode_residue_candidate_preview: workEpisodeResidueCandidatePreview,
+      codex_result_report_intake_record_review:
+        codexResultReportIntakeRecordReview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:reuse_outcome_candidate_bridge_preview"],
+    });
   const dogfoodMetricCandidatePreview =
     buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01({
       records: [],
@@ -443,6 +483,13 @@ export async function AgentWorkplane() {
         codexResultReportIntakeRecordReview,
       work_episode_residue_candidate_preview:
         workEpisodeResidueCandidatePreview,
+      expected_observed_delta_preview: expectedObservedDeltaPreview,
+      expected_observed_delta_decision_preview:
+        expectedObservedDeltaDecisionPreview,
+      expected_observed_delta_record_review:
+        expectedObservedDeltaRecordReview,
+      reuse_outcome_candidate_bridge_preview:
+        reuseOutcomeCandidateBridgePreview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -565,6 +612,18 @@ export async function AgentWorkplane() {
               />
               <WorkEpisodeResidueCandidatePreviewPanel
                 preview={workEpisodeResidueCandidatePreview}
+              />
+              <ExpectedObservedDeltaPreviewPanel
+                preview={expectedObservedDeltaPreview}
+              />
+              <ExpectedObservedDeltaDecisionPanel
+                preview={expectedObservedDeltaDecisionPreview}
+              />
+              <ExpectedObservedDeltaRecordReviewPanel
+                review={expectedObservedDeltaRecordReview}
+              />
+              <ReuseOutcomeCandidateBridgePreviewPanel
+                preview={reuseOutcomeCandidateBridgePreview}
               />
               <CodexResultFeedbackDraftPanel draft={codexResultFeedbackDraft} />
               <DogfoodReuseRecordProposalPanel

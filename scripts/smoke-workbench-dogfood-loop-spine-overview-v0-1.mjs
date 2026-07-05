@@ -119,6 +119,40 @@ const workEpisodeResidueCandidatePreviewPanelFile =
   "components/workplane/work-episode-residue-candidate-preview-panel.tsx";
 const codexResultReportIntakeResidueSmokeFile =
   "scripts/smoke-codex-result-report-intake-work-episode-residue-v0-1.mjs";
+const expectedObservedDeltaPreviewTypeFile =
+  "types/expected-observed-delta-preview.ts";
+const expectedObservedDeltaPreviewHelperFile =
+  "lib/dogfooding/expected-observed-delta-preview.ts";
+const expectedObservedDeltaPreviewPanelFile =
+  "components/dogfooding/expected-observed-delta-preview-panel.tsx";
+const expectedObservedDeltaDecisionTypeFile =
+  "types/expected-observed-delta-decision.ts";
+const expectedObservedDeltaDecisionHelperFile =
+  "lib/dogfooding/expected-observed-delta-decision.ts";
+const expectedObservedDeltaDecisionPanelFile =
+  "components/dogfooding/expected-observed-delta-decision-panel.tsx";
+const expectedObservedDeltaWriteTypeFile =
+  "types/expected-observed-delta-write.ts";
+const expectedObservedDeltaWriteHelperFile =
+  "lib/dogfooding/expected-observed-delta-write.ts";
+const expectedObservedDeltaWriteRouteFile =
+  "app/api/dogfooding/expected-observed-deltas/route.ts";
+const expectedObservedDeltaRecordReviewTypeFile =
+  "types/expected-observed-delta-record-review.ts";
+const expectedObservedDeltaRecordReviewHelperFile =
+  "lib/dogfooding/expected-observed-delta-record-review.ts";
+const expectedObservedDeltaRecordReviewForWebFile =
+  "lib/dogfooding/read-expected-observed-delta-record-review-for-web.ts";
+const expectedObservedDeltaRecordReviewPanelFile =
+  "components/dogfooding/expected-observed-delta-record-review-panel.tsx";
+const reuseOutcomeCandidateBridgeTypeFile =
+  "types/reuse-outcome-candidate-bridge-preview.ts";
+const reuseOutcomeCandidateBridgeHelperFile =
+  "lib/dogfooding/reuse-outcome-candidate-bridge-preview.ts";
+const reuseOutcomeCandidateBridgePanelFile =
+  "components/dogfooding/reuse-outcome-candidate-bridge-preview-panel.tsx";
+const expectedObservedDeltaBridgeSmokeFile =
+  "scripts/smoke-expected-observed-delta-reuse-outcome-bridge-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -186,6 +220,23 @@ const allowedChangedFiles = [
   workEpisodeResidueCandidatePreviewHelperFile,
   workEpisodeResidueCandidatePreviewPanelFile,
   codexResultReportIntakeResidueSmokeFile,
+  expectedObservedDeltaPreviewTypeFile,
+  expectedObservedDeltaPreviewHelperFile,
+  expectedObservedDeltaPreviewPanelFile,
+  expectedObservedDeltaDecisionTypeFile,
+  expectedObservedDeltaDecisionHelperFile,
+  expectedObservedDeltaDecisionPanelFile,
+  expectedObservedDeltaWriteTypeFile,
+  expectedObservedDeltaWriteHelperFile,
+  expectedObservedDeltaWriteRouteFile,
+  expectedObservedDeltaRecordReviewTypeFile,
+  expectedObservedDeltaRecordReviewHelperFile,
+  expectedObservedDeltaRecordReviewForWebFile,
+  expectedObservedDeltaRecordReviewPanelFile,
+  reuseOutcomeCandidateBridgeTypeFile,
+  reuseOutcomeCandidateBridgeHelperFile,
+  reuseOutcomeCandidateBridgePanelFile,
+  expectedObservedDeltaBridgeSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -226,6 +277,14 @@ assertContainsAll(
     "codex_result_report_intake",
     "codex_result_report_candidate_ingest_record",
     "work_episode_residue_candidate",
+    "expected_observed_delta",
+    "expected_observed_delta_record",
+    "reuse_outcome_candidate_bridge",
+    "review_expected_observed_delta_candidates",
+    "write_expected_observed_delta_record",
+    "review_reuse_outcome_candidate_bridge",
+    "prepare_reuse_outcome_operator_decision",
+    "resolve_expected_observed_delta_blockers",
     "codex_result_feedback",
     "dogfood_reuse_proposal",
     "dogfood_reuse_operator_decision",
@@ -265,6 +324,10 @@ assertContainsAll(
     "codex_result_report_intake_decision_preview",
     "codex_result_report_intake_record_review",
     "work_episode_residue_candidate_preview",
+    "expected_observed_delta_preview",
+    "expected_observed_delta_decision_preview",
+    "expected_observed_delta_record_review",
+    "reuse_outcome_candidate_bridge_preview",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
     "selectedSessionDigestDurableIngestRecordStep",
@@ -273,6 +336,9 @@ assertContainsAll(
     "codexResultReportIntakeStep",
     "codexResultReportCandidateIngestRecordStep",
     "workEpisodeResidueCandidateStep",
+    "expectedObservedDeltaStep",
+    "expectedObservedDeltaRecordStep",
+    "reuseOutcomeCandidateBridgeStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -287,7 +353,10 @@ assertContainsAll(
     "write_codex_result_report_candidate_ingest_record",
     "review_codex_result_report_intake_record",
     "review_work_episode_residue_candidates",
-    "does_not_write_work_episode_residue_or_expected_observed_delta",
+    "review_expected_observed_delta_candidates",
+    "write_expected_observed_delta_record",
+    "review_reuse_outcome_candidate_bridge",
+    "does_not_call_expected_observed_delta_route_from_workbench_overview",
     "does_not_write_reuse_outcome_ledger_or_dogfood_metrics",
     "does_not_write_memory",
     "does_not_promote_selected_digest_ingest_records_to_memory_or_perspective",
@@ -393,6 +462,18 @@ const codexResultReportRecordReviewModule = await import(
 const workEpisodeResidueModule = await import(
   "../lib/workplane/work-episode-residue-candidate-preview.ts"
 );
+const expectedObservedDeltaPreviewModule = await import(
+  "../lib/dogfooding/expected-observed-delta-preview.ts"
+);
+const expectedObservedDeltaDecisionModule = await import(
+  "../lib/dogfooding/expected-observed-delta-decision.ts"
+);
+const expectedObservedDeltaRecordReviewModule = await import(
+  "../lib/dogfooding/expected-observed-delta-record-review.ts"
+);
+const reuseOutcomeCandidateBridgeModule = await import(
+  "../lib/dogfooding/reuse-outcome-candidate-bridge-preview.ts"
+);
 
 const {
   buildWorkbenchDogfoodLoopSpineOverviewV01,
@@ -418,6 +499,14 @@ const { buildCodexResultReportIntakeRecordReviewV01 } =
   codexResultReportRecordReviewModule;
 const { buildWorkEpisodeResidueCandidatePreviewV01 } =
   workEpisodeResidueModule;
+const { buildExpectedObservedDeltaPreviewV01 } =
+  expectedObservedDeltaPreviewModule;
+const { buildExpectedObservedDeltaOperatorDecisionPreviewV01 } =
+  expectedObservedDeltaDecisionModule;
+const { buildExpectedObservedDeltaRecordReviewV01 } =
+  expectedObservedDeltaRecordReviewModule;
+const { buildReuseOutcomeCandidateBridgePreviewV01 } =
+  reuseOutcomeCandidateBridgeModule;
 
 const emptyOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   scope: "project:augnes",
@@ -433,7 +522,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 21);
+assert.equal(emptyOverview.spine_steps.length, 24);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -463,6 +552,24 @@ assert(
     (step) => step.step_id === "work_episode_residue_candidate",
   ),
   "overview should include work episode residue candidate step",
+);
+assert(
+  emptyOverview.spine_steps.some(
+    (step) => step.step_id === "expected_observed_delta",
+  ),
+  "overview should include ExpectedObservedDelta step",
+);
+assert(
+  emptyOverview.spine_steps.some(
+    (step) => step.step_id === "expected_observed_delta_record",
+  ),
+  "overview should include ExpectedObservedDelta record step",
+);
+assert(
+  emptyOverview.spine_steps.some(
+    (step) => step.step_id === "reuse_outcome_candidate_bridge",
+  ),
+  "overview should include reuse outcome candidate bridge step",
 );
 assertAuthorityFalse(emptyOverview.authority_boundary);
 
@@ -823,6 +930,132 @@ assert(
 );
 assertNoMemoryPromotionActions(codexResultRecordOverview);
 
+const expectedObservedDeltaPreview = buildExpectedObservedDeltaPreviewV01({
+  work_episode_residue_candidate_preview: codexResultResidueFromRecord,
+  codex_result_report_intake_record_review: codexResultRecordReview,
+  expected_material: {
+    expected_files: ["lib/dogfooding/expected-observed-delta-preview.ts"],
+    expected_checks: ["npm run typecheck"],
+    expected_requirement_progress: ["ExpectedObservedDelta bridge visible"],
+    expected_non_goals: ["no reuse ledger write"],
+    expected_risks: ["skipped checks remain gaps"],
+    expected_followups: ["review reuse outcome bridge"],
+    work_ref: "work:codex-result-overview-clean",
+    result_ref: "result:codex-result-overview-clean",
+    source_refs: ["source:expected-observed-overview-clean"],
+    evidence_refs: ["evidence:expected-observed-overview-clean"],
+  },
+  source_refs: ["source:expected-observed-overview-clean"],
+});
+assert(
+  ["delta_candidates_available", "ready_for_operator_review"].includes(
+    expectedObservedDeltaPreview.delta_preview_status,
+  ),
+  "ExpectedObservedDelta preview should expose candidate material",
+);
+assert(
+  !["no_result_material", "insufficient_data"].includes(
+    expectedObservedDeltaPreview.delta_preview_status,
+  ),
+  "ExpectedObservedDelta preview with result and expected material must not fake an empty state",
+);
+const expectedObservedDeltaDecision =
+  buildExpectedObservedDeltaOperatorDecisionPreviewV01({
+    expected_observed_delta_preview: expectedObservedDeltaPreview,
+  });
+const emptyExpectedObservedDeltaRecordReview =
+  buildExpectedObservedDeltaRecordReviewV01({
+    records: [],
+    as_of: "2026-07-04T14:30:00.000Z",
+  });
+const expectedObservedDeltaOverview =
+  buildWorkbenchDogfoodLoopSpineOverviewV01({
+    selected_session_digest_intake_preview: cleanSelectedIntake,
+    selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+    selected_session_digest_ingest_operator_decision_preview:
+      selectedReadyIngestDecision,
+    selected_session_digest_ingest_record_review: selectedRecordReview,
+    codex_result_report_intake_preview: cleanCodexResultIntake,
+    codex_result_report_intake_decision_preview: readyCodexResultDecision,
+    codex_result_report_intake_record_review: codexResultRecordReview,
+    work_episode_residue_candidate_preview: codexResultResidueFromRecord,
+    expected_observed_delta_preview: expectedObservedDeltaPreview,
+    expected_observed_delta_decision_preview: expectedObservedDeltaDecision,
+    expected_observed_delta_record_review: emptyExpectedObservedDeltaRecordReview,
+  });
+assert.equal(
+  expectedObservedDeltaOverview.recommended_next_operator_action,
+  "review_expected_observed_delta_candidates",
+);
+assert.equal(
+  stepById(expectedObservedDeltaOverview, "expected_observed_delta").material_count > 0,
+  true,
+);
+assert.equal(
+  stepById(expectedObservedDeltaOverview, "expected_observed_delta_record").status,
+  "no_current_material",
+);
+assertNoMemoryPromotionActions(expectedObservedDeltaOverview);
+
+const firstDeltaCandidateRef =
+  expectedObservedDeltaDecision.would_write_delta_record_preview
+    .selectable_delta_candidate_refs[0];
+const readyExpectedObservedDeltaDecision =
+  buildExpectedObservedDeltaOperatorDecisionPreviewV01({
+    expected_observed_delta_preview: expectedObservedDeltaPreview,
+    selected_delta_candidate_refs: [firstDeltaCandidateRef],
+    requested_operator_ref: "operator:expected-observed-overview",
+    requested_idempotency_key: "idempotency:expected-observed-overview",
+    review_confirmation_ref: "review:expected-observed-overview",
+  });
+const expectedObservedDeltaWriteOverview =
+  buildWorkbenchDogfoodLoopSpineOverviewV01({
+    selected_session_digest_intake_preview: cleanSelectedIntake,
+    selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+    selected_session_digest_ingest_operator_decision_preview:
+      selectedReadyIngestDecision,
+    selected_session_digest_ingest_record_review: selectedRecordReview,
+    codex_result_report_intake_preview: cleanCodexResultIntake,
+    codex_result_report_intake_decision_preview: readyCodexResultDecision,
+    codex_result_report_intake_record_review: codexResultRecordReview,
+    work_episode_residue_candidate_preview: codexResultResidueFromRecord,
+    expected_observed_delta_preview: expectedObservedDeltaPreview,
+    expected_observed_delta_decision_preview: readyExpectedObservedDeltaDecision,
+    expected_observed_delta_record_review: emptyExpectedObservedDeltaRecordReview,
+  });
+assert.equal(
+  expectedObservedDeltaWriteOverview.recommended_next_operator_action,
+  "write_expected_observed_delta_record",
+);
+assertNoMemoryPromotionActions(expectedObservedDeltaWriteOverview);
+
+const reuseOutcomeBridgePreview = buildReuseOutcomeCandidateBridgePreviewV01({
+  expected_observed_delta_preview: expectedObservedDeltaPreview,
+  expected_observed_delta_record_review: emptyExpectedObservedDeltaRecordReview,
+  work_episode_residue_candidate_preview: codexResultResidueFromRecord,
+  codex_result_report_intake_record_review: codexResultRecordReview,
+});
+const reuseOutcomeBridgeOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanSelectedIntake,
+  selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+  selected_session_digest_ingest_operator_decision_preview:
+    selectedReadyIngestDecision,
+  selected_session_digest_ingest_record_review: selectedRecordReview,
+  codex_result_report_intake_preview: cleanCodexResultIntake,
+  codex_result_report_intake_decision_preview: readyCodexResultDecision,
+  codex_result_report_intake_record_review: codexResultRecordReview,
+  work_episode_residue_candidate_preview: codexResultResidueFromRecord,
+  expected_observed_delta_preview: expectedObservedDeltaPreview,
+  expected_observed_delta_decision_preview: expectedObservedDeltaDecision,
+  expected_observed_delta_record_review: emptyExpectedObservedDeltaRecordReview,
+  reuse_outcome_candidate_bridge_preview: reuseOutcomeBridgePreview,
+});
+assert.equal(
+  reuseOutcomeBridgeOverview.recommended_next_operator_action,
+  "review_reuse_outcome_candidate_bridge",
+);
+assertNoMemoryPromotionActions(reuseOutcomeBridgeOverview);
+
 const missingCodexOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview: cleanSelectedIntake,
   codex_result_feedback_draft: codexFeedbackDraft({ resultReport: "missing" }),
@@ -1061,7 +1294,8 @@ function assertNoForbiddenChangedPaths() {
         file === selectedSessionDigestIngestDecisionWriteRouteFile ||
         file === selectedSessionDigestIngestWriteRouteFile ||
         file === projectHistoryIntakeWriteRouteFile ||
-        file === codexResultReportIntakeWriteRouteFile,
+        file === codexResultReportIntakeWriteRouteFile ||
+        file === expectedObservedDeltaWriteRouteFile,
       `No app/api route may be added outside selected digest, project history, or Codex result report follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);
