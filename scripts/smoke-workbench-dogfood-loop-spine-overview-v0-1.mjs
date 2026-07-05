@@ -209,6 +209,34 @@ const nextWorkSignalRefreshPanelFile =
   "components/workplane/next-work-signal-refresh-preview-panel.tsx";
 const dogfoodMetricSnapshotNextWorkRefreshSmokeFile =
   "scripts/smoke-dogfood-metric-snapshot-next-work-refresh-v0-1.mjs";
+const nextWorkSignalDecisionTypeFile =
+  "types/next-work-signal-decision.ts";
+const nextWorkSignalDecisionHelperFile =
+  "lib/workplane/next-work-signal-decision.ts";
+const nextWorkSignalDecisionPanelFile =
+  "components/workplane/next-work-signal-decision-panel.tsx";
+const nextWorkSignalDecisionWriteTypeFile =
+  "types/next-work-signal-decision-write.ts";
+const nextWorkSignalDecisionWriteHelperFile =
+  "lib/workplane/next-work-signal-decision-write.ts";
+const nextWorkSignalDecisionRouteFile =
+  "app/api/workplane/next-work-signal-decisions/route.ts";
+const nextWorkSignalDecisionRecordReviewTypeFile =
+  "types/next-work-signal-decision-record-review.ts";
+const nextWorkSignalDecisionRecordReviewHelperFile =
+  "lib/workplane/next-work-signal-decision-record-review.ts";
+const nextWorkSignalDecisionRecordReviewForWebFile =
+  "lib/workplane/read-next-work-signal-decision-record-review-for-web.ts";
+const nextWorkSignalDecisionRecordReviewPanelFile =
+  "components/workplane/next-work-signal-decision-record-review-panel.tsx";
+const perspectiveRelayUpdateCandidateBridgeTypeFile =
+  "types/perspective-relay-update-candidate-bridge-preview.ts";
+const perspectiveRelayUpdateCandidateBridgeHelperFile =
+  "lib/workplane/perspective-relay-update-candidate-bridge-preview.ts";
+const perspectiveRelayUpdateCandidateBridgePanelFile =
+  "components/workplane/perspective-relay-update-candidate-bridge-preview-panel.tsx";
+const nextWorkSignalDecisionPerspectiveRelayBridgeSmokeFile =
+  "scripts/smoke-next-work-signal-decision-perspective-relay-bridge-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -321,6 +349,20 @@ const allowedChangedFiles = [
   nextWorkSignalRefreshHelperFile,
   nextWorkSignalRefreshPanelFile,
   dogfoodMetricSnapshotNextWorkRefreshSmokeFile,
+  nextWorkSignalDecisionTypeFile,
+  nextWorkSignalDecisionHelperFile,
+  nextWorkSignalDecisionPanelFile,
+  nextWorkSignalDecisionWriteTypeFile,
+  nextWorkSignalDecisionWriteHelperFile,
+  nextWorkSignalDecisionRouteFile,
+  nextWorkSignalDecisionRecordReviewTypeFile,
+  nextWorkSignalDecisionRecordReviewHelperFile,
+  nextWorkSignalDecisionRecordReviewForWebFile,
+  nextWorkSignalDecisionRecordReviewPanelFile,
+  perspectiveRelayUpdateCandidateBridgeTypeFile,
+  perspectiveRelayUpdateCandidateBridgeHelperFile,
+  perspectiveRelayUpdateCandidateBridgePanelFile,
+  nextWorkSignalDecisionPerspectiveRelayBridgeSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -369,6 +411,9 @@ assertContainsAll(
     "dogfood_metric_snapshot",
     "dogfood_metric_snapshot_record",
     "next_work_signal_refresh",
+    "next_work_signal_operator_decision",
+    "next_work_signal_decision_record",
+    "perspective_relay_update_candidate_bridge",
     "review_expected_observed_delta_candidates",
     "write_expected_observed_delta_record",
     "review_reuse_outcome_candidate_bridge",
@@ -382,6 +427,13 @@ assertContainsAll(
     "write_dogfood_metric_snapshot_record",
     "review_dogfood_metric_snapshot_record",
     "review_next_work_signal_refresh",
+    "review_next_work_signal_decision",
+    "write_next_work_signal_decision_record",
+    "review_next_work_signal_decision_record",
+    "review_perspective_relay_update_candidates",
+    "prepare_perspective_next_work_update_decision",
+    "prepare_continuity_relay_update_contract",
+    "resolve_next_work_signal_blockers",
     "prepare_perspective_next_work_update_preview",
     "resolve_dogfood_metric_snapshot_blockers",
     "prepare_dogfood_metric_candidate_preview",
@@ -434,6 +486,9 @@ assertContainsAll(
     "dogfood_metric_snapshot_decision_preview",
     "dogfood_metric_snapshot_record_review",
     "next_work_signal_refresh_preview",
+    "next_work_signal_decision_preview",
+    "next_work_signal_decision_record_review",
+    "perspective_relay_update_candidate_bridge_preview",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
     "selectedSessionDigestDurableIngestRecordStep",
@@ -450,6 +505,9 @@ assertContainsAll(
     "dogfoodMetricSnapshotStep",
     "dogfoodMetricSnapshotRecordStep",
     "nextWorkSignalRefreshStep",
+    "nextWorkSignalDecisionStep",
+    "nextWorkSignalDecisionRecordStep",
+    "perspectiveRelayUpdateCandidateBridgeStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -470,6 +528,9 @@ assertContainsAll(
     "review_reuse_outcome_bridge_decision",
     "write_handoff_reuse_outcome_ledger_record",
     "review_handoff_reuse_outcome_ledger_record",
+    "write_next_work_signal_decision_record",
+    "review_next_work_signal_decision_record",
+    "review_perspective_relay_update_candidates",
     "does_not_call_expected_observed_delta_route_from_workbench_overview",
     "does_not_write_reuse_outcome_ledger_or_dogfood_metrics",
     "does_not_write_memory",
@@ -641,7 +702,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 29);
+assert.equal(emptyOverview.spine_steps.length, 32);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -1373,6 +1434,73 @@ assert.equal(
 );
 assertNoMemoryPromotionActions(nextWorkSignalOverview);
 
+const nextWorkSignalDecisionWriteOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  next_work_signal_decision_preview: nextWorkSignalDecisionPreview({
+    writeReady: true,
+  }),
+  next_work_signal_decision_record_review: nextWorkSignalDecisionRecordReview({
+    status: "no_records",
+    validCount: 0,
+  }),
+});
+assert.equal(
+  stepById(
+    nextWorkSignalDecisionWriteOverview,
+    "next_work_signal_operator_decision",
+  ).status,
+  "ready_for_future_contract_review",
+);
+assert.equal(
+  stepById(
+    nextWorkSignalDecisionWriteOverview,
+    "next_work_signal_decision_record",
+  ).recommended_next_action,
+  "write_next_work_signal_decision_record",
+);
+assertNoMemoryPromotionActions(nextWorkSignalDecisionWriteOverview);
+
+const nextWorkSignalDecisionRecordOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  next_work_signal_decision_record_review: nextWorkSignalDecisionRecordReview({
+    status: "records_available",
+    validCount: 1,
+  }),
+});
+assert.equal(
+  stepById(
+    nextWorkSignalDecisionRecordOverview,
+    "next_work_signal_decision_record",
+  ).status,
+  "candidate_material_available",
+);
+assert.equal(
+  stepById(
+    nextWorkSignalDecisionRecordOverview,
+    "next_work_signal_decision_record",
+  ).recommended_next_action,
+  "review_next_work_signal_decision_record",
+);
+assertNoMemoryPromotionActions(nextWorkSignalDecisionRecordOverview);
+
+const perspectiveRelayBridgeOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  perspective_relay_update_candidate_bridge_preview:
+    perspectiveRelayUpdateCandidateBridgePreview(),
+});
+assert.equal(
+  stepById(
+    perspectiveRelayBridgeOverview,
+    "perspective_relay_update_candidate_bridge",
+  ).status,
+  "ready_for_operator_review",
+);
+assert.equal(
+  stepById(
+    perspectiveRelayBridgeOverview,
+    "perspective_relay_update_candidate_bridge",
+  ).recommended_next_action,
+  "review_perspective_relay_update_candidates",
+);
+assertNoMemoryPromotionActions(perspectiveRelayBridgeOverview);
+
 const missingCodexOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview: cleanSelectedIntake,
   codex_result_feedback_draft: codexFeedbackDraft({ resultReport: "missing" }),
@@ -1614,7 +1742,8 @@ function assertNoForbiddenChangedPaths() {
         file === codexResultReportIntakeWriteRouteFile ||
         file === expectedObservedDeltaWriteRouteFile ||
         file === reuseOutcomeBridgeLedgerRouteFile ||
-        file === dogfoodMetricSnapshotRouteFile,
+        file === dogfoodMetricSnapshotRouteFile ||
+        file === nextWorkSignalDecisionRouteFile,
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);
@@ -2223,6 +2352,67 @@ function nextWorkSignalRefreshPreview() {
     },
     evidence_summary: {
       has_metric_material: true,
+      missing_evidence: [],
+    },
+    blocked_reasons: [],
+    insufficient_data_reasons: [],
+  };
+}
+
+function nextWorkSignalDecisionPreview({ writeReady }) {
+  return {
+    preview_version: "next_work_signal_operator_decision_preview.v0.1",
+    decision_preview_status: writeReady
+      ? "ready_for_future_next_work_signal_record_write"
+      : "needs_operator_judgment",
+    input_summary: {
+      signal_candidate_count: 3,
+      selected_signal_ref_count: writeReady ? 1 : 0,
+    },
+    evidence_summary: {
+      has_evidence_refs: true,
+    },
+    write_readiness: {
+      write_ready: writeReady,
+      current_blockers: [],
+      current_refusal_reasons: [],
+      current_missing_evidence: [],
+      current_insufficient_data: [],
+    },
+    blocking_reasons: [],
+    refusal_reasons: [],
+    missing_evidence: [],
+  };
+}
+
+function nextWorkSignalDecisionRecordReview({ status, validCount }) {
+  return {
+    review_version: "next_work_signal_decision_record_review.v0.1",
+    review_status: status,
+    input_summary: {
+      valid_record_count: validCount,
+      selected_signal_ref_count: validCount,
+      receipt_side_effect_problem_count: 0,
+    },
+    evidence_summary: {
+      has_records: validCount > 0,
+      missing_evidence: [],
+    },
+    blocked_reasons: [],
+    insufficient_data_reasons:
+      validCount > 0 ? [] : ["next_work_signal_decision_records_missing"],
+  };
+}
+
+function perspectiveRelayUpdateCandidateBridgePreview() {
+  return {
+    preview_version: "perspective_relay_update_candidate_bridge_preview.v0.1",
+    bridge_preview_status: "ready_for_operator_review",
+    input_summary: {
+      candidate_material_count: 3,
+    },
+    evidence_summary: {
+      has_next_work_signal_material: true,
       missing_evidence: [],
     },
     blocked_reasons: [],

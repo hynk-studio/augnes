@@ -42,6 +42,9 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   dogfood_metric_snapshot_decision_preview,
   dogfood_metric_snapshot_record_review,
   next_work_signal_refresh_preview,
+  next_work_signal_decision_preview,
+  next_work_signal_decision_record_review,
+  perspective_relay_update_candidate_bridge_preview,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -101,6 +104,14 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       decisionPreview: dogfood_metric_snapshot_decision_preview,
     }),
     nextWorkSignalRefreshStep(next_work_signal_refresh_preview),
+    nextWorkSignalDecisionStep(next_work_signal_decision_preview),
+    nextWorkSignalDecisionRecordStep({
+      recordReview: next_work_signal_decision_record_review,
+      decisionPreview: next_work_signal_decision_preview,
+    }),
+    perspectiveRelayUpdateCandidateBridgeStep(
+      perspective_relay_update_candidate_bridge_preview,
+    ),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -142,6 +153,7 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       step.material_gaps.map((reason) => `${step.step_id}: ${reason}`),
     ),
     [
+      /missing_codex_result_report|codex_result_report_or_raw_text_missing/i,
       /current_handoff_packet_fingerprint|current_handoff_context_ref|operator_approval_material/i,
       /approved_reuse_records_missing_for_metric_preview|approved_reuse_outcome_records_missing_for_metric_snapshot/i,
     ],
@@ -1131,6 +1143,151 @@ function nextWorkSignalRefreshStep(
   });
 }
 
+function nextWorkSignalDecisionStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["next_work_signal_decision_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "next_work_signal_operator_decision",
+      label: "Next-work signal operator decision",
+      recommended_next_action: "review_next_work_signal_refresh",
+      summary: "No next-work signal operator decision preview supplied.",
+    });
+  }
+
+  return makeStep({
+    step_id: "next_work_signal_operator_decision",
+    label: "Next-work signal operator decision",
+    status: mapNextWorkSignalDecisionStatus(preview.decision_preview_status),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count:
+      preview.input_summary.signal_candidate_count +
+      preview.input_summary.selected_signal_ref_count,
+    blockers: [
+      ...preview.blocking_reasons,
+      ...preview.refusal_reasons,
+      ...preview.write_readiness.current_blockers,
+      ...preview.write_readiness.current_refusal_reasons,
+    ],
+    material_gaps: [
+      ...preview.write_readiness.current_insufficient_data,
+      ...(preview.input_summary.signal_candidate_count === 0
+        ? ["next_work_signal_candidates_missing_for_decision"]
+        : []),
+    ],
+    missing_evidence: [
+      ...preview.missing_evidence,
+      ...preview.write_readiness.current_missing_evidence,
+    ],
+    recommended_next_action: preview.write_readiness.write_ready
+      ? "write_next_work_signal_decision_record"
+      : preview.input_summary.signal_candidate_count > 0
+        ? "review_next_work_signal_decision"
+        : "review_next_work_signal_refresh",
+    evidence_present: preview.evidence_summary.has_evidence_refs,
+    summary: `Next-work signal decision preview is ${preview.decision_preview_status}; selected_signal_count ${preview.input_summary.selected_signal_ref_count}; write_ready ${String(preview.write_readiness.write_ready)}; no Perspective, CWP, relay, handoff, memory, metric, or external write authority.`,
+  });
+}
+
+function nextWorkSignalDecisionRecordStep({
+  recordReview,
+  decisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["next_work_signal_decision_record_review"];
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["next_work_signal_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "next_work_signal_decision_record",
+      label: "Next-work signal decision local record",
+      recommended_next_action: "review_next_work_signal_decision",
+      summary: "No next-work signal decision record review supplied.",
+    });
+  }
+
+  const decisionReady =
+    decisionPreview?.decision_preview_status ===
+      "ready_for_future_next_work_signal_record_write" &&
+    decisionPreview.write_readiness.write_ready === true;
+  const hasRecords = recordReview.input_summary.valid_record_count > 0;
+
+  return makeStep({
+    step_id: "next_work_signal_decision_record",
+    label: "Next-work signal decision local record",
+    status: mapRecordReviewStatus(recordReview.review_status),
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count:
+      recordReview.input_summary.valid_record_count +
+      recordReview.input_summary.selected_signal_ref_count,
+    blockers: [
+      ...recordReview.blocked_reasons,
+      ...(recordReview.input_summary.receipt_side_effect_problem_count > 0
+        ? ["next_work_signal_decision_record_side_effect_problem"]
+        : []),
+      ...(decisionPreview?.blocking_reasons ?? []),
+      ...(decisionPreview?.refusal_reasons ?? []),
+    ],
+    material_gaps: [
+      ...recordReview.insufficient_data_reasons,
+      ...(decisionReady && !hasRecords
+        ? ["next_work_signal_decision_record_missing_after_operator_decision"]
+        : []),
+      ...(!decisionReady && !hasRecords
+        ? ["next_work_signal_operator_decision_missing_or_not_ready"]
+        : []),
+    ],
+    missing_evidence: [
+      ...recordReview.evidence_summary.missing_evidence,
+      ...(decisionPreview?.missing_evidence ?? []),
+    ],
+    recommended_next_action: hasRecords
+      ? "review_next_work_signal_decision_record"
+      : decisionReady
+        ? "write_next_work_signal_decision_record"
+        : "review_next_work_signal_decision",
+    evidence_present: recordReview.evidence_summary.has_records,
+    summary: `Next-work signal decision record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; decision_ready ${String(decisionReady)}; no Perspective, CWP, relay, handoff, memory, metric, or external write authority.`,
+  });
+}
+
+function perspectiveRelayUpdateCandidateBridgeStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["perspective_relay_update_candidate_bridge_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "perspective_relay_update_candidate_bridge",
+      label: "Perspective relay update candidate bridge",
+      recommended_next_action: "review_next_work_signal_decision_record",
+      summary: "No Perspective/Relay update candidate bridge preview supplied.",
+    });
+  }
+
+  return makeStep({
+    step_id: "perspective_relay_update_candidate_bridge",
+    label: "Perspective relay update candidate bridge",
+    status:
+      preview.bridge_preview_status === "no_next_work_signal_material"
+        ? "no_current_material"
+        : mapPerspectiveRelayBridgeStatus(preview.bridge_preview_status),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.input_summary.candidate_material_count,
+    blockers: preview.blocked_reasons,
+    material_gaps: [
+      ...preview.insufficient_data_reasons,
+      ...(preview.input_summary.candidate_material_count === 0
+        ? ["perspective_relay_update_candidate_material_missing"]
+        : []),
+    ],
+    missing_evidence: preview.evidence_summary.missing_evidence,
+    recommended_next_action:
+      preview.input_summary.candidate_material_count > 0
+        ? "review_perspective_relay_update_candidates"
+        : "review_next_work_signal_decision_record",
+    evidence_present: preview.evidence_summary.has_next_work_signal_material,
+    summary: `Perspective/Relay update candidate bridge is ${preview.bridge_preview_status}; candidate_count ${preview.input_summary.candidate_material_count}; no PerspectiveUnit, NextWorkBias, CWP, relay, handoff, memory, metric, or external write authority.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -1766,7 +1923,10 @@ function determineRecommendedNextOperatorAction({
       blocker.startsWith("handoff_reuse_outcome_ledger_record:") ||
       blocker.startsWith("dogfood_metric_snapshot:") ||
       blocker.startsWith("dogfood_metric_snapshot_record:") ||
-      blocker.startsWith("next_work_signal_refresh:"),
+      blocker.startsWith("next_work_signal_refresh:") ||
+      blocker.startsWith("next_work_signal_operator_decision:") ||
+      blocker.startsWith("next_work_signal_decision_record:") ||
+      blocker.startsWith("perspective_relay_update_candidate_bridge:"),
     )
   ) {
     if (
@@ -1784,6 +1944,16 @@ function determineRecommendedNextOperatorAction({
       )
     ) {
       return "resolve_dogfood_metric_snapshot_blockers";
+    }
+    if (
+      top_blockers.some(
+        (blocker) =>
+          blocker.startsWith("next_work_signal_operator_decision") ||
+          blocker.startsWith("next_work_signal_decision_record") ||
+          blocker.startsWith("perspective_relay_update_candidate_bridge"),
+      )
+    ) {
+      return "resolve_next_work_signal_blockers";
     }
     return "resolve_reuse_outcome_bridge_blockers";
   }
@@ -1918,6 +2088,15 @@ function determineRecommendedNextOperatorAction({
   const nextWorkSignalRefreshStep = steps.find(
     (step) => step.step_id === "next_work_signal_refresh",
   );
+  const nextWorkSignalDecisionStep = steps.find(
+    (step) => step.step_id === "next_work_signal_operator_decision",
+  );
+  const nextWorkSignalDecisionRecordStep = steps.find(
+    (step) => step.step_id === "next_work_signal_decision_record",
+  );
+  const perspectiveRelayUpdateCandidateBridgeStep = steps.find(
+    (step) => step.step_id === "perspective_relay_update_candidate_bridge",
+  );
   if (
     codexResultRecord?.recommended_next_action ===
     "write_codex_result_report_candidate_ingest_record"
@@ -1941,6 +2120,33 @@ function determineRecommendedNextOperatorAction({
     "write_dogfood_metric_snapshot_record"
   ) {
     return "write_dogfood_metric_snapshot_record";
+  }
+  if (
+    nextWorkSignalDecisionRecordStep?.recommended_next_action ===
+    "write_next_work_signal_decision_record"
+  ) {
+    return "write_next_work_signal_decision_record";
+  }
+  if (
+    perspectiveRelayUpdateCandidateBridgeStep?.recommended_next_action ===
+      "review_perspective_relay_update_candidates" &&
+    perspectiveRelayUpdateCandidateBridgeStep.material_count > 0
+  ) {
+    return "review_perspective_relay_update_candidates";
+  }
+  if (
+    nextWorkSignalDecisionRecordStep?.recommended_next_action ===
+      "review_next_work_signal_decision_record" &&
+    nextWorkSignalDecisionRecordStep.material_count > 0
+  ) {
+    return "review_next_work_signal_decision_record";
+  }
+  if (
+    nextWorkSignalDecisionStep?.recommended_next_action ===
+      "review_next_work_signal_decision" &&
+    nextWorkSignalDecisionStep.material_count > 0
+  ) {
+    return "review_next_work_signal_decision";
   }
   if (
     nextWorkSignalRefreshStep?.recommended_next_action ===
@@ -2169,6 +2375,38 @@ function mapNextWorkSignalRefreshStatus(
   if (status === "no_metric_material") return "no_current_material";
   if (status === "ready_for_operator_review") return "ready_for_operator_review";
   if (status === "next_work_signals_available") {
+    return "candidate_material_available";
+  }
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function mapNextWorkSignalDecisionStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_next_work_signal_refresh_preview") {
+    return "no_current_material";
+  }
+  if (status === "ready_for_future_next_work_signal_record_write") {
+    return "ready_for_future_contract_review";
+  }
+  if (
+    status === "ready_for_operator_decision" ||
+    status === "needs_operator_judgment"
+  ) {
+    return "ready_for_operator_review";
+  }
+  if (status === "blocked") return "blocked";
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function mapPerspectiveRelayBridgeStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_next_work_signal_material") return "no_current_material";
+  if (status === "ready_for_operator_review") return "ready_for_operator_review";
+  if (status === "update_candidates_available") {
     return "candidate_material_available";
   }
   if (status === "keep_preview_only") return "keep_preview_only";
