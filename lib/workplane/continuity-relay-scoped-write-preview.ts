@@ -85,6 +85,12 @@ export function buildContinuityRelayScopedWritePreviewV01({
       PERSPECTIVE_RELAY_UPDATE_CANDIDATE_BRIDGE_PREVIEW_VERSION
     ? perspective_relay_update_candidate_bridge_preview
     : null;
+  const suppliedNextWorkBiasReview = isSupplied(
+    perspective_next_work_bias_record_review,
+  );
+  const suppliedPerspectiveUnitReview = isSupplied(
+    perspective_unit_record_review,
+  );
   const nextWorkBiasReview = isNextWorkBiasRecordReview(
     perspective_next_work_bias_record_review,
   )
@@ -95,6 +101,10 @@ export function buildContinuityRelayScopedWritePreviewV01({
   )
     ? perspective_unit_record_review
     : null;
+  const nextWorkBiasReviewMalformed =
+    suppliedNextWorkBiasReview && !nextWorkBiasReview;
+  const perspectiveUnitReviewMalformed =
+    suppliedPerspectiveUnitReview && !perspectiveUnitReview;
   const validDecisionRecords = decisionReview &&
     ["records_available", "selected_record_found"].includes(
       decisionReview.review_status,
@@ -222,9 +232,15 @@ export function buildContinuityRelayScopedWritePreviewV01({
     nextWorkBiasReview.review_status === "records_invalid"
       ? ["perspective_next_work_bias_record_review_invalid"]
       : []),
+    ...(nextWorkBiasReviewMalformed
+      ? ["perspective_next_work_bias_record_review_malformed"]
+      : []),
     ...(perspectiveUnitReview &&
     perspectiveUnitReview.review_status === "records_invalid"
       ? ["perspective_unit_record_review_invalid"]
+      : []),
+    ...(perspectiveUnitReviewMalformed
+      ? ["perspective_unit_record_review_malformed"]
       : []),
     ...(decisionReview?.blocked_reasons ?? []),
     ...(writeContract?.blocking_reasons ?? []),
@@ -359,7 +375,7 @@ export function buildContinuityRelayScopedWritePreviewV01({
     approval_requirements: [
       "review_perspective_relay_update_write_contract",
       "confirm_selected_continuity_relay_refs_are_accepted_in_decision_record",
-      "confirm_next_work_bias_and_continuity_relay_refs_are_not_written_by_this_slice",
+      "confirm_perspective_unit_and_next_work_bias_refs_are_not_written_by_this_slice",
       "confirm_only_scoped_local_continuity_relay_record_and_receipt_may_be_written",
       "confirm_no_cwp_relay_handoff_memory_metric_or_external_mutation",
     ],
@@ -694,6 +710,10 @@ function isPerspectiveUnitRecordReview(value: unknown): value is Record<string, 
 
 function safeRef(value: unknown): string | null {
   return isCandidateIngressPublicSafeRefV01(value) ? value : null;
+}
+
+function isSupplied(value: unknown): boolean {
+  return value !== undefined && value !== null;
 }
 
 function safeStringArray(value: unknown): string[] {

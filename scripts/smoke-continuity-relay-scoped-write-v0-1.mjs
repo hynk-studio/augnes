@@ -352,6 +352,16 @@ assert.equal(readyRelayPreview.authority_boundary.can_write_continuity_relay, fa
 assert.equal(readyRelayPreview.authority_boundary.can_update_continuity_relay, false);
 assert.equal(readyRelayPreview.related_perspective_unit_record_refs.length, 0);
 assert.equal(readyRelayPreview.related_next_work_bias_record_refs.length, 0);
+assert(
+  readyRelayPreview.approval_requirements.includes(
+    "confirm_perspective_unit_and_next_work_bias_refs_are_not_written_by_this_slice",
+  ),
+);
+assert(
+  !readyRelayPreview.approval_requirements.includes(
+    "confirm_next_work_bias_and_continuity_relay_refs_are_not_written_by_this_slice",
+  ),
+);
 
 const readyWithPerspectiveUnitContext = buildContinuityRelayScopedWritePreviewV01({
   perspective_relay_update_write_contract_preview: readyContract,
@@ -387,7 +397,7 @@ assert.deepEqual(readyWithNextWorkBiasContext.related_next_work_bias_record_refs
   "perspective-next-work-bias:advisory",
 ]);
 
-const malformedAdvisory = buildContinuityRelayScopedWritePreviewV01({
+const invalidPerspectiveUnitAdvisory = buildContinuityRelayScopedWritePreviewV01({
   perspective_relay_update_write_contract_preview: readyContract,
   perspective_relay_update_decision_record_review: relayRecordReview,
   perspective_unit_record_review: {
@@ -399,7 +409,103 @@ const malformedAdvisory = buildContinuityRelayScopedWritePreviewV01({
   review_confirmation_ref: "review:continuity-relay",
   source_refs: ["source:continuity-relay"],
 });
-assert.equal(malformedAdvisory.scoped_write_preview_status, "blocked");
+assertPreviewBlockedBy(
+  invalidPerspectiveUnitAdvisory,
+  "perspective_unit_record_review_invalid",
+  "records_invalid PerspectiveUnit advisory review must block",
+);
+
+const invalidNextWorkBiasAdvisory = buildContinuityRelayScopedWritePreviewV01({
+  perspective_relay_update_write_contract_preview: readyContract,
+  perspective_relay_update_decision_record_review: relayRecordReview,
+  perspective_next_work_bias_record_review: {
+    ...advisoryNextWorkBiasReview(),
+    review_status: "records_invalid",
+  },
+  requested_operator_ref: "operator:continuity-relay-reviewer",
+  requested_idempotency_key: "idempotency:continuity-relay",
+  review_confirmation_ref: "review:continuity-relay",
+  source_refs: ["source:continuity-relay"],
+});
+assertPreviewBlockedBy(
+  invalidNextWorkBiasAdvisory,
+  "perspective_next_work_bias_record_review_invalid",
+  "records_invalid NextWorkBias advisory review must block",
+);
+
+const wrongVersionPerspectiveUnitAdvisory =
+  buildContinuityRelayScopedWritePreviewV01({
+    perspective_relay_update_write_contract_preview: readyContract,
+    perspective_relay_update_decision_record_review: relayRecordReview,
+    perspective_unit_record_review: {
+      ...advisoryPerspectiveUnitReview(),
+      review_version: "perspective_unit_record_review.v9",
+    },
+    requested_operator_ref: "operator:continuity-relay-reviewer",
+    requested_idempotency_key: "idempotency:continuity-relay",
+    review_confirmation_ref: "review:continuity-relay",
+    source_refs: ["source:continuity-relay"],
+  });
+assertPreviewBlockedBy(
+  wrongVersionPerspectiveUnitAdvisory,
+  "perspective_unit_record_review_malformed",
+  "wrong-version PerspectiveUnit advisory review must not be treated as missing",
+);
+
+const malformedPerspectiveUnitAdvisory =
+  buildContinuityRelayScopedWritePreviewV01({
+    perspective_relay_update_write_contract_preview: readyContract,
+    perspective_relay_update_decision_record_review: relayRecordReview,
+    perspective_unit_record_review: {
+      review_version: "perspective_unit_record_review.v0.1",
+    },
+    requested_operator_ref: "operator:continuity-relay-reviewer",
+    requested_idempotency_key: "idempotency:continuity-relay",
+    review_confirmation_ref: "review:continuity-relay",
+    source_refs: ["source:continuity-relay"],
+  });
+assertPreviewBlockedBy(
+  malformedPerspectiveUnitAdvisory,
+  "perspective_unit_record_review_malformed",
+  "malformed PerspectiveUnit advisory review must not be treated as missing",
+);
+
+const wrongVersionNextWorkBiasAdvisory =
+  buildContinuityRelayScopedWritePreviewV01({
+    perspective_relay_update_write_contract_preview: readyContract,
+    perspective_relay_update_decision_record_review: relayRecordReview,
+    perspective_next_work_bias_record_review: {
+      ...advisoryNextWorkBiasReview(),
+      review_version: "perspective_next_work_bias_record_review.v9",
+    },
+    requested_operator_ref: "operator:continuity-relay-reviewer",
+    requested_idempotency_key: "idempotency:continuity-relay",
+    review_confirmation_ref: "review:continuity-relay",
+    source_refs: ["source:continuity-relay"],
+  });
+assertPreviewBlockedBy(
+  wrongVersionNextWorkBiasAdvisory,
+  "perspective_next_work_bias_record_review_malformed",
+  "wrong-version NextWorkBias advisory review must not be treated as missing",
+);
+
+const malformedNextWorkBiasAdvisory =
+  buildContinuityRelayScopedWritePreviewV01({
+    perspective_relay_update_write_contract_preview: readyContract,
+    perspective_relay_update_decision_record_review: relayRecordReview,
+    perspective_next_work_bias_record_review: {
+      review_version: "perspective_next_work_bias_record_review.v0.1",
+    },
+    requested_operator_ref: "operator:continuity-relay-reviewer",
+    requested_idempotency_key: "idempotency:continuity-relay",
+    review_confirmation_ref: "review:continuity-relay",
+    source_refs: ["source:continuity-relay"],
+  });
+assertPreviewBlockedBy(
+  malformedNextWorkBiasAdvisory,
+  "perspective_next_work_bias_record_review_malformed",
+  "malformed NextWorkBias advisory review must not be treated as missing",
+);
 
 const relayRecordApproval = {
   operator_decision: "approve_for_continuity_relay_record",
@@ -421,6 +527,19 @@ let refused = relayWrite.writeContinuityRelayRecordV01(
     scoped_write_preview: noRelayPreview,
     operator_approval: relayRecordApproval,
     idempotency_key: "idempotency:not-ready",
+  },
+  { db },
+);
+assert.equal(refused.status, "refused");
+assert.equal(relayWrite.continuityRelayWriteSchemaExistsV01(db), false);
+db.close();
+
+db = new Database(":memory:");
+refused = relayWrite.writeContinuityRelayRecordV01(
+  {
+    scoped_write_preview: malformedPerspectiveUnitAdvisory,
+    operator_approval: relayRecordApproval,
+    idempotency_key: "idempotency:continuity-relay",
   },
   { db },
 );
@@ -971,6 +1090,16 @@ function advisoryNextWorkBiasReview() {
     source_refs: ["source:advisory-next-work-bias-review"],
     records: [{ record_id: "perspective-next-work-bias:advisory" }],
   };
+}
+
+function assertPreviewBlockedBy(preview, expectedReason, label) {
+  assert.notEqual(
+    preview.scoped_write_preview_status,
+    "ready_for_future_continuity_relay_record_write",
+    label,
+  );
+  assert.equal(preview.write_readiness.write_ready, false, label);
+  assert(preview.blocking_reasons.includes(expectedReason), label);
 }
 
 function clone(value) {
