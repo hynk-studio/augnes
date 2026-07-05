@@ -78,6 +78,34 @@ const files = {
     "components/workplane/applied-current-working-perspective-panel.tsx",
   cwpApplySmoke:
     "scripts/smoke-current-working-perspective-apply-slice-v0-1.mjs",
+  cwpRouteIntegrationPreviewType:
+    "types/current-working-perspective-route-integration-contract-preview.ts",
+  cwpRouteIntegrationPreviewHelper:
+    "lib/workplane/current-working-perspective-route-integration-contract-preview.ts",
+  cwpRouteIntegrationPreviewPanel:
+    "components/workplane/current-working-perspective-route-integration-contract-preview-panel.tsx",
+  cwpRouteIntegrationDecisionType:
+    "types/current-working-perspective-route-integration-contract-decision.ts",
+  cwpRouteIntegrationDecisionHelper:
+    "lib/workplane/current-working-perspective-route-integration-contract-decision.ts",
+  cwpRouteIntegrationDecisionPanel:
+    "components/workplane/current-working-perspective-route-integration-contract-decision-panel.tsx",
+  cwpRouteIntegrationWriteType:
+    "types/current-working-perspective-route-integration-contract-write.ts",
+  cwpRouteIntegrationWriteHelper:
+    "lib/workplane/current-working-perspective-route-integration-contract-write.ts",
+  cwpRouteIntegrationRoute:
+    "app/api/workplane/current-working-perspective-route-integration-contracts/route.ts",
+  cwpRouteIntegrationReviewType:
+    "types/current-working-perspective-route-integration-contract-record-review.ts",
+  cwpRouteIntegrationReviewHelper:
+    "lib/workplane/current-working-perspective-route-integration-contract-record-review.ts",
+  cwpRouteIntegrationReviewForWeb:
+    "lib/workplane/read-current-working-perspective-route-integration-contract-record-review-for-web.ts",
+  cwpRouteIntegrationReviewPanel:
+    "components/workplane/current-working-perspective-route-integration-contract-record-review-panel.tsx",
+  cwpRouteIntegrationSmoke:
+    "scripts/smoke-current-working-perspective-route-integration-contract-v0-1.mjs",
   contractType: "types/perspective-relay-update-write-contract-preview.ts",
   contractHelper: "lib/workplane/perspective-relay-update-write-contract-preview.ts",
   contractPanel:

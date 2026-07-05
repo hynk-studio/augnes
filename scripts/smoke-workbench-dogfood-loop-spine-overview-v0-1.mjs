@@ -357,6 +357,8 @@ const currentWorkingPerspectiveUpdateContractSmokeFile =
   "scripts/smoke-current-working-perspective-update-contract-v0-1.mjs";
 const currentWorkingPerspectiveApplyRouteFile =
   "app/api/workplane/current-working-perspective-applies/route.ts";
+const currentWorkingPerspectiveRouteIntegrationContractRouteFile =
+  "app/api/workplane/current-working-perspective-route-integration-contracts/route.ts";
 const currentWorkingPerspectiveApplySliceFiles = [
   "types/current-working-perspective-apply-preview.ts",
   "lib/workplane/current-working-perspective-apply-preview.ts",
@@ -373,6 +375,20 @@ const currentWorkingPerspectiveApplySliceFiles = [
   "components/workplane/current-working-perspective-apply-record-review-panel.tsx",
   "lib/perspective/read-applied-current-working-perspective-for-web.ts",
   "components/workplane/applied-current-working-perspective-panel.tsx",
+  "types/current-working-perspective-route-integration-contract-preview.ts",
+  "lib/workplane/current-working-perspective-route-integration-contract-preview.ts",
+  "components/workplane/current-working-perspective-route-integration-contract-preview-panel.tsx",
+  "types/current-working-perspective-route-integration-contract-decision.ts",
+  "lib/workplane/current-working-perspective-route-integration-contract-decision.ts",
+  "components/workplane/current-working-perspective-route-integration-contract-decision-panel.tsx",
+  "types/current-working-perspective-route-integration-contract-write.ts",
+  "lib/workplane/current-working-perspective-route-integration-contract-write.ts",
+  "app/api/workplane/current-working-perspective-route-integration-contracts/route.ts",
+  "types/current-working-perspective-route-integration-contract-record-review.ts",
+  "lib/workplane/current-working-perspective-route-integration-contract-record-review.ts",
+  "lib/workplane/read-current-working-perspective-route-integration-contract-record-review-for-web.ts",
+  "components/workplane/current-working-perspective-route-integration-contract-record-review-panel.tsx",
+  "scripts/smoke-current-working-perspective-route-integration-contract-v0-1.mjs",
   "scripts/smoke-current-working-perspective-apply-slice-v0-1.mjs",
 ];
 const selectedSessionDigestIntakeSmokeFile =
@@ -1023,7 +1039,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 48);
+assert.equal(emptyOverview.spine_steps.length, 51);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -2080,7 +2096,8 @@ function assertNoForbiddenChangedPaths() {
         file === perspectiveUnitRouteFile ||
         file === continuityRelayRouteFile ||
         file === currentWorkingPerspectiveUpdateContractRouteFile ||
-        file === currentWorkingPerspectiveApplyRouteFile,
+        file === currentWorkingPerspectiveApplyRouteFile ||
+        file === currentWorkingPerspectiveRouteIntegrationContractRouteFile,
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);
