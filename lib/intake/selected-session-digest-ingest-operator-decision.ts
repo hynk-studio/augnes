@@ -325,6 +325,17 @@ function buildContractPreviewShapeProblems(value: unknown): string[] {
   ) {
     problems.push("ingest_contract_preview_evidence_summary_invalid");
   }
+  const carryForward = recordField(value, "carry_forward_review_only_material");
+  if (
+    !carryForward ||
+    !Array.isArray(carryForward.rejected_or_review_only_candidate_refs) ||
+    !Array.isArray(carryForward.review_only_candidate_summaries) ||
+    !Array.isArray(carryForward.intake_privacy_review_notes) ||
+    !Array.isArray(carryForward.unresolved_blockers) ||
+    !Array.isArray(carryForward.missing_evidence_candidates)
+  ) {
+    problems.push("ingest_contract_preview_carry_forward_review_only_material_invalid");
+  }
   const authorityBoundary = recordField(value, "authority_boundary");
   if (
     !authorityBoundary ||
@@ -482,12 +493,17 @@ function buildCandidateCarryForward(
     review_only_candidate_count: carry?.rejected_or_review_only_count ?? 0,
     review_only_candidate_summaries: (
       carry?.review_only_candidate_summaries ?? []
-    ).map((candidate) => ({
-      candidate_ref: safeOutputRef(candidate.candidate_ref),
-      label: safeText(candidate.label),
-      summary: safeText(candidate.summary),
-      ingest_preview_only: true,
-    })),
+    ).map((candidate) => {
+      const candidateRecord: Record<string, unknown> = isRecord(candidate)
+        ? candidate
+        : {};
+      return {
+        candidate_ref: safeOutputRef(candidateRecord.candidate_ref),
+        label: safeText(candidateRecord.label),
+        summary: safeText(candidateRecord.summary),
+        ingest_preview_only: true,
+      };
+    }),
     unresolved_contract_blockers: uniqueSortedStrings([
       ...(carry?.unresolved_blockers ?? []),
       ...(contractPreview?.blocked_reasons ?? []),
@@ -497,7 +513,7 @@ function buildCandidateCarryForward(
       ...(contractPreview?.missing_evidence ?? []),
     ]),
     contract_privacy_review_notes: uniqueSortedStrings(
-      carry?.intake_privacy_review_notes.map(safeText) ?? [],
+      (carry?.intake_privacy_review_notes ?? []).map(safeText),
     ),
   };
 }

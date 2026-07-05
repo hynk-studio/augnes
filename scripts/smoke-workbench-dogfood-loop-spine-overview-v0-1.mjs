@@ -37,6 +37,22 @@ const selectedSessionDigestIngestDecisionWriteRouteFile =
   "app/api/intake/selected-session-digest/ingest-decisions/route.ts";
 const selectedSessionDigestIngestOperatorDecisionSmokeFile =
   "scripts/smoke-selected-session-digest-ingest-operator-decision-v0-1.mjs";
+const selectedSessionDigestIngestWriteTypeFile =
+  "types/selected-session-digest-ingest-write.ts";
+const selectedSessionDigestIngestWriteHelperFile =
+  "lib/intake/selected-session-digest-ingest-write.ts";
+const selectedSessionDigestIngestWriteRouteFile =
+  "app/api/intake/selected-session-digest/ingest-records/route.ts";
+const selectedSessionDigestIngestRecordReviewTypeFile =
+  "types/selected-session-digest-ingest-record-review.ts";
+const selectedSessionDigestIngestRecordReviewHelperFile =
+  "lib/intake/selected-session-digest-ingest-record-review.ts";
+const selectedSessionDigestIngestRecordReviewForWebFile =
+  "lib/intake/read-selected-session-digest-ingest-record-review-for-web.ts";
+const selectedSessionDigestIngestRecordReviewPanelFile =
+  "components/intake/selected-session-digest-ingest-record-review-panel.tsx";
+const selectedSessionDigestDurableIngestRecordSmokeFile =
+  "scripts/smoke-selected-session-digest-durable-ingest-record-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -63,6 +79,14 @@ const allowedChangedFiles = [
   selectedSessionDigestIngestDecisionWriteHelperFile,
   selectedSessionDigestIngestDecisionWriteRouteFile,
   selectedSessionDigestIngestOperatorDecisionSmokeFile,
+  selectedSessionDigestIngestWriteTypeFile,
+  selectedSessionDigestIngestWriteHelperFile,
+  selectedSessionDigestIngestWriteRouteFile,
+  selectedSessionDigestIngestRecordReviewTypeFile,
+  selectedSessionDigestIngestRecordReviewHelperFile,
+  selectedSessionDigestIngestRecordReviewForWebFile,
+  selectedSessionDigestIngestRecordReviewPanelFile,
+  selectedSessionDigestDurableIngestRecordSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -97,6 +121,7 @@ assertContainsAll(
     "selected_session_intake",
     "selected_session_digest_ingest_contract",
     "selected_session_digest_ingest_operator_decision",
+    "selected_session_digest_durable_ingest_record",
     "codex_result_feedback",
     "dogfood_reuse_proposal",
     "dogfood_reuse_operator_decision",
@@ -111,6 +136,7 @@ assertContainsAll(
     "handoff_context_apply_write_contract",
     "can_apply_handoff_context: false",
     "can_create_ingest_decision_record: false",
+    "can_create_ingest_receipt: false",
     "can_render_workbench_action_button: false",
   ],
   { label: typeFile },
@@ -124,15 +150,20 @@ assertContainsAll(
     "selected_session_digest_intake_preview",
     "selected_session_digest_ingest_contract_preview",
     "selected_session_digest_ingest_operator_decision_preview",
+    "selected_session_digest_ingest_record_review",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
+    "selectedSessionDigestDurableIngestRecordStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
     "missing_codex_result_report",
     "current_handoff_packet_fingerprint_missing",
     "prepare_operator_approved_selected_session_digest_ingest_decision_record",
+    "write_selected_session_digest_candidate_ingest_record",
+    "review_selected_session_digest_ingest_record",
     "does_not_write_memory",
+    "does_not_promote_selected_digest_ingest_records_to_memory_or_perspective",
     "does_not_apply_live_handoff_context",
     "can_call_provider_openai: false",
     "can_execute_codex: false",
@@ -165,6 +196,7 @@ assertContainsAll(
     "preview={workbenchDogfoodLoopSpineOverview}",
     "selected_session_digest_ingest_contract_preview: selectedSessionDigestIngestContractPreview",
     "selected_session_digest_ingest_operator_decision_preview: selectedSessionDigestIngestOperatorDecisionPreview",
+    "selected_session_digest_ingest_record_review:\n        selectedSessionDigestIngestRecordReview",
     "workbench:dogfood_loop_spine_overview",
     "handoff_context_apply_write_contract_preview",
   ],
@@ -203,6 +235,9 @@ const ingestContractModule = await import(
 const ingestOperatorDecisionModule = await import(
   "../lib/intake/selected-session-digest-ingest-operator-decision.ts"
 );
+const ingestRecordReviewModule = await import(
+  "../lib/intake/selected-session-digest-ingest-record-review.ts"
+);
 
 const {
   buildWorkbenchDogfoodLoopSpineOverviewV01,
@@ -213,6 +248,8 @@ const { buildSelectedSessionDigestIngestContractPreviewV01 } =
   ingestContractModule;
 const { buildSelectedSessionDigestIngestOperatorDecisionPreviewV01 } =
   ingestOperatorDecisionModule;
+const { buildSelectedSessionDigestIngestRecordReviewV01 } =
+  ingestRecordReviewModule;
 
 const emptyOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   scope: "project:augnes",
@@ -228,7 +265,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 15);
+assert.equal(emptyOverview.spine_steps.length, 16);
 assertAuthorityFalse(emptyOverview.authority_boundary);
 
 const cleanSelectedIntake = buildSelectedSessionDigestIntakePreviewV01({
@@ -327,6 +364,54 @@ assert.notEqual(
   selectedDecisionOverview.recommended_next_operator_action,
   "prepare_separate_ingest_write_slice",
 );
+
+const selectedNoRecordReview = buildSelectedSessionDigestIngestRecordReviewV01({
+  records: [],
+  as_of: "2026-07-04T14:30:00.000Z",
+});
+const selectedDurableWriteOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanSelectedIntake,
+  selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+  selected_session_digest_ingest_operator_decision_preview:
+    selectedReadyIngestDecision,
+  selected_session_digest_ingest_record_review: selectedNoRecordReview,
+  scope: "project:augnes",
+  as_of: "2026-07-04T14:30:00.000Z",
+});
+assert.equal(
+  stepById(
+    selectedDurableWriteOverview,
+    "selected_session_digest_durable_ingest_record",
+  ).recommended_next_action,
+  "write_selected_session_digest_candidate_ingest_record",
+);
+assert.equal(
+  selectedDurableWriteOverview.recommended_next_operator_action,
+  "write_selected_session_digest_candidate_ingest_record",
+);
+assertNoMemoryPromotionActions(selectedDurableWriteOverview);
+
+const selectedRecordReview = buildSelectedSessionDigestIngestRecordReviewV01({
+  records: [fakeSelectedDigestIngestRecord()],
+  as_of: "2026-07-04T14:30:00.000Z",
+});
+const selectedRecordReviewOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanSelectedIntake,
+  selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+  selected_session_digest_ingest_operator_decision_preview:
+    selectedReadyIngestDecision,
+  selected_session_digest_ingest_record_review: selectedRecordReview,
+  scope: "project:augnes",
+  as_of: "2026-07-04T14:30:00.000Z",
+});
+assert.equal(
+  stepById(
+    selectedRecordReviewOverview,
+    "selected_session_digest_durable_ingest_record",
+  ).recommended_next_action,
+  "review_selected_session_digest_ingest_record",
+);
+assertNoMemoryPromotionActions(selectedRecordReviewOverview);
 
 const missingCodexOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview: cleanSelectedIntake,
@@ -529,8 +614,9 @@ function assertNoForbiddenChangedPaths() {
   for (const file of allowedChangedFiles) {
     assert(
       !/^app\/api\//.test(file) ||
-        file === selectedSessionDigestIngestDecisionWriteRouteFile,
-      `No app/api route may be added outside selected digest decision follow-on: ${file}`,
+        file === selectedSessionDigestIngestDecisionWriteRouteFile ||
+        file === selectedSessionDigestIngestWriteRouteFile,
+      `No app/api route may be added outside selected digest follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);
     assert(
@@ -572,6 +658,160 @@ function stepById(overview, stepId) {
   const step = overview.spine_steps.find((candidate) => candidate.step_id === stepId);
   assert(step, `Expected step ${stepId}`);
   return step;
+}
+
+function assertNoMemoryPromotionActions(overview) {
+  const serialized = JSON.stringify(overview);
+  for (const forbidden of [
+    "promote_memory",
+    "write_memory",
+    "write_perspective_unit",
+    "write_next_work_bias",
+    "mutate_current_working_perspective",
+    "apply_handoff_context",
+    "send_handoff",
+  ]) {
+    assert(!serialized.includes(`"recommended_next_action":"${forbidden}"`));
+    assert(
+      !serialized.includes(
+        `"recommended_next_operator_action":"${forbidden}"`,
+      ),
+    );
+  }
+}
+
+function fakeSelectedDigestIngestRecord() {
+  return {
+    record_version: "selected_session_digest_ingest_record.v0.1",
+    record_id: "selected_session_digest_ingest:spine-overview-clean",
+    idempotency_key: "idempotency:spine-overview-clean",
+    created_at: "2026-07-04T14:30:00.000Z",
+    scope: "project:augnes",
+    source_refs: ["source:spine-overview-clean"],
+    evidence_refs: ["evidence:spine-overview-clean"],
+    decision_record_refs: {
+      decision_record_version:
+        "operator_approved_selected_session_digest_ingest_decision_record.v0.1",
+      decision_record_id:
+        "operator_approved_selected_session_digest_ingest_decision:spine-overview-clean",
+      decision_record_fingerprint: "sha256:spineoverviewclean",
+      decision_idempotency_key: "idempotency:spine-overview-clean",
+      decision_created_at: "2026-07-04T14:30:00.000Z",
+      operator_decision: "approve_for_future_ingest_write",
+    },
+    ingest_contract_preview_refs: [
+      "selected_session_digest_ingest_contract_preview:project:augnes:idempotency:spine-overview-clean",
+    ],
+    intake_preview_refs: [
+      "selected_session_digest_intake_preview:project:augnes:source:spine-overview-clean",
+    ],
+    source_kind: "chatgpt_session_digest",
+    source_ref: "source:spine-overview-clean",
+    operator_ref: "operator:reviewer",
+    session_ref: "session:spine-overview-clean",
+    project_ref: null,
+    selected_digest_candidate_refs: ["candidate:spine-overview-clean"],
+    candidate_counts_by_kind: {
+      session_summary: 1,
+      user_goal: 0,
+      decision: 0,
+      open_question: 0,
+      next_action: 0,
+      evidence_ref: 0,
+      source_ref: 0,
+      risk_or_blocker: 0,
+      reusable_context: 0,
+    },
+    sanitized_candidate_summaries: [
+      {
+        candidate_ref: "candidate:spine-overview-clean",
+        candidate_kind: "session_summary",
+        label: "Spine overview clean candidate",
+        summary: "Bounded candidate ingest record for overview smoke.",
+        source_refs: ["source:spine-overview-clean"],
+        evidence_refs: ["evidence:spine-overview-clean"],
+      },
+    ],
+    privacy_review_confirmation_ref: "privacy:spine-overview-clean",
+    requested_ingest_scope_ref: "scope:spine-overview-clean",
+    authority_profile: {
+      durable_local_candidate_ingest_record: true,
+      source_of_truth: false,
+      candidate_record_only: true,
+      persistence_horizon: "local_project_candidate_record",
+      memory_promotion_performed: false,
+      perspective_promotion_performed: false,
+    },
+    review_status: "ingested_as_candidate_record",
+    persistence_horizon: "local_project_candidate_record",
+    raw_material_policy: {
+      digest_material_stored: false,
+      pasted_text_material_stored: false,
+      excerpt_material_stored: false,
+      sanitized_candidate_summaries_only: true,
+      private_or_secret_markers_allowed: false,
+    },
+    carry_forward_review_only_material: {
+      review_only_candidate_refs: [],
+      review_only_candidate_count: 0,
+      review_only_candidate_summaries: [],
+      unresolved_contract_blockers: [],
+      contract_missing_evidence: [],
+    },
+    no_promotion_performed: {
+      memory_promoted: false,
+      current_working_perspective_updated: false,
+      perspective_unit_written: false,
+      next_work_bias_written: false,
+      continuity_relay_written: false,
+      handoff_context_mutated: false,
+      selected_refs_written_to_live_handoff: false,
+      handoff_sent: false,
+    },
+    write_validation: {
+      validation_version: "selected_session_digest_ingest_write_validation.v0.1",
+      decision_record_revalidated: true,
+      selected_candidate_refs_revalidated: true,
+      refused_sample_fixture_default_or_smoke_material: false,
+      refused_unrequested_side_effects: false,
+      refused_memory_perspective_handoff_promotion: false,
+      validation_hash: "sha256:spineoverviewcleanvalidation",
+    },
+    authority_boundary: {
+      durable_local_candidate_ingest_record: true,
+      source_of_truth: false,
+      candidate_record_only: true,
+      can_write_db: true,
+      can_create_ingest_record: true,
+      can_create_ingest_receipt: true,
+      can_write_selected_session_digest_candidate_record: true,
+      can_write_memory: false,
+      can_mutate_memory: false,
+      can_promote_memory: false,
+      can_mutate_current_working_perspective: false,
+      can_write_perspective_unit: false,
+      can_write_next_work_bias: false,
+      can_update_continuity_relay: false,
+      can_mutate_handoff_context: false,
+      can_apply_handoff_context: false,
+      can_write_selected_refs_to_live_handoff: false,
+      can_send_handoff: false,
+      can_write_dogfood_metrics: false,
+      can_write_reuse_ledger: false,
+      can_call_provider_openai: false,
+      can_call_github: false,
+      can_execute_codex: false,
+      can_create_pr: false,
+      can_merge_pr: false,
+      can_run_autonomous_action: false,
+      can_create_graph_or_vector_store: false,
+      can_create_rag_stack: false,
+      can_crawl_or_observe_browser: false,
+      notes: [],
+    },
+    notes: [],
+    record_fingerprint: "sha256:spineoverviewcleanrecord",
+  };
 }
 
 function codexFeedbackDraft({ resultReport }) {

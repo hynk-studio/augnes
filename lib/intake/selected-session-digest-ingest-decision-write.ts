@@ -198,9 +198,7 @@ export function validateOperatorApprovedSelectedSessionDigestIngestDecisionWrite
   if (!idempotencyKey) reasons.push("idempotency_key_missing_or_invalid");
 
   const decisionPreviewRecord = getRecord(input, "decision_preview");
-  const decisionPreview = decisionPreviewRecord
-    ? (decisionPreviewRecord as unknown as SelectedSessionDigestIngestOperatorDecisionPreview)
-    : null;
+  const decisionPreviewShapeReasons: string[] = [];
   if (!decisionPreviewRecord) {
     reasons.push("decision_preview_missing");
   } else if (
@@ -209,9 +207,23 @@ export function validateOperatorApprovedSelectedSessionDigestIngestDecisionWrite
   ) {
     reasons.push("decision_preview_version_invalid");
   }
+  validateDecisionPreviewShapeV01(decisionPreviewRecord, decisionPreviewShapeReasons);
+  if (decisionPreviewShapeReasons.length > 0) {
+    reasons.push("decision_preview_malformed");
+    reasons.push(...decisionPreviewShapeReasons);
+  }
+  const decisionPreview =
+    decisionPreviewRecord &&
+    decisionPreviewRecord.preview_version ===
+      SELECTED_SESSION_DIGEST_INGEST_OPERATOR_DECISION_PREVIEW_VERSION &&
+    decisionPreviewShapeReasons.length === 0
+      ? (decisionPreviewRecord as unknown as SelectedSessionDigestIngestOperatorDecisionPreview)
+      : null;
 
-  validateDecisionPreviewShapeV01(decisionPreviewRecord, reasons);
   validateDecisionPreviewReadinessV01(decisionPreviewRecord, reasons);
+
+  const notesValidationReasons = validateNotesV01(input.notes);
+  reasons.push(...notesValidationReasons);
 
   const operatorApprovalRecord = getRecord(input, "operator_approval");
   if (!operatorApprovalRecord) {
@@ -1225,6 +1237,21 @@ function sourceRefsFromDecisionPreview(
     preview.ingest_contract_preview_refs.contract_preview_ref ?? "",
     preview.ingest_contract_preview_refs.intake_preview_ref ?? "",
   ]);
+}
+
+function validateNotesV01(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+    return ["notes_must_be_string_array"];
+  }
+  const reasons: string[] = [];
+  for (const note of value) {
+    const trimmed = note.trim();
+    if (!trimmed || trimmed.length > 500 || hasUnsafeTextMarker(trimmed)) {
+      reasons.push("notes_contains_unsafe_or_invalid_text");
+    }
+  }
+  return uniqueSortedStrings(reasons);
 }
 
 function collectUnsafePublicRefs(
