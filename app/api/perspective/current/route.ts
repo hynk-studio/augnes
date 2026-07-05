@@ -7,7 +7,10 @@ import {
   validateCurrentWorkingPerspectiveReadRequest,
 } from "@/lib/perspective/current-working-perspective-source";
 import { readCurrentWorkingPerspectiveRouteIntegrationForWebV01 } from "@/lib/perspective/read-current-working-perspective-route-integration-for-web";
-import type { CurrentWorkingPerspectiveRouteIntegrationReadMode } from "@/types/current-working-perspective-route-integration-read";
+import type {
+  CurrentWorkingPerspectiveRouteIntegrationModeRefusalReason,
+  CurrentWorkingPerspectiveRouteIntegrationReadMode,
+} from "@/types/current-working-perspective-route-integration-read";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -59,6 +62,9 @@ export function GET(request: Request) {
       });
     }
 
+    const parsedRouteIntegrationMode = parseRouteIntegrationMode(
+      url.searchParams.get("route_integration_mode"),
+    );
     const routeIntegrationRead =
       readCurrentWorkingPerspectiveRouteIntegrationForWebV01({
         runtime_current_working_perspective_read: readModel,
@@ -66,9 +72,9 @@ export function GET(request: Request) {
           "route_integration_contract_db_path",
         ),
         applied_snapshot_db_path: url.searchParams.get("applied_snapshot_db_path"),
-        requested_route_integration_mode: parseRouteIntegrationMode(
-          url.searchParams.get("route_integration_mode"),
-        ),
+        requested_route_integration_mode: parsedRouteIntegrationMode.mode,
+        requested_route_integration_mode_refusal_reason:
+          parsedRouteIntegrationMode.refusal_reason,
         scope: validation.scope,
         as_of: readModel.as_of,
         source_refs: [
@@ -136,13 +142,35 @@ export function GET(request: Request) {
 
 function parseRouteIntegrationMode(
   value: string | null,
-): CurrentWorkingPerspectiveRouteIntegrationReadMode | undefined {
+):
+  | {
+      status: "missing";
+      mode: undefined;
+      refusal_reason?: undefined;
+    }
+  | {
+      status: "valid";
+      mode: CurrentWorkingPerspectiveRouteIntegrationReadMode;
+      refusal_reason?: undefined;
+    }
+  | {
+      status: "invalid";
+      mode: undefined;
+      refusal_reason: CurrentWorkingPerspectiveRouteIntegrationModeRefusalReason;
+    } {
+  if (value === null || value === "") {
+    return { status: "missing", mode: undefined };
+  }
   if (
     value === "runtime_only_with_applied_snapshot_hint" ||
     value === "applied_snapshot_overlay_candidate" ||
     value === "applied_snapshot_preferred_with_runtime_fallback"
   ) {
-    return value;
+    return { status: "valid", mode: value };
   }
-  return undefined;
+  return {
+    status: "invalid",
+    mode: undefined,
+    refusal_reason: "requested_route_integration_mode_unsupported",
+  };
 }

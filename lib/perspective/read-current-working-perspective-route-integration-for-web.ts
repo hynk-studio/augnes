@@ -16,6 +16,7 @@ import {
   type CurrentWorkingPerspectiveRouteIntegrationContractWriteDbLike,
 } from "@/lib/workplane/current-working-perspective-route-integration-contract-write";
 import type {
+  CurrentWorkingPerspectiveRouteIntegrationModeRefusalReason,
   CurrentWorkingPerspectiveRouteIntegrationRead,
   CurrentWorkingPerspectiveRouteIntegrationReadMode,
 } from "@/types/current-working-perspective-route-integration-read";
@@ -34,6 +35,7 @@ export function readCurrentWorkingPerspectiveRouteIntegrationForWebV01(
     route_integration_contract_db_path?: string | null;
     applied_snapshot_db_path?: string | null;
     requested_route_integration_mode?: CurrentWorkingPerspectiveRouteIntegrationReadMode | null;
+    requested_route_integration_mode_refusal_reason?: CurrentWorkingPerspectiveRouteIntegrationModeRefusalReason | null;
     scope?: string;
     as_of?: string;
     source_refs?: string[];
@@ -115,6 +117,8 @@ export function readCurrentWorkingPerspectiveRouteIntegrationForWebV01(
     applied_current_working_perspective_read: appliedRead,
     requested_route_integration_mode:
       input.requested_route_integration_mode ?? undefined,
+    requested_route_integration_mode_refusal_reason:
+      input.requested_route_integration_mode_refusal_reason ?? null,
     scope: input.scope,
     as_of: input.as_of,
     source_refs: input.source_refs,

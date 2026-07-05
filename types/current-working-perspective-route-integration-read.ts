@@ -17,6 +17,9 @@ export type CurrentWorkingPerspectiveRouteIntegrationReadMode = Exclude<
   "keep_runtime_only"
 >;
 
+export type CurrentWorkingPerspectiveRouteIntegrationModeRefusalReason =
+  "requested_route_integration_mode_unsupported";
+
 export type CurrentWorkingPerspectiveRouteIntegrationReadStatus =
   | "runtime_only"
   | "runtime_with_applied_snapshot_hint"
@@ -41,6 +44,7 @@ export interface CurrentWorkingPerspectiveRouteIntegrationReadInput {
   route_integration_contract_record?: unknown;
   applied_current_working_perspective_read?: unknown;
   requested_route_integration_mode?: CurrentWorkingPerspectiveRouteIntegrationReadMode;
+  requested_route_integration_mode_refusal_reason?: CurrentWorkingPerspectiveRouteIntegrationModeRefusalReason | null;
   scope?: string;
   as_of?: string;
   source_refs?: string[];

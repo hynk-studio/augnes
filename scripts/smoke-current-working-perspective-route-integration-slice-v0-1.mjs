@@ -62,6 +62,8 @@ for (const expected of [
   "runtime_primary_with_applied_snapshot_hint",
   "runtime_primary_with_applied_overlay_candidate",
   "applied_snapshot_preferred_with_runtime_fallback",
+  "requested_route_integration_mode_unsupported",
+  "requested_route_integration_mode_mismatch_with_contract",
   "review_current_working_perspective_route_integration_read",
   "verify_current_working_perspective_route_runtime_fallback",
   "verify_current_working_perspective_route_applied_snapshot_overlay",
@@ -111,9 +113,13 @@ const {
 } = await import("../lib/perspective/current-working-perspective-source.ts");
 const {
   createCurrentWorkingPerspectiveApplyWriteAuthorityBoundaryV01,
+  CURRENT_WORKING_PERSPECTIVE_APPLY_WRITE_TABLE,
+  ensureCurrentWorkingPerspectiveApplyWriteSchemaV01,
 } = await import("../lib/workplane/current-working-perspective-apply-write.ts");
 const {
+  CURRENT_WORKING_PERSPECTIVE_ROUTE_INTEGRATION_CONTRACT_WRITE_TABLE,
   createCurrentWorkingPerspectiveRouteIntegrationContractWriteAuthorityBoundaryV01,
+  ensureCurrentWorkingPerspectiveRouteIntegrationContractWriteSchemaV01,
 } = await import(
   "../lib/workplane/current-working-perspective-route-integration-contract-write.ts"
 );
@@ -192,6 +198,64 @@ assert.equal(preferredRead.status, "applied_snapshot_preferred_with_runtime_fall
 assert.equal(preferredRead.response_mode, "applied_snapshot_preferred_with_runtime_fallback");
 assert.equal(preferredRead.primary_current_working_perspective, appliedRead.latest_applied_snapshot.applied_current_working_perspective);
 assert(preferredRead.runtime_current_working_perspective);
+
+const invalidExplicitModeRead =
+  buildCurrentWorkingPerspectiveRouteIntegrationReadV01({
+    runtime_current_working_perspective_read: runtimeCwp,
+    route_integration_contract_store_result: contractStoreResult,
+    applied_current_working_perspective_read: appliedRead,
+    requested_route_integration_mode_refusal_reason:
+      "requested_route_integration_mode_unsupported",
+    as_of: AS_OF,
+    source_refs: ["smoke:route-integration-invalid-mode"],
+  });
+assert.equal(invalidExplicitModeRead.status, "fallback_to_runtime");
+assert.equal(invalidExplicitModeRead.response_mode, "runtime_only");
+assert.equal(invalidExplicitModeRead.primary_current_working_perspective, runtimeCwp);
+assert.equal(invalidExplicitModeRead.applied_current_working_perspective, null);
+assert(
+  invalidExplicitModeRead.refusal_reasons.includes(
+    "requested_route_integration_mode_unsupported",
+  ),
+);
+
+const mismatchedExplicitModeRead =
+  buildCurrentWorkingPerspectiveRouteIntegrationReadV01({
+    runtime_current_working_perspective_read: runtimeCwp,
+    route_integration_contract_store_result: contractStoreResult,
+    applied_current_working_perspective_read: appliedRead,
+    requested_route_integration_mode:
+      "applied_snapshot_preferred_with_runtime_fallback",
+    as_of: AS_OF,
+    source_refs: ["smoke:route-integration-mismatched-mode"],
+  });
+assert.equal(mismatchedExplicitModeRead.status, "fallback_to_runtime");
+assert.equal(mismatchedExplicitModeRead.response_mode, "runtime_only");
+assert.equal(mismatchedExplicitModeRead.primary_current_working_perspective, runtimeCwp);
+assert.equal(mismatchedExplicitModeRead.applied_current_working_perspective, null);
+assert(
+  mismatchedExplicitModeRead.blocked_reasons.includes(
+    "requested_route_integration_mode_mismatch_with_contract",
+  ),
+);
+
+const omittedExplicitModeRead =
+  buildCurrentWorkingPerspectiveRouteIntegrationReadV01({
+    runtime_current_working_perspective_read: runtimeCwp,
+    route_integration_contract_store_result: contractStoreResult,
+    applied_current_working_perspective_read: appliedRead,
+    as_of: AS_OF,
+    source_refs: ["smoke:route-integration-omitted-mode"],
+  });
+assert.equal(
+  omittedExplicitModeRead.status,
+  "runtime_with_applied_snapshot_overlay_candidate",
+);
+assert.equal(
+  omittedExplicitModeRead.response_mode,
+  "runtime_primary_with_applied_overlay_candidate",
+);
+assert(omittedExplicitModeRead.applied_current_working_perspective);
 
 const forgedRouteModified = structuredClone(contractRecord);
 forgedRouteModified.authority_profile.api_perspective_current_route_modified = true;
@@ -320,6 +384,107 @@ assert.equal(routeDefaultBody.applied_current_working_perspective, undefined);
 const tempDir = path.join(root, ".tmp/current-working-perspective-route-integration-slice");
 rmSync(tempDir, { force: true, recursive: true });
 mkdirSync(tempDir, { recursive: true });
+const {
+  contractDbPath: validRouteContractDbPath,
+  appliedDbPath: validRouteAppliedDbPath,
+} = writeValidRouteIntegrationFixtureDbs();
+
+const routeInvalidMode = await currentRoute.GET(
+  readRequest(
+    `http://localhost/api/perspective/current?scope=project:augnes&route_integration_contract_db_path=${encodeURIComponent(
+      validRouteContractDbPath,
+    )}&applied_snapshot_db_path=${encodeURIComponent(
+      validRouteAppliedDbPath,
+    )}&route_integration_mode=definitely_not_a_mode`,
+  ),
+);
+assert.equal(routeInvalidMode.status, 200);
+const routeInvalidModeBody = await routeInvalidMode.json();
+assert.equal(routeInvalidModeBody.route_integration.status, "fallback_to_runtime");
+assert.equal(routeInvalidModeBody.route_integration.response_mode, "runtime_only");
+assert(
+  routeInvalidModeBody.route_integration.refusal_reasons.includes(
+    "requested_route_integration_mode_unsupported",
+  ),
+);
+assert.equal(routeInvalidModeBody.applied_current_working_perspective, null);
+assert.equal(
+  routeInvalidModeBody.route_integration.applied_current_working_perspective,
+  null,
+);
+assert.equal(
+  routeInvalidModeBody.primary_current_working_perspective.perspective_version,
+  "current_working_perspective.v0.1",
+);
+
+const routeMismatchedMode = await currentRoute.GET(
+  readRequest(
+    `http://localhost/api/perspective/current?scope=project:augnes&route_integration_contract_db_path=${encodeURIComponent(
+      validRouteContractDbPath,
+    )}&applied_snapshot_db_path=${encodeURIComponent(
+      validRouteAppliedDbPath,
+    )}&route_integration_mode=applied_snapshot_preferred_with_runtime_fallback`,
+  ),
+);
+assert.equal(routeMismatchedMode.status, 200);
+const routeMismatchedModeBody = await routeMismatchedMode.json();
+assert.equal(routeMismatchedModeBody.route_integration.status, "fallback_to_runtime");
+assert.equal(routeMismatchedModeBody.route_integration.response_mode, "runtime_only");
+assert(
+  routeMismatchedModeBody.route_integration.blocked_reasons.includes(
+    "requested_route_integration_mode_mismatch_with_contract",
+  ),
+);
+assert.equal(routeMismatchedModeBody.applied_current_working_perspective, null);
+assert.equal(
+  routeMismatchedModeBody.route_integration.applied_current_working_perspective,
+  null,
+);
+
+const routeOmittedMode = await currentRoute.GET(
+  readRequest(
+    `http://localhost/api/perspective/current?scope=project:augnes&route_integration_contract_db_path=${encodeURIComponent(
+      validRouteContractDbPath,
+    )}&applied_snapshot_db_path=${encodeURIComponent(validRouteAppliedDbPath)}`,
+  ),
+);
+assert.equal(routeOmittedMode.status, 200);
+const routeOmittedModeBody = await routeOmittedMode.json();
+assert.equal(
+  routeOmittedModeBody.route_integration.status,
+  "runtime_with_applied_snapshot_overlay_candidate",
+);
+assert.equal(
+  routeOmittedModeBody.route_integration.response_mode,
+  "runtime_primary_with_applied_overlay_candidate",
+);
+assert(routeOmittedModeBody.applied_current_working_perspective);
+
+const routeMatchingMode = await currentRoute.GET(
+  readRequest(
+    `http://localhost/api/perspective/current?scope=project:augnes&route_integration_contract_db_path=${encodeURIComponent(
+      validRouteContractDbPath,
+    )}&applied_snapshot_db_path=${encodeURIComponent(
+      validRouteAppliedDbPath,
+    )}&route_integration_mode=applied_snapshot_overlay_candidate`,
+  ),
+);
+assert.equal(routeMatchingMode.status, 200);
+const routeMatchingModeBody = await routeMatchingMode.json();
+assert.equal(
+  routeMatchingModeBody.route_integration.status,
+  "runtime_with_applied_snapshot_overlay_candidate",
+);
+assert.equal(
+  routeMatchingModeBody.route_integration.response_mode,
+  "runtime_primary_with_applied_overlay_candidate",
+);
+assert(routeMatchingModeBody.applied_current_working_perspective);
+assert.deepEqual(readRouteFixtureDbCounts(validRouteContractDbPath, validRouteAppliedDbPath), {
+  contracts: 1,
+  applies: 1,
+});
+
 const missingContractPath =
   ".tmp/current-working-perspective-route-integration-contracts/missing-route-read.sqlite";
 rmSync(path.join(root, missingContractPath), { force: true });
@@ -497,6 +662,138 @@ assertContainsAll(
 );
 
 console.log("smoke-current-working-perspective-route-integration-slice-v0-1 passed");
+
+function writeValidRouteIntegrationFixtureDbs() {
+  const contractDbPath =
+    ".tmp/current-working-perspective-route-integration-contracts/mode-authority-route.sqlite";
+  const appliedDbPath =
+    ".tmp/current-working-perspective-applies/mode-authority-route.sqlite";
+  const contractDbAbs = path.join(root, contractDbPath);
+  const appliedDbAbs = path.join(root, appliedDbPath);
+  rmSync(contractDbAbs, { force: true });
+  rmSync(appliedDbAbs, { force: true });
+  mkdirSync(path.dirname(contractDbAbs), { recursive: true });
+  mkdirSync(path.dirname(appliedDbAbs), { recursive: true });
+
+  const routeContractRecord = buildContractRecord(
+    "applied_snapshot_overlay_candidate",
+  );
+  const routeContractReceipt =
+    buildContractStoreResult(routeContractRecord).receipt;
+  const contractDb = new Database(contractDbAbs);
+  try {
+    ensureCurrentWorkingPerspectiveRouteIntegrationContractWriteSchemaV01(
+      contractDb,
+    );
+    contractDb
+      .prepare(
+        `INSERT INTO ${CURRENT_WORKING_PERSPECTIVE_ROUTE_INTEGRATION_CONTRACT_WRITE_TABLE} (
+          record_id,
+          idempotency_key,
+          created_at,
+          scope,
+          operator_ref,
+          record_fingerprint,
+          route_integration_mode,
+          record_json,
+          receipt_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        routeContractRecord.record_id,
+        routeContractRecord.idempotency_key,
+        routeContractRecord.created_at,
+        routeContractRecord.scope,
+        routeContractRecord.operator_ref,
+        routeContractRecord.record_fingerprint,
+        routeContractRecord.route_integration_mode,
+        JSON.stringify(routeContractRecord),
+        JSON.stringify(routeContractReceipt),
+      );
+  } finally {
+    contractDb.close();
+  }
+
+  const applied = buildAppliedRead();
+  const applyRecord = applied.latest_record;
+  const appliedSnapshot = applied.latest_applied_snapshot;
+  const applyDb = new Database(appliedDbAbs);
+  try {
+    ensureCurrentWorkingPerspectiveApplyWriteSchemaV01(applyDb);
+    applyDb
+      .prepare(
+        `INSERT INTO ${CURRENT_WORKING_PERSPECTIVE_APPLY_WRITE_TABLE} (
+          record_id,
+          idempotency_key,
+          created_at,
+          scope,
+          operator_ref,
+          record_fingerprint,
+          applied_snapshot_ref,
+          record_json,
+          applied_snapshot_json,
+          receipt_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        applyRecord.record_id,
+        "idempotency:cwp-route-integration-read-apply",
+        AS_OF,
+        "project:augnes",
+        "operator:cwp-route-integration-read",
+        "fingerprint:cwp-route-integration-read-apply",
+        appliedSnapshot.applied_snapshot_ref,
+        JSON.stringify(applyRecord),
+        JSON.stringify(appliedSnapshot),
+        JSON.stringify({
+          receipt_version: "current_working_perspective_apply_receipt.v0.1",
+          record_id: applyRecord.record_id,
+          idempotency_key: "idempotency:cwp-route-integration-read-apply",
+          wrote: true,
+          idempotent_replay: false,
+          no_side_effects: {
+            current_working_perspective_apply_record_written: true,
+            current_working_perspective_apply_receipt_written: true,
+            current_working_perspective_apply_persisted: true,
+            applied_current_working_perspective_snapshot_written: true,
+            current_working_perspective_update_applied_to_local_snapshot: true,
+          },
+        }),
+      );
+  } finally {
+    applyDb.close();
+  }
+
+  return { contractDbPath, appliedDbPath };
+}
+
+function readRouteFixtureDbCounts(contractDbPath, appliedDbPath) {
+  const contractDb = new Database(path.join(root, contractDbPath), {
+    readonly: true,
+    fileMustExist: true,
+  });
+  const applyDb = new Database(path.join(root, appliedDbPath), {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    return {
+      contracts: contractDb
+        .prepare(
+          `SELECT count(*) AS count FROM ${CURRENT_WORKING_PERSPECTIVE_ROUTE_INTEGRATION_CONTRACT_WRITE_TABLE}`,
+        )
+        .get().count,
+      applies: applyDb
+        .prepare(
+          `SELECT count(*) AS count FROM ${CURRENT_WORKING_PERSPECTIVE_APPLY_WRITE_TABLE}`,
+        )
+        .get().count,
+    };
+  } finally {
+    contractDb.close();
+    applyDb.close();
+  }
+}
 
 function buildAppliedRead() {
   const snapshot = {

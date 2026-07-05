@@ -78,6 +78,7 @@ export function buildCurrentWorkingPerspectiveRouteIntegrationReadV01({
   route_integration_contract_record,
   applied_current_working_perspective_read,
   requested_route_integration_mode,
+  requested_route_integration_mode_refusal_reason,
   as_of,
   source_refs = [],
 }: CurrentWorkingPerspectiveRouteIntegrationReadInput = {}):
@@ -115,6 +116,9 @@ export function buildCurrentWorkingPerspectiveRouteIntegrationReadV01({
   const blockedReasons: string[] = [];
   const refusalReasons: string[] = [];
 
+  if (requested_route_integration_mode_refusal_reason) {
+    refusalReasons.push(requested_route_integration_mode_refusal_reason);
+  }
   if (!runtimeCwp) blockedReasons.push("runtime_current_working_perspective_missing");
   if (
     runtime_current_working_perspective_read !== undefined &&
@@ -136,6 +140,7 @@ export function buildCurrentWorkingPerspectiveRouteIntegrationReadV01({
 
   const hasIntegrationRequest = Boolean(
     requested_route_integration_mode ||
+      requested_route_integration_mode_refusal_reason ||
       candidateContract ||
       storeResult ||
       appliedRead,
@@ -200,7 +205,7 @@ export function buildCurrentWorkingPerspectiveRouteIntegrationReadV01({
       runtimeCwp,
       appliedRead,
       contract: candidateContract,
-      mode: requested_route_integration_mode ?? contractValidation.mode,
+      mode: contractValidation.mode,
       asOf: now,
       sourceRefs,
       evidenceRefs,
@@ -215,8 +220,8 @@ export function buildCurrentWorkingPerspectiveRouteIntegrationReadV01({
     });
   }
 
-  const mode = requested_route_integration_mode ?? contractValidation.mode;
-  if (!mode) {
+  const contractMode = contractValidation.mode;
+  if (!contractMode) {
     blockedReasons.push("route_integration_mode_missing");
     return createRead({
       status: "contract_invalid",
@@ -238,9 +243,53 @@ export function buildCurrentWorkingPerspectiveRouteIntegrationReadV01({
       preferredPrimary: false,
     });
   }
-  if (mode !== candidateContract.route_integration_mode) {
-    warnings.push("requested_route_integration_mode_differs_from_contract");
+  if (requested_route_integration_mode_refusal_reason) {
+    return createRead({
+      status: "fallback_to_runtime",
+      responseMode: "runtime_only",
+      runtimeCwp,
+      appliedRead,
+      contract: candidateContract,
+      mode: contractMode,
+      asOf: now,
+      sourceRefs,
+      evidenceRefs,
+      blockedReasons,
+      refusalReasons,
+      warnings,
+      fallbackReason: requested_route_integration_mode_refusal_reason,
+      primaryCwp: runtimeCwp,
+      appliedCwp: null,
+      overlayCandidate: false,
+      preferredPrimary: false,
+    });
   }
+  if (
+    requested_route_integration_mode &&
+    requested_route_integration_mode !== contractMode
+  ) {
+    blockedReasons.push("requested_route_integration_mode_mismatch_with_contract");
+    return createRead({
+      status: "fallback_to_runtime",
+      responseMode: "runtime_only",
+      runtimeCwp,
+      appliedRead,
+      contract: candidateContract,
+      mode: contractMode,
+      asOf: now,
+      sourceRefs,
+      evidenceRefs,
+      blockedReasons,
+      refusalReasons,
+      warnings,
+      fallbackReason: "requested_route_integration_mode_mismatch_with_contract",
+      primaryCwp: runtimeCwp,
+      appliedCwp: null,
+      overlayCandidate: false,
+      preferredPrimary: false,
+    });
+  }
+  const mode = contractMode;
 
   if (!appliedRead || appliedRead.status !== "latest_applied_snapshot_available") {
     blockedReasons.push("applied_current_working_perspective_snapshot_missing");
