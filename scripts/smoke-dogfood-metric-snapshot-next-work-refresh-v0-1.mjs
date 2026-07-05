@@ -336,6 +336,13 @@ assertRefused({
   },
   reason: "requested_side_effect_not_allowed",
 });
+const forgedDecisionAuthorityInput = structuredClone(validInput);
+forgedDecisionAuthorityInput.decision_preview.authority_boundary.can_create_pr =
+  true;
+assertRefused({
+  input: forgedDecisionAuthorityInput,
+  reason: "decision_preview_authority_boundary_invalid",
+});
 const skippedSuccessInput = structuredClone(validInput);
 skippedSuccessInput.decision_preview.would_write_metric_snapshot_record_preview.verification_quality_metrics.verified_success_count = 1;
 assertRefused({
@@ -424,6 +431,34 @@ const malformedReview = snapshotReview.buildDogfoodMetricSnapshotRecordReviewV01
   records: [{}],
 });
 assert.equal(malformedReview.review_status, "records_invalid");
+let partialMalformedReview;
+assert.doesNotThrow(() => {
+  partialMalformedReview =
+    snapshotReview.buildDogfoodMetricSnapshotRecordReviewV01({
+      records: [
+        {
+          record_version: "dogfood_metric_snapshot_record.v0.1",
+          record_id: "metric-snapshot:partial-malformed",
+          idempotency_key: "idempotency:partial-malformed",
+          created_at: "2026-07-05T00:00:00.000Z",
+          scope: "project:augnes",
+          operator_ref: "operator:metric-reviewer",
+          source_refs: ["source:partial-malformed"],
+          selected_metric_candidate_refs: [],
+          metric_window: { since: null, until: null },
+          aggregate_counts: {},
+          authority_boundary: {},
+          record_fingerprint: "fingerprint:partial-malformed",
+        },
+      ],
+    });
+});
+assert.equal(partialMalformedReview.review_status, "records_invalid");
+assert(
+  partialMalformedReview.record_summaries.some((summary) =>
+    summary.problem_reasons.includes("dogfood_metric_snapshot_record_malformed"),
+  ),
+);
 const corruptReceiptStoreResult = structuredClone(written);
 corruptReceiptStoreResult.receipt.no_side_effects.memory_mutated = true;
 const corruptReceiptReview =

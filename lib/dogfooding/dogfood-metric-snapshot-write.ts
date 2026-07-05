@@ -602,28 +602,40 @@ function validateDecisionPreview(preview: Record<string, unknown> | null): strin
     reasons.push(...validateWouldWriteMaterial(material));
   }
   const authority = getRecord(preview, "authority_boundary");
+  const falseOnlyAuthorityFields = [
+    "source_of_truth",
+    "can_persist_decision",
+    "can_write_db",
+    "can_create_schema",
+    "can_write_dogfood_metric_snapshot",
+    "can_write_dogfood_metrics",
+    "can_update_metrics",
+    "can_write_reuse_outcome_ledger",
+    "can_write_expected_observed_delta",
+    "can_write_work_episode",
+    "can_write_memory",
+    "can_write_perspective_unit",
+    "can_write_next_work_bias",
+    "can_update_current_working_perspective",
+    "can_update_continuity_relay",
+    "can_mutate_handoff_context",
+    "can_send_handoff",
+    "can_call_provider_openai",
+    "can_call_github",
+    "can_execute_codex",
+    "can_create_pr",
+    "can_merge_pr",
+    "can_run_autonomous_action",
+    "can_create_graph_or_vector_store",
+    "can_create_rag_stack",
+    "can_crawl_or_observe_browser",
+  ];
   if (
     !authority ||
     authority.read_only !== true ||
     authority.advisory_only !== true ||
-    authority.source_of_truth !== false ||
-    authority.can_write_db !== false ||
-    authority.can_create_schema !== false ||
-    authority.can_write_dogfood_metric_snapshot !== false ||
-    authority.can_write_dogfood_metrics !== false ||
-    authority.can_update_metrics !== false ||
-    authority.can_write_reuse_outcome_ledger !== false ||
-    authority.can_write_expected_observed_delta !== false ||
-    authority.can_write_work_episode !== false ||
-    authority.can_write_memory !== false ||
-    authority.can_write_perspective_unit !== false ||
-    authority.can_write_next_work_bias !== false ||
-    authority.can_update_continuity_relay !== false ||
-    authority.can_mutate_handoff_context !== false ||
-    authority.can_send_handoff !== false ||
-    authority.can_call_provider_openai !== false ||
-    authority.can_call_github !== false ||
-    authority.can_execute_codex !== false
+    authority.derived_read_model !== true ||
+    falseOnlyAuthorityFields.some((field) => authority[field] !== false)
   ) {
     reasons.push("decision_preview_authority_boundary_invalid");
   }

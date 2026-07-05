@@ -549,14 +549,70 @@ function buildInsufficientDataReasons({
 function isDogfoodMetricSnapshotRecord(
   value: unknown,
 ): value is DogfoodMetricSnapshotRecord {
+  if (!isRecord(value)) return false;
+  const aggregateCountFields = [
+    "helpful_context_signal_count",
+    "stale_context_signal_count",
+    "missing_context_signal_count",
+    "noisy_context_signal_count",
+    "misleading_context_signal_count",
+    "unknown_context_signal_count",
+    "skipped_or_unverified_check_count",
+    "not_done_item_count",
+    "expected_observed_mismatch_count",
+    "review_burden_signal_count",
+    "carry_forward_candidate_count",
+  ];
+  const authorityBooleanFields = [
+    "can_update_global_dogfood_metrics",
+    "can_write_reuse_outcome_ledger",
+    "can_write_expected_observed_delta",
+    "can_write_work_episode",
+    "can_write_memory",
+    "can_mutate_current_working_perspective",
+    "can_write_perspective_unit",
+    "can_write_next_work_bias",
+    "can_update_continuity_relay",
+    "can_mutate_handoff_context",
+    "can_call_provider_openai",
+    "can_call_github",
+    "can_execute_codex",
+  ];
+  const metricWindow = value.metric_window;
+  const aggregateCounts = value.aggregate_counts;
+  const authorityBoundary = value.authority_boundary;
   return (
-    isRecord(value) &&
     value.record_version === DOGFOOD_METRIC_SNAPSHOT_RECORD_VERSION &&
-    isRecord(value.metric_window) &&
-    isRecord(value.aggregate_counts) &&
-    isRecord(value.authority_boundary) &&
-    Array.isArray(value.selected_metric_candidate_refs)
+    typeof value.record_id === "string" &&
+    typeof value.idempotency_key === "string" &&
+    typeof value.created_at === "string" &&
+    (typeof value.operator_ref === "string" || value.operator_ref === null) &&
+    typeof value.record_fingerprint === "string" &&
+    isStringArray(value.source_refs) &&
+    isStringArray(value.evidence_refs) &&
+    isStringArray(value.source_reuse_ledger_record_refs) &&
+    isStringArray(value.source_expected_observed_delta_record_refs) &&
+    isStringArray(value.selected_metric_candidate_refs) &&
+    isRecord(metricWindow) &&
+    isNullableString(metricWindow.since) &&
+    isNullableString(metricWindow.until) &&
+    isRecord(aggregateCounts) &&
+    aggregateCountFields.every(
+      (field) => typeof aggregateCounts[field] === "number",
+    ) &&
+    isRecord(authorityBoundary) &&
+    authorityBooleanFields.every(
+      (field) => typeof authorityBoundary[field] === "boolean",
+    )
   );
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
 }
 
 function countTrue(
