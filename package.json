@@ -759,6 +759,7 @@
     "smoke:reuse-outcome-bridge-ledger-integration-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-reuse-outcome-bridge-ledger-integration-v0-1.mjs",
     "smoke:dogfood-metric-snapshot-next-work-refresh-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-dogfood-metric-snapshot-next-work-refresh-v0-1.mjs",
     "smoke:next-work-signal-decision-perspective-relay-bridge-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-next-work-signal-decision-perspective-relay-bridge-v0-1.mjs",
+    "smoke:perspective-relay-update-decision-write-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs",
     "smoke:workbench-dogfood-loop-spine-overview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs",
     "smoke:autonomy-contract-v0-1": "node scripts/smoke-autonomy-contract-v0-1.mjs",
     "smoke:autonomy-contract-route-v0-1": "node scripts/smoke-autonomy-contract-route-v0-1.mjs",

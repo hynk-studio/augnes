@@ -45,6 +45,9 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   next_work_signal_decision_preview,
   next_work_signal_decision_record_review,
   perspective_relay_update_candidate_bridge_preview,
+  perspective_relay_update_operator_decision_preview,
+  perspective_relay_update_decision_record_review,
+  perspective_relay_update_write_contract_preview,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -111,6 +114,16 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
     }),
     perspectiveRelayUpdateCandidateBridgeStep(
       perspective_relay_update_candidate_bridge_preview,
+    ),
+    perspectiveRelayUpdateDecisionStep(
+      perspective_relay_update_operator_decision_preview,
+    ),
+    perspectiveRelayUpdateDecisionRecordStep({
+      recordReview: perspective_relay_update_decision_record_review,
+      decisionPreview: perspective_relay_update_operator_decision_preview,
+    }),
+    perspectiveRelayUpdateWriteContractStep(
+      perspective_relay_update_write_contract_preview,
     ),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
@@ -1288,6 +1301,152 @@ function perspectiveRelayUpdateCandidateBridgeStep(
   });
 }
 
+function perspectiveRelayUpdateDecisionStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["perspective_relay_update_operator_decision_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "perspective_relay_update_operator_decision",
+      label: "Perspective relay update operator decision",
+      recommended_next_action: "review_perspective_relay_update_candidates",
+      summary: "No Perspective/Relay update operator decision preview supplied.",
+    });
+  }
+
+  return makeStep({
+    step_id: "perspective_relay_update_operator_decision",
+    label: "Perspective relay update operator decision",
+    status: mapPerspectiveRelayUpdateDecisionStatus(
+      preview.decision_preview_status,
+    ),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.input_summary.selected_candidate_ref_count,
+    blockers: preview.blocking_reasons,
+    material_gaps: [
+      ...preview.write_readiness.current_insufficient_data,
+      ...(preview.input_summary.candidate_count === 0
+        ? ["perspective_relay_update_candidate_material_missing_for_decision"]
+        : []),
+    ],
+    missing_evidence: preview.missing_evidence,
+    recommended_next_action: preview.write_readiness.write_ready
+      ? "write_perspective_relay_update_decision_record"
+      : preview.input_summary.candidate_count > 0
+        ? "review_perspective_relay_update_decision"
+        : "review_perspective_relay_update_candidates",
+    evidence_present: preview.evidence_summary.has_evidence_refs,
+    summary: `Perspective/Relay update operator decision is ${preview.decision_preview_status}; selected_candidate_count ${preview.input_summary.selected_candidate_ref_count}; write_ready ${String(preview.write_readiness.write_ready)}; no PerspectiveUnit, NextWorkBias, CWP, relay, handoff, memory, metric, or external write authority.`,
+  });
+}
+
+function perspectiveRelayUpdateDecisionRecordStep({
+  recordReview,
+  decisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["perspective_relay_update_decision_record_review"];
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["perspective_relay_update_operator_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "perspective_relay_update_decision_record",
+      label: "Perspective relay update decision record",
+      recommended_next_action: "review_perspective_relay_update_decision",
+      summary: "No Perspective/Relay update decision record review supplied.",
+    });
+  }
+
+  const hasRecords =
+    ["records_available", "selected_record_found"].includes(
+      recordReview.review_status,
+    ) && recordReview.input_summary.valid_record_count > 0;
+  const decisionReady =
+    decisionPreview?.decision_preview_status ===
+      "ready_for_future_perspective_relay_update_decision_record_write" &&
+    decisionPreview.write_readiness.write_ready;
+
+  return makeStep({
+    step_id: "perspective_relay_update_decision_record",
+    label: "Perspective relay update decision record",
+    status: hasRecords
+      ? "candidate_material_available"
+      : recordReview.review_status === "schema_missing"
+        ? "no_current_material"
+        : recordReview.review_status === "records_invalid"
+          ? "blocked"
+          : decisionReady
+            ? "ready_for_future_contract_review"
+            : "insufficient_data",
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count: recordReview.input_summary.valid_record_count,
+    blockers: [
+      ...recordReview.blocked_reasons,
+      ...(recordReview.evidence_summary.has_receipt_side_effect_problem
+        ? ["perspective_relay_update_decision_record_side_effect_problem"]
+        : []),
+    ],
+    material_gaps: [
+      ...recordReview.insufficient_data_reasons,
+      ...(!hasRecords && decisionReady
+        ? ["perspective_relay_update_decision_record_missing_after_operator_decision"]
+        : []),
+      ...(!hasRecords && !decisionReady
+        ? ["perspective_relay_update_operator_decision_missing_or_not_ready"]
+        : []),
+    ],
+    missing_evidence: [
+      ...recordReview.evidence_summary.missing_evidence,
+      ...(decisionPreview?.missing_evidence ?? []),
+    ],
+    recommended_next_action: hasRecords
+      ? "review_perspective_relay_update_decision_record"
+      : decisionReady
+        ? "write_perspective_relay_update_decision_record"
+        : "review_perspective_relay_update_decision",
+    evidence_present: recordReview.evidence_summary.has_records,
+    summary: `Perspective/Relay update decision record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; decision_ready ${String(decisionReady)}; no PerspectiveUnit, NextWorkBias, CWP, relay, handoff, memory, metric, or external write authority.`,
+  });
+}
+
+function perspectiveRelayUpdateWriteContractStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["perspective_relay_update_write_contract_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "perspective_relay_update_write_contract",
+      label: "Perspective relay update write contract",
+      recommended_next_action: "review_perspective_relay_update_decision_record",
+      summary: "No Perspective/Relay update write contract preview supplied.",
+    });
+  }
+
+  const selectedCount =
+    preview.input_summary.selected_perspective_unit_candidate_count +
+    preview.input_summary.selected_next_work_bias_candidate_count +
+    preview.input_summary.selected_continuity_relay_candidate_count;
+
+  return makeStep({
+    step_id: "perspective_relay_update_write_contract",
+    label: "Perspective relay update write contract",
+    status: mapPerspectiveRelayUpdateWriteContractStatus(
+      preview.contract_preview_status,
+    ),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: selectedCount,
+    blockers: preview.blocking_reasons,
+    material_gaps: preview.insufficient_data_reasons,
+    missing_evidence: preview.evidence_summary.missing_evidence,
+    recommended_next_action:
+      preview.contract_preview_status ===
+      "contract_ready_for_future_scoped_write_slice"
+        ? "review_perspective_relay_update_write_contract"
+        : selectedCount > 0
+          ? "review_perspective_relay_update_write_contract"
+          : "review_perspective_relay_update_decision_record",
+    evidence_present: preview.evidence_summary.has_evidence_refs,
+    summary: `Perspective/Relay update write contract is ${preview.contract_preview_status}; selected_contract_candidate_count ${selectedCount}; actual PerspectiveUnit, NextWorkBias, CWP, relay, handoff, memory, metric, and external writes remain future work.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -1926,7 +2085,10 @@ function determineRecommendedNextOperatorAction({
       blocker.startsWith("next_work_signal_refresh:") ||
       blocker.startsWith("next_work_signal_operator_decision:") ||
       blocker.startsWith("next_work_signal_decision_record:") ||
-      blocker.startsWith("perspective_relay_update_candidate_bridge:"),
+      blocker.startsWith("perspective_relay_update_candidate_bridge:") ||
+      blocker.startsWith("perspective_relay_update_operator_decision:") ||
+      blocker.startsWith("perspective_relay_update_decision_record:") ||
+      blocker.startsWith("perspective_relay_update_write_contract:"),
     )
   ) {
     if (
@@ -1949,11 +2111,17 @@ function determineRecommendedNextOperatorAction({
       top_blockers.some(
         (blocker) =>
           blocker.startsWith("next_work_signal_operator_decision") ||
-          blocker.startsWith("next_work_signal_decision_record") ||
-          blocker.startsWith("perspective_relay_update_candidate_bridge"),
+          blocker.startsWith("next_work_signal_decision_record"),
       )
     ) {
       return "resolve_next_work_signal_blockers";
+    }
+    if (
+      top_blockers.some((blocker) =>
+        blocker.startsWith("perspective_relay_update"),
+      )
+    ) {
+      return "resolve_perspective_relay_update_blockers";
     }
     return "resolve_reuse_outcome_bridge_blockers";
   }
@@ -2097,6 +2265,15 @@ function determineRecommendedNextOperatorAction({
   const perspectiveRelayUpdateCandidateBridgeStep = steps.find(
     (step) => step.step_id === "perspective_relay_update_candidate_bridge",
   );
+  const perspectiveRelayUpdateDecisionStep = steps.find(
+    (step) => step.step_id === "perspective_relay_update_operator_decision",
+  );
+  const perspectiveRelayUpdateDecisionRecordStep = steps.find(
+    (step) => step.step_id === "perspective_relay_update_decision_record",
+  );
+  const perspectiveRelayUpdateWriteContractStep = steps.find(
+    (step) => step.step_id === "perspective_relay_update_write_contract",
+  );
   if (
     codexResultRecord?.recommended_next_action ===
     "write_codex_result_report_candidate_ingest_record"
@@ -2126,6 +2303,34 @@ function determineRecommendedNextOperatorAction({
     "write_next_work_signal_decision_record"
   ) {
     return "write_next_work_signal_decision_record";
+  }
+  if (
+    perspectiveRelayUpdateDecisionRecordStep?.recommended_next_action ===
+    "write_perspective_relay_update_decision_record"
+  ) {
+    return "write_perspective_relay_update_decision_record";
+  }
+  if (
+    perspectiveRelayUpdateWriteContractStep?.recommended_next_action ===
+      "review_perspective_relay_update_write_contract" &&
+    perspectiveRelayUpdateWriteContractStep.material_count > 0
+  ) {
+    return "review_perspective_relay_update_write_contract";
+  }
+  if (
+    perspectiveRelayUpdateDecisionRecordStep?.recommended_next_action ===
+      "review_perspective_relay_update_decision_record" &&
+    perspectiveRelayUpdateDecisionRecordStep.material_count > 0
+  ) {
+    return "review_perspective_relay_update_decision_record";
+  }
+  if (
+    perspectiveRelayUpdateDecisionStep?.recommended_next_action ===
+      "review_perspective_relay_update_decision" &&
+    perspectiveRelayUpdateCandidateBridgeStep?.material_count &&
+    perspectiveRelayUpdateCandidateBridgeStep.material_count > 0
+  ) {
+    return "review_perspective_relay_update_decision";
   }
   if (
     perspectiveRelayUpdateCandidateBridgeStep?.recommended_next_action ===
@@ -2407,6 +2612,45 @@ function mapPerspectiveRelayBridgeStatus(
   if (status === "no_next_work_signal_material") return "no_current_material";
   if (status === "ready_for_operator_review") return "ready_for_operator_review";
   if (status === "update_candidates_available") {
+    return "candidate_material_available";
+  }
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function mapPerspectiveRelayUpdateDecisionStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_perspective_relay_update_candidate_bridge_preview") {
+    return "no_current_material";
+  }
+  if (
+    status ===
+    "ready_for_future_perspective_relay_update_decision_record_write"
+  ) {
+    return "ready_for_future_contract_review";
+  }
+  if (
+    status === "ready_for_operator_decision" ||
+    status === "needs_operator_judgment"
+  ) {
+    return "ready_for_operator_review";
+  }
+  if (status === "blocked") return "blocked";
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function mapPerspectiveRelayUpdateWriteContractStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_perspective_relay_update_decision_material") {
+    return "no_current_material";
+  }
+  if (status === "contract_ready_for_future_scoped_write_slice") {
+    return "ready_for_future_contract_review";
+  }
+  if (status === "future_write_contract_candidates_available") {
     return "candidate_material_available";
   }
   if (status === "keep_preview_only") return "keep_preview_only";

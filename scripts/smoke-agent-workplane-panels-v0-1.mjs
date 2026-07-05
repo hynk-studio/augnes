@@ -387,6 +387,34 @@ const perspectiveRelayUpdateCandidateBridgePanelFile =
   "components/workplane/perspective-relay-update-candidate-bridge-preview-panel.tsx";
 const nextWorkSignalDecisionPerspectiveRelayBridgeSmokeFile =
   "scripts/smoke-next-work-signal-decision-perspective-relay-bridge-v0-1.mjs";
+const perspectiveRelayUpdateDecisionTypeFile =
+  "types/perspective-relay-update-decision.ts";
+const perspectiveRelayUpdateDecisionHelperFile =
+  "lib/workplane/perspective-relay-update-decision.ts";
+const perspectiveRelayUpdateDecisionPanelFile =
+  "components/workplane/perspective-relay-update-decision-panel.tsx";
+const perspectiveRelayUpdateDecisionWriteTypeFile =
+  "types/perspective-relay-update-decision-write.ts";
+const perspectiveRelayUpdateDecisionWriteHelperFile =
+  "lib/workplane/perspective-relay-update-decision-write.ts";
+const perspectiveRelayUpdateDecisionRouteFile =
+  "app/api/workplane/perspective-relay-update-decisions/route.ts";
+const perspectiveRelayUpdateDecisionRecordReviewTypeFile =
+  "types/perspective-relay-update-decision-record-review.ts";
+const perspectiveRelayUpdateDecisionRecordReviewHelperFile =
+  "lib/workplane/perspective-relay-update-decision-record-review.ts";
+const perspectiveRelayUpdateDecisionRecordReviewForWebFile =
+  "lib/workplane/read-perspective-relay-update-decision-record-review-for-web.ts";
+const perspectiveRelayUpdateDecisionRecordReviewPanelFile =
+  "components/workplane/perspective-relay-update-decision-record-review-panel.tsx";
+const perspectiveRelayUpdateWriteContractTypeFile =
+  "types/perspective-relay-update-write-contract-preview.ts";
+const perspectiveRelayUpdateWriteContractHelperFile =
+  "lib/workplane/perspective-relay-update-write-contract-preview.ts";
+const perspectiveRelayUpdateWriteContractPanelFile =
+  "components/workplane/perspective-relay-update-write-contract-preview-panel.tsx";
+const perspectiveRelayUpdateDecisionWriteContractSmokeFile =
+  "scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -1106,6 +1134,29 @@ const followOnNextWorkSignalDecisionPerspectiveRelayBridgeFiles = [
   smokeFile,
 ];
 
+const followOnPerspectiveRelayUpdateDecisionWriteContractFiles = [
+  perspectiveRelayUpdateDecisionTypeFile,
+  perspectiveRelayUpdateDecisionHelperFile,
+  perspectiveRelayUpdateDecisionPanelFile,
+  perspectiveRelayUpdateDecisionWriteTypeFile,
+  perspectiveRelayUpdateDecisionWriteHelperFile,
+  perspectiveRelayUpdateDecisionRouteFile,
+  perspectiveRelayUpdateDecisionRecordReviewTypeFile,
+  perspectiveRelayUpdateDecisionRecordReviewHelperFile,
+  perspectiveRelayUpdateDecisionRecordReviewForWebFile,
+  perspectiveRelayUpdateDecisionRecordReviewPanelFile,
+  perspectiveRelayUpdateWriteContractTypeFile,
+  perspectiveRelayUpdateWriteContractHelperFile,
+  perspectiveRelayUpdateWriteContractPanelFile,
+  perspectiveRelayUpdateDecisionWriteContractSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1517,6 +1568,7 @@ const allowedChangedFiles = new Set([
   ...followOnReuseOutcomeBridgeLedgerIntegrationFiles,
   ...followOnDogfoodMetricSnapshotNextWorkRefreshFiles,
   ...followOnNextWorkSignalDecisionPerspectiveRelayBridgeFiles,
+  ...followOnPerspectiveRelayUpdateDecisionWriteContractFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -2758,6 +2810,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "NextWorkSignalDecisionPanel",
       "NextWorkSignalDecisionRecordReviewPanel",
       "PerspectiveRelayUpdateCandidateBridgePreviewPanel",
+      "PerspectiveRelayUpdateDecisionPanel",
+      "PerspectiveRelayUpdateDecisionRecordReviewPanel",
+      "PerspectiveRelayUpdateWriteContractPreviewPanel",
       "buildDogfoodMetricSnapshotPreviewV01",
       "buildDogfoodMetricSnapshotOperatorDecisionPreviewV01",
       "readDogfoodMetricSnapshotRecordReviewForWebV01",
@@ -2765,6 +2820,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "buildNextWorkSignalOperatorDecisionPreviewV01",
       "readNextWorkSignalDecisionRecordReviewForWebV01",
       "buildPerspectiveRelayUpdateCandidateBridgePreviewV01",
+      "buildPerspectiveRelayUpdateOperatorDecisionPreviewV01",
+      "readPerspectiveRelayUpdateDecisionRecordReviewForWebV01",
+      "buildPerspectiveRelayUpdateWriteContractPreviewV01",
       "const codexResultReportIntakePreview",
       "const codexResultReportIntakeDecisionPreview",
       "const codexResultReportIntakeRecordReview",
@@ -2782,6 +2840,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "const nextWorkSignalDecisionPreview",
       "const nextWorkSignalDecisionRecordReview",
       "const perspectiveRelayUpdateCandidateBridgePreview",
+      "const perspectiveRelayUpdateDecisionPreview",
+      "const perspectiveRelayUpdateDecisionRecordReview",
+      "const perspectiveRelayUpdateWriteContractPreview",
       "preview={codexResultReportIntakePreview}",
       "preview={codexResultReportIntakeDecisionPreview}",
       "review={codexResultReportIntakeRecordReview}",
@@ -2799,6 +2860,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "preview={nextWorkSignalDecisionPreview}",
       "review={nextWorkSignalDecisionRecordReview}",
       "preview={perspectiveRelayUpdateCandidateBridgePreview}",
+      "preview={perspectiveRelayUpdateDecisionPreview}",
+      "review={perspectiveRelayUpdateDecisionRecordReview}",
+      "preview={perspectiveRelayUpdateWriteContractPreview}",
       "codex_result_report_intake_preview: codexResultReportIntakePreview",
       "codex_result_report_intake_decision_preview:\n        codexResultReportIntakeDecisionPreview",
       "codex_result_report_intake_record_review:\n        codexResultReportIntakeRecordReview",
@@ -2816,6 +2880,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "next_work_signal_decision_preview:\n        nextWorkSignalDecisionPreview",
       "next_work_signal_decision_record_review:\n        nextWorkSignalDecisionRecordReview",
       "perspective_relay_update_candidate_bridge_preview:\n        perspectiveRelayUpdateCandidateBridgePreview",
+      "perspective_relay_update_operator_decision_preview:\n        perspectiveRelayUpdateDecisionPreview",
+      "perspective_relay_update_decision_record_review:\n        perspectiveRelayUpdateDecisionRecordReview",
+      "perspective_relay_update_write_contract_preview:\n        perspectiveRelayUpdateWriteContractPreview",
     ],
     { label: agentWorkplaneFile },
   );
@@ -3401,6 +3468,7 @@ function assertChangedFileBoundary() {
         followOnReuseOutcomeBridgeLedgerIntegrationFiles.includes(file) ||
         followOnDogfoodMetricSnapshotNextWorkRefreshFiles.includes(file) ||
         followOnNextWorkSignalDecisionPerspectiveRelayBridgeFiles.includes(file) ||
+        followOnPerspectiveRelayUpdateDecisionWriteContractFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3420,6 +3488,7 @@ function assertChangedFileBoundary() {
         followOnReuseOutcomeBridgeLedgerIntegrationFiles.includes(file) ||
         followOnDogfoodMetricSnapshotNextWorkRefreshFiles.includes(file) ||
         followOnNextWorkSignalDecisionPerspectiveRelayBridgeFiles.includes(file) ||
+        followOnPerspectiveRelayUpdateDecisionWriteContractFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
