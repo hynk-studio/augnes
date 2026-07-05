@@ -113,6 +113,9 @@ const selectedSummaryBucketMap = {
   followup_delta_candidates: "followups",
   context_reuse_signal_candidates: "context_reuse_signals",
 } as const;
+const selectedSummaryBucketKeys = new Set<string>(
+  Object.keys(selectedSummaryBucketMap),
+);
 
 export const expectedObservedDeltaWriteSchemaSqlV01 = `
 CREATE TABLE IF NOT EXISTS expected_observed_delta_records (
@@ -555,6 +558,9 @@ export function createExpectedObservedDeltaWriteAuthorityBoundaryV01({
 function validateDecisionPreview(preview: Record<string, unknown> | null): string[] {
   if (!preview) return ["decision_preview_missing"];
   const reasons: string[] = [];
+  const decisionPreviewSourceRefs = Array.isArray(preview.source_refs)
+    ? preview.source_refs
+    : [];
   if (
     preview.preview_version !==
     EXPECTED_OBSERVED_DELTA_OPERATOR_DECISION_PREVIEW_VERSION
@@ -563,6 +569,14 @@ function validateDecisionPreview(preview: Record<string, unknown> | null): strin
   }
   if (preview.scope !== EXPECTED_OBSERVED_DELTA_SCOPE) {
     reasons.push("decision_preview_scope_invalid");
+  }
+  if (
+    decisionPreviewSourceRefs.some(
+      (ref) =>
+        typeof ref !== "string" || !isCandidateIngressPublicSafeRefV01(ref),
+    )
+  ) {
+    reasons.push("decision_preview_source_refs_unsafe");
   }
   if (preview.decision_preview_status !== "ready_for_future_delta_record_write") {
     reasons.push("decision_preview_not_ready_for_future_delta_record_write");
@@ -758,6 +772,12 @@ function validateDeltaCandidateSummaries(
     }
     if (item.bucket === "review_only_candidates") {
       reasons.push("review_only_candidate_selected_for_write");
+    } else if (
+      typeof item.bucket === "string" &&
+      safeBoundedText(item.bucket) &&
+      !selectedSummaryBucketKeys.has(item.bucket)
+    ) {
+      reasons.push("delta_candidate_summary_bucket_invalid");
     }
     for (const field of ["bucket", "candidate_kind", "label", "summary"] as const) {
       if (typeof item[field] !== "string" || !safeBoundedText(item[field])) {

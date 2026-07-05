@@ -326,6 +326,27 @@ assertRefused({
   reason: "source_refs_unsafe",
 });
 assertRefused({
+  input: {
+    ...validInput,
+    decision_preview: {
+      ...validInput.decision_preview,
+      source_refs: ["source:../private"],
+      would_write_delta_record_preview: {
+        ...validInput.decision_preview.would_write_delta_record_preview,
+        source_refs: ["source:delta-decision-clean"],
+      },
+    },
+  },
+  reason: "decision_preview_source_refs_unsafe",
+});
+const unknownBucketDecision = structuredClone(readyDecision);
+unknownBucketDecision.would_write_delta_record_preview.delta_candidate_summaries[0].bucket =
+  "unknown_but_safe";
+assertRefused({
+  input: cleanWriteInput(unknownBucketDecision),
+  reason: "delta_candidate_summary_bucket_invalid",
+});
+assertRefused({
   input: { ...validInput, notes: ["raw_text"] },
   reason: "raw_or_private_marker_material_refused",
 });
@@ -686,12 +707,19 @@ function mutateMaterial(input, patch) {
 }
 
 function assertRefused({ input, reason }) {
-  const result = writeExpectedObservedDeltaRecordV01(input, { db: inMemoryDb() });
-  assert.equal(result.status, "refused");
-  assert(
-    result.receipt.refusal_reasons.includes(reason),
-    `Expected refusal ${reason}; received ${result.receipt.refusal_reasons.join(", ")}`,
-  );
+  const db = inMemoryDb();
+  try {
+    const result = writeExpectedObservedDeltaRecordV01(input, { db });
+    assert.equal(result.status, "refused");
+    assert(
+      result.receipt.refusal_reasons.includes(reason),
+      `Expected refusal ${reason}; received ${result.receipt.refusal_reasons.join(", ")}`,
+    );
+    assert.equal(expectedObservedDeltaWriteSchemaExistsV01(db), false);
+    assert.equal(listExpectedObservedDeltaRecordsV01({ db }).status, "schema_missing");
+  } finally {
+    db.close();
+  }
 }
 
 function inMemoryDb() {
