@@ -36,6 +36,8 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   expected_observed_delta_decision_preview,
   expected_observed_delta_record_review,
   reuse_outcome_candidate_bridge_preview,
+  reuse_outcome_bridge_operator_decision_preview,
+  reuse_outcome_bridge_ledger_record_review,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -82,6 +84,13 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       decisionPreview: expected_observed_delta_decision_preview,
     }),
     reuseOutcomeCandidateBridgeStep(reuse_outcome_candidate_bridge_preview),
+    reuseOutcomeBridgeOperatorDecisionStep(
+      reuse_outcome_bridge_operator_decision_preview,
+    ),
+    handoffReuseOutcomeLedgerRecordStep(
+      reuse_outcome_bridge_ledger_record_review,
+      reuse_outcome_bridge_operator_decision_preview,
+    ),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -868,6 +877,108 @@ function reuseOutcomeCandidateBridgeStep(
   });
 }
 
+function reuseOutcomeBridgeOperatorDecisionStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["reuse_outcome_bridge_operator_decision_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "reuse_outcome_bridge_operator_decision",
+      label: "Reuse outcome bridge operator decision",
+      recommended_next_action: "review_reuse_outcome_candidate_bridge",
+      summary: "No reuse outcome bridge operator decision preview supplied.",
+    });
+  }
+
+  return makeStep({
+    step_id: "reuse_outcome_bridge_operator_decision",
+    label: "Reuse outcome bridge operator decision",
+    status: mapDecisionStatus(preview.decision_preview_status),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count:
+      preview.input_summary.would_write_reuse_candidate_count +
+      preview.input_summary.selected_reuse_candidate_ref_count,
+    blockers: [
+      ...preview.blocking_reasons,
+      ...preview.refusal_reasons,
+      ...preview.write_readiness.current_blockers,
+      ...preview.write_readiness.current_refusal_reasons,
+    ],
+    material_gaps: [
+      ...preview.write_readiness.current_insufficient_data,
+      ...preview.missing_evidence,
+      ...preview.write_readiness.current_missing_evidence,
+    ],
+    missing_evidence: [
+      ...preview.missing_evidence,
+      ...preview.write_readiness.current_missing_evidence,
+    ],
+    recommended_next_action: preview.write_readiness.write_ready
+      ? "write_handoff_reuse_outcome_ledger_record"
+      : preview.input_summary.bridge_candidate_count > 0
+        ? "review_reuse_outcome_bridge_decision"
+        : "review_reuse_outcome_candidate_bridge",
+    evidence_present: preview.evidence_summary.has_candidate_material,
+    summary: `Reuse outcome bridge decision is ${preview.decision_preview_status}; selected_ref_count ${preview.input_summary.selected_reuse_candidate_ref_count}; write_ready ${String(preview.write_readiness.write_ready)}.`,
+  });
+}
+
+function handoffReuseOutcomeLedgerRecordStep(
+  review: WorkbenchDogfoodLoopSpineOverviewInput["reuse_outcome_bridge_ledger_record_review"],
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["reuse_outcome_bridge_operator_decision_preview"],
+): SpineStepBuild {
+  if (!review) {
+    return missingStep({
+      step_id: "handoff_reuse_outcome_ledger_record",
+      label: "Handoff reuse outcome ledger record",
+      recommended_next_action: "review_reuse_outcome_bridge_decision",
+      summary: "No reuse outcome bridge ledger record review supplied.",
+    });
+  }
+
+  const decisionReady =
+    decisionPreview?.decision_preview_status ===
+      "ready_for_future_reuse_ledger_write" &&
+    decisionPreview.write_readiness.write_ready === true;
+  const hasRecords = review.input_summary.valid_record_count > 0;
+
+  return makeStep({
+    step_id: "handoff_reuse_outcome_ledger_record",
+    label: "Handoff reuse outcome ledger record",
+    status: mapRecordReviewStatus(review.review_status),
+    source_preview_ref_or_version: review.review_version,
+    material_count:
+      review.input_summary.valid_record_count +
+      review.input_summary.bridge_written_record_count,
+    blockers: [
+      ...review.blocked_reasons,
+      ...(review.input_summary.receipt_side_effect_problem_count > 0
+        ? ["handoff_reuse_outcome_ledger_record_side_effect_problem"]
+        : []),
+      ...(decisionPreview?.blocking_reasons ?? []),
+      ...(decisionPreview?.refusal_reasons ?? []),
+    ],
+    material_gaps: [
+      ...review.insufficient_data_reasons,
+      ...(decisionReady && !hasRecords
+        ? ["handoff_reuse_outcome_ledger_record_missing_after_operator_decision"]
+        : []),
+      ...(!decisionReady && !hasRecords
+        ? ["reuse_outcome_bridge_operator_decision_missing_or_not_ready"]
+        : []),
+    ],
+    missing_evidence: [
+      ...(decisionPreview?.missing_evidence ?? []),
+    ],
+    recommended_next_action: hasRecords
+      ? "review_handoff_reuse_outcome_ledger_record"
+      : decisionReady
+        ? "write_handoff_reuse_outcome_ledger_record"
+        : "review_reuse_outcome_bridge_decision",
+    evidence_present: review.evidence_summary.has_records,
+    summary: `Handoff reuse outcome ledger record review is ${review.review_status}; valid_record_count ${review.input_summary.valid_record_count}; decision_ready ${String(decisionReady)}; no dogfood metric write authority.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -1498,10 +1609,16 @@ function determineRecommendedNextOperatorAction({
     top_blockers.some((blocker) =>
       blocker.startsWith("expected_observed_delta:") ||
       blocker.startsWith("expected_observed_delta_record:") ||
-      blocker.startsWith("reuse_outcome_candidate_bridge:"),
+      blocker.startsWith("reuse_outcome_candidate_bridge:") ||
+      blocker.startsWith("reuse_outcome_bridge_operator_decision:") ||
+      blocker.startsWith("handoff_reuse_outcome_ledger_record:"),
     )
   ) {
-    return "resolve_expected_observed_delta_blockers";
+    return top_blockers.some((blocker) =>
+      blocker.startsWith("expected_observed_delta"),
+    )
+      ? "resolve_expected_observed_delta_blockers"
+      : "resolve_reuse_outcome_bridge_blockers";
   }
   if (top_blockers.length > 0) return "resolve_blockers_or_missing_evidence";
   if (steps[0]?.recommended_next_action === "supply_selected_session_digest") {
@@ -1619,6 +1736,12 @@ function determineRecommendedNextOperatorAction({
   const reuseOutcomeBridgeStep = steps.find(
     (step) => step.step_id === "reuse_outcome_candidate_bridge",
   );
+  const reuseOutcomeBridgeDecisionStep = steps.find(
+    (step) => step.step_id === "reuse_outcome_bridge_operator_decision",
+  );
+  const handoffReuseOutcomeLedgerRecordStep = steps.find(
+    (step) => step.step_id === "handoff_reuse_outcome_ledger_record",
+  );
   if (
     codexResultRecord?.recommended_next_action ===
     "write_codex_result_report_candidate_ingest_record"
@@ -1630,6 +1753,26 @@ function determineRecommendedNextOperatorAction({
     "write_expected_observed_delta_record"
   ) {
     return "write_expected_observed_delta_record";
+  }
+  if (
+    handoffReuseOutcomeLedgerRecordStep?.recommended_next_action ===
+    "write_handoff_reuse_outcome_ledger_record"
+  ) {
+    return "write_handoff_reuse_outcome_ledger_record";
+  }
+  if (
+    handoffReuseOutcomeLedgerRecordStep?.recommended_next_action ===
+      "review_handoff_reuse_outcome_ledger_record" &&
+    handoffReuseOutcomeLedgerRecordStep.material_count > 0
+  ) {
+    return "review_handoff_reuse_outcome_ledger_record";
+  }
+  if (
+    reuseOutcomeBridgeDecisionStep?.recommended_next_action ===
+      "review_reuse_outcome_bridge_decision" &&
+    reuseOutcomeBridgeDecisionStep.material_count > 0
+  ) {
+    return "review_reuse_outcome_bridge_decision";
   }
   if (
     reuseOutcomeBridgeStep?.recommended_next_action ===
@@ -1838,7 +1981,11 @@ function mapRecordReviewStatus(
   status: string,
 ): WorkbenchDogfoodLoopSpineStepStatus {
   if (status === "no_records") return "no_current_material";
-  if (status === "selected_record_available" || status === "records_available") {
+  if (
+    status === "selected_record_available" ||
+    status === "selected_record_found" ||
+    status === "records_available"
+  ) {
     return "candidate_material_available";
   }
   if (status === "invalid_records" || status === "records_invalid") {

@@ -153,6 +153,28 @@ const reuseOutcomeCandidateBridgePanelFile =
   "components/dogfooding/reuse-outcome-candidate-bridge-preview-panel.tsx";
 const expectedObservedDeltaBridgeSmokeFile =
   "scripts/smoke-expected-observed-delta-reuse-outcome-bridge-v0-1.mjs";
+const reuseOutcomeBridgeDecisionTypeFile =
+  "types/reuse-outcome-bridge-decision.ts";
+const reuseOutcomeBridgeDecisionHelperFile =
+  "lib/dogfooding/reuse-outcome-bridge-decision.ts";
+const reuseOutcomeBridgeDecisionPanelFile =
+  "components/dogfooding/reuse-outcome-bridge-decision-panel.tsx";
+const reuseOutcomeBridgeLedgerWriteTypeFile =
+  "types/reuse-outcome-bridge-ledger-write.ts";
+const reuseOutcomeBridgeLedgerWriteHelperFile =
+  "lib/dogfooding/reuse-outcome-bridge-ledger-write.ts";
+const reuseOutcomeBridgeLedgerRouteFile =
+  "app/api/dogfooding/reuse-outcome-bridge-ledger/route.ts";
+const reuseOutcomeBridgeLedgerRecordReviewTypeFile =
+  "types/reuse-outcome-bridge-ledger-record-review.ts";
+const reuseOutcomeBridgeLedgerRecordReviewHelperFile =
+  "lib/dogfooding/reuse-outcome-bridge-ledger-record-review.ts";
+const reuseOutcomeBridgeLedgerRecordReviewForWebFile =
+  "lib/dogfooding/read-reuse-outcome-bridge-ledger-record-review-for-web.ts";
+const reuseOutcomeBridgeLedgerRecordReviewPanelFile =
+  "components/dogfooding/reuse-outcome-bridge-ledger-record-review-panel.tsx";
+const reuseOutcomeBridgeLedgerIntegrationSmokeFile =
+  "scripts/smoke-reuse-outcome-bridge-ledger-integration-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -237,6 +259,17 @@ const allowedChangedFiles = [
   reuseOutcomeCandidateBridgeHelperFile,
   reuseOutcomeCandidateBridgePanelFile,
   expectedObservedDeltaBridgeSmokeFile,
+  reuseOutcomeBridgeDecisionTypeFile,
+  reuseOutcomeBridgeDecisionHelperFile,
+  reuseOutcomeBridgeDecisionPanelFile,
+  reuseOutcomeBridgeLedgerWriteTypeFile,
+  reuseOutcomeBridgeLedgerWriteHelperFile,
+  reuseOutcomeBridgeLedgerRouteFile,
+  reuseOutcomeBridgeLedgerRecordReviewTypeFile,
+  reuseOutcomeBridgeLedgerRecordReviewHelperFile,
+  reuseOutcomeBridgeLedgerRecordReviewForWebFile,
+  reuseOutcomeBridgeLedgerRecordReviewPanelFile,
+  reuseOutcomeBridgeLedgerIntegrationSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -280,11 +313,18 @@ assertContainsAll(
     "expected_observed_delta",
     "expected_observed_delta_record",
     "reuse_outcome_candidate_bridge",
+    "reuse_outcome_bridge_operator_decision",
+    "handoff_reuse_outcome_ledger_record",
     "review_expected_observed_delta_candidates",
     "write_expected_observed_delta_record",
     "review_reuse_outcome_candidate_bridge",
     "prepare_reuse_outcome_operator_decision",
     "resolve_expected_observed_delta_blockers",
+    "review_reuse_outcome_bridge_decision",
+    "write_handoff_reuse_outcome_ledger_record",
+    "review_handoff_reuse_outcome_ledger_record",
+    "resolve_reuse_outcome_bridge_blockers",
+    "prepare_dogfood_metric_candidate_preview",
     "codex_result_feedback",
     "dogfood_reuse_proposal",
     "dogfood_reuse_operator_decision",
@@ -328,6 +368,8 @@ assertContainsAll(
     "expected_observed_delta_decision_preview",
     "expected_observed_delta_record_review",
     "reuse_outcome_candidate_bridge_preview",
+    "reuse_outcome_bridge_operator_decision_preview",
+    "reuse_outcome_bridge_ledger_record_review",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
     "selectedSessionDigestDurableIngestRecordStep",
@@ -339,6 +381,8 @@ assertContainsAll(
     "expectedObservedDeltaStep",
     "expectedObservedDeltaRecordStep",
     "reuseOutcomeCandidateBridgeStep",
+    "reuseOutcomeBridgeOperatorDecisionStep",
+    "handoffReuseOutcomeLedgerRecordStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -356,6 +400,9 @@ assertContainsAll(
     "review_expected_observed_delta_candidates",
     "write_expected_observed_delta_record",
     "review_reuse_outcome_candidate_bridge",
+    "review_reuse_outcome_bridge_decision",
+    "write_handoff_reuse_outcome_ledger_record",
+    "review_handoff_reuse_outcome_ledger_record",
     "does_not_call_expected_observed_delta_route_from_workbench_overview",
     "does_not_write_reuse_outcome_ledger_or_dogfood_metrics",
     "does_not_write_memory",
@@ -474,6 +521,9 @@ const expectedObservedDeltaRecordReviewModule = await import(
 const reuseOutcomeCandidateBridgeModule = await import(
   "../lib/dogfooding/reuse-outcome-candidate-bridge-preview.ts"
 );
+const reuseOutcomeBridgeDecisionModule = await import(
+  "../lib/dogfooding/reuse-outcome-bridge-decision.ts"
+);
 
 const {
   buildWorkbenchDogfoodLoopSpineOverviewV01,
@@ -507,6 +557,8 @@ const { buildExpectedObservedDeltaRecordReviewV01 } =
   expectedObservedDeltaRecordReviewModule;
 const { buildReuseOutcomeCandidateBridgePreviewV01 } =
   reuseOutcomeCandidateBridgeModule;
+const { buildReuseOutcomeBridgeOperatorDecisionPreviewV01 } =
+  reuseOutcomeBridgeDecisionModule;
 
 const emptyOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   scope: "project:augnes",
@@ -522,7 +574,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 24);
+assert.equal(emptyOverview.spine_steps.length, 26);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -1056,6 +1108,145 @@ assert.equal(
 );
 assertNoMemoryPromotionActions(reuseOutcomeBridgeOverview);
 
+const selectedExpectedObservedDeltaRecordReview = {
+  ...emptyExpectedObservedDeltaRecordReview,
+  review_status: "selected_record_found",
+  input_summary: {
+    ...emptyExpectedObservedDeltaRecordReview.input_summary,
+    valid_record_count: 1,
+    selected_record_id: "expected-observed-delta:overview",
+    selected_record_found: true,
+    latest_record_id: "expected-observed-delta:overview",
+  },
+  records: [{ record_id: "expected-observed-delta:overview" }],
+  selected_record_summary: {
+    record_id: "expected-observed-delta:overview",
+    work_ref: "work:overview",
+    result_ref: "result:overview",
+    handoff_ref: "handoff:overview",
+    operator_ref: "operator:overview",
+  },
+  latest_record_summary: {
+    record_id: "expected-observed-delta:overview",
+    work_ref: "work:overview",
+    result_ref: "result:overview",
+    handoff_ref: "handoff:overview",
+    operator_ref: "operator:overview",
+  },
+  evidence_summary: {
+    ...emptyExpectedObservedDeltaRecordReview.evidence_summary,
+    has_records: true,
+    has_selected_record: true,
+    has_evidence_refs: true,
+    evidence_refs: ["evidence:expected-observed-overview"],
+    missing_evidence: [],
+  },
+};
+const selectedExpectedObservedDeltaOverview =
+  buildWorkbenchDogfoodLoopSpineOverviewV01({
+    expected_observed_delta_record_review: selectedExpectedObservedDeltaRecordReview,
+  });
+assert.notEqual(
+  stepById(selectedExpectedObservedDeltaOverview, "expected_observed_delta_record")
+    .status,
+  "insufficient_data",
+);
+
+const reuseOutcomeBridgeDecisionSeed =
+  buildReuseOutcomeBridgeOperatorDecisionPreviewV01({
+    reuse_outcome_candidate_bridge_preview: reuseOutcomeBridgePreview,
+    expected_observed_delta_record_review: selectedExpectedObservedDeltaRecordReview,
+  });
+const firstReuseCandidateRef =
+  reuseOutcomeBridgeDecisionSeed.would_write_reuse_ledger_record_preview
+    .selectable_reuse_candidate_refs[0];
+const readyReuseOutcomeBridgeDecision =
+  buildReuseOutcomeBridgeOperatorDecisionPreviewV01({
+    reuse_outcome_candidate_bridge_preview: reuseOutcomeBridgePreview,
+    expected_observed_delta_record_review: selectedExpectedObservedDeltaRecordReview,
+    selected_reuse_candidate_refs: [firstReuseCandidateRef],
+    requested_operator_ref: "operator:reuse-overview",
+    requested_idempotency_key: "idempotency:reuse-overview",
+    review_confirmation_ref: "review:reuse-overview",
+    source_refs: ["source:reuse-overview"],
+  });
+assert.equal(
+  readyReuseOutcomeBridgeDecision.decision_preview_status,
+  "ready_for_future_reuse_ledger_write",
+);
+const reuseOutcomeBridgeDecisionOverview =
+  buildWorkbenchDogfoodLoopSpineOverviewV01({
+    reuse_outcome_candidate_bridge_preview: reuseOutcomeBridgePreview,
+    reuse_outcome_bridge_operator_decision_preview:
+      reuseOutcomeBridgeDecisionSeed,
+  });
+assert.equal(
+  stepById(
+    reuseOutcomeBridgeDecisionOverview,
+    "reuse_outcome_bridge_operator_decision",
+  ).recommended_next_action,
+  "review_reuse_outcome_bridge_decision",
+);
+const reuseOutcomeBridgeWriteOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  reuse_outcome_candidate_bridge_preview: reuseOutcomeBridgePreview,
+  reuse_outcome_bridge_operator_decision_preview:
+    readyReuseOutcomeBridgeDecision,
+  reuse_outcome_bridge_ledger_record_review: {
+    review_version: "reuse_outcome_bridge_ledger_record_review.v0.1",
+    review_status: "no_records",
+    input_summary: {
+      supplied_record_count: 0,
+      valid_record_count: 0,
+      invalid_record_count: 0,
+      bridge_written_record_count: 0,
+      receipt_side_effect_problem_count: 0,
+    },
+    evidence_summary: { has_records: false },
+    blocked_reasons: [],
+    insufficient_data_reasons: [],
+  },
+});
+assert.equal(
+  stepById(
+    reuseOutcomeBridgeWriteOverview,
+    "handoff_reuse_outcome_ledger_record",
+  ).recommended_next_action,
+  "write_handoff_reuse_outcome_ledger_record",
+);
+const reuseOutcomeBridgeLedgerRecordOverview =
+  buildWorkbenchDogfoodLoopSpineOverviewV01({
+    reuse_outcome_candidate_bridge_preview: reuseOutcomeBridgePreview,
+    reuse_outcome_bridge_operator_decision_preview:
+      readyReuseOutcomeBridgeDecision,
+    reuse_outcome_bridge_ledger_record_review: {
+      review_version: "reuse_outcome_bridge_ledger_record_review.v0.1",
+      review_status: "records_available",
+      input_summary: {
+        supplied_record_count: 1,
+        valid_record_count: 1,
+        invalid_record_count: 0,
+        bridge_written_record_count: 1,
+        receipt_side_effect_problem_count: 0,
+      },
+      evidence_summary: { has_records: true },
+      blocked_reasons: [],
+      insufficient_data_reasons: [],
+    },
+  });
+assert.equal(
+  stepById(reuseOutcomeBridgeLedgerRecordOverview, "handoff_reuse_outcome_ledger_record")
+    .status,
+  "candidate_material_available",
+);
+assert.equal(
+  stepById(
+    reuseOutcomeBridgeLedgerRecordOverview,
+    "handoff_reuse_outcome_ledger_record",
+  ).recommended_next_action,
+  "review_handoff_reuse_outcome_ledger_record",
+);
+assertNoMemoryPromotionActions(reuseOutcomeBridgeLedgerRecordOverview);
+
 const missingCodexOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview: cleanSelectedIntake,
   codex_result_feedback_draft: codexFeedbackDraft({ resultReport: "missing" }),
@@ -1295,7 +1486,8 @@ function assertNoForbiddenChangedPaths() {
         file === selectedSessionDigestIngestWriteRouteFile ||
         file === projectHistoryIntakeWriteRouteFile ||
         file === codexResultReportIntakeWriteRouteFile ||
-        file === expectedObservedDeltaWriteRouteFile,
+        file === expectedObservedDeltaWriteRouteFile ||
+        file === reuseOutcomeBridgeLedgerRouteFile,
       `No app/api route may be added outside selected digest, project history, or Codex result report follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);

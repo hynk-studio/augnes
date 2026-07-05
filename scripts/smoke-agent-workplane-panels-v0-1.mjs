@@ -303,6 +303,28 @@ const reuseOutcomeCandidateBridgePanelFile =
   "components/dogfooding/reuse-outcome-candidate-bridge-preview-panel.tsx";
 const expectedObservedDeltaBridgeSmokeFile =
   "scripts/smoke-expected-observed-delta-reuse-outcome-bridge-v0-1.mjs";
+const reuseOutcomeBridgeDecisionTypeFile =
+  "types/reuse-outcome-bridge-decision.ts";
+const reuseOutcomeBridgeDecisionHelperFile =
+  "lib/dogfooding/reuse-outcome-bridge-decision.ts";
+const reuseOutcomeBridgeDecisionPanelFile =
+  "components/dogfooding/reuse-outcome-bridge-decision-panel.tsx";
+const reuseOutcomeBridgeLedgerWriteTypeFile =
+  "types/reuse-outcome-bridge-ledger-write.ts";
+const reuseOutcomeBridgeLedgerWriteHelperFile =
+  "lib/dogfooding/reuse-outcome-bridge-ledger-write.ts";
+const reuseOutcomeBridgeLedgerRouteFile =
+  "app/api/dogfooding/reuse-outcome-bridge-ledger/route.ts";
+const reuseOutcomeBridgeLedgerRecordReviewTypeFile =
+  "types/reuse-outcome-bridge-ledger-record-review.ts";
+const reuseOutcomeBridgeLedgerRecordReviewHelperFile =
+  "lib/dogfooding/reuse-outcome-bridge-ledger-record-review.ts";
+const reuseOutcomeBridgeLedgerRecordReviewForWebFile =
+  "lib/dogfooding/read-reuse-outcome-bridge-ledger-record-review-for-web.ts";
+const reuseOutcomeBridgeLedgerRecordReviewPanelFile =
+  "components/dogfooding/reuse-outcome-bridge-ledger-record-review-panel.tsx";
+const reuseOutcomeBridgeLedgerIntegrationSmokeFile =
+  "scripts/smoke-reuse-outcome-bridge-ledger-integration-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -951,6 +973,28 @@ const followOnExpectedObservedDeltaBridgeFiles = [
   smokeFile,
 ];
 
+const followOnReuseOutcomeBridgeLedgerIntegrationFiles = [
+  reuseOutcomeBridgeDecisionTypeFile,
+  reuseOutcomeBridgeDecisionHelperFile,
+  reuseOutcomeBridgeDecisionPanelFile,
+  reuseOutcomeBridgeLedgerWriteTypeFile,
+  reuseOutcomeBridgeLedgerWriteHelperFile,
+  reuseOutcomeBridgeLedgerRouteFile,
+  reuseOutcomeBridgeLedgerRecordReviewTypeFile,
+  reuseOutcomeBridgeLedgerRecordReviewHelperFile,
+  reuseOutcomeBridgeLedgerRecordReviewForWebFile,
+  reuseOutcomeBridgeLedgerRecordReviewPanelFile,
+  reuseOutcomeBridgeLedgerIntegrationSmokeFile,
+  expectedObservedDeltaWriteRouteFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  expectedObservedDeltaBridgeSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1359,6 +1403,7 @@ const allowedChangedFiles = new Set([
   ...followOnProjectHistoryIntakeCandidateLedgerFiles,
   ...followOnCodexResultReportIntakeResidueFiles,
   ...followOnExpectedObservedDeltaBridgeFiles,
+  ...followOnReuseOutcomeBridgeLedgerIntegrationFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -2581,6 +2626,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "ExpectedObservedDeltaDecisionPanel",
       "ExpectedObservedDeltaRecordReviewPanel",
       "ReuseOutcomeCandidateBridgePreviewPanel",
+      "ReuseOutcomeBridgeDecisionPanel",
+      "ReuseOutcomeBridgeLedgerRecordReviewPanel",
       "buildCodexResultReportIntakePreviewV01",
       "buildCodexResultReportIntakeOperatorDecisionPreviewV01",
       "readCodexResultReportIntakeRecordReviewForWebV01",
@@ -2589,6 +2636,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "buildExpectedObservedDeltaOperatorDecisionPreviewV01",
       "readExpectedObservedDeltaRecordReviewForWebV01",
       "buildReuseOutcomeCandidateBridgePreviewV01",
+      "buildReuseOutcomeBridgeOperatorDecisionPreviewV01",
+      "readReuseOutcomeBridgeLedgerRecordReviewForWebV01",
       "const codexResultReportIntakePreview",
       "const codexResultReportIntakeDecisionPreview",
       "const codexResultReportIntakeRecordReview",
@@ -2597,6 +2646,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "const expectedObservedDeltaDecisionPreview",
       "const expectedObservedDeltaRecordReview",
       "const reuseOutcomeCandidateBridgePreview",
+      "const reuseOutcomeBridgeOperatorDecisionPreview",
+      "const reuseOutcomeBridgeLedgerRecordReview",
       "preview={codexResultReportIntakePreview}",
       "preview={codexResultReportIntakeDecisionPreview}",
       "review={codexResultReportIntakeRecordReview}",
@@ -2605,6 +2656,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "preview={expectedObservedDeltaDecisionPreview}",
       "review={expectedObservedDeltaRecordReview}",
       "preview={reuseOutcomeCandidateBridgePreview}",
+      "preview={reuseOutcomeBridgeOperatorDecisionPreview}",
+      "review={reuseOutcomeBridgeLedgerRecordReview}",
       "codex_result_report_intake_preview: codexResultReportIntakePreview",
       "codex_result_report_intake_decision_preview:\n        codexResultReportIntakeDecisionPreview",
       "codex_result_report_intake_record_review:\n        codexResultReportIntakeRecordReview",
@@ -2613,6 +2666,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "expected_observed_delta_decision_preview:\n        expectedObservedDeltaDecisionPreview",
       "expected_observed_delta_record_review:\n        expectedObservedDeltaRecordReview",
       "reuse_outcome_candidate_bridge_preview:\n        reuseOutcomeCandidateBridgePreview",
+      "reuse_outcome_bridge_operator_decision_preview:\n        reuseOutcomeBridgeOperatorDecisionPreview",
+      "reuse_outcome_bridge_ledger_record_review:\n        reuseOutcomeBridgeLedgerRecordReview",
     ],
     { label: agentWorkplaneFile },
   );
@@ -2645,6 +2700,14 @@ function assertCodexResultReportIntakeResidueFollowOn() {
   assert(
     snippet.includes("reuse_outcome_candidate_bridge_preview:"),
     "Agent Workplane must pass Reuse Outcome Candidate Bridge to the spine overview",
+  );
+  assert(
+    snippet.includes("reuse_outcome_bridge_operator_decision_preview:"),
+    "Agent Workplane must pass Reuse Outcome Bridge operator decision to the spine overview",
+  );
+  assert(
+    snippet.includes("reuse_outcome_bridge_ledger_record_review:"),
+    "Agent Workplane must pass Reuse Outcome Bridge ledger review to the spine overview",
   );
   assert(!snippet.includes("new Database"), "Workbench must not open DB");
   assert(!snippet.includes("fetch("), "Workbench must not fetch records");
@@ -3187,6 +3250,7 @@ function assertChangedFileBoundary() {
         followOnProjectHistoryIntakeCandidateLedgerFiles.includes(file) ||
         followOnCodexResultReportIntakeResidueFiles.includes(file) ||
         followOnExpectedObservedDeltaBridgeFiles.includes(file) ||
+        followOnReuseOutcomeBridgeLedgerIntegrationFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3203,6 +3267,7 @@ function assertChangedFileBoundary() {
         followOnProjectHistoryIntakeCandidateLedgerFiles.includes(file) ||
         followOnCodexResultReportIntakeResidueFiles.includes(file) ||
         followOnExpectedObservedDeltaBridgeFiles.includes(file) ||
+        followOnReuseOutcomeBridgeLedgerIntegrationFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
