@@ -10,6 +10,9 @@
 
 import type { CodexResultFeedbackDraft } from "./codex-result-feedback-draft";
 import type { DogfoodMetricCandidatePreview } from "./dogfood-metric-candidate-preview";
+import type { DogfoodMetricSnapshotOperatorDecisionPreview } from "./dogfood-metric-snapshot-decision";
+import type { DogfoodMetricSnapshotPreview } from "./dogfood-metric-snapshot-preview";
+import type { DogfoodMetricSnapshotRecordReview } from "./dogfood-metric-snapshot-record-review";
 import type { DogfoodReuseOperatorDecisionPreview } from "./dogfood-reuse-operator-decision-preview";
 import type { DogfoodReuseRecordProposal } from "./dogfood-reuse-record-proposal";
 import type { ExpectedObservedDeltaOperatorDecisionPreview } from "./expected-observed-delta-decision";
@@ -22,6 +25,7 @@ import type { HandoffContextUpdateOperatorDecisionPreview } from "./handoff-cont
 import type { HandoffContextUpdatePreview } from "./handoff-context-update-preview";
 import type { ApprovedHandoffContextUpdateRecordReview } from "./handoff-context-update-record-review";
 import type { MetricInformedContinuityRelayAdjustmentPreview } from "./metric-informed-continuity-relay-adjustment-preview";
+import type { NextWorkSignalRefreshPreview } from "./next-work-signal-refresh-preview";
 import type { PerspectiveNextWorkCandidateUpdatePreview } from "./perspective-next-work-candidate-update-preview";
 import type { ProjectHistoryIntakeOperatorDecisionPreview } from "./project-history-intake-decision";
 import type { ProjectHistoryIntakePreview } from "./project-history-intake-preview";
@@ -88,6 +92,12 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
   | "write_handoff_reuse_outcome_ledger_record"
   | "review_handoff_reuse_outcome_ledger_record"
   | "resolve_reuse_outcome_bridge_blockers"
+  | "review_dogfood_metric_snapshot_candidates"
+  | "write_dogfood_metric_snapshot_record"
+  | "review_dogfood_metric_snapshot_record"
+  | "review_next_work_signal_refresh"
+  | "prepare_perspective_next_work_update_preview"
+  | "resolve_dogfood_metric_snapshot_blockers"
   | "prepare_dogfood_metric_candidate_preview"
   | "prepare_reuse_outcome_operator_decision"
   | "resolve_expected_observed_delta_blockers"
@@ -120,6 +130,9 @@ export type WorkbenchDogfoodLoopSpineStepId =
   | "reuse_outcome_candidate_bridge"
   | "reuse_outcome_bridge_operator_decision"
   | "handoff_reuse_outcome_ledger_record"
+  | "dogfood_metric_snapshot"
+  | "dogfood_metric_snapshot_record"
+  | "next_work_signal_refresh"
   | "codex_result_feedback"
   | "dogfood_reuse_proposal"
   | "dogfood_reuse_operator_decision"
@@ -161,6 +174,10 @@ export interface WorkbenchDogfoodLoopSpineOverviewInput {
   reuse_outcome_candidate_bridge_preview?: ReuseOutcomeCandidateBridgePreview | null;
   reuse_outcome_bridge_operator_decision_preview?: ReuseOutcomeBridgeOperatorDecisionPreview | null;
   reuse_outcome_bridge_ledger_record_review?: ReuseOutcomeBridgeLedgerRecordReview | null;
+  dogfood_metric_snapshot_preview?: DogfoodMetricSnapshotPreview | null;
+  dogfood_metric_snapshot_decision_preview?: DogfoodMetricSnapshotOperatorDecisionPreview | null;
+  dogfood_metric_snapshot_record_review?: DogfoodMetricSnapshotRecordReview | null;
+  next_work_signal_refresh_preview?: NextWorkSignalRefreshPreview | null;
   codex_result_feedback_draft?: CodexResultFeedbackDraft | null;
   dogfood_reuse_record_proposal?: DogfoodReuseRecordProposal | null;
   dogfood_reuse_operator_decision_preview?: DogfoodReuseOperatorDecisionPreview | null;

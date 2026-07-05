@@ -38,6 +38,10 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   reuse_outcome_candidate_bridge_preview,
   reuse_outcome_bridge_operator_decision_preview,
   reuse_outcome_bridge_ledger_record_review,
+  dogfood_metric_snapshot_preview,
+  dogfood_metric_snapshot_decision_preview,
+  dogfood_metric_snapshot_record_review,
+  next_work_signal_refresh_preview,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -91,6 +95,12 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       reuse_outcome_bridge_ledger_record_review,
       reuse_outcome_bridge_operator_decision_preview,
     ),
+    dogfoodMetricSnapshotStep(dogfood_metric_snapshot_preview),
+    dogfoodMetricSnapshotRecordStep({
+      recordReview: dogfood_metric_snapshot_record_review,
+      decisionPreview: dogfood_metric_snapshot_decision_preview,
+    }),
+    nextWorkSignalRefreshStep(next_work_signal_refresh_preview),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -133,6 +143,7 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
     ),
     [
       /current_handoff_packet_fingerprint|current_handoff_context_ref|operator_approval_material/i,
+      /approved_reuse_records_missing_for_metric_preview|approved_reuse_outcome_records_missing_for_metric_snapshot/i,
     ],
   );
   const recommendedNextOperatorAction = determineRecommendedNextOperatorAction({
@@ -979,6 +990,147 @@ function handoffReuseOutcomeLedgerRecordStep(
   });
 }
 
+function dogfoodMetricSnapshotStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["dogfood_metric_snapshot_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "dogfood_metric_snapshot",
+      label: "Dogfood metric snapshot",
+      recommended_next_action: "review_handoff_reuse_outcome_ledger_record",
+      summary: "No dogfood metric snapshot preview supplied.",
+    });
+  }
+
+  return makeStep({
+    step_id: "dogfood_metric_snapshot",
+    label: "Dogfood metric snapshot",
+    status:
+      preview.snapshot_preview_status === "no_reuse_outcome_records"
+        ? "no_current_material"
+        : mapMetricSnapshotStatus(preview.snapshot_preview_status),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count:
+      preview.input_summary.metric_candidate_ref_count +
+      preview.input_summary.approved_reuse_ledger_record_count,
+    blockers: preview.blocked_reasons,
+    material_gaps: [
+      ...preview.insufficient_data_reasons,
+      ...(preview.input_summary.approved_reuse_ledger_record_count === 0
+        ? ["approved_reuse_outcome_records_missing_for_metric_snapshot"]
+        : []),
+    ],
+    missing_evidence: preview.evidence_summary.missing_evidence,
+    recommended_next_action:
+      preview.input_summary.approved_reuse_ledger_record_count === 0
+        ? "review_handoff_reuse_outcome_ledger_record"
+        : preview.snapshot_preview_status === "ready_for_operator_review"
+          ? "review_dogfood_metric_snapshot_candidates"
+          : "review_dogfood_metric_snapshot_candidates",
+    evidence_present: preview.evidence_summary.has_reuse_outcome_records,
+    summary: `Dogfood metric snapshot preview is ${preview.snapshot_preview_status}; approved_record_count ${preview.input_summary.approved_reuse_ledger_record_count}; metric_candidate_count ${preview.input_summary.metric_candidate_ref_count}; no global metric write authority.`,
+  });
+}
+
+function dogfoodMetricSnapshotRecordStep({
+  recordReview,
+  decisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["dogfood_metric_snapshot_record_review"];
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["dogfood_metric_snapshot_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "dogfood_metric_snapshot_record",
+      label: "Dogfood metric snapshot local record",
+      recommended_next_action: "review_dogfood_metric_snapshot_candidates",
+      summary: "No dogfood metric snapshot record review supplied.",
+    });
+  }
+
+  const decisionReady =
+    decisionPreview?.decision_preview_status ===
+      "ready_for_future_metric_snapshot_write" &&
+    decisionPreview.write_readiness.write_ready === true;
+  const hasRecords = recordReview.input_summary.valid_record_count > 0;
+
+  return makeStep({
+    step_id: "dogfood_metric_snapshot_record",
+    label: "Dogfood metric snapshot local record",
+    status: mapRecordReviewStatus(recordReview.review_status),
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count:
+      recordReview.input_summary.valid_record_count +
+      recordReview.input_summary.selected_metric_candidate_ref_count,
+    blockers: [
+      ...recordReview.blocked_reasons,
+      ...(recordReview.input_summary.receipt_side_effect_problem_count > 0
+        ? ["dogfood_metric_snapshot_record_side_effect_problem"]
+        : []),
+      ...(decisionPreview?.blocking_reasons ?? []),
+      ...(decisionPreview?.refusal_reasons ?? []),
+    ],
+    material_gaps: [
+      ...recordReview.insufficient_data_reasons,
+      ...(decisionReady && !hasRecords
+        ? ["dogfood_metric_snapshot_record_missing_after_operator_decision"]
+        : []),
+      ...(!decisionReady && !hasRecords
+        ? ["dogfood_metric_snapshot_operator_decision_missing_or_not_ready"]
+        : []),
+    ],
+    missing_evidence: [
+      ...recordReview.evidence_summary.missing_evidence,
+      ...(decisionPreview?.missing_evidence ?? []),
+    ],
+    recommended_next_action: hasRecords
+      ? "review_next_work_signal_refresh"
+      : decisionReady
+        ? "write_dogfood_metric_snapshot_record"
+        : "review_dogfood_metric_snapshot_candidates",
+    evidence_present: recordReview.evidence_summary.has_records,
+    summary: `Dogfood metric snapshot record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; decision_ready ${String(decisionReady)}; no Perspective, CWP, relay, or global metric write authority.`,
+  });
+}
+
+function nextWorkSignalRefreshStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["next_work_signal_refresh_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "next_work_signal_refresh",
+      label: "Next-work signal refresh",
+      recommended_next_action: "review_dogfood_metric_snapshot_record",
+      summary: "No next-work signal refresh preview supplied.",
+    });
+  }
+
+  return makeStep({
+    step_id: "next_work_signal_refresh",
+    label: "Next-work signal refresh",
+    status:
+      preview.refresh_preview_status === "no_metric_material"
+        ? "no_current_material"
+        : mapNextWorkSignalRefreshStatus(preview.refresh_preview_status),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.input_summary.next_work_signal_count,
+    blockers: preview.blocked_reasons,
+    material_gaps: [
+      ...preview.insufficient_data_reasons,
+      ...(preview.input_summary.metric_material_count === 0
+        ? ["dogfood_metric_snapshot_material_missing_for_next_work_refresh"]
+        : []),
+    ],
+    missing_evidence: preview.evidence_summary.missing_evidence,
+    recommended_next_action:
+      preview.input_summary.next_work_signal_count > 0
+        ? "review_next_work_signal_refresh"
+        : "review_dogfood_metric_snapshot_record",
+    evidence_present: preview.evidence_summary.has_metric_material,
+    summary: `Next-work signal refresh is ${preview.refresh_preview_status}; signal_count ${preview.input_summary.next_work_signal_count}; no Perspective, NextWorkBias, CWP, relay, handoff, memory, or metric write authority.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -1611,14 +1763,29 @@ function determineRecommendedNextOperatorAction({
       blocker.startsWith("expected_observed_delta_record:") ||
       blocker.startsWith("reuse_outcome_candidate_bridge:") ||
       blocker.startsWith("reuse_outcome_bridge_operator_decision:") ||
-      blocker.startsWith("handoff_reuse_outcome_ledger_record:"),
+      blocker.startsWith("handoff_reuse_outcome_ledger_record:") ||
+      blocker.startsWith("dogfood_metric_snapshot:") ||
+      blocker.startsWith("dogfood_metric_snapshot_record:") ||
+      blocker.startsWith("next_work_signal_refresh:"),
     )
   ) {
-    return top_blockers.some((blocker) =>
-      blocker.startsWith("expected_observed_delta"),
-    )
-      ? "resolve_expected_observed_delta_blockers"
-      : "resolve_reuse_outcome_bridge_blockers";
+    if (
+      top_blockers.some((blocker) =>
+        blocker.startsWith("expected_observed_delta"),
+      )
+    ) {
+      return "resolve_expected_observed_delta_blockers";
+    }
+    if (
+      top_blockers.some(
+        (blocker) =>
+          blocker.startsWith("dogfood_metric_snapshot") ||
+          blocker.startsWith("next_work_signal_refresh"),
+      )
+    ) {
+      return "resolve_dogfood_metric_snapshot_blockers";
+    }
+    return "resolve_reuse_outcome_bridge_blockers";
   }
   if (top_blockers.length > 0) return "resolve_blockers_or_missing_evidence";
   if (steps[0]?.recommended_next_action === "supply_selected_session_digest") {
@@ -1742,6 +1909,15 @@ function determineRecommendedNextOperatorAction({
   const handoffReuseOutcomeLedgerRecordStep = steps.find(
     (step) => step.step_id === "handoff_reuse_outcome_ledger_record",
   );
+  const dogfoodMetricSnapshotStep = steps.find(
+    (step) => step.step_id === "dogfood_metric_snapshot",
+  );
+  const dogfoodMetricSnapshotRecordStep = steps.find(
+    (step) => step.step_id === "dogfood_metric_snapshot_record",
+  );
+  const nextWorkSignalRefreshStep = steps.find(
+    (step) => step.step_id === "next_work_signal_refresh",
+  );
   if (
     codexResultRecord?.recommended_next_action ===
     "write_codex_result_report_candidate_ingest_record"
@@ -1761,11 +1937,31 @@ function determineRecommendedNextOperatorAction({
     return "write_handoff_reuse_outcome_ledger_record";
   }
   if (
-    handoffReuseOutcomeLedgerRecordStep?.recommended_next_action ===
-      "review_handoff_reuse_outcome_ledger_record" &&
-    handoffReuseOutcomeLedgerRecordStep.material_count > 0
+    dogfoodMetricSnapshotRecordStep?.recommended_next_action ===
+    "write_dogfood_metric_snapshot_record"
   ) {
-    return "review_handoff_reuse_outcome_ledger_record";
+    return "write_dogfood_metric_snapshot_record";
+  }
+  if (
+    nextWorkSignalRefreshStep?.recommended_next_action ===
+      "review_next_work_signal_refresh" &&
+    nextWorkSignalRefreshStep.material_count > 0
+  ) {
+    return "review_next_work_signal_refresh";
+  }
+  if (
+    dogfoodMetricSnapshotRecordStep?.recommended_next_action ===
+      "review_next_work_signal_refresh" &&
+    dogfoodMetricSnapshotRecordStep.material_count > 0
+  ) {
+    return "review_next_work_signal_refresh";
+  }
+  if (
+    dogfoodMetricSnapshotStep?.recommended_next_action ===
+      "review_dogfood_metric_snapshot_candidates" &&
+    dogfoodMetricSnapshotStep.material_count > 0
+  ) {
+    return "review_dogfood_metric_snapshot_candidates";
   }
   if (
     reuseOutcomeBridgeDecisionStep?.recommended_next_action ===
@@ -1780,6 +1976,13 @@ function determineRecommendedNextOperatorAction({
     reuseOutcomeBridgeStep.material_count > 0
   ) {
     return "review_reuse_outcome_candidate_bridge";
+  }
+  if (
+    handoffReuseOutcomeLedgerRecordStep?.recommended_next_action ===
+      "review_handoff_reuse_outcome_ledger_record" &&
+    handoffReuseOutcomeLedgerRecordStep.material_count > 0
+  ) {
+    return "review_handoff_reuse_outcome_ledger_record";
   }
   if (
     expectedObservedDeltaStep?.recommended_next_action ===
@@ -1942,6 +2145,30 @@ function mapReuseOutcomeBridgeStatus(
   if (status === "no_delta_material") return "no_current_material";
   if (status === "ready_for_operator_review") return "ready_for_operator_review";
   if (status === "reuse_outcome_candidates_available") {
+    return "candidate_material_available";
+  }
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function mapMetricSnapshotStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_reuse_outcome_records") return "no_current_material";
+  if (status === "ready_for_operator_review") return "ready_for_operator_review";
+  if (status === "metric_candidates_available") {
+    return "candidate_material_available";
+  }
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function mapNextWorkSignalRefreshStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_metric_material") return "no_current_material";
+  if (status === "ready_for_operator_review") return "ready_for_operator_review";
+  if (status === "next_work_signals_available") {
     return "candidate_material_available";
   }
   if (status === "keep_preview_only") return "keep_preview_only";

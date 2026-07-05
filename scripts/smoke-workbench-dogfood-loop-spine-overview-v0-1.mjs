@@ -175,6 +175,40 @@ const reuseOutcomeBridgeLedgerRecordReviewPanelFile =
   "components/dogfooding/reuse-outcome-bridge-ledger-record-review-panel.tsx";
 const reuseOutcomeBridgeLedgerIntegrationSmokeFile =
   "scripts/smoke-reuse-outcome-bridge-ledger-integration-v0-1.mjs";
+const dogfoodMetricSnapshotPreviewTypeFile =
+  "types/dogfood-metric-snapshot-preview.ts";
+const dogfoodMetricSnapshotPreviewHelperFile =
+  "lib/dogfooding/dogfood-metric-snapshot-preview.ts";
+const dogfoodMetricSnapshotPreviewPanelFile =
+  "components/dogfooding/dogfood-metric-snapshot-preview-panel.tsx";
+const dogfoodMetricSnapshotDecisionTypeFile =
+  "types/dogfood-metric-snapshot-decision.ts";
+const dogfoodMetricSnapshotDecisionHelperFile =
+  "lib/dogfooding/dogfood-metric-snapshot-decision.ts";
+const dogfoodMetricSnapshotDecisionPanelFile =
+  "components/dogfooding/dogfood-metric-snapshot-decision-panel.tsx";
+const dogfoodMetricSnapshotWriteTypeFile =
+  "types/dogfood-metric-snapshot-write.ts";
+const dogfoodMetricSnapshotWriteHelperFile =
+  "lib/dogfooding/dogfood-metric-snapshot-write.ts";
+const dogfoodMetricSnapshotRouteFile =
+  "app/api/dogfooding/metric-snapshots/route.ts";
+const dogfoodMetricSnapshotRecordReviewTypeFile =
+  "types/dogfood-metric-snapshot-record-review.ts";
+const dogfoodMetricSnapshotRecordReviewHelperFile =
+  "lib/dogfooding/dogfood-metric-snapshot-record-review.ts";
+const dogfoodMetricSnapshotRecordReviewForWebFile =
+  "lib/dogfooding/read-dogfood-metric-snapshot-record-review-for-web.ts";
+const dogfoodMetricSnapshotRecordReviewPanelFile =
+  "components/dogfooding/dogfood-metric-snapshot-record-review-panel.tsx";
+const nextWorkSignalRefreshTypeFile =
+  "types/next-work-signal-refresh-preview.ts";
+const nextWorkSignalRefreshHelperFile =
+  "lib/workplane/next-work-signal-refresh-preview.ts";
+const nextWorkSignalRefreshPanelFile =
+  "components/workplane/next-work-signal-refresh-preview-panel.tsx";
+const dogfoodMetricSnapshotNextWorkRefreshSmokeFile =
+  "scripts/smoke-dogfood-metric-snapshot-next-work-refresh-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -270,6 +304,23 @@ const allowedChangedFiles = [
   reuseOutcomeBridgeLedgerRecordReviewForWebFile,
   reuseOutcomeBridgeLedgerRecordReviewPanelFile,
   reuseOutcomeBridgeLedgerIntegrationSmokeFile,
+  dogfoodMetricSnapshotPreviewTypeFile,
+  dogfoodMetricSnapshotPreviewHelperFile,
+  dogfoodMetricSnapshotPreviewPanelFile,
+  dogfoodMetricSnapshotDecisionTypeFile,
+  dogfoodMetricSnapshotDecisionHelperFile,
+  dogfoodMetricSnapshotDecisionPanelFile,
+  dogfoodMetricSnapshotWriteTypeFile,
+  dogfoodMetricSnapshotWriteHelperFile,
+  dogfoodMetricSnapshotRouteFile,
+  dogfoodMetricSnapshotRecordReviewTypeFile,
+  dogfoodMetricSnapshotRecordReviewHelperFile,
+  dogfoodMetricSnapshotRecordReviewForWebFile,
+  dogfoodMetricSnapshotRecordReviewPanelFile,
+  nextWorkSignalRefreshTypeFile,
+  nextWorkSignalRefreshHelperFile,
+  nextWorkSignalRefreshPanelFile,
+  dogfoodMetricSnapshotNextWorkRefreshSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -315,6 +366,9 @@ assertContainsAll(
     "reuse_outcome_candidate_bridge",
     "reuse_outcome_bridge_operator_decision",
     "handoff_reuse_outcome_ledger_record",
+    "dogfood_metric_snapshot",
+    "dogfood_metric_snapshot_record",
+    "next_work_signal_refresh",
     "review_expected_observed_delta_candidates",
     "write_expected_observed_delta_record",
     "review_reuse_outcome_candidate_bridge",
@@ -324,6 +378,12 @@ assertContainsAll(
     "write_handoff_reuse_outcome_ledger_record",
     "review_handoff_reuse_outcome_ledger_record",
     "resolve_reuse_outcome_bridge_blockers",
+    "review_dogfood_metric_snapshot_candidates",
+    "write_dogfood_metric_snapshot_record",
+    "review_dogfood_metric_snapshot_record",
+    "review_next_work_signal_refresh",
+    "prepare_perspective_next_work_update_preview",
+    "resolve_dogfood_metric_snapshot_blockers",
     "prepare_dogfood_metric_candidate_preview",
     "codex_result_feedback",
     "dogfood_reuse_proposal",
@@ -370,6 +430,10 @@ assertContainsAll(
     "reuse_outcome_candidate_bridge_preview",
     "reuse_outcome_bridge_operator_decision_preview",
     "reuse_outcome_bridge_ledger_record_review",
+    "dogfood_metric_snapshot_preview",
+    "dogfood_metric_snapshot_decision_preview",
+    "dogfood_metric_snapshot_record_review",
+    "next_work_signal_refresh_preview",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
     "selectedSessionDigestDurableIngestRecordStep",
@@ -383,6 +447,9 @@ assertContainsAll(
     "reuseOutcomeCandidateBridgeStep",
     "reuseOutcomeBridgeOperatorDecisionStep",
     "handoffReuseOutcomeLedgerRecordStep",
+    "dogfoodMetricSnapshotStep",
+    "dogfoodMetricSnapshotRecordStep",
+    "nextWorkSignalRefreshStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -574,7 +641,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 26);
+assert.equal(emptyOverview.spine_steps.length, 29);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -1247,6 +1314,65 @@ assert.equal(
 );
 assertNoMemoryPromotionActions(reuseOutcomeBridgeLedgerRecordOverview);
 
+const metricSnapshotOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  dogfood_metric_snapshot_preview: metricSnapshotPreview(),
+});
+assert.equal(
+  stepById(metricSnapshotOverview, "dogfood_metric_snapshot").status,
+  "ready_for_operator_review",
+);
+assert.equal(
+  stepById(metricSnapshotOverview, "dogfood_metric_snapshot")
+    .recommended_next_action,
+  "review_dogfood_metric_snapshot_candidates",
+);
+
+const metricSnapshotWriteOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  dogfood_metric_snapshot_decision_preview: metricSnapshotDecisionPreview({
+    writeReady: true,
+  }),
+  dogfood_metric_snapshot_record_review: metricSnapshotRecordReview({
+    status: "no_records",
+    validCount: 0,
+  }),
+});
+assert.equal(
+  stepById(metricSnapshotWriteOverview, "dogfood_metric_snapshot_record")
+    .recommended_next_action,
+  "write_dogfood_metric_snapshot_record",
+);
+
+const metricSnapshotRecordOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  dogfood_metric_snapshot_record_review: metricSnapshotRecordReview({
+    status: "records_available",
+    validCount: 1,
+  }),
+});
+assert.equal(
+  stepById(metricSnapshotRecordOverview, "dogfood_metric_snapshot_record")
+    .status,
+  "candidate_material_available",
+);
+assert.equal(
+  stepById(metricSnapshotRecordOverview, "dogfood_metric_snapshot_record")
+    .recommended_next_action,
+  "review_next_work_signal_refresh",
+);
+
+const nextWorkSignalOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  next_work_signal_refresh_preview: nextWorkSignalRefreshPreview(),
+});
+assert.equal(
+  stepById(nextWorkSignalOverview, "next_work_signal_refresh").status,
+  "ready_for_operator_review",
+);
+assert.equal(
+  stepById(nextWorkSignalOverview, "next_work_signal_refresh")
+    .recommended_next_action,
+  "review_next_work_signal_refresh",
+);
+assertNoMemoryPromotionActions(nextWorkSignalOverview);
+
 const missingCodexOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview: cleanSelectedIntake,
   codex_result_feedback_draft: codexFeedbackDraft({ resultReport: "missing" }),
@@ -1487,8 +1613,9 @@ function assertNoForbiddenChangedPaths() {
         file === projectHistoryIntakeWriteRouteFile ||
         file === codexResultReportIntakeWriteRouteFile ||
         file === expectedObservedDeltaWriteRouteFile ||
-        file === reuseOutcomeBridgeLedgerRouteFile,
-      `No app/api route may be added outside selected digest, project history, or Codex result report follow-on routes: ${file}`,
+        file === reuseOutcomeBridgeLedgerRouteFile ||
+        file === dogfoodMetricSnapshotRouteFile,
+      `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);
     assert(
@@ -2027,6 +2154,79 @@ function reuseProposal({
       evidence_refs: hasResultReport ? ["evidence:reuse"] : [],
       missing_evidence: ["evidence:missing-reuse"],
     },
+  };
+}
+
+function metricSnapshotPreview() {
+  return {
+    preview_version: "dogfood_metric_snapshot_preview.v0.1",
+    snapshot_preview_status: "ready_for_operator_review",
+    recommended_next_action: "prepare_dogfood_metric_snapshot_decision",
+    input_summary: {
+      approved_reuse_ledger_record_count: 2,
+      metric_candidate_ref_count: 4,
+    },
+    evidence_summary: {
+      has_reuse_outcome_records: true,
+      missing_evidence: [],
+    },
+    blocked_reasons: [],
+    insufficient_data_reasons: [],
+  };
+}
+
+function metricSnapshotDecisionPreview({ writeReady }) {
+  return {
+    preview_version: "dogfood_metric_snapshot_operator_decision_preview.v0.1",
+    decision_preview_status: writeReady
+      ? "ready_for_future_metric_snapshot_write"
+      : "needs_operator_judgment",
+    write_readiness: {
+      write_ready: writeReady,
+      current_blockers: [],
+      current_refusal_reasons: [],
+      current_missing_evidence: [],
+      current_insufficient_data: [],
+    },
+    blocking_reasons: [],
+    refusal_reasons: [],
+    missing_evidence: [],
+  };
+}
+
+function metricSnapshotRecordReview({ status, validCount }) {
+  return {
+    review_version: "dogfood_metric_snapshot_record_review.v0.1",
+    review_status: status,
+    input_summary: {
+      valid_record_count: validCount,
+      selected_metric_candidate_ref_count: validCount,
+      receipt_side_effect_problem_count: 0,
+    },
+    evidence_summary: {
+      has_records: validCount > 0,
+      missing_evidence: [],
+    },
+    blocked_reasons: [],
+    insufficient_data_reasons:
+      validCount > 0 ? [] : ["dogfood_metric_snapshot_records_missing"],
+  };
+}
+
+function nextWorkSignalRefreshPreview() {
+  return {
+    preview_version: "next_work_signal_refresh_preview.v0.1",
+    refresh_preview_status: "ready_for_operator_review",
+    input_summary: {
+      metric_material_count: 1,
+      next_work_signal_count: 3,
+    },
+    evidence_summary: {
+      has_metric_material: true,
+      missing_evidence: [],
+    },
+    blocked_reasons: [],
+    insufficient_data_reasons: [],
   };
 }
 
