@@ -100,7 +100,11 @@ const forbiddenRequestedSideEffectPatterns = [
 const sampleDefaultOrSmokeMarkers = [
   "sample",
   "fixture",
-  "smoke",
+  "smoke_fixture",
+  "smoke-fixture",
+  "fixture:smoke",
+  "smoke:fixture",
+  "smoke fixture",
   "workbench:default",
   "default_workbench",
   "default-workbench",
@@ -684,9 +688,12 @@ function validateDecisionPreview(preview: Record<string, unknown> | null): strin
     if (!safeRef(material.requested_idempotency_key)) {
       reasons.push("requested_idempotency_key_missing");
     }
-    if (!Array.isArray(material.sanitized_candidate_summaries)) {
-      reasons.push("sanitized_candidate_summaries_missing_or_invalid");
-    }
+    reasons.push(
+      ...validateSanitizedCandidateSummaries(
+        material.sanitized_candidate_summaries,
+        selectedRefs,
+      ),
+    );
   }
   const authority = getRecord(preview, "authority_boundary");
   if (
@@ -757,6 +764,58 @@ function validateApproval({
     reasons.push("checklist_confirmations_missing");
   }
   return uniqueCandidateIngressStringsV01(reasons);
+}
+
+function validateSanitizedCandidateSummaries(
+  value: unknown,
+  selectedRefs: string[],
+): string[] {
+  if (!Array.isArray(value)) {
+    return ["sanitized_candidate_summaries_missing_or_invalid"];
+  }
+  const reasons: string[] = [];
+  const selectedRefSet = new Set(selectedRefs);
+  for (const item of value) {
+    if (!isRecord(item)) {
+      reasons.push("sanitized_candidate_summary_malformed");
+      continue;
+    }
+    const candidateRef = item.candidate_ref;
+    if (typeof candidateRef !== "string" || !candidateRef.trim()) {
+      reasons.push("sanitized_candidate_summary_malformed");
+    } else if (!isCandidateIngressPublicSafeRefV01(candidateRef)) {
+      reasons.push("sanitized_candidate_summary_unsafe");
+    } else if (!selectedRefSet.has(candidateRef)) {
+      reasons.push("sanitized_candidate_summary_ref_not_selected");
+    }
+
+    for (const field of ["candidate_kind", "label", "summary"] as const) {
+      const fieldValue = item[field];
+      if (typeof fieldValue !== "string") {
+        reasons.push("sanitized_candidate_summary_malformed");
+        continue;
+      }
+      if (!fieldValue.trim()) {
+        reasons.push("sanitized_candidate_summary_empty");
+        continue;
+      }
+      if (!isSafeBoundedSummaryField(fieldValue)) {
+        reasons.push("sanitized_candidate_summary_unsafe");
+      }
+    }
+  }
+  return uniqueCandidateIngressStringsV01(reasons);
+}
+
+function isSafeBoundedSummaryField(value: string): boolean {
+  const trimmed = value.trim();
+  return (
+    trimmed === value &&
+    trimmed.length > 0 &&
+    trimmed.length <= 240 &&
+    !/[\r\n\t\0\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(trimmed) &&
+    !containsRawOrPrivateMarkers(trimmed)
+  );
 }
 
 function buildCodexResultReportIntakeRecord(

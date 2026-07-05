@@ -59,12 +59,19 @@ export function buildWorkEpisodeResidueCandidatePreviewV01({
   const recordCount = recordReview?.input_summary.valid_record_count ?? 0;
   const intakeCandidateCount =
     intakePreview?.input_summary.ingestable_candidate_count ?? 0;
+  const intakeReadyForCandidateIngest =
+    intakePreview?.readiness.ready_for_candidate_ingest_record === true;
+  const hasIntakeCandidateMaterial =
+    Boolean(intakePreview) &&
+    intakePreview?.intake_preview_status !== "no_result_report" &&
+    intakeCandidateCount > 0;
+  const hasCodexResultMaterial = hasIntakeCandidateMaterial || recordCount > 0;
   const blockedReasons = uniqueCandidateIngressStringsV01([
     ...(intakePreview?.blocked_reasons ?? []),
     ...(recordReview?.blocked_reasons ?? []),
   ]);
   const insufficientDataReasons = uniqueCandidateIngressStringsV01([
-    ...(!intakePreview && !recordReview
+    ...(!hasCodexResultMaterial
       ? ["codex_result_report_material_missing"]
       : []),
     ...(intakePreview?.insufficient_data_reasons ?? []),
@@ -72,7 +79,7 @@ export function buildWorkEpisodeResidueCandidatePreviewV01({
     ...(residueCandidateCount === 0 ? ["work_episode_residue_candidates_missing"] : []),
   ]);
   const status = determineStatus({
-    hasMaterial: Boolean(intakePreview || recordCount > 0),
+    hasMaterial: hasCodexResultMaterial,
     residueCandidateCount,
     blockedReasons,
     insufficientDataReasons,
@@ -86,7 +93,8 @@ export function buildWorkEpisodeResidueCandidatePreviewV01({
     residue_preview_status: status,
     recommended_next_action: determineNextAction({
       status,
-      hasIntake: Boolean(intakePreview),
+      hasIntakeCandidateMaterial,
+      intakeReadyForCandidateIngest,
       recordCount,
       residueCandidateCount,
     }),
@@ -101,7 +109,7 @@ export function buildWorkEpisodeResidueCandidatePreviewV01({
     },
     candidate_residue: candidateResidue,
     evidence_summary: {
-      has_codex_result_material: Boolean(intakePreview || recordCount > 0),
+      has_codex_result_material: hasCodexResultMaterial,
       has_candidate_residue: residueCandidateCount > 0,
       has_source_refs: sourceRefs.length > 0,
       has_evidence_refs: evidenceRefs.length > 0,
@@ -340,18 +348,26 @@ function determineStatus({
 
 function determineNextAction({
   status,
-  hasIntake,
+  hasIntakeCandidateMaterial,
+  intakeReadyForCandidateIngest,
   recordCount,
   residueCandidateCount,
 }: {
   status: WorkEpisodeResidueCandidatePreviewStatus;
-  hasIntake: boolean;
+  hasIntakeCandidateMaterial: boolean;
+  intakeReadyForCandidateIngest: boolean;
   recordCount: number;
   residueCandidateCount: number;
 }): WorkEpisodeResidueCandidatePreview["recommended_next_action"] {
   if (status === "no_codex_result_material") return "supply_codex_result_report";
-  if (hasIntake && recordCount === 0) return "ingest_codex_result_report_candidate_record";
   if (residueCandidateCount > 0) return "review_work_episode_residue_candidates";
+  if (
+    hasIntakeCandidateMaterial &&
+    intakeReadyForCandidateIngest &&
+    recordCount === 0
+  ) {
+    return "ingest_codex_result_report_candidate_record";
+  }
   return "keep_preview_only";
 }
 

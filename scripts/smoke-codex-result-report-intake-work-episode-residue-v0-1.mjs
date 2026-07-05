@@ -250,7 +250,9 @@ const structuredPreview = buildCodexResultReportIntakePreviewV01({
     summary: "Codex result report candidate ledger work is ready for review.",
     result_status: "completed",
     changed_files: ["lib/intake/codex-result-report-intake-preview.ts"],
-    checks: ["npm run typecheck passed"],
+    checks: [
+      "npm run smoke:codex-result-report-intake-work-episode-residue-v0-1 PASS",
+    ],
     skipped_checks: ["browser validation not required for helper-only path"],
     not_done: ["No Work Episode durable write in this slice"],
     requirement_progress: ["Codex result candidate record path added"],
@@ -375,6 +377,14 @@ assert.equal(
 assert.equal(
   JSON.stringify(readyDecision).includes("raw_text"),
   false,
+);
+assert(
+  readyDecision.would_write_candidate_record_preview.sanitized_candidate_summaries.some(
+    (summary) =>
+      summary.summary.includes(
+        "npm run smoke:codex-result-report-intake-work-episode-residue-v0-1 PASS",
+      ),
+  ),
 );
 
 const validInput = buildValidWriteInput(readyDecision);
@@ -505,6 +515,52 @@ assert.equal(
   "schema_missing",
 );
 
+const forgedSummaryRefDecision = JSON.parse(JSON.stringify(readyDecision));
+forgedSummaryRefDecision.would_write_candidate_record_preview.sanitized_candidate_summaries = [
+  {
+    candidate_ref: "candidate:not-selected",
+    candidate_kind: "expected_observed_signal",
+    label: "Safe verification summary",
+    summary: "Safe verification summary that was not selected.",
+  },
+];
+const forgedSummaryRefDb = new Database(":memory:");
+const forgedSummaryRefResult = writeCodexResultReportIntakeRecordV01(
+  buildValidWriteInput(forgedSummaryRefDecision),
+  { db: forgedSummaryRefDb },
+);
+assert.equal(forgedSummaryRefResult.status, "refused");
+assert.equal(forgedSummaryRefResult.record, null);
+assert(
+  forgedSummaryRefResult.receipt.refusal_reasons.includes(
+    "sanitized_candidate_summary_ref_not_selected",
+  ),
+);
+assert.equal(
+  listCodexResultReportIntakeRecordsV01({ db: forgedSummaryRefDb }).status,
+  "schema_missing",
+);
+
+const unsafeSummaryDecision = JSON.parse(JSON.stringify(readyDecision));
+unsafeSummaryDecision.would_write_candidate_record_preview.sanitized_candidate_summaries[0].summary =
+  "password: hunter2";
+const unsafeSummaryDb = new Database(":memory:");
+const unsafeSummaryResult = writeCodexResultReportIntakeRecordV01(
+  buildValidWriteInput(unsafeSummaryDecision),
+  { db: unsafeSummaryDb },
+);
+assert.equal(unsafeSummaryResult.status, "refused");
+assert.equal(unsafeSummaryResult.record, null);
+assert(
+  unsafeSummaryResult.receipt.refusal_reasons.includes(
+    "sanitized_candidate_summary_unsafe",
+  ),
+);
+assert.equal(
+  listCodexResultReportIntakeRecordsV01({ db: unsafeSummaryDb }).status,
+  "schema_missing",
+);
+
 const unsafeDecisionSourceRefs = JSON.parse(JSON.stringify(readyDecision));
 unsafeDecisionSourceRefs.source_refs = ["source:../private"];
 unsafeDecisionSourceRefs.would_write_candidate_record_preview.source_refs = [
@@ -574,6 +630,14 @@ const db = new Database(":memory:");
 assert.equal(listCodexResultReportIntakeRecordsV01({ db }).status, "schema_missing");
 const writeResult = writeCodexResultReportIntakeRecordV01(validInput, { db });
 assert.equal(writeResult.status, "written");
+assert(writeResult.record);
+assert(
+  writeResult.record.checks_summary.some((summary) =>
+    summary.includes(
+      "npm run smoke:codex-result-report-intake-work-episode-residue-v0-1 PASS",
+    ),
+  ),
+);
 assert.equal(writeResult.receipt.no_side_effects.codex_result_report_intake_record_written, true);
 assert.equal(writeResult.receipt.no_side_effects.codex_result_report_intake_receipt_written, true);
 assert.equal(writeResult.receipt.no_side_effects.codex_result_report_persisted_as_candidate_record, true);
@@ -617,6 +681,23 @@ assert.equal(noRecordsReview.review_status, "no_records");
 const noResiduePreview = buildWorkEpisodeResidueCandidatePreviewV01();
 assert.equal(noResiduePreview.residue_preview_status, "no_codex_result_material");
 assert.equal(noResiduePreview.authority_boundary.can_write_work_episode, false);
+const emptyIntakeResiduePreview = buildWorkEpisodeResidueCandidatePreviewV01({
+  codex_result_report_intake_preview: buildCodexResultReportIntakePreviewV01(),
+});
+assert(
+  ["no_codex_result_material", "insufficient_data"].includes(
+    emptyIntakeResiduePreview.residue_preview_status,
+  ),
+);
+assert.notEqual(
+  emptyIntakeResiduePreview.recommended_next_action,
+  "ingest_codex_result_report_candidate_record",
+);
+assert(
+  ["supply_codex_result_report", "keep_preview_only"].includes(
+    emptyIntakeResiduePreview.recommended_next_action,
+  ),
+);
 let malformedRecordReview;
 assert.doesNotThrow(() => {
   malformedRecordReview = buildCodexResultReportIntakeRecordReviewV01({
