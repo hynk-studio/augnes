@@ -325,6 +325,40 @@ const reuseOutcomeBridgeLedgerRecordReviewPanelFile =
   "components/dogfooding/reuse-outcome-bridge-ledger-record-review-panel.tsx";
 const reuseOutcomeBridgeLedgerIntegrationSmokeFile =
   "scripts/smoke-reuse-outcome-bridge-ledger-integration-v0-1.mjs";
+const dogfoodMetricSnapshotPreviewTypeFile =
+  "types/dogfood-metric-snapshot-preview.ts";
+const dogfoodMetricSnapshotPreviewHelperFile =
+  "lib/dogfooding/dogfood-metric-snapshot-preview.ts";
+const dogfoodMetricSnapshotPreviewPanelFile =
+  "components/dogfooding/dogfood-metric-snapshot-preview-panel.tsx";
+const dogfoodMetricSnapshotDecisionTypeFile =
+  "types/dogfood-metric-snapshot-decision.ts";
+const dogfoodMetricSnapshotDecisionHelperFile =
+  "lib/dogfooding/dogfood-metric-snapshot-decision.ts";
+const dogfoodMetricSnapshotDecisionPanelFile =
+  "components/dogfooding/dogfood-metric-snapshot-decision-panel.tsx";
+const dogfoodMetricSnapshotWriteTypeFile =
+  "types/dogfood-metric-snapshot-write.ts";
+const dogfoodMetricSnapshotWriteHelperFile =
+  "lib/dogfooding/dogfood-metric-snapshot-write.ts";
+const dogfoodMetricSnapshotRouteFile =
+  "app/api/dogfooding/metric-snapshots/route.ts";
+const dogfoodMetricSnapshotRecordReviewTypeFile =
+  "types/dogfood-metric-snapshot-record-review.ts";
+const dogfoodMetricSnapshotRecordReviewHelperFile =
+  "lib/dogfooding/dogfood-metric-snapshot-record-review.ts";
+const dogfoodMetricSnapshotRecordReviewForWebFile =
+  "lib/dogfooding/read-dogfood-metric-snapshot-record-review-for-web.ts";
+const dogfoodMetricSnapshotRecordReviewPanelFile =
+  "components/dogfooding/dogfood-metric-snapshot-record-review-panel.tsx";
+const nextWorkSignalRefreshTypeFile =
+  "types/next-work-signal-refresh-preview.ts";
+const nextWorkSignalRefreshHelperFile =
+  "lib/workplane/next-work-signal-refresh-preview.ts";
+const nextWorkSignalRefreshPanelFile =
+  "components/workplane/next-work-signal-refresh-preview-panel.tsx";
+const dogfoodMetricSnapshotNextWorkRefreshSmokeFile =
+  "scripts/smoke-dogfood-metric-snapshot-next-work-refresh-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -995,6 +1029,32 @@ const followOnReuseOutcomeBridgeLedgerIntegrationFiles = [
   smokeFile,
 ];
 
+const followOnDogfoodMetricSnapshotNextWorkRefreshFiles = [
+  dogfoodMetricSnapshotPreviewTypeFile,
+  dogfoodMetricSnapshotPreviewHelperFile,
+  dogfoodMetricSnapshotPreviewPanelFile,
+  dogfoodMetricSnapshotDecisionTypeFile,
+  dogfoodMetricSnapshotDecisionHelperFile,
+  dogfoodMetricSnapshotDecisionPanelFile,
+  dogfoodMetricSnapshotWriteTypeFile,
+  dogfoodMetricSnapshotWriteHelperFile,
+  dogfoodMetricSnapshotRouteFile,
+  dogfoodMetricSnapshotRecordReviewTypeFile,
+  dogfoodMetricSnapshotRecordReviewHelperFile,
+  dogfoodMetricSnapshotRecordReviewForWebFile,
+  dogfoodMetricSnapshotRecordReviewPanelFile,
+  nextWorkSignalRefreshTypeFile,
+  nextWorkSignalRefreshHelperFile,
+  nextWorkSignalRefreshPanelFile,
+  dogfoodMetricSnapshotNextWorkRefreshSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1404,6 +1464,7 @@ const allowedChangedFiles = new Set([
   ...followOnCodexResultReportIntakeResidueFiles,
   ...followOnExpectedObservedDeltaBridgeFiles,
   ...followOnReuseOutcomeBridgeLedgerIntegrationFiles,
+  ...followOnDogfoodMetricSnapshotNextWorkRefreshFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -2638,6 +2699,14 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "buildReuseOutcomeCandidateBridgePreviewV01",
       "buildReuseOutcomeBridgeOperatorDecisionPreviewV01",
       "readReuseOutcomeBridgeLedgerRecordReviewForWebV01",
+      "DogfoodMetricSnapshotPreviewPanel",
+      "DogfoodMetricSnapshotDecisionPanel",
+      "DogfoodMetricSnapshotRecordReviewPanel",
+      "NextWorkSignalRefreshPreviewPanel",
+      "buildDogfoodMetricSnapshotPreviewV01",
+      "buildDogfoodMetricSnapshotOperatorDecisionPreviewV01",
+      "readDogfoodMetricSnapshotRecordReviewForWebV01",
+      "buildNextWorkSignalRefreshPreviewV01",
       "const codexResultReportIntakePreview",
       "const codexResultReportIntakeDecisionPreview",
       "const codexResultReportIntakeRecordReview",
@@ -2648,6 +2717,10 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "const reuseOutcomeCandidateBridgePreview",
       "const reuseOutcomeBridgeOperatorDecisionPreview",
       "const reuseOutcomeBridgeLedgerRecordReview",
+      "const dogfoodMetricSnapshotPreview",
+      "const dogfoodMetricSnapshotDecisionPreview",
+      "const dogfoodMetricSnapshotRecordReview",
+      "const nextWorkSignalRefreshPreview",
       "preview={codexResultReportIntakePreview}",
       "preview={codexResultReportIntakeDecisionPreview}",
       "review={codexResultReportIntakeRecordReview}",
@@ -2658,6 +2731,10 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "preview={reuseOutcomeCandidateBridgePreview}",
       "preview={reuseOutcomeBridgeOperatorDecisionPreview}",
       "review={reuseOutcomeBridgeLedgerRecordReview}",
+      "preview={dogfoodMetricSnapshotPreview}",
+      "preview={dogfoodMetricSnapshotDecisionPreview}",
+      "review={dogfoodMetricSnapshotRecordReview}",
+      "preview={nextWorkSignalRefreshPreview}",
       "codex_result_report_intake_preview: codexResultReportIntakePreview",
       "codex_result_report_intake_decision_preview:\n        codexResultReportIntakeDecisionPreview",
       "codex_result_report_intake_record_review:\n        codexResultReportIntakeRecordReview",
@@ -2668,6 +2745,10 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "reuse_outcome_candidate_bridge_preview:\n        reuseOutcomeCandidateBridgePreview",
       "reuse_outcome_bridge_operator_decision_preview:\n        reuseOutcomeBridgeOperatorDecisionPreview",
       "reuse_outcome_bridge_ledger_record_review:\n        reuseOutcomeBridgeLedgerRecordReview",
+      "dogfood_metric_snapshot_preview: dogfoodMetricSnapshotPreview",
+      "dogfood_metric_snapshot_decision_preview:\n        dogfoodMetricSnapshotDecisionPreview",
+      "dogfood_metric_snapshot_record_review:\n        dogfoodMetricSnapshotRecordReview",
+      "next_work_signal_refresh_preview: nextWorkSignalRefreshPreview",
     ],
     { label: agentWorkplaneFile },
   );
@@ -3251,6 +3332,7 @@ function assertChangedFileBoundary() {
         followOnCodexResultReportIntakeResidueFiles.includes(file) ||
         followOnExpectedObservedDeltaBridgeFiles.includes(file) ||
         followOnReuseOutcomeBridgeLedgerIntegrationFiles.includes(file) ||
+        followOnDogfoodMetricSnapshotNextWorkRefreshFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3268,6 +3350,7 @@ function assertChangedFileBoundary() {
         followOnCodexResultReportIntakeResidueFiles.includes(file) ||
         followOnExpectedObservedDeltaBridgeFiles.includes(file) ||
         followOnReuseOutcomeBridgeLedgerIntegrationFiles.includes(file) ||
+        followOnDogfoodMetricSnapshotNextWorkRefreshFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );

@@ -9,6 +9,9 @@ import { CodexResultFeedbackDraftPanel } from "@/components/codex-result-feedbac
 import { DogfoodMetricCandidatePreviewPanel } from "@/components/dogfood-metric-candidate-preview-panel";
 import { DogfoodReuseOperatorDecisionPreviewPanel } from "@/components/dogfood-reuse-operator-decision-preview-panel";
 import { DogfoodReuseRecordProposalPanel } from "@/components/dogfood-reuse-record-proposal-panel";
+import { DogfoodMetricSnapshotDecisionPanel } from "@/components/dogfooding/dogfood-metric-snapshot-decision-panel";
+import { DogfoodMetricSnapshotPreviewPanel } from "@/components/dogfooding/dogfood-metric-snapshot-preview-panel";
+import { DogfoodMetricSnapshotRecordReviewPanel } from "@/components/dogfooding/dogfood-metric-snapshot-record-review-panel";
 import { ExpectedObservedDeltaDecisionPanel } from "@/components/dogfooding/expected-observed-delta-decision-panel";
 import { ExpectedObservedDeltaPreviewPanel } from "@/components/dogfooding/expected-observed-delta-preview-panel";
 import { ExpectedObservedDeltaRecordReviewPanel } from "@/components/dogfooding/expected-observed-delta-record-review-panel";
@@ -47,6 +50,7 @@ import { EvidenceHandoffWorkplanePanel } from "@/components/workplane/evidence-h
 import { HandoffBuilderPreviewPanel } from "@/components/workplane/handoff-builder-preview-panel";
 import { ContinuityRelayWorkplanePanel } from "@/components/workplane/continuity-relay-workplane-panel";
 import { MetricInformedContinuityRelayAdjustmentPreviewPanel } from "@/components/workplane/metric-informed-continuity-relay-adjustment-preview-panel";
+import { NextWorkSignalRefreshPreviewPanel } from "@/components/workplane/next-work-signal-refresh-preview-panel";
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
 import { ReviewMemoryDetailPanel } from "@/components/workplane/review-memory-detail-panel";
 import { ReviewQueueWorkplanePanel } from "@/components/workplane/review-queue-workplane-panel";
@@ -67,10 +71,13 @@ import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-
 import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
 import { buildCodexResultFeedbackDraft } from "@/lib/dogfooding/codex-result-feedback-draft";
 import { buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01 } from "@/lib/dogfooding/dogfood-metric-candidate-preview";
+import { buildDogfoodMetricSnapshotOperatorDecisionPreviewV01 } from "@/lib/dogfooding/dogfood-metric-snapshot-decision";
+import { buildDogfoodMetricSnapshotPreviewV01 } from "@/lib/dogfooding/dogfood-metric-snapshot-preview";
 import { buildDogfoodReuseOperatorDecisionPreview } from "@/lib/dogfooding/dogfood-reuse-operator-decision-preview";
 import { buildDogfoodReuseRecordProposal } from "@/lib/dogfooding/dogfood-reuse-record-proposal";
 import { buildExpectedObservedDeltaOperatorDecisionPreviewV01 } from "@/lib/dogfooding/expected-observed-delta-decision";
 import { buildExpectedObservedDeltaPreviewV01 } from "@/lib/dogfooding/expected-observed-delta-preview";
+import { readDogfoodMetricSnapshotRecordReviewForWebV01 } from "@/lib/dogfooding/read-dogfood-metric-snapshot-record-review-for-web";
 import { readExpectedObservedDeltaRecordReviewForWebV01 } from "@/lib/dogfooding/read-expected-observed-delta-record-review-for-web";
 import { readReuseOutcomeBridgeLedgerRecordReviewForWebV01 } from "@/lib/dogfooding/read-reuse-outcome-bridge-ledger-record-review-for-web";
 import { buildReuseOutcomeBridgeOperatorDecisionPreviewV01 } from "@/lib/dogfooding/reuse-outcome-bridge-decision";
@@ -104,6 +111,7 @@ import { readSelectedSessionDigestIngestRecordReviewForWebV01 } from "@/lib/inta
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
 import { buildPerspectiveNextWorkCandidateUpdatePreviewV01 } from "@/lib/perspective/perspective-next-work-candidate-update-preview";
 import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-view-projection";
+import { buildNextWorkSignalRefreshPreviewV01 } from "@/lib/workplane/next-work-signal-refresh-preview";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
 import { buildWorkEpisodeResidueCandidatePreviewV01 } from "@/lib/workplane/work-episode-residue-candidate-preview";
 import { buildMetricInformedContinuityRelayAdjustmentPreviewV01 } from "@/lib/workplane/metric-informed-continuity-relay-adjustment-preview";
@@ -391,6 +399,27 @@ export async function AgentWorkplane() {
       as_of: workplaneMetrics.as_of,
       source_refs: ["workbench:reuse_outcome_bridge_ledger_record_review"],
     });
+  const dogfoodMetricSnapshotPreview = buildDogfoodMetricSnapshotPreviewV01({
+    reuse_outcome_bridge_ledger_record_review:
+      reuseOutcomeBridgeLedgerRecordReview,
+    expected_observed_delta_record_review: expectedObservedDeltaRecordReview,
+    work_episode_residue_candidate_preview: workEpisodeResidueCandidatePreview,
+    scope: "project:augnes",
+    as_of: workplaneMetrics.as_of,
+    source_refs: ["workbench:dogfood_metric_snapshot_preview"],
+  });
+  const dogfoodMetricSnapshotDecisionPreview =
+    buildDogfoodMetricSnapshotOperatorDecisionPreviewV01({
+      dogfood_metric_snapshot_preview: dogfoodMetricSnapshotPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:dogfood_metric_snapshot_decision_preview"],
+    });
+  const dogfoodMetricSnapshotRecordReview =
+    readDogfoodMetricSnapshotRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:dogfood_metric_snapshot_record_review"],
+    });
   const dogfoodMetricCandidatePreview =
     buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01({
       records: [],
@@ -424,6 +453,19 @@ export async function AgentWorkplane() {
         "workbench:default_metric_informed_continuity_relay_adjustment_preview",
       ],
     });
+  const nextWorkSignalRefreshPreview = buildNextWorkSignalRefreshPreviewV01({
+    dogfood_metric_snapshot_preview: dogfoodMetricSnapshotPreview,
+    dogfood_metric_snapshot_record_review: dogfoodMetricSnapshotRecordReview,
+    reuse_outcome_bridge_ledger_record_review:
+      reuseOutcomeBridgeLedgerRecordReview,
+    existing_perspective_next_work_candidate_update_preview:
+      perspectiveNextWorkCandidateUpdatePreview,
+    existing_metric_informed_continuity_relay_adjustment_preview:
+      metricInformedContinuityRelayAdjustmentPreview,
+    scope: "project:augnes",
+    as_of: workplaneMetrics.as_of,
+    source_refs: ["workbench:next_work_signal_refresh_preview"],
+  });
   const handoffContextUpdatePreview = buildHandoffContextUpdatePreviewV01({
     handoff_context_relay_rationale: handoffContextRationale,
     metric_informed_relay_adjustment_preview:
@@ -513,6 +555,12 @@ export async function AgentWorkplane() {
         reuseOutcomeBridgeOperatorDecisionPreview,
       reuse_outcome_bridge_ledger_record_review:
         reuseOutcomeBridgeLedgerRecordReview,
+      dogfood_metric_snapshot_preview: dogfoodMetricSnapshotPreview,
+      dogfood_metric_snapshot_decision_preview:
+        dogfoodMetricSnapshotDecisionPreview,
+      dogfood_metric_snapshot_record_review:
+        dogfoodMetricSnapshotRecordReview,
+      next_work_signal_refresh_preview: nextWorkSignalRefreshPreview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -654,6 +702,15 @@ export async function AgentWorkplane() {
               <ReuseOutcomeBridgeLedgerRecordReviewPanel
                 review={reuseOutcomeBridgeLedgerRecordReview}
               />
+              <DogfoodMetricSnapshotPreviewPanel
+                preview={dogfoodMetricSnapshotPreview}
+              />
+              <DogfoodMetricSnapshotDecisionPanel
+                preview={dogfoodMetricSnapshotDecisionPreview}
+              />
+              <DogfoodMetricSnapshotRecordReviewPanel
+                review={dogfoodMetricSnapshotRecordReview}
+              />
               <CodexResultFeedbackDraftPanel draft={codexResultFeedbackDraft} />
               <DogfoodReuseRecordProposalPanel
                 proposal={dogfoodReuseRecordProposal}
@@ -669,6 +726,9 @@ export async function AgentWorkplane() {
               />
               <MetricInformedContinuityRelayAdjustmentPreviewPanel
                 preview={metricInformedContinuityRelayAdjustmentPreview}
+              />
+              <NextWorkSignalRefreshPreviewPanel
+                preview={nextWorkSignalRefreshPreview}
               />
               <HandoffContextUpdatePreviewPanel
                 preview={handoffContextUpdatePreview}
