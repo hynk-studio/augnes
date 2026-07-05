@@ -176,6 +176,22 @@ Launch Card previews, and review candidates. They do not directly apply memory,
 apply Perspective, auto-apply deltas, execute Codex, tick runners, call GitHub,
 merge PRs, publish, retry, replay, or deploy.
 
+## Intent Continuity Direction
+
+The current research/modeling pointer is:
+
+- `docs/AUGNES_INTENT_CONTINUITY_MODEL_V0_1.md`
+
+This frames Augnes as an intent continuity system: user goals and constraints are
+compared with observed repo/runtime state, converted into residuals, anchored to
+evidence, reviewed through Workplane/GuideBrief/Codex result paths, and compressed
+into a handoff surface for the next valid work episode.
+
+The near-term product target from that model is a read-only Intent Continuity
+Packet derived from existing Current Working Perspective, Workplane Continuity
+Relay, GuideBrief, scoped applied CWP snapshots, Codex result review material, and
+source refs.
+
 ## Research And Perspective Development Direction
 
 Research Accumulation is moving from preview vocabulary toward product-facing
@@ -247,6 +263,7 @@ More screenshots and supporting proof captures are listed in
 
 - `docs/AUGNES_START_HERE_FOR_USERS_AND_AI.md`
 - `docs/AUGNES_CURRENT_STATUS_AND_NEXT_TASKS_V0_1.md`
+- `docs/AUGNES_INTENT_CONTINUITY_MODEL_V0_1.md`
 - `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md`
 - `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`
 - `apps/augnes_apps/docs/12_WORK_CONTRACT_CARD_RUNBOOK.md`
