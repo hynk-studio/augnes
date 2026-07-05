@@ -73,6 +73,7 @@ assertContainsAll(
     "selected_session_digest_ingest_receipt.v0.1",
     "SelectedSessionDigestIngestContractPreviewInput",
     "selected_session_digest_intake_preview?: unknown",
+    "selectable_digest_candidate_refs",
     "can_create_ingest_record: false",
     "can_create_ingest_receipt: false",
     "can_call_provider_openai: false",
@@ -94,6 +95,8 @@ assertContainsAll(
     "rejected_or_review_only_candidates",
     "raw_excerpt",
     "selected_digest_candidate_refs_missing",
+    "selected_candidate_refs_not_in_intake_preview",
+    "unknown_selected_digest_candidate_ref",
     "privacy_review_confirmation_ref_missing",
     "requested_idempotency_key_missing",
     "candidate_material_contains_secret_or_private_marker",
@@ -262,6 +265,17 @@ assert.equal(
   contractMissingPrivacy.readiness.ready_for_future_ingest_write_scope,
   false,
 );
+assert.equal(
+  contractMissingPrivacy.would_ingest_material_preview
+    .selected_digest_candidate_refs.length,
+  0,
+  "selected refs should not fall back to all candidate refs",
+);
+assert(
+  contractMissingPrivacy.would_ingest_material_preview
+    .selectable_digest_candidate_refs.length > 0,
+  "selectable refs may be shown separately from operator-selected refs",
+);
 assert(
   contractMissingPrivacy.insufficient_data_reasons.includes(
     "privacy_review_confirmation_ref_missing",
@@ -317,6 +331,43 @@ assert.equal(
 );
 assert.equal(readyContract.authority_boundary.can_write_db, false);
 assert.equal(readyContract.authority_boundary.can_write_memory, false);
+
+const unknownSelectedRefContract =
+  buildSelectedSessionDigestIngestContractPreviewV01({
+    selected_session_digest_intake_preview: cleanIntake,
+    privacy_review_confirmation_ref: "privacy:selected-digest-clean",
+    selected_candidate_refs: ["candidate:not-from-this-intake"],
+    requested_idempotency_key: "idempotency:selected-digest-clean",
+  });
+assert.notEqual(
+  unknownSelectedRefContract.contract_preview_status,
+  "ready_for_future_ingest_write_scope",
+);
+assert.equal(
+  unknownSelectedRefContract.readiness.ready_for_future_ingest_write_scope,
+  false,
+);
+assert(
+  [
+    ...unknownSelectedRefContract.blocked_reasons,
+    ...unknownSelectedRefContract.refusal_reasons,
+    ...unknownSelectedRefContract.insufficient_data_reasons,
+    ...unknownSelectedRefContract.readiness.current_blockers,
+    ...unknownSelectedRefContract.readiness.current_refusal_reasons,
+  ].some((reason) =>
+    [
+      "selected_candidate_refs_not_in_intake_preview",
+      "unknown_selected_digest_candidate_ref",
+    ].includes(reason),
+  ),
+  "unknown selected candidate refs must be surfaced as blockers/refusals",
+);
+assert.equal(
+  unknownSelectedRefContract.would_ingest_material_preview
+    .selected_digest_candidate_refs.length,
+  0,
+  "unknown selected refs must not be treated as operator-selected intake refs",
+);
 
 const missingSourceRefIntake = buildSelectedSessionDigestIntakePreviewV01({
   digest: {
@@ -503,6 +554,23 @@ assert(
     gap.includes("privacy_review_confirmation_ref_missing"),
   ),
   "overview should surface ingest contract material gaps",
+);
+
+const overviewUnknownSelectedRef = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanIntake,
+  selected_session_digest_ingest_contract_preview: unknownSelectedRefContract,
+});
+assert.notEqual(
+  overviewUnknownSelectedRef.recommended_next_operator_action,
+  "prepare_separate_ingest_write_slice",
+);
+assert(
+  overviewUnknownSelectedRef.top_blockers.some(
+    (blocker) =>
+      blocker.includes("selected_candidate_refs_not_in_intake_preview") ||
+      blocker.includes("unknown_selected_digest_candidate_ref"),
+  ),
+  "overview should surface unknown selected candidate ref blockers",
 );
 
 assertNoButtons(panelText, panelFile);

@@ -73,6 +73,11 @@ type IngestableCandidateKind = Exclude<
   SelectedSessionDigestIntakeCandidateKind,
   "rejected_or_review_only"
 >;
+type SelectedCandidateRefValidation = {
+  canonical_candidate_refs: Set<string>;
+  unknown_public_safe_refs: string[];
+  refusal_reasons: string[];
+};
 
 export function buildSelectedSessionDigestIngestContractPreviewV01({
   selected_session_digest_intake_preview,
@@ -103,10 +108,15 @@ export function buildSelectedSessionDigestIngestContractPreviewV01({
     intakePreview,
     sourcePreviewStatus,
   });
+  const selectedCandidateRefValidation = buildSelectedCandidateRefValidation({
+    intakePreview,
+    selected_candidate_refs,
+  });
   const candidateSummaryUnsafeReasons =
     buildCandidateSummaryUnsafeReasons(intakePreview);
   const contractRefusalReasons = buildRefusalReasons({
     selected_candidate_refs,
+    selectedCandidateRefValidation,
     requested_operator_ref,
     requested_idempotency_key,
     privacy_review_confirmation_ref,
@@ -116,6 +126,7 @@ export function buildSelectedSessionDigestIngestContractPreviewV01({
     intakePreview,
     intakePreviewRef,
     selected_candidate_refs,
+    selectedCandidateRefValidation,
     requested_operator_ref,
     requested_idempotency_key,
     privacy_review_confirmation_ref,
@@ -134,7 +145,6 @@ export function buildSelectedSessionDigestIngestContractPreviewV01({
     intakePreview,
     sourcePreviewStatus,
     shapeProblems,
-    selected_candidate_refs,
     requested_operator_ref,
     requested_idempotency_key,
     privacy_review_confirmation_ref,
@@ -425,6 +435,7 @@ function buildWouldIngestMaterialPreview({
   intakePreview,
   intakePreviewRef,
   selected_candidate_refs,
+  selectedCandidateRefValidation,
   requested_operator_ref,
   requested_idempotency_key,
   privacy_review_confirmation_ref,
@@ -433,23 +444,24 @@ function buildWouldIngestMaterialPreview({
   intakePreview: SelectedSessionDigestIntakePreview | null;
   intakePreviewRef: string | null;
   selected_candidate_refs?: string[];
+  selectedCandidateRefValidation: SelectedCandidateRefValidation;
   requested_operator_ref?: string;
   requested_idempotency_key?: string;
   privacy_review_confirmation_ref?: string;
   requested_ingest_scope_ref?: string;
 }): SelectedSessionDigestWouldIngestMaterialPreview {
   const candidates = ingestableCandidates(intakePreview);
-  const candidateRefs = candidates.map((candidate, index) =>
-    safeOutputRef(candidate.candidate_id, `redacted_candidate_ref_${index}`),
-  );
+  const candidateRefs = canonicalIngestableCandidateRefs(intakePreview);
   const selectedRefs = uniqueSortedStrings(
-    (selected_candidate_refs ?? []).filter(hasPublicSafeValue),
+    (selected_candidate_refs ?? []).filter((ref) =>
+      selectedCandidateRefValidation.canonical_candidate_refs.has(ref),
+    ),
   );
-  const outputCandidateRefs = selectedRefs.length > 0 ? selectedRefs : candidateRefs;
   const candidateSummaries = candidates.map(toCandidateSummary);
 
   return {
-    selected_digest_candidate_refs: outputCandidateRefs,
+    selected_digest_candidate_refs: selectedRefs,
+    selectable_digest_candidate_refs: candidateRefs,
     candidate_counts_by_kind: countCandidatesByKind(candidates),
     source_kind: intakePreview?.input_summary.source_kind ?? null,
     source_ref: firstPublicSafeString(
@@ -537,12 +549,14 @@ function buildCarryForward(
 
 function buildRefusalReasons({
   selected_candidate_refs,
+  selectedCandidateRefValidation,
   requested_operator_ref,
   requested_idempotency_key,
   privacy_review_confirmation_ref,
   requested_ingest_scope_ref,
 }: {
   selected_candidate_refs?: string[];
+  selectedCandidateRefValidation: SelectedCandidateRefValidation;
   requested_operator_ref?: string;
   requested_idempotency_key?: string;
   privacy_review_confirmation_ref?: string;
@@ -550,6 +564,7 @@ function buildRefusalReasons({
 }): string[] {
   return uniqueSortedStrings([
     ...unsafeReason("selected_candidate_refs_unsafe", selected_candidate_refs),
+    ...selectedCandidateRefValidation.refusal_reasons,
     ...unsafeReason("requested_operator_ref_unsafe", requested_operator_ref),
     ...unsafeReason(
       "requested_idempotency_key_unsafe",
@@ -602,7 +617,6 @@ function buildInsufficientDataReasons({
   intakePreview,
   sourcePreviewStatus,
   shapeProblems,
-  selected_candidate_refs,
   requested_operator_ref,
   requested_idempotency_key,
   privacy_review_confirmation_ref,
@@ -612,7 +626,6 @@ function buildInsufficientDataReasons({
   intakePreview: SelectedSessionDigestIntakePreview | null;
   sourcePreviewStatus: IntakePreviewSourceStatus;
   shapeProblems: string[];
-  selected_candidate_refs?: string[];
   requested_operator_ref?: string;
   requested_idempotency_key?: string;
   privacy_review_confirmation_ref?: string;
@@ -658,7 +671,7 @@ function buildInsufficientDataReasons({
       "privacy_review_confirmation_ref_missing",
       privacy_review_confirmation_ref,
     ),
-    ...(selected_candidate_refs && selected_candidate_refs.length > 0
+    ...(wouldIngestMaterial.selected_digest_candidate_refs.length > 0
       ? []
       : ["selected_digest_candidate_refs_missing"]),
     ...missingPublicSafeReason(
@@ -922,7 +935,7 @@ function buildInputSummary({
     source_ref_count: wouldIngestMaterial.source_refs.length,
     ingestable_candidate_count: countWouldIngestMaterial(wouldIngestMaterial),
     selected_candidate_ref_count:
-      selected_candidate_refs?.filter(hasPublicSafeValue).length ?? 0,
+      wouldIngestMaterial.selected_digest_candidate_refs.length,
     selected_candidate_refs_supplied:
       Boolean(selected_candidate_refs && selected_candidate_refs.length > 0),
     requested_operator_ref_supplied: hasPublicSafeValue(requested_operator_ref),
@@ -1164,6 +1177,42 @@ function ingestableCandidates(
   return ingestableCandidateBuckets.flatMap(
     (bucket) => intakePreview.candidate_material[bucket],
   );
+}
+
+function canonicalIngestableCandidateRefs(
+  intakePreview: SelectedSessionDigestIntakePreview | null,
+): string[] {
+  return ingestableCandidates(intakePreview).map((candidate, index) =>
+    safeOutputRef(candidate.candidate_id, `redacted_candidate_ref_${index}`),
+  );
+}
+
+function buildSelectedCandidateRefValidation({
+  intakePreview,
+  selected_candidate_refs,
+}: {
+  intakePreview: SelectedSessionDigestIntakePreview | null;
+  selected_candidate_refs?: string[];
+}): SelectedCandidateRefValidation {
+  const canonicalRefs = new Set(canonicalIngestableCandidateRefs(intakePreview));
+  const suppliedPublicSafeRefs = uniqueSortedStrings(
+    (selected_candidate_refs ?? []).filter(hasPublicSafeValue),
+  );
+  const unknownPublicSafeRefs = suppliedPublicSafeRefs.filter(
+    (ref) => !canonicalRefs.has(ref),
+  );
+
+  return {
+    canonical_candidate_refs: canonicalRefs,
+    unknown_public_safe_refs: unknownPublicSafeRefs,
+    refusal_reasons:
+      unknownPublicSafeRefs.length > 0
+        ? [
+            "selected_candidate_refs_not_in_intake_preview",
+            "unknown_selected_digest_candidate_ref",
+          ]
+        : [],
+  };
 }
 
 function countCandidatesByKind(

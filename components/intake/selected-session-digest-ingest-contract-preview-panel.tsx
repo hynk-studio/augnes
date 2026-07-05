@@ -294,8 +294,10 @@ function WouldIngestSection({
     >
       <span style={workplaneBadgeStyle}>would-ingest material preview</span>
       <strong>
-        {preview.would_ingest_material_preview.selected_digest_candidate_refs.length}{" "}
-        candidate refs
+        selected{" "}
+        {preview.would_ingest_material_preview.selected_digest_candidate_refs.length}
+        ; selectable{" "}
+        {preview.would_ingest_material_preview.selectable_digest_candidate_refs.length}
       </strong>
       <span style={workplaneCopyStyle}>
         summaries {counts.session_summary}; goals {counts.user_goal}; decisions{" "}

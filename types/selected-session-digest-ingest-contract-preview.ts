@@ -138,6 +138,7 @@ export interface SelectedSessionDigestFutureIngestWriteContract {
 
 export interface SelectedSessionDigestWouldIngestMaterialPreview {
   selected_digest_candidate_refs: string[];
+  selectable_digest_candidate_refs: string[];
   candidate_counts_by_kind: Record<
     Exclude<SelectedSessionDigestIntakeCandidateKind, "rejected_or_review_only">,
     number
