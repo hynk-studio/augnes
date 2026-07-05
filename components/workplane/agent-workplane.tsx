@@ -27,6 +27,9 @@ import { SelectedSessionDigestIngestContractPreviewPanel } from "@/components/in
 import { SelectedSessionDigestIngestOperatorDecisionPanel } from "@/components/intake/selected-session-digest-ingest-operator-decision-panel";
 import { SelectedSessionDigestIngestRecordReviewPanel } from "@/components/intake/selected-session-digest-ingest-record-review-panel";
 import { SelectedSessionDigestIntakePreviewPanel } from "@/components/intake/selected-session-digest-intake-preview-panel";
+import { ProjectHistoryIntakeDecisionPanel } from "@/components/intake/project-history-intake-decision-panel";
+import { ProjectHistoryIntakePreviewPanel } from "@/components/intake/project-history-intake-preview-panel";
+import { ProjectHistoryIntakeRecordReviewPanel } from "@/components/intake/project-history-intake-record-review-panel";
 import { PerspectiveNextWorkCandidateUpdatePreviewPanel } from "@/components/perspective-next-work-candidate-update-preview-panel";
 import { CurrentPerspectiveWorkplanePanel } from "@/components/workplane/current-perspective-workplane-panel";
 import { DeltaBatchPanel } from "@/components/workplane/delta-batch-panel";
@@ -75,6 +78,9 @@ import { buildHandoffContextRelayRationale } from "@/lib/handoff/handoff-context
 import { buildSelectedSessionDigestIngestContractPreviewV01 } from "@/lib/intake/selected-session-digest-ingest-contract-preview";
 import { buildSelectedSessionDigestIngestOperatorDecisionPreviewV01 } from "@/lib/intake/selected-session-digest-ingest-operator-decision";
 import { buildSelectedSessionDigestIntakePreviewV01 } from "@/lib/intake/selected-session-digest-intake-preview";
+import { buildProjectHistoryIntakeOperatorDecisionPreviewV01 } from "@/lib/intake/project-history-intake-decision";
+import { buildProjectHistoryIntakePreviewV01 } from "@/lib/intake/project-history-intake-preview";
+import { readProjectHistoryIntakeRecordReviewForWebV01 } from "@/lib/intake/read-project-history-intake-record-review-for-web";
 import { readSelectedSessionDigestIngestRecordReviewForWebV01 } from "@/lib/intake/read-selected-session-digest-ingest-record-review-for-web";
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
 import { buildPerspectiveNextWorkCandidateUpdatePreviewV01 } from "@/lib/perspective/perspective-next-work-candidate-update-preview";
@@ -268,6 +274,25 @@ export async function AgentWorkplane() {
         "workbench:selected_session_digest_ingest_record_review",
       ],
     });
+  const projectHistoryIntakePreview = buildProjectHistoryIntakePreviewV01({
+    scope: "project:augnes",
+    as_of: workplaneMetrics.as_of,
+    source_refs: ["workbench:project_history_intake_preview_empty_input"],
+  });
+  const projectHistoryIntakeOperatorDecisionPreview =
+    buildProjectHistoryIntakeOperatorDecisionPreviewV01({
+      project_history_intake_preview: projectHistoryIntakePreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:project_history_intake_operator_decision_preview",
+      ],
+    });
+  const projectHistoryIntakeRecordReview =
+    readProjectHistoryIntakeRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:project_history_intake_record_review"],
+    });
   const dogfoodMetricCandidatePreview =
     buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01({
       records: [],
@@ -368,6 +393,10 @@ export async function AgentWorkplane() {
         selectedSessionDigestIngestOperatorDecisionPreview,
       selected_session_digest_ingest_record_review:
         selectedSessionDigestIngestRecordReview,
+      project_history_intake_preview: projectHistoryIntakePreview,
+      project_history_intake_operator_decision_preview:
+        projectHistoryIntakeOperatorDecisionPreview,
+      project_history_intake_record_review: projectHistoryIntakeRecordReview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -469,6 +498,15 @@ export async function AgentWorkplane() {
               />
               <SelectedSessionDigestIngestRecordReviewPanel
                 review={selectedSessionDigestIngestRecordReview}
+              />
+              <ProjectHistoryIntakePreviewPanel
+                preview={projectHistoryIntakePreview}
+              />
+              <ProjectHistoryIntakeDecisionPanel
+                preview={projectHistoryIntakeOperatorDecisionPreview}
+              />
+              <ProjectHistoryIntakeRecordReviewPanel
+                review={projectHistoryIntakeRecordReview}
               />
               <CodexResultFeedbackDraftPanel draft={codexResultFeedbackDraft} />
               <DogfoodReuseRecordProposalPanel

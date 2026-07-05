@@ -25,6 +25,9 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_ingest_contract_preview,
   selected_session_digest_ingest_operator_decision_preview,
   selected_session_digest_ingest_record_review,
+  project_history_intake_preview,
+  project_history_intake_operator_decision_preview,
+  project_history_intake_record_review,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -53,6 +56,11 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       recordReview: selected_session_digest_ingest_record_review,
       operatorDecisionPreview:
         selected_session_digest_ingest_operator_decision_preview,
+    }),
+    projectHistoryIntakeStep(project_history_intake_preview),
+    projectHistoryCandidateIngestRecordStep({
+      recordReview: project_history_intake_record_review,
+      decisionPreview: project_history_intake_operator_decision_preview,
     }),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
@@ -433,6 +441,115 @@ function selectedSessionDigestDurableIngestRecordStep({
         : "review_selected_session_digest_ingest_operator_decision",
     evidence_present: recordReview.evidence_summary.has_records,
     summary: `Selected digest candidate ingest record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; decision_record_ready ${String(decisionRecordReady)}.`,
+  });
+}
+
+function projectHistoryIntakeStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["project_history_intake_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "project_history_intake",
+      label: "Project history intake",
+      recommended_next_action: "supply_project_history_digest",
+      summary: "No project history intake preview supplied.",
+    });
+  }
+
+  return makeStep({
+    step_id: "project_history_intake",
+    label: "Project history intake",
+    status:
+      preview.intake_preview_status === "no_history"
+        ? "no_current_material"
+        : mapProjectHistoryIntakeStatus(preview.intake_preview_status),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.input_summary.candidate_count,
+    blockers: [
+      ...preview.blocked_reasons,
+      ...preview.unsafe_ref_reasons,
+      ...preview.readiness.current_blockers,
+    ],
+    material_gaps: [
+      ...preview.insufficient_data_reasons,
+      ...preview.readiness.current_insufficient_data,
+      ...(preview.readiness.requires_digest_or_raw_text
+        ? ["project_history_digest_or_raw_text_missing"]
+        : []),
+      ...(preview.readiness.requires_candidate_material
+        ? ["project_history_candidate_material_missing"]
+        : []),
+    ],
+    missing_evidence: [
+      ...preview.evidence_summary.missing_evidence,
+      ...preview.readiness.current_missing_evidence,
+    ],
+    recommended_next_action:
+      preview.intake_preview_status === "no_history"
+        ? "supply_project_history_digest"
+        : preview.readiness.ready_for_operator_review ||
+            preview.input_summary.candidate_count > 0
+          ? "review_project_history_intake_candidates"
+          : "supply_project_history_digest",
+    evidence_present: preview.evidence_summary.has_history_material,
+    summary: `Project history intake is ${preview.intake_preview_status}; candidate_count ${preview.input_summary.candidate_count}; next ${preview.recommended_next_action}.`,
+  });
+}
+
+function projectHistoryCandidateIngestRecordStep({
+  recordReview,
+  decisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["project_history_intake_record_review"];
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["project_history_intake_operator_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "project_history_candidate_ingest_record",
+      label: "Project history candidate ingest record",
+      recommended_next_action: "review_project_history_intake_record",
+      summary: "No project history intake record review supplied.",
+    });
+  }
+
+  const decisionReady =
+    decisionPreview?.decision_preview_status ===
+      "ready_for_future_candidate_record_write" &&
+    decisionPreview.write_readiness.write_ready === true;
+  const hasRecords = recordReview.input_summary.valid_record_count > 0;
+
+  return makeStep({
+    step_id: "project_history_candidate_ingest_record",
+    label: "Project history candidate ingest record",
+    status: mapRecordReviewStatus(recordReview.review_status),
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count:
+      recordReview.input_summary.valid_record_count +
+      recordReview.input_summary.selected_candidate_ref_count +
+      recordReview.input_summary.sanitized_candidate_summary_count,
+    blockers: [
+      ...recordReview.blocked_reasons,
+      ...(recordReview.input_summary.receipt_side_effect_problem_count > 0
+        ? ["project_history_intake_record_side_effect_problem"]
+        : []),
+    ],
+    material_gaps: [
+      ...recordReview.insufficient_data_reasons,
+      ...(decisionReady && !hasRecords
+        ? ["project_history_candidate_ingest_record_missing_after_operator_decision"]
+        : []),
+      ...(!decisionReady && !hasRecords
+        ? ["project_history_intake_operator_decision_missing_or_not_ready"]
+        : []),
+    ],
+    missing_evidence: recordReview.evidence_summary.missing_evidence,
+    recommended_next_action: hasRecords
+      ? "review_project_history_intake_record"
+      : decisionReady
+        ? "write_project_history_candidate_ingest_record"
+        : "review_project_history_intake_candidates",
+    evidence_present: recordReview.evidence_summary.has_records,
+    summary: `Project history candidate ingest record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; decision_ready ${String(decisionReady)}.`,
   });
 }
 
@@ -1046,6 +1163,14 @@ function determineRecommendedNextOperatorAction({
   ) {
     return "resolve_selected_session_digest_ingest_record_blockers";
   }
+  if (
+    top_blockers.some((blocker) =>
+      blocker.startsWith("project_history_intake:") ||
+      blocker.startsWith("project_history_candidate_ingest_record:"),
+    )
+  ) {
+    return "resolve_project_history_intake_blockers";
+  }
   if (top_blockers.length > 0) return "resolve_blockers_or_missing_evidence";
   if (steps[0]?.recommended_next_action === "supply_selected_session_digest") {
     return "supply_selected_session_digest";
@@ -1090,16 +1215,53 @@ function determineRecommendedNextOperatorAction({
         selectedDigestRecordStep?.recommended_next_action ===
         "review_selected_session_digest_ingest_record"
       ) {
-        return "review_selected_session_digest_ingest_record";
-      }
-      if (
+        // Selected-session candidate ingest already has a record; let the
+        // broader Phase 1 source-family gaps drive the next restart point.
+      } else if (
+        selectedDigestRecordStep?.status !== "not_supplied" &&
         selectedDigestDecisionStep.recommended_next_action ===
         "prepare_operator_approved_selected_session_digest_ingest_decision_record"
       ) {
         return "prepare_operator_approved_selected_session_digest_ingest_decision_record";
+      } else {
+        return selectedDigestDecisionStep.recommended_next_action;
       }
-      return selectedDigestDecisionStep.recommended_next_action;
     }
+  }
+  const projectHistoryIntake = steps.find(
+    (step) => step.step_id === "project_history_intake",
+  );
+  if (
+    projectHistoryIntake &&
+    projectHistoryIntake.status !== "not_supplied" &&
+    projectHistoryIntake.status !== "ready_for_operator_review" &&
+    projectHistoryIntake.status !== "candidate_material_available" &&
+    projectHistoryIntake.recommended_next_action ===
+      "supply_project_history_digest"
+  ) {
+    return "supply_project_history_digest";
+  }
+  const projectHistoryRecord = steps.find(
+    (step) => step.step_id === "project_history_candidate_ingest_record",
+  );
+  if (
+    projectHistoryRecord?.recommended_next_action ===
+    "write_project_history_candidate_ingest_record"
+  ) {
+    return "write_project_history_candidate_ingest_record";
+  }
+  if (
+    projectHistoryRecord?.recommended_next_action ===
+    "review_project_history_intake_record" &&
+    projectHistoryRecord.material_count > 0
+  ) {
+    return "review_project_history_intake_record";
+  }
+  if (
+    projectHistoryIntake?.recommended_next_action ===
+    "review_project_history_intake_candidates"
+  ) {
+    return "review_project_history_intake_candidates";
   }
   if (
     steps.some(
@@ -1171,6 +1333,19 @@ function mapSelectedSessionIngestOperatorDecisionStatus(
     status === "needs_operator_judgment"
   ) {
     return "ready_for_operator_review";
+  }
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function mapProjectHistoryIntakeStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_history") return "no_current_material";
+  if (status === "unsafe" || status === "malformed") return "blocked";
+  if (status === "ready_for_operator_review") return "ready_for_operator_review";
+  if (status === "candidate_material_available") {
+    return "candidate_material_available";
   }
   if (status === "keep_preview_only") return "keep_preview_only";
   return "insufficient_data";
