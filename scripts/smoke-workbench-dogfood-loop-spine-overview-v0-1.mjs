@@ -237,6 +237,34 @@ const perspectiveRelayUpdateCandidateBridgePanelFile =
   "components/workplane/perspective-relay-update-candidate-bridge-preview-panel.tsx";
 const nextWorkSignalDecisionPerspectiveRelayBridgeSmokeFile =
   "scripts/smoke-next-work-signal-decision-perspective-relay-bridge-v0-1.mjs";
+const perspectiveRelayUpdateDecisionTypeFile =
+  "types/perspective-relay-update-decision.ts";
+const perspectiveRelayUpdateDecisionHelperFile =
+  "lib/workplane/perspective-relay-update-decision.ts";
+const perspectiveRelayUpdateDecisionPanelFile =
+  "components/workplane/perspective-relay-update-decision-panel.tsx";
+const perspectiveRelayUpdateDecisionWriteTypeFile =
+  "types/perspective-relay-update-decision-write.ts";
+const perspectiveRelayUpdateDecisionWriteHelperFile =
+  "lib/workplane/perspective-relay-update-decision-write.ts";
+const perspectiveRelayUpdateDecisionRouteFile =
+  "app/api/workplane/perspective-relay-update-decisions/route.ts";
+const perspectiveRelayUpdateDecisionRecordReviewTypeFile =
+  "types/perspective-relay-update-decision-record-review.ts";
+const perspectiveRelayUpdateDecisionRecordReviewHelperFile =
+  "lib/workplane/perspective-relay-update-decision-record-review.ts";
+const perspectiveRelayUpdateDecisionRecordReviewForWebFile =
+  "lib/workplane/read-perspective-relay-update-decision-record-review-for-web.ts";
+const perspectiveRelayUpdateDecisionRecordReviewPanelFile =
+  "components/workplane/perspective-relay-update-decision-record-review-panel.tsx";
+const perspectiveRelayUpdateWriteContractTypeFile =
+  "types/perspective-relay-update-write-contract-preview.ts";
+const perspectiveRelayUpdateWriteContractHelperFile =
+  "lib/workplane/perspective-relay-update-write-contract-preview.ts";
+const perspectiveRelayUpdateWriteContractPanelFile =
+  "components/workplane/perspective-relay-update-write-contract-preview-panel.tsx";
+const perspectiveRelayUpdateDecisionWriteContractSmokeFile =
+  "scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -363,6 +391,20 @@ const allowedChangedFiles = [
   perspectiveRelayUpdateCandidateBridgeHelperFile,
   perspectiveRelayUpdateCandidateBridgePanelFile,
   nextWorkSignalDecisionPerspectiveRelayBridgeSmokeFile,
+  perspectiveRelayUpdateDecisionTypeFile,
+  perspectiveRelayUpdateDecisionHelperFile,
+  perspectiveRelayUpdateDecisionPanelFile,
+  perspectiveRelayUpdateDecisionWriteTypeFile,
+  perspectiveRelayUpdateDecisionWriteHelperFile,
+  perspectiveRelayUpdateDecisionRouteFile,
+  perspectiveRelayUpdateDecisionRecordReviewTypeFile,
+  perspectiveRelayUpdateDecisionRecordReviewHelperFile,
+  perspectiveRelayUpdateDecisionRecordReviewForWebFile,
+  perspectiveRelayUpdateDecisionRecordReviewPanelFile,
+  perspectiveRelayUpdateWriteContractTypeFile,
+  perspectiveRelayUpdateWriteContractHelperFile,
+  perspectiveRelayUpdateWriteContractPanelFile,
+  perspectiveRelayUpdateDecisionWriteContractSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -414,6 +456,9 @@ assertContainsAll(
     "next_work_signal_operator_decision",
     "next_work_signal_decision_record",
     "perspective_relay_update_candidate_bridge",
+    "perspective_relay_update_operator_decision",
+    "perspective_relay_update_decision_record",
+    "perspective_relay_update_write_contract",
     "review_expected_observed_delta_candidates",
     "write_expected_observed_delta_record",
     "review_reuse_outcome_candidate_bridge",
@@ -431,6 +476,12 @@ assertContainsAll(
     "write_next_work_signal_decision_record",
     "review_next_work_signal_decision_record",
     "review_perspective_relay_update_candidates",
+    "review_perspective_relay_update_decision",
+    "write_perspective_relay_update_decision_record",
+    "review_perspective_relay_update_decision_record",
+    "review_perspective_relay_update_write_contract",
+    "prepare_scoped_perspective_next_work_relay_write_slice",
+    "resolve_perspective_relay_update_blockers",
     "prepare_perspective_next_work_update_decision",
     "prepare_continuity_relay_update_contract",
     "resolve_next_work_signal_blockers",
@@ -489,6 +540,9 @@ assertContainsAll(
     "next_work_signal_decision_preview",
     "next_work_signal_decision_record_review",
     "perspective_relay_update_candidate_bridge_preview",
+    "perspective_relay_update_operator_decision_preview",
+    "perspective_relay_update_decision_record_review",
+    "perspective_relay_update_write_contract_preview",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
     "selectedSessionDigestDurableIngestRecordStep",
@@ -508,6 +562,9 @@ assertContainsAll(
     "nextWorkSignalDecisionStep",
     "nextWorkSignalDecisionRecordStep",
     "perspectiveRelayUpdateCandidateBridgeStep",
+    "perspectiveRelayUpdateDecisionStep",
+    "perspectiveRelayUpdateDecisionRecordStep",
+    "perspectiveRelayUpdateWriteContractStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -702,7 +759,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 32);
+assert.equal(emptyOverview.spine_steps.length, 35);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -715,6 +772,16 @@ assert(
   ),
   "overview should include project history candidate ingest record step",
 );
+for (const stepId of [
+  "perspective_relay_update_operator_decision",
+  "perspective_relay_update_decision_record",
+  "perspective_relay_update_write_contract",
+]) {
+  assert(
+    emptyOverview.spine_steps.some((step) => step.step_id === stepId),
+    `overview should include ${stepId} step`,
+  );
+}
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "codex_result_report_intake",
@@ -1743,7 +1810,8 @@ function assertNoForbiddenChangedPaths() {
         file === expectedObservedDeltaWriteRouteFile ||
         file === reuseOutcomeBridgeLedgerRouteFile ||
         file === dogfoodMetricSnapshotRouteFile ||
-        file === nextWorkSignalDecisionRouteFile,
+        file === nextWorkSignalDecisionRouteFile ||
+        file === perspectiveRelayUpdateDecisionRouteFile,
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);

@@ -54,6 +54,9 @@ import { NextWorkSignalDecisionPanel } from "@/components/workplane/next-work-si
 import { NextWorkSignalDecisionRecordReviewPanel } from "@/components/workplane/next-work-signal-decision-record-review-panel";
 import { NextWorkSignalRefreshPreviewPanel } from "@/components/workplane/next-work-signal-refresh-preview-panel";
 import { PerspectiveRelayUpdateCandidateBridgePreviewPanel } from "@/components/workplane/perspective-relay-update-candidate-bridge-preview-panel";
+import { PerspectiveRelayUpdateDecisionPanel } from "@/components/workplane/perspective-relay-update-decision-panel";
+import { PerspectiveRelayUpdateDecisionRecordReviewPanel } from "@/components/workplane/perspective-relay-update-decision-record-review-panel";
+import { PerspectiveRelayUpdateWriteContractPreviewPanel } from "@/components/workplane/perspective-relay-update-write-contract-preview-panel";
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
 import { ReviewMemoryDetailPanel } from "@/components/workplane/review-memory-detail-panel";
 import { ReviewQueueWorkplanePanel } from "@/components/workplane/review-queue-workplane-panel";
@@ -118,6 +121,9 @@ import { buildNextWorkSignalRefreshPreviewV01 } from "@/lib/workplane/next-work-
 import { buildNextWorkSignalOperatorDecisionPreviewV01 } from "@/lib/workplane/next-work-signal-decision";
 import { readNextWorkSignalDecisionRecordReviewForWebV01 } from "@/lib/workplane/read-next-work-signal-decision-record-review-for-web";
 import { buildPerspectiveRelayUpdateCandidateBridgePreviewV01 } from "@/lib/workplane/perspective-relay-update-candidate-bridge-preview";
+import { buildPerspectiveRelayUpdateOperatorDecisionPreviewV01 } from "@/lib/workplane/perspective-relay-update-decision";
+import { readPerspectiveRelayUpdateDecisionRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-relay-update-decision-record-review-for-web";
+import { buildPerspectiveRelayUpdateWriteContractPreviewV01 } from "@/lib/workplane/perspective-relay-update-write-contract-preview";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
 import { buildWorkEpisodeResidueCandidatePreviewV01 } from "@/lib/workplane/work-episode-residue-candidate-preview";
 import { buildMetricInformedContinuityRelayAdjustmentPreviewV01 } from "@/lib/workplane/metric-informed-continuity-relay-adjustment-preview";
@@ -503,6 +509,39 @@ export async function AgentWorkplane() {
         "workbench:perspective_relay_update_candidate_bridge_preview",
       ],
     });
+  const perspectiveRelayUpdateDecisionPreview =
+    buildPerspectiveRelayUpdateOperatorDecisionPreviewV01({
+      perspective_relay_update_candidate_bridge_preview:
+        perspectiveRelayUpdateCandidateBridgePreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:perspective_relay_update_decision_preview"],
+    });
+  const perspectiveRelayUpdateDecisionRecordReview =
+    readPerspectiveRelayUpdateDecisionRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:perspective_relay_update_decision_record_review",
+      ],
+    });
+  const perspectiveRelayUpdateWriteContractPreview =
+    buildPerspectiveRelayUpdateWriteContractPreviewV01({
+      perspective_relay_update_operator_decision_preview:
+        perspectiveRelayUpdateDecisionPreview,
+      perspective_relay_update_decision_record_review:
+        perspectiveRelayUpdateDecisionRecordReview,
+      perspective_relay_update_candidate_bridge_preview:
+        perspectiveRelayUpdateCandidateBridgePreview,
+      existing_perspective_next_work_candidate_update_preview:
+        perspectiveNextWorkCandidateUpdatePreview,
+      existing_metric_informed_continuity_relay_adjustment_preview:
+        metricInformedContinuityRelayAdjustmentPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:perspective_relay_update_write_contract_preview",
+      ],
+    });
   const handoffContextUpdatePreview = buildHandoffContextUpdatePreviewV01({
     handoff_context_relay_rationale: handoffContextRationale,
     metric_informed_relay_adjustment_preview:
@@ -603,6 +642,12 @@ export async function AgentWorkplane() {
         nextWorkSignalDecisionRecordReview,
       perspective_relay_update_candidate_bridge_preview:
         perspectiveRelayUpdateCandidateBridgePreview,
+      perspective_relay_update_operator_decision_preview:
+        perspectiveRelayUpdateDecisionPreview,
+      perspective_relay_update_decision_record_review:
+        perspectiveRelayUpdateDecisionRecordReview,
+      perspective_relay_update_write_contract_preview:
+        perspectiveRelayUpdateWriteContractPreview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -780,6 +825,15 @@ export async function AgentWorkplane() {
               />
               <PerspectiveRelayUpdateCandidateBridgePreviewPanel
                 preview={perspectiveRelayUpdateCandidateBridgePreview}
+              />
+              <PerspectiveRelayUpdateDecisionPanel
+                preview={perspectiveRelayUpdateDecisionPreview}
+              />
+              <PerspectiveRelayUpdateDecisionRecordReviewPanel
+                review={perspectiveRelayUpdateDecisionRecordReview}
+              />
+              <PerspectiveRelayUpdateWriteContractPreviewPanel
+                preview={perspectiveRelayUpdateWriteContractPreview}
               />
               <HandoffContextUpdatePreviewPanel
                 preview={handoffContextUpdatePreview}

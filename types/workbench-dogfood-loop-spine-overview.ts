@@ -29,6 +29,9 @@ import type { NextWorkSignalOperatorDecisionPreview } from "./next-work-signal-d
 import type { NextWorkSignalDecisionRecordReview } from "./next-work-signal-decision-record-review";
 import type { NextWorkSignalRefreshPreview } from "./next-work-signal-refresh-preview";
 import type { PerspectiveRelayUpdateCandidateBridgePreview } from "./perspective-relay-update-candidate-bridge-preview";
+import type { PerspectiveRelayUpdateOperatorDecisionPreview } from "./perspective-relay-update-decision";
+import type { PerspectiveRelayUpdateDecisionRecordReview } from "./perspective-relay-update-decision-record-review";
+import type { PerspectiveRelayUpdateWriteContractPreview } from "./perspective-relay-update-write-contract-preview";
 import type { PerspectiveNextWorkCandidateUpdatePreview } from "./perspective-next-work-candidate-update-preview";
 import type { ProjectHistoryIntakeOperatorDecisionPreview } from "./project-history-intake-decision";
 import type { ProjectHistoryIntakePreview } from "./project-history-intake-preview";
@@ -105,6 +108,12 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
   | "write_next_work_signal_decision_record"
   | "review_next_work_signal_decision_record"
   | "review_perspective_relay_update_candidates"
+  | "review_perspective_relay_update_decision"
+  | "write_perspective_relay_update_decision_record"
+  | "review_perspective_relay_update_decision_record"
+  | "review_perspective_relay_update_write_contract"
+  | "prepare_scoped_perspective_next_work_relay_write_slice"
+  | "resolve_perspective_relay_update_blockers"
   | "prepare_perspective_next_work_update_decision"
   | "prepare_continuity_relay_update_contract"
   | "resolve_next_work_signal_blockers"
@@ -146,6 +155,9 @@ export type WorkbenchDogfoodLoopSpineStepId =
   | "next_work_signal_operator_decision"
   | "next_work_signal_decision_record"
   | "perspective_relay_update_candidate_bridge"
+  | "perspective_relay_update_operator_decision"
+  | "perspective_relay_update_decision_record"
+  | "perspective_relay_update_write_contract"
   | "codex_result_feedback"
   | "dogfood_reuse_proposal"
   | "dogfood_reuse_operator_decision"
@@ -194,6 +206,9 @@ export interface WorkbenchDogfoodLoopSpineOverviewInput {
   next_work_signal_decision_preview?: NextWorkSignalOperatorDecisionPreview | null;
   next_work_signal_decision_record_review?: NextWorkSignalDecisionRecordReview | null;
   perspective_relay_update_candidate_bridge_preview?: PerspectiveRelayUpdateCandidateBridgePreview | null;
+  perspective_relay_update_operator_decision_preview?: PerspectiveRelayUpdateOperatorDecisionPreview | null;
+  perspective_relay_update_decision_record_review?: PerspectiveRelayUpdateDecisionRecordReview | null;
+  perspective_relay_update_write_contract_preview?: PerspectiveRelayUpdateWriteContractPreview | null;
   codex_result_feedback_draft?: CodexResultFeedbackDraft | null;
   dogfood_reuse_record_proposal?: DogfoodReuseRecordProposal | null;
   dogfood_reuse_operator_decision_preview?: DogfoodReuseOperatorDecisionPreview | null;
