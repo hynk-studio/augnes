@@ -1379,6 +1379,29 @@ const followOnCurrentWorkingPerspectiveApplySliceFiles = [
   smokeFile,
 ];
 
+const followOnHandoffContextUpdateContractFiles = [
+  "types/handoff-context-update-contract-preview.ts",
+  "lib/workplane/handoff-context-update-contract-preview.ts",
+  "components/workplane/handoff-context-update-contract-preview-panel.tsx",
+  "types/handoff-context-update-contract-decision.ts",
+  "lib/workplane/handoff-context-update-contract-decision.ts",
+  "components/workplane/handoff-context-update-contract-decision-panel.tsx",
+  "types/handoff-context-update-contract-write.ts",
+  "lib/workplane/handoff-context-update-contract-write.ts",
+  "app/api/workplane/handoff-context-update-contracts/route.ts",
+  "types/handoff-context-update-contract-record-review.ts",
+  "lib/workplane/handoff-context-update-contract-record-review.ts",
+  "lib/workplane/read-handoff-context-update-contract-record-review-for-web.ts",
+  "components/workplane/handoff-context-update-contract-record-review-panel.tsx",
+  "scripts/smoke-handoff-context-update-contract-v0-1.mjs",
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1796,6 +1819,7 @@ const allowedChangedFiles = new Set([
   ...followOnContinuityRelayScopedWriteFiles,
   ...followOnCurrentWorkingPerspectiveUpdateContractFiles,
   ...followOnCurrentWorkingPerspectiveApplySliceFiles,
+  ...followOnHandoffContextUpdateContractFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -3826,6 +3850,7 @@ function assertChangedFileBoundary() {
         followOnContinuityRelayScopedWriteFiles.includes(file) ||
         followOnCurrentWorkingPerspectiveUpdateContractFiles.includes(file) ||
         followOnCurrentWorkingPerspectiveApplySliceFiles.includes(file) ||
+        followOnHandoffContextUpdateContractFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3851,6 +3876,7 @@ function assertChangedFileBoundary() {
         followOnContinuityRelayScopedWriteFiles.includes(file) ||
         followOnCurrentWorkingPerspectiveUpdateContractFiles.includes(file) ||
         followOnCurrentWorkingPerspectiveApplySliceFiles.includes(file) ||
+        followOnHandoffContextUpdateContractFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );

@@ -66,6 +66,9 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   current_working_perspective_route_integration_contract_record_review,
   current_working_perspective_route_integration_read,
   current_working_perspective_route_integration_read_review,
+  handoff_context_update_contract_preview,
+  handoff_context_update_contract_decision_preview,
+  handoff_context_update_contract_record_review,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -214,6 +217,17 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
     currentWorkingPerspectiveRouteIntegrationReadReviewStep(
       current_working_perspective_route_integration_read_review,
     ),
+    handoffContextUpdateContractStep({
+      contractPreview: handoff_context_update_contract_preview,
+      routeIntegrationRead: current_working_perspective_route_integration_read,
+    }),
+    handoffContextUpdateContractDecisionStep(
+      handoff_context_update_contract_decision_preview,
+    ),
+    handoffContextUpdateContractRecordStep({
+      recordReview: handoff_context_update_contract_record_review,
+      decisionPreview: handoff_context_update_contract_decision_preview,
+    }),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -2587,6 +2601,154 @@ function currentWorkingPerspectiveRouteIntegrationReadReviewStep(
   });
 }
 
+function handoffContextUpdateContractStep({
+  contractPreview,
+  routeIntegrationRead,
+}: {
+  contractPreview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_update_contract_preview"];
+  routeIntegrationRead: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_route_integration_read"];
+}): SpineStepBuild {
+  if (!contractPreview) {
+    return missingStep({
+      step_id: "handoff_context_update_contract",
+      label: "Handoff context update contract",
+      recommended_next_action: routeIntegrationRead
+        ? "review_handoff_context_update_contract"
+        : "review_current_working_perspective_route_integration_read",
+      summary:
+        "No Handoff Context update contract preview supplied; route-integrated CWP read must be reviewed before handoff contract planning.",
+    });
+  }
+  const ready =
+    contractPreview.contract_preview_status ===
+    "ready_for_future_handoff_context_update_contract_record_write";
+  const blocked =
+    contractPreview.blocking_reasons.length > 0 ||
+    contractPreview.refusal_reasons.length > 0;
+  return makeStep({
+    step_id: "handoff_context_update_contract",
+    label: "Handoff context update contract",
+    status: ready
+      ? "ready_for_operator_review"
+      : blocked
+        ? "blocked"
+        : contractPreview.contract_preview_status === "needs_more_evidence" ||
+            contractPreview.contract_preview_status === "insufficient_data"
+          ? "insufficient_data"
+          : "candidate_material_available",
+    source_preview_ref_or_version: contractPreview.preview_version,
+    material_count: contractPreview.input_summary.proposed_entry_count,
+    blockers: [
+      ...contractPreview.blocking_reasons,
+      ...contractPreview.refusal_reasons,
+    ],
+    material_gaps: contractPreview.contract_readiness.current_insufficient_data,
+    missing_evidence: contractPreview.missing_evidence,
+    recommended_next_action: ready
+      ? "approve_handoff_context_update_contract_record"
+      : blocked
+        ? "resolve_handoff_context_update_contract_blockers"
+        : "review_handoff_context_update_contract",
+    evidence_present:
+      contractPreview.evidence_summary.has_route_integration_read &&
+      contractPreview.evidence_summary.has_source_refs,
+    summary: `Handoff context update contract preview is ${contractPreview.contract_preview_status}; entries ${contractPreview.input_summary.proposed_entry_count}; this is only a contract for future handoff apply/update and does not apply or send handoff.`,
+  });
+}
+
+function handoffContextUpdateContractDecisionStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_update_contract_decision_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "handoff_context_update_contract_decision",
+      label: "Handoff context update contract decision",
+      recommended_next_action: "review_handoff_context_update_contract",
+      summary: "No Handoff Context update contract decision preview supplied.",
+    });
+  }
+  const ready =
+    preview.decision_preview_status ===
+    "ready_for_future_handoff_context_update_contract_record_write";
+  const blocked =
+    preview.blocking_reasons.length > 0 || preview.refusal_reasons.length > 0;
+  return makeStep({
+    step_id: "handoff_context_update_contract_decision",
+    label: "Handoff context update contract decision",
+    status: ready
+      ? "ready_for_operator_review"
+      : blocked
+        ? "blocked"
+        : preview.decision_preview_status === "insufficient_data" ||
+            preview.decision_preview_status === "needs_more_evidence"
+          ? "insufficient_data"
+          : "candidate_material_available",
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.write_readiness.write_ready ? 1 : 0,
+    blockers: [...preview.blocking_reasons, ...preview.refusal_reasons],
+    material_gaps: preview.write_readiness.current_insufficient_data,
+    missing_evidence: preview.missing_evidence,
+    recommended_next_action: ready
+      ? "write_handoff_context_update_contract_record"
+      : blocked
+        ? "resolve_handoff_context_update_contract_blockers"
+        : "review_handoff_context_update_contract",
+    evidence_present: preview.evidence_summary.has_ready_contract_preview,
+    summary: `Handoff context update contract decision preview is ${preview.decision_preview_status}; Workbench remains display-only and does not write the contract record.`,
+  });
+}
+
+function handoffContextUpdateContractRecordStep({
+  recordReview,
+  decisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_update_contract_record_review"];
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_update_contract_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "handoff_context_update_contract_record",
+      label: "Handoff context update contract record",
+      recommended_next_action: decisionPreview?.write_readiness.write_ready
+        ? "write_handoff_context_update_contract_record"
+        : "review_handoff_context_update_contract",
+      summary: "No Handoff Context update contract record review supplied.",
+    });
+  }
+  const valid = recordReview.input_summary.valid_record_count > 0;
+  const blocked =
+    recordReview.review_status === "records_invalid" ||
+    recordReview.evidence_summary.has_receipt_side_effect_problem;
+  return makeStep({
+    step_id: "handoff_context_update_contract_record",
+    label: "Handoff context update contract record",
+    status: blocked
+      ? "blocked"
+      : valid
+        ? "candidate_material_available"
+        : "insufficient_data",
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count: recordReview.input_summary.valid_record_count,
+    blockers: [
+      ...(blocked
+        ? ["handoff_context_update_contract_record_side_effect_or_shape_problem"]
+        : []),
+      ...recordReview.blocked_reasons,
+    ],
+    material_gaps: recordReview.insufficient_data_reasons,
+    missing_evidence: recordReview.evidence_summary.missing_evidence,
+    recommended_next_action: blocked
+      ? "resolve_handoff_context_update_contract_blockers"
+      : valid
+        ? "review_handoff_context_update_contract_record"
+        : decisionPreview?.write_readiness.write_ready
+          ? "write_handoff_context_update_contract_record"
+          : "review_handoff_context_update_contract",
+    evidence_present: valid,
+    summary: `Handoff context update contract record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; after a valid record exists, prepare_handoff_context_apply_slice and prepare_handoff_packet_copy_export_contract remain future work, not actions performed here.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -3246,7 +3408,10 @@ function determineRecommendedNextOperatorAction({
       blocker.startsWith("current_working_perspective_route_integration_contract_decision:") ||
       blocker.startsWith("current_working_perspective_route_integration_contract_record:") ||
       blocker.startsWith("current_working_perspective_route_integration_read:") ||
-      blocker.startsWith("current_working_perspective_route_integration_review:"),
+      blocker.startsWith("current_working_perspective_route_integration_review:") ||
+      blocker.startsWith("handoff_context_update_contract:") ||
+      blocker.startsWith("handoff_context_update_contract_decision:") ||
+      blocker.startsWith("handoff_context_update_contract_record:"),
     )
   ) {
     if (
@@ -3273,6 +3438,13 @@ function determineRecommendedNextOperatorAction({
       )
     ) {
       return "resolve_next_work_signal_blockers";
+    }
+    if (
+      top_blockers.some((blocker) =>
+        blocker.startsWith("handoff_context_update_contract"),
+      )
+    ) {
+      return "resolve_handoff_context_update_contract_blockers";
     }
     if (
       top_blockers.some((blocker) =>
@@ -3400,6 +3572,15 @@ function determineRecommendedNextOperatorAction({
       (step) =>
         step.step_id === "current_working_perspective_route_integration_review",
     );
+    const handoffContextUpdateContractStep = steps.find(
+      (step) => step.step_id === "handoff_context_update_contract",
+    );
+    const handoffContextUpdateContractDecisionStep = steps.find(
+      (step) => step.step_id === "handoff_context_update_contract_decision",
+    );
+    const handoffContextUpdateContractRecordStep = steps.find(
+      (step) => step.step_id === "handoff_context_update_contract_record",
+    );
     if (
       routeIntegrationReadReviewStep?.recommended_next_action ===
         "verify_current_working_perspective_route_applied_snapshot_overlay" &&
@@ -3427,6 +3608,38 @@ function determineRecommendedNextOperatorAction({
       routeIntegrationReadReviewStep.status !== "not_supplied"
     ) {
       return "review_current_working_perspective_route_integration_read";
+    }
+    if (
+      handoffContextUpdateContractRecordStep?.recommended_next_action ===
+        "review_handoff_context_update_contract_record" &&
+      handoffContextUpdateContractRecordStep.material_count > 0
+    ) {
+      return "review_handoff_context_update_contract_record";
+    }
+    if (
+      handoffContextUpdateContractRecordStep?.recommended_next_action ===
+      "write_handoff_context_update_contract_record"
+    ) {
+      return "write_handoff_context_update_contract_record";
+    }
+    if (
+      handoffContextUpdateContractDecisionStep?.recommended_next_action ===
+      "write_handoff_context_update_contract_record"
+    ) {
+      return "write_handoff_context_update_contract_record";
+    }
+    if (
+      handoffContextUpdateContractStep?.recommended_next_action ===
+      "approve_handoff_context_update_contract_record"
+    ) {
+      return "approve_handoff_context_update_contract_record";
+    }
+    if (
+      handoffContextUpdateContractStep?.recommended_next_action ===
+        "review_handoff_context_update_contract" &&
+      handoffContextUpdateContractStep.material_count > 0
+    ) {
+      return "review_handoff_context_update_contract";
     }
     if (
       routeIntegrationContractRecordStep?.recommended_next_action ===

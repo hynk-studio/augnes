@@ -359,6 +359,8 @@ const currentWorkingPerspectiveApplyRouteFile =
   "app/api/workplane/current-working-perspective-applies/route.ts";
 const currentWorkingPerspectiveRouteIntegrationContractRouteFile =
   "app/api/workplane/current-working-perspective-route-integration-contracts/route.ts";
+const handoffContextUpdateContractRouteFile =
+  "app/api/workplane/handoff-context-update-contracts/route.ts";
 const currentWorkingPerspectiveApplySliceFiles = [
   "types/current-working-perspective-apply-preview.ts",
   "lib/workplane/current-working-perspective-apply-preview.ts",
@@ -398,6 +400,22 @@ const currentWorkingPerspectiveApplySliceFiles = [
   "scripts/smoke-current-working-perspective-route-integration-slice-v0-1.mjs",
   "scripts/smoke-current-working-perspective-route-integration-contract-v0-1.mjs",
   "scripts/smoke-current-working-perspective-apply-slice-v0-1.mjs",
+];
+const handoffContextUpdateContractFiles = [
+  "types/handoff-context-update-contract-preview.ts",
+  "lib/workplane/handoff-context-update-contract-preview.ts",
+  "components/workplane/handoff-context-update-contract-preview-panel.tsx",
+  "types/handoff-context-update-contract-decision.ts",
+  "lib/workplane/handoff-context-update-contract-decision.ts",
+  "components/workplane/handoff-context-update-contract-decision-panel.tsx",
+  "types/handoff-context-update-contract-write.ts",
+  "lib/workplane/handoff-context-update-contract-write.ts",
+  handoffContextUpdateContractRouteFile,
+  "types/handoff-context-update-contract-record-review.ts",
+  "lib/workplane/handoff-context-update-contract-record-review.ts",
+  "lib/workplane/read-handoff-context-update-contract-record-review-for-web.ts",
+  "components/workplane/handoff-context-update-contract-record-review-panel.tsx",
+  "scripts/smoke-handoff-context-update-contract-v0-1.mjs",
 ];
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
@@ -587,6 +605,7 @@ const allowedChangedFiles = [
   currentWorkingPerspectiveUpdateContractRecordReviewPanelFile,
   currentWorkingPerspectiveUpdateContractSmokeFile,
   ...currentWorkingPerspectiveApplySliceFiles,
+  ...handoffContextUpdateContractFiles,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -654,6 +673,14 @@ assertContainsAll(
     "current_working_perspective_apply_decision",
     "current_working_perspective_apply_record",
     "applied_current_working_perspective_snapshot",
+    "current_working_perspective_route_integration_contract",
+    "current_working_perspective_route_integration_contract_decision",
+    "current_working_perspective_route_integration_contract_record",
+    "current_working_perspective_route_integration_read",
+    "current_working_perspective_route_integration_review",
+    "handoff_context_update_contract",
+    "handoff_context_update_contract_decision",
+    "handoff_context_update_contract_record",
     "review_expected_observed_delta_candidates",
     "write_expected_observed_delta_record",
     "review_reuse_outcome_candidate_bridge",
@@ -682,6 +709,13 @@ assertContainsAll(
     "resolve_current_working_perspective_apply_blockers",
     "prepare_current_working_perspective_route_integration_contract",
     "prepare_handoff_context_update_contract",
+    "review_handoff_context_update_contract",
+    "approve_handoff_context_update_contract_record",
+    "write_handoff_context_update_contract_record",
+    "review_handoff_context_update_contract_record",
+    "resolve_handoff_context_update_contract_blockers",
+    "prepare_handoff_context_apply_slice",
+    "prepare_handoff_packet_copy_export_contract",
     "write_dogfood_metric_snapshot_record",
     "review_dogfood_metric_snapshot_record",
     "review_next_work_signal_refresh",
@@ -781,6 +815,11 @@ assertContainsAll(
     "current_working_perspective_update_contract_preview",
     "current_working_perspective_update_contract_decision_preview",
     "current_working_perspective_update_contract_record_review",
+    "current_working_perspective_route_integration_read",
+    "current_working_perspective_route_integration_read_review",
+    "handoff_context_update_contract_preview",
+    "handoff_context_update_contract_decision_preview",
+    "handoff_context_update_contract_record_review",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
     "selectedSessionDigestDurableIngestRecordStep",
@@ -816,6 +855,9 @@ assertContainsAll(
     "currentWorkingPerspectiveApplyDecisionStep",
     "currentWorkingPerspectiveApplyRecordStep",
     "appliedCurrentWorkingPerspectiveSnapshotStep",
+    "handoffContextUpdateContractStep",
+    "handoffContextUpdateContractDecisionStep",
+    "handoffContextUpdateContractRecordStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -861,6 +903,13 @@ assertContainsAll(
     "prepare_current_working_perspective_apply_slice",
     "prepare_current_working_perspective_update_contract",
     "prepare_handoff_context_update_contract",
+    "review_handoff_context_update_contract",
+    "approve_handoff_context_update_contract_record",
+    "write_handoff_context_update_contract_record",
+    "review_handoff_context_update_contract_record",
+    "resolve_handoff_context_update_contract_blockers",
+    "prepare_handoff_context_apply_slice",
+    "prepare_handoff_packet_copy_export_contract",
     "does_not_call_expected_observed_delta_route_from_workbench_overview",
     "does_not_write_reuse_outcome_ledger_or_dogfood_metrics",
     "does_not_write_memory",
@@ -918,6 +967,11 @@ assertContainsAll(
     "current_working_perspective_apply_decision_preview:\n        currentWorkingPerspectiveApplyDecisionPreview",
     "current_working_perspective_apply_record_review:\n        currentWorkingPerspectiveApplyRecordReview",
     "applied_current_working_perspective_read:\n        appliedCurrentWorkingPerspectiveRead",
+    "current_working_perspective_route_integration_read:\n        currentWorkingPerspectiveRouteIntegrationRead",
+    "current_working_perspective_route_integration_read_review:\n        currentWorkingPerspectiveRouteIntegrationReadReview",
+    "handoff_context_update_contract_preview:\n        handoffContextUpdateContractPreview",
+    "handoff_context_update_contract_decision_preview:\n        handoffContextUpdateContractDecisionPreview",
+    "handoff_context_update_contract_record_review:\n        handoffContextUpdateContractRecordReview",
     "workbench:dogfood_loop_spine_overview",
     "handoff_context_apply_write_contract_preview",
   ],
@@ -930,6 +984,7 @@ assertContainsAll(
     "followOnWorkbenchDogfoodLoopSpineOverviewFiles",
     "followOnCurrentWorkingPerspectiveUpdateContractFiles",
     "followOnCurrentWorkingPerspectiveApplySliceFiles",
+    "followOnHandoffContextUpdateContractFiles",
     "WorkbenchDogfoodLoopSpineOverviewPanel",
     "buildWorkbenchDogfoodLoopSpineOverviewV01",
     "workbenchDogfoodLoopSpineOverview",
@@ -1047,7 +1102,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 53);
+assert.equal(emptyOverview.spine_steps.length, 56);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -1064,6 +1119,9 @@ for (const stepId of [
   "perspective_relay_update_operator_decision",
   "perspective_relay_update_decision_record",
   "perspective_relay_update_write_contract",
+  "handoff_context_update_contract",
+  "handoff_context_update_contract_decision",
+  "handoff_context_update_contract_record",
 ]) {
   assert(
     emptyOverview.spine_steps.some((step) => step.step_id === stepId),
@@ -2106,6 +2164,7 @@ function assertNoForbiddenChangedPaths() {
         file === currentWorkingPerspectiveUpdateContractRouteFile ||
         file === currentWorkingPerspectiveApplyRouteFile ||
         file === currentWorkingPerspectiveRouteIntegrationContractRouteFile ||
+        file === handoffContextUpdateContractRouteFile ||
         file === "app/api/perspective/current/route.ts",
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
