@@ -25,6 +25,34 @@ const files = {
     "lib/workplane/read-perspective-next-work-bias-record-review-for-web.ts",
   reviewPanel:
     "components/workplane/perspective-next-work-bias-record-review-panel.tsx",
+  cwpContractPreviewType:
+    "types/current-working-perspective-update-contract-preview.ts",
+  cwpContractPreviewHelper:
+    "lib/workplane/current-working-perspective-update-contract-preview.ts",
+  cwpContractPreviewPanel:
+    "components/workplane/current-working-perspective-update-contract-preview-panel.tsx",
+  cwpContractDecisionType:
+    "types/current-working-perspective-update-contract-decision.ts",
+  cwpContractDecisionHelper:
+    "lib/workplane/current-working-perspective-update-contract-decision.ts",
+  cwpContractDecisionPanel:
+    "components/workplane/current-working-perspective-update-contract-decision-panel.tsx",
+  cwpContractWriteType:
+    "types/current-working-perspective-update-contract-write.ts",
+  cwpContractWriteHelper:
+    "lib/workplane/current-working-perspective-update-contract-write.ts",
+  cwpContractRoute:
+    "app/api/workplane/current-working-perspective-update-contracts/route.ts",
+  cwpContractReviewType:
+    "types/current-working-perspective-update-contract-record-review.ts",
+  cwpContractReviewHelper:
+    "lib/workplane/current-working-perspective-update-contract-record-review.ts",
+  cwpContractReviewForWeb:
+    "lib/workplane/read-current-working-perspective-update-contract-record-review-for-web.ts",
+  cwpContractReviewPanel:
+    "components/workplane/current-working-perspective-update-contract-record-review-panel.tsx",
+  cwpContractSmoke:
+    "scripts/smoke-current-working-perspective-update-contract-v0-1.mjs",
   contractType: "types/perspective-relay-update-write-contract-preview.ts",
   contractHelper: "lib/workplane/perspective-relay-update-write-contract-preview.ts",
   relayDecisionSmoke:
@@ -34,6 +62,12 @@ const files = {
   overviewHelper: "lib/workplane/workbench-dogfood-loop-spine-overview.ts",
   agentWorkplaneSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   overviewSmoke: "scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs",
+  continuityRelaySmoke:
+    "scripts/smoke-continuity-relay-scoped-write-v0-1.mjs",
+  perspectiveUnitSmoke:
+    "scripts/smoke-perspective-unit-scoped-write-v0-1.mjs",
+  perspectiveRelayUpdateSmoke:
+    "scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs",
   smoke: "scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs",
   packageJson: "package.json",
 };

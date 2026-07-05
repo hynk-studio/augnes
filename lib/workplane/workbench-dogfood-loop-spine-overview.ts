@@ -54,6 +54,9 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   perspective_unit_record_review,
   continuity_relay_scoped_write_preview,
   continuity_relay_record_review,
+  current_working_perspective_update_contract_preview,
+  current_working_perspective_update_contract_decision_preview,
+  current_working_perspective_update_contract_record_review,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -147,6 +150,21 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
     continuityRelayRecordStep({
       recordReview: continuity_relay_record_review,
       scopedWritePreview: continuity_relay_scoped_write_preview,
+    }),
+    currentWorkingPerspectiveUpdateContractStep({
+      contractPreview: current_working_perspective_update_contract_preview,
+      perspectiveUnitRecordReview: perspective_unit_record_review,
+      nextWorkBiasRecordReview: perspective_next_work_bias_record_review,
+      continuityRelayRecordReview: continuity_relay_record_review,
+    }),
+    currentWorkingPerspectiveUpdateContractDecisionStep(
+      current_working_perspective_update_contract_decision_preview,
+    ),
+    currentWorkingPerspectiveUpdateContractRecordStep({
+      recordReview:
+        current_working_perspective_update_contract_record_review,
+      decisionPreview:
+        current_working_perspective_update_contract_decision_preview,
     }),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
@@ -1812,6 +1830,186 @@ function continuityRelayRecordStep({
   });
 }
 
+function currentWorkingPerspectiveUpdateContractStep({
+  contractPreview,
+  perspectiveUnitRecordReview,
+  nextWorkBiasRecordReview,
+  continuityRelayRecordReview,
+}: {
+  contractPreview: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_update_contract_preview"];
+  perspectiveUnitRecordReview: WorkbenchDogfoodLoopSpineOverviewInput["perspective_unit_record_review"];
+  nextWorkBiasRecordReview: WorkbenchDogfoodLoopSpineOverviewInput["perspective_next_work_bias_record_review"];
+  continuityRelayRecordReview: WorkbenchDogfoodLoopSpineOverviewInput["continuity_relay_record_review"];
+}): SpineStepBuild {
+  if (!contractPreview) {
+    return missingStep({
+      step_id: "current_working_perspective_update_contract",
+      label: "CurrentWorkingPerspective update contract",
+      recommended_next_action: "prepare_current_working_perspective_update_contract",
+      summary:
+        "No CurrentWorkingPerspective update contract preview supplied.",
+    });
+  }
+
+  const hasAllRecordFamilies =
+    hasValidRecordReview(perspectiveUnitRecordReview) &&
+    hasValidRecordReview(nextWorkBiasRecordReview) &&
+    hasValidRecordReview(continuityRelayRecordReview);
+  const writeReady =
+    contractPreview.contract_preview_status ===
+      "ready_for_future_current_working_perspective_update_contract_record_write" &&
+    contractPreview.contract_readiness.write_ready;
+
+  return makeStep({
+    step_id: "current_working_perspective_update_contract",
+    label: "CurrentWorkingPerspective update contract",
+    status: mapCurrentWorkingPerspectiveUpdateContractStatus(
+      contractPreview.contract_preview_status,
+    ),
+    source_preview_ref_or_version: contractPreview.preview_version,
+    material_count:
+      contractPreview.input_summary.proposed_patch_entry_count,
+    blockers: [
+      ...contractPreview.blocking_reasons,
+      ...contractPreview.refusal_reasons,
+      ...contractPreview.contract_readiness.current_blockers,
+      ...contractPreview.contract_readiness.current_refusal_reasons,
+    ],
+    material_gaps: [
+      ...contractPreview.contract_readiness.current_insufficient_data,
+      ...(!hasAllRecordFamilies
+        ? ["all_three_scoped_record_reviews_required_for_cwp_contract"]
+        : []),
+    ],
+    missing_evidence: [
+      ...contractPreview.missing_evidence,
+      ...contractPreview.contract_readiness.current_missing_evidence,
+    ],
+    recommended_next_action: writeReady
+      ? "approve_current_working_perspective_update_contract_record"
+      : hasAllRecordFamilies
+        ? "review_current_working_perspective_update_contract"
+        : "prepare_current_working_perspective_update_contract",
+    evidence_present: contractPreview.evidence_summary.has_evidence_refs,
+    summary: `CurrentWorkingPerspective update contract preview is ${contractPreview.contract_preview_status}; patch_entry_count ${contractPreview.input_summary.proposed_patch_entry_count}; write_ready ${String(writeReady)}; all three scoped record families required before writing the local contract record; no live CWP mutation or handoff apply/send occurs here.`,
+  });
+}
+
+function currentWorkingPerspectiveUpdateContractDecisionStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_update_contract_decision_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "current_working_perspective_update_contract_decision",
+      label: "CurrentWorkingPerspective update contract decision",
+      recommended_next_action:
+        "review_current_working_perspective_update_contract",
+      summary:
+        "No CurrentWorkingPerspective update contract decision preview supplied.",
+    });
+  }
+
+  const writeReady =
+    preview.decision_preview_status ===
+      "ready_for_future_current_working_perspective_update_contract_record_write" &&
+    preview.write_readiness.write_ready;
+
+  return makeStep({
+    step_id: "current_working_perspective_update_contract_decision",
+    label: "CurrentWorkingPerspective update contract decision",
+    status: mapCurrentWorkingPerspectiveUpdateContractDecisionStatus(
+      preview.decision_preview_status,
+    ),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count:
+      preview.would_write_current_working_perspective_update_contract_decision_preview
+        .proposed_patch_entry_count,
+    blockers: [
+      ...preview.blocking_reasons,
+      ...preview.refusal_reasons,
+      ...preview.write_readiness.current_blockers,
+      ...preview.write_readiness.current_refusal_reasons,
+    ],
+    material_gaps: preview.write_readiness.current_insufficient_data,
+    missing_evidence: [
+      ...preview.missing_evidence,
+      ...preview.write_readiness.current_missing_evidence,
+    ],
+    recommended_next_action: writeReady
+      ? "write_current_working_perspective_update_contract_record"
+      : "review_current_working_perspective_update_contract",
+    evidence_present: preview.evidence_summary.has_ready_contract_preview,
+    summary: `CurrentWorkingPerspective update contract decision preview is ${preview.decision_preview_status}; recommended ${preview.recommended_operator_decision}; write_ready ${String(writeReady)}; it only prepares a scoped local contract record write.`,
+  });
+}
+
+function currentWorkingPerspectiveUpdateContractRecordStep({
+  recordReview,
+  decisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_update_contract_record_review"];
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_update_contract_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "current_working_perspective_update_contract_record",
+      label: "CurrentWorkingPerspective update contract record",
+      recommended_next_action:
+        "review_current_working_perspective_update_contract",
+      summary:
+        "No CurrentWorkingPerspective update contract record review supplied.",
+    });
+  }
+
+  const hasRecords =
+    ["records_available", "selected_record_found"].includes(
+      recordReview.review_status,
+    ) && recordReview.input_summary.valid_record_count > 0;
+  const decisionReady =
+    decisionPreview?.decision_preview_status ===
+      "ready_for_future_current_working_perspective_update_contract_record_write" &&
+    decisionPreview.write_readiness.write_ready;
+
+  return makeStep({
+    step_id: "current_working_perspective_update_contract_record",
+    label: "CurrentWorkingPerspective update contract record",
+    status: hasRecords
+      ? "candidate_material_available"
+      : recordReview.review_status === "schema_missing"
+        ? "no_current_material"
+        : recordReview.review_status === "records_invalid"
+          ? "blocked"
+          : decisionReady
+            ? "ready_for_future_contract_review"
+            : "insufficient_data",
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count: recordReview.input_summary.valid_record_count,
+    blockers: [
+      ...recordReview.blocked_reasons,
+      ...(recordReview.evidence_summary.has_receipt_side_effect_problem
+        ? ["current_working_perspective_update_contract_record_side_effect_problem"]
+        : []),
+    ],
+    material_gaps: [
+      ...recordReview.insufficient_data_reasons,
+      ...(!hasRecords && decisionReady
+        ? ["current_working_perspective_update_contract_record_missing_after_decision_preview"]
+        : []),
+      ...(!hasRecords && !decisionReady
+        ? ["current_working_perspective_update_contract_decision_missing_or_not_ready"]
+        : []),
+    ],
+    missing_evidence: recordReview.evidence_summary.missing_evidence,
+    recommended_next_action: hasRecords
+      ? "review_current_working_perspective_update_contract_record"
+      : decisionReady
+        ? "write_current_working_perspective_update_contract_record"
+        : "review_current_working_perspective_update_contract",
+    evidence_present: recordReview.evidence_summary.has_records,
+    summary: `CurrentWorkingPerspective update contract record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; decision_ready ${String(decisionReady)}; after a valid record exists, prepare_current_working_perspective_apply_slice remains future work, not an action performed here.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -2459,7 +2657,10 @@ function determineRecommendedNextOperatorAction({
       blocker.startsWith("perspective_unit_scoped_write:") ||
       blocker.startsWith("perspective_unit_record:") ||
       blocker.startsWith("continuity_relay_scoped_write:") ||
-      blocker.startsWith("continuity_relay_record:"),
+      blocker.startsWith("continuity_relay_record:") ||
+      blocker.startsWith("current_working_perspective_update_contract:") ||
+      blocker.startsWith("current_working_perspective_update_contract_decision:") ||
+      blocker.startsWith("current_working_perspective_update_contract_record:"),
     )
   ) {
     if (
@@ -2486,6 +2687,13 @@ function determineRecommendedNextOperatorAction({
       )
     ) {
       return "resolve_next_work_signal_blockers";
+    }
+    if (
+      top_blockers.some((blocker) =>
+        blocker.startsWith("current_working_perspective_update_contract"),
+      )
+    ) {
+      return "resolve_current_working_perspective_update_contract_blockers";
     }
     if (
       top_blockers.some((blocker) =>
@@ -2537,6 +2745,50 @@ function determineRecommendedNextOperatorAction({
     const continuityRelayRecordStep = steps.find(
       (step) => step.step_id === "continuity_relay_record",
     );
+    const currentWorkingPerspectiveUpdateContractStep = steps.find(
+      (step) => step.step_id === "current_working_perspective_update_contract",
+    );
+    const currentWorkingPerspectiveUpdateContractDecisionStep = steps.find(
+      (step) =>
+        step.step_id ===
+        "current_working_perspective_update_contract_decision",
+    );
+    const currentWorkingPerspectiveUpdateContractRecordStep = steps.find(
+      (step) =>
+        step.step_id === "current_working_perspective_update_contract_record",
+    );
+    if (
+      currentWorkingPerspectiveUpdateContractRecordStep?.recommended_next_action ===
+      "write_current_working_perspective_update_contract_record"
+    ) {
+      return "write_current_working_perspective_update_contract_record";
+    }
+    if (
+      currentWorkingPerspectiveUpdateContractRecordStep?.recommended_next_action ===
+        "review_current_working_perspective_update_contract_record" &&
+      currentWorkingPerspectiveUpdateContractRecordStep.material_count > 0
+    ) {
+      return "review_current_working_perspective_update_contract_record";
+    }
+    if (
+      currentWorkingPerspectiveUpdateContractDecisionStep?.recommended_next_action ===
+      "write_current_working_perspective_update_contract_record"
+    ) {
+      return "write_current_working_perspective_update_contract_record";
+    }
+    if (
+      currentWorkingPerspectiveUpdateContractStep?.recommended_next_action ===
+      "approve_current_working_perspective_update_contract_record"
+    ) {
+      return "approve_current_working_perspective_update_contract_record";
+    }
+    if (
+      currentWorkingPerspectiveUpdateContractStep?.recommended_next_action ===
+        "review_current_working_perspective_update_contract" &&
+      currentWorkingPerspectiveUpdateContractStep.material_count > 0
+    ) {
+      return "review_current_working_perspective_update_contract";
+    }
     if (
       continuityRelayRecordStep?.recommended_next_action ===
       "write_continuity_relay_record"
@@ -2764,6 +3016,17 @@ function determineRecommendedNextOperatorAction({
   const continuityRelayRecordStep = steps.find(
     (step) => step.step_id === "continuity_relay_record",
   );
+  const currentWorkingPerspectiveUpdateContractStep = steps.find(
+    (step) => step.step_id === "current_working_perspective_update_contract",
+  );
+  const currentWorkingPerspectiveUpdateContractDecisionStep = steps.find(
+    (step) =>
+      step.step_id === "current_working_perspective_update_contract_decision",
+  );
+  const currentWorkingPerspectiveUpdateContractRecordStep = steps.find(
+    (step) =>
+      step.step_id === "current_working_perspective_update_contract_record",
+  );
   if (
     codexResultRecord?.recommended_next_action ===
     "write_codex_result_report_candidate_ingest_record"
@@ -2799,6 +3062,38 @@ function determineRecommendedNextOperatorAction({
     "write_perspective_relay_update_decision_record"
   ) {
     return "write_perspective_relay_update_decision_record";
+  }
+  if (
+    currentWorkingPerspectiveUpdateContractRecordStep?.recommended_next_action ===
+    "write_current_working_perspective_update_contract_record"
+  ) {
+    return "write_current_working_perspective_update_contract_record";
+  }
+  if (
+    currentWorkingPerspectiveUpdateContractDecisionStep?.recommended_next_action ===
+    "write_current_working_perspective_update_contract_record"
+  ) {
+    return "write_current_working_perspective_update_contract_record";
+  }
+  if (
+    currentWorkingPerspectiveUpdateContractStep?.recommended_next_action ===
+    "approve_current_working_perspective_update_contract_record"
+  ) {
+    return "approve_current_working_perspective_update_contract_record";
+  }
+  if (
+    currentWorkingPerspectiveUpdateContractRecordStep?.recommended_next_action ===
+      "review_current_working_perspective_update_contract_record" &&
+    currentWorkingPerspectiveUpdateContractRecordStep.material_count > 0
+  ) {
+    return "review_current_working_perspective_update_contract_record";
+  }
+  if (
+    currentWorkingPerspectiveUpdateContractStep?.recommended_next_action ===
+      "review_current_working_perspective_update_contract" &&
+    currentWorkingPerspectiveUpdateContractStep.material_count > 0
+  ) {
+    return "review_current_working_perspective_update_contract";
   }
   if (
     continuityRelayRecordStep?.recommended_next_action ===
@@ -3255,6 +3550,58 @@ function mapContinuityRelayScopedWriteStatus(
   if (status === "needs_more_evidence") return "insufficient_data";
   if (status === "keep_preview_only") return "keep_preview_only";
   return "insufficient_data";
+}
+
+function mapCurrentWorkingPerspectiveUpdateContractStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_current_working_perspective_material") {
+    return "no_current_material";
+  }
+  if (
+    status ===
+    "ready_for_future_current_working_perspective_update_contract_record_write"
+  ) {
+    return "ready_for_future_contract_review";
+  }
+  if (status === "ready_for_operator_review") return "ready_for_operator_review";
+  if (status === "blocked") return "blocked";
+  if (status === "needs_more_evidence") return "insufficient_data";
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function mapCurrentWorkingPerspectiveUpdateContractDecisionStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_current_working_perspective_update_contract_preview") {
+    return "no_current_material";
+  }
+  if (
+    status ===
+    "ready_for_future_current_working_perspective_update_contract_record_write"
+  ) {
+    return "ready_for_future_contract_review";
+  }
+  if (status === "ready_for_operator_review") return "ready_for_operator_review";
+  if (status === "blocked") return "blocked";
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function hasValidRecordReview(review: {
+  review_status: string;
+  input_summary: { valid_record_count: number };
+  evidence_summary: { has_receipt_side_effect_problem: boolean };
+} | null | undefined): boolean {
+  return Boolean(
+    review &&
+      ["records_available", "selected_record_found"].includes(
+        review.review_status,
+      ) &&
+      review.input_summary.valid_record_count > 0 &&
+      !review.evidence_summary.has_receipt_side_effect_problem,
+  );
 }
 
 function mapCandidateStatus(status: string): WorkbenchDogfoodLoopSpineStepStatus {

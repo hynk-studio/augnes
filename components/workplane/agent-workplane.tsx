@@ -61,6 +61,9 @@ import { PerspectiveNextWorkBiasRecordReviewPanel } from "@/components/workplane
 import { PerspectiveNextWorkBiasScopedWritePreviewPanel } from "@/components/workplane/perspective-next-work-bias-scoped-write-preview-panel";
 import { ContinuityRelayRecordReviewPanel } from "@/components/workplane/continuity-relay-record-review-panel";
 import { ContinuityRelayScopedWritePreviewPanel } from "@/components/workplane/continuity-relay-scoped-write-preview-panel";
+import { CurrentWorkingPerspectiveUpdateContractDecisionPanel } from "@/components/workplane/current-working-perspective-update-contract-decision-panel";
+import { CurrentWorkingPerspectiveUpdateContractPreviewPanel } from "@/components/workplane/current-working-perspective-update-contract-preview-panel";
+import { CurrentWorkingPerspectiveUpdateContractRecordReviewPanel } from "@/components/workplane/current-working-perspective-update-contract-record-review-panel";
 import { PerspectiveUnitRecordReviewPanel } from "@/components/workplane/perspective-unit-record-review-panel";
 import { PerspectiveUnitScopedWritePreviewPanel } from "@/components/workplane/perspective-unit-scoped-write-preview-panel";
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
@@ -134,6 +137,9 @@ import { buildPerspectiveNextWorkBiasScopedWritePreviewV01 } from "@/lib/workpla
 import { readPerspectiveNextWorkBiasRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-next-work-bias-record-review-for-web";
 import { buildContinuityRelayScopedWritePreviewV01 } from "@/lib/workplane/continuity-relay-scoped-write-preview";
 import { readContinuityRelayRecordReviewForWebV01 } from "@/lib/workplane/read-continuity-relay-record-review-for-web";
+import { buildCurrentWorkingPerspectiveUpdateContractOperatorDecisionPreviewV01 } from "@/lib/workplane/current-working-perspective-update-contract-decision";
+import { buildCurrentWorkingPerspectiveUpdateContractPreviewV01 } from "@/lib/workplane/current-working-perspective-update-contract-preview";
+import { readCurrentWorkingPerspectiveUpdateContractRecordReviewForWebV01 } from "@/lib/workplane/read-current-working-perspective-update-contract-record-review-for-web";
 import { buildPerspectiveUnitScopedWritePreviewV01 } from "@/lib/workplane/perspective-unit-scoped-write-preview";
 import { readPerspectiveUnitRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-unit-record-review-for-web";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
@@ -612,6 +618,41 @@ export async function AgentWorkplane() {
     as_of: workplaneMetrics.as_of,
     source_refs: ["workbench:continuity_relay_record_review"],
   });
+  const currentWorkingPerspectiveUpdateContractPreview =
+    buildCurrentWorkingPerspectiveUpdateContractPreviewV01({
+      current_working_perspective_read: context.current_perspective_read,
+      perspective_next_work_bias_record_review:
+        perspectiveNextWorkBiasRecordReview,
+      perspective_unit_record_review: perspectiveUnitRecordReview,
+      continuity_relay_record_review: continuityRelayRecordReview,
+      perspective_relay_update_decision_record_review:
+        perspectiveRelayUpdateDecisionRecordReview,
+      perspective_relay_update_write_contract_preview:
+        perspectiveRelayUpdateWriteContractPreview,
+      workplane_continuity_relay: context.continuity_relay,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:current_working_perspective_update_contract_preview",
+      ],
+    });
+  const currentWorkingPerspectiveUpdateContractDecisionPreview =
+    buildCurrentWorkingPerspectiveUpdateContractOperatorDecisionPreviewV01({
+      current_working_perspective_update_contract_preview:
+        currentWorkingPerspectiveUpdateContractPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:current_working_perspective_update_contract_decision_preview",
+      ],
+    });
+  const currentWorkingPerspectiveUpdateContractRecordReview =
+    readCurrentWorkingPerspectiveUpdateContractRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:current_working_perspective_update_contract_record_review",
+      ],
+    });
   const handoffContextUpdatePreview = buildHandoffContextUpdatePreviewV01({
     handoff_context_relay_rationale: handoffContextRationale,
     metric_informed_relay_adjustment_preview:
@@ -727,6 +768,12 @@ export async function AgentWorkplane() {
       continuity_relay_scoped_write_preview:
         continuityRelayScopedWritePreview,
       continuity_relay_record_review: continuityRelayRecordReview,
+      current_working_perspective_update_contract_preview:
+        currentWorkingPerspectiveUpdateContractPreview,
+      current_working_perspective_update_contract_decision_preview:
+        currentWorkingPerspectiveUpdateContractDecisionPreview,
+      current_working_perspective_update_contract_record_review:
+        currentWorkingPerspectiveUpdateContractRecordReview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -931,6 +978,15 @@ export async function AgentWorkplane() {
               />
               <ContinuityRelayRecordReviewPanel
                 review={continuityRelayRecordReview}
+              />
+              <CurrentWorkingPerspectiveUpdateContractPreviewPanel
+                preview={currentWorkingPerspectiveUpdateContractPreview}
+              />
+              <CurrentWorkingPerspectiveUpdateContractDecisionPanel
+                preview={currentWorkingPerspectiveUpdateContractDecisionPreview}
+              />
+              <CurrentWorkingPerspectiveUpdateContractRecordReviewPanel
+                review={currentWorkingPerspectiveUpdateContractRecordReview}
               />
               <HandoffContextUpdatePreviewPanel
                 preview={handoffContextUpdatePreview}
