@@ -415,6 +415,28 @@ const perspectiveRelayUpdateWriteContractPanelFile =
   "components/workplane/perspective-relay-update-write-contract-preview-panel.tsx";
 const perspectiveRelayUpdateDecisionWriteContractSmokeFile =
   "scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs";
+const perspectiveNextWorkBiasScopedWritePreviewTypeFile =
+  "types/perspective-next-work-bias-scoped-write-preview.ts";
+const perspectiveNextWorkBiasScopedWritePreviewHelperFile =
+  "lib/workplane/perspective-next-work-bias-scoped-write-preview.ts";
+const perspectiveNextWorkBiasScopedWritePreviewPanelFile =
+  "components/workplane/perspective-next-work-bias-scoped-write-preview-panel.tsx";
+const perspectiveNextWorkBiasWriteTypeFile =
+  "types/perspective-next-work-bias-write.ts";
+const perspectiveNextWorkBiasWriteHelperFile =
+  "lib/workplane/perspective-next-work-bias-write.ts";
+const perspectiveNextWorkBiasRouteFile =
+  "app/api/workplane/perspective-next-work-biases/route.ts";
+const perspectiveNextWorkBiasRecordReviewTypeFile =
+  "types/perspective-next-work-bias-record-review.ts";
+const perspectiveNextWorkBiasRecordReviewHelperFile =
+  "lib/workplane/perspective-next-work-bias-record-review.ts";
+const perspectiveNextWorkBiasRecordReviewForWebFile =
+  "lib/workplane/read-perspective-next-work-bias-record-review-for-web.ts";
+const perspectiveNextWorkBiasRecordReviewPanelFile =
+  "components/workplane/perspective-next-work-bias-record-review-panel.tsx";
+const perspectiveNextWorkBiasScopedWriteSmokeFile =
+  "scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -1157,6 +1179,26 @@ const followOnPerspectiveRelayUpdateDecisionWriteContractFiles = [
   smokeFile,
 ];
 
+const followOnPerspectiveNextWorkBiasScopedWriteFiles = [
+  perspectiveNextWorkBiasScopedWritePreviewTypeFile,
+  perspectiveNextWorkBiasScopedWritePreviewHelperFile,
+  perspectiveNextWorkBiasScopedWritePreviewPanelFile,
+  perspectiveNextWorkBiasWriteTypeFile,
+  perspectiveNextWorkBiasWriteHelperFile,
+  perspectiveNextWorkBiasRouteFile,
+  perspectiveNextWorkBiasRecordReviewTypeFile,
+  perspectiveNextWorkBiasRecordReviewHelperFile,
+  perspectiveNextWorkBiasRecordReviewForWebFile,
+  perspectiveNextWorkBiasRecordReviewPanelFile,
+  perspectiveNextWorkBiasScopedWriteSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1569,6 +1611,7 @@ const allowedChangedFiles = new Set([
   ...followOnDogfoodMetricSnapshotNextWorkRefreshFiles,
   ...followOnNextWorkSignalDecisionPerspectiveRelayBridgeFiles,
   ...followOnPerspectiveRelayUpdateDecisionWriteContractFiles,
+  ...followOnPerspectiveNextWorkBiasScopedWriteFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -2813,6 +2856,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "PerspectiveRelayUpdateDecisionPanel",
       "PerspectiveRelayUpdateDecisionRecordReviewPanel",
       "PerspectiveRelayUpdateWriteContractPreviewPanel",
+      "PerspectiveNextWorkBiasScopedWritePreviewPanel",
+      "PerspectiveNextWorkBiasRecordReviewPanel",
       "buildDogfoodMetricSnapshotPreviewV01",
       "buildDogfoodMetricSnapshotOperatorDecisionPreviewV01",
       "readDogfoodMetricSnapshotRecordReviewForWebV01",
@@ -2823,6 +2868,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "buildPerspectiveRelayUpdateOperatorDecisionPreviewV01",
       "readPerspectiveRelayUpdateDecisionRecordReviewForWebV01",
       "buildPerspectiveRelayUpdateWriteContractPreviewV01",
+      "buildPerspectiveNextWorkBiasScopedWritePreviewV01",
+      "readPerspectiveNextWorkBiasRecordReviewForWebV01",
       "const codexResultReportIntakePreview",
       "const codexResultReportIntakeDecisionPreview",
       "const codexResultReportIntakeRecordReview",
@@ -2843,6 +2890,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "const perspectiveRelayUpdateDecisionPreview",
       "const perspectiveRelayUpdateDecisionRecordReview",
       "const perspectiveRelayUpdateWriteContractPreview",
+      "const perspectiveNextWorkBiasScopedWritePreview",
+      "const perspectiveNextWorkBiasRecordReview",
       "preview={codexResultReportIntakePreview}",
       "preview={codexResultReportIntakeDecisionPreview}",
       "review={codexResultReportIntakeRecordReview}",
@@ -2863,6 +2912,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "preview={perspectiveRelayUpdateDecisionPreview}",
       "review={perspectiveRelayUpdateDecisionRecordReview}",
       "preview={perspectiveRelayUpdateWriteContractPreview}",
+      "preview={perspectiveNextWorkBiasScopedWritePreview}",
+      "review={perspectiveNextWorkBiasRecordReview}",
       "codex_result_report_intake_preview: codexResultReportIntakePreview",
       "codex_result_report_intake_decision_preview:\n        codexResultReportIntakeDecisionPreview",
       "codex_result_report_intake_record_review:\n        codexResultReportIntakeRecordReview",
@@ -2883,6 +2934,8 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "perspective_relay_update_operator_decision_preview:\n        perspectiveRelayUpdateDecisionPreview",
       "perspective_relay_update_decision_record_review:\n        perspectiveRelayUpdateDecisionRecordReview",
       "perspective_relay_update_write_contract_preview:\n        perspectiveRelayUpdateWriteContractPreview",
+      "perspective_next_work_bias_scoped_write_preview:\n        perspectiveNextWorkBiasScopedWritePreview",
+      "perspective_next_work_bias_record_review:\n        perspectiveNextWorkBiasRecordReview",
     ],
     { label: agentWorkplaneFile },
   );
@@ -2923,6 +2976,22 @@ function assertCodexResultReportIntakeResidueFollowOn() {
   assert(
     snippet.includes("reuse_outcome_bridge_ledger_record_review:"),
     "Agent Workplane must pass Reuse Outcome Bridge ledger review to the spine overview",
+  );
+  assert(
+    snippet.includes("buildPerspectiveNextWorkBiasScopedWritePreviewV01"),
+    "Agent Workplane must build Perspective NextWorkBias scoped write preview",
+  );
+  assert(
+    snippet.includes("readPerspectiveNextWorkBiasRecordReviewForWebV01"),
+    "Agent Workplane must read Perspective NextWorkBias review through no-DB helper",
+  );
+  assert(
+    snippet.includes("perspective_next_work_bias_scoped_write_preview:"),
+    "Agent Workplane must pass Perspective NextWorkBias scoped write preview to the spine overview",
+  );
+  assert(
+    snippet.includes("perspective_next_work_bias_record_review:"),
+    "Agent Workplane must pass Perspective NextWorkBias record review to the spine overview",
   );
   assert(!snippet.includes("new Database"), "Workbench must not open DB");
   assert(!snippet.includes("fetch("), "Workbench must not fetch records");
@@ -3469,6 +3538,7 @@ function assertChangedFileBoundary() {
         followOnDogfoodMetricSnapshotNextWorkRefreshFiles.includes(file) ||
         followOnNextWorkSignalDecisionPerspectiveRelayBridgeFiles.includes(file) ||
         followOnPerspectiveRelayUpdateDecisionWriteContractFiles.includes(file) ||
+        followOnPerspectiveNextWorkBiasScopedWriteFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3489,6 +3559,7 @@ function assertChangedFileBoundary() {
         followOnDogfoodMetricSnapshotNextWorkRefreshFiles.includes(file) ||
         followOnNextWorkSignalDecisionPerspectiveRelayBridgeFiles.includes(file) ||
         followOnPerspectiveRelayUpdateDecisionWriteContractFiles.includes(file) ||
+        followOnPerspectiveNextWorkBiasScopedWriteFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );

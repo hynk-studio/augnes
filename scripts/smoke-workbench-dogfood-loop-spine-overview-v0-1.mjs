@@ -265,6 +265,28 @@ const perspectiveRelayUpdateWriteContractPanelFile =
   "components/workplane/perspective-relay-update-write-contract-preview-panel.tsx";
 const perspectiveRelayUpdateDecisionWriteContractSmokeFile =
   "scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs";
+const perspectiveNextWorkBiasScopedWritePreviewTypeFile =
+  "types/perspective-next-work-bias-scoped-write-preview.ts";
+const perspectiveNextWorkBiasScopedWritePreviewHelperFile =
+  "lib/workplane/perspective-next-work-bias-scoped-write-preview.ts";
+const perspectiveNextWorkBiasScopedWritePreviewPanelFile =
+  "components/workplane/perspective-next-work-bias-scoped-write-preview-panel.tsx";
+const perspectiveNextWorkBiasWriteTypeFile =
+  "types/perspective-next-work-bias-write.ts";
+const perspectiveNextWorkBiasWriteHelperFile =
+  "lib/workplane/perspective-next-work-bias-write.ts";
+const perspectiveNextWorkBiasRouteFile =
+  "app/api/workplane/perspective-next-work-biases/route.ts";
+const perspectiveNextWorkBiasRecordReviewTypeFile =
+  "types/perspective-next-work-bias-record-review.ts";
+const perspectiveNextWorkBiasRecordReviewHelperFile =
+  "lib/workplane/perspective-next-work-bias-record-review.ts";
+const perspectiveNextWorkBiasRecordReviewForWebFile =
+  "lib/workplane/read-perspective-next-work-bias-record-review-for-web.ts";
+const perspectiveNextWorkBiasRecordReviewPanelFile =
+  "components/workplane/perspective-next-work-bias-record-review-panel.tsx";
+const perspectiveNextWorkBiasScopedWriteSmokeFile =
+  "scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -405,6 +427,17 @@ const allowedChangedFiles = [
   perspectiveRelayUpdateWriteContractHelperFile,
   perspectiveRelayUpdateWriteContractPanelFile,
   perspectiveRelayUpdateDecisionWriteContractSmokeFile,
+  perspectiveNextWorkBiasScopedWritePreviewTypeFile,
+  perspectiveNextWorkBiasScopedWritePreviewHelperFile,
+  perspectiveNextWorkBiasScopedWritePreviewPanelFile,
+  perspectiveNextWorkBiasWriteTypeFile,
+  perspectiveNextWorkBiasWriteHelperFile,
+  perspectiveNextWorkBiasRouteFile,
+  perspectiveNextWorkBiasRecordReviewTypeFile,
+  perspectiveNextWorkBiasRecordReviewHelperFile,
+  perspectiveNextWorkBiasRecordReviewForWebFile,
+  perspectiveNextWorkBiasRecordReviewPanelFile,
+  perspectiveNextWorkBiasScopedWriteSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -459,6 +492,8 @@ assertContainsAll(
     "perspective_relay_update_operator_decision",
     "perspective_relay_update_decision_record",
     "perspective_relay_update_write_contract",
+    "perspective_next_work_bias_scoped_write",
+    "perspective_next_work_bias_record",
     "review_expected_observed_delta_candidates",
     "write_expected_observed_delta_record",
     "review_reuse_outcome_candidate_bridge",
@@ -482,6 +517,11 @@ assertContainsAll(
     "review_perspective_relay_update_write_contract",
     "prepare_scoped_perspective_next_work_relay_write_slice",
     "resolve_perspective_relay_update_blockers",
+    "review_perspective_next_work_bias_scoped_write",
+    "write_perspective_next_work_bias_record",
+    "review_perspective_next_work_bias_record",
+    "resolve_perspective_next_work_bias_blockers",
+    "prepare_perspective_unit_or_relay_write_slice",
     "prepare_perspective_next_work_update_decision",
     "prepare_continuity_relay_update_contract",
     "resolve_next_work_signal_blockers",
@@ -543,6 +583,8 @@ assertContainsAll(
     "perspective_relay_update_operator_decision_preview",
     "perspective_relay_update_decision_record_review",
     "perspective_relay_update_write_contract_preview",
+    "perspective_next_work_bias_scoped_write_preview",
+    "perspective_next_work_bias_record_review",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
     "selectedSessionDigestDurableIngestRecordStep",
@@ -565,6 +607,8 @@ assertContainsAll(
     "perspectiveRelayUpdateDecisionStep",
     "perspectiveRelayUpdateDecisionRecordStep",
     "perspectiveRelayUpdateWriteContractStep",
+    "perspectiveNextWorkBiasScopedWriteStep",
+    "perspectiveNextWorkBiasRecordStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -588,6 +632,11 @@ assertContainsAll(
     "write_next_work_signal_decision_record",
     "review_next_work_signal_decision_record",
     "review_perspective_relay_update_candidates",
+    "review_perspective_next_work_bias_scoped_write",
+    "write_perspective_next_work_bias_record",
+    "review_perspective_next_work_bias_record",
+    "resolve_perspective_next_work_bias_blockers",
+    "prepare_perspective_unit_or_relay_write_slice",
     "does_not_call_expected_observed_delta_route_from_workbench_overview",
     "does_not_write_reuse_outcome_ledger_or_dogfood_metrics",
     "does_not_write_memory",
@@ -632,6 +681,8 @@ assertContainsAll(
     "codex_result_report_intake_decision_preview:\n        codexResultReportIntakeDecisionPreview",
     "codex_result_report_intake_record_review:\n        codexResultReportIntakeRecordReview",
     "work_episode_residue_candidate_preview:\n        workEpisodeResidueCandidatePreview",
+    "perspective_next_work_bias_scoped_write_preview:\n        perspectiveNextWorkBiasScopedWritePreview",
+    "perspective_next_work_bias_record_review:\n        perspectiveNextWorkBiasRecordReview",
     "workbench:dogfood_loop_spine_overview",
     "handoff_context_apply_write_contract_preview",
   ],
@@ -759,7 +810,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 35);
+assert.equal(emptyOverview.spine_steps.length, 37);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -1811,7 +1862,8 @@ function assertNoForbiddenChangedPaths() {
         file === reuseOutcomeBridgeLedgerRouteFile ||
         file === dogfoodMetricSnapshotRouteFile ||
         file === nextWorkSignalDecisionRouteFile ||
-        file === perspectiveRelayUpdateDecisionRouteFile,
+        file === perspectiveRelayUpdateDecisionRouteFile ||
+        file === perspectiveNextWorkBiasRouteFile,
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);

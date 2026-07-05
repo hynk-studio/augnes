@@ -789,7 +789,8 @@
     "smoke:formation-receipt-durable-write-v0-1": "node scripts/smoke-formation-receipt-durable-write-v0-1.mjs",
     "smoke:durable-perspective-state-apply-v0-1": "node scripts/smoke-durable-perspective-state-apply-v0-1.mjs",
     "smoke:perspective-trajectory-v0-1": "node scripts/smoke-perspective-trajectory-v0-1.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke:perspective-next-work-bias-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
