@@ -371,9 +371,11 @@ export function readNextWorkSignalDecisionRecordByIdV01(
   const row = options.db
     .prepare(
       `SELECT * FROM next_work_signal_decision_records
-       WHERE record_id = ?`,
+       WHERE record_id = ? AND scope = ?`,
     )
-    .get(recordId) as NextWorkSignalDecisionWriteRow | undefined;
+    .get(recordId, NEXT_WORK_SIGNAL_DECISION_SCOPE) as
+    | NextWorkSignalDecisionWriteRow
+    | undefined;
   if (!row) {
     return storeResult(
       "not_found",
@@ -400,9 +402,11 @@ export function readNextWorkSignalDecisionRecordByIdempotencyKeyV01(
   const row = options.db
     .prepare(
       `SELECT * FROM next_work_signal_decision_records
-       WHERE idempotency_key = ?`,
+       WHERE idempotency_key = ? AND scope = ?`,
     )
-    .get(idempotencyKey) as NextWorkSignalDecisionWriteRow | undefined;
+    .get(idempotencyKey, NEXT_WORK_SIGNAL_DECISION_SCOPE) as
+    | NextWorkSignalDecisionWriteRow
+    | undefined;
   if (!row) {
     return storeResult(
       "not_found",

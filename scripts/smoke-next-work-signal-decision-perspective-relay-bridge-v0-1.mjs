@@ -383,8 +383,50 @@ assert.equal(
   ).status,
   "read",
 );
+const outOfScopeRecord = insertOutOfScopeRow(db, written.record, written.receipt, {
+  recordId: "next-work-signal-decision:out-of-scope",
+  idempotencyKey: "idempotency:out-of-scope",
+});
+assert.equal(
+  signalWrite.readNextWorkSignalDecisionRecordByIdV01(outOfScopeRecord.record_id, {
+    db,
+  }).status,
+  "not_found",
+);
+assert.equal(
+  signalWrite.readNextWorkSignalDecisionRecordByIdempotencyKeyV01(
+    outOfScopeRecord.idempotency_key,
+    { db },
+  ).status,
+  "not_found",
+);
 assert.equal(signalWrite.listNextWorkSignalDecisionRecordsV01({ db }).records.length, 1);
 db.close();
+
+const outOfScopeReplayDb = new Database(":memory:");
+signalWrite.ensureNextWorkSignalDecisionWriteSchemaV01(outOfScopeReplayDb);
+insertOutOfScopeRow(
+  outOfScopeReplayDb,
+  written.record,
+  written.receipt,
+  {
+    recordId: "next-work-signal-decision:out-of-scope-replay",
+    idempotencyKey: writeInput.idempotency_key,
+    recordFingerprint: written.record.record_fingerprint,
+  },
+);
+const replayAgainstOutOfScope =
+  signalWrite.writeNextWorkSignalDecisionRecordV01(writeInput, {
+    db: outOfScopeReplayDb,
+  });
+assert.notEqual(replayAgainstOutOfScope.status, "idempotent_existing");
+assert.equal(
+  signalWrite.listNextWorkSignalDecisionRecordsV01({
+    db: outOfScopeReplayDb,
+  }).records.length,
+  0,
+);
+outOfScopeReplayDb.close();
 
 const readBeforeSchemaDb = new Database(":memory:");
 assert.equal(
@@ -444,6 +486,44 @@ assert(
 
 const emptyBridge = buildPerspectiveRelayUpdateCandidateBridgePreviewV01();
 assert.equal(emptyBridge.bridge_preview_status, "no_next_work_signal_material");
+const nonReadyDecisionWithMaterial = {
+  ...readyDecision,
+  decision_preview_status: "needs_operator_judgment",
+  recommended_operator_decision: "defer_until_selected_signal_refs_supplied",
+  write_readiness: {
+    ...readyDecision.write_readiness,
+    write_ready: false,
+    current_insufficient_data: ["selected_signal_refs_missing"],
+  },
+};
+const bridgeFromNonReadyDecision =
+  buildPerspectiveRelayUpdateCandidateBridgePreviewV01({
+    next_work_signal_decision_preview: nonReadyDecisionWithMaterial,
+    next_work_signal_refresh_preview: refreshPreview,
+  });
+assert.equal(
+  bridgeFromNonReadyDecision.input_summary.candidate_material_count,
+  0,
+);
+assert.notEqual(
+  bridgeFromNonReadyDecision.recommended_next_action,
+  "review_perspective_relay_update_candidates",
+);
+const nonReadyBridgeOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  next_work_signal_refresh_preview: refreshPreview,
+  next_work_signal_decision_preview: nonReadyDecisionWithMaterial,
+  perspective_relay_update_candidate_bridge_preview:
+    bridgeFromNonReadyDecision,
+});
+assert.notEqual(
+  stepById(nonReadyBridgeOverview, "perspective_relay_update_candidate_bridge")
+    .recommended_next_action,
+  "review_perspective_relay_update_candidates",
+);
+assert.notEqual(
+  nonReadyBridgeOverview.recommended_next_operator_action,
+  "review_perspective_relay_update_candidates",
+);
 const bridgeFromDecision = buildPerspectiveRelayUpdateCandidateBridgePreviewV01({
   next_work_signal_decision_preview: readyDecision,
   next_work_signal_refresh_preview: refreshPreview,
@@ -505,6 +585,7 @@ for (const file of [
   `${routeDir}/valid.db`,
   `${routeDir}/invalid-before-open.db`,
   `${routeDir}/proxied.db`,
+  `${routeDir}/scope-boundary.db`,
 ]) {
   rmSync(file, { force: true });
 }
@@ -519,6 +600,31 @@ const missingGet = await route.GET(
   ),
 );
 assert.equal(missingGet.status, 404);
+const routeScopeDbPath = `${routeDir}/scope-boundary.db`;
+const routeScopeDb = new Database(routeScopeDbPath);
+signalWrite.ensureNextWorkSignalDecisionWriteSchemaV01(routeScopeDb);
+const routeOutOfScopeRecord = insertOutOfScopeRow(
+  routeScopeDb,
+  written.record,
+  written.receipt,
+  {
+    recordId: "next-work-signal-decision:route-out-of-scope",
+    idempotencyKey: "idempotency:route-out-of-scope",
+  },
+);
+routeScopeDb.close();
+const outOfScopeRouteById = await route.GET(
+  new Request(
+    `http://localhost/api/workplane/next-work-signal-decisions?db_path=${routeScopeDbPath}&record_id=${routeOutOfScopeRecord.record_id}`,
+  ),
+);
+assert.equal(outOfScopeRouteById.status, 404);
+const outOfScopeRouteByIdempotency = await route.GET(
+  new Request(
+    `http://localhost/api/workplane/next-work-signal-decisions?db_path=${routeScopeDbPath}&idempotency_key=${routeOutOfScopeRecord.idempotency_key}`,
+  ),
+);
+assert.equal(outOfScopeRouteByIdempotency.status, 404);
 
 const invalidAction = await postRoute({
   body: { action: "delete", db_path: `${routeDir}/valid.db`, input: writeInput },
@@ -760,6 +866,50 @@ function makeWriteInput(
     idempotency_key: idempotencyKey,
     notes: ["note:bounded-next-work-signal-decision"],
   };
+}
+
+function insertOutOfScopeRow(
+  db,
+  sourceRecord,
+  sourceReceipt,
+  {
+    recordId,
+    idempotencyKey,
+    recordFingerprint = `fingerprint:${recordId}`,
+  },
+) {
+  const record = structuredClone(sourceRecord);
+  record.record_id = recordId;
+  record.idempotency_key = idempotencyKey;
+  record.scope = "project:outside-augnes";
+  record.record_fingerprint = recordFingerprint;
+  const receipt = structuredClone(sourceReceipt);
+  receipt.record_id = recordId;
+  receipt.idempotency_key = idempotencyKey;
+  receipt.record_fingerprint = recordFingerprint;
+  receipt.store_ref = `next_work_signal_decision_records:${recordId}`;
+  db.prepare(
+    `INSERT INTO next_work_signal_decision_records (
+      record_id,
+      idempotency_key,
+      created_at,
+      scope,
+      operator_ref,
+      record_fingerprint,
+      record_json,
+      receipt_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    record.record_id,
+    record.idempotency_key,
+    record.created_at,
+    "project:outside-augnes",
+    record.operator_ref,
+    record.record_fingerprint,
+    JSON.stringify(record),
+    JSON.stringify(receipt),
+  );
+  return record;
 }
 
 function assertRefused(input, expectedReason) {

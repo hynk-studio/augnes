@@ -92,10 +92,22 @@ export function buildPerspectiveRelayUpdateCandidateBridgePreviewV01({
   const decisionWriteReadiness = isRecord(decisionPreview?.write_readiness)
     ? decisionPreview.write_readiness
     : null;
-  const material = collectSignalMaterial({
+  const readyDecisionPreview = isReadyNextWorkSignalDecisionPreview(
     decisionPreview,
+  )
+    ? decisionPreview
+    : null;
+  const acceptedRecordReview = isAcceptedNextWorkSignalDecisionRecordReview(
     recordReview,
-    refreshPreview,
+  )
+    ? recordReview
+    : null;
+  const hasAcceptedDecisionMaterial = Boolean(
+    readyDecisionPreview || acceptedRecordReview,
+  );
+  const material = collectSignalMaterial({
+    decisionPreview: readyDecisionPreview,
+    recordReview: acceptedRecordReview,
   });
   const candidateMaterialCount = Object.values(material).reduce(
     (total, list) => total + list.length,
@@ -110,13 +122,16 @@ export function buildPerspectiveRelayUpdateCandidateBridgePreviewV01({
     ...(!decisionPreview && !recordReview
       ? ["next_work_signal_decision_material_missing"]
       : []),
+    ...(!hasAcceptedDecisionMaterial
+      ? ["next_work_signal_decision_not_ready_or_recorded"]
+      : []),
     ...safeArray(decisionWriteReadiness?.current_insufficient_data),
     ...(recordReview?.insufficient_data_reasons ?? []),
     ...safeArray(refreshPreview?.insufficient_data_reasons),
     ...(candidateMaterialCount === 0 ? ["perspective_relay_update_candidates_missing"] : []),
   ]);
   const status = determineStatus({
-    hasMaterial: Boolean(decisionPreview || recordReview),
+    hasMaterial: hasAcceptedDecisionMaterial,
     candidateMaterialCount,
     blockedReasons,
     insufficientDataReasons,
@@ -132,7 +147,7 @@ export function buildPerspectiveRelayUpdateCandidateBridgePreviewV01({
     input_summary: {
       has_next_work_signal_decision_preview: Boolean(decisionPreview),
       has_next_work_signal_decision_records:
-        (recordReview?.input_summary.valid_record_count ?? 0) > 0,
+        Boolean(acceptedRecordReview),
       has_next_work_signal_refresh_preview: Boolean(refreshPreview),
       candidate_material_count: candidateMaterialCount,
       blocker_count: blockedReasons.length,
@@ -173,7 +188,7 @@ export function buildPerspectiveRelayUpdateCandidateBridgePreviewV01({
       ],
     },
     evidence_summary: {
-      has_next_work_signal_material: Boolean(decisionPreview || recordReview),
+      has_next_work_signal_material: hasAcceptedDecisionMaterial,
       has_source_refs: sourceRefs.length > 0,
       has_evidence_refs: evidenceRefs.length > 0,
       source_refs: sourceRefs,
@@ -242,11 +257,9 @@ export function createPerspectiveRelayUpdateCandidateBridgeAuthorityBoundaryV01(
 function collectSignalMaterial({
   decisionPreview,
   recordReview,
-  refreshPreview,
 }: {
   decisionPreview: Record<string, unknown> | null;
   recordReview: NextWorkSignalDecisionRecordReview | null;
-  refreshPreview: Record<string, unknown> | null;
 }) {
   const wouldWrite = isRecord(
     decisionPreview?.would_write_next_work_signal_record_preview,
@@ -254,49 +267,38 @@ function collectSignalMaterial({
     ? decisionPreview.would_write_next_work_signal_record_preview
     : null;
   const latestRecord = recordReview?.records[0] ?? null;
-  const refreshSignals = isRecord(refreshPreview?.proposed_next_work_signals)
-    ? refreshPreview.proposed_next_work_signals
-    : null;
   return {
     preserve: uniqueCandidateIngressStringsV01([
       ...safeArray(wouldWrite?.preserve_context_refs),
       ...(latestRecord?.preserve_context_refs ?? []),
-      ...safeArray(refreshSignals?.preserve_context_refs),
     ]),
     warn: uniqueCandidateIngressStringsV01([
       ...safeArray(wouldWrite?.warn_context_refs),
       ...(latestRecord?.warn_context_refs ?? []),
-      ...safeArray(refreshSignals?.warn_context_refs),
     ]),
     drop: uniqueCandidateIngressStringsV01([
       ...safeArray(wouldWrite?.drop_or_deprioritize_context_refs),
       ...(latestRecord?.drop_or_deprioritize_context_refs ?? []),
-      ...safeArray(refreshSignals?.drop_or_deprioritize_context_refs),
     ]),
     verification: uniqueCandidateIngressStringsV01([
       ...safeArray(wouldWrite?.verification_focus_candidates),
       ...(latestRecord?.verification_focus_candidates ?? []),
-      ...safeArray(refreshSignals?.verification_focus_candidates),
     ]),
     expectedObserved: uniqueCandidateIngressStringsV01([
       ...safeArray(wouldWrite?.expected_observed_followup_candidates),
       ...(latestRecord?.expected_observed_followup_candidates ?? []),
-      ...safeArray(refreshSignals?.expected_observed_followup_candidates),
     ]),
     handoffQuality: uniqueCandidateIngressStringsV01([
       ...safeArray(wouldWrite?.handoff_quality_focus_candidates),
       ...(latestRecord?.handoff_quality_focus_candidates ?? []),
-      ...safeArray(refreshSignals?.handoff_quality_focus_candidates),
     ]),
     contextDiet: uniqueCandidateIngressStringsV01([
       ...safeArray(wouldWrite?.context_diet_candidates),
       ...(latestRecord?.context_diet_candidates ?? []),
-      ...safeArray(refreshSignals?.context_diet_candidates),
     ]),
     reviewBurden: uniqueCandidateIngressStringsV01([
       ...safeArray(wouldWrite?.review_burden_reduction_candidates),
       ...(latestRecord?.review_burden_reduction_candidates ?? []),
-      ...safeArray(refreshSignals?.review_burden_reduction_candidates),
     ]),
   };
 }
@@ -345,6 +347,33 @@ function isNextWorkSignalDecisionRecordReview(
     value.review_version === NEXT_WORK_SIGNAL_DECISION_RECORD_REVIEW_VERSION &&
     Array.isArray(value.records) &&
     isRecord(value.input_summary)
+  );
+}
+
+function isReadyNextWorkSignalDecisionPreview(
+  value: Record<string, unknown> | null,
+): boolean {
+  const writeReadiness = isRecord(value?.write_readiness)
+    ? value.write_readiness
+    : null;
+  return (
+    Boolean(value) &&
+    value?.decision_preview_status ===
+      "ready_for_future_next_work_signal_record_write" &&
+    value?.recommended_operator_decision ===
+      "approve_for_next_work_signal_record" &&
+    writeReadiness?.write_ready === true
+  );
+}
+
+function isAcceptedNextWorkSignalDecisionRecordReview(
+  value: NextWorkSignalDecisionRecordReview | null,
+): value is NextWorkSignalDecisionRecordReview {
+  if (!value) return false;
+  return (
+    ["records_available", "selected_record_found"].includes(value.review_status) &&
+    value.input_summary.valid_record_count > 0 &&
+    value.records.length > 0
   );
 }
 
