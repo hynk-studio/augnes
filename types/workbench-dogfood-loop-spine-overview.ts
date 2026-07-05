@@ -50,6 +50,9 @@ import type { CurrentWorkingPerspectiveRouteIntegrationContractPreview } from ".
 import type { CurrentWorkingPerspectiveRouteIntegrationContractRecordReview } from "./current-working-perspective-route-integration-contract-record-review";
 import type { CurrentWorkingPerspectiveRouteIntegrationRead } from "./current-working-perspective-route-integration-read";
 import type { CurrentWorkingPerspectiveRouteIntegrationReadReview } from "./current-working-perspective-route-integration-read-review";
+import type { HandoffContextUpdateContractOperatorDecisionPreview } from "./handoff-context-update-contract-decision";
+import type { HandoffContextUpdateContractPreview } from "./handoff-context-update-contract-preview";
+import type { HandoffContextUpdateContractRecordReview } from "./handoff-context-update-contract-record-review";
 import type { PerspectiveNextWorkCandidateUpdatePreview } from "./perspective-next-work-candidate-update-preview";
 import type { ProjectHistoryIntakeOperatorDecisionPreview } from "./project-history-intake-decision";
 import type { ProjectHistoryIntakePreview } from "./project-history-intake-preview";
@@ -171,6 +174,13 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
   | "verify_current_working_perspective_route_applied_snapshot_overlay"
   | "resolve_current_working_perspective_route_integration_read_blockers"
   | "prepare_handoff_context_update_contract"
+  | "review_handoff_context_update_contract"
+  | "approve_handoff_context_update_contract_record"
+  | "write_handoff_context_update_contract_record"
+  | "review_handoff_context_update_contract_record"
+  | "resolve_handoff_context_update_contract_blockers"
+  | "prepare_handoff_context_apply_slice"
+  | "prepare_handoff_packet_copy_export_contract"
   | "prepare_perspective_next_work_update_decision"
   | "prepare_continuity_relay_update_contract"
   | "resolve_next_work_signal_blockers"
@@ -233,6 +243,9 @@ export type WorkbenchDogfoodLoopSpineStepId =
   | "current_working_perspective_route_integration_contract_record"
   | "current_working_perspective_route_integration_read"
   | "current_working_perspective_route_integration_review"
+  | "handoff_context_update_contract"
+  | "handoff_context_update_contract_decision"
+  | "handoff_context_update_contract_record"
   | "codex_result_feedback"
   | "dogfood_reuse_proposal"
   | "dogfood_reuse_operator_decision"
@@ -302,6 +315,9 @@ export interface WorkbenchDogfoodLoopSpineOverviewInput {
   current_working_perspective_route_integration_contract_record_review?: CurrentWorkingPerspectiveRouteIntegrationContractRecordReview | null;
   current_working_perspective_route_integration_read?: CurrentWorkingPerspectiveRouteIntegrationRead | null;
   current_working_perspective_route_integration_read_review?: CurrentWorkingPerspectiveRouteIntegrationReadReview | null;
+  handoff_context_update_contract_preview?: HandoffContextUpdateContractPreview | null;
+  handoff_context_update_contract_decision_preview?: HandoffContextUpdateContractOperatorDecisionPreview | null;
+  handoff_context_update_contract_record_review?: HandoffContextUpdateContractRecordReview | null;
   codex_result_feedback_draft?: CodexResultFeedbackDraft | null;
   dogfood_reuse_record_proposal?: DogfoodReuseRecordProposal | null;
   dogfood_reuse_operator_decision_preview?: DogfoodReuseOperatorDecisionPreview | null;

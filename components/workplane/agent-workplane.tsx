@@ -72,6 +72,9 @@ import { CurrentWorkingPerspectiveRouteIntegrationContractDecisionPanel } from "
 import { CurrentWorkingPerspectiveRouteIntegrationContractPreviewPanel } from "@/components/workplane/current-working-perspective-route-integration-contract-preview-panel";
 import { CurrentWorkingPerspectiveRouteIntegrationContractRecordReviewPanel } from "@/components/workplane/current-working-perspective-route-integration-contract-record-review-panel";
 import { CurrentWorkingPerspectiveRouteIntegrationReadPanel } from "@/components/workplane/current-working-perspective-route-integration-read-panel";
+import { HandoffContextUpdateContractDecisionPanel } from "@/components/workplane/handoff-context-update-contract-decision-panel";
+import { HandoffContextUpdateContractPreviewPanel } from "@/components/workplane/handoff-context-update-contract-preview-panel";
+import { HandoffContextUpdateContractRecordReviewPanel } from "@/components/workplane/handoff-context-update-contract-record-review-panel";
 import { PerspectiveUnitRecordReviewPanel } from "@/components/workplane/perspective-unit-record-review-panel";
 import { PerspectiveUnitScopedWritePreviewPanel } from "@/components/workplane/perspective-unit-scoped-write-preview-panel";
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
@@ -157,6 +160,9 @@ import { buildCurrentWorkingPerspectiveRouteIntegrationReadReviewV01 } from "@/l
 import { buildCurrentWorkingPerspectiveRouteIntegrationContractOperatorDecisionPreviewV01 } from "@/lib/workplane/current-working-perspective-route-integration-contract-decision";
 import { buildCurrentWorkingPerspectiveRouteIntegrationContractPreviewV01 } from "@/lib/workplane/current-working-perspective-route-integration-contract-preview";
 import { readCurrentWorkingPerspectiveRouteIntegrationContractRecordReviewForWebV01 } from "@/lib/workplane/read-current-working-perspective-route-integration-contract-record-review-for-web";
+import { buildHandoffContextUpdateContractOperatorDecisionPreviewV01 } from "@/lib/workplane/handoff-context-update-contract-decision";
+import { buildHandoffContextUpdateContractPreviewV01 } from "@/lib/workplane/handoff-context-update-contract-preview";
+import { readHandoffContextUpdateContractRecordReviewForWebV01 } from "@/lib/workplane/read-handoff-context-update-contract-record-review-for-web";
 import { buildPerspectiveUnitScopedWritePreviewV01 } from "@/lib/workplane/perspective-unit-scoped-write-preview";
 import { readPerspectiveUnitRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-unit-record-review-for-web";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
@@ -762,6 +768,42 @@ export async function AgentWorkplane() {
         "workbench:current_working_perspective_route_integration_read_review",
       ],
     });
+  const handoffContextUpdateContractPreview =
+    buildHandoffContextUpdateContractPreviewV01({
+      current_working_perspective_route_integration_read:
+        currentWorkingPerspectiveRouteIntegrationRead,
+      current_working_perspective_route_integration_read_review:
+        currentWorkingPerspectiveRouteIntegrationReadReview,
+      current_working_perspective_route_integration_contract_record_review:
+        currentWorkingPerspectiveRouteIntegrationContractRecordReview,
+      current_working_perspective_apply_record_review:
+        currentWorkingPerspectiveApplyRecordReview,
+      continuity_relay_record_review: continuityRelayRecordReview,
+      perspective_unit_record_review: perspectiveUnitRecordReview,
+      perspective_next_work_bias_record_review: perspectiveNextWorkBiasRecordReview,
+      requested_handoff_context_mode:
+        currentWorkingPerspectiveRouteIntegrationRead.status === "runtime_only"
+          ? "keep_existing_handoff_context"
+          : "route_integrated_cwp_summary",
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:handoff_context_update_contract_preview"],
+    });
+  const handoffContextUpdateContractDecisionPreview =
+    buildHandoffContextUpdateContractOperatorDecisionPreviewV01({
+      handoff_context_update_contract_preview:
+        handoffContextUpdateContractPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:handoff_context_update_contract_decision_preview",
+      ],
+    });
+  const handoffContextUpdateContractRecordReview =
+    readHandoffContextUpdateContractRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:handoff_context_update_contract_record_review"],
+    });
   const handoffContextUpdatePreview = buildHandoffContextUpdatePreviewV01({
     handoff_context_relay_rationale: handoffContextRationale,
     metric_informed_relay_adjustment_preview:
@@ -901,6 +943,12 @@ export async function AgentWorkplane() {
         currentWorkingPerspectiveRouteIntegrationRead,
       current_working_perspective_route_integration_read_review:
         currentWorkingPerspectiveRouteIntegrationReadReview,
+      handoff_context_update_contract_preview:
+        handoffContextUpdateContractPreview,
+      handoff_context_update_contract_decision_preview:
+        handoffContextUpdateContractDecisionPreview,
+      handoff_context_update_contract_record_review:
+        handoffContextUpdateContractRecordReview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -1140,6 +1188,15 @@ export async function AgentWorkplane() {
               />
               <CurrentWorkingPerspectiveRouteIntegrationReadPanel
                 review={currentWorkingPerspectiveRouteIntegrationReadReview}
+              />
+              <HandoffContextUpdateContractPreviewPanel
+                preview={handoffContextUpdateContractPreview}
+              />
+              <HandoffContextUpdateContractDecisionPanel
+                decisionPreview={handoffContextUpdateContractDecisionPreview}
+              />
+              <HandoffContextUpdateContractRecordReviewPanel
+                review={handoffContextUpdateContractRecordReview}
               />
               <HandoffContextUpdatePreviewPanel
                 preview={handoffContextUpdatePreview}
