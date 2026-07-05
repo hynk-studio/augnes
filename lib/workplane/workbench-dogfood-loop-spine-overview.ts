@@ -61,6 +61,9 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   current_working_perspective_apply_decision_preview,
   current_working_perspective_apply_record_review,
   applied_current_working_perspective_read,
+  current_working_perspective_route_integration_contract_preview,
+  current_working_perspective_route_integration_contract_decision_preview,
+  current_working_perspective_route_integration_contract_record_review,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -186,6 +189,21 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       applied_current_working_perspective_read,
       current_working_perspective_apply_record_review,
     ),
+    currentWorkingPerspectiveRouteIntegrationContractStep({
+      contractPreview:
+        current_working_perspective_route_integration_contract_preview,
+      appliedRead: applied_current_working_perspective_read,
+      applyRecordReview: current_working_perspective_apply_record_review,
+    }),
+    currentWorkingPerspectiveRouteIntegrationContractDecisionStep(
+      current_working_perspective_route_integration_contract_decision_preview,
+    ),
+    currentWorkingPerspectiveRouteIntegrationContractRecordStep({
+      recordReview:
+        current_working_perspective_route_integration_contract_record_review,
+      decisionPreview:
+        current_working_perspective_route_integration_contract_decision_preview,
+    }),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -2254,6 +2272,192 @@ function appliedCurrentWorkingPerspectiveSnapshotStep(
   });
 }
 
+function currentWorkingPerspectiveRouteIntegrationContractStep({
+  contractPreview,
+  appliedRead,
+  applyRecordReview,
+}: {
+  contractPreview: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_route_integration_contract_preview"];
+  appliedRead: WorkbenchDogfoodLoopSpineOverviewInput["applied_current_working_perspective_read"];
+  applyRecordReview: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_apply_record_review"];
+}): SpineStepBuild {
+  const hasAppliedSnapshot =
+    appliedRead?.status === "latest_applied_snapshot_available" &&
+    Boolean(appliedRead.latest_applied_snapshot);
+  const hasValidApplyRecordReview =
+    applyRecordReview?.review_status === "records_available" ||
+    applyRecordReview?.review_status === "selected_record_found" ||
+    applyRecordReview?.review_status === "selected_applied_snapshot_found";
+  if (!contractPreview) {
+    return makeStep({
+      step_id: "current_working_perspective_route_integration_contract",
+      label: "CurrentWorkingPerspective route integration contract",
+      status:
+        hasAppliedSnapshot && hasValidApplyRecordReview
+          ? "candidate_material_available"
+          : "no_current_material",
+      source_preview_ref_or_version: "not_supplied",
+      material_count: hasAppliedSnapshot ? 1 : 0,
+      blockers: [],
+      material_gaps: hasAppliedSnapshot
+        ? ["route_integration_contract_preview_missing"]
+        : ["applied_current_working_perspective_snapshot_missing"],
+      missing_evidence: [],
+      recommended_next_action: hasAppliedSnapshot
+        ? "review_current_working_perspective_route_integration_contract"
+        : "review_applied_current_working_perspective_snapshot",
+      evidence_present: hasAppliedSnapshot,
+      summary:
+        "No CurrentWorkingPerspective route integration contract preview supplied; a valid applied snapshot is required before this future route contract review.",
+    });
+  }
+
+  const ready =
+    contractPreview.contract_preview_status ===
+      "ready_for_future_current_working_perspective_route_integration_contract_record_write" &&
+    contractPreview.contract_readiness.write_ready === true;
+  const blockerCount =
+    contractPreview.blocking_reasons.length +
+    contractPreview.refusal_reasons.length;
+  const missingEvidenceCount = contractPreview.missing_evidence.length;
+
+  return makeStep({
+    step_id: "current_working_perspective_route_integration_contract",
+    label: "CurrentWorkingPerspective route integration contract",
+    status: ready
+      ? "ready_for_operator_review"
+      : blockerCount > 0
+        ? "blocked"
+        : missingEvidenceCount > 0
+          ? "insufficient_data"
+          : "candidate_material_available",
+    source_preview_ref_or_version: contractPreview.preview_version,
+    material_count:
+      contractPreview.proposed_current_working_perspective_route_integration_contract
+        ? 1
+        : 0,
+    blockers: [
+      ...contractPreview.blocking_reasons,
+      ...contractPreview.refusal_reasons,
+    ],
+    material_gaps: contractPreview.contract_readiness.current_insufficient_data,
+    missing_evidence: contractPreview.missing_evidence,
+    recommended_next_action: ready
+      ? "approve_current_working_perspective_route_integration_contract_record"
+      : blockerCount > 0 || missingEvidenceCount > 0
+        ? "resolve_current_working_perspective_route_integration_blockers"
+        : "review_current_working_perspective_route_integration_contract",
+    evidence_present: contractPreview.evidence_summary.has_valid_applied_snapshot,
+    summary: `CurrentWorkingPerspective route integration contract preview is ${contractPreview.contract_preview_status}; mode ${contractPreview.input_summary.requested_route_integration_mode ?? "missing"}; /api/perspective/current remains unchanged in this slice.`,
+  });
+}
+
+function currentWorkingPerspectiveRouteIntegrationContractDecisionStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_route_integration_contract_decision_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "current_working_perspective_route_integration_contract_decision",
+      label: "CurrentWorkingPerspective route integration contract decision",
+      recommended_next_action:
+        "review_current_working_perspective_route_integration_contract",
+      summary:
+        "No route integration contract decision preview supplied.",
+    });
+  }
+  const ready =
+    preview.decision_preview_status ===
+      "ready_for_future_current_working_perspective_route_integration_contract_record_write" &&
+    preview.write_readiness.write_ready === true;
+  const blockerCount =
+    preview.blocking_reasons.length + preview.refusal_reasons.length;
+
+  return makeStep({
+    step_id: "current_working_perspective_route_integration_contract_decision",
+    label: "CurrentWorkingPerspective route integration contract decision",
+    status: ready
+      ? "ready_for_operator_review"
+      : blockerCount > 0
+        ? "blocked"
+        : "candidate_material_available",
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.evidence_summary.has_ready_contract_preview ? 1 : 0,
+    blockers: [...preview.blocking_reasons, ...preview.refusal_reasons],
+    material_gaps: preview.write_readiness.current_insufficient_data,
+    missing_evidence: preview.missing_evidence,
+    recommended_next_action: ready
+      ? "write_current_working_perspective_route_integration_contract_record"
+      : blockerCount > 0
+        ? "resolve_current_working_perspective_route_integration_blockers"
+        : "review_current_working_perspective_route_integration_contract",
+    evidence_present: preview.evidence_summary.has_ready_contract_preview,
+    summary: `CurrentWorkingPerspective route integration contract decision preview is ${preview.decision_preview_status}; recommended ${preview.recommended_operator_decision}; no route modification is performed here.`,
+  });
+}
+
+function currentWorkingPerspectiveRouteIntegrationContractRecordStep({
+  recordReview,
+  decisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_route_integration_contract_record_review"];
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_route_integration_contract_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "current_working_perspective_route_integration_contract_record",
+      label: "CurrentWorkingPerspective route integration contract record",
+      recommended_next_action:
+        "review_current_working_perspective_route_integration_contract",
+      summary:
+        "No route integration contract record review supplied.",
+    });
+  }
+  const hasValidRecord =
+    recordReview.review_status === "records_available" ||
+    recordReview.review_status === "selected_record_found";
+  const decisionReady =
+    decisionPreview?.decision_preview_status ===
+      "ready_for_future_current_working_perspective_route_integration_contract_record_write" &&
+    decisionPreview.write_readiness.write_ready === true;
+
+  return makeStep({
+    step_id: "current_working_perspective_route_integration_contract_record",
+    label: "CurrentWorkingPerspective route integration contract record",
+    status: hasValidRecord
+      ? "candidate_material_available"
+      : recordReview.review_status === "records_invalid"
+        ? "blocked"
+        : decisionReady
+          ? "ready_for_operator_review"
+          : "no_current_material",
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count: recordReview.input_summary.valid_record_count,
+    blockers: [
+      ...recordReview.blocked_reasons,
+      ...(recordReview.evidence_summary.has_receipt_side_effect_problem
+        ? ["current_working_perspective_route_integration_contract_record_side_effect_problem"]
+        : []),
+    ],
+    material_gaps: [
+      ...recordReview.insufficient_data_reasons,
+      ...(decisionReady && !hasValidRecord
+        ? ["current_working_perspective_route_integration_contract_record_missing_after_decision_preview"]
+        : []),
+      ...(!decisionReady && !hasValidRecord
+        ? ["current_working_perspective_route_integration_contract_decision_missing_or_not_ready"]
+        : []),
+    ],
+    missing_evidence: recordReview.evidence_summary.missing_evidence,
+    recommended_next_action: hasValidRecord
+      ? "review_current_working_perspective_route_integration_contract_record"
+      : decisionReady
+        ? "write_current_working_perspective_route_integration_contract_record"
+        : "review_current_working_perspective_route_integration_contract",
+    evidence_present: recordReview.evidence_summary.has_records,
+    summary: `CurrentWorkingPerspective route integration contract record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; after a valid record exists, prepare_current_working_perspective_route_integration_slice remains future work, not an action performed here.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -2908,7 +3112,10 @@ function determineRecommendedNextOperatorAction({
       blocker.startsWith("current_working_perspective_apply_preview:") ||
       blocker.startsWith("current_working_perspective_apply_decision:") ||
       blocker.startsWith("current_working_perspective_apply_record:") ||
-      blocker.startsWith("applied_current_working_perspective_snapshot:"),
+      blocker.startsWith("applied_current_working_perspective_snapshot:") ||
+      blocker.startsWith("current_working_perspective_route_integration_contract:") ||
+      blocker.startsWith("current_working_perspective_route_integration_contract_decision:") ||
+      blocker.startsWith("current_working_perspective_route_integration_contract_record:"),
     )
   ) {
     if (
@@ -2935,6 +3142,13 @@ function determineRecommendedNextOperatorAction({
       )
     ) {
       return "resolve_next_work_signal_blockers";
+    }
+    if (
+      top_blockers.some((blocker) =>
+        blocker.startsWith("current_working_perspective_route_integration_contract"),
+      )
+    ) {
+      return "resolve_current_working_perspective_route_integration_blockers";
     }
     if (
       top_blockers.some((blocker) =>
@@ -3025,6 +3239,52 @@ function determineRecommendedNextOperatorAction({
     const appliedCurrentWorkingPerspectiveSnapshotStep = steps.find(
       (step) => step.step_id === "applied_current_working_perspective_snapshot",
     );
+    const routeIntegrationContractStep = steps.find(
+      (step) =>
+        step.step_id === "current_working_perspective_route_integration_contract",
+    );
+    const routeIntegrationContractDecisionStep = steps.find(
+      (step) =>
+        step.step_id ===
+        "current_working_perspective_route_integration_contract_decision",
+    );
+    const routeIntegrationContractRecordStep = steps.find(
+      (step) =>
+        step.step_id ===
+        "current_working_perspective_route_integration_contract_record",
+    );
+    if (
+      routeIntegrationContractRecordStep?.recommended_next_action ===
+        "review_current_working_perspective_route_integration_contract_record" &&
+      routeIntegrationContractRecordStep.material_count > 0
+    ) {
+      return "review_current_working_perspective_route_integration_contract_record";
+    }
+    if (
+      routeIntegrationContractRecordStep?.recommended_next_action ===
+      "write_current_working_perspective_route_integration_contract_record"
+    ) {
+      return "write_current_working_perspective_route_integration_contract_record";
+    }
+    if (
+      routeIntegrationContractDecisionStep?.recommended_next_action ===
+      "write_current_working_perspective_route_integration_contract_record"
+    ) {
+      return "write_current_working_perspective_route_integration_contract_record";
+    }
+    if (
+      routeIntegrationContractStep?.recommended_next_action ===
+      "approve_current_working_perspective_route_integration_contract_record"
+    ) {
+      return "approve_current_working_perspective_route_integration_contract_record";
+    }
+    if (
+      routeIntegrationContractStep?.recommended_next_action ===
+        "review_current_working_perspective_route_integration_contract" &&
+      routeIntegrationContractStep.material_count > 0
+    ) {
+      return "review_current_working_perspective_route_integration_contract";
+    }
     if (
       appliedCurrentWorkingPerspectiveSnapshotStep?.recommended_next_action ===
         "review_applied_current_working_perspective_snapshot" &&

@@ -68,6 +68,9 @@ import { AppliedCurrentWorkingPerspectivePanel } from "@/components/workplane/ap
 import { CurrentWorkingPerspectiveApplyDecisionPanel } from "@/components/workplane/current-working-perspective-apply-decision-panel";
 import { CurrentWorkingPerspectiveApplyPreviewPanel } from "@/components/workplane/current-working-perspective-apply-preview-panel";
 import { CurrentWorkingPerspectiveApplyRecordReviewPanel } from "@/components/workplane/current-working-perspective-apply-record-review-panel";
+import { CurrentWorkingPerspectiveRouteIntegrationContractDecisionPanel } from "@/components/workplane/current-working-perspective-route-integration-contract-decision-panel";
+import { CurrentWorkingPerspectiveRouteIntegrationContractPreviewPanel } from "@/components/workplane/current-working-perspective-route-integration-contract-preview-panel";
+import { CurrentWorkingPerspectiveRouteIntegrationContractRecordReviewPanel } from "@/components/workplane/current-working-perspective-route-integration-contract-record-review-panel";
 import { PerspectiveUnitRecordReviewPanel } from "@/components/workplane/perspective-unit-record-review-panel";
 import { PerspectiveUnitScopedWritePreviewPanel } from "@/components/workplane/perspective-unit-scoped-write-preview-panel";
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
@@ -148,6 +151,9 @@ import { readAppliedCurrentWorkingPerspectiveForWebV01 } from "@/lib/perspective
 import { buildCurrentWorkingPerspectiveApplyOperatorDecisionPreviewV01 } from "@/lib/workplane/current-working-perspective-apply-decision";
 import { buildCurrentWorkingPerspectiveApplyPreviewV01 } from "@/lib/workplane/current-working-perspective-apply-preview";
 import { readCurrentWorkingPerspectiveApplyRecordReviewForWebV01 } from "@/lib/workplane/read-current-working-perspective-apply-record-review-for-web";
+import { buildCurrentWorkingPerspectiveRouteIntegrationContractOperatorDecisionPreviewV01 } from "@/lib/workplane/current-working-perspective-route-integration-contract-decision";
+import { buildCurrentWorkingPerspectiveRouteIntegrationContractPreviewV01 } from "@/lib/workplane/current-working-perspective-route-integration-contract-preview";
+import { readCurrentWorkingPerspectiveRouteIntegrationContractRecordReviewForWebV01 } from "@/lib/workplane/read-current-working-perspective-route-integration-contract-record-review-for-web";
 import { buildPerspectiveUnitScopedWritePreviewV01 } from "@/lib/workplane/perspective-unit-scoped-write-preview";
 import { readPerspectiveUnitRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-unit-record-review-for-web";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
@@ -691,6 +697,44 @@ export async function AgentWorkplane() {
     });
   const appliedCurrentWorkingPerspectiveRead =
     readAppliedCurrentWorkingPerspectiveForWebV01();
+  const routeIntegrationMode =
+    appliedCurrentWorkingPerspectiveRead.status ===
+    "latest_applied_snapshot_available"
+      ? "applied_snapshot_overlay_candidate"
+      : "keep_runtime_only";
+  const currentWorkingPerspectiveRouteIntegrationContractPreview =
+    buildCurrentWorkingPerspectiveRouteIntegrationContractPreviewV01({
+      current_working_perspective_read: context.current_perspective_read,
+      applied_current_working_perspective_read:
+        appliedCurrentWorkingPerspectiveRead,
+      current_working_perspective_apply_record_review:
+        currentWorkingPerspectiveApplyRecordReview,
+      current_working_perspective_update_contract_record_review:
+        currentWorkingPerspectiveUpdateContractRecordReview,
+      requested_route_integration_mode: routeIntegrationMode,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:current_working_perspective_route_integration_contract_preview",
+      ],
+    });
+  const currentWorkingPerspectiveRouteIntegrationContractDecisionPreview =
+    buildCurrentWorkingPerspectiveRouteIntegrationContractOperatorDecisionPreviewV01({
+      current_working_perspective_route_integration_contract_preview:
+        currentWorkingPerspectiveRouteIntegrationContractPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:current_working_perspective_route_integration_contract_decision_preview",
+      ],
+    });
+  const currentWorkingPerspectiveRouteIntegrationContractRecordReview =
+    readCurrentWorkingPerspectiveRouteIntegrationContractRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:current_working_perspective_route_integration_contract_record_review",
+      ],
+    });
   const handoffContextUpdatePreview = buildHandoffContextUpdatePreviewV01({
     handoff_context_relay_rationale: handoffContextRationale,
     metric_informed_relay_adjustment_preview:
@@ -820,6 +864,12 @@ export async function AgentWorkplane() {
         currentWorkingPerspectiveApplyRecordReview,
       applied_current_working_perspective_read:
         appliedCurrentWorkingPerspectiveRead,
+      current_working_perspective_route_integration_contract_preview:
+        currentWorkingPerspectiveRouteIntegrationContractPreview,
+      current_working_perspective_route_integration_contract_decision_preview:
+        currentWorkingPerspectiveRouteIntegrationContractDecisionPreview,
+      current_working_perspective_route_integration_contract_record_review:
+        currentWorkingPerspectiveRouteIntegrationContractRecordReview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -1045,6 +1095,17 @@ export async function AgentWorkplane() {
               />
               <AppliedCurrentWorkingPerspectivePanel
                 read={appliedCurrentWorkingPerspectiveRead}
+              />
+              <CurrentWorkingPerspectiveRouteIntegrationContractPreviewPanel
+                preview={currentWorkingPerspectiveRouteIntegrationContractPreview}
+              />
+              <CurrentWorkingPerspectiveRouteIntegrationContractDecisionPanel
+                preview={
+                  currentWorkingPerspectiveRouteIntegrationContractDecisionPreview
+                }
+              />
+              <CurrentWorkingPerspectiveRouteIntegrationContractRecordReviewPanel
+                review={currentWorkingPerspectiveRouteIntegrationContractRecordReview}
               />
               <HandoffContextUpdatePreviewPanel
                 preview={handoffContextUpdatePreview}
