@@ -477,6 +477,34 @@ const continuityRelayRecordReviewPanelFile =
   "components/workplane/continuity-relay-record-review-panel.tsx";
 const continuityRelayScopedWriteSmokeFile =
   "scripts/smoke-continuity-relay-scoped-write-v0-1.mjs";
+const currentWorkingPerspectiveUpdateContractPreviewTypeFile =
+  "types/current-working-perspective-update-contract-preview.ts";
+const currentWorkingPerspectiveUpdateContractPreviewHelperFile =
+  "lib/workplane/current-working-perspective-update-contract-preview.ts";
+const currentWorkingPerspectiveUpdateContractPreviewPanelFile =
+  "components/workplane/current-working-perspective-update-contract-preview-panel.tsx";
+const currentWorkingPerspectiveUpdateContractDecisionTypeFile =
+  "types/current-working-perspective-update-contract-decision.ts";
+const currentWorkingPerspectiveUpdateContractDecisionHelperFile =
+  "lib/workplane/current-working-perspective-update-contract-decision.ts";
+const currentWorkingPerspectiveUpdateContractDecisionPanelFile =
+  "components/workplane/current-working-perspective-update-contract-decision-panel.tsx";
+const currentWorkingPerspectiveUpdateContractWriteTypeFile =
+  "types/current-working-perspective-update-contract-write.ts";
+const currentWorkingPerspectiveUpdateContractWriteHelperFile =
+  "lib/workplane/current-working-perspective-update-contract-write.ts";
+const currentWorkingPerspectiveUpdateContractRouteFile =
+  "app/api/workplane/current-working-perspective-update-contracts/route.ts";
+const currentWorkingPerspectiveUpdateContractRecordReviewTypeFile =
+  "types/current-working-perspective-update-contract-record-review.ts";
+const currentWorkingPerspectiveUpdateContractRecordReviewHelperFile =
+  "lib/workplane/current-working-perspective-update-contract-record-review.ts";
+const currentWorkingPerspectiveUpdateContractRecordReviewForWebFile =
+  "lib/workplane/read-current-working-perspective-update-contract-record-review-for-web.ts";
+const currentWorkingPerspectiveUpdateContractRecordReviewPanelFile =
+  "components/workplane/current-working-perspective-update-contract-record-review-panel.tsx";
+const currentWorkingPerspectiveUpdateContractSmokeFile =
+  "scripts/smoke-current-working-perspective-update-contract-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -1279,6 +1307,29 @@ const followOnContinuityRelayScopedWriteFiles = [
   smokeFile,
 ];
 
+const followOnCurrentWorkingPerspectiveUpdateContractFiles = [
+  currentWorkingPerspectiveUpdateContractPreviewTypeFile,
+  currentWorkingPerspectiveUpdateContractPreviewHelperFile,
+  currentWorkingPerspectiveUpdateContractPreviewPanelFile,
+  currentWorkingPerspectiveUpdateContractDecisionTypeFile,
+  currentWorkingPerspectiveUpdateContractDecisionHelperFile,
+  currentWorkingPerspectiveUpdateContractDecisionPanelFile,
+  currentWorkingPerspectiveUpdateContractWriteTypeFile,
+  currentWorkingPerspectiveUpdateContractWriteHelperFile,
+  currentWorkingPerspectiveUpdateContractRouteFile,
+  currentWorkingPerspectiveUpdateContractRecordReviewTypeFile,
+  currentWorkingPerspectiveUpdateContractRecordReviewHelperFile,
+  currentWorkingPerspectiveUpdateContractRecordReviewForWebFile,
+  currentWorkingPerspectiveUpdateContractRecordReviewPanelFile,
+  currentWorkingPerspectiveUpdateContractSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1694,6 +1745,7 @@ const allowedChangedFiles = new Set([
   ...followOnPerspectiveNextWorkBiasScopedWriteFiles,
   ...followOnPerspectiveUnitScopedWriteFiles,
   ...followOnContinuityRelayScopedWriteFiles,
+  ...followOnCurrentWorkingPerspectiveUpdateContractFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -2944,6 +2996,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "PerspectiveUnitRecordReviewPanel",
       "ContinuityRelayScopedWritePreviewPanel",
       "ContinuityRelayRecordReviewPanel",
+      "CurrentWorkingPerspectiveUpdateContractPreviewPanel",
+      "CurrentWorkingPerspectiveUpdateContractDecisionPanel",
+      "CurrentWorkingPerspectiveUpdateContractRecordReviewPanel",
       "buildDogfoodMetricSnapshotPreviewV01",
       "buildDogfoodMetricSnapshotOperatorDecisionPreviewV01",
       "readDogfoodMetricSnapshotRecordReviewForWebV01",
@@ -2960,6 +3015,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "readPerspectiveUnitRecordReviewForWebV01",
       "buildContinuityRelayScopedWritePreviewV01",
       "readContinuityRelayRecordReviewForWebV01",
+      "buildCurrentWorkingPerspectiveUpdateContractPreviewV01",
+      "buildCurrentWorkingPerspectiveUpdateContractOperatorDecisionPreviewV01",
+      "readCurrentWorkingPerspectiveUpdateContractRecordReviewForWebV01",
       "const codexResultReportIntakePreview",
       "const codexResultReportIntakeDecisionPreview",
       "const codexResultReportIntakeRecordReview",
@@ -2986,6 +3044,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "const perspectiveUnitRecordReview",
       "const continuityRelayScopedWritePreview",
       "const continuityRelayRecordReview",
+      "const currentWorkingPerspectiveUpdateContractPreview",
+      "const currentWorkingPerspectiveUpdateContractDecisionPreview",
+      "const currentWorkingPerspectiveUpdateContractRecordReview",
       "preview={codexResultReportIntakePreview}",
       "preview={codexResultReportIntakeDecisionPreview}",
       "review={codexResultReportIntakeRecordReview}",
@@ -3012,6 +3073,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "review={perspectiveUnitRecordReview}",
       "preview={continuityRelayScopedWritePreview}",
       "review={continuityRelayRecordReview}",
+      "preview={currentWorkingPerspectiveUpdateContractPreview}",
+      "preview={currentWorkingPerspectiveUpdateContractDecisionPreview}",
+      "review={currentWorkingPerspectiveUpdateContractRecordReview}",
       "codex_result_report_intake_preview: codexResultReportIntakePreview",
       "codex_result_report_intake_decision_preview:\n        codexResultReportIntakeDecisionPreview",
       "codex_result_report_intake_record_review:\n        codexResultReportIntakeRecordReview",
@@ -3038,6 +3102,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "perspective_unit_record_review:\n        perspectiveUnitRecordReview",
       "continuity_relay_scoped_write_preview:\n        continuityRelayScopedWritePreview",
       "continuity_relay_record_review: continuityRelayRecordReview",
+      "current_working_perspective_update_contract_preview:\n        currentWorkingPerspectiveUpdateContractPreview",
+      "current_working_perspective_update_contract_decision_preview:\n        currentWorkingPerspectiveUpdateContractDecisionPreview",
+      "current_working_perspective_update_contract_record_review:\n        currentWorkingPerspectiveUpdateContractRecordReview",
     ],
     { label: agentWorkplaneFile },
   );
@@ -3126,6 +3193,38 @@ function assertCodexResultReportIntakeResidueFollowOn() {
   assert(
     snippet.includes("continuity_relay_record_review:"),
     "Agent Workplane must pass ContinuityRelay record review to the spine overview",
+  );
+  assert(
+    snippet.includes("buildCurrentWorkingPerspectiveUpdateContractPreviewV01"),
+    "Agent Workplane must build CurrentWorkingPerspective update contract preview",
+  );
+  assert(
+    snippet.includes(
+      "buildCurrentWorkingPerspectiveUpdateContractOperatorDecisionPreviewV01",
+    ),
+    "Agent Workplane must build CurrentWorkingPerspective update contract decision preview",
+  );
+  assert(
+    snippet.includes(
+      "readCurrentWorkingPerspectiveUpdateContractRecordReviewForWebV01",
+    ),
+    "Agent Workplane must read CurrentWorkingPerspective update contract record review through no-DB helper",
+  );
+  assert(
+    snippet.includes("current_working_perspective_update_contract_preview:"),
+    "Agent Workplane must pass CurrentWorkingPerspective update contract preview to the spine overview",
+  );
+  assert(
+    snippet.includes(
+      "current_working_perspective_update_contract_decision_preview:",
+    ),
+    "Agent Workplane must pass CurrentWorkingPerspective update contract decision preview to the spine overview",
+  );
+  assert(
+    snippet.includes(
+      "current_working_perspective_update_contract_record_review:",
+    ),
+    "Agent Workplane must pass CurrentWorkingPerspective update contract record review to the spine overview",
   );
   assert(!snippet.includes("new Database"), "Workbench must not open DB");
   assert(!snippet.includes("fetch("), "Workbench must not fetch records");
@@ -3675,6 +3774,7 @@ function assertChangedFileBoundary() {
         followOnPerspectiveNextWorkBiasScopedWriteFiles.includes(file) ||
         followOnPerspectiveUnitScopedWriteFiles.includes(file) ||
         followOnContinuityRelayScopedWriteFiles.includes(file) ||
+        followOnCurrentWorkingPerspectiveUpdateContractFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3698,6 +3798,7 @@ function assertChangedFileBoundary() {
         followOnPerspectiveNextWorkBiasScopedWriteFiles.includes(file) ||
         followOnPerspectiveUnitScopedWriteFiles.includes(file) ||
         followOnContinuityRelayScopedWriteFiles.includes(file) ||
+        followOnCurrentWorkingPerspectiveUpdateContractFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
