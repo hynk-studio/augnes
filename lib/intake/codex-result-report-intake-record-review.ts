@@ -10,23 +10,63 @@ import {
 import {
   CODEX_RESULT_REPORT_INTAKE_RECORD_VERSION,
   CODEX_RESULT_REPORT_INTAKE_SCOPE,
+  type CodexResultReportIntakeNoSideEffects,
   type CodexResultReportIntakeRecord,
+  type CodexResultReportIntakeStoreResult,
 } from "@/types/codex-result-report-intake-write";
+
+const forbiddenNoSideEffectFields: Array<
+  keyof CodexResultReportIntakeNoSideEffects
+> = [
+  "work_episode_residue_written",
+  "expected_observed_delta_written",
+  "reuse_outcome_ledger_written",
+  "dogfood_metrics_written",
+  "memory_mutated",
+  "current_working_perspective_updated",
+  "perspective_unit_written",
+  "next_work_bias_written",
+  "continuity_relay_written",
+  "handoff_context_mutated",
+  "selected_refs_written_to_live_handoff",
+  "handoff_sent",
+  "provider_called",
+  "github_called",
+  "codex_executed",
+  "pr_created",
+  "pr_merged",
+  "autonomous_action_run",
+  "graph_or_vector_store_created",
+  "rag_stack_created",
+  "crawler_or_browser_observer_created",
+];
 
 export function buildCodexResultReportIntakeRecordReviewV01(
   input: CodexResultReportIntakeRecordReviewInput = {},
 ): CodexResultReportIntakeRecordReview {
   const asOf = input.as_of ?? new Date(0).toISOString();
   const scope = input.scope ?? CODEX_RESULT_REPORT_INTAKE_SCOPE;
+  const storeResultRecords = Array.isArray(input.store_result?.records)
+    ? input.store_result.records
+    : [];
   const suppliedRecords = Array.isArray(input.records)
     ? input.records
-    : input.store_result?.records ?? [];
+    : storeResultRecords.length > 0
+      ? storeResultRecords
+      : input.store_result?.record
+        ? [input.store_result.record]
+        : [];
+  const storeSideEffectProblemReasons = storeResultSideEffectProblemReasons(
+    input.store_result ?? null,
+  );
   const selectedRecordId =
     typeof input.selected_record_id === "string" &&
     input.selected_record_id.trim()
       ? input.selected_record_id
       : null;
-  const evaluations = suppliedRecords.map(evaluateRecord);
+  const evaluations = suppliedRecords.map((record) =>
+    evaluateRecord(record, storeSideEffectProblemReasons),
+  );
   const validRecords = evaluations
     .filter((evaluation) => evaluation.valid)
     .map((evaluation) => evaluation.record)
@@ -59,7 +99,15 @@ export function buildCodexResultReportIntakeRecordReviewV01(
     validRecords.length > 0 && evidenceRefs.length === 0
       ? ["evidence_refs_missing"]
       : [];
-  const sideEffects = buildNoSideEffectsSummary(summaries);
+  const sideEffects = buildNoSideEffectsSummary(
+    summaries,
+    input.store_result ?? null,
+  );
+  const receiptSideEffectProblemCount = Math.max(
+    summaries.filter((summary) => !summary.receipt_no_side_effects_valid)
+      .length,
+    storeResultSideEffectProblemCount(input.store_result ?? null),
+  );
   const reviewStatus = determineReviewStatus({
     storeStatus: input.store_result?.status ?? null,
     suppliedRecordCount: suppliedRecords.length,
@@ -67,6 +115,7 @@ export function buildCodexResultReportIntakeRecordReviewV01(
     selectedRecordId,
     selectedRecordFound: Boolean(selectedRecordSummary),
     problemRecordIds,
+    receiptSideEffectProblemCount,
   });
 
   return {
@@ -91,9 +140,7 @@ export function buildCodexResultReportIntakeRecordReviewV01(
           (summary) => summary.sanitized_candidate_summary_count,
         ),
       ),
-      receipt_side_effect_problem_count: summaries.filter(
-        (summary) => !summary.receipt_no_side_effects_valid,
-      ).length,
+      receipt_side_effect_problem_count: receiptSideEffectProblemCount,
     },
     record_summaries: summaries,
     selected_record_summary: selectedRecordSummary,
@@ -107,16 +154,19 @@ export function buildCodexResultReportIntakeRecordReviewV01(
       has_source_refs: sourceRefs.length > 0,
       has_evidence_refs: evidenceRefs.length > 0,
       has_receipt_side_effect_problem:
-        summaries.some((summary) => !summary.receipt_no_side_effects_valid),
+        receiptSideEffectProblemCount > 0,
       source_refs: sourceRefs,
       evidence_refs: evidenceRefs,
       missing_evidence: missingEvidence,
       problem_record_ids: problemRecordIds,
     },
     receipt_no_side_effects_summary: sideEffects,
-    blocked_reasons: problemRecordIds.map(
-      (recordId) => `problem_codex_result_report_intake_record:${recordId}`,
-    ),
+    blocked_reasons: uniqueStrings([
+      ...problemRecordIds.map(
+        (recordId) => `problem_codex_result_report_intake_record:${recordId}`,
+      ),
+      ...storeSideEffectProblemReasons,
+    ]),
     insufficient_data_reasons: buildInsufficientDataReasons({
       reviewStatus,
       selectedRecordId,
@@ -203,7 +253,10 @@ export function createCodexResultReportIntakeRecordReviewAuthorityBoundaryV01():
   };
 }
 
-function evaluateRecord(recordLike: unknown): {
+function evaluateRecord(
+  recordLike: unknown,
+  extraProblemReasons: string[] = [],
+): {
   record: CodexResultReportIntakeRecord | null;
   summary: CodexResultReportIntakeRecordSummary;
   valid: boolean;
@@ -218,7 +271,10 @@ function evaluateRecord(recordLike: unknown): {
     typeof recordLike.record_id === "string"
       ? recordLike.record_id
       : "malformed_codex_result_report_record";
-  const problemReasons = recordProblems(record);
+  const problemReasons = uniqueStrings([
+    ...recordProblems(record),
+    ...extraProblemReasons,
+  ]);
   const selectedCandidateRefs = Array.isArray(record?.selected_candidate_refs)
     ? record.selected_candidate_refs
     : [];
@@ -325,28 +381,51 @@ function recordProblems(record: Partial<CodexResultReportIntakeRecord> | null): 
 
 function buildNoSideEffectsSummary(
   summaries: CodexResultReportIntakeRecordSummary[],
+  storeResult: CodexResultReportIntakeStoreResult | null,
 ): CodexResultReportIntakeNoSideEffectsSummary {
   const invalidCount = summaries.filter(
     (summary) => !summary.receipt_no_side_effects_valid,
   ).length;
+  const fieldCount = (
+    field: keyof CodexResultReportIntakeNoSideEffects,
+  ): number =>
+    Math.max(invalidCount, storeResultForbiddenFieldCount(storeResult, field));
+
   return {
     codex_result_report_intake_record_written_count: summaries.length,
     codex_result_report_intake_receipt_written_count: summaries.length,
     codex_result_report_persisted_as_candidate_record_count: summaries.length,
-    work_episode_residue_written_count: invalidCount,
-    expected_observed_delta_written_count: invalidCount,
-    reuse_outcome_ledger_written_count: invalidCount,
-    dogfood_metrics_written_count: invalidCount,
-    memory_mutated_count: invalidCount,
-    current_working_perspective_updated_count: invalidCount,
-    perspective_unit_written_count: invalidCount,
-    next_work_bias_written_count: invalidCount,
-    continuity_relay_written_count: invalidCount,
-    handoff_context_mutated_count: invalidCount,
-    handoff_sent_count: invalidCount,
-    provider_called_count: invalidCount,
-    github_called_count: invalidCount,
-    codex_executed_count: invalidCount,
+    work_episode_residue_written_count: fieldCount("work_episode_residue_written"),
+    expected_observed_delta_written_count: fieldCount(
+      "expected_observed_delta_written",
+    ),
+    reuse_outcome_ledger_written_count: fieldCount("reuse_outcome_ledger_written"),
+    dogfood_metrics_written_count: fieldCount("dogfood_metrics_written"),
+    memory_mutated_count: fieldCount("memory_mutated"),
+    current_working_perspective_updated_count: fieldCount(
+      "current_working_perspective_updated",
+    ),
+    perspective_unit_written_count: fieldCount("perspective_unit_written"),
+    next_work_bias_written_count: fieldCount("next_work_bias_written"),
+    continuity_relay_written_count: fieldCount("continuity_relay_written"),
+    handoff_context_mutated_count: fieldCount("handoff_context_mutated"),
+    selected_refs_written_to_live_handoff_count: fieldCount(
+      "selected_refs_written_to_live_handoff",
+    ),
+    handoff_sent_count: fieldCount("handoff_sent"),
+    provider_called_count: fieldCount("provider_called"),
+    github_called_count: fieldCount("github_called"),
+    codex_executed_count: fieldCount("codex_executed"),
+    pr_created_count: fieldCount("pr_created"),
+    pr_merged_count: fieldCount("pr_merged"),
+    autonomous_action_run_count: fieldCount("autonomous_action_run"),
+    graph_or_vector_store_created_count: fieldCount(
+      "graph_or_vector_store_created",
+    ),
+    rag_stack_created_count: fieldCount("rag_stack_created"),
+    crawler_or_browser_observer_created_count: fieldCount(
+      "crawler_or_browser_observer_created",
+    ),
   };
 }
 
@@ -357,6 +436,7 @@ function determineReviewStatus({
   selectedRecordId,
   selectedRecordFound,
   problemRecordIds,
+  receiptSideEffectProblemCount,
 }: {
   storeStatus: string | null;
   suppliedRecordCount: number;
@@ -364,8 +444,10 @@ function determineReviewStatus({
   selectedRecordId: string | null;
   selectedRecordFound: boolean;
   problemRecordIds: string[];
+  receiptSideEffectProblemCount: number;
 }): CodexResultReportIntakeRecordReviewStatus {
   if (storeStatus === "schema_missing") return "schema_missing";
+  if (receiptSideEffectProblemCount > 0) return "records_invalid";
   if (problemRecordIds.length > 0 && validRecordCount === 0) return "records_invalid";
   if (selectedRecordId && selectedRecordFound) return "selected_record_found";
   if (selectedRecordId && !selectedRecordFound) return "selected_record_missing";
@@ -394,6 +476,56 @@ function buildInsufficientDataReasons({
     reasons.push("selected_codex_result_report_intake_record_missing");
   }
   return reasons;
+}
+
+function storeResultSideEffectProblemReasons(
+  storeResult: CodexResultReportIntakeStoreResult | null,
+): string[] {
+  if (!storeResult) return [];
+  return uniqueStrings([
+    ...noSideEffectProblemReasons(storeResult.receipt?.no_side_effects),
+    ...noSideEffectProblemReasons(storeResult.no_side_effects),
+  ]);
+}
+
+function noSideEffectProblemReasons(value: unknown): string[] {
+  if (!isRecord(value)) return [];
+  return forbiddenNoSideEffectFields.some((field) => value[field] === true)
+    ? ["receipt_no_side_effects_claims_forbidden_side_effect"]
+    : [];
+}
+
+function storeResultSideEffectProblemCount(
+  storeResult: CodexResultReportIntakeStoreResult | null,
+): number {
+  if (!storeResult) return 0;
+  return Math.max(
+    ...forbiddenNoSideEffectFields.map((field) =>
+      storeResultForbiddenFieldCount(storeResult, field),
+    ),
+    0,
+  );
+}
+
+function storeResultForbiddenFieldCount(
+  storeResult: CodexResultReportIntakeStoreResult | null,
+  field: keyof CodexResultReportIntakeNoSideEffects,
+): number {
+  if (!storeResult) return 0;
+  let count = 0;
+  if (
+    isRecord(storeResult.receipt?.no_side_effects) &&
+    storeResult.receipt.no_side_effects[field] === true
+  ) {
+    count += 1;
+  }
+  if (
+    isRecord(storeResult.no_side_effects) &&
+    storeResult.no_side_effects[field] === true
+  ) {
+    count += 1;
+  }
+  return count;
 }
 
 function compareRecordsNewestFirst(

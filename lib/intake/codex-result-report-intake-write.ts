@@ -561,6 +561,18 @@ export function createCodexResultReportIntakeWriteAuthorityBoundaryV01({
 function validateDecisionPreview(preview: Record<string, unknown> | null): string[] {
   if (!preview) return ["decision_preview_missing"];
   const reasons: string[] = [];
+  const previewSourceRefsRaw = Array.isArray(preview.source_refs)
+    ? preview.source_refs
+    : [];
+  if (
+    (preview.source_refs !== undefined && !Array.isArray(preview.source_refs)) ||
+    previewSourceRefsRaw.some(
+      (ref) =>
+        typeof ref !== "string" || !isCandidateIngressPublicSafeRefV01(ref),
+    )
+  ) {
+    reasons.push("decision_preview_source_refs_unsafe");
+  }
   if (
     preview.preview_version !==
     CODEX_RESULT_REPORT_INTAKE_OPERATOR_DECISION_PREVIEW_VERSION
@@ -638,6 +650,9 @@ function validateDecisionPreview(preview: Record<string, unknown> | null): strin
     }
     if (!safeRef(material.source_ref)) reasons.push("source_ref_missing");
     if (!safeRef(material.operator_ref)) reasons.push("operator_ref_missing");
+    if (!safeRef(material.intake_preview_ref)) {
+      reasons.push("intake_preview_ref_unsafe");
+    }
     if (
       typeof material.project_ref === "string" &&
       material.project_ref.trim() &&

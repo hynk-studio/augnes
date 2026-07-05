@@ -505,6 +505,29 @@ assert.equal(
   "schema_missing",
 );
 
+const unsafeDecisionSourceRefs = JSON.parse(JSON.stringify(readyDecision));
+unsafeDecisionSourceRefs.source_refs = ["source:../private"];
+unsafeDecisionSourceRefs.would_write_candidate_record_preview.source_refs = [
+  "source:codex-result-report-digest",
+];
+const unsafeDecisionSourceRefsDb = new Database(":memory:");
+const unsafeDecisionSourceRefsResult = writeCodexResultReportIntakeRecordV01(
+  buildValidWriteInput(unsafeDecisionSourceRefs),
+  { db: unsafeDecisionSourceRefsDb },
+);
+assert.equal(unsafeDecisionSourceRefsResult.status, "refused");
+assert.equal(unsafeDecisionSourceRefsResult.record, null);
+assert(
+  unsafeDecisionSourceRefsResult.receipt.refusal_reasons.includes(
+    "decision_preview_source_refs_unsafe",
+  ),
+);
+assert.equal(
+  listCodexResultReportIntakeRecordsV01({ db: unsafeDecisionSourceRefsDb })
+    .status,
+  "schema_missing",
+);
+
 const rawLeakDecision = JSON.parse(JSON.stringify(readyDecision));
 rawLeakDecision.would_write_candidate_record_preview.raw_report =
   "raw_report should never enter write material";
@@ -621,6 +644,32 @@ const recordsReview = buildCodexResultReportIntakeRecordReviewV01({
 });
 assert.equal(recordsReview.review_status, "records_available");
 assert.equal(recordsReview.input_summary.valid_record_count, 1);
+const sideEffectStoreResult = JSON.parse(JSON.stringify(writeResult));
+sideEffectStoreResult.receipt.no_side_effects.work_episode_residue_written = true;
+sideEffectStoreResult.no_side_effects.work_episode_residue_written = true;
+const sideEffectReview = buildCodexResultReportIntakeRecordReviewV01({
+  store_result: sideEffectStoreResult,
+});
+assert.equal(sideEffectReview.review_status, "records_invalid");
+assert.equal(
+  sideEffectReview.evidence_summary.has_receipt_side_effect_problem,
+  true,
+);
+assert(
+  sideEffectReview.blocked_reasons.includes(
+    "receipt_no_side_effects_claims_forbidden_side_effect",
+  ),
+);
+assert(
+  sideEffectReview.record_summaries[0].problem_reasons.includes(
+    "receipt_no_side_effects_claims_forbidden_side_effect",
+  ),
+);
+assert(sideEffectReview.input_summary.receipt_side_effect_problem_count > 0);
+assert(
+  sideEffectReview.receipt_no_side_effects_summary
+    .work_episode_residue_written_count > 0,
+);
 const intakeResiduePreview = buildWorkEpisodeResidueCandidatePreviewV01({
   codex_result_report_intake_preview: structuredPreview,
 });

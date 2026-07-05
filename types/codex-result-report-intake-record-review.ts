@@ -63,10 +63,17 @@ export interface CodexResultReportIntakeNoSideEffectsSummary {
   next_work_bias_written_count: number;
   continuity_relay_written_count: number;
   handoff_context_mutated_count: number;
+  selected_refs_written_to_live_handoff_count: number;
   handoff_sent_count: number;
   provider_called_count: number;
   github_called_count: number;
   codex_executed_count: number;
+  pr_created_count: number;
+  pr_merged_count: number;
+  autonomous_action_run_count: number;
+  graph_or_vector_store_created_count: number;
+  rag_stack_created_count: number;
+  crawler_or_browser_observer_created_count: number;
 }
 
 export interface CodexResultReportIntakeRecordReviewEvidenceSummary {
