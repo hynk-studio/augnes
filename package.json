@@ -790,6 +790,7 @@
     "smoke:durable-perspective-state-apply-v0-1": "node scripts/smoke-durable-perspective-state-apply-v0-1.mjs",
     "smoke:perspective-trajectory-v0-1": "node scripts/smoke-perspective-trajectory-v0-1.mjs",
     "typecheck": "tsc --noEmit",
+    "smoke:perspective-unit-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-unit-scoped-write-v0-1.mjs",
     "smoke:perspective-next-work-bias-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs"
   },
   "dependencies": {

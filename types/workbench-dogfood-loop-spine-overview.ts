@@ -34,6 +34,8 @@ import type { PerspectiveRelayUpdateDecisionRecordReview } from "./perspective-r
 import type { PerspectiveRelayUpdateWriteContractPreview } from "./perspective-relay-update-write-contract-preview";
 import type { PerspectiveNextWorkBiasScopedWritePreview } from "./perspective-next-work-bias-scoped-write-preview";
 import type { PerspectiveNextWorkBiasRecordReview } from "./perspective-next-work-bias-record-review";
+import type { PerspectiveUnitScopedWritePreview } from "./perspective-unit-scoped-write-preview";
+import type { PerspectiveUnitRecordReview } from "./perspective-unit-record-review";
 import type { PerspectiveNextWorkCandidateUpdatePreview } from "./perspective-next-work-candidate-update-preview";
 import type { ProjectHistoryIntakeOperatorDecisionPreview } from "./project-history-intake-decision";
 import type { ProjectHistoryIntakePreview } from "./project-history-intake-preview";
@@ -121,6 +123,12 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
   | "review_perspective_next_work_bias_record"
   | "resolve_perspective_next_work_bias_blockers"
   | "prepare_perspective_unit_or_relay_write_slice"
+  | "review_perspective_unit_scoped_write"
+  | "write_perspective_unit_record"
+  | "review_perspective_unit_record"
+  | "resolve_perspective_unit_blockers"
+  | "prepare_continuity_relay_write_slice"
+  | "prepare_current_working_perspective_update_contract"
   | "prepare_perspective_next_work_update_decision"
   | "prepare_continuity_relay_update_contract"
   | "resolve_next_work_signal_blockers"
@@ -167,6 +175,8 @@ export type WorkbenchDogfoodLoopSpineStepId =
   | "perspective_relay_update_write_contract"
   | "perspective_next_work_bias_scoped_write"
   | "perspective_next_work_bias_record"
+  | "perspective_unit_scoped_write"
+  | "perspective_unit_record"
   | "codex_result_feedback"
   | "dogfood_reuse_proposal"
   | "dogfood_reuse_operator_decision"
@@ -220,6 +230,8 @@ export interface WorkbenchDogfoodLoopSpineOverviewInput {
   perspective_relay_update_write_contract_preview?: PerspectiveRelayUpdateWriteContractPreview | null;
   perspective_next_work_bias_scoped_write_preview?: PerspectiveNextWorkBiasScopedWritePreview | null;
   perspective_next_work_bias_record_review?: PerspectiveNextWorkBiasRecordReview | null;
+  perspective_unit_scoped_write_preview?: PerspectiveUnitScopedWritePreview | null;
+  perspective_unit_record_review?: PerspectiveUnitRecordReview | null;
   codex_result_feedback_draft?: CodexResultFeedbackDraft | null;
   dogfood_reuse_record_proposal?: DogfoodReuseRecordProposal | null;
   dogfood_reuse_operator_decision_preview?: DogfoodReuseOperatorDecisionPreview | null;

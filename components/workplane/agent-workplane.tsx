@@ -59,6 +59,8 @@ import { PerspectiveRelayUpdateDecisionRecordReviewPanel } from "@/components/wo
 import { PerspectiveRelayUpdateWriteContractPreviewPanel } from "@/components/workplane/perspective-relay-update-write-contract-preview-panel";
 import { PerspectiveNextWorkBiasRecordReviewPanel } from "@/components/workplane/perspective-next-work-bias-record-review-panel";
 import { PerspectiveNextWorkBiasScopedWritePreviewPanel } from "@/components/workplane/perspective-next-work-bias-scoped-write-preview-panel";
+import { PerspectiveUnitRecordReviewPanel } from "@/components/workplane/perspective-unit-record-review-panel";
+import { PerspectiveUnitScopedWritePreviewPanel } from "@/components/workplane/perspective-unit-scoped-write-preview-panel";
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
 import { ReviewMemoryDetailPanel } from "@/components/workplane/review-memory-detail-panel";
 import { ReviewQueueWorkplanePanel } from "@/components/workplane/review-queue-workplane-panel";
@@ -128,6 +130,8 @@ import { readPerspectiveRelayUpdateDecisionRecordReviewForWebV01 } from "@/lib/w
 import { buildPerspectiveRelayUpdateWriteContractPreviewV01 } from "@/lib/workplane/perspective-relay-update-write-contract-preview";
 import { buildPerspectiveNextWorkBiasScopedWritePreviewV01 } from "@/lib/workplane/perspective-next-work-bias-scoped-write-preview";
 import { readPerspectiveNextWorkBiasRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-next-work-bias-record-review-for-web";
+import { buildPerspectiveUnitScopedWritePreviewV01 } from "@/lib/workplane/perspective-unit-scoped-write-preview";
+import { readPerspectiveUnitRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-unit-record-review-for-web";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
 import { buildWorkEpisodeResidueCandidatePreviewV01 } from "@/lib/workplane/work-episode-residue-candidate-preview";
 import { buildMetricInformedContinuityRelayAdjustmentPreviewV01 } from "@/lib/workplane/metric-informed-continuity-relay-adjustment-preview";
@@ -567,6 +571,24 @@ export async function AgentWorkplane() {
         "workbench:perspective_next_work_bias_record_review",
       ],
     });
+  const perspectiveUnitScopedWritePreview =
+    buildPerspectiveUnitScopedWritePreviewV01({
+      perspective_relay_update_write_contract_preview:
+        perspectiveRelayUpdateWriteContractPreview,
+      perspective_relay_update_decision_record_review:
+        perspectiveRelayUpdateDecisionRecordReview,
+      perspective_relay_update_candidate_bridge_preview:
+        perspectiveRelayUpdateCandidateBridgePreview,
+      perspective_next_work_bias_record_review:
+        perspectiveNextWorkBiasRecordReview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:perspective_unit_scoped_write_preview"],
+    });
+  const perspectiveUnitRecordReview = readPerspectiveUnitRecordReviewForWebV01({
+    as_of: workplaneMetrics.as_of,
+    source_refs: ["workbench:perspective_unit_record_review"],
+  });
   const handoffContextUpdatePreview = buildHandoffContextUpdatePreviewV01({
     handoff_context_relay_rationale: handoffContextRationale,
     metric_informed_relay_adjustment_preview:
@@ -677,6 +699,8 @@ export async function AgentWorkplane() {
         perspectiveNextWorkBiasScopedWritePreview,
       perspective_next_work_bias_record_review:
         perspectiveNextWorkBiasRecordReview,
+      perspective_unit_scoped_write_preview: perspectiveUnitScopedWritePreview,
+      perspective_unit_record_review: perspectiveUnitRecordReview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -869,6 +893,12 @@ export async function AgentWorkplane() {
               />
               <PerspectiveNextWorkBiasRecordReviewPanel
                 review={perspectiveNextWorkBiasRecordReview}
+              />
+              <PerspectiveUnitScopedWritePreviewPanel
+                preview={perspectiveUnitScopedWritePreview}
+              />
+              <PerspectiveUnitRecordReviewPanel
+                review={perspectiveUnitRecordReview}
               />
               <HandoffContextUpdatePreviewPanel
                 preview={handoffContextUpdatePreview}

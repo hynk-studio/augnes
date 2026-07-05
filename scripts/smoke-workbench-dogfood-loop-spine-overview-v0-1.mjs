@@ -287,6 +287,25 @@ const perspectiveNextWorkBiasRecordReviewPanelFile =
   "components/workplane/perspective-next-work-bias-record-review-panel.tsx";
 const perspectiveNextWorkBiasScopedWriteSmokeFile =
   "scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs";
+const perspectiveUnitScopedWritePreviewTypeFile =
+  "types/perspective-unit-scoped-write-preview.ts";
+const perspectiveUnitScopedWritePreviewHelperFile =
+  "lib/workplane/perspective-unit-scoped-write-preview.ts";
+const perspectiveUnitScopedWritePreviewPanelFile =
+  "components/workplane/perspective-unit-scoped-write-preview-panel.tsx";
+const perspectiveUnitWriteTypeFile = "types/perspective-unit-write.ts";
+const perspectiveUnitWriteHelperFile = "lib/workplane/perspective-unit-write.ts";
+const perspectiveUnitRouteFile = "app/api/workplane/perspective-units/route.ts";
+const perspectiveUnitRecordReviewTypeFile =
+  "types/perspective-unit-record-review.ts";
+const perspectiveUnitRecordReviewHelperFile =
+  "lib/workplane/perspective-unit-record-review.ts";
+const perspectiveUnitRecordReviewForWebFile =
+  "lib/workplane/read-perspective-unit-record-review-for-web.ts";
+const perspectiveUnitRecordReviewPanelFile =
+  "components/workplane/perspective-unit-record-review-panel.tsx";
+const perspectiveUnitScopedWriteSmokeFile =
+  "scripts/smoke-perspective-unit-scoped-write-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -438,6 +457,17 @@ const allowedChangedFiles = [
   perspectiveNextWorkBiasRecordReviewForWebFile,
   perspectiveNextWorkBiasRecordReviewPanelFile,
   perspectiveNextWorkBiasScopedWriteSmokeFile,
+  perspectiveUnitScopedWritePreviewTypeFile,
+  perspectiveUnitScopedWritePreviewHelperFile,
+  perspectiveUnitScopedWritePreviewPanelFile,
+  perspectiveUnitWriteTypeFile,
+  perspectiveUnitWriteHelperFile,
+  perspectiveUnitRouteFile,
+  perspectiveUnitRecordReviewTypeFile,
+  perspectiveUnitRecordReviewHelperFile,
+  perspectiveUnitRecordReviewForWebFile,
+  perspectiveUnitRecordReviewPanelFile,
+  perspectiveUnitScopedWriteSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -494,6 +524,8 @@ assertContainsAll(
     "perspective_relay_update_write_contract",
     "perspective_next_work_bias_scoped_write",
     "perspective_next_work_bias_record",
+    "perspective_unit_scoped_write",
+    "perspective_unit_record",
     "review_expected_observed_delta_candidates",
     "write_expected_observed_delta_record",
     "review_reuse_outcome_candidate_bridge",
@@ -522,6 +554,12 @@ assertContainsAll(
     "review_perspective_next_work_bias_record",
     "resolve_perspective_next_work_bias_blockers",
     "prepare_perspective_unit_or_relay_write_slice",
+    "review_perspective_unit_scoped_write",
+    "write_perspective_unit_record",
+    "review_perspective_unit_record",
+    "resolve_perspective_unit_blockers",
+    "prepare_continuity_relay_write_slice",
+    "prepare_current_working_perspective_update_contract",
     "prepare_perspective_next_work_update_decision",
     "prepare_continuity_relay_update_contract",
     "resolve_next_work_signal_blockers",
@@ -585,6 +623,8 @@ assertContainsAll(
     "perspective_relay_update_write_contract_preview",
     "perspective_next_work_bias_scoped_write_preview",
     "perspective_next_work_bias_record_review",
+    "perspective_unit_scoped_write_preview",
+    "perspective_unit_record_review",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
     "selectedSessionDigestDurableIngestRecordStep",
@@ -609,6 +649,8 @@ assertContainsAll(
     "perspectiveRelayUpdateWriteContractStep",
     "perspectiveNextWorkBiasScopedWriteStep",
     "perspectiveNextWorkBiasRecordStep",
+    "perspectiveUnitScopedWriteStep",
+    "perspectiveUnitRecordStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -637,6 +679,12 @@ assertContainsAll(
     "review_perspective_next_work_bias_record",
     "resolve_perspective_next_work_bias_blockers",
     "prepare_perspective_unit_or_relay_write_slice",
+    "review_perspective_unit_scoped_write",
+    "write_perspective_unit_record",
+    "review_perspective_unit_record",
+    "resolve_perspective_unit_blockers",
+    "prepare_continuity_relay_write_slice",
+    "prepare_current_working_perspective_update_contract",
     "does_not_call_expected_observed_delta_route_from_workbench_overview",
     "does_not_write_reuse_outcome_ledger_or_dogfood_metrics",
     "does_not_write_memory",
@@ -683,6 +731,8 @@ assertContainsAll(
     "work_episode_residue_candidate_preview:\n        workEpisodeResidueCandidatePreview",
     "perspective_next_work_bias_scoped_write_preview:\n        perspectiveNextWorkBiasScopedWritePreview",
     "perspective_next_work_bias_record_review:\n        perspectiveNextWorkBiasRecordReview",
+    "perspective_unit_scoped_write_preview:\n        perspectiveUnitScopedWritePreview",
+    "perspective_unit_record_review:\n        perspectiveUnitRecordReview",
     "workbench:dogfood_loop_spine_overview",
     "handoff_context_apply_write_contract_preview",
   ],
@@ -810,7 +860,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 37);
+assert.equal(emptyOverview.spine_steps.length, 39);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -1863,7 +1913,8 @@ function assertNoForbiddenChangedPaths() {
         file === dogfoodMetricSnapshotRouteFile ||
         file === nextWorkSignalDecisionRouteFile ||
         file === perspectiveRelayUpdateDecisionRouteFile ||
-        file === perspectiveNextWorkBiasRouteFile,
+        file === perspectiveNextWorkBiasRouteFile ||
+        file === perspectiveUnitRouteFile,
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);
