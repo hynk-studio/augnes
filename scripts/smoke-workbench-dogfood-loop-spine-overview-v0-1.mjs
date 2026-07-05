@@ -355,6 +355,26 @@ const currentWorkingPerspectiveUpdateContractRecordReviewPanelFile =
   "components/workplane/current-working-perspective-update-contract-record-review-panel.tsx";
 const currentWorkingPerspectiveUpdateContractSmokeFile =
   "scripts/smoke-current-working-perspective-update-contract-v0-1.mjs";
+const currentWorkingPerspectiveApplyRouteFile =
+  "app/api/workplane/current-working-perspective-applies/route.ts";
+const currentWorkingPerspectiveApplySliceFiles = [
+  "types/current-working-perspective-apply-preview.ts",
+  "lib/workplane/current-working-perspective-apply-preview.ts",
+  "components/workplane/current-working-perspective-apply-preview-panel.tsx",
+  "types/current-working-perspective-apply-decision.ts",
+  "lib/workplane/current-working-perspective-apply-decision.ts",
+  "components/workplane/current-working-perspective-apply-decision-panel.tsx",
+  "types/current-working-perspective-apply-write.ts",
+  "lib/workplane/current-working-perspective-apply-write.ts",
+  currentWorkingPerspectiveApplyRouteFile,
+  "types/current-working-perspective-apply-record-review.ts",
+  "lib/workplane/current-working-perspective-apply-record-review.ts",
+  "lib/workplane/read-current-working-perspective-apply-record-review-for-web.ts",
+  "components/workplane/current-working-perspective-apply-record-review-panel.tsx",
+  "lib/perspective/read-applied-current-working-perspective-for-web.ts",
+  "components/workplane/applied-current-working-perspective-panel.tsx",
+  "scripts/smoke-current-working-perspective-apply-slice-v0-1.mjs",
+];
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -542,6 +562,7 @@ const allowedChangedFiles = [
   currentWorkingPerspectiveUpdateContractRecordReviewForWebFile,
   currentWorkingPerspectiveUpdateContractRecordReviewPanelFile,
   currentWorkingPerspectiveUpdateContractSmokeFile,
+  ...currentWorkingPerspectiveApplySliceFiles,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -605,6 +626,10 @@ assertContainsAll(
     "current_working_perspective_update_contract",
     "current_working_perspective_update_contract_decision",
     "current_working_perspective_update_contract_record",
+    "current_working_perspective_apply_preview",
+    "current_working_perspective_apply_decision",
+    "current_working_perspective_apply_record",
+    "applied_current_working_perspective_snapshot",
     "review_expected_observed_delta_candidates",
     "write_expected_observed_delta_record",
     "review_reuse_outcome_candidate_bridge",
@@ -625,6 +650,13 @@ assertContainsAll(
     "review_current_working_perspective_update_contract_record",
     "resolve_current_working_perspective_update_contract_blockers",
     "prepare_current_working_perspective_apply_slice",
+    "review_current_working_perspective_apply_preview",
+    "approve_current_working_perspective_apply_record",
+    "write_current_working_perspective_apply_record",
+    "review_current_working_perspective_apply_record",
+    "review_applied_current_working_perspective_snapshot",
+    "resolve_current_working_perspective_apply_blockers",
+    "prepare_current_working_perspective_route_integration_contract",
     "prepare_handoff_context_update_contract",
     "write_dogfood_metric_snapshot_record",
     "review_dogfood_metric_snapshot_record",
@@ -756,6 +788,10 @@ assertContainsAll(
     "currentWorkingPerspectiveUpdateContractStep",
     "currentWorkingPerspectiveUpdateContractDecisionStep",
     "currentWorkingPerspectiveUpdateContractRecordStep",
+    "currentWorkingPerspectiveApplyPreviewStep",
+    "currentWorkingPerspectiveApplyDecisionStep",
+    "currentWorkingPerspectiveApplyRecordStep",
+    "appliedCurrentWorkingPerspectiveSnapshotStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -854,6 +890,10 @@ assertContainsAll(
     "current_working_perspective_update_contract_preview:\n        currentWorkingPerspectiveUpdateContractPreview",
     "current_working_perspective_update_contract_decision_preview:\n        currentWorkingPerspectiveUpdateContractDecisionPreview",
     "current_working_perspective_update_contract_record_review:\n        currentWorkingPerspectiveUpdateContractRecordReview",
+    "current_working_perspective_apply_preview:\n        currentWorkingPerspectiveApplyPreview",
+    "current_working_perspective_apply_decision_preview:\n        currentWorkingPerspectiveApplyDecisionPreview",
+    "current_working_perspective_apply_record_review:\n        currentWorkingPerspectiveApplyRecordReview",
+    "applied_current_working_perspective_read:\n        appliedCurrentWorkingPerspectiveRead",
     "workbench:dogfood_loop_spine_overview",
     "handoff_context_apply_write_contract_preview",
   ],
@@ -865,6 +905,7 @@ assertContainsAll(
   [
     "followOnWorkbenchDogfoodLoopSpineOverviewFiles",
     "followOnCurrentWorkingPerspectiveUpdateContractFiles",
+    "followOnCurrentWorkingPerspectiveApplySliceFiles",
     "WorkbenchDogfoodLoopSpineOverviewPanel",
     "buildWorkbenchDogfoodLoopSpineOverviewV01",
     "workbenchDogfoodLoopSpineOverview",
@@ -982,7 +1023,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 44);
+assert.equal(emptyOverview.spine_steps.length, 48);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -2038,7 +2079,8 @@ function assertNoForbiddenChangedPaths() {
         file === perspectiveNextWorkBiasRouteFile ||
         file === perspectiveUnitRouteFile ||
         file === continuityRelayRouteFile ||
-        file === currentWorkingPerspectiveUpdateContractRouteFile,
+        file === currentWorkingPerspectiveUpdateContractRouteFile ||
+        file === currentWorkingPerspectiveApplyRouteFile,
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);
