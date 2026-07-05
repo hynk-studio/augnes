@@ -559,8 +559,33 @@ function validateDecisionPreview(preview: Record<string, unknown> | null): strin
   if (!material) {
     reasons.push("would_write_candidate_record_preview_missing");
   } else {
-    const selectedRefs = stringsFromArray(material.selected_candidate_refs);
-    const selectableRefs = stringsFromArray(material.selectable_candidate_refs);
+    const selectedRefsRaw = stringsFromArray(material.selected_candidate_refs);
+    const selectableRefsRaw = stringsFromArray(material.selectable_candidate_refs);
+    const evidenceRefsRaw = stringsFromArray(material.evidence_refs);
+    const selectedRefs = selectedRefsRaw.filter(
+      isCandidateIngressPublicSafeRefV01,
+    );
+    const selectableRefs = selectableRefsRaw.filter(
+      isCandidateIngressPublicSafeRefV01,
+    );
+    const evidenceRefs = evidenceRefsRaw.filter(
+      isCandidateIngressPublicSafeRefV01,
+    );
+    if (
+      selectedRefsRaw.some((ref) => !isCandidateIngressPublicSafeRefV01(ref))
+    ) {
+      reasons.push("selected_candidate_refs_unsafe");
+    }
+    if (
+      selectableRefsRaw.some((ref) => !isCandidateIngressPublicSafeRefV01(ref))
+    ) {
+      reasons.push("selectable_candidate_refs_unsafe");
+    }
+    if (
+      evidenceRefsRaw.some((ref) => !isCandidateIngressPublicSafeRefV01(ref))
+    ) {
+      reasons.push("evidence_refs_unsafe");
+    }
     if (selectedRefs.length === 0) reasons.push("selected_candidate_refs_missing");
     for (const ref of selectedRefs) {
       if (!selectableRefs.includes(ref)) {
@@ -570,7 +595,10 @@ function validateDecisionPreview(preview: Record<string, unknown> | null): strin
     if (!safeRef(material.source_ref)) reasons.push("source_ref_missing");
     if (!safeRef(material.operator_ref)) reasons.push("operator_ref_missing");
     if (!safeRef(material.project_ref)) reasons.push("project_ref_missing");
-    if (stringsFromArray(material.evidence_refs).length === 0) {
+    if (evidenceRefsRaw.length > 0 && evidenceRefs.length === 0) {
+      reasons.push("evidence_refs_missing_after_safety_filter");
+    }
+    if (evidenceRefs.length === 0) {
       reasons.push("evidence_refs_missing");
     }
     if (!safeRef(material.privacy_review_confirmation_ref)) {
@@ -666,13 +694,19 @@ function buildProjectHistoryIntakeRecord(
     idempotency_key: validation.idempotency_key,
   });
   const recordId = createRecordId(validation.idempotency_key);
+  const evidenceRefs = uniqueCandidateIngressStringsV01(
+    material.evidence_refs,
+  ).filter(isCandidateIngressPublicSafeRefV01);
+  const selectedCandidateRefs = uniqueCandidateIngressStringsV01(
+    material.selected_candidate_refs,
+  ).filter(isCandidateIngressPublicSafeRefV01);
   const sourceRefs = uniqueCandidateIngressStringsV01([
     PROJECT_HISTORY_INTAKE_RECORD_VERSION,
     PROJECT_HISTORY_INTAKE_STORE_VERSION,
     ...decisionPreview.source_refs,
     ...material.source_refs,
-    ...material.evidence_refs,
-    ...material.selected_candidate_refs,
+    ...evidenceRefs,
+    ...selectedCandidateRefs,
     material.intake_preview_ref ?? "",
   ]).filter(isCandidateIngressPublicSafeRefV01);
   const recordWithoutFingerprint: Omit<ProjectHistoryIntakeRecord, "record_fingerprint"> = {
@@ -682,9 +716,7 @@ function buildProjectHistoryIntakeRecord(
     created_at: createdAt,
     scope: PROJECT_HISTORY_INTAKE_SCOPE,
     source_refs: sourceRefs,
-    evidence_refs: uniqueCandidateIngressStringsV01(material.evidence_refs).filter(
-      isCandidateIngressPublicSafeRefV01,
-    ),
+    evidence_refs: evidenceRefs,
     decision_preview_refs: {
       decision_preview_version: decisionPreview.preview_version,
       decision_preview_status: decisionPreview.decision_preview_status,
@@ -699,7 +731,7 @@ function buildProjectHistoryIntakeRecord(
     operator_ref: material.operator_ref ?? "",
     project_ref: material.project_ref ?? "",
     work_ref: material.work_ref,
-    selected_candidate_refs: material.selected_candidate_refs,
+    selected_candidate_refs: selectedCandidateRefs,
     candidate_counts_by_kind: material.candidate_counts_by_kind,
     sanitized_candidate_summaries: material.sanitized_candidate_summaries,
     privacy_review_confirmation_ref:

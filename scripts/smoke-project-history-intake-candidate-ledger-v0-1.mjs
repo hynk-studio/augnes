@@ -338,6 +338,66 @@ assert(
   ),
 );
 
+const unsafeEvidenceDecision = JSON.parse(JSON.stringify(readyDecision));
+unsafeEvidenceDecision.would_write_candidate_record_preview.evidence_refs = [
+  "evidence:../private",
+];
+unsafeEvidenceDecision.evidence_summary.evidence_refs = ["evidence:../private"];
+const unsafeEvidenceDb = new Database(":memory:");
+const unsafeEvidenceResult = writeProjectHistoryIntakeRecordV01(
+  buildValidWriteInput(unsafeEvidenceDecision),
+  { db: unsafeEvidenceDb },
+);
+assert.equal(unsafeEvidenceResult.status, "refused");
+assert.equal(unsafeEvidenceResult.record, null);
+assert.equal(
+  unsafeEvidenceResult.receipt.no_side_effects.project_history_intake_record_written,
+  false,
+);
+assert(
+  unsafeEvidenceResult.receipt.refusal_reasons.includes("evidence_refs_unsafe") ||
+    unsafeEvidenceResult.receipt.refusal_reasons.includes(
+      "evidence_refs_missing_after_safety_filter",
+    ),
+);
+assert.equal(
+  listProjectHistoryIntakeRecordsV01({ db: unsafeEvidenceDb }).status,
+  "schema_missing",
+);
+
+const unsafeSelectedDecision = JSON.parse(JSON.stringify(readyDecision));
+unsafeSelectedDecision.would_write_candidate_record_preview.selected_candidate_refs = [
+  "candidate:../private",
+];
+unsafeSelectedDecision.would_write_candidate_record_preview.selectable_candidate_refs = [
+  "candidate:../private",
+];
+const unsafeSelectedDb = new Database(":memory:");
+const unsafeSelectedResult = writeProjectHistoryIntakeRecordV01(
+  buildValidWriteInput(unsafeSelectedDecision),
+  { db: unsafeSelectedDb },
+);
+assert.equal(unsafeSelectedResult.status, "refused");
+assert.equal(unsafeSelectedResult.record, null);
+assert.equal(
+  unsafeSelectedResult.receipt.no_side_effects.project_history_intake_record_written,
+  false,
+);
+assert(
+  unsafeSelectedResult.receipt.refusal_reasons.includes(
+    "selected_candidate_refs_unsafe",
+  ),
+);
+assert(
+  unsafeSelectedResult.receipt.refusal_reasons.includes(
+    "selectable_candidate_refs_unsafe",
+  ),
+);
+assert.equal(
+  listProjectHistoryIntakeRecordsV01({ db: unsafeSelectedDb }).status,
+  "schema_missing",
+);
+
 const db = new Database(":memory:");
 assert.equal(listProjectHistoryIntakeRecordsV01({ db }).status, "schema_missing");
 const writeResult = writeProjectHistoryIntakeRecordV01(validInput, { db });
@@ -376,6 +436,28 @@ assert.equal(listProjectHistoryIntakeRecordsV01({ db }).status, "listed");
 
 const noRecordsReview = readProjectHistoryIntakeRecordReviewForWebV01();
 assert.equal(noRecordsReview.review_status, "no_records");
+let malformedRecordReview;
+assert.doesNotThrow(() => {
+  malformedRecordReview = buildProjectHistoryIntakeRecordReviewV01({
+    records: [{ record_id: "record:bad" }],
+  });
+});
+assert.equal(malformedRecordReview.review_status, "records_invalid");
+assert(
+  malformedRecordReview.record_summaries[0].problem_reasons.includes(
+    "selected_candidate_refs_missing",
+  ),
+);
+assert(
+  malformedRecordReview.record_summaries[0].problem_reasons.includes(
+    "evidence_refs_missing",
+  ),
+);
+assert(
+  malformedRecordReview.record_summaries[0].problem_reasons.includes(
+    "source_refs_missing",
+  ),
+);
 const recordsReview = buildProjectHistoryIntakeRecordReviewV01({
   records: [writeResult.record],
 });

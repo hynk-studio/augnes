@@ -198,7 +198,7 @@ function evaluateRecord(recordLike: unknown): {
   valid: boolean;
 } {
   const record = isRecord(recordLike)
-    ? (recordLike as unknown as ProjectHistoryIntakeRecord)
+    ? (recordLike as unknown as Partial<ProjectHistoryIntakeRecord>)
     : null;
   const recordId =
     typeof recordLike === "object" &&
@@ -208,12 +208,21 @@ function evaluateRecord(recordLike: unknown): {
       ? recordLike.record_id
       : "malformed_project_history_record";
   const problemReasons = recordProblems(record);
+  const selectedCandidateRefs = Array.isArray(record?.selected_candidate_refs)
+    ? record.selected_candidate_refs
+    : [];
+  const evidenceRefs = Array.isArray(record?.evidence_refs)
+    ? record.evidence_refs
+    : [];
+  const sourceRefs = Array.isArray(record?.source_refs)
+    ? record.source_refs
+    : [];
   const summaries = Array.isArray(record?.sanitized_candidate_summaries)
     ? record.sanitized_candidate_summaries
     : [];
   const counts = record?.candidate_counts_by_kind ?? {};
   return {
-    record: problemReasons.length === 0 ? record : null,
+    record: problemReasons.length === 0 ? (record as ProjectHistoryIntakeRecord) : null,
     summary: {
       record_id: recordId,
       idempotency_key: record?.idempotency_key ?? "",
@@ -222,13 +231,13 @@ function evaluateRecord(recordLike: unknown): {
       project_ref: record?.project_ref ?? null,
       source_ref: record?.source_ref ?? null,
       work_ref: record?.work_ref ?? null,
-      selected_candidate_ref_count: record?.selected_candidate_refs.length ?? 0,
+      selected_candidate_ref_count: selectedCandidateRefs.length,
       sanitized_candidate_summary_count: summaries.length,
       timeline_event_count: counts.timeline_event ?? 0,
       decision_count: counts.decision ?? 0,
       requirement_count: counts.requirement ?? 0,
-      evidence_ref_count: record?.evidence_refs.length ?? 0,
-      source_ref_count: record?.source_refs.length ?? 0,
+      evidence_ref_count: evidenceRefs.length,
+      source_ref_count: sourceRefs.length,
       privacy_review_confirmation_ref:
         record?.privacy_review_confirmation_ref ?? null,
       review_status: record?.review_status ?? null,
@@ -245,7 +254,7 @@ function evaluateRecord(recordLike: unknown): {
   };
 }
 
-function recordProblems(record: ProjectHistoryIntakeRecord | null): string[] {
+function recordProblems(record: Partial<ProjectHistoryIntakeRecord> | null): string[] {
   if (!record) return ["record_malformed"];
   const reasons: string[] = [];
   if (record.record_version !== PROJECT_HISTORY_INTAKE_RECORD_VERSION) {
@@ -258,6 +267,7 @@ function recordProblems(record: ProjectHistoryIntakeRecord | null): string[] {
     reasons.push("selected_candidate_refs_missing");
   }
   if (!record.evidence_refs?.length) reasons.push("evidence_refs_missing");
+  if (!record.source_refs?.length) reasons.push("source_refs_missing");
   const authority = record.authority_boundary;
   if (
     !authority ||
