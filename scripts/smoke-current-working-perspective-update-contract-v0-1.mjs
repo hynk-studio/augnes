@@ -43,6 +43,14 @@ const files = {
   agentWorkplaneSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   overviewSmoke:
     "scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs",
+  continuityRelaySmoke:
+    "scripts/smoke-continuity-relay-scoped-write-v0-1.mjs",
+  perspectiveUnitSmoke:
+    "scripts/smoke-perspective-unit-scoped-write-v0-1.mjs",
+  perspectiveNextWorkBiasSmoke:
+    "scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs",
+  perspectiveRelayUpdateSmoke:
+    "scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs",
   smoke: "scripts/smoke-current-working-perspective-update-contract-v0-1.mjs",
   packageJson: "package.json",
 };
@@ -603,6 +611,42 @@ const replay = contractWrite.writeCurrentWorkingPerspectiveUpdateContractRecordV
   { db },
 );
 assert.equal(replay.status, "idempotent_existing");
+assert.equal(replay.receipt.wrote, false);
+assert.equal(replay.receipt.idempotent_replay, true);
+assert.equal(
+  replay.no_side_effects
+    .current_working_perspective_update_contract_record_written,
+  false,
+);
+assert.equal(
+  replay.no_side_effects
+    .current_working_perspective_update_contract_receipt_written,
+  false,
+);
+assert.equal(
+  replay.no_side_effects
+    .current_working_perspective_update_contract_persisted,
+  false,
+);
+assert.equal(
+  replay.no_side_effects.current_working_perspective_update_contract_written,
+  false,
+);
+assert.equal(
+  replay.no_side_effects.current_working_perspective_updated,
+  false,
+);
+assert.equal(
+  replay.no_side_effects.current_working_perspective_update_applied,
+  false,
+);
+for (const field of forbiddenNoSideEffectFields) {
+  assert.equal(
+    replay.no_side_effects[field],
+    false,
+    `${field} must remain false on idempotent replay`,
+  );
+}
 
 const conflict = contractWrite.writeCurrentWorkingPerspectiveUpdateContractRecordV01(
   writeInput(decision, { notes: ["contract record local replay differs"] }),
@@ -716,6 +760,57 @@ const rawRecordReview =
   });
 assert.equal(rawRecordReview.review_status, "records_invalid");
 
+const forgedAuthorityRecord = clone(writeResult.record);
+forgedAuthorityRecord.authority_boundary.can_update_current_working_perspective =
+  true;
+const forgedAuthorityReview =
+  buildCurrentWorkingPerspectiveUpdateContractRecordReviewV01({
+    records: [forgedAuthorityRecord],
+  });
+assert.equal(forgedAuthorityReview.review_status, "records_invalid");
+assert(
+  forgedAuthorityReview.record_summaries[0].problem_reasons.includes(
+    "current_working_perspective_update_contract_record_authority_boundary_invalid",
+  ),
+);
+const forgedAuthorityStoreReview =
+  buildCurrentWorkingPerspectiveUpdateContractRecordReviewV01({
+    store_result: {
+      ...writeResult,
+      record: forgedAuthorityRecord,
+      records: [forgedAuthorityRecord],
+    },
+  });
+assert.equal(forgedAuthorityStoreReview.review_status, "records_invalid");
+
+const forgedNoMutationRecord = clone(writeResult.record);
+forgedNoMutationRecord.no_mutation_performed.current_working_perspective_updated =
+  true;
+const forgedNoMutationReview =
+  buildCurrentWorkingPerspectiveUpdateContractRecordReviewV01({
+    records: [forgedNoMutationRecord],
+  });
+assert.equal(forgedNoMutationReview.review_status, "records_invalid");
+assert(
+  forgedNoMutationReview.record_summaries[0].problem_reasons.includes(
+    "current_working_perspective_update_contract_record_no_mutation_invalid",
+  ),
+);
+
+const forgedAuthorityProfileRecord = clone(writeResult.record);
+forgedAuthorityProfileRecord.authority_profile.current_working_perspective_update_performed =
+  true;
+const forgedAuthorityProfileReview =
+  buildCurrentWorkingPerspectiveUpdateContractRecordReviewV01({
+    records: [forgedAuthorityProfileRecord],
+  });
+assert.equal(forgedAuthorityProfileReview.review_status, "records_invalid");
+assert(
+  forgedAuthorityProfileReview.record_summaries[0].problem_reasons.includes(
+    "current_working_perspective_update_contract_record_authority_profile_invalid",
+  ),
+);
+
 const unsafeRoutePath = await route.POST(
   makePostRequest({ db_path: "../private.sqlite", input: writeInput(decision) }),
 );
@@ -807,6 +902,52 @@ assert.equal(proxiedRouteBody.current_working_perspective_updated, false);
 assert.equal(proxiedRouteBody.current_working_perspective_update_applied, false);
 assert.equal(proxiedRouteBody.handoff_context_applied, false);
 assert.equal(proxiedRouteBody.memory_written, false);
+
+const proxiedRouteReplayResponse = await route.POST(
+  makePostRequest(
+    {
+      db_path: routeDbPath,
+      input: writeInput(decision),
+    },
+    {
+      host: "internal.local",
+      "x-forwarded-host": "operator.local",
+      origin: "http://operator.local",
+      "sec-fetch-site": "same-origin",
+    },
+  ),
+);
+assert.equal(proxiedRouteReplayResponse.status, 200);
+const proxiedRouteReplayBody = await proxiedRouteReplayResponse.json();
+assert.equal(
+  proxiedRouteReplayBody.store_result.status,
+  "idempotent_existing",
+);
+assert.equal(
+  proxiedRouteReplayBody.current_working_perspective_update_contract_record_written,
+  false,
+);
+assert.equal(
+  proxiedRouteReplayBody.current_working_perspective_update_contract_written,
+  false,
+);
+assert.equal(
+  proxiedRouteReplayBody.no_side_effects
+    .current_working_perspective_update_contract_record_written,
+  false,
+);
+assert.equal(
+  proxiedRouteReplayBody.no_side_effects
+    .current_working_perspective_update_contract_persisted,
+  false,
+);
+for (const field of forbiddenNoSideEffectFields) {
+  assert.equal(
+    proxiedRouteReplayBody.no_side_effects[field],
+    false,
+    `${field} must remain false on route idempotent replay`,
+  );
+}
 
 const routeReadMissing = await route.GET(
   new Request(

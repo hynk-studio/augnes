@@ -1014,7 +1014,7 @@ function createReceipt({
       ? `${CURRENT_WORKING_PERSPECTIVE_UPDATE_CONTRACT_STORE_VERSION}:${record.record_id}`
       : null,
     source_refs: record?.source_refs ?? [],
-    no_side_effects: createNoSideEffects(wrote || idempotentReplay),
+    no_side_effects: createNoSideEffects(wrote),
   };
 }
 

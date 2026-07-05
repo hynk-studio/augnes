@@ -315,6 +315,21 @@ function evaluateRecord(
   if (typed?.scope !== CURRENT_WORKING_PERSPECTIVE_UPDATE_CONTRACT_SCOPE) {
     problemReasons.push("scope_invalid");
   }
+  if (typed && !hasExpectedAuthorityProfile(typed.authority_profile)) {
+    problemReasons.push(
+      "current_working_perspective_update_contract_record_authority_profile_invalid",
+    );
+  }
+  if (typed && !hasExpectedNoMutationPerformed(typed.no_mutation_performed)) {
+    problemReasons.push(
+      "current_working_perspective_update_contract_record_no_mutation_invalid",
+    );
+  }
+  if (typed && !hasExpectedAuthorityBoundary(typed.authority_boundary)) {
+    problemReasons.push(
+      "current_working_perspective_update_contract_record_authority_boundary_invalid",
+    );
+  }
   if ((typed?.proposed_patch_entries?.length ?? 0) === 0) {
     problemReasons.push("proposed_patch_entries_missing");
   }
@@ -375,8 +390,106 @@ function isContractRecord(
     Array.isArray(value.proposed_patch_entries) &&
     isRecord(value.proposed_current_working_perspective_update_contract) &&
     isRecord(value.authority_profile) &&
+    isRecord(value.no_mutation_performed) &&
     isRecord(value.authority_boundary) &&
     typeof value.record_fingerprint === "string"
+  );
+}
+
+function hasExpectedAuthorityProfile(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return fieldsMatch(value, {
+    durable_local_current_working_perspective_update_contract: true,
+    source_of_truth: false,
+    local_project_current_working_perspective_update_contract_only: true,
+    current_working_perspective_update_contract_written: true,
+    current_working_perspective_update_performed: false,
+    current_working_perspective_mutation_performed: false,
+    perspective_unit_write_performed: false,
+    next_work_bias_write_performed: false,
+    continuity_relay_write_performed: false,
+    continuity_relay_update_performed: false,
+    handoff_context_mutation_performed: false,
+    memory_promotion_performed: false,
+    metric_update_performed: false,
+  });
+}
+
+function hasExpectedNoMutationPerformed(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return fieldsMatch(value, {
+    current_working_perspective_updated: false,
+    current_working_perspective_mutated: false,
+    current_working_perspective_live_state_written: false,
+    current_working_perspective_update_applied: false,
+    perspective_unit_written: false,
+    next_work_bias_written: false,
+    continuity_relay_written: false,
+    continuity_relay_updated: false,
+    live_relay_state_applied: false,
+    handoff_context_mutated: false,
+    handoff_context_applied: false,
+    selected_refs_written_to_live_handoff: false,
+    handoff_sent: false,
+    memory_written: false,
+    memory_promoted: false,
+    dogfood_metrics_written: false,
+    dogfood_metrics_global_state_updated: false,
+    dogfood_metric_snapshot_written: false,
+    reuse_outcome_ledger_written: false,
+    expected_observed_delta_written: false,
+    work_episode_written: false,
+  });
+}
+
+function hasExpectedAuthorityBoundary(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return fieldsMatch(value, {
+    durable_local_current_working_perspective_update_contract: true,
+    source_of_truth: false,
+    local_project_current_working_perspective_update_contract_only: true,
+    can_write_current_working_perspective_update_contract: true,
+    can_update_current_working_perspective: false,
+    can_mutate_current_working_perspective: false,
+    can_write_current_working_perspective_live_state: false,
+    can_apply_current_working_perspective_update: false,
+    can_write_perspective_unit: false,
+    can_write_next_work_bias: false,
+    can_write_continuity_relay: false,
+    can_update_continuity_relay: false,
+    can_apply_live_relay_state: false,
+    can_mutate_handoff_context: false,
+    can_apply_handoff_context: false,
+    can_write_selected_refs_to_live_handoff: false,
+    can_send_handoff: false,
+    can_write_memory: false,
+    can_mutate_memory: false,
+    can_promote_memory: false,
+    can_update_global_dogfood_metrics: false,
+    can_write_dogfood_metrics: false,
+    can_write_dogfood_metric_snapshot: false,
+    can_write_reuse_outcome_ledger: false,
+    can_write_expected_observed_delta: false,
+    can_write_work_episode: false,
+    can_call_provider_openai: false,
+    can_call_github: false,
+    can_execute_codex: false,
+    can_create_pr: false,
+    can_merge_pr: false,
+    can_run_autonomous_action: false,
+    can_create_graph_or_vector_store: false,
+    can_create_rag_stack: false,
+    can_crawl_or_observe_browser: false,
+    can_render_workbench_action_button: false,
+  });
+}
+
+function fieldsMatch(
+  value: Record<string, unknown>,
+  expected: Record<string, boolean>,
+): boolean {
+  return Object.entries(expected).every(
+    ([field, expectedValue]) => value[field] === expectedValue,
   );
 }
 
