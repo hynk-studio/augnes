@@ -750,6 +750,7 @@
     "smoke:handoff-context-apply-operator-decision-preview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-handoff-context-apply-operator-decision-preview-v0-1.mjs",
     "smoke:handoff-context-apply-write-contract-preview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-handoff-context-apply-write-contract-preview-v0-1.mjs",
     "smoke:selected-session-digest-intake-preview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs",
+    "smoke:selected-session-digest-ingest-contract-preview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-selected-session-digest-ingest-contract-preview-v0-1.mjs",
     "smoke:workbench-dogfood-loop-spine-overview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs",
     "smoke:autonomy-contract-v0-1": "node scripts/smoke-autonomy-contract-v0-1.mjs",
     "smoke:autonomy-contract-route-v0-1": "node scripts/smoke-autonomy-contract-route-v0-1.mjs",

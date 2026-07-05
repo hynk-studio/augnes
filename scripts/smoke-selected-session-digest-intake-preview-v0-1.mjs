@@ -19,6 +19,14 @@ const smokeFile =
 const agentWorkplaneSmokeFile = "scripts/smoke-agent-workplane-panels-v0-1.mjs";
 const writeContractSmokeFile =
   "scripts/smoke-handoff-context-apply-write-contract-preview-v0-1.mjs";
+const selectedSessionDigestIngestContractTypeFile =
+  "types/selected-session-digest-ingest-contract-preview.ts";
+const selectedSessionDigestIngestContractHelperFile =
+  "lib/intake/selected-session-digest-ingest-contract-preview.ts";
+const selectedSessionDigestIngestContractPanelFile =
+  "components/intake/selected-session-digest-ingest-contract-preview-panel.tsx";
+const selectedSessionDigestIngestContractSmokeFile =
+  "scripts/smoke-selected-session-digest-ingest-contract-preview-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -37,6 +45,10 @@ const allowedChangedFiles = [
   smokeFile,
   agentWorkplaneSmokeFile,
   writeContractSmokeFile,
+  selectedSessionDigestIngestContractTypeFile,
+  selectedSessionDigestIngestContractHelperFile,
+  selectedSessionDigestIngestContractPanelFile,
+  selectedSessionDigestIngestContractSmokeFile,
   workbenchDogfoodLoopSpineOverviewTypeFile,
   workbenchDogfoodLoopSpineOverviewHelperFile,
   workbenchDogfoodLoopSpineOverviewPanelFile,
