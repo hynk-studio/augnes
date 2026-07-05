@@ -23,6 +23,7 @@ import { HandoffContextUpdateOperatorDecisionPreviewPanel } from "@/components/h
 import { HandoffContextUpdatePreviewPanel } from "@/components/handoff/handoff-context-update-preview-panel";
 import { HandoffContextUpdateRecordReviewPanel } from "@/components/handoff/handoff-context-update-record-review-panel";
 import { HandoffPreviewBoundaryCard } from "@/components/handoff/handoff-preview-boundary-card";
+import { SelectedSessionDigestIngestContractPreviewPanel } from "@/components/intake/selected-session-digest-ingest-contract-preview-panel";
 import { SelectedSessionDigestIntakePreviewPanel } from "@/components/intake/selected-session-digest-intake-preview-panel";
 import { PerspectiveNextWorkCandidateUpdatePreviewPanel } from "@/components/perspective-next-work-candidate-update-preview-panel";
 import { CurrentPerspectiveWorkplanePanel } from "@/components/workplane/current-perspective-workplane-panel";
@@ -69,6 +70,7 @@ import { buildHandoffContextUpdatePreviewV01 } from "@/lib/handoff/handoff-conte
 import { readHandoffContextUpdateRecordReviewForWebV01 } from "@/lib/handoff/read-handoff-context-update-record-review-for-web";
 import { readHandoffCapsulePreviewForWeb } from "@/lib/handoff/read-handoff-capsule-for-web";
 import { buildHandoffContextRelayRationale } from "@/lib/handoff/handoff-context-relay-rationale";
+import { buildSelectedSessionDigestIngestContractPreviewV01 } from "@/lib/intake/selected-session-digest-ingest-contract-preview";
 import { buildSelectedSessionDigestIntakePreviewV01 } from "@/lib/intake/selected-session-digest-intake-preview";
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
 import { buildPerspectiveNextWorkCandidateUpdatePreviewV01 } from "@/lib/perspective/perspective-next-work-candidate-update-preview";
@@ -235,6 +237,16 @@ export async function AgentWorkplane() {
         "workbench:selected_session_digest_intake_preview_empty_input",
       ],
     });
+  const selectedSessionDigestIngestContractPreview =
+    buildSelectedSessionDigestIngestContractPreviewV01({
+      selected_session_digest_intake_preview:
+        selectedSessionDigestIntakePreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:selected_session_digest_ingest_contract_preview",
+      ],
+    });
   const dogfoodMetricCandidatePreview =
     buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01({
       records: [],
@@ -329,6 +341,8 @@ export async function AgentWorkplane() {
     buildWorkbenchDogfoodLoopSpineOverviewV01({
       selected_session_digest_intake_preview:
         selectedSessionDigestIntakePreview,
+      selected_session_digest_ingest_contract_preview:
+        selectedSessionDigestIngestContractPreview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -421,6 +435,9 @@ export async function AgentWorkplane() {
               />
               <SelectedSessionDigestIntakePreviewPanel
                 preview={selectedSessionDigestIntakePreview}
+              />
+              <SelectedSessionDigestIngestContractPreviewPanel
+                preview={selectedSessionDigestIngestContractPreview}
               />
               <CodexResultFeedbackDraftPanel draft={codexResultFeedbackDraft} />
               <DogfoodReuseRecordProposalPanel

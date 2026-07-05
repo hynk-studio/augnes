@@ -22,6 +22,7 @@ type SpineStepBuild = WorkbenchDogfoodLoopSpineStep & {
 
 export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview,
+  selected_session_digest_ingest_contract_preview,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -40,6 +41,9 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
 }: WorkbenchDogfoodLoopSpineOverviewInput = {}): WorkbenchDogfoodLoopSpineOverview {
   const steps: SpineStepBuild[] = [
     selectedSessionIntakeStep(selected_session_digest_intake_preview),
+    selectedSessionDigestIngestContractStep(
+      selected_session_digest_ingest_contract_preview,
+    ),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -244,6 +248,55 @@ function selectedSessionIntakeStep(
           : "supply_selected_session_digest",
     evidence_present: preview.evidence_summary.has_digest_or_raw_text,
     summary: `Selected session intake is ${preview.intake_preview_status}; candidate_count ${preview.input_summary.candidate_count}; next ${preview.recommended_next_action}.`,
+  });
+}
+
+function selectedSessionDigestIngestContractStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["selected_session_digest_ingest_contract_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "selected_session_digest_ingest_contract",
+      label: "Selected digest ingest contract",
+      recommended_next_action: "supply_selected_session_intake_preview",
+      summary: "No selected session digest ingest contract preview supplied.",
+    });
+  }
+
+  return makeStep({
+    step_id: "selected_session_digest_ingest_contract",
+    label: "Selected digest ingest contract",
+    status: mapSelectedSessionIngestContractStatus(
+      preview.contract_preview_status,
+    ),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.input_summary.ingestable_candidate_count,
+    blockers: [
+      ...preview.blocked_reasons,
+      ...preview.refusal_reasons,
+      ...preview.readiness.current_blockers,
+      ...preview.readiness.current_refusal_reasons,
+    ],
+    material_gaps: [
+      ...preview.insufficient_data_reasons,
+      ...preview.readiness.current_insufficient_data,
+      ...(preview.readiness.requires_selected_digest_candidate_refs
+        ? ["selected_digest_candidate_refs_missing"]
+        : []),
+      ...(preview.readiness.requires_privacy_review_confirmation
+        ? ["privacy_review_confirmation_ref_missing"]
+        : []),
+      ...(preview.readiness.requires_idempotency_key
+        ? ["requested_idempotency_key_missing"]
+        : []),
+    ],
+    missing_evidence: [
+      ...preview.missing_evidence,
+      ...preview.readiness.current_missing_evidence,
+    ],
+    recommended_next_action: preview.recommended_next_action,
+    evidence_present: preview.evidence_summary.has_valid_intake_preview,
+    summary: `Selected digest ingest contract preview is ${preview.contract_preview_status}; candidate_count ${preview.input_summary.ingestable_candidate_count}; next ${preview.recommended_next_action}.`,
   });
 }
 
@@ -847,6 +900,18 @@ function determineRecommendedNextOperatorAction({
   if (steps[0]?.recommended_next_action === "supply_selected_session_digest") {
     return "supply_selected_session_digest";
   }
+  const selectedDigestContractStep = steps.find(
+    (step) => step.step_id === "selected_session_digest_ingest_contract",
+  );
+  if (
+    selectedDigestContractStep &&
+    selectedDigestContractStep.status !== "not_supplied" &&
+    selectedDigestContractStep.status !== "ready_for_future_contract_review" &&
+    selectedDigestContractStep.status !== "keep_preview_only" &&
+    selectedDigestContractStep.recommended_next_action !== "keep_preview_only"
+  ) {
+    return selectedDigestContractStep.recommended_next_action;
+  }
   if (
     steps.some(
       (step) =>
@@ -882,6 +947,22 @@ function mapSelectedSessionStatus(
   if (status === "unsafe" || status === "malformed") return "blocked";
   if (status === "ready_for_operator_review") return "ready_for_operator_review";
   if (status === "candidate_material_available") {
+    return "candidate_material_available";
+  }
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function mapSelectedSessionIngestContractStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_intake_preview") return "no_current_material";
+  if (status === "blocked") return "blocked";
+  if (status === "ready_for_future_ingest_write_scope") {
+    return "ready_for_future_contract_review";
+  }
+  if (status === "ready_for_operator_review") return "ready_for_operator_review";
+  if (status === "contract_candidates_available") {
     return "candidate_material_available";
   }
   if (status === "keep_preview_only") return "keep_preview_only";
@@ -1201,13 +1282,25 @@ function firstAvailableAsOf(steps: SpineStepBuild[]): string | null {
 }
 
 function limitReasons(reasons: string[]): string[] {
-  return uniqueSortedStrings(reasons).slice(0, 12);
+  return uniqueStringsInOrder(reasons).slice(0, 20);
 }
 
 function uniqueSortedStrings(values: string[]): string[] {
   return Array.from(
     new Set(values.map((value) => value.trim()).filter(Boolean)),
   ).sort((a, b) => a.localeCompare(b));
+}
+
+function uniqueStringsInOrder(values: string[]): string[] {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    ordered.push(trimmed);
+  }
+  return ordered;
 }
 
 function sum(values: number[]): number {

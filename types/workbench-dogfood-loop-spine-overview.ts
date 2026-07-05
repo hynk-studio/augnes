@@ -20,6 +20,7 @@ import type { HandoffContextUpdatePreview } from "./handoff-context-update-previ
 import type { ApprovedHandoffContextUpdateRecordReview } from "./handoff-context-update-record-review";
 import type { MetricInformedContinuityRelayAdjustmentPreview } from "./metric-informed-continuity-relay-adjustment-preview";
 import type { PerspectiveNextWorkCandidateUpdatePreview } from "./perspective-next-work-candidate-update-preview";
+import type { SelectedSessionDigestIngestContractPreview } from "./selected-session-digest-ingest-contract-preview";
 import type { SelectedSessionDigestIntakePreview } from "./selected-session-digest-intake-preview";
 
 export const WORKBENCH_DOGFOOD_LOOP_SPINE_OVERVIEW_VERSION =
@@ -36,6 +37,18 @@ export type WorkbenchDogfoodLoopSpineOverviewStatus =
 
 export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
   | "supply_selected_session_digest"
+  | "supply_selected_session_intake_preview"
+  | "resolve_intake_blockers_or_unsafe_refs"
+  | "supply_source_ref"
+  | "supply_operator_ref"
+  | "supply_session_or_project_ref"
+  | "supply_evidence_refs"
+  | "supply_privacy_review_confirmation"
+  | "supply_selected_digest_candidate_refs"
+  | "supply_idempotency_key"
+  | "review_future_ingest_contract"
+  | "prepare_separate_ingest_write_slice"
+  | "reject_digest_ingest_candidate"
   | "supply_codex_result_report"
   | "review_intake_candidate"
   | "review_reuse_candidate"
@@ -52,6 +65,7 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
 
 export type WorkbenchDogfoodLoopSpineStepId =
   | "selected_session_intake"
+  | "selected_session_digest_ingest_contract"
   | "codex_result_feedback"
   | "dogfood_reuse_proposal"
   | "dogfood_reuse_operator_decision"
@@ -77,6 +91,7 @@ export type WorkbenchDogfoodLoopSpineStepStatus =
 
 export interface WorkbenchDogfoodLoopSpineOverviewInput {
   selected_session_digest_intake_preview?: SelectedSessionDigestIntakePreview | null;
+  selected_session_digest_ingest_contract_preview?: SelectedSessionDigestIngestContractPreview | null;
   codex_result_feedback_draft?: CodexResultFeedbackDraft | null;
   dogfood_reuse_record_proposal?: DogfoodReuseRecordProposal | null;
   dogfood_reuse_operator_decision_preview?: DogfoodReuseOperatorDecisionPreview | null;

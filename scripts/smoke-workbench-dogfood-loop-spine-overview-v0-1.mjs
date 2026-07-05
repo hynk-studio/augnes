@@ -15,6 +15,14 @@ const panelFile =
   "components/workplane/workbench-dogfood-loop-spine-overview-panel.tsx";
 const agentWorkplaneFile = "components/workplane/agent-workplane.tsx";
 const agentWorkplaneSmokeFile = "scripts/smoke-agent-workplane-panels-v0-1.mjs";
+const selectedSessionDigestIngestContractTypeFile =
+  "types/selected-session-digest-ingest-contract-preview.ts";
+const selectedSessionDigestIngestContractHelperFile =
+  "lib/intake/selected-session-digest-ingest-contract-preview.ts";
+const selectedSessionDigestIngestContractPanelFile =
+  "components/intake/selected-session-digest-ingest-contract-preview-panel.tsx";
+const selectedSessionDigestIngestContractSmokeFile =
+  "scripts/smoke-selected-session-digest-ingest-contract-preview-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -30,6 +38,10 @@ const allowedChangedFiles = [
   agentWorkplaneFile,
   smokeFile,
   agentWorkplaneSmokeFile,
+  selectedSessionDigestIngestContractTypeFile,
+  selectedSessionDigestIngestContractHelperFile,
+  selectedSessionDigestIngestContractPanelFile,
+  selectedSessionDigestIngestContractSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -62,6 +74,7 @@ assertContainsAll(
   [
     "workbench_dogfood_loop_spine_overview.v0.1",
     "selected_session_intake",
+    "selected_session_digest_ingest_contract",
     "codex_result_feedback",
     "dogfood_reuse_proposal",
     "dogfood_reuse_operator_decision",
@@ -86,6 +99,8 @@ assertContainsAll(
     "buildWorkbenchDogfoodLoopSpineOverviewV01",
     "createWorkbenchDogfoodLoopSpineOverviewAuthorityBoundaryV01",
     "selected_session_digest_intake_preview",
+    "selected_session_digest_ingest_contract_preview",
+    "selectedSessionDigestIngestContractStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -122,6 +137,7 @@ assertContainsAll(
     "buildWorkbenchDogfoodLoopSpineOverviewV01",
     "workbenchDogfoodLoopSpineOverview",
     "preview={workbenchDogfoodLoopSpineOverview}",
+    "selected_session_digest_ingest_contract_preview: selectedSessionDigestIngestContractPreview",
     "workbench:dogfood_loop_spine_overview",
     "handoff_context_apply_write_contract_preview",
   ],
@@ -154,12 +170,17 @@ const overviewModule = await import(
 const intakeModule = await import(
   "../lib/intake/selected-session-digest-intake-preview.ts"
 );
+const ingestContractModule = await import(
+  "../lib/intake/selected-session-digest-ingest-contract-preview.ts"
+);
 
 const {
   buildWorkbenchDogfoodLoopSpineOverviewV01,
   createWorkbenchDogfoodLoopSpineOverviewAuthorityBoundaryV01,
 } = overviewModule;
 const { buildSelectedSessionDigestIntakePreviewV01 } = intakeModule;
+const { buildSelectedSessionDigestIngestContractPreviewV01 } =
+  ingestContractModule;
 
 const emptyOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   scope: "project:augnes",
@@ -175,7 +196,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 13);
+assert.equal(emptyOverview.spine_steps.length, 14);
 assertAuthorityFalse(emptyOverview.authority_boundary);
 
 const cleanSelectedIntake = buildSelectedSessionDigestIntakePreviewV01({
@@ -205,6 +226,33 @@ assert.equal(
   selectedReadyOverview.authority_boundary
     .can_mutate_current_working_perspective,
   false,
+);
+
+const selectedIngestContractMissingMaterial =
+  buildSelectedSessionDigestIngestContractPreviewV01({
+    selected_session_digest_intake_preview: cleanSelectedIntake,
+  });
+const selectedContractOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanSelectedIntake,
+  selected_session_digest_ingest_contract_preview:
+    selectedIngestContractMissingMaterial,
+  scope: "project:augnes",
+  as_of: "2026-07-04T14:30:00.000Z",
+});
+const selectedContractStep = stepById(
+  selectedContractOverview,
+  "selected_session_digest_ingest_contract",
+);
+assert.equal(selectedContractStep.status, "candidate_material_available");
+assert.equal(
+  selectedContractOverview.recommended_next_operator_action,
+  "supply_privacy_review_confirmation",
+);
+assert(
+  selectedContractOverview.current_material_gaps.some((gap) =>
+    gap.includes("privacy_review_confirmation_ref_missing"),
+  ),
+  "overview should surface selected digest ingest contract material gaps",
 );
 
 const missingCodexOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
