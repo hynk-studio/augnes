@@ -31,11 +31,28 @@ const files = {
   bridgeType: "types/reuse-outcome-candidate-bridge-preview.ts",
   bridgeHelper: "lib/dogfooding/reuse-outcome-candidate-bridge-preview.ts",
   bridgePanel: "components/dogfooding/reuse-outcome-candidate-bridge-preview-panel.tsx",
+  bridgeDecisionType: "types/reuse-outcome-bridge-decision.ts",
+  bridgeDecisionHelper: "lib/dogfooding/reuse-outcome-bridge-decision.ts",
+  bridgeDecisionPanel:
+    "components/dogfooding/reuse-outcome-bridge-decision-panel.tsx",
+  bridgeLedgerWriteType: "types/reuse-outcome-bridge-ledger-write.ts",
+  bridgeLedgerWriteHelper: "lib/dogfooding/reuse-outcome-bridge-ledger-write.ts",
+  bridgeLedgerRoute: "app/api/dogfooding/reuse-outcome-bridge-ledger/route.ts",
+  bridgeLedgerReviewType:
+    "types/reuse-outcome-bridge-ledger-record-review.ts",
+  bridgeLedgerReviewHelper:
+    "lib/dogfooding/reuse-outcome-bridge-ledger-record-review.ts",
+  bridgeLedgerReviewForWeb:
+    "lib/dogfooding/read-reuse-outcome-bridge-ledger-record-review-for-web.ts",
+  bridgeLedgerReviewPanel:
+    "components/dogfooding/reuse-outcome-bridge-ledger-record-review-panel.tsx",
   agentWorkplane: "components/workplane/agent-workplane.tsx",
   overviewType: "types/workbench-dogfood-loop-spine-overview.ts",
   overviewHelper: "lib/workplane/workbench-dogfood-loop-spine-overview.ts",
   agentWorkplaneSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   overviewSmoke: "scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs",
+  bridgeLedgerSmoke:
+    "scripts/smoke-reuse-outcome-bridge-ledger-integration-v0-1.mjs",
   smoke: "scripts/smoke-expected-observed-delta-reuse-outcome-bridge-v0-1.mjs",
   packageJson: "package.json",
 };

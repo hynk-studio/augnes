@@ -12,6 +12,8 @@ import { DogfoodReuseRecordProposalPanel } from "@/components/dogfood-reuse-reco
 import { ExpectedObservedDeltaDecisionPanel } from "@/components/dogfooding/expected-observed-delta-decision-panel";
 import { ExpectedObservedDeltaPreviewPanel } from "@/components/dogfooding/expected-observed-delta-preview-panel";
 import { ExpectedObservedDeltaRecordReviewPanel } from "@/components/dogfooding/expected-observed-delta-record-review-panel";
+import { ReuseOutcomeBridgeDecisionPanel } from "@/components/dogfooding/reuse-outcome-bridge-decision-panel";
+import { ReuseOutcomeBridgeLedgerRecordReviewPanel } from "@/components/dogfooding/reuse-outcome-bridge-ledger-record-review-panel";
 import { ReuseOutcomeCandidateBridgePreviewPanel } from "@/components/dogfooding/reuse-outcome-candidate-bridge-preview-panel";
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { GuideIntentProjectionPanel } from "@/components/guide/guide-intent-projection-panel";
@@ -70,6 +72,8 @@ import { buildDogfoodReuseRecordProposal } from "@/lib/dogfooding/dogfood-reuse-
 import { buildExpectedObservedDeltaOperatorDecisionPreviewV01 } from "@/lib/dogfooding/expected-observed-delta-decision";
 import { buildExpectedObservedDeltaPreviewV01 } from "@/lib/dogfooding/expected-observed-delta-preview";
 import { readExpectedObservedDeltaRecordReviewForWebV01 } from "@/lib/dogfooding/read-expected-observed-delta-record-review-for-web";
+import { readReuseOutcomeBridgeLedgerRecordReviewForWebV01 } from "@/lib/dogfooding/read-reuse-outcome-bridge-ledger-record-review-for-web";
+import { buildReuseOutcomeBridgeOperatorDecisionPreviewV01 } from "@/lib/dogfooding/reuse-outcome-bridge-decision";
 import { buildReuseOutcomeCandidateBridgePreviewV01 } from "@/lib/dogfooding/reuse-outcome-candidate-bridge-preview";
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
 import {
@@ -372,6 +376,21 @@ export async function AgentWorkplane() {
       as_of: workplaneMetrics.as_of,
       source_refs: ["workbench:reuse_outcome_candidate_bridge_preview"],
     });
+  const reuseOutcomeBridgeOperatorDecisionPreview =
+    buildReuseOutcomeBridgeOperatorDecisionPreviewV01({
+      reuse_outcome_candidate_bridge_preview:
+        reuseOutcomeCandidateBridgePreview,
+      expected_observed_delta_record_review: expectedObservedDeltaRecordReview,
+      expected_observed_delta_preview: expectedObservedDeltaPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:reuse_outcome_bridge_operator_decision_preview"],
+    });
+  const reuseOutcomeBridgeLedgerRecordReview =
+    readReuseOutcomeBridgeLedgerRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:reuse_outcome_bridge_ledger_record_review"],
+    });
   const dogfoodMetricCandidatePreview =
     buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01({
       records: [],
@@ -490,6 +509,10 @@ export async function AgentWorkplane() {
         expectedObservedDeltaRecordReview,
       reuse_outcome_candidate_bridge_preview:
         reuseOutcomeCandidateBridgePreview,
+      reuse_outcome_bridge_operator_decision_preview:
+        reuseOutcomeBridgeOperatorDecisionPreview,
+      reuse_outcome_bridge_ledger_record_review:
+        reuseOutcomeBridgeLedgerRecordReview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -624,6 +647,12 @@ export async function AgentWorkplane() {
               />
               <ReuseOutcomeCandidateBridgePreviewPanel
                 preview={reuseOutcomeCandidateBridgePreview}
+              />
+              <ReuseOutcomeBridgeDecisionPanel
+                preview={reuseOutcomeBridgeOperatorDecisionPreview}
+              />
+              <ReuseOutcomeBridgeLedgerRecordReviewPanel
+                review={reuseOutcomeBridgeLedgerRecordReview}
               />
               <CodexResultFeedbackDraftPanel draft={codexResultFeedbackDraft} />
               <DogfoodReuseRecordProposalPanel

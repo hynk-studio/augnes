@@ -756,6 +756,7 @@
     "smoke:project-history-intake-candidate-ledger-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-project-history-intake-candidate-ledger-v0-1.mjs",
     "smoke:codex-result-report-intake-work-episode-residue-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-codex-result-report-intake-work-episode-residue-v0-1.mjs",
     "smoke:expected-observed-delta-reuse-outcome-bridge-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-expected-observed-delta-reuse-outcome-bridge-v0-1.mjs",
+    "smoke:reuse-outcome-bridge-ledger-integration-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-reuse-outcome-bridge-ledger-integration-v0-1.mjs",
     "smoke:workbench-dogfood-loop-spine-overview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs",
     "smoke:autonomy-contract-v0-1": "node scripts/smoke-autonomy-contract-v0-1.mjs",
     "smoke:autonomy-contract-route-v0-1": "node scripts/smoke-autonomy-contract-route-v0-1.mjs",

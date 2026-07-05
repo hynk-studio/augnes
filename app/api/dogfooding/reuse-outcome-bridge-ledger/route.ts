@@ -5,62 +5,70 @@ import Database from "better-sqlite3";
 import { NextResponse } from "next/server";
 
 import {
-  expectedObservedDeltaWriteSchemaExistsV01,
-  listExpectedObservedDeltaRecordsV01,
-  readExpectedObservedDeltaRecordByIdV01,
-  readExpectedObservedDeltaRecordByIdempotencyKeyV01,
-  refuseExpectedObservedDeltaWriteV01,
-  validateExpectedObservedDeltaWriteInputV01,
-  writeExpectedObservedDeltaRecordV01,
-  type ExpectedObservedDeltaWriteDbLike,
-} from "@/lib/dogfooding/expected-observed-delta-write";
+  handoffReuseOutcomeLedgerStoreSchemaExistsV01,
+  type HandoffReuseOutcomeLedgerDbLike,
+} from "@/lib/dogfooding/handoff-reuse-outcome-ledger";
 import {
-  EXPECTED_OBSERVED_DELTA_SCOPE,
-  EXPECTED_OBSERVED_DELTA_STORE_VERSION,
-  type ExpectedObservedDeltaStoreResult,
-} from "@/types/expected-observed-delta-write";
+  listReuseOutcomeBridgeLedgerRecordsV01,
+  readReuseOutcomeBridgeLedgerRecordByIdV01,
+  readReuseOutcomeBridgeLedgerRecordByIdempotencyKeyV01,
+  refuseReuseOutcomeBridgeLedgerWriteV01,
+  validateReuseOutcomeBridgeLedgerWriteInputV01,
+  writeReuseOutcomeBridgeLedgerRecordV01,
+} from "@/lib/dogfooding/reuse-outcome-bridge-ledger-write";
+import {
+  HANDOFF_REUSE_OUTCOME_LEDGER_SCOPE,
+  HANDOFF_REUSE_OUTCOME_LEDGER_STORE_VERSION,
+} from "@/types/handoff-reuse-outcome-ledger";
+import type { ReuseOutcomeBridgeLedgerStoreResult } from "@/types/reuse-outcome-bridge-ledger-write";
 
 export const runtime = "nodejs";
 
-const routeVersion = "expected_observed_delta_record_route.v0.1" as const;
-const safeExpectedObservedDeltaDbPathPrefixes = [
-  "tmp/expected-observed-deltas/",
-  ".tmp/expected-observed-deltas/",
+const routeVersion = "reuse_outcome_bridge_ledger_route.v0.1" as const;
+const safeLedgerDbPathPrefixes = [
+  "tmp/dogfood-reuse-ledger/",
+  ".tmp/dogfood-reuse-ledger/",
 ] as const;
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const dbPath = url.searchParams.get("db_path") ?? "";
-  if (!isSafeExpectedObservedDeltaRouteDbPathV01(dbPath)) {
+  if (!isSafeReuseOutcomeBridgeLedgerRouteDbPathV01(dbPath)) {
     return jsonResponse(errorResponse("invalid_db_path"), 400);
   }
 
-  const opened = openReadOnlyExpectedObservedDeltaDb(dbPath);
+  const opened = openReadOnlyLedgerDb(dbPath);
   if ("errorCode" in opened) {
     return jsonResponse(errorResponse(opened.errorCode), opened.status);
   }
 
   const db = opened.db;
   try {
-    if (!expectedObservedDeltaWriteSchemaExistsV01(db)) {
+    if (!handoffReuseOutcomeLedgerStoreSchemaExistsV01(db)) {
       return jsonResponse(errorResponse("schema_missing"), 404);
     }
     const recordId = url.searchParams.get("record_id");
     const idempotencyKey = url.searchParams.get("idempotency_key");
     const result = recordId
-      ? readExpectedObservedDeltaRecordByIdV01(recordId, { db })
+      ? readReuseOutcomeBridgeLedgerRecordByIdV01(recordId, { db })
       : idempotencyKey
-        ? readExpectedObservedDeltaRecordByIdempotencyKeyV01(idempotencyKey, {
-            db,
-          })
-        : listExpectedObservedDeltaRecordsV01({
-            db,
-            operator_ref: url.searchParams.get("operator_ref") || undefined,
-            work_ref: url.searchParams.get("work_ref") || undefined,
-            result_ref: url.searchParams.get("result_ref") || undefined,
-            handoff_ref: url.searchParams.get("handoff_ref") || undefined,
-            limit: parseRouteLimit(url.searchParams.get("limit")),
-          });
+        ? readReuseOutcomeBridgeLedgerRecordByIdempotencyKeyV01(
+            idempotencyKey,
+            { db },
+          )
+        : listReuseOutcomeBridgeLedgerRecordsV01(
+            {
+              result_report_ref:
+                url.searchParams.get("result_ref") ||
+                url.searchParams.get("result_report_ref") ||
+                undefined,
+              operator_ref: url.searchParams.get("operator_ref") || undefined,
+              work_ref: url.searchParams.get("work_ref") || undefined,
+              handoff_ref: url.searchParams.get("handoff_ref") || undefined,
+              limit: parseRouteLimit(url.searchParams.get("limit")),
+            },
+            { db },
+          );
     return jsonResponse(storeResponse(result), storeStatus(result));
   } finally {
     db.close();
@@ -81,7 +89,6 @@ export async function POST(request: Request) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return jsonResponse(errorResponse("invalid_json_object"), 400);
   }
-
   const requestBody = body as {
     action?: unknown;
     db_path?: unknown;
@@ -90,28 +97,30 @@ export async function POST(request: Request) {
   if (requestBody.action !== undefined && requestBody.action !== "write") {
     return jsonResponse(errorResponse("invalid_action"), 400);
   }
-  if (!isSafeExpectedObservedDeltaRouteDbPathV01(requestBody.db_path)) {
+  if (!isSafeReuseOutcomeBridgeLedgerRouteDbPathV01(requestBody.db_path)) {
     return jsonResponse(errorResponse("invalid_db_path"), 400);
   }
 
-  const validation = validateExpectedObservedDeltaWriteInputV01(
+  const validation = validateReuseOutcomeBridgeLedgerWriteInputV01(
     requestBody.input,
   );
   if (!validation.ok) {
-    const result = refuseExpectedObservedDeltaWriteV01(requestBody.input);
+    const result = refuseReuseOutcomeBridgeLedgerWriteV01(requestBody.input);
     return jsonResponse(storeResponse(result), storeStatus(result, true));
   }
 
-  const db = openWriteExpectedObservedDeltaDb(requestBody.db_path);
+  const db = openWriteLedgerDb(requestBody.db_path);
   try {
-    const result = writeExpectedObservedDeltaRecordV01(requestBody.input, { db });
+    const result = writeReuseOutcomeBridgeLedgerRecordV01(requestBody.input, {
+      db,
+    });
     return jsonResponse(storeResponse(result), storeStatus(result, true));
   } finally {
     db.close();
   }
 }
 
-export function isSafeExpectedObservedDeltaRouteDbPathV01(
+export function isSafeReuseOutcomeBridgeLedgerRouteDbPathV01(
   value: unknown,
 ): value is string {
   if (typeof value !== "string") return false;
@@ -125,11 +134,7 @@ export function isSafeExpectedObservedDeltaRouteDbPathV01(
   ) {
     return false;
   }
-  if (
-    !safeExpectedObservedDeltaDbPathPrefixes.some((prefix) =>
-      value.startsWith(prefix),
-    )
-  ) {
+  if (!safeLedgerDbPathPrefixes.some((prefix) => value.startsWith(prefix))) {
     return false;
   }
   return !hasPrivateMarker(value);
@@ -140,15 +145,15 @@ function requestHasSameOriginBoundary(request: Request): boolean {
   if (fetchSite && !["same-origin", "same-site", "none"].includes(fetchSite)) {
     return false;
   }
+
   const origin = request.headers.get("origin");
   const host = request.headers.get("host");
   const effectiveHost = request.headers.get("x-forwarded-host") ?? host;
   if (!effectiveHost) return false;
   if (!origin) return isLocalTestHost(effectiveHost);
+
   try {
-    return (
-      new URL(origin).host.toLowerCase() === effectiveHost.toLowerCase()
-    );
+    return new URL(origin).host.toLowerCase() === effectiveHost.toLowerCase();
   } catch {
     return false;
   }
@@ -162,10 +167,10 @@ function isLocalTestHost(host: string): boolean {
   );
 }
 
-function openReadOnlyExpectedObservedDeltaDb(
+function openReadOnlyLedgerDb(
   dbPath: string,
 ):
-  | { db: Database.Database & ExpectedObservedDeltaWriteDbLike }
+  | { db: Database.Database & HandoffReuseOutcomeLedgerDbLike }
   | { errorCode: "db_missing"; status: 404 } {
   const resolvedPath = resolve(process.cwd(), dbPath);
   if (!existsSync(resolvedPath)) return { errorCode: "db_missing", status: 404 };
@@ -178,16 +183,16 @@ function openReadOnlyExpectedObservedDeltaDb(
   }
 }
 
-function openWriteExpectedObservedDeltaDb(
+function openWriteLedgerDb(
   dbPath: string,
-): Database.Database & ExpectedObservedDeltaWriteDbLike {
+): Database.Database & HandoffReuseOutcomeLedgerDbLike {
   const resolvedPath = resolve(process.cwd(), dbPath);
   mkdirSync(dirname(resolvedPath), { recursive: true });
   return new Database(resolvedPath);
 }
 
 function storeStatus(
-  result: ExpectedObservedDeltaStoreResult,
+  result: ReuseOutcomeBridgeLedgerStoreResult,
   fromCreate = false,
 ): number {
   if (result.status === "written") return fromCreate ? 201 : 200;
@@ -199,35 +204,21 @@ function storeStatus(
   return 400;
 }
 
-function storeResponse(result: ExpectedObservedDeltaStoreResult) {
+function storeResponse(result: ReuseOutcomeBridgeLedgerStoreResult) {
   return {
     route_version: routeVersion,
-    scope: EXPECTED_OBSERVED_DELTA_SCOPE,
+    scope: HANDOFF_REUSE_OUTCOME_LEDGER_SCOPE,
     status: result.ok ? "ok" : "error",
     error_code: result.error_code,
-    store_version: EXPECTED_OBSERVED_DELTA_STORE_VERSION,
+    store_version: HANDOFF_REUSE_OUTCOME_LEDGER_STORE_VERSION,
+    adapter_version: result.adapter_version,
     store_result: result,
+    ledger_store_result: result.ledger_store_result,
     record: result.record,
     records: result.records,
     receipt: result.receipt,
-    expected_observed_delta_record_written: result.status === "written",
-    expected_observed_delta_receipt_written: result.status === "written",
-    expected_observed_delta_persisted_as_dogfood_signal_record:
+    handoff_reuse_outcome_ledger_record_written:
       result.status === "written",
-    reuse_outcome_ledger_written: false,
-    dogfood_metrics_written: false,
-    work_episode_written: false,
-    memory_mutated: false,
-    current_working_perspective_updated: false,
-    perspective_unit_written: false,
-    next_work_bias_written: false,
-    continuity_relay_written: false,
-    handoff_context_mutated: false,
-    selected_refs_written_to_live_handoff: false,
-    handoff_sent: false,
-    provider_called: false,
-    github_called: false,
-    codex_executed: false,
     no_side_effects: result.no_side_effects,
   };
 }
@@ -235,34 +226,18 @@ function storeResponse(result: ExpectedObservedDeltaStoreResult) {
 function errorResponse(errorCode: string) {
   return {
     route_version: routeVersion,
-    scope: EXPECTED_OBSERVED_DELTA_SCOPE,
+    scope: HANDOFF_REUSE_OUTCOME_LEDGER_SCOPE,
     status: "error",
     error_code: errorCode,
-    store_version: EXPECTED_OBSERVED_DELTA_STORE_VERSION,
-    expected_observed_delta_record_written: false,
-    expected_observed_delta_receipt_written: false,
-    expected_observed_delta_persisted_as_dogfood_signal_record: false,
-    reuse_outcome_ledger_written: false,
-    dogfood_metrics_written: false,
-    work_episode_written: false,
-    memory_mutated: false,
-    current_working_perspective_updated: false,
-    perspective_unit_written: false,
-    next_work_bias_written: false,
-    continuity_relay_written: false,
-    handoff_context_mutated: false,
-    selected_refs_written_to_live_handoff: false,
-    handoff_sent: false,
-    provider_called: false,
-    github_called: false,
-    codex_executed: false,
+    store_version: HANDOFF_REUSE_OUTCOME_LEDGER_STORE_VERSION,
+    handoff_reuse_outcome_ledger_record_written: false,
     no_side_effects: {
-      expected_observed_delta_record_written: false,
-      expected_observed_delta_receipt_written: false,
-      expected_observed_delta_persisted_as_dogfood_signal_record: false,
       reuse_outcome_ledger_written: false,
+      handoff_reuse_outcome_ledger_record_written: false,
+      handoff_reuse_outcome_ledger_receipt_written: false,
       dogfood_metrics_written: false,
       work_episode_written: false,
+      expected_observed_delta_written: false,
       memory_mutated: false,
       current_working_perspective_updated: false,
       perspective_unit_written: false,
@@ -295,12 +270,17 @@ function parseRouteLimit(value: string | null): number | undefined {
 }
 
 function hasPrivateMarker(value: string): boolean {
-  return (
-    /(^|\/)\.env(\b|$)/i.test(value) ||
-    value.includes("/Users") ||
-    value.includes("/home") ||
-    /password\s*:/i.test(value) ||
-    /secret\s*:/i.test(value) ||
-    /token/i.test(value)
-  );
+  const normalized = value.toLowerCase();
+  return [
+    "/users/",
+    "/home/",
+    "file://",
+    "sk-",
+    "ghp_",
+    "openai_api_key",
+    "github_token",
+    "password:",
+    "secret:",
+    "token",
+  ].some((marker) => normalized.includes(marker));
 }
