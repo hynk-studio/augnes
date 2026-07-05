@@ -359,6 +359,34 @@ const nextWorkSignalRefreshPanelFile =
   "components/workplane/next-work-signal-refresh-preview-panel.tsx";
 const dogfoodMetricSnapshotNextWorkRefreshSmokeFile =
   "scripts/smoke-dogfood-metric-snapshot-next-work-refresh-v0-1.mjs";
+const nextWorkSignalDecisionTypeFile =
+  "types/next-work-signal-decision.ts";
+const nextWorkSignalDecisionHelperFile =
+  "lib/workplane/next-work-signal-decision.ts";
+const nextWorkSignalDecisionPanelFile =
+  "components/workplane/next-work-signal-decision-panel.tsx";
+const nextWorkSignalDecisionWriteTypeFile =
+  "types/next-work-signal-decision-write.ts";
+const nextWorkSignalDecisionWriteHelperFile =
+  "lib/workplane/next-work-signal-decision-write.ts";
+const nextWorkSignalDecisionRouteFile =
+  "app/api/workplane/next-work-signal-decisions/route.ts";
+const nextWorkSignalDecisionRecordReviewTypeFile =
+  "types/next-work-signal-decision-record-review.ts";
+const nextWorkSignalDecisionRecordReviewHelperFile =
+  "lib/workplane/next-work-signal-decision-record-review.ts";
+const nextWorkSignalDecisionRecordReviewForWebFile =
+  "lib/workplane/read-next-work-signal-decision-record-review-for-web.ts";
+const nextWorkSignalDecisionRecordReviewPanelFile =
+  "components/workplane/next-work-signal-decision-record-review-panel.tsx";
+const perspectiveRelayUpdateCandidateBridgeTypeFile =
+  "types/perspective-relay-update-candidate-bridge-preview.ts";
+const perspectiveRelayUpdateCandidateBridgeHelperFile =
+  "lib/workplane/perspective-relay-update-candidate-bridge-preview.ts";
+const perspectiveRelayUpdateCandidateBridgePanelFile =
+  "components/workplane/perspective-relay-update-candidate-bridge-preview-panel.tsx";
+const nextWorkSignalDecisionPerspectiveRelayBridgeSmokeFile =
+  "scripts/smoke-next-work-signal-decision-perspective-relay-bridge-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -1055,6 +1083,29 @@ const followOnDogfoodMetricSnapshotNextWorkRefreshFiles = [
   smokeFile,
 ];
 
+const followOnNextWorkSignalDecisionPerspectiveRelayBridgeFiles = [
+  nextWorkSignalDecisionTypeFile,
+  nextWorkSignalDecisionHelperFile,
+  nextWorkSignalDecisionPanelFile,
+  nextWorkSignalDecisionWriteTypeFile,
+  nextWorkSignalDecisionWriteHelperFile,
+  nextWorkSignalDecisionRouteFile,
+  nextWorkSignalDecisionRecordReviewTypeFile,
+  nextWorkSignalDecisionRecordReviewHelperFile,
+  nextWorkSignalDecisionRecordReviewForWebFile,
+  nextWorkSignalDecisionRecordReviewPanelFile,
+  perspectiveRelayUpdateCandidateBridgeTypeFile,
+  perspectiveRelayUpdateCandidateBridgeHelperFile,
+  perspectiveRelayUpdateCandidateBridgePanelFile,
+  nextWorkSignalDecisionPerspectiveRelayBridgeSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1465,6 +1516,7 @@ const allowedChangedFiles = new Set([
   ...followOnExpectedObservedDeltaBridgeFiles,
   ...followOnReuseOutcomeBridgeLedgerIntegrationFiles,
   ...followOnDogfoodMetricSnapshotNextWorkRefreshFiles,
+  ...followOnNextWorkSignalDecisionPerspectiveRelayBridgeFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -2703,10 +2755,16 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "DogfoodMetricSnapshotDecisionPanel",
       "DogfoodMetricSnapshotRecordReviewPanel",
       "NextWorkSignalRefreshPreviewPanel",
+      "NextWorkSignalDecisionPanel",
+      "NextWorkSignalDecisionRecordReviewPanel",
+      "PerspectiveRelayUpdateCandidateBridgePreviewPanel",
       "buildDogfoodMetricSnapshotPreviewV01",
       "buildDogfoodMetricSnapshotOperatorDecisionPreviewV01",
       "readDogfoodMetricSnapshotRecordReviewForWebV01",
       "buildNextWorkSignalRefreshPreviewV01",
+      "buildNextWorkSignalOperatorDecisionPreviewV01",
+      "readNextWorkSignalDecisionRecordReviewForWebV01",
+      "buildPerspectiveRelayUpdateCandidateBridgePreviewV01",
       "const codexResultReportIntakePreview",
       "const codexResultReportIntakeDecisionPreview",
       "const codexResultReportIntakeRecordReview",
@@ -2721,6 +2779,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "const dogfoodMetricSnapshotDecisionPreview",
       "const dogfoodMetricSnapshotRecordReview",
       "const nextWorkSignalRefreshPreview",
+      "const nextWorkSignalDecisionPreview",
+      "const nextWorkSignalDecisionRecordReview",
+      "const perspectiveRelayUpdateCandidateBridgePreview",
       "preview={codexResultReportIntakePreview}",
       "preview={codexResultReportIntakeDecisionPreview}",
       "review={codexResultReportIntakeRecordReview}",
@@ -2735,6 +2796,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "preview={dogfoodMetricSnapshotDecisionPreview}",
       "review={dogfoodMetricSnapshotRecordReview}",
       "preview={nextWorkSignalRefreshPreview}",
+      "preview={nextWorkSignalDecisionPreview}",
+      "review={nextWorkSignalDecisionRecordReview}",
+      "preview={perspectiveRelayUpdateCandidateBridgePreview}",
       "codex_result_report_intake_preview: codexResultReportIntakePreview",
       "codex_result_report_intake_decision_preview:\n        codexResultReportIntakeDecisionPreview",
       "codex_result_report_intake_record_review:\n        codexResultReportIntakeRecordReview",
@@ -2749,6 +2813,9 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "dogfood_metric_snapshot_decision_preview:\n        dogfoodMetricSnapshotDecisionPreview",
       "dogfood_metric_snapshot_record_review:\n        dogfoodMetricSnapshotRecordReview",
       "next_work_signal_refresh_preview: nextWorkSignalRefreshPreview",
+      "next_work_signal_decision_preview:\n        nextWorkSignalDecisionPreview",
+      "next_work_signal_decision_record_review:\n        nextWorkSignalDecisionRecordReview",
+      "perspective_relay_update_candidate_bridge_preview:\n        perspectiveRelayUpdateCandidateBridgePreview",
     ],
     { label: agentWorkplaneFile },
   );
@@ -3333,6 +3400,7 @@ function assertChangedFileBoundary() {
         followOnExpectedObservedDeltaBridgeFiles.includes(file) ||
         followOnReuseOutcomeBridgeLedgerIntegrationFiles.includes(file) ||
         followOnDogfoodMetricSnapshotNextWorkRefreshFiles.includes(file) ||
+        followOnNextWorkSignalDecisionPerspectiveRelayBridgeFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3351,6 +3419,7 @@ function assertChangedFileBoundary() {
         followOnExpectedObservedDeltaBridgeFiles.includes(file) ||
         followOnReuseOutcomeBridgeLedgerIntegrationFiles.includes(file) ||
         followOnDogfoodMetricSnapshotNextWorkRefreshFiles.includes(file) ||
+        followOnNextWorkSignalDecisionPerspectiveRelayBridgeFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
