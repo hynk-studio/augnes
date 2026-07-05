@@ -235,6 +235,40 @@ const projectHistoryIntakeRecordReviewPanelFile =
   "components/intake/project-history-intake-record-review-panel.tsx";
 const projectHistoryIntakeSmokeFile =
   "scripts/smoke-project-history-intake-candidate-ledger-v0-1.mjs";
+const codexResultReportIntakePreviewTypeFile =
+  "types/codex-result-report-intake-preview.ts";
+const codexResultReportIntakePreviewHelperFile =
+  "lib/intake/codex-result-report-intake-preview.ts";
+const codexResultReportIntakePreviewPanelFile =
+  "components/intake/codex-result-report-intake-preview-panel.tsx";
+const codexResultReportIntakeDecisionTypeFile =
+  "types/codex-result-report-intake-decision.ts";
+const codexResultReportIntakeDecisionHelperFile =
+  "lib/intake/codex-result-report-intake-decision.ts";
+const codexResultReportIntakeDecisionPanelFile =
+  "components/intake/codex-result-report-intake-decision-panel.tsx";
+const codexResultReportIntakeWriteTypeFile =
+  "types/codex-result-report-intake-write.ts";
+const codexResultReportIntakeWriteHelperFile =
+  "lib/intake/codex-result-report-intake-write.ts";
+const codexResultReportIntakeWriteRouteFile =
+  "app/api/intake/codex-result-report/records/route.ts";
+const codexResultReportIntakeRecordReviewTypeFile =
+  "types/codex-result-report-intake-record-review.ts";
+const codexResultReportIntakeRecordReviewHelperFile =
+  "lib/intake/codex-result-report-intake-record-review.ts";
+const codexResultReportIntakeRecordReviewForWebFile =
+  "lib/intake/read-codex-result-report-intake-record-review-for-web.ts";
+const codexResultReportIntakeRecordReviewPanelFile =
+  "components/intake/codex-result-report-intake-record-review-panel.tsx";
+const workEpisodeResidueCandidatePreviewTypeFile =
+  "types/work-episode-residue-candidate-preview.ts";
+const workEpisodeResidueCandidatePreviewHelperFile =
+  "lib/workplane/work-episode-residue-candidate-preview.ts";
+const workEpisodeResidueCandidatePreviewPanelFile =
+  "components/workplane/work-episode-residue-candidate-preview-panel.tsx";
+const codexResultReportIntakeResidueSmokeFile =
+  "scripts/smoke-codex-result-report-intake-work-episode-residue-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -831,6 +865,32 @@ const followOnProjectHistoryIntakeCandidateLedgerFiles = [
   smokeFile,
 ];
 
+const followOnCodexResultReportIntakeResidueFiles = [
+  codexResultReportIntakePreviewTypeFile,
+  codexResultReportIntakePreviewHelperFile,
+  codexResultReportIntakePreviewPanelFile,
+  codexResultReportIntakeDecisionTypeFile,
+  codexResultReportIntakeDecisionHelperFile,
+  codexResultReportIntakeDecisionPanelFile,
+  codexResultReportIntakeWriteTypeFile,
+  codexResultReportIntakeWriteHelperFile,
+  codexResultReportIntakeWriteRouteFile,
+  codexResultReportIntakeRecordReviewTypeFile,
+  codexResultReportIntakeRecordReviewHelperFile,
+  codexResultReportIntakeRecordReviewForWebFile,
+  codexResultReportIntakeRecordReviewPanelFile,
+  workEpisodeResidueCandidatePreviewTypeFile,
+  workEpisodeResidueCandidatePreviewHelperFile,
+  workEpisodeResidueCandidatePreviewPanelFile,
+  codexResultReportIntakeResidueSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1083,6 +1143,22 @@ const requiredFiles = [
   projectHistoryIntakeRecordReviewHelperFile,
   projectHistoryIntakeRecordReviewForWebFile,
   projectHistoryIntakeRecordReviewPanelFile,
+  codexResultReportIntakePreviewTypeFile,
+  codexResultReportIntakePreviewHelperFile,
+  codexResultReportIntakePreviewPanelFile,
+  codexResultReportIntakeDecisionTypeFile,
+  codexResultReportIntakeDecisionHelperFile,
+  codexResultReportIntakeDecisionPanelFile,
+  codexResultReportIntakeWriteTypeFile,
+  codexResultReportIntakeWriteHelperFile,
+  codexResultReportIntakeWriteRouteFile,
+  codexResultReportIntakeRecordReviewTypeFile,
+  codexResultReportIntakeRecordReviewHelperFile,
+  codexResultReportIntakeRecordReviewForWebFile,
+  codexResultReportIntakeRecordReviewPanelFile,
+  workEpisodeResidueCandidatePreviewTypeFile,
+  workEpisodeResidueCandidatePreviewHelperFile,
+  workEpisodeResidueCandidatePreviewPanelFile,
   workbenchDogfoodLoopSpineOverviewTypeFile,
   workbenchDogfoodLoopSpineOverviewHelperFile,
   workbenchDogfoodLoopSpineOverviewPanelFile,
@@ -1221,6 +1297,7 @@ const allowedChangedFiles = new Set([
   ...followOnSelectedSessionDigestIngestOperatorDecisionFiles,
   ...followOnSelectedSessionDigestDurableIngestRecordFiles,
   ...followOnProjectHistoryIntakeCandidateLedgerFiles,
+  ...followOnCodexResultReportIntakeResidueFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -1374,6 +1451,36 @@ const projectHistoryIntakeDecisionPanelText = textByFile.get(
 const projectHistoryIntakeRecordReviewPanelText = textByFile.get(
   projectHistoryIntakeRecordReviewPanelFile,
 );
+const codexResultReportIntakePreviewTypeText = textByFile.get(
+  codexResultReportIntakePreviewTypeFile,
+);
+const codexResultReportIntakePreviewHelperText = textByFile.get(
+  codexResultReportIntakePreviewHelperFile,
+);
+const codexResultReportIntakePreviewPanelText = textByFile.get(
+  codexResultReportIntakePreviewPanelFile,
+);
+const codexResultReportIntakeDecisionTypeText = textByFile.get(
+  codexResultReportIntakeDecisionTypeFile,
+);
+const codexResultReportIntakeDecisionHelperText = textByFile.get(
+  codexResultReportIntakeDecisionHelperFile,
+);
+const codexResultReportIntakeDecisionPanelText = textByFile.get(
+  codexResultReportIntakeDecisionPanelFile,
+);
+const codexResultReportIntakeRecordReviewPanelText = textByFile.get(
+  codexResultReportIntakeRecordReviewPanelFile,
+);
+const workEpisodeResidueCandidatePreviewTypeText = textByFile.get(
+  workEpisodeResidueCandidatePreviewTypeFile,
+);
+const workEpisodeResidueCandidatePreviewHelperText = textByFile.get(
+  workEpisodeResidueCandidatePreviewHelperFile,
+);
+const workEpisodeResidueCandidatePreviewPanelText = textByFile.get(
+  workEpisodeResidueCandidatePreviewPanelFile,
+);
 const workbenchDogfoodLoopSpineOverviewTypeText = textByFile.get(
   workbenchDogfoodLoopSpineOverviewTypeFile,
 );
@@ -1407,6 +1514,7 @@ assertSelectedSessionDigestIngestContractPreviewFollowOn();
 assertSelectedSessionDigestIngestOperatorDecisionFollowOn();
 assertSelectedSessionDigestDurableIngestRecordFollowOn();
 assertProjectHistoryIntakeCandidateLedgerFollowOn();
+assertCodexResultReportIntakeResidueFollowOn();
 assertWorkbenchDogfoodLoopSpineOverviewFollowOn();
 assertCodexResultFeedbackDraftFollowOn();
 assertDogfoodReuseRecordProposalFollowOn();
@@ -2300,6 +2408,161 @@ function assertProjectHistoryIntakeCandidateLedgerFollowOn() {
   }
 }
 
+function assertCodexResultReportIntakeResidueFollowOn() {
+  assertContainsAll(
+    codexResultReportIntakePreviewTypeText,
+    [
+      "codex_result_report_intake_preview.v0.1",
+      "result_summary_candidates",
+      "changed_file_candidates",
+      "ready_for_candidate_ingest_record",
+      "can_write_memory: false",
+    ],
+    { label: codexResultReportIntakePreviewTypeFile },
+  );
+  assertContainsAll(
+    codexResultReportIntakePreviewHelperText,
+    [
+      "buildCodexResultReportIntakePreviewV01",
+      "createCodexResultReportIntakeAuthorityBoundaryV01",
+      "normalizeCodexResultReportV01",
+      "raw_text_preview_uses_local_deterministic_extraction_only",
+    ],
+    { label: codexResultReportIntakePreviewHelperFile },
+  );
+  assertContainsAll(
+    codexResultReportIntakeDecisionTypeText,
+    [
+      "codex_result_report_intake_operator_decision_preview.v0.1",
+      "ready_for_future_candidate_record_write",
+      "approve_for_codex_result_report_candidate_ingest",
+    ],
+    { label: codexResultReportIntakeDecisionTypeFile },
+  );
+  assertContainsAll(
+    codexResultReportIntakeDecisionHelperText,
+    [
+      "buildCodexResultReportIntakeOperatorDecisionPreviewV01",
+      "createCodexResultReportIntakeOperatorDecisionAuthorityBoundaryV01",
+      "selected_candidate_refs_not_in_intake_preview",
+      "unknown_selected_codex_result_report_candidate_ref",
+    ],
+    { label: codexResultReportIntakeDecisionHelperFile },
+  );
+  assertContainsAll(
+    workEpisodeResidueCandidatePreviewTypeText,
+    [
+      "work_episode_residue_candidate_preview.v0.1",
+      "expected_observed_signal_candidates",
+      "context_reuse_signal_candidates",
+      "can_write_work_episode: false",
+    ],
+    { label: workEpisodeResidueCandidatePreviewTypeFile },
+  );
+  assertContainsAll(
+    workEpisodeResidueCandidatePreviewHelperText,
+    [
+      "buildWorkEpisodeResidueCandidatePreviewV01",
+      "createWorkEpisodeResidueCandidateAuthorityBoundaryV01",
+      "does_not_write_expected_observed_delta",
+      "does_not_write_reuse_outcome_ledger",
+    ],
+    { label: workEpisodeResidueCandidatePreviewHelperFile },
+  );
+  assertContainsAll(
+    codexResultReportIntakePreviewPanelText,
+    [
+      "Codex Result Report Intake Preview",
+      "deterministic extraction",
+      "authority boundary",
+    ],
+    { label: codexResultReportIntakePreviewPanelFile },
+  );
+  assertContainsAll(
+    codexResultReportIntakeDecisionPanelText,
+    [
+      "Codex Result Report Intake Operator Decision",
+      "recommended operator decision",
+      "approval requirements",
+      "would-write candidate material",
+      "authority boundary",
+    ],
+    { label: codexResultReportIntakeDecisionPanelFile },
+  );
+  assertContainsAll(
+    codexResultReportIntakeRecordReviewPanelText,
+    [
+      "Codex Result Report Intake Record Review",
+      "candidate ingest record",
+      "receipt no side effects",
+      "authority boundary",
+    ],
+    { label: codexResultReportIntakeRecordReviewPanelFile },
+  );
+  assertContainsAll(
+    workEpisodeResidueCandidatePreviewPanelText,
+    [
+      "Work Episode Residue Candidate Preview",
+      "expected/observed",
+      "would not write",
+      "authority boundary",
+    ],
+    { label: workEpisodeResidueCandidatePreviewPanelFile },
+  );
+  assertContainsAll(
+    agentWorkplaneText,
+    [
+      "CodexResultReportIntakePreviewPanel",
+      "CodexResultReportIntakeDecisionPanel",
+      "CodexResultReportIntakeRecordReviewPanel",
+      "WorkEpisodeResidueCandidatePreviewPanel",
+      "buildCodexResultReportIntakePreviewV01",
+      "buildCodexResultReportIntakeOperatorDecisionPreviewV01",
+      "readCodexResultReportIntakeRecordReviewForWebV01",
+      "buildWorkEpisodeResidueCandidatePreviewV01",
+      "const codexResultReportIntakePreview",
+      "const codexResultReportIntakeDecisionPreview",
+      "const codexResultReportIntakeRecordReview",
+      "const workEpisodeResidueCandidatePreview",
+      "preview={codexResultReportIntakePreview}",
+      "preview={codexResultReportIntakeDecisionPreview}",
+      "review={codexResultReportIntakeRecordReview}",
+      "preview={workEpisodeResidueCandidatePreview}",
+      "codex_result_report_intake_preview: codexResultReportIntakePreview",
+      "codex_result_report_intake_decision_preview:\n        codexResultReportIntakeDecisionPreview",
+      "codex_result_report_intake_record_review:\n        codexResultReportIntakeRecordReview",
+      "work_episode_residue_candidate_preview:\n        workEpisodeResidueCandidatePreview",
+    ],
+    { label: agentWorkplaneFile },
+  );
+
+  const start = agentWorkplaneText.indexOf("const codexResultReportIntakePreview");
+  const end = agentWorkplaneText.indexOf("const dogfoodMetricCandidatePreview");
+  assert(start !== -1, "Agent Workplane must build Codex result report intake preview");
+  assert(end > start, "Codex result intake block must precede Codex feedback draft");
+  const snippet = agentWorkplaneText.slice(start, end);
+  assert(
+    snippet.includes("buildCodexResultReportIntakePreviewV01"),
+    "Agent Workplane must build Codex result report intake preview",
+  );
+  assert(
+    snippet.includes("codex_result_report_intake_preview: codexResultReportIntakePreview"),
+    "Agent Workplane must pass Codex result intake to the spine overview",
+  );
+  assert(!snippet.includes("new Database"), "Workbench must not open DB");
+  assert(!snippet.includes("fetch("), "Workbench must not fetch records");
+  assert(!snippet.includes("POST"), "Workbench must not POST records");
+  assert(!snippet.includes("result_report:"), "Workbench default must not pass result report material");
+  for (const [panelText, label] of [
+    [codexResultReportIntakePreviewPanelText, codexResultReportIntakePreviewPanelFile],
+    [codexResultReportIntakeDecisionPanelText, codexResultReportIntakeDecisionPanelFile],
+    [codexResultReportIntakeRecordReviewPanelText, codexResultReportIntakeRecordReviewPanelFile],
+    [workEpisodeResidueCandidatePreviewPanelText, workEpisodeResidueCandidatePreviewPanelFile],
+  ]) {
+    assert(!panelText.includes("<button"), `${label} must not add buttons`);
+  }
+}
+
 function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
   assertContainsAll(
     workbenchDogfoodLoopSpineOverviewTypeText,
@@ -2825,6 +3088,7 @@ function assertChangedFileBoundary() {
         followOnSelectedSessionDigestIngestOperatorDecisionFiles.includes(file) ||
         followOnSelectedSessionDigestDurableIngestRecordFiles.includes(file) ||
         followOnProjectHistoryIntakeCandidateLedgerFiles.includes(file) ||
+        followOnCodexResultReportIntakeResidueFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -2839,6 +3103,7 @@ function assertChangedFileBoundary() {
         followOnSelectedSessionDigestIngestOperatorDecisionFiles.includes(file) ||
         followOnSelectedSessionDigestDurableIngestRecordFiles.includes(file) ||
         followOnProjectHistoryIntakeCandidateLedgerFiles.includes(file) ||
+        followOnCodexResultReportIntakeResidueFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );

@@ -30,6 +30,9 @@ import { SelectedSessionDigestIntakePreviewPanel } from "@/components/intake/sel
 import { ProjectHistoryIntakeDecisionPanel } from "@/components/intake/project-history-intake-decision-panel";
 import { ProjectHistoryIntakePreviewPanel } from "@/components/intake/project-history-intake-preview-panel";
 import { ProjectHistoryIntakeRecordReviewPanel } from "@/components/intake/project-history-intake-record-review-panel";
+import { CodexResultReportIntakeDecisionPanel } from "@/components/intake/codex-result-report-intake-decision-panel";
+import { CodexResultReportIntakePreviewPanel } from "@/components/intake/codex-result-report-intake-preview-panel";
+import { CodexResultReportIntakeRecordReviewPanel } from "@/components/intake/codex-result-report-intake-record-review-panel";
 import { PerspectiveNextWorkCandidateUpdatePreviewPanel } from "@/components/perspective-next-work-candidate-update-preview-panel";
 import { CurrentPerspectiveWorkplanePanel } from "@/components/workplane/current-perspective-workplane-panel";
 import { DeltaBatchPanel } from "@/components/workplane/delta-batch-panel";
@@ -47,6 +50,7 @@ import { SourceRefBridgeDetailPanel } from "@/components/workplane/source-ref-br
 import { StateProposalReviewPanel } from "@/components/workplane/state-proposal-review-panel";
 import { TraceDiagnosticsPanel } from "@/components/workplane/trace-diagnostics-panel";
 import { WorkbenchDogfoodLoopSpineOverviewPanel } from "@/components/workplane/workbench-dogfood-loop-spine-overview-panel";
+import { WorkEpisodeResidueCandidatePreviewPanel } from "@/components/workplane/work-episode-residue-candidate-preview-panel";
 import { WorkplaneIntentModePanel } from "@/components/workplane/workplane-intent-mode-panel";
 import { WorkplaneMetricsPanel } from "@/components/workplane/workplane-metrics-panel";
 import { WorkQueuePanel } from "@/components/workplane/work-queue-panel";
@@ -80,12 +84,16 @@ import { buildSelectedSessionDigestIngestOperatorDecisionPreviewV01 } from "@/li
 import { buildSelectedSessionDigestIntakePreviewV01 } from "@/lib/intake/selected-session-digest-intake-preview";
 import { buildProjectHistoryIntakeOperatorDecisionPreviewV01 } from "@/lib/intake/project-history-intake-decision";
 import { buildProjectHistoryIntakePreviewV01 } from "@/lib/intake/project-history-intake-preview";
+import { buildCodexResultReportIntakeOperatorDecisionPreviewV01 } from "@/lib/intake/codex-result-report-intake-decision";
+import { buildCodexResultReportIntakePreviewV01 } from "@/lib/intake/codex-result-report-intake-preview";
+import { readCodexResultReportIntakeRecordReviewForWebV01 } from "@/lib/intake/read-codex-result-report-intake-record-review-for-web";
 import { readProjectHistoryIntakeRecordReviewForWebV01 } from "@/lib/intake/read-project-history-intake-record-review-for-web";
 import { readSelectedSessionDigestIngestRecordReviewForWebV01 } from "@/lib/intake/read-selected-session-digest-ingest-record-review-for-web";
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
 import { buildPerspectiveNextWorkCandidateUpdatePreviewV01 } from "@/lib/perspective/perspective-next-work-candidate-update-preview";
 import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-view-projection";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
+import { buildWorkEpisodeResidueCandidatePreviewV01 } from "@/lib/workplane/work-episode-residue-candidate-preview";
 import { buildMetricInformedContinuityRelayAdjustmentPreviewV01 } from "@/lib/workplane/metric-informed-continuity-relay-adjustment-preview";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
 import { buildWorkplaneBridgeTraceDetailRead } from "@/lib/workplane/workplane-bridge-trace-detail";
@@ -293,6 +301,37 @@ export async function AgentWorkplane() {
       as_of: workplaneMetrics.as_of,
       source_refs: ["workbench:project_history_intake_record_review"],
     });
+  const codexResultReportIntakePreview =
+    buildCodexResultReportIntakePreviewV01({
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:codex_result_report_intake_preview_empty_input",
+      ],
+    });
+  const codexResultReportIntakeDecisionPreview =
+    buildCodexResultReportIntakeOperatorDecisionPreviewV01({
+      codex_result_report_intake_preview: codexResultReportIntakePreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:codex_result_report_intake_operator_decision_preview",
+      ],
+    });
+  const codexResultReportIntakeRecordReview =
+    readCodexResultReportIntakeRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:codex_result_report_intake_record_review"],
+    });
+  const workEpisodeResidueCandidatePreview =
+    buildWorkEpisodeResidueCandidatePreviewV01({
+      codex_result_report_intake_preview: codexResultReportIntakePreview,
+      codex_result_report_intake_record_review:
+        codexResultReportIntakeRecordReview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:work_episode_residue_candidate_preview"],
+    });
   const dogfoodMetricCandidatePreview =
     buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01({
       records: [],
@@ -397,6 +436,13 @@ export async function AgentWorkplane() {
       project_history_intake_operator_decision_preview:
         projectHistoryIntakeOperatorDecisionPreview,
       project_history_intake_record_review: projectHistoryIntakeRecordReview,
+      codex_result_report_intake_preview: codexResultReportIntakePreview,
+      codex_result_report_intake_decision_preview:
+        codexResultReportIntakeDecisionPreview,
+      codex_result_report_intake_record_review:
+        codexResultReportIntakeRecordReview,
+      work_episode_residue_candidate_preview:
+        workEpisodeResidueCandidatePreview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -507,6 +553,18 @@ export async function AgentWorkplane() {
               />
               <ProjectHistoryIntakeRecordReviewPanel
                 review={projectHistoryIntakeRecordReview}
+              />
+              <CodexResultReportIntakePreviewPanel
+                preview={codexResultReportIntakePreview}
+              />
+              <CodexResultReportIntakeDecisionPanel
+                preview={codexResultReportIntakeDecisionPreview}
+              />
+              <CodexResultReportIntakeRecordReviewPanel
+                review={codexResultReportIntakeRecordReview}
+              />
+              <WorkEpisodeResidueCandidatePreviewPanel
+                preview={workEpisodeResidueCandidatePreview}
               />
               <CodexResultFeedbackDraftPanel draft={codexResultFeedbackDraft} />
               <DogfoodReuseRecordProposalPanel
