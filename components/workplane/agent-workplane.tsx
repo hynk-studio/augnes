@@ -64,6 +64,10 @@ import { ContinuityRelayScopedWritePreviewPanel } from "@/components/workplane/c
 import { CurrentWorkingPerspectiveUpdateContractDecisionPanel } from "@/components/workplane/current-working-perspective-update-contract-decision-panel";
 import { CurrentWorkingPerspectiveUpdateContractPreviewPanel } from "@/components/workplane/current-working-perspective-update-contract-preview-panel";
 import { CurrentWorkingPerspectiveUpdateContractRecordReviewPanel } from "@/components/workplane/current-working-perspective-update-contract-record-review-panel";
+import { AppliedCurrentWorkingPerspectivePanel } from "@/components/workplane/applied-current-working-perspective-panel";
+import { CurrentWorkingPerspectiveApplyDecisionPanel } from "@/components/workplane/current-working-perspective-apply-decision-panel";
+import { CurrentWorkingPerspectiveApplyPreviewPanel } from "@/components/workplane/current-working-perspective-apply-preview-panel";
+import { CurrentWorkingPerspectiveApplyRecordReviewPanel } from "@/components/workplane/current-working-perspective-apply-record-review-panel";
 import { PerspectiveUnitRecordReviewPanel } from "@/components/workplane/perspective-unit-record-review-panel";
 import { PerspectiveUnitScopedWritePreviewPanel } from "@/components/workplane/perspective-unit-scoped-write-preview-panel";
 import { ProjectionCandidatesPanel } from "@/components/workplane/projection-candidates-panel";
@@ -140,6 +144,10 @@ import { readContinuityRelayRecordReviewForWebV01 } from "@/lib/workplane/read-c
 import { buildCurrentWorkingPerspectiveUpdateContractOperatorDecisionPreviewV01 } from "@/lib/workplane/current-working-perspective-update-contract-decision";
 import { buildCurrentWorkingPerspectiveUpdateContractPreviewV01 } from "@/lib/workplane/current-working-perspective-update-contract-preview";
 import { readCurrentWorkingPerspectiveUpdateContractRecordReviewForWebV01 } from "@/lib/workplane/read-current-working-perspective-update-contract-record-review-for-web";
+import { readAppliedCurrentWorkingPerspectiveForWebV01 } from "@/lib/perspective/read-applied-current-working-perspective-for-web";
+import { buildCurrentWorkingPerspectiveApplyOperatorDecisionPreviewV01 } from "@/lib/workplane/current-working-perspective-apply-decision";
+import { buildCurrentWorkingPerspectiveApplyPreviewV01 } from "@/lib/workplane/current-working-perspective-apply-preview";
+import { readCurrentWorkingPerspectiveApplyRecordReviewForWebV01 } from "@/lib/workplane/read-current-working-perspective-apply-record-review-for-web";
 import { buildPerspectiveUnitScopedWritePreviewV01 } from "@/lib/workplane/perspective-unit-scoped-write-preview";
 import { readPerspectiveUnitRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-unit-record-review-for-web";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
@@ -653,6 +661,36 @@ export async function AgentWorkplane() {
         "workbench:current_working_perspective_update_contract_record_review",
       ],
     });
+  const currentWorkingPerspectiveApplyPreview =
+    buildCurrentWorkingPerspectiveApplyPreviewV01({
+      current_working_perspective_update_contract_record_review:
+        currentWorkingPerspectiveUpdateContractRecordReview,
+      current_working_perspective_read: context.current_perspective_read,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:current_working_perspective_apply_preview",
+      ],
+    });
+  const currentWorkingPerspectiveApplyDecisionPreview =
+    buildCurrentWorkingPerspectiveApplyOperatorDecisionPreviewV01({
+      current_working_perspective_apply_preview:
+        currentWorkingPerspectiveApplyPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:current_working_perspective_apply_decision_preview",
+      ],
+    });
+  const currentWorkingPerspectiveApplyRecordReview =
+    readCurrentWorkingPerspectiveApplyRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:current_working_perspective_apply_record_review",
+      ],
+    });
+  const appliedCurrentWorkingPerspectiveRead =
+    readAppliedCurrentWorkingPerspectiveForWebV01();
   const handoffContextUpdatePreview = buildHandoffContextUpdatePreviewV01({
     handoff_context_relay_rationale: handoffContextRationale,
     metric_informed_relay_adjustment_preview:
@@ -774,6 +812,14 @@ export async function AgentWorkplane() {
         currentWorkingPerspectiveUpdateContractDecisionPreview,
       current_working_perspective_update_contract_record_review:
         currentWorkingPerspectiveUpdateContractRecordReview,
+      current_working_perspective_apply_preview:
+        currentWorkingPerspectiveApplyPreview,
+      current_working_perspective_apply_decision_preview:
+        currentWorkingPerspectiveApplyDecisionPreview,
+      current_working_perspective_apply_record_review:
+        currentWorkingPerspectiveApplyRecordReview,
+      applied_current_working_perspective_read:
+        appliedCurrentWorkingPerspectiveRead,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -987,6 +1033,18 @@ export async function AgentWorkplane() {
               />
               <CurrentWorkingPerspectiveUpdateContractRecordReviewPanel
                 review={currentWorkingPerspectiveUpdateContractRecordReview}
+              />
+              <CurrentWorkingPerspectiveApplyPreviewPanel
+                preview={currentWorkingPerspectiveApplyPreview}
+              />
+              <CurrentWorkingPerspectiveApplyDecisionPanel
+                preview={currentWorkingPerspectiveApplyDecisionPreview}
+              />
+              <CurrentWorkingPerspectiveApplyRecordReviewPanel
+                review={currentWorkingPerspectiveApplyRecordReview}
+              />
+              <AppliedCurrentWorkingPerspectivePanel
+                read={appliedCurrentWorkingPerspectiveRead}
               />
               <HandoffContextUpdatePreviewPanel
                 preview={handoffContextUpdatePreview}

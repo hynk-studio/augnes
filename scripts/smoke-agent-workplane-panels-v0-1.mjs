@@ -505,6 +505,8 @@ const currentWorkingPerspectiveUpdateContractRecordReviewPanelFile =
   "components/workplane/current-working-perspective-update-contract-record-review-panel.tsx";
 const currentWorkingPerspectiveUpdateContractSmokeFile =
   "scripts/smoke-current-working-perspective-update-contract-v0-1.mjs";
+const currentWorkingPerspectiveApplyRouteFile =
+  "app/api/workplane/current-working-perspective-applies/route.ts";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -1330,6 +1332,31 @@ const followOnCurrentWorkingPerspectiveUpdateContractFiles = [
   smokeFile,
 ];
 
+const followOnCurrentWorkingPerspectiveApplySliceFiles = [
+  "types/current-working-perspective-apply-preview.ts",
+  "lib/workplane/current-working-perspective-apply-preview.ts",
+  "components/workplane/current-working-perspective-apply-preview-panel.tsx",
+  "types/current-working-perspective-apply-decision.ts",
+  "lib/workplane/current-working-perspective-apply-decision.ts",
+  "components/workplane/current-working-perspective-apply-decision-panel.tsx",
+  "types/current-working-perspective-apply-write.ts",
+  "lib/workplane/current-working-perspective-apply-write.ts",
+  currentWorkingPerspectiveApplyRouteFile,
+  "types/current-working-perspective-apply-record-review.ts",
+  "lib/workplane/current-working-perspective-apply-record-review.ts",
+  "lib/workplane/read-current-working-perspective-apply-record-review-for-web.ts",
+  "components/workplane/current-working-perspective-apply-record-review-panel.tsx",
+  "lib/perspective/read-applied-current-working-perspective-for-web.ts",
+  "components/workplane/applied-current-working-perspective-panel.tsx",
+  "scripts/smoke-current-working-perspective-apply-slice-v0-1.mjs",
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1746,6 +1773,7 @@ const allowedChangedFiles = new Set([
   ...followOnPerspectiveUnitScopedWriteFiles,
   ...followOnContinuityRelayScopedWriteFiles,
   ...followOnCurrentWorkingPerspectiveUpdateContractFiles,
+  ...followOnCurrentWorkingPerspectiveApplySliceFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -3775,6 +3803,7 @@ function assertChangedFileBoundary() {
         followOnPerspectiveUnitScopedWriteFiles.includes(file) ||
         followOnContinuityRelayScopedWriteFiles.includes(file) ||
         followOnCurrentWorkingPerspectiveUpdateContractFiles.includes(file) ||
+        followOnCurrentWorkingPerspectiveApplySliceFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3799,6 +3828,7 @@ function assertChangedFileBoundary() {
         followOnPerspectiveUnitScopedWriteFiles.includes(file) ||
         followOnContinuityRelayScopedWriteFiles.includes(file) ||
         followOnCurrentWorkingPerspectiveUpdateContractFiles.includes(file) ||
+        followOnCurrentWorkingPerspectiveApplySliceFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
