@@ -339,6 +339,28 @@ try {
     records: [forbiddenRecord],
   });
   assert.equal(forbiddenReview.review_status, "records_invalid");
+  const corruptReceiptStoreResult = structuredClone(written);
+  corruptReceiptStoreResult.receipt.no_metric_update = false;
+  const corruptReceiptReview =
+    review.buildReuseOutcomeBridgeLedgerRecordReviewV01({
+      store_result: corruptReceiptStoreResult,
+    });
+  assert.equal(corruptReceiptReview.review_status, "records_invalid");
+  assert(
+    corruptReceiptReview.input_summary.receipt_side_effect_problem_count > 0,
+  );
+  assert.equal(
+    corruptReceiptReview.evidence_summary.has_receipt_side_effect_problem,
+    true,
+  );
+  assert(
+    corruptReceiptReview.blocked_reasons.includes(
+      "reuse_ledger_receipt_no_side_effects_invalid",
+    ) ||
+      corruptReceiptReview.blocked_reasons.includes(
+        "reuse_ledger_receipt_forbidden_side_effect_claim_present",
+      ),
+  );
 } finally {
   db.close();
 }

@@ -2,14 +2,20 @@ import type {
   HandoffReuseOutcomeLedgerRecord,
   HandoffReuseOutcomeLedgerStoreResult,
 } from "./handoff-reuse-outcome-ledger";
-import type { ReuseOutcomeBridgeLedgerNoSideEffects } from "./reuse-outcome-bridge-ledger-write";
+import type {
+  ReuseOutcomeBridgeLedgerNoSideEffects,
+  ReuseOutcomeBridgeLedgerStoreResult,
+} from "./reuse-outcome-bridge-ledger-write";
 
 export const REUSE_OUTCOME_BRIDGE_LEDGER_RECORD_REVIEW_VERSION =
   "reuse_outcome_bridge_ledger_record_review.v0.1" as const;
 
 export interface ReuseOutcomeBridgeLedgerRecordReviewInput {
   records?: unknown[];
-  store_result?: HandoffReuseOutcomeLedgerStoreResult | null;
+  store_result?:
+    | HandoffReuseOutcomeLedgerStoreResult
+    | ReuseOutcomeBridgeLedgerStoreResult
+    | null;
   selected_record_id?: string | null;
   scope?: string;
   as_of?: string;

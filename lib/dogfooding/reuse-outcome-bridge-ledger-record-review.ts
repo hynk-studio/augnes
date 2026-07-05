@@ -43,9 +43,13 @@ export function buildReuseOutcomeBridgeLedgerRecordReviewV01({
   const latestSummary = [...summaries].sort((a, b) =>
     b.created_at.localeCompare(a.created_at),
   )[0] ?? null;
-  const sideEffectProblemCount = summaries.filter(
+  const recordSideEffectProblemCount = summaries.filter(
     (summary) => !summary.receipt_no_side_effects_valid,
   ).length;
+  const receiptSideEffectProblemReasons =
+    buildStoreResultReceiptSideEffectProblemReasons(store_result);
+  const sideEffectProblemCount =
+    recordSideEffectProblemCount + receiptSideEffectProblemReasons.length;
   const reviewStatus =
     invalidCount > 0 || sideEffectProblemCount > 0
       ? "records_invalid"
@@ -111,6 +115,7 @@ export function buildReuseOutcomeBridgeLedgerRecordReviewV01({
       }),
     blocked_reasons: uniqueCandidateIngressStringsV01([
       ...(invalidCount > 0 ? ["invalid_reuse_ledger_records_present"] : []),
+      ...receiptSideEffectProblemReasons,
       ...(sideEffectProblemCount > 0
         ? ["reuse_ledger_receipt_forbidden_side_effect_claim_present"]
         : []),
@@ -176,6 +181,80 @@ export function createReuseOutcomeBridgeLedgerRecordReviewAuthorityBoundaryV01()
       "Workbench default does not open DB handles, call routes, create schema, or write records.",
     ],
   };
+}
+
+function buildStoreResultReceiptSideEffectProblemReasons(
+  storeResult: ReuseOutcomeBridgeLedgerRecordReviewInput["store_result"],
+): string[] {
+  if (!storeResult) return [];
+
+  const reasons: string[] = [];
+  if (!ledgerReceiptNoSideEffectsValid(storeResult.receipt)) {
+    reasons.push("reuse_ledger_receipt_no_side_effects_invalid");
+  }
+  if (!ledgerStoreNoSideEffectsValid(storeResult)) {
+    reasons.push("reuse_ledger_store_no_side_effects_invalid");
+  }
+  if (
+    isRecord(storeResult) &&
+    isRecord(storeResult.no_side_effects) &&
+    !bridgeWrapperNoSideEffectsValid(storeResult.no_side_effects)
+  ) {
+    reasons.push("reuse_ledger_receipt_forbidden_side_effect_claim_present");
+  }
+
+  return uniqueCandidateIngressStringsV01(reasons);
+}
+
+function ledgerReceiptNoSideEffectsValid(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return [
+    "no_metric_update",
+    "no_memory_mutation",
+    "no_perspective_apply",
+    "no_provider_call",
+    "no_github_call",
+    "no_codex_execution",
+    "no_handoff_send",
+  ].every((field) => value[field] === true);
+}
+
+function ledgerStoreNoSideEffectsValid(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return [
+    "no_metric_update",
+    "no_memory_mutation",
+    "no_perspective_apply",
+    "no_provider_call",
+    "no_github_call",
+    "no_codex_execution",
+    "no_handoff_send",
+  ].every((field) => value[field] === undefined || value[field] === true);
+}
+
+function bridgeWrapperNoSideEffectsValid(value: Record<string, unknown>): boolean {
+  return [
+    "dogfood_metrics_written",
+    "work_episode_written",
+    "expected_observed_delta_written",
+    "memory_mutated",
+    "current_working_perspective_updated",
+    "perspective_unit_written",
+    "next_work_bias_written",
+    "continuity_relay_written",
+    "handoff_context_mutated",
+    "selected_refs_written_to_live_handoff",
+    "handoff_sent",
+    "provider_called",
+    "github_called",
+    "codex_executed",
+    "pr_created",
+    "pr_merged",
+    "autonomous_action_run",
+    "graph_or_vector_store_created",
+    "rag_stack_created",
+    "crawler_or_browser_observer_created",
+  ].every((field) => value[field] === undefined || value[field] === false);
 }
 
 function buildSummary(
