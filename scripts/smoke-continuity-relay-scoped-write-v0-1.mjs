@@ -52,6 +52,32 @@ const files = {
     "components/workplane/current-working-perspective-update-contract-record-review-panel.tsx",
   cwpContractSmoke:
     "scripts/smoke-current-working-perspective-update-contract-v0-1.mjs",
+  cwpApplyPreviewType: "types/current-working-perspective-apply-preview.ts",
+  cwpApplyPreviewHelper: "lib/workplane/current-working-perspective-apply-preview.ts",
+  cwpApplyPreviewPanel:
+    "components/workplane/current-working-perspective-apply-preview-panel.tsx",
+  cwpApplyDecisionType: "types/current-working-perspective-apply-decision.ts",
+  cwpApplyDecisionHelper:
+    "lib/workplane/current-working-perspective-apply-decision.ts",
+  cwpApplyDecisionPanel:
+    "components/workplane/current-working-perspective-apply-decision-panel.tsx",
+  cwpApplyWriteType: "types/current-working-perspective-apply-write.ts",
+  cwpApplyWriteHelper: "lib/workplane/current-working-perspective-apply-write.ts",
+  cwpApplyRoute: "app/api/workplane/current-working-perspective-applies/route.ts",
+  cwpApplyReviewType:
+    "types/current-working-perspective-apply-record-review.ts",
+  cwpApplyReviewHelper:
+    "lib/workplane/current-working-perspective-apply-record-review.ts",
+  cwpApplyReviewForWeb:
+    "lib/workplane/read-current-working-perspective-apply-record-review-for-web.ts",
+  cwpApplyReviewPanel:
+    "components/workplane/current-working-perspective-apply-record-review-panel.tsx",
+  appliedCwpReadForWeb:
+    "lib/perspective/read-applied-current-working-perspective-for-web.ts",
+  appliedCwpPanel:
+    "components/workplane/applied-current-working-perspective-panel.tsx",
+  cwpApplySmoke:
+    "scripts/smoke-current-working-perspective-apply-slice-v0-1.mjs",
   agentWorkplane: "components/workplane/agent-workplane.tsx",
   overviewType: "types/workbench-dogfood-loop-spine-overview.ts",
   overviewHelper: "lib/workplane/workbench-dogfood-loop-spine-overview.ts",

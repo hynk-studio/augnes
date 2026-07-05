@@ -340,12 +340,20 @@ function evaluateRecord(
 } {
   const problemReasons: string[] = [];
   if (containsRawMaterialKeys(record)) problemReasons.push("raw_material_key_refused");
-  if (!isApplyRecord(record)) {
+  if (!isApplyRecordShape(record)) {
     problemReasons.push("current_working_perspective_apply_record_malformed");
   }
-  const typed = isApplyRecord(record) ? record : null;
+  const typed = isApplyRecordShape(record) ? record : null;
   if (typed?.scope !== CURRENT_WORKING_PERSPECTIVE_APPLY_SCOPE) {
     problemReasons.push("scope_invalid");
+  }
+  if (
+    typed &&
+    !isCurrentWorkingPerspectiveLike(typed.applied_current_working_perspective)
+  ) {
+    problemReasons.push(
+      "current_working_perspective_apply_record_applied_cwp_malformed",
+    );
   }
   if (typed && !hasExpectedAuthorityProfile(typed.authority_profile)) {
     problemReasons.push("current_working_perspective_apply_record_authority_profile_invalid");
@@ -358,6 +366,36 @@ function evaluateRecord(
   }
   if (typed && !isAppliedSnapshot(typed.applied_snapshot)) {
     problemReasons.push("current_working_perspective_applied_snapshot_malformed");
+  }
+  if (typed && isAppliedSnapshotShape(typed.applied_snapshot)) {
+    if (
+      !isCurrentWorkingPerspectiveLike(
+        typed.applied_snapshot.applied_current_working_perspective,
+      )
+    ) {
+      problemReasons.push("current_working_perspective_applied_snapshot_cwp_malformed");
+    }
+    if (typed.applied_snapshot_ref !== typed.applied_snapshot.applied_snapshot_ref) {
+      problemReasons.push("current_working_perspective_apply_record_snapshot_ref_mismatch");
+    }
+    if (typed.applied_snapshot_version !== typed.applied_snapshot.snapshot_version) {
+      problemReasons.push("current_working_perspective_apply_record_snapshot_version_mismatch");
+    }
+    if (
+      typed.source_current_working_perspective_update_contract_record_ref !==
+      typed.applied_snapshot.source_contract_record_ref
+    ) {
+      problemReasons.push("current_working_perspective_apply_record_source_contract_ref_mismatch");
+    }
+    if (typed.applied_patch_count !== typed.applied_snapshot.applied_patch_count) {
+      problemReasons.push("current_working_perspective_apply_record_patch_count_mismatch");
+    }
+    if (
+      JSON.stringify(typed.applied_current_working_perspective) !==
+      JSON.stringify(typed.applied_snapshot.applied_current_working_perspective)
+    ) {
+      problemReasons.push("current_working_perspective_apply_record_snapshot_cwp_mismatch");
+    }
   }
   if ((typed?.applied_patch_count ?? 0) <= 0) {
     problemReasons.push("applied_patch_count_missing");
@@ -414,10 +452,16 @@ function evaluateAppliedSnapshotFromRecord(record: unknown): Array<{
 }> {
   const snapshot = isRecord(record) ? record.applied_snapshot : null;
   const problemReasons: string[] = [];
-  if (!isAppliedSnapshot(snapshot)) {
+  if (!isAppliedSnapshotShape(snapshot)) {
     problemReasons.push("current_working_perspective_applied_snapshot_malformed");
   }
-  const typed = isAppliedSnapshot(snapshot) ? snapshot : null;
+  const typed = isAppliedSnapshotShape(snapshot) ? snapshot : null;
+  if (
+    typed &&
+    !isCurrentWorkingPerspectiveLike(typed.applied_current_working_perspective)
+  ) {
+    problemReasons.push("current_working_perspective_applied_snapshot_cwp_malformed");
+  }
   if (typed && !hasExpectedAuthorityBoundary(typed.authority_boundary)) {
     problemReasons.push("current_working_perspective_applied_snapshot_authority_boundary_invalid");
   }
@@ -464,7 +508,9 @@ function evaluateAppliedSnapshotFromRecord(record: unknown): Array<{
   ];
 }
 
-function isApplyRecord(value: unknown): value is CurrentWorkingPerspectiveApplyRecord {
+function isApplyRecordShape(
+  value: unknown,
+): value is CurrentWorkingPerspectiveApplyRecord {
   return (
     isRecord(value) &&
     value.record_version === CURRENT_WORKING_PERSPECTIVE_APPLY_RECORD_VERSION &&
@@ -484,7 +530,17 @@ function isApplyRecord(value: unknown): value is CurrentWorkingPerspectiveApplyR
   );
 }
 
-function isAppliedSnapshot(value: unknown): value is CurrentWorkingPerspectiveAppliedSnapshot {
+function isApplyRecord(value: unknown): value is CurrentWorkingPerspectiveApplyRecord {
+  return (
+    isApplyRecordShape(value) &&
+    isCurrentWorkingPerspectiveLike(value.applied_current_working_perspective) &&
+    isAppliedSnapshot(value.applied_snapshot)
+  );
+}
+
+function isAppliedSnapshotShape(
+  value: unknown,
+): value is CurrentWorkingPerspectiveAppliedSnapshot {
   return (
     isRecord(value) &&
     value.snapshot_version === CURRENT_WORKING_PERSPECTIVE_APPLIED_SNAPSHOT_VERSION &&
@@ -495,6 +551,56 @@ function isAppliedSnapshot(value: unknown): value is CurrentWorkingPerspectiveAp
     Array.isArray(value.applied_patch_refs) &&
     typeof value.applied_patch_count === "number" &&
     isRecord(value.authority_boundary)
+  );
+}
+
+function isAppliedSnapshot(value: unknown): value is CurrentWorkingPerspectiveAppliedSnapshot {
+  return (
+    isAppliedSnapshotShape(value) &&
+    isCurrentWorkingPerspectiveLike(value.applied_current_working_perspective)
+  );
+}
+
+function isCurrentWorkingPerspectiveLike(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  const authority = isRecord(value.authority_boundary)
+    ? value.authority_boundary
+    : null;
+  return (
+    value.runtime === "augnes" &&
+    value.perspective_version === "current_working_perspective.v0.1" &&
+    value.projection_version === "augnes_delta_projection.v0.1" &&
+    value.snapshot_version === "perspective_snapshot.v0.1" &&
+    value.scope === CURRENT_WORKING_PERSPECTIVE_APPLY_SCOPE &&
+    typeof value.as_of === "string" &&
+    isRecord(value.current_frame) &&
+    typeof value.current_frame.summary === "string" &&
+    Array.isArray(value.current_frame.source_refs) &&
+    isRecord(value.current_thesis) &&
+    typeof value.current_thesis.summary === "string" &&
+    Array.isArray(value.current_thesis.source_refs) &&
+    Array.isArray(value.active_goals) &&
+    Array.isArray(value.accepted_assumptions) &&
+    Array.isArray(value.rejected_assumptions) &&
+    Array.isArray(value.open_questions) &&
+    Array.isArray(value.active_risks) &&
+    Array.isArray(value.next_candidates) &&
+    isRecord(value.research_pressure) &&
+    Array.isArray(value.last_major_delta_refs) &&
+    isRecord(value.review_queue_hints) &&
+    isRecord(value.source_refs) &&
+    isRecord(value.staleness) &&
+    Array.isArray(value.gaps) &&
+    Array.isArray(value.next_phase_notes) &&
+    authority !== null &&
+    authority.derived_view_only === true &&
+    authority.can_write_db === false &&
+    authority.can_apply_project_perspective === false &&
+    authority.can_mutate_memory === false &&
+    authority.can_call_github === false &&
+    authority.can_call_openai_or_provider === false &&
+    authority.can_execute_codex === false &&
+    authority.can_create_branch_or_pr === false
   );
 }
 

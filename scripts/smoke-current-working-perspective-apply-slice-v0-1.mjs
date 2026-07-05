@@ -534,6 +534,85 @@ assert.equal(
     .review_status,
   "records_invalid",
 );
+const malformedRecordCwp = structuredClone(writeResult.record);
+malformedRecordCwp.applied_current_working_perspective = {};
+let malformedReview = buildCurrentWorkingPerspectiveApplyRecordReviewV01({
+  records: [malformedRecordCwp],
+});
+assert.equal(malformedReview.review_status, "records_invalid");
+assert(
+  malformedReview.record_summaries[0].problem_reasons.includes(
+    "current_working_perspective_apply_record_applied_cwp_malformed",
+  ),
+);
+const malformedSnapshotCwp = structuredClone(writeResult.record);
+malformedSnapshotCwp.applied_snapshot.applied_current_working_perspective = {};
+malformedReview = buildCurrentWorkingPerspectiveApplyRecordReviewV01({
+  records: [malformedSnapshotCwp],
+});
+assert.equal(malformedReview.review_status, "records_invalid");
+assert(
+  malformedReview.record_summaries[0].problem_reasons.includes(
+    "current_working_perspective_applied_snapshot_cwp_malformed",
+  ),
+);
+assert(
+  malformedReview.applied_snapshots.length === 0 ||
+    malformedReview.latest_applied_snapshot_summary.problem_reasons.includes(
+      "current_working_perspective_applied_snapshot_cwp_malformed",
+    ),
+);
+const snapshotRefMismatch = structuredClone(writeResult.record);
+snapshotRefMismatch.applied_snapshot.applied_snapshot_ref =
+  "current-working-perspective-applied-snapshot:mismatch";
+malformedReview = buildCurrentWorkingPerspectiveApplyRecordReviewV01({
+  records: [snapshotRefMismatch],
+});
+assert.equal(malformedReview.review_status, "records_invalid");
+assert(
+  malformedReview.record_summaries[0].problem_reasons.includes(
+    "current_working_perspective_apply_record_snapshot_ref_mismatch",
+  ),
+);
+const snapshotContractMismatch = structuredClone(writeResult.record);
+snapshotContractMismatch.applied_snapshot.source_contract_record_ref =
+  "cwp-update-contract-record:mismatch";
+malformedReview = buildCurrentWorkingPerspectiveApplyRecordReviewV01({
+  records: [snapshotContractMismatch],
+});
+assert.equal(malformedReview.review_status, "records_invalid");
+assert(
+  malformedReview.record_summaries[0].problem_reasons.includes(
+    "current_working_perspective_apply_record_source_contract_ref_mismatch",
+  ),
+);
+const snapshotPatchCountMismatch = structuredClone(writeResult.record);
+snapshotPatchCountMismatch.applied_snapshot.applied_patch_count += 1;
+malformedReview = buildCurrentWorkingPerspectiveApplyRecordReviewV01({
+  records: [snapshotPatchCountMismatch],
+});
+assert.equal(malformedReview.review_status, "records_invalid");
+assert(
+  malformedReview.record_summaries[0].problem_reasons.includes(
+    "current_working_perspective_apply_record_patch_count_mismatch",
+  ),
+);
+const snapshotCwpMismatch = structuredClone(writeResult.record);
+snapshotCwpMismatch.applied_snapshot.applied_current_working_perspective =
+  structuredClone(
+    snapshotCwpMismatch.applied_snapshot.applied_current_working_perspective,
+  );
+snapshotCwpMismatch.applied_snapshot.applied_current_working_perspective.as_of =
+  "2026-07-07T00:00:00.000Z";
+malformedReview = buildCurrentWorkingPerspectiveApplyRecordReviewV01({
+  records: [snapshotCwpMismatch],
+});
+assert.equal(malformedReview.review_status, "records_invalid");
+assert(
+  malformedReview.record_summaries[0].problem_reasons.includes(
+    "current_working_perspective_apply_record_snapshot_cwp_mismatch",
+  ),
+);
 const corruptStore = structuredClone(writeResult);
 corruptStore.no_side_effects.memory_written = true;
 assert.equal(

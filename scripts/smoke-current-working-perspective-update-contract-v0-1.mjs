@@ -219,6 +219,22 @@ const route = await import(
 
 const allowedChangedFiles = [
   ...Object.values(files),
+  "types/current-working-perspective-apply-preview.ts",
+  "lib/workplane/current-working-perspective-apply-preview.ts",
+  "components/workplane/current-working-perspective-apply-preview-panel.tsx",
+  "types/current-working-perspective-apply-decision.ts",
+  "lib/workplane/current-working-perspective-apply-decision.ts",
+  "components/workplane/current-working-perspective-apply-decision-panel.tsx",
+  "types/current-working-perspective-apply-write.ts",
+  "lib/workplane/current-working-perspective-apply-write.ts",
+  "app/api/workplane/current-working-perspective-applies/route.ts",
+  "types/current-working-perspective-apply-record-review.ts",
+  "lib/workplane/current-working-perspective-apply-record-review.ts",
+  "lib/workplane/read-current-working-perspective-apply-record-review-for-web.ts",
+  "components/workplane/current-working-perspective-apply-record-review-panel.tsx",
+  "lib/perspective/read-applied-current-working-perspective-for-web.ts",
+  "components/workplane/applied-current-working-perspective-panel.tsx",
+  "scripts/smoke-current-working-perspective-apply-slice-v0-1.mjs",
 ];
 
 function readyPreview(overrides = {}) {
