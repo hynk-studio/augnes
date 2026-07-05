@@ -203,6 +203,38 @@ const selectedSessionDigestIngestRecordReviewPanelFile =
   "components/intake/selected-session-digest-ingest-record-review-panel.tsx";
 const selectedSessionDigestDurableIngestRecordSmokeFile =
   "scripts/smoke-selected-session-digest-durable-ingest-record-v0-1.mjs";
+const candidateIngressNormalizerTypeFile =
+  "types/candidate-ingress-normalizer.ts";
+const candidateIngressNormalizerHelperFile =
+  "lib/intake/candidate-ingress-normalizer.ts";
+const projectHistoryIntakePreviewTypeFile =
+  "types/project-history-intake-preview.ts";
+const projectHistoryIntakePreviewHelperFile =
+  "lib/intake/project-history-intake-preview.ts";
+const projectHistoryIntakePreviewPanelFile =
+  "components/intake/project-history-intake-preview-panel.tsx";
+const projectHistoryIntakeDecisionTypeFile =
+  "types/project-history-intake-decision.ts";
+const projectHistoryIntakeDecisionHelperFile =
+  "lib/intake/project-history-intake-decision.ts";
+const projectHistoryIntakeDecisionPanelFile =
+  "components/intake/project-history-intake-decision-panel.tsx";
+const projectHistoryIntakeWriteTypeFile =
+  "types/project-history-intake-write.ts";
+const projectHistoryIntakeWriteHelperFile =
+  "lib/intake/project-history-intake-write.ts";
+const projectHistoryIntakeWriteRouteFile =
+  "app/api/intake/project-history/records/route.ts";
+const projectHistoryIntakeRecordReviewTypeFile =
+  "types/project-history-intake-record-review.ts";
+const projectHistoryIntakeRecordReviewHelperFile =
+  "lib/intake/project-history-intake-record-review.ts";
+const projectHistoryIntakeRecordReviewForWebFile =
+  "lib/intake/read-project-history-intake-record-review-for-web.ts";
+const projectHistoryIntakeRecordReviewPanelFile =
+  "components/intake/project-history-intake-record-review-panel.tsx";
+const projectHistoryIntakeSmokeFile =
+  "scripts/smoke-project-history-intake-candidate-ledger-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -774,6 +806,31 @@ const followOnSelectedSessionDigestDurableIngestRecordFiles = [
   smokeFile,
 ];
 
+const followOnProjectHistoryIntakeCandidateLedgerFiles = [
+  candidateIngressNormalizerTypeFile,
+  candidateIngressNormalizerHelperFile,
+  projectHistoryIntakePreviewTypeFile,
+  projectHistoryIntakePreviewHelperFile,
+  projectHistoryIntakePreviewPanelFile,
+  projectHistoryIntakeDecisionTypeFile,
+  projectHistoryIntakeDecisionHelperFile,
+  projectHistoryIntakeDecisionPanelFile,
+  projectHistoryIntakeWriteTypeFile,
+  projectHistoryIntakeWriteHelperFile,
+  projectHistoryIntakeWriteRouteFile,
+  projectHistoryIntakeRecordReviewTypeFile,
+  projectHistoryIntakeRecordReviewHelperFile,
+  projectHistoryIntakeRecordReviewForWebFile,
+  projectHistoryIntakeRecordReviewPanelFile,
+  projectHistoryIntakeSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1011,6 +1068,21 @@ const requiredFiles = [
   selectedSessionDigestIngestRecordReviewHelperFile,
   selectedSessionDigestIngestRecordReviewForWebFile,
   selectedSessionDigestIngestRecordReviewPanelFile,
+  candidateIngressNormalizerTypeFile,
+  candidateIngressNormalizerHelperFile,
+  projectHistoryIntakePreviewTypeFile,
+  projectHistoryIntakePreviewHelperFile,
+  projectHistoryIntakePreviewPanelFile,
+  projectHistoryIntakeDecisionTypeFile,
+  projectHistoryIntakeDecisionHelperFile,
+  projectHistoryIntakeDecisionPanelFile,
+  projectHistoryIntakeWriteTypeFile,
+  projectHistoryIntakeWriteHelperFile,
+  projectHistoryIntakeWriteRouteFile,
+  projectHistoryIntakeRecordReviewTypeFile,
+  projectHistoryIntakeRecordReviewHelperFile,
+  projectHistoryIntakeRecordReviewForWebFile,
+  projectHistoryIntakeRecordReviewPanelFile,
   workbenchDogfoodLoopSpineOverviewTypeFile,
   workbenchDogfoodLoopSpineOverviewHelperFile,
   workbenchDogfoodLoopSpineOverviewPanelFile,
@@ -1148,6 +1220,7 @@ const allowedChangedFiles = new Set([
   ...followOnSelectedSessionDigestIngestContractPreviewFiles,
   ...followOnSelectedSessionDigestIngestOperatorDecisionFiles,
   ...followOnSelectedSessionDigestDurableIngestRecordFiles,
+  ...followOnProjectHistoryIntakeCandidateLedgerFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -1277,6 +1350,30 @@ const selectedSessionDigestIngestWriteHelperText = textByFile.get(
 const selectedSessionDigestIngestRecordReviewPanelText = textByFile.get(
   selectedSessionDigestIngestRecordReviewPanelFile,
 );
+const candidateIngressNormalizerTypeText = textByFile.get(
+  candidateIngressNormalizerTypeFile,
+);
+const projectHistoryIntakePreviewTypeText = textByFile.get(
+  projectHistoryIntakePreviewTypeFile,
+);
+const projectHistoryIntakePreviewHelperText = textByFile.get(
+  projectHistoryIntakePreviewHelperFile,
+);
+const projectHistoryIntakePreviewPanelText = textByFile.get(
+  projectHistoryIntakePreviewPanelFile,
+);
+const projectHistoryIntakeDecisionTypeText = textByFile.get(
+  projectHistoryIntakeDecisionTypeFile,
+);
+const projectHistoryIntakeDecisionHelperText = textByFile.get(
+  projectHistoryIntakeDecisionHelperFile,
+);
+const projectHistoryIntakeDecisionPanelText = textByFile.get(
+  projectHistoryIntakeDecisionPanelFile,
+);
+const projectHistoryIntakeRecordReviewPanelText = textByFile.get(
+  projectHistoryIntakeRecordReviewPanelFile,
+);
 const workbenchDogfoodLoopSpineOverviewTypeText = textByFile.get(
   workbenchDogfoodLoopSpineOverviewTypeFile,
 );
@@ -1309,6 +1406,7 @@ assertSelectedSessionDigestIntakePreviewFollowOn();
 assertSelectedSessionDigestIngestContractPreviewFollowOn();
 assertSelectedSessionDigestIngestOperatorDecisionFollowOn();
 assertSelectedSessionDigestDurableIngestRecordFollowOn();
+assertProjectHistoryIntakeCandidateLedgerFollowOn();
 assertWorkbenchDogfoodLoopSpineOverviewFollowOn();
 assertCodexResultFeedbackDraftFollowOn();
 assertDogfoodReuseRecordProposalFollowOn();
@@ -2075,6 +2173,133 @@ function assertSelectedSessionDigestDurableIngestRecordFollowOn() {
   );
 }
 
+function assertProjectHistoryIntakeCandidateLedgerFollowOn() {
+  assertContainsAll(
+    candidateIngressNormalizerTypeText,
+    [
+      "candidate_ingress_normalizer.v0.1",
+      "project_history_digest",
+      "codex_result_report",
+      "candidate_material_only: true",
+    ],
+    { label: candidateIngressNormalizerTypeFile },
+  );
+  assertContainsAll(
+    projectHistoryIntakePreviewTypeText,
+    [
+      "project_history_intake_preview.v0.1",
+      "timeline_event_candidates",
+      "ready_for_candidate_ingest_record",
+      "can_write_memory: false",
+    ],
+    { label: projectHistoryIntakePreviewTypeFile },
+  );
+  assertContainsAll(
+    projectHistoryIntakePreviewHelperText,
+    [
+      "buildProjectHistoryIntakePreviewV01",
+      "createProjectHistoryIntakeAuthorityBoundaryV01",
+      "PROJECT_HISTORY_RAW_TEXT_MAX_LENGTH",
+      "raw_text_preview_uses_local_deterministic_extraction_only",
+    ],
+    { label: projectHistoryIntakePreviewHelperFile },
+  );
+  assertContainsAll(
+    projectHistoryIntakeDecisionTypeText,
+    [
+      "project_history_intake_operator_decision_preview.v0.1",
+      "ready_for_future_candidate_record_write",
+      "approve_for_project_history_candidate_ingest",
+    ],
+    { label: projectHistoryIntakeDecisionTypeFile },
+  );
+  assertContainsAll(
+    projectHistoryIntakeDecisionHelperText,
+    [
+      "buildProjectHistoryIntakeOperatorDecisionPreviewV01",
+      "createProjectHistoryIntakeOperatorDecisionAuthorityBoundaryV01",
+      "selected_candidate_refs_not_in_intake_preview",
+      "unknown_selected_project_history_candidate_ref",
+    ],
+    { label: projectHistoryIntakeDecisionHelperFile },
+  );
+  assertContainsAll(
+    projectHistoryIntakePreviewPanelText,
+    [
+      "Project History Intake Preview",
+      "deterministic extraction",
+      "authority boundary",
+    ],
+    { label: projectHistoryIntakePreviewPanelFile },
+  );
+  assertContainsAll(
+    projectHistoryIntakeDecisionPanelText,
+    [
+      "Project History Intake Operator Decision",
+      "recommended operator decision",
+      "approval requirements",
+      "would-write candidate material",
+      "authority boundary",
+    ],
+    { label: projectHistoryIntakeDecisionPanelFile },
+  );
+  assertContainsAll(
+    projectHistoryIntakeRecordReviewPanelText,
+    [
+      "Project History Intake Record Review",
+      "candidate ingest record",
+      "receipt no side effects",
+      "authority boundary",
+    ],
+    { label: projectHistoryIntakeRecordReviewPanelFile },
+  );
+  assertContainsAll(
+    agentWorkplaneText,
+    [
+      "ProjectHistoryIntakePreviewPanel",
+      "ProjectHistoryIntakeDecisionPanel",
+      "ProjectHistoryIntakeRecordReviewPanel",
+      "buildProjectHistoryIntakePreviewV01",
+      "buildProjectHistoryIntakeOperatorDecisionPreviewV01",
+      "readProjectHistoryIntakeRecordReviewForWebV01",
+      "const projectHistoryIntakePreview",
+      "const projectHistoryIntakeOperatorDecisionPreview",
+      "const projectHistoryIntakeRecordReview",
+      "preview={projectHistoryIntakePreview}",
+      "preview={projectHistoryIntakeOperatorDecisionPreview}",
+      "review={projectHistoryIntakeRecordReview}",
+      "project_history_intake_preview: projectHistoryIntakePreview",
+      "project_history_intake_operator_decision_preview:\n        projectHistoryIntakeOperatorDecisionPreview",
+      "project_history_intake_record_review: projectHistoryIntakeRecordReview",
+    ],
+    { label: agentWorkplaneFile },
+  );
+
+  const start = agentWorkplaneText.indexOf("const projectHistoryIntakePreview");
+  const end = agentWorkplaneText.indexOf("const dogfoodMetricCandidatePreview");
+  assert(start !== -1, "Agent Workplane must build project history intake preview");
+  assert(end > start, "Project history intake block must precede metric preview");
+  const snippet = agentWorkplaneText.slice(start, end);
+  assert(
+    snippet.includes("buildProjectHistoryIntakePreviewV01"),
+    "Agent Workplane must build project history intake preview",
+  );
+  assert(
+    snippet.includes("project_history_intake_preview: projectHistoryIntakePreview"),
+    "Agent Workplane must pass project history intake to the spine overview",
+  );
+  assert(!snippet.includes("new Database"), "Workbench must not open DB");
+  assert(!snippet.includes("fetch("), "Workbench must not fetch records");
+  assert(!snippet.includes("POST"), "Workbench must not POST records");
+  for (const [panelText, label] of [
+    [projectHistoryIntakePreviewPanelText, projectHistoryIntakePreviewPanelFile],
+    [projectHistoryIntakeDecisionPanelText, projectHistoryIntakeDecisionPanelFile],
+    [projectHistoryIntakeRecordReviewPanelText, projectHistoryIntakeRecordReviewPanelFile],
+  ]) {
+    assert(!panelText.includes("<button"), `${label} must not add buttons`);
+  }
+}
+
 function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
   assertContainsAll(
     workbenchDogfoodLoopSpineOverviewTypeText,
@@ -2085,6 +2310,8 @@ function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
       "selected_session_digest_ingest_contract",
       "selected_session_digest_ingest_operator_decision",
       "selected_session_digest_durable_ingest_record",
+      "project_history_intake",
+      "project_history_candidate_ingest_record",
       "codex_result_feedback",
       "dogfood_reuse_proposal",
       "handoff_context_apply_write_contract",
@@ -2113,9 +2340,14 @@ function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
       "selected_session_digest_ingest_contract_preview",
       "selected_session_digest_ingest_operator_decision_preview",
       "selected_session_digest_ingest_record_review",
+      "project_history_intake_preview",
+      "project_history_intake_operator_decision_preview",
+      "project_history_intake_record_review",
       "selectedSessionDigestIngestContractStep",
       "selectedSessionDigestIngestOperatorDecisionStep",
       "selectedSessionDigestDurableIngestRecordStep",
+      "projectHistoryIntakeStep",
+      "projectHistoryCandidateIngestRecordStep",
       "codex_result_feedback_draft",
       "dogfood_reuse_record_proposal",
       "handoff_context_apply_write_contract_preview",
@@ -2592,6 +2824,7 @@ function assertChangedFileBoundary() {
         followOnHandoffContextUpdateWriteFiles.includes(file) ||
         followOnSelectedSessionDigestIngestOperatorDecisionFiles.includes(file) ||
         followOnSelectedSessionDigestDurableIngestRecordFiles.includes(file) ||
+        followOnProjectHistoryIntakeCandidateLedgerFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -2605,6 +2838,7 @@ function assertChangedFileBoundary() {
         followOnHandoffContextUpdateWriteFiles.includes(file) ||
         followOnSelectedSessionDigestIngestOperatorDecisionFiles.includes(file) ||
         followOnSelectedSessionDigestDurableIngestRecordFiles.includes(file) ||
+        followOnProjectHistoryIntakeCandidateLedgerFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );

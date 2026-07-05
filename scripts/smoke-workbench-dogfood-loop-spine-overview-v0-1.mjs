@@ -53,6 +53,38 @@ const selectedSessionDigestIngestRecordReviewPanelFile =
   "components/intake/selected-session-digest-ingest-record-review-panel.tsx";
 const selectedSessionDigestDurableIngestRecordSmokeFile =
   "scripts/smoke-selected-session-digest-durable-ingest-record-v0-1.mjs";
+const candidateIngressNormalizerTypeFile =
+  "types/candidate-ingress-normalizer.ts";
+const candidateIngressNormalizerHelperFile =
+  "lib/intake/candidate-ingress-normalizer.ts";
+const projectHistoryIntakePreviewTypeFile =
+  "types/project-history-intake-preview.ts";
+const projectHistoryIntakePreviewHelperFile =
+  "lib/intake/project-history-intake-preview.ts";
+const projectHistoryIntakePreviewPanelFile =
+  "components/intake/project-history-intake-preview-panel.tsx";
+const projectHistoryIntakeDecisionTypeFile =
+  "types/project-history-intake-decision.ts";
+const projectHistoryIntakeDecisionHelperFile =
+  "lib/intake/project-history-intake-decision.ts";
+const projectHistoryIntakeDecisionPanelFile =
+  "components/intake/project-history-intake-decision-panel.tsx";
+const projectHistoryIntakeWriteTypeFile =
+  "types/project-history-intake-write.ts";
+const projectHistoryIntakeWriteHelperFile =
+  "lib/intake/project-history-intake-write.ts";
+const projectHistoryIntakeWriteRouteFile =
+  "app/api/intake/project-history/records/route.ts";
+const projectHistoryIntakeRecordReviewTypeFile =
+  "types/project-history-intake-record-review.ts";
+const projectHistoryIntakeRecordReviewHelperFile =
+  "lib/intake/project-history-intake-record-review.ts";
+const projectHistoryIntakeRecordReviewForWebFile =
+  "lib/intake/read-project-history-intake-record-review-for-web.ts";
+const projectHistoryIntakeRecordReviewPanelFile =
+  "components/intake/project-history-intake-record-review-panel.tsx";
+const projectHistoryIntakeSmokeFile =
+  "scripts/smoke-project-history-intake-candidate-ledger-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -87,6 +119,22 @@ const allowedChangedFiles = [
   selectedSessionDigestIngestRecordReviewForWebFile,
   selectedSessionDigestIngestRecordReviewPanelFile,
   selectedSessionDigestDurableIngestRecordSmokeFile,
+  candidateIngressNormalizerTypeFile,
+  candidateIngressNormalizerHelperFile,
+  projectHistoryIntakePreviewTypeFile,
+  projectHistoryIntakePreviewHelperFile,
+  projectHistoryIntakePreviewPanelFile,
+  projectHistoryIntakeDecisionTypeFile,
+  projectHistoryIntakeDecisionHelperFile,
+  projectHistoryIntakeDecisionPanelFile,
+  projectHistoryIntakeWriteTypeFile,
+  projectHistoryIntakeWriteHelperFile,
+  projectHistoryIntakeWriteRouteFile,
+  projectHistoryIntakeRecordReviewTypeFile,
+  projectHistoryIntakeRecordReviewHelperFile,
+  projectHistoryIntakeRecordReviewForWebFile,
+  projectHistoryIntakeRecordReviewPanelFile,
+  projectHistoryIntakeSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -122,6 +170,8 @@ assertContainsAll(
     "selected_session_digest_ingest_contract",
     "selected_session_digest_ingest_operator_decision",
     "selected_session_digest_durable_ingest_record",
+    "project_history_intake",
+    "project_history_candidate_ingest_record",
     "codex_result_feedback",
     "dogfood_reuse_proposal",
     "dogfood_reuse_operator_decision",
@@ -151,9 +201,14 @@ assertContainsAll(
     "selected_session_digest_ingest_contract_preview",
     "selected_session_digest_ingest_operator_decision_preview",
     "selected_session_digest_ingest_record_review",
+    "project_history_intake_preview",
+    "project_history_intake_operator_decision_preview",
+    "project_history_intake_record_review",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
     "selectedSessionDigestDurableIngestRecordStep",
+    "projectHistoryIntakeStep",
+    "projectHistoryCandidateIngestRecordStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -162,6 +217,9 @@ assertContainsAll(
     "prepare_operator_approved_selected_session_digest_ingest_decision_record",
     "write_selected_session_digest_candidate_ingest_record",
     "review_selected_session_digest_ingest_record",
+    "supply_project_history_digest",
+    "write_project_history_candidate_ingest_record",
+    "review_project_history_intake_record",
     "does_not_write_memory",
     "does_not_promote_selected_digest_ingest_records_to_memory_or_perspective",
     "does_not_apply_live_handoff_context",
@@ -197,6 +255,9 @@ assertContainsAll(
     "selected_session_digest_ingest_contract_preview: selectedSessionDigestIngestContractPreview",
     "selected_session_digest_ingest_operator_decision_preview: selectedSessionDigestIngestOperatorDecisionPreview",
     "selected_session_digest_ingest_record_review:\n        selectedSessionDigestIngestRecordReview",
+    "project_history_intake_preview: projectHistoryIntakePreview",
+    "project_history_intake_operator_decision_preview:\n        projectHistoryIntakeOperatorDecisionPreview",
+    "project_history_intake_record_review: projectHistoryIntakeRecordReview",
     "workbench:dogfood_loop_spine_overview",
     "handoff_context_apply_write_contract_preview",
   ],
@@ -238,6 +299,15 @@ const ingestOperatorDecisionModule = await import(
 const ingestRecordReviewModule = await import(
   "../lib/intake/selected-session-digest-ingest-record-review.ts"
 );
+const projectHistoryIntakeModule = await import(
+  "../lib/intake/project-history-intake-preview.ts"
+);
+const projectHistoryDecisionModule = await import(
+  "../lib/intake/project-history-intake-decision.ts"
+);
+const projectHistoryRecordReviewModule = await import(
+  "../lib/intake/project-history-intake-record-review.ts"
+);
 
 const {
   buildWorkbenchDogfoodLoopSpineOverviewV01,
@@ -250,6 +320,11 @@ const { buildSelectedSessionDigestIngestOperatorDecisionPreviewV01 } =
   ingestOperatorDecisionModule;
 const { buildSelectedSessionDigestIngestRecordReviewV01 } =
   ingestRecordReviewModule;
+const { buildProjectHistoryIntakePreviewV01 } = projectHistoryIntakeModule;
+const { buildProjectHistoryIntakeOperatorDecisionPreviewV01 } =
+  projectHistoryDecisionModule;
+const { buildProjectHistoryIntakeRecordReviewV01 } =
+  projectHistoryRecordReviewModule;
 
 const emptyOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   scope: "project:augnes",
@@ -265,7 +340,19 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 16);
+assert.equal(emptyOverview.spine_steps.length, 18);
+assert(
+  emptyOverview.spine_steps.some(
+    (step) => step.step_id === "project_history_intake",
+  ),
+  "overview should include project history intake step",
+);
+assert(
+  emptyOverview.spine_steps.some(
+    (step) => step.step_id === "project_history_candidate_ingest_record",
+  ),
+  "overview should include project history candidate ingest record step",
+);
 assertAuthorityFalse(emptyOverview.authority_boundary);
 
 const cleanSelectedIntake = buildSelectedSessionDigestIntakePreviewV01({
@@ -412,6 +499,100 @@ assert.equal(
   "review_selected_session_digest_ingest_record",
 );
 assertNoMemoryPromotionActions(selectedRecordReviewOverview);
+
+const emptyProjectHistoryPreview = buildProjectHistoryIntakePreviewV01({
+  scope: "project:augnes",
+  as_of: "2026-07-04T14:30:00.000Z",
+});
+const emptyProjectHistoryDecision =
+  buildProjectHistoryIntakeOperatorDecisionPreviewV01({
+    project_history_intake_preview: emptyProjectHistoryPreview,
+  });
+const emptyProjectHistoryRecordReview =
+  buildProjectHistoryIntakeRecordReviewV01({
+    records: [],
+    as_of: "2026-07-04T14:30:00.000Z",
+  });
+const projectHistoryMissingOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanSelectedIntake,
+  selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+  selected_session_digest_ingest_operator_decision_preview:
+    selectedReadyIngestDecision,
+  selected_session_digest_ingest_record_review: selectedRecordReview,
+  project_history_intake_preview: emptyProjectHistoryPreview,
+  project_history_intake_operator_decision_preview: emptyProjectHistoryDecision,
+  project_history_intake_record_review: emptyProjectHistoryRecordReview,
+});
+assert.equal(
+  stepById(projectHistoryMissingOverview, "project_history_intake").status,
+  "no_current_material",
+);
+assert.equal(
+  projectHistoryMissingOverview.recommended_next_operator_action,
+  "supply_project_history_digest",
+);
+
+const cleanProjectHistoryIntake = buildProjectHistoryIntakePreviewV01({
+  digest: {
+    title: "Project history spine digest",
+    summary: "Project history candidate intake is ready for bounded review.",
+    timeline_events: ["Selected digest candidate ledger reached durable record"],
+    decisions: ["Keep project history candidate records separate from memory"],
+    requirements: ["Require source, project, operator, evidence, privacy, and idempotency refs"],
+    evidence_refs: ["evidence:project-history-overview-clean"],
+    source_refs: ["source:project-history-overview-clean"],
+    project_ref: "project:augnes",
+    created_at: "2026-07-04T14:30:00.000Z",
+  },
+  source_ref: "source:project-history-overview-clean",
+  operator_ref: "operator:project-history-overview",
+});
+const projectHistoryCandidateRef =
+  cleanProjectHistoryIntake.candidate_material.timeline_event_candidates[0]
+    .candidate_id;
+const readyProjectHistoryDecision =
+  buildProjectHistoryIntakeOperatorDecisionPreviewV01({
+    project_history_intake_preview: cleanProjectHistoryIntake,
+    selected_candidate_refs: [projectHistoryCandidateRef],
+    privacy_review_confirmation_ref: "privacy:project-history-overview-clean",
+    requested_idempotency_key: "idempotency:project-history-overview-clean",
+  });
+const projectHistoryWriteOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanSelectedIntake,
+  selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+  selected_session_digest_ingest_operator_decision_preview:
+    selectedReadyIngestDecision,
+  selected_session_digest_ingest_record_review: selectedRecordReview,
+  project_history_intake_preview: cleanProjectHistoryIntake,
+  project_history_intake_operator_decision_preview:
+    readyProjectHistoryDecision,
+  project_history_intake_record_review: emptyProjectHistoryRecordReview,
+});
+assert.equal(
+  projectHistoryWriteOverview.recommended_next_operator_action,
+  "write_project_history_candidate_ingest_record",
+);
+assertNoMemoryPromotionActions(projectHistoryWriteOverview);
+
+const projectHistoryRecordReview = buildProjectHistoryIntakeRecordReviewV01({
+  records: [fakeProjectHistoryIntakeRecord()],
+});
+const projectHistoryRecordOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanSelectedIntake,
+  selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+  selected_session_digest_ingest_operator_decision_preview:
+    selectedReadyIngestDecision,
+  selected_session_digest_ingest_record_review: selectedRecordReview,
+  project_history_intake_preview: cleanProjectHistoryIntake,
+  project_history_intake_operator_decision_preview:
+    readyProjectHistoryDecision,
+  project_history_intake_record_review: projectHistoryRecordReview,
+});
+assert.equal(
+  projectHistoryRecordOverview.recommended_next_operator_action,
+  "review_project_history_intake_record",
+);
+assertNoMemoryPromotionActions(projectHistoryRecordOverview);
 
 const missingCodexOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview: cleanSelectedIntake,
@@ -615,8 +796,9 @@ function assertNoForbiddenChangedPaths() {
     assert(
       !/^app\/api\//.test(file) ||
         file === selectedSessionDigestIngestDecisionWriteRouteFile ||
-        file === selectedSessionDigestIngestWriteRouteFile,
-      `No app/api route may be added outside selected digest follow-on routes: ${file}`,
+        file === selectedSessionDigestIngestWriteRouteFile ||
+        file === projectHistoryIntakeWriteRouteFile,
+      `No app/api route may be added outside selected digest or project history follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);
     assert(
@@ -811,6 +993,113 @@ function fakeSelectedDigestIngestRecord() {
     },
     notes: [],
     record_fingerprint: "sha256:spineoverviewcleanrecord",
+  };
+}
+
+function fakeProjectHistoryIntakeRecord() {
+  return {
+    record_version: "project_history_intake_record.v0.1",
+    record_id: "project_history_intake_record:spine-overview-clean",
+    idempotency_key: "idempotency:project-history-overview-clean",
+    created_at: "2026-07-04T14:30:00.000Z",
+    scope: "project:augnes",
+    source_refs: ["source:project-history-overview-clean"],
+    evidence_refs: ["evidence:project-history-overview-clean"],
+    decision_preview_refs: {
+      decision_preview_version:
+        "project_history_intake_operator_decision_preview.v0.1",
+      decision_preview_status: "ready_for_future_candidate_record_write",
+      recommended_operator_decision:
+        "approve_for_project_history_candidate_ingest",
+    },
+    intake_preview_refs: ["project_history_intake_preview.v0.1"],
+    source_kind: "project_history_digest",
+    source_ref: "source:project-history-overview-clean",
+    operator_ref: "operator:project-history-overview",
+    project_ref: "project:augnes",
+    work_ref: null,
+    selected_candidate_refs: ["candidate:timeline_event:overviewclean"],
+    candidate_counts_by_kind: { timeline_event: 1 },
+    sanitized_candidate_summaries: [
+      {
+        candidate_ref: "candidate:timeline_event:overviewclean",
+        candidate_kind: "timeline_event",
+        label: "Selected digest candidate ledger reached durable record",
+        summary: "Selected digest candidate ledger reached durable record",
+      },
+    ],
+    privacy_review_confirmation_ref: "privacy:project-history-overview-clean",
+    authority_profile: {
+      durable_local_project_history_candidate_record: true,
+      source_of_truth: false,
+      candidate_record_only: true,
+      persistence_horizon: "local_project_candidate_record",
+      memory_promotion_performed: false,
+      perspective_promotion_performed: false,
+    },
+    review_status: "ingested_as_project_history_candidate_record",
+    persistence_horizon: "local_project_candidate_record",
+    raw_material_policy: {
+      raw_history_material_stored: false,
+      raw_text_material_stored: false,
+      raw_excerpt_material_stored: false,
+      sanitized_candidate_summaries_only: true,
+      private_or_secret_markers_allowed: false,
+    },
+    carry_forward_review_only_material: { review_only_candidates: [] },
+    no_promotion_performed: {
+      memory_promoted: false,
+      current_working_perspective_updated: false,
+      perspective_unit_written: false,
+      next_work_bias_written: false,
+      continuity_relay_written: false,
+      handoff_context_mutated: false,
+      selected_refs_written_to_live_handoff: false,
+      handoff_sent: false,
+    },
+    write_validation: {
+      validation_version: "project_history_intake_write_validation.v0.1",
+      decision_preview_revalidated: true,
+      selected_candidate_refs_revalidated: true,
+      refused_sample_fixture_default_or_smoke_material: false,
+      refused_unrequested_side_effects: false,
+      refused_memory_perspective_handoff_promotion: false,
+      validation_hash: "validation:projecthistoryoverviewclean",
+    },
+    authority_boundary: {
+      durable_local_project_history_candidate_record: true,
+      source_of_truth: false,
+      candidate_record_only: true,
+      can_write_db: true,
+      can_create_ingest_record: true,
+      can_create_ingest_receipt: true,
+      can_write_project_history_candidate_record: true,
+      can_write_memory: false,
+      can_mutate_memory: false,
+      can_promote_memory: false,
+      can_mutate_current_working_perspective: false,
+      can_write_perspective_unit: false,
+      can_write_next_work_bias: false,
+      can_update_continuity_relay: false,
+      can_mutate_handoff_context: false,
+      can_apply_handoff_context: false,
+      can_write_selected_refs_to_live_handoff: false,
+      can_send_handoff: false,
+      can_write_dogfood_metrics: false,
+      can_write_reuse_ledger: false,
+      can_call_provider_openai: false,
+      can_call_github: false,
+      can_execute_codex: false,
+      can_create_pr: false,
+      can_merge_pr: false,
+      can_run_autonomous_action: false,
+      can_create_graph_or_vector_store: false,
+      can_create_rag_stack: false,
+      can_crawl_or_observe_browser: false,
+      notes: [],
+    },
+    notes: [],
+    record_fingerprint: "fingerprint:projecthistoryoverviewclean",
   };
 }
 
