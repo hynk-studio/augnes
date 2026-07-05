@@ -12,6 +12,9 @@ import type { CodexResultFeedbackDraft } from "./codex-result-feedback-draft";
 import type { DogfoodMetricCandidatePreview } from "./dogfood-metric-candidate-preview";
 import type { DogfoodReuseOperatorDecisionPreview } from "./dogfood-reuse-operator-decision-preview";
 import type { DogfoodReuseRecordProposal } from "./dogfood-reuse-record-proposal";
+import type { ExpectedObservedDeltaOperatorDecisionPreview } from "./expected-observed-delta-decision";
+import type { ExpectedObservedDeltaPreview } from "./expected-observed-delta-preview";
+import type { ExpectedObservedDeltaRecordReview } from "./expected-observed-delta-record-review";
 import type { HandoffContextApplyOperatorDecisionPreview } from "./handoff-context-apply-operator-decision-preview";
 import type { HandoffContextApplyPreview } from "./handoff-context-apply-preview";
 import type { HandoffContextApplyWriteContractPreview } from "./handoff-context-apply-write-contract-preview";
@@ -26,6 +29,7 @@ import type { ProjectHistoryIntakeRecordReview } from "./project-history-intake-
 import type { CodexResultReportIntakeOperatorDecisionPreview } from "./codex-result-report-intake-decision";
 import type { CodexResultReportIntakePreview } from "./codex-result-report-intake-preview";
 import type { CodexResultReportIntakeRecordReview } from "./codex-result-report-intake-record-review";
+import type { ReuseOutcomeCandidateBridgePreview } from "./reuse-outcome-candidate-bridge-preview";
 import type { SelectedSessionDigestIngestContractPreview } from "./selected-session-digest-ingest-contract-preview";
 import type { SelectedSessionDigestIngestOperatorDecisionPreview } from "./selected-session-digest-ingest-operator-decision";
 import type { SelectedSessionDigestIngestRecordReview } from "./selected-session-digest-ingest-record-review";
@@ -75,6 +79,11 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
   | "review_codex_result_report_intake_record"
   | "review_work_episode_residue_candidates"
   | "prepare_expected_observed_delta_preview"
+  | "review_expected_observed_delta_candidates"
+  | "write_expected_observed_delta_record"
+  | "review_reuse_outcome_candidate_bridge"
+  | "prepare_reuse_outcome_operator_decision"
+  | "resolve_expected_observed_delta_blockers"
   | "resolve_codex_result_report_intake_blockers"
   | "review_intake_candidate"
   | "review_reuse_candidate"
@@ -99,6 +108,9 @@ export type WorkbenchDogfoodLoopSpineStepId =
   | "codex_result_report_intake"
   | "codex_result_report_candidate_ingest_record"
   | "work_episode_residue_candidate"
+  | "expected_observed_delta"
+  | "expected_observed_delta_record"
+  | "reuse_outcome_candidate_bridge"
   | "codex_result_feedback"
   | "dogfood_reuse_proposal"
   | "dogfood_reuse_operator_decision"
@@ -134,6 +146,10 @@ export interface WorkbenchDogfoodLoopSpineOverviewInput {
   codex_result_report_intake_decision_preview?: CodexResultReportIntakeOperatorDecisionPreview | null;
   codex_result_report_intake_record_review?: CodexResultReportIntakeRecordReview | null;
   work_episode_residue_candidate_preview?: WorkEpisodeResidueCandidatePreview | null;
+  expected_observed_delta_preview?: ExpectedObservedDeltaPreview | null;
+  expected_observed_delta_decision_preview?: ExpectedObservedDeltaOperatorDecisionPreview | null;
+  expected_observed_delta_record_review?: ExpectedObservedDeltaRecordReview | null;
+  reuse_outcome_candidate_bridge_preview?: ReuseOutcomeCandidateBridgePreview | null;
   codex_result_feedback_draft?: CodexResultFeedbackDraft | null;
   dogfood_reuse_record_proposal?: DogfoodReuseRecordProposal | null;
   dogfood_reuse_operator_decision_preview?: DogfoodReuseOperatorDecisionPreview | null;

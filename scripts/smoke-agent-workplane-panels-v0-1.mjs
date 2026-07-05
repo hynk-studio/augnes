@@ -269,6 +269,40 @@ const workEpisodeResidueCandidatePreviewPanelFile =
   "components/workplane/work-episode-residue-candidate-preview-panel.tsx";
 const codexResultReportIntakeResidueSmokeFile =
   "scripts/smoke-codex-result-report-intake-work-episode-residue-v0-1.mjs";
+const expectedObservedDeltaPreviewTypeFile =
+  "types/expected-observed-delta-preview.ts";
+const expectedObservedDeltaPreviewHelperFile =
+  "lib/dogfooding/expected-observed-delta-preview.ts";
+const expectedObservedDeltaPreviewPanelFile =
+  "components/dogfooding/expected-observed-delta-preview-panel.tsx";
+const expectedObservedDeltaDecisionTypeFile =
+  "types/expected-observed-delta-decision.ts";
+const expectedObservedDeltaDecisionHelperFile =
+  "lib/dogfooding/expected-observed-delta-decision.ts";
+const expectedObservedDeltaDecisionPanelFile =
+  "components/dogfooding/expected-observed-delta-decision-panel.tsx";
+const expectedObservedDeltaWriteTypeFile =
+  "types/expected-observed-delta-write.ts";
+const expectedObservedDeltaWriteHelperFile =
+  "lib/dogfooding/expected-observed-delta-write.ts";
+const expectedObservedDeltaWriteRouteFile =
+  "app/api/dogfooding/expected-observed-deltas/route.ts";
+const expectedObservedDeltaRecordReviewTypeFile =
+  "types/expected-observed-delta-record-review.ts";
+const expectedObservedDeltaRecordReviewHelperFile =
+  "lib/dogfooding/expected-observed-delta-record-review.ts";
+const expectedObservedDeltaRecordReviewForWebFile =
+  "lib/dogfooding/read-expected-observed-delta-record-review-for-web.ts";
+const expectedObservedDeltaRecordReviewPanelFile =
+  "components/dogfooding/expected-observed-delta-record-review-panel.tsx";
+const reuseOutcomeCandidateBridgeTypeFile =
+  "types/reuse-outcome-candidate-bridge-preview.ts";
+const reuseOutcomeCandidateBridgeHelperFile =
+  "lib/dogfooding/reuse-outcome-candidate-bridge-preview.ts";
+const reuseOutcomeCandidateBridgePanelFile =
+  "components/dogfooding/reuse-outcome-candidate-bridge-preview-panel.tsx";
+const expectedObservedDeltaBridgeSmokeFile =
+  "scripts/smoke-expected-observed-delta-reuse-outcome-bridge-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -891,6 +925,32 @@ const followOnCodexResultReportIntakeResidueFiles = [
   smokeFile,
 ];
 
+const followOnExpectedObservedDeltaBridgeFiles = [
+  expectedObservedDeltaPreviewTypeFile,
+  expectedObservedDeltaPreviewHelperFile,
+  expectedObservedDeltaPreviewPanelFile,
+  expectedObservedDeltaDecisionTypeFile,
+  expectedObservedDeltaDecisionHelperFile,
+  expectedObservedDeltaDecisionPanelFile,
+  expectedObservedDeltaWriteTypeFile,
+  expectedObservedDeltaWriteHelperFile,
+  expectedObservedDeltaWriteRouteFile,
+  expectedObservedDeltaRecordReviewTypeFile,
+  expectedObservedDeltaRecordReviewHelperFile,
+  expectedObservedDeltaRecordReviewForWebFile,
+  expectedObservedDeltaRecordReviewPanelFile,
+  reuseOutcomeCandidateBridgeTypeFile,
+  reuseOutcomeCandidateBridgeHelperFile,
+  reuseOutcomeCandidateBridgePanelFile,
+  expectedObservedDeltaBridgeSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1298,6 +1358,7 @@ const allowedChangedFiles = new Set([
   ...followOnSelectedSessionDigestDurableIngestRecordFiles,
   ...followOnProjectHistoryIntakeCandidateLedgerFiles,
   ...followOnCodexResultReportIntakeResidueFiles,
+  ...followOnExpectedObservedDeltaBridgeFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -1990,7 +2051,7 @@ function assertSelectedSessionDigestIntakePreviewFollowOn() {
   const start = agentWorkplaneText.indexOf(
     "const selectedSessionDigestIntakePreview",
   );
-  const end = agentWorkplaneText.indexOf("const dogfoodMetricCandidatePreview");
+  const end = agentWorkplaneText.indexOf("return (", start);
   assert(start !== -1, "Agent Workplane must build selected digest intake preview");
   assert(end > start, "Selected digest intake preview block must be bounded");
   const snippet = agentWorkplaneText.slice(start, end);
@@ -2094,7 +2155,7 @@ function assertSelectedSessionDigestIngestContractPreviewFollowOn() {
   const start = agentWorkplaneText.indexOf(
     "const selectedSessionDigestIngestContractPreview",
   );
-  const end = agentWorkplaneText.indexOf("const dogfoodMetricCandidatePreview");
+  const end = agentWorkplaneText.indexOf("return (", start);
   assert(start !== -1, "Agent Workplane must build selected digest ingest contract preview");
   assert(end > start, "Selected digest ingest contract block must be bounded");
   const snippet = agentWorkplaneText.slice(start, end);
@@ -2516,30 +2577,50 @@ function assertCodexResultReportIntakeResidueFollowOn() {
       "CodexResultReportIntakeDecisionPanel",
       "CodexResultReportIntakeRecordReviewPanel",
       "WorkEpisodeResidueCandidatePreviewPanel",
+      "ExpectedObservedDeltaPreviewPanel",
+      "ExpectedObservedDeltaDecisionPanel",
+      "ExpectedObservedDeltaRecordReviewPanel",
+      "ReuseOutcomeCandidateBridgePreviewPanel",
       "buildCodexResultReportIntakePreviewV01",
       "buildCodexResultReportIntakeOperatorDecisionPreviewV01",
       "readCodexResultReportIntakeRecordReviewForWebV01",
       "buildWorkEpisodeResidueCandidatePreviewV01",
+      "buildExpectedObservedDeltaPreviewV01",
+      "buildExpectedObservedDeltaOperatorDecisionPreviewV01",
+      "readExpectedObservedDeltaRecordReviewForWebV01",
+      "buildReuseOutcomeCandidateBridgePreviewV01",
       "const codexResultReportIntakePreview",
       "const codexResultReportIntakeDecisionPreview",
       "const codexResultReportIntakeRecordReview",
       "const workEpisodeResidueCandidatePreview",
+      "const expectedObservedDeltaPreview",
+      "const expectedObservedDeltaDecisionPreview",
+      "const expectedObservedDeltaRecordReview",
+      "const reuseOutcomeCandidateBridgePreview",
       "preview={codexResultReportIntakePreview}",
       "preview={codexResultReportIntakeDecisionPreview}",
       "review={codexResultReportIntakeRecordReview}",
       "preview={workEpisodeResidueCandidatePreview}",
+      "preview={expectedObservedDeltaPreview}",
+      "preview={expectedObservedDeltaDecisionPreview}",
+      "review={expectedObservedDeltaRecordReview}",
+      "preview={reuseOutcomeCandidateBridgePreview}",
       "codex_result_report_intake_preview: codexResultReportIntakePreview",
       "codex_result_report_intake_decision_preview:\n        codexResultReportIntakeDecisionPreview",
       "codex_result_report_intake_record_review:\n        codexResultReportIntakeRecordReview",
       "work_episode_residue_candidate_preview:\n        workEpisodeResidueCandidatePreview",
+      "expected_observed_delta_preview: expectedObservedDeltaPreview",
+      "expected_observed_delta_decision_preview:\n        expectedObservedDeltaDecisionPreview",
+      "expected_observed_delta_record_review:\n        expectedObservedDeltaRecordReview",
+      "reuse_outcome_candidate_bridge_preview:\n        reuseOutcomeCandidateBridgePreview",
     ],
     { label: agentWorkplaneFile },
   );
 
   const start = agentWorkplaneText.indexOf("const codexResultReportIntakePreview");
-  const end = agentWorkplaneText.indexOf("const dogfoodMetricCandidatePreview");
+  const end = agentWorkplaneText.indexOf("return (", start);
   assert(start !== -1, "Agent Workplane must build Codex result report intake preview");
-  assert(end > start, "Codex result intake block must precede Codex feedback draft");
+  assert(end > start, "Codex result intake block must precede render output");
   const snippet = agentWorkplaneText.slice(start, end);
   assert(
     snippet.includes("buildCodexResultReportIntakePreviewV01"),
@@ -2548,6 +2629,22 @@ function assertCodexResultReportIntakeResidueFollowOn() {
   assert(
     snippet.includes("codex_result_report_intake_preview: codexResultReportIntakePreview"),
     "Agent Workplane must pass Codex result intake to the spine overview",
+  );
+  assert(
+    snippet.includes("expected_observed_delta_preview: expectedObservedDeltaPreview"),
+    "Agent Workplane must pass ExpectedObservedDelta preview to the spine overview",
+  );
+  assert(
+    snippet.includes("expected_observed_delta_decision_preview:"),
+    "Agent Workplane must pass ExpectedObservedDelta decision preview to the spine overview",
+  );
+  assert(
+    snippet.includes("expected_observed_delta_record_review:"),
+    "Agent Workplane must pass ExpectedObservedDelta record review to the spine overview",
+  );
+  assert(
+    snippet.includes("reuse_outcome_candidate_bridge_preview:"),
+    "Agent Workplane must pass Reuse Outcome Candidate Bridge to the spine overview",
   );
   assert(!snippet.includes("new Database"), "Workbench must not open DB");
   assert(!snippet.includes("fetch("), "Workbench must not fetch records");
@@ -3089,6 +3186,7 @@ function assertChangedFileBoundary() {
         followOnSelectedSessionDigestDurableIngestRecordFiles.includes(file) ||
         followOnProjectHistoryIntakeCandidateLedgerFiles.includes(file) ||
         followOnCodexResultReportIntakeResidueFiles.includes(file) ||
+        followOnExpectedObservedDeltaBridgeFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3104,6 +3202,7 @@ function assertChangedFileBoundary() {
         followOnSelectedSessionDigestDurableIngestRecordFiles.includes(file) ||
         followOnProjectHistoryIntakeCandidateLedgerFiles.includes(file) ||
         followOnCodexResultReportIntakeResidueFiles.includes(file) ||
+        followOnExpectedObservedDeltaBridgeFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
