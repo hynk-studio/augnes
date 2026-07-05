@@ -85,6 +85,40 @@ const projectHistoryIntakeRecordReviewPanelFile =
   "components/intake/project-history-intake-record-review-panel.tsx";
 const projectHistoryIntakeSmokeFile =
   "scripts/smoke-project-history-intake-candidate-ledger-v0-1.mjs";
+const codexResultReportIntakePreviewTypeFile =
+  "types/codex-result-report-intake-preview.ts";
+const codexResultReportIntakePreviewHelperFile =
+  "lib/intake/codex-result-report-intake-preview.ts";
+const codexResultReportIntakePreviewPanelFile =
+  "components/intake/codex-result-report-intake-preview-panel.tsx";
+const codexResultReportIntakeDecisionTypeFile =
+  "types/codex-result-report-intake-decision.ts";
+const codexResultReportIntakeDecisionHelperFile =
+  "lib/intake/codex-result-report-intake-decision.ts";
+const codexResultReportIntakeDecisionPanelFile =
+  "components/intake/codex-result-report-intake-decision-panel.tsx";
+const codexResultReportIntakeWriteTypeFile =
+  "types/codex-result-report-intake-write.ts";
+const codexResultReportIntakeWriteHelperFile =
+  "lib/intake/codex-result-report-intake-write.ts";
+const codexResultReportIntakeWriteRouteFile =
+  "app/api/intake/codex-result-report/records/route.ts";
+const codexResultReportIntakeRecordReviewTypeFile =
+  "types/codex-result-report-intake-record-review.ts";
+const codexResultReportIntakeRecordReviewHelperFile =
+  "lib/intake/codex-result-report-intake-record-review.ts";
+const codexResultReportIntakeRecordReviewForWebFile =
+  "lib/intake/read-codex-result-report-intake-record-review-for-web.ts";
+const codexResultReportIntakeRecordReviewPanelFile =
+  "components/intake/codex-result-report-intake-record-review-panel.tsx";
+const workEpisodeResidueCandidatePreviewTypeFile =
+  "types/work-episode-residue-candidate-preview.ts";
+const workEpisodeResidueCandidatePreviewHelperFile =
+  "lib/workplane/work-episode-residue-candidate-preview.ts";
+const workEpisodeResidueCandidatePreviewPanelFile =
+  "components/workplane/work-episode-residue-candidate-preview-panel.tsx";
+const codexResultReportIntakeResidueSmokeFile =
+  "scripts/smoke-codex-result-report-intake-work-episode-residue-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -135,6 +169,23 @@ const allowedChangedFiles = [
   projectHistoryIntakeRecordReviewForWebFile,
   projectHistoryIntakeRecordReviewPanelFile,
   projectHistoryIntakeSmokeFile,
+  codexResultReportIntakePreviewTypeFile,
+  codexResultReportIntakePreviewHelperFile,
+  codexResultReportIntakePreviewPanelFile,
+  codexResultReportIntakeDecisionTypeFile,
+  codexResultReportIntakeDecisionHelperFile,
+  codexResultReportIntakeDecisionPanelFile,
+  codexResultReportIntakeWriteTypeFile,
+  codexResultReportIntakeWriteHelperFile,
+  codexResultReportIntakeWriteRouteFile,
+  codexResultReportIntakeRecordReviewTypeFile,
+  codexResultReportIntakeRecordReviewHelperFile,
+  codexResultReportIntakeRecordReviewForWebFile,
+  codexResultReportIntakeRecordReviewPanelFile,
+  workEpisodeResidueCandidatePreviewTypeFile,
+  workEpisodeResidueCandidatePreviewHelperFile,
+  workEpisodeResidueCandidatePreviewPanelFile,
+  codexResultReportIntakeResidueSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -172,6 +223,9 @@ assertContainsAll(
     "selected_session_digest_durable_ingest_record",
     "project_history_intake",
     "project_history_candidate_ingest_record",
+    "codex_result_report_intake",
+    "codex_result_report_candidate_ingest_record",
+    "work_episode_residue_candidate",
     "codex_result_feedback",
     "dogfood_reuse_proposal",
     "dogfood_reuse_operator_decision",
@@ -187,6 +241,9 @@ assertContainsAll(
     "can_apply_handoff_context: false",
     "can_create_ingest_decision_record: false",
     "can_create_ingest_receipt: false",
+    "can_write_work_episode: false",
+    "can_write_expected_observed_delta: false",
+    "can_write_reuse_outcome_ledger: false",
     "can_render_workbench_action_button: false",
   ],
   { label: typeFile },
@@ -204,11 +261,18 @@ assertContainsAll(
     "project_history_intake_preview",
     "project_history_intake_operator_decision_preview",
     "project_history_intake_record_review",
+    "codex_result_report_intake_preview",
+    "codex_result_report_intake_decision_preview",
+    "codex_result_report_intake_record_review",
+    "work_episode_residue_candidate_preview",
     "selectedSessionDigestIngestContractStep",
     "selectedSessionDigestIngestOperatorDecisionStep",
     "selectedSessionDigestDurableIngestRecordStep",
     "projectHistoryIntakeStep",
     "projectHistoryCandidateIngestRecordStep",
+    "codexResultReportIntakeStep",
+    "codexResultReportCandidateIngestRecordStep",
+    "workEpisodeResidueCandidateStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
@@ -220,6 +284,11 @@ assertContainsAll(
     "supply_project_history_digest",
     "write_project_history_candidate_ingest_record",
     "review_project_history_intake_record",
+    "write_codex_result_report_candidate_ingest_record",
+    "review_codex_result_report_intake_record",
+    "review_work_episode_residue_candidates",
+    "does_not_write_work_episode_residue_or_expected_observed_delta",
+    "does_not_write_reuse_outcome_ledger_or_dogfood_metrics",
     "does_not_write_memory",
     "does_not_promote_selected_digest_ingest_records_to_memory_or_perspective",
     "does_not_apply_live_handoff_context",
@@ -258,6 +327,10 @@ assertContainsAll(
     "project_history_intake_preview: projectHistoryIntakePreview",
     "project_history_intake_operator_decision_preview:\n        projectHistoryIntakeOperatorDecisionPreview",
     "project_history_intake_record_review: projectHistoryIntakeRecordReview",
+    "codex_result_report_intake_preview: codexResultReportIntakePreview",
+    "codex_result_report_intake_decision_preview:\n        codexResultReportIntakeDecisionPreview",
+    "codex_result_report_intake_record_review:\n        codexResultReportIntakeRecordReview",
+    "work_episode_residue_candidate_preview:\n        workEpisodeResidueCandidatePreview",
     "workbench:dogfood_loop_spine_overview",
     "handoff_context_apply_write_contract_preview",
   ],
@@ -308,6 +381,18 @@ const projectHistoryDecisionModule = await import(
 const projectHistoryRecordReviewModule = await import(
   "../lib/intake/project-history-intake-record-review.ts"
 );
+const codexResultReportIntakeModule = await import(
+  "../lib/intake/codex-result-report-intake-preview.ts"
+);
+const codexResultReportDecisionModule = await import(
+  "../lib/intake/codex-result-report-intake-decision.ts"
+);
+const codexResultReportRecordReviewModule = await import(
+  "../lib/intake/codex-result-report-intake-record-review.ts"
+);
+const workEpisodeResidueModule = await import(
+  "../lib/workplane/work-episode-residue-candidate-preview.ts"
+);
 
 const {
   buildWorkbenchDogfoodLoopSpineOverviewV01,
@@ -325,6 +410,14 @@ const { buildProjectHistoryIntakeOperatorDecisionPreviewV01 } =
   projectHistoryDecisionModule;
 const { buildProjectHistoryIntakeRecordReviewV01 } =
   projectHistoryRecordReviewModule;
+const { buildCodexResultReportIntakePreviewV01 } =
+  codexResultReportIntakeModule;
+const { buildCodexResultReportIntakeOperatorDecisionPreviewV01 } =
+  codexResultReportDecisionModule;
+const { buildCodexResultReportIntakeRecordReviewV01 } =
+  codexResultReportRecordReviewModule;
+const { buildWorkEpisodeResidueCandidatePreviewV01 } =
+  workEpisodeResidueModule;
 
 const emptyOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   scope: "project:augnes",
@@ -340,7 +433,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 18);
+assert.equal(emptyOverview.spine_steps.length, 21);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -352,6 +445,24 @@ assert(
     (step) => step.step_id === "project_history_candidate_ingest_record",
   ),
   "overview should include project history candidate ingest record step",
+);
+assert(
+  emptyOverview.spine_steps.some(
+    (step) => step.step_id === "codex_result_report_intake",
+  ),
+  "overview should include Codex result report intake step",
+);
+assert(
+  emptyOverview.spine_steps.some(
+    (step) => step.step_id === "codex_result_report_candidate_ingest_record",
+  ),
+  "overview should include Codex result report candidate ingest record step",
+);
+assert(
+  emptyOverview.spine_steps.some(
+    (step) => step.step_id === "work_episode_residue_candidate",
+  ),
+  "overview should include work episode residue candidate step",
 );
 assertAuthorityFalse(emptyOverview.authority_boundary);
 
@@ -594,6 +705,124 @@ assert.equal(
 );
 assertNoMemoryPromotionActions(projectHistoryRecordOverview);
 
+const emptyCodexResultPreview = buildCodexResultReportIntakePreviewV01({
+  scope: "project:augnes",
+  as_of: "2026-07-04T14:30:00.000Z",
+});
+const emptyCodexResultDecision =
+  buildCodexResultReportIntakeOperatorDecisionPreviewV01({
+    codex_result_report_intake_preview: emptyCodexResultPreview,
+  });
+const emptyCodexResultRecordReview =
+  buildCodexResultReportIntakeRecordReviewV01({
+    records: [],
+    as_of: "2026-07-04T14:30:00.000Z",
+  });
+const emptyResiduePreview = buildWorkEpisodeResidueCandidatePreviewV01({
+  codex_result_report_intake_preview: emptyCodexResultPreview,
+  codex_result_report_intake_record_review: emptyCodexResultRecordReview,
+});
+const codexResultMissingOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanSelectedIntake,
+  selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+  selected_session_digest_ingest_operator_decision_preview:
+    selectedReadyIngestDecision,
+  selected_session_digest_ingest_record_review: selectedRecordReview,
+  codex_result_report_intake_preview: emptyCodexResultPreview,
+  codex_result_report_intake_decision_preview: emptyCodexResultDecision,
+  codex_result_report_intake_record_review: emptyCodexResultRecordReview,
+  work_episode_residue_candidate_preview: emptyResiduePreview,
+});
+assert.equal(
+  stepById(codexResultMissingOverview, "codex_result_report_intake").status,
+  "no_current_material",
+);
+assert.equal(
+  codexResultMissingOverview.recommended_next_operator_action,
+  "supply_codex_result_report",
+);
+
+const cleanCodexResultIntake = buildCodexResultReportIntakePreviewV01({
+  result_report: {
+    summary: "Codex result report candidate intake is ready for bounded review.",
+    result_status: "completed",
+    changed_files: ["lib/intake/codex-result-report-intake-preview.ts"],
+    checks: ["npm run typecheck passed"],
+    requirement_progress: ["Codex result candidate ledger visible in Workbench"],
+    expected_vs_observed: ["Expected candidate-only return path; observed no promotion authority"],
+    context_feedback: ["Useful return-binding residue candidate"],
+    evidence_refs: ["evidence:codex-result-overview-clean"],
+    source_refs: ["source:codex-result-overview-clean"],
+    work_ref: "work:codex-result-overview-clean",
+    result_ref: "result:codex-result-overview-clean",
+    created_at: "2026-07-04T14:30:00.000Z",
+  },
+  source_ref: "source:codex-result-overview-clean",
+  operator_ref: "operator:codex-result-overview",
+  work_ref: "work:codex-result-overview-clean",
+  result_ref: "result:codex-result-overview-clean",
+});
+const codexResultCandidateRef =
+  cleanCodexResultIntake.candidate_material.result_summary_candidates[0]
+    .candidate_id;
+const readyCodexResultDecision =
+  buildCodexResultReportIntakeOperatorDecisionPreviewV01({
+    codex_result_report_intake_preview: cleanCodexResultIntake,
+    selected_candidate_refs: [codexResultCandidateRef],
+    privacy_review_confirmation_ref: "privacy:codex-result-overview-clean",
+    requested_idempotency_key: "idempotency:codex-result-overview-clean",
+  });
+const codexResultResidueFromIntake =
+  buildWorkEpisodeResidueCandidatePreviewV01({
+    codex_result_report_intake_preview: cleanCodexResultIntake,
+  });
+const codexResultWriteOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanSelectedIntake,
+  selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+  selected_session_digest_ingest_operator_decision_preview:
+    selectedReadyIngestDecision,
+  selected_session_digest_ingest_record_review: selectedRecordReview,
+  codex_result_report_intake_preview: cleanCodexResultIntake,
+  codex_result_report_intake_decision_preview: readyCodexResultDecision,
+  codex_result_report_intake_record_review: emptyCodexResultRecordReview,
+  work_episode_residue_candidate_preview: codexResultResidueFromIntake,
+});
+assert.equal(
+  codexResultWriteOverview.recommended_next_operator_action,
+  "write_codex_result_report_candidate_ingest_record",
+);
+assertNoMemoryPromotionActions(codexResultWriteOverview);
+
+const codexResultRecordReview = buildCodexResultReportIntakeRecordReviewV01({
+  records: [fakeCodexResultReportIntakeRecord()],
+});
+const codexResultResidueFromRecord =
+  buildWorkEpisodeResidueCandidatePreviewV01({
+    codex_result_report_intake_record_review: codexResultRecordReview,
+  });
+const codexResultRecordOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanSelectedIntake,
+  selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+  selected_session_digest_ingest_operator_decision_preview:
+    selectedReadyIngestDecision,
+  selected_session_digest_ingest_record_review: selectedRecordReview,
+  codex_result_report_intake_preview: cleanCodexResultIntake,
+  codex_result_report_intake_decision_preview: readyCodexResultDecision,
+  codex_result_report_intake_record_review: codexResultRecordReview,
+  work_episode_residue_candidate_preview: codexResultResidueFromRecord,
+});
+assert.equal(
+  codexResultRecordOverview.recommended_next_operator_action,
+  "review_codex_result_report_intake_record",
+);
+assert(
+  stepById(
+    codexResultRecordOverview,
+    "work_episode_residue_candidate",
+  ).recommended_next_action === "review_work_episode_residue_candidates",
+);
+assertNoMemoryPromotionActions(codexResultRecordOverview);
+
 const missingCodexOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview: cleanSelectedIntake,
   codex_result_feedback_draft: codexFeedbackDraft({ resultReport: "missing" }),
@@ -670,6 +899,40 @@ assert(
 
 const missingFingerprintOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview: cleanSelectedIntake,
+  codex_result_report_intake_preview: {
+    ...cleanCodexResultIntake,
+    intake_preview_status: "keep_preview_only",
+    recommended_next_action: "keep_preview_only",
+    input_summary: {
+      ...cleanCodexResultIntake.input_summary,
+      candidate_count: 0,
+      ingestable_candidate_count: 0,
+    },
+    readiness: {
+      ...cleanCodexResultIntake.readiness,
+      ready_for_operator_review: false,
+      ready_for_candidate_ingest_record: false,
+      requires_result_report_or_raw_text: false,
+      requires_candidate_material: false,
+      current_insufficient_data: [],
+      current_missing_evidence: [],
+      current_blockers: [],
+    },
+    candidate_material: {
+      ...cleanCodexResultIntake.candidate_material,
+      result_summary_candidates: [],
+      changed_file_candidates: [],
+      check_result_candidates: [],
+      skipped_check_candidates: [],
+      not_done_candidates: [],
+      requirement_progress_candidates: [],
+      expected_observed_signal_candidates: [],
+      context_reuse_signal_candidates: [],
+      risk_or_regression_candidates: [],
+      followup_candidates: [],
+      reusable_context_candidates: [],
+    },
+  },
   codex_result_feedback_draft: codexFeedbackDraft({ resultReport: "supplied" }),
   handoff_context_apply_write_contract_preview:
     applyWriteContractMissingCurrentMaterial(),
@@ -797,8 +1060,9 @@ function assertNoForbiddenChangedPaths() {
       !/^app\/api\//.test(file) ||
         file === selectedSessionDigestIngestDecisionWriteRouteFile ||
         file === selectedSessionDigestIngestWriteRouteFile ||
-        file === projectHistoryIntakeWriteRouteFile,
-      `No app/api route may be added outside selected digest or project history follow-on routes: ${file}`,
+        file === projectHistoryIntakeWriteRouteFile ||
+        file === codexResultReportIntakeWriteRouteFile,
+      `No app/api route may be added outside selected digest, project history, or Codex result report follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);
     assert(
@@ -1100,6 +1364,147 @@ function fakeProjectHistoryIntakeRecord() {
     },
     notes: [],
     record_fingerprint: "fingerprint:projecthistoryoverviewclean",
+  };
+}
+
+function fakeCodexResultReportIntakeRecord() {
+  return {
+    record_version: "codex_result_report_intake_record.v0.1",
+    record_id: "codex_result_report_intake_record:spine-overview-clean",
+    idempotency_key: "idempotency:codex-result-overview-clean",
+    created_at: "2026-07-04T14:30:00.000Z",
+    scope: "project:augnes",
+    source_refs: ["source:codex-result-overview-clean"],
+    evidence_refs: ["evidence:codex-result-overview-clean"],
+    decision_preview_refs: {
+      decision_preview_version:
+        "codex_result_report_intake_operator_decision_preview.v0.1",
+      decision_preview_status: "ready_for_future_candidate_record_write",
+      recommended_operator_decision:
+        "approve_for_codex_result_report_candidate_ingest",
+    },
+    intake_preview_refs: ["codex_result_report_intake_preview.v0.1"],
+    source_kind: "codex_result_report",
+    source_ref: "source:codex-result-overview-clean",
+    operator_ref: "operator:codex-result-overview",
+    project_ref: "project:augnes",
+    work_ref: "work:codex-result-overview-clean",
+    result_ref: "result:codex-result-overview-clean",
+    pr_ref: null,
+    commit_ref: null,
+    selected_candidate_refs: ["candidate:codex-result-overview-clean"],
+    candidate_counts_by_kind: {
+      project_state_summary: 1,
+      changed_artifact_ref: 1,
+      expected_observed_signal: 1,
+    },
+    sanitized_candidate_summaries: [
+      {
+        candidate_ref: "candidate:codex-result-overview-clean",
+        candidate_kind: "project_state_summary",
+        label: "Codex result report candidate",
+        summary: "Codex result report candidate intake is ready for bounded review.",
+      },
+    ],
+    result_status_summary: ["completed"],
+    changed_files_summary: [
+      "lib/intake/codex-result-report-intake-preview.ts",
+    ],
+    checks_summary: ["npm run typecheck passed"],
+    skipped_checks_summary: [],
+    not_done_summary: [],
+    requirement_progress_summary: [
+      "Codex result candidate ledger visible in Workbench",
+    ],
+    expected_observed_signal_summary: [
+      "Expected candidate-only return path; observed no promotion authority",
+    ],
+    context_reuse_signal_summary: [
+      "Useful return-binding residue candidate",
+    ],
+    risk_or_regression_summary: [],
+    followup_summary: [],
+    privacy_review_confirmation_ref: "privacy:codex-result-overview-clean",
+    authority_profile: {
+      durable_local_codex_result_report_candidate_record: true,
+      source_of_truth: false,
+      candidate_record_only: true,
+      persistence_horizon: "local_project_candidate_record",
+      dogfood_outcome_approval_performed: false,
+      memory_promotion_performed: false,
+      perspective_promotion_performed: false,
+    },
+    review_status: "ingested_as_candidate_record",
+    persistence_horizon: "local_project_candidate_record",
+    raw_material_policy: {
+      raw_report_material_stored: false,
+      raw_text_material_stored: false,
+      raw_excerpt_material_stored: false,
+      sanitized_candidate_summaries_only: true,
+      private_or_secret_markers_allowed: false,
+    },
+    carry_forward_review_only_material: { review_only_candidates: [] },
+    no_promotion_performed: {
+      work_episode_written: false,
+      expected_observed_delta_written: false,
+      reuse_outcome_ledger_written: false,
+      dogfood_metrics_written: false,
+      memory_promoted: false,
+      current_working_perspective_updated: false,
+      perspective_unit_written: false,
+      next_work_bias_written: false,
+      continuity_relay_written: false,
+      handoff_context_mutated: false,
+      selected_refs_written_to_live_handoff: false,
+      handoff_sent: false,
+    },
+    write_validation: {
+      validation_version: "codex_result_report_intake_write_validation.v0.1",
+      decision_preview_revalidated: true,
+      selected_candidate_refs_revalidated: true,
+      refused_sample_fixture_default_or_smoke_material: false,
+      refused_unrequested_side_effects: false,
+      refused_memory_perspective_handoff_promotion: false,
+      refused_dogfood_metric_reuse_or_work_episode_write: false,
+      validation_hash: "validation:codexresultoverviewclean",
+    },
+    authority_boundary: {
+      durable_local_codex_result_report_candidate_record: true,
+      source_of_truth: false,
+      candidate_record_only: true,
+      can_write_db: true,
+      can_create_ingest_record: true,
+      can_create_ingest_receipt: true,
+      can_write_codex_result_report_candidate_record: true,
+      can_write_work_episode: false,
+      can_write_expected_observed_delta: false,
+      can_write_reuse_outcome_ledger: false,
+      can_write_dogfood_metrics: false,
+      can_write_memory: false,
+      can_mutate_memory: false,
+      can_promote_memory: false,
+      can_mutate_current_working_perspective: false,
+      can_write_perspective_unit: false,
+      can_write_next_work_bias: false,
+      can_update_continuity_relay: false,
+      can_mutate_handoff_context: false,
+      can_apply_handoff_context: false,
+      can_write_selected_refs_to_live_handoff: false,
+      can_send_handoff: false,
+      can_write_reuse_ledger: false,
+      can_call_provider_openai: false,
+      can_call_github: false,
+      can_execute_codex: false,
+      can_create_pr: false,
+      can_merge_pr: false,
+      can_run_autonomous_action: false,
+      can_create_graph_or_vector_store: false,
+      can_create_rag_stack: false,
+      can_crawl_or_observe_browser: false,
+      notes: [],
+    },
+    notes: [],
+    record_fingerprint: "fingerprint:codexresultoverviewclean",
   };
 }
 

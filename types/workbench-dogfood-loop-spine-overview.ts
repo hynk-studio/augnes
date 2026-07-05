@@ -23,10 +23,14 @@ import type { PerspectiveNextWorkCandidateUpdatePreview } from "./perspective-ne
 import type { ProjectHistoryIntakeOperatorDecisionPreview } from "./project-history-intake-decision";
 import type { ProjectHistoryIntakePreview } from "./project-history-intake-preview";
 import type { ProjectHistoryIntakeRecordReview } from "./project-history-intake-record-review";
+import type { CodexResultReportIntakeOperatorDecisionPreview } from "./codex-result-report-intake-decision";
+import type { CodexResultReportIntakePreview } from "./codex-result-report-intake-preview";
+import type { CodexResultReportIntakeRecordReview } from "./codex-result-report-intake-record-review";
 import type { SelectedSessionDigestIngestContractPreview } from "./selected-session-digest-ingest-contract-preview";
 import type { SelectedSessionDigestIngestOperatorDecisionPreview } from "./selected-session-digest-ingest-operator-decision";
 import type { SelectedSessionDigestIngestRecordReview } from "./selected-session-digest-ingest-record-review";
 import type { SelectedSessionDigestIntakePreview } from "./selected-session-digest-intake-preview";
+import type { WorkEpisodeResidueCandidatePreview } from "./work-episode-residue-candidate-preview";
 
 export const WORKBENCH_DOGFOOD_LOOP_SPINE_OVERVIEW_VERSION =
   "workbench_dogfood_loop_spine_overview.v0.1" as const;
@@ -66,6 +70,12 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
   | "review_project_history_intake_record"
   | "resolve_project_history_intake_blockers"
   | "supply_codex_result_report"
+  | "review_codex_result_report_intake_candidates"
+  | "write_codex_result_report_candidate_ingest_record"
+  | "review_codex_result_report_intake_record"
+  | "review_work_episode_residue_candidates"
+  | "prepare_expected_observed_delta_preview"
+  | "resolve_codex_result_report_intake_blockers"
   | "review_intake_candidate"
   | "review_reuse_candidate"
   | "review_metric_candidate"
@@ -86,6 +96,9 @@ export type WorkbenchDogfoodLoopSpineStepId =
   | "selected_session_digest_durable_ingest_record"
   | "project_history_intake"
   | "project_history_candidate_ingest_record"
+  | "codex_result_report_intake"
+  | "codex_result_report_candidate_ingest_record"
+  | "work_episode_residue_candidate"
   | "codex_result_feedback"
   | "dogfood_reuse_proposal"
   | "dogfood_reuse_operator_decision"
@@ -117,6 +130,10 @@ export interface WorkbenchDogfoodLoopSpineOverviewInput {
   project_history_intake_preview?: ProjectHistoryIntakePreview | null;
   project_history_intake_operator_decision_preview?: ProjectHistoryIntakeOperatorDecisionPreview | null;
   project_history_intake_record_review?: ProjectHistoryIntakeRecordReview | null;
+  codex_result_report_intake_preview?: CodexResultReportIntakePreview | null;
+  codex_result_report_intake_decision_preview?: CodexResultReportIntakeOperatorDecisionPreview | null;
+  codex_result_report_intake_record_review?: CodexResultReportIntakeRecordReview | null;
+  work_episode_residue_candidate_preview?: WorkEpisodeResidueCandidatePreview | null;
   codex_result_feedback_draft?: CodexResultFeedbackDraft | null;
   dogfood_reuse_record_proposal?: DogfoodReuseRecordProposal | null;
   dogfood_reuse_operator_decision_preview?: DogfoodReuseOperatorDecisionPreview | null;
@@ -204,7 +221,10 @@ export interface WorkbenchDogfoodLoopSpineOverviewAuthorityBoundary {
   can_apply_handoff_context: false;
   can_write_selected_refs_to_live_handoff: false;
   can_send_handoff: false;
+  can_write_work_episode: false;
+  can_write_expected_observed_delta: false;
   can_write_dogfood_metrics: false;
+  can_write_reuse_outcome_ledger: false;
   can_write_reuse_ledger: false;
   can_create_ingest_record: false;
   can_call_provider_openai: false;
