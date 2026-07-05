@@ -24,6 +24,7 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview,
   selected_session_digest_ingest_contract_preview,
   selected_session_digest_ingest_operator_decision_preview,
+  selected_session_digest_ingest_record_review,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -48,6 +49,11 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
     selectedSessionDigestIngestOperatorDecisionStep(
       selected_session_digest_ingest_operator_decision_preview,
     ),
+    selectedSessionDigestDurableIngestRecordStep({
+      recordReview: selected_session_digest_ingest_record_review,
+      operatorDecisionPreview:
+        selected_session_digest_ingest_operator_decision_preview,
+    }),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -180,6 +186,7 @@ export function createWorkbenchDogfoodLoopSpineOverviewAuthorityBoundaryV01(): W
     can_call_route: false,
     can_create_ingest_decision_record: false,
     can_create_ingest_decision_receipt: false,
+    can_create_ingest_receipt: false,
     can_write_memory: false,
     can_mutate_memory: false,
     can_promote_memory: false,
@@ -368,6 +375,64 @@ function selectedSessionDigestIngestOperatorDecisionStep(
         : "review_selected_session_digest_ingest_operator_decision",
     evidence_present: preview.evidence_summary.has_ingest_contract_preview,
     summary: `Selected digest ingest operator decision preview is ${preview.decision_preview_status}; recommended ${preview.recommended_operator_decision}; decision_record_write_ready ${String(preview.write_readiness.write_ready)}.`,
+  });
+}
+
+function selectedSessionDigestDurableIngestRecordStep({
+  recordReview,
+  operatorDecisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["selected_session_digest_ingest_record_review"];
+  operatorDecisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["selected_session_digest_ingest_operator_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "selected_session_digest_durable_ingest_record",
+      label: "Selected digest durable candidate ingest record",
+      recommended_next_action: "review_selected_session_digest_ingest_record",
+      summary:
+        "No selected session digest ingest record review supplied.",
+    });
+  }
+
+  const decisionRecordReady =
+    operatorDecisionPreview?.decision_preview_status ===
+      "ready_for_future_decision_record_write" &&
+    operatorDecisionPreview.write_readiness.write_ready === true;
+  const hasRecords = recordReview.input_summary.valid_record_count > 0;
+
+  return makeStep({
+    step_id: "selected_session_digest_durable_ingest_record",
+    label: "Selected digest durable candidate ingest record",
+    status: mapRecordReviewStatus(recordReview.review_status),
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count:
+      recordReview.input_summary.valid_record_count +
+      recordReview.input_summary.selected_digest_candidate_ref_count +
+      recordReview.input_summary.sanitized_candidate_summary_count,
+    blockers: [
+      ...recordReview.blocked_reasons,
+      ...(recordReview.input_summary.receipt_side_effect_problem_count > 0
+        ? ["selected_session_digest_ingest_record_side_effect_problem"]
+        : []),
+    ],
+    material_gaps: [
+      ...recordReview.insufficient_data_reasons,
+      ...(decisionRecordReady && !hasRecords
+        ? ["selected_session_digest_candidate_ingest_record_missing_after_operator_decision"]
+        : []),
+      ...(!decisionRecordReady && !hasRecords
+        ? ["operator_approved_selected_session_digest_ingest_decision_record_missing_or_not_ready"]
+        : []),
+    ],
+    missing_evidence: recordReview.evidence_summary.missing_evidence,
+    recommended_next_action: hasRecords
+      ? "review_selected_session_digest_ingest_record"
+      : decisionRecordReady
+        ? "write_selected_session_digest_candidate_ingest_record"
+        : "review_selected_session_digest_ingest_operator_decision",
+    evidence_present: recordReview.evidence_summary.has_records,
+    summary: `Selected digest candidate ingest record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; decision_record_ready ${String(decisionRecordReady)}.`,
   });
 }
 
@@ -974,6 +1039,13 @@ function determineRecommendedNextOperatorAction({
   ) {
     return "resolve_selected_session_digest_ingest_decision_blockers";
   }
+  if (
+    top_blockers.some((blocker) =>
+      blocker.startsWith("selected_session_digest_durable_ingest_record:"),
+    )
+  ) {
+    return "resolve_selected_session_digest_ingest_record_blockers";
+  }
   if (top_blockers.length > 0) return "resolve_blockers_or_missing_evidence";
   if (steps[0]?.recommended_next_action === "supply_selected_session_digest") {
     return "supply_selected_session_digest";
@@ -1000,14 +1072,32 @@ function determineRecommendedNextOperatorAction({
     selectedDigestDecisionStep.status !== "keep_preview_only"
   ) {
     if (
-      selectedDigestDecisionStep.recommended_next_action ===
-      "prepare_operator_approved_selected_session_digest_ingest_decision_record"
-    ) {
-      return "prepare_operator_approved_selected_session_digest_ingest_decision_record";
-    }
-    if (
       selectedDigestContractStep?.status === "ready_for_future_contract_review"
     ) {
+      const selectedDigestRecordStep = steps.find(
+        (step) =>
+          step.step_id === "selected_session_digest_durable_ingest_record",
+      );
+      if (
+        selectedDigestRecordStep?.status !== "not_supplied" &&
+        selectedDigestRecordStep?.recommended_next_action ===
+        "write_selected_session_digest_candidate_ingest_record"
+      ) {
+        return "write_selected_session_digest_candidate_ingest_record";
+      }
+      if (
+        selectedDigestRecordStep?.status !== "not_supplied" &&
+        selectedDigestRecordStep?.recommended_next_action ===
+        "review_selected_session_digest_ingest_record"
+      ) {
+        return "review_selected_session_digest_ingest_record";
+      }
+      if (
+        selectedDigestDecisionStep.recommended_next_action ===
+        "prepare_operator_approved_selected_session_digest_ingest_decision_record"
+      ) {
+        return "prepare_operator_approved_selected_session_digest_ingest_decision_record";
+      }
       return selectedDigestDecisionStep.recommended_next_action;
     }
   }
@@ -1332,6 +1422,7 @@ function buildNextOperatorActionRationale({
 function buildReviewChecklist(): string[] {
   return [
     "confirm_selected_session_intake_has_real_operator_supplied_digest_material",
+    "confirm_selected_session_digest_candidate_ingest_records_remain_candidate_storage_not_memory",
     "confirm_codex_result_feedback_uses_a_real_result_report_before_reuse_review",
     "confirm_reuse_and_metric_candidates_have source_refs and evidence_refs",
     "confirm_next_work_and_relay_candidates remain preview-only",
@@ -1342,7 +1433,8 @@ function buildReviewChecklist(): string[] {
 
 function buildWouldNotDo(): string[] {
   return [
-    "does_not_selected_digest_durable_ingest",
+    "does_not_write_selected_digest_ingest_record_from_workbench_overview",
+    "does_not_promote_selected_digest_ingest_records_to_memory_or_perspective",
     "does_not_write_memory",
     "does_not_mutate_current_working_perspective",
     "does_not_write_perspective_unit",
@@ -1360,7 +1452,7 @@ function buildWouldNotDo(): string[] {
 
 function buildNonGoals(): string[] {
   return [
-    "selected_digest_durable_ingest",
+    "automatic_memory_or_perspective_promotion_from_selected_digest_ingest_records",
     "memory_write",
     "perspective_unit_durable_mutation",
     "next_work_bias_durable_mutation",

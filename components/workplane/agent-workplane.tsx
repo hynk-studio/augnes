@@ -25,6 +25,7 @@ import { HandoffContextUpdateRecordReviewPanel } from "@/components/handoff/hand
 import { HandoffPreviewBoundaryCard } from "@/components/handoff/handoff-preview-boundary-card";
 import { SelectedSessionDigestIngestContractPreviewPanel } from "@/components/intake/selected-session-digest-ingest-contract-preview-panel";
 import { SelectedSessionDigestIngestOperatorDecisionPanel } from "@/components/intake/selected-session-digest-ingest-operator-decision-panel";
+import { SelectedSessionDigestIngestRecordReviewPanel } from "@/components/intake/selected-session-digest-ingest-record-review-panel";
 import { SelectedSessionDigestIntakePreviewPanel } from "@/components/intake/selected-session-digest-intake-preview-panel";
 import { PerspectiveNextWorkCandidateUpdatePreviewPanel } from "@/components/perspective-next-work-candidate-update-preview-panel";
 import { CurrentPerspectiveWorkplanePanel } from "@/components/workplane/current-perspective-workplane-panel";
@@ -74,6 +75,7 @@ import { buildHandoffContextRelayRationale } from "@/lib/handoff/handoff-context
 import { buildSelectedSessionDigestIngestContractPreviewV01 } from "@/lib/intake/selected-session-digest-ingest-contract-preview";
 import { buildSelectedSessionDigestIngestOperatorDecisionPreviewV01 } from "@/lib/intake/selected-session-digest-ingest-operator-decision";
 import { buildSelectedSessionDigestIntakePreviewV01 } from "@/lib/intake/selected-session-digest-intake-preview";
+import { readSelectedSessionDigestIngestRecordReviewForWebV01 } from "@/lib/intake/read-selected-session-digest-ingest-record-review-for-web";
 import { readRunnerWorkplaneMetrics } from "@/lib/metrics/runner-workplane-metrics";
 import { buildPerspectiveNextWorkCandidateUpdatePreviewV01 } from "@/lib/perspective/perspective-next-work-candidate-update-preview";
 import { applyWorkplaneViewProjection } from "@/lib/workplane/apply-workplane-view-projection";
@@ -259,6 +261,13 @@ export async function AgentWorkplane() {
         "workbench:selected_session_digest_ingest_operator_decision_preview",
       ],
     });
+  const selectedSessionDigestIngestRecordReview =
+    readSelectedSessionDigestIngestRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:selected_session_digest_ingest_record_review",
+      ],
+    });
   const dogfoodMetricCandidatePreview =
     buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01({
       records: [],
@@ -357,6 +366,8 @@ export async function AgentWorkplane() {
         selectedSessionDigestIngestContractPreview,
       selected_session_digest_ingest_operator_decision_preview:
         selectedSessionDigestIngestOperatorDecisionPreview,
+      selected_session_digest_ingest_record_review:
+        selectedSessionDigestIngestRecordReview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -455,6 +466,9 @@ export async function AgentWorkplane() {
               />
               <SelectedSessionDigestIngestOperatorDecisionPanel
                 preview={selectedSessionDigestIngestOperatorDecisionPreview}
+              />
+              <SelectedSessionDigestIngestRecordReviewPanel
+                review={selectedSessionDigestIngestRecordReview}
               />
               <CodexResultFeedbackDraftPanel draft={codexResultFeedbackDraft} />
               <DogfoodReuseRecordProposalPanel

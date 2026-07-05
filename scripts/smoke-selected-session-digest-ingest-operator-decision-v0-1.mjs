@@ -34,6 +34,22 @@ const contractSmokeFile =
   "scripts/smoke-selected-session-digest-ingest-contract-preview-v0-1.mjs";
 const overviewSmokeFile =
   "scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs";
+const selectedSessionDigestIngestWriteTypeFile =
+  "types/selected-session-digest-ingest-write.ts";
+const selectedSessionDigestIngestWriteHelperFile =
+  "lib/intake/selected-session-digest-ingest-write.ts";
+const selectedSessionDigestIngestWriteRouteFile =
+  "app/api/intake/selected-session-digest/ingest-records/route.ts";
+const selectedSessionDigestIngestRecordReviewTypeFile =
+  "types/selected-session-digest-ingest-record-review.ts";
+const selectedSessionDigestIngestRecordReviewHelperFile =
+  "lib/intake/selected-session-digest-ingest-record-review.ts";
+const selectedSessionDigestIngestRecordReviewForWebFile =
+  "lib/intake/read-selected-session-digest-ingest-record-review-for-web.ts";
+const selectedSessionDigestIngestRecordReviewPanelFile =
+  "components/intake/selected-session-digest-ingest-record-review-panel.tsx";
+const selectedSessionDigestDurableIngestRecordSmokeFile =
+  "scripts/smoke-selected-session-digest-durable-ingest-record-v0-1.mjs";
 const smokeFile =
   "scripts/smoke-selected-session-digest-ingest-operator-decision-v0-1.mjs";
 const packageJsonFile = "package.json";
@@ -51,6 +67,14 @@ const allowedChangedFiles = [
   agentWorkplaneSmokeFile,
   contractSmokeFile,
   overviewSmokeFile,
+  selectedSessionDigestIngestWriteTypeFile,
+  selectedSessionDigestIngestWriteHelperFile,
+  selectedSessionDigestIngestWriteRouteFile,
+  selectedSessionDigestIngestRecordReviewTypeFile,
+  selectedSessionDigestIngestRecordReviewHelperFile,
+  selectedSessionDigestIngestRecordReviewForWebFile,
+  selectedSessionDigestIngestRecordReviewPanelFile,
+  selectedSessionDigestDurableIngestRecordSmokeFile,
   smokeFile,
   packageJsonFile,
 ];

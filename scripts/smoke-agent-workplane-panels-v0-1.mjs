@@ -187,6 +187,22 @@ const selectedSessionDigestIngestDecisionWriteRouteFile =
   "app/api/intake/selected-session-digest/ingest-decisions/route.ts";
 const selectedSessionDigestIngestOperatorDecisionSmokeFile =
   "scripts/smoke-selected-session-digest-ingest-operator-decision-v0-1.mjs";
+const selectedSessionDigestIngestWriteTypeFile =
+  "types/selected-session-digest-ingest-write.ts";
+const selectedSessionDigestIngestWriteHelperFile =
+  "lib/intake/selected-session-digest-ingest-write.ts";
+const selectedSessionDigestIngestWriteRouteFile =
+  "app/api/intake/selected-session-digest/ingest-records/route.ts";
+const selectedSessionDigestIngestRecordReviewTypeFile =
+  "types/selected-session-digest-ingest-record-review.ts";
+const selectedSessionDigestIngestRecordReviewHelperFile =
+  "lib/intake/selected-session-digest-ingest-record-review.ts";
+const selectedSessionDigestIngestRecordReviewForWebFile =
+  "lib/intake/read-selected-session-digest-ingest-record-review-for-web.ts";
+const selectedSessionDigestIngestRecordReviewPanelFile =
+  "components/intake/selected-session-digest-ingest-record-review-panel.tsx";
+const selectedSessionDigestDurableIngestRecordSmokeFile =
+  "scripts/smoke-selected-session-digest-durable-ingest-record-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -738,6 +754,26 @@ const followOnSelectedSessionDigestIngestOperatorDecisionFiles = [
   smokeFile,
 ];
 
+const followOnSelectedSessionDigestDurableIngestRecordFiles = [
+  selectedSessionDigestIngestWriteTypeFile,
+  selectedSessionDigestIngestWriteHelperFile,
+  selectedSessionDigestIngestWriteRouteFile,
+  selectedSessionDigestIngestRecordReviewTypeFile,
+  selectedSessionDigestIngestRecordReviewHelperFile,
+  selectedSessionDigestIngestRecordReviewForWebFile,
+  selectedSessionDigestIngestRecordReviewPanelFile,
+  selectedSessionDigestDurableIngestRecordSmokeFile,
+  selectedSessionDigestIngestOperatorDecisionSmokeFile,
+  selectedSessionDigestIngestDecisionWriteHelperFile,
+  selectedSessionDigestIngestOperatorDecisionHelperFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -968,6 +1004,13 @@ const requiredFiles = [
   selectedSessionDigestIngestDecisionWriteTypeFile,
   selectedSessionDigestIngestDecisionWriteHelperFile,
   selectedSessionDigestIngestDecisionWriteRouteFile,
+  selectedSessionDigestIngestWriteTypeFile,
+  selectedSessionDigestIngestWriteHelperFile,
+  selectedSessionDigestIngestWriteRouteFile,
+  selectedSessionDigestIngestRecordReviewTypeFile,
+  selectedSessionDigestIngestRecordReviewHelperFile,
+  selectedSessionDigestIngestRecordReviewForWebFile,
+  selectedSessionDigestIngestRecordReviewPanelFile,
   workbenchDogfoodLoopSpineOverviewTypeFile,
   workbenchDogfoodLoopSpineOverviewHelperFile,
   workbenchDogfoodLoopSpineOverviewPanelFile,
@@ -1104,6 +1147,7 @@ const allowedChangedFiles = new Set([
   ...followOnWorkbenchDogfoodLoopSpineOverviewFiles,
   ...followOnSelectedSessionDigestIngestContractPreviewFiles,
   ...followOnSelectedSessionDigestIngestOperatorDecisionFiles,
+  ...followOnSelectedSessionDigestDurableIngestRecordFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -1224,6 +1268,15 @@ const selectedSessionDigestIngestOperatorDecisionHelperText = textByFile.get(
 const selectedSessionDigestIngestOperatorDecisionPanelText = textByFile.get(
   selectedSessionDigestIngestOperatorDecisionPanelFile,
 );
+const selectedSessionDigestIngestWriteTypeText = textByFile.get(
+  selectedSessionDigestIngestWriteTypeFile,
+);
+const selectedSessionDigestIngestWriteHelperText = textByFile.get(
+  selectedSessionDigestIngestWriteHelperFile,
+);
+const selectedSessionDigestIngestRecordReviewPanelText = textByFile.get(
+  selectedSessionDigestIngestRecordReviewPanelFile,
+);
 const workbenchDogfoodLoopSpineOverviewTypeText = textByFile.get(
   workbenchDogfoodLoopSpineOverviewTypeFile,
 );
@@ -1255,6 +1308,7 @@ assertHandoffContextRelayRationaleFollowOn();
 assertSelectedSessionDigestIntakePreviewFollowOn();
 assertSelectedSessionDigestIngestContractPreviewFollowOn();
 assertSelectedSessionDigestIngestOperatorDecisionFollowOn();
+assertSelectedSessionDigestDurableIngestRecordFollowOn();
 assertWorkbenchDogfoodLoopSpineOverviewFollowOn();
 assertCodexResultFeedbackDraftFollowOn();
 assertDogfoodReuseRecordProposalFollowOn();
@@ -1956,6 +2010,71 @@ function assertSelectedSessionDigestIngestOperatorDecisionFollowOn() {
   );
 }
 
+function assertSelectedSessionDigestDurableIngestRecordFollowOn() {
+  assertContainsAll(
+    selectedSessionDigestIngestWriteTypeText,
+    [
+      "selected_session_digest_ingest_record.v0.1",
+      "selected_session_digest_ingest_receipt.v0.1",
+      "selected_session_digest_ingest_store.v0.1",
+      "can_write_memory: false",
+      "can_mutate_current_working_perspective: false",
+      "can_send_handoff: false",
+    ],
+    { label: selectedSessionDigestIngestWriteTypeFile },
+  );
+  assertContainsAll(
+    selectedSessionDigestIngestWriteHelperText,
+    [
+      "writeSelectedSessionDigestIngestRecordV01",
+      "readSelectedSessionDigestIngestRecordByIdV01",
+      "listSelectedSessionDigestIngestRecordsV01",
+      "selected_session_digest_ingest_records",
+    ],
+    { label: selectedSessionDigestIngestWriteHelperFile },
+  );
+  assertContainsAll(
+    selectedSessionDigestIngestRecordReviewPanelText,
+    [
+      "Selected Session Digest Ingest Record Review",
+      "candidate ingest record",
+      "receipt no side effects",
+      "authority boundary",
+    ],
+    { label: selectedSessionDigestIngestRecordReviewPanelFile },
+  );
+  assertContainsAll(
+    agentWorkplaneText,
+    [
+      "SelectedSessionDigestIngestRecordReviewPanel",
+      "readSelectedSessionDigestIngestRecordReviewForWebV01",
+      "const selectedSessionDigestIngestRecordReview",
+      "review={selectedSessionDigestIngestRecordReview}",
+      "selected_session_digest_ingest_record_review:\n        selectedSessionDigestIngestRecordReview",
+    ],
+    { label: agentWorkplaneFile },
+  );
+
+  const start = agentWorkplaneText.indexOf(
+    "const selectedSessionDigestIngestRecordReview",
+  );
+  const end = agentWorkplaneText.indexOf("const dogfoodMetricCandidatePreview");
+  assert(start !== -1, "Agent Workplane must build ingest record review");
+  assert(end > start, "Ingest record review block must precede metric preview");
+  const snippet = agentWorkplaneText.slice(start, end);
+  assert(
+    snippet.includes("readSelectedSessionDigestIngestRecordReviewForWebV01"),
+    "Agent Workplane must use the no-DB record review reader",
+  );
+  assert(!snippet.includes("new Database"), "Workbench must not open DB");
+  assert(!snippet.includes("fetch("), "Workbench must not fetch ingest records");
+  assert(!snippet.includes("POST"), "Workbench must not POST ingest records");
+  assert(
+    !selectedSessionDigestIngestRecordReviewPanelText.includes("<button"),
+    "Selected digest ingest record review panel must not add buttons",
+  );
+}
+
 function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
   assertContainsAll(
     workbenchDogfoodLoopSpineOverviewTypeText,
@@ -1965,12 +2084,14 @@ function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
       "selected_session_intake",
       "selected_session_digest_ingest_contract",
       "selected_session_digest_ingest_operator_decision",
+      "selected_session_digest_durable_ingest_record",
       "codex_result_feedback",
       "dogfood_reuse_proposal",
       "handoff_context_apply_write_contract",
       "recommended_next_operator_action",
       "can_write_db: false",
       "can_create_schema: false",
+      "can_create_ingest_receipt: false",
       "can_write_memory: false",
       "can_mutate_current_working_perspective: false",
       "can_apply_handoff_context: false",
@@ -1991,8 +2112,10 @@ function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
       "selected_session_digest_intake_preview",
       "selected_session_digest_ingest_contract_preview",
       "selected_session_digest_ingest_operator_decision_preview",
+      "selected_session_digest_ingest_record_review",
       "selectedSessionDigestIngestContractStep",
       "selectedSessionDigestIngestOperatorDecisionStep",
+      "selectedSessionDigestDurableIngestRecordStep",
       "codex_result_feedback_draft",
       "dogfood_reuse_record_proposal",
       "handoff_context_apply_write_contract_preview",
@@ -2028,6 +2151,7 @@ function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
       "workbenchDogfoodLoopSpineOverview",
       "selected_session_digest_ingest_contract_preview: selectedSessionDigestIngestContractPreview",
       "selected_session_digest_ingest_operator_decision_preview:\n        selectedSessionDigestIngestOperatorDecisionPreview",
+      "selected_session_digest_ingest_record_review:\n        selectedSessionDigestIngestRecordReview",
       "workbench:dogfood_loop_spine_overview",
       "preview={workbenchDogfoodLoopSpineOverview}",
     ],
@@ -2467,6 +2591,7 @@ function assertChangedFileBoundary() {
         followOnDogfoodMetricCandidatePreviewFiles.includes(file) ||
         followOnHandoffContextUpdateWriteFiles.includes(file) ||
         followOnSelectedSessionDigestIngestOperatorDecisionFiles.includes(file) ||
+        followOnSelectedSessionDigestDurableIngestRecordFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -2479,6 +2604,7 @@ function assertChangedFileBoundary() {
         followOnDogfoodMetricCandidatePreviewFiles.includes(file) ||
         followOnHandoffContextUpdateWriteFiles.includes(file) ||
         followOnSelectedSessionDigestIngestOperatorDecisionFiles.includes(file) ||
+        followOnSelectedSessionDigestDurableIngestRecordFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
