@@ -388,6 +388,14 @@ const currentWorkingPerspectiveApplySliceFiles = [
   "lib/workplane/current-working-perspective-route-integration-contract-record-review.ts",
   "lib/workplane/read-current-working-perspective-route-integration-contract-record-review-for-web.ts",
   "components/workplane/current-working-perspective-route-integration-contract-record-review-panel.tsx",
+  "types/current-working-perspective-route-integration-read.ts",
+  "lib/perspective/current-working-perspective-route-integration-read.ts",
+  "lib/perspective/read-current-working-perspective-route-integration-for-web.ts",
+  "types/current-working-perspective-route-integration-read-review.ts",
+  "lib/workplane/current-working-perspective-route-integration-read-review.ts",
+  "components/workplane/current-working-perspective-route-integration-read-panel.tsx",
+  "app/api/perspective/current/route.ts",
+  "scripts/smoke-current-working-perspective-route-integration-slice-v0-1.mjs",
   "scripts/smoke-current-working-perspective-route-integration-contract-v0-1.mjs",
   "scripts/smoke-current-working-perspective-apply-slice-v0-1.mjs",
 ];
@@ -1039,7 +1047,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 51);
+assert.equal(emptyOverview.spine_steps.length, 53);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -2097,7 +2105,8 @@ function assertNoForbiddenChangedPaths() {
         file === continuityRelayRouteFile ||
         file === currentWorkingPerspectiveUpdateContractRouteFile ||
         file === currentWorkingPerspectiveApplyRouteFile ||
-        file === currentWorkingPerspectiveRouteIntegrationContractRouteFile,
+        file === currentWorkingPerspectiveRouteIntegrationContractRouteFile ||
+        file === "app/api/perspective/current/route.ts",
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);

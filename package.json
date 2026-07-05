@@ -793,6 +793,7 @@
     "smoke:current-working-perspective-update-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-current-working-perspective-update-contract-v0-1.mjs",
     "smoke:current-working-perspective-apply-slice-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-current-working-perspective-apply-slice-v0-1.mjs",
     "smoke:current-working-perspective-route-integration-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-current-working-perspective-route-integration-contract-v0-1.mjs",
+    "smoke:current-working-perspective-route-integration-slice-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-current-working-perspective-route-integration-slice-v0-1.mjs",
     "smoke:continuity-relay-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-continuity-relay-scoped-write-v0-1.mjs",
     "smoke:perspective-unit-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-unit-scoped-write-v0-1.mjs",
     "smoke:perspective-next-work-bias-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs"

@@ -106,6 +106,21 @@ const files = {
     "components/workplane/current-working-perspective-route-integration-contract-record-review-panel.tsx",
   cwpRouteIntegrationSmoke:
     "scripts/smoke-current-working-perspective-route-integration-contract-v0-1.mjs",
+  cwpRouteIntegrationReadType:
+    "types/current-working-perspective-route-integration-read.ts",
+  cwpRouteIntegrationReadHelper:
+    "lib/perspective/current-working-perspective-route-integration-read.ts",
+  cwpRouteIntegrationReadForWeb:
+    "lib/perspective/read-current-working-perspective-route-integration-for-web.ts",
+  cwpRouteIntegrationReadReviewType:
+    "types/current-working-perspective-route-integration-read-review.ts",
+  cwpRouteIntegrationReadReviewHelper:
+    "lib/workplane/current-working-perspective-route-integration-read-review.ts",
+  cwpRouteIntegrationReadPanel:
+    "components/workplane/current-working-perspective-route-integration-read-panel.tsx",
+  cwpRouteIntegrationSliceSmoke:
+    "scripts/smoke-current-working-perspective-route-integration-slice-v0-1.mjs",
+  currentPerspectiveRoute: "app/api/perspective/current/route.ts",
   contractType: "types/perspective-relay-update-write-contract-preview.ts",
   contractHelper: "lib/workplane/perspective-relay-update-write-contract-preview.ts",
   contractPanel:

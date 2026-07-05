@@ -64,6 +64,8 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   current_working_perspective_route_integration_contract_preview,
   current_working_perspective_route_integration_contract_decision_preview,
   current_working_perspective_route_integration_contract_record_review,
+  current_working_perspective_route_integration_read,
+  current_working_perspective_route_integration_read_review,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -204,6 +206,14 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       decisionPreview:
         current_working_perspective_route_integration_contract_decision_preview,
     }),
+    currentWorkingPerspectiveRouteIntegrationReadStep({
+      read: current_working_perspective_route_integration_read,
+      contractRecordReview:
+        current_working_perspective_route_integration_contract_record_review,
+    }),
+    currentWorkingPerspectiveRouteIntegrationReadReviewStep(
+      current_working_perspective_route_integration_read_review,
+    ),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -2458,6 +2468,125 @@ function currentWorkingPerspectiveRouteIntegrationContractRecordStep({
   });
 }
 
+function currentWorkingPerspectiveRouteIntegrationReadStep({
+  read,
+  contractRecordReview,
+}: {
+  read: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_route_integration_read"];
+  contractRecordReview: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_route_integration_contract_record_review"];
+}): SpineStepBuild {
+  if (!read) {
+    return missingStep({
+      step_id: "current_working_perspective_route_integration_read",
+      label: "CurrentWorkingPerspective route integration read",
+      recommended_next_action:
+        "review_current_working_perspective_route_integration_contract_record",
+      summary:
+        "No route integration read object supplied; Workbench has not called /api/perspective/current.",
+    });
+  }
+  const validContractRecord =
+    contractRecordReview?.review_status === "records_available" ||
+    contractRecordReview?.review_status === "selected_record_found";
+  const integrationAvailable =
+    read.status === "runtime_with_applied_snapshot_hint" ||
+    read.status === "runtime_with_applied_snapshot_overlay_candidate" ||
+    read.status === "applied_snapshot_preferred_with_runtime_fallback";
+  const blocked =
+    read.status === "contract_invalid" ||
+    read.status === "applied_snapshot_invalid" ||
+    read.status === "fallback_to_runtime";
+
+  return makeStep({
+    step_id: "current_working_perspective_route_integration_read",
+    label: "CurrentWorkingPerspective route integration read",
+    status: blocked
+      ? "blocked"
+      : integrationAvailable
+        ? "candidate_material_available"
+        : validContractRecord
+          ? "ready_for_operator_review"
+          : "no_current_material",
+    source_preview_ref_or_version: read.read_version,
+    material_count: integrationAvailable ? 1 : 0,
+    blockers: read.blocked_reasons,
+    material_gaps: [
+      ...(read.status === "runtime_only"
+        ? ["route_integration_read_runtime_only"]
+        : []),
+      ...(read.status === "contract_missing"
+        ? ["route_integration_contract_missing_for_read"]
+        : []),
+      ...(read.status === "applied_snapshot_missing"
+        ? ["applied_snapshot_missing_for_route_integration_read"]
+        : []),
+      ...read.warnings,
+    ],
+    missing_evidence: [],
+    recommended_next_action:
+      read.status === "runtime_with_applied_snapshot_overlay_candidate"
+        ? "verify_current_working_perspective_route_applied_snapshot_overlay"
+        : read.status === "applied_snapshot_preferred_with_runtime_fallback"
+          ? "verify_current_working_perspective_route_runtime_fallback"
+          : blocked
+            ? "resolve_current_working_perspective_route_integration_read_blockers"
+            : "review_current_working_perspective_route_integration_read",
+    evidence_present: integrationAvailable,
+    summary: `CurrentWorkingPerspective route integration read is ${read.status}; response mode ${read.response_mode}; GET remains read-only and runtime fallback is preserved.`,
+  });
+}
+
+function currentWorkingPerspectiveRouteIntegrationReadReviewStep(
+  review: WorkbenchDogfoodLoopSpineOverviewInput["current_working_perspective_route_integration_read_review"],
+): SpineStepBuild {
+  if (!review) {
+    return missingStep({
+      step_id: "current_working_perspective_route_integration_review",
+      label: "CurrentWorkingPerspective route integration read review",
+      recommended_next_action:
+        "review_current_working_perspective_route_integration_read",
+      summary: "No route integration read review supplied.",
+    });
+  }
+  const integrationAvailable =
+    review.review_status === "integration_available" ||
+    review.review_status === "applied_snapshot_overlay_available" ||
+    review.review_status === "applied_snapshot_preferred_available";
+  const blocked =
+    review.review_status === "integration_invalid" ||
+    review.review_status === "fallback_to_runtime";
+
+  return makeStep({
+    step_id: "current_working_perspective_route_integration_review",
+    label: "CurrentWorkingPerspective route integration read review",
+    status: blocked
+      ? "blocked"
+      : integrationAvailable
+        ? "candidate_material_available"
+        : "no_current_material",
+    source_preview_ref_or_version: review.review_version,
+    material_count: integrationAvailable ? 1 : 0,
+    blockers: review.blocked_reasons,
+    material_gaps: [
+      ...review.warning_reasons,
+      ...(review.review_status === "runtime_only"
+        ? ["route_integration_review_runtime_only"]
+        : []),
+    ],
+    missing_evidence: [],
+    recommended_next_action:
+      review.review_status === "applied_snapshot_overlay_available"
+        ? "verify_current_working_perspective_route_applied_snapshot_overlay"
+        : review.review_status === "applied_snapshot_preferred_available"
+          ? "verify_current_working_perspective_route_runtime_fallback"
+          : blocked
+            ? "resolve_current_working_perspective_route_integration_read_blockers"
+            : "review_current_working_perspective_route_integration_read",
+    evidence_present: integrationAvailable,
+    summary: `CurrentWorkingPerspective route integration read review is ${review.review_status}; primary source ${review.route_integration_summary.primary_source}; route writes, upstream CWP mutation, handoff, memory, metrics, and external actions remain out of scope.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -3115,7 +3244,9 @@ function determineRecommendedNextOperatorAction({
       blocker.startsWith("applied_current_working_perspective_snapshot:") ||
       blocker.startsWith("current_working_perspective_route_integration_contract:") ||
       blocker.startsWith("current_working_perspective_route_integration_contract_decision:") ||
-      blocker.startsWith("current_working_perspective_route_integration_contract_record:"),
+      blocker.startsWith("current_working_perspective_route_integration_contract_record:") ||
+      blocker.startsWith("current_working_perspective_route_integration_read:") ||
+      blocker.startsWith("current_working_perspective_route_integration_review:"),
     )
   ) {
     if (
@@ -3149,6 +3280,14 @@ function determineRecommendedNextOperatorAction({
       )
     ) {
       return "resolve_current_working_perspective_route_integration_blockers";
+    }
+    if (
+      top_blockers.some((blocker) =>
+        blocker.startsWith("current_working_perspective_route_integration_read") ||
+        blocker.startsWith("current_working_perspective_route_integration_review"),
+      )
+    ) {
+      return "resolve_current_working_perspective_route_integration_read_blockers";
     }
     if (
       top_blockers.some((blocker) =>
@@ -3253,6 +3392,42 @@ function determineRecommendedNextOperatorAction({
         step.step_id ===
         "current_working_perspective_route_integration_contract_record",
     );
+    const routeIntegrationReadStep = steps.find(
+      (step) =>
+        step.step_id === "current_working_perspective_route_integration_read",
+    );
+    const routeIntegrationReadReviewStep = steps.find(
+      (step) =>
+        step.step_id === "current_working_perspective_route_integration_review",
+    );
+    if (
+      routeIntegrationReadReviewStep?.recommended_next_action ===
+        "verify_current_working_perspective_route_applied_snapshot_overlay" &&
+      routeIntegrationReadReviewStep.status !== "not_supplied"
+    ) {
+      return "verify_current_working_perspective_route_applied_snapshot_overlay";
+    }
+    if (
+      routeIntegrationReadReviewStep?.recommended_next_action ===
+        "verify_current_working_perspective_route_runtime_fallback" &&
+      routeIntegrationReadReviewStep.status !== "not_supplied"
+    ) {
+      return "verify_current_working_perspective_route_runtime_fallback";
+    }
+    if (
+      routeIntegrationReadStep?.recommended_next_action ===
+        "review_current_working_perspective_route_integration_read" &&
+      routeIntegrationReadStep.status !== "not_supplied"
+    ) {
+      return "review_current_working_perspective_route_integration_read";
+    }
+    if (
+      routeIntegrationReadReviewStep?.recommended_next_action ===
+        "review_current_working_perspective_route_integration_read" &&
+      routeIntegrationReadReviewStep.status !== "not_supplied"
+    ) {
+      return "review_current_working_perspective_route_integration_read";
+    }
     if (
       routeIntegrationContractRecordStep?.recommended_next_action ===
         "review_current_working_perspective_route_integration_contract_record" &&

@@ -38,6 +38,14 @@ const expectedFiles = [
   "scripts/smoke-perspective-unit-scoped-write-v0-1.mjs",
   "scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs",
   "scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs",
+  "types/current-working-perspective-route-integration-read.ts",
+  "lib/perspective/current-working-perspective-route-integration-read.ts",
+  "lib/perspective/read-current-working-perspective-route-integration-for-web.ts",
+  "types/current-working-perspective-route-integration-read-review.ts",
+  "lib/workplane/current-working-perspective-route-integration-read-review.ts",
+  "components/workplane/current-working-perspective-route-integration-read-panel.tsx",
+  "app/api/perspective/current/route.ts",
+  "scripts/smoke-current-working-perspective-route-integration-slice-v0-1.mjs",
   "package.json",
 ];
 for (const file of expectedFiles.slice(0, 13)) {

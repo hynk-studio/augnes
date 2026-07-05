@@ -249,6 +249,14 @@ const allowedChangedFiles = [
   "lib/workplane/read-current-working-perspective-route-integration-contract-record-review-for-web.ts",
   "components/workplane/current-working-perspective-route-integration-contract-record-review-panel.tsx",
   "scripts/smoke-current-working-perspective-route-integration-contract-v0-1.mjs",
+  "types/current-working-perspective-route-integration-read.ts",
+  "lib/perspective/current-working-perspective-route-integration-read.ts",
+  "lib/perspective/read-current-working-perspective-route-integration-for-web.ts",
+  "types/current-working-perspective-route-integration-read-review.ts",
+  "lib/workplane/current-working-perspective-route-integration-read-review.ts",
+  "components/workplane/current-working-perspective-route-integration-read-panel.tsx",
+  "app/api/perspective/current/route.ts",
+  "scripts/smoke-current-working-perspective-route-integration-slice-v0-1.mjs",
 ];
 
 function readyPreview(overrides = {}) {
