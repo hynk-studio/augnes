@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import {
+  OPERATOR_APPROVED_SELECTED_SESSION_DIGEST_INGEST_DECISION_SCOPE,
   OPERATOR_APPROVED_SELECTED_SESSION_DIGEST_INGEST_DECISION_RECORD_VERSION,
   type OperatorApprovedSelectedSessionDigestIngestDecisionRecord,
 } from "@/types/selected-session-digest-ingest-decision-write";
@@ -584,6 +585,9 @@ function validateDecisionRecordShapeV01(
   }
   if (record.operator_decision !== "approve_for_future_ingest_write") {
     reasons.push("decision_record_operator_decision_not_approved");
+  }
+  if (record.scope !== OPERATOR_APPROVED_SELECTED_SESSION_DIGEST_INGEST_DECISION_SCOPE) {
+    reasons.push("decision_record_scope_invalid");
   }
   if (!asSafePublicRef(record.record_id)) {
     reasons.push("decision_record_id_missing_or_invalid");

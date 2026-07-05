@@ -436,6 +436,18 @@ assert(
     "decision_record_operator_decision_not_approved",
   ),
 );
+const wrongScopeRecord = structuredClone(decisionResult.record);
+wrongScopeRecord.scope = "project:other";
+const wrongScopeResult = writeSelectedSessionDigestIngestRecordV01(
+  buildValidIngestInput(wrongScopeRecord),
+  { db: new Database(":memory:") },
+);
+assert.equal(wrongScopeResult.status, "refused");
+assert(
+  wrongScopeResult.receipt.refusal_reasons.includes(
+    "decision_record_scope_invalid",
+  ),
+);
 const priorMutationRecord = structuredClone(decisionResult.record);
 priorMutationRecord.no_side_effects = {
   selected_session_digest_ingest_record_written: true,
