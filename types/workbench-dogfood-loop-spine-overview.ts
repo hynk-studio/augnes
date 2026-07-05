@@ -21,6 +21,7 @@ import type { ApprovedHandoffContextUpdateRecordReview } from "./handoff-context
 import type { MetricInformedContinuityRelayAdjustmentPreview } from "./metric-informed-continuity-relay-adjustment-preview";
 import type { PerspectiveNextWorkCandidateUpdatePreview } from "./perspective-next-work-candidate-update-preview";
 import type { SelectedSessionDigestIngestContractPreview } from "./selected-session-digest-ingest-contract-preview";
+import type { SelectedSessionDigestIngestOperatorDecisionPreview } from "./selected-session-digest-ingest-operator-decision";
 import type { SelectedSessionDigestIntakePreview } from "./selected-session-digest-intake-preview";
 
 export const WORKBENCH_DOGFOOD_LOOP_SPINE_OVERVIEW_VERSION =
@@ -49,6 +50,9 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
   | "review_future_ingest_contract"
   | "prepare_separate_ingest_write_slice"
   | "reject_digest_ingest_candidate"
+  | "review_selected_session_digest_ingest_operator_decision"
+  | "prepare_operator_approved_selected_session_digest_ingest_decision_record"
+  | "resolve_selected_session_digest_ingest_decision_blockers"
   | "supply_codex_result_report"
   | "review_intake_candidate"
   | "review_reuse_candidate"
@@ -66,6 +70,7 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
 export type WorkbenchDogfoodLoopSpineStepId =
   | "selected_session_intake"
   | "selected_session_digest_ingest_contract"
+  | "selected_session_digest_ingest_operator_decision"
   | "codex_result_feedback"
   | "dogfood_reuse_proposal"
   | "dogfood_reuse_operator_decision"
@@ -92,6 +97,7 @@ export type WorkbenchDogfoodLoopSpineStepStatus =
 export interface WorkbenchDogfoodLoopSpineOverviewInput {
   selected_session_digest_intake_preview?: SelectedSessionDigestIntakePreview | null;
   selected_session_digest_ingest_contract_preview?: SelectedSessionDigestIngestContractPreview | null;
+  selected_session_digest_ingest_operator_decision_preview?: SelectedSessionDigestIngestOperatorDecisionPreview | null;
   codex_result_feedback_draft?: CodexResultFeedbackDraft | null;
   dogfood_reuse_record_proposal?: DogfoodReuseRecordProposal | null;
   dogfood_reuse_operator_decision_preview?: DogfoodReuseOperatorDecisionPreview | null;
@@ -165,6 +171,8 @@ export interface WorkbenchDogfoodLoopSpineOverviewAuthorityBoundary {
   can_create_schema: false;
   can_create_route: false;
   can_call_route: false;
+  can_create_ingest_decision_record: false;
+  can_create_ingest_decision_receipt: false;
   can_write_memory: false;
   can_mutate_memory: false;
   can_promote_memory: false;

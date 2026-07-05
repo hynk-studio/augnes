@@ -23,6 +23,7 @@ type SpineStepBuild = WorkbenchDogfoodLoopSpineStep & {
 export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview,
   selected_session_digest_ingest_contract_preview,
+  selected_session_digest_ingest_operator_decision_preview,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -43,6 +44,9 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
     selectedSessionIntakeStep(selected_session_digest_intake_preview),
     selectedSessionDigestIngestContractStep(
       selected_session_digest_ingest_contract_preview,
+    ),
+    selectedSessionDigestIngestOperatorDecisionStep(
+      selected_session_digest_ingest_operator_decision_preview,
     ),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
@@ -174,6 +178,8 @@ export function createWorkbenchDogfoodLoopSpineOverviewAuthorityBoundaryV01(): W
     can_create_schema: false,
     can_create_route: false,
     can_call_route: false,
+    can_create_ingest_decision_record: false,
+    can_create_ingest_decision_receipt: false,
     can_write_memory: false,
     can_mutate_memory: false,
     can_promote_memory: false,
@@ -297,6 +303,71 @@ function selectedSessionDigestIngestContractStep(
     recommended_next_action: preview.recommended_next_action,
     evidence_present: preview.evidence_summary.has_valid_intake_preview,
     summary: `Selected digest ingest contract preview is ${preview.contract_preview_status}; candidate_count ${preview.input_summary.ingestable_candidate_count}; next ${preview.recommended_next_action}.`,
+  });
+}
+
+function selectedSessionDigestIngestOperatorDecisionStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["selected_session_digest_ingest_operator_decision_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "selected_session_digest_ingest_operator_decision",
+      label: "Selected digest ingest operator decision",
+      recommended_next_action:
+        "review_selected_session_digest_ingest_operator_decision",
+      summary:
+        "No selected session digest ingest operator decision preview supplied.",
+    });
+  }
+
+  const decisionReady =
+    preview.decision_preview_status ===
+      "ready_for_future_decision_record_write" &&
+    preview.write_readiness.write_ready === true;
+
+  return makeStep({
+    step_id: "selected_session_digest_ingest_operator_decision",
+    label: "Selected digest ingest operator decision",
+    status: mapSelectedSessionIngestOperatorDecisionStatus(
+      preview.decision_preview_status,
+    ),
+    source_preview_ref_or_version: preview.preview_version,
+    material_count:
+      preview.input_summary.selected_digest_candidate_ref_count +
+      preview.would_write_decision_record_preview
+        .sanitized_candidate_summaries.length,
+    blockers: [
+      ...preview.blocking_reasons,
+      ...preview.refusal_reasons,
+      ...preview.write_readiness.current_blockers,
+      ...preview.write_readiness.current_refusal_reasons,
+    ],
+    material_gaps: [
+      ...preview.write_readiness.current_insufficient_data,
+      ...(preview.input_summary.contract_ready_for_future_ingest_write_scope
+        ? []
+        : ["ingest_contract_preview_not_ready_for_operator_decision"]),
+      ...(preview.input_summary.selected_digest_candidate_ref_count > 0
+        ? []
+        : ["selected_digest_candidate_refs_missing_for_operator_decision"]),
+      ...(preview.input_summary.privacy_review_confirmation_ref_supplied
+        ? []
+        : ["privacy_review_confirmation_ref_missing_for_operator_decision"]),
+      ...(preview.input_summary.requested_idempotency_key_supplied
+        ? []
+        : ["requested_idempotency_key_missing_for_operator_decision"]),
+    ],
+    missing_evidence: [
+      ...preview.missing_evidence,
+      ...preview.write_readiness.current_missing_evidence,
+    ],
+    recommended_next_action: decisionReady
+      ? "prepare_operator_approved_selected_session_digest_ingest_decision_record"
+      : preview.decision_preview_status === "blocked"
+        ? "resolve_selected_session_digest_ingest_decision_blockers"
+        : "review_selected_session_digest_ingest_operator_decision",
+    evidence_present: preview.evidence_summary.has_ingest_contract_preview,
+    summary: `Selected digest ingest operator decision preview is ${preview.decision_preview_status}; recommended ${preview.recommended_operator_decision}; decision_record_write_ready ${String(preview.write_readiness.write_ready)}.`,
   });
 }
 
@@ -896,6 +967,13 @@ function determineRecommendedNextOperatorAction({
   top_missing_evidence: string[];
   current_material_gaps: string[];
 }): WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction {
+  if (
+    top_blockers.some((blocker) =>
+      blocker.startsWith("selected_session_digest_ingest_operator_decision:"),
+    )
+  ) {
+    return "resolve_selected_session_digest_ingest_decision_blockers";
+  }
   if (top_blockers.length > 0) return "resolve_blockers_or_missing_evidence";
   if (steps[0]?.recommended_next_action === "supply_selected_session_digest") {
     return "supply_selected_session_digest";
@@ -911,6 +989,27 @@ function determineRecommendedNextOperatorAction({
     selectedDigestContractStep.recommended_next_action !== "keep_preview_only"
   ) {
     return selectedDigestContractStep.recommended_next_action;
+  }
+  const selectedDigestDecisionStep = steps.find(
+    (step) =>
+      step.step_id === "selected_session_digest_ingest_operator_decision",
+  );
+  if (
+    selectedDigestDecisionStep &&
+    selectedDigestDecisionStep.status !== "not_supplied" &&
+    selectedDigestDecisionStep.status !== "keep_preview_only"
+  ) {
+    if (
+      selectedDigestDecisionStep.recommended_next_action ===
+      "prepare_operator_approved_selected_session_digest_ingest_decision_record"
+    ) {
+      return "prepare_operator_approved_selected_session_digest_ingest_decision_record";
+    }
+    if (
+      selectedDigestContractStep?.status === "ready_for_future_contract_review"
+    ) {
+      return selectedDigestDecisionStep.recommended_next_action;
+    }
   }
   if (
     steps.some(
@@ -964,6 +1063,24 @@ function mapSelectedSessionIngestContractStatus(
   if (status === "ready_for_operator_review") return "ready_for_operator_review";
   if (status === "contract_candidates_available") {
     return "candidate_material_available";
+  }
+  if (status === "keep_preview_only") return "keep_preview_only";
+  return "insufficient_data";
+}
+
+function mapSelectedSessionIngestOperatorDecisionStatus(
+  status: string,
+): WorkbenchDogfoodLoopSpineStepStatus {
+  if (status === "no_ingest_contract_preview") return "no_current_material";
+  if (status === "blocked") return "blocked";
+  if (status === "ready_for_future_decision_record_write") {
+    return "ready_for_future_contract_review";
+  }
+  if (
+    status === "ready_for_operator_decision" ||
+    status === "needs_operator_judgment"
+  ) {
+    return "ready_for_operator_review";
   }
   if (status === "keep_preview_only") return "keep_preview_only";
   return "insufficient_data";

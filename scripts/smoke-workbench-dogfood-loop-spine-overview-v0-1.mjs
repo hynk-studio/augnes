@@ -23,6 +23,20 @@ const selectedSessionDigestIngestContractPanelFile =
   "components/intake/selected-session-digest-ingest-contract-preview-panel.tsx";
 const selectedSessionDigestIngestContractSmokeFile =
   "scripts/smoke-selected-session-digest-ingest-contract-preview-v0-1.mjs";
+const selectedSessionDigestIngestOperatorDecisionTypeFile =
+  "types/selected-session-digest-ingest-operator-decision.ts";
+const selectedSessionDigestIngestOperatorDecisionHelperFile =
+  "lib/intake/selected-session-digest-ingest-operator-decision.ts";
+const selectedSessionDigestIngestOperatorDecisionPanelFile =
+  "components/intake/selected-session-digest-ingest-operator-decision-panel.tsx";
+const selectedSessionDigestIngestDecisionWriteTypeFile =
+  "types/selected-session-digest-ingest-decision-write.ts";
+const selectedSessionDigestIngestDecisionWriteHelperFile =
+  "lib/intake/selected-session-digest-ingest-decision-write.ts";
+const selectedSessionDigestIngestDecisionWriteRouteFile =
+  "app/api/intake/selected-session-digest/ingest-decisions/route.ts";
+const selectedSessionDigestIngestOperatorDecisionSmokeFile =
+  "scripts/smoke-selected-session-digest-ingest-operator-decision-v0-1.mjs";
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -42,6 +56,13 @@ const allowedChangedFiles = [
   selectedSessionDigestIngestContractHelperFile,
   selectedSessionDigestIngestContractPanelFile,
   selectedSessionDigestIngestContractSmokeFile,
+  selectedSessionDigestIngestOperatorDecisionTypeFile,
+  selectedSessionDigestIngestOperatorDecisionHelperFile,
+  selectedSessionDigestIngestOperatorDecisionPanelFile,
+  selectedSessionDigestIngestDecisionWriteTypeFile,
+  selectedSessionDigestIngestDecisionWriteHelperFile,
+  selectedSessionDigestIngestDecisionWriteRouteFile,
+  selectedSessionDigestIngestOperatorDecisionSmokeFile,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -75,6 +96,7 @@ assertContainsAll(
     "workbench_dogfood_loop_spine_overview.v0.1",
     "selected_session_intake",
     "selected_session_digest_ingest_contract",
+    "selected_session_digest_ingest_operator_decision",
     "codex_result_feedback",
     "dogfood_reuse_proposal",
     "dogfood_reuse_operator_decision",
@@ -88,6 +110,7 @@ assertContainsAll(
     "handoff_context_apply_decision",
     "handoff_context_apply_write_contract",
     "can_apply_handoff_context: false",
+    "can_create_ingest_decision_record: false",
     "can_render_workbench_action_button: false",
   ],
   { label: typeFile },
@@ -100,12 +123,15 @@ assertContainsAll(
     "createWorkbenchDogfoodLoopSpineOverviewAuthorityBoundaryV01",
     "selected_session_digest_intake_preview",
     "selected_session_digest_ingest_contract_preview",
+    "selected_session_digest_ingest_operator_decision_preview",
     "selectedSessionDigestIngestContractStep",
+    "selectedSessionDigestIngestOperatorDecisionStep",
     "codex_result_feedback_draft",
     "dogfood_reuse_record_proposal",
     "handoff_context_apply_write_contract_preview",
     "missing_codex_result_report",
     "current_handoff_packet_fingerprint_missing",
+    "prepare_operator_approved_selected_session_digest_ingest_decision_record",
     "does_not_write_memory",
     "does_not_apply_live_handoff_context",
     "can_call_provider_openai: false",
@@ -138,6 +164,7 @@ assertContainsAll(
     "workbenchDogfoodLoopSpineOverview",
     "preview={workbenchDogfoodLoopSpineOverview}",
     "selected_session_digest_ingest_contract_preview: selectedSessionDigestIngestContractPreview",
+    "selected_session_digest_ingest_operator_decision_preview: selectedSessionDigestIngestOperatorDecisionPreview",
     "workbench:dogfood_loop_spine_overview",
     "handoff_context_apply_write_contract_preview",
   ],
@@ -173,6 +200,9 @@ const intakeModule = await import(
 const ingestContractModule = await import(
   "../lib/intake/selected-session-digest-ingest-contract-preview.ts"
 );
+const ingestOperatorDecisionModule = await import(
+  "../lib/intake/selected-session-digest-ingest-operator-decision.ts"
+);
 
 const {
   buildWorkbenchDogfoodLoopSpineOverviewV01,
@@ -181,6 +211,8 @@ const {
 const { buildSelectedSessionDigestIntakePreviewV01 } = intakeModule;
 const { buildSelectedSessionDigestIngestContractPreviewV01 } =
   ingestContractModule;
+const { buildSelectedSessionDigestIngestOperatorDecisionPreviewV01 } =
+  ingestOperatorDecisionModule;
 
 const emptyOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   scope: "project:augnes",
@@ -196,7 +228,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 14);
+assert.equal(emptyOverview.spine_steps.length, 15);
 assertAuthorityFalse(emptyOverview.authority_boundary);
 
 const cleanSelectedIntake = buildSelectedSessionDigestIntakePreviewV01({
@@ -253,6 +285,47 @@ assert(
     gap.includes("privacy_review_confirmation_ref_missing"),
   ),
   "overview should surface selected digest ingest contract material gaps",
+);
+
+const selectedCandidateRef =
+  selectedIngestContractMissingMaterial.would_ingest_material_preview
+    .selectable_digest_candidate_refs[0];
+assert(selectedCandidateRef, "selected digest contract should expose selectable refs");
+const selectedReadyIngestContract =
+  buildSelectedSessionDigestIngestContractPreviewV01({
+    selected_session_digest_intake_preview: cleanSelectedIntake,
+    selected_candidate_refs: [selectedCandidateRef],
+    privacy_review_confirmation_ref: "privacy:spine-overview-clean",
+    requested_idempotency_key: "idempotency:spine-overview-clean",
+    requested_ingest_scope_ref: "scope:spine-overview-clean",
+  });
+const selectedReadyIngestDecision =
+  buildSelectedSessionDigestIngestOperatorDecisionPreviewV01({
+    selected_session_digest_ingest_contract_preview:
+      selectedReadyIngestContract,
+  });
+const selectedDecisionOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
+  selected_session_digest_intake_preview: cleanSelectedIntake,
+  selected_session_digest_ingest_contract_preview: selectedReadyIngestContract,
+  selected_session_digest_ingest_operator_decision_preview:
+    selectedReadyIngestDecision,
+  scope: "project:augnes",
+  as_of: "2026-07-04T14:30:00.000Z",
+});
+assert(
+  selectedDecisionOverview.spine_steps.some(
+    (step) =>
+      step.step_id === "selected_session_digest_ingest_operator_decision",
+  ),
+  "overview should include selected digest ingest operator decision step",
+);
+assert.equal(
+  selectedDecisionOverview.recommended_next_operator_action,
+  "prepare_operator_approved_selected_session_digest_ingest_decision_record",
+);
+assert.notEqual(
+  selectedDecisionOverview.recommended_next_operator_action,
+  "prepare_separate_ingest_write_slice",
 );
 
 const missingCodexOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
@@ -382,7 +455,7 @@ console.log(
       changed_files_skipped: changedFileBoundary.skipped,
       changed_files_skip_reason: changedFileBoundary.skip_reason,
       changed_files_observed: changedFileBoundary.files,
-      no_api_route_added: true,
+      no_unscoped_api_route_added: true,
       no_db_helper_added: true,
       no_provider_github_codex_runtime_path_added: true,
       no_mcp_plugin_tool_path_added: true,
@@ -454,7 +527,11 @@ function assertNoForbiddenChangedPaths() {
     );
   }
   for (const file of allowedChangedFiles) {
-    assert(!/^app\/api\//.test(file), `No app/api route may be added: ${file}`);
+    assert(
+      !/^app\/api\//.test(file) ||
+        file === selectedSessionDigestIngestDecisionWriteRouteFile,
+      `No app/api route may be added outside selected digest decision follow-on: ${file}`,
+    );
     assert(!/^db\//.test(file), `No DB helper/schema file may be added: ${file}`);
     assert(
       !/(^|\/)(provider|providers|openai|github)(\/|$)/i.test(file),

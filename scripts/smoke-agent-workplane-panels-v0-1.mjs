@@ -173,6 +173,20 @@ const selectedSessionDigestIngestContractPanelFile =
   "components/intake/selected-session-digest-ingest-contract-preview-panel.tsx";
 const selectedSessionDigestIngestContractSmokeFile =
   "scripts/smoke-selected-session-digest-ingest-contract-preview-v0-1.mjs";
+const selectedSessionDigestIngestOperatorDecisionTypeFile =
+  "types/selected-session-digest-ingest-operator-decision.ts";
+const selectedSessionDigestIngestOperatorDecisionHelperFile =
+  "lib/intake/selected-session-digest-ingest-operator-decision.ts";
+const selectedSessionDigestIngestOperatorDecisionPanelFile =
+  "components/intake/selected-session-digest-ingest-operator-decision-panel.tsx";
+const selectedSessionDigestIngestDecisionWriteTypeFile =
+  "types/selected-session-digest-ingest-decision-write.ts";
+const selectedSessionDigestIngestDecisionWriteHelperFile =
+  "lib/intake/selected-session-digest-ingest-decision-write.ts";
+const selectedSessionDigestIngestDecisionWriteRouteFile =
+  "app/api/intake/selected-session-digest/ingest-decisions/route.ts";
+const selectedSessionDigestIngestOperatorDecisionSmokeFile =
+  "scripts/smoke-selected-session-digest-ingest-operator-decision-v0-1.mjs";
 const workbenchDogfoodLoopSpineOverviewTypeFile =
   "types/workbench-dogfood-loop-spine-overview.ts";
 const workbenchDogfoodLoopSpineOverviewHelperFile =
@@ -707,6 +721,23 @@ const followOnSelectedSessionDigestIngestContractPreviewFiles = [
   smokeFile,
 ];
 
+const followOnSelectedSessionDigestIngestOperatorDecisionFiles = [
+  selectedSessionDigestIngestOperatorDecisionTypeFile,
+  selectedSessionDigestIngestOperatorDecisionHelperFile,
+  selectedSessionDigestIngestOperatorDecisionPanelFile,
+  selectedSessionDigestIngestDecisionWriteTypeFile,
+  selectedSessionDigestIngestDecisionWriteHelperFile,
+  selectedSessionDigestIngestDecisionWriteRouteFile,
+  selectedSessionDigestIngestOperatorDecisionSmokeFile,
+  selectedSessionDigestIngestContractSmokeFile,
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -931,6 +962,12 @@ const requiredFiles = [
   selectedSessionDigestIngestContractTypeFile,
   selectedSessionDigestIngestContractHelperFile,
   selectedSessionDigestIngestContractPanelFile,
+  selectedSessionDigestIngestOperatorDecisionTypeFile,
+  selectedSessionDigestIngestOperatorDecisionHelperFile,
+  selectedSessionDigestIngestOperatorDecisionPanelFile,
+  selectedSessionDigestIngestDecisionWriteTypeFile,
+  selectedSessionDigestIngestDecisionWriteHelperFile,
+  selectedSessionDigestIngestDecisionWriteRouteFile,
   workbenchDogfoodLoopSpineOverviewTypeFile,
   workbenchDogfoodLoopSpineOverviewHelperFile,
   workbenchDogfoodLoopSpineOverviewPanelFile,
@@ -1066,6 +1103,7 @@ const allowedChangedFiles = new Set([
   ...followOnSelectedSessionDigestIntakePreviewFiles,
   ...followOnWorkbenchDogfoodLoopSpineOverviewFiles,
   ...followOnSelectedSessionDigestIngestContractPreviewFiles,
+  ...followOnSelectedSessionDigestIngestOperatorDecisionFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -1177,6 +1215,15 @@ const selectedSessionDigestIngestContractHelperText = textByFile.get(
 const selectedSessionDigestIngestContractPanelText = textByFile.get(
   selectedSessionDigestIngestContractPanelFile,
 );
+const selectedSessionDigestIngestOperatorDecisionTypeText = textByFile.get(
+  selectedSessionDigestIngestOperatorDecisionTypeFile,
+);
+const selectedSessionDigestIngestOperatorDecisionHelperText = textByFile.get(
+  selectedSessionDigestIngestOperatorDecisionHelperFile,
+);
+const selectedSessionDigestIngestOperatorDecisionPanelText = textByFile.get(
+  selectedSessionDigestIngestOperatorDecisionPanelFile,
+);
 const workbenchDogfoodLoopSpineOverviewTypeText = textByFile.get(
   workbenchDogfoodLoopSpineOverviewTypeFile,
 );
@@ -1207,6 +1254,7 @@ assertPanelComponents();
 assertHandoffContextRelayRationaleFollowOn();
 assertSelectedSessionDigestIntakePreviewFollowOn();
 assertSelectedSessionDigestIngestContractPreviewFollowOn();
+assertSelectedSessionDigestIngestOperatorDecisionFollowOn();
 assertWorkbenchDogfoodLoopSpineOverviewFollowOn();
 assertCodexResultFeedbackDraftFollowOn();
 assertDogfoodReuseRecordProposalFollowOn();
@@ -1812,6 +1860,102 @@ function assertSelectedSessionDigestIngestContractPreviewFollowOn() {
   );
 }
 
+function assertSelectedSessionDigestIngestOperatorDecisionFollowOn() {
+  assertContainsAll(
+    selectedSessionDigestIngestOperatorDecisionTypeText,
+    [
+      "selected_session_digest_ingest_operator_decision_preview.v0.1",
+      "ready_for_future_decision_record_write",
+      "approve_for_future_ingest_write",
+      "would_write_decision_record_preview",
+      "can_create_ingest_decision_record: false",
+      "can_create_ingest_record: false",
+      "can_create_ingest_receipt: false",
+      "can_execute_codex: false",
+    ],
+    { label: selectedSessionDigestIngestOperatorDecisionTypeFile },
+  );
+  assertContainsAll(
+    selectedSessionDigestIngestOperatorDecisionHelperText,
+    [
+      "buildSelectedSessionDigestIngestOperatorDecisionPreviewV01",
+      "createSelectedSessionDigestIngestOperatorDecisionAuthorityBoundaryV01",
+      "SELECTED_SESSION_DIGEST_INGEST_CONTRACT_PREVIEW_VERSION",
+      "selected_digest_candidate_refs_not_subset_of_selectable_refs",
+      "unknown_selected_digest_candidate_ref",
+      "ready_for_future_decision_record_write",
+      "does_not_create_selected_session_digest_ingest_record",
+      "does_not_create_selected_session_digest_ingest_receipt",
+      "does_not_write_memory",
+      "does_not_apply_handoff_context",
+      "does_not_send_handoff",
+      "does_not_call_provider_openai",
+      "does_not_call_github",
+      "does_not_execute_codex",
+    ],
+    { label: selectedSessionDigestIngestOperatorDecisionHelperFile },
+  );
+  assertContainsAll(
+    selectedSessionDigestIngestOperatorDecisionPanelText,
+    [
+      "Selected Session Digest Ingest Operator Decision",
+      "recommended operator decision",
+      "approval requirements",
+      "would-write decision record",
+      "would not write",
+      "authority boundary",
+      "can_create_ingest_decision_record",
+      "can_create_ingest_record",
+      "can_create_ingest_receipt",
+      "can_execute_codex",
+    ],
+    { label: selectedSessionDigestIngestOperatorDecisionPanelFile },
+  );
+  assertContainsAll(
+    agentWorkplaneText,
+    [
+      "SelectedSessionDigestIngestOperatorDecisionPanel",
+      "buildSelectedSessionDigestIngestOperatorDecisionPreviewV01",
+      "selectedSessionDigestIngestOperatorDecisionPreview",
+      "selected_session_digest_ingest_contract_preview:\n        selectedSessionDigestIngestContractPreview",
+      "preview={selectedSessionDigestIngestOperatorDecisionPreview}",
+      "selected_session_digest_ingest_operator_decision_preview:\n        selectedSessionDigestIngestOperatorDecisionPreview",
+    ],
+    { label: agentWorkplaneFile },
+  );
+
+  const start = agentWorkplaneText.indexOf(
+    "const selectedSessionDigestIngestOperatorDecisionPreview",
+  );
+  const end = agentWorkplaneText.indexOf("const dogfoodMetricCandidatePreview");
+  assert(
+    start !== -1,
+    "Agent Workplane must build selected digest ingest operator decision preview",
+  );
+  assert(end > start, "Selected digest ingest operator decision block must be bounded");
+  const snippet = agentWorkplaneText.slice(start, end);
+  assert(
+    snippet.includes(
+      "selected_session_digest_ingest_contract_preview:\n        selectedSessionDigestIngestContractPreview",
+    ),
+    "Agent Workplane must pass the already-built ingest contract preview",
+  );
+  assert(!snippet.includes("digest:"), "Operator decision must not pass digest");
+  assert(!snippet.includes("raw_text:"), "Operator decision must not pass raw_text");
+  assert(!snippet.includes("sample"), "Operator decision must not pass sample material");
+  assert(!snippet.includes("fixture"), "Operator decision must not pass fixture material");
+  assert(
+    !selectedSessionDigestIngestOperatorDecisionPanelText.includes("<button"),
+    "Selected digest ingest operator decision panel must not add buttons",
+  );
+  assert(
+    !/<button[^>]*>[^<]*(Import|Write|Apply|Approve|Send|Launch|Run|Merge|Retry|Execute)/i.test(
+      selectedSessionDigestIngestOperatorDecisionPanelText,
+    ),
+    "Selected digest ingest operator decision panel must not render action buttons",
+  );
+}
+
 function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
   assertContainsAll(
     workbenchDogfoodLoopSpineOverviewTypeText,
@@ -1820,6 +1964,7 @@ function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
       "WorkbenchDogfoodLoopSpineOverview",
       "selected_session_intake",
       "selected_session_digest_ingest_contract",
+      "selected_session_digest_ingest_operator_decision",
       "codex_result_feedback",
       "dogfood_reuse_proposal",
       "handoff_context_apply_write_contract",
@@ -1845,7 +1990,9 @@ function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
       "createWorkbenchDogfoodLoopSpineOverviewAuthorityBoundaryV01",
       "selected_session_digest_intake_preview",
       "selected_session_digest_ingest_contract_preview",
+      "selected_session_digest_ingest_operator_decision_preview",
       "selectedSessionDigestIngestContractStep",
+      "selectedSessionDigestIngestOperatorDecisionStep",
       "codex_result_feedback_draft",
       "dogfood_reuse_record_proposal",
       "handoff_context_apply_write_contract_preview",
@@ -1880,6 +2027,7 @@ function assertWorkbenchDogfoodLoopSpineOverviewFollowOn() {
       "buildWorkbenchDogfoodLoopSpineOverviewV01",
       "workbenchDogfoodLoopSpineOverview",
       "selected_session_digest_ingest_contract_preview: selectedSessionDigestIngestContractPreview",
+      "selected_session_digest_ingest_operator_decision_preview:\n        selectedSessionDigestIngestOperatorDecisionPreview",
       "workbench:dogfood_loop_spine_overview",
       "preview={workbenchDogfoodLoopSpineOverview}",
     ],
@@ -2318,6 +2466,7 @@ function assertChangedFileBoundary() {
         file === ledgerRouteFile ||
         followOnDogfoodMetricCandidatePreviewFiles.includes(file) ||
         followOnHandoffContextUpdateWriteFiles.includes(file) ||
+        followOnSelectedSessionDigestIngestOperatorDecisionFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -2329,6 +2478,7 @@ function assertChangedFileBoundary() {
         file === ledgerRouteFile ||
         followOnDogfoodMetricCandidatePreviewFiles.includes(file) ||
         followOnHandoffContextUpdateWriteFiles.includes(file) ||
+        followOnSelectedSessionDigestIngestOperatorDecisionFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );

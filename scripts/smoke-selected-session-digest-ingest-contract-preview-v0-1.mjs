@@ -23,6 +23,20 @@ const overviewSmokeFile =
 const intakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const agentWorkplaneSmokeFile = "scripts/smoke-agent-workplane-panels-v0-1.mjs";
+const operatorDecisionTypeFile =
+  "types/selected-session-digest-ingest-operator-decision.ts";
+const operatorDecisionHelperFile =
+  "lib/intake/selected-session-digest-ingest-operator-decision.ts";
+const operatorDecisionPanelFile =
+  "components/intake/selected-session-digest-ingest-operator-decision-panel.tsx";
+const decisionWriteTypeFile =
+  "types/selected-session-digest-ingest-decision-write.ts";
+const decisionWriteHelperFile =
+  "lib/intake/selected-session-digest-ingest-decision-write.ts";
+const decisionWriteRouteFile =
+  "app/api/intake/selected-session-digest/ingest-decisions/route.ts";
+const operatorDecisionSmokeFile =
+  "scripts/smoke-selected-session-digest-ingest-operator-decision-v0-1.mjs";
 const smokeFile =
   "scripts/smoke-selected-session-digest-ingest-contract-preview-v0-1.mjs";
 const packageJsonFile = "package.json";
@@ -37,6 +51,13 @@ const allowedChangedFiles = [
   overviewSmokeFile,
   intakeSmokeFile,
   agentWorkplaneSmokeFile,
+  operatorDecisionTypeFile,
+  operatorDecisionHelperFile,
+  operatorDecisionPanelFile,
+  decisionWriteTypeFile,
+  decisionWriteHelperFile,
+  decisionWriteRouteFile,
+  operatorDecisionSmokeFile,
   smokeFile,
   packageJsonFile,
 ];
@@ -607,7 +628,7 @@ console.log(
       changed_files_skipped: changedFileBoundary.skipped,
       changed_files_skip_reason: changedFileBoundary.skip_reason,
       changed_files_observed: changedFileBoundary.files,
-      no_api_route_added: true,
+      no_unscoped_api_route_added: true,
       no_db_helper_added: true,
       no_provider_github_codex_runtime_path_added: true,
       no_mcp_plugin_tool_path_added: true,
@@ -679,6 +700,7 @@ function assertNoForbiddenRuntimeStrings({ files, textByFile }) {
 function assertNoForbiddenPathChanges() {
   const changed = collectUntrackedFiles();
   for (const file of changed) {
+    if (allowedChangedFiles.includes(file)) continue;
     assert(
       !file.startsWith("app/api/"),
       `No app route may be added or changed: ${file}`,
