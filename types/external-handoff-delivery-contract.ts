@@ -400,6 +400,7 @@ export interface ExternalHandoffDeliveryContractRecordReview {
   review_status: ExternalHandoffDeliveryContractReviewStatus;
   selected_record_summary: ExternalHandoffDeliveryContractRecordSummary | null;
   latest_record_summary: ExternalHandoffDeliveryContractRecordSummary | null;
+  record_summaries: ExternalHandoffDeliveryContractRecordSummary[];
   input_summary: {
     supplied_record_count: number;
     valid_record_count: number;

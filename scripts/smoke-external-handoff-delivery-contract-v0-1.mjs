@@ -260,9 +260,63 @@ const review = reviewLib.buildExternalHandoffDeliveryContractRecordReviewV01({
   selected_record_id: written.record.record_id,
 });
 assert.equal(review.review_status, "selected_record_found");
+assert.equal(
+  review.selected_record_summary.source_handoff_send_contract_record_ref,
+  "handoff-send-contract-record:001",
+);
 assert.equal(review.evidence_summary.delivery_performed, false);
 assert.equal(review.evidence_summary.provider_called, false);
 assert.equal(review.evidence_summary.external_message_sent, false);
+
+for (const forgedRecord of [
+  (() => {
+    const record = cloneRecord(written.record);
+    delete record.source_handoff_send_contract_record_ref;
+    return record;
+  })(),
+  {
+    ...cloneRecord(written.record),
+    source_handoff_send_contract_record_ref: null,
+  },
+]) {
+  assertInvalidRecordReview({
+    reviewLib,
+    record: forgedRecord,
+    reason: "source_handoff_send_contract_record_ref_missing",
+  });
+}
+
+for (const [field, reason] of [
+  ["delivery_performed", "external_delivery_performed_true"],
+  ["provider_contract_present", "provider_contract_present_true"],
+  ["provider_specific_delivery", "provider_specific_delivery_true"],
+  ["provider_called", "provider_called_true"],
+  ["external_message_sent", "external_message_sent_true"],
+  ["email_sent", "email_sent_true"],
+  ["slack_sent", "slack_sent_true"],
+  ["webhook_called", "webhook_called_true"],
+  ["network_called", "network_called_true"],
+  ["clipboard_written", "clipboard_written_true"],
+  ["file_downloaded", "file_downloaded_true"],
+  [
+    "local_fulfillment_is_external_delivery",
+    "local_fulfillment_is_external_delivery_true",
+  ],
+]) {
+  const record = cloneRecord(written.record);
+  record.external_delivery_boundary[field] = true;
+  assertInvalidRecordReview({ reviewLib, record, reason });
+}
+
+for (const [field, reason] of [
+  ["network_called", "receipt_network_called_true"],
+  ["clipboard_written", "receipt_clipboard_written_true"],
+  ["file_downloaded", "receipt_file_downloaded_true"],
+]) {
+  const record = cloneRecord(written.record);
+  record.receipt[field] = true;
+  assertInvalidRecordReview({ reviewLib, record, reason });
+}
 const readReview =
   readReviewLib.readExternalHandoffDeliveryContractRecordReviewForWebV01();
 assert.equal(readReview.review_status, "no_records");
@@ -753,6 +807,28 @@ function readOnlyBoundary(extra = {}) {
     can_render_workbench_action_button: false,
     ...extra,
   };
+}
+
+function cloneRecord(record) {
+  return JSON.parse(JSON.stringify(record));
+}
+
+function assertInvalidRecordReview({ reviewLib, record, reason }) {
+  const review = reviewLib.buildExternalHandoffDeliveryContractRecordReviewV01({
+    records: [record],
+  });
+  assert.equal(review.review_status, "records_invalid", reason);
+  assert(
+    review.blocked_reasons.includes(
+      "external_handoff_delivery_contract_records_invalid",
+    ),
+    `${reason} should block review`,
+  );
+  assert.equal(review.input_summary.valid_record_count, 0, reason);
+  assert(
+    review.record_summaries[0].problem_reasons.includes(reason),
+    `missing problem reason ${reason}`,
+  );
 }
 
 function assertNoForbiddenPureRuntime(label, text) {

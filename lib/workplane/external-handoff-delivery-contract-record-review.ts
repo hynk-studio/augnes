@@ -56,6 +56,7 @@ export function buildExternalHandoffDeliveryContractRecordReviewV01(
     review_status: reviewStatus,
     selected_record_summary: selectedRecord ? summarizeRecord(selectedRecord) : null,
     latest_record_summary: latestRecord ? summarizeRecord(latestRecord) : null,
+    record_summaries: summaries,
     input_summary: {
       supplied_record_count: rawRecords.length,
       valid_record_count: validRecords.length,
@@ -121,22 +122,38 @@ function summarizeUnknownRecord(
 ): ExternalHandoffDeliveryContractRecordSummary {
   if (!isExternalHandoffDeliveryContractRecord(value)) {
     const record = isRecord(value) ? value : {};
+    const boundary = recordField(record, "external_delivery_boundary");
     return {
       record_id: stringField(record, "record_id"),
       created_at: stringField(record, "created_at"),
-      source_local_fulfillment_ref: null,
-      source_handoff_send_contract_record_ref: null,
-      source_exported_artifact_ref: null,
-      payload_hash: null,
-      payload_type: null,
-      requested_delivery_surface: null,
-      requested_delivery_mode: null,
-      requested_recipient_ref: null,
-      contract_status: null,
-      delivery_performed: false,
-      provider_called: false,
-      external_message_sent: false,
-      problem_reasons: ["external_handoff_delivery_contract_record_malformed"],
+      source_local_fulfillment_ref: stringField(
+        record,
+        "source_local_fulfillment_ref",
+      ),
+      source_handoff_send_contract_record_ref: stringField(
+        record,
+        "source_handoff_send_contract_record_ref",
+      ),
+      source_exported_artifact_ref: stringField(
+        record,
+        "source_exported_artifact_ref",
+      ),
+      payload_hash: stringField(record, "payload_hash"),
+      payload_type: stringField(record, "payload_type"),
+      requested_delivery_surface: stringField(
+        record,
+        "requested_delivery_surface",
+      ),
+      requested_delivery_mode: stringField(record, "requested_delivery_mode"),
+      requested_recipient_ref: stringField(record, "requested_recipient_ref"),
+      contract_status: stringField(record, "contract_status"),
+      delivery_performed: boundary?.delivery_performed === true,
+      provider_called: boundary?.provider_called === true,
+      external_message_sent: boundary?.external_message_sent === true,
+      problem_reasons: uniqueStrings([
+        "external_handoff_delivery_contract_record_malformed",
+        ...recordProblemReasons(record),
+      ]),
     };
   }
   return summarizeRecord(value);
@@ -167,40 +184,61 @@ function summarizeRecord(
 }
 
 function recordProblemReasons(
-  record: ExternalHandoffDeliveryContractRecord,
+  record: ExternalHandoffDeliveryContractRecord | RecordValue,
 ): string[] {
+  const boundary = recordField(record, "external_delivery_boundary");
+  const receipt = recordField(record, "receipt");
   return uniqueStrings([
     ...(record.scope !== EXTERNAL_HANDOFF_DELIVERY_CONTRACT_SCOPE
       ? ["external_handoff_delivery_contract_record_scope_invalid"]
       : []),
-    ...(!record.source_local_fulfillment_ref
+    ...(!stringField(record, "source_local_fulfillment_ref")
       ? ["source_local_fulfillment_ref_missing"]
       : []),
-    ...(!record.source_exported_artifact_ref
+    ...(!stringField(record, "source_handoff_send_contract_record_ref")
+      ? ["source_handoff_send_contract_record_ref_missing"]
+      : []),
+    ...(!stringField(record, "source_exported_artifact_ref")
       ? ["source_exported_artifact_ref_missing"]
       : []),
-    ...(!record.payload_hash ? ["payload_hash_missing"] : []),
-    ...(record.external_delivery_boundary.delivery_performed
-      ? ["external_delivery_performed_true"]
-      : []),
-    ...(record.external_delivery_boundary.provider_called
-      ? ["provider_called_true"]
-      : []),
-    ...(record.external_delivery_boundary.external_message_sent
-      ? ["external_message_sent_true"]
-      : []),
-    ...(record.receipt.no_side_effects !== true
+    ...(!stringField(record, "payload_hash") ? ["payload_hash_missing"] : []),
+    ...externalDeliveryBoundaryProblems(boundary),
+    ...(receipt?.no_side_effects !== true
       ? ["receipt_no_side_effects_not_true"]
       : []),
-    ...(record.receipt.external_delivery_performed
+    ...(receipt?.external_delivery_performed
       ? ["receipt_external_delivery_performed_true"]
       : []),
-    ...(record.receipt.provider_called ? ["receipt_provider_called_true"] : []),
-    ...(record.receipt.external_message_sent
+    ...(receipt?.provider_called ? ["receipt_provider_called_true"] : []),
+    ...(receipt?.external_message_sent
       ? ["receipt_external_message_sent_true"]
       : []),
+    ...(receipt?.network_called ? ["receipt_network_called_true"] : []),
+    ...(receipt?.clipboard_written ? ["receipt_clipboard_written_true"] : []),
+    ...(receipt?.file_downloaded ? ["receipt_file_downloaded_true"] : []),
     ...authorityProblems(record.authority_boundary),
   ]);
+}
+
+function externalDeliveryBoundaryProblems(boundary: RecordValue | null): string[] {
+  if (!boundary) return ["external_delivery_boundary_missing"];
+  return [
+    ["delivery_performed", "external_delivery_performed_true"],
+    ["provider_contract_present", "provider_contract_present_true"],
+    ["provider_specific_delivery", "provider_specific_delivery_true"],
+    ["provider_called", "provider_called_true"],
+    ["external_message_sent", "external_message_sent_true"],
+    ["email_sent", "email_sent_true"],
+    ["slack_sent", "slack_sent_true"],
+    ["webhook_called", "webhook_called_true"],
+    ["network_called", "network_called_true"],
+    ["clipboard_written", "clipboard_written_true"],
+    ["file_downloaded", "file_downloaded_true"],
+    [
+      "local_fulfillment_is_external_delivery",
+      "local_fulfillment_is_external_delivery_true",
+    ],
+  ].flatMap(([field, reason]) => (boundary[field] === true ? [reason] : []));
 }
 
 function authorityProblems(value: unknown): string[] {
@@ -242,6 +280,7 @@ function isExternalHandoffDeliveryContractRecord(
       typeof value.record_id === "string" &&
       typeof value.created_at === "string" &&
       typeof value.source_local_fulfillment_ref === "string" &&
+      typeof value.source_handoff_send_contract_record_ref === "string" &&
       typeof value.source_exported_artifact_ref === "string" &&
       typeof value.payload_hash === "string" &&
       isRecord(value.external_delivery_boundary) &&
@@ -254,6 +293,10 @@ function stringField(value: unknown, key: string): string | null {
   return isRecord(value) && typeof value[key] === "string"
     ? value[key]
     : null;
+}
+
+function recordField(value: unknown, key: string): RecordValue | null {
+  return isRecord(value) && isRecord(value[key]) ? value[key] : null;
 }
 
 function isRecord(value: unknown): value is RecordValue {
