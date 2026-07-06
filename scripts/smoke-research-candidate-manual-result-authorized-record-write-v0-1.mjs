@@ -346,9 +346,21 @@ function makeFlow(report) {
 }
 
 const ready = makeFlow(makeReport());
-const changed = makeFlow(makeReport({
+const rolledBackSupersedeAttempt = makeFlow(makeReport({
+  outcome: "missing",
+  observed: "A supersede attempt against a rolled back receipt must be refused."
+}));
+const baselineB = makeFlow(makeReport({
+  outcome: "helpful",
+  observed: "A second committed receipt can be superseded while it is still committed."
+}));
+const replacementC = makeFlow(makeReport({
   outcome: "stale",
   observed: "The superseding authorized write stored revised manual result summaries."
+}));
+const alreadySupersededAttempt = makeFlow(makeReport({
+  outcome: "noisy",
+  observed: "A supersede attempt against an already superseded receipt must be refused."
 }));
 const incomplete = makeFlow(makeReport().replace("selected candidate context outcome: helpful\\n", ""));
 const rejectedReview = buildResearchCandidateManualNoteResultIntakeOperatorReview({
@@ -372,6 +384,24 @@ function requestFor(flow, authorization = {}) {
       ...authorization
     }
   };
+}
+
+function readCounts() {
+  return Object.fromEntries([
+    "research_candidate_manual_result_write_receipts",
+    "research_candidate_manual_expected_observed_delta_records",
+    "research_candidate_manual_reuse_outcome_records",
+    "research_candidate_manual_result_write_rollbacks",
+    "verification_evidence_records",
+    "work_items",
+    "work_events",
+    "perspective_states",
+    "perspective_memory_items",
+    "dogfooding_records"
+  ].map((table) => [
+    table,
+    db.prepare("SELECT COUNT(*) AS count FROM " + table).get().count
+  ]));
 }
 
 const missingConfirmation = writeResearchCandidateManualResultAuthorizedRecords(
@@ -420,16 +450,10 @@ const duplicate = writeResearchCandidateManualResultAuthorizedRecords(
   requestFor(ready),
   { db }
 );
-const superseded = writeResearchCandidateManualResultAuthorizedRecords(
-  requestFor(changed, {
-    write_mode: "supersede_previous",
-    supersedes_receipt_id: committed.receipt.receipt_id
-  }),
-  { db }
-);
-const rollback = rollbackResearchCandidateManualResultWriteReceipt(
+const countsAfterDuplicate = readCounts();
+const rollbackCommitted = rollbackResearchCandidateManualResultWriteReceipt(
   {
-    receipt_id: superseded.receipt.receipt_id,
+    receipt_id: committed.receipt.receipt_id,
     rollback_authorization: {
       authorization_kind: "manual_operator_authorized_record_rollback",
       operator_confirmation_text: RESEARCH_CANDIDATE_MANUAL_RESULT_ROLLBACK_CONFIRMATION,
@@ -438,23 +462,36 @@ const rollback = rollbackResearchCandidateManualResultWriteReceipt(
   },
   { db }
 );
+const supersedeRolledBackAttempt = writeResearchCandidateManualResultAuthorizedRecords(
+  requestFor(rolledBackSupersedeAttempt, {
+    write_mode: "supersede_previous",
+    supersedes_receipt_id: committed.receipt.receipt_id
+  }),
+  { db }
+);
+const countsAfterRolledBackSupersedeAttempt = readCounts();
+const committedB = writeResearchCandidateManualResultAuthorizedRecords(
+  requestFor(baselineB),
+  { db }
+);
+const superseded = writeResearchCandidateManualResultAuthorizedRecords(
+  requestFor(replacementC, {
+    write_mode: "supersede_previous",
+    supersedes_receipt_id: committedB.receipt.receipt_id
+  }),
+  { db }
+);
+const countsAfterValidSupersede = readCounts();
+const supersedeAlreadySupersededAttempt = writeResearchCandidateManualResultAuthorizedRecords(
+  requestFor(alreadySupersededAttempt, {
+    write_mode: "supersede_previous",
+    supersedes_receipt_id: committedB.receipt.receipt_id
+  }),
+  { db }
+);
+const countsAfterAlreadySupersededAttempt = readCounts();
 const readback = readResearchCandidateManualResultRecords({ db, limit: 10 });
-
-const tableCounts = Object.fromEntries([
-  "research_candidate_manual_result_write_receipts",
-  "research_candidate_manual_expected_observed_delta_records",
-  "research_candidate_manual_reuse_outcome_records",
-  "research_candidate_manual_result_write_rollbacks",
-  "verification_evidence_records",
-  "work_items",
-  "work_events",
-  "perspective_states",
-  "perspective_memory_items",
-  "dogfooding_records"
-].map((table) => [
-  table,
-  db.prepare("SELECT COUNT(*) AS count FROM " + table).get().count
-]));
+const tableCounts = readCounts();
 
 console.log(JSON.stringify({
   missingConfirmation,
@@ -464,8 +501,15 @@ console.log(JSON.stringify({
   wrongBoundaryResult,
   committed,
   duplicate,
+  countsAfterDuplicate,
+  rollbackCommitted,
+  supersedeRolledBackAttempt,
+  countsAfterRolledBackSupersedeAttempt,
+  committedB,
   superseded,
-  rollback,
+  countsAfterValidSupersede,
+  supersedeAlreadySupersededAttempt,
+  countsAfterAlreadySupersededAttempt,
   readback,
   tableCounts
 }));
@@ -528,38 +572,97 @@ function assertDuplicateReplay(sample) {
     "duplicate replay must return the existing receipt",
   );
   assert.equal(
-    sample.tableCounts.research_candidate_manual_result_write_receipts,
-    2,
-    "duplicate replay plus one supersede write should leave two receipts only",
+    sample.countsAfterDuplicate.research_candidate_manual_result_write_receipts,
+    1,
+    "duplicate replay must not create a second receipt",
   );
-  assert.equal(sample.tableCounts.research_candidate_manual_expected_observed_delta_records, 2);
-  assert.equal(sample.tableCounts.research_candidate_manual_reuse_outcome_records, 2);
+  assert.equal(
+    sample.countsAfterDuplicate
+      .research_candidate_manual_expected_observed_delta_records,
+    1,
+  );
+  assert.equal(
+    sample.countsAfterDuplicate.research_candidate_manual_reuse_outcome_records,
+    1,
+  );
 }
 
 function assertSupersedeAndRollback(sample) {
+  assert.equal(sample.rollbackCommitted.ok, true);
+  assert.equal(sample.rollbackCommitted.result_status, "rolled_back");
+  assert.equal(sample.supersedeRolledBackAttempt.ok, false);
+  assert.ok(
+    sample.supersedeRolledBackAttempt.refusal_reasons.includes(
+      "supersedes_receipt_not_committed",
+    ),
+  );
+  assert.equal(
+    sample.countsAfterRolledBackSupersedeAttempt
+      .research_candidate_manual_result_write_receipts,
+    sample.countsAfterDuplicate.research_candidate_manual_result_write_receipts,
+    "superseding a rolled back receipt must not insert a receipt",
+  );
+  assert.equal(
+    sample.countsAfterRolledBackSupersedeAttempt
+      .research_candidate_manual_expected_observed_delta_records,
+    sample.countsAfterDuplicate
+      .research_candidate_manual_expected_observed_delta_records,
+    "superseding a rolled back receipt must not insert an EOD record",
+  );
+  assert.equal(
+    sample.countsAfterRolledBackSupersedeAttempt
+      .research_candidate_manual_reuse_outcome_records,
+    sample.countsAfterDuplicate.research_candidate_manual_reuse_outcome_records,
+    "superseding a rolled back receipt must not insert a reuse outcome record",
+  );
+  assert.equal(
+    sample.countsAfterRolledBackSupersedeAttempt
+      .research_candidate_manual_result_write_rollbacks,
+    1,
+    "rollback metadata should be the only added row after rolling back receipt A",
+  );
+  assert.equal(sample.committedB.ok, true);
+  assert.equal(sample.committedB.result_status, "committed");
   assert.equal(sample.superseded.ok, true);
   assert.equal(sample.superseded.result_status, "committed");
   assert.equal(
     sample.superseded.receipt.supersedes_receipt_id,
-    sample.committed.receipt.receipt_id,
+    sample.committedB.receipt.receipt_id,
+  );
+  assert.equal(sample.supersedeAlreadySupersededAttempt.ok, false);
+  assert.ok(
+    sample.supersedeAlreadySupersededAttempt.refusal_reasons.includes(
+      "supersedes_receipt_not_committed",
+    ),
+  );
+  assert.deepEqual(
+    sample.countsAfterAlreadySupersededAttempt,
+    sample.countsAfterValidSupersede,
+    "superseding an already superseded receipt must not insert new rows",
   );
   const supersededReadback = sample.readback.records_by_receipt.find(
-    (item) => item.receipt.receipt_id === sample.committed.receipt.receipt_id,
+    (item) => item.receipt.receipt_id === sample.committedB.receipt.receipt_id,
   );
   assert.equal(supersededReadback.receipt.write_status, "superseded");
-  assert.equal(sample.rollback.ok, true);
-  assert.equal(sample.rollback.result_status, "rolled_back");
   assert.equal(sample.tableCounts.research_candidate_manual_result_write_rollbacks, 1);
   const rolledBackReadback = sample.readback.records_by_receipt.find(
-    (item) => item.receipt.receipt_id === sample.superseded.receipt.receipt_id,
+    (item) => item.receipt.receipt_id === sample.committed.receipt.receipt_id,
   );
   assert.equal(rolledBackReadback.receipt.write_status, "rolled_back");
   assert.equal(rolledBackReadback.rolled_back, true);
   assert.ok(rolledBackReadback.rollback.rollback_reason.includes("Smoke test rollback"));
+  const committedReadback = sample.readback.records_by_receipt.find(
+    (item) => item.receipt.receipt_id === sample.superseded.receipt.receipt_id,
+  );
+  assert.equal(committedReadback.receipt.write_status, "committed");
+  assert.equal(
+    committedReadback.receipt.supersedes_receipt_id,
+    sample.committedB.receipt.receipt_id,
+  );
 }
 
 function assertReadbackBoundaries(sample) {
-  assert.equal(sample.readback.count, 2);
+  assert.equal(sample.readback.count, 3);
   assert.equal(sample.readback.raw_manual_note_text_present, false);
   assert.equal(sample.readback.raw_result_report_text_present, false);
   assert.equal(sample.readback.proof_or_evidence_rows_written, false);
@@ -593,10 +696,22 @@ function assertForbiddenStaticPatterns() {
     /BEGIN IMMEDIATE/,
     "writer must use an explicit transaction for durable rows",
   );
+  const beginImmediateIndex = writerSource.indexOf('BEGIN IMMEDIATE');
+  assert.ok(beginImmediateIndex >= 0, "writer must begin a transaction");
+  assert.doesNotMatch(
+    writerSource.slice(0, beginImmediateIndex),
+    /readResearchCandidateManualResultRecords\({[\s\S]*idempotencyKey:\s*validation\.idempotency_key/,
+    "writer must not rely only on pre-transaction idempotency lookup",
+  );
+  assert.match(
+    writerSource.slice(beginImmediateIndex),
+    /readResearchCandidateManualResultRecords\({[\s\S]*idempotencyKey:\s*validation\.idempotency_key/,
+    "writer must check idempotency inside the write transaction",
+  );
   assert.match(
     writerSource,
-    /idempotency_key/,
-    "writer must compute and check idempotency",
+    /supersedes_receipt_not_committed/,
+    "writer must refuse supersede_previous for non-committed target receipts",
   );
 }
 

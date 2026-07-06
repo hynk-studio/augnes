@@ -68,49 +68,6 @@ export function writeResearchCandidateManualResultAuthorizedRecords(
 
   try {
     ensureResearchCandidateManualResultRecordWriteSchema(db);
-    const existingReadback = readResearchCandidateManualResultRecords({
-      scope: typedRequest.result_intake.scope,
-      idempotencyKey: validation.idempotency_key,
-      limit: 1,
-      db,
-    });
-    const existing = existingReadback.records_by_receipt[0];
-    if (existing) {
-      return {
-        ok: true,
-        result_status: "duplicate_replayed",
-        validation,
-        receipt: existing.receipt,
-        expected_observed_delta_record: existing.expected_observed_delta_record,
-        reuse_outcome_record: existing.reuse_outcome_record,
-        readback: existingReadback,
-        refusal_reasons: [],
-        duplicate_replayed: true,
-        idempotency_key: validation.idempotency_key,
-        authority_boundary: boundary,
-      };
-    }
-
-    if (
-      typedRequest.operator_authorization.write_mode === "supersede_previous" &&
-      !readResearchCandidateManualResultRecordsByReceiptId(
-        typedRequest.operator_authorization.supersedes_receipt_id ?? "",
-        { scope: typedRequest.result_intake.scope, db },
-      )
-    ) {
-      return refusedResult({
-        validation: {
-          ...validation,
-          passed: false,
-          failure_codes: [
-            ...validation.failure_codes,
-            "supersedes_receipt_id_not_found",
-          ],
-        },
-        idempotencyKey: validation.idempotency_key,
-      });
-    }
-
     const createdAt = new Date().toISOString();
     const receipt = buildReceipt({
       request: typedRequest,
@@ -132,8 +89,55 @@ export function writeResearchCandidateManualResultAuthorizedRecords(
     try {
       db.prepare("BEGIN IMMEDIATE").run();
       transactionStarted = true;
+
+      const existingReadback = readResearchCandidateManualResultRecords({
+        scope: typedRequest.result_intake.scope,
+        idempotencyKey: validation.idempotency_key,
+        limit: 1,
+        db,
+      });
+      const existing = existingReadback.records_by_receipt[0];
+      if (existing) {
+        rollbackWriteTransaction(db);
+        transactionStarted = false;
+        return duplicateReplayResult({
+          validation,
+          readback: existingReadback,
+          boundary,
+        });
+      }
+
       if (typedRequest.operator_authorization.write_mode === "supersede_previous") {
-        db.prepare(
+        const supersedesReceiptId =
+          typedRequest.operator_authorization.supersedes_receipt_id ?? "";
+        const supersededTarget =
+          readResearchCandidateManualResultRecordsByReceiptId(
+            supersedesReceiptId,
+            { scope: typedRequest.result_intake.scope, db },
+          );
+        if (!supersededTarget) {
+          rollbackWriteTransaction(db);
+          transactionStarted = false;
+          return refusedResult({
+            validation: validationWithFailure(
+              validation,
+              "supersedes_receipt_id_not_found",
+            ),
+            idempotencyKey: validation.idempotency_key,
+          });
+        }
+        if (supersededTarget.receipt.write_status !== "committed") {
+          rollbackWriteTransaction(db);
+          transactionStarted = false;
+          return refusedResult({
+            validation: validationWithFailure(
+              validation,
+              "supersedes_receipt_not_committed",
+            ),
+            idempotencyKey: validation.idempotency_key,
+          });
+        }
+        const supersedeUpdate = db.prepare(
           `
             UPDATE research_candidate_manual_result_write_receipts
             SET write_status = 'superseded'
@@ -142,9 +146,20 @@ export function writeResearchCandidateManualResultAuthorizedRecords(
               AND write_status = 'committed'
           `,
         ).run(
-          typedRequest.operator_authorization.supersedes_receipt_id,
+          supersedesReceiptId,
           typedRequest.result_intake.scope,
         );
+        if (getRunChangeCount(supersedeUpdate) !== 1) {
+          rollbackWriteTransaction(db);
+          transactionStarted = false;
+          return refusedResult({
+            validation: validationWithFailure(
+              validation,
+              "supersedes_receipt_not_committed",
+            ),
+            idempotencyKey: validation.idempotency_key,
+          });
+        }
       }
       insertReceipt(db, receipt);
       insertExpectedObservedDeltaRecord(db, expectedObservedDeltaRecord);
@@ -153,11 +168,20 @@ export function writeResearchCandidateManualResultAuthorizedRecords(
       transactionStarted = false;
     } catch {
       if (transactionStarted) {
-        try {
-          db.prepare("ROLLBACK").run();
-        } catch {
-          // Refusal below covers rollback failure.
-        }
+        rollbackWriteTransaction(db);
+      }
+      const duplicateReadback = readResearchCandidateManualResultRecords({
+        scope: typedRequest.result_intake.scope,
+        idempotencyKey: validation.idempotency_key,
+        limit: 1,
+        db,
+      });
+      if (duplicateReadback.records_by_receipt[0]) {
+        return duplicateReplayResult({
+          validation,
+          readback: duplicateReadback,
+          boundary,
+        });
       }
       return refusedResult({
         validation: {
@@ -900,6 +924,55 @@ function refusedResult({
     idempotency_key: idempotencyKey,
     authority_boundary: getResearchCandidateManualResultWriteAuthorityBoundary(),
   };
+}
+
+function duplicateReplayResult({
+  validation,
+  readback,
+  boundary,
+}: {
+  validation: ResearchCandidateManualResultWriteValidation;
+  readback: NonNullable<ResearchCandidateManualResultAuthorizedWriteResult["readback"]>;
+  boundary: ReturnType<typeof getResearchCandidateManualResultWriteAuthorityBoundary>;
+}): ResearchCandidateManualResultAuthorizedWriteResult {
+  const existing = readback.records_by_receipt[0];
+  return {
+    ok: true,
+    result_status: "duplicate_replayed",
+    validation,
+    receipt: existing.receipt,
+    expected_observed_delta_record: existing.expected_observed_delta_record,
+    reuse_outcome_record: existing.reuse_outcome_record,
+    readback,
+    refusal_reasons: [],
+    duplicate_replayed: true,
+    idempotency_key: validation.idempotency_key,
+    authority_boundary: boundary,
+  };
+}
+
+function validationWithFailure(
+  validation: ResearchCandidateManualResultWriteValidation,
+  failureCode: string,
+): ResearchCandidateManualResultWriteValidation {
+  return {
+    ...validation,
+    passed: false,
+    failure_codes: uniqueSorted([...validation.failure_codes, failureCode]),
+  };
+}
+
+function rollbackWriteTransaction(db: ResearchCandidateManualResultRecordDbLike) {
+  try {
+    db.prepare("ROLLBACK").run();
+  } catch {
+    // The caller returns a conservative refusal or duplicate replay after rollback.
+  }
+}
+
+function getRunChangeCount(value: unknown) {
+  if (!isRecord(value)) return null;
+  return typeof value.changes === "number" ? value.changes : null;
 }
 
 function validationResult({
