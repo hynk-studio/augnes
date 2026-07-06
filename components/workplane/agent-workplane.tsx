@@ -76,6 +76,9 @@ import { AppliedHandoffContextPanel } from "@/components/workplane/applied-hando
 import { HandoffContextApplyDecisionPanel } from "@/components/workplane/handoff-context-apply-decision-panel";
 import { HandoffContextApplyPreviewPanel } from "@/components/workplane/handoff-context-apply-preview-panel";
 import { HandoffContextApplyRecordReviewPanel } from "@/components/workplane/handoff-context-apply-record-review-panel";
+import { HandoffPacketCopyExportContractDecisionPanel } from "@/components/workplane/handoff-packet-copy-export-contract-decision-panel";
+import { HandoffPacketCopyExportContractPreviewPanel } from "@/components/workplane/handoff-packet-copy-export-contract-preview-panel";
+import { HandoffPacketCopyExportContractRecordReviewPanel } from "@/components/workplane/handoff-packet-copy-export-contract-record-review-panel";
 import { HandoffContextUpdateContractDecisionPanel } from "@/components/workplane/handoff-context-update-contract-decision-panel";
 import { HandoffContextUpdateContractPreviewPanel } from "@/components/workplane/handoff-context-update-contract-preview-panel";
 import { HandoffContextUpdateContractRecordReviewPanel } from "@/components/workplane/handoff-context-update-contract-record-review-panel";
@@ -171,6 +174,9 @@ import { buildHandoffContextApplyOperatorDecisionPreviewV01 } from "@/lib/workpl
 import { buildHandoffContextApplyPreviewV01 } from "@/lib/workplane/handoff-context-apply-preview";
 import { readAppliedHandoffContextForWebV01 } from "@/lib/workplane/read-applied-handoff-context-for-web";
 import { readHandoffContextApplyRecordReviewForWebV01 } from "@/lib/workplane/read-handoff-context-apply-record-review-for-web";
+import { buildHandoffPacketCopyExportContractOperatorDecisionPreviewV01 } from "@/lib/workplane/handoff-packet-copy-export-contract-decision";
+import { buildHandoffPacketCopyExportContractPreviewV01 } from "@/lib/workplane/handoff-packet-copy-export-contract-preview";
+import { readHandoffPacketCopyExportContractRecordReviewForWebV01 } from "@/lib/workplane/read-handoff-packet-copy-export-contract-record-review-for-web";
 import { buildPerspectiveUnitScopedWritePreviewV01 } from "@/lib/workplane/perspective-unit-scoped-write-preview";
 import { readPerspectiveUnitRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-unit-record-review-for-web";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
@@ -837,6 +843,44 @@ export async function AgentWorkplane() {
       source_refs: ["workbench:handoff_context_apply_record_review"],
     });
   const appliedHandoffContextRead = readAppliedHandoffContextForWebV01();
+  const handoffPacketCopyExportContractPreview =
+    buildHandoffPacketCopyExportContractPreviewV01({
+      applied_handoff_context_read: appliedHandoffContextRead,
+      handoff_context_apply_record_review: handoffContextApplyRecordReview,
+      handoff_context_update_contract_record_review:
+        handoffContextUpdateContractRecordReview,
+      current_working_perspective_route_integration_read:
+        currentWorkingPerspectiveRouteIntegrationRead,
+      requested_packet_format:
+        appliedHandoffContextRead.status ===
+        "latest_applied_handoff_context_snapshot_available"
+          ? "operator_handoff_packet_markdown"
+          : undefined,
+      requested_copy_export_target:
+        appliedHandoffContextRead.status ===
+        "latest_applied_handoff_context_snapshot_available"
+          ? "operator_copy_surface_candidate"
+          : undefined,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:handoff_packet_copy_export_contract_preview"],
+    });
+  const handoffPacketCopyExportContractDecisionPreview =
+    buildHandoffPacketCopyExportContractOperatorDecisionPreviewV01({
+      handoff_packet_copy_export_contract_preview:
+        handoffPacketCopyExportContractPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:handoff_packet_copy_export_contract_decision_preview",
+      ],
+    });
+  const handoffPacketCopyExportContractRecordReview =
+    readHandoffPacketCopyExportContractRecordReviewForWebV01({
+      source_refs: [
+        "workbench:handoff_packet_copy_export_contract_record_review",
+      ],
+    });
   const handoffContextUpdatePreview = buildHandoffContextUpdatePreviewV01({
     handoff_context_relay_rationale: handoffContextRationale,
     metric_informed_relay_adjustment_preview:
@@ -988,6 +1032,12 @@ export async function AgentWorkplane() {
         handoffContextApplySliceDecisionPreview,
       handoff_context_apply_record_review: handoffContextApplyRecordReview,
       applied_handoff_context_read: appliedHandoffContextRead,
+      handoff_packet_copy_export_contract_preview:
+        handoffPacketCopyExportContractPreview,
+      handoff_packet_copy_export_contract_decision_preview:
+        handoffPacketCopyExportContractDecisionPreview,
+      handoff_packet_copy_export_contract_record_review:
+        handoffPacketCopyExportContractRecordReview,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -1248,6 +1298,15 @@ export async function AgentWorkplane() {
                 review={handoffContextApplyRecordReview}
               />
               <AppliedHandoffContextPanel read={appliedHandoffContextRead} />
+              <HandoffPacketCopyExportContractPreviewPanel
+                preview={handoffPacketCopyExportContractPreview}
+              />
+              <HandoffPacketCopyExportContractDecisionPanel
+                preview={handoffPacketCopyExportContractDecisionPreview}
+              />
+              <HandoffPacketCopyExportContractRecordReviewPanel
+                review={handoffPacketCopyExportContractRecordReview}
+              />
               <HandoffContextUpdatePreviewPanel
                 preview={handoffContextUpdatePreview}
               />
