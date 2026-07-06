@@ -59,6 +59,11 @@ const expectedFiles = [
   "lib/workplane/delivery-spine-loop-closure.ts",
   "components/workplane/delivery-spine-loop-closure-panel.tsx",
   "scripts/smoke-delivery-spine-loop-closure-v0-1.mjs",
+  "types/provider-specific-delivery-execution-contract-preview.ts",
+  "lib/workplane/provider-specific-delivery-execution-contract-preview.ts",
+  "lib/workplane/provider-specific-delivery-execution-operator-decision-preview.ts",
+  "components/workplane/provider-specific-delivery-execution-contract-preview-panel.tsx",
+  "scripts/smoke-provider-specific-delivery-execution-contract-preview-v0-1.mjs",
   "package.json",
 ];
 
