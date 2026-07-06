@@ -2165,6 +2165,26 @@ for (const file of followOnHandoffCapsuleWebPreviewFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffSendContractFiles = [
+  "types/handoff-send-contract-preview.ts",
+  "lib/workplane/handoff-send-contract-preview.ts",
+  "components/workplane/handoff-send-contract-preview-panel.tsx",
+  "types/handoff-send-contract-decision.ts",
+  "lib/workplane/handoff-send-contract-decision.ts",
+  "components/workplane/handoff-send-contract-decision-panel.tsx",
+  "types/handoff-send-contract-write.ts",
+  "lib/workplane/handoff-send-contract-write.ts",
+  "app/api/workplane/handoff-send-contracts/route.ts",
+  "types/handoff-send-contract-record-review.ts",
+  "lib/workplane/handoff-send-contract-record-review.ts",
+  "lib/workplane/read-handoff-send-contract-record-review-for-web.ts",
+  "components/workplane/handoff-send-contract-record-review-panel.tsx",
+  "scripts/smoke-handoff-send-contract-v0-1.mjs",
+];
+for (const file of followOnHandoffSendContractFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
@@ -3935,6 +3955,7 @@ function assertChangedFileBoundary() {
         followOnHandoffContextApplySliceFiles.includes(file) ||
         followOnHandoffPacketCopyExportContractFiles.includes(file) ||
         followOnHandoffPacketCopyExportSliceFiles.includes(file) ||
+        followOnHandoffSendContractFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3964,6 +3985,7 @@ function assertChangedFileBoundary() {
         followOnHandoffContextApplySliceFiles.includes(file) ||
         followOnHandoffPacketCopyExportContractFiles.includes(file) ||
         followOnHandoffPacketCopyExportSliceFiles.includes(file) ||
+        followOnHandoffSendContractFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
