@@ -1830,15 +1830,32 @@ writes, perspective promotion, work status mutation, state commit/reject, API
 routes, App/MCP tool changes, package dependencies, or automatic Codex/GitHub
 automation inside Augnes runtime.
 
+## Manual Result Record Write v0.1 Pointer
+
+The manual Research Candidate loop now includes an explicitly authorized
+durable write path for accepted result-intake record contract previews. The
+write is limited to manual ExpectedObservedDelta records, manual Reuse Outcome
+records, and the associated write receipt/readback metadata.
+
+The write path requires explicit operator confirmation, computes an
+idempotency key, replays duplicate submissions without duplicate rows, and keeps
+rollback/supersede metadata without deleting prior records. The readback panel
+shows the written receipt plus the manual ExpectedObservedDelta and Reuse
+Outcome records without exposing raw manual note text or raw pasted result
+report text.
+
+This is not proof/evidence storage, not work mutation, not Perspective
+promotion, not global dogfood metric update, not provider/GitHub/Codex
+execution, not source fetching, and not retrieval/RAG. Product-write remains
+parked by the #686 stopline. Next recommended slice: review the readback record
+contracts against the broader dogfood bridge before any ledger, Perspective, or
+proof/evidence integration.
+
 ## Next Recommended Step
 
-Add local operator review and non-writing record contract preview for manual
-handoff result-intake drafts inside the current `/research-candidate-review`
-route. The operator review remains local preview material only, and the
-ExpectedObservedDelta / Reuse Outcome contract preview remains draft-only: no
-durable record write, no ledger write, no proof/evidence, no Perspective
-promotion, no work mutation, no provider/GitHub/Codex execution, no source
-fetching, no retrieval/RAG, and no durable Augnes state.
+Use `/research-candidate-review` to review the authorized manual result record
+write and readback flow against the broader dogfood bridge before any ledger,
+Perspective, or proof/evidence integration.
 
 Perspective Packet Receipt Linkage remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.
 Selected candidates remain candidates, not proof/evidence or durable state.
