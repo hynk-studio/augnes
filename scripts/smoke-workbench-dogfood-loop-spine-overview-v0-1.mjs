@@ -503,6 +503,12 @@ const handoffSendSliceFiles = [
   "components/workplane/sent-handoff-panel.tsx",
   "scripts/smoke-handoff-send-slice-v0-1.mjs",
 ];
+const workbenchSpineConsolidationFiles = [
+  "types/workbench-spine-consolidation.ts",
+  "lib/workplane/workbench-spine-consolidation.ts",
+  "components/workplane/workbench-spine-consolidation-panel.tsx",
+  "scripts/smoke-workbench-spine-consolidation-v0-1.mjs",
+];
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -697,6 +703,7 @@ const allowedChangedFiles = [
   ...handoffPacketCopyExportSliceFiles,
   ...handoffSendContractFiles,
   ...handoffSendSliceFiles,
+  ...workbenchSpineConsolidationFiles,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
