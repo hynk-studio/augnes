@@ -29,6 +29,9 @@ import type { HandoffPacketCopyExportContractRecordReview } from "./handoff-pack
 import type { HandoffPacketCopyExportOperatorDecisionPreview } from "./handoff-packet-copy-export-decision";
 import type { HandoffPacketCopyExportPreview } from "./handoff-packet-copy-export-preview";
 import type { HandoffPacketCopyExportRecordReview } from "./handoff-packet-copy-export-record-review";
+import type { HandoffSendContractOperatorDecisionPreview } from "./handoff-send-contract-decision";
+import type { HandoffSendContractPreview } from "./handoff-send-contract-preview";
+import type { HandoffSendContractRecordReview } from "./handoff-send-contract-record-review";
 import type { HandoffContextApplyWriteContractPreview } from "./handoff-context-apply-write-contract-preview";
 import type { HandoffContextUpdateOperatorDecisionPreview } from "./handoff-context-update-operator-decision-preview";
 import type { HandoffContextUpdatePreview } from "./handoff-context-update-preview";
@@ -211,6 +214,12 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
   | "review_exported_handoff_packet_artifact"
   | "resolve_handoff_packet_copy_export_blockers"
   | "prepare_handoff_send_contract"
+  | "review_handoff_send_contract"
+  | "approve_handoff_send_contract_record"
+  | "write_handoff_send_contract_record"
+  | "review_handoff_send_contract_record"
+  | "resolve_handoff_send_contract_blockers"
+  | "prepare_handoff_send_slice"
   | "prepare_perspective_next_work_update_decision"
   | "prepare_continuity_relay_update_contract"
   | "resolve_next_work_signal_blockers"
@@ -287,6 +296,9 @@ export type WorkbenchDogfoodLoopSpineStepId =
   | "handoff_packet_copy_export_decision"
   | "handoff_packet_copy_export_record"
   | "exported_handoff_packet_artifact"
+  | "handoff_send_contract"
+  | "handoff_send_contract_decision"
+  | "handoff_send_contract_record"
   | "codex_result_feedback"
   | "dogfood_reuse_proposal"
   | "dogfood_reuse_operator_decision"
@@ -370,6 +382,9 @@ export interface WorkbenchDogfoodLoopSpineOverviewInput {
   handoff_packet_copy_export_operator_decision_preview?: HandoffPacketCopyExportOperatorDecisionPreview | null;
   handoff_packet_copy_export_record_review?: HandoffPacketCopyExportRecordReview | null;
   exported_handoff_packet_artifact_read?: ExportedHandoffPacketArtifactRead | null;
+  handoff_send_contract_preview?: HandoffSendContractPreview | null;
+  handoff_send_contract_decision_preview?: HandoffSendContractOperatorDecisionPreview | null;
+  handoff_send_contract_record_review?: HandoffSendContractRecordReview | null;
   codex_result_feedback_draft?: CodexResultFeedbackDraft | null;
   dogfood_reuse_record_proposal?: DogfoodReuseRecordProposal | null;
   dogfood_reuse_operator_decision_preview?: DogfoodReuseOperatorDecisionPreview | null;

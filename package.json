@@ -798,6 +798,7 @@
     "smoke:handoff-context-apply-slice-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-handoff-context-apply-slice-v0-1.mjs",
     "smoke:handoff-packet-copy-export-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-handoff-packet-copy-export-contract-v0-1.mjs",
     "smoke:handoff-packet-copy-export-slice-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-handoff-packet-copy-export-slice-v0-1.mjs",
+    "smoke:handoff-send-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-handoff-send-contract-v0-1.mjs",
     "smoke:continuity-relay-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-continuity-relay-scoped-write-v0-1.mjs",
     "smoke:perspective-unit-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-unit-scoped-write-v0-1.mjs",
     "smoke:perspective-next-work-bias-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs"

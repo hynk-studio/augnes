@@ -80,6 +80,9 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   handoff_packet_copy_export_operator_decision_preview,
   handoff_packet_copy_export_record_review,
   exported_handoff_packet_artifact_read,
+  handoff_send_contract_preview,
+  handoff_send_contract_decision_preview,
+  handoff_send_contract_record_review,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -280,6 +283,17 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       exported_handoff_packet_artifact_read,
       handoff_packet_copy_export_record_review,
     ),
+    handoffSendContractStep({
+      contractPreview: handoff_send_contract_preview,
+      exportedArtifactRead: exported_handoff_packet_artifact_read,
+    }),
+    handoffSendContractDecisionStep(
+      handoff_send_contract_decision_preview,
+    ),
+    handoffSendContractRecordStep({
+      recordReview: handoff_send_contract_record_review,
+      decisionPreview: handoff_send_contract_decision_preview,
+    }),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -3295,6 +3309,149 @@ function exportedHandoffPacketArtifactStep(
   });
 }
 
+function handoffSendContractStep({
+  contractPreview,
+  exportedArtifactRead,
+}: {
+  contractPreview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_send_contract_preview"];
+  exportedArtifactRead: WorkbenchDogfoodLoopSpineOverviewInput["exported_handoff_packet_artifact_read"];
+}): SpineStepBuild {
+  if (!contractPreview) {
+    return missingStep({
+      step_id: "handoff_send_contract",
+      label: "Handoff send contract",
+      recommended_next_action:
+        exportedArtifactRead?.status ===
+        "latest_exported_handoff_packet_artifact_available"
+          ? "review_handoff_send_contract"
+          : "review_exported_handoff_packet_artifact",
+      summary: "No handoff send contract preview supplied.",
+    });
+  }
+  const ready =
+    contractPreview.contract_preview_status ===
+    "ready_for_future_handoff_send_contract_record_write";
+  const blocked =
+    contractPreview.blocking_reasons.length > 0 ||
+    contractPreview.refusal_reasons.length > 0;
+  return makeStep({
+    step_id: "handoff_send_contract",
+    label: "Handoff send contract",
+    status: ready
+      ? "ready_for_operator_review"
+      : blocked
+        ? "blocked"
+        : contractPreview.missing_evidence.length
+          ? "insufficient_data"
+          : "candidate_material_available",
+    source_preview_ref_or_version: contractPreview.preview_version,
+    material_count:
+      contractPreview.source_exported_packet_artifact_summary
+        .packet_entry_count,
+    blockers: contractPreview.blocking_reasons,
+    material_gaps:
+      contractPreview.contract_readiness.current_insufficient_data,
+    missing_evidence: contractPreview.missing_evidence,
+    recommended_next_action: ready
+      ? "approve_handoff_send_contract_record"
+      : blocked
+        ? "resolve_handoff_send_contract_blockers"
+        : "review_handoff_send_contract",
+    evidence_present:
+      contractPreview.evidence_summary.has_latest_exported_artifact &&
+      contractPreview.evidence_summary.has_evidence_refs,
+    summary: `Handoff send contract preview is ${contractPreview.contract_preview_status}; exported_artifact ${contractPreview.source_exported_packet_artifact_summary.source_exported_artifact_ref ?? "none"}; records only prepare a future send contract and never send handoff, call providers, email, Slack, webhook, clipboard, download, file, or live mutation surfaces.`,
+  });
+}
+
+function handoffSendContractDecisionStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_send_contract_decision_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "handoff_send_contract_decision",
+      label: "Handoff send contract decision",
+      recommended_next_action: "review_handoff_send_contract",
+      summary: "No handoff send contract decision preview supplied.",
+    });
+  }
+  const ready =
+    preview.decision_preview_status ===
+    "ready_for_future_handoff_send_contract_record_write";
+  const blocked =
+    preview.blocking_reasons.length > 0 || preview.refusal_reasons.length > 0;
+  return makeStep({
+    step_id: "handoff_send_contract_decision",
+    label: "Handoff send contract decision",
+    status: ready
+      ? "ready_for_operator_review"
+      : blocked
+        ? "blocked"
+        : "candidate_material_available",
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.evidence_summary.evidence_refs.length,
+    blockers: preview.blocking_reasons,
+    material_gaps: preview.write_readiness.current_insufficient_data,
+    missing_evidence: preview.missing_evidence,
+    recommended_next_action: ready
+      ? "write_handoff_send_contract_record"
+      : blocked
+        ? "resolve_handoff_send_contract_blockers"
+        : "review_handoff_send_contract",
+    evidence_present: preview.evidence_summary.has_ready_handoff_send_contract_preview,
+    summary: `Handoff send contract decision preview is ${preview.decision_preview_status}; recommended decision ${preview.recommended_operator_decision}; no send, provider, email, Slack, webhook, clipboard, download, file, or live mutation authority is granted.`,
+  });
+}
+
+function handoffSendContractRecordStep({
+  recordReview,
+  decisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_send_contract_record_review"];
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_send_contract_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "handoff_send_contract_record",
+      label: "Handoff send contract records",
+      recommended_next_action:
+        decisionPreview?.decision_preview_status ===
+        "ready_for_future_handoff_send_contract_record_write"
+          ? "write_handoff_send_contract_record"
+          : "review_handoff_send_contract",
+      summary: "No handoff send contract record review supplied.",
+    });
+  }
+  const valid = recordReview.input_summary.valid_record_count > 0;
+  const blocked = recordReview.review_status === "records_invalid";
+  return makeStep({
+    step_id: "handoff_send_contract_record",
+    label: "Handoff send contract records",
+    status: blocked
+      ? "blocked"
+      : valid
+        ? "candidate_material_available"
+        : "insufficient_data",
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count: recordReview.input_summary.valid_record_count,
+    blockers: blocked
+      ? ["handoff_send_contract_record_side_effect_or_shape_problem"]
+      : [],
+    material_gaps: recordReview.insufficient_data_reasons,
+    missing_evidence: [],
+    recommended_next_action: blocked
+      ? "resolve_handoff_send_contract_blockers"
+      : valid
+        ? "review_handoff_send_contract_record"
+        : decisionPreview?.decision_preview_status ===
+            "ready_for_future_handoff_send_contract_record_write"
+          ? "write_handoff_send_contract_record"
+          : "review_handoff_send_contract",
+    evidence_present: valid,
+    summary: `Handoff send contract record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; records only persist scoped local send contract material and never send handoff, call providers, email, Slack, webhook, clipboard, download, file, or live mutation surfaces; after a valid record is reviewed, prepare_handoff_send_slice remains future work.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -3968,7 +4125,10 @@ function determineRecommendedNextOperatorAction({
       blocker.startsWith("handoff_packet_copy_export_preview:") ||
       blocker.startsWith("handoff_packet_copy_export_decision:") ||
       blocker.startsWith("handoff_packet_copy_export_record:") ||
-      blocker.startsWith("exported_handoff_packet_artifact:"),
+      blocker.startsWith("exported_handoff_packet_artifact:") ||
+      blocker.startsWith("handoff_send_contract:") ||
+      blocker.startsWith("handoff_send_contract_decision:") ||
+      blocker.startsWith("handoff_send_contract_record:"),
     )
   ) {
     if (
@@ -3995,6 +4155,13 @@ function determineRecommendedNextOperatorAction({
       )
     ) {
       return "resolve_next_work_signal_blockers";
+    }
+    if (
+      top_blockers.some((blocker) =>
+        blocker.startsWith("handoff_send_contract"),
+      )
+    ) {
+      return "resolve_handoff_send_contract_blockers";
     }
     if (
       top_blockers.some((blocker) =>
@@ -4196,6 +4363,48 @@ function determineRecommendedNextOperatorAction({
     const exportedHandoffPacketArtifactStep = steps.find(
       (step) => step.step_id === "exported_handoff_packet_artifact",
     );
+    const handoffSendContractStep = steps.find(
+      (step) => step.step_id === "handoff_send_contract",
+    );
+    const handoffSendContractDecisionStep = steps.find(
+      (step) => step.step_id === "handoff_send_contract_decision",
+    );
+    const handoffSendContractRecordStep = steps.find(
+      (step) => step.step_id === "handoff_send_contract_record",
+    );
+    if (
+      handoffSendContractRecordStep?.recommended_next_action ===
+        "review_handoff_send_contract_record" &&
+      handoffSendContractRecordStep.material_count > 0
+    ) {
+      return "review_handoff_send_contract_record";
+    }
+    if (
+      handoffSendContractRecordStep?.recommended_next_action ===
+      "write_handoff_send_contract_record"
+    ) {
+      return "write_handoff_send_contract_record";
+    }
+    if (
+      handoffSendContractDecisionStep?.recommended_next_action ===
+      "write_handoff_send_contract_record"
+    ) {
+      return "write_handoff_send_contract_record";
+    }
+    if (
+      handoffSendContractStep?.recommended_next_action ===
+      "approve_handoff_send_contract_record"
+    ) {
+      return "approve_handoff_send_contract_record";
+    }
+    if (
+      handoffSendContractStep?.recommended_next_action ===
+        "review_handoff_send_contract" &&
+      (handoffSendContractStep.material_count > 0 ||
+        (exportedHandoffPacketArtifactStep?.material_count ?? 0) > 0)
+    ) {
+      return "review_handoff_send_contract";
+    }
     if (
       exportedHandoffPacketArtifactStep?.recommended_next_action ===
         "review_exported_handoff_packet_artifact" &&
