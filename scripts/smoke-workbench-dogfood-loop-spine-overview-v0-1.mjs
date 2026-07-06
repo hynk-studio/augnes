@@ -451,6 +451,24 @@ const handoffPacketCopyExportContractFiles = [
   "components/workplane/handoff-packet-copy-export-contract-record-review-panel.tsx",
   "scripts/smoke-handoff-packet-copy-export-contract-v0-1.mjs",
 ];
+const handoffPacketCopyExportSliceFiles = [
+  "types/handoff-packet-copy-export-preview.ts",
+  "lib/workplane/handoff-packet-copy-export-preview.ts",
+  "components/workplane/handoff-packet-copy-export-preview-panel.tsx",
+  "types/handoff-packet-copy-export-decision.ts",
+  "lib/workplane/handoff-packet-copy-export-decision.ts",
+  "components/workplane/handoff-packet-copy-export-decision-panel.tsx",
+  "types/handoff-packet-copy-export-write.ts",
+  "lib/workplane/handoff-packet-copy-export-write.ts",
+  "app/api/workplane/handoff-packet-copy-exports/route.ts",
+  "types/handoff-packet-copy-export-record-review.ts",
+  "lib/workplane/handoff-packet-copy-export-record-review.ts",
+  "lib/workplane/read-handoff-packet-copy-export-record-review-for-web.ts",
+  "lib/workplane/read-exported-handoff-packet-artifact-for-web.ts",
+  "components/workplane/handoff-packet-copy-export-record-review-panel.tsx",
+  "components/workplane/exported-handoff-packet-artifact-panel.tsx",
+  "scripts/smoke-handoff-packet-copy-export-slice-v0-1.mjs",
+];
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -642,6 +660,7 @@ const allowedChangedFiles = [
   ...handoffContextUpdateContractFiles,
   ...handoffContextApplySliceFiles,
   ...handoffPacketCopyExportContractFiles,
+  ...handoffPacketCopyExportSliceFiles,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -1155,7 +1174,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 63);
+assert.equal(emptyOverview.spine_steps.length, 67);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -2223,6 +2242,7 @@ function assertNoForbiddenChangedPaths() {
         file === handoffContextUpdateContractRouteFile ||
         file === "app/api/workplane/handoff-context-applies/route.ts" ||
         file === "app/api/workplane/handoff-packet-copy-export-contracts/route.ts" ||
+        file === "app/api/workplane/handoff-packet-copy-exports/route.ts" ||
         file === "app/api/perspective/current/route.ts",
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
