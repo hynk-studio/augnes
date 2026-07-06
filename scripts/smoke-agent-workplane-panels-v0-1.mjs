@@ -2252,6 +2252,20 @@ for (const file of followOnProviderSpecificExternalDeliveryPreviewFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnProviderSpecificDeliveryIntentContractFiles = [
+  "types/provider-specific-delivery-intent-contract.ts",
+  "lib/workplane/provider-specific-delivery-intent-contract-preview.ts",
+  "lib/workplane/provider-specific-delivery-intent-operator-decision-preview.ts",
+  "lib/workplane/provider-specific-delivery-intent-contract-write.ts",
+  "lib/workplane/provider-specific-delivery-intent-contract-record-review.ts",
+  "lib/workplane/read-provider-specific-delivery-intent-contract-record-review-for-web.ts",
+  "components/workplane/provider-specific-delivery-intent-contract-panel.tsx",
+  "scripts/smoke-provider-specific-delivery-intent-contract-v0-1.mjs",
+];
+for (const file of followOnProviderSpecificDeliveryIntentContractFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(

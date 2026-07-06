@@ -765,6 +765,7 @@
     "smoke:residual-diagnostic-candidate-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-residual-diagnostic-candidate-v0-1.mjs",
     "smoke:external-handoff-delivery-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-external-handoff-delivery-contract-v0-1.mjs",
     "smoke:provider-specific-external-delivery-preview-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-provider-specific-external-delivery-preview-contract-v0-1.mjs",
+    "smoke:provider-specific-delivery-intent-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-provider-specific-delivery-intent-contract-v0-1.mjs",
     "smoke:autonomy-contract-v0-1": "node scripts/smoke-autonomy-contract-v0-1.mjs",
     "smoke:autonomy-contract-route-v0-1": "node scripts/smoke-autonomy-contract-route-v0-1.mjs",
     "smoke:autonomy-contract-web-preview-v0-1": "node scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
