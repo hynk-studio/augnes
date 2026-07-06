@@ -2217,6 +2217,16 @@ for (const file of followOnWorkbenchSpineConsolidationFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnResidualDiagnosticCandidateFiles = [
+  "types/residual-diagnostic-candidate.ts",
+  "lib/workplane/residual-diagnostic-candidate.ts",
+  "components/workplane/residual-diagnostic-candidate-panel.tsx",
+  "scripts/smoke-residual-diagnostic-candidate-v0-1.mjs",
+];
+for (const file of followOnResidualDiagnosticCandidateFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(

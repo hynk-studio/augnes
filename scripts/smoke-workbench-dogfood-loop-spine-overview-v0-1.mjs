@@ -509,6 +509,12 @@ const workbenchSpineConsolidationFiles = [
   "components/workplane/workbench-spine-consolidation-panel.tsx",
   "scripts/smoke-workbench-spine-consolidation-v0-1.mjs",
 ];
+const residualDiagnosticCandidateFiles = [
+  "types/residual-diagnostic-candidate.ts",
+  "lib/workplane/residual-diagnostic-candidate.ts",
+  "components/workplane/residual-diagnostic-candidate-panel.tsx",
+  "scripts/smoke-residual-diagnostic-candidate-v0-1.mjs",
+];
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -704,6 +710,7 @@ const allowedChangedFiles = [
   ...handoffSendContractFiles,
   ...handoffSendSliceFiles,
   ...workbenchSpineConsolidationFiles,
+  ...residualDiagnosticCandidateFiles,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,

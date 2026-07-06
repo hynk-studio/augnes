@@ -762,6 +762,7 @@
     "smoke:perspective-relay-update-decision-write-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs",
     "smoke:workbench-dogfood-loop-spine-overview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs",
     "smoke:workbench-spine-consolidation-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-workbench-spine-consolidation-v0-1.mjs",
+    "smoke:residual-diagnostic-candidate-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-residual-diagnostic-candidate-v0-1.mjs",
     "smoke:autonomy-contract-v0-1": "node scripts/smoke-autonomy-contract-v0-1.mjs",
     "smoke:autonomy-contract-route-v0-1": "node scripts/smoke-autonomy-contract-route-v0-1.mjs",
     "smoke:autonomy-contract-web-preview-v0-1": "node scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
