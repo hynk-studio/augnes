@@ -795,18 +795,9 @@ function determineStatus({
 
 function isContractAuthorityProfileSafe(value: unknown): boolean {
   if (!isRecord(value)) return false;
-  return (
-    value.handoff_packet_copy_export_contract_written === true &&
-    value.handoff_packet_copied === false &&
-    value.handoff_packet_exported === false &&
-    value.handoff_packet_file_written === false &&
-    value.clipboard_written === false &&
-    value.handoff_sent === false &&
-    value.live_handoff_context_mutated === false &&
-    value.selected_refs_written_to_live_handoff === false &&
-    value.memory_promotion_performed === false &&
-    value.metric_update_performed === false
-  );
+  return fieldsTrue(value, contractAuthorityProfileRequiredTrueFields) &&
+    fieldsFalse(value, contractAuthorityProfileRequiredFalseFields) &&
+    fieldsNotTrue(value, contractAuthorityProfileForbiddenTrueFields);
 }
 
 function isContractNoCopyExportOrSendSafe(value: unknown): boolean {
@@ -816,23 +807,9 @@ function isContractNoCopyExportOrSendSafe(value: unknown): boolean {
 
 function isContractWriteAuthoritySafe(value: unknown): boolean {
   if (!isRecord(value)) return false;
-  return (
-    value.can_copy_export_handoff_packet === false &&
-    value.can_write_handoff_packet_file === false &&
-    value.can_write_clipboard === false &&
-    value.can_download_file === false &&
-    value.can_send_handoff === false &&
-    value.can_mutate_handoff_context === false &&
-    value.can_write_selected_refs_to_live_handoff === false &&
-    value.can_write_memory === false &&
-    value.can_write_dogfood_metrics === false &&
-    value.can_call_provider_openai === false &&
-    value.can_call_github === false &&
-    value.can_execute_codex === false &&
-    value.can_create_pr === false &&
-    value.can_create_graph_or_vector_store === false &&
-    value.can_crawl_or_observe_browser === false
-  );
+  return fieldsTrue(value, contractRecordAuthorityRequiredTrueFields) &&
+    fieldsFalse(value, contractRecordAuthorityRequiredFalseFields) &&
+    fieldsNotTrue(value, contractRecordAuthorityForbiddenTrueFields);
 }
 
 function hasReadOnlyArtifactAuthority(authority: unknown): boolean {
@@ -853,6 +830,127 @@ function hasReadOnlyArtifactAuthority(authority: unknown): boolean {
     authority.can_call_github === false
   );
 }
+
+function fieldsTrue(value: RecordValue, fields: readonly string[]): boolean {
+  return fields.every((field) => value[field] === true);
+}
+
+function fieldsFalse(value: RecordValue, fields: readonly string[]): boolean {
+  return fields.every((field) => value[field] === false);
+}
+
+function fieldsNotTrue(value: RecordValue, fields: readonly string[]): boolean {
+  return fields.every((field) => value[field] !== true);
+}
+
+const contractAuthorityProfileRequiredTrueFields = [
+  "durable_local_handoff_packet_copy_export_contract",
+  "local_project_handoff_packet_copy_export_contract_only",
+  "handoff_packet_copy_export_contract_written",
+] as const;
+
+const contractAuthorityProfileRequiredFalseFields = [
+  "source_of_truth",
+  "handoff_packet_copied",
+  "handoff_packet_exported",
+  "handoff_packet_file_written",
+  "clipboard_written",
+  "handoff_sent",
+  "live_handoff_context_mutated",
+  "selected_refs_written_to_live_handoff",
+  "handoff_context_apply_record_written",
+  "applied_handoff_context_snapshot_written",
+  "handoff_context_update_contract_record_written",
+  "api_perspective_current_route_modified",
+  "upstream_current_working_perspective_source_tables_mutated",
+  "perspective_unit_write_performed",
+  "next_work_bias_write_performed",
+  "continuity_relay_write_performed",
+  "continuity_relay_update_performed",
+  "memory_promotion_performed",
+  "metric_update_performed",
+] as const;
+
+const contractAuthorityProfileForbiddenTrueFields = [
+  "current_working_perspective_route_response_replaced",
+  "upstream_current_working_perspective_source_tables_updated",
+  "current_working_perspective_apply_record_written",
+  "current_working_perspective_update_contract_record_written",
+  "route_integration_contract_record_written",
+  "provider_called",
+  "github_called",
+  "codex_executed",
+  "pr_created",
+  "pr_merged",
+  "autonomous_action_run",
+  "graph_or_vector_store_created",
+  "rag_stack_created",
+  "browser_observed",
+  "crawler_or_browser_observer_created",
+  "workbench_action_button_rendered",
+] as const;
+
+const contractRecordAuthorityRequiredTrueFields = [
+  "durable_local_handoff_packet_copy_export_contract",
+  "local_project_handoff_packet_copy_export_contract_only",
+  "can_write_db",
+  "can_create_handoff_packet_copy_export_contract_record",
+  "can_create_handoff_packet_copy_export_contract_receipt",
+] as const;
+
+const contractRecordAuthorityRequiredFalseFields = [
+  "source_of_truth",
+  "can_copy_export_handoff_packet",
+  "can_write_handoff_packet_file",
+  "can_write_clipboard",
+  "can_download_file",
+  "can_send_handoff",
+  "can_mutate_handoff_context",
+  "can_apply_handoff_context_update_live",
+  "can_write_selected_refs_to_live_handoff",
+  "can_write_handoff_context_apply_record",
+  "can_write_applied_handoff_context_snapshot",
+  "can_write_handoff_context_update_contract_record",
+  "can_modify_api_perspective_current_route",
+  "can_replace_current_working_perspective_route_response",
+  "can_update_upstream_current_working_perspective_source_tables",
+  "can_write_applied_current_working_perspective_snapshot",
+  "can_write_current_working_perspective_apply_record",
+  "can_write_current_working_perspective_update_contract_record",
+  "can_write_route_integration_contract_record",
+  "can_write_perspective_unit",
+  "can_write_next_work_bias",
+  "can_write_continuity_relay",
+  "can_update_continuity_relay",
+  "can_apply_live_relay_state",
+  "can_write_memory",
+  "can_mutate_memory",
+  "can_promote_memory",
+  "can_update_global_dogfood_metrics",
+  "can_write_dogfood_metrics",
+  "can_write_dogfood_metric_snapshot",
+  "can_write_reuse_outcome_ledger",
+  "can_write_expected_observed_delta",
+  "can_write_work_episode",
+  "can_call_provider_openai",
+  "can_call_github",
+  "can_execute_codex",
+  "can_create_pr",
+  "can_merge_pr",
+  "can_run_autonomous_action",
+  "can_create_graph_or_vector_store",
+  "can_create_rag_stack",
+  "can_crawl_or_observe_browser",
+  "can_render_workbench_action_button",
+] as const;
+
+const contractRecordAuthorityForbiddenTrueFields = [
+  "can_write_arbitrary_file",
+  "can_copy_export_handoff_packet_to_local_artifact",
+  "can_create_handoff_packet_exported_artifact",
+  "can_persist_local_packet_artifact",
+  "can_materialize_handoff_packet_to_local_artifact",
+] as const;
 
 const forbiddenNoSideEffectFields = [
   "handoff_packet_copied",

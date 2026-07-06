@@ -530,6 +530,45 @@ function assertNotReady(preview, reason) {
   assert.equal(preview.copy_export_readiness.write_ready, false, reason);
 }
 
+function buildDirectContractRecordPreview(record) {
+  return buildPreview({
+    handoff_packet_copy_export_contract_record_review: undefined,
+    handoff_packet_copy_export_contract_record: record,
+  });
+}
+
+function assertDirectContractAuthorityBlocks(field) {
+  const forged = buildContractRecord();
+  forged.authority_boundary[field] = true;
+  const preview = buildDirectContractRecordPreview(forged);
+  assertNotReady(preview, `direct contract authority ${field} blocks`);
+  assert(
+    preview.blocking_reasons.includes(
+      "handoff_packet_copy_export_contract_record_authority_boundary_invalid",
+    ),
+    `direct contract authority ${field} reports blocker`,
+  );
+}
+
+function assertEmbeddedArtifactAuthorityInvalid(field) {
+  const forged = clone(writeResult.record);
+  forged.exported_packet_artifact.authority_boundary[field] = true;
+  const review = buildHandoffPacketCopyExportRecordReviewV01({
+    records: [forged],
+  });
+  assert.equal(
+    review.review_status,
+    "records_invalid",
+    `embedded artifact authority ${field} invalid`,
+  );
+  assert(
+    review.record_summaries[0].problem_reasons.includes(
+      "handoff_packet_exported_artifact_malformed",
+    ),
+    `embedded artifact authority ${field} reports artifact problem`,
+  );
+}
+
 assertNotReady(buildHandoffPacketCopyExportPreviewV01(), "missing contract review");
 assertNotReady(
   buildHandoffPacketCopyExportPreviewV01({
@@ -573,6 +612,24 @@ assert(
     ),
   "raw existing packet material refused",
 );
+
+for (const field of [
+  "can_replace_current_working_perspective_route_response",
+  "can_update_upstream_current_working_perspective_source_tables",
+  "can_write_current_working_perspective_apply_record",
+  "can_write_route_integration_contract_record",
+  "can_write_perspective_unit",
+  "can_write_next_work_bias",
+  "can_write_continuity_relay",
+  "can_apply_live_relay_state",
+  "can_update_global_dogfood_metrics",
+  "can_write_dogfood_metric_snapshot",
+  "can_create_pr",
+  "can_create_graph_or_vector_store",
+  "can_crawl_or_observe_browser",
+]) {
+  assertDirectContractAuthorityBlocks(field);
+}
 
 for (const format of [
   "operator_handoff_packet_markdown",
@@ -845,6 +902,21 @@ for (const field of [
     "records_invalid",
     `review flags forged authority ${field}`,
   );
+}
+for (const field of [
+  "can_replace_current_working_perspective_route_response",
+  "can_update_upstream_current_working_perspective_source_tables",
+  "can_update_global_dogfood_metrics",
+  "can_write_dogfood_metric_snapshot",
+  "can_create_pr",
+  "can_create_graph_or_vector_store",
+  "can_crawl_or_observe_browser",
+  "can_create_handoff_packet_copy_export_record",
+  "can_create_handoff_packet_exported_artifact",
+  "can_persist_local_packet_artifact",
+  "can_copy_export_handoff_packet_to_local_artifact",
+]) {
+  assertEmbeddedArtifactAuthorityInvalid(field);
 }
 const artifactMismatch = clone(writeResult.record);
 artifactMismatch.exported_packet_artifact.artifact_ref = "handoff-packet-exported-artifact:mismatch";
