@@ -75,6 +75,7 @@ const expectedFiles = [
   "components/workplane/handoff-context-apply-record-review-panel.tsx",
   "components/workplane/applied-handoff-context-panel.tsx",
   "scripts/smoke-handoff-context-apply-slice-v0-1.mjs",
+  "scripts/smoke-handoff-context-update-contract-v0-1.mjs",
   "package.json",
 ];
 for (const file of expectedFiles.slice(0, 15)) {

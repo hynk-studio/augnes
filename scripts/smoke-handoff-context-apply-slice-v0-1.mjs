@@ -720,6 +720,45 @@ assert.equal(
   false,
 );
 
+for (const field of [
+  "can_modify_api_perspective_current_route",
+  "can_write_dogfood_metrics",
+  "can_create_graph_or_vector_store",
+  "can_crawl_or_observe_browser",
+]) {
+  const forgedAppliedContextAuthorityDecision = structuredClone(readyDecision);
+  forgedAppliedContextAuthorityDecision.would_write_handoff_context_apply_decision_preview.contract_preview.would_write_handoff_context_apply_record_preview.proposed_applied_handoff_context.authority_boundary[field] = true;
+  const validation = writeLib.validateHandoffContextApplyWriteInputV01(
+    buildWriteInput(forgedAppliedContextAuthorityDecision),
+  );
+  assert.equal(validation.ok, false, `${field} should be refused`);
+  assert(
+    validation.refusal_reasons.includes(
+      "applied_handoff_context_authority_boundary_invalid",
+    ),
+    `${field} should report applied context authority invalid`,
+  );
+}
+
+for (const field of [
+  "can_modify_api_perspective_current_route",
+  "can_create_pr",
+  "can_write_dogfood_metrics",
+]) {
+  const forgedDecisionAuthority = structuredClone(readyDecision);
+  forgedDecisionAuthority.authority_boundary[field] = true;
+  const validation = writeLib.validateHandoffContextApplyWriteInputV01(
+    buildWriteInput(forgedDecisionAuthority),
+  );
+  assert.equal(validation.ok, false, `${field} decision authority should refuse`);
+  assert(
+    validation.refusal_reasons.includes(
+      "apply_decision_preview_authority_boundary_invalid",
+    ),
+    `${field} should report decision authority invalid`,
+  );
+}
+
 const db = new Database(path.join(root, dbPath));
 const writeResult = writeLib.writeHandoffContextApplyRecordV01(
   buildWriteInput(readyDecision),
@@ -910,6 +949,55 @@ for (const mutation of [
     "records_invalid",
   );
 }
+for (const field of [
+  "can_write_dogfood_metrics",
+  "can_create_pr",
+  "can_create_graph_or_vector_store",
+  "can_crawl_or_observe_browser",
+]) {
+  const forged = structuredClone(writeResult.record);
+  forged.authority_boundary[field] = true;
+  const forgedReview = buildHandoffContextApplyRecordReviewV01({
+    records: [forged],
+  });
+  assert.equal(forgedReview.review_status, "records_invalid");
+  assert(
+    forgedReview.record_summaries[0].problem_reasons.includes(
+      "handoff_context_apply_record_authority_boundary_invalid",
+    ),
+    `${field} should be reported as invalid record authority`,
+  );
+}
+const forgedAppliedContextAuthorityRecord = structuredClone(writeResult.record);
+forgedAppliedContextAuthorityRecord.applied_handoff_context.authority_boundary.can_modify_api_perspective_current_route = true;
+const forgedAppliedContextAuthorityReview =
+  buildHandoffContextApplyRecordReviewV01({
+    records: [forgedAppliedContextAuthorityRecord],
+  });
+assert.equal(forgedAppliedContextAuthorityReview.review_status, "records_invalid");
+assert(
+  forgedAppliedContextAuthorityReview.record_summaries[0].problem_reasons.some(
+    (reason) =>
+      reason === "handoff_context_apply_record_malformed" ||
+      reason === "handoff_context_applied_snapshot_malformed" ||
+      reason === "applied_handoff_context_authority_boundary_invalid",
+  ),
+);
+const forgedAppliedSnapshotAuthorityRecord = structuredClone(writeResult.record);
+forgedAppliedSnapshotAuthorityRecord.applied_snapshot.authority_boundary.can_write_dogfood_metrics = true;
+const forgedAppliedSnapshotAuthorityReview =
+  buildHandoffContextApplyRecordReviewV01({
+    records: [forgedAppliedSnapshotAuthorityRecord],
+  });
+assert.equal(forgedAppliedSnapshotAuthorityReview.review_status, "records_invalid");
+assert(
+  forgedAppliedSnapshotAuthorityReview.record_summaries[0].problem_reasons.some(
+    (reason) =>
+      reason === "handoff_context_apply_record_malformed" ||
+      reason === "handoff_context_applied_snapshot_malformed" ||
+      reason === "handoff_context_apply_record_authority_boundary_invalid",
+  ),
+);
 const corruptStoreResult = structuredClone(writeResult);
 corruptStoreResult.receipt.no_side_effects.handoff_sent = true;
 assert.equal(
@@ -965,6 +1053,21 @@ response = await route.POST(
 );
 assert.equal(response.status, 400);
 assert(!existsSync(path.join(root, invalidRoutePath)));
+
+const forgedRouteAuthorityDbPath =
+  ".tmp/handoff-context-applies/forged-authority-route.db";
+rmSync(path.join(root, forgedRouteAuthorityDbPath), { force: true });
+const forgedRouteAuthorityDecision = structuredClone(readyDecision);
+forgedRouteAuthorityDecision.would_write_handoff_context_apply_decision_preview.contract_preview.would_write_handoff_context_apply_record_preview.proposed_applied_handoff_context.authority_boundary.can_modify_api_perspective_current_route = true;
+response = await route.POST(
+  requestFor({
+    action: "write",
+    db_path: forgedRouteAuthorityDbPath,
+    input: buildWriteInput(forgedRouteAuthorityDecision),
+  }),
+);
+assert.equal(response.status, 400);
+assert(!existsSync(path.join(root, forgedRouteAuthorityDbPath)));
 
 const routeDbPath = ".tmp/handoff-context-applies/route.db";
 response = await route.POST(

@@ -116,6 +116,54 @@ const sampleDefaultOrSmokeMarkers = [
   "workbench:",
 ] as const;
 
+const readOnlyAuthorityRequiredFalseFields = [
+  "can_write_db",
+  "can_create_handoff_context_apply_record",
+  "can_create_applied_handoff_context_snapshot",
+  "can_apply_handoff_context_update_to_local_snapshot",
+  "can_apply_handoff_context_update_live",
+  "can_mutate_handoff_context",
+  "can_send_handoff",
+  "can_copy_export_handoff_packet",
+  "can_write_selected_refs_to_live_handoff",
+  "can_modify_api_perspective_current_route",
+  "can_replace_current_working_perspective_route_response",
+  "can_update_upstream_current_working_perspective_source_tables",
+  "can_write_applied_current_working_perspective_snapshot",
+  "can_write_current_working_perspective_apply_record",
+  "can_write_current_working_perspective_update_contract_record",
+  "can_write_route_integration_contract_record",
+  "can_write_handoff_context_update_contract_record",
+  "can_write_perspective_unit",
+  "can_write_next_work_bias",
+  "can_write_continuity_relay",
+  "can_update_continuity_relay",
+  "can_apply_live_relay_state",
+  "can_write_memory",
+  "can_mutate_memory",
+  "can_promote_memory",
+  "can_update_global_dogfood_metrics",
+  "can_write_dogfood_metrics",
+  "can_write_dogfood_metric_snapshot",
+  "can_write_reuse_outcome_ledger",
+  "can_write_expected_observed_delta",
+  "can_write_work_episode",
+  "can_call_provider_openai",
+  "can_call_github",
+  "can_execute_codex",
+  "can_create_pr",
+  "can_merge_pr",
+  "can_run_autonomous_action",
+  "can_create_graph_or_vector_store",
+  "can_create_rag_stack",
+  "can_crawl_or_observe_browser",
+  "can_render_workbench_action_button",
+] as const;
+
+const readOnlyAuthorityOptionalFalseFields = [
+  "can_create_handoff_context_apply_receipt",
+] as const;
+
 export const handoffContextApplyWriteSchemaSqlV01 = `
 CREATE TABLE IF NOT EXISTS handoff_context_apply_records (
   record_id TEXT PRIMARY KEY,
@@ -1098,25 +1146,41 @@ function hasReadOnlyApplyPreviewAuthority(
 ): boolean {
   return Boolean(
     authority &&
-      authority.can_write_db === false &&
-      authority.can_create_handoff_context_apply_record === false &&
-      authority.can_create_applied_handoff_context_snapshot === false &&
-      authority.can_apply_handoff_context_update_live === false &&
-      authority.can_mutate_handoff_context === false &&
-      authority.can_send_handoff === false &&
-      authority.can_copy_export_handoff_packet === false &&
-      authority.can_write_selected_refs_to_live_handoff === false &&
-      authority.can_write_memory === false &&
-      authority.can_call_github === false &&
-      authority.can_call_provider_openai === false &&
-      authority.can_execute_codex === false,
+      authority.read_only === true &&
+      authority.advisory_only === true &&
+      authority.apply_preview_only === true &&
+      authority.source_of_truth === false &&
+      fieldsFalse(authority, readOnlyAuthorityRequiredFalseFields) &&
+      optionalFieldsFalse(authority, readOnlyAuthorityOptionalFalseFields),
   );
 }
 
 function hasReadOnlyDecisionAuthority(
   authority: Record<string, unknown>,
 ): boolean {
-  return hasReadOnlyApplyPreviewAuthority(authority);
+  return Boolean(
+    authority &&
+      authority.read_only === true &&
+      authority.advisory_only === true &&
+      authority.decision_preview_only === true &&
+      authority.source_of_truth === false &&
+      fieldsFalse(authority, readOnlyAuthorityRequiredFalseFields) &&
+      optionalFieldsFalse(authority, readOnlyAuthorityOptionalFalseFields),
+  );
+}
+
+function fieldsFalse(
+  value: Record<string, unknown>,
+  fields: readonly string[],
+): boolean {
+  return fields.every((field) => value[field] === false);
+}
+
+function optionalFieldsFalse(
+  value: Record<string, unknown>,
+  fields: readonly string[],
+): boolean {
+  return fields.every((field) => !(field in value) || value[field] === false);
 }
 
 function findRequestedSideEffectRefusals(value: unknown): string[] {
