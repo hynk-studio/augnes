@@ -106,6 +106,19 @@ const followOnResearchCandidateManualNoteCurrentSurfaceFiles = [
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
 ];
 
+const followOnResearchCandidateManualNoteHandoffSeedFiles = [
+  "types/research-candidate-manual-note-handoff-seed.ts",
+  "lib/research-candidate-review/manual-note-handoff-seed.ts",
+  "components/research-candidate-manual-note-handoff-seed-preview.tsx",
+  "components/research-candidate-manual-note-preview-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-note-handoff-seed-v0-1.mjs",
+  "scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -242,6 +255,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplaneProjectionHandoffFiles,
   ...followOnAgentWorkplaneCleanupHardeningFiles,
   ...followOnResearchCandidateManualNoteCurrentSurfaceFiles,
+  ...followOnResearchCandidateManualNoteHandoffSeedFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,

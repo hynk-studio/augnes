@@ -11,6 +11,7 @@ import {
   TensionCandidateList,
 } from "@/components/research-candidate-manual-note-candidate-family-lists";
 import { ManualNoteFormatHint } from "@/components/research-candidate-manual-note-format-hint";
+import { ResearchCandidateManualNoteHandoffSeedPreview } from "@/components/research-candidate-manual-note-handoff-seed-preview";
 import {
   ManualNoteResultSummary,
   ManualNoteSessionSummary,
@@ -29,6 +30,7 @@ import {
 import { PromotionDryRunPlanReadout } from "@/components/research-candidate-promotion-dry-run-plan-readout";
 import { PromotionReadinessPreflightReadout } from "@/components/research-candidate-promotion-readiness-preflight-readout";
 import { useResearchCandidateManualNotePreviewRuntime } from "@/components/use-research-candidate-manual-note-preview-runtime";
+import { buildResearchCandidateManualNoteHandoffSeed } from "@/lib/research-candidate-review/manual-note-handoff-seed";
 import { parseManualResearchNoteToPreview } from "@/lib/research-candidate-review/manual-note-parser";
 import type {
   ManualResearchNoteParserResult,
@@ -243,6 +245,35 @@ export function ResearchCandidateManualNotePreviewPanel() {
 
   const preview = displayResult?.preview ?? null;
   const session = preview?.research_session_preview ?? null;
+  const handoffSeed = displayResult
+    ? buildResearchCandidateManualNoteHandoffSeed({
+        preview: displayResult.preview,
+        warnings: displayResult.warnings,
+        source_metadata: {
+          result_source: displayResult.source,
+          parser_version: displayResult.parser_version,
+          preview_draft_id:
+            displayResult.runtimeResult?.preview_draft_id ??
+            displayResult.storedDraftResult?.draft.preview_draft_id ??
+            null,
+          input_fingerprint:
+            displayResult.runtimeResult?.input_fingerprint ??
+            displayResult.storedDraftResult?.draft.input_fingerprint ??
+            null,
+          created_at:
+            displayResult.runtimeResult?.created_at ??
+            displayResult.storedDraftResult?.draft.created_at ??
+            null,
+          persisted_preview_draft:
+            displayResult.runtimeResult?.persisted_preview_draft ??
+            Boolean(displayResult.storedDraftResult),
+          operator_preview_label:
+            displayResult.storedDraftResult?.draft.operator_note_label ??
+            (operatorPreviewLabel.trim() || null),
+        },
+        target_label: "manual Research Candidate Review follow-up",
+      })
+    : null;
   const textareaDescriptionIds = displayResult
     ? "research-candidate-manual-note-boundary"
     : "research-candidate-manual-note-format-hint research-candidate-manual-note-boundary";
@@ -436,6 +467,10 @@ export function ResearchCandidateManualNotePreviewPanel() {
             displayResult={displayResult}
             parseCount={parseCount}
           />
+
+          {handoffSeed ? (
+            <ResearchCandidateManualNoteHandoffSeedPreview seed={handoffSeed} />
+          ) : null}
 
           <ParserWarningSummary warnings={displayResult.warnings} />
 

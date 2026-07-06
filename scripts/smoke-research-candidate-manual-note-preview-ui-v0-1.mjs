@@ -18,6 +18,8 @@ const preflightReadoutPath =
   "components/research-candidate-promotion-readiness-preflight-readout.tsx";
 const formatHintPath =
   "components/research-candidate-manual-note-format-hint.tsx";
+const handoffSeedPreviewPath =
+  "components/research-candidate-manual-note-handoff-seed-preview.tsx";
 const resultSummaryPath =
   "components/research-candidate-manual-note-result-summary.tsx";
 const warningDisplayPath =
@@ -34,6 +36,8 @@ const humanSurfaceLinkGridPath =
   "components/human-surface/surface-link-grid.tsx";
 const agentWorkplanePath = "components/workplane/agent-workplane.tsx";
 const parserPath = "lib/research-candidate-review/manual-note-parser.ts";
+const handoffSeedBuilderPath =
+  "lib/research-candidate-review/manual-note-handoff-seed.ts";
 const packagePath = "package.json";
 const smokePath =
   "scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs";
@@ -48,6 +52,7 @@ for (const filePath of [
   metadataReadoutPath,
   preflightReadoutPath,
   formatHintPath,
+  handoffSeedPreviewPath,
   resultSummaryPath,
   warningDisplayPath,
   sourceReferenceListPath,
@@ -58,6 +63,7 @@ for (const filePath of [
   humanSurfaceLinkGridPath,
   agentWorkplanePath,
   parserPath,
+  handoffSeedBuilderPath,
   packagePath,
   smokePath,
 ]) {
@@ -66,8 +72,10 @@ for (const filePath of [
 
 const manualPanelComponent = readFileSync(componentPath, "utf8");
 const runtimeHookComponent = readFileSync(runtimeHookPath, "utf8");
+const handoffSeedPreviewComponent = readFileSync(handoffSeedPreviewPath, "utf8");
 const draftUiComponent = [
   readFileSync(formatHintPath, "utf8"),
+  handoffSeedPreviewComponent,
   readFileSync(resultSummaryPath, "utf8"),
   readFileSync(warningDisplayPath, "utf8"),
   readFileSync(sourceReferenceListPath, "utf8"),
@@ -87,6 +95,7 @@ const humanSurfaceHome = readFileSync(humanSurfaceHomePath, "utf8");
 const humanSurfaceLinkGrid = readFileSync(humanSurfaceLinkGridPath, "utf8");
 const agentWorkplane = readFileSync(agentWorkplanePath, "utf8");
 const parser = readFileSync(parserPath, "utf8");
+const handoffSeedBuilder = readFileSync(handoffSeedBuilderPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 assertDedicatedComponent();
@@ -100,6 +109,7 @@ assertSampleNoteAction();
 assertEmptyFormattingHint();
 assertWarningSummaryCard();
 assertCompactResultSummary();
+assertManualNoteHandoffSeedPreview();
 assertPreviewOutputRendering();
 assertAuthorityBoundaryCopy();
 assertClearBehavior();
@@ -121,6 +131,7 @@ console.log(
       empty_formatting_hint_checked: true,
       warning_summary_card_checked: true,
       compact_result_summary_checked: true,
+      manual_note_handoff_seed_preview_checked: true,
       preview_output_rendering_checked: true,
       visible_authority_boundary_copy_checked: true,
       clear_behavior_checked: true,
@@ -511,6 +522,69 @@ function assertCompactResultSummary() {
   ]) {
     assert.ok(component.includes(requiredText), `summary must include ${requiredText}`);
   }
+}
+
+function assertManualNoteHandoffSeedPreview() {
+  assert.match(
+    manualPanelComponent,
+    /ResearchCandidateManualNoteHandoffSeedPreview/,
+    "manual note panel must import/render the handoff seed preview component",
+  );
+  assert.match(
+    manualPanelComponent,
+    /buildResearchCandidateManualNoteHandoffSeed/,
+    "manual note panel must build a handoff seed from the visible display result",
+  );
+  assert.match(
+    manualPanelComponent,
+    /preview:\s*displayResult\.preview/,
+    "handoff seed must use the currently visible parser preview",
+  );
+  assert.match(
+    manualPanelComponent,
+    /warnings:\s*displayResult\.warnings/,
+    "handoff seed must preserve parser warnings",
+  );
+  assert.match(
+    manualPanelComponent,
+    /displayResult\.runtimeResult\?\.preview_draft_id[\s\S]*displayResult\.storedDraftResult\?\.draft\.preview_draft_id/,
+    "handoff seed must include runtime or stored draft preview id metadata when available",
+  );
+  assert.match(
+    component,
+    /export function ResearchCandidateManualNoteHandoffSeedPreview/,
+    "handoff seed preview component must be exported",
+  );
+  assert.match(
+    component,
+    /Candidate-only handoff seed preview/,
+    "handoff seed preview must render a clear candidate-only heading",
+  );
+  assert.match(
+    component,
+    /copyable_prompt/,
+    "handoff seed preview must expose the copyable prompt",
+  );
+  assert.match(
+    component,
+    /readOnly/,
+    "handoff seed prompt must render read-only",
+  );
+  assert.doesNotMatch(
+    handoffSeedPreviewComponent,
+    /navigator\.clipboard|writeText|<button[\s\S]*copyable_prompt/,
+    "handoff seed preview must not add clipboard-write or execution controls",
+  );
+  assert.match(
+    handoffSeedBuilder,
+    /seed_kind:\s*seedKind/,
+    "handoff seed builder must return the manual note seed kind",
+  );
+  assert.match(
+    handoffSeedBuilder,
+    /ResearchCandidateReviewPreviewResponse/,
+    "handoff seed builder must consume ResearchCandidateReviewPreviewResponse-shaped input",
+  );
 }
 
 function assertPreviewOutputRendering() {

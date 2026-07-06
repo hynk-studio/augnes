@@ -198,6 +198,7 @@
     "smoke:agent-perspective-substrate-folded-audit-panel-v0-1": "node scripts/smoke-agent-perspective-substrate-folded-audit-panel-v0-1.mjs",
     "smoke:research-candidate-review-manual-parser-v0-1": "node scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs",
     "smoke:research-candidate-manual-note-preview-ui-v0-1": "node scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs",
+    "smoke:research-candidate-manual-note-handoff-seed-v0-1": "node scripts/smoke-research-candidate-manual-note-handoff-seed-v0-1.mjs",
     "smoke:research-candidate-runtime-preview-draft-v0-1": "node scripts/smoke-research-candidate-runtime-preview-draft-v0-1.mjs",
     "smoke:research-candidate-preview-draft-read-discard-v0-1": "node scripts/smoke-research-candidate-preview-draft-read-discard-v0-1.mjs",
     "smoke:research-candidate-preview-draft-list-filters-v0-1": "node scripts/smoke-research-candidate-preview-draft-list-filters-v0-1.mjs",
