@@ -671,7 +671,23 @@ db.close();
 
 assertChangedFilesWithin({
   label: "perspective relay update decision write contract v0.1",
-  allowedChangedFiles: Object.values(files),
+  allowedChangedFiles: [
+    ...Object.values(files),
+    "types/handoff-packet-copy-export-contract-preview.ts",
+    "lib/workplane/handoff-packet-copy-export-contract-preview.ts",
+    "components/workplane/handoff-packet-copy-export-contract-preview-panel.tsx",
+    "types/handoff-packet-copy-export-contract-decision.ts",
+    "lib/workplane/handoff-packet-copy-export-contract-decision.ts",
+    "components/workplane/handoff-packet-copy-export-contract-decision-panel.tsx",
+    "types/handoff-packet-copy-export-contract-write.ts",
+    "lib/workplane/handoff-packet-copy-export-contract-write.ts",
+    "app/api/workplane/handoff-packet-copy-export-contracts/route.ts",
+    "types/handoff-packet-copy-export-contract-record-review.ts",
+    "lib/workplane/handoff-packet-copy-export-contract-record-review.ts",
+    "lib/workplane/read-handoff-packet-copy-export-contract-record-review-for-web.ts",
+    "components/workplane/handoff-packet-copy-export-contract-record-review-panel.tsx",
+    "scripts/smoke-handoff-packet-copy-export-contract-v0-1.mjs",
+  ],
 });
 
 console.log("PASS smoke:perspective-relay-update-decision-write-contract-v0-1");

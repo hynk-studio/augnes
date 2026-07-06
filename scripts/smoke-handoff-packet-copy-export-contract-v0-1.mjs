@@ -39,6 +39,15 @@ const expectedFiles = [
   "types/workbench-dogfood-loop-spine-overview.ts",
   "scripts/smoke-handoff-packet-copy-export-contract-v0-1.mjs",
   "scripts/smoke-handoff-context-apply-slice-v0-1.mjs",
+  "scripts/smoke-handoff-context-update-contract-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-route-integration-slice-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-route-integration-contract-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-apply-slice-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-update-contract-v0-1.mjs",
+  "scripts/smoke-continuity-relay-scoped-write-v0-1.mjs",
+  "scripts/smoke-perspective-unit-scoped-write-v0-1.mjs",
+  "scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs",
+  "scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs",
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   "scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs",
   "package.json",
@@ -254,11 +263,42 @@ function readOnlyAppliedAuthority(overrides = {}) {
     can_mutate_handoff_context: false,
     can_send_handoff: false,
     can_copy_export_handoff_packet: false,
+    can_write_handoff_packet_file: false,
+    can_write_clipboard: false,
+    can_download_file: false,
     can_write_selected_refs_to_live_handoff: false,
+    can_modify_api_perspective_current_route: false,
+    can_replace_current_working_perspective_route_response: false,
+    can_update_upstream_current_working_perspective_source_tables: false,
+    can_write_applied_current_working_perspective_snapshot: false,
+    can_write_current_working_perspective_apply_record: false,
+    can_write_current_working_perspective_update_contract_record: false,
+    can_write_route_integration_contract_record: false,
+    can_write_handoff_context_update_contract_record: false,
+    can_write_perspective_unit: false,
+    can_write_next_work_bias: false,
+    can_write_continuity_relay: false,
+    can_update_continuity_relay: false,
+    can_apply_live_relay_state: false,
     can_write_memory: false,
     can_mutate_memory: false,
+    can_promote_memory: false,
+    can_update_global_dogfood_metrics: false,
+    can_write_dogfood_metrics: false,
+    can_write_dogfood_metric_snapshot: false,
+    can_write_reuse_outcome_ledger: false,
+    can_write_expected_observed_delta: false,
+    can_write_work_episode: false,
     can_call_github: false,
     can_call_provider_openai: false,
+    can_execute_codex: false,
+    can_create_pr: false,
+    can_merge_pr: false,
+    can_run_autonomous_action: false,
+    can_create_graph_or_vector_store: false,
+    can_create_rag_stack: false,
+    can_crawl_or_observe_browser: false,
+    can_render_workbench_action_button: false,
     ...overrides,
   };
 }
@@ -278,11 +318,42 @@ function writeAuthority(overrides = {}) {
     can_mutate_handoff_context: false,
     can_send_handoff: false,
     can_copy_export_handoff_packet: false,
+    can_write_handoff_packet_file: false,
+    can_write_clipboard: false,
+    can_download_file: false,
     can_write_selected_refs_to_live_handoff: false,
     can_modify_api_perspective_current_route: false,
+    can_replace_current_working_perspective_route_response: false,
+    can_update_upstream_current_working_perspective_source_tables: false,
+    can_write_applied_current_working_perspective_snapshot: false,
+    can_write_current_working_perspective_apply_record: false,
+    can_write_current_working_perspective_update_contract_record: false,
+    can_write_route_integration_contract_record: false,
+    can_write_handoff_context_update_contract_record: false,
+    can_write_perspective_unit: false,
+    can_write_next_work_bias: false,
+    can_write_continuity_relay: false,
+    can_update_continuity_relay: false,
+    can_apply_live_relay_state: false,
     can_write_memory: false,
+    can_mutate_memory: false,
+    can_promote_memory: false,
+    can_update_global_dogfood_metrics: false,
+    can_write_dogfood_metrics: false,
+    can_write_dogfood_metric_snapshot: false,
+    can_write_reuse_outcome_ledger: false,
+    can_write_expected_observed_delta: false,
+    can_write_work_episode: false,
     can_call_github: false,
     can_call_provider_openai: false,
+    can_execute_codex: false,
+    can_create_pr: false,
+    can_merge_pr: false,
+    can_run_autonomous_action: false,
+    can_create_graph_or_vector_store: false,
+    can_create_rag_stack: false,
+    can_crawl_or_observe_browser: false,
+    can_render_workbench_action_button: false,
     ...overrides,
   };
 }
@@ -449,6 +520,36 @@ function assertNotReady(preview, reason) {
   assert.equal(preview.contract_readiness.write_ready, false, reason);
 }
 
+function assertPreviewBlocks(preview, blocker, reason) {
+  assertNotReady(preview, reason);
+  assert(
+    preview.blocking_reasons.includes(blocker),
+    `${reason}: expected ${blocker}`,
+  );
+}
+
+function buildAppliedReadWithContextAuthority(field) {
+  const snapshot = buildSnapshot({
+    applied_handoff_context: buildAppliedContext({
+      authority_boundary: readOnlyAppliedAuthority({ [field]: true }),
+    }),
+  });
+  return buildAppliedRead({
+    latest_applied_snapshot: snapshot,
+    latest_record: buildApplyRecord(snapshot),
+  });
+}
+
+function buildAppliedReadWithSnapshotAuthority(field) {
+  const snapshot = buildSnapshot({
+    authority_boundary: writeAuthority({ [field]: true }),
+  });
+  return buildAppliedRead({
+    latest_applied_snapshot: snapshot,
+    latest_record: buildApplyRecord(snapshot),
+  });
+}
+
 assertNotReady(
   buildHandoffPacketCopyExportContractPreviewV01({
     requested_packet_format: "operator_handoff_packet_markdown",
@@ -595,6 +696,68 @@ assert(
     "raw_or_private_existing_handoff_packet_or_capsule_refused",
   ),
   "raw existing handoff material refused",
+);
+
+for (const field of [
+  "can_write_clipboard",
+  "can_write_handoff_packet_file",
+  "can_write_dogfood_metrics",
+  "can_create_pr",
+  "can_create_graph_or_vector_store",
+  "can_crawl_or_observe_browser",
+]) {
+  assertPreviewBlocks(
+    buildPreview({
+      applied_handoff_context_read: buildAppliedReadWithContextAuthority(field),
+    }),
+    "applied_handoff_context_authority_boundary_invalid",
+    `forged applied handoff context authority ${field} blocks`,
+  );
+}
+
+for (const field of [
+  "can_write_clipboard",
+  "can_download_file",
+  "can_replace_current_working_perspective_route_response",
+  "can_update_upstream_current_working_perspective_source_tables",
+  "can_write_dogfood_metrics",
+  "can_create_pr",
+  "can_create_graph_or_vector_store",
+  "can_crawl_or_observe_browser",
+]) {
+  assertPreviewBlocks(
+    buildPreview({
+      applied_handoff_context_read: buildAppliedReadWithSnapshotAuthority(field),
+    }),
+    "applied_handoff_context_snapshot_authority_boundary_invalid",
+    `forged applied snapshot authority ${field} blocks`,
+  );
+}
+
+assertPreviewBlocks(
+  buildPreview({
+    applied_handoff_context_read: undefined,
+    applied_handoff_context_snapshot: buildSnapshot({
+      applied_handoff_context: buildAppliedContext({
+        authority_boundary: readOnlyAppliedAuthority({
+          can_write_clipboard: true,
+        }),
+      }),
+    }),
+  }),
+  "applied_handoff_context_authority_boundary_invalid",
+  "direct applied snapshot applied context authority blocks",
+);
+
+assertPreviewBlocks(
+  buildPreview({
+    applied_handoff_context_read: undefined,
+    applied_handoff_context_snapshot: buildSnapshot({
+      authority_boundary: writeAuthority({ can_download_file: true }),
+    }),
+  }),
+  "applied_handoff_context_snapshot_authority_boundary_invalid",
+  "direct applied snapshot authority blocks",
 );
 
 const readyPreview = buildPreview();
