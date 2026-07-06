@@ -435,6 +435,22 @@ const handoffContextApplySliceFiles = [
   "components/workplane/applied-handoff-context-panel.tsx",
   "scripts/smoke-handoff-context-apply-slice-v0-1.mjs",
 ];
+const handoffPacketCopyExportContractFiles = [
+  "types/handoff-packet-copy-export-contract-preview.ts",
+  "lib/workplane/handoff-packet-copy-export-contract-preview.ts",
+  "components/workplane/handoff-packet-copy-export-contract-preview-panel.tsx",
+  "types/handoff-packet-copy-export-contract-decision.ts",
+  "lib/workplane/handoff-packet-copy-export-contract-decision.ts",
+  "components/workplane/handoff-packet-copy-export-contract-decision-panel.tsx",
+  "types/handoff-packet-copy-export-contract-write.ts",
+  "lib/workplane/handoff-packet-copy-export-contract-write.ts",
+  "app/api/workplane/handoff-packet-copy-export-contracts/route.ts",
+  "types/handoff-packet-copy-export-contract-record-review.ts",
+  "lib/workplane/handoff-packet-copy-export-contract-record-review.ts",
+  "lib/workplane/read-handoff-packet-copy-export-contract-record-review-for-web.ts",
+  "components/workplane/handoff-packet-copy-export-contract-record-review-panel.tsx",
+  "scripts/smoke-handoff-packet-copy-export-contract-v0-1.mjs",
+];
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -625,6 +641,7 @@ const allowedChangedFiles = [
   ...currentWorkingPerspectiveApplySliceFiles,
   ...handoffContextUpdateContractFiles,
   ...handoffContextApplySliceFiles,
+  ...handoffPacketCopyExportContractFiles,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -782,6 +799,16 @@ assertContainsAll(
     "handoff_context_apply_preview",
     "handoff_context_apply_decision",
     "handoff_context_apply_write_contract",
+    "handoff_packet_copy_export_contract",
+    "handoff_packet_copy_export_contract_decision",
+    "handoff_packet_copy_export_contract_record",
+    "review_handoff_packet_copy_export_contract",
+    "approve_handoff_packet_copy_export_contract_record",
+    "write_handoff_packet_copy_export_contract_record",
+    "review_handoff_packet_copy_export_contract_record",
+    "resolve_handoff_packet_copy_export_contract_blockers",
+    "prepare_handoff_packet_copy_export_slice",
+    "prepare_handoff_send_contract",
     "can_apply_handoff_context: false",
     "can_create_ingest_decision_record: false",
     "can_create_ingest_receipt: false",
@@ -929,6 +956,13 @@ assertContainsAll(
     "resolve_handoff_context_update_contract_blockers",
     "prepare_handoff_context_apply_slice",
     "prepare_handoff_packet_copy_export_contract",
+    "review_handoff_packet_copy_export_contract",
+    "approve_handoff_packet_copy_export_contract_record",
+    "write_handoff_packet_copy_export_contract_record",
+    "review_handoff_packet_copy_export_contract_record",
+    "resolve_handoff_packet_copy_export_contract_blockers",
+    "prepare_handoff_packet_copy_export_slice",
+    "prepare_handoff_send_contract",
     "does_not_call_expected_observed_delta_route_from_workbench_overview",
     "does_not_write_reuse_outcome_ledger_or_dogfood_metrics",
     "does_not_write_memory",
@@ -1121,7 +1155,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 60);
+assert.equal(emptyOverview.spine_steps.length, 63);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -1141,6 +1175,9 @@ for (const stepId of [
   "handoff_context_update_contract",
   "handoff_context_update_contract_decision",
   "handoff_context_update_contract_record",
+  "handoff_packet_copy_export_contract",
+  "handoff_packet_copy_export_contract_decision",
+  "handoff_packet_copy_export_contract_record",
 ]) {
   assert(
     emptyOverview.spine_steps.some((step) => step.step_id === stepId),
@@ -2185,6 +2222,7 @@ function assertNoForbiddenChangedPaths() {
         file === currentWorkingPerspectiveRouteIntegrationContractRouteFile ||
         file === handoffContextUpdateContractRouteFile ||
         file === "app/api/workplane/handoff-context-applies/route.ts" ||
+        file === "app/api/workplane/handoff-packet-copy-export-contracts/route.ts" ||
         file === "app/api/perspective/current/route.ts",
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
