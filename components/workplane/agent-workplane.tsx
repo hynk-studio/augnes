@@ -22,6 +22,7 @@ import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { GuideIntentProjectionPanel } from "@/components/guide/guide-intent-projection-panel";
 import { GuideWorkplaneDebugPanel } from "@/components/guide/guide-workplane-debug-panel";
 import { ResidualDiagnosticCandidatePanel } from "@/components/workplane/residual-diagnostic-candidate-panel";
+import { DeliverySpineLoopClosurePanel } from "@/components/workplane/delivery-spine-loop-closure-panel";
 import { ExternalHandoffDeliveryContractPanel } from "@/components/workplane/external-handoff-delivery-contract-panel";
 import { ProviderSpecificExternalDeliveryPreviewContractPanel } from "@/components/workplane/provider-specific-external-delivery-preview-contract-panel";
 import { ProviderSpecificDeliveryIntentContractPanel } from "@/components/workplane/provider-specific-delivery-intent-contract-panel";
@@ -215,6 +216,7 @@ import { buildProviderSpecificExternalDeliveryOperatorDecisionPreviewV01 } from 
 import { buildProviderSpecificDeliveryIntentContractPreviewV01 } from "@/lib/workplane/provider-specific-delivery-intent-contract-preview";
 import { buildProviderSpecificDeliveryIntentOperatorDecisionPreviewV01 } from "@/lib/workplane/provider-specific-delivery-intent-operator-decision-preview";
 import { readProviderSpecificDeliveryIntentContractRecordReviewForWebV01 } from "@/lib/workplane/read-provider-specific-delivery-intent-contract-record-review-for-web";
+import { buildDeliverySpineLoopClosureReadModelV01 } from "@/lib/workplane/delivery-spine-loop-closure";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
 import { buildWorkbenchSpineConsolidationV01 } from "@/lib/workplane/workbench-spine-consolidation";
 import { buildWorkEpisodeResidueCandidatePreviewV01 } from "@/lib/workplane/work-episode-residue-candidate-preview";
@@ -1344,6 +1346,40 @@ export async function AgentWorkplane() {
         "workbench:provider_specific_delivery_intent_contract_record_review",
       ],
     });
+  const deliverySpineLoopClosure =
+    buildDeliverySpineLoopClosureReadModelV01({
+      workbench_spine_consolidation: workbenchSpineConsolidation,
+      residual_diagnostic_candidate_read_model:
+        residualDiagnosticCandidateReadModel,
+      external_handoff_delivery_contract_preview:
+        externalHandoffDeliveryContractPreview,
+      external_handoff_delivery_operator_decision_preview:
+        externalHandoffDeliveryOperatorDecisionPreview,
+      external_handoff_delivery_contract_record_review:
+        externalHandoffDeliveryContractRecordReview,
+      provider_specific_external_delivery_preview_contract:
+        providerSpecificExternalDeliveryPreviewContract,
+      provider_specific_external_delivery_operator_decision_preview:
+        providerSpecificExternalDeliveryOperatorDecisionPreview,
+      provider_specific_delivery_intent_contract_preview:
+        providerSpecificDeliveryIntentContractPreview,
+      provider_specific_delivery_intent_operator_decision_preview:
+        providerSpecificDeliveryIntentOperatorDecisionPreview,
+      provider_specific_delivery_intent_contract_record_review:
+        providerSpecificDeliveryIntentContractRecordReview,
+      sent_handoff_read: sentHandoffRead,
+      handoff_send_record_review: handoffSendRecordReview,
+      handoff_send_contract_record_review:
+        handoffSendContractRecordReview,
+      exported_handoff_packet_artifact_read:
+        exportedHandoffPacketArtifactRead,
+      applied_handoff_context_read: appliedHandoffContextRead,
+      workbench_dogfood_loop_spine_overview:
+        workbenchDogfoodLoopSpineOverview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:delivery_spine_loop_closure"],
+    });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -1423,6 +1459,9 @@ export async function AgentWorkplane() {
               recordReview={
                 providerSpecificDeliveryIntentContractRecordReview
               }
+            />
+            <DeliverySpineLoopClosurePanel
+              readModel={deliverySpineLoopClosure}
             />
 
             <section
