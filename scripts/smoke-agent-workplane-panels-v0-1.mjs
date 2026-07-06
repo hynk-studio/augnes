@@ -2185,6 +2185,28 @@ for (const file of followOnHandoffSendContractFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnHandoffSendSliceFiles = [
+  "types/handoff-send-preview.ts",
+  "lib/workplane/handoff-send-preview.ts",
+  "components/workplane/handoff-send-preview-panel.tsx",
+  "types/handoff-send-decision.ts",
+  "lib/workplane/handoff-send-decision.ts",
+  "components/workplane/handoff-send-decision-panel.tsx",
+  "types/handoff-send-write.ts",
+  "lib/workplane/handoff-send-write.ts",
+  "app/api/workplane/handoff-sends/route.ts",
+  "types/handoff-send-record-review.ts",
+  "lib/workplane/handoff-send-record-review.ts",
+  "lib/workplane/read-handoff-send-record-review-for-web.ts",
+  "lib/workplane/read-sent-handoff-for-web.ts",
+  "components/workplane/handoff-send-record-review-panel.tsx",
+  "components/workplane/sent-handoff-panel.tsx",
+  "scripts/smoke-handoff-send-slice-v0-1.mjs",
+];
+for (const file of followOnHandoffSendSliceFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
@@ -3956,6 +3978,7 @@ function assertChangedFileBoundary() {
         followOnHandoffPacketCopyExportContractFiles.includes(file) ||
         followOnHandoffPacketCopyExportSliceFiles.includes(file) ||
         followOnHandoffSendContractFiles.includes(file) ||
+        followOnHandoffSendSliceFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3986,6 +4009,7 @@ function assertChangedFileBoundary() {
         followOnHandoffPacketCopyExportContractFiles.includes(file) ||
         followOnHandoffPacketCopyExportSliceFiles.includes(file) ||
         followOnHandoffSendContractFiles.includes(file) ||
+        followOnHandoffSendSliceFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );

@@ -86,6 +86,9 @@ import { HandoffPacketCopyExportRecordReviewPanel } from "@/components/workplane
 import { HandoffSendContractDecisionPanel } from "@/components/workplane/handoff-send-contract-decision-panel";
 import { HandoffSendContractPreviewPanel } from "@/components/workplane/handoff-send-contract-preview-panel";
 import { HandoffSendContractRecordReviewPanel } from "@/components/workplane/handoff-send-contract-record-review-panel";
+import { HandoffSendDecisionPanel } from "@/components/workplane/handoff-send-decision-panel";
+import { HandoffSendPreviewPanel } from "@/components/workplane/handoff-send-preview-panel";
+import { HandoffSendRecordReviewPanel } from "@/components/workplane/handoff-send-record-review-panel";
 import { HandoffContextUpdateContractDecisionPanel } from "@/components/workplane/handoff-context-update-contract-decision-panel";
 import { HandoffContextUpdateContractPreviewPanel } from "@/components/workplane/handoff-context-update-contract-preview-panel";
 import { HandoffContextUpdateContractRecordReviewPanel } from "@/components/workplane/handoff-context-update-contract-record-review-panel";
@@ -107,6 +110,7 @@ import { WorkQueuePanel } from "@/components/workplane/work-queue-panel";
 import { WorkplaneHeader } from "@/components/workplane/workplane-header";
 import { WorkplaneInspector } from "@/components/workplane/workplane-inspector";
 import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
+import { SentHandoffPanel } from "@/components/workplane/sent-handoff-panel";
 import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-contract-for-web";
 import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
 import { buildCodexResultFeedbackDraft } from "@/lib/dogfooding/codex-result-feedback-draft";
@@ -190,7 +194,11 @@ import { readExportedHandoffPacketArtifactForWebV01 } from "@/lib/workplane/read
 import { readHandoffPacketCopyExportRecordReviewForWebV01 } from "@/lib/workplane/read-handoff-packet-copy-export-record-review-for-web";
 import { buildHandoffSendContractOperatorDecisionPreviewV01 } from "@/lib/workplane/handoff-send-contract-decision";
 import { buildHandoffSendContractPreviewV01 } from "@/lib/workplane/handoff-send-contract-preview";
+import { buildHandoffSendOperatorDecisionPreviewV01 } from "@/lib/workplane/handoff-send-decision";
+import { buildHandoffSendPreviewV01 } from "@/lib/workplane/handoff-send-preview";
 import { readHandoffSendContractRecordReviewForWebV01 } from "@/lib/workplane/read-handoff-send-contract-record-review-for-web";
+import { readHandoffSendRecordReviewForWebV01 } from "@/lib/workplane/read-handoff-send-record-review-for-web";
+import { readSentHandoffForWebV01 } from "@/lib/workplane/read-sent-handoff-for-web";
 import { buildPerspectiveUnitScopedWritePreviewV01 } from "@/lib/workplane/perspective-unit-scoped-write-preview";
 import { readPerspectiveUnitRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-unit-record-review-for-web";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
@@ -941,6 +949,27 @@ export async function AgentWorkplane() {
     readHandoffSendContractRecordReviewForWebV01({
       source_refs: ["workbench:handoff_send_contract_record_review"],
     });
+  const handoffSendPreview = buildHandoffSendPreviewV01({
+    handoff_send_contract_record_review: handoffSendContractRecordReview,
+    exported_handoff_packet_artifact_read:
+      exportedHandoffPacketArtifactRead,
+    handoff_packet_copy_export_record_review:
+      handoffPacketCopyExportRecordReview,
+    scope: "project:augnes",
+    as_of: workplaneMetrics.as_of,
+    source_refs: ["workbench:handoff_send_preview"],
+  });
+  const handoffSendDecisionPreview =
+    buildHandoffSendOperatorDecisionPreviewV01({
+      handoff_send_preview: handoffSendPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:handoff_send_decision_preview"],
+    });
+  const handoffSendRecordReview = readHandoffSendRecordReviewForWebV01({
+    source_refs: ["workbench:handoff_send_record_review"],
+  });
+  const sentHandoffRead = readSentHandoffForWebV01();
   const handoffContextUpdatePreview = buildHandoffContextUpdatePreviewV01({
     handoff_context_relay_rationale: handoffContextRationale,
     metric_informed_relay_adjustment_preview:
@@ -1110,6 +1139,10 @@ export async function AgentWorkplane() {
         handoffSendContractDecisionPreview,
       handoff_send_contract_record_review:
         handoffSendContractRecordReview,
+      handoff_send_preview: handoffSendPreview,
+      handoff_send_decision_preview: handoffSendDecisionPreview,
+      handoff_send_record_review: handoffSendRecordReview,
+      sent_handoff_read: sentHandoffRead,
       codex_result_feedback_draft: codexResultFeedbackDraft,
       dogfood_reuse_record_proposal: dogfoodReuseRecordProposal,
       dogfood_reuse_operator_decision_preview:
@@ -1400,6 +1433,12 @@ export async function AgentWorkplane() {
               <HandoffSendContractRecordReviewPanel
                 review={handoffSendContractRecordReview}
               />
+              <HandoffSendPreviewPanel preview={handoffSendPreview} />
+              <HandoffSendDecisionPanel
+                preview={handoffSendDecisionPreview}
+              />
+              <HandoffSendRecordReviewPanel review={handoffSendRecordReview} />
+              <SentHandoffPanel sentHandoff={sentHandoffRead} />
               <HandoffContextUpdatePreviewPanel
                 preview={handoffContextUpdatePreview}
               />
