@@ -21,6 +21,7 @@ import { ReuseOutcomeCandidateBridgePreviewPanel } from "@/components/dogfooding
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { GuideIntentProjectionPanel } from "@/components/guide/guide-intent-projection-panel";
 import { GuideWorkplaneDebugPanel } from "@/components/guide/guide-workplane-debug-panel";
+import { ResidualDiagnosticCandidatePanel } from "@/components/workplane/residual-diagnostic-candidate-panel";
 import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
 import { HandoffContextApplyOperatorDecisionPreviewPanel as HistoricalHandoffContextApplyOperatorDecisionPreviewPanel } from "@/components/handoff/handoff-context-apply-operator-decision-preview-panel";
 import { HandoffContextApplyPreviewPanel as HistoricalHandoffContextApplyPreviewPanel } from "@/components/handoff/handoff-context-apply-preview-panel";
@@ -202,6 +203,7 @@ import { readHandoffSendRecordReviewForWebV01 } from "@/lib/workplane/read-hando
 import { readSentHandoffForWebV01 } from "@/lib/workplane/read-sent-handoff-for-web";
 import { buildPerspectiveUnitScopedWritePreviewV01 } from "@/lib/workplane/perspective-unit-scoped-write-preview";
 import { readPerspectiveUnitRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-unit-record-review-for-web";
+import { buildResidualDiagnosticCandidateReadModelV01 } from "@/lib/workplane/residual-diagnostic-candidate";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
 import { buildWorkbenchSpineConsolidationV01 } from "@/lib/workplane/workbench-spine-consolidation";
 import { buildWorkEpisodeResidueCandidatePreviewV01 } from "@/lib/workplane/work-episode-residue-candidate-preview";
@@ -1191,6 +1193,31 @@ export async function AgentWorkplane() {
       source_refs: ["workbench:dogfood_loop_spine_overview"],
     });
 
+  const residualDiagnosticCandidateReadModel =
+    buildResidualDiagnosticCandidateReadModelV01({
+      workbench_spine_consolidation: workbenchSpineConsolidation,
+      workbench_dogfood_loop_spine_overview:
+        workbenchDogfoodLoopSpineOverview,
+      current_working_perspective_route_integration_read:
+        currentWorkingPerspectiveRouteIntegrationRead,
+      current_working_perspective_route_integration_read_review:
+        currentWorkingPerspectiveRouteIntegrationReadReview,
+      expected_observed_delta_record_review: expectedObservedDeltaRecordReview,
+      reuse_outcome_bridge_ledger_record_review:
+        reuseOutcomeBridgeLedgerRecordReview,
+      work_episode_residue_candidate_preview:
+        workEpisodeResidueCandidatePreview,
+      dogfood_metric_snapshot_record_review:
+        dogfoodMetricSnapshotRecordReview,
+      next_work_signal_decision_record_review:
+        nextWorkSignalDecisionRecordReview,
+      perspective_relay_update_decision_record_review:
+        perspectiveRelayUpdateDecisionRecordReview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:residual_diagnostic_candidate_read_model"],
+    });
+
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
       <div style={shellStyle}>
@@ -1246,6 +1273,9 @@ export async function AgentWorkplane() {
             />
             <WorkbenchSpineConsolidationPanel
               dashboard={workbenchSpineConsolidation}
+            />
+            <ResidualDiagnosticCandidatePanel
+              readModel={residualDiagnosticCandidateReadModel}
             />
 
             <section

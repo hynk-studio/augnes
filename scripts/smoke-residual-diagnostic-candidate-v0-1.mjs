@@ -14,22 +14,19 @@ const pkgText = readFileSync(path.join(root, "package.json"), "utf8");
 
 assertPackageScript({
   packageJsonText: pkgText,
-  scriptName: "smoke:workbench-spine-consolidation-v0-1",
+  scriptName: "smoke:residual-diagnostic-candidate-v0-1",
   expectedCommand:
-    "tsx --tsconfig tsconfig.json scripts/smoke-workbench-spine-consolidation-v0-1.mjs",
+    "tsx --tsconfig tsconfig.json scripts/smoke-residual-diagnostic-candidate-v0-1.mjs",
 });
 
 const expectedFiles = [
-  "types/workbench-spine-consolidation.ts",
-  "lib/workplane/workbench-spine-consolidation.ts",
-  "components/workplane/workbench-spine-consolidation-panel.tsx",
   "types/residual-diagnostic-candidate.ts",
   "lib/workplane/residual-diagnostic-candidate.ts",
   "components/workplane/residual-diagnostic-candidate-panel.tsx",
   "components/workplane/agent-workplane.tsx",
-  "scripts/smoke-workbench-spine-consolidation-v0-1.mjs",
   "scripts/smoke-residual-diagnostic-candidate-v0-1.mjs",
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-workbench-spine-consolidation-v0-1.mjs",
   "scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs",
   "package.json",
 ];
@@ -38,35 +35,44 @@ for (const file of expectedFiles.slice(0, 5)) {
   assert(existsSync(path.join(root, file)), `missing ${file}`);
 }
 
-const changedFileBoundary = assertChangedFilesWithin({
+assertChangedFilesWithin({
   allowedChangedFiles: expectedFiles,
-  label: "workbench_spine_consolidation_v0_1",
+  label: "residual_diagnostic_candidate_v0_1",
 });
 
 const textByFile = loadTextByFile(expectedFiles);
-const typeText = textByFile.get("types/workbench-spine-consolidation.ts");
-const helperText = textByFile.get("lib/workplane/workbench-spine-consolidation.ts");
+const typeText = textByFile.get("types/residual-diagnostic-candidate.ts");
+const helperText = textByFile.get(
+  "lib/workplane/residual-diagnostic-candidate.ts",
+);
 const panelText = textByFile.get(
-  "components/workplane/workbench-spine-consolidation-panel.tsx",
+  "components/workplane/residual-diagnostic-candidate-panel.tsx",
 );
 const agentText = textByFile.get("components/workplane/agent-workplane.tsx");
 const repoText = [...textByFile.values()].join("\n");
 
 for (const expected of [
-  "workbench_spine_consolidation.v0.1",
-  "workbench_spine_lineage_map.v0.1",
-  "applied_current_working_perspective",
-  "applied_handoff_context",
-  "exported_handoff_packet_artifact",
-  "handoff_send_contract_record",
-  "local_handoff_send_fulfillment",
-  "external_handoff_delivery",
-  "prepare_external_handoff_delivery_contract",
-  "external_delivery_configured: false",
-  "local_fulfillment_is_external_delivery: false",
+  "residual_diagnostic_candidate_read_model.v0.1",
+  "source_ref_lineage_mismatch",
+  "route_integration_mode_mismatch",
+  "local_fulfillment_upstream_gap",
+  "external_delivery_boundary_pressure",
+  "authority_boundary_drift",
+  "workbench_ia_overload",
+  "false_leap_contrast",
+  "minimum_verification",
+  "recommended_next_hardening_target",
+  "read_only: true",
+  "advisory_only: true",
+  "candidate_layer_only: true",
+  "can_write_db: false",
   "can_send_handoff: false",
   "can_call_send_provider: false",
+  "can_call_email: false",
+  "can_call_slack: false",
+  "can_call_webhook: false",
   "can_write_clipboard: false",
+  "can_download_file: false",
   "can_write_memory: false",
   "can_render_workbench_action_button: false",
 ]) {
@@ -74,139 +80,75 @@ for (const expected of [
 }
 
 assert(
-  agentText.includes("buildWorkbenchSpineConsolidationV01"),
-  "Agent Workplane must build the spine consolidation dashboard",
+  agentText.includes("buildResidualDiagnosticCandidateReadModelV01"),
+  "Agent Workplane must build residual diagnostic candidates",
 );
 assert(
-  agentText.includes("<WorkbenchSpineConsolidationPanel"),
-  "Agent Workplane must render the spine consolidation panel",
+  agentText.includes("<ResidualDiagnosticCandidatePanel"),
+  "Agent Workplane must render the residual diagnostic panel",
 );
 assertNoForbiddenRuntime("helper", helperText);
 assertNoForbiddenRuntime("panel", panelText);
 assertNoActionButtons("panel", panelText);
-assertNoActionButtons("agent wiring", agentConsolidationSnippet(agentText));
+assertNoActionButtons("agent wiring", agentResidualSnippet(agentText));
 assert(
-  changedFileBoundary.files.every(
-    (file) => !file.startsWith("app/api/workplane/workbench-spine"),
-  ),
-  "no route added",
+  !expectedFiles.some((file) => file.startsWith("app/api/")),
+  "residual diagnostic candidate layer must not add routes",
 );
 
 const { buildWorkbenchSpineConsolidationV01 } = await import(
   "../lib/workplane/workbench-spine-consolidation.ts"
 );
-
-const emptyDashboard = buildWorkbenchSpineConsolidationV01({});
-assert.equal(emptyDashboard.dashboard_status, "no_spine_material");
-assert.notEqual(emptyDashboard.dashboard_status, "local_fulfillment_available");
-assert.equal(emptyDashboard.blocker_summary.blockers.length, 0);
-assert(
-  emptyDashboard.lineage_map.missing_links.some((link) =>
-    link.includes("applied_current_working_perspective_ref_missing"),
-  ),
-  "empty dashboard should still expose ordinary missing lineage",
-);
-assert(
-  !emptyDashboard.blocker_summary.blockers.some((blocker) =>
-    blocker.startsWith("lineage_"),
-  ),
-  "ordinary both-sides-missing lineage must not become blockers",
+const { buildResidualDiagnosticCandidateReadModelV01 } = await import(
+  "../lib/workplane/residual-diagnostic-candidate.ts"
 );
 
-const happyPath = buildWorkbenchSpineConsolidationV01(buildHappyInput());
-assert.equal(happyPath.dashboard_status, "local_fulfillment_available");
-assert.equal(
-  happyPath.recommended_next_operator_action.action,
-  "prepare_external_handoff_delivery_contract",
-);
-assert.equal(happyPath.external_delivery.status, "not_configured");
-assert.equal(happyPath.external_delivery.local_fulfillment_is_external_delivery, false);
-assert.equal(happyPath.external_delivery.provider_called, false);
-assert.equal(happyPath.external_delivery.external_message_sent, false);
-assert.equal(
-  stage(happyPath, "applied_current_working_perspective").status,
-  "applied",
-);
-assert.equal(stage(happyPath, "exported_handoff_packet_artifact").status, "exported");
-assert.equal(stage(happyPath, "handoff_send_contract_record").status, "approved");
-assert.equal(stage(happyPath, "local_handoff_send_fulfillment").status, "fulfilled");
+const empty = buildResidualDiagnosticCandidateReadModelV01({});
+assert.equal(empty.dashboard_status, "insufficient_data");
+assert.equal(empty.candidate_summary.actionable_candidate_count, 0);
+assert.equal(empty.residual_candidates.length, 0);
 assert(
-  happyPath.phase_groups.some((phase) => phase.phase_id === "packet_artifact"),
-  "dashboard must group packet artifact phase",
-);
-assert(
-  happyPath.lineage_map.edges.some(
-    (edge) =>
-      edge.from === "exported_handoff_packet_artifact" &&
-      edge.to === "handoff_send_contract_record" &&
-      edge.linked,
-  ),
-  "dashboard must link exported artifact to send contract",
-);
-assert(
-  happyPath.lineage_map.missing_links.includes(
-    "external_delivery_contract_not_configured",
-  ),
-  "external delivery must remain an explicit missing future contract",
+  empty.insufficient_data.includes("workbench_residual_source_material_missing"),
+  "empty input must be honest insufficient_data",
 );
 
-const missingCwp = buildWorkbenchSpineConsolidationV01({
-  ...buildHappyInput(),
-  applied_current_working_perspective_read: undefined,
+const ordinaryMissingDashboard = buildWorkbenchSpineConsolidationV01({});
+const ordinaryMissing = buildResidualDiagnosticCandidateReadModelV01({
+  workbench_spine_consolidation: ordinaryMissingDashboard,
 });
-assert.notEqual(missingCwp.dashboard_status, "local_fulfillment_available");
-assert.equal(
-  stage(missingCwp, "local_handoff_send_fulfillment").status,
-  "fulfilled",
-);
 assert(
-  missingCwp.blocker_summary.missing_prerequisites.includes(
-    "applied_current_working_perspective_snapshot_missing",
-  ),
+  ordinaryMissing.ordinary_missing_prerequisites.length > 0,
+  "ordinary missing prerequisites should remain visible",
 );
+assert.equal(ordinaryMissing.candidate_summary.actionable_candidate_count, 0);
 assert.equal(
-  missingCwp.recommended_next_operator_action.action,
-  "resolve_workbench_spine_consolidation_blockers",
+  findCandidate(ordinaryMissing, "source_ref_lineage_mismatch"),
+  undefined,
+  "ordinary both-sides-missing lineage must not become a residual bottleneck",
 );
 
-const runtimeOnlyRoute = buildWorkbenchSpineConsolidationV01({
-  ...buildHappyInput(),
-  current_working_perspective_route_integration_read: routeRead({
-    status: "runtime_only",
-    includeMetadataRefs: false,
-  }),
+const happyDashboard = buildWorkbenchSpineConsolidationV01(buildHappyInput());
+const happyResidual = buildResidualDiagnosticCandidateReadModelV01({
+  workbench_spine_consolidation: happyDashboard,
+  current_working_perspective_route_integration_read: routeRead(),
 });
-const runtimeOnlyRouteStage = stage(
-  runtimeOnlyRoute,
-  "current_working_perspective_route_integration",
+const externalBoundaryCandidate = mustFindCandidate(
+  happyResidual,
+  "external_delivery_boundary_pressure",
 );
-assert.notEqual(runtimeOnlyRouteStage.status, "available");
-assert.equal(runtimeOnlyRouteStage.status, "insufficient_data");
-assert.equal(runtimeOnlyRouteStage.material_count, 0);
+assert.equal(happyDashboard.dashboard_status, "local_fulfillment_available");
+assert.equal(happyDashboard.external_delivery.status, "not_configured");
+assert.equal(happyDashboard.external_delivery.provider_called, false);
+assert.equal(happyDashboard.external_delivery.external_message_sent, false);
+assert.equal(
+  happyDashboard.external_delivery.local_fulfillment_is_external_delivery,
+  false,
+);
+assert.equal(externalBoundaryCandidate.status, "candidate");
 assert(
-  runtimeOnlyRouteStage.missing_prerequisites.includes(
-    "current_working_perspective_route_integration_not_configured",
+  externalBoundaryCandidate.false_leap_contrast.includes(
+    "Local send fulfillment is not provider delivery",
   ),
-);
-assert.notEqual(
-  runtimeOnlyRoute.recommended_next_operator_action.action,
-  "prepare_external_handoff_delivery_contract",
-);
-assert.notEqual(
-  runtimeOnlyRoute.dashboard_status,
-  "local_fulfillment_available",
-);
-
-const missingUpstreamWithDownstreamMaterial = buildWorkbenchSpineConsolidationV01({
-  ...buildHappyInput(),
-  applied_handoff_context_read: undefined,
-});
-assert.equal(missingUpstreamWithDownstreamMaterial.dashboard_status, "blocked");
-assert(
-  missingUpstreamWithDownstreamMaterial.blocker_summary.blockers.some((blocker) =>
-    blocker.startsWith("lineage_downstream_without_upstream:"),
-  ),
-  "downstream artifact material with missing upstream handoff context must block",
 );
 
 const mismatchedExportedArtifactInput = buildHappyInput();
@@ -219,74 +161,270 @@ mismatchedExportedArtifactInput.exported_handoff_packet_artifact_read = {
       "applied-handoff-context-snapshot:mismatch",
   },
 };
-const mismatchedExportedArtifact = buildWorkbenchSpineConsolidationV01(
-  mismatchedExportedArtifactInput,
-);
-assert.equal(mismatchedExportedArtifact.dashboard_status, "blocked");
-assert(
-  mismatchedExportedArtifact.blocker_summary.blockers.some((blocker) =>
-    blocker.startsWith("lineage_mismatch:"),
+const mismatchedLineage = buildResidualDiagnosticCandidateReadModelV01({
+  workbench_spine_consolidation: buildWorkbenchSpineConsolidationV01(
+    mismatchedExportedArtifactInput,
   ),
-  "mismatched materialized lineage must block",
-);
-
-const missingArtifact = buildWorkbenchSpineConsolidationV01({
-  ...buildHappyInput(),
-  exported_handoff_packet_artifact_read: exportedArtifactRead(false),
 });
-assert.notEqual(
-  stage(missingArtifact, "exported_handoff_packet_artifact").status,
-  "exported",
+const lineageCandidate = mustFindCandidate(
+  mismatchedLineage,
+  "source_ref_lineage_mismatch",
 );
-assert.notEqual(missingArtifact.dashboard_status, "local_fulfillment_available");
+assert.equal(lineageCandidate.status, "actionable_candidate");
 assert(
-  missingArtifact.blocker_summary.missing_prerequisites.includes(
-    "exported_handoff_packet_artifact_missing",
+  lineageCandidate.materialized_inconsistencies.some((item) =>
+    item.startsWith("lineage_mismatch:"),
+  ),
+);
+assert(lineageCandidate.false_leap_contrast.length > 0);
+assert(lineageCandidate.minimum_verification.length >= 2);
+
+const downstreamWithoutUpstream = buildResidualDiagnosticCandidateReadModelV01({
+  workbench_spine_consolidation: buildWorkbenchSpineConsolidationV01({
+    ...buildHappyInput(),
+    applied_handoff_context_read: undefined,
+  }),
+});
+const downstreamCandidate = mustFindCandidate(
+  downstreamWithoutUpstream,
+  "source_ref_lineage_mismatch",
+);
+assert(
+  downstreamCandidate.materialized_inconsistencies.some((item) =>
+    item.startsWith("lineage_downstream_without_upstream:"),
+  ),
+  "downstream material without upstream source must become materialized inconsistency",
+);
+
+const runtimeOnlyDashboard = buildWorkbenchSpineConsolidationV01({
+  ...buildHappyInput(),
+  current_working_perspective_route_integration_read: routeRead({
+    status: "runtime_only",
+    includeMetadataRefs: false,
+  }),
+});
+const runtimeOnlyResidual = buildResidualDiagnosticCandidateReadModelV01({
+  workbench_spine_consolidation: runtimeOnlyDashboard,
+  current_working_perspective_route_integration_read: routeRead({
+    status: "runtime_only",
+    includeMetadataRefs: false,
+  }),
+});
+const runtimeCandidate = mustFindCandidate(
+  runtimeOnlyResidual,
+  "route_integration_mode_mismatch",
+);
+assert.notEqual(runtimeOnlyDashboard.dashboard_status, "local_fulfillment_available");
+assert.equal(
+  stage(runtimeOnlyDashboard, "current_working_perspective_route_integration")
+    .status,
+  "insufficient_data",
+);
+assert(
+  ["insufficient_data", "actionable_candidate"].includes(runtimeCandidate.status),
+);
+assert(
+  runtimeCandidate.false_leap_contrast.includes(
+    "Runtime fallback is diagnostic material",
   ),
 );
 
-const localOnly = buildWorkbenchSpineConsolidationV01(buildHappyInput());
-assert.equal(stage(localOnly, "local_handoff_send_fulfillment").status, "fulfilled");
-assert.equal(localOnly.external_delivery.status, "not_configured");
-assert.equal(localOnly.compact_summary.external_delivery_configured, false);
+const localFulfillmentGapDashboard = buildWorkbenchSpineConsolidationV01({
+  ...buildHappyInput(),
+  applied_current_working_perspective_read: undefined,
+});
+const localFulfillmentGap = buildResidualDiagnosticCandidateReadModelV01({
+  workbench_spine_consolidation: localFulfillmentGapDashboard,
+});
+const localGapCandidate = mustFindCandidate(
+  localFulfillmentGap,
+  "local_fulfillment_upstream_gap",
+);
+assert.notEqual(
+  localFulfillmentGapDashboard.dashboard_status,
+  "local_fulfillment_available",
+);
+assert.equal(localGapCandidate.status, "actionable_candidate");
 
-const forgedAuthority = buildHappyInput();
-forgedAuthority.applied_current_working_perspective_read = {
-  ...forgedAuthority.applied_current_working_perspective_read,
+const forgedAuthorityDashboard = {
+  ...happyDashboard,
   authority_boundary: {
-    ...forgedAuthority.applied_current_working_perspective_read.authority_boundary,
+    ...happyDashboard.authority_boundary,
     can_write_db: true,
+    can_call_send_provider: true,
   },
 };
-const forgedDashboard = buildWorkbenchSpineConsolidationV01(forgedAuthority);
-assert.equal(forgedDashboard.dashboard_status, "blocked");
-assert(
-  forgedDashboard.blocker_summary.authority_warnings.some((warning) =>
-    warning.includes("authority_boundary_forbidden_true:can_write_db"),
-  ),
-);
-
-const malformedRead = buildWorkbenchSpineConsolidationV01({
-  ...buildHappyInput(),
-  sent_handoff_read: { read_version: "bad" },
+const forgedAuthority = buildResidualDiagnosticCandidateReadModelV01({
+  workbench_spine_consolidation: forgedAuthorityDashboard,
 });
-assert.equal(malformedRead.dashboard_status, "blocked");
+const authorityCandidate = mustFindCandidate(
+  forgedAuthority,
+  "authority_boundary_drift",
+);
+assert.equal(authorityCandidate.status, "actionable_candidate");
+assert.equal(forgedAuthority.authority_boundary.read_only, true);
+assert.equal(forgedAuthority.authority_boundary.can_write_db, false);
+assert.equal(forgedAuthority.authority_boundary.can_call_send_provider, false);
+
+const workEpisodeResidueAuthority = buildResidualDiagnosticCandidateReadModelV01({
+  work_episode_residue_candidate_preview: {
+    preview_version: "work_episode_residue_candidate_preview.v0.1",
+    source_refs: ["source:work-episode-residue"],
+    authority_boundary: readOnlyBoundary({ can_write_memory: true }),
+  },
+});
+const workEpisodeAuthorityCandidate = mustFindCandidate(
+  workEpisodeResidueAuthority,
+  "authority_boundary_drift",
+);
 assert(
-  malformedRead.blocker_summary.malformed_inputs.includes(
-    "sent_handoff_read_malformed",
+  workEpisodeAuthorityCandidate.materialized_inconsistencies.includes(
+    "work_episode_residue_candidate_preview:authority_boundary_forbidden_true:can_write_memory",
+  ),
+);
+assert.equal(workEpisodeResidueAuthority.authority_boundary.can_write_memory, false);
+assert.equal(workEpisodeResidueAuthority.authority_boundary.can_write_db, false);
+
+const nextWorkAuthority = buildResidualDiagnosticCandidateReadModelV01({
+  next_work_signal_decision_record_review: {
+    review_status: "records_available",
+    source_refs: ["source:next-work-signal-authority"],
+    authority_boundary: readOnlyBoundary({ can_write_db: true }),
+  },
+});
+const nextWorkAuthorityCandidate = mustFindCandidate(
+  nextWorkAuthority,
+  "authority_boundary_drift",
+);
+assert(
+  nextWorkAuthorityCandidate.materialized_inconsistencies.includes(
+    "next_work_signal_decision_record_review:authority_boundary_forbidden_true:can_write_db",
   ),
 );
 
-const boundary = happyPath.authority_boundary;
+const perspectiveRelayAuthority = buildResidualDiagnosticCandidateReadModelV01({
+  perspective_relay_update_decision_record_review: {
+    review_status: "records_available",
+    source_refs: ["source:perspective-relay-authority"],
+    authority_boundary: readOnlyBoundary({ can_send_handoff: true }),
+  },
+});
+const perspectiveRelayAuthorityCandidate = mustFindCandidate(
+  perspectiveRelayAuthority,
+  "authority_boundary_drift",
+);
+assert(
+  perspectiveRelayAuthorityCandidate.materialized_inconsistencies.includes(
+    "perspective_relay_update_decision_record_review:authority_boundary_forbidden_true:can_send_handoff",
+  ),
+);
+
+const decisionReviewSourceDrift = buildResidualDiagnosticCandidateReadModelV01({
+  next_work_signal_decision_record_review: {
+    review_status: "records_invalid",
+    source_refs: ["source:next-work-signal-review"],
+    authority_boundary: readOnlyBoundary({ read_only_record_review: true }),
+  },
+  perspective_relay_update_decision_record_review: {
+    review_status: "selected_record_missing",
+    source_refs: ["source:perspective-relay-review"],
+    authority_boundary: readOnlyBoundary({ read_only_record_review: true }),
+  },
+});
+const decisionReviewDriftCandidate = mustFindCandidate(
+  decisionReviewSourceDrift,
+  "review_writer_validation_drift",
+);
+assert(
+  decisionReviewDriftCandidate.source_refs.includes(
+    "source:next-work-signal-review",
+  ),
+);
+assert(
+  decisionReviewDriftCandidate.source_refs.includes(
+    "source:perspective-relay-review",
+  ),
+);
+
+const decisionReceiptProblems = buildResidualDiagnosticCandidateReadModelV01({
+  next_work_signal_decision_record_review: {
+    review_status: "records_available",
+    source_refs: ["source:next-work-signal-receipt"],
+    evidence_summary: { has_receipt_side_effect_problem: true },
+    authority_boundary: readOnlyBoundary({ read_only_record_review: true }),
+  },
+  perspective_relay_update_decision_record_review: {
+    review_status: "records_available",
+    source_refs: ["source:perspective-relay-receipt"],
+    input_summary: { receipt_side_effect_problem_count: 1 },
+    authority_boundary: readOnlyBoundary({ read_only_record_review: true }),
+  },
+});
+const decisionReceiptCandidate = mustFindCandidate(
+  decisionReceiptProblems,
+  "no_side_effects_replay_inconsistency",
+);
+assert(
+  decisionReceiptCandidate.observed_signals.some(
+    (signal) => signal.summary === "next_work_signal:receipt_side_effect_problem",
+  ),
+);
+assert(
+  decisionReceiptCandidate.observed_signals.some((signal) =>
+    signal.summary.startsWith(
+      "perspective_relay_update:receipt_side_effect_problem_count:",
+    ),
+  ),
+);
+assert(
+  decisionReceiptCandidate.source_refs.includes(
+    "source:next-work-signal-receipt",
+  ),
+);
+assert(
+  decisionReceiptCandidate.source_refs.includes(
+    "source:perspective-relay-receipt",
+  ),
+);
+
+const reviewDrift = buildResidualDiagnosticCandidateReadModelV01({
+  expected_observed_delta_record_review: {
+    review_status: "records_invalid",
+    source_refs: ["source:expected-observed"],
+    record_material_summary: {
+      missing_expectation_count: 1,
+      unexpected_observation_count: 1,
+    },
+    evidence_summary: {
+      has_receipt_side_effect_problem: true,
+    },
+    authority_boundary: readOnlyBoundary({ read_only_record_review: true }),
+  },
+  reuse_outcome_bridge_ledger_record_review: {
+    review_status: "records_available",
+    source_refs: ["source:reuse-outcome"],
+    aggregate_counts: {
+      misleading_ref_count: 1,
+      missing_ref_count: 1,
+    },
+    authority_boundary: readOnlyBoundary({ read_only_record_review: true }),
+  },
+});
+assert(mustFindCandidate(reviewDrift, "expected_observed_mismatch"));
+assert(mustFindCandidate(reviewDrift, "review_writer_validation_drift"));
+assert(mustFindCandidate(reviewDrift, "no_side_effects_replay_inconsistency"));
+assert(mustFindCandidate(reviewDrift, "reuse_outcome_gap"));
+
+const boundary = happyResidual.authority_boundary;
 for (const [key, value] of Object.entries(boundary)) {
-  if (["read_only", "advisory_only", "derived_read_model"].includes(key)) {
+  if (["read_only", "advisory_only", "candidate_layer_only", "derived_read_model"].includes(key)) {
     assert.equal(value, true, `${key} true`);
   } else if (key !== "notes") {
     assert.equal(value, false, `${key} false`);
   }
 }
 
-console.log("smoke-workbench-spine-consolidation-v0-1: ok");
+console.log("smoke-residual-diagnostic-candidate-v0-1: ok");
 
 function buildHappyInput() {
   return {
@@ -302,7 +440,7 @@ function buildHappyInput() {
     sent_handoff_read: sentHandoffRead(true),
     scope: "project:augnes",
     as_of: "2026-07-06T00:00:00.000Z",
-    source_refs: ["workbench:spine-consolidation-smoke"],
+    source_refs: ["workbench:residual-diagnostic-smoke"],
   };
 }
 
@@ -588,6 +726,18 @@ function stage(dashboard, stageId) {
   return dashboard.stage_summaries.find((item) => item.stage_id === stageId);
 }
 
+function findCandidate(readModel, category) {
+  return readModel.residual_candidates.find(
+    (candidate) => candidate.category === category,
+  );
+}
+
+function mustFindCandidate(readModel, category) {
+  const candidate = findCandidate(readModel, category);
+  assert(candidate, `missing residual candidate ${category}`);
+  return candidate;
+}
+
 function assertNoForbiddenRuntime(label, text) {
   for (const forbidden of [
     "fetch(",
@@ -612,6 +762,10 @@ function assertNoForbiddenRuntime(label, text) {
     "send_provider_called: true",
     "external_message_sent: true",
     "provider_called: true",
+    "can_write_db: true",
+    "can_send_handoff: true",
+    "can_call_send_provider: true",
+    "can_write_memory: true",
   ]) {
     assert(!text.includes(forbidden), `${label} must not include ${forbidden}`);
   }
@@ -636,16 +790,16 @@ function assertNoActionButtons(label, text) {
     "network",
   ]) {
     assert(
-      !new RegExp(`on[A-Z][A-Za-z]+${action}`, "i").test(text),
-      `${label} must not include ${action} action handlers`,
+      !new RegExp(`on[A-Z][A-Za-z]+\\s*=\\s*\\{[^}]*${action}`, "i").test(text),
+      `${label} must not bind ${action} handlers`,
     );
   }
 }
 
-function agentConsolidationSnippet(text) {
-  const start = text.indexOf("<WorkbenchSpineConsolidationPanel");
-  const end = text.indexOf("/>", start);
-  assert(start !== -1, "Agent Workplane must build consolidation dashboard");
-  assert(end > start, "Agent Workplane consolidation render snippet must exist");
-  return text.slice(start, end + 2);
+function agentResidualSnippet(text) {
+  const start = text.indexOf("buildResidualDiagnosticCandidateReadModelV01");
+  const end = text.indexOf("<ResidualDiagnosticCandidatePanel");
+  assert(start >= 0, "missing residual builder snippet");
+  assert(end >= 0, "missing residual panel snippet");
+  return text.slice(start, end + 240);
 }
