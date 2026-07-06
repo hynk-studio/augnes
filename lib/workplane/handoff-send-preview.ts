@@ -41,6 +41,192 @@ const executionModes = [
   "codex_session_transfer_dry_run_fulfillment",
 ] as const satisfies readonly HandoffSendExecutionMode[];
 
+const usableContractReviewStatuses = [
+  "records_available",
+  "selected_record_found",
+] as const;
+
+const sourceContractAuthorityProfileRequiredTrueFields = [
+  "durable_local_handoff_send_contract",
+  "local_project_handoff_send_contract_only",
+  "handoff_send_contract_written",
+] as const;
+
+const sourceContractAuthorityProfileFalseIfPresentFields = [
+  "source_of_truth",
+  "handoff_sent",
+  "send_provider_called",
+  "external_messaging_called",
+  "email_called",
+  "slack_called",
+  "webhook_called",
+  "clipboard_written",
+  "file_download_created",
+  "arbitrary_file_written",
+  "handoff_packet_file_written",
+  "live_handoff_context_mutated",
+  "selected_refs_written_to_live_handoff",
+  "handoff_packet_copy_export_record_written",
+  "handoff_packet_exported_artifact_written",
+  "handoff_packet_copy_export_contract_record_written",
+  "handoff_context_apply_record_written",
+  "applied_handoff_context_snapshot_written",
+  "handoff_context_update_contract_record_written",
+  "api_perspective_current_route_modified",
+  "upstream_current_working_perspective_source_tables_mutated",
+  "perspective_unit_write_performed",
+  "next_work_bias_write_performed",
+  "continuity_relay_write_performed",
+  "continuity_relay_update_performed",
+  "memory_promotion_performed",
+  "metric_update_performed",
+] as const;
+
+const sourceContractAuthorityProfileForbiddenTrueFields = [
+  "provider_called",
+  "github_called",
+  "codex_executed",
+  "pr_created",
+  "pr_merged",
+  "autonomous_action_run",
+  "graph_or_vector_store_created",
+  "rag_stack_created",
+  "browser_observed",
+  "crawler_or_browser_observer_created",
+  "workbench_action_button_rendered",
+] as const;
+
+const sourceContractAuthorityBoundaryRequiredTrueFields = [
+  "durable_local_handoff_send_contract",
+  "local_project_handoff_send_contract_only",
+  "can_write_db",
+  "can_create_handoff_send_contract_record",
+  "can_create_handoff_send_contract_receipt",
+] as const;
+
+const sourceContractAuthorityBoundaryFalseOrNotTrueFields = [
+  "source_of_truth",
+  "can_send_handoff",
+  "can_call_send_provider",
+  "can_call_external_messaging",
+  "can_call_email",
+  "can_call_slack",
+  "can_call_webhook",
+  "can_write_clipboard",
+  "can_download_file",
+  "can_write_arbitrary_file",
+  "can_write_handoff_packet_file",
+  "can_mutate_handoff_context",
+  "can_apply_handoff_context_update_live",
+  "can_write_selected_refs_to_live_handoff",
+  "can_write_handoff_packet_copy_export_record",
+  "can_write_handoff_packet_exported_artifact",
+  "can_write_handoff_packet_copy_export_contract_record",
+  "can_write_handoff_context_apply_record",
+  "can_write_applied_handoff_context_snapshot",
+  "can_write_handoff_context_update_contract_record",
+  "can_modify_api_perspective_current_route",
+  "can_replace_current_working_perspective_route_response",
+  "can_update_upstream_current_working_perspective_source_tables",
+  "can_write_applied_current_working_perspective_snapshot",
+  "can_write_current_working_perspective_apply_record",
+  "can_write_current_working_perspective_update_contract_record",
+  "can_write_route_integration_contract_record",
+  "can_write_perspective_unit",
+  "can_write_next_work_bias",
+  "can_write_continuity_relay",
+  "can_update_continuity_relay",
+  "can_apply_live_relay_state",
+  "can_write_memory",
+  "can_mutate_memory",
+  "can_promote_memory",
+  "can_update_global_dogfood_metrics",
+  "can_write_dogfood_metrics",
+  "can_write_dogfood_metric_snapshot",
+  "can_write_reuse_outcome_ledger",
+  "can_write_expected_observed_delta",
+  "can_write_work_episode",
+  "can_call_provider_openai",
+  "can_call_github",
+  "can_execute_codex",
+  "can_create_pr",
+  "can_merge_pr",
+  "can_run_autonomous_action",
+  "can_create_graph_or_vector_store",
+  "can_create_rag_stack",
+  "can_crawl_or_observe_browser",
+  "can_render_workbench_action_button",
+] as const;
+
+const sourceContractAllowedNoSideEffectTrueFields = [
+  "handoff_send_contract_record_written",
+  "handoff_send_contract_receipt_written",
+  "handoff_send_contract_persisted",
+  "handoff_send_contract_written",
+] as const;
+
+const sourceContractForbiddenNoSideEffectFields = [
+  "handoff_sent",
+  "send_provider_called",
+  "external_messaging_called",
+  "email_called",
+  "slack_called",
+  "webhook_called",
+  "provider_called",
+  "github_called",
+  "codex_executed",
+  "clipboard_written",
+  "file_download_created",
+  "arbitrary_file_written",
+  "handoff_packet_file_written",
+  "handoff_packet_copied_to_clipboard",
+  "handoff_packet_exported_to_file",
+  "handoff_packet_download_created",
+  "handoff_packet_copied",
+  "handoff_packet_exported",
+  "live_handoff_context_updated",
+  "live_handoff_context_mutated",
+  "handoff_context_applied_live",
+  "handoff_context_mutated",
+  "selected_refs_written_to_live_handoff",
+  "handoff_packet_copy_export_record_written",
+  "handoff_packet_exported_artifact_written",
+  "handoff_packet_copy_export_contract_record_written",
+  "handoff_context_apply_record_written",
+  "applied_handoff_context_snapshot_written",
+  "handoff_context_update_contract_record_written",
+  "api_perspective_current_route_modified",
+  "current_working_perspective_route_response_replaced",
+  "upstream_current_working_perspective_source_tables_updated",
+  "upstream_current_working_perspective_source_tables_mutated",
+  "applied_current_working_perspective_snapshot_written",
+  "current_working_perspective_apply_record_written",
+  "current_working_perspective_update_contract_record_written",
+  "route_integration_contract_record_written",
+  "perspective_unit_written",
+  "next_work_bias_written",
+  "continuity_relay_written",
+  "continuity_relay_updated",
+  "live_relay_state_applied",
+  "memory_written",
+  "memory_promoted",
+  "memory_mutated",
+  "dogfood_metrics_written",
+  "dogfood_metrics_global_state_updated",
+  "dogfood_metric_snapshot_written",
+  "reuse_outcome_ledger_written",
+  "expected_observed_delta_written",
+  "work_episode_written",
+  "pr_created",
+  "pr_merged",
+  "autonomous_action_run",
+  "graph_or_vector_store_created",
+  "rag_stack_created",
+  "browser_observed",
+  "crawler_or_browser_observer_created",
+  "workbench_action_button_rendered",
+] as const;
+
 export function createHandoffSendPreviewAuthorityBoundaryV01():
   HandoffSendPreviewAuthorityBoundary {
   return {
@@ -172,6 +358,10 @@ export function buildHandoffSendPreviewV01(
   const modeCompatibility = selectedRecord && requestedMode
     ? executionModeCompatibility(selectedRecord, requestedMode)
     : [];
+  const sourceContractProblems = selectedRecord
+    ? sourceSendContractProblemReasons(selectedRecord)
+    : [];
+  const contractReviewProblems = contractReviewProblemReasons(contractReview);
   const fulfillment =
     selectedRecord && envelope && requestedMode
       ? buildFulfillment({
@@ -194,11 +384,13 @@ export function buildHandoffSendPreviewV01(
     ...(contractReview?.review_status === "records_invalid"
       ? ["handoff_send_contract_record_review_records_invalid"]
       : []),
+    ...contractReviewProblems,
     ...(directRecord === null &&
     input.handoff_send_contract_record !== undefined &&
     input.handoff_send_contract_record !== null
       ? ["handoff_send_contract_record_malformed"]
       : []),
+    ...sourceContractProblems,
     ...(selectedRecord && !isProposedSendContractValid(selectedRecord.proposed_handoff_send_contract)
       ? ["proposed_handoff_send_contract_malformed"]
       : []),
@@ -420,7 +612,14 @@ function selectContractRecord(
   directRecord: HandoffSendContractRecord | null,
 ): HandoffSendContractRecord | null {
   if (directRecord) return directRecord;
-  if (!review || review.review_status === "records_invalid") return null;
+  if (
+    !review ||
+    !usableContractReviewStatuses.includes(
+      review.review_status as (typeof usableContractReviewStatuses)[number],
+    )
+  ) {
+    return null;
+  }
   if (review.selected_record_summary?.record_id) {
     return (
       review.records.find(
@@ -436,6 +635,57 @@ function selectContractRecord(
     );
   }
   return review.records[0] ?? null;
+}
+
+function contractReviewProblemReasons(
+  review: HandoffSendContractRecordReview | null,
+): string[] {
+  if (!review) return [];
+  return uniqueCandidateIngressStringsV01([
+    ...(review.review_status === "schema_missing"
+      ? ["handoff_send_contract_record_review_schema_missing"]
+      : []),
+    ...(review.review_status === "no_records"
+      ? ["handoff_send_contract_record_review_no_records"]
+      : []),
+    ...(review.review_status === "selected_record_missing"
+      ? ["handoff_send_contract_record_review_selected_record_missing"]
+      : []),
+    ...(review.evidence_summary?.has_receipt_side_effect_problem === true
+      ? ["handoff_send_contract_record_review_receipt_side_effect_invalid"]
+      : []),
+  ]);
+}
+
+function sourceSendContractProblemReasons(record: HandoffSendContractRecord): string[] {
+  const candidate = record as unknown as RecordValue;
+  return uniqueCandidateIngressStringsV01([
+    ...(!isContractRecord(candidate)
+      ? ["handoff_send_contract_record_malformed"]
+      : []),
+    ...(!isSourceSendContractAuthorityProfileValid(candidate.authority_profile)
+      ? ["handoff_send_contract_record_authority_profile_invalid"]
+      : []),
+    ...(candidate.no_handoff_send_performed !== true
+      ? ["handoff_send_contract_record_no_handoff_send_performed_invalid"]
+      : []),
+    ...(!isSourceSendContractAuthorityBoundaryValid(candidate.authority_boundary)
+      ? ["handoff_send_contract_record_authority_boundary_invalid"]
+      : []),
+    ...(!isProposedSendContractValid(candidate.proposed_handoff_send_contract)
+      ? ["handoff_send_contract_record_proposed_contract_invalid"]
+      : []),
+    ...(!isSendEnvelopeValid(candidate.proposed_send_envelope)
+      ? ["handoff_send_contract_record_send_envelope_invalid"]
+      : []),
+    ...(!sourceSendContractEnvelopeMatches(candidate)
+      ? ["handoff_send_contract_record_contract_envelope_mismatch"]
+      : []),
+    ...(hasOwn(candidate, "no_side_effects") &&
+    !isSourceSendContractNoSideEffectsValid(candidate.no_side_effects)
+      ? ["handoff_send_contract_record_no_side_effects_invalid"]
+      : []),
+  ]);
 }
 
 function buildFulfillment({
@@ -633,25 +883,82 @@ function isContractRecord(value: RecordValue): boolean {
     value.record_version === HANDOFF_SEND_CONTRACT_RECORD_VERSION &&
       value.scope === HANDOFF_SEND_CONTRACT_WRITE_SCOPE &&
       typeof value.record_id === "string" &&
+      typeof value.idempotency_key === "string" &&
+      typeof value.created_at === "string" &&
+      typeof value.operator_ref === "string" &&
+      Array.isArray(value.source_refs) &&
+      Array.isArray(value.evidence_refs) &&
       typeof value.source_exported_artifact_ref === "string" &&
       typeof value.requested_send_surface === "string" &&
       typeof value.requested_delivery_mode === "string" &&
       typeof value.requested_recipient_ref === "string" &&
+      value.review_status === "recorded_as_scoped_handoff_send_contract" &&
+      value.persistence_horizon === "local_project_handoff_send_contract_store" &&
       value.no_handoff_send_performed === true &&
       isRecord(value.proposed_handoff_send_contract) &&
-      isRecord(value.proposed_send_envelope),
+      isRecord(value.proposed_send_envelope) &&
+      typeof value.record_fingerprint === "string",
   );
+}
+
+function isSourceSendContractAuthorityProfileValid(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  for (const field of sourceContractAuthorityProfileRequiredTrueFields) {
+    if (value[field] !== true) return false;
+  }
+  for (const field of sourceContractAuthorityProfileFalseIfPresentFields) {
+    if (hasOwn(value, field) && value[field] !== false) return false;
+  }
+  for (const field of sourceContractAuthorityProfileForbiddenTrueFields) {
+    if (value[field] === true) return false;
+  }
+  return true;
+}
+
+function isSourceSendContractAuthorityBoundaryValid(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  for (const field of sourceContractAuthorityBoundaryRequiredTrueFields) {
+    if (value[field] !== true) return false;
+  }
+  for (const field of sourceContractAuthorityBoundaryFalseOrNotTrueFields) {
+    if (value[field] === true) return false;
+  }
+  return Object.entries(value).every(([field, entry]) => {
+    if (!field.startsWith("can_") || entry !== true) return true;
+    return sourceContractAuthorityBoundaryRequiredTrueFields.includes(
+      field as (typeof sourceContractAuthorityBoundaryRequiredTrueFields)[number],
+    );
+  });
+}
+
+function isSourceSendContractNoSideEffectsValid(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  for (const field of sourceContractForbiddenNoSideEffectFields) {
+    if (value[field] !== false) return false;
+  }
+  for (const field of sourceContractAllowedNoSideEffectTrueFields) {
+    if (typeof value[field] !== "boolean") return false;
+  }
+  return true;
 }
 
 function isProposedSendContractValid(value: unknown): boolean {
   if (!isRecord(value)) return false;
+  const payloadSummary = getRecord(value, "packet_payload_summary");
+  const envelope = getRecord(value, "proposed_send_envelope");
   return Boolean(
     value.contract_kind === "handoff_send_contract.v0.1" &&
+      value.send_family === "augnes_operator_handoff_send" &&
       typeof value.source_exported_artifact_ref === "string" &&
       typeof value.requested_send_surface === "string" &&
       typeof value.requested_delivery_mode === "string" &&
       typeof value.requested_recipient_ref === "string" &&
-      isRecord(value.packet_payload_summary),
+      typeof payloadSummary?.payload_hash === "string" &&
+      isRecord(envelope) &&
+      Array.isArray(value.proposed_send_steps) &&
+      Array.isArray(value.proposed_send_preconditions) &&
+      Array.isArray(value.required_source_refs) &&
+      Array.isArray(value.required_evidence_refs),
   );
 }
 
@@ -660,14 +967,45 @@ function isSendEnvelopeValid(value: unknown): value is HandoffSendEnvelope {
   return Boolean(
     value.envelope_version === "handoff_send_envelope.v0.1" &&
       typeof value.envelope_ref === "string" &&
+      value.packet_family === "augnes_operator_handoff_packet" &&
       typeof value.source_exported_artifact_ref === "string" &&
+      typeof value.packet_format === "string" &&
       typeof value.payload_hash === "string" &&
       typeof value.payload_type === "string" &&
+      typeof value.requested_send_surface === "string" &&
+      typeof value.requested_delivery_mode === "string" &&
+      typeof value.requested_recipient_ref === "string" &&
       value.public_safe === true &&
       value.raw_private_material_excluded === true &&
       value.send_not_performed === true &&
       value.provider_not_called === true &&
-      value.external_delivery_not_performed === true,
+      value.external_delivery_not_performed === true &&
+      value.future_send_slice_required === true,
+  );
+}
+
+function sourceSendContractEnvelopeMatches(record: RecordValue): boolean {
+  const contract = getRecord(record, "proposed_handoff_send_contract");
+  const envelope = getRecord(record, "proposed_send_envelope");
+  const payloadSummary = getRecord(contract, "packet_payload_summary");
+  if (
+    !contract ||
+    !envelope ||
+    !isProposedSendContractValid(contract) ||
+    !isSendEnvelopeValid(envelope)
+  ) {
+    return false;
+  }
+  return (
+    contract.source_exported_artifact_ref === record.source_exported_artifact_ref &&
+    envelope.source_exported_artifact_ref === record.source_exported_artifact_ref &&
+    contract.requested_send_surface === record.requested_send_surface &&
+    envelope.requested_send_surface === record.requested_send_surface &&
+    contract.requested_delivery_mode === record.requested_delivery_mode &&
+    envelope.requested_delivery_mode === record.requested_delivery_mode &&
+    contract.requested_recipient_ref === record.requested_recipient_ref &&
+    envelope.requested_recipient_ref === record.requested_recipient_ref &&
+    payloadSummary?.payload_hash === envelope.payload_hash
   );
 }
 
@@ -716,6 +1054,10 @@ function getRecord(value: unknown, key: string): RecordValue | null {
 
 function fingerprint(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function hasOwn(value: RecordValue, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 function isRecord(value: unknown): value is RecordValue {

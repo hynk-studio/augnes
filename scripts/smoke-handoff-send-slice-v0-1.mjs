@@ -400,6 +400,7 @@ function buildContractReview({
   records = [buildContractRecord()],
   reviewStatus = "records_available",
   selectedRecordId = null,
+  evidenceSummary = {},
 } = {}) {
   return {
     review_version: "handoff_send_contract_record_review.v0.1",
@@ -423,6 +424,24 @@ function buildContractReview({
     selected_record_summary: selectedRecordId ? { record_id: selectedRecordId } : null,
     latest_record_summary: records[0] ? { record_id: records[0].record_id } : null,
     records,
+    evidence_summary: {
+      supplied_record_count: records.length,
+      valid_record_count: reviewStatus === "records_invalid" ? 0 : records.length,
+      has_records: records.length > 0,
+      has_selected_record: Boolean(
+        selectedRecordId &&
+          records.some((record) => record.record_id === selectedRecordId),
+      ),
+      has_source_refs: true,
+      has_evidence_refs: records.some((record) => record.evidence_refs?.length),
+      has_missing_evidence: records.length === 0,
+      has_receipt_side_effect_problem: false,
+      source_refs: sourceRefs,
+      evidence_refs: evidenceRefs,
+      missing_evidence: records.length ? [] : ["handoff_send_contract_records_missing"],
+      problem_record_ids: [],
+      ...evidenceSummary,
+    },
     blocked_reasons:
       reviewStatus === "records_invalid"
         ? ["handoff_send_contract_record_side_effect_or_shape_problem"]
@@ -502,6 +521,22 @@ function assertNotReady(preview, message) {
     message,
   );
   assert.equal(preview.send_readiness.write_ready, false, message);
+}
+
+function assertNotReadyWithBlocker(preview, blocker, message) {
+  assertNotReady(preview, message);
+  assert(
+    preview.blocking_reasons.includes(blocker),
+    `${message}: missing blocker ${blocker}`,
+  );
+}
+
+function assertForgedDirectRecordBlocks(record, blocker, message) {
+  assertNotReadyWithBlocker(
+    buildPreview({ handoff_send_contract_record: record }),
+    blocker,
+    message,
+  );
 }
 
 function assertWriterRefusesWithoutSchema(input, message) {
@@ -699,6 +734,158 @@ assertNotReady(
   }),
   "raw material keys must be refused",
 );
+
+for (const field of ["handoff_sent", "send_provider_called"]) {
+  const forged = buildContractRecord();
+  forged.authority_profile = {
+    ...forged.authority_profile,
+    [field]: true,
+  };
+  assertForgedDirectRecordBlocks(
+    forged,
+    "handoff_send_contract_record_authority_profile_invalid",
+    `forged direct source contract authority_profile ${field} must block`,
+  );
+}
+
+for (const field of [
+  "email_called",
+  "slack_called",
+  "webhook_called",
+  "metric_update_performed",
+]) {
+  const forged = buildContractRecord();
+  forged.authority_profile = {
+    ...forged.authority_profile,
+    [field]: true,
+  };
+  assertForgedDirectRecordBlocks(
+    forged,
+    "handoff_send_contract_record_authority_profile_invalid",
+    `forged direct source contract authority_profile ${field} must block`,
+  );
+}
+
+for (const field of [
+  "can_call_send_provider",
+  "can_call_email",
+  "can_call_slack",
+  "can_call_webhook",
+]) {
+  const forged = buildContractRecord();
+  forged.authority_boundary = {
+    ...forged.authority_boundary,
+    [field]: true,
+  };
+  assertForgedDirectRecordBlocks(
+    forged,
+    "handoff_send_contract_record_authority_boundary_invalid",
+    `forged direct source contract authority_boundary ${field} must block`,
+  );
+}
+
+for (const field of [
+  "can_modify_api_perspective_current_route",
+  "can_update_upstream_current_working_perspective_source_tables",
+  "can_write_current_working_perspective_apply_record",
+  "can_write_continuity_relay",
+  "can_apply_live_relay_state",
+  "can_write_memory",
+  "can_write_dogfood_metrics",
+  "can_create_pr",
+  "can_create_graph_or_vector_store",
+  "can_crawl_or_observe_browser",
+]) {
+  const forged = buildContractRecord();
+  forged.authority_boundary = {
+    ...forged.authority_boundary,
+    [field]: true,
+  };
+  assertForgedDirectRecordBlocks(
+    forged,
+    "handoff_send_contract_record_authority_boundary_invalid",
+    `forged direct source contract authority_boundary ${field} must block`,
+  );
+}
+
+const directNoHandoff = buildPreview({
+  handoff_send_contract_record: {
+    ...buildContractRecord(),
+    no_handoff_send_performed: false,
+  },
+});
+assertNotReadyWithBlocker(
+  directNoHandoff,
+  "handoff_send_contract_record_malformed",
+  "direct source contract no_handoff_send_performed false must block",
+);
+assertNotReadyWithBlocker(
+  buildPreview({
+    handoff_send_contract_record_review: buildContractReview({
+      records: [
+        {
+          ...buildContractRecord(),
+          no_handoff_send_performed: false,
+        },
+      ],
+    }),
+  }),
+  "handoff_send_contract_record_no_handoff_send_performed_invalid",
+  "review-selected source contract no_handoff_send_performed false must block",
+);
+
+const forgedNoSideEffects = buildContractRecord();
+forgedNoSideEffects.no_side_effects = { handoff_sent: true };
+assertForgedDirectRecordBlocks(
+  forgedNoSideEffects,
+  "handoff_send_contract_record_no_side_effects_invalid",
+  "forged source contract no_side_effects handoff_sent true must block",
+);
+
+const mismatchedContractEnvelope = buildContractRecord();
+mismatchedContractEnvelope.proposed_send_envelope = {
+  ...mismatchedContractEnvelope.proposed_send_envelope,
+  payload_hash: "payload-hash:mismatched-source-contract",
+};
+assertForgedDirectRecordBlocks(
+  mismatchedContractEnvelope,
+  "handoff_send_contract_record_contract_envelope_mismatch",
+  "source contract and envelope mismatch must block",
+);
+
+assertNotReadyWithBlocker(
+  buildPreview({
+    handoff_send_contract_record_review: buildContractReview({
+      evidenceSummary: { has_receipt_side_effect_problem: true },
+    }),
+  }),
+  "handoff_send_contract_record_review_receipt_side_effect_invalid",
+  "send contract review receipt side-effect problem must block",
+);
+
+for (const [reviewStatus, blocker] of [
+  ["schema_missing", "handoff_send_contract_record_review_schema_missing"],
+  ["no_records", "handoff_send_contract_record_review_no_records"],
+  [
+    "selected_record_missing",
+    "handoff_send_contract_record_review_selected_record_missing",
+  ],
+]) {
+  assertNotReadyWithBlocker(
+    buildPreview({
+      handoff_send_contract_record_review: buildContractReview({
+        records: reviewStatus === "no_records" ? [] : [buildContractRecord()],
+        reviewStatus,
+        selectedRecordId:
+          reviewStatus === "selected_record_missing"
+            ? "handoff-send-contract-record:missing"
+            : null,
+      }),
+    }),
+    blocker,
+    `send contract review status ${reviewStatus} must block without direct record`,
+  );
+}
 
 const readyPreview = buildPreview();
 assert.equal(
