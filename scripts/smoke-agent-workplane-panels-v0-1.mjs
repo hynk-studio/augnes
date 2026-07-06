@@ -1998,6 +1998,25 @@ for (const file of followOnResearchCandidateManualNoteHandoffResultIntakeFiles) 
   allowedChangedFiles.add(file);
 }
 
+const followOnResearchCandidateManualNoteResultIntakeOperatorReviewFiles = [
+  "types/research-candidate-manual-note-result-intake-operator-review.ts",
+  "types/research-candidate-manual-note-result-record-contract-preview.ts",
+  "lib/research-candidate-review/manual-note-result-intake-operator-review.ts",
+  "lib/research-candidate-review/manual-note-result-record-contract-preview.ts",
+  "components/research-candidate-manual-note-result-intake-operator-review-panel.tsx",
+  "components/research-candidate-manual-note-handoff-result-intake-panel.tsx",
+  "app/globals.css",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-note-result-intake-operator-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+for (const file of followOnResearchCandidateManualNoteResultIntakeOperatorReviewFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const textByFile = loadTextByFile(requiredFiles);
 const workbenchPageText = textByFile.get(workbenchPageFile);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
@@ -2356,6 +2375,8 @@ console.log(
         followOnHistoricalSmokeCompatibilityFiles,
       follow_on_research_candidate_manual_note_current_surface_files_allowed:
         followOnResearchCandidateManualNoteCurrentSurfaceFiles,
+      follow_on_research_candidate_manual_note_result_intake_operator_review_files_allowed:
+        followOnResearchCandidateManualNoteResultIntakeOperatorReviewFiles,
       phase5c_agent_workplane_projection_handoff_follow_on_used:
         changedFilesBoundary.phase5c_agent_workplane_projection_handoff_follow_on_used,
       phase5c_agent_workplane_projection_handoff_files_allowed:

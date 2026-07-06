@@ -132,6 +132,22 @@ const followOnResearchCandidateManualNoteHandoffResultIntakeFiles = [
   "package.json",
 ];
 
+const followOnResearchCandidateManualNoteResultIntakeOperatorReviewFiles = [
+  "types/research-candidate-manual-note-result-intake-operator-review.ts",
+  "types/research-candidate-manual-note-result-record-contract-preview.ts",
+  "lib/research-candidate-review/manual-note-result-intake-operator-review.ts",
+  "lib/research-candidate-review/manual-note-result-record-contract-preview.ts",
+  "components/research-candidate-manual-note-result-intake-operator-review-panel.tsx",
+  "components/research-candidate-manual-note-handoff-result-intake-panel.tsx",
+  "app/globals.css",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-note-result-intake-operator-review-v0-1.mjs",
+  "scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -270,6 +286,7 @@ const allowedChangedFiles = new Set([
   ...followOnResearchCandidateManualNoteCurrentSurfaceFiles,
   ...followOnResearchCandidateManualNoteHandoffSeedFiles,
   ...followOnResearchCandidateManualNoteHandoffResultIntakeFiles,
+  ...followOnResearchCandidateManualNoteResultIntakeOperatorReviewFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
@@ -423,6 +440,8 @@ console.log(
         followOnAgentWorkplanePanelFiles,
       follow_on_research_candidate_manual_note_current_surface_files_allowed:
         followOnResearchCandidateManualNoteCurrentSurfaceFiles,
+      follow_on_research_candidate_manual_note_result_intake_operator_review_files_allowed:
+        followOnResearchCandidateManualNoteResultIntakeOperatorReviewFiles,
       follow_on_guide_brief_core_files_allowed:
         followOnGuideBriefCoreFiles,
       smoke_type: "static-human-surface-home-ui-helper-doc-package-index-boundary-only",
