@@ -1832,8 +1832,12 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Keep the current `/research-candidate-review` route reachable from current
-Augnes surfaces while the manual parser remains preview-only and read-only.
+Add a candidate-only copyable handoff seed preview inside the current
+`/research-candidate-review` route so visible manual Research Candidate Review
+parser output can help a human launch a future Codex task manually. The seed is
+copyable preview material only: it is not Codex execution, not GitHub
+automation, not proof/evidence, not Perspective promotion, not source fetching,
+not retrieval/RAG, and not durable Augnes state.
 
 Perspective Packet Receipt Linkage remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.
 Selected candidates remain candidates, not proof/evidence or durable state.
