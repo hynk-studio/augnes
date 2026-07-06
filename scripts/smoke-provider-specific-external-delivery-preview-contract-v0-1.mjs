@@ -233,6 +233,101 @@ assert.equal(safeEmailPreview.status, "ready_for_provider_specific_decision");
 assert.equal(safeEmailPreview.provider_profile_status, "safe_ref_available");
 assert.equal(safeEmailPreview.external_delivery_boundary.provider_called, false);
 
+const safeSlackPreview = buildProviderSpecificExternalDeliveryPreviewContractV01({
+  ...providerInputBase({ externalPreview, happyResidual }),
+  requested_provider_surface: "slack_delivery_preview",
+  requested_provider_profile_ref: "provider-profile:slack:operator-managed",
+  requested_recipient_ref: "recipient:slack-channel:ops",
+  requested_payload_format: "markdown_payload",
+});
+assert.equal(safeSlackPreview.status, "ready_for_provider_specific_decision");
+assert.equal(safeSlackPreview.external_delivery_boundary.provider_called, false);
+
+const safeWebhookPreview = buildProviderSpecificExternalDeliveryPreviewContractV01({
+  ...providerInputBase({ externalPreview, happyResidual }),
+  requested_provider_surface: "webhook_delivery_preview",
+  requested_provider_profile_ref: "provider-profile:webhook:operator-managed",
+  requested_recipient_ref: "endpoint-ref:webhook:operator-managed",
+  requested_payload_format: "markdown_payload",
+});
+assert.equal(safeWebhookPreview.status, "ready_for_provider_specific_decision");
+assert.equal(safeWebhookPreview.external_delivery_boundary.provider_called, false);
+
+for (const mismatch of [
+  {
+    requested_provider_surface: "email_delivery_preview",
+    requested_provider_profile_ref: "provider-profile:slack:operator-managed",
+    requested_recipient_ref: "recipient:email:operator-managed",
+    reason: "provider_profile_ref_surface_mismatch",
+    status: "provider_profile_invalid",
+  },
+  {
+    requested_provider_surface: "email_delivery_preview",
+    requested_provider_profile_ref: "provider-profile:email:operator-managed",
+    requested_recipient_ref: "recipient:slack:channel:ops",
+    reason: "requested_recipient_ref_surface_mismatch",
+    status: "blocked",
+  },
+  {
+    requested_provider_surface: "slack_delivery_preview",
+    requested_provider_profile_ref: "provider-profile:email:operator-managed",
+    requested_recipient_ref: "recipient:slack-channel:ops",
+    reason: "provider_profile_ref_surface_mismatch",
+    status: "provider_profile_invalid",
+  },
+  {
+    requested_provider_surface: "slack_delivery_preview",
+    requested_provider_profile_ref: "provider-profile:slack:operator-managed",
+    requested_recipient_ref: "recipient:email:operator-managed",
+    reason: "requested_recipient_ref_surface_mismatch",
+    status: "blocked",
+  },
+  {
+    requested_provider_surface: "webhook_delivery_preview",
+    requested_provider_profile_ref: "provider-profile:email:operator-managed",
+    requested_recipient_ref: "endpoint-ref:webhook:operator-managed",
+    reason: "provider_profile_ref_surface_mismatch",
+    status: "provider_profile_invalid",
+  },
+  {
+    requested_provider_surface: "webhook_delivery_preview",
+    requested_provider_profile_ref: "provider-profile:webhook:operator-managed",
+    requested_recipient_ref: "recipient:email:operator-managed",
+    reason: "requested_recipient_ref_surface_mismatch",
+    status: "blocked",
+  },
+  {
+    requested_provider_surface: "manual_operator_delivery",
+    requested_recipient_ref: "recipient:email:operator-managed",
+    reason: "requested_recipient_ref_surface_mismatch",
+    status: "blocked",
+  },
+]) {
+  const mismatchPreview = buildProviderSpecificExternalDeliveryPreviewContractV01({
+    ...providerInputBase({ externalPreview, happyResidual }),
+    requested_provider_surface: mismatch.requested_provider_surface,
+    requested_provider_profile_ref: mismatch.requested_provider_profile_ref,
+    requested_recipient_ref: mismatch.requested_recipient_ref,
+    requested_payload_format: "markdown_payload",
+  });
+  assert.equal(mismatchPreview.status, mismatch.status);
+  assert(
+    mismatchPreview.blocker_reasons.includes(mismatch.reason),
+    `missing ${mismatch.reason}`,
+  );
+  assert.notEqual(
+    mismatchPreview.status,
+    "ready_for_provider_specific_decision",
+  );
+  assert.equal(mismatchPreview.external_delivery_boundary.delivery_performed, false);
+  assert.equal(mismatchPreview.external_delivery_boundary.provider_called, false);
+  assert.equal(
+    mismatchPreview.external_delivery_boundary.external_message_sent,
+    false,
+  );
+  assert.equal(mismatchPreview.external_delivery_boundary.network_called, false);
+}
+
 for (const unsafeProfileRef of [
   "provider-profile:token:abc",
   "provider-profile:secret:abc",
@@ -312,6 +407,41 @@ assert(
     "payload_format_unsupported",
   ),
 );
+
+for (const unsafePayloadFormat of [
+  "raw_payload:hello",
+  "raw_message:hello",
+  "secret:payload",
+  "token:payload",
+  "https://example.invalid/payload",
+]) {
+  const unsafePayloadPreview =
+    buildProviderSpecificExternalDeliveryPreviewContractV01({
+      ...providerInputBase({ externalPreview, happyResidual }),
+      requested_provider_surface: "manual_operator_delivery",
+      requested_recipient_ref: "recipient:operator",
+      requested_payload_format: unsafePayloadFormat,
+    });
+  assert.equal(unsafePayloadPreview.status, "payload_format_unsupported");
+  assert(
+    unsafePayloadPreview.blocker_reasons.includes(
+      "requested_payload_format_unsafe",
+    ),
+    `unsafe payload format ${unsafePayloadFormat} must be explicit`,
+  );
+  assert.notEqual(
+    unsafePayloadPreview.status,
+    "ready_for_provider_specific_decision",
+  );
+  assert.equal(unsafePayloadPreview.requested_payload_format, null);
+  assert.equal(unsafePayloadPreview.external_delivery_boundary.delivery_performed, false);
+  assert.equal(unsafePayloadPreview.external_delivery_boundary.provider_called, false);
+  assert.equal(
+    unsafePayloadPreview.external_delivery_boundary.external_message_sent,
+    false,
+  );
+  assert.equal(unsafePayloadPreview.external_delivery_boundary.network_called, false);
+}
 
 const missingExternalContractPreview =
   buildProviderSpecificExternalDeliveryPreviewContractV01({

@@ -148,10 +148,21 @@ export function buildProviderSpecificExternalDeliveryPreviewContractV01(
     externalRecordReview,
     "latest_record_summary",
   );
+  const explicitRequestedPayloadFormat = isNonEmptyString(
+    input.requested_payload_format,
+  )
+    ? input.requested_payload_format
+    : null;
+  const safeRequestedPayloadFormat = safeRef(input.requested_payload_format);
+  const requestedPayloadFormatUnsafe = Boolean(
+    explicitRequestedPayloadFormat && !safeRequestedPayloadFormat,
+  );
   const requestedPayloadFormat =
-    safeRef(input.requested_payload_format) ??
-    stringField(externalPreview, "payload_type") ??
-    stringField(latestExternalRecordSummary, "payload_type");
+    requestedPayloadFormatUnsafe
+      ? null
+      : safeRequestedPayloadFormat ??
+        stringField(externalPreview, "payload_type") ??
+        stringField(latestExternalRecordSummary, "payload_type");
   const providerProfileRef = safeProviderRef(input.requested_provider_profile_ref);
   const providerProfileUnsafe =
     typeof input.requested_provider_profile_ref === "string" &&
@@ -186,6 +197,12 @@ export function buildProviderSpecificExternalDeliveryPreviewContractV01(
     typeof input.requested_recipient_ref === "string" &&
     input.requested_recipient_ref.trim().length > 0 &&
     !safeRef(input.requested_recipient_ref);
+  const providerProfileSurfaceMismatch =
+    providerProfileRefSurfaceMismatch(requestedProviderSurface, providerProfileRef);
+  const recipientSurfaceMismatch = recipientRefSurfaceMismatch(
+    requestedProviderSurface,
+    requestedRecipientRef,
+  );
   const sourceRefs = uniqueStrings([
     ...(input.source_refs ?? []),
     ...stringArray(externalPreview?.source_refs),
@@ -222,6 +239,7 @@ export function buildProviderSpecificExternalDeliveryPreviewContractV01(
     surface: requestedProviderSurface,
     providerProfileRef,
     providerProfileUnsafe,
+    providerProfileSurfaceMismatch,
   });
   const providerRequirementSummary = requirementSummary({
     surface: requestedProviderSurface,
@@ -236,12 +254,18 @@ export function buildProviderSpecificExternalDeliveryPreviewContractV01(
   );
   const providerSpecificRecipientSummary: ProviderSpecificRecipientSummary = {
     requested_recipient_ref: requestedRecipientRef ?? null,
-    recipient_ref_safe: Boolean(requestedRecipientRef) && !recipientUnsafe,
+    recipient_ref_safe:
+      Boolean(requestedRecipientRef) &&
+      !recipientUnsafe &&
+      !recipientSurfaceMismatch,
     recipient_surface: requestedProviderSurface,
     raw_recipient_material_rejected: recipientUnsafe,
   };
   const profileBlockers = uniqueStrings([
     ...(providerProfileUnsafe ? ["provider_profile_ref_unsafe"] : []),
+    ...(providerProfileSurfaceMismatch
+      ? ["provider_profile_ref_surface_mismatch"]
+      : []),
     ...(requestedProviderSurface &&
     requestedProviderSurface !== "manual_operator_delivery" &&
     !providerProfileRef
@@ -251,8 +275,12 @@ export function buildProviderSpecificExternalDeliveryPreviewContractV01(
   const providerBlockers = uniqueStrings([
     ...(!requestedProviderSurface ? ["unsupported_provider_surface"] : []),
     ...(recipientUnsafe ? ["requested_recipient_ref_unsafe"] : []),
+    ...(recipientSurfaceMismatch
+      ? ["requested_recipient_ref_surface_mismatch"]
+      : []),
     ...(!requestedRecipientRef ? ["requested_recipient_ref_missing"] : []),
     ...(!payloadHash ? ["payload_hash_missing"] : []),
+    ...(requestedPayloadFormatUnsafe ? ["requested_payload_format_unsafe"] : []),
     ...(requestedPayloadFormat &&
     !supportedPayloadFormats.has(requestedPayloadFormat)
       ? ["payload_format_unsupported"]
@@ -274,9 +302,12 @@ export function buildProviderSpecificExternalDeliveryPreviewContractV01(
   const status = determineStatus({
     requestedProviderSurface,
     providerProfileStatus,
+    providerProfileSurfaceMismatch,
     recipientUnsafe,
+    recipientSurfaceMismatch,
     requestedRecipientRef,
     requestedPayloadFormat,
+    requestedPayloadFormatUnsafe,
     authorityProblems,
     residualGate,
     externalContractProblems,
@@ -329,10 +360,14 @@ export function buildProviderSpecificExternalDeliveryPreviewContractV01(
       provider_surface_supported: Boolean(requestedProviderSurface),
       provider_profile_ref_present: Boolean(providerProfileRef),
       provider_profile_ref_safe:
-        providerProfileStatus === "safe_ref_available" ||
-        providerProfileStatus === "not_required_for_manual_operator_delivery",
+        (providerProfileStatus === "safe_ref_available" ||
+          providerProfileStatus === "not_required_for_manual_operator_delivery") &&
+        !providerProfileSurfaceMismatch,
       recipient_ref_present: Boolean(requestedRecipientRef),
-      recipient_ref_safe: Boolean(requestedRecipientRef) && !recipientUnsafe,
+      recipient_ref_safe:
+        Boolean(requestedRecipientRef) &&
+        !recipientUnsafe &&
+        !recipientSurfaceMismatch,
       payload_hash_present: Boolean(payloadHash),
       payload_format_supported: Boolean(
         requestedPayloadFormat &&
@@ -455,9 +490,12 @@ export function fingerprintProviderSpecificExternalDeliveryValueV01(
 function determineStatus({
   requestedProviderSurface,
   providerProfileStatus,
+  providerProfileSurfaceMismatch,
   recipientUnsafe,
+  recipientSurfaceMismatch,
   requestedRecipientRef,
   requestedPayloadFormat,
+  requestedPayloadFormatUnsafe,
   authorityProblems,
   residualGate,
   externalContractProblems,
@@ -465,9 +503,12 @@ function determineStatus({
 }: {
   requestedProviderSurface: ProviderSpecificExternalDeliverySurface | null;
   providerProfileStatus: ProviderSpecificExternalDeliveryProviderProfileStatus;
+  providerProfileSurfaceMismatch: boolean;
   recipientUnsafe: boolean;
+  recipientSurfaceMismatch: boolean;
   requestedRecipientRef: string | null | undefined;
   requestedPayloadFormat: string | null | undefined;
+  requestedPayloadFormatUnsafe: boolean;
   authorityProblems: string[];
   residualGate: ExternalHandoffDeliveryResidualGateSummary;
   externalContractProblems: string[];
@@ -480,9 +521,12 @@ function determineStatus({
   }
   if (externalContractProblems.length > 0) return "external_contract_not_ready";
   if (!requestedProviderSurface) return "insufficient_data";
-  if (providerProfileStatus === "unsafe") return "provider_profile_invalid";
+  if (providerProfileStatus === "unsafe" || providerProfileSurfaceMismatch) {
+    return "provider_profile_invalid";
+  }
   if (providerProfileStatus === "missing") return "provider_profile_missing";
   if (recipientUnsafe || !requestedRecipientRef) return "recipient_missing";
+  if (requestedPayloadFormatUnsafe) return "payload_format_unsupported";
   if (
     requestedPayloadFormat &&
     !supportedPayloadFormats.has(requestedPayloadFormat)
@@ -620,17 +664,67 @@ function determineProviderProfileStatus({
   surface,
   providerProfileRef,
   providerProfileUnsafe,
+  providerProfileSurfaceMismatch,
 }: {
   surface: ProviderSpecificExternalDeliverySurface | null;
   providerProfileRef: string | null;
   providerProfileUnsafe: boolean;
+  providerProfileSurfaceMismatch: boolean;
 }): ProviderSpecificExternalDeliveryProviderProfileStatus {
-  if (providerProfileUnsafe) return "unsafe";
+  if (providerProfileUnsafe || providerProfileSurfaceMismatch) return "unsafe";
   if (surface === "manual_operator_delivery") {
     return "not_required_for_manual_operator_delivery";
   }
   if (!surface) return "not_configured";
   return providerProfileRef ? "safe_ref_available" : "missing";
+}
+
+function providerProfileRefSurfaceMismatch(
+  surface: ProviderSpecificExternalDeliverySurface | null,
+  providerProfileRef: string | null,
+): boolean {
+  if (!surface || !providerProfileRef) return false;
+  if (surface === "manual_operator_delivery") return false;
+  if (surface === "email_delivery_preview") {
+    return !providerProfileRef.startsWith("provider-profile:email:");
+  }
+  if (surface === "slack_delivery_preview") {
+    return !providerProfileRef.startsWith("provider-profile:slack:");
+  }
+  if (surface === "webhook_delivery_preview") {
+    return !providerProfileRef.startsWith("provider-profile:webhook:");
+  }
+  return true;
+}
+
+function recipientRefSurfaceMismatch(
+  surface: ProviderSpecificExternalDeliverySurface | null,
+  recipientRef: string | null | undefined,
+): boolean {
+  if (!surface || !recipientRef) return false;
+  if (surface === "manual_operator_delivery") {
+    return !(
+      recipientRef === "recipient:operator" ||
+      recipientRef.startsWith("recipient:manual:")
+    );
+  }
+  if (surface === "email_delivery_preview") {
+    return !recipientRef.startsWith("recipient:email:");
+  }
+  if (surface === "slack_delivery_preview") {
+    return !(
+      recipientRef.startsWith("recipient:slack:") ||
+      recipientRef.startsWith("recipient:slack-channel:") ||
+      recipientRef.startsWith("recipient:slack-user:")
+    );
+  }
+  if (surface === "webhook_delivery_preview") {
+    return !(
+      recipientRef.startsWith("recipient:webhook:") ||
+      recipientRef.startsWith("endpoint-ref:webhook:")
+    );
+  }
+  return true;
 }
 
 function capabilitySummary(
