@@ -86,6 +86,11 @@ const expectedFiles = [
   "lib/workplane/read-external-handoff-delivery-contract-record-review-for-web.ts",
   "components/workplane/external-handoff-delivery-contract-panel.tsx",
   "scripts/smoke-external-handoff-delivery-contract-v0-1.mjs",
+  "types/provider-specific-external-delivery-preview-contract.ts",
+  "lib/workplane/provider-specific-external-delivery-preview-contract.ts",
+  "lib/workplane/provider-specific-external-delivery-operator-decision-preview.ts",
+  "components/workplane/provider-specific-external-delivery-preview-contract-panel.tsx",
+  "scripts/smoke-provider-specific-external-delivery-preview-contract-v0-1.mjs",
   "package.json",
 ];
 

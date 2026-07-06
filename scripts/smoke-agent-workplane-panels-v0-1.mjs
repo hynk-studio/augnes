@@ -2241,6 +2241,17 @@ for (const file of followOnExternalHandoffDeliveryContractFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnProviderSpecificExternalDeliveryPreviewFiles = [
+  "types/provider-specific-external-delivery-preview-contract.ts",
+  "lib/workplane/provider-specific-external-delivery-preview-contract.ts",
+  "lib/workplane/provider-specific-external-delivery-operator-decision-preview.ts",
+  "components/workplane/provider-specific-external-delivery-preview-contract-panel.tsx",
+  "scripts/smoke-provider-specific-external-delivery-preview-contract-v0-1.mjs",
+];
+for (const file of followOnProviderSpecificExternalDeliveryPreviewFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
