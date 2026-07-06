@@ -2276,6 +2276,17 @@ for (const file of followOnDeliverySpineLoopClosureFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnProviderSpecificDeliveryExecutionPreviewFiles = [
+  "types/provider-specific-delivery-execution-contract-preview.ts",
+  "lib/workplane/provider-specific-delivery-execution-contract-preview.ts",
+  "lib/workplane/provider-specific-delivery-execution-operator-decision-preview.ts",
+  "components/workplane/provider-specific-delivery-execution-contract-preview-panel.tsx",
+  "scripts/smoke-provider-specific-delivery-execution-contract-preview-v0-1.mjs",
+];
+for (const file of followOnProviderSpecificDeliveryExecutionPreviewFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
