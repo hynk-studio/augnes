@@ -556,6 +556,7 @@ function reviewWriterValidationDriftCandidate(
       ...reviewSourceRefs(input.expected_observed_delta_record_review),
       ...reviewSourceRefs(input.reuse_outcome_bridge_ledger_record_review),
       ...reviewSourceRefs(input.dogfood_metric_snapshot_record_review),
+      ...decisionReviewSourceRefs(input),
     ]),
     evidenceRefs: signals,
     materializedInconsistencies: signals,
@@ -601,6 +602,7 @@ function noSideEffectsReplayInconsistencyCandidate(
       ...reviewSourceRefs(input.expected_observed_delta_record_review),
       ...reviewSourceRefs(input.reuse_outcome_bridge_ledger_record_review),
       ...reviewSourceRefs(input.dogfood_metric_snapshot_record_review),
+      ...decisionReviewSourceRefs(input),
     ]),
     evidenceRefs: signals,
     materializedInconsistencies: signals,
@@ -818,6 +820,18 @@ function authorityBoundarySignals(
       "dogfood_metric_snapshot_record_review",
       input.dogfood_metric_snapshot_record_review,
     ),
+    ...authorityProblems(
+      "work_episode_residue_candidate_preview",
+      input.work_episode_residue_candidate_preview,
+    ),
+    ...authorityProblems(
+      "next_work_signal_decision_record_review",
+      input.next_work_signal_decision_record_review,
+    ),
+    ...authorityProblems(
+      "perspective_relay_update_decision_record_review",
+      input.perspective_relay_update_decision_record_review,
+    ),
     ...stringArray(
       recordField(recordOrNull(input.workbench_spine_consolidation), "blocker_summary")
         ?.authority_warnings,
@@ -906,6 +920,14 @@ function noSideEffectsReplaySignals(
     ...receiptProblems(
       "dogfood_metric_snapshot",
       input.dogfood_metric_snapshot_record_review,
+    ),
+    ...receiptProblems(
+      "next_work_signal",
+      input.next_work_signal_decision_record_review,
+    ),
+    ...receiptProblems(
+      "perspective_relay_update",
+      input.perspective_relay_update_decision_record_review,
     ),
   ]);
 }
@@ -1147,6 +1169,13 @@ function receiptProblems(label: string, value: unknown): string[] {
 
 function reviewSourceRefs(value: unknown): string[] {
   return stringArray(recordOrNull(value)?.source_refs);
+}
+
+function decisionReviewSourceRefs(input: ResidualDiagnosticCandidateInput): string[] {
+  return uniqueStrings([
+    ...reviewSourceRefs(input.next_work_signal_decision_record_review),
+    ...reviewSourceRefs(input.perspective_relay_update_decision_record_review),
+  ]);
 }
 
 function numberSignal(

@@ -266,6 +266,127 @@ assert.equal(forgedAuthority.authority_boundary.read_only, true);
 assert.equal(forgedAuthority.authority_boundary.can_write_db, false);
 assert.equal(forgedAuthority.authority_boundary.can_call_send_provider, false);
 
+const workEpisodeResidueAuthority = buildResidualDiagnosticCandidateReadModelV01({
+  work_episode_residue_candidate_preview: {
+    preview_version: "work_episode_residue_candidate_preview.v0.1",
+    source_refs: ["source:work-episode-residue"],
+    authority_boundary: readOnlyBoundary({ can_write_memory: true }),
+  },
+});
+const workEpisodeAuthorityCandidate = mustFindCandidate(
+  workEpisodeResidueAuthority,
+  "authority_boundary_drift",
+);
+assert(
+  workEpisodeAuthorityCandidate.materialized_inconsistencies.includes(
+    "work_episode_residue_candidate_preview:authority_boundary_forbidden_true:can_write_memory",
+  ),
+);
+assert.equal(workEpisodeResidueAuthority.authority_boundary.can_write_memory, false);
+assert.equal(workEpisodeResidueAuthority.authority_boundary.can_write_db, false);
+
+const nextWorkAuthority = buildResidualDiagnosticCandidateReadModelV01({
+  next_work_signal_decision_record_review: {
+    review_status: "records_available",
+    source_refs: ["source:next-work-signal-authority"],
+    authority_boundary: readOnlyBoundary({ can_write_db: true }),
+  },
+});
+const nextWorkAuthorityCandidate = mustFindCandidate(
+  nextWorkAuthority,
+  "authority_boundary_drift",
+);
+assert(
+  nextWorkAuthorityCandidate.materialized_inconsistencies.includes(
+    "next_work_signal_decision_record_review:authority_boundary_forbidden_true:can_write_db",
+  ),
+);
+
+const perspectiveRelayAuthority = buildResidualDiagnosticCandidateReadModelV01({
+  perspective_relay_update_decision_record_review: {
+    review_status: "records_available",
+    source_refs: ["source:perspective-relay-authority"],
+    authority_boundary: readOnlyBoundary({ can_send_handoff: true }),
+  },
+});
+const perspectiveRelayAuthorityCandidate = mustFindCandidate(
+  perspectiveRelayAuthority,
+  "authority_boundary_drift",
+);
+assert(
+  perspectiveRelayAuthorityCandidate.materialized_inconsistencies.includes(
+    "perspective_relay_update_decision_record_review:authority_boundary_forbidden_true:can_send_handoff",
+  ),
+);
+
+const decisionReviewSourceDrift = buildResidualDiagnosticCandidateReadModelV01({
+  next_work_signal_decision_record_review: {
+    review_status: "records_invalid",
+    source_refs: ["source:next-work-signal-review"],
+    authority_boundary: readOnlyBoundary({ read_only_record_review: true }),
+  },
+  perspective_relay_update_decision_record_review: {
+    review_status: "selected_record_missing",
+    source_refs: ["source:perspective-relay-review"],
+    authority_boundary: readOnlyBoundary({ read_only_record_review: true }),
+  },
+});
+const decisionReviewDriftCandidate = mustFindCandidate(
+  decisionReviewSourceDrift,
+  "review_writer_validation_drift",
+);
+assert(
+  decisionReviewDriftCandidate.source_refs.includes(
+    "source:next-work-signal-review",
+  ),
+);
+assert(
+  decisionReviewDriftCandidate.source_refs.includes(
+    "source:perspective-relay-review",
+  ),
+);
+
+const decisionReceiptProblems = buildResidualDiagnosticCandidateReadModelV01({
+  next_work_signal_decision_record_review: {
+    review_status: "records_available",
+    source_refs: ["source:next-work-signal-receipt"],
+    evidence_summary: { has_receipt_side_effect_problem: true },
+    authority_boundary: readOnlyBoundary({ read_only_record_review: true }),
+  },
+  perspective_relay_update_decision_record_review: {
+    review_status: "records_available",
+    source_refs: ["source:perspective-relay-receipt"],
+    input_summary: { receipt_side_effect_problem_count: 1 },
+    authority_boundary: readOnlyBoundary({ read_only_record_review: true }),
+  },
+});
+const decisionReceiptCandidate = mustFindCandidate(
+  decisionReceiptProblems,
+  "no_side_effects_replay_inconsistency",
+);
+assert(
+  decisionReceiptCandidate.observed_signals.some(
+    (signal) => signal.summary === "next_work_signal:receipt_side_effect_problem",
+  ),
+);
+assert(
+  decisionReceiptCandidate.observed_signals.some((signal) =>
+    signal.summary.startsWith(
+      "perspective_relay_update:receipt_side_effect_problem_count:",
+    ),
+  ),
+);
+assert(
+  decisionReceiptCandidate.source_refs.includes(
+    "source:next-work-signal-receipt",
+  ),
+);
+assert(
+  decisionReceiptCandidate.source_refs.includes(
+    "source:perspective-relay-receipt",
+  ),
+);
+
 const reviewDrift = buildResidualDiagnosticCandidateReadModelV01({
   expected_observed_delta_record_review: {
     review_status: "records_invalid",
