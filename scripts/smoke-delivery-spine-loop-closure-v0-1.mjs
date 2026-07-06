@@ -90,6 +90,7 @@ for (const expected of [
   "future_provider_execution_contract_preview",
   "prepare_provider_specific_delivery_execution_contract_preview",
   "execution_boundary_preflight",
+  "external_delivery_performed",
   "provider_specific_intent_is_delivery: false",
   "delivery_performed: false",
   "provider_called: false",
@@ -213,6 +214,85 @@ for (const flag of [
     "resolve_delivery_spine_blockers_before_execution_preview",
   );
 }
+
+const forgedSentProvider = sentHandoffRead();
+forgedSentProvider.latest_fulfillment_summary.provider_called = true;
+const sentProviderBlocked = buildDeliverySpineLoopClosureReadModelV01({
+  ...fullInput(),
+  sent_handoff_read: forgedSentProvider,
+});
+assert.equal(sentProviderBlocked.delivery_spine_status, "invalid_source_material");
+assert.equal(
+  sentProviderBlocked.recommended_next_operator_action,
+  "resolve_delivery_spine_blockers_before_execution_preview",
+);
+assert(
+  sentProviderBlocked.blocker_summary.blockers.some(
+    (reason) =>
+      reason.includes("sent_handoff_read.latest_fulfillment_summary") &&
+      reason.includes("provider_called_true"),
+  ),
+);
+assert.equal(
+  sentProviderBlocked.explicit_non_delivery_boundary.provider_called,
+  false,
+);
+
+const forgedSentExternalDelivery = sentHandoffRead();
+forgedSentExternalDelivery.latest_fulfillment_summary.external_delivery_performed = true;
+const sentExternalDeliveryBlocked = buildDeliverySpineLoopClosureReadModelV01({
+  ...fullInput(),
+  sent_handoff_read: forgedSentExternalDelivery,
+});
+assert.equal(
+  sentExternalDeliveryBlocked.delivery_spine_status,
+  "invalid_source_material",
+);
+assert(
+  sentExternalDeliveryBlocked.blocker_summary.blockers.some(
+    (reason) =>
+      reason.includes("sent_handoff_read.latest_fulfillment_summary") &&
+      reason.includes("external_delivery_performed_true"),
+  ),
+);
+assert.equal(
+  sentExternalDeliveryBlocked.explicit_non_delivery_boundary.delivery_performed,
+  false,
+);
+
+const recordSummariesSideEffectBlocked = buildDeliverySpineLoopClosureReadModelV01({
+  ...fullInput(),
+  external_handoff_delivery_contract_record_review: {
+    ...externalRecordReview(),
+    record_summaries: [
+      {
+        record_id: "external-delivery-contract:001",
+        provider_called: true,
+        network_called: true,
+      },
+    ],
+  },
+});
+assert.equal(
+  recordSummariesSideEffectBlocked.delivery_spine_status,
+  "invalid_source_material",
+);
+assert(
+  recordSummariesSideEffectBlocked.blocker_summary.blockers.some(
+    (reason) =>
+      reason.includes(
+        "external_handoff_delivery_contract_record_review.record_summaries[0]",
+      ) && reason.includes("provider_called_true"),
+  ),
+);
+assert(
+  recordSummariesSideEffectBlocked.blocker_summary.blockers.some(
+    (reason) =>
+      reason.includes(
+        "external_handoff_delivery_contract_record_review.record_summaries[0]",
+      ) && reason.includes("network_called_true"),
+  ),
+);
 
 const lineageMismatch = buildDeliverySpineLoopClosureReadModelV01({
   ...fullInput(),

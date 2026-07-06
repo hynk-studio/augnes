@@ -53,6 +53,7 @@ const groupLabels: Record<DeliverySpineStageGroupId, string> = {
 };
 const blockerBoundaryFields = [
   "delivery_performed",
+  "external_delivery_performed",
   "provider_specific_delivery",
   "provider_delivery_intent_is_delivery",
   "provider_called",
@@ -939,16 +940,16 @@ function sourceMaterialProblems(input: DeliverySpineLoopClosureInput): string[] 
 function nestedSourceProblems(label: string, value: unknown): string[] {
   const record = recordOrNull(value);
   if (!record) return [];
-  const directBoundary = [
-    recordField(record, "external_delivery_boundary"),
-    recordField(record, "external_delivery"),
-    recordField(record, "explicit_non_delivery_boundary"),
-    recordField(record, "latest_record_summary"),
-    recordField(record, "selected_record_summary"),
-  ].flatMap((boundary) =>
-    blockerBoundaryFields.flatMap((field) =>
-      boundary?.[field] === true ? [`${label}:${field}_true`] : [],
-    ),
+  return scanSourceMaterialRecord(label, record);
+}
+
+function scanSourceMaterialRecord(
+  label: string,
+  record: RecordValue,
+  depth = 0,
+): string[] {
+  const directBoundary = blockerBoundaryFields.flatMap((field) =>
+    record[field] === true ? [`${label}:${field}_true`] : [],
   );
   const authority = recordField(record, "authority_boundary");
   const authorityProblems = forbiddenAuthorityFields.flatMap((field) =>
@@ -956,7 +957,35 @@ function nestedSourceProblems(label: string, value: unknown): string[] {
       ? [`${label}:authority_boundary_forbidden_true:${field}`]
       : [],
   );
-  return [...directBoundary, ...authorityProblems];
+  if (depth >= 3) return [...directBoundary, ...authorityProblems];
+  const nestedObjects = [
+    "external_delivery_boundary",
+    "external_delivery",
+    "explicit_non_delivery_boundary",
+    "latest_fulfillment_summary",
+    "summary",
+    "latest_record",
+    "latest_record_summary",
+    "selected_record_summary",
+    "latest_exported_artifact",
+    "latest_exported_artifact_summary",
+  ].flatMap((field) => {
+    const nested = recordField(record, field);
+    return nested
+      ? scanSourceMaterialRecord(`${label}.${field}`, nested, depth + 1)
+      : [];
+  });
+  const nestedArrays = ["record_summaries", "records"].flatMap((field) =>
+    arrayOfRecords(record[field]).flatMap((entry, index) =>
+      scanSourceMaterialRecord(`${label}.${field}[${index}]`, entry, depth + 1),
+    ),
+  );
+  return [
+    ...directBoundary,
+    ...authorityProblems,
+    ...nestedObjects,
+    ...nestedArrays,
+  ];
 }
 
 function determineDeliverySpineStatus({
