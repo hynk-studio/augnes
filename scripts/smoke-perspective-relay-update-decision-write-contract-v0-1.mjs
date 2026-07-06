@@ -120,6 +120,40 @@ const files = {
     "components/workplane/current-working-perspective-route-integration-read-panel.tsx",
   cwpRouteIntegrationSliceSmoke:
     "scripts/smoke-current-working-perspective-route-integration-slice-v0-1.mjs",
+  handoffContextUpdateContractSmoke:
+    "scripts/smoke-handoff-context-update-contract-v0-1.mjs",
+  handoffContextApplySlicePreviewType:
+    "types/handoff-context-apply-slice-preview.ts",
+  handoffContextApplySlicePreviewHelper:
+    "lib/workplane/handoff-context-apply-preview.ts",
+  handoffContextApplySlicePreviewPanel:
+    "components/workplane/handoff-context-apply-preview-panel.tsx",
+  handoffContextApplySliceDecisionType:
+    "types/handoff-context-apply-slice-decision.ts",
+  handoffContextApplySliceDecisionHelper:
+    "lib/workplane/handoff-context-apply-decision.ts",
+  handoffContextApplySliceDecisionPanel:
+    "components/workplane/handoff-context-apply-decision-panel.tsx",
+  handoffContextApplySliceWriteType:
+    "types/handoff-context-apply-write.ts",
+  handoffContextApplySliceWriteHelper:
+    "lib/workplane/handoff-context-apply-write.ts",
+  handoffContextApplySliceRoute:
+    "app/api/workplane/handoff-context-applies/route.ts",
+  handoffContextApplySliceReviewType:
+    "types/handoff-context-apply-record-review.ts",
+  handoffContextApplySliceReviewHelper:
+    "lib/workplane/handoff-context-apply-record-review.ts",
+  handoffContextApplySliceReviewForWeb:
+    "lib/workplane/read-handoff-context-apply-record-review-for-web.ts",
+  handoffContextApplySliceAppliedRead:
+    "lib/workplane/read-applied-handoff-context-for-web.ts",
+  handoffContextApplySliceReviewPanel:
+    "components/workplane/handoff-context-apply-record-review-panel.tsx",
+  handoffContextApplySliceAppliedPanel:
+    "components/workplane/applied-handoff-context-panel.tsx",
+  handoffContextApplySliceSmoke:
+    "scripts/smoke-handoff-context-apply-slice-v0-1.mjs",
   currentPerspectiveRoute: "app/api/perspective/current/route.ts",
   contractType: "types/perspective-relay-update-write-contract-preview.ts",
   contractHelper: "lib/workplane/perspective-relay-update-write-contract-preview.ts",
