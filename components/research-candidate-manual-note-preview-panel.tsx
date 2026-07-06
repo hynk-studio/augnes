@@ -259,7 +259,7 @@ export function ResearchCandidateManualNotePreviewPanel() {
       <div className="perspective-constellation-shell-header">
         <div>
           <p className="panel-eyebrow">AUGNES / Research</p>
-          <h2>Cockpit Manual Pasted Note Preview</h2>
+          <h2>Manual Research Candidate Preview</h2>
           <p>
             Paste a bounded manual research note, run the deterministic parser
             locally or through the bounded runtime route, and inspect

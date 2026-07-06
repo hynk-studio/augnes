@@ -1832,8 +1832,8 @@ automation inside Augnes runtime.
 
 ## Next Recommended Step
 
-Add Cockpit manual pasted note preview UI shell using the existing
-deterministic parser in a preview-only, read-only path.
+Keep the current `/research-candidate-review` route reachable from current
+Augnes surfaces while the manual parser remains preview-only and read-only.
 
 Perspective Packet Receipt Linkage remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.
 Selected candidates remain candidates, not proof/evidence or durable state.
