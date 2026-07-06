@@ -1,6 +1,7 @@
 "use client";
 
 import { buildResearchCandidateManualNoteHandoffResultIntake } from "@/lib/research-candidate-review/manual-note-handoff-result-intake";
+import { ResearchCandidateManualNoteResultIntakeOperatorReviewPanel } from "@/components/research-candidate-manual-note-result-intake-operator-review-panel";
 import type { ResearchCandidateManualNoteHandoffResultIntake } from "@/types/research-candidate-manual-note-handoff-result-intake";
 import type { ResearchCandidateManualNoteHandoffSeed } from "@/types/research-candidate-manual-note-handoff-seed";
 import type { FormEvent } from "react";
@@ -90,6 +91,12 @@ export function ResearchCandidateManualNoteHandoffResultIntakePanel({
       </form>
 
       {intakePreview ? <ResultIntakeDraftReadout intake={intakePreview} /> : null}
+      {intakePreview ? (
+        <ResearchCandidateManualNoteResultIntakeOperatorReviewPanel
+          key={intakePreview.result_text_fingerprint}
+          resultIntake={intakePreview}
+        />
+      ) : null}
     </section>
   );
 }

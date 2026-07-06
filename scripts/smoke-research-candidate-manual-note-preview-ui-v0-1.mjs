@@ -22,6 +22,8 @@ const handoffSeedPreviewPath =
   "components/research-candidate-manual-note-handoff-seed-preview.tsx";
 const handoffResultIntakePanelPath =
   "components/research-candidate-manual-note-handoff-result-intake-panel.tsx";
+const operatorReviewPanelPath =
+  "components/research-candidate-manual-note-result-intake-operator-review-panel.tsx";
 const resultSummaryPath =
   "components/research-candidate-manual-note-result-summary.tsx";
 const warningDisplayPath =
@@ -58,6 +60,7 @@ for (const filePath of [
   formatHintPath,
   handoffSeedPreviewPath,
   handoffResultIntakePanelPath,
+  operatorReviewPanelPath,
   resultSummaryPath,
   warningDisplayPath,
   sourceReferenceListPath,
@@ -83,10 +86,15 @@ const handoffResultIntakePanelComponent = readFileSync(
   handoffResultIntakePanelPath,
   "utf8",
 );
+const operatorReviewPanelComponent = readFileSync(
+  operatorReviewPanelPath,
+  "utf8",
+);
 const draftUiComponent = [
   readFileSync(formatHintPath, "utf8"),
   handoffSeedPreviewComponent,
   handoffResultIntakePanelComponent,
+  operatorReviewPanelComponent,
   readFileSync(resultSummaryPath, "utf8"),
   readFileSync(warningDisplayPath, "utf8"),
   readFileSync(sourceReferenceListPath, "utf8"),
@@ -665,10 +673,35 @@ function assertManualNoteHandoffResultIntakePreview() {
     /missing_required_return_fields/,
     "result intake panel must render missing return-field coverage",
   );
+  assert.match(
+    handoffResultIntakePanelComponent,
+    /ResearchCandidateManualNoteResultIntakeOperatorReviewPanel/,
+    "result intake panel must render the local operator review panel",
+  );
+  assert.match(
+    operatorReviewPanelComponent,
+    /Candidate-only operator review preview/,
+    "operator review panel must render a candidate-only heading",
+  );
+  assert.match(
+    operatorReviewPanelComponent,
+    /Preview operator review/,
+    "operator review panel must expose a local preview action",
+  );
+  assert.match(
+    operatorReviewPanelComponent,
+    /Future record contract preview/,
+    "operator review panel must render the future record contract preview when ready",
+  );
   assert.doesNotMatch(
     handoffResultIntakePanelComponent,
     /\bfetch\s*\(|navigator\.clipboard|writeText|localStorage|sessionStorage|indexedDB|document\.cookie|NextResponse|Request\(|Response\(|OPENAI_API_KEY|api\.openai\.com|new\s+OpenAI|GITHUB_TOKEN|octokit|executeCodex|runCodex|launchCodex/i,
     "result intake panel must not add network, storage, clipboard, provider, GitHub, or Codex behavior",
+  );
+  assert.doesNotMatch(
+    operatorReviewPanelComponent,
+    /\bfetch\s*\(|navigator\.clipboard|writeText|localStorage|sessionStorage|indexedDB|document\.cookie|NextResponse|Request\(|Response\(|OPENAI_API_KEY|api\.openai\.com|new\s+OpenAI|GITHUB_TOKEN|octokit|executeCodex|runCodex|launchCodex/i,
+    "operator review panel must not add network, storage, clipboard, provider, GitHub, or Codex behavior",
   );
 }
 

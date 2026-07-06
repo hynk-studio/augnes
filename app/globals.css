@@ -7291,6 +7291,62 @@ code {
   white-space: normal;
 }
 
+.manual-note-handoff-result-intake-preview,
+.manual-note-result-intake-operator-review-preview,
+.manual-note-result-record-contract-preview {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.manual-note-handoff-result-intake-preview .perspective-workbench-status-row,
+.manual-note-result-intake-operator-review-preview .perspective-workbench-status-row,
+.manual-note-result-record-contract-preview .perspective-workbench-status-row {
+  max-width: 100%;
+}
+
+.manual-note-handoff-result-intake-preview .perspective-workbench-status-row span,
+.manual-note-result-intake-operator-review-preview .perspective-workbench-status-row span,
+.manual-note-result-record-contract-preview .perspective-workbench-status-row span {
+  flex: 1 1 min(220px, 100%);
+  max-width: 100%;
+  white-space: normal;
+}
+
+.manual-note-handoff-result-intake-preview .perspective-workbench-status-row code,
+.manual-note-handoff-result-intake-preview .perspective-workbench-status-row strong,
+.manual-note-result-intake-operator-review-preview .perspective-workbench-status-row code,
+.manual-note-result-intake-operator-review-preview .perspective-workbench-status-row strong,
+.manual-note-result-record-contract-preview .perspective-workbench-status-row code,
+.manual-note-result-record-contract-preview .perspective-workbench-status-row strong,
+.manual-note-handoff-result-intake-preview li,
+.manual-note-handoff-result-intake-preview dd,
+.manual-note-result-intake-operator-review-preview li,
+.manual-note-result-intake-operator-review-preview dd,
+.manual-note-result-record-contract-preview li,
+.manual-note-result-record-contract-preview dd {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.manual-note-handoff-result-intake-preview .perspective-formation-summary-grid,
+.manual-note-result-intake-operator-review-preview .perspective-formation-summary-grid,
+.manual-note-result-record-contract-preview .perspective-formation-summary-grid,
+.manual-note-handoff-result-intake-preview .perspective-constellation-workspace-grid,
+.manual-note-result-intake-operator-review-preview .perspective-constellation-workspace-grid,
+.manual-note-result-record-contract-preview .perspective-constellation-workspace-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  grid-template-areas: none;
+}
+
+.manual-note-handoff-result-intake-preview .cockpit-surface-card,
+.manual-note-result-intake-operator-review-preview .cockpit-surface-card,
+.manual-note-result-record-contract-preview .cockpit-surface-card {
+  overflow: hidden;
+}
+
 .manual-note-format-hint,
 .manual-note-result-summary,
 .manual-note-runtime-summary,
