@@ -163,6 +163,9 @@ function recommendedDecision({
   ) {
     return "wait_for_provider_specific_intent_record";
   }
+  if (isProviderConfigPreviewBlocker(preview)) {
+    return "resolve_provider_config_refs_first";
+  }
   if (
     preview.status === "delivery_spine_missing" ||
     preview.status === "delivery_spine_not_ready" ||
@@ -174,19 +177,52 @@ function recommendedDecision({
   ) {
     return "resolve_delivery_spine_blockers_first";
   }
-  if (
-    preview.status === "provider_config_missing" ||
-    preview.status === "provider_config_ref_unsafe" ||
-    preview.provider_config_gate_summary.problem_reasons.length > 0
-  ) {
-    return "resolve_provider_config_refs_first";
-  }
   if (preview.status === "ready_for_execution_contract_decision") {
     return missingEvidence.length > 0
       ? "keep_execution_preview_only"
       : "prepare_future_execution_contract_record_slice";
   }
   return "do_not_prepare_execution";
+}
+
+function isProviderConfigPreviewBlocker(
+  preview: ProviderSpecificDeliveryExecutionContractPreview,
+): boolean {
+  if (
+    preview.status === "provider_config_missing" ||
+    preview.status === "provider_config_ref_unsafe"
+  ) {
+    return true;
+  }
+  if (
+    preview.status === "delivery_spine_missing" ||
+    preview.status === "delivery_spine_not_ready" ||
+    preview.status === "lineage_gate_blocked" ||
+    preview.status === "residual_gate_blocked" ||
+    preview.status === "authority_boundary_blocked" ||
+    preview.status === "execution_boundary_blocked" ||
+    preview.status === "provider_specific_intent_missing" ||
+    preview.status === "provider_specific_intent_invalid"
+  ) {
+    return false;
+  }
+  const providerConfigProblems =
+    preview.provider_config_gate_summary.problem_reasons;
+  return (
+    providerConfigProblems.length > 0 &&
+    providerConfigProblems.every(isProviderConfigProblemReason)
+  );
+}
+
+function isProviderConfigProblemReason(reason: string): boolean {
+  return (
+    reason === "execution_profile_ref_unsafe" ||
+    reason === "provider_profile_ref_unsafe" ||
+    reason === "execution_profile_ref_missing" ||
+    reason === "execution_profile_ref_surface_mismatch" ||
+    reason === "provider_profile_ref_surface_mismatch" ||
+    reason === "requested_recipient_ref_surface_mismatch"
+  );
 }
 
 function isExecutionPreview(

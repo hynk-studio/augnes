@@ -235,6 +235,18 @@ for (const surfaceCase of [
   );
   assert.equal(missing.status, "provider_config_missing");
   assert(missing.blocker_reasons.includes("execution_profile_ref_missing"));
+  const missingDecision =
+    buildProviderSpecificDeliveryExecutionOperatorDecisionPreviewV01({
+      provider_specific_delivery_execution_contract_preview: missing,
+      requested_operator_ref: "operator:delivery-execution-review",
+      requested_idempotency_key: "idempotency:delivery-execution-preview",
+      review_confirmation_ref: "review:delivery-execution-preview",
+    });
+  assert.equal(missingDecision.decision_status, "execution_preview_not_ready");
+  assert.equal(
+    missingDecision.recommended_operator_decision,
+    "resolve_provider_config_refs_first",
+  );
 }
 
 for (const unsafe of [
@@ -253,7 +265,51 @@ for (const unsafe of [
   );
   assert.equal(blocked.status, "provider_config_ref_unsafe");
   assert(blocked.blocker_reasons.includes("execution_profile_ref_unsafe"));
+  const blockedDecision =
+    buildProviderSpecificDeliveryExecutionOperatorDecisionPreviewV01({
+      provider_specific_delivery_execution_contract_preview: blocked,
+      requested_operator_ref: "operator:delivery-execution-review",
+      requested_idempotency_key: "idempotency:delivery-execution-preview",
+      review_confirmation_ref: "review:delivery-execution-preview",
+    });
+  assert.equal(blockedDecision.decision_status, "execution_preview_not_ready");
+  assert.equal(
+    blockedDecision.recommended_operator_decision,
+    "resolve_provider_config_refs_first",
+  );
 }
+
+const unsupportedExecutionSurface =
+  buildProviderSpecificDeliveryExecutionContractPreviewV01(
+    fullInput({ executionSurface: "unsupported_execution_surface" }),
+  );
+assert.equal(unsupportedExecutionSurface.status, "execution_surface_unsupported");
+assert(
+  unsupportedExecutionSurface.blocker_reasons.includes(
+    "requested_execution_surface_unsupported",
+  ),
+);
+assert.equal(unsupportedExecutionSurface.requested_execution_surface, null);
+assert.equal(
+  unsupportedExecutionSurface.explicit_non_delivery_boundary.delivery_performed,
+  false,
+);
+
+const unsafeExecutionSurface =
+  buildProviderSpecificDeliveryExecutionContractPreviewV01(
+    fullInput({ executionSurface: "https://example.invalid/execution" }),
+  );
+assert.equal(unsafeExecutionSurface.status, "execution_surface_unsupported");
+assert(
+  unsafeExecutionSurface.blocker_reasons.includes(
+    "requested_execution_surface_unsafe",
+  ),
+);
+assert.equal(unsafeExecutionSurface.requested_execution_surface, null);
+assert.equal(
+  unsafeExecutionSurface.explicit_non_delivery_boundary.provider_called,
+  false,
+);
 
 const surfaceMismatch = buildProviderSpecificDeliveryExecutionContractPreviewV01(
   fullInput({
@@ -301,6 +357,42 @@ const unsafePayload = buildProviderSpecificDeliveryExecutionContractPreviewV01(
   fullInput({ payloadFormat: "raw_payload:hello" }),
 );
 assert.equal(unsafePayload.status, "payload_ref_unsafe");
+
+for (const missingRequirement of [
+  {
+    field: "source_local_fulfillment_ref",
+    missingRef: "local_handoff_send_fulfillment_ref_missing",
+    satisfiedRequirement: "local_handoff_send_fulfillment",
+  },
+  {
+    field: "source_external_handoff_delivery_contract_record_ref",
+    missingRef: "external_handoff_delivery_contract_record_ref_missing",
+    satisfiedRequirement: "external_handoff_delivery_contract_record",
+  },
+  {
+    field: "source_exported_artifact_ref",
+    missingRef: "exported_handoff_packet_artifact_ref_missing",
+    satisfiedRequirement: "exported_handoff_packet_artifact",
+  },
+]) {
+  const missingInput = removeIntentSourceRef(fullInput(), missingRequirement.field);
+  const missingPreview =
+    buildProviderSpecificDeliveryExecutionContractPreviewV01(missingInput);
+  assert.notEqual(
+    missingPreview.status,
+    "ready_for_execution_contract_decision",
+  );
+  assert(
+    missingPreview.provider_execution_requirement_summary.missing_refs.includes(
+      missingRequirement.missingRef,
+    ),
+  );
+  assert(
+    !missingPreview.provider_execution_requirement_summary.satisfied_requirements.includes(
+      missingRequirement.satisfiedRequirement,
+    ),
+  );
+}
 
 const forgedBoundary = buildProviderSpecificDeliveryExecutionContractPreviewV01({
   ...fullInput(),
@@ -432,6 +524,23 @@ function fullInput(overrides = {}) {
     as_of: "2026-07-07T00:00:00.000Z",
     source_refs: ["source:execution-preview-smoke"],
   };
+}
+
+function removeIntentSourceRef(input, field) {
+  const cloned = structuredClone(input);
+  const review =
+    cloned.provider_specific_delivery_intent_contract_record_review;
+  delete review.selected_record_summary[field];
+  delete review.latest_record_summary[field];
+  for (const summary of review.record_summaries) {
+    delete summary[field];
+  }
+  for (const record of review.records) {
+    delete record[field];
+  }
+  delete cloned.provider_specific_delivery_intent_contract_preview[field];
+  delete cloned.provider_specific_external_delivery_preview_contract[field];
+  return cloned;
 }
 
 function deliverySpine({ status = "provider_specific_intent_recorded" } = {}) {

@@ -161,9 +161,16 @@ export function buildProviderSpecificDeliveryExecutionContractPreviewV01(
     intentPreview?.requested_provider_surface ??
     providerPreview?.requested_provider_surface ??
     null;
+  const requestedExecutionSurfaceInput = input.requested_execution_surface;
+  const requestedExecutionSurfaceExplicit =
+    requestedExecutionSurfaceInput !== undefined;
+  const requestedExecutionSurfaceSafeRef = requestedExecutionSurfaceExplicit
+    ? safeRef(requestedExecutionSurfaceInput)
+    : null;
   const requestedExecutionSurface =
-    toExecutionSurface(input.requested_execution_surface) ??
-    mapProviderSurfaceToExecutionSurface(requestedProviderSurface);
+    requestedExecutionSurfaceExplicit
+      ? toExecutionSurface(requestedExecutionSurfaceInput)
+      : mapProviderSurfaceToExecutionSurface(requestedProviderSurface);
   const executionProfileRefInput = input.requested_execution_profile_ref;
   const executionProfileRef =
     executionProfileRefInput === undefined
@@ -272,6 +279,8 @@ export function buildProviderSpecificDeliveryExecutionContractPreviewV01(
   const refProblems = refProblemReasons({
     requestedProviderSurface,
     requestedExecutionSurface,
+    requestedExecutionSurfaceExplicit,
+    requestedExecutionSurfaceSafeRef,
     executionProfileRefInput,
     executionProfileRef,
     providerProfileRef,
@@ -446,6 +455,9 @@ export function buildProviderSpecificDeliveryExecutionContractPreviewV01(
       operator_gate_required_for_future_slice: true,
     },
     provider_execution_requirement_summary: requirementSummary({
+      deliverySpinePresent: Boolean(deliverySpine),
+      sourceIntentRecordRef: stringField(intentSummary, "record_id"),
+      sourceProviderPreviewFingerprint,
       requestedExecutionSurface,
       executionProfileRef,
       providerProfileRef,
@@ -586,6 +598,12 @@ function determineStatus({
     return "provider_specific_intent_invalid";
   }
   if (intentProblems.length > 0) return "provider_specific_intent_missing";
+  if (
+    refProblems.includes("requested_execution_surface_unsafe") ||
+    refProblems.includes("requested_execution_surface_unsupported")
+  ) {
+    return "execution_surface_unsupported";
+  }
   if (!requestedExecutionSurface) return "execution_surface_missing";
   if (!supportedExecutionSurfaces.has(requestedExecutionSurface)) {
     return "execution_surface_unsupported";
@@ -764,6 +782,8 @@ function providerConfigGateSummary({
 function refProblemReasons({
   requestedProviderSurface,
   requestedExecutionSurface,
+  requestedExecutionSurfaceExplicit,
+  requestedExecutionSurfaceSafeRef,
   executionProfileRefInput,
   executionProfileRef,
   providerProfileRef,
@@ -772,6 +792,8 @@ function refProblemReasons({
 }: {
   requestedProviderSurface: ProviderSpecificExternalDeliverySurface | null;
   requestedExecutionSurface: ProviderSpecificDeliveryExecutionSurface | null;
+  requestedExecutionSurfaceExplicit: boolean;
+  requestedExecutionSurfaceSafeRef: string | null;
   executionProfileRefInput: unknown;
   executionProfileRef: string | null;
   providerProfileRef: string | null;
@@ -785,6 +807,14 @@ function refProblemReasons({
     ? providerSurfaceFamily(requestedProviderSurface)
     : null;
   return uniqueStrings([
+    ...(requestedExecutionSurfaceExplicit && !requestedExecutionSurfaceSafeRef
+      ? ["requested_execution_surface_unsafe"]
+      : []),
+    ...(requestedExecutionSurfaceExplicit &&
+    requestedExecutionSurfaceSafeRef &&
+    !requestedExecutionSurface
+      ? ["requested_execution_surface_unsupported"]
+      : []),
     ...(executionProfileRefInput !== undefined && !executionProfileRef
       ? ["execution_profile_ref_unsafe"]
       : []),
@@ -895,6 +925,9 @@ function lineageGateSummary({
 }
 
 function requirementSummary({
+  deliverySpinePresent,
+  sourceIntentRecordRef,
+  sourceProviderPreviewFingerprint,
   requestedExecutionSurface,
   executionProfileRef,
   providerProfileRef,
@@ -905,6 +938,9 @@ function requirementSummary({
   sourceExternalRecordRef,
   sourceExportedArtifactRef,
 }: {
+  deliverySpinePresent: boolean;
+  sourceIntentRecordRef: string | null;
+  sourceProviderPreviewFingerprint: string | null;
   requestedExecutionSurface: ProviderSpecificDeliveryExecutionSurface | null;
   executionProfileRef: string | null;
   providerProfileRef: string | null;
@@ -918,37 +954,82 @@ function requirementSummary({
   const family = requestedExecutionSurface
     ? executionSurfaceFamily(requestedExecutionSurface)
     : null;
-  const requiredRefs = uniqueStrings([
-    "provider_specific_delivery_intent_contract_record",
-    "delivery_spine_loop_closure_read_model",
-    "provider_specific_external_delivery_preview",
-    "external_handoff_delivery_contract_record",
-    "local_handoff_send_fulfillment",
-    "exported_handoff_packet_artifact",
-    "payload_hash",
-    "requested_payload_format",
-    "requested_recipient_ref",
-    ...(family && family !== "manual" ? ["execution_profile_ref", "provider_profile_ref"] : []),
-  ]);
-  const missingRefs = uniqueStrings([
-    ...(!sourceLocalFulfillmentRef ? ["source_local_fulfillment_ref"] : []),
-    ...(!sourceExternalRecordRef ? ["source_external_handoff_delivery_contract_record_ref"] : []),
-    ...(!sourceExportedArtifactRef ? ["source_exported_artifact_ref"] : []),
-    ...(!payloadHash ? ["payload_hash"] : []),
-    ...(!requestedPayloadFormat ? ["requested_payload_format"] : []),
-    ...(!requestedRecipientRef ? ["requested_recipient_ref"] : []),
-    ...(family && family !== "manual" && !executionProfileRef
-      ? ["execution_profile_ref"]
+  const requirements = [
+    {
+      requirement: "provider_specific_delivery_intent_contract_record",
+      present: Boolean(sourceIntentRecordRef),
+      missing_ref: "provider_specific_delivery_intent_contract_record_ref_missing",
+    },
+    {
+      requirement: "delivery_spine_loop_closure_read_model",
+      present: deliverySpinePresent,
+      missing_ref: "delivery_spine_loop_closure_read_model_missing",
+    },
+    {
+      requirement: "provider_specific_external_delivery_preview",
+      present: Boolean(sourceProviderPreviewFingerprint),
+      missing_ref: "provider_specific_external_delivery_preview_ref_missing",
+    },
+    {
+      requirement: "external_handoff_delivery_contract_record",
+      present: Boolean(sourceExternalRecordRef),
+      missing_ref: "external_handoff_delivery_contract_record_ref_missing",
+    },
+    {
+      requirement: "local_handoff_send_fulfillment",
+      present: Boolean(sourceLocalFulfillmentRef),
+      missing_ref: "local_handoff_send_fulfillment_ref_missing",
+    },
+    {
+      requirement: "exported_handoff_packet_artifact",
+      present: Boolean(sourceExportedArtifactRef),
+      missing_ref: "exported_handoff_packet_artifact_ref_missing",
+    },
+    {
+      requirement: "payload_hash",
+      present: Boolean(payloadHash),
+      missing_ref: "payload_hash_missing",
+    },
+    {
+      requirement: "requested_payload_format",
+      present: Boolean(requestedPayloadFormat),
+      missing_ref: "requested_payload_format_missing",
+    },
+    {
+      requirement: "requested_recipient_ref",
+      present: Boolean(requestedRecipientRef),
+      missing_ref: "requested_recipient_ref_missing",
+    },
+    ...(family && family !== "manual"
+      ? [
+          {
+            requirement: "execution_profile_ref",
+            present: Boolean(executionProfileRef),
+            missing_ref: "execution_profile_ref_missing",
+          },
+          {
+            requirement: "provider_profile_ref",
+            present: Boolean(providerProfileRef),
+            missing_ref: "provider_profile_ref_missing",
+          },
+        ]
       : []),
-    ...(family && family !== "manual" && !providerProfileRef
-      ? ["provider_profile_ref"]
-      : []),
-  ]);
+  ];
+  const requiredRefs = uniqueStrings(
+    requirements.map((requirement) => requirement.requirement),
+  );
+  const missingRefs = uniqueStrings(
+    requirements
+      .filter((requirement) => !requirement.present)
+      .map((requirement) => requirement.missing_ref),
+  );
   return {
     required_refs: requiredRefs,
     missing_refs: missingRefs,
-    satisfied_requirements: requiredRefs.filter(
-      (ref) => !missingRefs.includes(ref) && ref !== "provider_specific_delivery_intent_contract_record",
+    satisfied_requirements: uniqueStrings(
+      requirements
+        .filter((requirement) => requirement.present)
+        .map((requirement) => requirement.requirement),
     ),
     future_execution_requirements: [
       "future_provider_specific_execution_contract_record_slice",
