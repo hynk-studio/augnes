@@ -22,6 +22,7 @@ import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { GuideIntentProjectionPanel } from "@/components/guide/guide-intent-projection-panel";
 import { GuideWorkplaneDebugPanel } from "@/components/guide/guide-workplane-debug-panel";
 import { ResidualDiagnosticCandidatePanel } from "@/components/workplane/residual-diagnostic-candidate-panel";
+import { ExternalHandoffDeliveryContractPanel } from "@/components/workplane/external-handoff-delivery-contract-panel";
 import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
 import { HandoffContextApplyOperatorDecisionPreviewPanel as HistoricalHandoffContextApplyOperatorDecisionPreviewPanel } from "@/components/handoff/handoff-context-apply-operator-decision-preview-panel";
 import { HandoffContextApplyPreviewPanel as HistoricalHandoffContextApplyPreviewPanel } from "@/components/handoff/handoff-context-apply-preview-panel";
@@ -204,6 +205,9 @@ import { readSentHandoffForWebV01 } from "@/lib/workplane/read-sent-handoff-for-
 import { buildPerspectiveUnitScopedWritePreviewV01 } from "@/lib/workplane/perspective-unit-scoped-write-preview";
 import { readPerspectiveUnitRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-unit-record-review-for-web";
 import { buildResidualDiagnosticCandidateReadModelV01 } from "@/lib/workplane/residual-diagnostic-candidate";
+import { buildExternalHandoffDeliveryContractPreviewV01 } from "@/lib/workplane/external-handoff-delivery-contract-preview";
+import { buildExternalHandoffDeliveryOperatorDecisionPreviewV01 } from "@/lib/workplane/external-handoff-delivery-operator-decision-preview";
+import { readExternalHandoffDeliveryContractRecordReviewForWebV01 } from "@/lib/workplane/read-external-handoff-delivery-contract-record-review-for-web";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
 import { buildWorkbenchSpineConsolidationV01 } from "@/lib/workplane/workbench-spine-consolidation";
 import { buildWorkEpisodeResidueCandidatePreviewV01 } from "@/lib/workplane/work-episode-residue-candidate-preview";
@@ -1217,6 +1221,43 @@ export async function AgentWorkplane() {
       as_of: workplaneMetrics.as_of,
       source_refs: ["workbench:residual_diagnostic_candidate_read_model"],
     });
+  const externalHandoffDeliveryContractPreview =
+    buildExternalHandoffDeliveryContractPreviewV01({
+      workbench_spine_consolidation: workbenchSpineConsolidation,
+      residual_diagnostic_candidate_read_model:
+        residualDiagnosticCandidateReadModel,
+      sent_handoff_read: sentHandoffRead,
+      handoff_send_record_review: handoffSendRecordReview,
+      handoff_send_contract_record_review:
+        handoffSendContractRecordReview,
+      exported_handoff_packet_artifact_read:
+        exportedHandoffPacketArtifactRead,
+      applied_handoff_context_read: appliedHandoffContextRead,
+      workbench_dogfood_loop_spine_overview:
+        workbenchDogfoodLoopSpineOverview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:external_handoff_delivery_contract_preview",
+      ],
+    });
+  const externalHandoffDeliveryOperatorDecisionPreview =
+    buildExternalHandoffDeliveryOperatorDecisionPreviewV01({
+      external_handoff_delivery_contract_preview:
+        externalHandoffDeliveryContractPreview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:external_handoff_delivery_operator_decision_preview",
+      ],
+    });
+  const externalHandoffDeliveryContractRecordReview =
+    readExternalHandoffDeliveryContractRecordReviewForWebV01({
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:external_handoff_delivery_contract_record_review",
+      ],
+    });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -1276,6 +1317,11 @@ export async function AgentWorkplane() {
             />
             <ResidualDiagnosticCandidatePanel
               readModel={residualDiagnosticCandidateReadModel}
+            />
+            <ExternalHandoffDeliveryContractPanel
+              preview={externalHandoffDeliveryContractPreview}
+              decisionPreview={externalHandoffDeliveryOperatorDecisionPreview}
+              recordReview={externalHandoffDeliveryContractRecordReview}
             />
 
             <section
