@@ -173,6 +173,12 @@ const manual = buildReadyIntent({
   recipientRef: "recipient:operator",
 });
 assert.equal(manual.intentPreview.status, "ready_for_intent_decision");
+assert.equal(manual.intentPreview.residual_gate_summary.gate_status, "warning_only");
+assert(
+  manual.intentPreview.warning_reasons.includes(
+    "residual_candidate_warning:external_delivery_boundary_pressure",
+  ),
+);
 assert.equal(
   manual.intentDecision.decision_status,
   "ready_for_provider_specific_delivery_intent_contract_record_write",
@@ -278,6 +284,103 @@ const notReadyDecisionIntent = buildProviderSpecificDeliveryIntentContractPrevie
 });
 assert.equal(notReadyDecisionIntent.status, "provider_specific_decision_not_ready");
 
+const decisionWithoutNextStep = { ...manual.providerDecision };
+delete decisionWithoutNextStep.next_step_readiness;
+const missingNextStepIntent = buildProviderSpecificDeliveryIntentContractPreviewV01({
+  ...intentInputBase(),
+  provider_specific_external_delivery_preview_contract: manual.providerPreview,
+  provider_specific_external_delivery_operator_decision_preview:
+    decisionWithoutNextStep,
+});
+assert.equal(missingNextStepIntent.status, "provider_specific_decision_not_ready");
+assert(
+  missingNextStepIntent.blocker_reasons.includes(
+    "provider_specific_decision_next_step_readiness_missing",
+  ),
+);
+
+const nextStepNotReadyIntent = buildProviderSpecificDeliveryIntentContractPreviewV01({
+  ...intentInputBase(),
+  provider_specific_external_delivery_preview_contract: manual.providerPreview,
+  provider_specific_external_delivery_operator_decision_preview: {
+    ...manual.providerDecision,
+    next_step_readiness: {
+      ...manual.providerDecision.next_step_readiness,
+      ready_for_operator_review: false,
+    },
+  },
+});
+assert.equal(nextStepNotReadyIntent.status, "provider_specific_decision_not_ready");
+assert(
+  nextStepNotReadyIntent.blocker_reasons.includes(
+    "provider_specific_decision_next_step_not_ready",
+  ),
+);
+
+const nextStepMissingEvidenceIntent =
+  buildProviderSpecificDeliveryIntentContractPreviewV01({
+    ...intentInputBase(),
+    provider_specific_external_delivery_preview_contract: manual.providerPreview,
+    provider_specific_external_delivery_operator_decision_preview: {
+      ...manual.providerDecision,
+      next_step_readiness: {
+        ...manual.providerDecision.next_step_readiness,
+        current_missing_evidence: ["provider_profile_ref_missing"],
+      },
+    },
+  });
+assert.equal(
+  nextStepMissingEvidenceIntent.status,
+  "provider_specific_decision_not_ready",
+);
+assert(
+  nextStepMissingEvidenceIntent.blocker_reasons.includes(
+    "provider_specific_decision_next_step_missing_evidence_present",
+  ),
+);
+
+const nextStepBlockersIntent = buildProviderSpecificDeliveryIntentContractPreviewV01({
+  ...intentInputBase(),
+  provider_specific_external_delivery_preview_contract: manual.providerPreview,
+  provider_specific_external_delivery_operator_decision_preview: {
+    ...manual.providerDecision,
+    next_step_readiness: {
+      ...manual.providerDecision.next_step_readiness,
+      current_blockers: ["provider_specific_external_delivery_preview_not_ready"],
+    },
+  },
+});
+assert.equal(nextStepBlockersIntent.status, "provider_specific_decision_not_ready");
+assert(
+  nextStepBlockersIntent.blocker_reasons.includes(
+    "provider_specific_decision_next_step_blockers_present",
+  ),
+);
+
+for (const missingDecisionRef of [
+  {
+    key: "requested_idempotency_key",
+    reason: "provider_specific_decision_idempotency_key_missing_or_unsafe",
+  },
+  {
+    key: "review_confirmation_ref",
+    reason:
+      "provider_specific_decision_review_confirmation_ref_missing_or_unsafe",
+  },
+]) {
+  const forgedDecision = {
+    ...manual.providerDecision,
+    [missingDecisionRef.key]: null,
+  };
+  const blocked = buildProviderSpecificDeliveryIntentContractPreviewV01({
+    ...intentInputBase(),
+    provider_specific_external_delivery_preview_contract: manual.providerPreview,
+    provider_specific_external_delivery_operator_decision_preview: forgedDecision,
+  });
+  assert.equal(blocked.status, "provider_specific_decision_not_ready");
+  assert(blocked.blocker_reasons.includes(missingDecisionRef.reason));
+}
+
 const invalidExternalIntent = buildProviderSpecificDeliveryIntentContractPreviewV01({
   ...intentInputBase({
     externalRecordReview: {
@@ -299,6 +402,65 @@ const hardResidualIntent = buildProviderSpecificDeliveryIntentContractPreviewV01
     manual.providerDecision,
 });
 assert.equal(hardResidualIntent.status, "residual_gate_blocked");
+
+const routeResidualIntent = buildProviderSpecificDeliveryIntentContractPreviewV01({
+  ...intentInputBase({
+    residual: residualWithCandidate({
+      candidate_id: "candidate:route-runtime-only",
+      category: "route_integration_mode_mismatch",
+      status: "actionable_candidate",
+      severity: "medium",
+      observed_signals: [{ summary: "runtime_only route read is not integration" }],
+    }),
+  }),
+  provider_specific_external_delivery_preview_contract: manual.providerPreview,
+  provider_specific_external_delivery_operator_decision_preview:
+    manual.providerDecision,
+});
+assert.equal(routeResidualIntent.status, "residual_gate_blocked");
+assert.equal(
+  routeResidualIntent
+    .would_write_provider_specific_delivery_intent_contract_record_preview,
+  null,
+);
+
+const validationDriftResidualIntent =
+  buildProviderSpecificDeliveryIntentContractPreviewV01({
+    ...intentInputBase({
+      residual: residualWithCandidate({
+        candidate_id: "candidate:review-writer-validation-drift",
+        category: "review_writer_validation_drift",
+        status: "candidate",
+        severity: "medium",
+        materialized_inconsistencies: [
+          "writer accepted material that review later rejected",
+        ],
+      }),
+    }),
+    provider_specific_external_delivery_preview_contract: manual.providerPreview,
+    provider_specific_external_delivery_operator_decision_preview:
+      manual.providerDecision,
+  });
+assert.equal(validationDriftResidualIntent.status, "residual_gate_blocked");
+
+const forbiddenObservedResidualIntent =
+  buildProviderSpecificDeliveryIntentContractPreviewV01({
+    ...intentInputBase({
+      residual: residualWithCandidate({
+        candidate_id: "candidate:forbidden-provider-signal",
+        category: "reuse_outcome_gap",
+        status: "candidate",
+        severity: "low",
+        observed_signals: [
+          { summary: "provider_called true appeared in source evidence" },
+        ],
+      }),
+    }),
+    provider_specific_external_delivery_preview_contract: manual.providerPreview,
+    provider_specific_external_delivery_operator_decision_preview:
+      manual.providerDecision,
+  });
+assert.equal(forbiddenObservedResidualIntent.status, "residual_gate_blocked");
 
 for (const unsafe of [
   { key: "provider_profile_ref", value: "provider-profile:token:abc" },
@@ -717,6 +879,22 @@ function residualHardBlocker() {
         severity: "high",
         observed_signals: [{ materialized_inconsistency: true }],
         materialized_inconsistencies: ["can_call_send_provider true"],
+      },
+    ],
+    authority_boundary: readOnlyAuthority(),
+  };
+}
+
+function residualWithCandidate(candidate) {
+  return {
+    diagnostic_version: "residual_diagnostic_candidate_read_model.v0.1",
+    scope: "project:augnes",
+    source_refs: ["source:residual-candidate"],
+    residual_candidates: [
+      {
+        observed_signals: [],
+        materialized_inconsistencies: [],
+        ...candidate,
       },
     ],
     authority_boundary: readOnlyAuthority(),

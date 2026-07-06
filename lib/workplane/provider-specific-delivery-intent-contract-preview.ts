@@ -84,6 +84,31 @@ const forbiddenAuthorityTrueFields = [
   "can_crawl_or_observe_browser",
   "can_render_workbench_action_button",
 ] as const;
+const hardResidualCategories = new Set([
+  "authority_boundary_drift",
+  "source_ref_lineage_mismatch",
+  "local_fulfillment_upstream_gap",
+  "no_side_effects_replay_inconsistency",
+]);
+const forbiddenResidualSignalFragments = [
+  "provider_called",
+  "external_message_sent",
+  "network_called",
+  "email_sent",
+  "slack_sent",
+  "webhook_called",
+  "can_write_db",
+  "can_send_handoff",
+  "can_call_send_provider",
+  "can_write_memory",
+  "can_render_workbench_action_button",
+  "token",
+  "secret",
+  "raw_payload",
+  "raw_message",
+  "raw_provider_payload",
+  "private",
+] as const;
 const boundaryFields = [
   "delivery_performed",
   "provider_specific_delivery",
@@ -597,6 +622,13 @@ function providerDecisionProblemReasons(
   preview: ProviderSpecificExternalDeliveryPreviewContract | null,
 ): string[] {
   if (!decision) return ["provider_specific_decision_missing"];
+  const nextStepReadiness = recordField(decision, "next_step_readiness");
+  const nextStepBlockers = stringArray(
+    nextStepReadiness?.current_blockers,
+  );
+  const nextStepMissingEvidence = stringArray(
+    nextStepReadiness?.current_missing_evidence,
+  );
   return uniqueStrings([
     ...(decision.decision_status !== "ready_for_provider_specific_preview_decision"
       ? [`provider_specific_decision_not_ready:${decision.decision_status}`]
@@ -612,6 +644,30 @@ function providerDecisionProblemReasons(
     decision.source_provider_specific_preview_fingerprint !==
       preview.preview_fingerprint
       ? ["provider_specific_decision_source_preview_mismatch"]
+      : []),
+    ...(!nextStepReadiness
+      ? ["provider_specific_decision_next_step_readiness_missing"]
+      : []),
+    ...(nextStepReadiness &&
+    nextStepReadiness.ready_for_operator_review !== true
+      ? ["provider_specific_decision_next_step_not_ready"]
+      : []),
+    ...(nextStepBlockers.length > 0
+      ? ["provider_specific_decision_next_step_blockers_present"]
+      : []),
+    ...(nextStepMissingEvidence.length > 0
+      ? [
+          "provider_specific_decision_next_step_missing_evidence_present",
+        ]
+      : []),
+    ...(!safeRef(decision.requested_operator_ref)
+      ? ["provider_specific_decision_operator_ref_missing_or_unsafe"]
+      : []),
+    ...(!safeRef(decision.requested_idempotency_key)
+      ? ["provider_specific_decision_idempotency_key_missing_or_unsafe"]
+      : []),
+    ...(!safeRef(decision.review_confirmation_ref)
+      ? ["provider_specific_decision_review_confirmation_ref_missing_or_unsafe"]
       : []),
   ]);
 }
@@ -758,23 +814,7 @@ function residualGateSummary(
     };
   }
   const candidates = arrayOfRecords(residual.residual_candidates);
-  const hard = candidates.filter((candidate) => {
-    const category = stringField(candidate, "category");
-    const status = stringField(candidate, "status");
-    const materialized =
-      arrayOfRecords(candidate.observed_signals).some(
-        (signal) => signal.materialized_inconsistency === true,
-      ) || stringArray(candidate.materialized_inconsistencies).length > 0;
-    return (
-      [
-        "authority_boundary_drift",
-        "source_ref_lineage_mismatch",
-        "local_fulfillment_upstream_gap",
-        "no_side_effects_replay_inconsistency",
-      ].includes(category ?? "") &&
-      (status === "actionable_candidate" || materialized)
-    );
-  });
+  const hard = candidates.filter(isHardResidualCandidate);
   const warnings = candidates.filter(
     (candidate) =>
       !hard.includes(candidate) &&
@@ -807,6 +847,50 @@ function residualGateSummary(
       ),
     ),
   };
+}
+
+function isHardResidualCandidate(candidate: RecordValue): boolean {
+  if (residualCandidateHasForbiddenSignal(candidate)) return true;
+  const category = stringField(candidate, "category");
+  const status = stringField(candidate, "status");
+  const severity = stringField(candidate, "severity");
+  const materialized = residualCandidateHasMaterializedEvidence(candidate);
+  if (category === "route_integration_mode_mismatch") {
+    return status === "actionable_candidate";
+  }
+  if (category === "review_writer_validation_drift") {
+    return status === "actionable_candidate" || materialized;
+  }
+  if (hardResidualCategories.has(category ?? "")) {
+    return status === "actionable_candidate" || severity === "high" || materialized;
+  }
+  return false;
+}
+
+function residualCandidateHasMaterializedEvidence(candidate: RecordValue): boolean {
+  return (
+    arrayOfRecords(candidate.observed_signals).some(
+      (signal) => signal.materialized_inconsistency === true,
+    ) || stringArray(candidate.materialized_inconsistencies).length > 0
+  );
+}
+
+function residualCandidateHasForbiddenSignal(candidate: RecordValue): boolean {
+  const signalText = [
+    ...stringArray(candidate.materialized_inconsistencies),
+    ...arrayOfRecords(candidate.observed_signals).flatMap((signal) => [
+      stringField(signal, "summary"),
+      stringField(signal, "signal"),
+      stringField(signal, "reason"),
+      stringField(signal, "label"),
+    ]),
+  ]
+    .filter(isNonEmptyString)
+    .join("\n")
+    .toLowerCase();
+  return forbiddenResidualSignalFragments.some((fragment) =>
+    signalText.includes(fragment),
+  );
 }
 
 function combineResidualGates(
