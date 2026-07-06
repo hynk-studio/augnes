@@ -2266,6 +2266,16 @@ for (const file of followOnProviderSpecificDeliveryIntentContractFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnDeliverySpineLoopClosureFiles = [
+  "types/delivery-spine-loop-closure.ts",
+  "lib/workplane/delivery-spine-loop-closure.ts",
+  "components/workplane/delivery-spine-loop-closure-panel.tsx",
+  "scripts/smoke-delivery-spine-loop-closure-v0-1.mjs",
+];
+for (const file of followOnDeliverySpineLoopClosureFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
