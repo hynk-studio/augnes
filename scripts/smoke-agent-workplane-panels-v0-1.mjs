@@ -1455,6 +1455,31 @@ const followOnHandoffPacketCopyExportContractFiles = [
   smokeFile,
 ];
 
+const followOnHandoffPacketCopyExportSliceFiles = [
+  "types/handoff-packet-copy-export-preview.ts",
+  "lib/workplane/handoff-packet-copy-export-preview.ts",
+  "components/workplane/handoff-packet-copy-export-preview-panel.tsx",
+  "types/handoff-packet-copy-export-decision.ts",
+  "lib/workplane/handoff-packet-copy-export-decision.ts",
+  "components/workplane/handoff-packet-copy-export-decision-panel.tsx",
+  "types/handoff-packet-copy-export-write.ts",
+  "lib/workplane/handoff-packet-copy-export-write.ts",
+  "app/api/workplane/handoff-packet-copy-exports/route.ts",
+  "types/handoff-packet-copy-export-record-review.ts",
+  "lib/workplane/handoff-packet-copy-export-record-review.ts",
+  "lib/workplane/read-handoff-packet-copy-export-record-review-for-web.ts",
+  "lib/workplane/read-exported-handoff-packet-artifact-for-web.ts",
+  "components/workplane/handoff-packet-copy-export-record-review-panel.tsx",
+  "components/workplane/exported-handoff-packet-artifact-panel.tsx",
+  "scripts/smoke-handoff-packet-copy-export-slice-v0-1.mjs",
+  workbenchDogfoodLoopSpineOverviewTypeFile,
+  workbenchDogfoodLoopSpineOverviewHelperFile,
+  workbenchDogfoodLoopSpineOverviewSmokeFile,
+  agentWorkplaneFile,
+  packageJsonFile,
+  smokeFile,
+];
+
 const followOnLegacyCockpitLocalControlClassificationFiles = [
   "types/legacy-cockpit-local-control-classification.ts",
   "lib/workplane/legacy-cockpit-local-control-classification.ts",
@@ -1875,6 +1900,7 @@ const allowedChangedFiles = new Set([
   ...followOnHandoffContextUpdateContractFiles,
   ...followOnHandoffContextApplySliceFiles,
   ...followOnHandoffPacketCopyExportContractFiles,
+  ...followOnHandoffPacketCopyExportSliceFiles,
   ...followOnLegacyCockpitLocalControlClassificationFiles,
   ...followOnWorkplaneStateProposalReviewFiles,
   ...followOnCockpitManualControlsMigrationFiles,
@@ -3908,6 +3934,7 @@ function assertChangedFileBoundary() {
         followOnHandoffContextUpdateContractFiles.includes(file) ||
         followOnHandoffContextApplySliceFiles.includes(file) ||
         followOnHandoffPacketCopyExportContractFiles.includes(file) ||
+        followOnHandoffPacketCopyExportSliceFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
@@ -3936,6 +3963,7 @@ function assertChangedFileBoundary() {
         followOnHandoffContextUpdateContractFiles.includes(file) ||
         followOnHandoffContextApplySliceFiles.includes(file) ||
         followOnHandoffPacketCopyExportContractFiles.includes(file) ||
+        followOnHandoffPacketCopyExportSliceFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );

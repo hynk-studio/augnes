@@ -26,6 +26,9 @@ import type { HandoffContextApplyRecordReview } from "./handoff-context-apply-re
 import type { HandoffPacketCopyExportContractOperatorDecisionPreview } from "./handoff-packet-copy-export-contract-decision";
 import type { HandoffPacketCopyExportContractPreview } from "./handoff-packet-copy-export-contract-preview";
 import type { HandoffPacketCopyExportContractRecordReview } from "./handoff-packet-copy-export-contract-record-review";
+import type { HandoffPacketCopyExportOperatorDecisionPreview } from "./handoff-packet-copy-export-decision";
+import type { HandoffPacketCopyExportPreview } from "./handoff-packet-copy-export-preview";
+import type { HandoffPacketCopyExportRecordReview } from "./handoff-packet-copy-export-record-review";
 import type { HandoffContextApplyWriteContractPreview } from "./handoff-context-apply-write-contract-preview";
 import type { HandoffContextUpdateOperatorDecisionPreview } from "./handoff-context-update-operator-decision-preview";
 import type { HandoffContextUpdatePreview } from "./handoff-context-update-preview";
@@ -75,6 +78,7 @@ import type { SelectedSessionDigestIngestRecordReview } from "./selected-session
 import type { SelectedSessionDigestIntakePreview } from "./selected-session-digest-intake-preview";
 import type { WorkEpisodeResidueCandidatePreview } from "./work-episode-residue-candidate-preview";
 import type { AppliedHandoffContextRead } from "@/lib/workplane/read-applied-handoff-context-for-web";
+import type { ExportedHandoffPacketArtifactRead } from "@/lib/workplane/read-exported-handoff-packet-artifact-for-web";
 
 export const WORKBENCH_DOGFOOD_LOOP_SPINE_OVERVIEW_VERSION =
   "workbench_dogfood_loop_spine_overview.v0.1" as const;
@@ -200,6 +204,12 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
   | "review_handoff_packet_copy_export_contract_record"
   | "resolve_handoff_packet_copy_export_contract_blockers"
   | "prepare_handoff_packet_copy_export_slice"
+  | "review_handoff_packet_copy_export_preview"
+  | "approve_handoff_packet_copy_export_record"
+  | "write_handoff_packet_copy_export_record"
+  | "review_handoff_packet_copy_export_record"
+  | "review_exported_handoff_packet_artifact"
+  | "resolve_handoff_packet_copy_export_blockers"
   | "prepare_handoff_send_contract"
   | "prepare_perspective_next_work_update_decision"
   | "prepare_continuity_relay_update_contract"
@@ -273,6 +283,10 @@ export type WorkbenchDogfoodLoopSpineStepId =
   | "handoff_packet_copy_export_contract"
   | "handoff_packet_copy_export_contract_decision"
   | "handoff_packet_copy_export_contract_record"
+  | "handoff_packet_copy_export_preview"
+  | "handoff_packet_copy_export_decision"
+  | "handoff_packet_copy_export_record"
+  | "exported_handoff_packet_artifact"
   | "codex_result_feedback"
   | "dogfood_reuse_proposal"
   | "dogfood_reuse_operator_decision"
@@ -352,6 +366,10 @@ export interface WorkbenchDogfoodLoopSpineOverviewInput {
   handoff_packet_copy_export_contract_preview?: HandoffPacketCopyExportContractPreview | null;
   handoff_packet_copy_export_contract_decision_preview?: HandoffPacketCopyExportContractOperatorDecisionPreview | null;
   handoff_packet_copy_export_contract_record_review?: HandoffPacketCopyExportContractRecordReview | null;
+  handoff_packet_copy_export_preview?: HandoffPacketCopyExportPreview | null;
+  handoff_packet_copy_export_operator_decision_preview?: HandoffPacketCopyExportOperatorDecisionPreview | null;
+  handoff_packet_copy_export_record_review?: HandoffPacketCopyExportRecordReview | null;
+  exported_handoff_packet_artifact_read?: ExportedHandoffPacketArtifactRead | null;
   codex_result_feedback_draft?: CodexResultFeedbackDraft | null;
   dogfood_reuse_record_proposal?: DogfoodReuseRecordProposal | null;
   dogfood_reuse_operator_decision_preview?: DogfoodReuseOperatorDecisionPreview | null;

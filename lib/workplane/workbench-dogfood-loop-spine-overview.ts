@@ -76,6 +76,10 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   handoff_packet_copy_export_contract_preview,
   handoff_packet_copy_export_contract_decision_preview,
   handoff_packet_copy_export_contract_record_review,
+  handoff_packet_copy_export_preview,
+  handoff_packet_copy_export_operator_decision_preview,
+  handoff_packet_copy_export_record_review,
+  exported_handoff_packet_artifact_read,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -261,6 +265,21 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       recordReview: handoff_packet_copy_export_contract_record_review,
       decisionPreview: handoff_packet_copy_export_contract_decision_preview,
     }),
+    handoffPacketCopyExportPreviewStep({
+      copyExportPreview: handoff_packet_copy_export_preview,
+      contractRecordReview: handoff_packet_copy_export_contract_record_review,
+    }),
+    handoffPacketCopyExportDecisionStep(
+      handoff_packet_copy_export_operator_decision_preview,
+    ),
+    handoffPacketCopyExportRecordStep({
+      recordReview: handoff_packet_copy_export_record_review,
+      decisionPreview: handoff_packet_copy_export_operator_decision_preview,
+    }),
+    exportedHandoffPacketArtifactStep(
+      exported_handoff_packet_artifact_read,
+      handoff_packet_copy_export_record_review,
+    ),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -3102,6 +3121,180 @@ function handoffPacketCopyExportContractRecordStep({
   });
 }
 
+function handoffPacketCopyExportPreviewStep({
+  copyExportPreview,
+  contractRecordReview,
+}: {
+  copyExportPreview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_packet_copy_export_preview"];
+  contractRecordReview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_packet_copy_export_contract_record_review"];
+}): SpineStepBuild {
+  if (!copyExportPreview) {
+    return missingStep({
+      step_id: "handoff_packet_copy_export_preview",
+      label: "Handoff packet copy/export preview",
+      recommended_next_action:
+        (contractRecordReview?.input_summary.valid_record_count ?? 0) > 0
+          ? "review_handoff_packet_copy_export_preview"
+          : "review_handoff_packet_copy_export_contract_record",
+      summary: "No handoff packet copy/export preview supplied.",
+    });
+  }
+  const ready =
+    copyExportPreview.copy_export_preview_status ===
+    "ready_for_future_handoff_packet_copy_export_record_write";
+  const blocked =
+    copyExportPreview.blocking_reasons.length > 0 ||
+    copyExportPreview.refusal_reasons.length > 0;
+  return makeStep({
+    step_id: "handoff_packet_copy_export_preview",
+    label: "Handoff packet copy/export preview",
+    status: ready
+      ? "ready_for_operator_review"
+      : blocked
+        ? "blocked"
+        : copyExportPreview.missing_evidence.length
+          ? "insufficient_data"
+          : "candidate_material_available",
+    source_preview_ref_or_version: copyExportPreview.preview_version,
+    material_count:
+      copyExportPreview.input_summary.proposed_packet_entry_count,
+    blockers: copyExportPreview.blocking_reasons,
+    material_gaps: copyExportPreview.copy_export_readiness.current_insufficient_data,
+    missing_evidence: copyExportPreview.missing_evidence,
+    recommended_next_action: ready
+      ? "approve_handoff_packet_copy_export_record"
+      : blocked
+        ? "resolve_handoff_packet_copy_export_blockers"
+        : "review_handoff_packet_copy_export_preview",
+    evidence_present:
+      copyExportPreview.evidence_summary.has_contract_record &&
+      copyExportPreview.evidence_summary.has_packet_entries,
+    summary: `Handoff packet copy/export preview is ${copyExportPreview.copy_export_preview_status}; entries ${copyExportPreview.input_summary.proposed_packet_entry_count}; payload material stays in a scoped local artifact candidate and is not written to clipboard, download, file, or sent.`,
+  });
+}
+
+function handoffPacketCopyExportDecisionStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_packet_copy_export_operator_decision_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "handoff_packet_copy_export_decision",
+      label: "Handoff packet copy/export decision",
+      recommended_next_action: "review_handoff_packet_copy_export_preview",
+      summary: "No handoff packet copy/export decision preview supplied.",
+    });
+  }
+  const ready =
+    preview.decision_preview_status ===
+    "ready_for_future_handoff_packet_copy_export_record_write";
+  const blocked =
+    preview.blocking_reasons.length > 0 || preview.refusal_reasons.length > 0;
+  return makeStep({
+    step_id: "handoff_packet_copy_export_decision",
+    label: "Handoff packet copy/export decision",
+    status: ready
+      ? "ready_for_operator_review"
+      : blocked
+        ? "blocked"
+        : "candidate_material_available",
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.input_summary.proposed_packet_entry_count,
+    blockers: preview.blocking_reasons,
+    material_gaps: preview.write_readiness.current_insufficient_data,
+    missing_evidence: preview.missing_evidence,
+    recommended_next_action: ready
+      ? "write_handoff_packet_copy_export_record"
+      : blocked
+        ? "resolve_handoff_packet_copy_export_blockers"
+        : "review_handoff_packet_copy_export_preview",
+    evidence_present: preview.evidence_summary.has_ready_copy_export_preview,
+    summary: `Handoff packet copy/export decision preview is ${preview.decision_preview_status}; recommended decision ${preview.recommended_operator_decision}; no clipboard, download, file, or send authority is granted.`,
+  });
+}
+
+function handoffPacketCopyExportRecordStep({
+  recordReview,
+  decisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_packet_copy_export_record_review"];
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_packet_copy_export_operator_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "handoff_packet_copy_export_record",
+      label: "Handoff packet copy/export records",
+      recommended_next_action:
+        decisionPreview?.decision_preview_status ===
+        "ready_for_future_handoff_packet_copy_export_record_write"
+          ? "write_handoff_packet_copy_export_record"
+          : "review_handoff_packet_copy_export_preview",
+      summary: "No handoff packet copy/export record review supplied.",
+    });
+  }
+  const valid = recordReview.input_summary.valid_record_count > 0;
+  const blocked = recordReview.review_status === "records_invalid";
+  return makeStep({
+    step_id: "handoff_packet_copy_export_record",
+    label: "Handoff packet copy/export records",
+    status: blocked
+      ? "blocked"
+      : valid
+        ? "candidate_material_available"
+        : "insufficient_data",
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count: recordReview.input_summary.valid_record_count,
+    blockers: blocked
+      ? ["handoff_packet_copy_export_record_side_effect_or_shape_problem"]
+      : [],
+    material_gaps: recordReview.insufficient_data_reasons,
+    missing_evidence: [],
+    recommended_next_action: blocked
+      ? "resolve_handoff_packet_copy_export_blockers"
+      : valid
+        ? "review_handoff_packet_copy_export_record"
+        : decisionPreview?.decision_preview_status ===
+            "ready_for_future_handoff_packet_copy_export_record_write"
+          ? "write_handoff_packet_copy_export_record"
+          : "review_handoff_packet_copy_export_preview",
+    evidence_present: valid,
+    summary: `Handoff packet copy/export record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; records only persist scoped local packet artifacts and never write clipboard, download, arbitrary files, or send handoff.`,
+  });
+}
+
+function exportedHandoffPacketArtifactStep(
+  read: WorkbenchDogfoodLoopSpineOverviewInput["exported_handoff_packet_artifact_read"],
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_packet_copy_export_record_review"],
+): SpineStepBuild {
+  if (!read) {
+    return missingStep({
+      step_id: "exported_handoff_packet_artifact",
+      label: "Exported handoff packet artifact",
+      recommended_next_action:
+        (recordReview?.input_summary.valid_record_count ?? 0) > 0
+          ? "review_exported_handoff_packet_artifact"
+          : "review_handoff_packet_copy_export_record",
+      summary: "No exported handoff packet artifact read supplied.",
+    });
+  }
+  const available =
+    read.status === "latest_exported_handoff_packet_artifact_available";
+  return makeStep({
+    step_id: "exported_handoff_packet_artifact",
+    label: "Exported handoff packet artifact",
+    status: available ? "candidate_material_available" : "insufficient_data",
+    source_preview_ref_or_version: read.read_version,
+    material_count: read.summary.packet_entry_count,
+    blockers: [],
+    material_gaps: available ? [] : ["exported_handoff_packet_artifact_missing"],
+    missing_evidence: [],
+    recommended_next_action: available
+      ? "review_exported_handoff_packet_artifact"
+      : "review_handoff_packet_copy_export_record",
+    evidence_present: available,
+    summary: `Exported handoff packet artifact read is ${read.status}; entries ${read.summary.packet_entry_count}; future handoff send contract remains separate and no clipboard/download/file write happens here.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -3771,7 +3964,11 @@ function determineRecommendedNextOperatorAction({
       blocker.startsWith("applied_handoff_context_snapshot:") ||
       blocker.startsWith("handoff_packet_copy_export_contract:") ||
       blocker.startsWith("handoff_packet_copy_export_contract_decision:") ||
-      blocker.startsWith("handoff_packet_copy_export_contract_record:"),
+      blocker.startsWith("handoff_packet_copy_export_contract_record:") ||
+      blocker.startsWith("handoff_packet_copy_export_preview:") ||
+      blocker.startsWith("handoff_packet_copy_export_decision:") ||
+      blocker.startsWith("handoff_packet_copy_export_record:") ||
+      blocker.startsWith("exported_handoff_packet_artifact:"),
     )
   ) {
     if (
@@ -3798,6 +3995,16 @@ function determineRecommendedNextOperatorAction({
       )
     ) {
       return "resolve_next_work_signal_blockers";
+    }
+    if (
+      top_blockers.some((blocker) =>
+        blocker.startsWith("handoff_packet_copy_export_preview") ||
+        blocker.startsWith("handoff_packet_copy_export_decision") ||
+        blocker.startsWith("handoff_packet_copy_export_record") ||
+        blocker.startsWith("exported_handoff_packet_artifact"),
+      )
+    ) {
+      return "resolve_handoff_packet_copy_export_blockers";
     }
     if (
       top_blockers.some((blocker) =>
@@ -3977,6 +4184,57 @@ function determineRecommendedNextOperatorAction({
     const handoffPacketCopyExportContractRecordStep = steps.find(
       (step) => step.step_id === "handoff_packet_copy_export_contract_record",
     );
+    const handoffPacketCopyExportPreviewStep = steps.find(
+      (step) => step.step_id === "handoff_packet_copy_export_preview",
+    );
+    const handoffPacketCopyExportDecisionStep = steps.find(
+      (step) => step.step_id === "handoff_packet_copy_export_decision",
+    );
+    const handoffPacketCopyExportRecordStep = steps.find(
+      (step) => step.step_id === "handoff_packet_copy_export_record",
+    );
+    const exportedHandoffPacketArtifactStep = steps.find(
+      (step) => step.step_id === "exported_handoff_packet_artifact",
+    );
+    if (
+      exportedHandoffPacketArtifactStep?.recommended_next_action ===
+        "review_exported_handoff_packet_artifact" &&
+      exportedHandoffPacketArtifactStep.material_count > 0
+    ) {
+      return "review_exported_handoff_packet_artifact";
+    }
+    if (
+      handoffPacketCopyExportRecordStep?.recommended_next_action ===
+        "review_handoff_packet_copy_export_record" &&
+      handoffPacketCopyExportRecordStep.material_count > 0
+    ) {
+      return "review_handoff_packet_copy_export_record";
+    }
+    if (
+      handoffPacketCopyExportRecordStep?.recommended_next_action ===
+      "write_handoff_packet_copy_export_record"
+    ) {
+      return "write_handoff_packet_copy_export_record";
+    }
+    if (
+      handoffPacketCopyExportDecisionStep?.recommended_next_action ===
+      "write_handoff_packet_copy_export_record"
+    ) {
+      return "write_handoff_packet_copy_export_record";
+    }
+    if (
+      handoffPacketCopyExportPreviewStep?.recommended_next_action ===
+      "approve_handoff_packet_copy_export_record"
+    ) {
+      return "approve_handoff_packet_copy_export_record";
+    }
+    if (
+      handoffPacketCopyExportPreviewStep?.recommended_next_action ===
+        "review_handoff_packet_copy_export_preview" &&
+      handoffPacketCopyExportPreviewStep.material_count > 0
+    ) {
+      return "review_handoff_packet_copy_export_preview";
+    }
     if (
       handoffPacketCopyExportContractRecordStep?.recommended_next_action ===
         "review_handoff_packet_copy_export_contract_record" &&
