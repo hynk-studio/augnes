@@ -81,6 +81,23 @@ const expectedFiles = [
   "scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs",
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   "scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs",
+  "scripts/smoke-handoff-send-contract-v0-1.mjs",
+  "types/handoff-send-preview.ts",
+  "lib/workplane/handoff-send-preview.ts",
+  "components/workplane/handoff-send-preview-panel.tsx",
+  "types/handoff-send-decision.ts",
+  "lib/workplane/handoff-send-decision.ts",
+  "components/workplane/handoff-send-decision-panel.tsx",
+  "types/handoff-send-write.ts",
+  "lib/workplane/handoff-send-write.ts",
+  "app/api/workplane/handoff-sends/route.ts",
+  "types/handoff-send-record-review.ts",
+  "lib/workplane/handoff-send-record-review.ts",
+  "lib/workplane/read-handoff-send-record-review-for-web.ts",
+  "lib/workplane/read-sent-handoff-for-web.ts",
+  "components/workplane/handoff-send-record-review-panel.tsx",
+  "components/workplane/sent-handoff-panel.tsx",
+  "scripts/smoke-handoff-send-slice-v0-1.mjs",
   "package.json",
 ];
 
@@ -1200,5 +1217,7 @@ for (const forbidden of [
 ]) {
   assert(!overviewText.includes(forbidden), `overview must not recommend ${forbidden}`);
 }
+
+rmSync(tempDir, { recursive: true, force: true });
 
 console.log("smoke-handoff-context-apply-slice-v0-1 passed");

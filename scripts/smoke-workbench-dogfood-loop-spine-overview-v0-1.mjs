@@ -485,6 +485,24 @@ const handoffSendContractFiles = [
   "components/workplane/handoff-send-contract-record-review-panel.tsx",
   "scripts/smoke-handoff-send-contract-v0-1.mjs",
 ];
+const handoffSendSliceFiles = [
+  "types/handoff-send-preview.ts",
+  "lib/workplane/handoff-send-preview.ts",
+  "components/workplane/handoff-send-preview-panel.tsx",
+  "types/handoff-send-decision.ts",
+  "lib/workplane/handoff-send-decision.ts",
+  "components/workplane/handoff-send-decision-panel.tsx",
+  "types/handoff-send-write.ts",
+  "lib/workplane/handoff-send-write.ts",
+  "app/api/workplane/handoff-sends/route.ts",
+  "types/handoff-send-record-review.ts",
+  "lib/workplane/handoff-send-record-review.ts",
+  "lib/workplane/read-handoff-send-record-review-for-web.ts",
+  "lib/workplane/read-sent-handoff-for-web.ts",
+  "components/workplane/handoff-send-record-review-panel.tsx",
+  "components/workplane/sent-handoff-panel.tsx",
+  "scripts/smoke-handoff-send-slice-v0-1.mjs",
+];
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -678,6 +696,7 @@ const allowedChangedFiles = [
   ...handoffPacketCopyExportContractFiles,
   ...handoffPacketCopyExportSliceFiles,
   ...handoffSendContractFiles,
+  ...handoffSendSliceFiles,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -1191,7 +1210,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 70);
+assert.equal(emptyOverview.spine_steps.length, 74);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -1214,6 +1233,10 @@ for (const stepId of [
   "handoff_packet_copy_export_contract",
   "handoff_packet_copy_export_contract_decision",
   "handoff_packet_copy_export_contract_record",
+  "handoff_send_preview",
+  "handoff_send_decision",
+  "handoff_send_record",
+  "sent_handoff_status",
 ]) {
   assert(
     emptyOverview.spine_steps.some((step) => step.step_id === stepId),
@@ -2261,6 +2284,7 @@ function assertNoForbiddenChangedPaths() {
         file === "app/api/workplane/handoff-packet-copy-export-contracts/route.ts" ||
         file === "app/api/workplane/handoff-packet-copy-exports/route.ts" ||
         file === "app/api/workplane/handoff-send-contracts/route.ts" ||
+        file === "app/api/workplane/handoff-sends/route.ts" ||
         file === "app/api/perspective/current/route.ts",
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );

@@ -37,7 +37,35 @@ const expectedFiles = [
   "components/workplane/agent-workplane.tsx",
   "lib/workplane/workbench-dogfood-loop-spine-overview.ts",
   "types/workbench-dogfood-loop-spine-overview.ts",
+  "types/handoff-send-preview.ts",
+  "lib/workplane/handoff-send-preview.ts",
+  "components/workplane/handoff-send-preview-panel.tsx",
+  "types/handoff-send-decision.ts",
+  "lib/workplane/handoff-send-decision.ts",
+  "components/workplane/handoff-send-decision-panel.tsx",
+  "types/handoff-send-write.ts",
+  "lib/workplane/handoff-send-write.ts",
+  "app/api/workplane/handoff-sends/route.ts",
+  "types/handoff-send-record-review.ts",
+  "lib/workplane/handoff-send-record-review.ts",
+  "lib/workplane/read-handoff-send-record-review-for-web.ts",
+  "lib/workplane/read-sent-handoff-for-web.ts",
+  "components/workplane/handoff-send-record-review-panel.tsx",
+  "components/workplane/sent-handoff-panel.tsx",
+  "scripts/smoke-handoff-send-slice-v0-1.mjs",
   "scripts/smoke-handoff-send-contract-v0-1.mjs",
+  "scripts/smoke-handoff-packet-copy-export-slice-v0-1.mjs",
+  "scripts/smoke-handoff-packet-copy-export-contract-v0-1.mjs",
+  "scripts/smoke-handoff-context-apply-slice-v0-1.mjs",
+  "scripts/smoke-handoff-context-update-contract-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-route-integration-slice-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-route-integration-contract-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-apply-slice-v0-1.mjs",
+  "scripts/smoke-current-working-perspective-update-contract-v0-1.mjs",
+  "scripts/smoke-continuity-relay-scoped-write-v0-1.mjs",
+  "scripts/smoke-perspective-unit-scoped-write-v0-1.mjs",
+  "scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs",
+  "scripts/smoke-perspective-relay-update-decision-write-contract-v0-1.mjs",
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   "scripts/smoke-workbench-dogfood-loop-spine-overview-v0-1.mjs",
   "scripts/smoke-handoff-packet-copy-export-slice-v0-1.mjs",
@@ -1190,5 +1218,7 @@ function deepMerge(base, overrides) {
   }
   return output;
 }
+
+rmSync(tempDir, { recursive: true, force: true });
 
 console.log("smoke-handoff-send-contract-v0-1: ok");
