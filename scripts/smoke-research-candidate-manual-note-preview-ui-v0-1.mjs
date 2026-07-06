@@ -20,6 +20,8 @@ const formatHintPath =
   "components/research-candidate-manual-note-format-hint.tsx";
 const handoffSeedPreviewPath =
   "components/research-candidate-manual-note-handoff-seed-preview.tsx";
+const handoffResultIntakePanelPath =
+  "components/research-candidate-manual-note-handoff-result-intake-panel.tsx";
 const resultSummaryPath =
   "components/research-candidate-manual-note-result-summary.tsx";
 const warningDisplayPath =
@@ -38,6 +40,8 @@ const agentWorkplanePath = "components/workplane/agent-workplane.tsx";
 const parserPath = "lib/research-candidate-review/manual-note-parser.ts";
 const handoffSeedBuilderPath =
   "lib/research-candidate-review/manual-note-handoff-seed.ts";
+const handoffResultIntakeBuilderPath =
+  "lib/research-candidate-review/manual-note-handoff-result-intake.ts";
 const packagePath = "package.json";
 const smokePath =
   "scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs";
@@ -53,6 +57,7 @@ for (const filePath of [
   preflightReadoutPath,
   formatHintPath,
   handoffSeedPreviewPath,
+  handoffResultIntakePanelPath,
   resultSummaryPath,
   warningDisplayPath,
   sourceReferenceListPath,
@@ -64,6 +69,7 @@ for (const filePath of [
   agentWorkplanePath,
   parserPath,
   handoffSeedBuilderPath,
+  handoffResultIntakeBuilderPath,
   packagePath,
   smokePath,
 ]) {
@@ -73,9 +79,14 @@ for (const filePath of [
 const manualPanelComponent = readFileSync(componentPath, "utf8");
 const runtimeHookComponent = readFileSync(runtimeHookPath, "utf8");
 const handoffSeedPreviewComponent = readFileSync(handoffSeedPreviewPath, "utf8");
+const handoffResultIntakePanelComponent = readFileSync(
+  handoffResultIntakePanelPath,
+  "utf8",
+);
 const draftUiComponent = [
   readFileSync(formatHintPath, "utf8"),
   handoffSeedPreviewComponent,
+  handoffResultIntakePanelComponent,
   readFileSync(resultSummaryPath, "utf8"),
   readFileSync(warningDisplayPath, "utf8"),
   readFileSync(sourceReferenceListPath, "utf8"),
@@ -96,6 +107,10 @@ const humanSurfaceLinkGrid = readFileSync(humanSurfaceLinkGridPath, "utf8");
 const agentWorkplane = readFileSync(agentWorkplanePath, "utf8");
 const parser = readFileSync(parserPath, "utf8");
 const handoffSeedBuilder = readFileSync(handoffSeedBuilderPath, "utf8");
+const handoffResultIntakeBuilder = readFileSync(
+  handoffResultIntakeBuilderPath,
+  "utf8",
+);
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 assertDedicatedComponent();
@@ -110,6 +125,7 @@ assertEmptyFormattingHint();
 assertWarningSummaryCard();
 assertCompactResultSummary();
 assertManualNoteHandoffSeedPreview();
+assertManualNoteHandoffResultIntakePreview();
 assertPreviewOutputRendering();
 assertAuthorityBoundaryCopy();
 assertClearBehavior();
@@ -132,6 +148,7 @@ console.log(
       warning_summary_card_checked: true,
       compact_result_summary_checked: true,
       manual_note_handoff_seed_preview_checked: true,
+      manual_note_handoff_result_intake_preview_checked: true,
       preview_output_rendering_checked: true,
       visible_authority_boundary_copy_checked: true,
       clear_behavior_checked: true,
@@ -576,6 +593,11 @@ function assertManualNoteHandoffSeedPreview() {
     "handoff seed preview must not add clipboard-write or execution controls",
   );
   assert.match(
+    handoffSeedPreviewComponent,
+    /ResearchCandidateManualNoteHandoffResultIntakePanel seed=\{seed\}/,
+    "handoff seed preview must render the local result intake panel",
+  );
+  assert.match(
     handoffSeedBuilder,
     /seed_kind:\s*seedKind/,
     "handoff seed builder must return the manual note seed kind",
@@ -584,6 +606,69 @@ function assertManualNoteHandoffSeedPreview() {
     handoffSeedBuilder,
     /ResearchCandidateReviewPreviewResponse/,
     "handoff seed builder must consume ResearchCandidateReviewPreviewResponse-shaped input",
+  );
+}
+
+function assertManualNoteHandoffResultIntakePreview() {
+  assert.match(
+    handoffResultIntakeBuilder,
+    /export function buildResearchCandidateManualNoteHandoffResultIntake/,
+    "result intake builder must be exported",
+  );
+  assert.match(
+    handoffResultIntakeBuilder,
+    /codex_result_report_text/,
+    "result intake builder must accept pasted result report text",
+  );
+  assert.match(
+    handoffResultIntakeBuilder,
+    /source_handoff_seed_fingerprint/,
+    "result intake builder must preserve source handoff seed fingerprint",
+  );
+  assert.match(
+    component,
+    /export function ResearchCandidateManualNoteHandoffResultIntakePanel/,
+    "result intake panel must be exported",
+  );
+  assert.match(
+    component,
+    /Candidate-only result intake preview/,
+    "result intake panel must render a clear candidate-only heading",
+  );
+  assert.match(
+    component,
+    /Codex result report text/,
+    "result intake panel must expose the pasted result report textarea",
+  );
+  assert.match(
+    component,
+    /Preview result intake/,
+    "result intake panel must expose a local preview action",
+  );
+  assert.match(
+    component,
+    /Clear result intake/,
+    "result intake panel must expose a local clear action",
+  );
+  assert.match(
+    component,
+    /Expected vs observed delta draft/,
+    "result intake panel must render the ExpectedObservedDelta draft",
+  );
+  assert.match(
+    component,
+    /Reuse outcome draft/,
+    "result intake panel must render the reuse outcome draft",
+  );
+  assert.match(
+    component,
+    /missing_required_return_fields/,
+    "result intake panel must render missing return-field coverage",
+  );
+  assert.doesNotMatch(
+    handoffResultIntakePanelComponent,
+    /\bfetch\s*\(|navigator\.clipboard|writeText|localStorage|sessionStorage|indexedDB|document\.cookie|NextResponse|Request\(|Response\(|OPENAI_API_KEY|api\.openai\.com|new\s+OpenAI|GITHUB_TOKEN|octokit|executeCodex|runCodex|launchCodex/i,
+    "result intake panel must not add network, storage, clipboard, provider, GitHub, or Codex behavior",
   );
 }
 

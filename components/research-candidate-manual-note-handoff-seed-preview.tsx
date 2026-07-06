@@ -1,5 +1,6 @@
 "use client";
 
+import { ResearchCandidateManualNoteHandoffResultIntakePanel } from "@/components/research-candidate-manual-note-handoff-result-intake-panel";
 import type { ResearchCandidateManualNoteHandoffSeed } from "@/types/research-candidate-manual-note-handoff-seed";
 
 export function ResearchCandidateManualNoteHandoffSeedPreview({
@@ -153,6 +154,8 @@ export function ResearchCandidateManualNoteHandoffSeedPreview({
         rows={24}
         spellCheck={false}
       />
+
+      <ResearchCandidateManualNoteHandoffResultIntakePanel seed={seed} />
     </section>
   );
 }
