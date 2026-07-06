@@ -2227,6 +2227,20 @@ for (const file of followOnResidualDiagnosticCandidateFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnExternalHandoffDeliveryContractFiles = [
+  "types/external-handoff-delivery-contract.ts",
+  "lib/workplane/external-handoff-delivery-contract-preview.ts",
+  "lib/workplane/external-handoff-delivery-operator-decision-preview.ts",
+  "lib/workplane/external-handoff-delivery-contract-write.ts",
+  "lib/workplane/external-handoff-delivery-contract-record-review.ts",
+  "lib/workplane/read-external-handoff-delivery-contract-record-review-for-web.ts",
+  "components/workplane/external-handoff-delivery-contract-panel.tsx",
+  "scripts/smoke-external-handoff-delivery-contract-v0-1.mjs",
+];
+for (const file of followOnExternalHandoffDeliveryContractFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
