@@ -297,8 +297,11 @@ const report = [
   "## Skipped checks",
   "- node scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs skipped: repo-local Playwright unavailable",
   "",
-  "## Remaining friction",
-  "- Browser validator tooling remains a separate slice.",
+  "## Remaining caveats",
+  "- Repo-local Playwright resolution remains a separate tooling issue.",
+  "",
+  "## Skipped checks and caveats",
+  "- No ambiguous combined-section lines.",
   "",
   "selected candidate context outcome: helpful",
   "expected vs observed delta summary: Candidate context helped identify the exact return binding fields and the local-only result-intake boundary.",
@@ -364,7 +367,29 @@ function assertIntakeShape(intake) {
   assert.equal(intake.verification_items.length, 2);
   assert.equal(intake.verification_items[0].status, "passed");
   assert.equal(intake.skipped_checks.length, 1);
+  assert.ok(
+    intake.skipped_checks.includes(
+      "node scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs skipped: repo-local Playwright unavailable",
+    ),
+    "template report must still preserve the real skipped check",
+  );
   assert.equal(intake.remaining_friction.length, 1);
+  assert.ok(
+    intake.remaining_friction.includes(
+      "Repo-local Playwright resolution remains a separate tooling issue.",
+    ),
+    "template report must preserve real remaining caveat text",
+  );
+  assert.equal(
+    intake.remaining_friction.includes("Skipped checks and caveats"),
+    false,
+    "template heading must not leak into remaining_friction",
+  );
+  assert.equal(
+    intake.remaining_friction.includes("No ambiguous combined-section lines."),
+    false,
+    "template skipped-checks-and-caveats bullet must not leak into remaining_friction",
+  );
   assert.equal(intake.parsed_result_summary.result_status, "complete");
   assert.equal(intake.parsed_result_summary.pr_number, 1000);
   assert.equal(
@@ -384,6 +409,11 @@ function assertIntakeShape(intake) {
     true,
   );
   assert.deepEqual(intake.missing_required_return_fields, []);
+  assert.deepEqual(
+    intake.warning_reasons,
+    [],
+    "documented Skipped checks and caveats heading must not create warnings",
+  );
   for (const [key, value] of Object.entries(intake.authority_boundary)) {
     if (["candidate_only", "preview_only", "local_parse_only"].includes(key)) {
       assert.equal(value, true, `authority boundary ${key} must be true`);
