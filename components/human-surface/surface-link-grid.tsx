@@ -7,7 +7,13 @@ const surfaceLinks = [
   {
     label: "Workbench",
     href: "/workbench",
-    summary: "Open the existing Cockpit workbench without changing its behavior.",
+    summary: "Open the Agent Workplane without changing work state.",
+  },
+  {
+    label: "Manual research notes",
+    href: "/research-candidate-review",
+    summary:
+      "Candidate-only manual research note preview. No source fetching, provider calls, retrieval/RAG, durable Perspective promotion, proof/evidence writes, or proof/evidence rows.",
   },
 ] as const;
 

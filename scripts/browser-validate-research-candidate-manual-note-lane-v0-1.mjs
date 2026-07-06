@@ -58,7 +58,7 @@ const SINGLE_CLAIM_PRODUCT_WRITE_PREFLIGHT_COMMAND_ENVELOPE_CONTRACT_TESTS_REPOR
 const SINGLE_CLAIM_PRODUCT_WRITE_PREFLIGHT_STOPLINE_REPORT_PATH =
   "/tmp/augnes-single-claim-product-write-preflight-stopline-v0-1/report.json";
 const DEFAULT_PORT = 3000;
-const ROUTE_HASH = "#research-candidate-manual-note-preview-panel";
+const CURRENT_ROUTE_PATH = "/research-candidate-review";
 const PANEL_SELECTOR = "#research-candidate-manual-note-preview-panel";
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 const REQUEST_QUIET_MS = 800;
@@ -78,8 +78,8 @@ const SYSTEM_BROWSER_EXECUTABLE_CANDIDATES = [
 ].filter(Boolean);
 
 const PRESERVED_BOUNDARIES = [
-  "no product behavior change",
-  "no route contract change",
+  "current-surface route/link integration only",
+  "no API route contract change",
   "no schema change",
   "no migration script invocation",
   "no repo schema or migration code changes",
@@ -242,7 +242,7 @@ async function main() {
   await mkdir(ARTIFACT_DIR, { recursive: true });
 
   selectedPort = await chooseAvailablePort();
-  appUrl = `http://localhost:${selectedPort}/${ROUTE_HASH}`;
+  appUrl = `http://localhost:${selectedPort}${CURRENT_ROUTE_PATH}`;
   dbPath = path.join(
     ARTIFACT_DIR,
     `augnes-manual-note-lane-${Date.now()}.db`,
@@ -709,7 +709,7 @@ async function validateOperatorFlow(page) {
     await panel.scrollIntoViewIfNeeded();
     await waitForRequestQuiet();
     await assertVisible(panel.getByRole("heading", {
-      name: "Cockpit Manual Pasted Note Preview",
+      name: "Manual Research Candidate Preview",
     }), "panel_heading_visible", "Manual-note preview panel heading is visible.");
     await assertVisible(panel.getByRole("button", { name: "Use sample note" }), "sample_button_visible", "Sample note button is visible.");
     await assertVisible(panel.getByRole("button", { name: "Parse locally" }), "local_parse_button_visible", "Local parse button is visible.");
@@ -1608,7 +1608,7 @@ async function validateOperatorFlow(page) {
     await page.setViewportSize({ width: 390, height: 1000 });
     await page.locator(PANEL_SELECTOR).scrollIntoViewIfNeeded();
     await assertVisible(panel.getByRole("heading", {
-      name: "Cockpit Manual Pasted Note Preview",
+      name: "Manual Research Candidate Preview",
     }), "mobile_panel_reachable", "Manual-note panel remains reachable at 390px.");
     const overflow = await page.locator(PANEL_SELECTOR).evaluate((element) => {
       const viewportWidth = window.innerWidth;

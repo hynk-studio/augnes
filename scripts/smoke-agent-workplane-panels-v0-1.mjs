@@ -1949,6 +1949,22 @@ const phase8PriorSmokeAllowlistFiles = [
 for (const file of phase8PriorSmokeAllowlistFiles) {
   allowedChangedFiles.add(file);
 }
+const followOnResearchCandidateManualNoteCurrentSurfaceFiles = [
+  "app/research-candidate-review/page.tsx",
+  "components/human-surface/surface-link-grid.tsx",
+  "components/research-candidate-manual-note-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  "scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs",
+  "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+];
+for (const file of followOnResearchCandidateManualNoteCurrentSurfaceFiles) {
+  allowedChangedFiles.add(file);
+}
 
 const textByFile = loadTextByFile(requiredFiles);
 const workbenchPageText = textByFile.get(workbenchPageFile);
@@ -2306,6 +2322,8 @@ console.log(
       follow_on_smoke_compatibility_checked: true,
       follow_on_historical_smoke_compatibility_files_allowed:
         followOnHistoricalSmokeCompatibilityFiles,
+      follow_on_research_candidate_manual_note_current_surface_files_allowed:
+        followOnResearchCandidateManualNoteCurrentSurfaceFiles,
       phase5c_agent_workplane_projection_handoff_follow_on_used:
         changedFilesBoundary.phase5c_agent_workplane_projection_handoff_follow_on_used,
       phase5c_agent_workplane_projection_handoff_files_allowed:

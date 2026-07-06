@@ -92,6 +92,20 @@ const followOnAgentWorkplaneCleanupHardeningFiles = [
   "scripts/smoke-agent-workplane-cleanup-hardening-v0-1.mjs",
 ];
 
+const followOnResearchCandidateManualNoteCurrentSurfaceFiles = [
+  "app/research-candidate-review/page.tsx",
+  "components/human-surface/surface-link-grid.tsx",
+  "components/research-candidate-manual-note-preview-panel.tsx",
+  "components/workplane/agent-workplane.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "docs/RESEARCH_CANDIDATE_CANONICAL_PROMOTION_GATES_V0_1.md",
+  "scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs",
+  "scripts/browser-validate-research-candidate-manual-note-lane-v0-1.mjs",
+  "scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -227,6 +241,7 @@ const allowedChangedFiles = new Set([
   ...followOnAgentWorkplanePanelFiles,
   ...followOnAgentWorkplaneProjectionHandoffFiles,
   ...followOnAgentWorkplaneCleanupHardeningFiles,
+  ...followOnResearchCandidateManualNoteCurrentSurfaceFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
@@ -378,6 +393,8 @@ console.log(
       follow_on_agent_workplane_files_allowed: followOnAgentWorkplaneFiles,
       follow_on_agent_workplane_panel_files_allowed:
         followOnAgentWorkplanePanelFiles,
+      follow_on_research_candidate_manual_note_current_surface_files_allowed:
+        followOnResearchCandidateManualNoteCurrentSurfaceFiles,
       follow_on_guide_brief_core_files_allowed:
         followOnGuideBriefCoreFiles,
       smoke_type: "static-human-surface-home-ui-helper-doc-package-index-boundary-only",
@@ -619,6 +636,14 @@ function assertSurfaceLinks() {
     [
       'href: "/perspective"',
       'href: "/workbench"',
+      'href: "/research-candidate-review"',
+      "Manual research notes",
+      "Candidate-only manual research note preview.",
+      "No source fetching",
+      "provider calls",
+      "retrieval/RAG",
+      "durable Perspective promotion",
+      "proof/evidence writes",
       "Future Guide / ChatGPT / Codex handoff",
     ],
     { label: surfaceLinkGridFile },

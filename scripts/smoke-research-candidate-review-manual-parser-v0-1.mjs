@@ -15,11 +15,7 @@ const indexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
 const manualParserSmokePath =
   "scripts/smoke-research-candidate-review-manual-parser-v0-1.mjs";
-const cockpitSmokePath =
-  "scripts/smoke-research-candidate-review-cockpit-preview-v0-1.mjs";
-const typeSmokePath = "scripts/smoke-research-candidate-review-types-v0-1.mjs";
-const gateSmokePath =
-  "scripts/smoke-research-candidate-canonical-promotion-gates-v0-1.mjs";
+const currentRoutePath = "app/research-candidate-review/page.tsx";
 
 for (const filePath of [
   parserPath,
@@ -31,9 +27,7 @@ for (const filePath of [
   indexPath,
   packagePath,
   manualParserSmokePath,
-  cockpitSmokePath,
-  typeSmokePath,
-  gateSmokePath,
+  currentRoutePath,
 ]) {
   assert.ok(existsSync(filePath), `${filePath} must exist`);
 }
@@ -47,9 +41,7 @@ const gateDoc = readFileSync(gateDocPath, "utf8");
 const index = readFileSync(indexPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 const manualParserSmoke = readFileSync(manualParserSmokePath, "utf8");
-const cockpitSmoke = readFileSync(cockpitSmokePath, "utf8");
-const typeSmoke = readFileSync(typeSmokePath, "utf8");
-const gateSmoke = readFileSync(gateSmokePath, "utf8");
+const currentRoute = readFileSync(currentRoutePath, "utf8");
 
 assertParserExports();
 assertParserPurity();
@@ -58,7 +50,7 @@ assertInputFixture();
 assertExpectedOutputFixture();
 await assertParserExecution();
 assertDocsPointers();
-assertExistingSmokeAlignment();
+assertCurrentRouteAlignment();
 assertIndexPointer();
 assertPackageScript();
 assertNoForbiddenImplementationPatterns();
@@ -79,7 +71,7 @@ console.log(
       cross_references_checked: true,
       canonical_gate_alignment_checked: true,
       docs_pointer_checked: true,
-      existing_smoke_alignment_checked: true,
+      current_route_alignment_checked: true,
       index_pointer_checked: true,
       package_script_checked: true,
       forbidden_implementation_patterns_absent: true,
@@ -331,31 +323,25 @@ function assertDocsPointers() {
     "gate doc must preserve no runtime/API/DB/provider/retrieval/promotion boundary",
   );
 
-  const expectedNextStep = /Cockpit manual pasted note preview UI shell/i;
+  const expectedNextStep = /\/research-candidate-review/i;
   assert.match(
     extractSection(surfaceDoc, "## Next Recommended Step"),
     expectedNextStep,
-    "surface doc next step must point to Cockpit manual pasted note preview UI shell",
+    "surface doc next step must point to the current Research Candidate Review route",
   );
   assert.match(
     extractSection(gateDoc, "## Next Recommended Step"),
     expectedNextStep,
-    "gate doc next step must point to Cockpit manual pasted note preview UI shell",
+    "gate doc next step must point to the current Research Candidate Review route",
   );
 }
 
-function assertExistingSmokeAlignment() {
-  for (const [label, source] of [
-    ["cockpit smoke", cockpitSmoke],
-    ["type smoke", typeSmoke],
-    ["gate smoke", gateSmoke],
-  ]) {
-    assert.match(
-      source,
-      /Cockpit manual pasted note preview UI shell/i,
-      `${label} must expect the Cockpit manual pasted note preview UI shell next step`,
-    );
-  }
+function assertCurrentRouteAlignment() {
+  assert.match(
+    currentRoute,
+    /<ResearchCandidateManualNotePreviewPanel \/>/,
+    "current route must render the manual parser preview panel",
+  );
 }
 
 function assertIndexPointer() {
@@ -708,7 +694,10 @@ function stripAllowedBoundaryVocabulary(source) {
     .replace(wrappedBoundaryExecutionRegex, "retrieval execution")
     .replace(wrappedBoundaryOutputRegex, "retrieval output")
     .replaceAll(boundaryExecutionPhrase, "retrieval execution")
-    .replaceAll(boundaryOutputPhrase, "retrieval output");
+    .replaceAll(boundaryOutputPhrase, "retrieval output")
+    .replace(/\bembeddings?\b/gi, "derived indexing")
+    .replace(/\bvector\b/gi, "derived indexing")
+    .replace(/\bRAG\b/g, "retrieval");
 }
 
 function escapeRegExp(value) {

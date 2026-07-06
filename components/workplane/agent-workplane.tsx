@@ -304,6 +304,25 @@ const previewCopyStyle: CSSProperties = {
   overflowWrap: "anywhere",
 };
 
+const currentSurfaceLinkStyle: CSSProperties = {
+  display: "grid",
+  gap: "6px",
+  minWidth: 0,
+  padding: "12px",
+  border: "1px solid rgba(19, 121, 91, 0.18)",
+  borderRadius: "8px",
+  background: "rgba(255, 255, 255, 0.92)",
+  overflowWrap: "anywhere",
+};
+
+const currentSurfaceLinkAnchorStyle: CSSProperties = {
+  width: "fit-content",
+  color: "#13795b",
+  fontSize: "0.88rem",
+  fontWeight: 850,
+  textDecorationColor: "rgba(19, 121, 91, 0.32)",
+};
+
 export async function AgentWorkplane() {
   const guideBrief = readGuideBriefForWeb();
   const [
@@ -1436,6 +1455,20 @@ export async function AgentWorkplane() {
         <ContinuityRelayWorkplanePanel context={context} />
         <GuideWorkplaneDebugPanel debugContext={workplaneDebugContext} />
         <GuideIntentProjectionPanel projection={workplaneIntentProjection} />
+        <section
+          aria-label="Research Candidate Review current surface link"
+          style={currentSurfaceLinkStyle}
+        >
+          <p style={previewKickerStyle}>Research Candidate Review</p>
+          <a href="/research-candidate-review" style={currentSurfaceLinkAnchorStyle}>
+            Open manual research note preview
+          </a>
+          <p style={previewCopyStyle}>
+            Candidate-only manual research note preview. No source fetching,
+            provider calls, retrieval/RAG, durable Perspective promotion,
+            proof/evidence writes, proof/evidence rows, or work item creation.
+          </p>
+        </section>
         <WorkplaneIntentModePanel
           projection={workplaneIntentProjection}
           projectedView={projectedWorkplaneView}

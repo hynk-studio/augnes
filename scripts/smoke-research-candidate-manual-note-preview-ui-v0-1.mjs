@@ -28,9 +28,12 @@ const candidateFamilyListsPath =
   "components/research-candidate-manual-note-candidate-family-lists.tsx";
 const authorityFlagsPath =
   "components/research-candidate-manual-note-authority-flags.tsx";
-const cockpitPath = "components/augnes-cockpit.tsx";
+const currentRoutePath = "app/research-candidate-review/page.tsx";
+const humanSurfaceHomePath = "components/human-surface/human-surface-home.tsx";
+const humanSurfaceLinkGridPath =
+  "components/human-surface/surface-link-grid.tsx";
+const agentWorkplanePath = "components/workplane/agent-workplane.tsx";
 const parserPath = "lib/research-candidate-review/manual-note-parser.ts";
-const indexPath = "docs/00_INDEX_LATEST.md";
 const packagePath = "package.json";
 const smokePath =
   "scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs";
@@ -50,9 +53,11 @@ for (const filePath of [
   sourceReferenceListPath,
   candidateFamilyListsPath,
   authorityFlagsPath,
-  cockpitPath,
+  currentRoutePath,
+  humanSurfaceHomePath,
+  humanSurfaceLinkGridPath,
+  agentWorkplanePath,
   parserPath,
-  indexPath,
   packagePath,
   smokePath,
 ]) {
@@ -77,13 +82,17 @@ const draftUiComponent = [
 ].join("\n");
 const component = `${manualPanelComponent}\n${draftUiComponent}`;
 const runtimeComponent = `${component}\n${runtimeHookComponent}`;
-const cockpit = readFileSync(cockpitPath, "utf8");
+const currentRoute = readFileSync(currentRoutePath, "utf8");
+const humanSurfaceHome = readFileSync(humanSurfaceHomePath, "utf8");
+const humanSurfaceLinkGrid = readFileSync(humanSurfaceLinkGridPath, "utf8");
+const agentWorkplane = readFileSync(agentWorkplanePath, "utf8");
 const parser = readFileSync(parserPath, "utf8");
-const index = readFileSync(indexPath, "utf8");
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 
 assertDedicatedComponent();
-assertCockpitWiring();
+assertCurrentRouteWiring();
+assertHumanSurfaceDiscoverability();
+assertWorkbenchDisplayOnlyLink();
 assertParserReuse();
 assertLocalOnlyParserExecution();
 assertRuntimePreviewDraftAction();
@@ -95,7 +104,6 @@ assertPreviewOutputRendering();
 assertAuthorityBoundaryCopy();
 assertClearBehavior();
 assertForbiddenImplementationPatterns();
-assertIndexPointer();
 assertPackageScript();
 
 console.log(
@@ -103,7 +111,9 @@ console.log(
     {
       smoke: "research-candidate-manual-note-preview-ui-v0-1",
       dedicated_component_exists: true,
-      cockpit_imports_and_renders_component: true,
+      current_route_imports_and_renders_component: true,
+      human_surface_exposes_current_route: true,
+      workbench_display_only_link_checked: true,
       existing_manual_note_parser_reused: true,
       parser_execution_local_only: true,
       runtime_preview_draft_action_checked: true,
@@ -115,7 +125,6 @@ console.log(
       visible_authority_boundary_copy_checked: true,
       clear_behavior_checked: true,
       forbidden_implementation_patterns_absent: true,
-      index_pointer_checked: true,
       package_script_checked: true,
     },
     null,
@@ -132,28 +141,115 @@ function assertDedicatedComponent() {
   assert.match(component, /"use client";/, "component must be a client component");
   assert.match(component, /<textarea\b/, "component must include textarea input");
   assert.match(component, /Parse locally/, "component must expose local parse trigger");
+  assert.match(
+    component,
+    /Manual Research Candidate Preview/,
+    "component must use current-surface manual research candidate heading",
+  );
+  assert.doesNotMatch(
+    component,
+    /Cockpit Manual Pasted Note Preview/,
+    "component heading must not keep the Cockpit-era panel label",
+  );
 }
 
-function assertCockpitWiring() {
+function assertCurrentRouteWiring() {
   assert.match(
-    cockpit,
+    currentRoute,
     /import \{ ResearchCandidateManualNotePreviewPanel \} from "@\/components\/research-candidate-manual-note-preview-panel";/,
-    "Cockpit must import the dedicated component",
+    "current Research Candidate Review route must import the dedicated component",
   );
   assert.match(
-    cockpit,
+    currentRoute,
     /<ResearchCandidateManualNotePreviewPanel \/>/,
-    "Cockpit must render the dedicated component",
+    "current Research Candidate Review route must render the dedicated component",
   );
   assert.match(
-    cockpit,
-    /href="#research-candidate-manual-note-preview-panel"/,
-    "Cockpit must link to the manual pasted note panel",
+    currentRoute,
+    /description:\s*"Candidate-only manual research note preview for Research Candidate Review\."/,
+    "route metadata must describe the lane as candidate-only manual research note preview",
   );
   assert.match(
-    cockpit,
-    /Research Candidate Manual Note Preview Panel Start/,
-    "Cockpit must keep a narrow render marker for the panel",
+    currentRoute,
+    /className="human-surface-home"/,
+    "route must render as a current Human Surface page, not a Cockpit surface",
+  );
+  assert.doesNotMatch(
+    currentRoute,
+    /AugnesCockpit|components\/augnes-cockpit|\/cockpit/,
+    "current route must not resurrect or link to Legacy Cockpit",
+  );
+}
+
+function assertHumanSurfaceDiscoverability() {
+  assert.match(
+    humanSurfaceHome,
+    /<SurfaceLinkGrid \/>/,
+    "current Human Surface home must render SurfaceLinkGrid",
+  );
+  assert.match(
+    humanSurfaceLinkGrid,
+    /href:\s*"\/research-candidate-review"/,
+    "Human Surface link grid must expose the current manual Research Candidate Review route",
+  );
+
+  for (const requiredText of [
+    "Manual research notes",
+    "Candidate-only manual research note preview.",
+    "No source fetching",
+    "provider calls",
+    "retrieval/RAG",
+    "durable Perspective promotion",
+    "proof/evidence writes",
+    "proof/evidence rows",
+  ]) {
+    assert.ok(
+      humanSurfaceLinkGrid.includes(requiredText),
+      `Human Surface manual note card must include ${requiredText}`,
+    );
+  }
+
+  assert.doesNotMatch(
+    humanSurfaceLinkGrid,
+    /Cockpit|\/cockpit|AugnesCockpit/,
+    "Human Surface manual note discoverability must not point to Legacy Cockpit",
+  );
+}
+
+function assertWorkbenchDisplayOnlyLink() {
+  const workbenchSnippet = snippetBetween(
+    agentWorkplane,
+    'aria-label="Research Candidate Review current surface link"',
+    "<WorkplaneIntentModePanel",
+    agentWorkplanePath,
+  );
+
+  assert.match(
+    workbenchSnippet,
+    /href="\/research-candidate-review"/,
+    "Agent Workplane must include a display-only link to the current route",
+  );
+  for (const requiredText of [
+    "Research Candidate Review",
+    "Open manual research note preview",
+    "Candidate-only manual research note preview.",
+    "No source fetching",
+    "provider calls",
+    "retrieval/RAG",
+    "durable Perspective promotion",
+    "proof/evidence writes",
+    "proof/evidence rows",
+    "work item creation",
+  ]) {
+    assert.ok(
+      workbenchSnippet.includes(requiredText),
+      `Agent Workplane current-route link must include ${requiredText}`,
+    );
+  }
+  assert.doesNotMatch(
+    workbenchSnippet,
+    /\b(onClick|onSubmit|fetch|method:|POST|PUT|PATCH|DELETE|useState|useEffect)\b|<form\b|<button\b/,
+    "Agent Workplane route visibility must remain a display-only link without a new write/action path",
   );
 }
 
@@ -503,6 +599,18 @@ function assertAuthorityBoundaryCopy() {
 }
 
 function assertForbiddenImplementationPatterns() {
+  const currentRouteAndSurfaceText = [
+    currentRoute,
+    humanSurfaceHome,
+    humanSurfaceLinkGrid,
+    snippetBetween(
+      agentWorkplane,
+      'aria-label="Research Candidate Review current surface link"',
+      "<WorkplaneIntentModePanel",
+      agentWorkplanePath,
+    ),
+  ].join("\n");
+
   assert.doesNotMatch(
     component,
     /\bfetch\s*\(\s*["'`]https?:\/\//i,
@@ -542,16 +650,30 @@ function assertForbiddenImplementationPatterns() {
   for (const { label, regex } of forbiddenPatterns) {
     assert.doesNotMatch(component, regex, `component must not include ${label}`);
   }
-}
 
-function assertIndexPointer() {
-  for (const requiredText of [
-    componentPath,
-    smokePath,
-    "smoke:research-candidate-manual-note-preview-ui-v0-1",
-    "Cockpit manual pasted note preview UI shell",
-  ]) {
-    assert.ok(index.includes(requiredText), `docs index must include ${requiredText}`);
+  const currentSurfaceForbiddenPatterns = [
+    { label: "external network URL", regex: /\bfetch\s*\(\s*["'`]https?:\/\//i },
+    { label: "mutating HTTP method", regex: /\bmethod:\s*["'`](POST|PUT|PATCH|DELETE)["'`]/ },
+    { label: "form action", regex: /<form\b|<button\b|onClick=|onSubmit=/ },
+    { label: "database import", regex: /from ["'`][^"'`]*(db|database|sqlite)[^"'`]*["'`]/i },
+    { label: "OpenAI endpoint", regex: /\bapi\.openai\.com\b/i },
+    { label: "OpenAI client", regex: /\bnew\s+OpenAI\b/ },
+    { label: "provider client", regex: /\b(providerClient|providerRun|callProvider)\b/i },
+    { label: "retrieval implementation", regex: /\b(retrieveSources|ragIndex|vectorStore|embedding|embeddings|crawler|scrapeSource)\b/i },
+    { label: "promotion workflow", regex: /\b(promotePerspective|promoteCandidate|rejectCandidate|deferCandidate|approveCandidate)\b/ },
+    { label: "proof write", regex: /\b(recordProof|createProof|proofWrite)\b/ },
+    { label: "evidence write", regex: /\b(recordEvidence|createEvidence|evidenceWrite)\b/ },
+    { label: "work item create", regex: /\b(createWorkItem|newWorkItem|workItemCreate)\b/ },
+    { label: "Codex execution", regex: /\b(executeCodex|runCodex|launchCodex)\b/ },
+    { label: "GitHub automation", regex: /\b(octokit|createPullRequest|mergePullRequest)\b/i },
+  ];
+
+  for (const { label, regex } of currentSurfaceForbiddenPatterns) {
+    assert.doesNotMatch(
+      currentRouteAndSurfaceText,
+      regex,
+      `current route/surface wiring must not introduce ${label}`,
+    );
   }
 }
 
@@ -561,4 +683,12 @@ function assertPackageScript() {
     "node scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs",
     "package.json must include the manual note preview UI smoke script",
   );
+}
+
+function snippetBetween(source, startMarker, endMarker, label) {
+  const start = source.indexOf(startMarker);
+  assert.notEqual(start, -1, `${label} must include ${startMarker}`);
+  const end = source.indexOf(endMarker, start);
+  assert.notEqual(end, -1, `${label} must include ${endMarker} after ${startMarker}`);
+  return source.slice(start, end);
 }
