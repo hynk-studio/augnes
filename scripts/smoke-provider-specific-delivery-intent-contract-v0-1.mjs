@@ -239,6 +239,31 @@ for (const readyCase of [
   assert.equal(ready.intentPreview.external_delivery_boundary.network_called, false);
 }
 
+const recordReviewOnlyIntent = buildProviderSpecificDeliveryIntentContractPreviewV01({
+  ...intentInputBase({ includeExternalPreview: false }),
+  provider_specific_external_delivery_preview_contract: manual.providerPreview,
+  provider_specific_external_delivery_operator_decision_preview:
+    manual.providerDecision,
+});
+assert.equal(recordReviewOnlyIntent.status, "ready_for_intent_decision");
+assert.notEqual(
+  recordReviewOnlyIntent
+    .would_write_provider_specific_delivery_intent_contract_record_preview,
+  null,
+);
+assert(
+  !recordReviewOnlyIntent.blocker_reasons.includes(
+    "external_contract_preview_external_delivery_boundary_missing",
+  ),
+);
+assert.equal(recordReviewOnlyIntent.external_delivery_boundary.delivery_performed, false);
+assert.equal(recordReviewOnlyIntent.external_delivery_boundary.provider_called, false);
+assert.equal(
+  recordReviewOnlyIntent.external_delivery_boundary.external_message_sent,
+  false,
+);
+assert.equal(recordReviewOnlyIntent.external_delivery_boundary.network_called, false);
+
 const missingProviderPreview = buildProviderSpecificDeliveryIntentContractPreviewV01({
   provider_specific_external_delivery_operator_decision_preview:
     manual.providerDecision,
@@ -394,6 +419,45 @@ const invalidExternalIntent = buildProviderSpecificDeliveryIntentContractPreview
     manual.providerDecision,
 });
 assert.equal(invalidExternalIntent.status, "external_contract_invalid");
+
+const missingExternalContractIntent =
+  buildProviderSpecificDeliveryIntentContractPreviewV01({
+    ...intentInputBase({
+      includeExternalPreview: false,
+      includeExternalRecordReview: false,
+    }),
+    provider_specific_external_delivery_preview_contract: manual.providerPreview,
+    provider_specific_external_delivery_operator_decision_preview:
+      manual.providerDecision,
+  });
+assert.equal(missingExternalContractIntent.status, "external_contract_missing");
+assert.equal(
+  missingExternalContractIntent
+    .would_write_provider_specific_delivery_intent_contract_record_preview,
+  null,
+);
+
+const providerPreviewWithoutExternalRecordRef = { ...manual.providerPreview };
+delete providerPreviewWithoutExternalRecordRef.source_external_handoff_delivery_contract_record_ref;
+const recordReviewWithoutRecordId = externalContractRecordReview();
+delete recordReviewWithoutRecordId.latest_record_summary.record_id;
+const missingExternalRecordRefIntent =
+  buildProviderSpecificDeliveryIntentContractPreviewV01({
+    ...intentInputBase({
+      includeExternalPreview: false,
+      externalRecordReview: recordReviewWithoutRecordId,
+    }),
+    provider_specific_external_delivery_preview_contract:
+      providerPreviewWithoutExternalRecordRef,
+    provider_specific_external_delivery_operator_decision_preview:
+      manual.providerDecision,
+  });
+assert.equal(missingExternalRecordRefIntent.status, "external_contract_invalid");
+assert(
+  missingExternalRecordRefIntent.blocker_reasons.includes(
+    "source_external_handoff_delivery_contract_record_ref_missing",
+  ),
+);
 
 const hardResidualIntent = buildProviderSpecificDeliveryIntentContractPreviewV01({
   ...intentInputBase({ residual: residualHardBlocker() }),
@@ -724,10 +788,22 @@ function buildReadyIntent({ surface, profileRef = null, recipientRef }) {
 }
 
 function intentInputBase(overrides = {}) {
+  const includeExternalPreview = overrides.includeExternalPreview !== false;
+  const includeExternalRecordReview =
+    overrides.includeExternalRecordReview !== false;
   return {
-    external_handoff_delivery_contract_preview: externalPreview,
-    external_handoff_delivery_contract_record_review:
-      overrides.externalRecordReview ?? externalRecordReview,
+    ...(includeExternalPreview
+      ? {
+          external_handoff_delivery_contract_preview:
+            overrides.externalPreview ?? externalPreview,
+        }
+      : {}),
+    ...(includeExternalRecordReview
+      ? {
+          external_handoff_delivery_contract_record_review:
+            overrides.externalRecordReview ?? externalRecordReview,
+        }
+      : {}),
     residual_diagnostic_candidate_read_model: overrides.residual ?? residual,
     sent_handoff_read: { status: "local_handoff_send_fulfillment_available" },
     handoff_send_record_review: { review_status: "records_available" },

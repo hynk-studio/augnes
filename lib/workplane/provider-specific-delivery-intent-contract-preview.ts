@@ -316,12 +316,7 @@ export function buildProviderSpecificDeliveryIntentContractPreviewV01(
     readiness_summary: {
       provider_specific_preview_ready:
         providerPreview?.status === "ready_for_provider_specific_decision",
-      provider_specific_decision_ready:
-        providerDecision?.decision_status ===
-          "ready_for_provider_specific_preview_decision" &&
-        providerDecision?.recommended_operator_decision ===
-          "record_provider_specific_preview_contract_candidate" &&
-        (providerDecision?.blocker_reasons ?? []).length === 0,
+      provider_specific_decision_ready: providerDecisionProblems.length === 0,
       external_contract_record_available: Boolean(sourceExternalRecordRef),
       provider_surface_supported: Boolean(
         requestedSurface && supportedSurfaces.has(requestedSurface),
@@ -693,9 +688,11 @@ function externalContractProblemReasons({
     ...(!sourceExternalRecordRef
       ? ["source_external_handoff_delivery_contract_record_ref_missing"]
       : []),
-    ...providerSpecificDeliveryIntentBoundaryProblemReasonsV01(
-      recordField(externalPreview, "external_delivery_boundary"),
-    ).map((reason) => `external_contract_preview_${reason}`),
+    ...(externalPreview
+      ? providerSpecificDeliveryIntentBoundaryProblemReasonsV01(
+          recordField(externalPreview, "external_delivery_boundary"),
+        ).map((reason) => `external_contract_preview_${reason}`)
+      : []),
     ...recordSummaryBoundaryProblems(externalRecordSummary),
   ]);
 }
