@@ -837,6 +837,240 @@ export function migrateResearchCandidateManualNotePreviewDraftActivities(db) {
   };
 }
 
+export const researchCandidateManualResultWriteReceiptsTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_result_write_receipts (
+    receipt_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+    source_preview_session_id TEXT NOT NULL,
+    source_handoff_seed_fingerprint TEXT NOT NULL,
+    source_result_intake_ref TEXT NOT NULL,
+    source_result_intake_fingerprint TEXT NOT NULL,
+    source_operator_review_ref TEXT NOT NULL,
+    source_operator_review_fingerprint TEXT NOT NULL,
+    source_record_contract_ref TEXT NOT NULL,
+    source_record_contract_fingerprint TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    write_status TEXT NOT NULL CHECK (
+      write_status IN (
+        'committed',
+        'duplicate_replayed',
+        'superseded',
+        'rolled_back'
+      )
+    ),
+    operator_decision TEXT NOT NULL,
+    authority_profile TEXT NOT NULL,
+    receipt_fingerprint TEXT NOT NULL,
+    supersedes_receipt_id TEXT,
+    rollback_of_receipt_id TEXT,
+    rollback_reason TEXT,
+    FOREIGN KEY (supersedes_receipt_id) REFERENCES research_candidate_manual_result_write_receipts(receipt_id),
+    FOREIGN KEY (rollback_of_receipt_id) REFERENCES research_candidate_manual_result_write_receipts(receipt_id)
+  )
+`;
+
+export const researchCandidateManualResultWriteReceiptsIndexes = [
+  {
+    name: "idx_research_candidate_manual_result_receipts_scope_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_result_receipts_scope_time
+        ON research_candidate_manual_result_write_receipts(scope, created_at DESC)
+    `,
+  },
+  {
+    name: "idx_research_candidate_manual_result_receipts_seed",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_result_receipts_seed
+        ON research_candidate_manual_result_write_receipts(source_handoff_seed_fingerprint, created_at DESC)
+    `,
+  },
+  {
+    name: "idx_research_candidate_manual_result_receipts_status",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_result_receipts_status
+        ON research_candidate_manual_result_write_receipts(scope, write_status, created_at DESC)
+    `,
+  },
+];
+
+export const researchCandidateManualExpectedObservedDeltaRecordsTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_expected_observed_delta_records (
+    record_id TEXT PRIMARY KEY,
+    receipt_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+    expected_summary TEXT NOT NULL,
+    observed_summary TEXT,
+    mismatch_or_gap_summary TEXT NOT NULL,
+    source_handoff_seed_fingerprint TEXT NOT NULL,
+    source_result_text_fingerprint TEXT NOT NULL,
+    source_preview_session_id TEXT NOT NULL,
+    source_refs_json TEXT NOT NULL,
+    authority_profile TEXT NOT NULL,
+    record_fingerprint TEXT NOT NULL,
+    FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_result_write_receipts(receipt_id)
+  )
+`;
+
+export const researchCandidateManualExpectedObservedDeltaRecordsIndexes = [
+  {
+    name: "idx_research_candidate_manual_eod_records_receipt",
+    sql: `
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_eod_records_receipt
+        ON research_candidate_manual_expected_observed_delta_records(receipt_id)
+    `,
+  },
+  {
+    name: "idx_research_candidate_manual_eod_records_scope_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_eod_records_scope_time
+        ON research_candidate_manual_expected_observed_delta_records(scope, created_at DESC)
+    `,
+  },
+];
+
+export const researchCandidateManualReuseOutcomeRecordsTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_reuse_outcome_records (
+    record_id TEXT PRIMARY KEY,
+    receipt_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+    outcome_label TEXT NOT NULL,
+    selected_candidate_context_refs_json TEXT NOT NULL,
+    source_line TEXT,
+    warning_reasons_json TEXT NOT NULL,
+    source_handoff_seed_fingerprint TEXT NOT NULL,
+    source_result_text_fingerprint TEXT NOT NULL,
+    source_preview_session_id TEXT NOT NULL,
+    authority_profile TEXT NOT NULL,
+    record_fingerprint TEXT NOT NULL,
+    FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_result_write_receipts(receipt_id)
+  )
+`;
+
+export const researchCandidateManualReuseOutcomeRecordsIndexes = [
+  {
+    name: "idx_research_candidate_manual_reuse_records_receipt",
+    sql: `
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_reuse_records_receipt
+        ON research_candidate_manual_reuse_outcome_records(receipt_id)
+    `,
+  },
+  {
+    name: "idx_research_candidate_manual_reuse_records_scope_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_reuse_records_scope_time
+        ON research_candidate_manual_reuse_outcome_records(scope, created_at DESC)
+    `,
+  },
+];
+
+export const researchCandidateManualResultWriteRollbacksTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_result_write_rollbacks (
+    rollback_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    receipt_id TEXT NOT NULL,
+    rollback_reason TEXT NOT NULL,
+    authority_profile TEXT NOT NULL,
+    rollback_fingerprint TEXT NOT NULL,
+    FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_result_write_receipts(receipt_id)
+  )
+`;
+
+export const researchCandidateManualResultWriteRollbacksIndexes = [
+  {
+    name: "idx_research_candidate_manual_result_rollbacks_receipt",
+    sql: `
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_result_rollbacks_receipt
+        ON research_candidate_manual_result_write_rollbacks(receipt_id)
+    `,
+  },
+  {
+    name: "idx_research_candidate_manual_result_rollbacks_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_result_rollbacks_time
+        ON research_candidate_manual_result_write_rollbacks(created_at DESC)
+    `,
+  },
+];
+
+export function migrateResearchCandidateManualResultRecords(db) {
+  const tableNames = [
+    "research_candidate_manual_result_write_receipts",
+    "research_candidate_manual_expected_observed_delta_records",
+    "research_candidate_manual_reuse_outcome_records",
+    "research_candidate_manual_result_write_rollbacks",
+  ];
+  const existingTables = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'table'
+            AND name IN (${tableNames.map(() => "?").join(", ")})
+        `,
+      )
+      .all(...tableNames)
+      .map((table) => table.name),
+  );
+
+  db.prepare(researchCandidateManualResultWriteReceiptsTableSql).run();
+  db.prepare(researchCandidateManualExpectedObservedDeltaRecordsTableSql).run();
+  db.prepare(researchCandidateManualReuseOutcomeRecordsTableSql).run();
+  db.prepare(researchCandidateManualResultWriteRollbacksTableSql).run();
+
+  const indexGroups = [
+    {
+      table: "research_candidate_manual_result_write_receipts",
+      indexes: researchCandidateManualResultWriteReceiptsIndexes,
+    },
+    {
+      table: "research_candidate_manual_expected_observed_delta_records",
+      indexes: researchCandidateManualExpectedObservedDeltaRecordsIndexes,
+    },
+    {
+      table: "research_candidate_manual_reuse_outcome_records",
+      indexes: researchCandidateManualReuseOutcomeRecordsIndexes,
+    },
+    {
+      table: "research_candidate_manual_result_write_rollbacks",
+      indexes: researchCandidateManualResultWriteRollbacksIndexes,
+    },
+  ];
+  const createdIndexes = [];
+
+  for (const { table, indexes } of indexGroups) {
+    const existingIndexes = new Set(
+      db
+        .prepare(
+          `
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'index'
+              AND tbl_name = ?
+          `,
+        )
+        .all(table)
+        .map((index) => index.name),
+    );
+
+    for (const { name, sql } of indexes) {
+      if (!existingIndexes.has(name)) {
+        db.prepare(sql).run();
+        createdIndexes.push(name);
+      }
+    }
+  }
+
+  return {
+    table_found: true,
+    created_tables: tableNames.filter((tableName) => !existingTables.has(tableName)),
+    created_indexes: createdIndexes,
+  };
+}
+
 export const perspectiveMemoryProductPersistenceBoundaryTableSql = `
   CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
     record_id TEXT PRIMARY KEY,

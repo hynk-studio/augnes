@@ -2,6 +2,7 @@
 
 import { buildResearchCandidateManualNoteResultIntakeOperatorReview } from "@/lib/research-candidate-review/manual-note-result-intake-operator-review";
 import { buildResearchCandidateManualNoteResultRecordContractPreview } from "@/lib/research-candidate-review/manual-note-result-record-contract-preview";
+import { ResearchCandidateManualNoteAuthorizedRecordWritePanel } from "@/components/research-candidate-manual-note-authorized-record-write-panel";
 import type { ResearchCandidateManualNoteHandoffResultIntake } from "@/types/research-candidate-manual-note-handoff-result-intake";
 import type {
   ResearchCandidateManualNoteResultIntakeOperatorDecision,
@@ -167,6 +168,13 @@ export function ResearchCandidateManualNoteResultIntakeOperatorReviewPanel({
       ) : null}
       {recordContractPreview ? (
         <RecordContractPreviewReadout contract={recordContractPreview} />
+      ) : null}
+      {recordContractPreview && operatorReview ? (
+        <ResearchCandidateManualNoteAuthorizedRecordWritePanel
+          resultIntake={resultIntake}
+          operatorReview={operatorReview}
+          recordContractPreview={recordContractPreview}
+        />
       ) : null}
     </section>
   );

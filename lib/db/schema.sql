@@ -1534,6 +1534,108 @@ CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_draft_acti
 CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_note_preview_draft_activities_type_time
   ON research_candidate_manual_note_preview_draft_activities(activity_type, activity_at DESC);
 
+CREATE TABLE IF NOT EXISTS research_candidate_manual_result_write_receipts (
+  receipt_id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+  source_preview_session_id TEXT NOT NULL,
+  source_handoff_seed_fingerprint TEXT NOT NULL,
+  source_result_intake_ref TEXT NOT NULL,
+  source_result_intake_fingerprint TEXT NOT NULL,
+  source_operator_review_ref TEXT NOT NULL,
+  source_operator_review_fingerprint TEXT NOT NULL,
+  source_record_contract_ref TEXT NOT NULL,
+  source_record_contract_fingerprint TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  write_status TEXT NOT NULL CHECK (
+    write_status IN (
+      'committed',
+      'duplicate_replayed',
+      'superseded',
+      'rolled_back'
+    )
+  ),
+  operator_decision TEXT NOT NULL,
+  authority_profile TEXT NOT NULL,
+  receipt_fingerprint TEXT NOT NULL,
+  supersedes_receipt_id TEXT,
+  rollback_of_receipt_id TEXT,
+  rollback_reason TEXT,
+  FOREIGN KEY (supersedes_receipt_id) REFERENCES research_candidate_manual_result_write_receipts(receipt_id),
+  FOREIGN KEY (rollback_of_receipt_id) REFERENCES research_candidate_manual_result_write_receipts(receipt_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_result_receipts_scope_time
+  ON research_candidate_manual_result_write_receipts(scope, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_result_receipts_seed
+  ON research_candidate_manual_result_write_receipts(source_handoff_seed_fingerprint, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_result_receipts_status
+  ON research_candidate_manual_result_write_receipts(scope, write_status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS research_candidate_manual_expected_observed_delta_records (
+  record_id TEXT PRIMARY KEY,
+  receipt_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+  expected_summary TEXT NOT NULL,
+  observed_summary TEXT,
+  mismatch_or_gap_summary TEXT NOT NULL,
+  source_handoff_seed_fingerprint TEXT NOT NULL,
+  source_result_text_fingerprint TEXT NOT NULL,
+  source_preview_session_id TEXT NOT NULL,
+  source_refs_json TEXT NOT NULL,
+  authority_profile TEXT NOT NULL,
+  record_fingerprint TEXT NOT NULL,
+  FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_result_write_receipts(receipt_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_eod_records_receipt
+  ON research_candidate_manual_expected_observed_delta_records(receipt_id);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_eod_records_scope_time
+  ON research_candidate_manual_expected_observed_delta_records(scope, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS research_candidate_manual_reuse_outcome_records (
+  record_id TEXT PRIMARY KEY,
+  receipt_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+  outcome_label TEXT NOT NULL,
+  selected_candidate_context_refs_json TEXT NOT NULL,
+  source_line TEXT,
+  warning_reasons_json TEXT NOT NULL,
+  source_handoff_seed_fingerprint TEXT NOT NULL,
+  source_result_text_fingerprint TEXT NOT NULL,
+  source_preview_session_id TEXT NOT NULL,
+  authority_profile TEXT NOT NULL,
+  record_fingerprint TEXT NOT NULL,
+  FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_result_write_receipts(receipt_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_reuse_records_receipt
+  ON research_candidate_manual_reuse_outcome_records(receipt_id);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_reuse_records_scope_time
+  ON research_candidate_manual_reuse_outcome_records(scope, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS research_candidate_manual_result_write_rollbacks (
+  rollback_id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  receipt_id TEXT NOT NULL,
+  rollback_reason TEXT NOT NULL,
+  authority_profile TEXT NOT NULL,
+  rollback_fingerprint TEXT NOT NULL,
+  FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_result_write_receipts(receipt_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_result_rollbacks_receipt
+  ON research_candidate_manual_result_write_rollbacks(receipt_id);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_result_rollbacks_time
+  ON research_candidate_manual_result_write_rollbacks(created_at DESC);
+
 CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
   record_id TEXT PRIMARY KEY,
   boundary_status TEXT NOT NULL CHECK (

@@ -13,6 +13,7 @@ import {
   migrateResearchCandidateManualNotePreviewDrafts,
   migrateResearchCandidateManualNotePreviewDraftDiscards,
   migrateResearchCandidateManualNotePreviewDraftActivities,
+  migrateResearchCandidateManualResultRecords,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -45,6 +46,8 @@ try {
     migrateResearchCandidateManualNotePreviewDraftDiscards(db);
   const researchCandidateManualNotePreviewDraftActivitiesResult =
     migrateResearchCandidateManualNotePreviewDraftActivities(db);
+  const researchCandidateManualResultRecordsResult =
+    migrateResearchCandidateManualResultRecords(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -240,6 +243,27 @@ try {
   ) {
     console.log(
       `Created indexes: ${researchCandidateManualNotePreviewDraftActivitiesResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (researchCandidateManualResultRecordsResult.created_tables.length > 0) {
+    console.log(
+      `Created manual Research Candidate result record tables at ${dbPath}: ${researchCandidateManualResultRecordsResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    researchCandidateManualResultRecordsResult.created_indexes.length === 0
+  ) {
+    console.log(
+      `Manual Research Candidate result record migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated manual Research Candidate result record indexes at ${dbPath}`,
+    );
+  }
+  if (researchCandidateManualResultRecordsResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${researchCandidateManualResultRecordsResult.created_indexes.join(", ")}`,
     );
   }
 

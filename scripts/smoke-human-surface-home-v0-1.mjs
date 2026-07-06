@@ -148,6 +148,27 @@ const followOnResearchCandidateManualNoteResultIntakeOperatorReviewFiles = [
   "package.json",
 ];
 
+const followOnResearchCandidateManualResultAuthorizedRecordWriteFiles = [
+  "lib/db/schema.sql",
+  "lib/db.ts",
+  "scripts/db-migrations.mjs",
+  "scripts/db-migrate.mjs",
+  "types/research-candidate-manual-result-authorized-record-write.ts",
+  "lib/research-candidate-review/manual-result-authorized-record-write.ts",
+  "lib/research-candidate-review/read-manual-result-records.ts",
+  "app/api/research-candidate-review/manual-result-records/route.ts",
+  "app/api/research-candidate-review/manual-result-records/[receipt_id]/rollback/route.ts",
+  "components/research-candidate-manual-note-authorized-record-write-panel.tsx",
+  "components/research-candidate-manual-note-record-readback-panel.tsx",
+  "components/research-candidate-manual-note-result-intake-operator-review-panel.tsx",
+  "app/globals.css",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-result-authorized-record-write-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -287,6 +308,7 @@ const allowedChangedFiles = new Set([
   ...followOnResearchCandidateManualNoteHandoffSeedFiles,
   ...followOnResearchCandidateManualNoteHandoffResultIntakeFiles,
   ...followOnResearchCandidateManualNoteResultIntakeOperatorReviewFiles,
+  ...followOnResearchCandidateManualResultAuthorizedRecordWriteFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
@@ -442,6 +464,8 @@ console.log(
         followOnResearchCandidateManualNoteCurrentSurfaceFiles,
       follow_on_research_candidate_manual_note_result_intake_operator_review_files_allowed:
         followOnResearchCandidateManualNoteResultIntakeOperatorReviewFiles,
+      follow_on_research_candidate_manual_result_authorized_record_write_files_allowed:
+        followOnResearchCandidateManualResultAuthorizedRecordWriteFiles,
       follow_on_guide_brief_core_files_allowed:
         followOnGuideBriefCoreFiles,
       smoke_type: "static-human-surface-home-ui-helper-doc-package-index-boundary-only",
@@ -851,14 +875,16 @@ function assertChangedFileBoundary() {
       !/^app\/api\//.test(file) ||
         followOnGuideBriefRouteFiles.includes(file) ||
         file === "app/api/augnes/read/autonomy-contract/route.ts" ||
-        phase9aAutonomyRunnerPreflightFiles.includes(file),
+        phase9aAutonomyRunnerPreflightFiles.includes(file) ||
+        followOnResearchCandidateManualResultAuthorizedRecordWriteFiles.includes(file),
       `Phase 4A must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(
       !/^app\/.*route\.(ts|tsx|js|jsx)$/.test(file) ||
         followOnGuideBriefRouteFiles.includes(file) ||
         file === "app/api/augnes/read/autonomy-contract/route.ts" ||
-        phase9aAutonomyRunnerPreflightFiles.includes(file),
+        phase9aAutonomyRunnerPreflightFiles.includes(file) ||
+        followOnResearchCandidateManualResultAuthorizedRecordWriteFiles.includes(file),
       `Phase 4A must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 4A must not change DB files: ${file}`);
