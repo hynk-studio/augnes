@@ -2207,6 +2207,16 @@ for (const file of followOnHandoffSendSliceFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnWorkbenchSpineConsolidationFiles = [
+  "types/workbench-spine-consolidation.ts",
+  "lib/workplane/workbench-spine-consolidation.ts",
+  "components/workplane/workbench-spine-consolidation-panel.tsx",
+  "scripts/smoke-workbench-spine-consolidation-v0-1.mjs",
+];
+for (const file of followOnWorkbenchSpineConsolidationFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(

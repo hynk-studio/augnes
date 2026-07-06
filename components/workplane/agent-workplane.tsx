@@ -103,6 +103,7 @@ import { SourceRefBridgeDetailPanel } from "@/components/workplane/source-ref-br
 import { StateProposalReviewPanel } from "@/components/workplane/state-proposal-review-panel";
 import { TraceDiagnosticsPanel } from "@/components/workplane/trace-diagnostics-panel";
 import { WorkbenchDogfoodLoopSpineOverviewPanel } from "@/components/workplane/workbench-dogfood-loop-spine-overview-panel";
+import { WorkbenchSpineConsolidationPanel } from "@/components/workplane/workbench-spine-consolidation-panel";
 import { WorkEpisodeResidueCandidatePreviewPanel } from "@/components/workplane/work-episode-residue-candidate-preview-panel";
 import { WorkplaneIntentModePanel } from "@/components/workplane/workplane-intent-mode-panel";
 import { WorkplaneMetricsPanel } from "@/components/workplane/workplane-metrics-panel";
@@ -202,6 +203,7 @@ import { readSentHandoffForWebV01 } from "@/lib/workplane/read-sent-handoff-for-
 import { buildPerspectiveUnitScopedWritePreviewV01 } from "@/lib/workplane/perspective-unit-scoped-write-preview";
 import { readPerspectiveUnitRecordReviewForWebV01 } from "@/lib/workplane/read-perspective-unit-record-review-for-web";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
+import { buildWorkbenchSpineConsolidationV01 } from "@/lib/workplane/workbench-spine-consolidation";
 import { buildWorkEpisodeResidueCandidatePreviewV01 } from "@/lib/workplane/work-episode-residue-candidate-preview";
 import { buildMetricInformedContinuityRelayAdjustmentPreviewV01 } from "@/lib/workplane/metric-informed-continuity-relay-adjustment-preview";
 import { readWorkplaneContext } from "@/lib/workplane/read-workplane-context";
@@ -970,6 +972,28 @@ export async function AgentWorkplane() {
     source_refs: ["workbench:handoff_send_record_review"],
   });
   const sentHandoffRead = readSentHandoffForWebV01();
+  const workbenchSpineConsolidation =
+    buildWorkbenchSpineConsolidationV01({
+      applied_current_working_perspective_read:
+        appliedCurrentWorkingPerspectiveRead,
+      current_working_perspective_route_integration_read:
+        currentWorkingPerspectiveRouteIntegrationRead,
+      current_working_perspective_apply_record_review:
+        currentWorkingPerspectiveApplyRecordReview,
+      handoff_context_apply_record_review: handoffContextApplyRecordReview,
+      applied_handoff_context_read: appliedHandoffContextRead,
+      handoff_packet_copy_export_record_review:
+        handoffPacketCopyExportRecordReview,
+      exported_handoff_packet_artifact_read:
+        exportedHandoffPacketArtifactRead,
+      handoff_send_contract_record_review:
+        handoffSendContractRecordReview,
+      handoff_send_record_review: handoffSendRecordReview,
+      sent_handoff_read: sentHandoffRead,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:spine_consolidation_dashboard"],
+    });
   const handoffContextUpdatePreview = buildHandoffContextUpdatePreviewV01({
     handoff_context_relay_rationale: handoffContextRationale,
     metric_informed_relay_adjustment_preview:
@@ -1219,6 +1243,9 @@ export async function AgentWorkplane() {
 
             <WorkbenchDogfoodLoopSpineOverviewPanel
               preview={workbenchDogfoodLoopSpineOverview}
+            />
+            <WorkbenchSpineConsolidationPanel
+              dashboard={workbenchSpineConsolidation}
             />
 
             <section
