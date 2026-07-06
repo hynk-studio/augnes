@@ -18,8 +18,11 @@ import type { DogfoodReuseRecordProposal } from "./dogfood-reuse-record-proposal
 import type { ExpectedObservedDeltaOperatorDecisionPreview } from "./expected-observed-delta-decision";
 import type { ExpectedObservedDeltaPreview } from "./expected-observed-delta-preview";
 import type { ExpectedObservedDeltaRecordReview } from "./expected-observed-delta-record-review";
-import type { HandoffContextApplyOperatorDecisionPreview } from "./handoff-context-apply-operator-decision-preview";
-import type { HandoffContextApplyPreview } from "./handoff-context-apply-preview";
+import type { HandoffContextApplyOperatorDecisionPreview as HistoricalHandoffContextApplyOperatorDecisionPreview } from "./handoff-context-apply-operator-decision-preview";
+import type { HandoffContextApplyPreview as HistoricalHandoffContextApplyPreview } from "./handoff-context-apply-preview";
+import type { HandoffContextApplyOperatorDecisionPreview } from "./handoff-context-apply-slice-decision";
+import type { HandoffContextApplyPreview } from "./handoff-context-apply-slice-preview";
+import type { HandoffContextApplyRecordReview } from "./handoff-context-apply-record-review";
 import type { HandoffContextApplyWriteContractPreview } from "./handoff-context-apply-write-contract-preview";
 import type { HandoffContextUpdateOperatorDecisionPreview } from "./handoff-context-update-operator-decision-preview";
 import type { HandoffContextUpdatePreview } from "./handoff-context-update-preview";
@@ -68,6 +71,7 @@ import type { SelectedSessionDigestIngestOperatorDecisionPreview } from "./selec
 import type { SelectedSessionDigestIngestRecordReview } from "./selected-session-digest-ingest-record-review";
 import type { SelectedSessionDigestIntakePreview } from "./selected-session-digest-intake-preview";
 import type { WorkEpisodeResidueCandidatePreview } from "./work-episode-residue-candidate-preview";
+import type { AppliedHandoffContextRead } from "@/lib/workplane/read-applied-handoff-context-for-web";
 
 export const WORKBENCH_DOGFOOD_LOOP_SPINE_OVERVIEW_VERSION =
   "workbench_dogfood_loop_spine_overview.v0.1" as const;
@@ -180,7 +184,14 @@ export type WorkbenchDogfoodLoopSpineRecommendedNextOperatorAction =
   | "review_handoff_context_update_contract_record"
   | "resolve_handoff_context_update_contract_blockers"
   | "prepare_handoff_context_apply_slice"
+  | "review_handoff_context_apply_preview"
+  | "approve_handoff_context_apply_record"
+  | "write_handoff_context_apply_record"
+  | "review_handoff_context_apply_record"
+  | "review_applied_handoff_context_snapshot"
+  | "resolve_handoff_context_apply_blockers"
   | "prepare_handoff_packet_copy_export_contract"
+  | "prepare_handoff_send_contract"
   | "prepare_perspective_next_work_update_decision"
   | "prepare_continuity_relay_update_contract"
   | "resolve_next_work_signal_blockers"
@@ -246,6 +257,10 @@ export type WorkbenchDogfoodLoopSpineStepId =
   | "handoff_context_update_contract"
   | "handoff_context_update_contract_decision"
   | "handoff_context_update_contract_record"
+  | "handoff_context_apply_preview"
+  | "handoff_context_apply_decision"
+  | "handoff_context_apply_record"
+  | "applied_handoff_context_snapshot"
   | "codex_result_feedback"
   | "dogfood_reuse_proposal"
   | "dogfood_reuse_operator_decision"
@@ -255,8 +270,8 @@ export type WorkbenchDogfoodLoopSpineStepId =
   | "handoff_context_update"
   | "handoff_context_update_decision"
   | "approved_handoff_context_update_record_review"
-  | "handoff_context_apply_preview"
-  | "handoff_context_apply_decision"
+  | "historical_handoff_context_apply_preview"
+  | "historical_handoff_context_apply_decision"
   | "handoff_context_apply_write_contract";
 
 export type WorkbenchDogfoodLoopSpineStepStatus =
@@ -318,6 +333,10 @@ export interface WorkbenchDogfoodLoopSpineOverviewInput {
   handoff_context_update_contract_preview?: HandoffContextUpdateContractPreview | null;
   handoff_context_update_contract_decision_preview?: HandoffContextUpdateContractOperatorDecisionPreview | null;
   handoff_context_update_contract_record_review?: HandoffContextUpdateContractRecordReview | null;
+  handoff_context_apply_preview?: HandoffContextApplyPreview | null;
+  handoff_context_apply_operator_decision_preview?: HandoffContextApplyOperatorDecisionPreview | null;
+  handoff_context_apply_record_review?: HandoffContextApplyRecordReview | null;
+  applied_handoff_context_read?: AppliedHandoffContextRead | null;
   codex_result_feedback_draft?: CodexResultFeedbackDraft | null;
   dogfood_reuse_record_proposal?: DogfoodReuseRecordProposal | null;
   dogfood_reuse_operator_decision_preview?: DogfoodReuseOperatorDecisionPreview | null;
@@ -327,8 +346,8 @@ export interface WorkbenchDogfoodLoopSpineOverviewInput {
   handoff_context_update_preview?: HandoffContextUpdatePreview | null;
   handoff_context_update_operator_decision_preview?: HandoffContextUpdateOperatorDecisionPreview | null;
   handoff_context_update_record_review?: ApprovedHandoffContextUpdateRecordReview | null;
-  handoff_context_apply_preview?: HandoffContextApplyPreview | null;
-  handoff_context_apply_operator_decision_preview?: HandoffContextApplyOperatorDecisionPreview | null;
+  historical_handoff_context_apply_preview?: HistoricalHandoffContextApplyPreview | null;
+  historical_handoff_context_apply_operator_decision_preview?: HistoricalHandoffContextApplyOperatorDecisionPreview | null;
   handoff_context_apply_write_contract_preview?: HandoffContextApplyWriteContractPreview | null;
   scope?: string;
   as_of?: string;

@@ -69,6 +69,10 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   handoff_context_update_contract_preview,
   handoff_context_update_contract_decision_preview,
   handoff_context_update_contract_record_review,
+  handoff_context_apply_preview,
+  handoff_context_apply_operator_decision_preview,
+  handoff_context_apply_record_review,
+  applied_handoff_context_read,
   codex_result_feedback_draft,
   dogfood_reuse_record_proposal,
   dogfood_reuse_operator_decision_preview,
@@ -78,8 +82,8 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
   handoff_context_update_preview,
   handoff_context_update_operator_decision_preview,
   handoff_context_update_record_review,
-  handoff_context_apply_preview,
-  handoff_context_apply_operator_decision_preview,
+  historical_handoff_context_apply_preview,
+  historical_handoff_context_apply_operator_decision_preview,
   handoff_context_apply_write_contract_preview,
   scope,
   as_of,
@@ -228,6 +232,21 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
       recordReview: handoff_context_update_contract_record_review,
       decisionPreview: handoff_context_update_contract_decision_preview,
     }),
+    handoffContextApplySlicePreviewStep({
+      applyPreview: handoff_context_apply_preview,
+      contractRecordReview: handoff_context_update_contract_record_review,
+    }),
+    handoffContextApplySliceDecisionStep(
+      handoff_context_apply_operator_decision_preview,
+    ),
+    handoffContextApplyRecordStep({
+      recordReview: handoff_context_apply_record_review,
+      decisionPreview: handoff_context_apply_operator_decision_preview,
+    }),
+    appliedHandoffContextSnapshotStep(
+      applied_handoff_context_read,
+      handoff_context_apply_record_review,
+    ),
     codexResultFeedbackStep(codex_result_feedback_draft),
     dogfoodReuseProposalStep(dogfood_reuse_record_proposal),
     dogfoodReuseOperatorDecisionStep(dogfood_reuse_operator_decision_preview),
@@ -245,9 +264,11 @@ export function buildWorkbenchDogfoodLoopSpineOverviewV01({
     approvedHandoffContextUpdateRecordReviewStep(
       handoff_context_update_record_review,
     ),
-    handoffContextApplyPreviewStep(handoff_context_apply_preview),
+    historicalHandoffContextApplyPreviewStep(
+      historical_handoff_context_apply_preview,
+    ),
     handoffContextApplyDecisionStep(
-      handoff_context_apply_operator_decision_preview,
+      historical_handoff_context_apply_operator_decision_preview,
     ),
     handoffContextApplyWriteContractStep(
       handoff_context_apply_write_contract_preview,
@@ -2749,6 +2770,184 @@ function handoffContextUpdateContractRecordStep({
   });
 }
 
+function handoffContextApplySlicePreviewStep({
+  applyPreview,
+  contractRecordReview,
+}: {
+  applyPreview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_apply_preview"];
+  contractRecordReview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_update_contract_record_review"];
+}): SpineStepBuild {
+  if (!applyPreview) {
+    return missingStep({
+      step_id: "handoff_context_apply_preview",
+      label: "Handoff context apply preview",
+      recommended_next_action:
+        (contractRecordReview?.input_summary.valid_record_count ?? 0) > 0
+          ? "review_handoff_context_apply_preview"
+          : "review_handoff_context_update_contract_record",
+      summary:
+        "No Handoff Context apply preview supplied; a valid update contract record is required before local applied handoff snapshot planning.",
+    });
+  }
+  const ready =
+    applyPreview.apply_preview_status ===
+    "ready_for_future_handoff_context_apply_record_write";
+  const blocked =
+    applyPreview.blocking_reasons.length > 0 ||
+    applyPreview.refusal_reasons.length > 0;
+  return makeStep({
+    step_id: "handoff_context_apply_preview",
+    label: "Handoff context apply preview",
+    status: ready
+      ? "ready_for_operator_review"
+      : blocked
+        ? "blocked"
+        : applyPreview.apply_preview_status === "needs_more_evidence" ||
+            applyPreview.apply_preview_status === "insufficient_data"
+          ? "insufficient_data"
+          : "candidate_material_available",
+    source_preview_ref_or_version: applyPreview.preview_version,
+    material_count:
+      applyPreview.proposed_applied_handoff_context_summary.applied_entry_count,
+    blockers: [...applyPreview.blocking_reasons, ...applyPreview.refusal_reasons],
+    material_gaps: applyPreview.apply_readiness.current_insufficient_data,
+    missing_evidence: applyPreview.missing_evidence,
+    recommended_next_action: ready
+      ? "approve_handoff_context_apply_record"
+      : blocked
+        ? "resolve_handoff_context_apply_blockers"
+        : "review_handoff_context_apply_preview",
+    evidence_present:
+      applyPreview.evidence_summary.has_contract_record &&
+      applyPreview.evidence_summary.has_handoff_context_entries,
+    summary: `Handoff context apply preview is ${applyPreview.apply_preview_status}; proposed local applied entries ${applyPreview.proposed_applied_handoff_context_summary.applied_entry_count}; no handoff send or packet copy/export is performed.`,
+  });
+}
+
+function handoffContextApplySliceDecisionStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_apply_operator_decision_preview"],
+): SpineStepBuild {
+  if (!preview) {
+    return missingStep({
+      step_id: "handoff_context_apply_decision",
+      label: "Handoff context apply decision",
+      recommended_next_action: "review_handoff_context_apply_preview",
+      summary: "No Handoff Context apply decision preview supplied.",
+    });
+  }
+  const ready =
+    preview.decision_preview_status ===
+    "ready_for_future_handoff_context_apply_record_write";
+  const blocked =
+    preview.blocking_reasons.length > 0 || preview.refusal_reasons.length > 0;
+  return makeStep({
+    step_id: "handoff_context_apply_decision",
+    label: "Handoff context apply decision",
+    status: ready
+      ? "ready_for_operator_review"
+      : blocked
+        ? "blocked"
+        : preview.decision_preview_status === "insufficient_data"
+          ? "insufficient_data"
+          : "candidate_material_available",
+    source_preview_ref_or_version: preview.preview_version,
+    material_count: preview.write_readiness.write_ready ? 1 : 0,
+    blockers: [...preview.blocking_reasons, ...preview.refusal_reasons],
+    material_gaps: preview.write_readiness.current_insufficient_data,
+    missing_evidence: preview.missing_evidence,
+    recommended_next_action: ready
+      ? "write_handoff_context_apply_record"
+      : blocked
+        ? "resolve_handoff_context_apply_blockers"
+        : "review_handoff_context_apply_preview",
+    evidence_present: preview.evidence_summary.apply_preview_ready,
+    summary: `Handoff context apply decision preview is ${preview.decision_preview_status}; Workbench remains display-only and does not write the apply record.`,
+  });
+}
+
+function handoffContextApplyRecordStep({
+  recordReview,
+  decisionPreview,
+}: {
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_apply_record_review"];
+  decisionPreview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_apply_operator_decision_preview"];
+}): SpineStepBuild {
+  if (!recordReview) {
+    return missingStep({
+      step_id: "handoff_context_apply_record",
+      label: "Handoff context apply record",
+      recommended_next_action: decisionPreview?.write_readiness.write_ready
+        ? "write_handoff_context_apply_record"
+        : "review_handoff_context_apply_preview",
+      summary: "No Handoff Context apply record review supplied.",
+    });
+  }
+  const valid = recordReview.input_summary.valid_record_count > 0;
+  const blocked =
+    recordReview.review_status === "records_invalid" ||
+    recordReview.evidence_summary.has_receipt_side_effect_problem;
+  return makeStep({
+    step_id: "handoff_context_apply_record",
+    label: "Handoff context apply record",
+    status: blocked
+      ? "blocked"
+      : valid
+        ? "candidate_material_available"
+        : "insufficient_data",
+    source_preview_ref_or_version: recordReview.review_version,
+    material_count: recordReview.input_summary.valid_record_count,
+    blockers: [
+      ...(blocked ? ["handoff_context_apply_record_side_effect_or_shape_problem"] : []),
+      ...recordReview.blocked_reasons,
+    ],
+    material_gaps: recordReview.insufficient_data_reasons,
+    missing_evidence: recordReview.evidence_summary.missing_evidence,
+    recommended_next_action: blocked
+      ? "resolve_handoff_context_apply_blockers"
+      : valid
+        ? "review_handoff_context_apply_record"
+        : decisionPreview?.write_readiness.write_ready
+          ? "write_handoff_context_apply_record"
+          : "review_handoff_context_apply_preview",
+    evidence_present: valid,
+    summary: `Handoff context apply record review is ${recordReview.review_status}; valid_record_count ${recordReview.input_summary.valid_record_count}; records only persist scoped local applied handoff snapshots and never send or copy/export handoff.`,
+  });
+}
+
+function appliedHandoffContextSnapshotStep(
+  read: WorkbenchDogfoodLoopSpineOverviewInput["applied_handoff_context_read"],
+  recordReview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_apply_record_review"],
+): SpineStepBuild {
+  if (!read) {
+    return missingStep({
+      step_id: "applied_handoff_context_snapshot",
+      label: "Applied handoff context snapshot",
+      recommended_next_action:
+        (recordReview?.input_summary.valid_record_count ?? 0) > 0
+          ? "review_applied_handoff_context_snapshot"
+          : "review_handoff_context_apply_record",
+      summary: "No applied handoff context read supplied.",
+    });
+  }
+  const available =
+    read.status === "latest_applied_handoff_context_snapshot_available";
+  return makeStep({
+    step_id: "applied_handoff_context_snapshot",
+    label: "Applied handoff context snapshot",
+    status: available ? "candidate_material_available" : "insufficient_data",
+    source_preview_ref_or_version: read.read_version,
+    material_count: read.summary.entry_count,
+    blockers: [],
+    material_gaps: available ? [] : ["applied_handoff_context_snapshot_missing"],
+    missing_evidence: [],
+    recommended_next_action: available
+      ? "review_applied_handoff_context_snapshot"
+      : "review_handoff_context_apply_record",
+    evidence_present: available,
+    summary: `Applied handoff context read is ${read.status}; entries ${read.summary.entry_count}; copy/export and send remain pending future contract slices.`,
+  });
+}
+
 function codexResultFeedbackStep(
   draft: WorkbenchDogfoodLoopSpineOverviewInput["codex_result_feedback_draft"],
 ): SpineStepBuild {
@@ -3057,21 +3256,21 @@ function approvedHandoffContextUpdateRecordReviewStep(
   });
 }
 
-function handoffContextApplyPreviewStep(
-  preview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_apply_preview"],
+function historicalHandoffContextApplyPreviewStep(
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["historical_handoff_context_apply_preview"],
 ): SpineStepBuild {
   if (!preview) {
     return missingStep({
-      step_id: "handoff_context_apply_preview",
-      label: "Handoff context apply preview",
+      step_id: "historical_handoff_context_apply_preview",
+      label: "Historical handoff context apply preview",
       recommended_next_action: "review_handoff_context_apply_preview",
       summary: "No handoff context apply preview supplied.",
     });
   }
 
   return makeStep({
-    step_id: "handoff_context_apply_preview",
-    label: "Handoff context apply preview",
+    step_id: "historical_handoff_context_apply_preview",
+    label: "Historical handoff context apply preview",
     status: mapApplyPreviewStatus(preview.preview_status),
     source_preview_ref_or_version: preview.preview_version,
     material_count: preview.input_summary.apply_candidate_count,
@@ -3091,20 +3290,20 @@ function handoffContextApplyPreviewStep(
 }
 
 function handoffContextApplyDecisionStep(
-  preview: WorkbenchDogfoodLoopSpineOverviewInput["handoff_context_apply_operator_decision_preview"],
+  preview: WorkbenchDogfoodLoopSpineOverviewInput["historical_handoff_context_apply_operator_decision_preview"],
 ): SpineStepBuild {
   if (!preview) {
     return missingStep({
-      step_id: "handoff_context_apply_decision",
-      label: "Handoff context apply decision",
+      step_id: "historical_handoff_context_apply_decision",
+      label: "Historical handoff context apply decision",
       recommended_next_action: "review_handoff_context_apply_preview",
       summary: "No handoff context apply operator decision preview supplied.",
     });
   }
 
   return makeStep({
-    step_id: "handoff_context_apply_decision",
-    label: "Handoff context apply decision",
+    step_id: "historical_handoff_context_apply_decision",
+    label: "Historical handoff context apply decision",
     status: mapDecisionStatus(preview.decision_preview_status),
     source_preview_ref_or_version: preview.preview_version,
     material_count: preview.input_summary.apply_candidate_count,
@@ -3581,6 +3780,57 @@ function determineRecommendedNextOperatorAction({
     const handoffContextUpdateContractRecordStep = steps.find(
       (step) => step.step_id === "handoff_context_update_contract_record",
     );
+    const handoffContextApplyPreviewStep = steps.find(
+      (step) => step.step_id === "handoff_context_apply_preview",
+    );
+    const handoffContextApplyDecisionStep = steps.find(
+      (step) => step.step_id === "handoff_context_apply_decision",
+    );
+    const handoffContextApplyRecordStep = steps.find(
+      (step) => step.step_id === "handoff_context_apply_record",
+    );
+    const appliedHandoffContextSnapshotStep = steps.find(
+      (step) => step.step_id === "applied_handoff_context_snapshot",
+    );
+    if (
+      appliedHandoffContextSnapshotStep?.recommended_next_action ===
+        "review_applied_handoff_context_snapshot" &&
+      appliedHandoffContextSnapshotStep.material_count > 0
+    ) {
+      return "review_applied_handoff_context_snapshot";
+    }
+    if (
+      handoffContextApplyRecordStep?.recommended_next_action ===
+        "review_handoff_context_apply_record" &&
+      handoffContextApplyRecordStep.material_count > 0
+    ) {
+      return "review_handoff_context_apply_record";
+    }
+    if (
+      handoffContextApplyRecordStep?.recommended_next_action ===
+      "write_handoff_context_apply_record"
+    ) {
+      return "write_handoff_context_apply_record";
+    }
+    if (
+      handoffContextApplyDecisionStep?.recommended_next_action ===
+      "write_handoff_context_apply_record"
+    ) {
+      return "write_handoff_context_apply_record";
+    }
+    if (
+      handoffContextApplyPreviewStep?.recommended_next_action ===
+      "approve_handoff_context_apply_record"
+    ) {
+      return "approve_handoff_context_apply_record";
+    }
+    if (
+      handoffContextApplyPreviewStep?.recommended_next_action ===
+        "review_handoff_context_apply_preview" &&
+      handoffContextApplyPreviewStep.material_count > 0
+    ) {
+      return "review_handoff_context_apply_preview";
+    }
     if (
       routeIntegrationReadReviewStep?.recommended_next_action ===
         "verify_current_working_perspective_route_applied_snapshot_overlay" &&

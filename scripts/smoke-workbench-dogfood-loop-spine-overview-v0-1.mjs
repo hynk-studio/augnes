@@ -417,6 +417,24 @@ const handoffContextUpdateContractFiles = [
   "components/workplane/handoff-context-update-contract-record-review-panel.tsx",
   "scripts/smoke-handoff-context-update-contract-v0-1.mjs",
 ];
+const handoffContextApplySliceFiles = [
+  "types/handoff-context-apply-slice-preview.ts",
+  "lib/workplane/handoff-context-apply-preview.ts",
+  "components/workplane/handoff-context-apply-preview-panel.tsx",
+  "types/handoff-context-apply-slice-decision.ts",
+  "lib/workplane/handoff-context-apply-decision.ts",
+  "components/workplane/handoff-context-apply-decision-panel.tsx",
+  "types/handoff-context-apply-write.ts",
+  "lib/workplane/handoff-context-apply-write.ts",
+  "app/api/workplane/handoff-context-applies/route.ts",
+  "types/handoff-context-apply-record-review.ts",
+  "lib/workplane/handoff-context-apply-record-review.ts",
+  "lib/workplane/read-handoff-context-apply-record-review-for-web.ts",
+  "lib/workplane/read-applied-handoff-context-for-web.ts",
+  "components/workplane/handoff-context-apply-record-review-panel.tsx",
+  "components/workplane/applied-handoff-context-panel.tsx",
+  "scripts/smoke-handoff-context-apply-slice-v0-1.mjs",
+];
 const selectedSessionDigestIntakeSmokeFile =
   "scripts/smoke-selected-session-digest-intake-preview-v0-1.mjs";
 const applyWriteContractSmokeFile =
@@ -606,6 +624,7 @@ const allowedChangedFiles = [
   currentWorkingPerspectiveUpdateContractSmokeFile,
   ...currentWorkingPerspectiveApplySliceFiles,
   ...handoffContextUpdateContractFiles,
+  ...handoffContextApplySliceFiles,
   selectedSessionDigestIntakeSmokeFile,
   applyWriteContractSmokeFile,
   packageJsonFile,
@@ -1102,7 +1121,7 @@ assert.equal(
   emptyOverview.recommended_next_operator_action,
   "supply_selected_session_digest",
 );
-assert.equal(emptyOverview.spine_steps.length, 56);
+assert.equal(emptyOverview.spine_steps.length, 60);
 assert(
   emptyOverview.spine_steps.some(
     (step) => step.step_id === "project_history_intake",
@@ -1978,7 +1997,7 @@ assert(
 
 const missingEvidenceOverview = buildWorkbenchDogfoodLoopSpineOverviewV01({
   selected_session_digest_intake_preview: cleanSelectedIntake,
-  handoff_context_apply_preview: applyPreviewWithMissingEvidence(),
+  historical_handoff_context_apply_preview: applyPreviewWithMissingEvidence(),
   scope: "project:augnes",
   as_of: "2026-07-04T14:30:00.000Z",
 });
@@ -2165,6 +2184,7 @@ function assertNoForbiddenChangedPaths() {
         file === currentWorkingPerspectiveApplyRouteFile ||
         file === currentWorkingPerspectiveRouteIntegrationContractRouteFile ||
         file === handoffContextUpdateContractRouteFile ||
+        file === "app/api/workplane/handoff-context-applies/route.ts" ||
         file === "app/api/perspective/current/route.ts",
       `No app/api route may be added outside scoped intake/dogfood follow-on routes: ${file}`,
     );
