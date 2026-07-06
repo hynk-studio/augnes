@@ -92,6 +92,23 @@ const { buildWorkbenchSpineConsolidationV01 } = await import(
   "../lib/workplane/workbench-spine-consolidation.ts"
 );
 
+const emptyDashboard = buildWorkbenchSpineConsolidationV01({});
+assert.equal(emptyDashboard.dashboard_status, "no_spine_material");
+assert.notEqual(emptyDashboard.dashboard_status, "local_fulfillment_available");
+assert.equal(emptyDashboard.blocker_summary.blockers.length, 0);
+assert(
+  emptyDashboard.lineage_map.missing_links.some((link) =>
+    link.includes("applied_current_working_perspective_ref_missing"),
+  ),
+  "empty dashboard should still expose ordinary missing lineage",
+);
+assert(
+  !emptyDashboard.blocker_summary.blockers.some((blocker) =>
+    blocker.startsWith("lineage_"),
+  ),
+  "ordinary both-sides-missing lineage must not become blockers",
+);
+
 const happyPath = buildWorkbenchSpineConsolidationV01(buildHappyInput());
 assert.equal(happyPath.dashboard_status, "local_fulfillment_available");
 assert.equal(
@@ -134,6 +151,10 @@ const missingCwp = buildWorkbenchSpineConsolidationV01({
   applied_current_working_perspective_read: undefined,
 });
 assert.notEqual(missingCwp.dashboard_status, "local_fulfillment_available");
+assert.equal(
+  stage(missingCwp, "local_handoff_send_fulfillment").status,
+  "fulfilled",
+);
 assert(
   missingCwp.blocker_summary.missing_prerequisites.includes(
     "applied_current_working_perspective_snapshot_missing",
@@ -142,6 +163,67 @@ assert(
 assert.equal(
   missingCwp.recommended_next_operator_action.action,
   "resolve_workbench_spine_consolidation_blockers",
+);
+
+const runtimeOnlyRoute = buildWorkbenchSpineConsolidationV01({
+  ...buildHappyInput(),
+  current_working_perspective_route_integration_read: routeRead({
+    status: "runtime_only",
+    includeMetadataRefs: false,
+  }),
+});
+const runtimeOnlyRouteStage = stage(
+  runtimeOnlyRoute,
+  "current_working_perspective_route_integration",
+);
+assert.notEqual(runtimeOnlyRouteStage.status, "available");
+assert.equal(runtimeOnlyRouteStage.status, "insufficient_data");
+assert.equal(runtimeOnlyRouteStage.material_count, 0);
+assert(
+  runtimeOnlyRouteStage.missing_prerequisites.includes(
+    "current_working_perspective_route_integration_not_configured",
+  ),
+);
+assert.notEqual(
+  runtimeOnlyRoute.recommended_next_operator_action.action,
+  "prepare_external_handoff_delivery_contract",
+);
+assert.notEqual(
+  runtimeOnlyRoute.dashboard_status,
+  "local_fulfillment_available",
+);
+
+const missingUpstreamWithDownstreamMaterial = buildWorkbenchSpineConsolidationV01({
+  ...buildHappyInput(),
+  applied_handoff_context_read: undefined,
+});
+assert.equal(missingUpstreamWithDownstreamMaterial.dashboard_status, "blocked");
+assert(
+  missingUpstreamWithDownstreamMaterial.blocker_summary.blockers.some((blocker) =>
+    blocker.startsWith("lineage_downstream_without_upstream:"),
+  ),
+  "downstream artifact material with missing upstream handoff context must block",
+);
+
+const mismatchedExportedArtifactInput = buildHappyInput();
+mismatchedExportedArtifactInput.exported_handoff_packet_artifact_read = {
+  ...mismatchedExportedArtifactInput.exported_handoff_packet_artifact_read,
+  summary: {
+    ...mismatchedExportedArtifactInput.exported_handoff_packet_artifact_read
+      .summary,
+    source_applied_handoff_context_snapshot_ref:
+      "applied-handoff-context-snapshot:mismatch",
+  },
+};
+const mismatchedExportedArtifact = buildWorkbenchSpineConsolidationV01(
+  mismatchedExportedArtifactInput,
+);
+assert.equal(mismatchedExportedArtifact.dashboard_status, "blocked");
+assert(
+  mismatchedExportedArtifact.blocker_summary.blockers.some((blocker) =>
+    blocker.startsWith("lineage_mismatch:"),
+  ),
+  "mismatched materialized lineage must block",
 );
 
 const missingArtifact = buildWorkbenchSpineConsolidationV01({
@@ -250,21 +332,33 @@ function appliedCwpRead(available) {
   };
 }
 
-function routeRead() {
+function routeRead({
+  status = "runtime_with_applied_snapshot_overlay_candidate",
+  includeMetadataRefs = true,
+} = {}) {
   return {
     read_version: "current_working_perspective_route_integration_read.v0.1",
     scope: "project:augnes",
     as_of: "2026-07-06T00:00:00.000Z",
-    status: "runtime_with_applied_snapshot_overlay_candidate",
+    status,
     route_path: "/api/perspective/current",
     route_family: "current_working_perspective",
-    response_mode: "runtime_primary_with_applied_overlay_candidate",
+    response_mode:
+      status === "runtime_only"
+        ? "runtime_only"
+        : "runtime_primary_with_applied_overlay_candidate",
     route_integration_metadata: {
-      contract_record_id: "route-integration-contract:001",
-      applied_snapshot_ref: "applied-cwp-snapshot:001",
+      contract_record_id: includeMetadataRefs
+        ? "route-integration-contract:001"
+        : null,
+      applied_snapshot_ref: includeMetadataRefs
+        ? "applied-cwp-snapshot:001"
+        : null,
     },
     applied_snapshot_metadata: {
-      applied_snapshot_ref: "applied-cwp-snapshot:001",
+      applied_snapshot_ref: includeMetadataRefs
+        ? "applied-cwp-snapshot:001"
+        : null,
     },
     blocked_reasons: [],
     warnings: [],

@@ -177,9 +177,7 @@ export function buildWorkbenchSpineConsolidationV01(
   }));
 
   const lineageMap = buildLineageMap(stages, input);
-  const lineageProblems = lineageMap.missing_links
-    .filter((link) => link !== "external_delivery_contract_not_configured")
-    .map((link) => `lineage_missing:${link}`);
+  const lineageProblems = lineageBlockerProblems(lineageMap, stages);
   const blockers = uniqueStrings([
     ...stages.flatMap((stage) => stage.blocker_reasons),
     ...stages.flatMap((stage) => stage.authority_warnings),
@@ -190,11 +188,14 @@ export function buildWorkbenchSpineConsolidationV01(
   const missingPrerequisites = uniqueStrings(
     stages.flatMap((stage) => stage.missing_prerequisites),
   );
+  const requiredLocalMissingPrerequisites =
+    localMissingPrerequisites(missingPrerequisites);
   const action = recommendedAction({ stages, blockers, missingPrerequisites });
   const localFulfillmentRecorded = stageStatus(
     stages,
     "local_handoff_send_fulfillment",
   ) === "fulfilled";
+  const localSpineSatisfied = localSpineStagesSatisfied(stages);
   const externalDeliveryStatus: WorkbenchSpineExternalDeliveryStatus =
     blockers.some((blocker) => blocker.includes("external_handoff_delivery"))
       ? "blocked"
@@ -205,8 +206,9 @@ export function buildWorkbenchSpineConsolidationV01(
   const dashboardStatus = determineDashboardStatus({
     stages,
     blockers,
-    missingPrerequisites,
+    requiredLocalMissingPrerequisites,
     localFulfillmentRecorded,
+    localSpineSatisfied,
   });
 
   return {
@@ -344,24 +346,64 @@ function routeIntegrationStage(value: unknown): WorkbenchSpineStageSummary {
   }
   const status = stringField(read, "status");
   const metadata = recordField(read, "route_integration_metadata");
-  const ref =
-    stringField(metadata, "contract_record_id") ??
-    stringField(metadata, "applied_snapshot_ref");
+  const contractRecordRef = stringField(metadata, "contract_record_id");
+  const appliedSnapshotRef = stringField(metadata, "applied_snapshot_ref");
+  const ref = contractRecordRef ?? appliedSnapshotRef;
   const blockers = stringArray(read.blocked_reasons);
+  const integrationAvailable =
+    isRouteIntegrationMaterialStatus(status) && Boolean(ref);
+  const statusBlockers =
+    status === "contract_invalid" ||
+    status === "applied_snapshot_invalid" ||
+    status === "fallback_to_runtime"
+      ? [`current_working_perspective_route_integration_read_${status}`]
+      : [];
+  if (blockers.length > 0 || statusBlockers.length > 0) {
+    return stage({
+      stage_id: "current_working_perspective_route_integration",
+      phase_id: "cwp_foundation",
+      status: "blocked",
+      primary_ref: ref,
+      source_status: status,
+      summary: "Route-integrated CWP read material is blocked.",
+      blocker_reasons: uniqueStrings([
+        ...blockers.map((reason) => `route_integration:${reason}`),
+        ...statusBlockers,
+      ]),
+      evidence_refs: stringArray(read.evidence_refs),
+      source_refs: stringArray(read.source_refs),
+      material_count: ref ? 1 : 0,
+    });
+  }
+  if (integrationAvailable) {
+    return stage({
+      stage_id: "current_working_perspective_route_integration",
+      phase_id: "cwp_foundation",
+      status: "available",
+      primary_ref: ref,
+      source_status: status,
+      summary: "Route-integrated CWP read material is available.",
+      evidence_refs: stringArray(read.evidence_refs),
+      source_refs: stringArray(read.source_refs),
+      material_count: 1,
+    });
+  }
   return stage({
     stage_id: "current_working_perspective_route_integration",
     phase_id: "cwp_foundation",
-    status: blockers.length ? "blocked" : "available",
+    status: "insufficient_data",
     primary_ref: ref,
     source_status: status,
     summary:
       status === "runtime_only"
         ? "Runtime CWP read is available; applied snapshot overlay is not active."
-        : "Route-integrated CWP read material is available.",
-    blocker_reasons: blockers.map((reason) => `route_integration:${reason}`),
+        : "Route-integrated CWP read material is not yet available.",
+    missing_prerequisites: [
+      routeIntegrationMissingPrerequisite(status, Boolean(ref)),
+    ],
     evidence_refs: stringArray(read.evidence_refs),
     source_refs: stringArray(read.source_refs),
-    material_count: 1,
+    material_count: 0,
   });
 }
 
@@ -881,22 +923,131 @@ function recommendedAction({
   };
 }
 
+function isRouteIntegrationMaterialStatus(status: string | null): boolean {
+  return (
+    status === "runtime_with_applied_snapshot_hint" ||
+    status === "runtime_with_applied_snapshot_overlay_candidate" ||
+    status === "applied_snapshot_preferred_with_runtime_fallback"
+  );
+}
+
+function routeIntegrationMissingPrerequisite(
+  status: string | null,
+  hasMetadataRef: boolean,
+): string {
+  if (status === "runtime_only") {
+    return "current_working_perspective_route_integration_not_configured";
+  }
+  if (status === "contract_missing") {
+    return "current_working_perspective_route_integration_contract_missing";
+  }
+  if (status === "applied_snapshot_missing") {
+    return "current_working_perspective_route_integration_applied_snapshot_missing";
+  }
+  if (isRouteIntegrationMaterialStatus(status) && !hasMetadataRef) {
+    return "current_working_perspective_route_integration_metadata_ref_missing";
+  }
+  return "current_working_perspective_route_integration_material_missing";
+}
+
+function lineageBlockerProblems(
+  lineageMap: WorkbenchSpineLineageMap,
+  stages: WorkbenchSpineStageSummary[],
+): string[] {
+  return uniqueStrings(
+    lineageMap.edges.flatMap((edge) => {
+      if (
+        edge.linked ||
+        !edge.problem ||
+        edge.problem === "external_delivery_contract_not_configured"
+      ) {
+        return [];
+      }
+      const hasExpectedRef = isNonEmptyString(edge.expected_ref);
+      const hasObservedRef = isNonEmptyString(edge.observed_ref);
+      const downstreamHasMaterial = stageClaimsLineageMaterial(stages, edge.to);
+
+      if (
+        hasExpectedRef &&
+        hasObservedRef &&
+        edge.expected_ref !== edge.observed_ref
+      ) {
+        return [`lineage_mismatch:${edge.problem}`];
+      }
+      if (!hasExpectedRef && hasObservedRef) {
+        return [`lineage_downstream_without_upstream:${edge.problem}`];
+      }
+      if (hasExpectedRef && !hasObservedRef && downstreamHasMaterial) {
+        return [`lineage_missing_downstream_source_ref:${edge.problem}`];
+      }
+      return [];
+    }),
+  );
+}
+
+function stageClaimsLineageMaterial(
+  stages: WorkbenchSpineStageSummary[],
+  stageId: WorkbenchSpineStageId,
+): boolean {
+  const stage = stages.find((item) => item.stage_id === stageId);
+  if (!stage) return false;
+  return (
+    stage.material_count > 0 ||
+    ["available", "approved", "applied", "exported", "fulfilled"].includes(
+      stage.status,
+    )
+  );
+}
+
+function localMissingPrerequisites(values: string[]): string[] {
+  return values.filter(
+    (value) => value !== "external_handoff_delivery_contract_missing",
+  );
+}
+
+function localSpineStagesSatisfied(
+  stages: WorkbenchSpineStageSummary[],
+): boolean {
+  const expectedStatuses: Partial<
+    Record<WorkbenchSpineStageId, WorkbenchSpineStageStatus>
+  > = {
+    applied_current_working_perspective: "applied",
+    current_working_perspective_route_integration: "available",
+    applied_handoff_context: "applied",
+    exported_handoff_packet_artifact: "exported",
+    handoff_send_contract_record: "approved",
+    local_handoff_send_fulfillment: "fulfilled",
+  };
+  return Object.entries(expectedStatuses).every(
+    ([stageId, expectedStatus]) =>
+      stageStatus(stages, stageId as WorkbenchSpineStageId) === expectedStatus,
+  );
+}
+
 function determineDashboardStatus({
   stages,
   blockers,
-  missingPrerequisites,
+  requiredLocalMissingPrerequisites,
   localFulfillmentRecorded,
+  localSpineSatisfied,
 }: {
   stages: WorkbenchSpineStageSummary[];
   blockers: string[];
-  missingPrerequisites: string[];
+  requiredLocalMissingPrerequisites: string[];
   localFulfillmentRecorded: boolean;
+  localSpineSatisfied: boolean;
 }) {
   const materialStages = stages.filter((stage) => stage.material_count > 0);
   if (blockers.length) return "blocked";
-  if (localFulfillmentRecorded) return "local_fulfillment_available";
+  if (
+    localFulfillmentRecorded &&
+    localSpineSatisfied &&
+    requiredLocalMissingPrerequisites.length === 0
+  ) {
+    return "local_fulfillment_available";
+  }
   if (materialStages.length === 0) return "no_spine_material";
-  if (missingPrerequisites.length) return "insufficient_data";
+  if (requiredLocalMissingPrerequisites.length) return "insufficient_data";
   return "spine_in_progress";
 }
 
