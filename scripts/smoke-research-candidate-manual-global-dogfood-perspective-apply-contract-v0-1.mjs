@@ -148,6 +148,47 @@ function assertStaticContracts() {
     /fetch\s*\(|localStorage|sessionStorage|navigator\.clipboard/i,
     "apply contract panel must not fetch, persist browser state, or use clipboard",
   );
+  for (const requiredText of [
+    "useEffect",
+    "reviewContractFingerprint",
+    "currentContractFingerprint = contract.validation.contract_fingerprint",
+    "review.source_contract_fingerprint === currentContractFingerprint",
+    "review?.accepted_mapping_summary?.proposed_idempotency_key",
+    "contract.idempotency_contract_preview.proposed_idempotency_key",
+    "setReviewContractFingerprint(currentContractFingerprint)",
+    "setReviewContractFingerprint(null)",
+  ]) {
+    assert.ok(
+      source.panel.includes(requiredText),
+      `apply contract panel must include stale-review guard text: ${requiredText}`,
+    );
+  }
+  assert.match(
+    source.panel,
+    /function\s+updateOperatorDecision[\s\S]*?clearReview\(\);/,
+    "operator decision changes must clear cached review",
+  );
+  assert.match(
+    source.panel,
+    /function\s+updateOperatorNote[\s\S]*?clearReview\(\);/,
+    "operator note changes must clear cached review",
+  );
+  assert.match(
+    source.panel,
+    /reviewContractFingerprint\s*!==\s*currentContractFingerprint[\s\S]*?setReview\(null\);[\s\S]*?setReviewContractFingerprint\(null\);/,
+    "contract fingerprint changes must clear cached review",
+  );
+  assert.doesNotMatch(
+    source.panel,
+    /\{review\s*\?\s*<ApplyReviewPreview\s+review=\{review\}/,
+    "apply review preview must not render directly from stale review state",
+  );
+  assert.ok(
+    source.panel.includes(
+      "{currentReview ? <ApplyReviewPreview review={currentReview} /> : null}",
+    ),
+    "apply review preview must render only the current contract-bound review",
+  );
   assert.doesNotMatch(
     source.panel,
     /<button[\s\S]{0,240}(Apply current-working Perspective|Update current working Perspective|Write canonical Perspective state|Promote Perspective|Write Perspective Memory|Create work item)/i,

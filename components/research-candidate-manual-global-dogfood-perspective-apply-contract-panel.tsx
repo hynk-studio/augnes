@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveApplyContract } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-apply-contract";
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveApplyReview } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-apply-review";
@@ -47,23 +47,63 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveApplyContractPane
     useState<ResearchCandidateManualGlobalDogfoodPerspectiveApplyReview | null>(
       null,
     );
+  const [reviewContractFingerprint, setReviewContractFingerprint] = useState<
+    string | null
+  >(null);
   const contract =
     buildResearchCandidateManualGlobalDogfoodPerspectiveApplyContract({
       readback,
       operator_intent_label:
         "research_candidate_manual_global_dogfood_perspective_apply_contract_panel",
     });
+  const currentContractFingerprint = contract.validation.contract_fingerprint;
+  const reviewAcceptedMappingIdempotencyKey =
+    review?.accepted_mapping_summary?.proposed_idempotency_key ?? null;
+  const currentReview =
+    review &&
+    review.source_contract_fingerprint === currentContractFingerprint &&
+    (!review.accepted_mapping_summary ||
+      reviewAcceptedMappingIdempotencyKey ===
+        contract.idempotency_contract_preview.proposed_idempotency_key)
+      ? review
+      : null;
+
+  useEffect(() => {
+    if (
+      reviewContractFingerprint &&
+      reviewContractFingerprint !== currentContractFingerprint
+    ) {
+      setReview(null);
+      setReviewContractFingerprint(null);
+    }
+  }, [currentContractFingerprint, reviewContractFingerprint]);
+
+  function clearReview() {
+    setReview(null);
+    setReviewContractFingerprint(null);
+  }
 
   function updateOperatorDecision(
     nextDecision: ResearchCandidateManualGlobalDogfoodPerspectiveApplyReviewDecision,
   ) {
     setOperatorDecision(nextDecision);
-    setReview(null);
+    clearReview();
   }
 
   function updateOperatorNote(nextNote: string) {
     setOperatorNote(nextNote);
-    setReview(null);
+    clearReview();
+  }
+
+  function previewReview() {
+    const nextReview =
+      buildResearchCandidateManualGlobalDogfoodPerspectiveApplyReview({
+        perspective_apply_contract: contract,
+        operator_decision: operatorDecision,
+        operator_note: operatorNote,
+      });
+    setReview(nextReview);
+    setReviewContractFingerprint(currentContractFingerprint);
   }
 
   return (
@@ -278,23 +318,15 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveApplyContractPane
         <div className="perspective-workbench-status-row">
           <button
             type="button"
-            onClick={() =>
-              setReview(
-                buildResearchCandidateManualGlobalDogfoodPerspectiveApplyReview({
-                  perspective_apply_contract: contract,
-                  operator_decision: operatorDecision,
-                  operator_note: operatorNote,
-                }),
-              )
-            }
+            onClick={previewReview}
           >
             Preview Perspective apply review
           </button>
-          <button type="button" onClick={() => setReview(null)}>
+          <button type="button" onClick={clearReview}>
             Clear Perspective apply review
           </button>
         </div>
-        {review ? <ApplyReviewPreview review={review} /> : null}
+        {currentReview ? <ApplyReviewPreview review={currentReview} /> : null}
       </section>
 
       <p className="manual-note-runtime-hint">
