@@ -37,6 +37,7 @@ export function ResearchCandidateManualGlobalDogfoodMetricSnapshotWritePanel({
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [rollbackReceiptId, setRollbackReceiptId] = useState("");
   const [rollbackReason, setRollbackReason] = useState("");
+  const [rollbackConfirmationText, setRollbackConfirmationText] = useState("");
   const writeEnabled =
     confirmationText ===
     RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_WRITE_CONFIRMATION;
@@ -46,7 +47,10 @@ export function ResearchCandidateManualGlobalDogfoodMetricSnapshotWritePanel({
     "";
   const effectiveRollbackReceiptId = rollbackReceiptId.trim() || latestReceiptId;
   const rollbackEnabled =
-    effectiveRollbackReceiptId.length > 0 && rollbackReason.trim().length > 0;
+    effectiveRollbackReceiptId.length > 0 &&
+    rollbackReason.trim().length > 0 &&
+    rollbackConfirmationText ===
+      RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_ROLLBACK_CONFIRMATION;
   const writeRequest = useMemo(
     () => ({
       metric_snapshot_contract: metricSnapshotContract,
@@ -145,8 +149,7 @@ export function ResearchCandidateManualGlobalDogfoodMetricSnapshotWritePanel({
             rollback_authorization: {
               authorization_kind:
                 "manual_operator_authorized_dogfood_metric_snapshot_rollback",
-              operator_confirmation_text:
-                RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_ROLLBACK_CONFIRMATION,
+              operator_confirmation_text: rollbackConfirmationText,
               rollback_reason: rollbackReason.trim(),
             },
           }),
@@ -311,6 +314,14 @@ export function ResearchCandidateManualGlobalDogfoodMetricSnapshotWritePanel({
           Rollback marks the metric snapshot receipt rolled_back and keeps the
           metric snapshot record row for audit readback.
         </p>
+        <p className="manual-note-runtime-hint">
+          Exact rollback authorization text required:{" "}
+          <code>
+            {
+              RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_ROLLBACK_CONFIRMATION
+            }
+          </code>
+        </p>
         <label>
           Receipt id
           <input
@@ -327,6 +338,16 @@ export function ResearchCandidateManualGlobalDogfoodMetricSnapshotWritePanel({
             value={rollbackReason}
             onChange={(event) => setRollbackReason(event.target.value)}
             placeholder="Operator requested rollback of this metric snapshot receipt."
+          />
+        </label>
+        <label>
+          Exact rollback authorization text
+          <input
+            value={rollbackConfirmationText}
+            onChange={(event) => setRollbackConfirmationText(event.target.value)}
+            placeholder={
+              RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_ROLLBACK_CONFIRMATION
+            }
           />
         </label>
         <button

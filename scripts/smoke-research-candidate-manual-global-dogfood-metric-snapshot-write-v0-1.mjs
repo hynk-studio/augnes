@@ -148,6 +148,20 @@ function assertStaticContracts() {
     /readResearchCandidateManualGlobalDogfoodMetricSnapshot/,
     "writer must check idempotency inside the transaction",
   );
+  const transactionSlice = source.writer.slice(
+    source.writer.indexOf('db.prepare("BEGIN IMMEDIATE").run();'),
+    source.writer.indexOf("insertReceipt(db, receipt);"),
+  );
+  assert.match(
+    transactionSlice,
+    /readResearchCandidateManualGlobalDogfoodLedgerByReceiptId/,
+    "writer must re-read source global dogfood ledger receipt inside the transaction",
+  );
+  assert.match(
+    transactionSlice,
+    /validateSourceManualGlobalDogfoodLedger/,
+    "writer must revalidate source global dogfood ledger receipt inside the transaction",
+  );
   assert.match(
     source.writer,
     /source_global_dogfood_ledger_receipt_not_active_committed/,
@@ -189,6 +203,31 @@ function assertStaticContracts() {
     source.writePanel,
     /Write dogfood metric snapshot record/,
     "write panel must expose explicit authorized metric snapshot write button",
+  );
+  assert.match(
+    source.writePanel,
+    /rollbackConfirmationText/,
+    "write panel must keep rollback confirmation in local state",
+  );
+  assert.match(
+    source.writePanel,
+    /rollbackEnabled[\s\S]*rollbackConfirmationText ===[\s\S]*RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_ROLLBACK_CONFIRMATION/,
+    "rollback button must require exact rollback confirmation text",
+  );
+  assert.match(
+    source.writePanel,
+    /operator_confirmation_text: rollbackConfirmationText/,
+    "rollback request must send typed rollback confirmation text",
+  );
+  assert.match(
+    source.writePanel,
+    /Exact rollback authorization text/,
+    "write panel must render exact rollback authorization text input",
+  );
+  assert.doesNotMatch(
+    source.writePanel,
+    /operator_confirmation_text:\s*\n\s*RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_ROLLBACK_CONFIRMATION/,
+    "rollback request must not auto-supply rollback confirmation constant",
   );
   assert.doesNotMatch(
     source.writePanel,
@@ -594,7 +633,9 @@ const rollbackSource = rollbackResearchCandidateManualGlobalDogfoodLedgerReceipt
   { db }
 );
 assert.equal(rollbackSource.ok, true);
+const countsBeforeRolledBackSourceWrite = readCounts();
 const rolledBackSourceWrite = writeMetric(staleContract, staleReview);
+const countsAfterRolledBackSourceWrite = readCounts();
 
 const supersededSourceLedger = writeLedger(sourceMissing);
 assert.equal(supersededSourceLedger.ok, true);
@@ -607,7 +648,9 @@ const replacementLedger = writeLedger(sourceNoisy, {
   }
 });
 assert.equal(replacementLedger.ok, true);
+const countsBeforeSupersededSourceWrite = readCounts();
 const supersededSourceWrite = writeMetric(supersededSourceContract, supersededSourceReview);
+const countsAfterSupersededSourceWrite = readCounts();
 
 const replacementMetricContract = metricContractFromCurrentProjection("metric_snapshot_write_replacement");
 const replacementMetricReview = acceptedMetricReview(replacementMetricContract, "replacement metric note");
@@ -678,8 +721,12 @@ console.log(JSON.stringify({
   unsupportedSignalWrite,
   committedMetric,
   duplicateMetric,
+  countsBeforeRolledBackSourceWrite,
   rolledBackSourceWrite,
+  countsAfterRolledBackSourceWrite,
+  countsBeforeSupersededSourceWrite,
   supersededSourceWrite,
+  countsAfterSupersededSourceWrite,
   supersedeMetric,
   rollbackMetric,
   duplicateRollbackMetric,
@@ -727,6 +774,21 @@ function assertRejections(sample) {
     ),
     "superseded source ledger receipt must be rejected",
   );
+  for (const table of [
+    "research_candidate_manual_global_dogfood_metric_snapshot_receipts",
+    "research_candidate_manual_global_dogfood_metric_snapshot_records",
+  ]) {
+    assert.equal(
+      sample.countsAfterRolledBackSourceWrite[table],
+      sample.countsBeforeRolledBackSourceWrite[table],
+      `rolled_back source write must not create ${table} rows`,
+    );
+    assert.equal(
+      sample.countsAfterSupersededSourceWrite[table],
+      sample.countsBeforeSupersededSourceWrite[table],
+      `superseded source write must not create ${table} rows`,
+    );
+  }
   assert.ok(
     sample.rawTextWrite.refusal_reasons.includes(
       "raw_text_or_operator_note_field_refused",

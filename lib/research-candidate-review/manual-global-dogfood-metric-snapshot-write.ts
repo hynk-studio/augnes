@@ -183,6 +183,31 @@ export function writeResearchCandidateManualGlobalDogfoodMetricSnapshot(
         }
       }
 
+      const transactionalSourceLedger =
+        readResearchCandidateManualGlobalDogfoodLedgerByReceiptId(
+          contract.source_latest_active_committed_receipt_id!,
+          {
+            scope: contract.scope,
+            db,
+          },
+        );
+      const transactionalSourceFailures =
+        validateSourceManualGlobalDogfoodLedger({
+          sourceLedger: transactionalSourceLedger,
+          contract,
+        });
+      if (transactionalSourceFailures.length > 0) {
+        rollbackWriteTransaction(db);
+        transactionStarted = false;
+        return refusedResult({
+          validation: validationWithFailures(
+            validation,
+            transactionalSourceFailures,
+          ),
+          idempotencyKey: validation.idempotency_key,
+        });
+      }
+
       insertReceipt(db, receipt);
       insertMetricSnapshotRecord(db, metricSnapshotRecord);
       db.prepare("COMMIT").run();
