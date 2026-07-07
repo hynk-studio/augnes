@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveApplyContract } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-apply-contract";
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveApplyReview } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-apply-review";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveApplyWritePanel } from "@/components/research-candidate-manual-global-dogfood-perspective-apply-write-panel";
 import type { ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateReadback } from "@/types/research-candidate-manual-global-dogfood-canonical-perspective-update-write";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveApplyContract } from "@/types/research-candidate-manual-global-dogfood-perspective-apply-contract";
 import type {
@@ -67,6 +68,15 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveApplyContractPane
         contract.idempotency_contract_preview.proposed_idempotency_key)
       ? review
       : null;
+  const currentAcceptedReview =
+    operatorDecision === "accept_contract_for_future_perspective_apply_write_slice" &&
+    currentReview?.operator_decision ===
+      "accept_contract_for_future_perspective_apply_write_slice" &&
+    currentReview?.review_status ===
+      "ready_for_future_perspective_apply_write_slice" &&
+    currentReview.source_contract_fingerprint === currentContractFingerprint &&
+    currentReview.accepted_mapping_summary?.proposed_idempotency_key ===
+      contract.idempotency_contract_preview.proposed_idempotency_key;
 
   useEffect(() => {
     if (
@@ -328,6 +338,13 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveApplyContractPane
         </div>
         {currentReview ? <ApplyReviewPreview review={currentReview} /> : null}
       </section>
+
+      {currentAcceptedReview ? (
+        <ResearchCandidateManualGlobalDogfoodPerspectiveApplyWritePanel
+          perspectiveApplyContract={contract}
+          perspectiveApplyReview={currentReview}
+        />
+      ) : null}
 
       <p className="manual-note-runtime-hint">
         This preview does not update current-working Perspective, directly write
