@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { buildResearchCandidateManualGlobalDogfoodMetricSnapshotContract } from "@/lib/research-candidate-review/manual-global-dogfood-metric-snapshot-contract";
 import { buildResearchCandidateManualGlobalDogfoodMetricSnapshotReview } from "@/lib/research-candidate-review/manual-global-dogfood-metric-snapshot-review";
+import { ResearchCandidateManualGlobalDogfoodMetricSnapshotWritePanel } from "@/components/research-candidate-manual-global-dogfood-metric-snapshot-write-panel";
 import type { ResearchCandidateManualGlobalDogfoodLedgerWorkbenchProjection } from "@/types/research-candidate-manual-global-dogfood-ledger-workbench-projection";
 import type { ResearchCandidateManualGlobalDogfoodMetricSnapshotContract } from "@/types/research-candidate-manual-global-dogfood-metric-snapshot-contract";
 import type {
@@ -281,6 +282,13 @@ export function ResearchCandidateManualGlobalDogfoodMetricSnapshotContractPanel(
         </div>
         {review ? <MetricReviewPreview review={review} /> : null}
       </section>
+
+      {review?.review_status === "ready_for_future_metric_snapshot_write_slice" ? (
+        <ResearchCandidateManualGlobalDogfoodMetricSnapshotWritePanel
+          metricSnapshotContract={contract}
+          metricSnapshotReview={review}
+        />
+      ) : null}
 
       <p className="manual-note-runtime-hint">
         next_recommended_slice <code>{contract.next_recommended_slice}</code>

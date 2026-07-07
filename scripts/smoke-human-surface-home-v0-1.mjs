@@ -240,6 +240,26 @@ const followOnResearchCandidateManualGlobalDogfoodLoopContractFiles = [
   "package.json",
 ];
 
+const followOnResearchCandidateManualGlobalDogfoodMetricSnapshotWriteFiles = [
+  "lib/db/schema.sql",
+  "lib/db.ts",
+  "scripts/db-migrations.mjs",
+  "scripts/db-migrate.mjs",
+  "types/research-candidate-manual-global-dogfood-metric-snapshot-write.ts",
+  "lib/research-candidate-review/manual-global-dogfood-metric-snapshot-write.ts",
+  "lib/research-candidate-review/read-manual-global-dogfood-metric-snapshot.ts",
+  "app/api/research-candidate-review/manual-global-dogfood-metric-snapshot/route.ts",
+  "app/api/research-candidate-review/manual-global-dogfood-metric-snapshot/[receipt_id]/rollback/route.ts",
+  "components/research-candidate-manual-global-dogfood-metric-snapshot-write-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-metric-snapshot-readback-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-metric-snapshot-contract-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-global-dogfood-metric-snapshot-write-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -384,6 +404,7 @@ const allowedChangedFiles = new Set([
   ...followOnResearchCandidateManualResultDogfoodLedgerAuthorizationContractFiles,
   ...followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles,
   ...followOnResearchCandidateManualGlobalDogfoodLoopContractFiles,
+  ...followOnResearchCandidateManualGlobalDogfoodMetricSnapshotWriteFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
@@ -952,7 +973,8 @@ function assertChangedFileBoundary() {
         file === "app/api/augnes/read/autonomy-contract/route.ts" ||
         phase9aAutonomyRunnerPreflightFiles.includes(file) ||
         followOnResearchCandidateManualResultAuthorizedRecordWriteFiles.includes(file) ||
-        followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles.includes(file),
+        followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles.includes(file) ||
+        followOnResearchCandidateManualGlobalDogfoodMetricSnapshotWriteFiles.includes(file),
       `Phase 4A must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(
@@ -961,7 +983,8 @@ function assertChangedFileBoundary() {
         file === "app/api/augnes/read/autonomy-contract/route.ts" ||
         phase9aAutonomyRunnerPreflightFiles.includes(file) ||
         followOnResearchCandidateManualResultAuthorizedRecordWriteFiles.includes(file) ||
-        followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles.includes(file),
+        followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles.includes(file) ||
+        followOnResearchCandidateManualGlobalDogfoodMetricSnapshotWriteFiles.includes(file),
       `Phase 4A must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 4A must not change DB files: ${file}`);

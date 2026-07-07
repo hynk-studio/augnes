@@ -207,6 +207,7 @@
     "smoke:research-candidate-manual-global-dogfood-ledger-write-v0-1": "node scripts/smoke-research-candidate-manual-global-dogfood-ledger-write-v0-1.mjs",
     "smoke:research-candidate-manual-global-dogfood-ledger-workbench-projection-v0-1": "node scripts/smoke-research-candidate-manual-global-dogfood-ledger-workbench-projection-v0-1.mjs",
     "smoke:research-candidate-manual-global-dogfood-loop-contracts-v0-1": "node scripts/smoke-research-candidate-manual-global-dogfood-loop-contracts-v0-1.mjs",
+    "smoke:research-candidate-manual-global-dogfood-metric-snapshot-write-v0-1": "node scripts/smoke-research-candidate-manual-global-dogfood-metric-snapshot-write-v0-1.mjs",
     "smoke:research-candidate-runtime-preview-draft-v0-1": "node scripts/smoke-research-candidate-runtime-preview-draft-v0-1.mjs",
     "smoke:research-candidate-preview-draft-read-discard-v0-1": "node scripts/smoke-research-candidate-preview-draft-read-discard-v0-1.mjs",
     "smoke:research-candidate-preview-draft-list-filters-v0-1": "node scripts/smoke-research-candidate-preview-draft-list-filters-v0-1.mjs",

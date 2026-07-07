@@ -1,0 +1,354 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { ResearchCandidateManualGlobalDogfoodMetricSnapshotReadbackPanel } from "@/components/research-candidate-manual-global-dogfood-metric-snapshot-readback-panel";
+import {
+  RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_ROLLBACK_CONFIRMATION,
+  RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_WRITE_CONFIRMATION,
+  type ResearchCandidateManualGlobalDogfoodMetricSnapshotReadback,
+  type ResearchCandidateManualGlobalDogfoodMetricSnapshotWriteResult,
+} from "@/types/research-candidate-manual-global-dogfood-metric-snapshot-write";
+import type { ResearchCandidateManualGlobalDogfoodMetricSnapshotContract } from "@/types/research-candidate-manual-global-dogfood-metric-snapshot-contract";
+import type { ResearchCandidateManualGlobalDogfoodMetricSnapshotReview } from "@/types/research-candidate-manual-global-dogfood-metric-snapshot-review";
+
+const routePath =
+  "/api/research-candidate-review/manual-global-dogfood-metric-snapshot";
+
+export function ResearchCandidateManualGlobalDogfoodMetricSnapshotWritePanel({
+  metricSnapshotContract,
+  metricSnapshotReview,
+}: {
+  metricSnapshotContract: ResearchCandidateManualGlobalDogfoodMetricSnapshotContract;
+  metricSnapshotReview: ResearchCandidateManualGlobalDogfoodMetricSnapshotReview;
+}) {
+  const [confirmationText, setConfirmationText] = useState("");
+  const [writeResult, setWriteResult] =
+    useState<ResearchCandidateManualGlobalDogfoodMetricSnapshotWriteResult | null>(
+      null,
+    );
+  const [readback, setReadback] =
+    useState<ResearchCandidateManualGlobalDogfoodMetricSnapshotReadback | null>(
+      null,
+    );
+  const [isLoadingReadback, setIsLoadingReadback] = useState(false);
+  const [isWriting, setIsWriting] = useState(false);
+  const [isRollingBack, setIsRollingBack] = useState(false);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [rollbackReceiptId, setRollbackReceiptId] = useState("");
+  const [rollbackReason, setRollbackReason] = useState("");
+  const writeEnabled =
+    confirmationText ===
+    RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_WRITE_CONFIRMATION;
+  const latestReceiptId =
+    writeResult?.receipt?.receipt_id ??
+    readback?.latest_active_committed?.receipt.receipt_id ??
+    "";
+  const effectiveRollbackReceiptId = rollbackReceiptId.trim() || latestReceiptId;
+  const rollbackEnabled =
+    effectiveRollbackReceiptId.length > 0 && rollbackReason.trim().length > 0;
+  const writeRequest = useMemo(
+    () => ({
+      metric_snapshot_contract: metricSnapshotContract,
+      metric_snapshot_review: metricSnapshotReview,
+      operator_authorization: {
+        authorization_kind:
+          "manual_operator_authorized_dogfood_metric_snapshot_write",
+        operator_confirmation_text: confirmationText,
+        write_mode: "commit",
+      },
+    }),
+    [confirmationText, metricSnapshotContract, metricSnapshotReview],
+  );
+
+  const refreshReadback = useCallback(async () => {
+    setIsLoadingReadback(true);
+    setRuntimeError(null);
+    try {
+      const response = await fetch(`${routePath}?limit=10`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        readback?: ResearchCandidateManualGlobalDogfoodMetricSnapshotReadback;
+        error_code?: string;
+      };
+      if (!response.ok || payload.ok !== true || !payload.readback) {
+        throw new Error(payload.error_code ?? "metric_snapshot_readback_failed");
+      }
+      setReadback(payload.readback);
+    } catch (error) {
+      setRuntimeError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsLoadingReadback(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshReadback();
+  }, [refreshReadback]);
+
+  async function writeMetricSnapshot() {
+    if (!writeEnabled) return;
+    setIsWriting(true);
+    setRuntimeError(null);
+    try {
+      const response = await fetch(routePath, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(writeRequest),
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        result?: ResearchCandidateManualGlobalDogfoodMetricSnapshotWriteResult;
+        error_code?: string;
+      };
+      if (!payload.result) {
+        throw new Error(payload.error_code ?? "metric_snapshot_write_failed");
+      }
+      setWriteResult(payload.result);
+      if (!response.ok || payload.ok !== true) {
+        setRuntimeError(payload.result.refusal_reasons.join(", "));
+      }
+      if (payload.result.readback) {
+        setReadback(payload.result.readback);
+      } else {
+        await refreshReadback();
+      }
+    } catch (error) {
+      setRuntimeError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsWriting(false);
+    }
+  }
+
+  async function rollbackMetricSnapshot() {
+    if (!rollbackEnabled) return;
+    setIsRollingBack(true);
+    setRuntimeError(null);
+    try {
+      const response = await fetch(
+        `${routePath}/${encodeURIComponent(effectiveRollbackReceiptId)}/rollback`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            rollback_authorization: {
+              authorization_kind:
+                "manual_operator_authorized_dogfood_metric_snapshot_rollback",
+              operator_confirmation_text:
+                RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_ROLLBACK_CONFIRMATION,
+              rollback_reason: rollbackReason.trim(),
+            },
+          }),
+        },
+      );
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        result?: {
+          result_status?: string;
+          refusal_reasons?: string[];
+          readback?: ResearchCandidateManualGlobalDogfoodMetricSnapshotReadback | null;
+        };
+        error_code?: string;
+      };
+      if (!response.ok || payload.ok !== true) {
+        throw new Error(
+          payload.result?.refusal_reasons?.join(", ") ??
+            payload.error_code ??
+            "metric_snapshot_rollback_failed",
+        );
+      }
+      setRuntimeError(null);
+      if (payload.result?.readback) {
+        setReadback(payload.result.readback);
+      } else {
+        await refreshReadback();
+      }
+    } catch (error) {
+      setRuntimeError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsRollingBack(false);
+    }
+  }
+
+  return (
+    <section
+      className="perspective-inspector-section manual-global-dogfood-metric-snapshot-write"
+      aria-label="Authorized manual global dogfood metric snapshot write"
+      data-augnes-authority="authorized-manual-metric-snapshot-write no-global-metrics no-next-work-bias no-perspective no-proof no-work no-memory"
+    >
+      <div className="perspective-constellation-shell-header">
+        <div>
+          <p className="panel-eyebrow">AUGNES / Authorized Metric Snapshot Write</p>
+          <h4>Write dogfood metric snapshot record</h4>
+          <p>
+            This writes only a manual-derived dogfood metric snapshot
+            record/receipt/readback/rollback metadata. It does not write global
+            dogfood metrics, next-work bias, Perspective, proof/evidence, work
+            status, memory, product state, or source records.
+          </p>
+        </div>
+        <div className="perspective-constellation-shell-status">
+          <span className="status-pill">
+            {writeResult?.result_status ?? "not written"}
+          </span>
+          <span className="status-pill">global metrics false</span>
+          <span className="status-pill">next-work false</span>
+        </div>
+      </div>
+
+      <div className="perspective-workbench-status-row">
+        <span>
+          metric_contract_fingerprint{" "}
+          <code>{metricSnapshotContract.validation.contract_fingerprint}</code>
+        </span>
+        <span>
+          metric_review_fingerprint{" "}
+          <code>{metricSnapshotReview.validation.review_fingerprint}</code>
+        </span>
+        <span>
+          source_projection_fingerprint{" "}
+          <code>{metricSnapshotContract.source_projection_fingerprint}</code>
+        </span>
+        <span>
+          source_global_dogfood_ledger_receipt{" "}
+          <code>
+            {metricSnapshotContract.source_latest_active_committed_receipt_id ??
+              "none"}
+          </code>
+        </span>
+        <span>
+          proposed_idempotency_key{" "}
+          <code>
+            {
+              metricSnapshotContract.idempotency_contract_preview
+                .proposed_idempotency_key
+            }
+          </code>
+        </span>
+      </div>
+
+      <section className="cockpit-surface-card">
+        <h5>Fresh operator authorization</h5>
+        <p className="manual-note-runtime-hint">
+          Exact confirmation required:{" "}
+          <code>
+            {
+              RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_WRITE_CONFIRMATION
+            }
+          </code>
+        </p>
+        <label>
+          Confirmation
+          <input
+            value={confirmationText}
+            onChange={(event) => setConfirmationText(event.target.value)}
+            placeholder={
+              RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_METRIC_SNAPSHOT_WRITE_CONFIRMATION
+            }
+          />
+        </label>
+        <div className="perspective-workbench-status-row">
+          <button
+            type="button"
+            disabled={!writeEnabled || isWriting}
+            onClick={writeMetricSnapshot}
+          >
+            {isWriting
+              ? "Writing dogfood metric snapshot record"
+              : "Write dogfood metric snapshot record"}
+          </button>
+          <button type="button" onClick={refreshReadback} disabled={isLoadingReadback}>
+            Refresh metric snapshot readback
+          </button>
+        </div>
+      </section>
+
+      {writeResult ? (
+        <section className="cockpit-surface-card">
+          <h5>Write result</h5>
+          <div className="perspective-workbench-status-row">
+            <span>
+              result_status <code>{writeResult.result_status}</code>
+            </span>
+            <span>
+              duplicate_replayed <code>{String(writeResult.duplicate_replayed)}</code>
+            </span>
+            <span>
+              receipt <code>{writeResult.receipt?.receipt_id ?? "none"}</code>
+            </span>
+            <span>
+              record{" "}
+              <code>
+                {writeResult.metric_snapshot_record?.metric_snapshot_record_id ??
+                  "none"}
+              </code>
+            </span>
+          </div>
+          {writeResult.refusal_reasons.length > 0 ? (
+            <ul>
+              {writeResult.refusal_reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
+
+      <section className="cockpit-surface-card">
+        <h5>Rollback metadata</h5>
+        <p>
+          Rollback marks the metric snapshot receipt rolled_back and keeps the
+          metric snapshot record row for audit readback.
+        </p>
+        <label>
+          Receipt id
+          <input
+            value={rollbackReceiptId}
+            onChange={(event) => setRollbackReceiptId(event.target.value)}
+            placeholder={
+              latestReceiptId || "manual-global-dogfood-metric-snapshot-receipt:..."
+            }
+          />
+        </label>
+        <label>
+          Rollback reason
+          <input
+            value={rollbackReason}
+            onChange={(event) => setRollbackReason(event.target.value)}
+            placeholder="Operator requested rollback of this metric snapshot receipt."
+          />
+        </label>
+        <button
+          type="button"
+          disabled={!rollbackEnabled || isRollingBack}
+          onClick={rollbackMetricSnapshot}
+        >
+          {isRollingBack ? "Rolling back metric snapshot receipt" : "Rollback metric snapshot receipt"}
+        </button>
+      </section>
+
+      {runtimeError ? (
+        <p className="manual-note-runtime-error" role="alert">
+          {runtimeError}
+        </p>
+      ) : null}
+
+      <ResearchCandidateManualGlobalDogfoodMetricSnapshotReadbackPanel
+        readback={readback}
+        isLoading={isLoadingReadback}
+        error={null}
+      />
+    </section>
+  );
+}

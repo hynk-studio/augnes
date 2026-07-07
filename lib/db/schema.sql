@@ -1725,6 +1725,100 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_r
 CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_rollbacks_time
   ON research_candidate_manual_global_dogfood_ledger_rollbacks(created_at DESC);
 
+CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_metric_snapshot_receipts (
+  receipt_id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+  source_metric_contract_fingerprint TEXT NOT NULL,
+  source_metric_review_fingerprint TEXT NOT NULL,
+  source_projection_fingerprint TEXT NOT NULL,
+  source_global_dogfood_ledger_receipt_id TEXT NOT NULL,
+  source_global_dogfood_ledger_record_id TEXT NOT NULL,
+  source_manual_receipt_id TEXT NOT NULL,
+  source_handoff_seed_fingerprint TEXT NOT NULL,
+  source_result_text_fingerprint TEXT NOT NULL,
+  source_expected_observed_delta_record_ref TEXT NOT NULL,
+  source_reuse_outcome_record_ref TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  write_status TEXT NOT NULL CHECK (
+    write_status IN (
+      'committed',
+      'duplicate_replayed',
+      'superseded',
+      'rolled_back'
+    )
+  ),
+  authority_profile TEXT NOT NULL,
+  receipt_fingerprint TEXT NOT NULL,
+  supersedes_receipt_id TEXT,
+  rollback_of_receipt_id TEXT,
+  rollback_reason TEXT,
+  FOREIGN KEY (supersedes_receipt_id) REFERENCES research_candidate_manual_global_dogfood_metric_snapshot_receipts(receipt_id),
+  FOREIGN KEY (rollback_of_receipt_id) REFERENCES research_candidate_manual_global_dogfood_metric_snapshot_receipts(receipt_id)
+);
+
+CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_metric_snapshot_records (
+  metric_snapshot_record_id TEXT PRIMARY KEY,
+  receipt_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+  source_global_dogfood_ledger_receipt_id TEXT NOT NULL,
+  source_global_dogfood_ledger_record_id TEXT NOT NULL,
+  source_projection_fingerprint TEXT NOT NULL,
+  source_metric_contract_fingerprint TEXT NOT NULL,
+  source_metric_review_fingerprint TEXT NOT NULL,
+  outcome_label TEXT NOT NULL,
+  outcome_signal TEXT NOT NULL CHECK (outcome_signal IN ('positive', 'negative', 'ambiguous')),
+  proposed_metric_dimensions_json TEXT NOT NULL,
+  proposed_metric_counters_json TEXT NOT NULL,
+  proposed_metric_labels_json TEXT NOT NULL,
+  selected_candidate_context_refs_json TEXT NOT NULL,
+  expected_summary_present INTEGER NOT NULL,
+  observed_summary_present INTEGER NOT NULL,
+  mismatch_or_gap_present INTEGER NOT NULL,
+  source_refs_json TEXT NOT NULL,
+  manual_only_context_refs_json TEXT NOT NULL,
+  warning_reasons_json TEXT NOT NULL,
+  compatibility_findings_json TEXT NOT NULL,
+  authority_profile TEXT NOT NULL,
+  metric_snapshot_record_fingerprint TEXT NOT NULL,
+  FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_global_dogfood_metric_snapshot_receipts(receipt_id)
+);
+
+CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_metric_snapshot_rollbacks (
+  rollback_id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  receipt_id TEXT NOT NULL,
+  rollback_reason TEXT NOT NULL,
+  authority_profile TEXT NOT NULL,
+  rollback_fingerprint TEXT NOT NULL,
+  FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_global_dogfood_metric_snapshot_receipts(receipt_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_metric_snapshot_receipts_scope_time
+  ON research_candidate_manual_global_dogfood_metric_snapshot_receipts(scope, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_metric_snapshot_receipts_status
+  ON research_candidate_manual_global_dogfood_metric_snapshot_receipts(scope, write_status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_metric_snapshot_receipts_source_projection
+  ON research_candidate_manual_global_dogfood_metric_snapshot_receipts(source_projection_fingerprint, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_metric_snapshot_receipts_source_ledger
+  ON research_candidate_manual_global_dogfood_metric_snapshot_receipts(source_global_dogfood_ledger_receipt_id, created_at DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_metric_snapshot_records_receipt
+  ON research_candidate_manual_global_dogfood_metric_snapshot_records(receipt_id);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_metric_snapshot_records_scope_time
+  ON research_candidate_manual_global_dogfood_metric_snapshot_records(scope, created_at DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_metric_snapshot_rollbacks_receipt
+  ON research_candidate_manual_global_dogfood_metric_snapshot_rollbacks(receipt_id);
+
+CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_metric_snapshot_rollbacks_time
+  ON research_candidate_manual_global_dogfood_metric_snapshot_rollbacks(created_at DESC);
+
 CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
   record_id TEXT PRIMARY KEY,
   boundary_status TEXT NOT NULL CHECK (
