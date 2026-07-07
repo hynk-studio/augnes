@@ -15,6 +15,7 @@ import {
   migrateResearchCandidateManualNotePreviewDraftActivities,
   migrateResearchCandidateManualResultRecords,
   migrateResearchCandidateManualGlobalDogfoodLedger,
+  migrateResearchCandidateManualGlobalDogfoodMetricSnapshot,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -51,6 +52,8 @@ try {
     migrateResearchCandidateManualResultRecords(db);
   const researchCandidateManualGlobalDogfoodLedgerResult =
     migrateResearchCandidateManualGlobalDogfoodLedger(db);
+  const researchCandidateManualGlobalDogfoodMetricSnapshotResult =
+    migrateResearchCandidateManualGlobalDogfoodMetricSnapshot(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -288,6 +291,34 @@ try {
   if (researchCandidateManualGlobalDogfoodLedgerResult.created_indexes.length > 0) {
     console.log(
       `Created indexes: ${researchCandidateManualGlobalDogfoodLedgerResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (
+    researchCandidateManualGlobalDogfoodMetricSnapshotResult.created_tables.length >
+    0
+  ) {
+    console.log(
+      `Created manual Research Candidate global dogfood metric snapshot tables at ${dbPath}: ${researchCandidateManualGlobalDogfoodMetricSnapshotResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    researchCandidateManualGlobalDogfoodMetricSnapshotResult.created_indexes
+      .length === 0
+  ) {
+    console.log(
+      `Manual Research Candidate global dogfood metric snapshot migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated manual Research Candidate global dogfood metric snapshot indexes at ${dbPath}`,
+    );
+  }
+  if (
+    researchCandidateManualGlobalDogfoodMetricSnapshotResult.created_indexes.length >
+    0
+  ) {
+    console.log(
+      `Created indexes: ${researchCandidateManualGlobalDogfoodMetricSnapshotResult.created_indexes.join(", ")}`,
     );
   }
 

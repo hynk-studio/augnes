@@ -1972,6 +1972,28 @@ Future work may implement either write as a separate explicitly authorized
 idempotent write slice with row-count validation and fresh operator
 confirmation. These contract previews do not grant that write authority.
 
+## Authorized Manual Global Dogfood Metric Snapshot Write v0.1 Pointer
+
+Accepted manual global dogfood metric snapshot contracts can now be explicitly
+authorized into a dogfood metric snapshot record/receipt path. This slice uses
+manual-specific metric snapshot tables for the manual projection lineage because
+the existing reuse-ledger metric snapshot writer cannot honestly represent the
+manual global dogfood ledger source refs as reuse-ledger/evidence refs without
+overloading semantics.
+
+Writes are idempotent by source contract/review/projection/global-ledger refs,
+manual receipt, ExpectedObservedDelta/Re-use Outcome refs, fingerprints, outcome
+label, selected context refs, and preview counters. Duplicate submission returns
+`duplicate_replayed` without creating duplicate rows. Rollback records metadata
+without deleting metric snapshot records; supersede only supersedes committed
+receipts and keeps prior rows as context. Readback shows the latest active
+committed receipt plus rolled-back/superseded context.
+
+This is a dogfood metric snapshot record write only. It performs no global dogfood metrics update,
+no next-work bias, no Perspective promotion, no
+proof/evidence write, no work mutation, no provider/GitHub/Codex call, no source
+fetching/retrieval, no raw text persistence, and no operator note persistence.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record
