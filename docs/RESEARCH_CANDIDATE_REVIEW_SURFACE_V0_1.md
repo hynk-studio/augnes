@@ -2071,6 +2071,34 @@ Perspective Memory write, no proof/evidence write, no dogfood metrics update,
 no source record mutation, no provider/GitHub/Codex call, no source
 fetching/retrieval, no raw text persistence, and no operator note persistence.
 
+## Authorized Manual Global Dogfood Perspective Relay Write v0.1 Pointer
+
+Accepted manual global dogfood Perspective relay contracts can now be
+explicitly authorized into a Perspective relay update record/receipt path. This
+slice uses manual-specific Perspective relay tables because the generic
+Perspective relay writer requires broader Perspective/workplane lineage that
+the manual source chain cannot honestly provide.
+
+The writer requires active committed source next-work signal and source
+next-work bias records. Writes are idempotent by the relay contract
+fingerprint, source next-work signal refs, source next-work bias refs, upstream
+global dogfood ledger and metric snapshot refs, manual receipt id,
+ExpectedObservedDelta/Reuse Outcome refs, handoff/result fingerprints, relay
+update label/rationale, recommended next-work label, outcome label/signal,
+candidate ids, selected context refs, manual-only context refs, and
+expected/observed/mismatch summaries. Duplicate submission returns
+`duplicate_replayed` without creating duplicate rows. Rollback records metadata
+without deleting relay records; supersede only supersedes committed receipts
+and keeps prior rows as context. Readback exists for the manual-specific
+Perspective relay tables.
+
+This is a manual global dogfood Perspective relay update record write only. It
+performs no canonical Perspective state write, no Perspective promotion, no
+Perspective Memory write, no Perspective Memory persistence, no work mutation, no proof/evidence write, no
+dogfood metrics update, no next-work bias mutation, no source record mutation,
+no provider/GitHub/Codex call, no source fetching/retrieval, no raw text
+persistence, and no operator note persistence.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record
