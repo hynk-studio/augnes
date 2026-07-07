@@ -236,6 +236,51 @@ function assertStaticContracts() {
       ),
     "contract panel must gate write panel behind accepted canonical update review",
   );
+  assert.match(
+    source.contractPanel,
+    /const currentAcceptedReview =[\s\S]*operatorDecision === acceptedReviewDecision[\s\S]*review\?\.operator_decision === acceptedReviewDecision[\s\S]*review\?\.review_status ===[\s\S]*ready_for_future_canonical_perspective_update_write_slice/,
+    "write panel gate must require the current operator decision and cached review to both be accepted",
+  );
+  assert.match(
+    source.contractPanel,
+    /review\?\.source_contract_fingerprint ===[\s\S]*contract\.validation\.contract_fingerprint/,
+    "write panel gate must bind review source contract fingerprint to the current contract",
+  );
+  assert.match(
+    source.contractPanel,
+    /review\?\.accepted_mapping_summary\?\.proposed_idempotency_key ===[\s\S]*contract\.idempotency_contract_preview\.proposed_idempotency_key/,
+    "write panel gate must bind accepted mapping idempotency key to the current contract",
+  );
+  assert.match(
+    source.contractPanel,
+    /function updateOperatorDecision[\s\S]*setOperatorDecision\(nextDecision\);[\s\S]*setReview\(null\);/,
+    "operator decision changes must clear cached canonical review",
+  );
+  assert.match(
+    source.contractPanel,
+    /function updateOperatorNote[\s\S]*setOperatorNote\(nextNote\);[\s\S]*setReview\(null\);/,
+    "operator note changes must clear cached canonical review",
+  );
+  assert.match(
+    source.contractPanel,
+    /onChange=\{\(\) => updateOperatorDecision\(decision\.value\)\}/,
+    "operator decision radio onChange must use stale-review clearing helper",
+  );
+  assert.match(
+    source.contractPanel,
+    /onChange=\{\(event\) => updateOperatorNote\(event\.target\.value\)\}/,
+    "operator note textarea onChange must clear cached review",
+  );
+  assert.match(
+    source.contractPanel,
+    /\{currentAcceptedReview \? \([\s\S]*ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateWritePanel/,
+    "write panel must render only behind currentAcceptedReview",
+  );
+  assert.doesNotMatch(
+    source.contractPanel,
+    /\{review\?\.review_status ===[\s\S]*ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateWritePanel/,
+    "write panel must not render from cached review status alone",
+  );
 }
 
 function buildSample() {
