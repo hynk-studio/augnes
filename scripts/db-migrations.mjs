@@ -1458,6 +1458,220 @@ export function migrateResearchCandidateManualGlobalDogfoodMetricSnapshot(db) {
   };
 }
 
+export const researchCandidateManualGlobalDogfoodNextWorkSignalReceiptsTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_next_work_signal_receipts (
+    receipt_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+    source_next_work_contract_fingerprint TEXT NOT NULL,
+    source_next_work_review_fingerprint TEXT NOT NULL,
+    source_projection_fingerprint TEXT NOT NULL,
+    source_global_dogfood_ledger_receipt_id TEXT NOT NULL,
+    source_global_dogfood_ledger_record_id TEXT NOT NULL,
+    source_metric_snapshot_receipt_id TEXT NOT NULL,
+    source_metric_snapshot_record_id TEXT NOT NULL,
+    source_manual_receipt_id TEXT NOT NULL,
+    source_handoff_seed_fingerprint TEXT NOT NULL,
+    source_result_text_fingerprint TEXT NOT NULL,
+    source_expected_observed_delta_record_ref TEXT NOT NULL,
+    source_reuse_outcome_record_ref TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    write_status TEXT NOT NULL CHECK (
+      write_status IN (
+        'committed',
+        'duplicate_replayed',
+        'superseded',
+        'rolled_back'
+      )
+    ),
+    authority_profile TEXT NOT NULL,
+    receipt_fingerprint TEXT NOT NULL,
+    supersedes_receipt_id TEXT,
+    rollback_of_receipt_id TEXT,
+    rollback_reason TEXT,
+    FOREIGN KEY (supersedes_receipt_id) REFERENCES research_candidate_manual_global_dogfood_next_work_signal_receipts(receipt_id),
+    FOREIGN KEY (rollback_of_receipt_id) REFERENCES research_candidate_manual_global_dogfood_next_work_signal_receipts(receipt_id)
+  )
+`;
+
+export const researchCandidateManualGlobalDogfoodNextWorkSignalRecordsTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_next_work_signal_records (
+    next_work_signal_record_id TEXT PRIMARY KEY,
+    receipt_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+    source_global_dogfood_ledger_receipt_id TEXT NOT NULL,
+    source_global_dogfood_ledger_record_id TEXT NOT NULL,
+    source_metric_snapshot_receipt_id TEXT NOT NULL,
+    source_metric_snapshot_record_id TEXT NOT NULL,
+    source_projection_fingerprint TEXT NOT NULL,
+    source_next_work_contract_fingerprint TEXT NOT NULL,
+    source_next_work_review_fingerprint TEXT NOT NULL,
+    recommended_next_work_label TEXT NOT NULL,
+    rationale TEXT NOT NULL,
+    outcome_label TEXT NOT NULL,
+    outcome_signal TEXT NOT NULL CHECK (outcome_signal IN ('positive', 'negative', 'ambiguous')),
+    candidate_priority_hint TEXT NOT NULL CHECK (candidate_priority_hint IN ('high', 'medium', 'low', 'blocked')),
+    decision_status TEXT NOT NULL,
+    mismatch_or_gap_summary TEXT,
+    expected_summary TEXT,
+    observed_summary TEXT,
+    source_line TEXT,
+    selected_candidate_context_refs_json TEXT NOT NULL,
+    source_next_work_candidate_card_ids_json TEXT NOT NULL,
+    blockers_json TEXT NOT NULL,
+    warnings_json TEXT NOT NULL,
+    manual_only_context_refs_json TEXT NOT NULL,
+    source_refs_json TEXT NOT NULL,
+    authority_profile TEXT NOT NULL,
+    next_work_signal_record_fingerprint TEXT NOT NULL,
+    FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_global_dogfood_next_work_signal_receipts(receipt_id)
+  )
+`;
+
+export const researchCandidateManualGlobalDogfoodNextWorkSignalRollbacksTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_next_work_signal_rollbacks (
+    rollback_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    receipt_id TEXT NOT NULL,
+    rollback_reason TEXT NOT NULL,
+    authority_profile TEXT NOT NULL,
+    rollback_fingerprint TEXT NOT NULL,
+    FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_global_dogfood_next_work_signal_receipts(receipt_id)
+  )
+`;
+
+export const researchCandidateManualGlobalDogfoodNextWorkSignalIndexes = [
+  {
+    table: "research_candidate_manual_global_dogfood_next_work_signal_receipts",
+    name: "idx_research_candidate_manual_global_dogfood_next_work_signal_receipts_scope_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_next_work_signal_receipts_scope_time
+        ON research_candidate_manual_global_dogfood_next_work_signal_receipts(scope, created_at DESC)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_next_work_signal_receipts",
+    name: "idx_research_candidate_manual_global_dogfood_next_work_signal_receipts_status",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_next_work_signal_receipts_status
+        ON research_candidate_manual_global_dogfood_next_work_signal_receipts(scope, write_status, created_at DESC)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_next_work_signal_receipts",
+    name: "idx_research_candidate_manual_global_dogfood_next_work_signal_receipts_source_projection",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_next_work_signal_receipts_source_projection
+        ON research_candidate_manual_global_dogfood_next_work_signal_receipts(source_projection_fingerprint, created_at DESC)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_next_work_signal_receipts",
+    name: "idx_research_candidate_manual_global_dogfood_next_work_signal_receipts_source_ledger",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_next_work_signal_receipts_source_ledger
+        ON research_candidate_manual_global_dogfood_next_work_signal_receipts(source_global_dogfood_ledger_receipt_id, created_at DESC)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_next_work_signal_receipts",
+    name: "idx_research_candidate_manual_global_dogfood_next_work_signal_receipts_source_metric",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_next_work_signal_receipts_source_metric
+        ON research_candidate_manual_global_dogfood_next_work_signal_receipts(source_metric_snapshot_receipt_id, created_at DESC)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_next_work_signal_records",
+    name: "idx_research_candidate_manual_global_dogfood_next_work_signal_records_receipt",
+    sql: `
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_next_work_signal_records_receipt
+        ON research_candidate_manual_global_dogfood_next_work_signal_records(receipt_id)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_next_work_signal_records",
+    name: "idx_research_candidate_manual_global_dogfood_next_work_signal_records_scope_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_next_work_signal_records_scope_time
+        ON research_candidate_manual_global_dogfood_next_work_signal_records(scope, created_at DESC)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_next_work_signal_rollbacks",
+    name: "idx_research_candidate_manual_global_dogfood_next_work_signal_rollbacks_receipt",
+    sql: `
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_next_work_signal_rollbacks_receipt
+        ON research_candidate_manual_global_dogfood_next_work_signal_rollbacks(receipt_id)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_next_work_signal_rollbacks",
+    name: "idx_research_candidate_manual_global_dogfood_next_work_signal_rollbacks_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_next_work_signal_rollbacks_time
+        ON research_candidate_manual_global_dogfood_next_work_signal_rollbacks(created_at DESC)
+    `,
+  },
+];
+
+export function migrateResearchCandidateManualGlobalDogfoodNextWorkSignal(db) {
+  const tableNames = [
+    "research_candidate_manual_global_dogfood_next_work_signal_receipts",
+    "research_candidate_manual_global_dogfood_next_work_signal_records",
+    "research_candidate_manual_global_dogfood_next_work_signal_rollbacks",
+  ];
+  const existingTables = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'table'
+            AND name IN (${tableNames.map(() => "?").join(", ")})
+        `,
+      )
+      .all(...tableNames)
+      .map((table) => table.name),
+  );
+
+  db.prepare(
+    researchCandidateManualGlobalDogfoodNextWorkSignalReceiptsTableSql,
+  ).run();
+  db.prepare(
+    researchCandidateManualGlobalDogfoodNextWorkSignalRecordsTableSql,
+  ).run();
+  db.prepare(
+    researchCandidateManualGlobalDogfoodNextWorkSignalRollbacksTableSql,
+  ).run();
+
+  const createdIndexes = [];
+  for (const { table, name, sql } of researchCandidateManualGlobalDogfoodNextWorkSignalIndexes) {
+    const existingIndex = db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND tbl_name = ?
+            AND name = ?
+        `,
+      )
+      .get(table, name);
+    if (!existingIndex) {
+      db.prepare(sql).run();
+      createdIndexes.push(name);
+    }
+  }
+
+  return {
+    table_found: true,
+    created_tables: tableNames.filter((tableName) => !existingTables.has(tableName)),
+    created_indexes: createdIndexes,
+  };
+}
+
 export const perspectiveMemoryProductPersistenceBoundaryTableSql = `
   CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
     record_id TEXT PRIMARY KEY,

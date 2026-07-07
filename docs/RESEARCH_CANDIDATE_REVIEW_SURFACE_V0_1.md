@@ -1994,6 +1994,31 @@ no next-work bias, no Perspective promotion, no
 proof/evidence write, no work mutation, no provider/GitHub/Codex call, no source
 fetching/retrieval, no raw text persistence, and no operator note persistence.
 
+## Authorized Manual Global Dogfood Next-Work Signal Write v0.1 Pointer
+
+Accepted manual global dogfood next-work signal contracts can now be explicitly
+authorized into a next-work signal decision record/receipt path. This slice uses
+manual-specific next-work signal tables for the manual projection lineage and
+requires an active committed metric snapshot receipt/record before writing the
+next-work signal decision record.
+
+Writes are idempotent by source next-work contract/review/projection refs,
+global dogfood ledger refs, metric snapshot refs, manual receipt,
+ExpectedObservedDelta/Re-use Outcome refs, handoff/result fingerprints,
+candidate card ids, recommended next-work label, outcome label/signal, and
+selected context refs. Duplicate submission returns `duplicate_replayed`
+without creating duplicate rows. Rollback records metadata without deleting
+decision records; supersede only supersedes committed receipts and keeps prior
+rows as context. Readback shows the latest active committed receipt plus
+rolled-back/superseded context.
+
+This is a manual global dogfood next-work signal decision record write only. It
+performs no next-work bias write, no work mutation, no Perspective promotion, no
+Perspective Memory write, no proof/evidence write, no dogfood metrics update,
+no global dogfood ledger or metric snapshot mutation, no provider/GitHub/Codex
+call, no source fetching/retrieval, no raw text persistence, and no operator
+note persistence.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ResearchCandidateManualGlobalDogfoodNextWorkSignalWritePanel } from "@/components/research-candidate-manual-global-dogfood-next-work-signal-write-panel";
 import { buildResearchCandidateManualGlobalDogfoodNextWorkSignalContract } from "@/lib/research-candidate-review/manual-global-dogfood-next-work-signal-contract";
 import { buildResearchCandidateManualGlobalDogfoodNextWorkSignalReview } from "@/lib/research-candidate-review/manual-global-dogfood-next-work-signal-review";
 import type { ResearchCandidateManualGlobalDogfoodLedgerWorkbenchProjection } from "@/types/research-candidate-manual-global-dogfood-ledger-workbench-projection";
@@ -282,6 +283,14 @@ export function ResearchCandidateManualGlobalDogfoodNextWorkSignalContractPanel(
         </div>
         {review ? <NextWorkReviewPreview review={review} /> : null}
       </section>
+
+      {review?.review_status ===
+      "ready_for_future_next_work_signal_write_slice" ? (
+        <ResearchCandidateManualGlobalDogfoodNextWorkSignalWritePanel
+          nextWorkSignalContract={contract}
+          nextWorkSignalReview={review}
+        />
+      ) : null}
 
       <p className="manual-note-runtime-hint">
         next_recommended_slice <code>{contract.next_recommended_slice}</code>
