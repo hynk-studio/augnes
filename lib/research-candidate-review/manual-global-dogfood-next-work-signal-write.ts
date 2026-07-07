@@ -493,11 +493,11 @@ export function validateResearchCandidateManualGlobalDogfoodNextWorkSignalWriteR
     });
   }
 
-  const contract = isRecord(request.next_work_signal_contract)
-    ? (request.next_work_signal_contract as unknown as ResearchCandidateManualGlobalDogfoodNextWorkSignalContract)
+  const contractRecord = isRecord(request.next_work_signal_contract)
+    ? request.next_work_signal_contract
     : null;
-  const review = isRecord(request.next_work_signal_review)
-    ? (request.next_work_signal_review as unknown as ResearchCandidateManualGlobalDogfoodNextWorkSignalReview)
+  const reviewRecord = isRecord(request.next_work_signal_review)
+    ? request.next_work_signal_review
     : null;
   const operatorAuthorization = isRecord(request.operator_authorization)
     ? request.operator_authorization
@@ -511,9 +511,24 @@ export function validateResearchCandidateManualGlobalDogfoodNextWorkSignalWriteR
       ? request.source_metric_snapshot_record_id
       : null;
 
-  if (!contract) reasons.push("next_work_signal_contract_missing");
-  if (!review) reasons.push("next_work_signal_review_missing");
-  if (!operatorAuthorization) reasons.push("operator_authorization_missing");
+  if (!contractRecord) {
+    reasons.push(
+      "next_work_signal_contract_missing",
+      "next_work_signal_contract_shape_invalid",
+    );
+  }
+  if (!reviewRecord) {
+    reasons.push(
+      "next_work_signal_review_missing",
+      "next_work_signal_review_shape_invalid",
+    );
+  }
+  if (!operatorAuthorization) {
+    reasons.push(
+      "operator_authorization_missing",
+      "next_work_signal_operator_authorization_shape_invalid",
+    );
+  }
   if (!hasText(sourceMetricReceiptId)) {
     reasons.push("source_metric_snapshot_receipt_id_missing");
   }
@@ -521,8 +536,26 @@ export function validateResearchCandidateManualGlobalDogfoodNextWorkSignalWriteR
     reasons.push("source_metric_snapshot_record_id_missing");
   }
 
+  const contractShapeReasons = contractRecord
+    ? validateContractShape(contractRecord)
+    : [];
+  const reviewShapeReasons = reviewRecord ? validateReviewShape(reviewRecord) : [];
+  reasons.push(...contractShapeReasons, ...reviewShapeReasons);
+
+  const contract =
+    contractRecord && contractShapeReasons.length === 0
+      ? (contractRecord as unknown as ResearchCandidateManualGlobalDogfoodNextWorkSignalContract)
+      : null;
+  const review =
+    reviewRecord && reviewShapeReasons.length === 0
+      ? (reviewRecord as unknown as ResearchCandidateManualGlobalDogfoodNextWorkSignalReview)
+      : null;
+
   if (contract) reasons.push(...validateContract(contract));
   if (review) reasons.push(...validateReview(review));
+  if (contract && review) {
+    reasons.push(...validateReviewBoundToContract({ contract, review }));
+  }
   if (operatorAuthorization) {
     reasons.push(...validateOperatorAuthorization(operatorAuthorization));
   }
@@ -532,10 +565,9 @@ export function validateResearchCandidateManualGlobalDogfoodNextWorkSignalWriteR
   reasons.push(...validateRequestedSideEffects(request.requested_side_effects));
 
   const idempotencyKey =
-    contract && review && sourceMetricReceiptId && sourceMetricRecordId
+    contract && sourceMetricReceiptId && sourceMetricRecordId
       ? computeNextWorkSignalIdempotencyKey({
           contract,
-          review,
           sourceMetricReceiptId,
           sourceMetricRecordId,
         })
@@ -545,6 +577,105 @@ export function validateResearchCandidateManualGlobalDogfoodNextWorkSignalWriteR
     idempotencyKey,
     request,
   });
+}
+
+function validateContractShape(contract: JsonRecord) {
+  const reasons: string[] = [];
+  const validation = isRecord(contract.validation) ? contract.validation : null;
+  if (!validation) {
+    reasons.push("next_work_signal_contract_validation_shape_invalid");
+  } else if (
+    typeof validation.passed !== "boolean" ||
+    !hasText(validation.contract_fingerprint)
+  ) {
+    reasons.push("next_work_signal_contract_validation_shape_invalid");
+  }
+
+  if (!isRecord(contract.authority_boundary)) {
+    reasons.push("next_work_signal_contract_shape_invalid");
+  }
+  if (!isRecord(contract.non_write_confirmation)) {
+    reasons.push("next_work_signal_contract_shape_invalid");
+  }
+  if (!isRecord(contract.idempotency_contract_preview)) {
+    reasons.push("next_work_signal_contract_shape_invalid");
+  }
+  for (const arrayField of [
+    "source_next_work_candidate_card_ids",
+    "blocker_reasons",
+    "warning_reasons",
+    "required_future_authorization",
+    "required_future_checks",
+    "compatibility_findings",
+  ]) {
+    if (!Array.isArray(contract[arrayField])) {
+      reasons.push("next_work_signal_contract_shape_invalid");
+    }
+  }
+  if (
+    Array.isArray(contract.source_next_work_candidate_card_ids) &&
+    !contract.source_next_work_candidate_card_ids.every(hasText)
+  ) {
+    reasons.push("next_work_signal_mapping_shape_invalid");
+  }
+
+  const mapping = isRecord(contract.proposed_next_work_signal_mapping)
+    ? contract.proposed_next_work_signal_mapping
+    : null;
+  if (!mapping) {
+    reasons.push("next_work_signal_mapping_shape_invalid");
+  } else {
+    if (
+      !hasText(mapping.recommended_next_work_label) ||
+      !hasText(mapping.rationale) ||
+      typeof mapping.can_feed_next_work_signal_decision_candidate !== "boolean" ||
+      mapping.can_write_next_work_bias_now !== false ||
+      mapping.can_write_perspective_now !== false
+    ) {
+      reasons.push("next_work_signal_mapping_shape_invalid");
+    }
+    for (const arrayField of [
+      "selected_candidate_context_refs",
+      "blockers",
+      "warnings",
+    ]) {
+      if (
+        !Array.isArray(mapping[arrayField]) ||
+        !mapping[arrayField].every(hasText)
+      ) {
+        reasons.push("next_work_signal_mapping_shape_invalid");
+      }
+    }
+  }
+
+  const decisionInputs = isRecord(contract.proposed_decision_inputs)
+    ? contract.proposed_decision_inputs
+    : null;
+  if (!decisionInputs) {
+    reasons.push("next_work_signal_mapping_shape_invalid");
+  } else if (
+    !Array.isArray(decisionInputs.source_next_work_candidate_card_ids) ||
+    !decisionInputs.source_next_work_candidate_card_ids.every(hasText) ||
+    typeof decisionInputs.selected_card_write_flags_all_false !== "boolean"
+  ) {
+    reasons.push("next_work_signal_mapping_shape_invalid");
+  }
+
+  const decisionCandidate = isRecord(contract.proposed_decision_candidate)
+    ? contract.proposed_decision_candidate
+    : null;
+  if (!decisionCandidate) {
+    reasons.push("next_work_signal_mapping_shape_invalid");
+  } else if (
+    !hasText(decisionCandidate.decision_status) ||
+    !hasText(decisionCandidate.candidate_priority_hint) ||
+    !hasText(decisionCandidate.reason) ||
+    decisionCandidate.writes_now !== false
+  ) {
+    reasons.push("next_work_signal_mapping_shape_invalid");
+  }
+
+  return uniqueStrings(reasons);
 }
 
 function validateContract(
@@ -635,6 +766,39 @@ function validateContract(
   return reasons;
 }
 
+function validateReviewShape(review: JsonRecord) {
+  const reasons: string[] = [];
+  if (
+    !hasText(review.source_contract_fingerprint) ||
+    !hasText(review.review_status) ||
+    !hasText(review.operator_decision)
+  ) {
+    reasons.push("next_work_signal_review_shape_invalid");
+  }
+  const validation = isRecord(review.validation) ? review.validation : null;
+  if (!validation) {
+    reasons.push("next_work_signal_review_validation_shape_invalid");
+  } else if (
+    typeof validation.passed !== "boolean" ||
+    typeof validation.no_write_authority !== "boolean" ||
+    typeof validation.operator_note_persisted !== "boolean" ||
+    !hasText(validation.review_fingerprint)
+  ) {
+    reasons.push("next_work_signal_review_validation_shape_invalid");
+  }
+  if (!isRecord(review.authority_boundary)) {
+    reasons.push("next_work_signal_review_shape_invalid");
+  }
+  if (
+    review.accepted_mapping_summary !== null &&
+    review.accepted_mapping_summary !== undefined &&
+    !isRecord(review.accepted_mapping_summary)
+  ) {
+    reasons.push("next_work_signal_review_shape_invalid");
+  }
+  return uniqueStrings(reasons);
+}
+
 function validateReview(
   review: ResearchCandidateManualGlobalDogfoodNextWorkSignalReview,
 ) {
@@ -663,8 +827,64 @@ function validateReview(
   return reasons;
 }
 
+function validateReviewBoundToContract({
+  contract,
+  review,
+}: {
+  contract: ResearchCandidateManualGlobalDogfoodNextWorkSignalContract;
+  review: ResearchCandidateManualGlobalDogfoodNextWorkSignalReview;
+}) {
+  const reasons: string[] = [];
+  if (
+    review.source_contract_fingerprint !==
+    contract.validation.contract_fingerprint
+  ) {
+    reasons.push("next_work_signal_review_contract_mismatch");
+  }
+  if (
+    review.scope !== contract.scope ||
+    review.source_contract_ref !== contract.source_projection_ref
+  ) {
+    reasons.push("next_work_signal_review_source_mismatch");
+  }
+
+  const summary = review.accepted_mapping_summary;
+  if (!summary) {
+    reasons.push("next_work_signal_review_source_mismatch");
+    return uniqueStrings(reasons);
+  }
+  const summaryMismatches = [
+    summary.source_projection_fingerprint !==
+      contract.source_projection_fingerprint,
+    summary.source_latest_active_committed_receipt_id !==
+      contract.source_latest_active_committed_receipt_id,
+    summary.source_ledger_record_ref !== contract.source_ledger_record_ref,
+    summary.proposed_idempotency_key !==
+      contract.idempotency_contract_preview.proposed_idempotency_key,
+    summary.recommended_next_work_label !==
+      contract.proposed_next_work_signal_mapping.recommended_next_work_label,
+    summary.outcome_label !==
+      contract.proposed_next_work_signal_mapping.outcome_label,
+    summary.candidate_priority_hint !==
+      contract.proposed_decision_candidate.candidate_priority_hint,
+    summary.future_write_mode !== contract.requested_future_write_mode,
+    summary.writes_now !== false,
+  ];
+  if (summaryMismatches.some(Boolean)) {
+    reasons.push("next_work_signal_review_source_mismatch");
+  }
+  return uniqueStrings(reasons);
+}
+
 function validateOperatorAuthorization(operatorAuthorization: JsonRecord) {
   const reasons: string[] = [];
+  if (
+    !hasText(operatorAuthorization.authorization_kind) ||
+    !hasText(operatorAuthorization.operator_confirmation_text) ||
+    !hasText(operatorAuthorization.write_mode)
+  ) {
+    reasons.push("next_work_signal_operator_authorization_shape_invalid");
+  }
   if (
     operatorAuthorization.authorization_kind !==
     "manual_operator_authorized_next_work_signal_decision_write"
@@ -1478,12 +1698,10 @@ function validateRollbackRequest(request: unknown) {
 
 function computeNextWorkSignalIdempotencyKey({
   contract,
-  review,
   sourceMetricReceiptId,
   sourceMetricRecordId,
 }: {
   contract: ResearchCandidateManualGlobalDogfoodNextWorkSignalContract;
-  review: ResearchCandidateManualGlobalDogfoodNextWorkSignalReview;
   sourceMetricReceiptId: string;
   sourceMetricRecordId: string;
 }) {
@@ -1491,7 +1709,6 @@ function computeNextWorkSignalIdempotencyKey({
     write_version:
       RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_NEXT_WORK_SIGNAL_WRITE_VERSION,
     next_work_contract_fingerprint: contract.validation.contract_fingerprint,
-    next_work_review_fingerprint: review.validation.review_fingerprint,
     source_projection_fingerprint: contract.source_projection_fingerprint,
     source_global_dogfood_ledger_receipt_id:
       contract.source_latest_active_committed_receipt_id,
@@ -1508,8 +1725,17 @@ function computeNextWorkSignalIdempotencyKey({
       contract.source_next_work_candidate_card_ids,
     recommended_next_work_label:
       contract.proposed_next_work_signal_mapping.recommended_next_work_label,
+    rationale: contract.proposed_next_work_signal_mapping.rationale,
     outcome_label: contract.proposed_next_work_signal_mapping.outcome_label,
     outcome_signal: contract.proposed_next_work_signal_mapping.outcome_signal,
+    candidate_priority_hint:
+      contract.proposed_decision_candidate.candidate_priority_hint,
+    decision_status: contract.proposed_decision_candidate.decision_status,
+    mismatch_or_gap_summary:
+      contract.proposed_next_work_signal_mapping.mismatch_or_gap_summary,
+    expected_summary: contract.proposed_next_work_signal_mapping.expected_summary,
+    observed_summary: contract.proposed_next_work_signal_mapping.observed_summary,
+    source_line: contract.proposed_next_work_signal_mapping.source_line,
     selected_candidate_context_refs:
       contract.proposed_next_work_signal_mapping.selected_candidate_context_refs,
   })}`;
@@ -1532,6 +1758,7 @@ function contractNonWriteConfirmationStillClean(
     "non_write_confirmation"
   >,
 ) {
+  if (!isRecord(contract.non_write_confirmation)) return false;
   return Object.values(contract.non_write_confirmation).every(
     (value) => value === false,
   );
@@ -1544,6 +1771,7 @@ function contractAuthorityBoundaryStillReadOnly(
   >,
 ) {
   const boundary = contract.authority_boundary;
+  if (!isRecord(boundary)) return false;
   return (
     boundary.preview_only === true &&
     boundary.read_only === true &&

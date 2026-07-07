@@ -181,6 +181,38 @@ function assertStaticContracts() {
     /source_metric_snapshot_receipt_not_active_committed/,
     "writer must reject stale source metric snapshot receipts",
   );
+  assert.match(
+    source.writer,
+    /next_work_signal_review_contract_mismatch/,
+    "writer must reject accepted reviews from a different next-work contract",
+  );
+  assert.match(
+    source.writer,
+    /next_work_signal_review_source_mismatch/,
+    "writer must reject accepted reviews with mismatched source summaries",
+  );
+  for (const shapeFailureCode of [
+    "next_work_signal_contract_shape_invalid",
+    "next_work_signal_contract_validation_shape_invalid",
+    "next_work_signal_review_shape_invalid",
+    "next_work_signal_review_validation_shape_invalid",
+    "next_work_signal_operator_authorization_shape_invalid",
+    "next_work_signal_mapping_shape_invalid",
+  ]) {
+    assert.ok(
+      source.writer.includes(shapeFailureCode),
+      `writer must include ${shapeFailureCode}`,
+    );
+  }
+  const idempotencySlice = source.writer.slice(
+    source.writer.indexOf("function computeNextWorkSignalIdempotencyKey"),
+    source.writer.indexOf("function validationWithFailures"),
+  );
+  assert.doesNotMatch(
+    idempotencySlice,
+    /review_fingerprint|operator_note|warning_reasons/,
+    "durable idempotency must exclude local-only review note fingerprint material",
+  );
   assert.doesNotMatch(
     `${source.writer}\n${source.readback}`,
     /writeNextWorkBias|nextWorkBiasWrite|writePerspective|promotePerspective|writeProof|writeEvidence|writeDogfoodMetric|writeResearchCandidateManualGlobalDogfoodMetricSnapshot\s*\(|writeResearchCandidateManualGlobalDogfoodLedger\s*\(|executeCodex|runCodex|OPENAI_API_KEY|new\s+OpenAI|api\.openai\.com|api\.github\.com|retrieveSources\s*\(|runRetrieval\s*\(|ragIndex\s*\(|embedding\s*\(|vectorStore\s*\(|crawler\s*\(|crawlSources\s*\(/i,
@@ -580,7 +612,17 @@ const primary = prepareActiveSource({
   suffix: "Helpful active source for next-work signal write.",
   operatorView: "primary"
 });
-const nextReviewAgain = acceptedNextWorkReview(primary.nextContract, "same accepted next-work review note");
+const nextReviewNoNote = acceptedNextWorkReview(primary.nextContract);
+const nextReviewWithLocalNote = acceptedNextWorkReview(primary.nextContract, "same accepted next-work review local-only note");
+assert.notEqual(
+  nextReviewNoNote.validation.review_fingerprint,
+  nextReviewWithLocalNote.validation.review_fingerprint
+);
+const mismatchedReviewSource = prepareActiveSource({
+  outcome: "stale",
+  suffix: "Different source for mismatched accepted next-work review.",
+  operatorView: "mismatched_review"
+});
 const revisionReview = buildResearchCandidateManualGlobalDogfoodNextWorkSignalReview({
   next_work_signal_contract: primary.nextContract,
   operator_decision: "needs_next_work_mapping_revision"
@@ -676,10 +718,53 @@ const sideEffectWrite = writeNextWork(primary.nextContract, primary.nextReview, 
     product_write_executed: true
   }
 });
+const countsBeforeMismatchedReviewWrite = readCounts();
+const mismatchedReviewWrite = writeNextWork(
+  primary.nextContract,
+  mismatchedReviewSource.nextReview,
+  primary.metric
+);
+const countsAfterMismatchedReviewWrite = readCounts();
+const malformedRequests = [
+  {},
+  {
+    next_work_signal_contract: {},
+    next_work_signal_review: {},
+    operator_authorization: {}
+  },
+  {
+    ...nextWorkWriteRequest(primary.nextContract, primary.nextReview, primary.metric),
+    next_work_signal_contract: {
+      ...primary.nextContract,
+      validation: undefined
+    }
+  },
+  {
+    ...nextWorkWriteRequest(primary.nextContract, primary.nextReview, primary.metric),
+    next_work_signal_contract: {
+      ...primary.nextContract,
+      proposed_next_work_signal_mapping: undefined
+    }
+  },
+  {
+    ...nextWorkWriteRequest(primary.nextContract, primary.nextReview, primary.metric),
+    next_work_signal_contract: {
+      ...primary.nextContract,
+      source_next_work_candidate_card_ids: "not an array"
+    }
+  }
+];
+const countsBeforeMalformedRequests = readCounts();
+const malformedResults = malformedRequests.map((malformedRequest) =>
+  writeResearchCandidateManualGlobalDogfoodNextWorkSignal(malformedRequest, {
+    db
+  })
+);
+const countsAfterMalformedRequests = readCounts();
 const countsBeforeCommit = readCounts();
-const committedNextWork = writeNextWork(primary.nextContract, primary.nextReview, primary.metric);
+const committedNextWork = writeNextWork(primary.nextContract, nextReviewNoNote, primary.metric);
 assert.equal(committedNextWork.ok, true);
-const duplicateNextWork = writeNextWork(primary.nextContract, nextReviewAgain, primary.metric);
+const duplicateNextWork = writeNextWork(primary.nextContract, nextReviewWithLocalNote, primary.metric);
 assert.equal(duplicateNextWork.ok, true);
 
 const staleLedger = prepareActiveSource({
@@ -823,6 +908,8 @@ console.log(JSON.stringify({
   nextContract: primary.nextContract,
   nextReview: primary.nextReview,
   primaryMetric: primary.metric,
+  nextReviewNoNote,
+  nextReviewWithLocalNote,
   wrongConfirmation,
   nonAcceptedRevision,
   nonAcceptedReject,
@@ -835,6 +922,12 @@ console.log(JSON.stringify({
   operatorNoteWrite,
   wrongAuthorityWrite,
   sideEffectWrite,
+  mismatchedReviewWrite,
+  countsBeforeMismatchedReviewWrite,
+  countsAfterMismatchedReviewWrite,
+  malformedResults,
+  countsBeforeMalformedRequests,
+  countsAfterMalformedRequests,
   committedNextWork,
   duplicateNextWork,
   countsBeforeRolledBackLedgerWrite,
@@ -877,6 +970,7 @@ function assertRejections(sample) {
     operatorNoteWrite: sample.operatorNoteWrite,
     wrongAuthorityWrite: sample.wrongAuthorityWrite,
     sideEffectWrite: sample.sideEffectWrite,
+    mismatchedReviewWrite: sample.mismatchedReviewWrite,
     rolledBackLedgerWrite: sample.rolledBackLedgerWrite,
     rolledBackMetricWrite: sample.rolledBackMetricWrite,
     supersededLedgerWrite: sample.supersededLedgerWrite,
@@ -954,6 +1048,65 @@ function assertRejections(sample) {
     ),
     "requested forbidden side effects must be rejected",
   );
+  assert.ok(
+    sample.mismatchedReviewWrite.refusal_reasons.includes(
+      "next_work_signal_review_contract_mismatch",
+    ),
+    "contract A paired with accepted review B must be rejected",
+  );
+  for (const table of [
+    "research_candidate_manual_global_dogfood_next_work_signal_receipts",
+    "research_candidate_manual_global_dogfood_next_work_signal_records",
+  ]) {
+    assert.equal(
+      sample.countsAfterMismatchedReviewWrite[table],
+      sample.countsBeforeMismatchedReviewWrite[table],
+      `mismatched review write must not create ${table} rows`,
+    );
+    assert.equal(
+      sample.countsAfterMalformedRequests[table],
+      sample.countsBeforeMalformedRequests[table],
+      `malformed request writes must not create ${table} rows`,
+    );
+  }
+  assert.equal(sample.malformedResults.length, 5);
+  for (const malformedResult of sample.malformedResults) {
+    assert.equal(malformedResult.ok, false);
+    assert.equal(malformedResult.result_status, "refused");
+    assert.ok(malformedResult.refusal_reasons.length > 0);
+  }
+  assert.ok(
+    sample.malformedResults[0].refusal_reasons.includes(
+      "next_work_signal_contract_shape_invalid",
+    ),
+    "empty request must fail with stable contract shape code",
+  );
+  assert.ok(
+    sample.malformedResults[1].refusal_reasons.includes(
+      "next_work_signal_contract_validation_shape_invalid",
+    ),
+    "empty nested contract must fail with stable validation shape code",
+  );
+  assert.ok(
+    sample.malformedResults[1].refusal_reasons.includes(
+      "next_work_signal_review_validation_shape_invalid",
+    ),
+    "empty nested review must fail with stable review validation shape code",
+  );
+  assert.ok(
+    sample.malformedResults[1].refusal_reasons.includes(
+      "next_work_signal_operator_authorization_shape_invalid",
+    ),
+    "empty nested authorization must fail with stable authorization shape code",
+  );
+  assert.ok(
+    sample.malformedResults
+      .slice(2)
+      .some((result) =>
+        result.refusal_reasons.includes("next_work_signal_mapping_shape_invalid"),
+      ),
+    "malformed candidate/mapping shapes must fail closed",
+  );
 }
 
 function assertCommitDuplicateRollbackSupersede(sample) {
@@ -1023,6 +1176,11 @@ function assertCommitDuplicateRollbackSupersede(sample) {
   assert.equal(sample.duplicateNextWork.ok, true);
   assert.equal(sample.duplicateNextWork.result_status, "duplicate_replayed");
   assert.equal(sample.duplicateNextWork.duplicate_replayed, true);
+  assert.notEqual(
+    sample.nextReviewNoNote.validation.review_fingerprint,
+    sample.nextReviewWithLocalNote.validation.review_fingerprint,
+    "local-only operator note must change review fingerprint for this regression check",
+  );
   assert.equal(
     sample.duplicateNextWork.receipt.receipt_id,
     committed.receipt.receipt_id,
