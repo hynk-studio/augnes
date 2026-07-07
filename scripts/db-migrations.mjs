@@ -1071,6 +1071,194 @@ export function migrateResearchCandidateManualResultRecords(db) {
   };
 }
 
+export const researchCandidateManualGlobalDogfoodLedgerReceiptsTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_ledger_receipts (
+    receipt_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+    source_contract_fingerprint TEXT NOT NULL,
+    source_contract_ref TEXT NOT NULL,
+    source_authorization_review_fingerprint TEXT NOT NULL,
+    source_manual_receipt_id TEXT NOT NULL,
+    source_bridge_preview_fingerprint TEXT NOT NULL,
+    source_handoff_seed_fingerprint TEXT NOT NULL,
+    source_result_text_fingerprint TEXT NOT NULL,
+    source_expected_observed_delta_record_ref TEXT NOT NULL,
+    source_reuse_outcome_record_ref TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    ledger_write_status TEXT NOT NULL CHECK (
+      ledger_write_status IN (
+        'committed',
+        'duplicate_replayed',
+        'superseded',
+        'rolled_back'
+      )
+    ),
+    authority_profile TEXT NOT NULL,
+    receipt_fingerprint TEXT NOT NULL,
+    supersedes_receipt_id TEXT,
+    rollback_of_receipt_id TEXT,
+    rollback_reason TEXT,
+    FOREIGN KEY (supersedes_receipt_id) REFERENCES research_candidate_manual_global_dogfood_ledger_receipts(receipt_id),
+    FOREIGN KEY (rollback_of_receipt_id) REFERENCES research_candidate_manual_global_dogfood_ledger_receipts(receipt_id)
+  )
+`;
+
+export const researchCandidateManualGlobalDogfoodLedgerRecordsTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_ledger_records (
+    ledger_record_id TEXT PRIMARY KEY,
+    receipt_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+    source_manual_receipt_id TEXT NOT NULL,
+    source_handoff_seed_fingerprint TEXT NOT NULL,
+    source_result_text_fingerprint TEXT NOT NULL,
+    source_expected_observed_delta_record_ref TEXT NOT NULL,
+    source_reuse_outcome_record_ref TEXT NOT NULL,
+    outcome_label TEXT NOT NULL,
+    selected_candidate_context_refs_json TEXT NOT NULL,
+    expected_summary TEXT NOT NULL,
+    observed_summary TEXT,
+    mismatch_or_gap_summary TEXT NOT NULL,
+    source_line TEXT,
+    manual_only_context_refs_json TEXT NOT NULL,
+    warning_reasons_json TEXT NOT NULL,
+    compatibility_findings_json TEXT NOT NULL,
+    authority_profile TEXT NOT NULL,
+    ledger_record_fingerprint TEXT NOT NULL,
+    FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_global_dogfood_ledger_receipts(receipt_id)
+  )
+`;
+
+export const researchCandidateManualGlobalDogfoodLedgerRollbacksTableSql = `
+  CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_ledger_rollbacks (
+    rollback_id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    receipt_id TEXT NOT NULL,
+    rollback_reason TEXT NOT NULL,
+    authority_profile TEXT NOT NULL,
+    rollback_fingerprint TEXT NOT NULL,
+    FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_global_dogfood_ledger_receipts(receipt_id)
+  )
+`;
+
+export const researchCandidateManualGlobalDogfoodLedgerIndexes = [
+  {
+    table: "research_candidate_manual_global_dogfood_ledger_receipts",
+    name: "idx_research_candidate_manual_global_dogfood_receipts_scope_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_receipts_scope_time
+        ON research_candidate_manual_global_dogfood_ledger_receipts(scope, created_at DESC)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_ledger_receipts",
+    name: "idx_research_candidate_manual_global_dogfood_receipts_status",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_receipts_status
+        ON research_candidate_manual_global_dogfood_ledger_receipts(scope, ledger_write_status, created_at DESC)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_ledger_receipts",
+    name: "idx_research_candidate_manual_global_dogfood_receipts_source_manual",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_receipts_source_manual
+        ON research_candidate_manual_global_dogfood_ledger_receipts(source_manual_receipt_id, created_at DESC)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_ledger_receipts",
+    name: "idx_research_candidate_manual_global_dogfood_receipts_contract",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_receipts_contract
+        ON research_candidate_manual_global_dogfood_ledger_receipts(source_contract_fingerprint, created_at DESC)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_ledger_records",
+    name: "idx_research_candidate_manual_global_dogfood_records_receipt",
+    sql: `
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_records_receipt
+        ON research_candidate_manual_global_dogfood_ledger_records(receipt_id)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_ledger_records",
+    name: "idx_research_candidate_manual_global_dogfood_records_scope_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_records_scope_time
+        ON research_candidate_manual_global_dogfood_ledger_records(scope, created_at DESC)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_ledger_rollbacks",
+    name: "idx_research_candidate_manual_global_dogfood_rollbacks_receipt",
+    sql: `
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_rollbacks_receipt
+        ON research_candidate_manual_global_dogfood_ledger_rollbacks(receipt_id)
+    `,
+  },
+  {
+    table: "research_candidate_manual_global_dogfood_ledger_rollbacks",
+    name: "idx_research_candidate_manual_global_dogfood_rollbacks_time",
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_rollbacks_time
+        ON research_candidate_manual_global_dogfood_ledger_rollbacks(created_at DESC)
+    `,
+  },
+];
+
+export function migrateResearchCandidateManualGlobalDogfoodLedger(db) {
+  const tableNames = [
+    "research_candidate_manual_global_dogfood_ledger_receipts",
+    "research_candidate_manual_global_dogfood_ledger_records",
+    "research_candidate_manual_global_dogfood_ledger_rollbacks",
+  ];
+  const existingTables = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'table'
+            AND name IN (${tableNames.map(() => "?").join(", ")})
+        `,
+      )
+      .all(...tableNames)
+      .map((table) => table.name),
+  );
+
+  db.prepare(researchCandidateManualGlobalDogfoodLedgerReceiptsTableSql).run();
+  db.prepare(researchCandidateManualGlobalDogfoodLedgerRecordsTableSql).run();
+  db.prepare(researchCandidateManualGlobalDogfoodLedgerRollbacksTableSql).run();
+
+  const createdIndexes = [];
+  for (const { table, name, sql } of researchCandidateManualGlobalDogfoodLedgerIndexes) {
+    const existingIndex = db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND tbl_name = ?
+            AND name = ?
+        `,
+      )
+      .get(table, name);
+    if (!existingIndex) {
+      db.prepare(sql).run();
+      createdIndexes.push(name);
+    }
+  }
+
+  return {
+    table_found: true,
+    created_tables: tableNames.filter((tableName) => !existingTables.has(tableName)),
+    created_indexes: createdIndexes,
+  };
+}
+
 export const perspectiveMemoryProductPersistenceBoundaryTableSql = `
   CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
     record_id TEXT PRIMARY KEY,
