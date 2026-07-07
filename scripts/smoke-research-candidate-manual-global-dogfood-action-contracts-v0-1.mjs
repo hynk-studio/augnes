@@ -155,6 +155,22 @@ function assertStaticContracts() {
     source.relayContractBuilder,
     source.relayReviewBuilder,
   ].join("\n");
+  for (const requiredText of [
+    "source_readback_metric_snapshot_mutated",
+    "source_readback_global_dogfood_ledger_mutated",
+    "metric_snapshot_mutated === false",
+    "global_dogfood_ledger_mutated === false",
+    "can_mutate_metric_snapshot === false",
+    "can_mutate_manual_global_dogfood_ledger === false",
+    "persists_raw_manual_note_text === false",
+    "persists_raw_result_report_text === false",
+    "persists_operator_notes === false",
+  ]) {
+    assert.ok(
+      builderSource.includes(requiredText),
+      `contract builders must include source mutation guard ${requiredText}`,
+    );
+  }
   assert.doesNotMatch(
     builderSource,
     /openDatabase|NextResponse|fetch\s*\(|INSERT\s+INTO|UPDATE\s+(?:research_|dogfood_|work_|perspective_|verification_|delivery_)[a-z_]+|DELETE\s+FROM|writeNextWorkBias|nextWorkBiasScopedWrite|writePerspective|promotePerspective|writeProof|writeEvidence|writeDogfoodMetric|writeResearchCandidateManualGlobalDogfoodNextWorkSignal\s*\(|writeResearchCandidateManualGlobalDogfoodMetricSnapshot\s*\(|writeResearchCandidateManualGlobalDogfoodLedger\s*\(|OPENAI_API_KEY|new\s+OpenAI|api\.openai\.com|api\.github\.com|retrieveSources\s*\(|runRetrieval\s*\(|ragIndex\s*\(|embedding\s*\(|vectorStore\s*\(|crawler\s*\(|crawlSources\s*\(/i,
@@ -559,6 +575,10 @@ function withRecordMutation(mutator) {
 const noSourceReadback = { ...clone(activeReadback), latest_active_committed: null, records_by_receipt: [], latest_receipts: [], count: 0 };
 const rolledBackReadback = noActiveReadback("rolled_back");
 const supersededReadback = noActiveReadback("superseded");
+const metricSnapshotMutatedReadback = clone(activeReadback);
+metricSnapshotMutatedReadback.metric_snapshot_mutated = true;
+const globalLedgerMutatedReadback = clone(activeReadback);
+globalLedgerMutatedReadback.global_dogfood_ledger_mutated = true;
 const missingLabelReadback = withRecordMutation((record) => {
   record.recommended_next_work_label = "";
 });
@@ -577,13 +597,33 @@ const missingExplanationReadback = withRecordMutation((record) => {
 const blockedBiasNoSource = buildResearchCandidateManualGlobalDogfoodNextWorkBiasContract({ readback: noSourceReadback });
 const blockedBiasRolledBack = buildResearchCandidateManualGlobalDogfoodNextWorkBiasContract({ readback: rolledBackReadback });
 const blockedBiasSuperseded = buildResearchCandidateManualGlobalDogfoodNextWorkBiasContract({ readback: supersededReadback });
+const blockedBiasMetricSnapshotMutated = buildResearchCandidateManualGlobalDogfoodNextWorkBiasContract({ readback: metricSnapshotMutatedReadback });
+const blockedBiasGlobalLedgerMutated = buildResearchCandidateManualGlobalDogfoodNextWorkBiasContract({ readback: globalLedgerMutatedReadback });
 const blockedBiasMissingLabel = buildResearchCandidateManualGlobalDogfoodNextWorkBiasContract({ readback: missingLabelReadback });
 const blockedBiasMissingContext = buildResearchCandidateManualGlobalDogfoodNextWorkBiasContract({ readback: missingContextReadback });
 const blockedBiasMissingCards = buildResearchCandidateManualGlobalDogfoodNextWorkBiasContract({ readback: missingCardsReadback });
 const blockedRelayNoSource = buildResearchCandidateManualGlobalDogfoodPerspectiveRelayContract({ readback: noSourceReadback });
 const blockedRelayRolledBack = buildResearchCandidateManualGlobalDogfoodPerspectiveRelayContract({ readback: rolledBackReadback });
 const blockedRelaySuperseded = buildResearchCandidateManualGlobalDogfoodPerspectiveRelayContract({ readback: supersededReadback });
+const blockedRelayMetricSnapshotMutated = buildResearchCandidateManualGlobalDogfoodPerspectiveRelayContract({ readback: metricSnapshotMutatedReadback });
+const blockedRelayGlobalLedgerMutated = buildResearchCandidateManualGlobalDogfoodPerspectiveRelayContract({ readback: globalLedgerMutatedReadback });
 const blockedRelayMissingExplanation = buildResearchCandidateManualGlobalDogfoodPerspectiveRelayContract({ readback: missingExplanationReadback });
+const blockedBiasMetricSnapshotMutatedReview = buildResearchCandidateManualGlobalDogfoodNextWorkBiasReview({
+  next_work_bias_contract: blockedBiasMetricSnapshotMutated,
+  operator_decision: "accept_contract_for_future_next_work_bias_write_slice"
+});
+const blockedBiasGlobalLedgerMutatedReview = buildResearchCandidateManualGlobalDogfoodNextWorkBiasReview({
+  next_work_bias_contract: blockedBiasGlobalLedgerMutated,
+  operator_decision: "accept_contract_for_future_next_work_bias_write_slice"
+});
+const blockedRelayMetricSnapshotMutatedReview = buildResearchCandidateManualGlobalDogfoodPerspectiveRelayReview({
+  perspective_relay_contract: blockedRelayMetricSnapshotMutated,
+  operator_decision: "accept_contract_for_future_perspective_relay_write_slice"
+});
+const blockedRelayGlobalLedgerMutatedReview = buildResearchCandidateManualGlobalDogfoodPerspectiveRelayReview({
+  perspective_relay_contract: blockedRelayGlobalLedgerMutated,
+  operator_decision: "accept_contract_for_future_perspective_relay_write_slice"
+});
 const countsAfterContracts = readCounts();
 const biasCounts = readBiasCounts();
 
@@ -607,12 +647,20 @@ console.log(JSON.stringify({
   blockedBiasNoSource,
   blockedBiasRolledBack,
   blockedBiasSuperseded,
+  blockedBiasMetricSnapshotMutated,
+  blockedBiasGlobalLedgerMutated,
+  blockedBiasMetricSnapshotMutatedReview,
+  blockedBiasGlobalLedgerMutatedReview,
   blockedBiasMissingLabel,
   blockedBiasMissingContext,
   blockedBiasMissingCards,
   blockedRelayNoSource,
   blockedRelayRolledBack,
   blockedRelaySuperseded,
+  blockedRelayMetricSnapshotMutated,
+  blockedRelayGlobalLedgerMutated,
+  blockedRelayMetricSnapshotMutatedReview,
+  blockedRelayGlobalLedgerMutatedReview,
   blockedRelayMissingExplanation
 }));
 `;
@@ -740,6 +788,8 @@ function assertBlockedReadbacks(sample) {
     blockedBiasNoSource: sample.blockedBiasNoSource,
     blockedBiasRolledBack: sample.blockedBiasRolledBack,
     blockedBiasSuperseded: sample.blockedBiasSuperseded,
+    blockedBiasMetricSnapshotMutated: sample.blockedBiasMetricSnapshotMutated,
+    blockedBiasGlobalLedgerMutated: sample.blockedBiasGlobalLedgerMutated,
     blockedBiasMissingLabel: sample.blockedBiasMissingLabel,
     blockedBiasMissingContext: sample.blockedBiasMissingContext,
     blockedBiasMissingCards: sample.blockedBiasMissingCards,
@@ -766,11 +816,43 @@ function assertBlockedReadbacks(sample) {
       "source_next_work_candidate_card_ids_missing",
     ),
   );
+  assert.ok(
+    sample.blockedBiasMetricSnapshotMutated.blocker_reasons.includes(
+      "source_readback_metric_snapshot_mutated",
+    ) ||
+      sample.blockedBiasMetricSnapshotMutated.blocker_reasons.includes(
+        "source_readback_has_forbidden_bias_work_perspective_or_metric_write",
+      ),
+    "metric_snapshot_mutated must block next-work bias contract",
+  );
+  assert.ok(
+    sample.blockedBiasGlobalLedgerMutated.blocker_reasons.includes(
+      "source_readback_global_dogfood_ledger_mutated",
+    ) ||
+      sample.blockedBiasGlobalLedgerMutated.blocker_reasons.includes(
+        "source_readback_has_forbidden_bias_work_perspective_or_metric_write",
+      ),
+    "global_dogfood_ledger_mutated must block next-work bias contract",
+  );
+  for (const [label, review] of Object.entries({
+    blockedBiasMetricSnapshotMutatedReview:
+      sample.blockedBiasMetricSnapshotMutatedReview,
+    blockedBiasGlobalLedgerMutatedReview:
+      sample.blockedBiasGlobalLedgerMutatedReview,
+  })) {
+    assert.notEqual(
+      review.review_status,
+      "ready_for_future_next_work_bias_write_slice",
+      `${label} must not accept a mutated-source bias contract`,
+    );
+  }
 
   for (const [label, contract] of Object.entries({
     blockedRelayNoSource: sample.blockedRelayNoSource,
     blockedRelayRolledBack: sample.blockedRelayRolledBack,
     blockedRelaySuperseded: sample.blockedRelaySuperseded,
+    blockedRelayMetricSnapshotMutated: sample.blockedRelayMetricSnapshotMutated,
+    blockedRelayGlobalLedgerMutated: sample.blockedRelayGlobalLedgerMutated,
     blockedRelayMissingExplanation: sample.blockedRelayMissingExplanation,
   })) {
     assert.equal(
@@ -785,6 +867,36 @@ function assertBlockedReadbacks(sample) {
       "expected_observed_mismatch_explanatory_material_missing",
     ),
   );
+  assert.ok(
+    sample.blockedRelayMetricSnapshotMutated.blocker_reasons.includes(
+      "source_readback_metric_snapshot_mutated",
+    ) ||
+      sample.blockedRelayMetricSnapshotMutated.blocker_reasons.includes(
+        "source_readback_has_forbidden_perspective_bias_work_or_metric_write",
+      ),
+    "metric_snapshot_mutated must block Perspective relay contract",
+  );
+  assert.ok(
+    sample.blockedRelayGlobalLedgerMutated.blocker_reasons.includes(
+      "source_readback_global_dogfood_ledger_mutated",
+    ) ||
+      sample.blockedRelayGlobalLedgerMutated.blocker_reasons.includes(
+        "source_readback_has_forbidden_perspective_bias_work_or_metric_write",
+      ),
+    "global_dogfood_ledger_mutated must block Perspective relay contract",
+  );
+  for (const [label, review] of Object.entries({
+    blockedRelayMetricSnapshotMutatedReview:
+      sample.blockedRelayMetricSnapshotMutatedReview,
+    blockedRelayGlobalLedgerMutatedReview:
+      sample.blockedRelayGlobalLedgerMutatedReview,
+  })) {
+    assert.notEqual(
+      review.review_status,
+      "ready_for_future_perspective_relay_write_slice",
+      `${label} must not accept a mutated-source relay contract`,
+    );
+  }
 }
 
 function assertNoWrites(sample) {

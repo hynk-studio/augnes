@@ -37,6 +37,8 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveRelayContrac
   const fieldGaps = buildFieldGaps({ receipt, record });
   const sourceReadbackNoForbiddenWrites =
     readbackPreservesNoPerspectiveBiasWorkWrites(sourceReadback);
+  const sourceReadbackMutationBlockers =
+    buildSourceReadbackMutationBlockers(sourceReadback);
   const selectedContextPresent =
     (record?.selected_candidate_context_refs.length ?? 0) > 0;
   const explanatoryMaterialPresent = Boolean(
@@ -64,6 +66,7 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveRelayContrac
     ...(!sourceReadbackNoForbiddenWrites
       ? ["source_readback_has_forbidden_perspective_bias_work_or_metric_write"]
       : []),
+    ...sourceReadbackMutationBlockers,
   ]);
   const operatorAuthorizationMode =
     blockerReasons.length === 0
@@ -220,6 +223,7 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveRelayContrac
       explanatoryMaterialPresent,
       manualContextNotProofOrEvidence,
       sourceReadbackNoForbiddenWrites,
+      sourceReadbackMutationBlockers,
     }),
     blocker_reasons: blockerReasons,
     warning_reasons: warningReasons,
@@ -385,13 +389,25 @@ function readbackPreservesNoPerspectiveBiasWorkWrites(
   readback: ResearchCandidateManualGlobalDogfoodNextWorkSignalReadback,
 ) {
   const boundary = readback.authority_boundary;
+  const flags = readback as {
+    metric_snapshot_mutated?: unknown;
+    global_dogfood_ledger_mutated?: unknown;
+    raw_manual_note_text_present?: unknown;
+    raw_result_report_text_present?: unknown;
+    operator_notes_persisted?: unknown;
+  };
   return (
     readback.next_work_bias_written === false &&
     readback.work_or_perspective_rows_written === false &&
     readback.dogfood_metrics_written === false &&
+    flags.metric_snapshot_mutated === false &&
+    flags.global_dogfood_ledger_mutated === false &&
     readback.proof_or_evidence_rows_written === false &&
     readback.perspective_memory_written === false &&
     readback.product_write_executed === false &&
+    flags.raw_manual_note_text_present === false &&
+    flags.raw_result_report_text_present === false &&
+    flags.operator_notes_persisted === false &&
     boundary.can_write_next_work_bias === false &&
     boundary.can_write_work_item === false &&
     boundary.can_mutate_work === false &&
@@ -399,9 +415,33 @@ function readbackPreservesNoPerspectiveBiasWorkWrites(
     boundary.can_promote_perspective === false &&
     boundary.can_write_perspective_memory === false &&
     boundary.can_write_dogfood_metrics === false &&
+    boundary.can_write_global_dogfood_ledger === false &&
+    boundary.can_mutate_manual_global_dogfood_ledger === false &&
+    boundary.can_write_metric_snapshot === false &&
+    boundary.can_mutate_metric_snapshot === false &&
     boundary.can_write_proof_or_evidence === false &&
-    boundary.can_execute_product_write === false
+    boundary.can_execute_product_write === false &&
+    boundary.persists_raw_manual_note_text === false &&
+    boundary.persists_raw_result_report_text === false &&
+    boundary.persists_operator_notes === false
   );
+}
+
+function buildSourceReadbackMutationBlockers(
+  readback: ResearchCandidateManualGlobalDogfoodNextWorkSignalReadback,
+) {
+  const flags = readback as {
+    metric_snapshot_mutated?: unknown;
+    global_dogfood_ledger_mutated?: unknown;
+  };
+  return uniqueStrings([
+    flags.metric_snapshot_mutated !== false
+      ? "source_readback_metric_snapshot_mutated"
+      : null,
+    flags.global_dogfood_ledger_mutated !== false
+      ? "source_readback_global_dogfood_ledger_mutated"
+      : null,
+  ]);
 }
 
 function buildCompatibilityFindings({
@@ -410,12 +450,14 @@ function buildCompatibilityFindings({
   explanatoryMaterialPresent,
   manualContextNotProofOrEvidence,
   sourceReadbackNoForbiddenWrites,
+  sourceReadbackMutationBlockers,
 }: {
   candidateReady: boolean;
   fieldGaps: string[];
   explanatoryMaterialPresent: boolean;
   manualContextNotProofOrEvidence: boolean;
   sourceReadbackNoForbiddenWrites: boolean;
+  sourceReadbackMutationBlockers: string[];
 }): ResearchCandidateManualGlobalDogfoodPerspectiveRelayCompatibilityFinding[] {
   const findings: ResearchCandidateManualGlobalDogfoodPerspectiveRelayCompatibilityFinding[] = [
     {
@@ -470,6 +512,17 @@ function buildCompatibilityFindings({
       applies_to: "manual_global_dogfood_next_work_signal_decision",
       summary:
         "The source readback must preserve no Perspective, next-work bias, work, metrics, proof, memory, or product writes before future relay authorization.",
+    });
+  }
+  for (const blocker of sourceReadbackMutationBlockers) {
+    findings.push({
+      finding_code: blocker,
+      severity: "blocker",
+      applies_to: "manual_global_dogfood_next_work_signal_decision",
+      summary:
+        blocker === "source_readback_metric_snapshot_mutated"
+          ? "The source readback reports metric snapshot mutation, so it cannot feed future Perspective relay authorization."
+          : "The source readback reports global dogfood ledger mutation, so it cannot feed future Perspective relay authorization.",
     });
   }
   return findings;
