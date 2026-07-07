@@ -19,6 +19,7 @@ import {
   migrateResearchCandidateManualGlobalDogfoodNextWorkSignal,
   migrateResearchCandidateManualGlobalDogfoodNextWorkBias,
   migrateResearchCandidateManualGlobalDogfoodPerspectiveRelay,
+  migrateResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdate,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -63,6 +64,8 @@ try {
     migrateResearchCandidateManualGlobalDogfoodNextWorkBias(db);
   const researchCandidateManualGlobalDogfoodPerspectiveRelayResult =
     migrateResearchCandidateManualGlobalDogfoodPerspectiveRelay(db);
+  const researchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateResult =
+    migrateResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdate(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -412,6 +415,34 @@ try {
   ) {
     console.log(
       `Created indexes: ${researchCandidateManualGlobalDogfoodPerspectiveRelayResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (
+    researchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateResult
+      .created_tables.length > 0
+  ) {
+    console.log(
+      `Created manual Research Candidate global dogfood canonical Perspective update tables at ${dbPath}: ${researchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    researchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateResult
+      .created_indexes.length === 0
+  ) {
+    console.log(
+      `Manual Research Candidate global dogfood canonical Perspective update migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated manual Research Candidate global dogfood canonical Perspective update indexes at ${dbPath}`,
+    );
+  }
+  if (
+    researchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateResult
+      .created_indexes.length > 0
+  ) {
+    console.log(
+      `Created indexes: ${researchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateResult.created_indexes.join(", ")}`,
     );
   }
 

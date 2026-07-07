@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateWritePanel } from "@/components/research-candidate-manual-global-dogfood-canonical-perspective-update-write-panel";
 import { buildResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateContract } from "@/lib/research-candidate-review/manual-global-dogfood-canonical-perspective-update-contract";
 import { buildResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateReview } from "@/lib/research-candidate-review/manual-global-dogfood-canonical-perspective-update-review";
 import type { ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateContract } from "@/types/research-candidate-manual-global-dogfood-canonical-perspective-update-contract";
@@ -288,6 +289,14 @@ export function ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateCo
         </div>
         {review ? <CanonicalReviewPreview review={review} /> : null}
       </section>
+
+      {review?.review_status ===
+      "ready_for_future_canonical_perspective_update_write_slice" ? (
+        <ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateWritePanel
+          canonicalPerspectiveUpdateContract={contract}
+          canonicalPerspectiveUpdateReview={review}
+        />
+      ) : null}
 
       <p className="manual-note-runtime-hint">
         This preview does not write canonical Perspective state, update current
