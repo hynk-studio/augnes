@@ -1851,6 +1851,25 @@ parked by the #686 stopline. Next recommended slice: review the readback record
 contracts against the broader dogfood bridge before any ledger, Perspective, or
 proof/evidence integration.
 
+## Manual Result Dogfood Bridge Alignment Preview v0.1 Pointer
+
+Authorized manual result records can now be read into a dogfood bridge
+alignment preview. The preview compares manual ExpectedObservedDelta and Reuse
+Outcome record shape against the broader dogfood/reuse-outcome bridge concepts,
+selects the latest committed receipt as the primary candidate, and keeps
+rolled_back or superseded receipts visible as context only.
+
+This is read-only and preview-only. It does not write global dogfood ledgers,
+dogfood metrics, global ExpectedObservedDelta records, global Reuse Outcome
+records, Perspective state, Perspective Memory, proof/evidence, work items,
+work events, work status, product-write records, or canonical project state. It
+does not call providers/OpenAI, GitHub, Codex, source fetching, retrieval/RAG,
+embeddings, vector search, FTS, or crawlers.
+
+Future work can decide, through a separate explicit authorization contract,
+whether reviewed bridge candidates may enter broader dogfood ledger
+integration. This preview does not add that write authority.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record
