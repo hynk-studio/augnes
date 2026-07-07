@@ -2174,6 +2174,35 @@ Perspective apply write slice with source revalidation, idempotency, duplicate
 replay, rollback/supersede, and row-count validation. Perspective promotion
 remains out of scope.
 
+## Authorized Manual Global Dogfood Perspective Apply Write v0.1 Pointer
+
+Accepted manual global dogfood Perspective apply contracts can now be
+explicitly authorized into a Perspective apply record/receipt path. This slice
+uses a manual-specific Perspective apply table family and requires an active
+committed manual canonical Perspective update source receipt and record before
+writing.
+
+Writes are idempotent by the apply contract fingerprint, source canonical
+Perspective update refs, source relay refs, source next-work signal and
+next-work bias refs, upstream global ledger and metric snapshot refs, manual
+receipt id, ExpectedObservedDelta/Reuse Outcome refs, handoff/result
+fingerprints, apply label/rationale, canonical update label/rationale, relay
+update label/rationale, recommended next-work label, outcome label/signal,
+candidate ids, selected context refs, manual-only context refs, intended future
+apply target, apply scope hint, apply strength hint, and
+expected/observed/mismatch summaries. Duplicate submission returns
+`duplicate_replayed` without creating duplicate rows. Rollback records metadata
+without deleting Perspective apply records; supersede only supersedes committed
+receipts and keeps prior rows as context. Readback exists for the
+manual-specific Perspective apply tables.
+
+This is a manual global dogfood Perspective apply record write only. It
+performs no current-working Perspective update/apply, no direct canonical
+Perspective state mutation, no Perspective promotion, no Perspective Memory
+write, no work mutation, no proof/evidence write, no dogfood metrics update, no
+source record mutation, no provider/GitHub/Codex call, no source
+fetching/retrieval, no raw text persistence, and no operator note persistence.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record

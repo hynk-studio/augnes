@@ -20,6 +20,7 @@ import {
   migrateResearchCandidateManualGlobalDogfoodNextWorkBias,
   migrateResearchCandidateManualGlobalDogfoodPerspectiveRelay,
   migrateResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdate,
+  migrateResearchCandidateManualGlobalDogfoodPerspectiveApply,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -66,6 +67,8 @@ try {
     migrateResearchCandidateManualGlobalDogfoodPerspectiveRelay(db);
   const researchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateResult =
     migrateResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdate(db);
+  const researchCandidateManualGlobalDogfoodPerspectiveApplyResult =
+    migrateResearchCandidateManualGlobalDogfoodPerspectiveApply(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -443,6 +446,34 @@ try {
   ) {
     console.log(
       `Created indexes: ${researchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (
+    researchCandidateManualGlobalDogfoodPerspectiveApplyResult.created_tables
+      .length > 0
+  ) {
+    console.log(
+      `Created manual Research Candidate global dogfood Perspective apply tables at ${dbPath}: ${researchCandidateManualGlobalDogfoodPerspectiveApplyResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    researchCandidateManualGlobalDogfoodPerspectiveApplyResult.created_indexes
+      .length === 0
+  ) {
+    console.log(
+      `Manual Research Candidate global dogfood Perspective apply migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated manual Research Candidate global dogfood Perspective apply indexes at ${dbPath}`,
+    );
+  }
+  if (
+    researchCandidateManualGlobalDogfoodPerspectiveApplyResult.created_indexes
+      .length > 0
+  ) {
+    console.log(
+      `Created indexes: ${researchCandidateManualGlobalDogfoodPerspectiveApplyResult.created_indexes.join(", ")}`,
     );
   }
 
