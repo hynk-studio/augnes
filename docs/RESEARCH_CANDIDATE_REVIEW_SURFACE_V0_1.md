@@ -2046,6 +2046,31 @@ Future work may implement either write as a separate explicitly authorized
 idempotent write slice with row-count validation. Perspective promotion remains
 out of scope.
 
+## Authorized Manual Global Dogfood Next-Work Bias Write v0.1 Pointer
+
+Accepted manual global dogfood next-work bias contracts can now be explicitly
+authorized into a next-work bias record/receipt path. This slice uses
+manual-specific next-work bias tables because the generic Perspective
+next-work-bias writer requires Perspective relay lineage that the manual source
+chain does not honestly provide.
+
+Writes are idempotent by source next-work bias contract fingerprint, source
+next-work signal receipt/record refs and fingerprint, projection fingerprint,
+global dogfood ledger refs, metric snapshot refs, manual receipt id,
+ExpectedObservedDelta/Reuse Outcome refs, handoff/result fingerprints,
+recommended next-work label, rationale, outcome label/signal, bias strength,
+candidate ids, selected context refs, and expected/observed/mismatch
+summaries. Duplicate submission returns `duplicate_replayed` without creating
+duplicate rows. Rollback records metadata without deleting bias records;
+supersede only supersedes committed receipts and keeps prior rows as context.
+Readback exists for the manual-specific next-work bias tables.
+
+This is a manual global dogfood next-work bias record write only. It performs
+no work mutation, no Perspective relay, no Perspective state or promotion, no
+Perspective Memory write, no proof/evidence write, no dogfood metrics update,
+no source record mutation, no provider/GitHub/Codex call, no source
+fetching/retrieval, no raw text persistence, and no operator note persistence.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record

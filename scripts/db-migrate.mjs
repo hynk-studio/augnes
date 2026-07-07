@@ -17,6 +17,7 @@ import {
   migrateResearchCandidateManualGlobalDogfoodLedger,
   migrateResearchCandidateManualGlobalDogfoodMetricSnapshot,
   migrateResearchCandidateManualGlobalDogfoodNextWorkSignal,
+  migrateResearchCandidateManualGlobalDogfoodNextWorkBias,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -57,6 +58,8 @@ try {
     migrateResearchCandidateManualGlobalDogfoodMetricSnapshot(db);
   const researchCandidateManualGlobalDogfoodNextWorkSignalResult =
     migrateResearchCandidateManualGlobalDogfoodNextWorkSignal(db);
+  const researchCandidateManualGlobalDogfoodNextWorkBiasResult =
+    migrateResearchCandidateManualGlobalDogfoodNextWorkBias(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);

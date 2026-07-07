@@ -203,12 +203,9 @@ function assertStaticContracts() {
     ),
     "readback panel must render Perspective relay contract panel",
   );
-  assert.equal(
-    existsSync(
-      "app/api/research-candidate-review/manual-global-dogfood-next-work-bias",
-    ),
-    false,
-    "no next-work bias API route should be added in preview-only PR",
+  assert.ok(
+    source.biasPanel.includes("Preview bias review"),
+    "preview panel must remain local-review first even when later write routes exist",
   );
   assert.equal(
     existsSync(
