@@ -345,6 +345,20 @@ const followOnResearchCandidateManualGlobalDogfoodPerspectiveRelayWriteFiles = [
   "package.json",
 ];
 
+const followOnResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateContractFiles = [
+  "types/research-candidate-manual-global-dogfood-canonical-perspective-update-contract.ts",
+  "types/research-candidate-manual-global-dogfood-canonical-perspective-update-review.ts",
+  "lib/research-candidate-review/manual-global-dogfood-canonical-perspective-update-contract.ts",
+  "lib/research-candidate-review/manual-global-dogfood-canonical-perspective-update-review.ts",
+  "components/research-candidate-manual-global-dogfood-canonical-perspective-update-contract-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-perspective-relay-readback-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-global-dogfood-canonical-perspective-update-contract-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -494,6 +508,7 @@ const allowedChangedFiles = new Set([
   ...followOnResearchCandidateManualGlobalDogfoodActionContractFiles,
   ...followOnResearchCandidateManualGlobalDogfoodNextWorkBiasWriteFiles,
   ...followOnResearchCandidateManualGlobalDogfoodPerspectiveRelayWriteFiles,
+  ...followOnResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateContractFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
