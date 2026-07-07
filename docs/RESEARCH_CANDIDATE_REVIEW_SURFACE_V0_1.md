@@ -2147,6 +2147,33 @@ exists for the manual-specific canonical Perspective update tables.
 This is a manual global dogfood canonical Perspective update record write only.
 It performs no current-working Perspective update and no direct canonical Perspective state mutation. It also performs no Perspective promotion, no Perspective Memory write, no work mutation, no proof/evidence write, no dogfood metrics update, no source record mutation, no provider/GitHub/Codex call, no source fetching/retrieval, no raw text persistence, and no operator note persistence.
 
+## Manual Canonical Perspective Apply Contract Preview v0.1 Pointer
+
+Active committed manual global dogfood canonical Perspective update readback can
+now produce a Perspective apply authorization contract preview and local
+operator review preview. The preview preserves the canonical update
+receipt/record refs, relay refs, next-work signal refs, next-work bias refs,
+projection/global ledger/metric snapshot/manual refs, ExpectedObservedDelta and
+Reuse Outcome refs, handoff/result fingerprints, canonical update material,
+relay update material, expected/observed/mismatch summaries, selected candidate
+refs, candidate card ids, manual-only context refs, and deterministic
+idempotency preview.
+
+This is preview-only. It does not update current-working Perspective and does not directly mutate canonical Perspective state. It does not promote
+Perspective, write Perspective Memory, mutate work, write proof/evidence, write
+dogfood metrics, write product or delivery records, mutate source stores, add
+schema or migrations, add API write routes, call providers/OpenAI, GitHub, or
+Codex, fetch sources, run retrieval/RAG, embeddings, vector search, FTS, or
+crawlers, persist raw text, or persist operator notes.
+
+Existing current-working/canonical apply compatibility is shown as
+operator-visible notes and gaps. The default future apply target is canonical
+Perspective state; current-working Perspective remains a future adapter/mapping
+path, not a ready write target. No schema or migration is added. No API write route is added. Future work may implement a separate explicitly authorized
+Perspective apply write slice with source revalidation, idempotency, duplicate
+replay, rollback/supersede, and row-count validation. Perspective promotion
+remains out of scope.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record

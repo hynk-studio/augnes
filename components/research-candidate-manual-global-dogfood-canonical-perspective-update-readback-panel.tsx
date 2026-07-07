@@ -1,3 +1,4 @@
+import { ResearchCandidateManualGlobalDogfoodPerspectiveApplyContractPanel } from "@/components/research-candidate-manual-global-dogfood-perspective-apply-contract-panel";
 import type {
   ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateReadback,
   ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateRecordsByReceipt,
@@ -162,6 +163,10 @@ export function ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateRe
               />
             </div>
           </section>
+
+          <ResearchCandidateManualGlobalDogfoodPerspectiveApplyContractPanel
+            readback={readback}
+          />
         </>
       ) : (
         <p className="manual-note-runtime-hint">
