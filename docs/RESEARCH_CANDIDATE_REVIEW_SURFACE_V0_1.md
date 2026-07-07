@@ -2099,6 +2099,31 @@ dogfood metrics update, no next-work bias mutation, no source record mutation,
 no provider/GitHub/Codex call, no source fetching/retrieval, no raw text
 persistence, and no operator note persistence.
 
+## Manual Perspective Relay Canonical Update Contract Preview v0.1 Pointer
+
+Active committed manual global dogfood Perspective relay readback can now
+produce a canonical Perspective update authorization contract preview and local
+operator review preview. The preview preserves the relay receipt/record refs,
+source next-work signal and next-work bias refs, projection/global ledger/metric
+snapshot/manual refs, ExpectedObservedDelta and Reuse Outcome refs,
+handoff/result fingerprints, relay update material, expected/observed/mismatch
+summaries, selected candidate refs, candidate card ids, manual-only context
+refs, and deterministic idempotency preview.
+
+This is preview-only. It does not write canonical Perspective state, update
+current working Perspective, promote Perspective, write Perspective Memory,
+mutate work, write proof/evidence, write dogfood metrics, write product or
+delivery records, mutate source stores, add schema or migrations, add API write
+routes, call providers/OpenAI, GitHub, or Codex, fetch sources, run
+retrieval/RAG, embeddings, vector search, FTS, or crawlers, persist raw text, or
+persist operator notes.
+
+Existing current-working/canonical Perspective update compatibility is shown as
+operator-visible notes and gaps. Future work may implement canonical
+Perspective update as a separate explicitly authorized idempotent write slice
+with source revalidation and row-count validation. Perspective promotion remains
+out of scope.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record

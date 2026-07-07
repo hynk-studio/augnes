@@ -212,6 +212,7 @@
     "smoke:research-candidate-manual-global-dogfood-action-contracts-v0-1": "node scripts/smoke-research-candidate-manual-global-dogfood-action-contracts-v0-1.mjs",
     "smoke:research-candidate-manual-global-dogfood-next-work-bias-write-v0-1": "node scripts/smoke-research-candidate-manual-global-dogfood-next-work-bias-write-v0-1.mjs",
     "smoke:research-candidate-manual-global-dogfood-perspective-relay-write-v0-1": "node scripts/smoke-research-candidate-manual-global-dogfood-perspective-relay-write-v0-1.mjs",
+    "smoke:research-candidate-manual-global-dogfood-canonical-perspective-update-contract-v0-1": "node scripts/smoke-research-candidate-manual-global-dogfood-canonical-perspective-update-contract-v0-1.mjs",
     "smoke:research-candidate-runtime-preview-draft-v0-1": "node scripts/smoke-research-candidate-runtime-preview-draft-v0-1.mjs",
     "smoke:research-candidate-preview-draft-read-discard-v0-1": "node scripts/smoke-research-candidate-preview-draft-read-discard-v0-1.mjs",
     "smoke:research-candidate-preview-draft-list-filters-v0-1": "node scripts/smoke-research-candidate-preview-draft-list-filters-v0-1.mjs",
