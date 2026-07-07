@@ -1870,6 +1870,25 @@ Future work can decide, through a separate explicit authorization contract,
 whether reviewed bridge candidates may enter broader dogfood ledger
 integration. This preview does not add that write authority.
 
+## Manual Result Dogfood Ledger Authorization Contract Preview v0.1 Pointer
+
+Manual result dogfood bridge candidates now have a broader dogfood ledger
+authorization contract preview. The contract maps the selected latest committed
+manual receipt, manual ExpectedObservedDelta record, manual Reuse Outcome
+record, handoff seed fingerprint, result text fingerprint, selected context
+refs, outcome label, source line, and warning reasons into a future ledger
+authorization shape without writing it.
+
+This is not a ledger write. It adds a preview-only contract, deterministic
+idempotency preview, compatibility findings, and local operator review for a
+future slice. Future work can implement a separately authorized idempotent
+global dogfood ledger write if an operator accepts the contract and fresh
+checks still pass.
+
+Non-goals remain: no global dogfood ledger write, no dogfood metrics, no
+Perspective promotion, no proof/evidence, no work mutation, no
+provider/GitHub/Codex execution, and no source fetching/retrieval.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record
