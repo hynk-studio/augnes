@@ -16,6 +16,7 @@ import {
   migrateResearchCandidateManualResultRecords,
   migrateResearchCandidateManualGlobalDogfoodLedger,
   migrateResearchCandidateManualGlobalDogfoodMetricSnapshot,
+  migrateResearchCandidateManualGlobalDogfoodNextWorkSignal,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -54,6 +55,8 @@ try {
     migrateResearchCandidateManualGlobalDogfoodLedger(db);
   const researchCandidateManualGlobalDogfoodMetricSnapshotResult =
     migrateResearchCandidateManualGlobalDogfoodMetricSnapshot(db);
+  const researchCandidateManualGlobalDogfoodNextWorkSignalResult =
+    migrateResearchCandidateManualGlobalDogfoodNextWorkSignal(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -319,6 +322,34 @@ try {
   ) {
     console.log(
       `Created indexes: ${researchCandidateManualGlobalDogfoodMetricSnapshotResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (
+    researchCandidateManualGlobalDogfoodNextWorkSignalResult.created_tables.length >
+    0
+  ) {
+    console.log(
+      `Created manual Research Candidate global dogfood next-work signal tables at ${dbPath}: ${researchCandidateManualGlobalDogfoodNextWorkSignalResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    researchCandidateManualGlobalDogfoodNextWorkSignalResult.created_indexes
+      .length === 0
+  ) {
+    console.log(
+      `Manual Research Candidate global dogfood next-work signal migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated manual Research Candidate global dogfood next-work signal indexes at ${dbPath}`,
+    );
+  }
+  if (
+    researchCandidateManualGlobalDogfoodNextWorkSignalResult.created_indexes.length >
+    0
+  ) {
+    console.log(
+      `Created indexes: ${researchCandidateManualGlobalDogfoodNextWorkSignalResult.created_indexes.join(", ")}`,
     );
   }
 
