@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ResearchCandidateManualGlobalDogfoodLedgerWritePanel } from "@/components/research-candidate-manual-global-dogfood-ledger-write-panel";
 import { buildResearchCandidateManualResultDogfoodLedgerAuthorizationContract } from "@/lib/research-candidate-review/manual-result-dogfood-ledger-authorization-contract";
 import { buildResearchCandidateManualResultDogfoodLedgerAuthorizationReview } from "@/lib/research-candidate-review/manual-result-dogfood-ledger-authorization-review";
 import type { ResearchCandidateManualResultDogfoodBridgePreview } from "@/types/research-candidate-manual-result-dogfood-bridge-preview";
@@ -329,6 +330,13 @@ export function ResearchCandidateManualResultDogfoodLedgerAuthorizationContractP
         </div>
         {review ? <ReviewPreview review={review} /> : null}
       </section>
+
+      {review?.review_status === "ready_for_future_ledger_write_slice" ? (
+        <ResearchCandidateManualGlobalDogfoodLedgerWritePanel
+          authorizationContract={contract}
+          authorizationReview={review}
+        />
+      ) : null}
 
       <p className="manual-note-runtime-hint">
         next_recommended_slice <code>{contract.next_recommended_slice}</code>

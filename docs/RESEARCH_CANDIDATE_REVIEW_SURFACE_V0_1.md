@@ -1889,11 +1889,45 @@ Non-goals remain: no global dogfood ledger write, no dogfood metrics, no
 Perspective promotion, no proof/evidence, no work mutation, no
 provider/GitHub/Codex execution, and no source fetching/retrieval.
 
+## Authorized Manual Bridge Global Dogfood Ledger Write v0.1 Pointer
+
+Accepted manual result dogfood bridge authorization contracts can now be
+explicitly authorized into a narrow global dogfood ledger integration write.
+The slice writes only:
+
+- `research_candidate_manual_global_dogfood_ledger_receipts`
+- `research_candidate_manual_global_dogfood_ledger_records`
+- `research_candidate_manual_global_dogfood_ledger_rollbacks`
+
+The receipt preserves the source contract fingerprint, accepted authorization
+review fingerprint, source manual receipt id, source handoff seed fingerprint,
+source result text fingerprint, source ExpectedObservedDelta record ref, source
+Reuse Outcome record ref, authority profile, idempotency key, and
+rollback/supersede metadata. The ledger record preserves the selected outcome
+label, selected candidate refs, expected/observed/mismatch summaries, source
+line, manual-only context refs, warning reasons, and compatibility findings.
+
+The writer requires the accepted contract and local authorization review to
+still be ready, plus the exact fresh operator confirmation. The idempotency key
+is checked inside a `BEGIN IMMEDIATE` transaction; duplicate submissions return
+`duplicate_replayed` and create no duplicate receipt or ledger record. Rollback
+marks the receipt `rolled_back` and records rollback metadata without deleting
+ledger rows. Supersede marks only a committed target `superseded` before
+writing a replacement receipt/record; rolled_back or already superseded targets
+are refused.
+
+Readback exists for the manual-to-global dogfood ledger receipt/record/rollback
+family. This is still no dogfood metrics, no Perspective promotion, no
+proof/evidence, no work mutation, no provider/GitHub/Codex execution, no source
+fetching/retrieval, no raw text persistence, no operator note persistence, and
+no product-write execution.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record
-write and readback flow against the broader dogfood bridge before any ledger,
-Perspective, or proof/evidence integration.
+write, dogfood bridge authorization, and manual-to-global dogfood ledger
+readback before any dogfood metrics, Perspective, proof/evidence, work, memory,
+or product-write integration.
 
 Perspective Packet Receipt Linkage remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.
 Selected candidates remain candidates, not proof/evidence or durable state.

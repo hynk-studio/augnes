@@ -2073,6 +2073,29 @@ for (const file of followOnResearchCandidateManualResultDogfoodLedgerAuthorizati
   allowedChangedFiles.add(file);
 }
 
+const followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles = [
+  "lib/db/schema.sql",
+  "lib/db.ts",
+  "scripts/db-migrations.mjs",
+  "scripts/db-migrate.mjs",
+  "types/research-candidate-manual-global-dogfood-ledger-write.ts",
+  "lib/research-candidate-review/manual-global-dogfood-ledger-write.ts",
+  "lib/research-candidate-review/read-manual-global-dogfood-ledger.ts",
+  "app/api/research-candidate-review/manual-global-dogfood-ledger/route.ts",
+  "app/api/research-candidate-review/manual-global-dogfood-ledger/[receipt_id]/rollback/route.ts",
+  "components/research-candidate-manual-global-dogfood-ledger-write-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-ledger-readback-panel.tsx",
+  "components/research-candidate-manual-result-dogfood-ledger-authorization-contract-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-global-dogfood-ledger-write-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+for (const file of followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const textByFile = loadTextByFile(requiredFiles);
 const workbenchPageText = textByFile.get(workbenchPageFile);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
@@ -4189,7 +4212,8 @@ function assertChangedFileBoundary() {
         followOnHandoffSendContractFiles.includes(file) ||
         followOnHandoffSendSliceFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file) ||
-        followOnResearchCandidateManualResultAuthorizedRecordWriteFiles.includes(file),
+        followOnResearchCandidateManualResultAuthorizedRecordWriteFiles.includes(file) ||
+        followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles.includes(file),
       `Phase 5B must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(
@@ -4221,7 +4245,8 @@ function assertChangedFileBoundary() {
         followOnHandoffSendContractFiles.includes(file) ||
         followOnHandoffSendSliceFiles.includes(file) ||
         phase9aAutonomyRunnerPreflightFiles.includes(file) ||
-        followOnResearchCandidateManualResultAuthorizedRecordWriteFiles.includes(file),
+        followOnResearchCandidateManualResultAuthorizedRecordWriteFiles.includes(file) ||
+        followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles.includes(file),
       `Phase 5B must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 5B must not change DB files: ${file}`);

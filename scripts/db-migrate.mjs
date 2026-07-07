@@ -14,6 +14,7 @@ import {
   migrateResearchCandidateManualNotePreviewDraftDiscards,
   migrateResearchCandidateManualNotePreviewDraftActivities,
   migrateResearchCandidateManualResultRecords,
+  migrateResearchCandidateManualGlobalDogfoodLedger,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -48,6 +49,8 @@ try {
     migrateResearchCandidateManualNotePreviewDraftActivities(db);
   const researchCandidateManualResultRecordsResult =
     migrateResearchCandidateManualResultRecords(db);
+  const researchCandidateManualGlobalDogfoodLedgerResult =
+    migrateResearchCandidateManualGlobalDogfoodLedger(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -264,6 +267,27 @@ try {
   if (researchCandidateManualResultRecordsResult.created_indexes.length > 0) {
     console.log(
       `Created indexes: ${researchCandidateManualResultRecordsResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (researchCandidateManualGlobalDogfoodLedgerResult.created_tables.length > 0) {
+    console.log(
+      `Created manual Research Candidate global dogfood ledger tables at ${dbPath}: ${researchCandidateManualGlobalDogfoodLedgerResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    researchCandidateManualGlobalDogfoodLedgerResult.created_indexes.length === 0
+  ) {
+    console.log(
+      `Manual Research Candidate global dogfood ledger migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated manual Research Candidate global dogfood ledger indexes at ${dbPath}`,
+    );
+  }
+  if (researchCandidateManualGlobalDogfoodLedgerResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${researchCandidateManualGlobalDogfoodLedgerResult.created_indexes.join(", ")}`,
     );
   }
 
