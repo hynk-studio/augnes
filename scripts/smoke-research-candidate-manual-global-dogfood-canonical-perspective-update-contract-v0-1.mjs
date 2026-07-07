@@ -133,6 +133,11 @@ function assertStaticContracts() {
     /\bINSERT\s+INTO\b|\bUPDATE\s+[a-zA-Z_][a-zA-Z0-9_]*\b|\bDELETE\s+FROM\b/,
     "contract/review builders must not contain SQL writes",
   );
+  assert.doesNotMatch(
+    source.contractBuilder,
+    /\?\s*"current_working_perspective"/,
+    "ready manual canonical Perspective update candidates must not point at the current-working Perspective path",
+  );
 
   assert.ok(
     source.relayReadbackPanel.includes(
@@ -464,6 +469,10 @@ function assertContract(sample) {
     sample.readyContract.proposed_perspective_update_candidate.candidate_status,
     "ready_for_future_canonical_perspective_update_write_authorization",
   );
+  assert.equal(
+    sample.readyContract.proposed_perspective_update_candidate.update_scope_hint,
+    "canonical_perspective_state",
+  );
   assert.equal(sample.readyContract.proposed_perspective_update_candidate.writes_now, false);
   assert.equal(
     sample.readyContract.proposed_perspective_update_candidate
@@ -517,6 +526,21 @@ function assertContract(sample) {
       .manual_source_refs_preserved,
     true,
   );
+  assert.equal(
+    sample.readyContract.proposed_existing_perspective_update_compatibility
+      .existing_current_working_perspective_update_contract_compatible,
+    false,
+  );
+  assert.equal(
+    sample.readyContract.proposed_existing_perspective_update_compatibility
+      .existing_current_working_perspective_apply_write_compatible,
+    false,
+  );
+  assert.equal(
+    sample.readyContract.proposed_existing_perspective_update_compatibility
+      .existing_route_integration_contract_compatible,
+    false,
+  );
   assert.ok(
     sample.readyContract.compatibility_findings.length > 0,
     "compatibility findings must be present",
@@ -537,6 +561,11 @@ function assertContract(sample) {
       contract.operator_authorization_mode,
       "blocked_before_canonical_perspective_update_authorization",
       `${label} must not be ready`,
+    );
+    assert.equal(
+      contract.proposed_perspective_update_candidate.update_scope_hint,
+      "blocked",
+      `${label} must use blocked scope hint`,
     );
   }
   assert.ok(

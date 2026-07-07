@@ -273,7 +273,7 @@ export function buildResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpd
         ? "ready_for_future_canonical_perspective_update_write_authorization"
         : "blocked_before_canonical_perspective_update_authorization",
       update_scope_hint: candidateReady
-        ? "current_working_perspective"
+        ? "canonical_perspective_state"
         : "blocked",
       update_strength_hint: candidateReady
         ? strengthHint(record?.outcome_signal)
