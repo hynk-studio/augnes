@@ -1,5 +1,6 @@
 "use client";
 
+import { ResearchCandidateManualResultDogfoodBridgePreviewPanel } from "@/components/research-candidate-manual-result-dogfood-bridge-preview-panel";
 import type {
   ResearchCandidateManualResultReadback,
   ResearchCandidateManualResultRecordsByReceipt,
@@ -61,6 +62,8 @@ export function ResearchCandidateManualNoteRecordReadbackPanel({
           <p>No manual result records have been written yet.</p>
         ) : null}
       </div>
+
+      <ResearchCandidateManualResultDogfoodBridgePreviewPanel readback={readback} />
     </section>
   );
 }
