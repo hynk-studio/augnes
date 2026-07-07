@@ -2019,6 +2019,33 @@ no global dogfood ledger or metric snapshot mutation, no provider/GitHub/Codex
 call, no source fetching/retrieval, no raw text persistence, and no operator
 note persistence.
 
+## Manual Global Dogfood Action Contract Previews v0.1 Pointer
+
+Active committed manual global dogfood next-work signal decision records can
+now produce two preview-only authorization contract surfaces: a next-work bias
+write authorization contract preview and a Perspective relay update write
+authorization contract preview. Both preserve the source next-work signal
+receipt/record refs, projection fingerprint, global dogfood ledger refs, metric
+snapshot refs, manual receipt id, ExpectedObservedDelta and Reuse Outcome refs,
+handoff/result fingerprints, recommended next-work label, rationale, outcome
+label/signal, candidate ids, selected context refs, and
+expected/observed/mismatch summaries.
+
+The next-work bias write authorization contract preview and Perspective relay update write authorization contract preview are review surfaces only.
+
+This does not write next-work bias, Perspective, work, proof/evidence, metrics,
+memory, product, or canonical state. It also does not mutate manual result,
+global dogfood ledger, metric snapshot, or next-work signal source records; add
+schema or migrations; add API write routes; call provider/OpenAI, GitHub, or
+Codex; fetch sources; or run retrieval/RAG, embeddings, vector search, FTS, or
+crawlers.
+
+This preview does not write next-work bias, Perspective, work, proof/evidence, metrics, memory, product, or canonical state.
+
+Future work may implement either write as a separate explicitly authorized
+idempotent write slice with row-count validation. Perspective promotion remains
+out of scope.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record

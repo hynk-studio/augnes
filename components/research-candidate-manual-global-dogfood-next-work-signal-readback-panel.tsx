@@ -1,3 +1,5 @@
+import { ResearchCandidateManualGlobalDogfoodNextWorkBiasContractPanel } from "@/components/research-candidate-manual-global-dogfood-next-work-bias-contract-panel";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveRelayContractPanel } from "@/components/research-candidate-manual-global-dogfood-perspective-relay-contract-panel";
 import type {
   ResearchCandidateManualGlobalDogfoodNextWorkSignalReadback,
   ResearchCandidateManualGlobalDogfoodNextWorkSignalRecordsByReceipt,
@@ -153,6 +155,13 @@ export function ResearchCandidateManualGlobalDogfoodNextWorkSignalReadbackPanel(
               />
             </div>
           </section>
+
+          <ResearchCandidateManualGlobalDogfoodNextWorkBiasContractPanel
+            readback={readback}
+          />
+          <ResearchCandidateManualGlobalDogfoodPerspectiveRelayContractPanel
+            readback={readback}
+          />
         </>
       ) : (
         <p className="manual-note-runtime-hint">
