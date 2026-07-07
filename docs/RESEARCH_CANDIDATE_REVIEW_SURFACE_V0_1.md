@@ -2124,6 +2124,29 @@ Perspective update as a separate explicitly authorized idempotent write slice
 with source revalidation and row-count validation. Perspective promotion remains
 out of scope.
 
+## Authorized Manual Global Dogfood Canonical Perspective Update Write v0.1 Pointer
+
+Accepted manual global dogfood canonical Perspective update contracts can now
+be explicitly authorized into a canonical Perspective update record/receipt
+path. This slice uses a manual-specific canonical Perspective update table family
+and requires an active committed manual Perspective relay source receipt and
+record before writing.
+
+Writes are idempotent by the canonical contract fingerprint, source relay refs,
+source next-work signal and next-work bias refs, upstream global ledger and
+metric snapshot refs, manual receipt id, ExpectedObservedDelta/Reuse Outcome
+refs, handoff/result fingerprints, canonical update label/rationale, relay
+update label/rationale, recommended next-work label, outcome label/signal,
+candidate ids, selected context refs, manual-only context refs, update scope
+hint, update strength hint, and expected/observed/mismatch summaries. Duplicate
+submission returns `duplicate_replayed` without creating duplicate rows.
+Rollback records metadata without deleting canonical update records; supersede
+only supersedes committed receipts and keeps prior rows as context. Readback
+exists for the manual-specific canonical Perspective update tables.
+
+This is a manual global dogfood canonical Perspective update record write only.
+It performs no current-working Perspective update and no direct canonical Perspective state mutation. It also performs no Perspective promotion, no Perspective Memory write, no work mutation, no proof/evidence write, no dogfood metrics update, no source record mutation, no provider/GitHub/Codex call, no source fetching/retrieval, no raw text persistence, and no operator note persistence.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record

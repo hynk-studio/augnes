@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateWritePanel } from "@/components/research-candidate-manual-global-dogfood-canonical-perspective-update-write-panel";
 import { buildResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateContract } from "@/lib/research-candidate-review/manual-global-dogfood-canonical-perspective-update-contract";
 import { buildResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateReview } from "@/lib/research-candidate-review/manual-global-dogfood-canonical-perspective-update-review";
 import type { ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateContract } from "@/types/research-candidate-manual-global-dogfood-canonical-perspective-update-contract";
@@ -33,6 +34,9 @@ const reviewDecisions: {
   },
 ];
 
+const acceptedReviewDecision: ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateReviewDecision =
+  "accept_contract_for_future_canonical_perspective_update_write_slice";
+
 export function ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateContractPanel({
   readback,
 }: {
@@ -53,6 +57,29 @@ export function ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateCo
       operator_intent_label:
         "research_candidate_manual_global_dogfood_canonical_perspective_update_contract_panel",
     });
+  const currentAcceptedReview =
+    operatorDecision === acceptedReviewDecision &&
+    review?.operator_decision === acceptedReviewDecision &&
+    review?.review_status ===
+      "ready_for_future_canonical_perspective_update_write_slice" &&
+    review?.source_contract_fingerprint ===
+      contract.validation.contract_fingerprint &&
+    review?.accepted_mapping_summary?.source_contract_fingerprint ===
+      contract.validation.contract_fingerprint &&
+    review?.accepted_mapping_summary?.proposed_idempotency_key ===
+      contract.idempotency_contract_preview.proposed_idempotency_key;
+
+  function updateOperatorDecision(
+    nextDecision: ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateReviewDecision,
+  ) {
+    setOperatorDecision(nextDecision);
+    setReview(null);
+  }
+
+  function updateOperatorNote(nextNote: string) {
+    setOperatorNote(nextNote);
+    setReview(null);
+  }
 
   return (
     <section
@@ -252,7 +279,7 @@ export function ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateCo
                 name="manual-global-dogfood-canonical-perspective-update-decision"
                 value={decision.value}
                 checked={operatorDecision === decision.value}
-                onChange={() => setOperatorDecision(decision.value)}
+                onChange={() => updateOperatorDecision(decision.value)}
               />{" "}
               {decision.label}
             </label>
@@ -262,7 +289,7 @@ export function ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateCo
           Local-only operator note
           <textarea
             value={operatorNote}
-            onChange={(event) => setOperatorNote(event.target.value)}
+            onChange={(event) => updateOperatorNote(event.target.value)}
             rows={3}
             placeholder="Optional local note; not persisted or sent."
           />
@@ -288,6 +315,13 @@ export function ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateCo
         </div>
         {review ? <CanonicalReviewPreview review={review} /> : null}
       </section>
+
+      {currentAcceptedReview ? (
+        <ResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateWritePanel
+          canonicalPerspectiveUpdateContract={contract}
+          canonicalPerspectiveUpdateReview={review}
+        />
+      ) : null}
 
       <p className="manual-note-runtime-hint">
         This preview does not write canonical Perspective state, update current

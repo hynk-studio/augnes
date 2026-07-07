@@ -157,9 +157,9 @@ function assertStaticContracts() {
   );
   assert.ok(
     !existsSync(
-      "app/api/research-candidate-review/manual-global-dogfood-canonical-perspective-update",
+      "app/api/research-candidate-review/manual-global-dogfood-canonical-perspective-update-contract",
     ),
-    "no canonical Perspective contract API route must be added",
+    "no canonical Perspective contract preview API route must be added",
   );
 }
 
