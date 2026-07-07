@@ -2056,6 +2056,23 @@ for (const file of followOnResearchCandidateManualResultDogfoodBridgePreviewFile
   allowedChangedFiles.add(file);
 }
 
+const followOnResearchCandidateManualResultDogfoodLedgerAuthorizationContractFiles = [
+  "types/research-candidate-manual-result-dogfood-ledger-authorization-contract.ts",
+  "types/research-candidate-manual-result-dogfood-ledger-authorization-review.ts",
+  "lib/research-candidate-review/manual-result-dogfood-ledger-authorization-contract.ts",
+  "lib/research-candidate-review/manual-result-dogfood-ledger-authorization-review.ts",
+  "components/research-candidate-manual-result-dogfood-ledger-authorization-contract-panel.tsx",
+  "components/research-candidate-manual-result-dogfood-bridge-preview-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-result-dogfood-ledger-authorization-contract-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+for (const file of followOnResearchCandidateManualResultDogfoodLedgerAuthorizationContractFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const textByFile = loadTextByFile(requiredFiles);
 const workbenchPageText = textByFile.get(workbenchPageFile);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);

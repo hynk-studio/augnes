@@ -181,6 +181,20 @@ const followOnResearchCandidateManualResultDogfoodBridgePreviewFiles = [
   "package.json",
 ];
 
+const followOnResearchCandidateManualResultDogfoodLedgerAuthorizationContractFiles = [
+  "types/research-candidate-manual-result-dogfood-ledger-authorization-contract.ts",
+  "types/research-candidate-manual-result-dogfood-ledger-authorization-review.ts",
+  "lib/research-candidate-review/manual-result-dogfood-ledger-authorization-contract.ts",
+  "lib/research-candidate-review/manual-result-dogfood-ledger-authorization-review.ts",
+  "components/research-candidate-manual-result-dogfood-ledger-authorization-contract-panel.tsx",
+  "components/research-candidate-manual-result-dogfood-bridge-preview-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-result-dogfood-ledger-authorization-contract-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -322,6 +336,7 @@ const allowedChangedFiles = new Set([
   ...followOnResearchCandidateManualNoteResultIntakeOperatorReviewFiles,
   ...followOnResearchCandidateManualResultAuthorizedRecordWriteFiles,
   ...followOnResearchCandidateManualResultDogfoodBridgePreviewFiles,
+  ...followOnResearchCandidateManualResultDogfoodLedgerAuthorizationContractFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,

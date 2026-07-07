@@ -1,5 +1,6 @@
 "use client";
 
+import { ResearchCandidateManualResultDogfoodLedgerAuthorizationContractPanel } from "@/components/research-candidate-manual-result-dogfood-ledger-authorization-contract-panel";
 import { buildResearchCandidateManualResultDogfoodBridgePreview } from "@/lib/research-candidate-review/manual-result-dogfood-bridge-preview";
 import type {
   ResearchCandidateManualResultReadback,
@@ -291,6 +292,10 @@ export function ResearchCandidateManualResultDogfoodBridgePreviewPanel({
       <p className="manual-note-runtime-hint">
         next_recommended_slice <code>{preview.next_recommended_slice}</code>
       </p>
+
+      <ResearchCandidateManualResultDogfoodLedgerAuthorizationContractPanel
+        bridgePreview={preview}
+      />
     </section>
   );
 }
