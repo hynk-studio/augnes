@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveRelayContract } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-relay-contract";
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveRelayReview } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-relay-review";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveRelayWritePanel } from "@/components/research-candidate-manual-global-dogfood-perspective-relay-write-panel";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveRelayContract } from "@/types/research-candidate-manual-global-dogfood-perspective-relay-contract";
 import type {
   ResearchCandidateManualGlobalDogfoodPerspectiveRelayReview,
@@ -287,6 +288,13 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveRelayContractPane
         Perspective, write memory, next-work bias, work status, proof/evidence,
         dogfood metrics, product state, or canonical state.
       </p>
+      {review?.review_status ===
+      "ready_for_future_perspective_relay_write_slice" ? (
+        <ResearchCandidateManualGlobalDogfoodPerspectiveRelayWritePanel
+          perspectiveRelayContract={contract}
+          perspectiveRelayReview={review}
+        />
+      ) : null}
       <p className="manual-note-runtime-hint">
         next_recommended_slice <code>{contract.next_recommended_slice}</code>
       </p>

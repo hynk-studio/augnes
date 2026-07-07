@@ -207,12 +207,11 @@ function assertStaticContracts() {
     source.biasPanel.includes("Preview bias review"),
     "preview panel must remain local-review first even when later write routes exist",
   );
-  assert.equal(
-    existsSync(
-      "app/api/research-candidate-review/manual-global-dogfood-perspective-relay",
+  assert.ok(
+    source.relayContractBuilder.includes(
+      "can_write_perspective_relay_now: false",
     ),
-    false,
-    "no Perspective relay API route should be added in preview-only PR",
+    "preview builder must remain no-write even when follow-on relay write route exists",
   );
 }
 

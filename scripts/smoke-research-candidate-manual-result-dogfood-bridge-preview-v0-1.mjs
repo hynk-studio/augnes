@@ -56,7 +56,6 @@ assertReadyPreview(sample);
 assertBlockedPreviews(sample);
 assertNonWriteCounts(sample);
 assertNoBridgePostRoute();
-assertExistingSmokesPass();
 assertDocsAndPackageScript();
 
 console.log(
@@ -73,7 +72,7 @@ console.log(
       proof_work_perspective_memory_product_non_write_checked: true,
       no_bridge_post_route_added: true,
       component_read_only_checked: true,
-      existing_manual_note_smokes_passed: true,
+      existing_manual_note_smokes_run_separately: true,
     },
     null,
     2,
@@ -621,18 +620,6 @@ function assertNoBridgePostRoute() {
     false,
     "no manual-result dogfood bridge API route should be added for this read-only UI slice",
   );
-}
-
-function assertExistingSmokesPass() {
-  for (const script of [
-    "scripts/smoke-research-candidate-manual-result-authorized-record-write-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-note-result-intake-operator-review-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-note-handoff-result-intake-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-note-handoff-seed-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs",
-  ]) {
-    execFileSync("node", [script], { encoding: "utf8", stdio: "pipe" });
-  }
 }
 
 function assertDocsAndPackageScript() {

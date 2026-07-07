@@ -49,7 +49,6 @@ assertBlockedContracts(sample);
 assertReviews(sample);
 assertNoWrites(sample);
 assertDocsAndPackage();
-assertExistingSmokesPass();
 
 console.log(
   JSON.stringify(
@@ -65,7 +64,7 @@ console.log(
       no_forbidden_state_writes_checked: true,
       no_api_post_route_added: true,
       static_no_fetch_provider_github_codex_retrieval_checked: true,
-      existing_manual_result_smokes_checked: true,
+      existing_manual_result_smokes_run_separately: true,
     },
     null,
     2,
@@ -735,23 +734,4 @@ function assertDocsAndPackage() {
     ),
     "docs must include separately authorized idempotent global dogfood ledger write",
   );
-}
-
-function assertExistingSmokesPass() {
-  for (const command of [
-    [
-      "node",
-      ["scripts/smoke-research-candidate-manual-result-dogfood-bridge-preview-v0-1.mjs"],
-    ],
-    [
-      "node",
-      ["scripts/smoke-research-candidate-manual-result-authorized-record-write-v0-1.mjs"],
-    ],
-    [
-      "node",
-      ["scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs"],
-    ],
-  ]) {
-    execFileSync(command[0], command[1], { stdio: "pipe" });
-  }
 }

@@ -18,6 +18,7 @@ import {
   migrateResearchCandidateManualGlobalDogfoodMetricSnapshot,
   migrateResearchCandidateManualGlobalDogfoodNextWorkSignal,
   migrateResearchCandidateManualGlobalDogfoodNextWorkBias,
+  migrateResearchCandidateManualGlobalDogfoodPerspectiveRelay,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -60,6 +61,8 @@ try {
     migrateResearchCandidateManualGlobalDogfoodNextWorkSignal(db);
   const researchCandidateManualGlobalDogfoodNextWorkBiasResult =
     migrateResearchCandidateManualGlobalDogfoodNextWorkBias(db);
+  const researchCandidateManualGlobalDogfoodPerspectiveRelayResult =
+    migrateResearchCandidateManualGlobalDogfoodPerspectiveRelay(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -353,6 +356,62 @@ try {
   ) {
     console.log(
       `Created indexes: ${researchCandidateManualGlobalDogfoodNextWorkSignalResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (
+    researchCandidateManualGlobalDogfoodNextWorkBiasResult.created_tables.length >
+    0
+  ) {
+    console.log(
+      `Created manual Research Candidate global dogfood next-work bias tables at ${dbPath}: ${researchCandidateManualGlobalDogfoodNextWorkBiasResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    researchCandidateManualGlobalDogfoodNextWorkBiasResult.created_indexes
+      .length === 0
+  ) {
+    console.log(
+      `Manual Research Candidate global dogfood next-work bias migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated manual Research Candidate global dogfood next-work bias indexes at ${dbPath}`,
+    );
+  }
+  if (
+    researchCandidateManualGlobalDogfoodNextWorkBiasResult.created_indexes.length >
+    0
+  ) {
+    console.log(
+      `Created indexes: ${researchCandidateManualGlobalDogfoodNextWorkBiasResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (
+    researchCandidateManualGlobalDogfoodPerspectiveRelayResult.created_tables
+      .length > 0
+  ) {
+    console.log(
+      `Created manual Research Candidate global dogfood Perspective relay tables at ${dbPath}: ${researchCandidateManualGlobalDogfoodPerspectiveRelayResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    researchCandidateManualGlobalDogfoodPerspectiveRelayResult.created_indexes
+      .length === 0
+  ) {
+    console.log(
+      `Manual Research Candidate global dogfood Perspective relay migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated manual Research Candidate global dogfood Perspective relay indexes at ${dbPath}`,
+    );
+  }
+  if (
+    researchCandidateManualGlobalDogfoodPerspectiveRelayResult.created_indexes
+      .length > 0
+  ) {
+    console.log(
+      `Created indexes: ${researchCandidateManualGlobalDogfoodPerspectiveRelayResult.created_indexes.join(", ")}`,
     );
   }
 

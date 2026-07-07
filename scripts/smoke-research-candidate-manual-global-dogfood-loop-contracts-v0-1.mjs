@@ -55,7 +55,6 @@ assertReviews(sample);
 assertBlockedStates(sample);
 assertNonTargetTables(sample);
 assertDocsAndPackage();
-assertExistingSmokesPass();
 
 console.log(
   JSON.stringify(
@@ -71,6 +70,7 @@ console.log(
       non_target_table_counts_checked: true,
       static_forbidden_behavior_checked: true,
       ui_preview_only_checked: true,
+      existing_smokes_run_separately: true,
     },
     null,
     2,
@@ -883,21 +883,5 @@ function assertDocsAndPackage() {
     "separate explicitly authorized idempotent write slice",
   ]) {
     assert.ok(normalized.includes(requiredText), `docs must include ${requiredText}`);
-  }
-}
-
-function assertExistingSmokesPass() {
-  for (const script of [
-    "scripts/smoke-research-candidate-manual-global-dogfood-ledger-workbench-projection-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-global-dogfood-ledger-write-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-result-dogfood-ledger-authorization-contract-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-result-dogfood-bridge-preview-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-result-authorized-record-write-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-note-result-intake-operator-review-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-note-handoff-result-intake-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-note-handoff-seed-v0-1.mjs",
-    "scripts/smoke-research-candidate-manual-note-preview-ui-v0-1.mjs",
-  ]) {
-    execFileSync("node", [script], { encoding: "utf8", stdio: "pipe" });
   }
 }
