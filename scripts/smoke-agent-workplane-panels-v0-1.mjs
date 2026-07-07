@@ -2100,6 +2100,30 @@ for (const file of followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles)
   allowedChangedFiles.add(file);
 }
 
+const followOnResearchCandidateManualGlobalDogfoodLoopContractFiles = [
+  "types/research-candidate-manual-global-dogfood-ledger-workbench-projection.ts",
+  "lib/research-candidate-review/manual-global-dogfood-ledger-workbench-projection.ts",
+  "components/research-candidate-manual-global-dogfood-ledger-workbench-projection-panel.tsx",
+  "types/research-candidate-manual-global-dogfood-metric-snapshot-contract.ts",
+  "types/research-candidate-manual-global-dogfood-metric-snapshot-review.ts",
+  "types/research-candidate-manual-global-dogfood-next-work-signal-contract.ts",
+  "types/research-candidate-manual-global-dogfood-next-work-signal-review.ts",
+  "lib/research-candidate-review/manual-global-dogfood-metric-snapshot-contract.ts",
+  "lib/research-candidate-review/manual-global-dogfood-metric-snapshot-review.ts",
+  "lib/research-candidate-review/manual-global-dogfood-next-work-signal-contract.ts",
+  "lib/research-candidate-review/manual-global-dogfood-next-work-signal-review.ts",
+  "components/research-candidate-manual-global-dogfood-metric-snapshot-contract-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-next-work-signal-contract-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-global-dogfood-loop-contracts-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+for (const file of followOnResearchCandidateManualGlobalDogfoodLoopContractFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const textByFile = loadTextByFile(requiredFiles);
 const workbenchPageText = textByFile.get(workbenchPageFile);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);

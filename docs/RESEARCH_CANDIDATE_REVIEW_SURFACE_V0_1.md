@@ -1949,6 +1949,29 @@ Future work may define a separate operator-reviewed write contract for dogfood
 metric snapshot refresh or next-work signal decision. This projection does not
 grant that write authority.
 
+## Manual Global Dogfood Loop Contract Previews v0.1 Pointer
+
+The Workbench/dogfood loop spine projection can now produce two preview-only
+authorization contract surfaces: a dogfood metric snapshot refresh
+authorization contract preview and a next-work signal decision authorization
+contract preview. Both preserve the source projection fingerprint, latest
+active committed receipt, manual receipt, source contract/review fingerprints,
+ExpectedObservedDelta and Reuse Outcome refs, handoff seed fingerprint, result
+text fingerprint, outcome label, selected context refs, and
+expected/observed/mismatch summaries.
+
+Neither contract writes metrics, next-work bias, Perspective state,
+Perspective Memory, proof/evidence, work items/events/status, global dogfood
+ledger rows, manual result source records, product state, or canonical state.
+They do not add routes, schema, migrations, provider/OpenAI calls, GitHub
+automation, Codex execution, source fetching, retrieval/RAG, embeddings, vector
+search, FTS, crawlers, external handoffs, raw text persistence, or operator
+note persistence.
+
+Future work may implement either write as a separate explicitly authorized
+idempotent write slice with row-count validation and fresh operator
+confirmation. These contract previews do not grant that write authority.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record

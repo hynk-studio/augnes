@@ -219,6 +219,27 @@ const followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles = [
   "package.json",
 ];
 
+const followOnResearchCandidateManualGlobalDogfoodLoopContractFiles = [
+  "types/research-candidate-manual-global-dogfood-ledger-workbench-projection.ts",
+  "lib/research-candidate-review/manual-global-dogfood-ledger-workbench-projection.ts",
+  "components/research-candidate-manual-global-dogfood-ledger-workbench-projection-panel.tsx",
+  "types/research-candidate-manual-global-dogfood-metric-snapshot-contract.ts",
+  "types/research-candidate-manual-global-dogfood-metric-snapshot-review.ts",
+  "types/research-candidate-manual-global-dogfood-next-work-signal-contract.ts",
+  "types/research-candidate-manual-global-dogfood-next-work-signal-review.ts",
+  "lib/research-candidate-review/manual-global-dogfood-metric-snapshot-contract.ts",
+  "lib/research-candidate-review/manual-global-dogfood-metric-snapshot-review.ts",
+  "lib/research-candidate-review/manual-global-dogfood-next-work-signal-contract.ts",
+  "lib/research-candidate-review/manual-global-dogfood-next-work-signal-review.ts",
+  "components/research-candidate-manual-global-dogfood-metric-snapshot-contract-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-next-work-signal-contract-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-global-dogfood-loop-contracts-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -362,6 +383,7 @@ const allowedChangedFiles = new Set([
   ...followOnResearchCandidateManualResultDogfoodBridgePreviewFiles,
   ...followOnResearchCandidateManualResultDogfoodLedgerAuthorizationContractFiles,
   ...followOnResearchCandidateManualGlobalDogfoodLedgerWriteFiles,
+  ...followOnResearchCandidateManualGlobalDogfoodLoopContractFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,

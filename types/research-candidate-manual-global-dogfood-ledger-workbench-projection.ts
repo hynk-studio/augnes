@@ -51,12 +51,16 @@ export interface ResearchCandidateManualGlobalDogfoodLedgerWorkbenchProjectionRe
   source_expected_observed_delta_record_ref: string | null;
   source_reuse_outcome_record_ref: string | null;
   outcome_label: string | null;
+  selected_candidate_context_refs: string[];
   selected_candidate_context_ref_count: number;
   expected_summary: string | null;
   observed_summary: string | null;
   mismatch_or_gap_summary: string | null;
   source_line: string | null;
+  manual_only_context_refs: string[];
+  warning_reasons: string[];
   warning_reason_count: number;
+  compatibility_findings: unknown[];
   compatibility_finding_count: number;
 }
 
