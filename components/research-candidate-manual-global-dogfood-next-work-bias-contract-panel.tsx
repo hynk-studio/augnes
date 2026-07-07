@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { buildResearchCandidateManualGlobalDogfoodNextWorkBiasContract } from "@/lib/research-candidate-review/manual-global-dogfood-next-work-bias-contract";
 import { buildResearchCandidateManualGlobalDogfoodNextWorkBiasReview } from "@/lib/research-candidate-review/manual-global-dogfood-next-work-bias-review";
+import { ResearchCandidateManualGlobalDogfoodNextWorkBiasWritePanel } from "@/components/research-candidate-manual-global-dogfood-next-work-bias-write-panel";
 import type { ResearchCandidateManualGlobalDogfoodNextWorkBiasContract } from "@/types/research-candidate-manual-global-dogfood-next-work-bias-contract";
 import type {
   ResearchCandidateManualGlobalDogfoodNextWorkBiasReview,
@@ -278,6 +279,13 @@ export function ResearchCandidateManualGlobalDogfoodNextWorkBiasContractPanel({
         </div>
         {review ? <BiasReviewPreview review={review} /> : null}
       </section>
+
+      {review?.review_status === "ready_for_future_next_work_bias_write_slice" ? (
+        <ResearchCandidateManualGlobalDogfoodNextWorkBiasWritePanel
+          nextWorkBiasContract={contract}
+          nextWorkBiasReview={review}
+        />
+      ) : null}
 
       <p className="manual-note-runtime-hint">
         This preview does not write next-work bias, work status, Perspective,

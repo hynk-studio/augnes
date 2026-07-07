@@ -1231,19 +1231,18 @@ function assertReadbackAndNonTargetTables(sample) {
   ]) {
     assert.equal(sample.counts[table], 0, `${table} must remain unchanged/zero`);
   }
-  assert.deepEqual(
-    Object.fromEntries(
-      Object.entries(sample.nextWorkBiasCounts).filter(
-        ([table]) =>
-          ![
-            "research_candidate_manual_global_dogfood_next_work_signal_receipts",
-            "research_candidate_manual_global_dogfood_next_work_signal_records",
-            "research_candidate_manual_global_dogfood_next_work_signal_rollbacks",
-          ].includes(table),
-      ),
-    ),
-    {},
-  );
+  for (const [table, value] of Object.entries(sample.nextWorkBiasCounts)) {
+    if (
+      [
+        "research_candidate_manual_global_dogfood_next_work_signal_receipts",
+        "research_candidate_manual_global_dogfood_next_work_signal_records",
+        "research_candidate_manual_global_dogfood_next_work_signal_rollbacks",
+      ].includes(table)
+    ) {
+      continue;
+    }
+    assert.equal(value, 0, `${table} must remain unchanged/zero`);
+  }
   assert.deepEqual(sample.rawTextColumns, []);
   assert.equal(sample.readback.count, 2);
   assert.equal(sample.readback.latest_active_committed, null);
