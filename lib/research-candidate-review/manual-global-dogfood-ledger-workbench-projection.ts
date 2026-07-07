@@ -255,13 +255,18 @@ function summarizeLatestLedgerRecord(
     source_reuse_outcome_record_ref:
       receipt?.source_reuse_outcome_record_ref ?? null,
     outcome_label: record?.outcome_label ?? null,
+    selected_candidate_context_refs:
+      record?.selected_candidate_context_refs ?? [],
     selected_candidate_context_ref_count:
       record?.selected_candidate_context_refs.length ?? 0,
     expected_summary: record?.expected_summary ?? null,
     observed_summary: record?.observed_summary ?? null,
     mismatch_or_gap_summary: record?.mismatch_or_gap_summary ?? null,
     source_line: record?.source_line ?? null,
+    manual_only_context_refs: record?.manual_only_context_refs ?? [],
+    warning_reasons: record?.warning_reasons ?? [],
     warning_reason_count: record?.warning_reasons.length ?? 0,
+    compatibility_findings: record?.compatibility_findings ?? [],
     compatibility_finding_count: record?.compatibility_findings.length ?? 0,
   };
 }

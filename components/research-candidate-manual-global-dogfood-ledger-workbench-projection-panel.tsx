@@ -2,6 +2,8 @@ import type {
   ResearchCandidateManualGlobalDogfoodLedgerWorkbenchProjection,
   ResearchCandidateManualGlobalDogfoodNextWorkSignalCard,
 } from "@/types/research-candidate-manual-global-dogfood-ledger-workbench-projection";
+import { ResearchCandidateManualGlobalDogfoodMetricSnapshotContractPanel } from "@/components/research-candidate-manual-global-dogfood-metric-snapshot-contract-panel";
+import { ResearchCandidateManualGlobalDogfoodNextWorkSignalContractPanel } from "@/components/research-candidate-manual-global-dogfood-next-work-signal-contract-panel";
 
 export function ResearchCandidateManualGlobalDogfoodLedgerWorkbenchProjectionPanel({
   projection,
@@ -335,6 +337,13 @@ export function ResearchCandidateManualGlobalDogfoodLedgerWorkbenchProjectionPan
           />
         </div>
       </section>
+
+      <ResearchCandidateManualGlobalDogfoodMetricSnapshotContractPanel
+        projection={projection}
+      />
+      <ResearchCandidateManualGlobalDogfoodNextWorkSignalContractPanel
+        projection={projection}
+      />
     </section>
   );
 }
