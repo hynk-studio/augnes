@@ -1922,12 +1922,39 @@ proof/evidence, no work mutation, no provider/GitHub/Codex execution, no source
 fetching/retrieval, no raw text persistence, no operator note persistence, and
 no product-write execution.
 
+## Manual Global Dogfood Ledger Workbench Projection v0.1 Pointer
+
+Manual global dogfood ledger readback can now be projected into a
+Workbench/dogfood loop spine read model. The projection selects the latest
+active committed manual global dogfood ledger receipt as primary read-only
+candidate material and keeps rolled_back or superseded receipts visible as
+context only.
+
+The projection preserves source contract and authorization review fingerprints,
+source manual receipt id, source ExpectedObservedDelta and Reuse Outcome refs,
+source handoff seed fingerprint, source result text fingerprint, outcome label,
+selected context refs, expected/observed/mismatch summaries, warning counts,
+and compatibility finding counts. It also renders read-only next-work signal
+candidate cards and dogfood loop-spine alignment for operator review.
+
+This is read-only. It does not write metrics, next-work bias, global dogfood
+ledger rows, Perspective state, Perspective Memory, proof/evidence rows, work
+items, work events, work status, manual result source records, product-write
+records, or canonical project state. It does not call providers/OpenAI, GitHub,
+Codex, source fetching, retrieval/RAG, embeddings, vector search, FTS, or
+crawlers, and it does not persist raw manual note text, raw result report text,
+or operator notes.
+
+Future work may define a separate operator-reviewed write contract for dogfood
+metric snapshot refresh or next-work signal decision. This projection does not
+grant that write authority.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record
-write, dogfood bridge authorization, and manual-to-global dogfood ledger
-readback before any dogfood metrics, Perspective, proof/evidence, work, memory,
-or product-write integration.
+write, dogfood bridge authorization, manual-to-global dogfood ledger readback,
+and Workbench loop-spine projection before any dogfood metrics, next-work bias,
+Perspective, proof/evidence, work, memory, or product-write integration.
 
 Perspective Packet Receipt Linkage remains separated from candidate preview, AI Context Packet runtime, Codex Handoff runtime, digest runtime, layout runtime, durable Perspective state, promotion runtime, Formation Receipt write, and execution.
 Selected candidates remain candidates, not proof/evidence or durable state.

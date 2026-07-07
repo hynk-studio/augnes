@@ -2,6 +2,8 @@ import type {
   ResearchCandidateManualGlobalDogfoodLedgerReadback,
   ResearchCandidateManualGlobalDogfoodLedgerRecordsByReceipt,
 } from "@/types/research-candidate-manual-global-dogfood-ledger-write";
+import { ResearchCandidateManualGlobalDogfoodLedgerWorkbenchProjectionPanel } from "@/components/research-candidate-manual-global-dogfood-ledger-workbench-projection-panel";
+import { buildResearchCandidateManualGlobalDogfoodLedgerWorkbenchProjection } from "@/lib/research-candidate-review/manual-global-dogfood-ledger-workbench-projection";
 
 export function ResearchCandidateManualGlobalDogfoodLedgerReadbackPanel({
   readback,
@@ -12,6 +14,13 @@ export function ResearchCandidateManualGlobalDogfoodLedgerReadbackPanel({
   isLoading?: boolean;
   error?: string | null;
 }) {
+  const workbenchProjection = readback
+    ? buildResearchCandidateManualGlobalDogfoodLedgerWorkbenchProjection({
+        readback,
+        operator_view: "manual_global_dogfood_ledger_readback_panel",
+      })
+    : null;
+
   return (
     <section
       className="perspective-inspector-section manual-global-dogfood-ledger-readback"
@@ -143,6 +152,12 @@ export function ResearchCandidateManualGlobalDogfoodLedgerReadbackPanel({
               />
             </div>
           </section>
+
+          {workbenchProjection ? (
+            <ResearchCandidateManualGlobalDogfoodLedgerWorkbenchProjectionPanel
+              projection={workbenchProjection}
+            />
+          ) : null}
         </>
       ) : (
         <p className="manual-note-runtime-hint">
