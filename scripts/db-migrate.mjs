@@ -23,6 +23,7 @@ import {
   migrateResearchCandidateManualGlobalDogfoodPerspectiveApply,
   migrateResearchCandidateManualGlobalDogfoodPerspectiveStateMutation,
   migrateResearchCandidateManualGlobalDogfoodPerspectiveAdapter,
+  migrateResearchCandidateManualGlobalDogfoodPerspectiveStateApplication,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -75,6 +76,8 @@ try {
     migrateResearchCandidateManualGlobalDogfoodPerspectiveStateMutation(db);
   const researchCandidateManualGlobalDogfoodPerspectiveAdapterResult =
     migrateResearchCandidateManualGlobalDogfoodPerspectiveAdapter(db);
+  const researchCandidateManualGlobalDogfoodPerspectiveStateApplicationResult =
+    migrateResearchCandidateManualGlobalDogfoodPerspectiveStateApplication(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -536,6 +539,34 @@ try {
   ) {
     console.log(
       `Created indexes: ${researchCandidateManualGlobalDogfoodPerspectiveAdapterResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (
+    researchCandidateManualGlobalDogfoodPerspectiveStateApplicationResult
+      .created_tables.length > 0
+  ) {
+    console.log(
+      `Created manual Research Candidate global dogfood Perspective state application tables at ${dbPath}: ${researchCandidateManualGlobalDogfoodPerspectiveStateApplicationResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    researchCandidateManualGlobalDogfoodPerspectiveStateApplicationResult
+      .created_indexes.length === 0
+  ) {
+    console.log(
+      `Manual Research Candidate global dogfood Perspective state application migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated manual Research Candidate global dogfood Perspective state application indexes at ${dbPath}`,
+    );
+  }
+  if (
+    researchCandidateManualGlobalDogfoodPerspectiveStateApplicationResult
+      .created_indexes.length > 0
+  ) {
+    console.log(
+      `Created indexes: ${researchCandidateManualGlobalDogfoodPerspectiveStateApplicationResult.created_indexes.join(", ")}`,
     );
   }
 

@@ -2354,6 +2354,30 @@ application write slice with source revalidation, idempotency, duplicate replay,
 rollback/supersede, row-count validation, manual source-chain binding, and no
 proof/evidence fabrication. Perspective promotion remains out of scope.
 
+## Manual Perspective State Application Write v0.1 Pointer
+
+Accepted manual global dogfood Perspective state application contracts can now
+be explicitly authorized into a Perspective state application record. The exact
+storage path is the manual-specific Perspective state application table family:
+receipts, records, readback, and rollback metadata only.
+
+The write requires an active committed source Perspective adapter record. It is
+idempotent, duplicate submissions replay the existing receipt/record, rollback
+marks receipt metadata without deleting the Perspective state application
+record, and supersede only supersedes committed receipts while preserving prior
+rows as context. Readback exists for the manual-specific Perspective state
+application table family.
+
+This state application write does not update current-working Perspective, run
+current-working Perspective update/apply, mutate existing canonical Perspective
+state tables, promote Perspective, write Perspective Memory, mutate work, write
+proof/evidence, write dogfood metrics, call provider/OpenAI/GitHub/Codex,
+fetch sources, run retrieval/RAG/embeddings/vector/FTS/crawlers, persist raw
+manual note or result report text, or persist operator notes. Future work may
+implement a separate explicit state-application-to-existing-state writer only
+after honest mapping of current-working/canonical state refs and row-count
+validation.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record
