@@ -62,7 +62,10 @@ console.log(
       work_mutated: false,
       proof_or_evidence_rows_written: false,
       dogfood_metrics_written: false,
-      schema_or_api_write_route_added: false,
+      contract_preview_builders_write_free: true,
+      authorized_write_route_present: existsSync(
+        "app/api/research-candidate-review/manual-global-dogfood-perspective-state-application/route.ts",
+      ),
       handoff_result_fingerprints_preserved: true,
     },
     null,
@@ -223,10 +226,10 @@ function assertStaticContracts() {
     "state application contract panel must not expose forbidden write controls",
   );
   assert.ok(
-    !existsSync(
-      "app/api/research-candidate-review/manual-global-dogfood-perspective-state-application",
+    existsSync(
+      "app/api/research-candidate-review/manual-global-dogfood-perspective-state-application/route.ts",
     ),
-    "state application contract preview must not add an API route",
+    "authorized state application write slice must expose the narrow same-origin state application route",
   );
   assert.ok(
     packageJson.scripts[

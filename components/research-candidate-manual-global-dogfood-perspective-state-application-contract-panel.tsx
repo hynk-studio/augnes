@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContract } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-state-application-contract";
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationReview } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-state-application-review";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationWritePanel } from "@/components/research-candidate-manual-global-dogfood-perspective-state-application-write-panel";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContract } from "@/types/research-candidate-manual-global-dogfood-perspective-state-application-contract";
 import type {
   ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationReview,
@@ -63,11 +64,27 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationC
     (!review.accepted_mapping_summary ||
       (review.accepted_mapping_summary.proposed_idempotency_key ===
         contract.idempotency_contract_preview.proposed_idempotency_key &&
+        review.accepted_mapping_summary.source_perspective_adapter_receipt_id ===
+          contract.source_perspective_adapter_receipt_id &&
+        review.accepted_mapping_summary.source_perspective_adapter_record_id ===
+          contract.source_perspective_adapter_record_id &&
+        review.accepted_mapping_summary
+          .source_perspective_adapter_record_fingerprint ===
+          contract.source_perspective_adapter_record_fingerprint &&
         review.accepted_mapping_summary.source_handoff_seed_fingerprint ===
           contract.source_handoff_seed_fingerprint &&
         review.accepted_mapping_summary.source_result_text_fingerprint ===
           contract.source_result_text_fingerprint))
       ? review
+      : null;
+  const currentAcceptedReview =
+    operatorDecision ===
+      "accept_contract_for_future_perspective_state_application_write_slice" &&
+    currentReview?.operator_decision ===
+      "accept_contract_for_future_perspective_state_application_write_slice" &&
+    currentReview.review_status ===
+      "ready_for_future_perspective_state_application_write_slice"
+      ? currentReview
       : null;
 
   useEffect(() => {
@@ -383,6 +400,12 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationC
           <StateApplicationReviewPreview review={currentReview} />
         ) : null}
       </section>
+      {currentAcceptedReview ? (
+        <ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationWritePanel
+          perspectiveStateApplicationContract={contract}
+          perspectiveStateApplicationReview={currentAcceptedReview}
+        />
+      ) : null}
     </section>
   );
 }

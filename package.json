@@ -832,7 +832,8 @@
     "smoke:handoff-send-slice-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-handoff-send-slice-v0-1.mjs",
     "smoke:continuity-relay-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-continuity-relay-scoped-write-v0-1.mjs",
     "smoke:perspective-unit-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-unit-scoped-write-v0-1.mjs",
-    "smoke:perspective-next-work-bias-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs"
+    "smoke:perspective-next-work-bias-scoped-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-perspective-next-work-bias-scoped-write-v0-1.mjs",
+    "smoke:research-candidate-manual-global-dogfood-perspective-state-application-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-research-candidate-manual-global-dogfood-perspective-state-application-write-v0-1.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
