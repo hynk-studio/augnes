@@ -14,10 +14,16 @@ import {
 const files = {
   entrypointType:
     "types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint.ts",
+  reviewType:
+    "types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review.ts",
   entrypointBuilder:
     "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint.ts",
+  reviewBuilder:
+    "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review.ts",
   entrypointPanel:
     "components/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-panel.tsx",
+  reviewPanel:
+    "components/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review-panel.tsx",
   resultType:
     "types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-result.ts",
   resultBuilder:
@@ -29,6 +35,8 @@ const files = {
   agentPanelSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   smoke:
     "scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-v0-1.mjs",
+  reviewSmoke:
+    "scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review-v0-1.mjs",
   packageJson: "package.json",
 };
 

@@ -13,10 +13,16 @@ import {
 const files = {
   entrypointType:
     "types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint.ts",
+  entrypointReviewType:
+    "types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review.ts",
   entrypointBuilder:
     "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint.ts",
+  entrypointReviewBuilder:
+    "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review.ts",
   entrypointPanel:
     "components/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-panel.tsx",
+  entrypointReviewPanel:
+    "components/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review-panel.tsx",
   resultType:
     "types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-result.ts",
   resultBuilder:
@@ -30,6 +36,8 @@ const files = {
     "scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-result-v0-1.mjs",
   entrypointSmoke:
     "scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-v0-1.mjs",
+  entrypointReviewSmoke:
+    "scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review-v0-1.mjs",
   packageJson: "package.json",
 };
 
