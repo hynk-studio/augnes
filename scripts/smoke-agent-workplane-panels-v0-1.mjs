@@ -2324,6 +2324,23 @@ for (const file of followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyW
   allowedChangedFiles.add(file);
 }
 
+const followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationContractFiles = [
+  "types/research-candidate-manual-global-dogfood-perspective-state-mutation-contract.ts",
+  "types/research-candidate-manual-global-dogfood-perspective-state-mutation-review.ts",
+  "lib/research-candidate-review/manual-global-dogfood-perspective-state-mutation-contract.ts",
+  "lib/research-candidate-review/manual-global-dogfood-perspective-state-mutation-review.ts",
+  "components/research-candidate-manual-global-dogfood-perspective-state-mutation-contract-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-perspective-apply-readback-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-global-dogfood-perspective-state-mutation-contract-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+for (const file of followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationContractFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const textByFile = loadTextByFile(requiredFiles);
 const workbenchPageText = textByFile.get(workbenchPageFile);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);

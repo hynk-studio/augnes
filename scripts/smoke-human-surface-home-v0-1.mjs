@@ -413,6 +413,20 @@ const followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyWriteFiles = [
   "package.json",
 ];
 
+const followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationContractFiles = [
+  "types/research-candidate-manual-global-dogfood-perspective-state-mutation-contract.ts",
+  "types/research-candidate-manual-global-dogfood-perspective-state-mutation-review.ts",
+  "lib/research-candidate-review/manual-global-dogfood-perspective-state-mutation-contract.ts",
+  "lib/research-candidate-review/manual-global-dogfood-perspective-state-mutation-review.ts",
+  "components/research-candidate-manual-global-dogfood-perspective-state-mutation-contract-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-perspective-apply-readback-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-global-dogfood-perspective-state-mutation-contract-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -566,6 +580,7 @@ const allowedChangedFiles = new Set([
   ...followOnResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateWriteFiles,
   ...followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyContractFiles,
   ...followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyWriteFiles,
+  ...followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationContractFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
