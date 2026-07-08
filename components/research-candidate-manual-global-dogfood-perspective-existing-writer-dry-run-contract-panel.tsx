@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-dry-run-contract";
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-dry-run-review";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResultPanel } from "@/components/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-result-panel";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract";
 import type {
   ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview,
@@ -55,6 +56,12 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDry
       readback,
       operator_intent_label:
         "research_candidate_manual_global_dogfood_perspective_existing_writer_dry_run_contract_panel",
+    });
+  const acceptedResultHarnessReview =
+    buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview({
+      existing_writer_dry_run_contract: contract,
+      operator_decision:
+        "accept_contract_for_future_existing_writer_dry_run_adapter_write_slice",
     });
   const currentContractFingerprint = contract.validation.contract_fingerprint;
   const currentReview =
@@ -381,6 +388,11 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDry
         </div>
         {currentReview ? <DryRunReviewPreview review={currentReview} /> : null}
       </section>
+
+      <ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResultPanel
+        existingWriterDryRunContract={contract}
+        existingWriterDryRunReview={acceptedResultHarnessReview}
+      />
     </section>
   );
 }
