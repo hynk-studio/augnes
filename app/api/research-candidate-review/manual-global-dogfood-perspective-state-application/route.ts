@@ -15,7 +15,7 @@ const routeVersion =
   "research_candidate_manual_global_dogfood_perspective_state_application_route.v0.1" as const;
 
 export async function GET(request: Request) {
-  if (!requestHasSameOriginBoundary(request)) {
+  if (!requestHasSameOriginBoundary(request, { allowOriginlessSameOriginRead: true })) {
     return errorResponse("same_origin_required", 403);
   }
 
@@ -74,7 +74,10 @@ function parseLimit(value: string | null) {
   return Number.isInteger(limit) ? Math.max(1, Math.min(limit, 100)) : 25;
 }
 
-function requestHasSameOriginBoundary(request: Request): boolean {
+function requestHasSameOriginBoundary(
+  request: Request,
+  options: { allowOriginlessSameOriginRead?: boolean } = {},
+): boolean {
   const fetchSite = request.headers.get("sec-fetch-site");
   if (fetchSite && !["same-origin", "same-site", "none"].includes(fetchSite)) {
     return false;
@@ -82,7 +85,17 @@ function requestHasSameOriginBoundary(request: Request): boolean {
   const origin = request.headers.get("origin");
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
   if (!host) return false;
-  if (!origin) return isLocalTestHost(host);
+  if (!origin) {
+    if (
+      options.allowOriginlessSameOriginRead &&
+      request.method === "GET" &&
+      (fetchSite === "same-origin" || fetchSite === "same-site" || fetchSite === "none")
+    ) {
+      return true;
+    }
+
+    return isLocalTestHost(host);
+  }
 
   try {
     return new URL(origin).host.toLowerCase() === host.toLowerCase();

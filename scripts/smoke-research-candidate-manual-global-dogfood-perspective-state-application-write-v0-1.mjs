@@ -77,6 +77,8 @@ console.log(
       duplicate_replay_checked: true,
       rollback_checked: true,
       supersede_checked: true,
+      malformed_contract_refusal_checked: true,
+      originless_get_boundary_checked: true,
       non_target_table_counts_checked: true,
       no_raw_text_or_operator_note_persistence_checked: true,
     },
@@ -156,6 +158,21 @@ function assertStaticContracts() {
   );
 
   assert.match(source.writer, /BEGIN IMMEDIATE/, "writer must use transaction");
+  assert.match(
+    source.writer,
+    /const contractShapeValid =[\s\S]*validateContractShape\(contractRecord\)/,
+    "writer must validate contract shape before treating it as a typed contract",
+  );
+  assert.match(
+    source.writer,
+    /contractShapeValid && contract[\s\S]*computePerspectiveStateApplicationIdempotencyKey\(contract\)/,
+    "writer must compute idempotency only for a shape-valid contract",
+  );
+  assert.match(
+    source.writer,
+    /contractShapeValid && contract[\s\S]*validateReview\(review, contract\)/,
+    "writer must bind reviews only after the submitted contract is shape-valid",
+  );
   const transactionSlice = source.writer.slice(
     source.writer.indexOf('db.prepare("BEGIN IMMEDIATE").run();'),
     source.writer.indexOf("insertReceipt(db, receipt);"),
@@ -198,6 +215,24 @@ function assertStaticContracts() {
     idempotencySlice,
     /source_result_text_fingerprint/,
     "idempotency must include source result text fingerprint",
+  );
+
+  for (const requiredText of [
+    "allowOriginlessSameOriginRead",
+    'request.method === "GET"',
+    'fetchSite === "same-origin"',
+    'GET(request: Request)',
+    "requestHasSameOriginBoundary(request, { allowOriginlessSameOriginRead: true })",
+    "POST(request: Request)",
+    "requestHasSameOriginBoundary(request)",
+    "invalid_json_body",
+  ]) {
+    assert.ok(source.route.includes(requiredText), `route must include ${requiredText}`);
+  }
+  assert.doesNotMatch(
+    source.rollbackRoute,
+    /allowOriginlessSameOriginRead/,
+    "rollback POST route must not allow originless deployed unsafe requests",
   );
 
   assert.doesNotMatch(
@@ -302,6 +337,39 @@ function assertRuntimeWritePath() {
   assert.ok(
     mismatch.refusal_reasons.includes("perspective_state_application_review_source_mismatch"),
   );
+  assert.equal(countRows(db, "research_candidate_manual_global_dogfood_perspective_state_application_receipts"), 0);
+  assert.equal(countRows(db, "research_candidate_manual_global_dogfood_perspective_state_application_records"), 0);
+
+  const malformedContract = writeResearchCandidateManualGlobalDogfoodPerspectiveStateApplication(
+    {
+      perspective_state_application_contract: {},
+      perspective_state_application_review: acceptedReview,
+      source_perspective_adapter_readback: sourceReadback,
+      operator_authorization: {
+        authorization_kind: "manual_operator_authorized_perspective_state_application_write",
+        operator_confirmation_text:
+          RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_STATE_APPLICATION_WRITE_CONFIRMATION,
+        write_mode: "commit",
+      },
+    },
+    { db },
+  );
+  assert.equal(malformedContract.ok, false);
+  assert.equal(malformedContract.result_status, "refused");
+  assert.ok(
+    malformedContract.validation.failure_codes.includes(
+      "perspective_state_application_contract_shape_invalid",
+    ),
+  );
+  assert.equal(malformedContract.idempotency_key, null);
+  assert.equal(malformedContract.current_working_perspective_updated, false);
+  assert.equal(malformedContract.existing_canonical_perspective_state_table_mutated, false);
+  assert.equal(malformedContract.perspective_promoted, false);
+  assert.equal(malformedContract.perspective_memory_written, false);
+  assert.equal(malformedContract.work_mutated, false);
+  assert.equal(malformedContract.proof_or_evidence_rows_written, false);
+  assert.equal(countRows(db, "research_candidate_manual_global_dogfood_perspective_state_application_receipts"), 0);
+  assert.equal(countRows(db, "research_candidate_manual_global_dogfood_perspective_state_application_records"), 0);
 
   const committed = writeAdapter(db, readyContract, acceptedReview);
   assert.equal(committed.ok, true);

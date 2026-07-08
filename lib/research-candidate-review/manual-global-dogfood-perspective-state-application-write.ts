@@ -397,14 +397,19 @@ export function validateResearchCandidateManualGlobalDogfoodPerspectiveStateAppl
     return buildValidation({ reasons, request, idempotencyKey: null });
   }
 
-  const contract = isRecord(request.perspective_state_application_contract)
-    ? (request.perspective_state_application_contract as unknown as ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContract)
+  const contractRecord = isRecord(request.perspective_state_application_contract)
+    ? (request.perspective_state_application_contract as unknown as JsonRecord)
+    : null;
+  const contractShapeValid =
+    contractRecord !== null && validateContractShape(contractRecord);
+  const contract = contractShapeValid
+    ? (contractRecord as unknown as ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContract)
     : null;
   const review = isRecord(request.perspective_state_application_review)
     ? (request.perspective_state_application_review as unknown as ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationReview)
     : null;
 
-  if (!contract || !validateContractShape(contract as unknown as JsonRecord)) {
+  if (!contractShapeValid || !contract) {
     reasons.push("perspective_state_application_contract_shape_invalid");
   } else {
     reasons.push(...validateContract(contract));
@@ -412,7 +417,7 @@ export function validateResearchCandidateManualGlobalDogfoodPerspectiveStateAppl
 
   if (!review || !validateReviewShape(review as unknown as JsonRecord)) {
     reasons.push("perspective_state_application_review_shape_invalid");
-  } else if (contract) {
+  } else if (contractShapeValid && contract) {
     reasons.push(...validateReview(review, contract));
   }
 
@@ -440,7 +445,7 @@ export function validateResearchCandidateManualGlobalDogfoodPerspectiveStateAppl
     reasons.push("perspective_state_application_source_readback_forbidden_mutation_flag");
   }
 
-  const idempotencyKey = contract
+  const idempotencyKey = contractShapeValid && contract
     ? computePerspectiveStateApplicationIdempotencyKey(contract)
     : null;
   return buildValidation({ reasons, request, idempotencyKey });
@@ -1691,8 +1696,14 @@ function buildValidation({
   idempotencyKey: string | null;
 }): ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationWriteValidation {
   const failureCodes = uniqueStrings(reasons);
-  const contract = isRecord(request)
-    ? (request.perspective_state_application_contract as ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContract | undefined)
+  const contractRecord =
+    isRecord(request) && isRecord(request.perspective_state_application_contract)
+      ? (request.perspective_state_application_contract as unknown as JsonRecord)
+      : null;
+  const contractShapeValid =
+    contractRecord !== null && validateContractShape(contractRecord);
+  const contract = contractShapeValid
+    ? (contractRecord as unknown as ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContract)
     : undefined;
   const mapping = contract?.proposed_state_application_mapping;
   const candidate = contract?.proposed_state_application_candidate;
@@ -1723,18 +1734,14 @@ function buildValidation({
       candidate?.would_mutate_work === false &&
       candidate?.would_write_proof_or_evidence === false,
     preview_authority_boundary_was_read_only:
-      Boolean(contract?.authority_boundary.preview_only) &&
-      Boolean(contract?.authority_boundary.read_only) &&
+      Boolean(contract?.authority_boundary?.preview_only) &&
+      Boolean(contract?.authority_boundary?.read_only) &&
       contract?.authority_boundary.can_write_perspective_state_application_record ===
         false,
     writer_authority_boundary_is_narrow: writerAuthorityBoundaryIsNarrow(),
     raw_text_fields_absent: !failureCodes.includes("raw_text_fields_present"),
     operator_note_absent: !failureCodes.includes("operator_notes_present"),
-    source_refs_present:
-      Boolean(contract) &&
-      sourceRefsPresent(
-        contract as ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContract,
-      ),
+    source_refs_present: contract ? sourceRefsPresent(contract) : false,
     source_perspective_adapter_receipt_active_committed:
       !failureCodes.includes(
         "perspective_state_application_source_adapter_receipt_not_active_committed",
