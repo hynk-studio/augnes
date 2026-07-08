@@ -427,6 +427,27 @@ const followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationContra
   "package.json",
 ];
 
+const followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationWriteFiles = [
+  "lib/db/schema.sql",
+  "lib/db.ts",
+  "scripts/db-migrations.mjs",
+  "scripts/db-migrate.mjs",
+  "types/research-candidate-manual-global-dogfood-perspective-state-mutation-write.ts",
+  "lib/research-candidate-review/manual-global-dogfood-perspective-state-mutation-write.ts",
+  "lib/research-candidate-review/read-manual-global-dogfood-perspective-state-mutation.ts",
+  "app/api/research-candidate-review/manual-global-dogfood-perspective-state-mutation/route.ts",
+  "app/api/research-candidate-review/manual-global-dogfood-perspective-state-mutation/[receipt_id]/rollback/route.ts",
+  "components/research-candidate-manual-global-dogfood-perspective-state-mutation-write-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-perspective-state-mutation-readback-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-perspective-state-mutation-contract-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-global-dogfood-perspective-state-mutation-write-v0-1.mjs",
+  "scripts/smoke-research-candidate-manual-global-dogfood-perspective-state-mutation-contract-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -581,6 +602,7 @@ const allowedChangedFiles = new Set([
   ...followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyContractFiles,
   ...followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyWriteFiles,
   ...followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationContractFiles,
+  ...followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationWriteFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
@@ -1155,7 +1177,8 @@ function assertChangedFileBoundary() {
         followOnResearchCandidateManualGlobalDogfoodNextWorkBiasWriteFiles.includes(file) ||
         followOnResearchCandidateManualGlobalDogfoodPerspectiveRelayWriteFiles.includes(file) ||
         followOnResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateWriteFiles.includes(file) ||
-        followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyWriteFiles.includes(file),
+        followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyWriteFiles.includes(file) ||
+        followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationWriteFiles.includes(file),
       `Phase 4A must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(
@@ -1170,7 +1193,8 @@ function assertChangedFileBoundary() {
         followOnResearchCandidateManualGlobalDogfoodNextWorkBiasWriteFiles.includes(file) ||
         followOnResearchCandidateManualGlobalDogfoodPerspectiveRelayWriteFiles.includes(file) ||
         followOnResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateWriteFiles.includes(file) ||
-        followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyWriteFiles.includes(file),
+        followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyWriteFiles.includes(file) ||
+        followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationWriteFiles.includes(file),
       `Phase 4A must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 4A must not change DB files: ${file}`);

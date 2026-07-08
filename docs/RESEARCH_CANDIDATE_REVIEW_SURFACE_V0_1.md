@@ -2231,6 +2231,41 @@ explicitly authorized Perspective state mutation write slice with source
 revalidation, idempotency, duplicate replay, rollback/supersede, and row-count
 validation. Perspective promotion remains out of scope.
 
+## Manual Perspective State Mutation Write v0.1 Pointer
+
+Accepted manual global dogfood Perspective state mutation contracts can now be
+explicitly authorized into a Perspective state mutation record/receipt path. The
+default storage path is the manual-specific Perspective state mutation table
+family. This slice requires an active committed manual Perspective apply source
+receipt and record before writing, and it preserves the Perspective apply refs,
+canonical update refs, relay refs, next-work signal and bias refs, projection,
+global ledger, metric snapshot, manual receipt, ExpectedObservedDelta and Reuse
+Outcome refs, handoff/result fingerprints, mutation material, apply material,
+canonical update material, relay update material, candidate ids, selected
+context refs, manual-only context refs, and expected/observed/mismatch
+summaries.
+
+Writes are idempotent by the state mutation contract fingerprint, source
+Perspective apply refs, upstream manual source-chain refs, mutation
+label/rationale, apply label/rationale, canonical update label/rationale,
+relay update label/rationale, recommended next-work label, outcome
+label/signal, intended future mutation target, mutation scope and strength
+hints, apply target/scope/strength hints, candidate refs, context refs, and
+summary material. Duplicate submission returns `duplicate_replayed` without
+creating duplicate rows. Rollback records metadata without deleting Perspective
+state mutation records; supersede only supersedes committed receipts and keeps
+prior rows as context. Readback exists for the manual-specific Perspective state
+mutation tables.
+
+This is a manual global dogfood Perspective state mutation record write only.
+It performs no current-working Perspective update/apply, no Perspective
+promotion, no Perspective Memory write, no work mutation, no proof/evidence
+write, no dogfood metrics update, no source record mutation, no
+provider/GitHub/Codex call, no source fetching/retrieval, no raw text
+persistence, and no operator note persistence. Because the manual-specific path
+is used, existing direct canonical Perspective state tables remain unchanged by
+this slice.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record
