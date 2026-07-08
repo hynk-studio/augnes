@@ -128,6 +128,10 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveAdapterRevie
               perspective_adapter_contract.source_metric_snapshot_record_id,
             source_manual_receipt_id:
               perspective_adapter_contract.source_manual_receipt_id,
+            source_handoff_seed_fingerprint:
+              perspective_adapter_contract.source_handoff_seed_fingerprint,
+            source_result_text_fingerprint:
+              perspective_adapter_contract.source_result_text_fingerprint,
             source_expected_observed_delta_record_ref:
               perspective_adapter_contract
                 .source_expected_observed_delta_record_ref,

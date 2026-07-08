@@ -107,12 +107,26 @@ function assertStaticContracts() {
     "defer_perspective_adapter_contract",
     "ready_for_future_perspective_adapter_write_slice",
     "blocked_perspective_adapter_contract_not_ready",
+    "source_handoff_seed_fingerprint",
+    "source_result_text_fingerprint",
     "operator_note_persisted: false",
     "no_write_authority: true",
   ]) {
     assert.ok(
       source.reviewType.includes(requiredText),
       `adapter review type must include ${requiredText}`,
+    );
+  }
+
+  for (const requiredText of [
+    "source_handoff_seed_fingerprint",
+    "perspective_adapter_contract.source_handoff_seed_fingerprint",
+    "source_result_text_fingerprint",
+    "perspective_adapter_contract.source_result_text_fingerprint",
+  ]) {
+    assert.ok(
+      source.reviewBuilder.includes(requiredText),
+      `adapter review builder must include accepted summary binding for ${requiredText}`,
     );
   }
 
@@ -732,6 +746,16 @@ function assertReview(sample) {
   assert.equal(
     sample.acceptedReview.accepted_mapping_summary.source_manual_receipt_id,
     sample.readyContract.source_manual_receipt_id,
+  );
+  assert.equal(
+    sample.acceptedReview.accepted_mapping_summary
+      .source_handoff_seed_fingerprint,
+    sample.readyContract.source_handoff_seed_fingerprint,
+  );
+  assert.equal(
+    sample.acceptedReview.accepted_mapping_summary
+      .source_result_text_fingerprint,
+    sample.readyContract.source_result_text_fingerprint,
   );
   assert.equal(
     sample.acceptedReview.accepted_mapping_summary

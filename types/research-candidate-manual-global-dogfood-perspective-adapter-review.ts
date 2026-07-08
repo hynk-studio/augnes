@@ -56,6 +56,8 @@ export interface ResearchCandidateManualGlobalDogfoodPerspectiveAdapterAcceptedM
   source_metric_snapshot_receipt_id: string | null;
   source_metric_snapshot_record_id: string | null;
   source_manual_receipt_id: string | null;
+  source_handoff_seed_fingerprint: string | null;
+  source_result_text_fingerprint: string | null;
   source_expected_observed_delta_record_ref: string | null;
   source_reuse_outcome_record_ref: string | null;
   proposed_idempotency_key: string;
