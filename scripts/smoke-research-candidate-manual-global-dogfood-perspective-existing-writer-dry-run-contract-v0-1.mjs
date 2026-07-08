@@ -47,6 +47,7 @@ const packageJson = JSON.parse(source.packageJson);
 assertStaticContracts();
 const sample = buildSample();
 assertContract(sample);
+assertSourceTargetDerivation(sample.readback);
 assertReview(sample);
 assertNonTargetTables(sample);
 assertDocsAndPackage();
@@ -179,6 +180,20 @@ function assertStaticContracts() {
     assert.ok(
       source.contractBuilder.includes(requiredText),
       `existing writer dry-run builder must include ${requiredText}`,
+    );
+  }
+  for (const requiredText of [
+    "deriveDryRunTargetFromSourceRecord",
+    "mapWriterTargetToDryRunTarget",
+    "manual_specific_current_working_writer_adapter",
+    "manual_specific_current_working_writer_dry_run_adapter",
+    "manual_specific_existing_canonical_state_writer_adapter",
+    "manual_specific_existing_canonical_state_writer_dry_run_adapter",
+    "intended_future_dry_run_target ?? sourceDerivedDryRunTarget",
+  ]) {
+    assert.ok(
+      source.contractBuilder.includes(requiredText),
+      `existing writer dry-run builder must preserve source writer target derivation: ${requiredText}`,
     );
   }
 
@@ -667,6 +682,127 @@ function assertContract({ readback, readyContract, readyContractAgain }) {
   );
 }
 
+function assertSourceTargetDerivation(readback) {
+  const canonicalSource = clone(readback);
+  setSourceWriterTarget(
+    canonicalSource,
+    "manual_specific_existing_canonical_state_writer_adapter",
+  );
+  const canonicalDefault =
+    buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract({
+      readback: canonicalSource,
+    });
+  assert.equal(
+    canonicalDefault.proposed_existing_writer_dry_run_mapping
+      .intended_future_dry_run_target,
+    "manual_specific_existing_canonical_state_writer_dry_run_adapter",
+    "canonical source target must default to canonical dry-run adapter",
+  );
+  assert.equal(
+    canonicalDefault.proposed_existing_writer_dry_run_mapping
+      .default_future_dry_run_target,
+    "manual_specific_existing_canonical_state_writer_dry_run_adapter",
+    "canonical source target must preserve canonical default dry-run adapter",
+  );
+  assert.equal(
+    canonicalDefault.proposed_existing_writer_dry_run_candidate
+      .dry_run_scope_hint,
+    "manual_specific_existing_canonical_state_writer_dry_run_adapter",
+    "canonical source target must preserve canonical dry-run scope hint",
+  );
+
+  const currentWorkingSource = clone(readback);
+  setSourceWriterTarget(
+    currentWorkingSource,
+    "manual_specific_current_working_writer_adapter",
+  );
+  const currentWorkingDefault =
+    buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract({
+      readback: currentWorkingSource,
+    });
+  assert.equal(
+    currentWorkingDefault.proposed_existing_writer_dry_run_mapping
+      .intended_future_dry_run_target,
+    "manual_specific_current_working_writer_dry_run_adapter",
+    "current-working source target must default to current-working dry-run adapter",
+  );
+  assert.equal(
+    currentWorkingDefault.proposed_existing_writer_dry_run_mapping
+      .default_future_dry_run_target,
+    "manual_specific_current_working_writer_dry_run_adapter",
+    "current-working source target must preserve current-working default dry-run adapter",
+  );
+  assert.equal(
+    currentWorkingDefault.proposed_existing_writer_dry_run_candidate
+      .dry_run_scope_hint,
+    "manual_specific_current_working_writer_dry_run_adapter",
+    "current-working source target must preserve current-working dry-run scope hint",
+  );
+  assert.notEqual(
+    currentWorkingDefault.idempotency_contract_preview.proposed_idempotency_key,
+    canonicalDefault.idempotency_contract_preview.proposed_idempotency_key,
+    "dry-run idempotency preview must reflect source-derived target differences",
+  );
+  const currentWorkingAcceptedReview =
+    buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview({
+      existing_writer_dry_run_contract: currentWorkingDefault,
+      operator_decision:
+        "accept_contract_for_future_existing_writer_dry_run_adapter_write_slice",
+      operator_note: "local only current-working target",
+    });
+  assert.equal(
+    currentWorkingAcceptedReview.accepted_mapping_summary
+      .intended_future_dry_run_target,
+    "manual_specific_current_working_writer_dry_run_adapter",
+    "accepted review must preserve source-derived current-working dry-run target",
+  );
+  assert.equal(
+    currentWorkingAcceptedReview.accepted_mapping_summary
+      .proposed_idempotency_key,
+    currentWorkingDefault.idempotency_contract_preview.proposed_idempotency_key,
+    "accepted review must bind the current source-derived idempotency preview",
+  );
+
+  const explicitCanonical =
+    buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract({
+      readback: currentWorkingSource,
+      intended_future_dry_run_target:
+        "manual_specific_existing_canonical_state_writer_dry_run_adapter",
+    });
+  assert.equal(
+    explicitCanonical.proposed_existing_writer_dry_run_mapping
+      .intended_future_dry_run_target,
+    "manual_specific_existing_canonical_state_writer_dry_run_adapter",
+    "explicit canonical dry-run target must override current-working source target",
+  );
+
+  const explicitCurrentWorking =
+    buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract({
+      readback: canonicalSource,
+      intended_future_dry_run_target:
+        "manual_specific_current_working_writer_dry_run_adapter",
+    });
+  assert.equal(
+    explicitCurrentWorking.proposed_existing_writer_dry_run_mapping
+      .intended_future_dry_run_target,
+    "manual_specific_current_working_writer_dry_run_adapter",
+    "explicit current-working dry-run target must override canonical source target",
+  );
+
+  const explicitExistingCurrentWorking =
+    buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract({
+      readback: currentWorkingSource,
+      intended_future_dry_run_target:
+        "existing_current_working_perspective_writer_dry_run",
+    });
+  assert.ok(
+    explicitExistingCurrentWorking.blocker_reasons.includes(
+      "writer_compatibility_existing_writer_target_must_not_be_ready",
+    ),
+    "explicit existing current-working dry-run target must remain compatibility-only and blocked",
+  );
+}
+
 function assertReview({ readyContract, acceptedReview }) {
   assert.equal(
     acceptedReview.review_status,
@@ -856,6 +992,14 @@ function assertBlocks(readback, mutate, blocker) {
     contract.operator_authorization_mode,
     "ready_for_future_existing_writer_dry_run_adapter_write_authorization",
   );
+}
+
+function setSourceWriterTarget(readback, target) {
+  const record =
+    readback.latest_active_committed.perspective_writer_compatibility_record;
+  record.intended_future_writer_target = target;
+  record.default_future_writer_target = target;
+  record.writer_compatibility_scope_hint = target;
 }
 
 function insertWriterCompatibilitySource(db, suffix, status, index) {

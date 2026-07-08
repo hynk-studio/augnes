@@ -166,7 +166,10 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWrit
     (record?.manual_only_context_refs ?? []).every(
       (ref) => !/^(proof|evidence):/i.test(ref.trim()),
     );
-  const normalizedTarget = normalizeDryRunTarget(intended_future_dry_run_target);
+  const sourceDerivedDryRunTarget = deriveDryRunTargetFromSourceRecord(record);
+  const normalizedTarget = normalizeDryRunTarget(
+    intended_future_dry_run_target ?? sourceDerivedDryRunTarget,
+  );
   const requestedExistingCurrentWorking =
     normalizedTarget === "existing_current_working_perspective_writer_dry_run";
   const requestedExistingCanonical =
@@ -1609,6 +1612,33 @@ function normalizeDryRunTarget(
     return target;
   }
   return "manual_specific_existing_canonical_state_writer_dry_run_adapter";
+}
+
+function deriveDryRunTargetFromSourceRecord(
+  record: ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityRecord | null,
+):
+  | ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunTarget
+  | undefined {
+  return (
+    mapWriterTargetToDryRunTarget(record?.intended_future_writer_target) ??
+    mapWriterTargetToDryRunTarget(record?.default_future_writer_target)
+  );
+}
+
+function mapWriterTargetToDryRunTarget(
+  target: string | null | undefined,
+):
+  | ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunTarget
+  | undefined {
+  if (target === "manual_specific_current_working_writer_adapter") {
+    return "manual_specific_current_working_writer_dry_run_adapter";
+  }
+
+  if (target === "manual_specific_existing_canonical_state_writer_adapter") {
+    return "manual_specific_existing_canonical_state_writer_dry_run_adapter";
+  }
+
+  return undefined;
 }
 
 function dryRunScopeHint(
