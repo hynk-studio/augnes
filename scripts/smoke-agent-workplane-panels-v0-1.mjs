@@ -1822,6 +1822,22 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "scripts/smoke-autonomy-runner-v0-1.mjs",
   "lib/db/schema.sql",
 ];
+const autonomyDelegationGrantRecordFiles = [
+  "types/autonomy-delegation-grant.ts",
+  "lib/autonomy/autonomy-delegation-grant-write.ts",
+  "lib/autonomy/read-autonomy-delegation-grants.ts",
+  "components/autonomy/autonomy-delegation-grant-readback-panel.tsx",
+  "lib/db.ts",
+  "lib/db/schema.sql",
+  "scripts/db-migrations.mjs",
+  "scripts/db-migrate.mjs",
+  "scripts/smoke-autonomy-delegation-grant-record-v0-1.mjs",
+  "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
 const allowedChangedFiles = new Set([
   "docs/AUTONOMY_CONTRACT_V0_1.md",
   "types/autonomy-contract.ts",
@@ -1920,6 +1936,9 @@ const allowedChangedFiles = new Set([
   smokeFile,
 ]);
 for (const file of phase9aAutonomyRunnerPreflightFiles) {
+  allowedChangedFiles.add(file);
+}
+for (const file of autonomyDelegationGrantRecordFiles) {
   allowedChangedFiles.add(file);
 }
 const phase8PriorSmokeAllowlistFiles = [

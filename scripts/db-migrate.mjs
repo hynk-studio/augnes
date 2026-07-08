@@ -26,6 +26,7 @@ import {
   migrateResearchCandidateManualGlobalDogfoodPerspectiveStateApplication,
   migrateResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibility,
   migrateResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecord,
+  migrateAutonomyDelegationGrants,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -86,6 +87,7 @@ try {
     migrateResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecord(
       db,
     );
+  const autonomyDelegationGrantResult = migrateAutonomyDelegationGrants(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -631,6 +633,23 @@ try {
   ) {
     console.log(
       `Created indexes: ${researchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (autonomyDelegationGrantResult.created_tables.length > 0) {
+    console.log(
+      `Created autonomy_delegation_grants table at ${dbPath}: ${autonomyDelegationGrantResult.created_tables.join(", ")}`,
+    );
+  } else if (autonomyDelegationGrantResult.created_indexes.length === 0) {
+    console.log(
+      `Autonomy delegation grant migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(`Migrated autonomy_delegation_grants indexes at ${dbPath}`);
+  }
+  if (autonomyDelegationGrantResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${autonomyDelegationGrantResult.created_indexes.join(", ")}`,
     );
   }
 

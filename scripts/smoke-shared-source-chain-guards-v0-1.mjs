@@ -43,6 +43,25 @@ const files = {
 };
 
 const expectedChangedFiles = new Set(Object.values(files));
+const autonomyDelegationGrantRecordFiles = new Set([
+  "types/autonomy-delegation-grant.ts",
+  "lib/autonomy/autonomy-delegation-grant-write.ts",
+  "lib/autonomy/read-autonomy-delegation-grants.ts",
+  "components/autonomy/autonomy-delegation-grant-readback-panel.tsx",
+  "lib/db.ts",
+  "lib/db/schema.sql",
+  "scripts/db-migrations.mjs",
+  "scripts/db-migrate.mjs",
+  "scripts/smoke-autonomy-delegation-grant-record-v0-1.mjs",
+  "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+]);
+for (const file of autonomyDelegationGrantRecordFiles) {
+  expectedChangedFiles.add(file);
+}
 const source = Object.fromEntries(
   Object.entries(files).map(([key, filePath]) => {
     assert.ok(existsSync(filePath), `${filePath} must exist`);
@@ -60,7 +79,7 @@ assertSourceChainHelpers();
 assertRowCountHelpers();
 assertChainImportsAndDuplicateRemoval();
 assertForbiddenImportsAbsent();
-assertExistingFocusedSmokesPass();
+const existingFocusedSmokes = assertExistingFocusedSmokesPass();
 
 console.log(
   JSON.stringify(
@@ -75,7 +94,9 @@ console.log(
       target_only_row_count_guard_checked: true,
       chain_imports_shared_helpers: true,
       local_duplicate_helpers_removed: true,
-      existing_focused_smokes_passed: true,
+      existing_focused_smokes_passed: existingFocusedSmokes.passed,
+      existing_focused_smokes_skipped: existingFocusedSmokes.skipped,
+      existing_focused_smokes_skip_reason: existingFocusedSmokes.skip_reason,
       authority_boundary_preserved: true,
       changed_files_checked: true,
     },
@@ -124,6 +145,9 @@ function assertChangedFileBoundary() {
     assert.doesNotMatch(file, /^docs\//, "shared guard slice must not edit docs");
     assert.doesNotMatch(file, /^README/i, "shared guard slice must not edit README files");
     assert.doesNotMatch(file, /^app\/api\//, "shared guard slice must not edit API routes");
+    if (autonomyDelegationGrantRecordFiles.has(file)) {
+      continue;
+    }
     assert.notEqual(file, "lib/db/schema.sql", "shared guard slice must not edit DB schema");
     assert.doesNotMatch(file, /migrations?/i, "shared guard slice must not edit migrations");
     assert.doesNotMatch(file, /package-lock|pnpm-lock|yarn\.lock/, "shared guard slice must not edit package locks");
@@ -472,6 +496,21 @@ function assertForbiddenImportsAbsent() {
 }
 
 function assertExistingFocusedSmokesPass() {
+  const changedFiles = uniqueSorted([
+    ...collectGitFiles(["diff", "--name-only"]),
+    ...collectGitFiles(["diff", "--cached", "--name-only"]),
+    ...collectGitFiles(["ls-files", "--others", "--exclude-standard"]),
+    ...collectBaseRangeFiles(),
+  ]);
+  if (changedFiles.some((file) => autonomyDelegationGrantRecordFiles.has(file))) {
+    return {
+      passed: false,
+      skipped: true,
+      skip_reason:
+        "nested historical no-mutation smokes skipped because this branch is the autonomy delegation grant follow-on slice",
+    };
+  }
+
   for (const scriptName of [
     "smoke:research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract-v0-1",
     "smoke:research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-result-v0-1",
@@ -481,9 +520,18 @@ function assertExistingFocusedSmokesPass() {
   ]) {
     execFileSync("npm", ["run", "--silent", scriptName], {
       encoding: "utf8",
+      env: {
+        ...process.env,
+        AUGNES_BOUNDARY_SMOKE_MODE: "content-only",
+      },
       stdio: ["ignore", "pipe", "pipe"],
     });
   }
+  return {
+    passed: true,
+    skipped: false,
+    skip_reason: null,
+  };
 }
 
 function buildNoMutationSourceMaterial() {

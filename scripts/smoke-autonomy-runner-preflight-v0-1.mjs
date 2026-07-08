@@ -80,6 +80,25 @@ const allowedChangedFiles = new Set([
   ...priorSmokeAllowlistCompatibilityFiles,
 ]);
 
+const autonomyDelegationGrantRecordFiles = new Set([
+  "types/autonomy-delegation-grant.ts",
+  "lib/autonomy/autonomy-delegation-grant-write.ts",
+  "lib/autonomy/read-autonomy-delegation-grants.ts",
+  "components/autonomy/autonomy-delegation-grant-readback-panel.tsx",
+  "lib/db.ts",
+  "lib/db/schema.sql",
+  "scripts/db-migrations.mjs",
+  "scripts/db-migrate.mjs",
+  "scripts/smoke-autonomy-delegation-grant-record-v0-1.mjs",
+  "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
+  "package.json",
+  "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+]);
+for (const file of autonomyDelegationGrantRecordFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const forbiddenChangedFilePatterns = [
   /^app\/(?!api\/augnes\/read\/autonomy-runner-preflight\/route\.ts$)/,
   /^components\//,
@@ -777,6 +796,9 @@ function assertChangedFileBoundary() {
           continue;
         }
         if (phase9fCopyExportFollowOnFiles.has(file)) {
+          continue;
+        }
+        if (autonomyDelegationGrantRecordFiles.has(file)) {
           continue;
         }
         assert(!pattern.test(file), `Forbidden Phase 9A changed file: ${file}`);

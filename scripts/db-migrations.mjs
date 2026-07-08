@@ -3412,6 +3412,92 @@ export function migrateResearchCandidateManualGlobalDogfoodPerspectiveExistingWr
   };
 }
 
+export function migrateAutonomyDelegationGrants(db) {
+  const tableName = "autonomy_delegation_grants";
+  const existingTable = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = ?
+      `,
+    )
+    .get(tableName);
+  const indexNames = [
+    "idx_autonomy_delegation_grants_scope_created",
+    "idx_autonomy_delegation_grants_scope_status_created",
+    "idx_autonomy_delegation_grants_scope_mode_created",
+    "idx_autonomy_delegation_grants_approval_ref",
+    "idx_autonomy_delegation_grants_source_contract_fingerprint",
+  ];
+  const existingIndexes = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND name IN (${indexNames.map(() => "?").join(", ")})
+        `,
+      )
+      .all(...indexNames)
+      .map((index) => index.name),
+  );
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS autonomy_delegation_grants (
+      grant_id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+      grant_status TEXT NOT NULL,
+      grant_mode TEXT NOT NULL,
+      approval_ref TEXT NOT NULL,
+      approved_by TEXT,
+      approved_at TEXT,
+      approval_basis TEXT,
+      approval_text_fingerprint TEXT NOT NULL,
+      source_contract_id TEXT,
+      source_contract_fingerprint TEXT,
+      source_contract_version TEXT,
+      source_autonomy_mode TEXT,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      allowed_work_classes_json TEXT NOT NULL,
+      forbidden_work_classes_json TEXT NOT NULL,
+      allowed_actions_json TEXT NOT NULL,
+      forbidden_actions_json TEXT NOT NULL,
+      budget_json TEXT NOT NULL,
+      reporting_cadence_json TEXT NOT NULL,
+      stop_conditions_json TEXT NOT NULL,
+      allowed_outputs_json TEXT NOT NULL,
+      forbidden_outputs_json TEXT NOT NULL,
+      revocation_json TEXT NOT NULL,
+      authority_boundary_json TEXT NOT NULL,
+      persisted_material_boundary_json TEXT NOT NULL,
+      validation_json TEXT NOT NULL,
+      row_count_write_summary_json TEXT NOT NULL,
+      grant_fingerprint TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_autonomy_delegation_grants_scope_created
+      ON autonomy_delegation_grants(scope, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autonomy_delegation_grants_scope_status_created
+      ON autonomy_delegation_grants(scope, grant_status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autonomy_delegation_grants_scope_mode_created
+      ON autonomy_delegation_grants(scope, grant_mode, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autonomy_delegation_grants_approval_ref
+      ON autonomy_delegation_grants(approval_ref);
+    CREATE INDEX IF NOT EXISTS idx_autonomy_delegation_grants_source_contract_fingerprint
+      ON autonomy_delegation_grants(source_contract_fingerprint);
+  `);
+
+  return {
+    table_found: true,
+    created_tables: existingTable ? [] : [tableName],
+    created_indexes: indexNames.filter((indexName) => !existingIndexes.has(indexName)),
+  };
+}
+
 export const perspectiveMemoryProductPersistenceBoundaryTableSql = `
   CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
     record_id TEXT PRIMARY KEY,
