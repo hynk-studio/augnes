@@ -1,6 +1,8 @@
 "use client";
 
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResult } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-dry-run-result";
+import { buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypoint } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointPanel } from "@/components/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-panel";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-review";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResult } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-result";
@@ -12,13 +14,34 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDry
   existingWriterDryRunContract: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract;
   existingWriterDryRunReview?: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview | null;
 }) {
-  const result =
+  const baseResult =
     buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResult({
       existing_writer_dry_run_contract: existingWriterDryRunContract,
       existing_writer_dry_run_review: existingWriterDryRunReview ?? null,
     });
+  const entrypointResult =
+    buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypoint(
+      {
+        existing_writer_dry_run_contract: existingWriterDryRunContract,
+        existing_writer_dry_run_review: existingWriterDryRunReview ?? null,
+        existing_writer_dry_run_result: baseResult,
+      },
+    );
+  const result =
+    buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResult({
+      existing_writer_dry_run_contract: existingWriterDryRunContract,
+      existing_writer_dry_run_review: existingWriterDryRunReview ?? null,
+      safe_existing_writer_no_mutation_entrypoint_result: entrypointResult,
+    });
 
-  return <ExistingWriterDryRunResultView result={result} />;
+  return (
+    <>
+      <ExistingWriterDryRunResultView result={result} />
+      <ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointPanel
+        entrypointResult={entrypointResult}
+      />
+    </>
+  );
 }
 
 function ExistingWriterDryRunResultView({
@@ -217,6 +240,25 @@ function ExecutionSummary({
             result.validation
               .safe_existing_writer_no_mutation_entrypoint_detected,
           )}
+        </dd>
+        <dt>safe_entrypoint_result_validated</dt>
+        <dd>
+          {String(
+            result.validation
+              .safe_existing_writer_no_mutation_entrypoint_result_validated,
+          )}
+        </dd>
+        <dt>safe_entrypoint_result_status</dt>
+        <dd>
+          {result.validation
+            .safe_existing_writer_no_mutation_entrypoint_result_status ??
+            "missing"}
+        </dd>
+        <dt>safe_entrypoint_result_fingerprint</dt>
+        <dd>
+          {result.validation
+            .safe_existing_writer_no_mutation_entrypoint_result_fingerprint ??
+            "missing"}
         </dd>
         <dt>current_working_dry_run_entrypoint_detected</dt>
         <dd>
