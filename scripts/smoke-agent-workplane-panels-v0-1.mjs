@@ -2842,6 +2842,16 @@ for (const file of followOnProviderSpecificDeliveryExecutionPreviewFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnProviderSpecificDeliveryExecutionRecordReviewFiles = [
+  "types/provider-specific-delivery-execution-contract-record-review.ts",
+  "lib/workplane/provider-specific-delivery-execution-contract-record-review.ts",
+  "components/workplane/provider-specific-delivery-execution-contract-record-review-panel.tsx",
+  "scripts/smoke-provider-specific-delivery-execution-contract-record-review-v0-1.mjs",
+];
+for (const file of followOnProviderSpecificDeliveryExecutionRecordReviewFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(
