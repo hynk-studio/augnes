@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { ResearchCandidateManualGlobalDogfoodPerspectiveAdapterWritePanel } from "@/components/research-candidate-manual-global-dogfood-perspective-adapter-write-panel";
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveAdapterContract } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-adapter-contract";
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveAdapterReview } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-adapter-review";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveAdapterContract } from "@/types/research-candidate-manual-global-dogfood-perspective-adapter-contract";
@@ -61,9 +62,28 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveAdapterContractPa
     review &&
     review.source_contract_fingerprint === currentContractFingerprint &&
     (!review.accepted_mapping_summary ||
-      review.accepted_mapping_summary.proposed_idempotency_key ===
-        contract.idempotency_contract_preview.proposed_idempotency_key)
+      (review.accepted_mapping_summary.proposed_idempotency_key ===
+        contract.idempotency_contract_preview.proposed_idempotency_key &&
+        review.accepted_mapping_summary.source_handoff_seed_fingerprint ===
+          contract.source_handoff_seed_fingerprint &&
+        review.accepted_mapping_summary.source_result_text_fingerprint ===
+          contract.source_result_text_fingerprint))
       ? review
+      : null;
+  const currentAcceptedReview =
+    operatorDecision ===
+      "accept_contract_for_future_perspective_adapter_write_slice" &&
+    currentReview?.operator_decision ===
+      "accept_contract_for_future_perspective_adapter_write_slice" &&
+    currentReview.review_status ===
+      "ready_for_future_perspective_adapter_write_slice" &&
+    currentReview.accepted_mapping_summary?.proposed_idempotency_key ===
+      contract.idempotency_contract_preview.proposed_idempotency_key &&
+    currentReview.accepted_mapping_summary.source_handoff_seed_fingerprint ===
+      contract.source_handoff_seed_fingerprint &&
+    currentReview.accepted_mapping_summary.source_result_text_fingerprint ===
+      contract.source_result_text_fingerprint
+      ? currentReview
       : null;
 
   useEffect(() => {
@@ -348,6 +368,13 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveAdapterContractPa
         </div>
         {currentReview ? <AdapterReviewPreview review={currentReview} /> : null}
       </section>
+
+      {currentAcceptedReview ? (
+        <ResearchCandidateManualGlobalDogfoodPerspectiveAdapterWritePanel
+          perspectiveAdapterContract={contract}
+          perspectiveAdapterReview={currentAcceptedReview}
+        />
+      ) : null}
     </section>
   );
 }
