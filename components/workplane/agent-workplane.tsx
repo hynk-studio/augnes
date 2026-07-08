@@ -27,6 +27,7 @@ import { ExternalHandoffDeliveryContractPanel } from "@/components/workplane/ext
 import { ProviderSpecificExternalDeliveryPreviewContractPanel } from "@/components/workplane/provider-specific-external-delivery-preview-contract-panel";
 import { ProviderSpecificDeliveryIntentContractPanel } from "@/components/workplane/provider-specific-delivery-intent-contract-panel";
 import { ProviderSpecificDeliveryExecutionContractPreviewPanel } from "@/components/workplane/provider-specific-delivery-execution-contract-preview-panel";
+import { ProviderSpecificDeliveryExecutionContractRecordReviewPanel } from "@/components/workplane/provider-specific-delivery-execution-contract-record-review-panel";
 import { CodexLaunchCardPreviewPanel } from "@/components/handoff/codex-launch-card-preview-panel";
 import { HandoffContextApplyOperatorDecisionPreviewPanel as HistoricalHandoffContextApplyOperatorDecisionPreviewPanel } from "@/components/handoff/handoff-context-apply-operator-decision-preview-panel";
 import { HandoffContextApplyPreviewPanel as HistoricalHandoffContextApplyPreviewPanel } from "@/components/handoff/handoff-context-apply-preview-panel";
@@ -220,6 +221,7 @@ import { readProviderSpecificDeliveryIntentContractRecordReviewForWebV01 } from 
 import { buildDeliverySpineLoopClosureReadModelV01 } from "@/lib/workplane/delivery-spine-loop-closure";
 import { buildProviderSpecificDeliveryExecutionContractPreviewV01 } from "@/lib/workplane/provider-specific-delivery-execution-contract-preview";
 import { buildProviderSpecificDeliveryExecutionOperatorDecisionPreviewV01 } from "@/lib/workplane/provider-specific-delivery-execution-operator-decision-preview";
+import { buildProviderSpecificDeliveryExecutionContractRecordReviewV01 } from "@/lib/workplane/provider-specific-delivery-execution-contract-record-review";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
 import { buildWorkbenchSpineConsolidationV01 } from "@/lib/workplane/workbench-spine-consolidation";
 import { buildWorkEpisodeResidueCandidatePreviewV01 } from "@/lib/workplane/work-episode-residue-candidate-preview";
@@ -1445,6 +1447,30 @@ export async function AgentWorkplane() {
         "workbench:provider_specific_delivery_execution_operator_decision_preview",
       ],
     });
+  const providerSpecificDeliveryExecutionContractRecordReview =
+    buildProviderSpecificDeliveryExecutionContractRecordReviewV01({
+      provider_specific_delivery_execution_contract_preview:
+        providerSpecificDeliveryExecutionContractPreview,
+      provider_specific_delivery_execution_operator_decision_preview:
+        providerSpecificDeliveryExecutionOperatorDecisionPreview,
+      delivery_spine_loop_closure_read_model: deliverySpineLoopClosure,
+      provider_specific_delivery_intent_contract_record_review:
+        providerSpecificDeliveryIntentContractRecordReview,
+      external_handoff_delivery_contract_record_review:
+        externalHandoffDeliveryContractRecordReview,
+      handoff_send_contract_record_review:
+        handoffSendContractRecordReview,
+      handoff_send_record_review: handoffSendRecordReview,
+      exported_handoff_packet_artifact_read:
+        exportedHandoffPacketArtifactRead,
+      applied_handoff_context_read: appliedHandoffContextRead,
+      sent_handoff_read: sentHandoffRead,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: [
+        "workbench:provider_specific_delivery_execution_contract_record_review",
+      ],
+    });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -1547,6 +1573,9 @@ export async function AgentWorkplane() {
               decisionPreview={
                 providerSpecificDeliveryExecutionOperatorDecisionPreview
               }
+            />
+            <ProviderSpecificDeliveryExecutionContractRecordReviewPanel
+              review={providerSpecificDeliveryExecutionContractRecordReview}
             />
 
             <section

@@ -794,6 +794,7 @@
     "smoke:provider-specific-delivery-intent-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-provider-specific-delivery-intent-contract-v0-1.mjs",
     "smoke:delivery-spine-loop-closure-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-delivery-spine-loop-closure-v0-1.mjs",
     "smoke:provider-specific-delivery-execution-contract-preview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-provider-specific-delivery-execution-contract-preview-v0-1.mjs",
+    "smoke:provider-specific-delivery-execution-contract-record-review-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-provider-specific-delivery-execution-contract-record-review-v0-1.mjs",
     "smoke:autonomy-contract-v0-1": "node scripts/smoke-autonomy-contract-v0-1.mjs",
     "smoke:autonomy-contract-route-v0-1": "node scripts/smoke-autonomy-contract-route-v0-1.mjs",
     "smoke:autonomy-contract-web-preview-v0-1": "node scripts/smoke-autonomy-contract-web-preview-v0-1.mjs",
