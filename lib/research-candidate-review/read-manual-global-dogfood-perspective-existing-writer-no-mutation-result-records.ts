@@ -10,6 +10,7 @@ import {
   RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_NO_MUTATION_RESULT_RECORD_TABLE,
 } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-result-record";
 import type { ResearchCandidateReviewScope } from "@/types/research-candidate-review";
+import { fingerprint } from "@/lib/research-candidate-review/shared-source-chain-guards";
 
 export interface ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordDbLike {
   exec(sql: string): unknown;
@@ -54,7 +55,6 @@ type ResultRecordRow = {
 };
 
 const DEFAULT_SCOPE: ResearchCandidateReviewScope = "project:augnes";
-const FINGERPRINT_ALGORITHM = "fnv1a32_canonical_json_v0_1" as const;
 
 export function ensureResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordSchema(
   db: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordDbLike,
@@ -202,7 +202,7 @@ export function computeResultRecordFingerprint(
 ) {
   const { record_fingerprint: _recordFingerprint, ...fingerprintSource } =
     record;
-  return `${FINGERPRINT_ALGORITHM}:${fnv1a32(stableJson(fingerprintSource))}`;
+  return fingerprint(fingerprintSource);
 }
 
 export function parseResultRecordRow(
@@ -315,25 +315,4 @@ function hasClose(
   close(): void;
 } {
   return typeof (db as { close?: unknown }).close === "function";
-}
-
-function stableJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableJson(item)).join(",")}]`;
-  }
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`)
-    .join(",")}}`;
-}
-
-function fnv1a32(input: string) {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
 }

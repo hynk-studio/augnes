@@ -9,7 +9,6 @@ import type {
   ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecord,
   ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordInput,
   ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordPersistedMaterialBoundary,
-  ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordRowCountObservation,
   ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordRowCountWriteSummary,
   ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordValidation,
   ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordWriteBoundary,
@@ -24,6 +23,18 @@ import {
   RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_DRY_RUN_PROTECTED_ROW_COUNT_TABLES,
 } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-result";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointReview } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review";
+import {
+  allValuesFalse,
+  buildDeterministicIdempotencyKey,
+  containsForbiddenRawMaterial,
+  isTargetOnlyRowCountWrite,
+  requiredStringFieldsPresent,
+  stableJson,
+  STABLE_FINGERPRINT_ALGORITHM as FINGERPRINT_ALGORITHM,
+  stripFingerprintPrefix,
+  summarizeTargetOnlyRowCountWrite,
+  validateSourceBindingPairs,
+} from "@/lib/research-candidate-review/shared-source-chain-guards";
 
 export interface WriteResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordOptions {
   db?: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordDbLike;
@@ -58,7 +69,6 @@ type ResultRecordRow = {
   record_fingerprint: string;
 };
 
-const FINGERPRINT_ALGORITHM = "fnv1a32_canonical_json_v0_1" as const;
 const NON_TARGET_ROW_COUNT_TABLES =
   RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_DRY_RUN_PROTECTED_ROW_COUNT_TABLES;
 const TARGET_AND_NON_TARGET_TABLES = [
@@ -228,7 +238,7 @@ function validateInput(
   if (!sourceLineageMatchesAcceptedSummary(review)) {
     refusalReasons.push("source_entrypoint_lineage_mismatch");
   }
-  if (containsRawMaterial(input.candidate_input)) {
+  if (containsForbiddenRawMaterial(input.candidate_input)) {
     refusalReasons.push("raw_material_fields_present");
   }
 
@@ -452,37 +462,13 @@ function buildRowCountWriteSummary({
   beforeCounts: RowCountSnapshot;
   afterCounts: RowCountSnapshot;
 }): ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordRowCountWriteSummary {
-  const rows: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordRowCountObservation[] =
-    TARGET_AND_NON_TARGET_TABLES.map((tableName) => {
-      const beforeCount = beforeCounts[tableName] ?? 0;
-      const afterCount = afterCounts[tableName] ?? 0;
-      const delta = afterCount - beforeCount;
-      return {
-        table_name: tableName,
-        before_count: beforeCount,
-        after_count: afterCount,
-        delta,
-        changed: delta !== 0,
-      };
-    });
-  const targetRow = rows[0];
-  const nonTargetRows = rows.slice(1);
-
-  return {
-    target_table_name:
+  return summarizeTargetOnlyRowCountWrite({
+    targetTable:
       RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_NO_MUTATION_RESULT_RECORD_TABLE,
-    target_before_count: targetRow.before_count,
-    target_after_count: targetRow.after_count,
-    target_delta: targetRow.delta,
-    target_table_changed: targetRow.changed,
-    non_target_table_count: nonTargetRows.length,
-    non_target_changed_table_count: nonTargetRows.filter((row) => row.changed)
-      .length,
-    all_non_target_row_counts_unchanged: nonTargetRows.every(
-      (row) => !row.changed && row.delta === 0,
-    ),
-    rows,
-  };
+    tableNames: TARGET_AND_NON_TARGET_TABLES,
+    beforeCounts,
+    afterCounts,
+  }) as ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordRowCountWriteSummary;
 }
 
 function isTargetOnlyWrite(
@@ -491,10 +477,7 @@ function isTargetOnlyWrite(
   return (
     summary.target_table_name ===
       RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_NO_MUTATION_RESULT_RECORD_TABLE &&
-    summary.target_delta === 1 &&
-    summary.target_table_changed === true &&
-    summary.all_non_target_row_counts_unchanged === true &&
-    summary.non_target_changed_table_count === 0
+    isTargetOnlyRowCountWrite(summary)
   );
 }
 
@@ -614,43 +597,64 @@ function createRefusedResult(
 function computeIdempotencyKey(
   review: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointReview,
 ) {
-  return `${FINGERPRINT_ALGORITHM}:${fnv1a32(
-    stableJson({
-      kind:
-        RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_NO_MUTATION_RESULT_RECORD_KIND,
-      version:
-        RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_NO_MUTATION_RESULT_RECORD_VERSION,
+  return buildDeterministicIdempotencyKey({
+    kind:
+      RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_NO_MUTATION_RESULT_RECORD_KIND,
+    version:
+      RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_NO_MUTATION_RESULT_RECORD_VERSION,
+    source: {
       source_entrypoint_review_fingerprint: review.validation.review_fingerprint,
       source_entrypoint_fingerprint: review.source_entrypoint_fingerprint,
       source_contract_fingerprint: review.source_contract_fingerprint,
       source_review_fingerprint: review.source_review_fingerprint,
       source_dry_run_result_fingerprint: review.source_dry_run_result_fingerprint,
       source_writer_compatibility_refs: review.source_writer_compatibility_refs,
-    }),
-  )}`;
+    },
+  });
 }
 
 function sourceFingerprintsPresent(
   review: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointReview,
 ) {
-  return Boolean(
-    review.validation.review_fingerprint &&
-      review.source_entrypoint_fingerprint &&
-      review.source_contract_fingerprint &&
-      review.source_review_fingerprint &&
-      review.source_dry_run_result_fingerprint,
-  );
+  return requiredStringFieldsPresent(
+    {
+      source_entrypoint_review_fingerprint:
+        review.validation.review_fingerprint,
+      source_entrypoint_fingerprint: review.source_entrypoint_fingerprint,
+      source_contract_fingerprint: review.source_contract_fingerprint,
+      source_review_fingerprint: review.source_review_fingerprint,
+      source_dry_run_result_fingerprint:
+        review.source_dry_run_result_fingerprint,
+    },
+    [
+      "source_entrypoint_review_fingerprint",
+      "source_entrypoint_fingerprint",
+      "source_contract_fingerprint",
+      "source_review_fingerprint",
+      "source_dry_run_result_fingerprint",
+    ],
+  ).passed;
 }
 
 function sourceWriterCompatibilityRefsPresent(
   review: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointReview,
 ) {
   const refs = review.source_writer_compatibility_refs;
-  return Boolean(
-    refs.source_perspective_writer_compatibility_receipt_id &&
-      refs.source_perspective_writer_compatibility_record_id &&
-      refs.source_perspective_writer_compatibility_record_fingerprint,
-  );
+  return requiredStringFieldsPresent(
+    {
+      source_perspective_writer_compatibility_receipt_id:
+        refs.source_perspective_writer_compatibility_receipt_id,
+      source_perspective_writer_compatibility_record_id:
+        refs.source_perspective_writer_compatibility_record_id,
+      source_perspective_writer_compatibility_record_fingerprint:
+        refs.source_perspective_writer_compatibility_record_fingerprint,
+    },
+    [
+      "source_perspective_writer_compatibility_receipt_id",
+      "source_perspective_writer_compatibility_record_id",
+      "source_perspective_writer_compatibility_record_fingerprint",
+    ],
+  ).passed;
 }
 
 function sourceLineageMatchesAcceptedSummary(
@@ -658,54 +662,72 @@ function sourceLineageMatchesAcceptedSummary(
 ) {
   const summary = review.accepted_entrypoint_summary;
   if (!summary) return false;
-  return (
-    summary.source_entrypoint_fingerprint ===
-      review.source_entrypoint_fingerprint &&
-    summary.source_contract_fingerprint === review.source_contract_fingerprint &&
-    summary.source_review_fingerprint === review.source_review_fingerprint &&
-    summary.source_dry_run_result_fingerprint ===
-      review.source_dry_run_result_fingerprint &&
-    summary.safe_adapter_target === review.safe_adapter_target &&
-    summary.source_binding_summary.accepted_mapping_summary_present === true &&
-    summary.source_writer_compatibility_refs
-      .source_perspective_writer_compatibility_receipt_id ===
-      review.source_writer_compatibility_refs
-        .source_perspective_writer_compatibility_receipt_id &&
-    summary.source_writer_compatibility_refs
-      .source_perspective_writer_compatibility_record_id ===
-      review.source_writer_compatibility_refs
-        .source_perspective_writer_compatibility_record_id &&
-    summary.source_writer_compatibility_refs
-      .source_perspective_writer_compatibility_record_fingerprint ===
-      review.source_writer_compatibility_refs
-        .source_perspective_writer_compatibility_record_fingerprint
-  );
-}
-
-function allValuesFalse(value: object) {
-  return Object.values(value).every((entry) => entry === false);
-}
-
-function containsRawMaterial(value: unknown): boolean {
-  if (value === null || value === undefined) return false;
-  if (typeof value !== "object") return false;
-  if (Array.isArray(value)) return value.some((entry) => containsRawMaterial(entry));
-
-  const record = value as Record<string, unknown>;
-  return Object.entries(record).some(([key, entry]) => {
-    if (isForbiddenRawMaterialKey(key)) return true;
-    return containsRawMaterial(entry);
-  });
-}
-
-function isForbiddenRawMaterialKey(key: string) {
-  return /raw|payload|manual_note|result_report|operator_note|note_text|secret|token|credential|api_key|authorization|cookie|url|uri|env|environment/i.test(
-    key,
-  );
-}
-
-function stripFingerprintPrefix(value: string) {
-  return value.replace(`${FINGERPRINT_ALGORITHM}:`, "");
+  if (summary.source_binding_summary.accepted_mapping_summary_present !== true) {
+    return false;
+  }
+  return validateSourceBindingPairs([
+    {
+      field: "source_entrypoint_fingerprint",
+      expected: review.source_entrypoint_fingerprint,
+      actual: summary.source_entrypoint_fingerprint,
+      reason: "source_entrypoint_fingerprint_mismatch",
+    },
+    {
+      field: "source_contract_fingerprint",
+      expected: review.source_contract_fingerprint,
+      actual: summary.source_contract_fingerprint,
+      reason: "source_contract_fingerprint_mismatch",
+    },
+    {
+      field: "source_review_fingerprint",
+      expected: review.source_review_fingerprint,
+      actual: summary.source_review_fingerprint,
+      reason: "source_review_fingerprint_mismatch",
+    },
+    {
+      field: "source_dry_run_result_fingerprint",
+      expected: review.source_dry_run_result_fingerprint,
+      actual: summary.source_dry_run_result_fingerprint,
+      reason: "source_dry_run_result_fingerprint_mismatch",
+    },
+    {
+      field: "safe_adapter_target",
+      expected: review.safe_adapter_target,
+      actual: summary.safe_adapter_target,
+      reason: "safe_adapter_target_mismatch",
+    },
+    {
+      field: "source_perspective_writer_compatibility_receipt_id",
+      expected:
+        review.source_writer_compatibility_refs
+          .source_perspective_writer_compatibility_receipt_id,
+      actual:
+        summary.source_writer_compatibility_refs
+          .source_perspective_writer_compatibility_receipt_id,
+      reason: "source_perspective_writer_compatibility_receipt_id_mismatch",
+    },
+    {
+      field: "source_perspective_writer_compatibility_record_id",
+      expected:
+        review.source_writer_compatibility_refs
+          .source_perspective_writer_compatibility_record_id,
+      actual:
+        summary.source_writer_compatibility_refs
+          .source_perspective_writer_compatibility_record_id,
+      reason: "source_perspective_writer_compatibility_record_id_mismatch",
+    },
+    {
+      field: "source_perspective_writer_compatibility_record_fingerprint",
+      expected:
+        review.source_writer_compatibility_refs
+          .source_perspective_writer_compatibility_record_fingerprint,
+      actual:
+        summary.source_writer_compatibility_refs
+          .source_perspective_writer_compatibility_record_fingerprint,
+      reason:
+        "source_perspective_writer_compatibility_record_fingerprint_mismatch",
+    },
+  ]).passed;
 }
 
 function hasClose(
@@ -714,25 +736,4 @@ function hasClose(
   close(): void;
 } {
   return typeof (db as { close?: unknown }).close === "function";
-}
-
-function stableJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableJson(item)).join(",")}]`;
-  }
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`)
-    .join(",")}}`;
-}
-
-function fnv1a32(input: string) {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
 }

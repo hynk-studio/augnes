@@ -17,10 +17,16 @@ import {
 const files = {
   resultRecordType:
     "types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-result-record.ts",
+  dryRunResultBuilder:
+    "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-dry-run-result.ts",
+  entrypointBuilder:
+    "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint.ts",
   resultRecordWriter:
     "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-result-record-write.ts",
   resultRecordReadback:
     "lib/research-candidate-review/read-manual-global-dogfood-perspective-existing-writer-no-mutation-result-records.ts",
+  sharedGuards:
+    "lib/research-candidate-review/shared-source-chain-guards.ts",
   resultRecordReadbackPanel:
     "components/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-result-record-readback-panel.tsx",
   entrypointPanel:
@@ -44,6 +50,8 @@ const files = {
   dbMigrate: "scripts/db-migrate.mjs",
   smoke:
     "scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-result-record-write-v0-1.mjs",
+  sharedGuardSmoke:
+    "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
   packageJson: "package.json",
 };
 

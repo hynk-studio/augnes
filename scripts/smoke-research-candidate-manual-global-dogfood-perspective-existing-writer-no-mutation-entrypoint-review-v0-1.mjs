@@ -11,8 +11,14 @@ import {
 const files = {
   reviewType:
     "types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review.ts",
+  dryRunResultBuilder:
+    "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-dry-run-result.ts",
+  entrypointBuilder:
+    "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint.ts",
   reviewBuilder:
     "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review.ts",
+  sharedGuards:
+    "lib/research-candidate-review/shared-source-chain-guards.ts",
   reviewPanel:
     "components/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review-panel.tsx",
   entrypointPanel:
@@ -24,6 +30,8 @@ const files = {
   agentPanelSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   smoke:
     "scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review-v0-1.mjs",
+  sharedGuardSmoke:
+    "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
   packageJson: "package.json",
 };
 
