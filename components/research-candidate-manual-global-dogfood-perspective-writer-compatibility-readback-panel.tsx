@@ -4,6 +4,7 @@ import type {
   ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityReadback,
   ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityRecordsByReceipt,
 } from "@/types/research-candidate-manual-global-dogfood-perspective-writer-compatibility-write";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContractPanel } from "@/components/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract-panel";
 
 export function ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityReadbackPanel({
   readback,
@@ -187,6 +188,10 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibili
               />
             </div>
           </section>
+
+          <ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContractPanel
+            readback={readback}
+          />
         </>
       ) : (
         <p className="manual-note-runtime-hint">

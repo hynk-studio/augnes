@@ -223,6 +223,7 @@
     "smoke:research-candidate-manual-global-dogfood-perspective-state-application-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-research-candidate-manual-global-dogfood-perspective-state-application-contract-v0-1.mjs",
     "smoke:research-candidate-manual-global-dogfood-perspective-writer-compatibility-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-research-candidate-manual-global-dogfood-perspective-writer-compatibility-contract-v0-1.mjs",
     "smoke:research-candidate-manual-global-dogfood-perspective-writer-compatibility-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-research-candidate-manual-global-dogfood-perspective-writer-compatibility-write-v0-1.mjs",
+    "smoke:research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract-v0-1.mjs",
     "smoke:research-candidate-runtime-preview-draft-v0-1": "node scripts/smoke-research-candidate-runtime-preview-draft-v0-1.mjs",
     "smoke:research-candidate-preview-draft-read-discard-v0-1": "node scripts/smoke-research-candidate-preview-draft-read-discard-v0-1.mjs",
     "smoke:research-candidate-preview-draft-list-filters-v0-1": "node scripts/smoke-research-candidate-preview-draft-list-filters-v0-1.mjs",

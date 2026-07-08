@@ -2431,6 +2431,36 @@ implement a separate explicit writer-compatibility-to-existing-writer dry-run
 or adapter contract only after honest mapping of current-working/canonical
 state refs and row-count validation.
 
+## Manual Perspective Existing Writer Dry-Run Contract Preview v0.1 Pointer
+
+Active committed manual Perspective writer compatibility readback can now produce
+an existing writer dry-run / adapter-to-existing-writer authorization contract
+preview and local operator review. The preview preserves writer
+compatibility receipt/record refs, state application refs, adapter refs, state
+mutation refs, apply refs, canonical update refs, relay refs, signal refs, bias
+refs, projection/global ledger/metric/manual/EOD/Reuse refs, handoff/result
+fingerprints, writer-compatibility/state-application/adapter/mutation/apply/
+canonical/relay material, expected/observed/mismatch summaries, candidate refs,
+and manual-only context refs.
+
+This is preview-only. It does not call existing current-working writers, call
+existing canonical state writers, and does not run an actual dry-run. It does
+not update current-working Perspective, mutate existing canonical Perspective
+state tables, promote
+Perspective, write Perspective Memory, mutate work, write proof/evidence,
+write metrics, write product data, mutate source stores, or mutate canonical
+project state. Existing writer dry-run compatibility is reported as findings
+and gaps, including missing current-working refs, canonical state refs,
+structured state material, proof/evidence refs, work refs, Memory refs,
+dry-run entrypoints, no-mutation enforcement, row-count snapshots, and dry-run
+result readback.
+
+Future work may implement a separate explicitly authorized existing-writer
+dry-run adapter write slice with source revalidation, idempotency, duplicate
+replay, rollback/supersede, row-count validation, no proof/evidence
+fabrication, and no existing writer invocation until dry-run compatibility is proven.
+Perspective promotion remains out of scope.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record
