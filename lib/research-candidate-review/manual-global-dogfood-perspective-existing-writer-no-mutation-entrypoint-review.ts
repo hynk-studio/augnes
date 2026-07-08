@@ -17,9 +17,15 @@ import {
 } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointResult } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint";
 import type { ResearchCandidateReviewScope } from "@/types/research-candidate-review";
+import {
+  allValuesFalse,
+  fingerprint,
+  requiredStringFieldsPresent,
+  STABLE_FINGERPRINT_ALGORITHM as FINGERPRINT_ALGORITHM,
+  uniqueStrings,
+} from "@/lib/research-candidate-review/shared-source-chain-guards";
 
 const DEFAULT_SCOPE: ResearchCandidateReviewScope = "project:augnes";
-const FINGERPRINT_ALGORITHM = "fnv1a32_canonical_json_v0_1" as const;
 
 export function buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointReview({
   source_entrypoint_result,
@@ -465,15 +471,31 @@ function isSourceLineageComplete({
   entrypoint: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointResult | null;
   refs: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointSourceWriterCompatibilityRefs;
 }) {
-  return Boolean(
-    entrypoint?.validation.entrypoint_fingerprint &&
-      entrypoint?.source_contract_fingerprint &&
-      entrypoint?.source_review_fingerprint &&
-      entrypoint?.source_dry_run_result_fingerprint &&
-      refs.source_perspective_writer_compatibility_receipt_id &&
-      refs.source_perspective_writer_compatibility_record_id &&
-      refs.source_perspective_writer_compatibility_record_fingerprint,
-  );
+  return requiredStringFieldsPresent(
+    {
+      source_entrypoint_fingerprint:
+        entrypoint?.validation.entrypoint_fingerprint,
+      source_contract_fingerprint: entrypoint?.source_contract_fingerprint,
+      source_review_fingerprint: entrypoint?.source_review_fingerprint,
+      source_dry_run_result_fingerprint:
+        entrypoint?.source_dry_run_result_fingerprint,
+      source_perspective_writer_compatibility_receipt_id:
+        refs.source_perspective_writer_compatibility_receipt_id,
+      source_perspective_writer_compatibility_record_id:
+        refs.source_perspective_writer_compatibility_record_id,
+      source_perspective_writer_compatibility_record_fingerprint:
+        refs.source_perspective_writer_compatibility_record_fingerprint,
+    },
+    [
+      "source_entrypoint_fingerprint",
+      "source_contract_fingerprint",
+      "source_review_fingerprint",
+      "source_dry_run_result_fingerprint",
+      "source_perspective_writer_compatibility_receipt_id",
+      "source_perspective_writer_compatibility_record_id",
+      "source_perspective_writer_compatibility_record_fingerprint",
+    ],
+  ).passed;
 }
 
 function isSourceEntrypointSafe({
@@ -498,39 +520,6 @@ function isSourceEntrypointSafe({
     entrypoint?.supported_capabilities.supports_existing_writer_call === false &&
     rowCountSummary.all_protected_row_counts_unchanged === true &&
     rowCountSummary.changed_protected_table_count === 0 &&
-    Object.values(nonMutationSummary).every((value) => value === false)
+    allValuesFalse(nonMutationSummary)
   );
-}
-
-function uniqueStrings(values: Array<string | null | undefined>) {
-  return [
-    ...new Set(
-      values.filter((value): value is string => Boolean(value?.trim())),
-    ),
-  ];
-}
-
-function fingerprint(value: unknown) {
-  return `${FINGERPRINT_ALGORITHM}:${fnv1a32(stableJson(value))}`;
-}
-
-function stableJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableJson(item)).join(",")}]`;
-  }
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`)
-    .join(",")}}`;
-}
-
-function fnv1a32(input: string) {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
 }

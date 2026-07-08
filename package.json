@@ -228,6 +228,7 @@
     "smoke:research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-v0-1.mjs",
     "smoke:research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review-v0-1.mjs",
     "smoke:research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-result-record-write-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-result-record-write-v0-1.mjs",
+    "smoke:shared-source-chain-guards-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-shared-source-chain-guards-v0-1.mjs",
     "smoke:research-candidate-runtime-preview-draft-v0-1": "node scripts/smoke-research-candidate-runtime-preview-draft-v0-1.mjs",
     "smoke:research-candidate-preview-draft-read-discard-v0-1": "node scripts/smoke-research-candidate-preview-draft-read-discard-v0-1.mjs",
     "smoke:research-candidate-preview-draft-list-filters-v0-1": "node scripts/smoke-research-candidate-preview-draft-list-filters-v0-1.mjs",

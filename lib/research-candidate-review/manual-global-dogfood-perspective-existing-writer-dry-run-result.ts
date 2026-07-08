@@ -19,9 +19,15 @@ import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRu
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-review";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointResult } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint";
 import type { ResearchCandidateReviewScope } from "@/types/research-candidate-review";
+import {
+  buildRowCountObservations,
+  findForbiddenRawMaterialFields as findForbiddenRawPayloadFields,
+  fingerprint,
+  STABLE_FINGERPRINT_ALGORITHM as FINGERPRINT_ALGORITHM,
+  uniqueStrings,
+} from "@/lib/research-candidate-review/shared-source-chain-guards";
 
 const DEFAULT_SCOPE: ResearchCandidateReviewScope = "project:augnes";
-const FINGERPRINT_ALGORITHM = "fnv1a32_canonical_json_v0_1" as const;
 const ACCEPTED_REVIEW_STATUS =
   "ready_for_future_existing_writer_dry_run_adapter_write_slice";
 
@@ -433,19 +439,10 @@ function buildProtectedRowCountObservations({
   before: Record<string, number> | null;
   after: Record<string, number> | null;
 }): ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunRowCountObservation[] {
-  return RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_DRY_RUN_PROTECTED_ROW_COUNT_TABLES.map(
-    (tableName) => {
-      const beforeCount = normalizeCount(before?.[tableName]);
-      const afterCount = normalizeCount(after?.[tableName]);
-      const delta = afterCount - beforeCount;
-      return {
-        table_name: tableName,
-        before_count: beforeCount,
-        after_count: afterCount,
-        delta,
-        changed: delta !== 0,
-      };
-    },
+  return buildRowCountObservations(
+    RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_DRY_RUN_PROTECTED_ROW_COUNT_TABLES,
+    before,
+    after,
   );
 }
 
@@ -582,65 +579,4 @@ function doesEntrypointResultMatchSource({
     entrypointResult.source_binding.accepted_future_dry_run_target ===
       review.accepted_mapping_summary?.intended_future_dry_run_target
   );
-}
-
-function findForbiddenRawPayloadFields(
-  candidateInput: Record<string, unknown> | null | undefined,
-) {
-  if (!candidateInput) return [];
-  return Object.keys(candidateInput)
-    .filter((key) => {
-      const normalized = key.toLowerCase();
-      if (normalized.includes("fingerprint")) return false;
-      return (
-        normalized.includes("operator_note") ||
-        normalized.includes("manual_note") ||
-        normalized.includes("prompt_text") ||
-        normalized.includes("raw_text") ||
-        normalized.includes("raw_result") ||
-        normalized === "result_text" ||
-        normalized === "codex_result_text"
-      );
-    })
-    .sort();
-}
-
-function normalizeCount(value: unknown) {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-    return 0;
-  }
-  return Math.trunc(value);
-}
-
-function uniqueStrings(values: Array<string | null | undefined>) {
-  return [
-    ...new Set(
-      values.filter((value): value is string => Boolean(value?.trim())),
-    ),
-  ];
-}
-
-function fingerprint(value: unknown) {
-  return `${FINGERPRINT_ALGORITHM}:${fnv1a32(stableJson(value))}`;
-}
-
-function stableJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableJson(item)).join(",")}]`;
-  }
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`)
-    .join(",")}}`;
-}
-
-function fnv1a32(input: string) {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
 }

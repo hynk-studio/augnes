@@ -20,6 +20,8 @@ const files = {
     "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint.ts",
   reviewBuilder:
     "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review.ts",
+  sharedGuards:
+    "lib/research-candidate-review/shared-source-chain-guards.ts",
   entrypointPanel:
     "components/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-panel.tsx",
   reviewPanel:
@@ -37,6 +39,8 @@ const files = {
     "scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-v0-1.mjs",
   reviewSmoke:
     "scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review-v0-1.mjs",
+  sharedGuardSmoke:
+    "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
   packageJson: "package.json",
 };
 
@@ -132,12 +136,16 @@ function assertStaticContracts() {
     "source_dry_run_result_mismatch",
     "protected_row_count_delta_detected",
     "existing_writer_call_not_attempted_by_no_mutation_entrypoint_harness",
-    "callback_url",
-    "environment_variable",
   ]) {
     assert.ok(
       source.entrypointBuilder.includes(requiredText),
       `entrypoint builder must include ${requiredText}`,
+    );
+  }
+  for (const requiredText of ["callback_url", "environment_variable"]) {
+    assert.ok(
+      source.sharedGuards.includes(requiredText),
+      `shared source-chain guards must include raw-material key ${requiredText}`,
     );
   }
 
