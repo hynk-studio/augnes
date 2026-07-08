@@ -2406,6 +2406,31 @@ replay, rollback/supersede, row-count validation, no proof/evidence
 fabrication, and no existing writer invocation until compatibility is proven.
 Perspective promotion remains out of scope.
 
+## Manual Perspective Writer Compatibility Write v0.1 Pointer
+
+Accepted manual global dogfood Perspective writer compatibility contracts can
+now be explicitly authorized into a Perspective writer compatibility record.
+The exact storage path is the manual-specific Perspective writer compatibility
+table family: receipts, records, readback, and rollback metadata only.
+
+The write requires an active committed source Perspective state application
+record. It is idempotent, duplicate submissions replay the existing
+receipt/record, rollback marks receipt metadata without deleting the
+Perspective writer compatibility record, and supersede only supersedes
+committed receipts while preserving prior rows as context. Readback exists for
+the manual-specific Perspective writer compatibility table family.
+
+This writer compatibility write does not call existing current-working writers,
+call existing canonical state writers, update current-working Perspective, run
+current-working Perspective update/apply, mutate existing canonical Perspective
+state tables, promote Perspective, write Perspective Memory, mutate work, write
+proof/evidence, write dogfood metrics, call provider/OpenAI/GitHub/Codex,
+fetch sources, run retrieval/RAG/embeddings/vector/FTS/crawlers, persist raw
+manual note or result report text, or persist operator notes. Future work may
+implement a separate explicit writer-compatibility-to-existing-writer dry-run
+or adapter contract only after honest mapping of current-working/canonical
+state refs and row-count validation.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record

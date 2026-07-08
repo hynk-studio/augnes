@@ -532,6 +532,27 @@ const followOnResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibility
   "package.json",
 ];
 
+const followOnResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityWriteFiles = [
+  "lib/db/schema.sql",
+  "lib/db.ts",
+  "scripts/db-migrations.mjs",
+  "scripts/db-migrate.mjs",
+  "types/research-candidate-manual-global-dogfood-perspective-writer-compatibility-write.ts",
+  "lib/research-candidate-review/manual-global-dogfood-perspective-writer-compatibility-write.ts",
+  "lib/research-candidate-review/read-manual-global-dogfood-perspective-writer-compatibility.ts",
+  "app/api/research-candidate-review/manual-global-dogfood-perspective-writer-compatibility/route.ts",
+  "app/api/research-candidate-review/manual-global-dogfood-perspective-writer-compatibility/[receipt_id]/rollback/route.ts",
+  "components/research-candidate-manual-global-dogfood-perspective-writer-compatibility-write-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-perspective-writer-compatibility-readback-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-perspective-writer-compatibility-contract-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-global-dogfood-perspective-writer-compatibility-write-v0-1.mjs",
+  "scripts/smoke-research-candidate-manual-global-dogfood-perspective-writer-compatibility-contract-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+
 const followOnGuideBriefCoreFiles = [
   "docs/GUIDEBRIEF_CONTRACT_V0_1.md",
   "types/guide-brief.ts",
@@ -692,6 +713,7 @@ const allowedChangedFiles = new Set([
   ...followOnResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContractFiles,
   ...followOnResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationWriteFiles,
   ...followOnResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityContractFiles,
+  ...followOnResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityWriteFiles,
   ...followOnGuideBriefCoreFiles,
   ...followOnGuideBriefRouteFiles,
   ...followOnWebGuidePanelFiles,
@@ -1269,7 +1291,8 @@ function assertChangedFileBoundary() {
         followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyWriteFiles.includes(file) ||
         followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationWriteFiles.includes(file) ||
         followOnResearchCandidateManualGlobalDogfoodPerspectiveAdapterWriteFiles.includes(file) ||
-        followOnResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationWriteFiles.includes(file),
+        followOnResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationWriteFiles.includes(file) ||
+        followOnResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityWriteFiles.includes(file),
       `Phase 4A must not add API routes outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(
@@ -1287,7 +1310,8 @@ function assertChangedFileBoundary() {
         followOnResearchCandidateManualGlobalDogfoodPerspectiveApplyWriteFiles.includes(file) ||
         followOnResearchCandidateManualGlobalDogfoodPerspectiveStateMutationWriteFiles.includes(file) ||
         followOnResearchCandidateManualGlobalDogfoodPerspectiveAdapterWriteFiles.includes(file) ||
-        followOnResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationWriteFiles.includes(file),
+        followOnResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationWriteFiles.includes(file) ||
+        followOnResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityWriteFiles.includes(file),
       `Phase 4A must not add route files outside exact Phase 6B GuideBrief follow-on scope: ${file}`,
     );
     assert(!/^db\//.test(file), `Phase 4A must not change DB files: ${file}`);

@@ -24,6 +24,7 @@ import {
   migrateResearchCandidateManualGlobalDogfoodPerspectiveStateMutation,
   migrateResearchCandidateManualGlobalDogfoodPerspectiveAdapter,
   migrateResearchCandidateManualGlobalDogfoodPerspectiveStateApplication,
+  migrateResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibility,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -78,6 +79,8 @@ try {
     migrateResearchCandidateManualGlobalDogfoodPerspectiveAdapter(db);
   const researchCandidateManualGlobalDogfoodPerspectiveStateApplicationResult =
     migrateResearchCandidateManualGlobalDogfoodPerspectiveStateApplication(db);
+  const researchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityResult =
+    migrateResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibility(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -567,6 +570,34 @@ try {
   ) {
     console.log(
       `Created indexes: ${researchCandidateManualGlobalDogfoodPerspectiveStateApplicationResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (
+    researchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityResult
+      .created_tables.length > 0
+  ) {
+    console.log(
+      `Created manual Research Candidate global dogfood Perspective writer compatibility tables at ${dbPath}: ${researchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    researchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityResult
+      .created_indexes.length === 0
+  ) {
+    console.log(
+      `Manual Research Candidate global dogfood Perspective writer compatibility migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated manual Research Candidate global dogfood Perspective writer compatibility indexes at ${dbPath}`,
+    );
+  }
+  if (
+    researchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityResult
+      .created_indexes.length > 0
+  ) {
+    console.log(
+      `Created indexes: ${researchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityResult.created_indexes.join(", ")}`,
     );
   }
 
