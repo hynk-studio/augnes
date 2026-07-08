@@ -2266,6 +2266,36 @@ persistence, and no operator note persistence. Because the manual-specific path
 is used, existing direct canonical Perspective state tables remain unchanged by
 this slice.
 
+## Manual Perspective Adapter Contract Preview v0.1 Pointer
+
+Active committed manual Perspective state mutation readback can now produce a
+current-working/canonical Perspective adapter authorization contract preview
+and local operator review preview. The preview preserves the Perspective state
+mutation receipt/record refs, Perspective apply refs, canonical update refs,
+relay refs, next-work signal refs, next-work bias refs, projection/global
+ledger/metric snapshot/manual refs, ExpectedObservedDelta and Reuse Outcome
+refs, handoff/result fingerprints, mutation material, apply material, canonical
+update material, relay update material, expected/observed/mismatch summaries,
+selected candidate refs, candidate card ids, manual-only context refs, and
+deterministic idempotency preview.
+
+This is preview-only. It does not update current-working Perspective and does
+not mutate existing canonical Perspective state tables. It does not promote
+Perspective, write Perspective Memory, mutate work, write proof/evidence, write
+dogfood metrics, write product or delivery records, mutate source stores, add
+schema or migrations, add API write routes, call providers/OpenAI, GitHub, or
+Codex, fetch sources, run retrieval/RAG, embeddings, vector search, FTS, or
+crawlers, persist raw text, or persist operator notes.
+
+Existing current-working/canonical writer compatibility is reported as adapter
+compatibility findings and gaps, not hidden or invented. The default future
+adapter target is the manual-specific canonical state adapter path; existing
+current-working and canonical state writers remain future compatibility paths
+that require explicit mapping before reuse. Future work may implement a
+separate explicitly authorized Perspective adapter write slice with source
+revalidation, idempotency, duplicate replay, rollback/supersede, and row-count
+validation. Perspective promotion remains out of scope.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record

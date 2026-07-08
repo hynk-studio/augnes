@@ -2,6 +2,7 @@ import type {
   ResearchCandidateManualGlobalDogfoodPerspectiveStateMutationReadback,
   ResearchCandidateManualGlobalDogfoodPerspectiveStateMutationRecordsByReceipt,
 } from "@/types/research-candidate-manual-global-dogfood-perspective-state-mutation-write";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveAdapterContractPanel } from "@/components/research-candidate-manual-global-dogfood-perspective-adapter-contract-panel";
 
 export function ResearchCandidateManualGlobalDogfoodPerspectiveStateMutationReadbackPanel({
   readback,
@@ -185,6 +186,9 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveStateMutationRead
             </div>
           </section>
 
+          <ResearchCandidateManualGlobalDogfoodPerspectiveAdapterContractPanel
+            readback={readback}
+          />
         </>
       ) : (
         <p className="manual-note-runtime-hint">
