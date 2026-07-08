@@ -1,5 +1,6 @@
 "use client";
 
+import { ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityContractPanel } from "@/components/research-candidate-manual-global-dogfood-perspective-writer-compatibility-contract-panel";
 import type {
   ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationReadback,
   ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationRecordsByReceipt,
@@ -187,6 +188,10 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationR
               />
             </div>
           </section>
+
+          <ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityContractPanel
+            readback={readback}
+          />
 
         </>
       ) : (
