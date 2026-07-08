@@ -3338,6 +3338,80 @@ export function migrateResearchCandidateManualGlobalDogfoodPerspectiveWriterComp
   };
 }
 
+export function migrateResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecord(db) {
+  const tableName =
+    "research_candidate_manual_global_dogfood_perspective_existing_writer_no_mutation_result_records";
+  const existingTable = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = ?
+      `,
+    )
+    .get(tableName);
+  const indexNames = [
+    "idx_research_candidate_manual_global_dogfood_perspective_existing_writer_no_mutation_result_records_scope_time",
+    "idx_research_candidate_manual_global_dogfood_perspective_existing_writer_no_mutation_result_records_source_review",
+    "idx_research_candidate_manual_global_dogfood_perspective_existing_writer_no_mutation_result_records_source_entrypoint",
+  ];
+  const existingIndexes = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND name IN (${indexNames.map(() => "?").join(", ")})
+        `,
+      )
+      .all(...indexNames)
+      .map((index) => index.name),
+  );
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_perspective_existing_writer_no_mutation_result_records (
+      record_id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+      source_entrypoint_review_fingerprint TEXT NOT NULL,
+      source_entrypoint_fingerprint TEXT NOT NULL,
+      source_contract_fingerprint TEXT NOT NULL,
+      source_review_fingerprint TEXT NOT NULL,
+      source_dry_run_result_fingerprint TEXT NOT NULL,
+      source_perspective_writer_compatibility_receipt_id TEXT NOT NULL,
+      source_perspective_writer_compatibility_record_id TEXT NOT NULL,
+      source_perspective_writer_compatibility_record_fingerprint TEXT NOT NULL,
+      safe_adapter_target TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      accepted_entrypoint_summary_json TEXT NOT NULL,
+      source_row_count_summary_json TEXT NOT NULL,
+      source_non_mutation_summary_json TEXT NOT NULL,
+      source_binding_summary_json TEXT NOT NULL,
+      source_explicit_non_write_boundary_json TEXT NOT NULL,
+      result_record_write_boundary_json TEXT NOT NULL,
+      row_count_write_summary_json TEXT NOT NULL,
+      persisted_material_boundary_json TEXT NOT NULL,
+      validation_json TEXT NOT NULL,
+      record_fingerprint TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_existing_writer_no_mutation_result_records_scope_time
+      ON research_candidate_manual_global_dogfood_perspective_existing_writer_no_mutation_result_records(scope, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_existing_writer_no_mutation_result_records_source_review
+      ON research_candidate_manual_global_dogfood_perspective_existing_writer_no_mutation_result_records(source_entrypoint_review_fingerprint, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_existing_writer_no_mutation_result_records_source_entrypoint
+      ON research_candidate_manual_global_dogfood_perspective_existing_writer_no_mutation_result_records(source_entrypoint_fingerprint, created_at DESC);
+  `);
+
+  return {
+    table_found: true,
+    created_tables: existingTable ? [] : [tableName],
+    created_indexes: indexNames.filter((indexName) => !existingIndexes.has(indexName)),
+  };
+}
+
 export const perspectiveMemoryProductPersistenceBoundaryTableSql = `
   CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
     record_id TEXT PRIMARY KEY,

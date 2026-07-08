@@ -2,6 +2,7 @@
 
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointReview } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review";
 import { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointReviewPanel } from "@/components/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint-review-panel";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordReadbackPanel } from "@/components/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-result-record-readback-panel";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointResult } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint";
 
 export function ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointPanel({
@@ -248,6 +249,9 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoM
       </section>
       <ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointReviewPanel
         review={reviewPreview}
+      />
+      <ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordReadbackPanel
+        sourceReviewFingerprint={reviewPreview.validation.review_fingerprint}
       />
     </>
   );
