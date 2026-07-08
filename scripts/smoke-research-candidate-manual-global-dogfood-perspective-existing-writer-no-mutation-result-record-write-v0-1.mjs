@@ -244,6 +244,14 @@ function assertBehavior() {
   assert.equal(written.record.row_count_write_summary.target_delta, 1);
   assert.equal(written.record.row_count_write_summary.non_target_changed_table_count, 0);
   assert.equal(written.record.row_count_write_summary.all_non_target_row_counts_unchanged, true);
+  assert.equal(
+    "expected_target_delta" in written.record.row_count_write_summary,
+    false,
+  );
+  assert.equal(
+    "target_delta_matches_expected" in written.record.row_count_write_summary,
+    false,
+  );
 
   const duplicate =
     writeResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecord(

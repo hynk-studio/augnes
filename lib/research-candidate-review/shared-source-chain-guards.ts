@@ -304,7 +304,6 @@ export function summarizeTargetOnlyRowCountWrite({
   afterCounts: Record<string, unknown>;
   expectedTargetDelta?: number;
 }) {
-  void expectedTargetDelta;
   const rows = buildRowCountObservations(
     uniqueStrings([targetTable, ...tableNames.filter((name) => name !== targetTable)]),
     beforeCounts,
@@ -325,6 +324,8 @@ export function summarizeTargetOnlyRowCountWrite({
     target_after_count: targetRow.after_count,
     target_delta: targetRow.delta,
     target_table_changed: targetRow.changed,
+    expected_target_delta: expectedTargetDelta,
+    target_delta_matches_expected: targetRow.delta === expectedTargetDelta,
     non_target_table_count: nonTargetRows.length,
     non_target_changed_table_count: nonTargetRows.filter((row) => row.changed)
       .length,
@@ -338,12 +339,19 @@ export function summarizeTargetOnlyRowCountWrite({
 export function isTargetOnlyRowCountWrite(summary: {
   target_delta: number;
   target_table_changed: boolean;
+  expected_target_delta?: number;
   all_non_target_row_counts_unchanged: boolean;
   non_target_changed_table_count: number;
-}): boolean {
+}, options: { expectedTargetDelta?: number } = {}): boolean {
+  const expectedTargetDelta =
+    options.expectedTargetDelta ?? summary.expected_target_delta ?? 1;
+  const targetTableChangedMatchesExpected =
+    expectedTargetDelta === 0
+      ? summary.target_table_changed === false
+      : summary.target_table_changed === true;
   return (
-    summary.target_delta === 1 &&
-    summary.target_table_changed === true &&
+    summary.target_delta === expectedTargetDelta &&
+    targetTableChangedMatchesExpected &&
     summary.all_non_target_row_counts_unchanged === true &&
     summary.non_target_changed_table_count === 0
   );

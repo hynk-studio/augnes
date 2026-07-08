@@ -462,13 +462,26 @@ function buildRowCountWriteSummary({
   beforeCounts: RowCountSnapshot;
   afterCounts: RowCountSnapshot;
 }): ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordRowCountWriteSummary {
-  return summarizeTargetOnlyRowCountWrite({
+  const writeSummary = summarizeTargetOnlyRowCountWrite({
     targetTable:
       RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_NO_MUTATION_RESULT_RECORD_TABLE,
     tableNames: TARGET_AND_NON_TARGET_TABLES,
     beforeCounts,
     afterCounts,
-  }) as ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordRowCountWriteSummary;
+  });
+  return {
+    target_table_name: writeSummary.target_table_name,
+    target_before_count: writeSummary.target_before_count,
+    target_after_count: writeSummary.target_after_count,
+    target_delta: writeSummary.target_delta,
+    target_table_changed: writeSummary.target_table_changed,
+    non_target_table_count: writeSummary.non_target_table_count,
+    non_target_changed_table_count:
+      writeSummary.non_target_changed_table_count,
+    all_non_target_row_counts_unchanged:
+      writeSummary.all_non_target_row_counts_unchanged,
+    rows: writeSummary.rows,
+  } as ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordRowCountWriteSummary;
 }
 
 function isTargetOnlyWrite(

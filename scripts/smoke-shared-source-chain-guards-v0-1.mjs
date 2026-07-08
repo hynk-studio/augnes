@@ -309,9 +309,22 @@ function assertRowCountHelpers() {
     afterCounts: { target_table: 2, protected_table: 2 },
   });
   assert.equal(targetOnly.target_delta, 1);
+  assert.equal(targetOnly.expected_target_delta, 1);
+  assert.equal(targetOnly.target_delta_matches_expected, true);
   assert.equal(targetOnly.non_target_changed_table_count, 0);
   assert.equal(targetOnly.all_non_target_row_counts_unchanged, true);
   assert.equal(isTargetOnlyRowCountWrite(targetOnly), true);
+  assert.equal(
+    isTargetOnlyRowCountWrite({
+      target_delta: targetOnly.target_delta,
+      target_table_changed: targetOnly.target_table_changed,
+      all_non_target_row_counts_unchanged:
+        targetOnly.all_non_target_row_counts_unchanged,
+      non_target_changed_table_count:
+        targetOnly.non_target_changed_table_count,
+    }),
+    true,
+  );
 
   const nonTargetChanged = summarizeTargetOnlyRowCountWrite({
     targetTable: "target_table",
@@ -320,6 +333,62 @@ function assertRowCountHelpers() {
     afterCounts: { target_table: 2, protected_table: 3 },
   });
   assert.equal(isTargetOnlyRowCountWrite(nonTargetChanged), false);
+
+  const expectedDeltaTwo = summarizeTargetOnlyRowCountWrite({
+    targetTable: "target_table",
+    tableNames: ["target_table", "protected_table"],
+    beforeCounts: { target_table: 1, protected_table: 2 },
+    afterCounts: { target_table: 3, protected_table: 2 },
+    expectedTargetDelta: 2,
+  });
+  assert.equal(expectedDeltaTwo.expected_target_delta, 2);
+  assert.equal(expectedDeltaTwo.target_delta, 2);
+  assert.equal(expectedDeltaTwo.target_delta_matches_expected, true);
+  assert.equal(isTargetOnlyRowCountWrite(expectedDeltaTwo), true);
+
+  const expectedDeltaTwoMismatch = summarizeTargetOnlyRowCountWrite({
+    targetTable: "target_table",
+    tableNames: ["target_table", "protected_table"],
+    beforeCounts: { target_table: 1, protected_table: 2 },
+    afterCounts: { target_table: 2, protected_table: 2 },
+    expectedTargetDelta: 2,
+  });
+  assert.equal(expectedDeltaTwoMismatch.expected_target_delta, 2);
+  assert.equal(expectedDeltaTwoMismatch.target_delta, 1);
+  assert.equal(expectedDeltaTwoMismatch.target_delta_matches_expected, false);
+  assert.equal(isTargetOnlyRowCountWrite(expectedDeltaTwoMismatch), false);
+  assert.equal(
+    isTargetOnlyRowCountWrite(expectedDeltaTwoMismatch, {
+      expectedTargetDelta: 1,
+    }),
+    true,
+  );
+
+  const expectedDeltaZero = summarizeTargetOnlyRowCountWrite({
+    targetTable: "target_table",
+    tableNames: ["target_table", "protected_table"],
+    beforeCounts: { target_table: 1, protected_table: 2 },
+    afterCounts: { target_table: 1, protected_table: 2 },
+    expectedTargetDelta: 0,
+  });
+  assert.equal(expectedDeltaZero.expected_target_delta, 0);
+  assert.equal(expectedDeltaZero.target_delta, 0);
+  assert.equal(expectedDeltaZero.target_table_changed, false);
+  assert.equal(expectedDeltaZero.target_delta_matches_expected, true);
+  assert.equal(isTargetOnlyRowCountWrite(expectedDeltaZero), true);
+
+  const expectedDeltaZeroMismatch = summarizeTargetOnlyRowCountWrite({
+    targetTable: "target_table",
+    tableNames: ["target_table", "protected_table"],
+    beforeCounts: { target_table: 1, protected_table: 2 },
+    afterCounts: { target_table: 2, protected_table: 2 },
+    expectedTargetDelta: 0,
+  });
+  assert.equal(expectedDeltaZeroMismatch.expected_target_delta, 0);
+  assert.equal(expectedDeltaZeroMismatch.target_delta, 1);
+  assert.equal(expectedDeltaZeroMismatch.target_table_changed, true);
+  assert.equal(expectedDeltaZeroMismatch.target_delta_matches_expected, false);
+  assert.equal(isTargetOnlyRowCountWrite(expectedDeltaZeroMismatch), false);
 }
 
 function assertChainImportsAndDuplicateRemoval() {
