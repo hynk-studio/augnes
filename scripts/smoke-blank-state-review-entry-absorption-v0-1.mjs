@@ -11,6 +11,8 @@ import {
 } from "./smoke-boundary-common.mjs";
 
 const pageFile = "app/page.tsx";
+const researchCandidateReviewPageFile =
+  "app/research-candidate-review/page.tsx";
 const homeFile = "components/human-surface/human-surface-home.tsx";
 const blankStateFile = "components/human-surface/blank-state-panel.tsx";
 const entryGridFile =
@@ -221,6 +223,7 @@ const stateProposalReviewNextSurfaceEntryIds = [
 ];
 
 const allowedChangedFiles = [
+  researchCandidateReviewPageFile,
   homeFile,
   blankStateFile,
   entryGridFile,
@@ -241,6 +244,7 @@ const allowedChangedFiles = [
 
 const textByFile = loadTextByFile([
   pageFile,
+  researchCandidateReviewPageFile,
   homeFile,
   blankStateFile,
   entryGridFile,
@@ -255,6 +259,9 @@ const textByFile = loadTextByFile([
 ]);
 
 const pageText = textByFile.get(pageFile);
+const researchCandidateReviewPageText = textByFile.get(
+  researchCandidateReviewPageFile,
+);
 const homeText = textByFile.get(homeFile);
 const blankStateText = textByFile.get(blankStateFile);
 const entryGridText = textByFile.get(entryGridFile);
@@ -309,7 +316,11 @@ assertContainsAll(
   entryReadModelText,
   [
     "BLANK_STATE_REVIEW_ENTRY_IDS",
-    'destination: "workplane";',
+    'export type BlankStateReviewEntryDestination',
+    '| "workplane"',
+    '| "perspective"',
+    '| "operator_review"',
+    "destination: BlankStateReviewEntryDestination;",
     'next_surface?: "state_proposal_review";',
     ...requiredEntryIds.map((id) => `"${id}"`),
     'href: "/workbench#work_queue"',
@@ -318,13 +329,28 @@ assertContainsAll(
     'href: "/workbench#handoff_builder_preview"',
     'href: "/workbench#runner_delta_batch"',
     'href: "/workbench#authority_boundary"',
+    'title: "Preview Codex Handoff"',
+    'title: "Inspect Runner DeltaBatch"',
+    'title: "Inspect Automation Boundary"',
+    'destination: "perspective"',
     "No approve, apply, reject, or commit control.",
+    "No Codex launch or execution.",
     "No runner execution, tick, recovery, or scheduling.",
     "No provider, GitHub, Codex, runner, scheduler, DB, proof, evidence, memory, Perspective, or delta apply authority.",
     "User judgment remains user-owned. Suggestions are not actions.",
   ],
   { label: entryReadModelFile },
 );
+for (const oldTitle of [
+  "Prepare Codex Handoff",
+  "Review Runner DeltaBatch",
+  "Automation Mode",
+]) {
+  assert(
+    !new RegExp(`title:\\s*"${oldTitle}"`).test(entryReadModelText),
+    `${entryReadModelFile} must not keep old title ${oldTitle}`,
+  );
+}
 
 const uniqueIds = new Set(
   [...entryReadModelText.matchAll(/"([a-z_]+_entry)"/g)].map((match) => match[1]),
@@ -334,6 +360,15 @@ for (const id of requiredEntryIds) {
   assert(uniqueIds.has(id), `Missing Blank State entry id: ${id}`);
 }
 assertBlankStateEntryMarkerContract();
+assertContainsAll(
+  researchCandidateReviewPageText,
+  [
+    'data-surface-role="operator-dogfood-review"',
+    "operator-dogfood-review-surface",
+    "ResearchCandidateManualNotePreviewPanel",
+  ],
+  { label: researchCandidateReviewPageFile },
+);
 
 assertContainsAll(
   cssText,
@@ -374,7 +409,13 @@ assertContainsAll(indexText, [closeoutDoc, "Blank State Review Entry Absorption 
   label: indexDoc,
 });
 
-assertNoMutationControls([homeText, blankStateText, entryGridText, entryReadModelText]);
+assertNoMutationControls([
+  homeText,
+  blankStateText,
+  entryGridText,
+  entryReadModelText,
+  researchCandidateReviewPageText,
+]);
 const changedFiles = assertChangedFilesBoundary();
 assertNoForbiddenChangedPaths(changedFiles.files);
 
@@ -433,8 +474,14 @@ function assertBlankStateEntryMarkerContract() {
   );
   assert.equal(
     destinationAssignments?.length ?? 0,
-    7,
-    "Every Blank State entry must set destination: \"workplane\"",
+    6,
+    "Exactly six Blank State entries must route to Workplane",
+  );
+  assert(
+    /capability_id:\s*"choose_perspective_lens_entry",\s*destination:\s*"perspective",/.test(
+      entryReadModelText,
+    ),
+    "choose_perspective_lens_entry must route to destination: \"perspective\"",
   );
 
   const nextSurfaceAssignments = entryReadModelText.match(
@@ -446,10 +493,15 @@ function assertBlankStateEntryMarkerContract() {
     "Exactly the three State Proposal Review related entries must set next_surface",
   );
 
+  const expectedDestinationByStateProposalEntry = {
+    review_pending_proposals_entry: "workplane",
+    choose_perspective_lens_entry: "perspective",
+    user_judgment_summary_entry: "workplane",
+  };
   for (const id of stateProposalReviewNextSurfaceEntryIds) {
     assert(
       new RegExp(
-        `capability_id:\\s*"${id}",\\s*destination:\\s*"workplane",\\s*next_surface:\\s*"state_proposal_review",`,
+        `capability_id:\\s*"${id}",\\s*destination:\\s*"${expectedDestinationByStateProposalEntry[id]}",\\s*next_surface:\\s*"state_proposal_review",`,
       ).test(entryReadModelText),
       `Missing state_proposal_review next surface for ${id}`,
     );

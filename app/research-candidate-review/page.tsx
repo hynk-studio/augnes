@@ -8,7 +8,10 @@ export const metadata = {
 
 export default function ResearchCandidateReviewPage() {
   return (
-    <main className="human-surface-home">
+    <main
+      className="human-surface-home operator-dogfood-review-surface"
+      data-surface-role="operator-dogfood-review"
+    >
       <section className="human-surface-shell">
         <ResearchCandidateManualNotePreviewPanel />
       </section>

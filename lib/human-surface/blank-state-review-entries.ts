@@ -17,9 +17,14 @@ export const BLANK_STATE_REVIEW_ENTRY_IDS = [
 export type BlankStateReviewEntryId =
   (typeof BLANK_STATE_REVIEW_ENTRY_IDS)[number];
 
+export type BlankStateReviewEntryDestination =
+  | "workplane"
+  | "perspective"
+  | "operator_review";
+
 export type BlankStateReviewEntry = {
   capability_id: BlankStateReviewEntryId;
-  destination: "workplane";
+  destination: BlankStateReviewEntryDestination;
   next_surface?: "state_proposal_review";
   title: string;
   summary: string;
@@ -106,7 +111,7 @@ export function buildBlankStateReviewEntries({
     },
     {
       capability_id: "choose_perspective_lens_entry",
-      destination: "workplane",
+      destination: "perspective",
       next_surface: "state_proposal_review",
       title: "Choose Perspective Lens",
       summary: perspective.current_frame.summary,
@@ -122,12 +127,12 @@ export function buildBlankStateReviewEntries({
     {
       capability_id: "prepare_codex_handoff_entry",
       destination: "workplane",
-      title: "Prepare Codex Handoff",
+      title: "Preview Codex Handoff",
       summary:
         handoffRefCount > 0
           ? "Handoff refs are available for Workplane preview before any external transfer."
           : "No handoff refs are materialized yet. Workplane can still show preview/fallback context.",
-      target_label: "Workplane handoff_builder_preview",
+      target_label: "Workplane handoff builder preview",
       href: "/workbench#handoff_builder_preview",
       metric_label: "Handoff refs",
       metric_value: String(handoffRefCount),
@@ -139,12 +144,12 @@ export function buildBlankStateReviewEntries({
     {
       capability_id: "review_runner_deltabatch_entry",
       destination: "workplane",
-      title: "Review Runner DeltaBatch",
+      title: "Inspect Runner DeltaBatch",
       summary:
         runnerDeltaBatchRead.recovered_batch_count > 0
-          ? "Recovered runner DeltaBatch output is available for read-only review."
+          ? "Recovered runner DeltaBatch output is available for read-only inspection."
           : runnerDeltaBatchRead.empty_state,
-      target_label: "Workplane runner_delta_batch",
+      target_label: "Workplane runner DeltaBatch inspection",
       href: "/workbench#runner_delta_batch",
       metric_label: "Recovered batches",
       metric_value: String(runnerDeltaBatchRead.recovered_batch_count),
@@ -161,10 +166,10 @@ export function buildBlankStateReviewEntries({
     {
       capability_id: "automation_mode_entry",
       destination: "workplane",
-      title: "Automation Mode",
+      title: "Inspect Automation Boundary",
       summary:
-        "Automation is boundary-visible only from Blank State. Workplane remains the operational inspection surface.",
-      target_label: "Workplane authority boundary",
+        "Automation boundary is inspection-only from Blank State. Workplane remains the operational inspection surface.",
+      target_label: "Workplane authority boundary inspection",
       href: "/workbench#authority_boundary",
       metric_label: "Mode",
       metric_value: "read-only",
