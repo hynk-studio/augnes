@@ -17,6 +17,7 @@ import {
 } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-result";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-review";
+import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointResult } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint";
 import type { ResearchCandidateReviewScope } from "@/types/research-candidate-review";
 
 const DEFAULT_SCOPE: ResearchCandidateReviewScope = "project:augnes";
@@ -31,6 +32,7 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWrit
   row_count_after,
   candidate_input,
   safe_existing_writer_no_mutation_entrypoint,
+  safe_existing_writer_no_mutation_entrypoint_result,
 }: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResultInput): ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResult {
   const contract = existing_writer_dry_run_contract ?? null;
   const review = existing_writer_dry_run_review ?? null;
@@ -99,8 +101,42 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWrit
   const rowCountsUnchanged = protectedRowCounts.every(
     (observation) => observation.changed === false,
   );
+  const entrypointResult =
+    safe_existing_writer_no_mutation_entrypoint_result ?? null;
+  const entrypointResultSourceMatches = doesEntrypointResultMatchSource({
+    entrypointResult,
+    contract,
+    review,
+  });
+  const entrypointResultValidated =
+    Boolean(entrypointResult) &&
+    entrypointResultSourceMatches &&
+    entrypointResult?.validation.passed === true &&
+    entrypointResult?.non_mutation_assertions
+      .all_protected_row_counts_unchanged === true &&
+    entrypointResult?.execution_decision.existing_writer_called === false &&
+    entrypointResult?.non_mutation_assertions.existing_writer_called === false;
+  const entrypointResultAvailable =
+    entrypointResultValidated &&
+    entrypointResult?.entrypoint_status ===
+      "safe_no_mutation_entrypoint_available" &&
+    entrypointResult?.supported_capabilities.supports_row_count_snapshot ===
+      true &&
+    entrypointResult?.supported_capabilities.supports_transaction_rollback ===
+      true &&
+    entrypointResult?.supported_capabilities
+      .supports_no_mutation_assertions === true;
   const entrypointStatus = normalizeEntrypointStatus(
-    safe_existing_writer_no_mutation_entrypoint,
+    entrypointResultAvailable
+      ? {
+          detected: true,
+          entrypoint_id:
+            entrypointResult?.validation.entrypoint_fingerprint ?? null,
+          supports_row_count_snapshot: true,
+          supports_transaction_rollback: true,
+          supports_no_mutation_assertions: true,
+        }
+      : safe_existing_writer_no_mutation_entrypoint,
   );
   const existingCurrentWorkingEntrypointDetected =
     contract?.existing_current_working_writer_dry_run_compatibility
@@ -108,13 +144,15 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWrit
   const existingCanonicalEntrypointDetected =
     contract?.existing_canonical_state_writer_dry_run_compatibility
       .dry_run_entrypoint_detected === true;
-  const existingWriterSupportedToday =
+  const legacyEntrypointSupported =
     entrypointStatus.detected === true &&
     entrypointStatus.supports_row_count_snapshot === true &&
     entrypointStatus.supports_transaction_rollback === true &&
     entrypointStatus.supports_no_mutation_assertions === true &&
     (existingCurrentWorkingEntrypointDetected ||
       existingCanonicalEntrypointDetected);
+  const existingWriterSupportedToday =
+    entrypointResultAvailable || legacyEntrypointSupported;
   const failureReasons = uniqueStrings([
     ...(!contract ? ["source_contract_missing"] : []),
     ...(!review ? ["source_review_missing"] : []),
@@ -131,6 +169,10 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWrit
       : []),
     ...(contract && review && !acceptedMappingMatchesContract
       ? ["accepted_mapping_summary_mismatch"]
+      : []),
+    ...(entrypointResult &&
+    (!entrypointResultSourceMatches || !entrypointResultValidated)
+      ? ["safe_existing_writer_no_mutation_entrypoint_result_invalid"]
       : []),
     ...(directExistingWriterTargetRequested
       ? ["direct_existing_writer_target_refused"]
@@ -153,19 +195,26 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWrit
     ...(!entrypointStatus.supports_no_mutation_assertions
       ? ["safe_entrypoint_no_mutation_assertions_missing"]
       : []),
-    ...(!existingCurrentWorkingEntrypointDetected
+    ...(!entrypointResultAvailable && !existingCurrentWorkingEntrypointDetected
       ? ["existing_current_working_writer_dry_run_entrypoint_missing"]
       : []),
-    ...(!existingCanonicalEntrypointDetected
+    ...(!entrypointResultAvailable && !existingCanonicalEntrypointDetected
       ? ["existing_canonical_state_writer_dry_run_entrypoint_missing"]
       : []),
-    ...(contract?.proposed_dry_run_input_contract
+    ...(!entrypointResultAvailable &&
+    contract?.proposed_dry_run_input_contract
       .can_construct_existing_current_working_writer_input_now === false
       ? ["existing_current_working_writer_input_construction_false"]
       : []),
-    ...(contract?.proposed_dry_run_input_contract
+    ...(!entrypointResultAvailable &&
+    contract?.proposed_dry_run_input_contract
       .can_construct_existing_canonical_state_writer_input_now === false
       ? ["existing_canonical_state_writer_input_construction_false"]
+      : []),
+    ...(entrypointResultValidated &&
+    !entrypointResultAvailable &&
+    entrypointResult?.entrypoint_status === "unsupported_no_safe_entrypoint"
+      ? ["safe_entrypoint_result_unsupported_no_safe_entrypoint"]
       : []),
   ]);
   const warningReasons = uniqueStrings([
@@ -199,6 +248,10 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWrit
     failure_reasons: failureReasons,
     warning_reasons: warningReasons,
     existing_writer_supported_today: existingWriterSupportedToday,
+    safe_entrypoint_result_fingerprint:
+      entrypointResult?.validation.entrypoint_fingerprint ?? null,
+    safe_entrypoint_result_status:
+      entrypointResult?.entrypoint_status ?? null,
   });
   const validation: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunInputValidation =
     {
@@ -223,6 +276,16 @@ export function buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWrit
       row_count_snapshots_present: Boolean(row_count_before && row_count_after),
       protected_row_counts_unchanged:
         nonMutationProof.all_protected_row_counts_unchanged,
+      safe_existing_writer_no_mutation_entrypoint_result_present:
+        Boolean(entrypointResult),
+      safe_existing_writer_no_mutation_entrypoint_result_validated:
+        entrypointResultValidated,
+      safe_existing_writer_no_mutation_entrypoint_result_available:
+        entrypointResultAvailable,
+      safe_existing_writer_no_mutation_entrypoint_result_fingerprint:
+        entrypointResult?.validation.entrypoint_fingerprint ?? null,
+      safe_existing_writer_no_mutation_entrypoint_result_status:
+        entrypointResult?.entrypoint_status ?? null,
       safe_existing_writer_no_mutation_entrypoint_detected:
         entrypointStatus.detected,
       existing_current_working_writer_dry_run_entrypoint_detected:
@@ -488,6 +551,37 @@ function normalizeEntrypointStatus(
     supports_no_mutation_assertions:
       entrypoint?.supports_no_mutation_assertions === true,
   };
+}
+
+function doesEntrypointResultMatchSource({
+  entrypointResult,
+  contract,
+  review,
+}: {
+  entrypointResult: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointResult | null;
+  contract: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract | null;
+  review: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview | null;
+}) {
+  if (!entrypointResult || !contract || !review) return false;
+  return (
+    entrypointResult.source_contract_fingerprint ===
+      contract.validation.contract_fingerprint &&
+    entrypointResult.source_review_fingerprint ===
+      review.validation.review_fingerprint &&
+    entrypointResult.source_binding.source_perspective_writer_compatibility_receipt_id ===
+      contract.source_perspective_writer_compatibility_receipt_id &&
+    entrypointResult.source_binding.source_perspective_writer_compatibility_record_id ===
+      contract.source_perspective_writer_compatibility_record_id &&
+    entrypointResult.source_binding
+      .source_perspective_writer_compatibility_record_fingerprint ===
+      contract.source_perspective_writer_compatibility_record_fingerprint &&
+    entrypointResult.source_binding.source_handoff_seed_fingerprint ===
+      contract.source_handoff_seed_fingerprint &&
+    entrypointResult.source_binding.source_result_text_fingerprint ===
+      contract.source_result_text_fingerprint &&
+    entrypointResult.source_binding.accepted_future_dry_run_target ===
+      review.accepted_mapping_summary?.intended_future_dry_run_target
+  );
 }
 
 function findForbiddenRawPayloadFields(

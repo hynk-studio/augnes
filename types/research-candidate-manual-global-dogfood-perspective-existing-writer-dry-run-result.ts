@@ -1,5 +1,6 @@
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-review";
+import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointResult } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-entrypoint";
 import type { ResearchCandidateReviewScope } from "@/types/research-candidate-review";
 
 export const RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_DRY_RUN_RESULT_KIND =
@@ -90,6 +91,7 @@ export interface ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDr
   row_count_after?: Record<string, number> | null;
   candidate_input?: Record<string, unknown> | null;
   safe_existing_writer_no_mutation_entrypoint?: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunEntrypointStatus | null;
+  safe_existing_writer_no_mutation_entrypoint_result?: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationEntrypointResult | null;
 }
 
 export interface ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunSourceBinding {
@@ -127,6 +129,11 @@ export interface ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDr
   raw_payload_forbidden_fields: string[];
   row_count_snapshots_present: boolean;
   protected_row_counts_unchanged: boolean;
+  safe_existing_writer_no_mutation_entrypoint_result_present: boolean;
+  safe_existing_writer_no_mutation_entrypoint_result_validated: boolean;
+  safe_existing_writer_no_mutation_entrypoint_result_available: boolean;
+  safe_existing_writer_no_mutation_entrypoint_result_fingerprint: string | null;
+  safe_existing_writer_no_mutation_entrypoint_result_status: string | null;
   safe_existing_writer_no_mutation_entrypoint_detected: boolean;
   existing_current_working_writer_dry_run_entrypoint_detected: boolean;
   existing_canonical_state_writer_dry_run_entrypoint_detected: boolean;
