@@ -25,6 +25,7 @@ import {
   migrateResearchCandidateManualGlobalDogfoodPerspectiveAdapter,
   migrateResearchCandidateManualGlobalDogfoodPerspectiveStateApplication,
   migrateResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibility,
+  migrateResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecord,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -81,6 +82,10 @@ try {
     migrateResearchCandidateManualGlobalDogfoodPerspectiveStateApplication(db);
   const researchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityResult =
     migrateResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibility(db);
+  const researchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordResult =
+    migrateResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecord(
+      db,
+    );
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -598,6 +603,34 @@ try {
   ) {
     console.log(
       `Created indexes: ${researchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (
+    researchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordResult
+      .created_tables.length > 0
+  ) {
+    console.log(
+      `Created manual Research Candidate global dogfood Perspective existing writer no-mutation result record table at ${dbPath}: ${researchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    researchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordResult
+      .created_indexes.length === 0
+  ) {
+    console.log(
+      `Manual Research Candidate global dogfood Perspective existing writer no-mutation result record migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated manual Research Candidate global dogfood Perspective existing writer no-mutation result record indexes at ${dbPath}`,
+    );
+  }
+  if (
+    researchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordResult
+      .created_indexes.length > 0
+  ) {
+    console.log(
+      `Created indexes: ${researchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecordResult.created_indexes.join(", ")}`,
     );
   }
 

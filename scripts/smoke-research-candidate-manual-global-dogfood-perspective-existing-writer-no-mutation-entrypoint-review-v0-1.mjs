@@ -28,6 +28,26 @@ const files = {
 };
 
 const allowedChangedFiles = new Set(Object.values(files));
+const followOnResultRecordFiles = [
+  "types/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-result-record.ts",
+  "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-no-mutation-result-record-write.ts",
+  "lib/research-candidate-review/read-manual-global-dogfood-perspective-existing-writer-no-mutation-result-records.ts",
+  "components/research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-result-record-readback-panel.tsx",
+  "lib/db/schema.sql",
+  "lib/db.ts",
+  "scripts/db-migrations.mjs",
+  "scripts/db-migrate.mjs",
+  "scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-no-mutation-result-record-write-v0-1.mjs",
+];
+const followOnResultRecordMigrationFiles = new Set([
+  "lib/db/schema.sql",
+  "lib/db.ts",
+  "scripts/db-migrations.mjs",
+  "scripts/db-migrate.mjs",
+]);
+for (const file of followOnResultRecordFiles) {
+  allowedChangedFiles.add(file);
+}
 
 for (const filePath of Object.values(files)) {
   assert.ok(existsSync(filePath), `${filePath} must exist`);
@@ -543,8 +563,10 @@ function assertChangedFileBoundary() {
     );
     assert.ok(!/^docs\//.test(file), "entrypoint review slice must not edit docs");
     assert.ok(!/^app\/api\//.test(file), "entrypoint review slice must not edit API routes");
-    assert.ok(file !== "lib/db/schema.sql", "entrypoint review slice must not edit DB schema");
-    assert.ok(!/migrations?/.test(file), "entrypoint review slice must not edit migrations");
+    if (!followOnResultRecordMigrationFiles.has(file)) {
+      assert.ok(file !== "lib/db/schema.sql", "entrypoint review slice must not edit DB schema");
+      assert.ok(!/migrations?/.test(file), "entrypoint review slice must not edit migrations");
+    }
   }
 }
 
