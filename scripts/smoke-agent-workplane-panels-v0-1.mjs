@@ -2852,6 +2852,16 @@ for (const file of followOnProviderSpecificDeliveryExecutionRecordReviewFiles) {
   allowedChangedFiles.add(file);
 }
 
+const followOnWorkplaneContinuitySpineSummaryFiles = [
+  "types/workplane-continuity-spine-summary.ts",
+  "lib/workplane/workplane-continuity-spine-summary.ts",
+  "components/workplane/workplane-continuity-spine-summary-panel.tsx",
+  "scripts/smoke-workplane-continuity-spine-summary-v0-1.mjs",
+];
+for (const file of followOnWorkplaneContinuitySpineSummaryFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const changedFilesBoundary = assertChangedFileBoundary();
 
 console.log(

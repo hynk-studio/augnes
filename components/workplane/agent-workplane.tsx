@@ -56,6 +56,7 @@ import { DeltaProjectionWorkplanePanel } from "@/components/workplane/delta-proj
 import { EvidenceHandoffWorkplanePanel } from "@/components/workplane/evidence-handoff-workplane-panel";
 import { HandoffBuilderPreviewPanel } from "@/components/workplane/handoff-builder-preview-panel";
 import { ContinuityRelayWorkplanePanel } from "@/components/workplane/continuity-relay-workplane-panel";
+import { WorkplaneContinuitySpineSummaryPanel } from "@/components/workplane/workplane-continuity-spine-summary-panel";
 import { MetricInformedContinuityRelayAdjustmentPreviewPanel } from "@/components/workplane/metric-informed-continuity-relay-adjustment-preview-panel";
 import { NextWorkSignalDecisionPanel } from "@/components/workplane/next-work-signal-decision-panel";
 import { NextWorkSignalDecisionRecordReviewPanel } from "@/components/workplane/next-work-signal-decision-record-review-panel";
@@ -222,6 +223,7 @@ import { buildDeliverySpineLoopClosureReadModelV01 } from "@/lib/workplane/deliv
 import { buildProviderSpecificDeliveryExecutionContractPreviewV01 } from "@/lib/workplane/provider-specific-delivery-execution-contract-preview";
 import { buildProviderSpecificDeliveryExecutionOperatorDecisionPreviewV01 } from "@/lib/workplane/provider-specific-delivery-execution-operator-decision-preview";
 import { buildProviderSpecificDeliveryExecutionContractRecordReviewV01 } from "@/lib/workplane/provider-specific-delivery-execution-contract-record-review";
+import { buildWorkplaneContinuitySpineSummaryV01 } from "@/lib/workplane/workplane-continuity-spine-summary";
 import { buildWorkbenchDogfoodLoopSpineOverviewV01 } from "@/lib/workplane/workbench-dogfood-loop-spine-overview";
 import { buildWorkbenchSpineConsolidationV01 } from "@/lib/workplane/workbench-spine-consolidation";
 import { buildWorkEpisodeResidueCandidatePreviewV01 } from "@/lib/workplane/work-episode-residue-candidate-preview";
@@ -1471,6 +1473,38 @@ export async function AgentWorkplane() {
         "workbench:provider_specific_delivery_execution_contract_record_review",
       ],
     });
+  const workplaneContinuitySpineSummary =
+    buildWorkplaneContinuitySpineSummaryV01({
+      workplane_context: context,
+      current_working_perspective_read: context.current_perspective_read,
+      workplane_continuity_relay: context.continuity_relay,
+      workbench_spine_consolidation: workbenchSpineConsolidation,
+      workbench_dogfood_loop_spine_overview:
+        workbenchDogfoodLoopSpineOverview,
+      residual_diagnostic_candidate_read_model:
+        residualDiagnosticCandidateReadModel,
+      applied_current_working_perspective_read:
+        appliedCurrentWorkingPerspectiveRead,
+      current_working_perspective_route_integration_read:
+        currentWorkingPerspectiveRouteIntegrationRead,
+      applied_handoff_context_read: appliedHandoffContextRead,
+      exported_handoff_packet_artifact_read:
+        exportedHandoffPacketArtifactRead,
+      handoff_send_contract_record_review:
+        handoffSendContractRecordReview,
+      handoff_send_record_review: handoffSendRecordReview,
+      sent_handoff_read: sentHandoffRead,
+      external_handoff_delivery_contract_record_review:
+        externalHandoffDeliveryContractRecordReview,
+      provider_specific_delivery_intent_contract_record_review:
+        providerSpecificDeliveryIntentContractRecordReview,
+      delivery_spine_loop_closure_read_model: deliverySpineLoopClosure,
+      provider_specific_delivery_execution_contract_record_review:
+        providerSpecificDeliveryExecutionContractRecordReview,
+      scope: "project:augnes",
+      as_of: workplaneMetrics.as_of,
+      source_refs: ["workbench:continuity_spine_summary"],
+    });
 
   return (
     <div aria-label="Agent Workplane" style={surfaceStyle}>
@@ -1479,6 +1513,9 @@ export async function AgentWorkplane() {
         <WorkplaneOverview context={context} />
         <GuideBriefMiniPanel guideBrief={guideBrief} variant="workbench" />
         <ContinuityRelayWorkplanePanel context={context} />
+        <WorkplaneContinuitySpineSummaryPanel
+          summary={workplaneContinuitySpineSummary}
+        />
         <GuideWorkplaneDebugPanel debugContext={workplaneDebugContext} />
         <GuideIntentProjectionPanel projection={workplaneIntentProjection} />
         <section
