@@ -2378,6 +2378,34 @@ implement a separate explicit state-application-to-existing-state writer only
 after honest mapping of current-working/canonical state refs and row-count
 validation.
 
+## Manual Perspective Writer Compatibility Contract Preview v0.1 Pointer
+
+Active committed manual Perspective state application readback can now produce
+an existing current-working/canonical Perspective writer compatibility
+authorization contract preview and local operator review. The preview preserves
+state application refs, adapter refs, state mutation refs, apply refs, canonical
+update refs, relay refs, signal refs, bias refs, projection/global
+ledger/metric/manual/EOD/Reuse refs, handoff/result fingerprints,
+state-application/adapter/mutation/apply/canonical/relay material,
+expected/observed/mismatch summaries, candidate refs, and manual-only context
+refs.
+
+This is preview-only. It does not call existing current-working writers, call
+existing canonical Perspective state writers, update current-working
+Perspective, mutate existing canonical Perspective state tables, promote
+Perspective, write Perspective Memory, mutate work, write proof/evidence,
+write metrics, write product data, mutate source stores, or mutate canonical
+project state. Existing writer compatibility is reported as findings and gaps,
+including missing current-working refs, canonical state refs, structured state
+material, proof/evidence refs, work refs, and Memory refs, rather than hidden
+or fabricated lineage.
+
+Future work may implement a separate explicitly authorized Perspective writer
+compatibility write slice with source revalidation, idempotency, duplicate
+replay, rollback/supersede, row-count validation, no proof/evidence
+fabrication, and no existing writer invocation until compatibility is proven.
+Perspective promotion remains out of scope.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record
