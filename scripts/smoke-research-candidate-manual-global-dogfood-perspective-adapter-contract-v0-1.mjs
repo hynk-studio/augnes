@@ -62,7 +62,7 @@ console.log(
       work_mutated: false,
       proof_or_evidence_rows_written: false,
       dogfood_metrics_written: false,
-      schema_or_api_write_route_added: false,
+      contract_preview_schema_or_api_write_route_added: false,
     },
     null,
     2,
@@ -225,10 +225,10 @@ function assertStaticContracts() {
     "adapter contract panel must not expose forbidden write controls",
   );
   assert.ok(
-    !existsSync(
-      "app/api/research-candidate-review/manual-global-dogfood-perspective-adapter",
+    source.panel.includes(
+      "ResearchCandidateManualGlobalDogfoodPerspectiveAdapterWritePanel",
     ),
-    "adapter contract preview must not add an API write route",
+    "adapter contract panel may hand off ready current reviews to the separately authorized adapter write panel",
   );
 }
 

@@ -237,6 +237,7 @@ export function openDatabase() {
   migrateResearchCandidateManualGlobalDogfoodCanonicalPerspectiveUpdateTables(db);
   migrateResearchCandidateManualGlobalDogfoodPerspectiveApplyTables(db);
   migrateResearchCandidateManualGlobalDogfoodPerspectiveStateMutationTables(db);
+  migrateResearchCandidateManualGlobalDogfoodPerspectiveAdapterTables(db);
   migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(db);
   migratePerspectiveMemoryItemsTable(db);
   return db;
@@ -3210,6 +3211,180 @@ function migrateResearchCandidateManualGlobalDogfoodPerspectiveStateMutationTabl
       ON research_candidate_manual_global_dogfood_perspective_state_mutation_rollbacks(receipt_id);
     CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_state_mutation_rollbacks_time
       ON research_candidate_manual_global_dogfood_perspective_state_mutation_rollbacks(created_at DESC);
+  `);
+}
+
+function migrateResearchCandidateManualGlobalDogfoodPerspectiveAdapterTables(
+  db: Database.Database,
+) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_perspective_adapter_receipts (
+      receipt_id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+      source_perspective_adapter_contract_fingerprint TEXT NOT NULL,
+      source_perspective_adapter_review_fingerprint TEXT NOT NULL,
+      source_perspective_state_mutation_receipt_id TEXT NOT NULL,
+      source_perspective_state_mutation_record_id TEXT NOT NULL,
+      source_perspective_state_mutation_record_fingerprint TEXT NOT NULL,
+      source_perspective_apply_receipt_id TEXT NOT NULL,
+      source_perspective_apply_record_id TEXT NOT NULL,
+      source_perspective_apply_record_fingerprint TEXT NOT NULL,
+      source_canonical_perspective_update_receipt_id TEXT NOT NULL,
+      source_canonical_perspective_update_record_id TEXT NOT NULL,
+      source_canonical_perspective_update_record_fingerprint TEXT NOT NULL,
+      source_perspective_relay_receipt_id TEXT NOT NULL,
+      source_perspective_relay_record_id TEXT NOT NULL,
+      source_perspective_relay_record_fingerprint TEXT NOT NULL,
+      source_next_work_signal_receipt_id TEXT NOT NULL,
+      source_next_work_signal_record_id TEXT NOT NULL,
+      source_next_work_signal_record_fingerprint TEXT NOT NULL,
+      source_next_work_bias_receipt_id TEXT NOT NULL,
+      source_next_work_bias_record_id TEXT NOT NULL,
+      source_next_work_bias_record_fingerprint TEXT NOT NULL,
+      source_projection_fingerprint TEXT NOT NULL,
+      source_global_dogfood_ledger_receipt_id TEXT NOT NULL,
+      source_global_dogfood_ledger_record_id TEXT NOT NULL,
+      source_metric_snapshot_receipt_id TEXT NOT NULL,
+      source_metric_snapshot_record_id TEXT NOT NULL,
+      source_manual_receipt_id TEXT NOT NULL,
+      source_handoff_seed_fingerprint TEXT NOT NULL,
+      source_result_text_fingerprint TEXT NOT NULL,
+      source_expected_observed_delta_record_ref TEXT NOT NULL,
+      source_reuse_outcome_record_ref TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      write_status TEXT NOT NULL CHECK (
+        write_status IN (
+          'committed',
+          'duplicate_replayed',
+          'superseded',
+          'rolled_back'
+        )
+      ),
+      authority_profile TEXT NOT NULL,
+      receipt_fingerprint TEXT NOT NULL,
+      supersedes_receipt_id TEXT,
+      rollback_of_receipt_id TEXT,
+      rollback_reason TEXT,
+      FOREIGN KEY (supersedes_receipt_id) REFERENCES research_candidate_manual_global_dogfood_perspective_adapter_receipts(receipt_id),
+      FOREIGN KEY (rollback_of_receipt_id) REFERENCES research_candidate_manual_global_dogfood_perspective_adapter_receipts(receipt_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_perspective_adapter_records (
+      perspective_adapter_record_id TEXT PRIMARY KEY,
+      receipt_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+      source_perspective_state_mutation_receipt_id TEXT NOT NULL,
+      source_perspective_state_mutation_record_id TEXT NOT NULL,
+      source_perspective_apply_receipt_id TEXT NOT NULL,
+      source_perspective_apply_record_id TEXT NOT NULL,
+      source_canonical_perspective_update_receipt_id TEXT NOT NULL,
+      source_canonical_perspective_update_record_id TEXT NOT NULL,
+      source_perspective_relay_receipt_id TEXT NOT NULL,
+      source_perspective_relay_record_id TEXT NOT NULL,
+      source_next_work_signal_receipt_id TEXT NOT NULL,
+      source_next_work_signal_record_id TEXT NOT NULL,
+      source_next_work_bias_receipt_id TEXT NOT NULL,
+      source_next_work_bias_record_id TEXT NOT NULL,
+      source_projection_fingerprint TEXT NOT NULL,
+      source_global_dogfood_ledger_receipt_id TEXT NOT NULL,
+      source_global_dogfood_ledger_record_id TEXT NOT NULL,
+      source_metric_snapshot_receipt_id TEXT NOT NULL,
+      source_metric_snapshot_record_id TEXT NOT NULL,
+      adapter_label TEXT NOT NULL,
+      adapter_rationale TEXT NOT NULL,
+      mutation_label TEXT NOT NULL,
+      mutation_rationale TEXT NOT NULL,
+      apply_label TEXT NOT NULL,
+      apply_rationale TEXT NOT NULL,
+      canonical_update_label TEXT NOT NULL,
+      canonical_update_rationale TEXT NOT NULL,
+      relay_update_label TEXT NOT NULL,
+      relay_update_rationale TEXT NOT NULL,
+      recommended_next_work_label TEXT NOT NULL,
+      outcome_label TEXT NOT NULL,
+      outcome_signal TEXT NOT NULL CHECK (outcome_signal IN ('positive', 'negative', 'ambiguous')),
+      intended_future_adapter_target TEXT NOT NULL CHECK (
+        intended_future_adapter_target IN (
+          'manual_specific_canonical_state_adapter',
+          'manual_specific_current_working_adapter'
+        )
+      ),
+      default_future_adapter_target TEXT NOT NULL CHECK (
+        default_future_adapter_target IN (
+          'manual_specific_canonical_state_adapter',
+          'manual_specific_current_working_adapter'
+        )
+      ),
+      adapter_scope_hint TEXT NOT NULL CHECK (
+        adapter_scope_hint IN (
+          'manual_specific_canonical_state_adapter',
+          'manual_specific_current_working_adapter'
+        )
+      ),
+      adapter_strength_hint TEXT NOT NULL CHECK (adapter_strength_hint IN ('low', 'medium', 'high')),
+      expected_future_write_scope TEXT NOT NULL CHECK (expected_future_write_scope IN ('adapter_record_only')),
+      recommended_storage_path TEXT NOT NULL CHECK (recommended_storage_path IN ('manual_specific_perspective_adapter_tables')),
+      expected_summary TEXT,
+      observed_summary TEXT,
+      mismatch_or_gap_summary TEXT,
+      selected_candidate_context_refs_json TEXT NOT NULL,
+      source_next_work_candidate_card_ids_json TEXT NOT NULL,
+      manual_only_context_refs_json TEXT NOT NULL,
+      source_line TEXT,
+      blockers_json TEXT NOT NULL,
+      warnings_json TEXT NOT NULL,
+      compatibility_findings_json TEXT NOT NULL,
+      existing_current_working_adapter_compatibility_json TEXT NOT NULL,
+      existing_canonical_state_adapter_compatibility_json TEXT NOT NULL,
+      manual_adapter_write_path_json TEXT NOT NULL,
+      source_refs_json TEXT NOT NULL,
+      authority_profile TEXT NOT NULL,
+      perspective_adapter_record_fingerprint TEXT NOT NULL,
+      FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_global_dogfood_perspective_adapter_receipts(receipt_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS research_candidate_manual_global_dogfood_perspective_adapter_rollbacks (
+      rollback_id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      receipt_id TEXT NOT NULL,
+      rollback_reason TEXT NOT NULL,
+      authority_profile TEXT NOT NULL,
+      rollback_fingerprint TEXT NOT NULL,
+      FOREIGN KEY (receipt_id) REFERENCES research_candidate_manual_global_dogfood_perspective_adapter_receipts(receipt_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_receipts_scope_time
+      ON research_candidate_manual_global_dogfood_perspective_adapter_receipts(scope, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_receipts_status
+      ON research_candidate_manual_global_dogfood_perspective_adapter_receipts(scope, write_status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_receipts_source_state_mutation
+      ON research_candidate_manual_global_dogfood_perspective_adapter_receipts(source_perspective_state_mutation_receipt_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_receipts_source_apply
+      ON research_candidate_manual_global_dogfood_perspective_adapter_receipts(source_perspective_apply_receipt_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_receipts_source_canonical_update
+      ON research_candidate_manual_global_dogfood_perspective_adapter_receipts(source_canonical_perspective_update_receipt_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_receipts_source_relay
+      ON research_candidate_manual_global_dogfood_perspective_adapter_receipts(source_perspective_relay_receipt_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_receipts_source_signal
+      ON research_candidate_manual_global_dogfood_perspective_adapter_receipts(source_next_work_signal_receipt_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_receipts_source_bias
+      ON research_candidate_manual_global_dogfood_perspective_adapter_receipts(source_next_work_bias_receipt_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_receipts_source_projection
+      ON research_candidate_manual_global_dogfood_perspective_adapter_receipts(source_projection_fingerprint, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_receipts_source_ledger
+      ON research_candidate_manual_global_dogfood_perspective_adapter_receipts(source_global_dogfood_ledger_receipt_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_receipts_source_metric
+      ON research_candidate_manual_global_dogfood_perspective_adapter_receipts(source_metric_snapshot_receipt_id, created_at DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_records_receipt
+      ON research_candidate_manual_global_dogfood_perspective_adapter_records(receipt_id);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_records_scope_time
+      ON research_candidate_manual_global_dogfood_perspective_adapter_records(scope, created_at DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_rollbacks_receipt
+      ON research_candidate_manual_global_dogfood_perspective_adapter_rollbacks(receipt_id);
+    CREATE INDEX IF NOT EXISTS idx_research_candidate_manual_global_dogfood_perspective_adapter_rollbacks_time
+      ON research_candidate_manual_global_dogfood_perspective_adapter_rollbacks(created_at DESC);
   `);
 }
 
