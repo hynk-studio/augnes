@@ -186,8 +186,18 @@ function assertStaticContracts() {
   );
   assert.doesNotMatch(
     source.panel,
-    /fetch\s*\(|localStorage|sessionStorage|navigator\.clipboard|POST|WritePanel/i,
-    "writer compatibility panel must not fetch, persist browser state, use clipboard, POST, or mount a write panel",
+    /fetch\s*\(|localStorage|sessionStorage|navigator\.clipboard|POST/i,
+    "writer compatibility panel must not fetch, persist browser state, use clipboard, or POST directly",
+  );
+  assert.match(
+    source.panel,
+    /ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityWritePanel/,
+    "writer compatibility panel may mount the authorized write panel after accepted local review",
+  );
+  assert.match(
+    source.panel,
+    /currentAcceptedReview[\s\S]*ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityWritePanel/,
+    "writer compatibility write panel must stay behind the current accepted review gate",
   );
   for (const requiredText of [
     "useEffect",

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityContract } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-writer-compatibility-contract";
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityReview } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-writer-compatibility-review";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityWritePanel } from "@/components/research-candidate-manual-global-dogfood-perspective-writer-compatibility-write-panel";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityContract } from "@/types/research-candidate-manual-global-dogfood-perspective-writer-compatibility-contract";
 import type {
   ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityReview,
@@ -77,6 +78,15 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibili
         review.accepted_mapping_summary.source_result_text_fingerprint ===
           contract.source_result_text_fingerprint))
       ? review
+      : null;
+  const currentAcceptedReview =
+    operatorDecision ===
+      "accept_contract_for_future_perspective_writer_compatibility_write_slice" &&
+    currentReview?.operator_decision ===
+      "accept_contract_for_future_perspective_writer_compatibility_write_slice" &&
+    currentReview.review_status ===
+      "ready_for_future_perspective_writer_compatibility_write_slice"
+      ? currentReview
       : null;
 
   useEffect(() => {
@@ -405,6 +415,12 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibili
           <WriterCompatibilityReviewPreview review={currentReview} />
         ) : null}
       </section>
+      {currentAcceptedReview ? (
+        <ResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibilityWritePanel
+          perspectiveWriterCompatibilityContract={contract}
+          perspectiveWriterCompatibilityReview={currentAcceptedReview}
+        />
+      ) : null}
     </section>
   );
 }
