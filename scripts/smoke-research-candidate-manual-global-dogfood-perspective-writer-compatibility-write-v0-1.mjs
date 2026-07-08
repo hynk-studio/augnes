@@ -74,6 +74,7 @@ console.log(
       storage_path: "manual_specific_perspective_writer_compatibility_tables",
       source_perspective_state_application_revalidated: true,
       malformed_contract_refusal_checked: true,
+      shallow_malformed_contract_refusal_checked: true,
       duplicate_replay_checked: true,
       rollback_checked: true,
       supersede_checked: true,
@@ -162,6 +163,37 @@ function assertStaticContracts() {
     source.writer,
     /contractShapeValid && contract[\s\S]*validateReview\(review, contract\)/,
     "writer must bind review only for a shape-valid contract",
+  );
+  assert.ok(
+    source.writer.includes('hasArray(contract, "blocker_reasons")'),
+    "contract shape must require blocker_reasons array",
+  );
+  assert.ok(
+    source.writer.includes('hasArray(mapping, key)') &&
+      source.writer.includes('"selected_candidate_context_refs"') &&
+      source.writer.includes('"source_next_work_candidate_card_ids"') &&
+      source.writer.includes('"manual_only_context_refs"') &&
+      source.writer.includes("Array.isArray(record[key])"),
+    "contract shape must array-check mapping refs used by validation/idempotency",
+  );
+  assert.ok(
+    source.writer.includes("candidateBooleanFields") &&
+      source.writer.includes('"writes_now"') &&
+      source.writer.includes('"would_call_existing_current_working_writer"') &&
+      source.writer.includes('"would_call_existing_canonical_state_writer"') &&
+      source.writer.includes("hasBoolean(candidate, key)"),
+    "contract shape must boolean-check candidate side-effect flags",
+  );
+  assert.ok(
+    source.writer.includes("currentWorkingCompatibilityBooleanFields") &&
+      source.writer.includes(
+        '"existing_current_working_perspective_apply_write_compatible"',
+      ) &&
+      source.writer.includes("canonicalCompatibilityBooleanFields") &&
+      source.writer.includes(
+        '"existing_canonical_perspective_state_writer_compatible"',
+      ),
+    "contract shape must boolean-check existing writer compatibility flags",
   );
   assert.match(
     source.writer,
@@ -347,6 +379,102 @@ function assertRuntimeWritePath() {
   assert.equal(malformedContract.idempotency_key, null);
   assert.equal(countRows(db, "research_candidate_manual_global_dogfood_perspective_writer_compatibility_receipts"), 0);
   assert.equal(countRows(db, "research_candidate_manual_global_dogfood_perspective_writer_compatibility_records"), 0);
+
+  const missingBlockerReasons = clone(readyContract);
+  delete missingBlockerReasons.blocker_reasons;
+  assertMalformedShallowContractRefused(
+    db,
+    missingBlockerReasons,
+    acceptedReview,
+    sourceReadback,
+    "missing blocker_reasons",
+  );
+
+  const stringBlockerReasons = clone(readyContract);
+  stringBlockerReasons.blocker_reasons = "not-array";
+  assertMalformedShallowContractRefused(
+    db,
+    stringBlockerReasons,
+    acceptedReview,
+    sourceReadback,
+    "string blocker_reasons",
+  );
+
+  const stringSelectedRefs = clone(readyContract);
+  stringSelectedRefs.proposed_writer_compatibility_mapping.selected_candidate_context_refs =
+    "not-array";
+  assertMalformedShallowContractRefused(
+    db,
+    stringSelectedRefs,
+    acceptedReview,
+    sourceReadback,
+    "string selected_candidate_context_refs",
+  );
+
+  const stringCandidateCards = clone(readyContract);
+  stringCandidateCards.proposed_writer_compatibility_mapping.source_next_work_candidate_card_ids =
+    "not-array";
+  assertMalformedShallowContractRefused(
+    db,
+    stringCandidateCards,
+    acceptedReview,
+    sourceReadback,
+    "string source_next_work_candidate_card_ids",
+  );
+
+  const stringManualRefs = clone(readyContract);
+  stringManualRefs.proposed_writer_compatibility_mapping.manual_only_context_refs =
+    "not-array";
+  assertMalformedShallowContractRefused(
+    db,
+    stringManualRefs,
+    acceptedReview,
+    sourceReadback,
+    "string manual_only_context_refs",
+  );
+
+  const stringWritesNow = clone(readyContract);
+  stringWritesNow.proposed_writer_compatibility_candidate.writes_now = "false";
+  assertMalformedShallowContractRefused(
+    db,
+    stringWritesNow,
+    acceptedReview,
+    sourceReadback,
+    "string writes_now",
+  );
+
+  const missingCandidateBoolean = clone(readyContract);
+  delete missingCandidateBoolean.proposed_writer_compatibility_candidate
+    .would_call_existing_current_working_writer;
+  assertMalformedShallowContractRefused(
+    db,
+    missingCandidateBoolean,
+    acceptedReview,
+    sourceReadback,
+    "missing candidate boolean",
+  );
+
+  const stringCurrentWorkingCompatibility = clone(readyContract);
+  stringCurrentWorkingCompatibility.existing_current_working_writer_compatibility.existing_current_working_perspective_apply_write_compatible =
+    "true";
+  assertMalformedShallowContractRefused(
+    db,
+    stringCurrentWorkingCompatibility,
+    acceptedReview,
+    sourceReadback,
+    "string current-working compatibility flag",
+  );
+
+  const stringCanonicalCompatibility = clone(readyContract);
+  stringCanonicalCompatibility.existing_canonical_state_writer_compatibility.existing_canonical_perspective_state_writer_compatible =
+    "true";
+  assertMalformedShallowContractRefused(
+    db,
+    stringCanonicalCompatibility,
+    acceptedReview,
+    sourceReadback,
+    "string canonical compatibility flag",
+  );
 
   const requestedMutation = writeWriterCompatibility(db, readyContract, acceptedReview, {
     requestedSideEffects: { call_existing_current_working_writer: true },
@@ -652,6 +780,64 @@ function writeWriterCompatibility(db, contract, review, options = {}) {
       requested_side_effects: options.requestedSideEffects,
     },
     { db },
+  );
+}
+
+function assertMalformedShallowContractRefused(
+  db,
+  contract,
+  review,
+  sourceReadback,
+  label,
+) {
+  const beforeReceipts = countRows(
+    db,
+    "research_candidate_manual_global_dogfood_perspective_writer_compatibility_receipts",
+  );
+  const beforeRecords = countRows(
+    db,
+    "research_candidate_manual_global_dogfood_perspective_writer_compatibility_records",
+  );
+  const result =
+    writeResearchCandidateManualGlobalDogfoodPerspectiveWriterCompatibility(
+      {
+        perspective_writer_compatibility_contract: contract,
+        perspective_writer_compatibility_review: review,
+        source_perspective_state_application_readback: sourceReadback,
+        operator_authorization: {
+          authorization_kind:
+            "manual_operator_authorized_perspective_writer_compatibility_write",
+          operator_confirmation_text:
+            RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_WRITER_COMPATIBILITY_WRITE_CONFIRMATION,
+          write_mode: "commit",
+        },
+      },
+      { db },
+    );
+  assert.equal(result.ok, false, `${label} must refuse`);
+  assert.equal(result.result_status, "refused", `${label} must be refused`);
+  assert.ok(
+    result.validation.failure_codes.includes(
+      "perspective_writer_compatibility_contract_shape_invalid",
+    ),
+    `${label} must include contract shape invalid`,
+  );
+  assert.equal(result.idempotency_key, null, `${label} must not fingerprint`);
+  assert.equal(
+    countRows(
+      db,
+      "research_candidate_manual_global_dogfood_perspective_writer_compatibility_receipts",
+    ),
+    beforeReceipts,
+    `${label} must not insert receipts`,
+  );
+  assert.equal(
+    countRows(
+      db,
+      "research_candidate_manual_global_dogfood_perspective_writer_compatibility_records",
+    ),
+    beforeRecords,
+    `${label} must not insert records`,
   );
 }
 

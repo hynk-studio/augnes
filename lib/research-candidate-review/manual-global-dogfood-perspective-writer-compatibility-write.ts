@@ -454,17 +454,187 @@ export function validateResearchCandidateManualGlobalDogfoodPerspectiveWriterCom
 }
 
 function validateContractShape(contract: JsonRecord) {
+  const mapping = contract.proposed_writer_compatibility_mapping;
+  const candidate = contract.proposed_writer_compatibility_candidate;
+  const writePath = contract.proposed_manual_writer_compatibility_path;
+  const idempotency = contract.idempotency_contract_preview;
+  const validation = contract.validation;
+  const authorityBoundary = contract.authority_boundary;
+  const currentWorkingCompatibility =
+    contract.existing_current_working_writer_compatibility;
+  const canonicalCompatibility =
+    contract.existing_canonical_state_writer_compatibility;
+  if (
+    !isRecord(mapping) ||
+    !isRecord(candidate) ||
+    !isRecord(writePath) ||
+    !isRecord(idempotency) ||
+    !isRecord(validation) ||
+    !isRecord(authorityBoundary) ||
+    !isRecord(currentWorkingCompatibility) ||
+    !isRecord(canonicalCompatibility)
+  ) {
+    return false;
+  }
+  const sourceFields = [
+    "source_perspective_state_application_receipt_id",
+    "source_perspective_state_application_record_id",
+    "source_perspective_state_application_record_fingerprint",
+    "source_perspective_adapter_receipt_id",
+    "source_perspective_adapter_record_id",
+    "source_perspective_adapter_record_fingerprint",
+    "source_perspective_state_mutation_receipt_id",
+    "source_perspective_state_mutation_record_id",
+    "source_perspective_state_mutation_record_fingerprint",
+    "source_perspective_apply_receipt_id",
+    "source_perspective_apply_record_id",
+    "source_perspective_apply_record_fingerprint",
+    "source_canonical_perspective_update_receipt_id",
+    "source_canonical_perspective_update_record_id",
+    "source_canonical_perspective_update_record_fingerprint",
+    "source_perspective_relay_receipt_id",
+    "source_perspective_relay_record_id",
+    "source_perspective_relay_record_fingerprint",
+    "source_next_work_signal_receipt_id",
+    "source_next_work_signal_record_id",
+    "source_next_work_signal_record_fingerprint",
+    "source_next_work_bias_receipt_id",
+    "source_next_work_bias_record_id",
+    "source_next_work_bias_record_fingerprint",
+    "source_projection_fingerprint",
+    "source_global_dogfood_ledger_receipt_id",
+    "source_global_dogfood_ledger_record_id",
+    "source_metric_snapshot_receipt_id",
+    "source_metric_snapshot_record_id",
+    "source_manual_receipt_id",
+    "source_handoff_seed_fingerprint",
+    "source_result_text_fingerprint",
+    "source_expected_observed_delta_record_ref",
+    "source_reuse_outcome_record_ref",
+  ] as const;
+  const mappingStringOrNullFields = [
+    "writer_compatibility_label",
+    "writer_compatibility_rationale",
+    "state_application_label",
+    "state_application_rationale",
+    "adapter_label",
+    "adapter_rationale",
+    "mutation_label",
+    "mutation_rationale",
+    "apply_label",
+    "apply_rationale",
+    "canonical_update_label",
+    "canonical_update_rationale",
+    "relay_update_label",
+    "relay_update_rationale",
+    "recommended_next_work_label",
+    "outcome_label",
+    "expected_summary",
+    "observed_summary",
+    "mismatch_or_gap_summary",
+    "source_line",
+  ] as const;
+  const mappingArrayFields = [
+    "selected_candidate_context_refs",
+    "source_next_work_candidate_card_ids",
+    "manual_only_context_refs",
+    "compatibility_findings_summary",
+    "blockers",
+    "warnings",
+  ] as const;
+  const mappingBooleanFields = [
+    "can_feed_future_writer_compatibility_write_candidate",
+    "can_update_current_working_perspective_now",
+    "can_mutate_existing_canonical_perspective_state_now",
+    "can_call_existing_current_working_writer_now",
+    "can_call_existing_canonical_state_writer_now",
+    "can_promote_perspective_now",
+    "can_write_perspective_memory_now",
+    "can_mutate_work_now",
+    "can_write_proof_or_evidence_now",
+    "can_mutate_source_records_now",
+  ] as const;
+  const candidateBooleanFields = [
+    "writes_now",
+    "would_update_current_working_perspective",
+    "would_mutate_existing_canonical_perspective_state",
+    "would_call_existing_current_working_writer",
+    "would_call_existing_canonical_state_writer",
+    "would_promote_perspective",
+    "would_write_perspective_memory",
+    "would_mutate_work",
+    "would_write_proof_or_evidence",
+  ] as const;
+  const authorityBoundaryBooleanFields = [
+    "preview_only",
+    "read_only",
+    "can_write_perspective_writer_compatibility_record",
+    "can_call_existing_current_working_writer",
+    "can_call_existing_canonical_state_writer",
+    "can_update_current_working_perspective",
+    "can_mutate_existing_canonical_perspective_state",
+    "can_write_existing_canonical_perspective_state",
+    "can_promote_perspective",
+    "can_write_perspective_memory",
+    "can_mutate_work",
+    "can_write_proof_or_evidence",
+  ] as const;
+  const currentWorkingCompatibilityBooleanFields = [
+    "existing_current_working_perspective_update_contract_preview_compatible",
+    "existing_current_working_perspective_update_contract_write_compatible",
+    "existing_current_working_perspective_apply_preview_compatible",
+    "existing_current_working_perspective_apply_write_compatible",
+    "existing_route_integration_contract_compatible",
+  ] as const;
+  const canonicalCompatibilityBooleanFields = [
+    "existing_canonical_perspective_state_writer_compatible",
+    "existing_canonical_perspective_state_read_model_compatible",
+    "existing_canonical_perspective_state_route_compatible",
+  ] as const;
   return (
     contract.contract_kind ===
       "research_candidate_manual_global_dogfood_perspective_writer_compatibility_contract" &&
     contract.contract_version ===
       "research_candidate_manual_global_dogfood_perspective_writer_compatibility_contract.v0.1" &&
-    isRecord(contract.proposed_writer_compatibility_mapping) &&
-    isRecord(contract.proposed_writer_compatibility_candidate) &&
-    isRecord(contract.proposed_manual_writer_compatibility_path) &&
-    isRecord(contract.idempotency_contract_preview) &&
-    isRecord(contract.validation) &&
-    isRecord(contract.authority_boundary)
+    hasString(contract, "scope") &&
+    hasString(contract, "operator_intent_label") &&
+    hasString(contract, "requested_future_write_mode") &&
+    hasString(contract, "source_perspective_state_application_readback_ref") &&
+    hasString(contract, "operator_authorization_mode") &&
+    hasString(contract, "next_recommended_slice") &&
+    sourceFields.every((key) => hasStringOrNull(contract, key)) &&
+    hasArray(contract, "compatibility_findings") &&
+    hasArray(contract, "blocker_reasons") &&
+    hasArray(contract, "warning_reasons") &&
+    hasArray(contract, "required_future_authorization") &&
+    hasArray(contract, "required_future_checks") &&
+    mappingStringOrNullFields.every((key) => hasStringOrNull(mapping, key)) &&
+    isOutcomeSignalOrNull(mapping.outcome_signal) &&
+    mappingArrayFields.every((key) => hasArray(mapping, key)) &&
+    mappingBooleanFields.every((key) => hasBoolean(mapping, key)) &&
+    hasString(mapping, "intended_future_writer_target") &&
+    hasString(mapping, "default_future_writer_target") &&
+    hasString(candidate, "candidate_kind") &&
+    hasString(candidate, "candidate_status") &&
+    hasString(candidate, "writer_compatibility_scope_hint") &&
+    hasString(candidate, "writer_compatibility_strength_hint") &&
+    hasString(candidate, "reason") &&
+    candidateBooleanFields.every((key) => hasBoolean(candidate, key)) &&
+    hasString(writePath, "recommended_storage_path") &&
+    hasString(writePath, "expected_future_write_scope") &&
+    hasString(idempotency, "proposed_idempotency_key") &&
+    hasBoolean(validation, "passed") &&
+    hasString(validation, "contract_fingerprint") &&
+    hasNumber(validation, "blocker_count") &&
+    authorityBoundaryBooleanFields.every((key) =>
+      hasBoolean(authorityBoundary, key),
+    ) &&
+    currentWorkingCompatibilityBooleanFields.every((key) =>
+      hasBoolean(currentWorkingCompatibility, key),
+    ) &&
+    canonicalCompatibilityBooleanFields.every((key) =>
+      hasBoolean(canonicalCompatibility, key),
+    )
   );
 }
 
@@ -2227,6 +2397,39 @@ function rollbackResultFlags(hasPerspectiveWriterCompatibilityRecord: boolean) {
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isStringOrNull(value: unknown): value is string | null {
+  return typeof value === "string" || value === null;
+}
+
+function isOutcomeSignalOrNull(
+  value: unknown,
+): value is "positive" | "negative" | "ambiguous" | null {
+  return (
+    value === null ||
+    (typeof value === "string" && SUPPORTED_OUTCOME_SIGNALS.has(value))
+  );
+}
+
+function hasString(record: JsonRecord, key: string): boolean {
+  return typeof record[key] === "string";
+}
+
+function hasStringOrNull(record: JsonRecord, key: string): boolean {
+  return isStringOrNull(record[key]);
+}
+
+function hasBoolean(record: JsonRecord, key: string): boolean {
+  return typeof record[key] === "boolean";
+}
+
+function hasNumber(record: JsonRecord, key: string): boolean {
+  return typeof record[key] === "number" && Number.isFinite(record[key]);
+}
+
+function hasArray(record: JsonRecord, key: string): boolean {
+  return Array.isArray(record[key]);
 }
 
 function hasText(value: unknown): value is string {
