@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-dry-run-contract";
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-dry-run-review";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResultPanel } from "@/components/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-result-panel";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract";
 import type {
   ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview,
@@ -381,6 +382,11 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDry
         </div>
         {currentReview ? <DryRunReviewPreview review={currentReview} /> : null}
       </section>
+
+      <ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResultPanel
+        existingWriterDryRunContract={contract}
+        existingWriterDryRunReview={currentReview ?? null}
+      />
     </section>
   );
 }
