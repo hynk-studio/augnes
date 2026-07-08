@@ -2333,6 +2333,27 @@ Future work may implement a separate explicit adapter-to-existing-state writer
 only after honest mapping of current-working/canonical state refs and row-count
 validation.
 
+## Manual Perspective State Application Contract Preview v0.1 Pointer
+
+Active committed manual Perspective adapter readback can now produce an existing
+current-working/canonical Perspective state application authorization contract
+preview and local operator review. The preview preserves the adapter, state
+mutation, apply, canonical update, relay, signal, bias, projection, global
+ledger, metric, manual, EOD/Reuse, handoff seed fingerprint, and result text
+fingerprint source chain.
+
+This is preview-only. It does not update current-working Perspective, mutate
+existing canonical Perspective state tables, promote Perspective, write
+Perspective Memory, mutate work, write proof/evidence, write metrics, write
+product data, mutate source stores, or mutate canonical project state. Existing
+current-working and existing canonical state application compatibility is
+reported as findings and gaps rather than hidden or fabricated lineage.
+
+Future work may implement a separate explicitly authorized Perspective state
+application write slice with source revalidation, idempotency, duplicate replay,
+rollback/supersede, row-count validation, manual source-chain binding, and no
+proof/evidence fabrication. Perspective promotion remains out of scope.
+
 ## Next Recommended Step
 
 Use `/research-candidate-review` to review the authorized manual result record
