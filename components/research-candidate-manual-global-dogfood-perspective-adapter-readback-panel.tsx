@@ -1,7 +1,10 @@
+"use client";
+
 import type {
   ResearchCandidateManualGlobalDogfoodPerspectiveAdapterReadback,
   ResearchCandidateManualGlobalDogfoodPerspectiveAdapterRecordsByReceipt,
 } from "@/types/research-candidate-manual-global-dogfood-perspective-adapter-write";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContractPanel } from "@/components/research-candidate-manual-global-dogfood-perspective-state-application-contract-panel";
 
 export function ResearchCandidateManualGlobalDogfoodPerspectiveAdapterReadbackPanel({
   readback,
@@ -171,6 +174,10 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveAdapterReadbackPa
               />
             </div>
           </section>
+
+          <ResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContractPanel
+            readback={readback}
+          />
         </>
       ) : (
         <p className="manual-note-runtime-hint">

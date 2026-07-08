@@ -2406,6 +2406,23 @@ for (const file of followOnResearchCandidateManualGlobalDogfoodPerspectiveAdapte
   allowedChangedFiles.add(file);
 }
 
+const followOnResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContractFiles = [
+  "types/research-candidate-manual-global-dogfood-perspective-state-application-contract.ts",
+  "types/research-candidate-manual-global-dogfood-perspective-state-application-review.ts",
+  "lib/research-candidate-review/manual-global-dogfood-perspective-state-application-contract.ts",
+  "lib/research-candidate-review/manual-global-dogfood-perspective-state-application-review.ts",
+  "components/research-candidate-manual-global-dogfood-perspective-state-application-contract-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-perspective-adapter-readback-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-global-dogfood-perspective-state-application-contract-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+for (const file of followOnResearchCandidateManualGlobalDogfoodPerspectiveStateApplicationContractFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const textByFile = loadTextByFile(requiredFiles);
 const workbenchPageText = textByFile.get(workbenchPageFile);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
