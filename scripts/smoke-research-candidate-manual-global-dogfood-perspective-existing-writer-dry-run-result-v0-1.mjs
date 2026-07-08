@@ -52,6 +52,7 @@ console.log(
       pass: true,
       result_artifact_present: true,
       existing_writer_unsupported_when_no_safe_entrypoint: true,
+      missing_review_blocks_without_implied_acceptance: true,
       existing_writer_called: false,
       row_count_delta_detected: true,
       raw_result_text_refused: true,
@@ -155,6 +156,48 @@ function assertStaticContracts() {
     /useState|useEffect|<button|onClick|fetch\s*\(|localStorage|sessionStorage|navigator\.clipboard|POST/i,
     "result panel must be passive and avoid controls, fetches, persistence, or route calls",
   );
+  assert.doesNotMatch(
+    source.contractPanel,
+    /acceptedResultHarnessReview/,
+    "contract panel must not fabricate an accepted review for result wiring",
+  );
+  const resultPanelWiring = extractResultPanelWiring(source.contractPanel);
+  assert.ok(
+    resultPanelWiring.includes("existingWriterDryRunReview={currentReview ?? null}"),
+    "contract panel must pass currentReview or null into result panel",
+  );
+  assert.doesNotMatch(
+    resultPanelWiring,
+    /operator_decision:\s*["']accept_contract_for_future_existing_writer_dry_run_adapter_write_slice["']/,
+    "result panel wiring must not hard-code accepted operator decision",
+  );
+  assert.ok(
+    source.resultPanel.includes(
+      "existingWriterDryRunReview?: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview | null",
+    ),
+    "result panel review prop must be nullable",
+  );
+  assert.ok(
+    source.resultPanel.includes(
+      "existing_writer_dry_run_review: existingWriterDryRunReview ?? null",
+    ),
+    "result panel must pass null through to result builder",
+  );
+  assert.ok(
+    source.resultPanel.includes("<h5>Source binding</h5>"),
+    "result panel must not claim accepted source binding for missing reviews",
+  );
+  assert.doesNotMatch(
+    source.resultPanel,
+    /Accepted source binding/,
+    "result panel copy must avoid unconditional accepted-source wording",
+  );
+  assert.ok(
+    source.resultPanel.includes(
+      "source review not accepted or missing; result is blocked and no",
+    ),
+    "result panel must visibly report missing or non-accepted source review",
+  );
 }
 
 function assertBehavior() {
@@ -224,6 +267,31 @@ function assertBehavior() {
     "default_empty_in_memory_noop",
   );
   assert.equal(defaultCounts.validation.passed, true);
+
+  const missingReviewResult =
+    buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResult({
+      existing_writer_dry_run_contract: contract,
+      existing_writer_dry_run_review: null,
+      row_count_before: counts,
+      row_count_after: counts,
+    });
+  assert.equal(missingReviewResult.result_status, "source_review_not_accepted");
+  assert.equal(missingReviewResult.validation.source_review_present, false);
+  assert.equal(missingReviewResult.validation.source_review_accepted, false);
+  assert.equal(missingReviewResult.validation.passed, false);
+  assert.equal(missingReviewResult.validation.existing_writer_called, false);
+  assert.equal(
+    missingReviewResult.non_mutation_proof.all_protected_row_counts_unchanged,
+    true,
+  );
+  assert.equal(
+    missingReviewResult.non_mutation_proof.changed_protected_table_count,
+    0,
+  );
+  assert.ok(
+    missingReviewResult.blocker_reasons.includes("source_review_missing"),
+  );
+  assertNoMutationExternalFlags(missingReviewResult);
 
   const notAcceptedReview =
     buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview({
@@ -352,6 +420,49 @@ function assertBehavior() {
   );
 }
 
+function assertNoMutationExternalFlags(result) {
+  const proof = result.non_mutation_proof;
+  for (const field of [
+    "existing_writer_called",
+    "existing_current_working_writer_called",
+    "existing_canonical_state_writer_called",
+    "current_working_perspective_updated",
+    "existing_canonical_perspective_state_table_mutated",
+    "canonical_perspective_state_written",
+    "perspective_promoted",
+    "perspective_memory_written",
+    "perspective_writer_compatibility_record_mutated",
+    "perspective_state_application_record_mutated",
+    "perspective_adapter_record_mutated",
+    "perspective_state_mutation_record_mutated",
+    "perspective_apply_record_mutated",
+    "canonical_perspective_update_record_mutated",
+    "perspective_relay_mutated",
+    "next_work_bias_mutated",
+    "work_item_written",
+    "work_mutated",
+    "dogfood_metrics_written",
+    "global_dogfood_ledger_written",
+    "metric_snapshot_written",
+    "next_work_signal_decision_written",
+    "proof_or_evidence_written",
+    "manual_result_records_written",
+    "manual_result_records_mutated",
+    "product_write_executed",
+    "api_write_route_added",
+    "dry_run_api_route_added",
+    "db_schema_or_migration_added",
+    "provider_openai_called",
+    "github_called",
+    "codex_executed",
+    "sources_fetched",
+    "retrieval_rag_embeddings_vector_fts_or_crawler_run",
+    "operator_note_persisted",
+  ]) {
+    assert.equal(proof[field], false, `${field} must remain false`);
+  }
+}
+
 function assertPackageAndMounting() {
   assert.ok(
     packageJson.scripts[
@@ -371,6 +482,14 @@ function assertPackageAndMounting() {
     ),
     "agent workplane panel smoke must allow the result follow-on files",
   );
+}
+
+function extractResultPanelWiring(panelSource) {
+  const start = panelSource.indexOf(
+    "<ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResultPanel",
+  );
+  assert.notEqual(start, -1, "result panel wiring must exist");
+  return panelSource.slice(start, start + 400);
 }
 
 function buildReadyContractAndReview() {

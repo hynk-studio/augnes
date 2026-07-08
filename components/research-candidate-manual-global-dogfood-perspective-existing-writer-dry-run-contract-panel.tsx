@@ -57,12 +57,6 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDry
       operator_intent_label:
         "research_candidate_manual_global_dogfood_perspective_existing_writer_dry_run_contract_panel",
     });
-  const acceptedResultHarnessReview =
-    buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview({
-      existing_writer_dry_run_contract: contract,
-      operator_decision:
-        "accept_contract_for_future_existing_writer_dry_run_adapter_write_slice",
-    });
   const currentContractFingerprint = contract.validation.contract_fingerprint;
   const currentReview =
     review &&
@@ -391,7 +385,7 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDry
 
       <ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResultPanel
         existingWriterDryRunContract={contract}
-        existingWriterDryRunReview={acceptedResultHarnessReview}
+        existingWriterDryRunReview={currentReview ?? null}
       />
     </section>
   );

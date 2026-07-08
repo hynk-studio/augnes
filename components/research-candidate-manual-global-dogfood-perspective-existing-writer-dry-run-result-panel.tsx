@@ -10,12 +10,12 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDry
   existingWriterDryRunReview,
 }: {
   existingWriterDryRunContract: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContract;
-  existingWriterDryRunReview: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview;
+  existingWriterDryRunReview?: ResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunReview | null;
 }) {
   const result =
     buildResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunResult({
       existing_writer_dry_run_contract: existingWriterDryRunContract,
-      existing_writer_dry_run_review: existingWriterDryRunReview,
+      existing_writer_dry_run_review: existingWriterDryRunReview ?? null,
     });
 
   return <ExistingWriterDryRunResultView result={result} />;
@@ -48,10 +48,17 @@ function ExistingWriterDryRunResultView({
           </p>
           <h4>Existing writer no-mutation dry-run result</h4>
           <p>
-            This deterministic result validates the accepted dry-run contract
-            chain and reports row-count proof without calling an existing writer
-            or writing a dry-run result record.
+            This deterministic result validates the supplied dry-run
+            contract/review chain when accepted; otherwise it reports
+            source-review blockers. It reports row-count proof without calling
+            an existing writer or writing a dry-run result record.
           </p>
+          {!result.validation.source_review_accepted ? (
+            <p>
+              source review not accepted or missing; result is blocked and no
+              accepted operator decision is implied.
+            </p>
+          ) : null}
         </div>
         <div className="perspective-constellation-shell-status">
           <span className="status-pill">{result.result_status}</span>
@@ -160,7 +167,7 @@ function SourceBindingSummary({
   const binding = result.source_binding;
   return (
     <section className="cockpit-surface-card">
-      <h5>Accepted source binding</h5>
+      <h5>Source binding</h5>
       <dl>
         <dt>source_contract_fingerprint</dt>
         <dd>{binding.source_contract_fingerprint ?? "missing"}</dd>
