@@ -21,6 +21,8 @@ const currentPerspectiveCardFile =
   "components/human-surface/current-perspective-card.tsx";
 const recentDeltasFile = "components/human-surface/recent-deltas-preview.tsx";
 const surfaceLinkGridFile = "components/human-surface/surface-link-grid.tsx";
+const researchCandidateReviewPageFile =
+  "app/research-candidate-review/page.tsx";
 const currentPerspectiveReadFile =
   "lib/human-surface/read-current-perspective.ts";
 const blankStateReviewEntriesReadFile =
@@ -612,6 +614,7 @@ const requiredFiles = [
   currentPerspectiveCardFile,
   recentDeltasFile,
   surfaceLinkGridFile,
+  researchCandidateReviewPageFile,
   currentPerspectiveReadFile,
   blankStateReviewEntriesReadFile,
   humanSurfaceDoc,
@@ -777,6 +780,9 @@ const modePresetText = textByFile.get(modePresetFile);
 const currentCardText = textByFile.get(currentPerspectiveCardFile);
 const recentDeltasText = textByFile.get(recentDeltasFile);
 const surfaceLinksText = textByFile.get(surfaceLinkGridFile);
+const researchCandidateReviewPageText = textByFile.get(
+  researchCandidateReviewPageFile,
+);
 const readHelperText = textByFile.get(currentPerspectiveReadFile);
 const blankStateReviewEntriesText = textByFile.get(
   blankStateReviewEntriesReadFile,
@@ -799,6 +805,7 @@ assertModePresets();
 assertCurrentPerspectiveCard();
 assertRecentDeltasPreview();
 assertSurfaceLinks();
+assertResearchCandidateReviewSurfaceRole();
 assertFallbackDisclosure();
 assertRuntimeReadMarkerUse();
 assertDocs();
@@ -993,7 +1000,11 @@ function assertBlankStateReviewEntries() {
     blankStateReviewEntriesText,
     [
       "BLANK_STATE_REVIEW_ENTRY_IDS",
-      'destination: "workplane";',
+      'export type BlankStateReviewEntryDestination',
+      '| "workplane"',
+      '| "perspective"',
+      '| "operator_review"',
+      "destination: BlankStateReviewEntryDestination;",
       'next_surface?: "state_proposal_review";',
       ...requiredEntryIds.map((id) => `"${id}"`),
       'href: "/workbench#work_queue"',
@@ -1002,11 +1013,27 @@ function assertBlankStateReviewEntries() {
       'href: "/workbench#handoff_builder_preview"',
       'href: "/workbench#runner_delta_batch"',
       'href: "/workbench#authority_boundary"',
+      'title: "Preview Codex Handoff"',
+      'title: "Inspect Runner DeltaBatch"',
+      'title: "Inspect Automation Boundary"',
+      'destination: "perspective"',
       "No approve, apply, reject, or commit control.",
+      "No Codex launch or execution.",
       "No runner execution, tick, recovery, or scheduling.",
+      "No provider, GitHub, Codex, runner, scheduler, DB, proof, evidence, memory, Perspective, or delta apply authority.",
     ],
     { label: blankStateReviewEntriesReadFile },
   );
+  for (const oldTitle of [
+    "Prepare Codex Handoff",
+    "Review Runner DeltaBatch",
+    "Automation Mode",
+  ]) {
+    assert(
+      !new RegExp(`title:\\s*"${oldTitle}"`).test(blankStateReviewEntriesText),
+      `${blankStateReviewEntriesReadFile} must not keep old title ${oldTitle}`,
+    );
+  }
 
   assertContainsAll(
     blankStateReviewEntryGridText,
@@ -1027,8 +1054,14 @@ function assertBlankStateReviewEntries() {
   );
   assert.equal(
     destinationAssignments?.length ?? 0,
-    7,
-    "Every Blank State entry must set destination: \"workplane\"",
+    6,
+    "Exactly six Blank State entries must route to Workplane",
+  );
+  assert(
+    /capability_id:\s*"choose_perspective_lens_entry",\s*destination:\s*"perspective",/.test(
+      blankStateReviewEntriesText,
+    ),
+    "choose_perspective_lens_entry must route to destination: \"perspective\"",
   );
   const nextSurfaceAssignments = blankStateReviewEntriesText.match(
     /next_surface:\s*"state_proposal_review",/g,
@@ -1038,10 +1071,15 @@ function assertBlankStateReviewEntries() {
     3,
     "Exactly the three State Proposal Review related entries must set next_surface",
   );
+  const expectedDestinationByStateProposalEntry = {
+    review_pending_proposals_entry: "workplane",
+    choose_perspective_lens_entry: "perspective",
+    user_judgment_summary_entry: "workplane",
+  };
   for (const id of stateProposalReviewNextSurfaceEntryIds) {
     assert(
       new RegExp(
-        `capability_id:\\s*"${id}",\\s*destination:\\s*"workplane",\\s*next_surface:\\s*"state_proposal_review",`,
+        `capability_id:\\s*"${id}",\\s*destination:\\s*"${expectedDestinationByStateProposalEntry[id]}",\\s*next_surface:\\s*"state_proposal_review",`,
       ).test(blankStateReviewEntriesText),
       `Missing state_proposal_review next surface for ${id}`,
     );
@@ -1141,6 +1179,25 @@ function assertSurfaceLinks() {
   );
 }
 
+function assertResearchCandidateReviewSurfaceRole() {
+  assertContainsAll(
+    researchCandidateReviewPageText,
+    [
+      'data-surface-role="operator-dogfood-review"',
+      "operator-dogfood-review-surface",
+      "human-surface-home",
+      "ResearchCandidateManualNotePreviewPanel",
+    ],
+    { label: researchCandidateReviewPageFile },
+  );
+  assert(
+    !/<button\b|\bonClick\s*=|\bformAction\b|\buse server\b/i.test(
+      researchCandidateReviewPageText,
+    ),
+    `${researchCandidateReviewPageFile} must not add action buttons or server actions`,
+  );
+}
+
 function assertFallbackDisclosure() {
   assertContainsAll(
     `${currentCardText}\n${readHelperText}`,
@@ -1198,6 +1255,7 @@ function assertNoMutationOrActuationCode() {
     readHelperText,
     blankStateReviewEntriesText,
     blankStateReviewEntryGridText,
+    researchCandidateReviewPageText,
     publicHomeText,
   ].join("\n");
 
