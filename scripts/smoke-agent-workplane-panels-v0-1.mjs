@@ -2488,6 +2488,23 @@ for (const file of followOnResearchCandidateManualGlobalDogfoodPerspectiveWriter
   allowedChangedFiles.add(file);
 }
 
+const followOnResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContractFiles = [
+  "types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract.ts",
+  "types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-review.ts",
+  "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-dry-run-contract.ts",
+  "lib/research-candidate-review/manual-global-dogfood-perspective-existing-writer-dry-run-review.ts",
+  "components/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract-panel.tsx",
+  "components/research-candidate-manual-global-dogfood-perspective-writer-compatibility-readback-panel.tsx",
+  "docs/RESEARCH_CANDIDATE_REVIEW_SURFACE_V0_1.md",
+  "scripts/smoke-research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-contract-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "package.json",
+];
+for (const file of followOnResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterDryRunContractFiles) {
+  allowedChangedFiles.add(file);
+}
+
 const textByFile = loadTextByFile(requiredFiles);
 const workbenchPageText = textByFile.get(workbenchPageFile);
 const agentWorkplaneText = textByFile.get(agentWorkplaneFile);
