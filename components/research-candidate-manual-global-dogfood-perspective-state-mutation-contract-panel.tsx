@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveStateMutationContract } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-state-mutation-contract";
 import { buildResearchCandidateManualGlobalDogfoodPerspectiveStateMutationReview } from "@/lib/research-candidate-review/manual-global-dogfood-perspective-state-mutation-review";
+import { ResearchCandidateManualGlobalDogfoodPerspectiveStateMutationWritePanel } from "@/components/research-candidate-manual-global-dogfood-perspective-state-mutation-write-panel";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveApplyReadback } from "@/types/research-candidate-manual-global-dogfood-perspective-apply-write";
 import type { ResearchCandidateManualGlobalDogfoodPerspectiveStateMutationContract } from "@/types/research-candidate-manual-global-dogfood-perspective-state-mutation-contract";
 import type {
@@ -66,6 +67,18 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveStateMutationCont
       reviewAcceptedMappingIdempotencyKey ===
         contract.idempotency_contract_preview.proposed_idempotency_key)
       ? review
+      : null;
+  const currentAcceptedReview =
+    operatorDecision ===
+      "accept_contract_for_future_perspective_state_mutation_write_slice" &&
+    currentReview?.operator_decision ===
+      "accept_contract_for_future_perspective_state_mutation_write_slice" &&
+    currentReview?.review_status ===
+      "ready_for_future_perspective_state_mutation_write_slice" &&
+    currentReview.source_contract_fingerprint === currentContractFingerprint &&
+    currentReview.accepted_mapping_summary?.proposed_idempotency_key ===
+      contract.idempotency_contract_preview.proposed_idempotency_key
+      ? currentReview
       : null;
 
   useEffect(() => {
@@ -339,6 +352,12 @@ export function ResearchCandidateManualGlobalDogfoodPerspectiveStateMutationCont
           <StateMutationReviewPreview review={currentReview} />
         ) : null}
       </section>
+      {currentAcceptedReview ? (
+        <ResearchCandidateManualGlobalDogfoodPerspectiveStateMutationWritePanel
+          perspectiveStateMutationContract={contract}
+          perspectiveStateMutationReview={currentAcceptedReview}
+        />
+      ) : null}
     </section>
   );
 }

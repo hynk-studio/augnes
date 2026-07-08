@@ -203,12 +203,40 @@ function assertStaticContracts() {
     /<button[\s\S]{0,240}(Apply current-working Perspective|Update current working Perspective|Write canonical Perspective state|Promote Perspective|Write Perspective Memory|Create work item)/i,
     "state mutation contract panel must not expose forbidden write controls",
   );
-  assert.ok(
-    !existsSync(
+  if (
+    existsSync(
       "app/api/research-candidate-review/manual-global-dogfood-perspective-state-mutation",
-    ),
-    "no Perspective state mutation contract preview API route must be added",
-  );
+    )
+  ) {
+    const writeRoute = readFileSync(
+      "app/api/research-candidate-review/manual-global-dogfood-perspective-state-mutation/route.ts",
+      "utf8",
+    );
+    const rollbackRoute = readFileSync(
+      "app/api/research-candidate-review/manual-global-dogfood-perspective-state-mutation/[receipt_id]/rollback/route.ts",
+      "utf8",
+    );
+    assert.match(
+      writeRoute,
+      /writeResearchCandidateManualGlobalDogfoodPerspectiveStateMutation/,
+      "state mutation API route may only exist as the authorized write/readback route",
+    );
+    assert.match(
+      writeRoute,
+      /readResearchCandidateManualGlobalDogfoodPerspectiveStateMutation/,
+      "state mutation API route must expose only readback plus authorized write",
+    );
+    assert.match(
+      rollbackRoute,
+      /rollbackResearchCandidateManualGlobalDogfoodPerspectiveStateMutationReceipt/,
+      "state mutation rollback route must call only rollback metadata helper",
+    );
+    assert.doesNotMatch(
+      `${writeRoute}\n${rollbackRoute}`,
+      /buildResearchCandidateManualGlobalDogfoodPerspectiveStateMutationContract|buildResearchCandidateManualGlobalDogfoodPerspectiveStateMutationReview|writeCurrentWorkingPerspective|applyCurrentWorkingPerspective|promotePerspective|writePerspectiveMemory|writeProof|writeEvidence|writeDogfoodMetric|new\s+OpenAI|api\.github\.com|retrieveSources|runRetrieval/i,
+      "state mutation routes must not add a contract-preview API or forbidden state/provider behavior",
+    );
+  }
 }
 
 function buildSample() {
