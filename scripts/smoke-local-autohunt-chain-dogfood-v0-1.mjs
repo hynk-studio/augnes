@@ -26,6 +26,13 @@ import { AUTOHUNT_HANDOFF_PLAN_OPERATOR_REVIEW_DECISION_TABLE } from "../types/a
 const files = {
   dogfoodSeed: "scripts/dogfood-seed-local-autohunt-chain-v0-1.mjs",
   smoke: "scripts/smoke-local-autohunt-chain-dogfood-v0-1.mjs",
+  copyExportType: "types/autohunt-handoff-copy-export-preview.ts",
+  copyExportBuilder:
+    "lib/autonomy/autohunt-handoff-copy-export-preview.ts",
+  copyExportPanel:
+    "components/autonomy/autohunt-handoff-copy-export-preview-panel.tsx",
+  copyExportSmoke:
+    "scripts/smoke-autohunt-handoff-copy-export-preview-v0-1.mjs",
   packageJson: "package.json",
   agentWorkplane: "components/workplane/agent-workplane.tsx",
   agentWorkplanePanelsSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",

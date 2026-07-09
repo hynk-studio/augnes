@@ -67,6 +67,13 @@ const files = {
     "scripts/dogfood-seed-local-autohunt-chain-v0-1.mjs",
   localAutohuntChainDogfoodSmoke:
     "scripts/smoke-local-autohunt-chain-dogfood-v0-1.mjs",
+  copyExportType: "types/autohunt-handoff-copy-export-preview.ts",
+  copyExportBuilder:
+    "lib/autonomy/autohunt-handoff-copy-export-preview.ts",
+  copyExportPanel:
+    "components/autonomy/autohunt-handoff-copy-export-preview-panel.tsx",
+  copyExportSmoke:
+    "scripts/smoke-autohunt-handoff-copy-export-preview-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set(Object.values(files));
