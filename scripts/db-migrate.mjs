@@ -29,6 +29,7 @@ import {
   migrateAutonomyDelegationGrants,
   migrateAutohuntWorkQueueCandidates,
   migrateAutohuntPreflightPackets,
+  migrateAutohuntHandoffPlanPreviews,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -92,6 +93,8 @@ try {
   const autonomyDelegationGrantResult = migrateAutonomyDelegationGrants(db);
   const autohuntWorkQueueCandidateResult = migrateAutohuntWorkQueueCandidates(db);
   const autohuntPreflightPacketResult = migrateAutohuntPreflightPackets(db);
+  const autohuntHandoffPlanPreviewResult =
+    migrateAutohuntHandoffPlanPreviews(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -688,6 +691,23 @@ try {
   if (autohuntPreflightPacketResult.created_indexes.length > 0) {
     console.log(
       `Created indexes: ${autohuntPreflightPacketResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (autohuntHandoffPlanPreviewResult.created_tables.length > 0) {
+    console.log(
+      `Created autohunt_handoff_plan_previews table at ${dbPath}: ${autohuntHandoffPlanPreviewResult.created_tables.join(", ")}`,
+    );
+  } else if (autohuntHandoffPlanPreviewResult.created_indexes.length === 0) {
+    console.log(
+      `Autohunt handoff plan preview migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(`Migrated autohunt_handoff_plan_previews indexes at ${dbPath}`);
+  }
+  if (autohuntHandoffPlanPreviewResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${autohuntHandoffPlanPreviewResult.created_indexes.join(", ")}`,
     );
   }
 

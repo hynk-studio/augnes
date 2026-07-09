@@ -49,6 +49,11 @@ const files = {
     "lib/autonomy/autohunt-workbench-readback-spine.ts",
   workbenchSpinePanel:
     "components/autonomy/autohunt-workbench-readback-spine-panel.tsx",
+  handoffPlanType: "types/autohunt-handoff-plan-preview.ts",
+  handoffPlanWriter: "lib/autonomy/autohunt-handoff-plan-preview-write.ts",
+  handoffPlanReader: "lib/autonomy/read-autohunt-handoff-plan-previews.ts",
+  handoffPlanPanel:
+    "components/autonomy/autohunt-handoff-plan-preview-readback-panel.tsx",
   agentWorkplane: "components/workplane/agent-workplane.tsx",
   db: "lib/db.ts",
   schema: "lib/db/schema.sql",
@@ -59,6 +64,8 @@ const files = {
   preflightSmoke: "scripts/smoke-autohunt-preflight-packet-v0-1.mjs",
   workbenchSpineSmoke:
     "scripts/smoke-autohunt-workbench-readback-spine-v0-1.mjs",
+  handoffPlanSmoke:
+    "scripts/smoke-autohunt-handoff-plan-preview-v0-1.mjs",
   packageJson: "package.json",
   sharedSourceGuardSmoke: "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
   agentWorkplanePanelsSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",

@@ -3666,6 +3666,86 @@ export function migrateAutohuntPreflightPackets(db) {
   };
 }
 
+export function migrateAutohuntHandoffPlanPreviews(db) {
+  const tableName = "autohunt_handoff_plan_previews";
+  const existingTable = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = ?
+      `,
+    )
+    .get(tableName);
+  const indexNames = [
+    "idx_autohunt_handoff_plan_previews_scope_created",
+    "idx_autohunt_handoff_plan_previews_source_grant_id_created",
+    "idx_autohunt_handoff_plan_previews_source_preflight_packet_id_created",
+    "idx_autohunt_handoff_plan_previews_handoff_plan_status_created",
+  ];
+  const existingIndexes = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND name IN (${indexNames.map(() => "?").join(", ")})
+        `,
+      )
+      .all(...indexNames)
+      .map((index) => index.name),
+  );
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS autohunt_handoff_plan_previews (
+      handoff_plan_id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+      handoff_plan_status TEXT NOT NULL,
+      source_grant_id TEXT NOT NULL,
+      source_grant_fingerprint TEXT NOT NULL,
+      source_grant_status TEXT NOT NULL,
+      source_grant_mode TEXT NOT NULL,
+      source_preflight_packet_id TEXT NOT NULL,
+      source_preflight_packet_fingerprint TEXT NOT NULL,
+      source_workbench_spine_fingerprint TEXT NOT NULL,
+      selected_candidate_ids_json TEXT NOT NULL,
+      selected_candidate_fingerprints_json TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      selected_candidate_plan_summaries_json TEXT NOT NULL,
+      supervised_codex_prompt_plan_json TEXT NOT NULL,
+      draft_pr_plan_json TEXT NOT NULL,
+      operator_review_packet_json TEXT NOT NULL,
+      aggregate_budget_projection_json TEXT NOT NULL,
+      blocked_actions_json TEXT NOT NULL,
+      next_allowed_outputs_json TEXT NOT NULL,
+      forbidden_outputs_json TEXT NOT NULL,
+      authority_boundary_json TEXT NOT NULL,
+      persisted_material_boundary_json TEXT NOT NULL,
+      validation_json TEXT NOT NULL,
+      row_count_write_summary_json TEXT NOT NULL,
+      handoff_plan_fingerprint TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_autohunt_handoff_plan_previews_scope_created
+      ON autohunt_handoff_plan_previews(scope, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_handoff_plan_previews_source_grant_id_created
+      ON autohunt_handoff_plan_previews(source_grant_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_handoff_plan_previews_source_preflight_packet_id_created
+      ON autohunt_handoff_plan_previews(source_preflight_packet_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_handoff_plan_previews_handoff_plan_status_created
+      ON autohunt_handoff_plan_previews(handoff_plan_status, created_at DESC);
+  `);
+
+  return {
+    table_found: true,
+    created_tables: existingTable ? [] : [tableName],
+    created_indexes: indexNames.filter((indexName) => !existingIndexes.has(indexName)),
+  };
+}
+
 export const perspectiveMemoryProductPersistenceBoundaryTableSql = `
   CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
     record_id TEXT PRIMARY KEY,
