@@ -43,10 +43,21 @@ import {
 
 const files = {
   type: "types/autohunt-daily-launcher-run.ts",
+  targetModeType: "types/autohunt-work-target-mode.ts",
   writer: "lib/autonomy/autohunt-daily-launcher-run-write.ts",
   readback: "lib/autonomy/read-autohunt-daily-launcher-runs.ts",
+  targetModeBuilder: "lib/autonomy/autohunt-work-target-mode-options.ts",
   panel: "components/autonomy/autohunt-daily-launcher-run-readback-panel.tsx",
+  blankStateTargetModePanel:
+    "components/human-surface/blank-state-autohunt-target-options-panel.tsx",
+  humanSurfaceHome: "components/human-surface/human-surface-home.tsx",
+  blankStatePanel: "components/human-surface/blank-state-panel.tsx",
   cli: "scripts/autohunt-daily-launcher-v0-1.mjs",
+  targetModeSmoke:
+    "scripts/smoke-autohunt-work-target-mode-options-v0-1.mjs",
+  humanSurfaceSmoke: "scripts/smoke-human-surface-home-v0-1.mjs",
+  blankStateReviewEntryAbsorptionSmoke:
+    "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
   smoke: "scripts/smoke-autohunt-daily-launcher-run-v0-1.mjs",
   dbTs: "lib/db.ts",
   schema: "lib/db/schema.sql",
@@ -171,15 +182,18 @@ function assertStaticWiring() {
     "persists_raw_confirmation_text: false",
     "persists_raw_prompt_text: false",
     "persists_raw_result_text: false",
+    "work_target_mode?: AutohuntWorkTargetMode",
   ]);
   assertContains(source.writer, [
     "writeAutohuntDailyLauncherRun",
     "writeAutohuntResultIntake",
+    "normalizeAutohuntWorkTargetMode",
     "buildDeterministicIdempotencyKey",
     "assertAllFalseBoundary",
     "findForbiddenRawMaterialFields",
     "containsForbiddenRawMaterial",
     "prepare_handoff_and_record_fixture_result",
+    "work_target_mode: targetModeOption.mode",
     "codex_executed: false",
     "github_called: false",
     "branch_or_pr_created: false",
@@ -195,11 +209,20 @@ function assertStaticWiring() {
     "AUGNES_AUTOHUNT_DAILY_LAUNCHER_CONFIRM",
     "--confirmation-ref",
     "--fixture-result",
+    "--target-mode",
     "readAutohuntSupervisedExecutionContracts",
     "writeAutohuntDailyLauncherRun",
     "codex_executed",
     "github_called",
     "branch_or_pr_created",
+  ]);
+  assertContains(source.targetModeType, [
+    "extend_current_perspective_work",
+    "create_new_perspective_work_from_autohunt_conditions",
+  ]);
+  assertContains(source.targetModeBuilder, [
+    "buildAutohuntWorkTargetModeOptions",
+    "getAutohuntWorkTargetModeOption",
   ]);
 }
 
@@ -278,6 +301,14 @@ function assertWriteReadbackBehavior() {
       handoffOnly.launcher_run?.launcher_run_status,
       "handoff_packet_prepared",
     );
+    assert.equal(
+      handoffOnly.launcher_run?.handoff_packet.work_target_mode,
+      "extend_current_perspective_work",
+    );
+    assert.equal(
+      handoffOnly.launcher_run?.handoff_packet.durable_new_work_created,
+      false,
+    );
     assert.equal(countRows(db, "autohunt_daily_launcher_runs"), beforeLauncher + 1);
     assert.equal(countRows(db, "autohunt_result_intakes"), beforeIntake);
     assert.equal(
@@ -302,6 +333,28 @@ function assertWriteReadbackBehavior() {
     assert.equal(duplicate.duplicate_replayed, true);
     assert.equal(duplicate.launcher_run_record_written, false);
     assert.equal(countRows(db, "autohunt_daily_launcher_runs"), beforeLauncher + 1);
+
+    const targetModeRun = writeAutohuntDailyLauncherRun(
+      {
+        scope: "project:augnes",
+        source_execution_contract: contract,
+        daily_confirmation: confirmation("new-work-target-mode"),
+        work_target_mode:
+          "create_new_perspective_work_from_autohunt_conditions",
+      },
+      { db, now: "2026-07-09T10:15:00.000Z" },
+    );
+    assert.equal(targetModeRun.ok, true);
+    assert.equal(
+      targetModeRun.launcher_run?.handoff_packet.work_target_mode,
+      "create_new_perspective_work_from_autohunt_conditions",
+    );
+    assert.equal(
+      targetModeRun.launcher_run?.handoff_packet.perspective_mutated,
+      false,
+    );
+    assert.equal(targetModeRun.launcher_run?.handoff_packet.cwp_mutated, false);
+    assert.equal(targetModeRun.launcher_run?.handoff_packet.memory_written, false);
 
     const fixtureBeforeLauncher = countRows(db, "autohunt_daily_launcher_runs");
     const fixtureBeforeIntake = countRows(db, "autohunt_result_intakes");

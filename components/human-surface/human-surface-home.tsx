@@ -3,21 +3,37 @@ import { CurrentPerspectiveCard } from "@/components/human-surface/current-persp
 import { GuideBriefMiniPanel } from "@/components/guide/guide-brief-mini-panel";
 import { RecentDeltasPreview } from "@/components/human-surface/recent-deltas-preview";
 import { SurfaceLinkGrid } from "@/components/human-surface/surface-link-grid";
+import { readAutohuntDailyLauncherRuns } from "@/lib/autonomy/read-autohunt-daily-launcher-runs";
+import { readAutohuntResultIntakes } from "@/lib/autonomy/read-autohunt-result-intakes";
+import { buildAutohuntWorkTargetModeOptions } from "@/lib/autonomy/autohunt-work-target-mode-options";
 import { buildBlankStateReviewEntries } from "@/lib/human-surface/blank-state-review-entries";
 import { readCurrentPerspectiveForHumanSurface } from "@/lib/human-surface/read-current-perspective";
 import { readGuideBriefForWeb } from "@/lib/guide/read-guide-brief-for-web";
 import { readRunnerDeltaBatchesForWorkplane } from "@/lib/workplane/read-runner-delta-batches-for-workplane";
 
 export async function HumanSurfaceHome() {
-  const [currentPerspectiveRead, guideBrief, runnerDeltaBatchRead] = await Promise.all([
+  const [
+    currentPerspectiveRead,
+    guideBrief,
+    runnerDeltaBatchRead,
+    latestDailyLauncherRunReadback,
+    latestResultIntakeReadback,
+  ] = await Promise.all([
     readCurrentPerspectiveForHumanSurface(),
     Promise.resolve(readGuideBriefForWeb()),
     Promise.resolve(readRunnerDeltaBatchesForWorkplane()),
+    Promise.resolve(readAutohuntDailyLauncherRuns({ limit: 10 })),
+    Promise.resolve(readAutohuntResultIntakes({ limit: 10 })),
   ]);
   const perspective = currentPerspectiveRead.data;
   const reviewEntries = buildBlankStateReviewEntries({
     currentPerspectiveRead,
     runnerDeltaBatchRead,
+  });
+  const autohuntTargetModeSummary = buildAutohuntWorkTargetModeOptions({
+    currentPerspectiveRead,
+    latestDailyLauncherRunReadback,
+    latestResultIntakeReadback,
   });
 
   return (
@@ -36,7 +52,10 @@ export async function HumanSurfaceHome() {
         </header>
 
         <div className="human-surface-layout">
-          <BlankStatePanel entries={reviewEntries} />
+          <BlankStatePanel
+            entries={reviewEntries}
+            autohuntTargetModeSummary={autohuntTargetModeSummary}
+          />
           <div className="human-surface-right-rail">
             <CurrentPerspectiveCard read={currentPerspectiveRead} />
             <GuideBriefMiniPanel guideBrief={guideBrief} variant="home" />

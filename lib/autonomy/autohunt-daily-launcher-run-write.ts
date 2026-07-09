@@ -9,6 +9,11 @@ import {
 import { writeAutohuntResultIntake } from "@/lib/autonomy/autohunt-result-intake-write";
 import { ensureAutohuntResultIntakeSchema } from "@/lib/autonomy/read-autohunt-result-intakes";
 import {
+  getAutohuntWorkTargetModeOption,
+  isAutohuntWorkTargetMode,
+  normalizeAutohuntWorkTargetMode,
+} from "@/lib/autonomy/autohunt-work-target-mode-options";
+import {
   computeAutohuntSupervisedExecutionContractFingerprint,
 } from "@/lib/autonomy/read-autohunt-supervised-execution-contracts";
 import {
@@ -52,6 +57,7 @@ import {
   type AutohuntDailyLauncherRunValidation,
   type AutohuntDailyLauncherRunWriteResult,
 } from "@/types/autohunt-daily-launcher-run";
+import type { AutohuntWorkTargetMode } from "@/types/autohunt-work-target-mode";
 import { RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_DRY_RUN_PROTECTED_ROW_COUNT_TABLES } from "@/types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-result";
 
 export interface WriteAutohuntDailyLauncherRunOptions {
@@ -68,6 +74,7 @@ type NormalizedLauncherInput = {
   daily_confirmation: AutohuntDailyLauncherRunConfirmation;
   handoff_packet: AutohuntDailyLauncherHandoffPacket;
   mode: AutohuntDailyLauncherRunMode;
+  work_target_mode: AutohuntWorkTargetMode;
   structured_result_report_fixture_input: AutohuntStructuredResultReportInput | null;
   authority_boundary: ReturnType<typeof buildAutohuntDailyLauncherRunAuthorityBoundary>;
   persisted_material_boundary: AutohuntDailyLauncherRunPersistedMaterialBoundary;
@@ -304,6 +311,9 @@ export function validateAutohuntDailyLauncherRunInput(
   ) {
     refusalReasons.push("launcher_run_mode_invalid");
   }
+  if (input.work_target_mode && !isAutohuntWorkTargetMode(input.work_target_mode)) {
+    refusalReasons.push("work_target_mode_invalid");
+  }
   refusalReasons.push(...validateRawMaterialBoundary(input));
   return [...new Set(refusalReasons)];
 }
@@ -318,6 +328,9 @@ function normalizeLauncherInput(
     ? (input.mode as AutohuntDailyLauncherRunMode)
     : "prepare_handoff_only";
   const sourceSummary = summarizeSourceExecutionContract(sourceContract);
+  const workTargetMode = normalizeAutohuntWorkTargetMode(
+    input.work_target_mode,
+  );
   const dailyConfirmation = normalizeDailyConfirmation(
     input.daily_confirmation,
   );
@@ -325,6 +338,7 @@ function normalizeLauncherInput(
     sourceContract,
     sourceSummary,
     dailyConfirmation,
+    workTargetMode,
   });
   const fixtureInput =
     mode === "prepare_handoff_and_record_fixture_result"
@@ -343,6 +357,7 @@ function normalizeLauncherInput(
     daily_confirmation: dailyConfirmation,
     handoff_packet: handoffPacket,
     mode,
+    work_target_mode: workTargetMode,
     structured_result_report_fixture_input: fixtureInput,
     authority_boundary: buildAutohuntDailyLauncherRunAuthorityBoundary(),
     persisted_material_boundary: createPersistedMaterialBoundary(),
@@ -421,17 +436,29 @@ function buildHandoffPacket({
   sourceContract,
   sourceSummary,
   dailyConfirmation,
+  workTargetMode,
 }: {
   sourceContract: AutohuntSupervisedExecutionContract;
   sourceSummary: AutohuntDailyLauncherRunSourceExecutionContract;
   dailyConfirmation: AutohuntDailyLauncherRunConfirmation;
+  workTargetMode: AutohuntWorkTargetMode;
 }): AutohuntDailyLauncherHandoffPacket {
+  const targetModeOption = getAutohuntWorkTargetModeOption(workTargetMode);
   const packetWithoutFingerprint = {
     handoff_packet_id: "",
     handoff_packet_status: "prepared_for_manual_codex_handoff" as const,
     title: "Daily supervised Autohunt handoff packet",
     goal_summary:
       "Prepare a manual Codex handoff using the ready supervised execution contract; do not execute Codex from this launcher.",
+    work_target_mode: targetModeOption.mode,
+    work_target_mode_label: targetModeOption.short_label,
+    lifecycle_interpretation: targetModeOption.lifecycle_interpretation,
+    result_attachment_policy: targetModeOption.result_attachment_policy,
+    branch_policy: targetModeOption.branch_policy,
+    durable_new_work_created: false as const,
+    perspective_mutated: false as const,
+    cwp_mutated: false as const,
+    memory_written: false as const,
     source_refs: uniqueStrings([
       sourceSummary.contract_id,
       sourceSummary.active_grant_id,
@@ -970,6 +997,7 @@ function computeIdempotencyKey(input: NormalizedLauncherInput) {
       confirmation_fingerprint:
         input.daily_confirmation.confirmation_fingerprint,
       mode: input.mode,
+      work_target_mode: input.work_target_mode,
       handoff_packet_fingerprint:
         input.handoff_packet.handoff_packet_fingerprint,
       fixture_result_seed_fingerprint: input.structured_result_report_fixture_input
