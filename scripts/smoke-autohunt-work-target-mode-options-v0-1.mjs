@@ -174,14 +174,28 @@ function assertStaticWiring() {
   assertContains(source.builder, [
     "buildAutohuntWorkTargetModeOptions",
     "AUTOHUNT_WORK_TARGET_MODE_OPTIONS",
-    "현재 관점작업 연장",
-    "Autohunt 조건으로 새 관점작업 생성",
+    "Extend current Perspective work",
+    "Extend current work",
+    "Create new Perspective work candidate",
+    "New work candidate",
+    "This screen does not create durable work",
+    "Durable creation or promotion requires separate approval",
     "selected_mode",
     "recommended_mode",
     "branch_suggestion",
     "authority_boundary_all_false: true",
     "raw_material_persisted: false",
   ]);
+  assert.doesNotMatch(
+    source.builder,
+    /Autohunt 조건으로 새 관점작업 생성/,
+    "option 2 title must not use the unsafe create wording",
+  );
+  assert.doesNotMatch(
+    source.builder,
+    /title:\s*"Create new Perspective work"/,
+    "option 2 title must include candidate",
+  );
   assertContains(source.dailyLauncherType, [
     "work_target_mode?: AutohuntWorkTargetMode",
     "work_target_mode_label?: string",
@@ -219,8 +233,11 @@ function assertStaticWiring() {
     "BlankStateAutohuntTargetOptionsPanel",
     "autohuntTargetModeSummary",
   ]);
+  assertBlankStateOrder();
   assertContains(source.panel, [
     "Daily Autohunt target",
+    "Preview only",
+    "No Perspective, CWP, work, or memory state is mutated here",
     "summary.options.map",
     "option.title",
     "/workbench#autohunt-daily-launcher",
@@ -236,7 +253,27 @@ function assertBuilderBehavior() {
   ]);
   assert.equal(
     getAutohuntWorkTargetModeOption("extend_current_perspective_work").title,
-    "현재 관점작업 연장",
+    "Extend current Perspective work",
+  );
+  assert.equal(
+    getAutohuntWorkTargetModeOption("extend_current_perspective_work")
+      .short_label,
+    "Extend current work",
+  );
+  const candidateOption = getAutohuntWorkTargetModeOption(
+    "create_new_perspective_work_from_autohunt_conditions",
+  );
+  assert.equal(candidateOption.title, "Create new Perspective work candidate");
+  assert.equal(candidateOption.short_label, "New work candidate");
+  assert.match(
+    candidateOption.summary,
+    /does not create durable work/,
+    "option 2 summary must make durable creation absence explicit",
+  );
+  assert.match(
+    candidateOption.branch_policy,
+    /Durable creation or promotion requires separate approval/,
+    "option 2 branch policy must require separate approval",
   );
 
   const activeRead = currentPerspectiveRead({
@@ -390,6 +427,33 @@ function assertPanelPassive() {
   assert.doesNotMatch(source.panel, /navigator\.clipboard|writeText\s*\(/i, "panel must not write clipboard");
   assert.doesNotMatch(source.panel, /\bdownload\s*=/i, "panel must not render download controls");
   assert.doesNotMatch(source.panel, /<LaunchButton\b|\bonLaunch\b/i, "panel must not expose launch controls");
+}
+
+function assertBlankStateOrder() {
+  const modePresetIndex = source.blankState.indexOf("<ModePresetSelector />");
+  const autohuntPanelIndex = source.blankState.indexOf(
+    "<BlankStateAutohuntTargetOptionsPanel",
+  );
+  const reviewGridIndex = source.blankState.indexOf("<BlankStateReviewEntryGrid");
+  const boundaryNoteIndex = source.blankState.indexOf(
+    '<p className="human-surface-boundary-note">',
+  );
+  assert(modePresetIndex >= 0, "ModePresetSelector must still render");
+  assert(autohuntPanelIndex >= 0, "Autohunt target panel must render");
+  assert(reviewGridIndex >= 0, "BlankStateReviewEntryGrid must still render");
+  assert(boundaryNoteIndex >= 0, "boundary note must still render");
+  assert(
+    modePresetIndex < autohuntPanelIndex,
+    "ModePresetSelector must render before Autohunt target panel",
+  );
+  assert(
+    autohuntPanelIndex < reviewGridIndex,
+    "Autohunt target panel must render before BlankStateReviewEntryGrid",
+  );
+  assert(
+    reviewGridIndex < boundaryNoteIndex,
+    "boundary note must render after BlankStateReviewEntryGrid",
+  );
 }
 
 function assertNoForbiddenImports() {
