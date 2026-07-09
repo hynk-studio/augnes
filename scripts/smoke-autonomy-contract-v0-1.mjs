@@ -175,6 +175,21 @@ const phase9aAutonomyRunnerPreflightFiles = [
   "scripts/smoke-autonomy-runner-v0-1.mjs",
   "lib/db/schema.sql",
 ];
+const autonomyDelegationGrantRecordFiles = [
+  "types/autonomy-delegation-grant.ts",
+  "lib/autonomy/autonomy-delegation-grant-write.ts",
+  "lib/autonomy/read-autonomy-delegation-grants.ts",
+  "components/autonomy/autonomy-delegation-grant-readback-panel.tsx",
+  "lib/db.ts",
+  "lib/db/schema.sql",
+  "scripts/db-migrations.mjs",
+  "scripts/db-migrate.mjs",
+  "scripts/smoke-autonomy-delegation-grant-record-v0-1.mjs",
+  "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
+  "package.json",
+  "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+];
 const allowedChangedFiles = new Set([
   ...requiredFiles,
   ...priorSmokeAllowlistCompatibilityFiles,
@@ -185,6 +200,9 @@ const allowedChangedFiles = new Set([
   ...phase8fAutonomyContractCopyExportFiles,
 ]);
 for (const file of phase9aAutonomyRunnerPreflightFiles) {
+  allowedChangedFiles.add(file);
+}
+for (const file of autonomyDelegationGrantRecordFiles) {
   allowedChangedFiles.add(file);
 }
 
@@ -817,6 +835,9 @@ function assertChangedFileBoundary() {
     assert(allowedChangedFiles.has(file), `Unexpected changed file for Phase 8A: ${file}`);
     for (const pattern of forbiddenChangedFilePatterns) {
       if (phase9aAutonomyRunnerPreflightFiles.includes(file)) {
+        continue;
+      }
+      if (autonomyDelegationGrantRecordFiles.includes(file)) {
         continue;
       }
       assert(!pattern.test(file), `Forbidden Phase 8A changed file: ${file}`);
