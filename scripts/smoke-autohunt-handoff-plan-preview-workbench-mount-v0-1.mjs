@@ -71,6 +71,13 @@ const files = {
     "components/autonomy/autohunt-handoff-copy-export-preview-panel.tsx",
   copyExportSmoke:
     "scripts/smoke-autohunt-handoff-copy-export-preview-v0-1.mjs",
+  executionGateType: "types/autohunt-execution-readiness-gate.ts",
+  executionGateBuilder:
+    "lib/autonomy/autohunt-execution-readiness-gate.ts",
+  executionGatePanel:
+    "components/autonomy/autohunt-execution-readiness-gate-panel.tsx",
+  executionGateSmoke:
+    "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set([
@@ -102,6 +109,10 @@ const expectedChangedFiles = new Set([
   files.copyExportBuilder,
   files.copyExportPanel,
   files.copyExportSmoke,
+  files.executionGateType,
+  files.executionGateBuilder,
+  files.executionGatePanel,
+  files.executionGateSmoke,
 ]);
 const source = Object.fromEntries(
   Object.entries(files).map(([key, filePath]) => {
