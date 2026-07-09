@@ -826,6 +826,7 @@
     "smoke:autohunt-supervised-execution-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
     "smoke:autohunt-result-intake-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-result-intake-v0-1.mjs",
     "smoke:autohunt-daily-launcher-run-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-daily-launcher-run-v0-1.mjs",
+    "smoke:autohunt-persistent-chain-readiness-binding-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-persistent-chain-readiness-binding-v0-1.mjs",
     "autohunt:daily-launcher-v0-1": "tsx --tsconfig tsconfig.json scripts/autohunt-daily-launcher-v0-1.mjs",
     "dogfood:seed-local-autohunt-chain-v0-1": "tsx --tsconfig tsconfig.json scripts/dogfood-seed-local-autohunt-chain-v0-1.mjs",
     "smoke:local-autohunt-chain-dogfood-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-local-autohunt-chain-dogfood-v0-1.mjs",

@@ -129,6 +129,8 @@ const files = {
   dailyLauncherCli: "scripts/autohunt-daily-launcher-v0-1.mjs",
   dailyLauncherSmoke:
     "scripts/smoke-autohunt-daily-launcher-run-v0-1.mjs",
+  persistentChainReadinessBindingSmoke:
+    "scripts/smoke-autohunt-persistent-chain-readiness-binding-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set(Object.values(files));

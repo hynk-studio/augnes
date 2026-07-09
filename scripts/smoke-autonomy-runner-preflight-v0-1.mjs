@@ -143,6 +143,7 @@ const autonomyDelegationGrantRecordFiles = new Set([
   "components/autonomy/autohunt-daily-launcher-run-readback-panel.tsx",
   "scripts/autohunt-daily-launcher-v0-1.mjs",
   "scripts/smoke-autohunt-daily-launcher-run-v0-1.mjs",
+  "scripts/smoke-autohunt-persistent-chain-readiness-binding-v0-1.mjs",
   "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
   "package.json",
   "scripts/smoke-autonomy-contract-v0-1.mjs",

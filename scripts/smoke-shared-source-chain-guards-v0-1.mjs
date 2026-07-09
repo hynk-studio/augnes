@@ -90,6 +90,7 @@ const autonomyDelegationGrantRecordFiles = new Set([
   "lib/autonomy/autohunt-execution-readiness-gate.ts",
   "components/autonomy/autohunt-execution-readiness-gate-panel.tsx",
   "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
+  "scripts/smoke-autohunt-persistent-chain-readiness-binding-v0-1.mjs",
   "types/autohunt-supervised-execution-contract.ts",
   "lib/autonomy/autohunt-supervised-execution-contract-write.ts",
   "lib/autonomy/read-autohunt-supervised-execution-contracts.ts",

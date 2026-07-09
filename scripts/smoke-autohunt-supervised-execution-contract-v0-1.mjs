@@ -62,6 +62,9 @@ const files = {
   smoke: "scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
   packageJson: "package.json",
   executionGateSmoke: "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
+  executionGateBuilder: "lib/autonomy/autohunt-execution-readiness-gate.ts",
+  persistentChainReadinessBindingSmoke:
+    "scripts/smoke-autohunt-persistent-chain-readiness-binding-v0-1.mjs",
   copyExportSmoke:
     "scripts/smoke-autohunt-handoff-copy-export-preview-v0-1.mjs",
   localDogfoodSmoke: "scripts/smoke-local-autohunt-chain-dogfood-v0-1.mjs",

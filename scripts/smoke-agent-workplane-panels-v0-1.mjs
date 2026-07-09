@@ -2958,6 +2958,7 @@ const followOnAutohuntExecutionReadinessGateFiles = [
   "components/autonomy/autohunt-daily-launcher-run-readback-panel.tsx",
   "scripts/autohunt-daily-launcher-v0-1.mjs",
   "scripts/smoke-autohunt-daily-launcher-run-v0-1.mjs",
+  "scripts/smoke-autohunt-persistent-chain-readiness-binding-v0-1.mjs",
   "scripts/smoke-autohunt-handoff-copy-export-preview-v0-1.mjs",
   "scripts/smoke-local-autohunt-chain-dogfood-v0-1.mjs",
   "scripts/smoke-autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1.mjs",
