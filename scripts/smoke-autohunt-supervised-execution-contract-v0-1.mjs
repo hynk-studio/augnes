@@ -49,6 +49,16 @@ const files = {
   migrations: "scripts/db-migrations.mjs",
   migrate: "scripts/db-migrate.mjs",
   resultIntakeSmoke: "scripts/smoke-autohunt-result-intake-v0-1.mjs",
+  dailyLauncherType: "types/autohunt-daily-launcher-run.ts",
+  dailyLauncherWriter:
+    "lib/autonomy/autohunt-daily-launcher-run-write.ts",
+  dailyLauncherReadback:
+    "lib/autonomy/read-autohunt-daily-launcher-runs.ts",
+  dailyLauncherPanel:
+    "components/autonomy/autohunt-daily-launcher-run-readback-panel.tsx",
+  dailyLauncherCli: "scripts/autohunt-daily-launcher-v0-1.mjs",
+  dailyLauncherSmoke:
+    "scripts/smoke-autohunt-daily-launcher-run-v0-1.mjs",
   smoke: "scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
   packageJson: "package.json",
   executionGateSmoke: "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
