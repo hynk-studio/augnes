@@ -349,6 +349,57 @@ CREATE INDEX IF NOT EXISTS idx_autonomy_delegation_grants_approval_ref
 CREATE INDEX IF NOT EXISTS idx_autonomy_delegation_grants_source_contract_fingerprint
   ON autonomy_delegation_grants(source_contract_fingerprint);
 
+CREATE TABLE IF NOT EXISTS autohunt_work_queue_candidates (
+  candidate_id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+  candidate_status TEXT NOT NULL,
+  candidate_origin TEXT NOT NULL,
+  source_grant_id TEXT NOT NULL,
+  source_grant_fingerprint TEXT NOT NULL,
+  source_grant_status TEXT NOT NULL,
+  source_grant_mode TEXT NOT NULL,
+  work_class TEXT NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  title_summary_fingerprint TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  source_refs_json TEXT NOT NULL,
+  source_fingerprints_json TEXT NOT NULL,
+  evidence_refs_json TEXT NOT NULL,
+  required_context_refs_json TEXT NOT NULL,
+  proposed_files_or_globs_json TEXT NOT NULL,
+  expected_outputs_json TEXT NOT NULL,
+  required_checks_json TEXT NOT NULL,
+  blocked_actions_json TEXT NOT NULL,
+  stop_conditions_json TEXT NOT NULL,
+  budget_projection_json TEXT NOT NULL,
+  grant_fit_json TEXT NOT NULL,
+  authority_boundary_json TEXT NOT NULL,
+  persisted_material_boundary_json TEXT NOT NULL,
+  validation_json TEXT NOT NULL,
+  row_count_write_summary_json TEXT NOT NULL,
+  candidate_fingerprint TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_work_queue_candidates_scope_created
+  ON autohunt_work_queue_candidates(scope, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_work_queue_candidates_source_grant_id_created
+  ON autohunt_work_queue_candidates(source_grant_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_work_queue_candidates_source_grant_fingerprint_created
+  ON autohunt_work_queue_candidates(source_grant_fingerprint, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_work_queue_candidates_candidate_status_created
+  ON autohunt_work_queue_candidates(candidate_status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_work_queue_candidates_candidate_origin_created
+  ON autohunt_work_queue_candidates(candidate_origin, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_work_queue_candidates_work_class_created
+  ON autohunt_work_queue_candidates(work_class, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS perspective_promotion_decisions (
   promotion_decision_id text primary key,
   scope text not null,
