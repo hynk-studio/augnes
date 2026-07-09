@@ -5,6 +5,7 @@ import { AutonomyCopyExportPanel } from "@/components/autonomy/autonomy-copy-exp
 import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-policy-preview-panel";
 import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
 import { AutonomyRunnerPreflightPreviewPanel } from "@/components/autonomy/autonomy-runner-preflight-preview-panel";
+import { AutohuntExecutionReadinessGatePanel } from "@/components/autonomy/autohunt-execution-readiness-gate-panel";
 import { AutohuntHandoffCopyExportPreviewPanel } from "@/components/autonomy/autohunt-handoff-copy-export-preview-panel";
 import { AutohuntHandoffPlanOperatorReviewDecisionReadbackPanel } from "@/components/autonomy/autohunt-handoff-plan-operator-review-decision-readback-panel";
 import { AutohuntHandoffPlanPreviewReadbackPanel } from "@/components/autonomy/autohunt-handoff-plan-preview-readback-panel";
@@ -124,6 +125,7 @@ import { WorkplaneHeader } from "@/components/workplane/workplane-header";
 import { WorkplaneInspector } from "@/components/workplane/workplane-inspector";
 import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
 import { SentHandoffPanel } from "@/components/workplane/sent-handoff-panel";
+import { buildAutohuntExecutionReadinessGate } from "@/lib/autonomy/autohunt-execution-readiness-gate";
 import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-contract-for-web";
 import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
 import { buildAutohuntHandoffCopyExportPreview } from "@/lib/autonomy/autohunt-handoff-copy-export-preview";
@@ -453,6 +455,15 @@ export async function AgentWorkplane() {
     buildAutohuntHandoffCopyExportPreview({
       source_operator_decision:
         autohuntHandoffPlanOperatorReviewDecisionReadback,
+      as_of: workplaneMetrics.as_of,
+    });
+  const autohuntExecutionReadinessGate =
+    buildAutohuntExecutionReadinessGate({
+      workbench_spine: autohuntWorkbenchReadbackSpine,
+      handoff_plan_readback: autohuntHandoffPlanPreviewReadback,
+      operator_decision_readback:
+        autohuntHandoffPlanOperatorReviewDecisionReadback,
+      copy_export_preview: autohuntHandoffCopyExportPreview,
       as_of: workplaneMetrics.as_of,
     });
   const selectedSessionDigestIntakePreview =
@@ -1929,6 +1940,9 @@ export async function AgentWorkplane() {
               />
               <AutohuntHandoffCopyExportPreviewPanel
                 preview={autohuntHandoffCopyExportPreview}
+              />
+              <AutohuntExecutionReadinessGatePanel
+                gate={autohuntExecutionReadinessGate}
               />
               <AutonomyContractPreviewPanel preview={autonomyPreview} />
               <AutonomyBudgetPreviewPanel preview={autonomyPreview} />

@@ -31,6 +31,13 @@ const files = {
   panel: "components/autonomy/autohunt-handoff-copy-export-preview-panel.tsx",
   agentWorkplane: "components/workplane/agent-workplane.tsx",
   smoke: "scripts/smoke-autohunt-handoff-copy-export-preview-v0-1.mjs",
+  executionGateType: "types/autohunt-execution-readiness-gate.ts",
+  executionGateBuilder:
+    "lib/autonomy/autohunt-execution-readiness-gate.ts",
+  executionGatePanel:
+    "components/autonomy/autohunt-execution-readiness-gate-panel.tsx",
+  executionGateSmoke:
+    "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
   packageJson: "package.json",
   localAutohuntChainDogfood:
     "scripts/dogfood-seed-local-autohunt-chain-v0-1.mjs",
