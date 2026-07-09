@@ -30,6 +30,7 @@ import {
   migrateAutohuntWorkQueueCandidates,
   migrateAutohuntPreflightPackets,
   migrateAutohuntHandoffPlanPreviews,
+  migrateAutohuntHandoffPlanOperatorReviewDecisions,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -95,6 +96,8 @@ try {
   const autohuntPreflightPacketResult = migrateAutohuntPreflightPackets(db);
   const autohuntHandoffPlanPreviewResult =
     migrateAutohuntHandoffPlanPreviews(db);
+  const autohuntHandoffPlanOperatorReviewDecisionResult =
+    migrateAutohuntHandoffPlanOperatorReviewDecisions(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -708,6 +711,31 @@ try {
   if (autohuntHandoffPlanPreviewResult.created_indexes.length > 0) {
     console.log(
       `Created indexes: ${autohuntHandoffPlanPreviewResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (
+    autohuntHandoffPlanOperatorReviewDecisionResult.created_tables.length > 0
+  ) {
+    console.log(
+      `Created autohunt_handoff_plan_operator_review_decisions table at ${dbPath}: ${autohuntHandoffPlanOperatorReviewDecisionResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    autohuntHandoffPlanOperatorReviewDecisionResult.created_indexes.length === 0
+  ) {
+    console.log(
+      `Autohunt handoff plan operator review decision migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated autohunt_handoff_plan_operator_review_decisions indexes at ${dbPath}`,
+    );
+  }
+  if (
+    autohuntHandoffPlanOperatorReviewDecisionResult.created_indexes.length > 0
+  ) {
+    console.log(
+      `Created indexes: ${autohuntHandoffPlanOperatorReviewDecisionResult.created_indexes.join(", ")}`,
     );
   }
 

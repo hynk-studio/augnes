@@ -31,6 +31,14 @@ const files = {
   handoffPlanReader: "lib/autonomy/read-autohunt-handoff-plan-previews.ts",
   handoffPlanPanel:
     "components/autonomy/autohunt-handoff-plan-preview-readback-panel.tsx",
+  operatorDecisionType:
+    "types/autohunt-handoff-plan-operator-review-decision.ts",
+  operatorDecisionWriter:
+    "lib/autonomy/autohunt-handoff-plan-operator-review-decision-write.ts",
+  operatorDecisionReader:
+    "lib/autonomy/read-autohunt-handoff-plan-operator-review-decisions.ts",
+  operatorDecisionPanel:
+    "components/autonomy/autohunt-handoff-plan-operator-review-decision-readback-panel.tsx",
   agentWorkplane: "components/workplane/agent-workplane.tsx",
   db: "lib/db.ts",
   schema: "lib/db/schema.sql",
@@ -51,6 +59,8 @@ const files = {
     "scripts/smoke-autohunt-handoff-plan-preview-v0-1.mjs",
   handoffPlanWorkbenchMountSmoke:
     "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
+  operatorDecisionSmoke:
+    "scripts/smoke-autohunt-handoff-plan-operator-review-decision-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set(Object.values(files));
@@ -176,8 +186,10 @@ function assertNoSchemaRouteOrActionExpansion() {
     ),
   )) {
     assert(
-      source[fileToSourceKey(file)]?.includes("autohunt_handoff_plan_previews"),
-      `DB follow-on change must be limited to handoff plan preview table: ${file}`,
+      source[fileToSourceKey(file)]?.includes(
+        "autohunt_handoff_plan_operator_review_decisions",
+      ),
+      `DB follow-on change must be limited to operator review decision table: ${file}`,
     );
   }
   for (const [name, text] of Object.entries({

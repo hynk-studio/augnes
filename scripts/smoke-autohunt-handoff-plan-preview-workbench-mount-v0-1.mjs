@@ -27,9 +27,23 @@ const files = {
   handoffPanel:
     "components/autonomy/autohunt-handoff-plan-preview-readback-panel.tsx",
   handoffReader: "lib/autonomy/read-autohunt-handoff-plan-previews.ts",
+  operatorDecisionType:
+    "types/autohunt-handoff-plan-operator-review-decision.ts",
+  operatorDecisionWriter:
+    "lib/autonomy/autohunt-handoff-plan-operator-review-decision-write.ts",
+  operatorDecisionReader:
+    "lib/autonomy/read-autohunt-handoff-plan-operator-review-decisions.ts",
+  operatorDecisionPanel:
+    "components/autonomy/autohunt-handoff-plan-operator-review-decision-readback-panel.tsx",
   workbenchSpinePanel:
     "components/autonomy/autohunt-workbench-readback-spine-panel.tsx",
+  db: "lib/db.ts",
+  schema: "lib/db/schema.sql",
+  migrations: "scripts/db-migrations.mjs",
+  migrate: "scripts/db-migrate.mjs",
   smoke: "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
+  operatorDecisionSmoke:
+    "scripts/smoke-autohunt-handoff-plan-operator-review-decision-v0-1.mjs",
   packageJson: "package.json",
   agentWorkplanePanelsSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   handoffPlanSmoke:
@@ -48,7 +62,16 @@ const files = {
 
 const expectedChangedFiles = new Set([
   files.agentWorkplane,
+  files.operatorDecisionType,
+  files.operatorDecisionWriter,
+  files.operatorDecisionReader,
+  files.operatorDecisionPanel,
+  files.db,
+  files.schema,
+  files.migrations,
+  files.migrate,
   files.smoke,
+  files.operatorDecisionSmoke,
   files.packageJson,
   files.agentWorkplanePanelsSmoke,
   files.handoffPlanSmoke,
@@ -185,10 +208,14 @@ function assertNoSchemaRouteOrActionExpansion() {
     "scripts/db-migrations.mjs",
     "scripts/db-migrate.mjs",
   ]) {
-    assert(
-      !changedFiles.includes(forbidden),
-      `mount slice must not change DB schema or migrations: ${forbidden}`,
-    );
+    if (changedFiles.includes(forbidden)) {
+      assert(
+        source[fileToSourceKey(forbidden)].includes(
+          "autohunt_handoff_plan_operator_review_decisions",
+        ),
+        `DB follow-on change must be limited to operator review decision table: ${forbidden}`,
+      );
+    }
   }
   assert.equal(
     changedFiles.some((file) => /^app\/api\//.test(file)),
@@ -200,6 +227,15 @@ function assertNoSchemaRouteOrActionExpansion() {
     false,
     "mount slice must not alter app route surfaces",
   );
+}
+
+function fileToSourceKey(file) {
+  return {
+    "lib/db.ts": "db",
+    "lib/db/schema.sql": "schema",
+    "scripts/db-migrations.mjs": "migrations",
+    "scripts/db-migrate.mjs": "migrate",
+  }[file];
 }
 
 function assertPanelPassive() {

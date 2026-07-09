@@ -67,6 +67,14 @@ const files = {
   reader: "lib/autonomy/read-autohunt-handoff-plan-previews.ts",
   panel:
     "components/autonomy/autohunt-handoff-plan-preview-readback-panel.tsx",
+  operatorDecisionType:
+    "types/autohunt-handoff-plan-operator-review-decision.ts",
+  operatorDecisionWriter:
+    "lib/autonomy/autohunt-handoff-plan-operator-review-decision-write.ts",
+  operatorDecisionReader:
+    "lib/autonomy/read-autohunt-handoff-plan-operator-review-decisions.ts",
+  operatorDecisionPanel:
+    "components/autonomy/autohunt-handoff-plan-operator-review-decision-readback-panel.tsx",
   agentWorkplane: "components/workplane/agent-workplane.tsx",
   db: "lib/db.ts",
   schema: "lib/db/schema.sql",
@@ -75,6 +83,8 @@ const files = {
   smoke: "scripts/smoke-autohunt-handoff-plan-preview-v0-1.mjs",
   mountSmoke:
     "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
+  operatorDecisionSmoke:
+    "scripts/smoke-autohunt-handoff-plan-operator-review-decision-v0-1.mjs",
   packageJson: "package.json",
   workbenchSpineSmoke:
     "scripts/smoke-autohunt-workbench-readback-spine-v0-1.mjs",

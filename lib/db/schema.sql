@@ -483,6 +483,52 @@ CREATE INDEX IF NOT EXISTS idx_autohunt_handoff_plan_previews_source_preflight_p
 CREATE INDEX IF NOT EXISTS idx_autohunt_handoff_plan_previews_handoff_plan_status_created
   ON autohunt_handoff_plan_previews(handoff_plan_status, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS autohunt_handoff_plan_operator_review_decisions (
+  decision_id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+  decision_status TEXT NOT NULL,
+  operator_decision TEXT NOT NULL,
+  source_handoff_plan_id TEXT NOT NULL,
+  source_handoff_plan_fingerprint TEXT NOT NULL,
+  source_handoff_plan_status TEXT NOT NULL,
+  source_grant_id TEXT NOT NULL,
+  source_grant_fingerprint TEXT NOT NULL,
+  source_preflight_packet_id TEXT NOT NULL,
+  source_preflight_packet_fingerprint TEXT NOT NULL,
+  source_workbench_spine_fingerprint TEXT NOT NULL,
+  selected_candidate_ids_json TEXT NOT NULL,
+  selected_candidate_fingerprints_json TEXT NOT NULL,
+  review_basis_ref TEXT NOT NULL,
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  review_basis_fingerprint TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  accepted_summary_json TEXT,
+  defer_or_reject_summary_json TEXT,
+  source_chain_validation_json TEXT NOT NULL,
+  blocked_actions_json TEXT NOT NULL,
+  next_allowed_outputs_json TEXT NOT NULL,
+  forbidden_outputs_json TEXT NOT NULL,
+  authority_boundary_json TEXT NOT NULL,
+  persisted_material_boundary_json TEXT NOT NULL,
+  validation_json TEXT NOT NULL,
+  row_count_write_summary_json TEXT NOT NULL,
+  decision_fingerprint TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_handoff_plan_operator_review_decisions_scope_created
+  ON autohunt_handoff_plan_operator_review_decisions(scope, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_handoff_plan_operator_review_decisions_source_handoff_plan_id_created
+  ON autohunt_handoff_plan_operator_review_decisions(source_handoff_plan_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_handoff_plan_operator_review_decisions_decision_status_created
+  ON autohunt_handoff_plan_operator_review_decisions(decision_status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_handoff_plan_operator_review_decisions_operator_decision_created
+  ON autohunt_handoff_plan_operator_review_decisions(operator_decision, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS perspective_promotion_decisions (
   promotion_decision_id text primary key,
   scope text not null,
