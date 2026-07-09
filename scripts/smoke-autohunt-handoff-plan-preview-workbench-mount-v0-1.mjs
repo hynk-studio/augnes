@@ -60,6 +60,10 @@ const files = {
   autonomyContractSmoke: "scripts/smoke-autonomy-contract-v0-1.mjs",
   autonomyRunnerPreflightSmoke:
     "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+  localAutohuntChainDogfood:
+    "scripts/dogfood-seed-local-autohunt-chain-v0-1.mjs",
+  localAutohuntChainDogfoodSmoke:
+    "scripts/smoke-local-autohunt-chain-dogfood-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set([
@@ -85,6 +89,8 @@ const expectedChangedFiles = new Set([
   files.sharedSourceGuardSmoke,
   files.autonomyContractSmoke,
   files.autonomyRunnerPreflightSmoke,
+  files.localAutohuntChainDogfood,
+  files.localAutohuntChainDogfoodSmoke,
 ]);
 const source = Object.fromEntries(
   Object.entries(files).map(([key, filePath]) => {
