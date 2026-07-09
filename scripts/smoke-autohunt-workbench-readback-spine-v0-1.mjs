@@ -49,6 +49,8 @@ const files = {
     "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
   handoffPlanSmoke:
     "scripts/smoke-autohunt-handoff-plan-preview-v0-1.mjs",
+  handoffPlanWorkbenchMountSmoke:
+    "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set(Object.values(files));
