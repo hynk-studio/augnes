@@ -823,6 +823,7 @@
     "smoke:autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1.mjs",
     "smoke:autohunt-handoff-copy-export-preview-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-handoff-copy-export-preview-v0-1.mjs",
     "smoke:autohunt-execution-readiness-gate-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
+    "smoke:autohunt-supervised-execution-contract-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
     "dogfood:seed-local-autohunt-chain-v0-1": "tsx --tsconfig tsconfig.json scripts/dogfood-seed-local-autohunt-chain-v0-1.mjs",
     "smoke:local-autohunt-chain-dogfood-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-local-autohunt-chain-dogfood-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-end-to-end-operator-path-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-final-rag-answer-review-memory-end-to-end-operator-path-v0-1.mjs",

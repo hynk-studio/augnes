@@ -104,6 +104,15 @@ const files = {
     "components/autonomy/autohunt-execution-readiness-gate-panel.tsx",
   executionGateSmoke:
     "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
+  executionContractType: "types/autohunt-supervised-execution-contract.ts",
+  executionContractWriter:
+    "lib/autonomy/autohunt-supervised-execution-contract-write.ts",
+  executionContractReader:
+    "lib/autonomy/read-autohunt-supervised-execution-contracts.ts",
+  executionContractPanel:
+    "components/autonomy/autohunt-supervised-execution-contract-readback-panel.tsx",
+  executionContractSmoke:
+    "scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set(Object.values(files));
