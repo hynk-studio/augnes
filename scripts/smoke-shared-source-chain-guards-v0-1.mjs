@@ -73,6 +73,7 @@ const autonomyDelegationGrantRecordFiles = new Set([
   "scripts/smoke-autohunt-preflight-packet-v0-1.mjs",
   "scripts/smoke-autohunt-workbench-readback-spine-v0-1.mjs",
   "scripts/smoke-autohunt-handoff-plan-preview-v0-1.mjs",
+  "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
   "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
   "scripts/smoke-autonomy-contract-v0-1.mjs",
   "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",

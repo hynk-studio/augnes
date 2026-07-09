@@ -76,6 +76,8 @@ const files = {
     "scripts/smoke-autohunt-workbench-readback-spine-v0-1.mjs",
   handoffPlanSmoke:
     "scripts/smoke-autohunt-handoff-plan-preview-v0-1.mjs",
+  handoffPlanWorkbenchMountSmoke:
+    "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
   packageJson: "package.json",
   queueCandidateSmoke: "scripts/smoke-autohunt-work-queue-candidate-v0-1.mjs",
   delegationGrantSmoke:

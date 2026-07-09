@@ -5,6 +5,7 @@ import { AutonomyCopyExportPanel } from "@/components/autonomy/autonomy-copy-exp
 import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-policy-preview-panel";
 import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
 import { AutonomyRunnerPreflightPreviewPanel } from "@/components/autonomy/autonomy-runner-preflight-preview-panel";
+import { AutohuntHandoffPlanPreviewReadbackPanel } from "@/components/autonomy/autohunt-handoff-plan-preview-readback-panel";
 import { AutohuntWorkbenchReadbackSpinePanel } from "@/components/autonomy/autohunt-workbench-readback-spine-panel";
 import { CodexResultFeedbackDraftPanel } from "@/components/codex-result-feedback-draft-panel";
 import { DogfoodMetricCandidatePreviewPanel } from "@/components/dogfood-metric-candidate-preview-panel";
@@ -125,6 +126,7 @@ import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-
 import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
 import { buildAutohuntWorkbenchReadbackSpine } from "@/lib/autonomy/autohunt-workbench-readback-spine";
 import { readAutonomyDelegationGrants } from "@/lib/autonomy/read-autonomy-delegation-grants";
+import { readAutohuntHandoffPlanPreviews } from "@/lib/autonomy/read-autohunt-handoff-plan-previews";
 import { readAutohuntWorkQueueCandidates } from "@/lib/autonomy/read-autohunt-work-queue-candidates";
 import { readAutohuntPreflightPackets } from "@/lib/autonomy/read-autohunt-preflight-packets";
 import { buildCodexResultFeedbackDraft } from "@/lib/dogfooding/codex-result-feedback-draft";
@@ -426,6 +428,12 @@ export async function AgentWorkplane() {
       queue_readback: autohuntQueueCandidateReadback,
       preflight_readback: autohuntPreflightPacketReadback,
       as_of: workplaneMetrics.as_of,
+    });
+  const autohuntHandoffPlanPreviewReadback =
+    readAutohuntHandoffPlanPreviews({
+      scope: "project:augnes",
+      source_grant_id: autohuntSourceGrantId,
+      handoff_plan_status: "ready_for_operator_review",
     });
   const selectedSessionDigestIntakePreview =
     buildSelectedSessionDigestIntakePreviewV01({
@@ -1892,6 +1900,9 @@ export async function AgentWorkplane() {
               />
               <AutohuntWorkbenchReadbackSpinePanel
                 spine={autohuntWorkbenchReadbackSpine}
+              />
+              <AutohuntHandoffPlanPreviewReadbackPanel
+                readback={autohuntHandoffPlanPreviewReadback}
               />
               <AutonomyContractPreviewPanel preview={autonomyPreview} />
               <AutonomyBudgetPreviewPanel preview={autonomyPreview} />
