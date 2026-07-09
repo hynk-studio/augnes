@@ -23,7 +23,7 @@ export function BlankStateAutohuntTargetOptionsPanel({
         </h2>
         <span>
           Selects how the validated Autohunt readback should be interpreted by
-          future human review. This panel records no choice and creates no work.
+          future human review. This panel records no choice and creates no work. Preview only. No Perspective, CWP, work, or memory state is mutated here.
         </span>
       </div>
 

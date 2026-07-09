@@ -18,16 +18,16 @@ export const AUTOHUNT_WORK_TARGET_MODE_OPTIONS: AutohuntWorkTargetModeOption[] =
   [
     {
       mode: "extend_current_perspective_work",
-      title: "현재 관점작업 연장",
-      short_label: "현재 작업 연장",
+      title: "Extend current Perspective work",
+      short_label: "Extend current work",
       summary:
-        "Run Daily Autohunt as an extension of the current Perspective work.",
+        "Interpret Daily Autohunt as an extension of the current Perspective work. Results remain preview lifecycle material until separately approved.",
       lifecycle_interpretation:
-        "Autohunt 결과를 현재 관점작업의 episode/event/delta로 붙입니다.",
+        "Attach Autohunt results to the current Perspective work as preview episode/event/delta semantics.",
       result_attachment_policy:
         "Attach the result as preview lifecycle material for the current Perspective work timeline; do not create durable work here.",
       branch_policy:
-        "결과가 새 축을 만들면 분기 제안만 표시합니다. 자동 승격하지 않습니다.",
+        "If the result suggests a new direction, show a branch suggestion only. Do not promote automatically.",
       default_selected: true,
       requires_explicit_user_choice: false,
       durable_creation_allowed_now: false,
@@ -39,16 +39,16 @@ export const AUTOHUNT_WORK_TARGET_MODE_OPTIONS: AutohuntWorkTargetModeOption[] =
     },
     {
       mode: "create_new_perspective_work_from_autohunt_conditions",
-      title: "Autohunt 조건으로 새 관점작업 생성",
-      short_label: "새 작업 후보",
+      title: "Create new Perspective work candidate",
+      short_label: "New work candidate",
       summary:
-        "Preview the Autohunt condition as the seed of a new Perspective work candidate.",
+        "Interpret Autohunt conditions as the starting point for a new Perspective work candidate. This screen does not create durable work.",
       lifecycle_interpretation:
-        "Autohunt 조건 자체를 새 관점작업 후보의 시작점으로 봅니다.",
+        "Treat Autohunt conditions and results as initial lifecycle material for a candidate Perspective work timeline.",
       result_attachment_policy:
-        "Treat the Autohunt result as initial lifecycle material for a candidate timeline; durable creation needs later approval.",
+        "Treat the Autohunt result as initial lifecycle material for a candidate timeline; durable creation requires separate approval.",
       branch_policy:
-        "새 관점작업 후보를 표시할 수 있지만, durable 생성/승격은 별도 승인 전까지 하지 않습니다.",
+        "Show a candidate only. Durable creation or promotion requires separate approval.",
       default_selected: false,
       requires_explicit_user_choice: true,
       durable_creation_allowed_now: false,

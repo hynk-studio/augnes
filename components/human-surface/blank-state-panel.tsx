@@ -26,11 +26,11 @@ export function BlankStatePanel({
 
       <ModePresetSelector />
 
-      <BlankStateReviewEntryGrid entries={entries} />
-
       <BlankStateAutohuntTargetOptionsPanel
         summary={autohuntTargetModeSummary}
       />
+
+      <BlankStateReviewEntryGrid entries={entries} />
 
       <p className="human-surface-boundary-note">
         Read-only boundary: Blank State Review Entry Absorption v0.1 may display
