@@ -48,11 +48,16 @@ const autonomyDelegationGrantRecordFiles = new Set([
   "lib/autonomy/autonomy-delegation-grant-write.ts",
   "lib/autonomy/read-autonomy-delegation-grants.ts",
   "components/autonomy/autonomy-delegation-grant-readback-panel.tsx",
+  "types/autohunt-work-queue-candidate.ts",
+  "lib/autonomy/autohunt-work-queue-candidate-write.ts",
+  "lib/autonomy/read-autohunt-work-queue-candidates.ts",
+  "components/autonomy/autohunt-work-queue-candidate-readback-panel.tsx",
   "lib/db.ts",
   "lib/db/schema.sql",
   "scripts/db-migrations.mjs",
   "scripts/db-migrate.mjs",
   "scripts/smoke-autonomy-delegation-grant-record-v0-1.mjs",
+  "scripts/smoke-autohunt-work-queue-candidate-v0-1.mjs",
   "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
   "scripts/smoke-autonomy-contract-v0-1.mjs",
   "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
@@ -507,7 +512,7 @@ function assertExistingFocusedSmokesPass() {
       passed: false,
       skipped: true,
       skip_reason:
-        "nested historical no-mutation smokes skipped because this branch is the autonomy delegation grant follow-on slice",
+        "nested historical no-mutation smokes skipped because this branch is an autonomy grant or queue follow-on slice",
     };
   }
 

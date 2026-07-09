@@ -814,6 +814,7 @@
     "smoke:autonomy-runner-preflight-copy-export-v0-1": "node scripts/smoke-autonomy-runner-preflight-copy-export-v0-1.mjs",
     "smoke:autonomy-runner-v0-1": "node scripts/smoke-autonomy-runner-v0-1.mjs",
     "smoke:autonomy-delegation-grant-record-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-autonomy-delegation-grant-record-v0-1.mjs",
+    "smoke:autohunt-work-queue-candidate-v0-1": "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-work-queue-candidate-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-end-to-end-operator-path-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/smoke-final-rag-answer-review-memory-end-to-end-operator-path-v0-1.mjs",
     "browser:validate-final-rag-answer-review-memory-operator-path-v0-1": "./apps/augnes_apps/node_modules/.bin/tsx --tsconfig tsconfig.json scripts/browser-validate-final-rag-answer-review-memory-operator-path-v0-1.mjs",
     "smoke:final-rag-answer-review-memory-operator-browser-validation-v0-1": "node scripts/smoke-final-rag-answer-review-memory-operator-browser-validation-v0-1.mjs",
