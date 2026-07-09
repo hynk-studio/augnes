@@ -39,12 +39,18 @@ const files = {
   queueReader: "lib/autonomy/read-autohunt-work-queue-candidates.ts",
   queuePanel:
     "components/autonomy/autohunt-work-queue-candidate-readback-panel.tsx",
+  preflightType: "types/autohunt-preflight-packet.ts",
+  preflightWriter: "lib/autonomy/autohunt-preflight-packet-write.ts",
+  preflightReader: "lib/autonomy/read-autohunt-preflight-packets.ts",
+  preflightPanel:
+    "components/autonomy/autohunt-preflight-packet-readback-panel.tsx",
   db: "lib/db.ts",
   schema: "lib/db/schema.sql",
   migrations: "scripts/db-migrations.mjs",
   migrate: "scripts/db-migrate.mjs",
   smoke: "scripts/smoke-autonomy-delegation-grant-record-v0-1.mjs",
   queueSmoke: "scripts/smoke-autohunt-work-queue-candidate-v0-1.mjs",
+  preflightSmoke: "scripts/smoke-autohunt-preflight-packet-v0-1.mjs",
   packageJson: "package.json",
   sharedSourceGuardSmoke: "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
   agentWorkplanePanelsSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",

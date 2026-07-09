@@ -3587,6 +3587,85 @@ export function migrateAutohuntWorkQueueCandidates(db) {
   };
 }
 
+export function migrateAutohuntPreflightPackets(db) {
+  const tableName = "autohunt_preflight_packets";
+  const existingTable = db
+    .prepare(
+      `
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = ?
+      `,
+    )
+    .get(tableName);
+  const indexNames = [
+    "idx_autohunt_preflight_packets_scope_created",
+    "idx_autohunt_preflight_packets_source_grant_id_created",
+    "idx_autohunt_preflight_packets_source_grant_fingerprint_created",
+    "idx_autohunt_preflight_packets_preflight_status_created",
+  ];
+  const existingIndexes = new Set(
+    db
+      .prepare(
+        `
+          SELECT name
+          FROM sqlite_master
+          WHERE type = 'index'
+            AND name IN (${indexNames.map(() => "?").join(", ")})
+        `,
+      )
+      .all(...indexNames)
+      .map((index) => index.name),
+  );
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS autohunt_preflight_packets (
+      preflight_packet_id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+      preflight_status TEXT NOT NULL,
+      source_grant_id TEXT NOT NULL,
+      source_grant_fingerprint TEXT NOT NULL,
+      source_grant_status TEXT NOT NULL,
+      source_grant_mode TEXT NOT NULL,
+      selected_candidate_ids_json TEXT NOT NULL,
+      selected_candidate_fingerprints_json TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      source_queue_readback_json TEXT NOT NULL,
+      selected_candidates_json TEXT NOT NULL,
+      aggregate_budget_projection_json TEXT NOT NULL,
+      grant_budget_remaining_projection_json TEXT NOT NULL,
+      preflight_checks_json TEXT NOT NULL,
+      blocked_actions_json TEXT NOT NULL,
+      stop_conditions_json TEXT NOT NULL,
+      required_checks_json TEXT NOT NULL,
+      next_allowed_outputs_json TEXT NOT NULL,
+      forbidden_outputs_json TEXT NOT NULL,
+      authority_boundary_json TEXT NOT NULL,
+      persisted_material_boundary_json TEXT NOT NULL,
+      validation_json TEXT NOT NULL,
+      row_count_write_summary_json TEXT NOT NULL,
+      preflight_packet_fingerprint TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_autohunt_preflight_packets_scope_created
+      ON autohunt_preflight_packets(scope, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_preflight_packets_source_grant_id_created
+      ON autohunt_preflight_packets(source_grant_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_preflight_packets_source_grant_fingerprint_created
+      ON autohunt_preflight_packets(source_grant_fingerprint, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_preflight_packets_preflight_status_created
+      ON autohunt_preflight_packets(preflight_status, created_at DESC);
+  `);
+
+  return {
+    table_found: true,
+    created_tables: existingTable ? [] : [tableName],
+    created_indexes: indexNames.filter((indexName) => !existingIndexes.has(indexName)),
+  };
+}
+
 export const perspectiveMemoryProductPersistenceBoundaryTableSql = `
   CREATE TABLE IF NOT EXISTS perspective_memory_product_persistence_boundary_records (
     record_id TEXT PRIMARY KEY,
