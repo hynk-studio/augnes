@@ -5,6 +5,7 @@ import { AutonomyCopyExportPanel } from "@/components/autonomy/autonomy-copy-exp
 import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-policy-preview-panel";
 import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
 import { AutonomyRunnerPreflightPreviewPanel } from "@/components/autonomy/autonomy-runner-preflight-preview-panel";
+import { AutohuntWorkbenchReadbackSpinePanel } from "@/components/autonomy/autohunt-workbench-readback-spine-panel";
 import { CodexResultFeedbackDraftPanel } from "@/components/codex-result-feedback-draft-panel";
 import { DogfoodMetricCandidatePreviewPanel } from "@/components/dogfood-metric-candidate-preview-panel";
 import { DogfoodReuseOperatorDecisionPreviewPanel } from "@/components/dogfood-reuse-operator-decision-preview-panel";
@@ -122,6 +123,10 @@ import { WorkplaneOverview } from "@/components/workplane/workplane-overview";
 import { SentHandoffPanel } from "@/components/workplane/sent-handoff-panel";
 import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-contract-for-web";
 import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
+import { buildAutohuntWorkbenchReadbackSpine } from "@/lib/autonomy/autohunt-workbench-readback-spine";
+import { readAutonomyDelegationGrants } from "@/lib/autonomy/read-autonomy-delegation-grants";
+import { readAutohuntWorkQueueCandidates } from "@/lib/autonomy/read-autohunt-work-queue-candidates";
+import { readAutohuntPreflightPackets } from "@/lib/autonomy/read-autohunt-preflight-packets";
 import { buildCodexResultFeedbackDraft } from "@/lib/dogfooding/codex-result-feedback-draft";
 import { buildDogfoodMetricCandidatePreviewFromReuseLedgerRecordsV01 } from "@/lib/dogfooding/dogfood-metric-candidate-preview";
 import { buildDogfoodMetricSnapshotOperatorDecisionPreviewV01 } from "@/lib/dogfooding/dogfood-metric-snapshot-decision";
@@ -399,6 +404,29 @@ export async function AgentWorkplane() {
     debug_context: workplaneDebugContext,
     intent_projection: workplaneIntentProjection,
   });
+  const autohuntGrantReadback = readAutonomyDelegationGrants({
+    scope: "project:augnes",
+    grant_status: "active",
+  });
+  const autohuntSourceGrantId =
+    autohuntGrantReadback.latest_active_grant?.grant_id ?? null;
+  const autohuntQueueCandidateReadback = readAutohuntWorkQueueCandidates({
+    scope: "project:augnes",
+    source_grant_id: autohuntSourceGrantId,
+    candidate_status: "queued",
+  });
+  const autohuntPreflightPacketReadback = readAutohuntPreflightPackets({
+    scope: "project:augnes",
+    source_grant_id: autohuntSourceGrantId,
+    preflight_status: "ready_for_supervised_handoff_planning",
+  });
+  const autohuntWorkbenchReadbackSpine =
+    buildAutohuntWorkbenchReadbackSpine({
+      grant_readback: autohuntGrantReadback,
+      queue_readback: autohuntQueueCandidateReadback,
+      preflight_readback: autohuntPreflightPacketReadback,
+      as_of: workplaneMetrics.as_of,
+    });
   const selectedSessionDigestIntakePreview =
     buildSelectedSessionDigestIntakePreviewV01({
       scope: "project:augnes",
@@ -1861,6 +1889,9 @@ export async function AgentWorkplane() {
                   handoffPreview.launch_card.authority_boundary
                 }
                 boundaryNotes={handoffPreview.boundary_notes}
+              />
+              <AutohuntWorkbenchReadbackSpinePanel
+                spine={autohuntWorkbenchReadbackSpine}
               />
               <AutonomyContractPreviewPanel preview={autonomyPreview} />
               <AutonomyBudgetPreviewPanel preview={autonomyPreview} />
