@@ -31,6 +31,7 @@ import {
   migrateAutohuntPreflightPackets,
   migrateAutohuntHandoffPlanPreviews,
   migrateAutohuntHandoffPlanOperatorReviewDecisions,
+  migrateAutohuntSupervisedExecutionContracts,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -98,6 +99,8 @@ try {
     migrateAutohuntHandoffPlanPreviews(db);
   const autohuntHandoffPlanOperatorReviewDecisionResult =
     migrateAutohuntHandoffPlanOperatorReviewDecisions(db);
+  const autohuntSupervisedExecutionContractResult =
+    migrateAutohuntSupervisedExecutionContracts(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -736,6 +739,27 @@ try {
   ) {
     console.log(
       `Created indexes: ${autohuntHandoffPlanOperatorReviewDecisionResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (autohuntSupervisedExecutionContractResult.created_tables.length > 0) {
+    console.log(
+      `Created autohunt_supervised_execution_contracts table at ${dbPath}: ${autohuntSupervisedExecutionContractResult.created_tables.join(", ")}`,
+    );
+  } else if (
+    autohuntSupervisedExecutionContractResult.created_indexes.length === 0
+  ) {
+    console.log(
+      `Autohunt supervised execution contract migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(
+      `Migrated autohunt_supervised_execution_contracts indexes at ${dbPath}`,
+    );
+  }
+  if (autohuntSupervisedExecutionContractResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${autohuntSupervisedExecutionContractResult.created_indexes.join(", ")}`,
     );
   }
 

@@ -246,6 +246,7 @@ export function openDatabase() {
   migrateAutohuntPreflightPacketTable(db);
   migrateAutohuntHandoffPlanPreviewTable(db);
   migrateAutohuntHandoffPlanOperatorReviewDecisionTable(db);
+  migrateAutohuntSupervisedExecutionContractTable(db);
   migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(db);
   migratePerspectiveMemoryItemsTable(db);
   return db;
@@ -4055,6 +4056,57 @@ function migrateAutohuntHandoffPlanOperatorReviewDecisionTable(
       ON autohunt_handoff_plan_operator_review_decisions(decision_status, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_autohunt_handoff_plan_operator_review_decisions_operator_decision_created
       ON autohunt_handoff_plan_operator_review_decisions(operator_decision, created_at DESC);
+  `);
+}
+
+function migrateAutohuntSupervisedExecutionContractTable(
+  db: Database.Database,
+) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS autohunt_supervised_execution_contracts (
+      contract_id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+      contract_status TEXT NOT NULL,
+      source_readiness_gate_fingerprint TEXT NOT NULL,
+      active_grant_id TEXT NOT NULL,
+      active_grant_fingerprint TEXT NOT NULL,
+      latest_queued_candidate_id TEXT NOT NULL,
+      latest_queued_candidate_fingerprint TEXT NOT NULL,
+      ready_preflight_packet_id TEXT NOT NULL,
+      ready_preflight_packet_fingerprint TEXT NOT NULL,
+      handoff_plan_id TEXT NOT NULL,
+      handoff_plan_fingerprint TEXT NOT NULL,
+      operator_decision_id TEXT NOT NULL,
+      operator_decision_fingerprint TEXT NOT NULL,
+      copy_export_preview_fingerprint TEXT NOT NULL,
+      launch_mode TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      freshness_contract_json TEXT NOT NULL,
+      launch_envelope_json TEXT NOT NULL,
+      launcher_may_json TEXT NOT NULL,
+      launcher_must_not_json TEXT NOT NULL,
+      launch_guard_checks_json TEXT NOT NULL,
+      launch_guard_result_json TEXT NOT NULL,
+      authority_boundary_json TEXT NOT NULL,
+      persisted_material_boundary_json TEXT NOT NULL,
+      validation_json TEXT NOT NULL,
+      row_count_write_summary_json TEXT NOT NULL,
+      contract_fingerprint TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_autohunt_supervised_execution_contracts_scope_created
+      ON autohunt_supervised_execution_contracts(scope, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_supervised_execution_contracts_contract_status_created
+      ON autohunt_supervised_execution_contracts(contract_status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_supervised_execution_contracts_source_readiness_gate_fingerprint_created
+      ON autohunt_supervised_execution_contracts(source_readiness_gate_fingerprint, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_supervised_execution_contracts_active_grant_fingerprint_created
+      ON autohunt_supervised_execution_contracts(active_grant_fingerprint, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_supervised_execution_contracts_ready_preflight_packet_fingerprint_created
+      ON autohunt_supervised_execution_contracts(ready_preflight_packet_fingerprint, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_supervised_execution_contracts_operator_decision_fingerprint_created
+      ON autohunt_supervised_execution_contracts(operator_decision_fingerprint, created_at DESC);
   `);
 }
 

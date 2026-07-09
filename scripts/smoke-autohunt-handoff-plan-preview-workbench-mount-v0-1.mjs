@@ -78,6 +78,15 @@ const files = {
     "components/autonomy/autohunt-execution-readiness-gate-panel.tsx",
   executionGateSmoke:
     "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
+  executionContractType: "types/autohunt-supervised-execution-contract.ts",
+  executionContractWriter:
+    "lib/autonomy/autohunt-supervised-execution-contract-write.ts",
+  executionContractReader:
+    "lib/autonomy/read-autohunt-supervised-execution-contracts.ts",
+  executionContractPanel:
+    "components/autonomy/autohunt-supervised-execution-contract-readback-panel.tsx",
+  executionContractSmoke:
+    "scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set([
@@ -113,6 +122,11 @@ const expectedChangedFiles = new Set([
   files.executionGateBuilder,
   files.executionGatePanel,
   files.executionGateSmoke,
+  files.executionContractType,
+  files.executionContractWriter,
+  files.executionContractReader,
+  files.executionContractPanel,
+  files.executionContractSmoke,
 ]);
 const source = Object.fromEntries(
   Object.entries(files).map(([key, filePath]) => {
@@ -136,7 +150,7 @@ console.log(
       pass: true,
       expected_changed_files_checked: true,
       docs_changed: false,
-      no_db_schema_or_route_added_checked: true,
+      schema_follow_on_allowlist_checked: true,
       workbench_readback_import_checked: true,
       workbench_panel_import_checked: true,
       server_side_readback_checked: true,
@@ -243,8 +257,11 @@ function assertNoSchemaRouteOrActionExpansion() {
       assert(
         source[fileToSourceKey(forbidden)].includes(
           "autohunt_handoff_plan_operator_review_decisions",
-        ),
-        `DB follow-on change must be limited to operator review decision table: ${forbidden}`,
+        ) ||
+          source[fileToSourceKey(forbidden)].includes(
+            "autohunt_supervised_execution_contracts",
+          ),
+        `DB follow-on change must be limited to known Autohunt table wiring: ${forbidden}`,
       );
     }
   }

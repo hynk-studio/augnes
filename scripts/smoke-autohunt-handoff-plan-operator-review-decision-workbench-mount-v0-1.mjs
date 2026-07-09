@@ -31,6 +31,10 @@ const files = {
   handoffPanel:
     "components/autonomy/autohunt-handoff-plan-preview-readback-panel.tsx",
   handoffReader: "lib/autonomy/read-autohunt-handoff-plan-previews.ts",
+  db: "lib/db.ts",
+  schema: "lib/db/schema.sql",
+  migrations: "scripts/db-migrations.mjs",
+  migrate: "scripts/db-migrate.mjs",
   smoke:
     "scripts/smoke-autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1.mjs",
   decisionSmoke:
@@ -68,6 +72,15 @@ const files = {
     "components/autonomy/autohunt-execution-readiness-gate-panel.tsx",
   executionGateSmoke:
     "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
+  executionContractType: "types/autohunt-supervised-execution-contract.ts",
+  executionContractWriter:
+    "lib/autonomy/autohunt-supervised-execution-contract-write.ts",
+  executionContractReader:
+    "lib/autonomy/read-autohunt-supervised-execution-contracts.ts",
+  executionContractPanel:
+    "components/autonomy/autohunt-supervised-execution-contract-readback-panel.tsx",
+  executionContractSmoke:
+    "scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
   packageJson: "package.json",
 };
 
@@ -77,6 +90,10 @@ const expectedChangedFiles = new Set([
   files.packageJson,
   files.decisionSmoke,
   files.handoffMountSmoke,
+  files.db,
+  files.schema,
+  files.migrations,
+  files.migrate,
   files.handoffPlanSmoke,
   files.workbenchSpineSmoke,
   files.preflightSmoke,
@@ -96,6 +113,11 @@ const expectedChangedFiles = new Set([
   files.executionGateBuilder,
   files.executionGatePanel,
   files.executionGateSmoke,
+  files.executionContractType,
+  files.executionContractWriter,
+  files.executionContractReader,
+  files.executionContractPanel,
+  files.executionContractSmoke,
 ]);
 
 const source = Object.fromEntries(
@@ -122,7 +144,7 @@ console.log(
       pass: true,
       expected_changed_files_checked: true,
       docs_changed: false,
-      no_db_schema_or_route_added_checked: true,
+      schema_follow_on_allowlist_checked: true,
       server_side_readback_checked: true,
       render_order_checked: true,
       readback_import_checked: true,
@@ -240,10 +262,14 @@ function assertNoSchemaRouteOrActionExpansion() {
     "scripts/db-migrations.mjs",
     "scripts/db-migrate.mjs",
   ]) {
-    assert(
-      !changedFiles.includes(forbidden),
-      `mount slice must not change schema or migration file: ${forbidden}`,
-    );
+    if (changedFiles.includes(forbidden)) {
+      assert(
+        source[fileToSourceKey(forbidden)].includes(
+          "autohunt_supervised_execution_contracts",
+        ),
+        `mount follow-on DB changes must be limited to supervised execution contract wiring: ${forbidden}`,
+      );
+    }
   }
   assert.equal(
     changedFiles.some((file) => /^app\/api\//.test(file)),
@@ -265,6 +291,15 @@ function assertNoSchemaRouteOrActionExpansion() {
     assert.doesNotMatch(text, /<button\b/i, `${label} must not add buttons`);
     assert.doesNotMatch(text, /\bonClick\b/, `${label} must not add click handlers`);
   }
+}
+
+function fileToSourceKey(file) {
+  return {
+    "lib/db.ts": "db",
+    "lib/db/schema.sql": "schema",
+    "scripts/db-migrations.mjs": "migrations",
+    "scripts/db-migrate.mjs": "migrate",
+  }[file];
 }
 
 function assertPanelPassive() {

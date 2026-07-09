@@ -30,6 +30,10 @@ const files = {
   builder: "lib/autonomy/autohunt-handoff-copy-export-preview.ts",
   panel: "components/autonomy/autohunt-handoff-copy-export-preview-panel.tsx",
   agentWorkplane: "components/workplane/agent-workplane.tsx",
+  db: "lib/db.ts",
+  schema: "lib/db/schema.sql",
+  migrations: "scripts/db-migrations.mjs",
+  migrate: "scripts/db-migrate.mjs",
   smoke: "scripts/smoke-autohunt-handoff-copy-export-preview-v0-1.mjs",
   executionGateType: "types/autohunt-execution-readiness-gate.ts",
   executionGateBuilder:
@@ -62,6 +66,15 @@ const files = {
   autonomyContractSmoke: "scripts/smoke-autonomy-contract-v0-1.mjs",
   autonomyRunnerPreflightSmoke:
     "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+  executionContractType: "types/autohunt-supervised-execution-contract.ts",
+  executionContractWriter:
+    "lib/autonomy/autohunt-supervised-execution-contract-write.ts",
+  executionContractReader:
+    "lib/autonomy/read-autohunt-supervised-execution-contracts.ts",
+  executionContractPanel:
+    "components/autonomy/autohunt-supervised-execution-contract-readback-panel.tsx",
+  executionContractSmoke:
+    "scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set(Object.values(files));
@@ -100,7 +113,7 @@ console.log(
       pass: true,
       expected_changed_files_checked: true,
       docs_changed: false,
-      no_db_schema_or_route_added_checked: true,
+      schema_follow_on_allowlist_checked: true,
       type_checked: true,
       builder_checked: true,
       panel_passive_checked: true,
@@ -128,8 +141,24 @@ function assertChangedFileBoundary() {
     assert.doesNotMatch(file, /^docs\//, "copy/export preview must not edit docs");
     assert.doesNotMatch(file, /^README/i, "copy/export preview must not edit README");
     assert.doesNotMatch(file, /^app\/api\//, "copy/export preview must not add API routes");
-    assert.doesNotMatch(file, /^(lib\/db\.ts|lib\/db\/schema\.sql|scripts\/db-migrations\.mjs|scripts\/db-migrate\.mjs)$/, "copy/export preview must not change DB schema or migrations");
+    if (/^(lib\/db\.ts|lib\/db\/schema\.sql|scripts\/db-migrations\.mjs|scripts\/db-migrate\.mjs)$/.test(file)) {
+      assert(
+        source[fileToSourceKey(file)].includes(
+          "autohunt_supervised_execution_contracts",
+        ),
+        "copy/export follow-on DB changes must be limited to supervised execution contract wiring",
+      );
+    }
   }
+}
+
+function fileToSourceKey(file) {
+  return {
+    "lib/db.ts": "db",
+    "lib/db/schema.sql": "schema",
+    "scripts/db-migrations.mjs": "migrations",
+    "scripts/db-migrate.mjs": "migrate",
+  }[file];
 }
 
 function assertStaticWiring() {
