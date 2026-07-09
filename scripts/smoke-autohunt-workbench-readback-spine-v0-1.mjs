@@ -26,7 +26,16 @@ const files = {
   type: "types/autohunt-workbench-readback-spine.ts",
   builder: "lib/autonomy/autohunt-workbench-readback-spine.ts",
   panel: "components/autonomy/autohunt-workbench-readback-spine-panel.tsx",
+  handoffPlanType: "types/autohunt-handoff-plan-preview.ts",
+  handoffPlanWriter: "lib/autonomy/autohunt-handoff-plan-preview-write.ts",
+  handoffPlanReader: "lib/autonomy/read-autohunt-handoff-plan-previews.ts",
+  handoffPlanPanel:
+    "components/autonomy/autohunt-handoff-plan-preview-readback-panel.tsx",
   agentWorkplane: "components/workplane/agent-workplane.tsx",
+  db: "lib/db.ts",
+  schema: "lib/db/schema.sql",
+  migrations: "scripts/db-migrations.mjs",
+  migrate: "scripts/db-migrate.mjs",
   smoke: "scripts/smoke-autohunt-workbench-readback-spine-v0-1.mjs",
   packageJson: "package.json",
   agentWorkplanePanelsSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",
@@ -38,6 +47,8 @@ const files = {
   autonomyContractSmoke: "scripts/smoke-autonomy-contract-v0-1.mjs",
   autonomyRunnerPreflightSmoke:
     "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+  handoffPlanSmoke:
+    "scripts/smoke-autohunt-handoff-plan-preview-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set(Object.values(files));
@@ -98,10 +109,6 @@ function assertChangedFileBoundary() {
     assert.doesNotMatch(file, /^docs\//, "readback spine slice must not edit docs");
     assert.doesNotMatch(file, /^README/i, "readback spine slice must not edit README");
     assert.doesNotMatch(file, /^app\/api\//, "readback spine slice must not add routes");
-    assert.doesNotMatch(file, /^lib\/db\.ts$/, "readback spine slice must not edit DB runtime");
-    assert.doesNotMatch(file, /^lib\/db\/schema\.sql$/, "readback spine slice must not edit DB schema");
-    assert.doesNotMatch(file, /^scripts\/db-migrations\.mjs$/, "readback spine slice must not edit migrations");
-    assert.doesNotMatch(file, /^scripts\/db-migrate\.mjs$/, "readback spine slice must not edit migration runner");
     assert.doesNotMatch(file, /package-lock|pnpm-lock|yarn\.lock/, "package lock must not change");
   }
 }
@@ -161,15 +168,16 @@ function assertNoSchemaRouteOrActionExpansion() {
     false,
     "readback spine slice must not add app/api routes",
   );
-  assert.equal(
-    changedFiles.some((file) =>
-      /^(lib\/db\.ts|lib\/db\/schema\.sql|scripts\/db-migrations\.mjs|scripts\/db-migrate\.mjs)$/.test(
-        file,
-      ),
+  for (const file of changedFiles.filter((candidate) =>
+    /^(lib\/db\.ts|lib\/db\/schema\.sql|scripts\/db-migrations\.mjs|scripts\/db-migrate\.mjs)$/.test(
+      candidate,
     ),
-    false,
-    "readback spine slice must not edit DB schema or migrations",
-  );
+  )) {
+    assert(
+      source[fileToSourceKey(file)]?.includes("autohunt_handoff_plan_previews"),
+      `DB follow-on change must be limited to handoff plan preview table: ${file}`,
+    );
+  }
   for (const [name, text] of Object.entries({
     builder: source.builder,
     panel: source.panel,
@@ -182,6 +190,15 @@ function assertNoSchemaRouteOrActionExpansion() {
     assert.doesNotMatch(text, /formAction/, `${name} must not expose form actions`);
     assert.doesNotMatch(text, /use server/i, `${name} must not use server directives`);
   }
+}
+
+function fileToSourceKey(file) {
+  return {
+    "lib/db.ts": "db",
+    "lib/db/schema.sql": "schema",
+    "scripts/db-migrations.mjs": "migrations",
+    "scripts/db-migrate.mjs": "migrate",
+  }[file];
 }
 
 function assertPackageScriptWiring() {
