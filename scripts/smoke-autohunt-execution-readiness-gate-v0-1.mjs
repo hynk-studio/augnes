@@ -34,6 +34,8 @@ const files = {
   migrations: "scripts/db-migrations.mjs",
   migrate: "scripts/db-migrate.mjs",
   smoke: "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
+  persistentChainReadinessBindingSmoke:
+    "scripts/smoke-autohunt-persistent-chain-readiness-binding-v0-1.mjs",
   packageJson: "package.json",
   copyExportSmoke:
     "scripts/smoke-autohunt-handoff-copy-export-preview-v0-1.mjs",

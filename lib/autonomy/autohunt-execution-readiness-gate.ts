@@ -82,7 +82,7 @@ export function buildAutohuntExecutionReadinessGate({
     operatorDecision,
     copy_export_preview,
   });
-  const sourceChainBindingsPresent = validateSourceChainBindings({
+  const sourceChainBinding = validateSourceChainBindings({
     workbench_spine,
     handoffPlan,
     operatorDecision,
@@ -147,7 +147,8 @@ export function buildAutohuntExecutionReadinessGate({
       operatorDecision?.accepted_summary?.approval_scope === ACCEPTANCE_SCOPE,
     copy_export_preview_ready:
       copy_export_preview?.preview_status === READY_COPY_EXPORT_STATUS,
-    source_chain_bindings_present: sourceChainBindingsPresent,
+    source_chain_bindings_present:
+      sourceChainBinding.source_chain_bindings_present,
     dogfood_seed_report_present: dogfoodSeedReportPresent,
     dogfood_seed_report_ready: dogfoodSeedReportReady,
     authority_boundaries_all_false: authorityBoundariesAllFalse,
@@ -176,6 +177,7 @@ export function buildAutohuntExecutionReadinessGate({
       handoffPlanReadback: handoff_plan_readback,
       operatorDecisionReadback: operator_decision_readback,
       copy_export_preview,
+      sourceChainBinding,
     }),
   };
 
@@ -272,6 +274,11 @@ function buildSourceChainSummary({
   };
 }
 
+type SourceChainBindingEvaluation = {
+  source_chain_bindings_present: boolean;
+  workbench_spine_fingerprint_rebuilt_differs_from_handoff_source_spine: boolean;
+};
+
 function validateSourceChainBindings({
   workbench_spine,
   handoffPlan,
@@ -282,7 +289,7 @@ function validateSourceChainBindings({
   handoffPlan: AutohuntHandoffPlanPreview | null;
   operatorDecision: AutohuntHandoffPlanOperatorReviewDecision | null;
   copy_export_preview: AutohuntHandoffCopyExportPreview | null | undefined;
-}) {
+}): SourceChainBindingEvaluation {
   const required = requiredStringFieldsPresent(
     {
       spine_grant_id: workbench_spine?.latest_active_grant_summary.grant_id,
@@ -293,6 +300,8 @@ function validateSourceChainBindings({
       spine_preflight_packet_fingerprint:
         workbench_spine?.ready_preflight_summary.preflight_packet_fingerprint,
       spine_fingerprint: workbench_spine?.spine_fingerprint,
+      handoff_source_spine_fingerprint:
+        handoffPlan?.source_workbench_spine.spine_fingerprint,
       handoff_plan_id: handoffPlan?.handoff_plan_id,
       handoff_plan_fingerprint: handoffPlan?.handoff_plan_fingerprint,
       decision_id: operatorDecision?.decision_id,
@@ -305,6 +314,7 @@ function validateSourceChainBindings({
       "spine_preflight_packet_id",
       "spine_preflight_packet_fingerprint",
       "spine_fingerprint",
+      "handoff_source_spine_fingerprint",
       "handoff_plan_id",
       "handoff_plan_fingerprint",
       "decision_id",
@@ -312,7 +322,7 @@ function validateSourceChainBindings({
       "copy_preview_fingerprint",
     ],
   );
-  const bindings = validateSourceBindingPairs([
+  const stableBindings = validateSourceBindingPairs([
     {
       field: "handoff_plan_source_grant_id",
       expected: workbench_spine?.latest_active_grant_summary.grant_id,
@@ -337,12 +347,6 @@ function validateSourceChainBindings({
         workbench_spine?.ready_preflight_summary.preflight_packet_fingerprint,
       actual: handoffPlan?.source_preflight.preflight_packet_fingerprint,
       reason: "handoff_plan_must_bind_to_ready_preflight_fingerprint",
-    },
-    {
-      field: "handoff_plan_source_spine_fingerprint",
-      expected: workbench_spine?.spine_fingerprint,
-      actual: handoffPlan?.source_workbench_spine.spine_fingerprint,
-      reason: "handoff_plan_must_bind_to_workbench_spine",
     },
     {
       field: "decision_source_handoff_plan_id",
@@ -412,8 +416,22 @@ function validateSourceChainBindings({
       copy_export_preview?.source_handoff_plan.selected_candidate_fingerprints ??
         [],
     );
+  const currentSpineFingerprint = workbench_spine?.spine_fingerprint ?? null;
+  const handoffSourceSpineFingerprint =
+    handoffPlan?.source_workbench_spine.spine_fingerprint ?? null;
+  const workbenchSpineFingerprintDrifted = Boolean(
+    currentSpineFingerprint &&
+      handoffSourceSpineFingerprint &&
+      currentSpineFingerprint !== handoffSourceSpineFingerprint,
+  );
+  const sourceChainBindingsPresent =
+    required.passed && stableBindings.passed && candidateBindingsPresent;
 
-  return required.passed && bindings.passed && candidateBindingsPresent;
+  return {
+    source_chain_bindings_present: sourceChainBindingsPresent,
+    workbench_spine_fingerprint_rebuilt_differs_from_handoff_source_spine:
+      sourceChainBindingsPresent && workbenchSpineFingerprintDrifted,
+  };
 }
 
 function arraysMatch(left: string[], right: string[]) {
@@ -676,6 +694,7 @@ function buildWarningReasons({
   handoffPlanReadback,
   operatorDecisionReadback,
   copy_export_preview,
+  sourceChainBinding,
 }: {
   dogfoodSeedReportPresent: boolean;
   handoffPlanReadback: AutohuntHandoffPlanPreviewReadback | null | undefined;
@@ -684,10 +703,14 @@ function buildWarningReasons({
     | null
     | undefined;
   copy_export_preview: AutohuntHandoffCopyExportPreview | null | undefined;
+  sourceChainBinding: SourceChainBindingEvaluation;
 }) {
   return [
     "future_execution_design_only",
     "fresh_explicit_approval_still_required",
+    sourceChainBinding.workbench_spine_fingerprint_rebuilt_differs_from_handoff_source_spine
+      ? "workbench_spine_fingerprint_rebuilt_differs_from_handoff_source_spine"
+      : null,
     !dogfoodSeedReportPresent
       ? "local_dogfood_seed_report_not_supplied_to_builder"
       : null,

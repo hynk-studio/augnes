@@ -42,6 +42,8 @@ const files = {
     "components/autonomy/autohunt-execution-readiness-gate-panel.tsx",
   executionGateSmoke:
     "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
+  persistentChainReadinessBindingSmoke:
+    "scripts/smoke-autohunt-persistent-chain-readiness-binding-v0-1.mjs",
   packageJson: "package.json",
   localAutohuntChainDogfood:
     "scripts/dogfood-seed-local-autohunt-chain-v0-1.mjs",
