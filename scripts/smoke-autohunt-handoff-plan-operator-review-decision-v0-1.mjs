@@ -51,6 +51,8 @@ const files = {
   migrate: "scripts/db-migrate.mjs",
   smoke:
     "scripts/smoke-autohunt-handoff-plan-operator-review-decision-v0-1.mjs",
+  workbenchMountSmoke:
+    "scripts/smoke-autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1.mjs",
   packageJson: "package.json",
   agentWorkplane: "components/workplane/agent-workplane.tsx",
   agentWorkplanePanelsSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",
@@ -592,10 +594,10 @@ function assertNoRuntimeImportsOrWorkbenchWrite() {
     /writeAutohuntHandoffPlanOperatorReviewDecision/,
     "Agent Workplane must not call the decision write helper",
   );
-  assert.doesNotMatch(
+  assert.match(
     source.agentWorkplane,
     /AutohuntHandoffPlanOperatorReviewDecisionReadbackPanel/,
-    "decision panel must not be mounted in this PR",
+    "Agent Workplane may mount the passive decision readback panel",
   );
 }
 

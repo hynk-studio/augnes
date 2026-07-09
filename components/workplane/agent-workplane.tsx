@@ -5,6 +5,7 @@ import { AutonomyCopyExportPanel } from "@/components/autonomy/autonomy-copy-exp
 import { AutonomyPolicyPreviewPanel } from "@/components/autonomy/autonomy-policy-preview-panel";
 import { AutonomyRunPreviewPanel } from "@/components/autonomy/autonomy-run-preview-panel";
 import { AutonomyRunnerPreflightPreviewPanel } from "@/components/autonomy/autonomy-runner-preflight-preview-panel";
+import { AutohuntHandoffPlanOperatorReviewDecisionReadbackPanel } from "@/components/autonomy/autohunt-handoff-plan-operator-review-decision-readback-panel";
 import { AutohuntHandoffPlanPreviewReadbackPanel } from "@/components/autonomy/autohunt-handoff-plan-preview-readback-panel";
 import { AutohuntWorkbenchReadbackSpinePanel } from "@/components/autonomy/autohunt-workbench-readback-spine-panel";
 import { CodexResultFeedbackDraftPanel } from "@/components/codex-result-feedback-draft-panel";
@@ -126,6 +127,7 @@ import { readAutonomyContractPreviewForWeb } from "@/lib/autonomy/read-autonomy-
 import { readAutonomyRunnerPreflightPreviewForWeb } from "@/lib/autonomy/read-autonomy-runner-preflight-for-web";
 import { buildAutohuntWorkbenchReadbackSpine } from "@/lib/autonomy/autohunt-workbench-readback-spine";
 import { readAutonomyDelegationGrants } from "@/lib/autonomy/read-autonomy-delegation-grants";
+import { readAutohuntHandoffPlanOperatorReviewDecisions } from "@/lib/autonomy/read-autohunt-handoff-plan-operator-review-decisions";
 import { readAutohuntHandoffPlanPreviews } from "@/lib/autonomy/read-autohunt-handoff-plan-previews";
 import { readAutohuntWorkQueueCandidates } from "@/lib/autonomy/read-autohunt-work-queue-candidates";
 import { readAutohuntPreflightPackets } from "@/lib/autonomy/read-autohunt-preflight-packets";
@@ -434,6 +436,16 @@ export async function AgentWorkplane() {
       scope: "project:augnes",
       source_grant_id: autohuntSourceGrantId,
       handoff_plan_status: "ready_for_operator_review",
+    });
+  const autohuntSourceHandoffPlanId =
+    autohuntHandoffPlanPreviewReadback.selected_handoff_plan
+      ?.handoff_plan_id ?? null;
+  const autohuntHandoffPlanOperatorReviewDecisionReadback =
+    readAutohuntHandoffPlanOperatorReviewDecisions({
+      scope: "project:augnes",
+      source_handoff_plan_id: autohuntSourceHandoffPlanId,
+      decision_status:
+        "accepted_for_future_supervised_handoff_copy_export_planning",
     });
   const selectedSessionDigestIntakePreview =
     buildSelectedSessionDigestIntakePreviewV01({
@@ -1903,6 +1915,9 @@ export async function AgentWorkplane() {
               />
               <AutohuntHandoffPlanPreviewReadbackPanel
                 readback={autohuntHandoffPlanPreviewReadback}
+              />
+              <AutohuntHandoffPlanOperatorReviewDecisionReadbackPanel
+                readback={autohuntHandoffPlanOperatorReviewDecisionReadback}
               />
               <AutonomyContractPreviewPanel preview={autonomyPreview} />
               <AutonomyBudgetPreviewPanel preview={autonomyPreview} />

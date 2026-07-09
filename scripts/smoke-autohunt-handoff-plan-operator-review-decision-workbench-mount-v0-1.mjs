@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import Database from "better-sqlite3";
 
@@ -11,43 +12,31 @@ import {
   uniqueSorted,
 } from "./smoke-boundary-common.mjs";
 import {
-  buildAutohuntHandoffPlanPreviewAuthorityBoundary,
-  readAutohuntHandoffPlanPreviews,
-} from "../lib/autonomy/read-autohunt-handoff-plan-previews.ts";
+  buildAutohuntHandoffPlanOperatorReviewDecisionAuthorityBoundary,
+  readAutohuntHandoffPlanOperatorReviewDecisions,
+} from "../lib/autonomy/read-autohunt-handoff-plan-operator-review-decisions.ts";
 import {
   allValuesFalse,
   containsForbiddenRawMaterial,
 } from "../lib/research-candidate-review/shared-source-chain-guards.ts";
-import {
-  AUTOHUNT_HANDOFF_PLAN_PREVIEW_AUTHORITY_FLAG_NAMES,
-} from "../types/autohunt-handoff-plan-preview.ts";
 
 const files = {
   agentWorkplane: "components/workplane/agent-workplane.tsx",
+  decisionPanel:
+    "components/autonomy/autohunt-handoff-plan-operator-review-decision-readback-panel.tsx",
+  decisionReader:
+    "lib/autonomy/read-autohunt-handoff-plan-operator-review-decisions.ts",
+  decisionWriter:
+    "lib/autonomy/autohunt-handoff-plan-operator-review-decision-write.ts",
   handoffPanel:
     "components/autonomy/autohunt-handoff-plan-preview-readback-panel.tsx",
   handoffReader: "lib/autonomy/read-autohunt-handoff-plan-previews.ts",
-  operatorDecisionType:
-    "types/autohunt-handoff-plan-operator-review-decision.ts",
-  operatorDecisionWriter:
-    "lib/autonomy/autohunt-handoff-plan-operator-review-decision-write.ts",
-  operatorDecisionReader:
-    "lib/autonomy/read-autohunt-handoff-plan-operator-review-decisions.ts",
-  operatorDecisionPanel:
-    "components/autonomy/autohunt-handoff-plan-operator-review-decision-readback-panel.tsx",
-  workbenchSpinePanel:
-    "components/autonomy/autohunt-workbench-readback-spine-panel.tsx",
-  db: "lib/db.ts",
-  schema: "lib/db/schema.sql",
-  migrations: "scripts/db-migrations.mjs",
-  migrate: "scripts/db-migrate.mjs",
-  smoke: "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
-  operatorDecisionSmoke:
-    "scripts/smoke-autohunt-handoff-plan-operator-review-decision-v0-1.mjs",
-  operatorDecisionWorkbenchMountSmoke:
+  smoke:
     "scripts/smoke-autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1.mjs",
-  packageJson: "package.json",
-  agentWorkplanePanelsSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  decisionSmoke:
+    "scripts/smoke-autohunt-handoff-plan-operator-review-decision-v0-1.mjs",
+  handoffMountSmoke:
+    "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
   handoffPlanSmoke:
     "scripts/smoke-autohunt-handoff-plan-preview-v0-1.mjs",
   workbenchSpineSmoke:
@@ -57,35 +46,30 @@ const files = {
   delegationGrantSmoke:
     "scripts/smoke-autonomy-delegation-grant-record-v0-1.mjs",
   sharedSourceGuardSmoke: "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
+  agentWorkplanePanelsSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",
   autonomyContractSmoke: "scripts/smoke-autonomy-contract-v0-1.mjs",
   autonomyRunnerPreflightSmoke:
     "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+  packageJson: "package.json",
 };
 
 const expectedChangedFiles = new Set([
   files.agentWorkplane,
-  files.operatorDecisionType,
-  files.operatorDecisionWriter,
-  files.operatorDecisionReader,
-  files.operatorDecisionPanel,
-  files.db,
-  files.schema,
-  files.migrations,
-  files.migrate,
   files.smoke,
-  files.operatorDecisionSmoke,
-  files.operatorDecisionWorkbenchMountSmoke,
   files.packageJson,
-  files.agentWorkplanePanelsSmoke,
+  files.decisionSmoke,
+  files.handoffMountSmoke,
   files.handoffPlanSmoke,
   files.workbenchSpineSmoke,
   files.preflightSmoke,
   files.queueCandidateSmoke,
   files.delegationGrantSmoke,
   files.sharedSourceGuardSmoke,
+  files.agentWorkplanePanelsSmoke,
   files.autonomyContractSmoke,
   files.autonomyRunnerPreflightSmoke,
 ]);
+
 const source = Object.fromEntries(
   Object.entries(files).map(([key, filePath]) => {
     assert(existsSync(filePath), `${filePath} must exist`);
@@ -100,97 +84,113 @@ assertNoSchemaRouteOrActionExpansion();
 assertPanelPassive();
 assertForbiddenImportsAbsent();
 assertReadbackBoundary();
+assertExistingDecisionSmokeStillPasses();
 
 console.log(
   JSON.stringify(
     {
-      smoke: "autohunt-handoff-plan-preview-workbench-mount-v0-1",
+      smoke:
+        "autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1",
       pass: true,
       expected_changed_files_checked: true,
       docs_changed: false,
       no_db_schema_or_route_added_checked: true,
-      workbench_readback_import_checked: true,
-      workbench_panel_import_checked: true,
       server_side_readback_checked: true,
       render_order_checked: true,
+      readback_import_checked: true,
+      panel_import_checked: true,
       panel_passive_checked: true,
       write_helper_absent_from_workbench_checked: true,
       no_runner_or_external_authority_checked: true,
-      raw_material_absence_checked: true,
+      no_auto_acceptance_checked: true,
+      existing_operator_decision_smoke_passed: true,
     },
     null,
     2,
   ),
 );
-console.log("PASS smoke:autohunt-handoff-plan-preview-workbench-mount-v0-1");
+console.log(
+  "PASS smoke:autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1",
+);
 
 function assertChangedFileBoundary() {
   const changedFiles = collectChangedFiles();
-
   for (const file of changedFiles) {
     assert(
       expectedChangedFiles.has(file),
-      `Unexpected changed file for autohunt handoff plan preview Workbench mount: ${file}`,
+      `Unexpected changed file for operator decision Workbench mount: ${file}`,
     );
     assert.doesNotMatch(file, /^docs\//, "mount slice must not edit docs");
     assert.doesNotMatch(file, /^README/i, "mount slice must not edit README");
     assert.doesNotMatch(file, /^app\/api\//, "mount slice must not add routes");
     assert.doesNotMatch(file, /^app\//, "mount slice must not change app surfaces");
-    assert.doesNotMatch(file, /package-lock|pnpm-lock|yarn\.lock/, "package lock must not change");
+    assert.doesNotMatch(
+      file,
+      /package-lock|pnpm-lock|yarn\.lock/,
+      "package lock must not change",
+    );
   }
 }
 
 function assertPackageScriptWiring() {
   assertPackageScript({
     packageJsonText: source.packageJson,
-    scriptName: "smoke:autohunt-handoff-plan-preview-workbench-mount-v0-1",
+    scriptName:
+      "smoke:autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1",
     expectedCommand:
-      "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
+      "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1.mjs",
   });
 }
 
 function assertWorkbenchMount() {
   const agent = source.agentWorkplane;
   assertContains(agent, [
-    "AutohuntHandoffPlanPreviewReadbackPanel",
-    "readAutohuntHandoffPlanPreviews",
-    "const autohuntHandoffPlanPreviewReadback",
-    "source_grant_id: autohuntSourceGrantId",
-    'handoff_plan_status: "ready_for_operator_review"',
-    "readback={autohuntHandoffPlanPreviewReadback}",
+    "AutohuntHandoffPlanOperatorReviewDecisionReadbackPanel",
+    "readAutohuntHandoffPlanOperatorReviewDecisions",
+    "const autohuntSourceHandoffPlanId",
+    "const autohuntHandoffPlanOperatorReviewDecisionReadback",
+    "source_handoff_plan_id: autohuntSourceHandoffPlanId",
+    'decision_status: "accepted_for_future_supervised_handoff_copy_export_planning"',
+    "readback={autohuntHandoffPlanOperatorReviewDecisionReadback}",
   ]);
 
   assert(!agent.includes('"use client"'), "Agent Workplane must remain server-rendered");
-  assert(!agent.includes("writeAutohuntHandoffPlanPreview"), "Agent Workplane must not invoke the write helper");
+  assert.doesNotMatch(
+    agent,
+    /writeAutohuntHandoffPlanOperatorReviewDecision/,
+    "Agent Workplane must not import or call the decision write helper",
+  );
 
   const readbackIndex = agent.indexOf(
-    "const autohuntHandoffPlanPreviewReadback",
+    "const autohuntHandoffPlanOperatorReviewDecisionReadback",
   );
   const returnIndex = agent.indexOf("return (");
   assert(
     readbackIndex !== -1 && returnIndex !== -1 && readbackIndex < returnIndex,
-    "Agent Workplane must construct handoff plan readback server-side before render",
+    "Agent Workplane must construct decision readback server-side before render",
   );
 
-  const spineRenderIndex = agent.indexOf("<AutohuntWorkbenchReadbackSpinePanel");
   const handoffRenderIndex = agent.indexOf(
     "<AutohuntHandoffPlanPreviewReadbackPanel",
-    spineRenderIndex,
+  );
+  const decisionRenderIndex = agent.indexOf(
+    "<AutohuntHandoffPlanOperatorReviewDecisionReadbackPanel",
+    handoffRenderIndex,
   );
   const contractRenderIndex = agent.indexOf(
     "<AutonomyContractPreviewPanel",
-    handoffRenderIndex,
+    decisionRenderIndex,
   );
   assert(
-    spineRenderIndex !== -1 &&
-      handoffRenderIndex !== -1 &&
+    handoffRenderIndex !== -1 &&
+      decisionRenderIndex !== -1 &&
       contractRenderIndex !== -1,
-    "Agent Workplane must render the spine, handoff panel, and autonomy contract panel",
+    "Agent Workplane must render handoff preview, decision, and autonomy contract panels",
   );
   assert(
-    spineRenderIndex < handoffRenderIndex &&
-      handoffRenderIndex < contractRenderIndex,
-    "Handoff plan readback panel must render after the Autohunt spine and before autonomy previews",
+    handoffRenderIndex < decisionRenderIndex &&
+      decisionRenderIndex < contractRenderIndex,
+    "Decision readback panel must render after handoff plan preview and before autonomy previews",
   );
 
   const constructionSnippet = agent.slice(
@@ -201,6 +201,7 @@ function assertWorkbenchMount() {
   assert.doesNotMatch(constructionSnippet, /\bINSERT\b|\bUPDATE\b|\bDELETE\b/i);
   assert.doesNotMatch(constructionSnippet, /\bformAction\b/);
   assert.doesNotMatch(constructionSnippet, /\bonClick\b/);
+  assert.doesNotMatch(constructionSnippet, /\bwriteAutohunt/i);
 }
 
 function assertNoSchemaRouteOrActionExpansion() {
@@ -211,14 +212,10 @@ function assertNoSchemaRouteOrActionExpansion() {
     "scripts/db-migrations.mjs",
     "scripts/db-migrate.mjs",
   ]) {
-    if (changedFiles.includes(forbidden)) {
-      assert(
-        source[fileToSourceKey(forbidden)].includes(
-          "autohunt_handoff_plan_operator_review_decisions",
-        ),
-        `DB follow-on change must be limited to operator review decision table: ${forbidden}`,
-      );
-    }
+    assert(
+      !changedFiles.includes(forbidden),
+      `mount slice must not change schema or migration file: ${forbidden}`,
+    );
   }
   assert.equal(
     changedFiles.some((file) => /^app\/api\//.test(file)),
@@ -230,92 +227,97 @@ function assertNoSchemaRouteOrActionExpansion() {
     false,
     "mount slice must not alter app route surfaces",
   );
-}
-
-function fileToSourceKey(file) {
-  return {
-    "lib/db.ts": "db",
-    "lib/db/schema.sql": "schema",
-    "scripts/db-migrations.mjs": "migrations",
-    "scripts/db-migrate.mjs": "migrate",
-  }[file];
+  for (const [label, text] of Object.entries({
+    agentWorkplane: source.agentWorkplane,
+    panel: source.decisionPanel,
+  })) {
+    assert.doesNotMatch(text, /\bfetch\s*\(/, `${label} must not fetch`);
+    assert.doesNotMatch(text, /formAction/, `${label} must not expose form actions`);
+    assert.doesNotMatch(text, /use server/i, `${label} must not use server directives`);
+    assert.doesNotMatch(text, /<button\b/i, `${label} must not add buttons`);
+    assert.doesNotMatch(text, /\bonClick\b/, `${label} must not add click handlers`);
+  }
 }
 
 function assertPanelPassive() {
-  assertContains(source.handoffPanel, [
-    "AutohuntHandoffPlanPreviewReadbackPanel",
-    "Passive handoff plan preview readback only.",
-    "launches no runner",
-    "schedules nothing",
+  assertContains(source.decisionPanel, [
+    "AutohuntHandoffPlanOperatorReviewDecisionReadbackPanel",
+    "Passive operator decision readback only.",
+    "Acceptance here is limited to",
+    "starts no runner",
     "executes no Codex task",
     "calls no GitHub or provider service",
     "creates no branch or PR",
-    "writes no durable state",
   ]);
-  assert.doesNotMatch(source.handoffPanel, /<button\b/i);
-  assert.doesNotMatch(source.handoffPanel, /\bonClick\b/);
-  assert.doesNotMatch(source.handoffPanel, /\bfetch\s*\(/);
-  assert.doesNotMatch(source.handoffPanel, /\bformAction\b/);
-  assert.doesNotMatch(source.handoffPanel, /server action/i);
-  assert.doesNotMatch(source.handoffPanel, /use server/i);
-  assert.doesNotMatch(source.handoffPanel, /clipboard/i);
-  assert.doesNotMatch(source.handoffPanel, /\bdownload\b/i);
+  assert.doesNotMatch(source.decisionPanel, /<button\b/i);
+  assert.doesNotMatch(source.decisionPanel, /\bonClick\b/);
+  assert.doesNotMatch(source.decisionPanel, /\bfetch\s*\(/);
+  assert.doesNotMatch(source.decisionPanel, /\bformAction\b/);
+  assert.doesNotMatch(source.decisionPanel, /server action/i);
+  assert.doesNotMatch(source.decisionPanel, /use server/i);
+  assert.doesNotMatch(source.decisionPanel, /clipboard/i);
+  assert.doesNotMatch(source.decisionPanel, /\bdownload\b/i);
 }
 
 function assertForbiddenImportsAbsent() {
-  const agentImportLines = source.agentWorkplane
+  const relevantAgentImports = source.agentWorkplane
     .split("\n")
     .filter(
       (line) =>
         /^\s*import\b/.test(line) &&
-        /AutohuntHandoffPlanPreviewReadbackPanel|read-autohunt-handoff-plan-previews/.test(
+        /AutohuntHandoffPlanOperatorReviewDecisionReadbackPanel|read-autohunt-handoff-plan-operator-review-decisions/.test(
           line,
         ),
     )
     .join("\n");
-  assertContains(agentImportLines, [
-    "AutohuntHandoffPlanPreviewReadbackPanel",
-    "readAutohuntHandoffPlanPreviews",
+  assertContains(relevantAgentImports, [
+    "AutohuntHandoffPlanOperatorReviewDecisionReadbackPanel",
+    "readAutohuntHandoffPlanOperatorReviewDecisions",
   ]);
-  assert.doesNotMatch(agentImportLines, /openai|provider|github|octokit|@actions/i);
-  assert.doesNotMatch(agentImportLines, /retrieval|rag|vector|embedding|crawler/i);
-  assert.doesNotMatch(agentImportLines, /source-fetch|fetch-source/i);
-  assert.doesNotMatch(agentImportLines, /writeAutohuntHandoffPlanPreview/);
-
-  for (const [label, text] of Object.entries({
-    handoffPanel: source.handoffPanel,
-    handoffReader: source.handoffReader,
-  })) {
+  const relevantSources = {
+    agentWorkplaneDecisionImports: relevantAgentImports,
+    decisionPanel: source.decisionPanel,
+    decisionReader: source.decisionReader,
+  };
+  for (const [label, text] of Object.entries(relevantSources)) {
     const imports = text
       .split("\n")
       .filter((line) => /^\s*import\b/.test(line))
       .join("\n");
-    assert.doesNotMatch(imports, /from\s+["'][^"']*(openai|provider|github|octokit)[^"']*["']/i, `${label} must not import provider/GitHub code`);
-    assert.doesNotMatch(imports, /from\s+["'][^"']*(retrieval|rag|embedding|vector|crawler|source-fetch)[^"']*["']/i, `${label} must not import retrieval or source-fetch code`);
-    assert.doesNotMatch(text, /\bfetch\s*\(/, `${label} must not fetch`);
+    assert.doesNotMatch(
+      imports,
+      /from\s+["'][^"']*(openai|provider|github|octokit|@actions)[^"']*["']/i,
+      `${label} must not import provider/GitHub code`,
+    );
+    assert.doesNotMatch(
+      imports,
+      /from\s+["'][^"']*(retrieval|rag|embedding|vector|crawler|source-fetch|fetch-source)[^"']*["']/i,
+      `${label} must not import retrieval or source-fetch code`,
+    );
+    assert.doesNotMatch(imports, /writeAutohuntHandoffPlanOperatorReviewDecision/);
   }
+  assert.doesNotMatch(
+    source.agentWorkplane,
+    /accepted_for_future_supervised_handoff_copy_export_planning\s*:/,
+    "Agent Workplane must not fabricate accepted decision objects",
+  );
 }
 
 function assertReadbackBoundary() {
-  const authorityBoundary = buildAutohuntHandoffPlanPreviewAuthorityBoundary();
-  assert.deepEqual(
-    Object.keys(authorityBoundary).sort(),
-    [...AUTOHUNT_HANDOFF_PLAN_PREVIEW_AUTHORITY_FLAG_NAMES].sort(),
-  );
+  const authorityBoundary =
+    buildAutohuntHandoffPlanOperatorReviewDecisionAuthorityBoundary();
   assert.equal(allValuesFalse(authorityBoundary), true);
 
   const db = new Database(":memory:");
   try {
-    const readback = readAutohuntHandoffPlanPreviews({
+    const readback = readAutohuntHandoffPlanOperatorReviewDecisions({
       db,
       scope: "project:augnes",
-      source_grant_id: null,
-      handoff_plan_status: "ready_for_operator_review",
+      source_handoff_plan_id: "autohunt-handoff-plan:mount-smoke",
+      decision_status:
+        "accepted_for_future_supervised_handoff_copy_export_planning",
     });
-    assert.equal(
-      allValuesFalse(readback.no_run_no_execution_boundary),
-      true,
-    );
+    assert.equal(allValuesFalse(readback.no_run_no_execution_boundary), true);
     assert.equal(readback.raw_material_persisted, false);
     assert.equal(readback.runner_started, false);
     assert.equal(readback.scheduler_started, false);
@@ -330,22 +332,37 @@ function assertReadbackBoundary() {
     assert.equal(readback.work_mutated, false);
     assert.equal(readback.proof_or_evidence_written, false);
     assert.equal(readback.product_or_delivery_state_written, false);
+    assert.equal(readback.selection_status, "no_decisions");
+    assert.equal(readback.selected_decision, null);
   } finally {
     db.close();
   }
 
   assert.equal(
     containsForbiddenRawMaterial({
-      source_grant_id: "grant:readback-mount",
-      handoff_plan_status: "ready_for_operator_review",
+      source_handoff_plan_id: "autohunt-handoff-plan:mount-smoke",
+      decision_status:
+        "accepted_for_future_supervised_handoff_copy_export_planning",
       persisted_material_summary: {
         source_fingerprints_persisted: true,
-        handoff_plan_policy_persisted: true,
+        operator_decision_persisted: true,
         unsafe_material_persisted: false,
       },
     }),
     false,
-    "safe readback mount material must not contain forbidden raw material fields",
+    "safe decision mount material must not contain forbidden raw material fields",
+  );
+}
+
+function assertExistingDecisionSmokeStillPasses() {
+  execFileSync(
+    "npm",
+    ["run", "smoke:autohunt-handoff-plan-operator-review-decision-v0-1"],
+    {
+      cwd: process.cwd(),
+      stdio: "pipe",
+      encoding: "utf8",
+    },
   );
 }
 

@@ -88,6 +88,8 @@ const files = {
     "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
   operatorDecisionSmoke:
     "scripts/smoke-autohunt-handoff-plan-operator-review-decision-v0-1.mjs",
+  operatorDecisionWorkbenchMountSmoke:
+    "scripts/smoke-autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1.mjs",
   packageJson: "package.json",
   queueCandidateSmoke: "scripts/smoke-autohunt-work-queue-candidate-v0-1.mjs",
   delegationGrantSmoke:
