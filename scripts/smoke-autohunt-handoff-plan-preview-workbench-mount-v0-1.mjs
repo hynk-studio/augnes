@@ -87,6 +87,12 @@ const files = {
     "components/autonomy/autohunt-supervised-execution-contract-readback-panel.tsx",
   executionContractSmoke:
     "scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
+  resultIntakeType: "types/autohunt-result-intake.ts",
+  resultIntakeWriter: "lib/autonomy/autohunt-result-intake-write.ts",
+  resultIntakeReadback: "lib/autonomy/read-autohunt-result-intakes.ts",
+  resultIntakePanel:
+    "components/autonomy/autohunt-result-intake-readback-panel.tsx",
+  resultIntakeSmoke: "scripts/smoke-autohunt-result-intake-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set([
@@ -127,6 +133,11 @@ const expectedChangedFiles = new Set([
   files.executionContractReader,
   files.executionContractPanel,
   files.executionContractSmoke,
+  files.resultIntakeType,
+  files.resultIntakeWriter,
+  files.resultIntakeReadback,
+  files.resultIntakePanel,
+  files.resultIntakeSmoke,
 ]);
 const source = Object.fromEntries(
   Object.entries(files).map(([key, filePath]) => {
@@ -260,6 +271,9 @@ function assertNoSchemaRouteOrActionExpansion() {
         ) ||
           source[fileToSourceKey(forbidden)].includes(
             "autohunt_supervised_execution_contracts",
+          ) ||
+          source[fileToSourceKey(forbidden)].includes(
+            "autohunt_result_intakes",
           ),
         `DB follow-on change must be limited to known Autohunt table wiring: ${forbidden}`,
       );

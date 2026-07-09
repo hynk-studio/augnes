@@ -97,6 +97,12 @@ const files = {
     "components/autonomy/autohunt-supervised-execution-contract-readback-panel.tsx",
   executionContractSmoke:
     "scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
+  resultIntakeType: "types/autohunt-result-intake.ts",
+  resultIntakeWriter: "lib/autonomy/autohunt-result-intake-write.ts",
+  resultIntakeReadback: "lib/autonomy/read-autohunt-result-intakes.ts",
+  resultIntakePanel:
+    "components/autonomy/autohunt-result-intake-readback-panel.tsx",
+  resultIntakeSmoke: "scripts/smoke-autohunt-result-intake-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set(Object.values(files));
@@ -231,9 +237,10 @@ function assertDbSchemaAndMigration() {
           [
             AUTOHUNT_HANDOFF_PLAN_OPERATOR_REVIEW_DECISION_TABLE,
             "autohunt_supervised_execution_contracts",
+            "autohunt_result_intakes",
           ].includes(table),
         ),
-        `${label} must add only the operator review decision table or named supervised execution contract follow-on table`,
+        `${label} must add only the operator review decision table or named supervised execution contract/result-intake follow-on table`,
       );
     }
     assert.doesNotMatch(targetTableBlock, /raw_review_note/i, `${label} must not define raw review note columns`);

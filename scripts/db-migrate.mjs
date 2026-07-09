@@ -32,6 +32,7 @@ import {
   migrateAutohuntHandoffPlanPreviews,
   migrateAutohuntHandoffPlanOperatorReviewDecisions,
   migrateAutohuntSupervisedExecutionContracts,
+  migrateAutohuntResultIntakes,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -101,6 +102,7 @@ try {
     migrateAutohuntHandoffPlanOperatorReviewDecisions(db);
   const autohuntSupervisedExecutionContractResult =
     migrateAutohuntSupervisedExecutionContracts(db);
+  const autohuntResultIntakeResult = migrateAutohuntResultIntakes(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -760,6 +762,23 @@ try {
   if (autohuntSupervisedExecutionContractResult.created_indexes.length > 0) {
     console.log(
       `Created indexes: ${autohuntSupervisedExecutionContractResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (autohuntResultIntakeResult.created_tables.length > 0) {
+    console.log(
+      `Created autohunt_result_intakes table at ${dbPath}: ${autohuntResultIntakeResult.created_tables.join(", ")}`,
+    );
+  } else if (autohuntResultIntakeResult.created_indexes.length === 0) {
+    console.log(
+      `Autohunt result intake migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(`Migrated autohunt_result_intakes indexes at ${dbPath}`);
+  }
+  if (autohuntResultIntakeResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${autohuntResultIntakeResult.created_indexes.join(", ")}`,
     );
   }
 

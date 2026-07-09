@@ -579,6 +579,53 @@ CREATE INDEX IF NOT EXISTS idx_autohunt_supervised_execution_contracts_ready_pre
 CREATE INDEX IF NOT EXISTS idx_autohunt_supervised_execution_contracts_operator_decision_fingerprint_created
   ON autohunt_supervised_execution_contracts(operator_decision_fingerprint, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS autohunt_result_intakes (
+  result_intake_id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+  result_intake_status TEXT NOT NULL,
+  source_execution_contract_id TEXT NOT NULL,
+  source_execution_contract_fingerprint TEXT NOT NULL,
+  source_execution_contract_status TEXT NOT NULL,
+  source_readiness_gate_fingerprint TEXT NOT NULL,
+  active_grant_id TEXT NOT NULL,
+  active_grant_fingerprint TEXT NOT NULL,
+  ready_preflight_packet_id TEXT NOT NULL,
+  ready_preflight_packet_fingerprint TEXT NOT NULL,
+  operator_decision_id TEXT NOT NULL,
+  operator_decision_fingerprint TEXT NOT NULL,
+  copy_export_preview_fingerprint TEXT NOT NULL,
+  result_report_id TEXT NOT NULL,
+  result_report_fingerprint TEXT NOT NULL,
+  result_status TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  structured_result_report_json TEXT NOT NULL,
+  expected_observed_delta_candidate_json TEXT NOT NULL,
+  reuse_outcome_candidate_json TEXT NOT NULL,
+  residual_diagnostic_candidate_json TEXT NOT NULL,
+  learning_loop_summary_json TEXT NOT NULL,
+  authority_boundary_json TEXT NOT NULL,
+  persisted_material_boundary_json TEXT NOT NULL,
+  validation_json TEXT NOT NULL,
+  row_count_write_summary_json TEXT NOT NULL,
+  result_intake_fingerprint TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_result_intakes_scope_created
+  ON autohunt_result_intakes(scope, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_result_intakes_source_execution_contract_id_created
+  ON autohunt_result_intakes(source_execution_contract_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_result_intakes_source_execution_contract_fingerprint_created
+  ON autohunt_result_intakes(source_execution_contract_fingerprint, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_result_intakes_result_intake_status_created
+  ON autohunt_result_intakes(result_intake_status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_autohunt_result_intakes_result_report_fingerprint_created
+  ON autohunt_result_intakes(result_report_fingerprint, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS perspective_promotion_decisions (
   promotion_decision_id text primary key,
   scope text not null,
