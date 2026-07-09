@@ -33,6 +33,7 @@ import {
   migrateAutohuntHandoffPlanOperatorReviewDecisions,
   migrateAutohuntSupervisedExecutionContracts,
   migrateAutohuntResultIntakes,
+  migrateAutohuntDailyLauncherRuns,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -103,6 +104,7 @@ try {
   const autohuntSupervisedExecutionContractResult =
     migrateAutohuntSupervisedExecutionContracts(db);
   const autohuntResultIntakeResult = migrateAutohuntResultIntakes(db);
+  const autohuntDailyLauncherRunResult = migrateAutohuntDailyLauncherRuns(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -779,6 +781,23 @@ try {
   if (autohuntResultIntakeResult.created_indexes.length > 0) {
     console.log(
       `Created indexes: ${autohuntResultIntakeResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (autohuntDailyLauncherRunResult.created_tables.length > 0) {
+    console.log(
+      `Created autohunt_daily_launcher_runs table at ${dbPath}: ${autohuntDailyLauncherRunResult.created_tables.join(", ")}`,
+    );
+  } else if (autohuntDailyLauncherRunResult.created_indexes.length === 0) {
+    console.log(
+      `Autohunt daily launcher run migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(`Migrated autohunt_daily_launcher_runs indexes at ${dbPath}`);
+  }
+  if (autohuntDailyLauncherRunResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${autohuntDailyLauncherRunResult.created_indexes.join(", ")}`,
     );
   }
 

@@ -93,6 +93,16 @@ const files = {
   resultIntakePanel:
     "components/autonomy/autohunt-result-intake-readback-panel.tsx",
   resultIntakeSmoke: "scripts/smoke-autohunt-result-intake-v0-1.mjs",
+  dailyLauncherType: "types/autohunt-daily-launcher-run.ts",
+  dailyLauncherWriter:
+    "lib/autonomy/autohunt-daily-launcher-run-write.ts",
+  dailyLauncherReadback:
+    "lib/autonomy/read-autohunt-daily-launcher-runs.ts",
+  dailyLauncherPanel:
+    "components/autonomy/autohunt-daily-launcher-run-readback-panel.tsx",
+  dailyLauncherCli: "scripts/autohunt-daily-launcher-v0-1.mjs",
+  dailyLauncherSmoke:
+    "scripts/smoke-autohunt-daily-launcher-run-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set([
@@ -138,6 +148,12 @@ const expectedChangedFiles = new Set([
   files.resultIntakeReadback,
   files.resultIntakePanel,
   files.resultIntakeSmoke,
+  files.dailyLauncherType,
+  files.dailyLauncherWriter,
+  files.dailyLauncherReadback,
+  files.dailyLauncherPanel,
+  files.dailyLauncherCli,
+  files.dailyLauncherSmoke,
 ]);
 const source = Object.fromEntries(
   Object.entries(files).map(([key, filePath]) => {
@@ -274,6 +290,9 @@ function assertNoSchemaRouteOrActionExpansion() {
           ) ||
           source[fileToSourceKey(forbidden)].includes(
             "autohunt_result_intakes",
+          ) ||
+          source[fileToSourceKey(forbidden)].includes(
+            "autohunt_daily_launcher_runs",
           ),
         `DB follow-on change must be limited to known Autohunt table wiring: ${forbidden}`,
       );

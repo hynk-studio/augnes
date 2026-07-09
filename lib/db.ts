@@ -248,6 +248,7 @@ export function openDatabase() {
   migrateAutohuntHandoffPlanOperatorReviewDecisionTable(db);
   migrateAutohuntSupervisedExecutionContractTable(db);
   migrateAutohuntResultIntakeTable(db);
+  migrateAutohuntDailyLauncherRunTable(db);
   migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(db);
   migratePerspectiveMemoryItemsTable(db);
   return db;
@@ -4155,6 +4156,57 @@ function migrateAutohuntResultIntakeTable(db: Database.Database) {
       ON autohunt_result_intakes(result_intake_status, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_autohunt_result_intakes_result_report_fingerprint_created
       ON autohunt_result_intakes(result_report_fingerprint, created_at DESC);
+  `);
+}
+
+function migrateAutohuntDailyLauncherRunTable(db: Database.Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS autohunt_daily_launcher_runs (
+      launcher_run_id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
+      launcher_run_status TEXT NOT NULL,
+      source_execution_contract_id TEXT NOT NULL,
+      source_execution_contract_fingerprint TEXT NOT NULL,
+      source_execution_contract_status TEXT NOT NULL,
+      launch_mode TEXT NOT NULL,
+      active_grant_id TEXT NOT NULL,
+      active_grant_fingerprint TEXT NOT NULL,
+      ready_preflight_packet_id TEXT NOT NULL,
+      ready_preflight_packet_fingerprint TEXT NOT NULL,
+      operator_decision_id TEXT NOT NULL,
+      operator_decision_fingerprint TEXT NOT NULL,
+      copy_export_preview_fingerprint TEXT NOT NULL,
+      confirmation_ref TEXT NOT NULL,
+      confirmed_by TEXT,
+      confirmed_at TEXT,
+      confirmation_fingerprint TEXT NOT NULL,
+      handoff_packet_id TEXT NOT NULL,
+      handoff_packet_fingerprint TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      handoff_packet_json TEXT NOT NULL,
+      launcher_run_boundary_json TEXT NOT NULL,
+      structured_result_report_fixture_json TEXT,
+      linked_result_intake_json TEXT,
+      authority_boundary_json TEXT NOT NULL,
+      persisted_material_boundary_json TEXT NOT NULL,
+      validation_json TEXT NOT NULL,
+      row_count_write_summary_json TEXT NOT NULL,
+      launcher_run_fingerprint TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_autohunt_daily_launcher_runs_scope_created
+      ON autohunt_daily_launcher_runs(scope, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_daily_launcher_runs_source_execution_contract_id_created
+      ON autohunt_daily_launcher_runs(source_execution_contract_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_daily_launcher_runs_source_execution_contract_fingerprint_created
+      ON autohunt_daily_launcher_runs(source_execution_contract_fingerprint, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_daily_launcher_runs_launcher_run_status_created
+      ON autohunt_daily_launcher_runs(launcher_run_status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_daily_launcher_runs_handoff_packet_fingerprint_created
+      ON autohunt_daily_launcher_runs(handoff_packet_fingerprint, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_autohunt_daily_launcher_runs_confirmation_fingerprint_created
+      ON autohunt_daily_launcher_runs(confirmation_fingerprint, created_at DESC);
   `);
 }
 
