@@ -94,15 +94,27 @@ const files = {
     "components/autonomy/autohunt-result-intake-readback-panel.tsx",
   resultIntakeSmoke: "scripts/smoke-autohunt-result-intake-v0-1.mjs",
   dailyLauncherType: "types/autohunt-daily-launcher-run.ts",
+  targetModeType: "types/autohunt-work-target-mode.ts",
   dailyLauncherWriter:
     "lib/autonomy/autohunt-daily-launcher-run-write.ts",
   dailyLauncherReadback:
     "lib/autonomy/read-autohunt-daily-launcher-runs.ts",
+  targetModeBuilder:
+    "lib/autonomy/autohunt-work-target-mode-options.ts",
   dailyLauncherPanel:
     "components/autonomy/autohunt-daily-launcher-run-readback-panel.tsx",
+  blankStateTargetModePanel:
+    "components/human-surface/blank-state-autohunt-target-options-panel.tsx",
+  humanSurfaceHome: "components/human-surface/human-surface-home.tsx",
+  blankStatePanel: "components/human-surface/blank-state-panel.tsx",
   dailyLauncherCli: "scripts/autohunt-daily-launcher-v0-1.mjs",
   dailyLauncherSmoke:
     "scripts/smoke-autohunt-daily-launcher-run-v0-1.mjs",
+  targetModeSmoke:
+    "scripts/smoke-autohunt-work-target-mode-options-v0-1.mjs",
+  humanSurfaceSmoke: "scripts/smoke-human-surface-home-v0-1.mjs",
+  blankStateReviewEntryAbsorptionSmoke:
+    "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
   persistentChainReadinessBindingSmoke:
     "scripts/smoke-autohunt-persistent-chain-readiness-binding-v0-1.mjs",
 };
@@ -156,6 +168,14 @@ const expectedChangedFiles = new Set([
   files.dailyLauncherPanel,
   files.dailyLauncherCli,
   files.dailyLauncherSmoke,
+  files.targetModeType,
+  files.targetModeBuilder,
+  files.blankStateTargetModePanel,
+  files.humanSurfaceHome,
+  files.blankStatePanel,
+  files.targetModeSmoke,
+  files.humanSurfaceSmoke,
+  files.blankStateReviewEntryAbsorptionSmoke,
   files.persistentChainReadinessBindingSmoke,
 ]);
 const source = Object.fromEntries(

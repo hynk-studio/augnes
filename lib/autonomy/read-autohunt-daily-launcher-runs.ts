@@ -1,4 +1,5 @@
 import { openDatabase } from "@/lib/db";
+import { getAutohuntWorkTargetModeOption } from "@/lib/autonomy/autohunt-work-target-mode-options";
 import type { AutonomyDelegationGrantDbLike } from "@/lib/autonomy/read-autonomy-delegation-grants";
 import {
   allValuesFalse,
@@ -444,6 +445,9 @@ function createReadback({
 function createSelectedSummary(
   launcherRun: AutohuntDailyLauncherRun,
 ): AutohuntDailyLauncherRunSelectedSummary {
+  const workTargetModeOption = getAutohuntWorkTargetModeOption(
+    launcherRun.handoff_packet.work_target_mode,
+  );
   return {
     launcher_run_id: launcherRun.launcher_run_id,
     launcher_run_status: launcherRun.launcher_run_status,
@@ -452,6 +456,8 @@ function createSelectedSummary(
     handoff_packet_id: launcherRun.handoff_packet.handoff_packet_id,
     handoff_packet_fingerprint:
       launcherRun.handoff_packet.handoff_packet_fingerprint,
+    work_target_mode: workTargetModeOption.mode,
+    work_target_mode_label: workTargetModeOption.short_label,
     linked_result_intake_id:
       launcherRun.linked_result_intake?.result_intake_id ?? null,
     codex_executed: false,

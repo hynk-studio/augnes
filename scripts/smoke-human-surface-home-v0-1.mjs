@@ -737,6 +737,43 @@ const allowedChangedFiles = new Set([
   ...followOnWebGuidePanelFiles,
   ...followOnChatgptAppGuideBriefToolFiles,
 ]);
+const followOnAutohuntWorkTargetModeFiles = [
+  "types/autohunt-work-target-mode.ts",
+  "lib/autonomy/autohunt-work-target-mode-options.ts",
+  "components/human-surface/blank-state-autohunt-target-options-panel.tsx",
+  "components/human-surface/human-surface-home.tsx",
+  "components/human-surface/blank-state-panel.tsx",
+  "types/autohunt-daily-launcher-run.ts",
+  "lib/autonomy/autohunt-daily-launcher-run-write.ts",
+  "lib/autonomy/read-autohunt-daily-launcher-runs.ts",
+  "scripts/autohunt-daily-launcher-v0-1.mjs",
+  "scripts/smoke-autohunt-work-target-mode-options-v0-1.mjs",
+  "scripts/smoke-autohunt-daily-launcher-run-v0-1.mjs",
+  "scripts/smoke-autohunt-result-intake-v0-1.mjs",
+  "scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
+  "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
+  "scripts/smoke-autohunt-persistent-chain-readiness-binding-v0-1.mjs",
+  "scripts/smoke-local-autohunt-chain-dogfood-v0-1.mjs",
+  "scripts/smoke-autohunt-handoff-copy-export-preview-v0-1.mjs",
+  "scripts/smoke-autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1.mjs",
+  "scripts/smoke-autohunt-handoff-plan-operator-review-decision-v0-1.mjs",
+  "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
+  "scripts/smoke-autohunt-handoff-plan-preview-v0-1.mjs",
+  "scripts/smoke-autohunt-workbench-readback-spine-v0-1.mjs",
+  "scripts/smoke-autohunt-preflight-packet-v0-1.mjs",
+  "scripts/smoke-autohunt-work-queue-candidate-v0-1.mjs",
+  "scripts/smoke-autonomy-delegation-grant-record-v0-1.mjs",
+  "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
+  "scripts/smoke-autonomy-runner-preflight-v0-1.mjs",
+  "scripts/smoke-autonomy-contract-v0-1.mjs",
+  "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
+  "package.json",
+];
+for (const file of followOnAutohuntWorkTargetModeFiles) {
+  allowedChangedFiles.add(file);
+}
 for (const file of phase9aAutonomyRunnerPreflightFiles) {
   allowedChangedFiles.add(file);
 }
@@ -952,6 +989,9 @@ function assertHumanSurfaceComponents() {
       "BlankStatePanel",
       "buildBlankStateReviewEntries",
       "readRunnerDeltaBatchesForWorkplane",
+      "readAutohuntDailyLauncherRuns",
+      "readAutohuntResultIntakes",
+      "buildAutohuntWorkTargetModeOptions",
       "CurrentPerspectiveCard",
       "RecentDeltasPreview",
       "SurfaceLinkGrid",
@@ -967,6 +1007,7 @@ function assertHumanSurfaceComponents() {
     [
       "The Blank State",
       "BlankStateReviewEntryGrid",
+      "BlankStateAutohuntTargetOptionsPanel",
       "Read-only boundary",
       "Blank State Review Entry Absorption v0.1",
     ],

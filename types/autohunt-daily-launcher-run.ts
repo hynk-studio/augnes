@@ -9,6 +9,7 @@ import type {
   AutohuntSupervisedExecutionContractStatus,
   AutohuntSupervisedExecutionLaunchMode,
 } from "@/types/autohunt-supervised-execution-contract";
+import type { AutohuntWorkTargetMode } from "@/types/autohunt-work-target-mode";
 
 export const AUTOHUNT_DAILY_LAUNCHER_RUN_KIND =
   "autohunt_daily_launcher_run" as const;
@@ -90,6 +91,15 @@ export interface AutohuntDailyLauncherHandoffPacket {
   handoff_packet_status: AutohuntDailyLauncherHandoffPacketStatus;
   title: string;
   goal_summary: string;
+  work_target_mode?: AutohuntWorkTargetMode;
+  work_target_mode_label?: string;
+  lifecycle_interpretation?: string;
+  result_attachment_policy?: string;
+  branch_policy?: string;
+  durable_new_work_created?: false;
+  perspective_mutated?: false;
+  cwp_mutated?: false;
+  memory_written?: false;
   source_refs: string[];
   source_fingerprints: string[];
   selected_candidate_refs: string[];
@@ -236,6 +246,7 @@ export interface AutohuntDailyLauncherRunInput {
   source_execution_contract?: AutohuntSupervisedExecutionContract | null;
   daily_confirmation?: Partial<AutohuntDailyLauncherRunConfirmation> | null;
   mode?: AutohuntDailyLauncherRunMode | string | null;
+  work_target_mode?: AutohuntWorkTargetMode | string | null;
   structured_result_report_fixture?: AutohuntStructuredResultReportInput | null;
   raw_material_probe?: unknown;
 }
@@ -295,6 +306,8 @@ export interface AutohuntDailyLauncherRunSelectedSummary {
   source_execution_contract_id: string;
   handoff_packet_id: string;
   handoff_packet_fingerprint: string;
+  work_target_mode: AutohuntWorkTargetMode;
+  work_target_mode_label: string;
   linked_result_intake_id: string | null;
   codex_executed: false;
   github_called: false;

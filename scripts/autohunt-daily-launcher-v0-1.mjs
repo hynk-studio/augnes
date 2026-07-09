@@ -48,6 +48,7 @@ const result = writeAutohuntDailyLauncherRun({
   mode: args.fixtureResult
     ? "prepare_handoff_and_record_fixture_result"
     : "prepare_handoff_only",
+  work_target_mode: args.targetMode,
   daily_confirmation: {
     confirmation_ref: args.confirmationRef,
     confirmed_by: args.confirmedBy,
@@ -74,6 +75,14 @@ console.log(
       source_execution_contract_id:
         result.launcher_run.source_execution_contract.contract_id,
       handoff_packet_id: result.launcher_run.handoff_packet.handoff_packet_id,
+      work_target_mode: result.launcher_run.handoff_packet.work_target_mode,
+      work_target_mode_label:
+        result.launcher_run.handoff_packet.work_target_mode_label,
+      lifecycle_interpretation:
+        result.launcher_run.handoff_packet.lifecycle_interpretation,
+      result_attachment_policy:
+        result.launcher_run.handoff_packet.result_attachment_policy,
+      branch_policy: result.launcher_run.handoff_packet.branch_policy,
       launcher_run_status: result.launcher_run.launcher_run_status,
       linked_result_intake_id: linkedIntake?.result_intake_id ?? null,
       expected_observed_delta_fingerprint:
@@ -100,6 +109,7 @@ function parseArgs(argv) {
     confirmedBy: "operator:local",
     confirmedAt: null,
     fixtureResult: false,
+    targetMode: "extend_current_perspective_work",
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -119,6 +129,11 @@ function parseArgs(argv) {
     }
     if (arg === "--confirmed-at") {
       parsed.confirmedAt = argv[index + 1] ?? null;
+      index += 1;
+      continue;
+    }
+    if (arg === "--target-mode") {
+      parsed.targetMode = argv[index + 1] ?? null;
       index += 1;
       continue;
     }

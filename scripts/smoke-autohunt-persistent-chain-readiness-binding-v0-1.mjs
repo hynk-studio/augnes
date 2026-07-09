@@ -50,6 +50,23 @@ const allowedChangedFiles = new Set([
   "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
   "scripts/smoke-local-autohunt-chain-dogfood-v0-1.mjs",
   "scripts/smoke-agent-workplane-panels-v0-1.mjs",
+  "types/autohunt-work-target-mode.ts",
+  "lib/autonomy/autohunt-work-target-mode-options.ts",
+  "components/human-surface/blank-state-autohunt-target-options-panel.tsx",
+  "components/human-surface/human-surface-home.tsx",
+  "components/human-surface/blank-state-panel.tsx",
+  "types/autohunt-daily-launcher-run.ts",
+  "lib/autonomy/autohunt-daily-launcher-run-write.ts",
+  "lib/autonomy/read-autohunt-daily-launcher-runs.ts",
+  "scripts/autohunt-daily-launcher-v0-1.mjs",
+  "scripts/smoke-autohunt-work-target-mode-options-v0-1.mjs",
+  "scripts/smoke-human-surface-home-v0-1.mjs",
+  "scripts/smoke-blank-state-review-entry-absorption-v0-1.mjs",
+]);
+const passiveBlankStateComponentFollowOnFiles = new Set([
+  "components/human-surface/blank-state-autohunt-target-options-panel.tsx",
+  "components/human-surface/human-surface-home.tsx",
+  "components/human-surface/blank-state-panel.tsx",
 ]);
 
 assertChangedFileBoundary();
@@ -420,7 +437,9 @@ function assertChangedFileBoundary() {
     assert.doesNotMatch(file, /^lib\/db\/schema\.sql$/, "must not edit schema");
     assert.doesNotMatch(file, /^scripts\/db-migrations\.mjs$/, "must not edit migrations");
     assert.doesNotMatch(file, /^scripts\/db-migrate\.mjs$/, "must not edit migrations");
-    assert.doesNotMatch(file, /^components\//, "must not add action buttons");
+    if (!passiveBlankStateComponentFollowOnFiles.has(file)) {
+      assert.doesNotMatch(file, /^components\//, "must not add action buttons");
+    }
   }
 
   const changedSource = changedFiles

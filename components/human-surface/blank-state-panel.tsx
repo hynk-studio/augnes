@@ -1,12 +1,18 @@
+import { BlankStateAutohuntTargetOptionsPanel } from "@/components/human-surface/blank-state-autohunt-target-options-panel";
 import { BlankStateReviewEntryGrid } from "@/components/human-surface/blank-state-review-entry-grid";
 import { ModePresetSelector } from "@/components/human-surface/mode-preset-selector";
 import type { BlankStateReviewEntry } from "@/lib/human-surface/blank-state-review-entries";
+import type { AutohuntWorkTargetModeSummary } from "@/types/autohunt-work-target-mode";
 
 type BlankStatePanelProps = {
   entries: BlankStateReviewEntry[];
+  autohuntTargetModeSummary: AutohuntWorkTargetModeSummary;
 };
 
-export function BlankStatePanel({ entries }: BlankStatePanelProps) {
+export function BlankStatePanel({
+  entries,
+  autohuntTargetModeSummary,
+}: BlankStatePanelProps) {
   return (
     <section className="human-surface-blank-state" aria-labelledby="blank-state-title">
       <div className="human-surface-section-heading">
@@ -21,6 +27,10 @@ export function BlankStatePanel({ entries }: BlankStatePanelProps) {
       <ModePresetSelector />
 
       <BlankStateReviewEntryGrid entries={entries} />
+
+      <BlankStateAutohuntTargetOptionsPanel
+        summary={autohuntTargetModeSummary}
+      />
 
       <p className="human-surface-boundary-note">
         Read-only boundary: Blank State Review Entry Absorption v0.1 may display
