@@ -28,6 +28,7 @@ import {
   migrateResearchCandidateManualGlobalDogfoodPerspectiveExistingWriterNoMutationResultRecord,
   migrateAutonomyDelegationGrants,
   migrateAutohuntWorkQueueCandidates,
+  migrateAutohuntPreflightPackets,
   migratePerspectiveMemoryProductPersistenceBoundaryRecords,
   migratePerspectiveMemoryItems,
 } from "./db-migrations.mjs";
@@ -90,6 +91,7 @@ try {
     );
   const autonomyDelegationGrantResult = migrateAutonomyDelegationGrants(db);
   const autohuntWorkQueueCandidateResult = migrateAutohuntWorkQueueCandidates(db);
+  const autohuntPreflightPacketResult = migrateAutohuntPreflightPackets(db);
   const perspectiveMemoryBoundaryResult =
     migratePerspectiveMemoryProductPersistenceBoundaryRecords(db);
   const perspectiveMemoryItemsResult = migratePerspectiveMemoryItems(db);
@@ -669,6 +671,23 @@ try {
   if (autohuntWorkQueueCandidateResult.created_indexes.length > 0) {
     console.log(
       `Created indexes: ${autohuntWorkQueueCandidateResult.created_indexes.join(", ")}`,
+    );
+  }
+
+  if (autohuntPreflightPacketResult.created_tables.length > 0) {
+    console.log(
+      `Created autohunt_preflight_packets table at ${dbPath}: ${autohuntPreflightPacketResult.created_tables.join(", ")}`,
+    );
+  } else if (autohuntPreflightPacketResult.created_indexes.length === 0) {
+    console.log(
+      `Autohunt preflight packet migration no-op: schema is current at ${dbPath}`,
+    );
+  } else {
+    console.log(`Migrated autohunt_preflight_packets indexes at ${dbPath}`);
+  }
+  if (autohuntPreflightPacketResult.created_indexes.length > 0) {
+    console.log(
+      `Created indexes: ${autohuntPreflightPacketResult.created_indexes.join(", ")}`,
     );
   }
 

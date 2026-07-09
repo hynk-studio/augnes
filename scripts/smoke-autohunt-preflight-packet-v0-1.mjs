@@ -20,11 +20,18 @@ import {
   writeAutohuntWorkQueueCandidate,
 } from "../lib/autonomy/autohunt-work-queue-candidate-write.ts";
 import {
-  buildAutohuntWorkQueueCandidateAuthorityBoundary,
-  computeAutohuntWorkQueueCandidateFingerprint,
   ensureAutohuntWorkQueueCandidateSchema,
   readAutohuntWorkQueueCandidates,
 } from "../lib/autonomy/read-autohunt-work-queue-candidates.ts";
+import {
+  writeAutohuntPreflightPacket,
+} from "../lib/autonomy/autohunt-preflight-packet-write.ts";
+import {
+  buildAutohuntPreflightPacketAuthorityBoundary,
+  computeAutohuntPreflightPacketFingerprint,
+  ensureAutohuntPreflightPacketSchema,
+  readAutohuntPreflightPackets,
+} from "../lib/autonomy/read-autohunt-preflight-packets.ts";
 import {
   AUTONOMY_DELEGATION_GRANT_ALLOWED_ACTIONS,
   AUTONOMY_DELEGATION_GRANT_ALLOWED_OUTPUTS,
@@ -36,28 +43,26 @@ import {
   AUTONOMY_DELEGATION_GRANT_TABLE,
 } from "../types/autonomy-delegation-grant.ts";
 import {
-  AUTOHUNT_WORK_QUEUE_CANDIDATE_AUTHORITY_FLAG_NAMES,
   AUTOHUNT_WORK_QUEUE_CANDIDATE_TABLE,
 } from "../types/autohunt-work-queue-candidate.ts";
+import {
+  AUTOHUNT_PREFLIGHT_PACKET_AUTHORITY_FLAG_NAMES,
+  AUTOHUNT_PREFLIGHT_PACKET_TABLE,
+} from "../types/autohunt-preflight-packet.ts";
+import { RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_DRY_RUN_PROTECTED_ROW_COUNT_TABLES } from "../types/research-candidate-manual-global-dogfood-perspective-existing-writer-dry-run-result.ts";
 
 const files = {
-  type: "types/autohunt-work-queue-candidate.ts",
-  writer: "lib/autonomy/autohunt-work-queue-candidate-write.ts",
-  reader: "lib/autonomy/read-autohunt-work-queue-candidates.ts",
-  panel:
-    "components/autonomy/autohunt-work-queue-candidate-readback-panel.tsx",
-  preflightType: "types/autohunt-preflight-packet.ts",
-  preflightWriter: "lib/autonomy/autohunt-preflight-packet-write.ts",
-  preflightReader: "lib/autonomy/read-autohunt-preflight-packets.ts",
-  preflightPanel:
-    "components/autonomy/autohunt-preflight-packet-readback-panel.tsx",
+  type: "types/autohunt-preflight-packet.ts",
+  writer: "lib/autonomy/autohunt-preflight-packet-write.ts",
+  reader: "lib/autonomy/read-autohunt-preflight-packets.ts",
+  panel: "components/autonomy/autohunt-preflight-packet-readback-panel.tsx",
   db: "lib/db.ts",
   schema: "lib/db/schema.sql",
   migrations: "scripts/db-migrations.mjs",
   migrate: "scripts/db-migrate.mjs",
-  smoke: "scripts/smoke-autohunt-work-queue-candidate-v0-1.mjs",
-  preflightSmoke: "scripts/smoke-autohunt-preflight-packet-v0-1.mjs",
+  smoke: "scripts/smoke-autohunt-preflight-packet-v0-1.mjs",
   packageJson: "package.json",
+  queueCandidateSmoke: "scripts/smoke-autohunt-work-queue-candidate-v0-1.mjs",
   delegationGrantSmoke:
     "scripts/smoke-autonomy-delegation-grant-record-v0-1.mjs",
   sharedSourceGuardSmoke: "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
@@ -86,9 +91,9 @@ assertForbiddenImportsAbsent();
 console.log(
   JSON.stringify(
     {
-      smoke: "autohunt-work-queue-candidate-v0-1",
+      smoke: "autohunt-preflight-packet-v0-1",
       pass: true,
-      target_table: AUTOHUNT_WORK_QUEUE_CANDIDATE_TABLE,
+      target_table: AUTOHUNT_PREFLIGHT_PACKET_TABLE,
       expected_changed_files_checked: true,
       docs_changed: false,
       write_helper_checked: true,
@@ -96,10 +101,9 @@ console.log(
       panel_passive_checked: true,
       target_only_write_checked: true,
       duplicate_replay_checked: true,
-      grant_fit_refusals_checked: true,
+      grant_candidate_refusals_checked: true,
       unsafe_input_refusals_checked: true,
-      queued_readback_checked: true,
-      historical_status_visibility_checked: true,
+      latest_ready_readback_checked: true,
       no_runner_or_external_authority_checked: true,
       raw_material_persistence_checked: true,
     },
@@ -107,7 +111,7 @@ console.log(
     2,
   ),
 );
-console.log("PASS smoke:autohunt-work-queue-candidate-v0-1");
+console.log("PASS smoke:autohunt-preflight-packet-v0-1");
 
 function assertChangedFileBoundary() {
   const changedFiles = uniqueSorted([
@@ -120,35 +124,35 @@ function assertChangedFileBoundary() {
   for (const file of changedFiles) {
     assert(
       expectedChangedFiles.has(file),
-      `Unexpected changed file for autohunt work queue candidate slice: ${file}`,
+      `Unexpected changed file for autohunt preflight packet slice: ${file}`,
     );
-    assert.doesNotMatch(file, /^docs\//, "queue candidate slice must not edit docs");
-    assert.doesNotMatch(file, /^README/i, "queue candidate slice must not edit README");
-    assert.doesNotMatch(file, /^app\/api\//, "queue candidate slice must not edit routes");
-    assert.doesNotMatch(file, /^app\//, "queue candidate slice must not edit app surfaces");
+    assert.doesNotMatch(file, /^docs\//, "preflight packet slice must not edit docs");
+    assert.doesNotMatch(file, /^README/i, "preflight packet slice must not edit README");
+    assert.doesNotMatch(file, /^app\/api\//, "preflight packet slice must not edit routes");
+    assert.doesNotMatch(file, /^app\//, "preflight packet slice must not edit app surfaces");
     assert.doesNotMatch(file, /package-lock|pnpm-lock|yarn\.lock/, "package lock must not change");
   }
 }
 
 function assertTypeAndHelperFiles() {
   assertContains(source.type, [
-    "AUTOHUNT_WORK_QUEUE_CANDIDATE_KIND",
-    "AUTOHUNT_WORK_QUEUE_CANDIDATE_VERSION",
-    "AUTOHUNT_WORK_QUEUE_CANDIDATE_TABLE",
-    "candidate_status",
-    "continuity_spine_summary",
-    "residual_diagnostic",
-    "operator_supplied",
+    "AUTOHUNT_PREFLIGHT_PACKET_KIND",
+    "AUTOHUNT_PREFLIGHT_PACKET_VERSION",
+    "AUTOHUNT_PREFLIGHT_PACKET_TABLE",
+    "ready_for_supervised_handoff_planning",
     "source_grant",
-    "budget_projection",
-    "grant_fit",
+    "source_queue_readback",
+    "selected_candidates",
+    "aggregate_budget_projection",
+    "grant_budget_remaining_projection",
+    "preflight_checks",
     "authority_boundary",
     "persisted_material_boundary",
-    "candidate_fingerprint",
+    "preflight_packet_fingerprint",
   ], files.type);
   assertContains(source.writer, [
-    "writeAutohuntWorkQueueCandidate",
-    "validateAutohuntWorkQueueCandidateInput",
+    "writeAutohuntPreflightPacket",
+    "validateAutohuntPreflightPacketInput",
     "buildDeterministicIdempotencyKey",
     "findForbiddenRawMaterialFields",
     "containsForbiddenRawMaterial",
@@ -157,29 +161,27 @@ function assertTypeAndHelperFiles() {
     "validateSourceBindingPairs",
     "summarizeTargetOnlyRowCountWrite",
     "BEGIN IMMEDIATE",
-    "target_only_autohunt_work_queue_candidate_row_count_proof_failed",
+    "target_only_autohunt_preflight_packet_row_count_proof_failed",
   ], files.writer);
   assertContains(source.reader, [
-    "readAutohuntWorkQueueCandidates",
-    "ensureAutohuntWorkQueueCandidateSchema",
-    "computeAutohuntWorkQueueCandidateFingerprint",
-    "selected_queued_candidates",
-    "blocked_candidates",
-    "deferred_candidates",
-    "rejected_candidates",
-    "superseded_candidates",
+    "readAutohuntPreflightPackets",
+    "ensureAutohuntPreflightPacketSchema",
+    "computeAutohuntPreflightPacketFingerprint",
+    "latest_ready_preflight_packet",
+    "blocked_preflight_packets",
+    "insufficient_data_preflight_packets",
+    "no_queued_candidates_preflight_packets",
     "no_run_no_execution_boundary",
   ], files.reader);
   assertContains(source.panel, [
-    "AutohuntWorkQueueCandidateReadbackPanel",
-    "selected candidate",
-    "status breakdown",
+    "AutohuntPreflightPacketReadbackPanel",
+    "selected packet",
     "budget projection",
-    "grant fit",
-    "source binding",
-    "candidate scope",
+    "preflight checks",
+    "candidate policy",
     "authority boundary",
     "material boundary",
+    "row-count summary",
   ], files.panel);
 }
 
@@ -191,45 +193,41 @@ function assertDbSchemaAndMigration() {
     [files.migrate, source.migrate],
     [files.reader, source.reader],
   ]) {
-    assert(text.includes("autohunt_work_queue_candidates"), `${label} must wire target table`);
+    assert(text.includes("autohunt_preflight_packets"), `${label} must wire target table`);
   }
 
   const db = new Database(":memory:");
   try {
-    ensureAutohuntWorkQueueCandidateSchema(db);
-    const columns = db.prepare("PRAGMA table_info(autohunt_work_queue_candidates)").all();
+    ensureAutohuntPreflightPacketSchema(db);
+    const columns = db.prepare("PRAGMA table_info(autohunt_preflight_packets)").all();
     const columnNames = columns.map((column) => column.name);
     assert.deepEqual(columnNames, [
-      "candidate_id",
+      "preflight_packet_id",
       "created_at",
       "scope",
-      "candidate_status",
-      "candidate_origin",
+      "preflight_status",
       "source_grant_id",
       "source_grant_fingerprint",
       "source_grant_status",
       "source_grant_mode",
-      "work_class",
-      "title",
-      "summary",
-      "title_summary_fingerprint",
+      "selected_candidate_ids_json",
+      "selected_candidate_fingerprints_json",
       "idempotency_key",
-      "source_refs_json",
-      "source_fingerprints_json",
-      "evidence_refs_json",
-      "required_context_refs_json",
-      "proposed_files_or_globs_json",
-      "expected_outputs_json",
-      "required_checks_json",
+      "source_queue_readback_json",
+      "selected_candidates_json",
+      "aggregate_budget_projection_json",
+      "grant_budget_remaining_projection_json",
+      "preflight_checks_json",
       "blocked_actions_json",
       "stop_conditions_json",
-      "budget_projection_json",
-      "grant_fit_json",
+      "required_checks_json",
+      "next_allowed_outputs_json",
+      "forbidden_outputs_json",
       "authority_boundary_json",
       "persisted_material_boundary_json",
       "validation_json",
       "row_count_write_summary_json",
-      "candidate_fingerprint",
+      "preflight_packet_fingerprint",
     ]);
     for (const columnName of columnNames) {
       assert.doesNotMatch(columnName, /^raw/i, "raw columns must not exist");
@@ -244,17 +242,15 @@ function assertDbSchemaAndMigration() {
     }
     const indexes = db
       .prepare(
-        "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'autohunt_work_queue_candidates'",
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'autohunt_preflight_packets'",
       )
       .all()
       .map((index) => index.name);
     for (const indexName of [
-      "idx_autohunt_work_queue_candidates_scope_created",
-      "idx_autohunt_work_queue_candidates_source_grant_id_created",
-      "idx_autohunt_work_queue_candidates_source_grant_fingerprint_created",
-      "idx_autohunt_work_queue_candidates_candidate_status_created",
-      "idx_autohunt_work_queue_candidates_candidate_origin_created",
-      "idx_autohunt_work_queue_candidates_work_class_created",
+      "idx_autohunt_preflight_packets_scope_created",
+      "idx_autohunt_preflight_packets_source_grant_id_created",
+      "idx_autohunt_preflight_packets_source_grant_fingerprint_created",
+      "idx_autohunt_preflight_packets_preflight_status_created",
     ]) {
       assert(indexes.includes(indexName), `${indexName} must exist`);
     }
@@ -266,9 +262,9 @@ function assertDbSchemaAndMigration() {
 function assertPackageScriptWiring() {
   assertPackageScript({
     packageJsonText: source.packageJson,
-    scriptName: "smoke:autohunt-work-queue-candidate-v0-1",
+    scriptName: "smoke:autohunt-preflight-packet-v0-1",
     expectedCommand:
-      "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-work-queue-candidate-v0-1.mjs",
+      "tsx --tsconfig tsconfig.json scripts/smoke-autohunt-preflight-packet-v0-1.mjs",
   });
 }
 
@@ -277,21 +273,44 @@ function assertWriteReadBehavior() {
   try {
     ensureAutonomyDelegationGrantSchema(db);
     ensureAutohuntWorkQueueCandidateSchema(db);
-    const activeGrant = writeGrant(db, "active", "approval:queue-active").grant;
+    ensureAutohuntPreflightPacketSchema(db);
+    const activeGrant = writeGrant(db, "active", "approval:preflight-active").grant;
     assert(activeGrant, "active grant must write");
-
-    const beforeTarget = countRows(db, AUTOHUNT_WORK_QUEUE_CANDIDATE_TABLE);
-    const beforeGrant = countRows(db, AUTONOMY_DELEGATION_GRANT_TABLE);
-    const accepted = writeAutohuntWorkQueueCandidate(makeCandidateInput(activeGrant), {
+    const queuedCandidate = writeCandidate(db, activeGrant, {
+      title: "Ready preflight candidate",
+      source_fingerprints: ["fnv1a32_canonical_json_v0_1:preflight001"],
+    }).candidate;
+    assert(queuedCandidate, "queued candidate must write");
+    const queueReadback = readAutohuntWorkQueueCandidates({
       db,
-      now: "2026-07-09T00:10:00.000Z",
+      source_grant_id: activeGrant.grant_id,
+      candidate_status: "queued",
     });
-    assert.equal(accepted.result_status, "written");
+
+    const beforeTarget = countRows(db, AUTOHUNT_PREFLIGHT_PACKET_TABLE);
+    const beforeGrant = countRows(db, AUTONOMY_DELEGATION_GRANT_TABLE);
+    const beforeQueue = countRows(db, AUTOHUNT_WORK_QUEUE_CANDIDATE_TABLE);
+    const accepted = writeAutohuntPreflightPacket(
+      makePreflightInput(activeGrant, queueReadback),
+      {
+        db,
+        now: "2026-07-09T01:20:00.000Z",
+      },
+    );
+    assert.equal(
+      accepted.result_status,
+      "written",
+      JSON.stringify(accepted.refusal_reasons),
+    );
     assert.equal(accepted.ok, true);
-    assert.equal(accepted.candidate?.candidate_status, "queued");
-    assert.equal(accepted.queue_candidate_record_written, true);
-    assert.equal(countRows(db, AUTOHUNT_WORK_QUEUE_CANDIDATE_TABLE), beforeTarget + 1);
+    assert.equal(
+      accepted.preflight_packet?.preflight_status,
+      "ready_for_supervised_handoff_planning",
+    );
+    assert.equal(accepted.preflight_packet_record_written, true);
+    assert.equal(countRows(db, AUTOHUNT_PREFLIGHT_PACKET_TABLE), beforeTarget + 1);
     assert.equal(countRows(db, AUTONOMY_DELEGATION_GRANT_TABLE), beforeGrant);
+    assert.equal(countRows(db, AUTOHUNT_WORK_QUEUE_CANDIDATE_TABLE), beforeQueue);
     assert.equal(accepted.row_count_write_summary?.target_delta, 1);
     assert.equal(
       accepted.row_count_write_summary?.target_delta_matches_expected,
@@ -305,101 +324,166 @@ function assertWriteReadBehavior() {
       accepted.row_count_write_summary?.non_target_changed_table_count,
       0,
     );
+    assertRowCountSummaryIncludesProtectedTables(
+      accepted.row_count_write_summary,
+    );
     assertNoAuthority(accepted);
-    assertNoCandidateAuthority(accepted.candidate);
+    assertNoPacketAuthority(accepted.preflight_packet);
 
-    const duplicate = writeAutohuntWorkQueueCandidate(makeCandidateInput(activeGrant), {
-      db,
-      now: "2026-07-09T00:11:00.000Z",
-    });
+    const duplicate = writeAutohuntPreflightPacket(
+      makePreflightInput(activeGrant, queueReadback),
+      {
+        db,
+        now: "2026-07-09T01:21:00.000Z",
+      },
+    );
     assert.equal(duplicate.result_status, "duplicate_replayed");
     assert.equal(duplicate.duplicate_replayed, true);
-    assert.equal(duplicate.queue_candidate_record_written, false);
-    assert.equal(countRows(db, AUTOHUNT_WORK_QUEUE_CANDIDATE_TABLE), beforeTarget + 1);
+    assert.equal(duplicate.preflight_packet_record_written, false);
+    assert.equal(countRows(db, AUTOHUNT_PREFLIGHT_PACKET_TABLE), beforeTarget + 1);
 
-    assertRefused({ source_grant: null }, db);
-    const pausedGrant = writeGrant(db, "paused", "approval:queue-paused").grant;
-    const revokedGrant = writeGrant(db, "revoked", "approval:queue-revoked").grant;
-    assertRefused({ source_grant: pausedGrant }, db);
-    assertRefused({ source_grant: revokedGrant }, db);
-    assertRefused({
+    assertRefused(db, { source_grant: null });
+    const pausedGrant = writeGrant(db, "paused", "approval:preflight-paused").grant;
+    const revokedGrant = writeGrant(db, "revoked", "approval:preflight-revoked").grant;
+    assertRefused(db, { source_grant: pausedGrant });
+    assertRefused(db, { source_grant: revokedGrant });
+    assertRefused(db, {
       source_grant: {
         ...activeGrant,
         grant_fingerprint: "fnv1a32_canonical_json_v0_1:tampered",
       },
-    }, db);
-    assertRefused({ work_class: "dependency_upgrade" }, db);
-    assertRefused({ proposed_files_or_globs: ["app/page.tsx"] }, db);
-    assertRefused({ proposed_files_or_globs: ["docs/autohunt.md"] }, db);
-    assertRefused({
-      budget_projection: { estimated_iterations: 99 },
-    }, db);
-    assertRefused({
-      stop_conditions: ["authority_boundary_unclear", "budget_exhausted"],
-    }, db);
-    assertRefused({
-      stop_conditions: ["manual_stop_requested", "budget_exhausted"],
-    }, db);
-    assertRefused({ proposed_actions: ["start_runner"] }, db);
-    assertRefused({ raw_prompt: "prompt body" }, db);
-    assertRefused({ raw_source_payload: "source body" }, db);
-    assertRefused({ operator_note_body: "operator note body" }, db);
-    assertRefused({ token: "token=value" }, db);
-    assertRefused({ secret: "secret=value" }, db);
-    assertRefused({ callback_url: "https://example.invalid/source" }, db);
-    assertRefused({ env: "OPENAI_API_KEY=sk-not-real-value" }, db);
-    assertRefused({ summary: "api_key=sk-not-real-value" }, db);
+    });
+    assertRefused(db, { source_queue: [] });
+    assertRefused(db, {
+      source_queue: [
+        {
+          ...queuedCandidate,
+          candidate_fingerprint: "fnv1a32_canonical_json_v0_1:badc0de0",
+        },
+      ],
+    });
+    assertRefused(db, {
+      source_queue: [
+        {
+          ...queuedCandidate,
+          source_grant: {
+            ...queuedCandidate.source_grant,
+            grant_id: "autonomy-delegation-grant:mismatch",
+          },
+        },
+      ],
+    });
+    assertRefused(db, {
+      source_queue: [{ ...queuedCandidate, candidate_status: "blocked" }],
+    });
+    assertRefused(db, {
+      source_queue: [
+        {
+          ...queuedCandidate,
+          grant_fit: { ...queuedCandidate.grant_fit, passed: false },
+        },
+      ],
+    });
+    const aggregateOverBudgetCandidate = writeCandidate(db, activeGrant, {
+      title: "Aggregate over budget candidate",
+      source_fingerprints: ["fnv1a32_canonical_json_v0_1:preflight002"],
+      budget_projection: { estimated_iterations: 2 },
+    }).candidate;
+    assertRefused(db, {
+      source_queue: [queuedCandidate, aggregateOverBudgetCandidate],
+    });
+    const missingChecksCandidate = writeCandidate(db, activeGrant, {
+      title: "Missing checks candidate",
+      source_fingerprints: ["fnv1a32_canonical_json_v0_1:preflight003"],
+      required_checks: [],
+    }).candidate;
+    assertRefused(db, { source_queue: [missingChecksCandidate] });
+    assertRefused(db, {
+      source_queue: [
+        {
+          ...queuedCandidate,
+          stop_conditions: queuedCandidate.stop_conditions.filter(
+            (condition) => condition !== "manual_stop_requested",
+          ),
+        },
+      ],
+    });
+    assertRefused(db, {
+      source_queue: [
+        {
+          ...queuedCandidate,
+          stop_conditions: queuedCandidate.stop_conditions.filter(
+            (condition) => condition !== "authority_boundary_unclear",
+          ),
+        },
+      ],
+    });
+    const forbiddenActionCandidate = writeCandidate(db, activeGrant, {
+      title: "Forbidden action candidate",
+      source_fingerprints: ["fnv1a32_canonical_json_v0_1:preflight004"],
+      blocked_actions: ["start_runner"],
+    }).candidate;
+    assertRefused(db, { source_queue: [forbiddenActionCandidate] });
+    assertRefused(db, { raw_prompt: "prompt body" });
+    assertRefused(db, { raw_source_payload: "source body" });
+    assertRefused(db, { operator_note_body: "operator note body" });
+    assertRefused(db, { token: "token=value" });
+    assertRefused(db, { secret: "secret=value" });
+    assertRefused(db, { callback_url: "https://example.invalid/source" });
+    assertRefused(db, { env: "OPENAI_API_KEY=sk-not-real-value" });
+    assertRefused(db, { candidate_input: { api_key: "sk-not-real-value" } });
 
-    for (const [candidate_status, suffix, createdAt] of [
-      ["blocked", "blocked", "2026-07-09T00:12:00.000Z"],
-      ["deferred", "deferred", "2026-07-09T00:13:00.000Z"],
-      ["rejected", "rejected", "2026-07-09T00:14:00.000Z"],
-      ["superseded", "superseded", "2026-07-09T00:15:00.000Z"],
-    ]) {
-      const result = writeAutohuntWorkQueueCandidate(
-        makeCandidateInput(activeGrant, {
-          candidate_status,
-          title: `Historical ${suffix} queue candidate`,
-          source_fingerprints: [`fnv1a32_canonical_json_v0_1:${suffix}001`],
-        }),
-        { db, now: createdAt },
-      );
-      assert.equal(result.ok, true, `${candidate_status} candidate should write`);
-      assert.equal(result.candidate?.candidate_status, candidate_status);
-    }
+    const secondReadyCandidate = writeCandidate(db, activeGrant, {
+      title: "Second ready preflight candidate",
+      source_fingerprints: ["fnv1a32_canonical_json_v0_1:preflight005"],
+    }).candidate;
+    const secondReady = writeAutohuntPreflightPacket(
+      makePreflightInput(activeGrant, [secondReadyCandidate]),
+      {
+        db,
+        now: "2026-07-09T01:22:00.000Z",
+      },
+    );
+    assert.equal(secondReady.ok, true);
 
-    const readback = readAutohuntWorkQueueCandidates({ db });
-    assert.equal(readback.selection_status, "selected_queued_candidates");
-    assert.equal(readback.selected_queued_candidates.length, 1);
-    assert(readback.selected_queued_candidates.every((candidate) => candidate.candidate_status === "queued"));
-    assert.equal(readback.blocked_candidates.length, 1);
-    assert.equal(readback.deferred_candidates.length, 1);
-    assert.equal(readback.rejected_candidates.length, 1);
-    assert.equal(readback.superseded_candidates.length, 1);
+    const readback = readAutohuntPreflightPackets({ db });
+    assert.equal(
+      readback.selection_status,
+      "selected_latest_ready_preflight_packet",
+    );
+    assert.equal(readback.ready_preflight_packets.length, 2);
     assert.equal(readback.invalid_record_count, 0);
     assert.equal(
-      readback.selected_queued_candidates[0]?.candidate_fingerprint,
-      computeAutohuntWorkQueueCandidateFingerprint(
-        readback.selected_queued_candidates[0],
+      readback.selected_preflight_packet?.preflight_packet_id,
+      secondReady.preflight_packet?.preflight_packet_id,
+    );
+    assert.equal(
+      readback.selected_preflight_packet?.preflight_packet_fingerprint,
+      computeAutohuntPreflightPacketFingerprint(
+        readback.selected_preflight_packet,
       ),
     );
     assertNoReadbackAuthority(readback);
 
-    const byId = readAutohuntWorkQueueCandidates({
+    const byId = readAutohuntPreflightPackets({
       db,
-      candidate_id: accepted.candidate?.candidate_id,
+      preflight_packet_id: accepted.preflight_packet?.preflight_packet_id,
     });
-    assert.equal(byId.selection_status, "selected_by_candidate_id");
-    assert.equal(byId.selected_candidate?.candidate_id, accepted.candidate?.candidate_id);
+    assert.equal(byId.selection_status, "selected_by_preflight_packet_id");
+    assert.equal(
+      byId.selected_preflight_packet?.preflight_packet_id,
+      accepted.preflight_packet?.preflight_packet_id,
+    );
 
-    const byGrant = readAutohuntWorkQueueCandidates({
+    const byCandidate = readAutohuntPreflightPackets({
       db,
-      source_grant_id: activeGrant.grant_id,
-      candidate_status: "queued",
-      candidate_origin: "continuity_spine_summary",
-      work_class: "small_refactor",
+      candidate_id: queuedCandidate.candidate_id,
     });
-    assert.equal(byGrant.selected_queued_candidates.length, 1);
+    assert.equal(byCandidate.ready_preflight_packets.length, 1);
+    assert.equal(
+      byCandidate.selected_preflight_packet?.preflight_packet_id,
+      accepted.preflight_packet?.preflight_packet_id,
+    );
   } finally {
     db.close();
   }
@@ -408,27 +492,32 @@ function assertWriteReadBehavior() {
   try {
     ensureAutonomyDelegationGrantSchema(tamperDb);
     ensureAutohuntWorkQueueCandidateSchema(tamperDb);
+    ensureAutohuntPreflightPacketSchema(tamperDb);
     const activeGrant = writeGrant(
       tamperDb,
       "active",
-      "approval:queue-active-tamper",
+      "approval:preflight-active-tamper",
     ).grant;
-    const result = writeAutohuntWorkQueueCandidate(
-      makeCandidateInput(activeGrant),
+    const queuedCandidate = writeCandidate(tamperDb, activeGrant, {
+      title: "Tamper candidate",
+      source_fingerprints: ["fnv1a32_canonical_json_v0_1:preflight099"],
+    }).candidate;
+    const result = writeAutohuntPreflightPacket(
+      makePreflightInput(activeGrant, [queuedCandidate]),
       {
         db: tamperDb,
-        now: "2026-07-09T00:10:00.000Z",
+        now: "2026-07-09T01:20:00.000Z",
       },
     );
     assert.equal(result.ok, true);
     tamperDb
       .prepare(
-        "UPDATE autohunt_work_queue_candidates SET candidate_fingerprint = ? WHERE candidate_id = ?",
+        "UPDATE autohunt_preflight_packets SET preflight_packet_fingerprint = ? WHERE preflight_packet_id = ?",
       )
-      .run("tampered", result.candidate?.candidate_id);
-    const tamperedReadback = readAutohuntWorkQueueCandidates({ db: tamperDb });
+      .run("tampered", result.preflight_packet?.preflight_packet_id);
+    const tamperedReadback = readAutohuntPreflightPackets({ db: tamperDb });
     assert.equal(tamperedReadback.invalid_record_count, 1);
-    assert.equal(tamperedReadback.selected_queued_candidates.length, 0);
+    assert.equal(tamperedReadback.selected_preflight_packet, null);
   } finally {
     tamperDb.close();
   }
@@ -467,9 +556,21 @@ function writeGrant(db, grantStatus, approvalRef) {
     explicit_user_approval: { approval_ref: approvalRef },
   }), {
     db,
-    now: `2026-07-09T00:0${approvalRef.length % 10}:00.000Z`,
+    now: `2026-07-09T01:0${approvalRef.length % 10}:00.000Z`,
   });
   assert.equal(result.ok, true, `${grantStatus} grant should write`);
+  return result;
+}
+
+function writeCandidate(db, sourceGrant, overrides = {}) {
+  const result = writeAutohuntWorkQueueCandidate(
+    makeCandidateInput(sourceGrant, overrides),
+    {
+      db,
+      now: `2026-07-09T01:1${String(overrides.title ?? "").length % 10}:00.000Z`,
+    },
+  );
+  assert.equal(result.ok, true, "queue candidate should write");
   return result;
 }
 
@@ -479,10 +580,10 @@ function makeGrantInput(overrides = {}) {
     grant_status: "active",
     grant_mode: "supervised_autohunt_planning",
     explicit_user_approval: {
-      approval_ref: "approval:autohunt-work-queue-candidate:v0.1",
+      approval_ref: "approval:autohunt-preflight-packet:v0.1",
       approved_by: "operator",
-      approved_at: "2026-07-09T00:00:00.000Z",
-      approval_basis: "explicit bounded queue candidate approval",
+      approved_at: "2026-07-09T01:00:00.000Z",
+      approval_basis: "explicit bounded preflight packet approval",
       approval_text_fingerprint: "fnv1a32_canonical_json_v0_1:approval001",
       raw_approval_text_persisted: false,
     },
@@ -524,10 +625,10 @@ function makeGrantInput(overrides = {}) {
     },
     reporting_cadence: {
       mode: "manual",
-      interval_description: "report after bounded queue candidate write",
+      interval_description: "report after bounded preflight packet write",
       minimum_report_fields: [
-        "candidate_id",
-        "grant_fit",
+        "preflight_packet_id",
+        "preflight_status",
         "stop_condition_status",
       ],
       report_target_surface: "operator_report",
@@ -563,21 +664,21 @@ function makeCandidateInput(sourceGrant, overrides = {}) {
     candidate_origin: "continuity_spine_summary",
     source_grant: sourceGrant,
     work_class: "small_refactor",
-    title: "Bounded queue candidate",
-    summary: "Queue candidate for future supervised Autohunt preflight.",
+    title: "Bounded preflight queue candidate",
+    summary: "Queue candidate for future supervised Autohunt preflight packet.",
     source_refs: ["workplane-continuity-spine-summary:fixture"],
     source_fingerprints: ["fnv1a32_canonical_json_v0_1:source001"],
     evidence_refs: [],
     required_context_refs: ["context:workplane-summary"],
     proposed_files_or_globs: [
-      "types/autohunt-work-queue-candidate.ts",
-      "lib/autonomy/autohunt-work-queue-candidate-write.ts",
-      "components/autonomy/autohunt-work-queue-candidate-readback-panel.tsx",
-      "scripts/smoke-autohunt-work-queue-candidate-v0-1.mjs",
+      "types/autohunt-preflight-packet.ts",
+      "lib/autonomy/autohunt-preflight-packet-write.ts",
+      "components/autonomy/autohunt-preflight-packet-readback-panel.tsx",
+      "scripts/smoke-autohunt-preflight-packet-v0-1.mjs",
     ],
     expected_outputs: ["draft_pr_plan"],
-    required_checks: ["npm run smoke:autohunt-work-queue-candidate-v0-1"],
-    blocked_actions: [...AUTONOMY_DELEGATION_GRANT_FORBIDDEN_ACTIONS],
+    required_checks: ["npm run smoke:autohunt-preflight-packet-v0-1"],
+    blocked_actions: [],
     stop_conditions: [
       "manual_stop_requested",
       "authority_boundary_unclear",
@@ -596,28 +697,42 @@ function makeCandidateInput(sourceGrant, overrides = {}) {
   return deepMerge(base, overrides);
 }
 
-function assertRefused(overrides, db) {
-  const activeGrant = readFirstActiveGrant(db);
-  const result = writeAutohuntWorkQueueCandidate(
-    makeCandidateInput(activeGrant, overrides),
+function makePreflightInput(sourceGrant, sourceQueue, overrides = {}) {
+  const base = {
+    scope: "project:augnes",
+    source_grant: sourceGrant,
+    source_queue: sourceQueue,
+  };
+  return deepMerge(base, overrides);
+}
+
+function assertRefused(db, overrides) {
+  const activeGrant = readLatestGrant(db, "active");
+  const queueReadback = readAutohuntWorkQueueCandidates({
+    db,
+    source_grant_id: activeGrant.grant_id,
+    candidate_status: "queued",
+  });
+  const result = writeAutohuntPreflightPacket(
+    makePreflightInput(activeGrant, queueReadback, overrides),
     {
       db,
-      now: "2026-07-09T00:20:00.000Z",
+      now: "2026-07-09T01:30:00.000Z",
     },
   );
   assert.equal(result.result_status, "refused");
   assert.equal(result.ok, false);
-  assert.equal(result.queue_candidate_record_written, false);
+  assert.equal(result.preflight_packet_record_written, false);
   assertNoAuthority(result);
 }
 
-function readFirstActiveGrant(db) {
+function readLatestGrant(db, status) {
   const row = db
     .prepare(
-      `SELECT * FROM ${AUTONOMY_DELEGATION_GRANT_TABLE} WHERE grant_status = 'active' ORDER BY created_at DESC LIMIT 1`,
+      `SELECT * FROM ${AUTONOMY_DELEGATION_GRANT_TABLE} WHERE grant_status = ? ORDER BY created_at DESC LIMIT 1`,
     )
-    .get();
-  assert(row, "active grant row must exist for refusal fixtures");
+    .get(status);
+  assert(row, `${status} grant row must exist`);
   return {
     grant_kind: "autonomy_delegation_grant",
     grant_version: "autonomy_delegation_grant.v0.1",
@@ -660,33 +775,43 @@ function readFirstActiveGrant(db) {
   };
 }
 
+function assertRowCountSummaryIncludesProtectedTables(summary) {
+  assert(summary, "row-count summary must exist");
+  const tableNames = summary.rows.map((row) => row.table_name);
+  assert(tableNames.includes(AUTONOMY_DELEGATION_GRANT_TABLE));
+  assert(tableNames.includes(AUTOHUNT_WORK_QUEUE_CANDIDATE_TABLE));
+  for (const tableName of RESEARCH_CANDIDATE_MANUAL_GLOBAL_DOGFOOD_PERSPECTIVE_EXISTING_WRITER_DRY_RUN_PROTECTED_ROW_COUNT_TABLES) {
+    assert(tableNames.includes(tableName), `${tableName} must be checked`);
+  }
+}
+
 function assertNoAuthority(result) {
-  for (const key of AUTOHUNT_WORK_QUEUE_CANDIDATE_AUTHORITY_FLAG_NAMES) {
+  for (const key of AUTOHUNT_PREFLIGHT_PACKET_AUTHORITY_FLAG_NAMES) {
     assert.equal(result[key], false, `${key} must remain false`);
   }
   assert.equal(result.raw_material_persisted, false);
 }
 
-function assertNoCandidateAuthority(candidate) {
-  assert(candidate, "candidate must exist");
+function assertNoPacketAuthority(packet) {
+  assert(packet, "packet must exist");
   assert.deepEqual(
-    candidate.authority_boundary,
-    buildAutohuntWorkQueueCandidateAuthorityBoundary(),
+    packet.authority_boundary,
+    buildAutohuntPreflightPacketAuthorityBoundary(),
   );
-  for (const [key, value] of Object.entries(candidate.authority_boundary)) {
+  for (const [key, value] of Object.entries(packet.authority_boundary)) {
     assert.equal(value, false, `${key} must remain false`);
   }
-  assert.equal(candidate.persisted_material_boundary.persists_raw_prompt, false);
+  assert.equal(packet.persisted_material_boundary.persists_raw_prompt, false);
   assert.equal(
-    candidate.persisted_material_boundary.persists_raw_operator_note,
+    packet.persisted_material_boundary.persists_raw_operator_note,
     false,
   );
   assert.equal(
-    candidate.persisted_material_boundary.persists_raw_source_payload,
+    packet.persisted_material_boundary.persists_raw_source_payload,
     false,
   );
-  assert.equal(candidate.persisted_material_boundary.persists_secret_or_token, false);
-  assert.equal(candidate.persisted_material_boundary.persists_url_or_env_value, false);
+  assert.equal(packet.persisted_material_boundary.persists_secret_or_token, false);
+  assert.equal(packet.persisted_material_boundary.persists_url_or_env_value, false);
 }
 
 function assertNoReadbackAuthority(readback) {
