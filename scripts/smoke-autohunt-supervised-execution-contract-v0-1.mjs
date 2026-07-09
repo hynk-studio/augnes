@@ -39,10 +39,16 @@ const files = {
     "lib/autonomy/read-autohunt-supervised-execution-contracts.ts",
   panel:
     "components/autonomy/autohunt-supervised-execution-contract-readback-panel.tsx",
+  resultIntakeType: "types/autohunt-result-intake.ts",
+  resultIntakeWriter: "lib/autonomy/autohunt-result-intake-write.ts",
+  resultIntakeReadback: "lib/autonomy/read-autohunt-result-intakes.ts",
+  resultIntakePanel:
+    "components/autonomy/autohunt-result-intake-readback-panel.tsx",
   dbTs: "lib/db.ts",
   schema: "lib/db/schema.sql",
   migrations: "scripts/db-migrations.mjs",
   migrate: "scripts/db-migrate.mjs",
+  resultIntakeSmoke: "scripts/smoke-autohunt-result-intake-v0-1.mjs",
   smoke: "scripts/smoke-autohunt-supervised-execution-contract-v0-1.mjs",
   packageJson: "package.json",
   executionGateSmoke: "scripts/smoke-autohunt-execution-readiness-gate-v0-1.mjs",
