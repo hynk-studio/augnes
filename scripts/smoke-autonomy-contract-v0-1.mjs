@@ -212,6 +212,8 @@ const autonomyDelegationGrantRecordFiles = [
   "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
   "scripts/smoke-autohunt-handoff-plan-operator-review-decision-v0-1.mjs",
   "scripts/smoke-autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1.mjs",
+  "scripts/dogfood-seed-local-autohunt-chain-v0-1.mjs",
+  "scripts/smoke-local-autohunt-chain-dogfood-v0-1.mjs",
   "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
   "package.json",
   "scripts/smoke-autonomy-contract-v0-1.mjs",
