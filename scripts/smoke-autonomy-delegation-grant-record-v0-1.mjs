@@ -78,6 +78,8 @@ const files = {
     "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
   operatorDecisionSmoke:
     "scripts/smoke-autohunt-handoff-plan-operator-review-decision-v0-1.mjs",
+  operatorDecisionWorkbenchMountSmoke:
+    "scripts/smoke-autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1.mjs",
   packageJson: "package.json",
   sharedSourceGuardSmoke: "scripts/smoke-shared-source-chain-guards-v0-1.mjs",
   agentWorkplanePanelsSmoke: "scripts/smoke-agent-workplane-panels-v0-1.mjs",

@@ -61,6 +61,8 @@ const files = {
     "scripts/smoke-autohunt-handoff-plan-preview-workbench-mount-v0-1.mjs",
   operatorDecisionSmoke:
     "scripts/smoke-autohunt-handoff-plan-operator-review-decision-v0-1.mjs",
+  operatorDecisionWorkbenchMountSmoke:
+    "scripts/smoke-autohunt-handoff-plan-operator-review-decision-workbench-mount-v0-1.mjs",
 };
 
 const expectedChangedFiles = new Set(Object.values(files));
