@@ -29,6 +29,20 @@
 이 포인터들은 Active set을 늘리거나 새 권위를 만들지 않는다. 최근
 Perspective diagnostics hardening 작업을 찾기 위한 repo-local 색인이다.
 
+### Active vNext product strategy pointer
+
+- `docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md`: active vNext document map and
+  authority order.
+- `docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md`: active product north star for the
+  provider-neutral Temporal Evidence, Claim, and Perspective Core with the
+  ChatGPT Work + Codex + OpenAI API default profile.
+- `docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`: target technical
+  meaning and protocol contracts.
+- `docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`: current repo transition and
+  compatibility sequencing.
+- `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`: completion, dogfood,
+  conformance, and stop criteria.
+
 ### Active development completion posture pointer (repo-local, non-SSOT)
 
 - `docs/ACTIVE_DEVELOPMENT_COMPLETION_POSTURE_V0_1.md`: active development

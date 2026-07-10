@@ -1,5 +1,11 @@
 # Augnes Start Here For Users And AI
 
+> This file describes the current v0.1 runtime and compatibility workflows.
+> Active product direction and target architecture are governed by
+> `docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md` and
+> `docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md`. Manual handoff and result-paste
+> paths below remain useful fallbacks, but they are not the target vNext flow.
+
 ## What Augnes Is
 
 Augnes is a local-first, operator-led work system for long-context AI-assisted

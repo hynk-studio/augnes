@@ -5,6 +5,22 @@ project development. It helps a human operator, ChatGPT / MCP clients, Codex
 workers, and local runtime tools coordinate around bounded work without handing
 durable project decisions to a model.
 
+## Active vNext Development Direction
+
+The current runtime and compatibility surfaces described below remain usable.
+New product direction, architecture, and work selection are governed by:
+
+- `docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md`
+- `docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md`
+- `docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`
+- `docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`
+- `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`
+
+The default deployment profile is ChatGPT Work + Codex + OpenAI API, while
+Augnes Core contracts remain provider-neutral. The existing Blank State,
+Agent Workplane, manual handoff, and result-paste paths describe current or
+compatibility behavior; they are not the target vNext product topology.
+
 The current product shape is organized around four surfaces:
 
 ```text
