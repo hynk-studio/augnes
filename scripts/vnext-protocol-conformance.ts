@@ -28,11 +28,17 @@ import {
 } from "@/lib/vnext/task-context-packet";
 import { EXTERNAL_REF_VERSION_V01 } from "@/types/vnext/external-ref";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { runRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/run-receipt";
 
 const legacyAdapterSourcePath =
   "lib/vnext/compat/task-context-from-legacy-work.ts";
 const coreSourcePath = "lib/vnext/task-context-packet.ts";
-const sourcePaths = [coreSourcePath, legacyAdapterSourcePath];
+const sourcePaths = [
+  coreSourcePath,
+  legacyAdapterSourcePath,
+  "lib/vnext/protocol-primitives.ts",
+  "lib/vnext/run-receipt.ts",
+];
 
 let fetchCalls = 0;
 const originalFetch = globalThis.fetch;
@@ -317,6 +323,16 @@ try {
   });
   assert.equal(genericValidation.status, "valid", formatValidation(genericValidation));
   assertGenericCliPacket(genericPacket);
+  assert.equal(
+    genericPacket.packet_id,
+    "task-context-packet:962365be5e54e5ce9ad4603",
+    "shared primitive extraction must preserve the fixed TaskContextPacket ID",
+  );
+  assert.equal(
+    genericPacket.integrity.fingerprint,
+    "sha256:6d7012c869acf8e53bdb02d951f21a5ac9f4f99705ebd6a71f8c655511ad544f",
+    "shared primitive extraction must preserve the fixed TaskContextPacket fingerprint",
+  );
 
   const sourceAxisCases = [
     { coverage: "complete", currentness: "fresh" },
@@ -518,57 +534,75 @@ try {
 
   assert.equal(fetchCalls, 0, "protocol conformance observed a fetch call");
 
+  const runReceiptSummary = runRunReceiptConformanceV01();
+  const taskContextPacketSummary = {
+    suite: "task-context-packet-v0.1",
+    status: "passed",
+    positive_fixtures: [
+      "legacy_work_brief_cwp_with_explicit_gaps",
+      "legacy_work_brief_unknown_currentness",
+      "legacy_timestamp_only_sources_are_partial",
+      "legacy_resume_timestamp_only_is_partial",
+      "source_coverage_currentness_independent_matrix",
+      "explicit_cwp_freshness_evaluation",
+      "cwp_open_question_projection_only",
+      "legacy_handoff_missing_identity_gap",
+      "legacy_work_brief_cwp_handoff_resume",
+      "integrated_external_refs",
+      "generic_cli_without_provider",
+    ],
+    negative_fixture_count: invalidTaskContextPacketFixtureCases.length,
+    deterministic_packet_and_fingerprint: true,
+    fixed_regression_packet_id: genericPacket.packet_id,
+    fixed_regression_fingerprint: genericPacket.integrity.fingerprint,
+    independent_fingerprint_scope_checked: true,
+    cross_provider_external_ref_identity_checked: true,
+    mixed_offset_currentness_checked: true,
+    collision_resistant_entry_ids_checked: true,
+    unknown_source_currentness_checked: true,
+    timestamp_only_sources_partial_checked: true,
+    source_coverage_currentness_axes_checked: sourceAxisCases.map(
+      ({ coverage, currentness }) => `${coverage}+${currentness}`,
+    ),
+    legacy_adapter_coverage_independent_currentness_checked: true,
+    explicit_cwp_freshness_preserved_checked: true,
+    work_brief_mapping_checked: true,
+    handoff_success_and_non_goal_mapping_checked: true,
+    current_working_perspective_projection_boundary_checked: true,
+    cwp_open_questions_not_promoted_to_tensions_checked: true,
+    proof_evidence_separation_checked: true,
+    proof_evidence_validator_fail_closed_checked: true,
+    explicit_project_identity_checked: true,
+    required_openai_specific_core_fields: requiredOpenAiSpecificCoreFields.length,
+    required_chatgpt_specific_core_fields:
+      requiredChatGptSpecificCoreFields.length,
+    required_codex_specific_core_fields: requiredCodexSpecificCoreFields.length,
+    generic_cli_valid_without_provider: true,
+  };
+
   console.log(
     JSON.stringify(
       {
         suite: "vnext-protocol-conformance",
         status: "passed",
-        positive_fixtures: [
-          "legacy_work_brief_cwp_with_explicit_gaps",
-          "legacy_work_brief_unknown_currentness",
-          "legacy_timestamp_only_sources_are_partial",
-          "legacy_resume_timestamp_only_is_partial",
-          "source_coverage_currentness_independent_matrix",
-          "explicit_cwp_freshness_evaluation",
-          "cwp_open_question_projection_only",
-          "legacy_handoff_missing_identity_gap",
-          "legacy_work_brief_cwp_handoff_resume",
-          "integrated_external_refs",
-          "generic_cli_without_provider",
-        ],
-        negative_fixture_count: invalidTaskContextPacketFixtureCases.length,
-        deterministic_packet_and_fingerprint: true,
-        independent_fingerprint_scope_checked: true,
-        cross_provider_external_ref_identity_checked: true,
-        mixed_offset_currentness_checked: true,
-        collision_resistant_entry_ids_checked: true,
-        unknown_source_currentness_checked: true,
-        timestamp_only_sources_partial_checked: true,
-        source_coverage_currentness_axes_checked: sourceAxisCases.map(
-          ({ coverage, currentness }) => `${coverage}+${currentness}`,
-        ),
-        legacy_adapter_coverage_independent_currentness_checked: true,
-        explicit_cwp_freshness_preserved_checked: true,
-        work_brief_mapping_checked: true,
-        handoff_success_and_non_goal_mapping_checked: true,
-        current_working_perspective_projection_boundary_checked: true,
-        cwp_open_questions_not_promoted_to_tensions_checked: true,
-        proof_evidence_separation_checked: true,
-        proof_evidence_validator_fail_closed_checked: true,
-        explicit_project_identity_checked: true,
-        required_openai_specific_core_fields:
-          requiredOpenAiSpecificCoreFields.length,
-        required_chatgpt_specific_core_fields:
-          requiredChatGptSpecificCoreFields.length,
-        required_codex_specific_core_fields:
-          requiredCodexSpecificCoreFields.length,
-        generic_cli_valid_without_provider: true,
-        static_forbidden_dependency_matches: 0,
-        fetch_calls: fetchCalls,
-        database_calls: 0,
-        provider_calls: 0,
-        network_calls: 0,
-        external_side_effects: 0,
+        task_context_packet: taskContextPacketSummary,
+        run_receipt: runReceiptSummary,
+        shared_protocol_primitives: {
+          suite: "shared-external-ref-and-protocol-primitives-v0.1",
+          status: "passed",
+          task_context_public_imports_preserved: true,
+          canonicalization_regression_checked: true,
+          external_ref_validation_checked: true,
+          duplicate_external_ref_detection_checked: true,
+        },
+        purity: {
+          static_forbidden_dependency_matches: 0,
+          fetch_calls: fetchCalls,
+          database_calls: 0,
+          provider_calls: 0,
+          network_calls: 0,
+          external_side_effects: 0,
+        },
       },
       null,
       2,
