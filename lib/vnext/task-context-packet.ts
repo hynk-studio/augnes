@@ -1700,25 +1700,13 @@ function validateSourceStatusV01(
   const sourceCurrentness = jsonRecord(input.currentness);
   if (
     input.status === "complete" &&
-    (sourceRefCount + externalRefCount === 0 ||
-      sourceCurrentness?.status !== "fresh")
+    sourceRefCount + externalRefCount === 0
   ) {
     addError(
       accumulator,
       "source_status_incoherent",
       "$.source_status",
-      "Complete source status requires at least one source and fresh currentness.",
-    );
-  }
-  if (
-    input.status === "unknown" &&
-    sourceCurrentness?.status === "fresh"
-  ) {
-    addError(
-      accumulator,
-      "source_status_incoherent",
-      "$.source_status",
-      "Unknown source status cannot claim fresh currentness.",
+      "Complete source coverage requires at least one source reference.",
     );
   }
   if (input.status !== "complete") {
@@ -1727,6 +1715,19 @@ function validateSourceStatusV01(
       "source_status_not_complete",
       "$.source_status.status",
       "Packet sources are partial or unknown; downstream use must preserve that warning.",
+    );
+  }
+  const currentnessStatus = stringValue(sourceCurrentness?.status);
+  if (
+    currentnessStatus &&
+    currentnessStatuses.has(currentnessStatus) &&
+    currentnessStatus !== "fresh"
+  ) {
+    addWarning(
+      accumulator,
+      "source_currentness_not_fresh",
+      "$.source_status.currentness.status",
+      "Source currentness is stale, partial, or unknown independently of source coverage.",
     );
   }
 }

@@ -92,12 +92,80 @@ try {
   );
   assert.equal(unknownCurrentnessPacket.source_status.currentness.status, "unknown");
   assert.equal(unknownCurrentnessPacket.source_status.currentness.as_of, null);
+  assert.equal(
+    unknownCurrentnessPacket.selected_context.find(
+      (entry) => entry.entry_kind === "work_ref",
+    )?.currentness.status,
+    "unknown",
+    "Work Brief without a usable timestamp must remain unknown",
+  );
   assert.ok(
     unknownCurrentnessPacket.compatibility.warnings.some((warning) =>
       warning.includes("no usable as_of timestamp"),
     ),
     "missing source time must remain an explicit compatibility warning",
   );
+
+  const timestampOnlyPacket = buildTaskContextPacketFromLegacyWorkV01(
+    deepFreeze(buildTimestampOnlyLegacyInput()),
+  );
+  const timestampOnlyValidation = validateTaskContextPacketV01(
+    timestampOnlyPacket,
+    { evaluated_at: TASK_CONTEXT_PACKET_FIXTURE_EVALUATED_AT },
+  );
+  assert.equal(
+    timestampOnlyValidation.status,
+    "valid",
+    formatValidation(timestampOnlyValidation),
+  );
+  for (const refType of [
+    "legacy_work_id",
+    "legacy_work_event",
+    "legacy_proof_action",
+    "caller_timestamp_only_ref",
+  ]) {
+    const entry = timestampOnlyPacket.selected_context.find(
+      (candidate) => candidate.external_ref?.ref_type === refType,
+    );
+    assert.ok(entry, `timestamp-only fixture must include ${refType}`);
+    assert.equal(
+      entry.currentness.status,
+      "partial",
+      `${refType} timestamp presence must not imply freshness`,
+    );
+  }
+  assert.equal(
+    timestampOnlyPacket.source_status.currentness.status,
+    "partial",
+    "timestamp-only Work Brief sources must aggregate as partial, not fresh",
+  );
+
+  const oldResumePacket = buildTaskContextPacketFromLegacyWorkV01(
+    deepFreeze(buildOldResumeTimestampInput()),
+  );
+  const oldResumeValidation = validateTaskContextPacketV01(oldResumePacket, {
+    evaluated_at: TASK_CONTEXT_PACKET_FIXTURE_EVALUATED_AT,
+  });
+  assert.equal(
+    oldResumeValidation.status,
+    "valid",
+    formatValidation(oldResumeValidation),
+  );
+  const resumeExclusion = oldResumePacket.excluded_context.find(
+    (entry) => entry.external_ref?.ref_type === "legacy_resume_packet",
+  );
+  assert.ok(resumeExclusion, "old resume fixture must preserve packet reference");
+  assert.equal(
+    resumeExclusion.currentness.status,
+    "partial",
+    "resume created_at must not imply freshness",
+  );
+  const foreignResumeAction = oldResumePacket.selected_context.find(
+    (entry) => entry.external_ref?.ref_type === "foreign_proof_action_ref",
+  );
+  assert.ok(foreignResumeAction, "old resume fixture must preserve foreign action");
+  assert.equal(foreignResumeAction.currentness.status, "partial");
+  assert.notEqual(oldResumePacket.source_status.currentness.status, "fresh");
 
   const anonymousHandoffPacket = buildTaskContextPacketFromLegacyWorkV01(
     deepFreeze(buildAnonymousHandoffInput()),
@@ -142,6 +210,29 @@ try {
     "task_context_packet.v0.1",
   );
   assertLegacyMapping(legacyPacket);
+
+  const staleCwpInput = buildLegacyInput();
+  const staleCwp = staleCwpInput.current_working_perspective;
+  assert.ok(staleCwp, "stale CWP fixture requires Current Working Perspective");
+  staleCwp.staleness.status = "stale";
+  const staleCwpPacket = buildTaskContextPacketFromLegacyWorkV01(
+    deepFreeze(staleCwpInput),
+  );
+  const staleCwpValidation = validateTaskContextPacketV01(staleCwpPacket, {
+    evaluated_at: TASK_CONTEXT_PACKET_FIXTURE_EVALUATED_AT,
+  });
+  assert.equal(
+    staleCwpValidation.status,
+    "valid",
+    formatValidation(staleCwpValidation),
+  );
+  assert.equal(
+    staleCwpPacket.source_status.status,
+    legacyPacket.source_status.status,
+    "changing freshness must not change source coverage",
+  );
+  assert.equal(staleCwpPacket.source_status.currentness.status, "stale");
+  assert.equal(legacyPacket.source_status.currentness.status, "partial");
 
   const mixedOffsetPacket = buildTaskContextPacketFromLegacyWorkV01(
     deepFreeze(buildMixedOffsetLegacyInput()),
@@ -226,6 +317,51 @@ try {
   });
   assert.equal(genericValidation.status, "valid", formatValidation(genericValidation));
   assertGenericCliPacket(genericPacket);
+
+  const sourceAxisCases = [
+    { coverage: "complete", currentness: "fresh" },
+    { coverage: "complete", currentness: "stale" },
+    { coverage: "complete", currentness: "partial" },
+    { coverage: "partial", currentness: "fresh" },
+    { coverage: "partial", currentness: "stale" },
+    { coverage: "unknown", currentness: "unknown" },
+  ] as const;
+  for (const sourceAxisCase of sourceAxisCases) {
+    const sourceAxisPacket = buildTaskContextPacketV01(
+      deepFreeze(
+        buildSourceAxisInput(
+          sourceAxisCase.coverage,
+          sourceAxisCase.currentness,
+        ),
+      ),
+    );
+    const sourceAxisValidation = validateTaskContextPacketV01(
+      sourceAxisPacket,
+      { evaluated_at: TASK_CONTEXT_PACKET_FIXTURE_EVALUATED_AT },
+    );
+    assert.equal(
+      sourceAxisValidation.status,
+      "valid",
+      `${sourceAxisCase.coverage} + ${sourceAxisCase.currentness}: ${formatValidation(
+        sourceAxisValidation,
+      )}`,
+    );
+    assert.equal(sourceAxisPacket.source_status.status, sourceAxisCase.coverage);
+    assert.equal(
+      sourceAxisPacket.source_status.currentness.status,
+      sourceAxisCase.currentness,
+    );
+    if (
+      sourceAxisCase.coverage === "complete" &&
+      sourceAxisCase.currentness === "fresh"
+    ) {
+      assert.equal(
+        sourceAxisPacket.current_projection?.currentness.status,
+        legacyCurrentWorkingPerspectiveFixture.staleness.status,
+        "explicit CWP freshness must remain fresh when no weaker source changes the aggregate",
+      );
+    }
+  }
 
   const proofSourceInput = cloneValue<TaskContextPacketBuilderInputV01>(
     genericCliBuilderInputFixture,
@@ -390,6 +526,11 @@ try {
         positive_fixtures: [
           "legacy_work_brief_cwp_with_explicit_gaps",
           "legacy_work_brief_unknown_currentness",
+          "legacy_timestamp_only_sources_are_partial",
+          "legacy_resume_timestamp_only_is_partial",
+          "source_coverage_currentness_independent_matrix",
+          "explicit_cwp_freshness_evaluation",
+          "cwp_open_question_projection_only",
           "legacy_handoff_missing_identity_gap",
           "legacy_work_brief_cwp_handoff_resume",
           "integrated_external_refs",
@@ -402,9 +543,16 @@ try {
         mixed_offset_currentness_checked: true,
         collision_resistant_entry_ids_checked: true,
         unknown_source_currentness_checked: true,
+        timestamp_only_sources_partial_checked: true,
+        source_coverage_currentness_axes_checked: sourceAxisCases.map(
+          ({ coverage, currentness }) => `${coverage}+${currentness}`,
+        ),
+        legacy_adapter_coverage_independent_currentness_checked: true,
+        explicit_cwp_freshness_preserved_checked: true,
         work_brief_mapping_checked: true,
         handoff_success_and_non_goal_mapping_checked: true,
         current_working_perspective_projection_boundary_checked: true,
+        cwp_open_questions_not_promoted_to_tensions_checked: true,
         proof_evidence_separation_checked: true,
         proof_evidence_validator_fail_closed_checked: true,
         explicit_project_identity_checked: true,
@@ -473,6 +621,39 @@ function buildMissingSourceTimestampInput(): LegacyTaskContextPacketInputV01 {
   return input;
 }
 
+function buildTimestampOnlyLegacyInput(): LegacyTaskContextPacketInputV01 {
+  const input = buildWorkBriefCwpOnlyInput();
+  input.current_working_perspective = null;
+  input.work_brief.as_of = "2001-01-01T00:00:00.000Z";
+  const workEvent = input.work_brief.recent_events[0];
+  assert.ok(workEvent, "timestamp-only fixture requires a Work Brief event");
+  workEvent.created_at = "2000-01-01T00:00:00.000Z";
+  const proofAction = input.work_brief.related_proof.action_records[0];
+  assert.ok(proofAction, "timestamp-only fixture requires a proof action");
+  proofAction.created_at = "1999-01-01T00:00:00.000Z";
+  input.external_refs = [
+    {
+      ref_version: EXTERNAL_REF_VERSION_V01,
+      ref_type: "caller_timestamp_only_ref",
+      external_id: "caller-ref:timestamp-only",
+      observed_at: "1998-01-01T00:00:00.000Z",
+      trust_class: "imported_unverified",
+    },
+  ];
+  return input;
+}
+
+function buildOldResumeTimestampInput(): LegacyTaskContextPacketInputV01 {
+  const input = buildLegacyInput();
+  const resumePacket = input.resume_packet;
+  assert.ok(resumePacket, "old resume fixture requires resume packet");
+  resumePacket.created_at = "2001-01-01T00:00:00.000Z";
+  const foreignAction = resumePacket.continuity.foreign_action_refs[0];
+  assert.ok(foreignAction, "old resume fixture requires a foreign action");
+  foreignAction.created_at = "2000-01-01T00:00:00.000Z";
+  return input;
+}
+
 function buildMixedOffsetLegacyInput(): LegacyTaskContextPacketInputV01 {
   const input = buildLegacyInput();
   input.work_brief.as_of = "2026-07-10T00:30:00+09:00";
@@ -520,6 +701,97 @@ function buildReorderedGenericInput(): TaskContextPacketBuilderInputV01 {
   input.task.non_goals.reverse();
   input.constraints.required_checks.reverse();
   input.constraints.forbidden_actions.reverse();
+  return input;
+}
+
+function buildSourceAxisInput(
+  coverage: TaskContextPacketV01["source_status"]["status"],
+  currentness: TaskContextPacketV01["source_status"]["currentness"]["status"],
+): TaskContextPacketBuilderInputV01 {
+  const input = cloneValue<TaskContextPacketBuilderInputV01>(
+    genericCliBuilderInputFixture,
+  );
+  const explicitCwpCurrentness = {
+    status: legacyCurrentWorkingPerspectiveFixture.staleness.status,
+    as_of: legacyCurrentWorkingPerspectiveFixture.as_of,
+    basis: "CurrentWorkingPerspective.staleness.status is an explicit freshness evaluation.",
+    source_ref: null,
+  } as const;
+  input.current_projection = {
+    projection_kind: "current_working_perspective",
+    projection_only: true,
+    canonical_state: false,
+    perspective_ref: null,
+    bounded_summary:
+      legacyCurrentWorkingPerspectiveFixture.current_frame.summary,
+    as_of: legacyCurrentWorkingPerspectiveFixture.as_of,
+    items: [
+      {
+        item_kind: "frame",
+        summary: legacyCurrentWorkingPerspectiveFixture.current_frame.summary,
+        source_refs: [],
+        external_refs: [],
+        currentness: cloneValue(explicitCwpCurrentness),
+      },
+    ],
+    source_refs: [],
+    external_refs: [],
+    currentness: cloneValue(explicitCwpCurrentness),
+    warnings: ["Explicit CWP freshness fixture."],
+  };
+  input.gaps = [];
+
+  const aggregateSourceRef = input.source_status.external_refs[0] ?? null;
+  input.source_status.status = coverage;
+  input.source_status.currentness = {
+    status: currentness,
+    as_of:
+      currentness === "unknown"
+        ? null
+        : TASK_CONTEXT_PACKET_FIXTURE_GENERATED_AT,
+    basis: `Explicit source-axis fixture: ${coverage} coverage with ${currentness} currentness.`,
+    source_ref:
+      currentness === "unknown" ? null : cloneValue(aggregateSourceRef),
+  };
+
+  if (coverage === "partial") {
+    input.gaps = [
+      {
+        code: "fixture_partial_source_coverage",
+        summary: "One fixture source is intentionally unavailable.",
+        severity: "medium",
+        missing_fields: ["fixture.optional_source"],
+        source_refs: [],
+        external_refs: [],
+      },
+    ];
+  } else if (coverage === "unknown") {
+    input.work_ref = null;
+    input.current_projection = null;
+    input.selected_context = [];
+    input.gaps = [
+      {
+        code: "missing_current_projection",
+        summary: "No projection source is known in the unknown-coverage fixture.",
+        severity: "medium",
+        missing_fields: ["current_projection"],
+        source_refs: [],
+        external_refs: [],
+      },
+      {
+        code: "missing_selected_context",
+        summary: "No selected source is known in the unknown-coverage fixture.",
+        severity: "medium",
+        missing_fields: ["selected_context"],
+        source_refs: [],
+        external_refs: [],
+      },
+    ];
+    input.source_status.source_refs = [];
+    input.source_status.external_refs = [];
+    input.compatibility.source_refs = [];
+    input.return_contract.return_ref = null;
+  }
   return input;
 }
 
@@ -644,6 +916,15 @@ function assertLegacyMapping(packet: TaskContextPacketV01) {
       (item) => item.item_kind === "open_question",
     ),
   );
+  for (const openQuestion of legacyCurrentWorkingPerspectiveFixture.open_questions) {
+    assert.equal(
+      packet.tensions.some(
+        (tension) => tension.summary === openQuestion.summary,
+      ),
+      false,
+      "CWP open questions must remain projection items and must not be promoted to tensions",
+    );
+  }
   assert.equal(
     packet.compatibility.legacy_scope_ref?.external_id,
     legacyWorkBriefFixture.scope,

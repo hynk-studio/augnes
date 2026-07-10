@@ -106,10 +106,10 @@ export function buildTaskContextPacketFromLegacyWorkV01(
       ref: workRef,
       why_included: "The supplied Work Brief identifies the bounded legacy work context.",
       currentness: currentness(
-        workAsOf ? "fresh" : "unknown",
+        timestampOnlyCurrentnessStatus(workAsOf),
         workAsOf,
         workAsOf
-          ? "Work Brief as_of is the explicit source time."
+          ? "Work Brief as_of supplies an explicit source time but no freshness evaluation."
           : "Work Brief supplied no usable as_of timestamp.",
         workBriefRef,
       ),
@@ -148,7 +148,6 @@ export function buildTaskContextPacketFromLegacyWorkV01(
     ? mapCurrentWorkingPerspective({
         cwp,
         selectedContext,
-        tensions,
         risks,
         gaps,
         compatibilityRefs,
@@ -166,7 +165,7 @@ export function buildTaskContextPacketFromLegacyWorkV01(
       ),
     );
     compatibilityWarnings.push(
-      "Current Working Perspective was not supplied; currentness remains partial.",
+      "Current Working Perspective was not supplied; no projection-specific freshness evaluation is available.",
     );
   }
 
@@ -203,6 +202,7 @@ export function buildTaskContextPacketFromLegacyWorkV01(
     });
   }
   for (const ref of input.external_refs ?? []) {
+    const observedAt = cleanTimestamp(ref.observed_at);
     compatibilityRefs.push(ref);
     selectedContext.push(
       selectedEntry({
@@ -211,10 +211,10 @@ export function buildTaskContextPacketFromLegacyWorkV01(
         ref,
         why_included: "The caller explicitly supplied this host or worker compatibility reference.",
         currentness: currentness(
-          ref.observed_at ? "fresh" : "unknown",
-          ref.observed_at ?? null,
-          ref.observed_at
-            ? "ExternalRef observed_at was supplied explicitly."
+          timestampOnlyCurrentnessStatus(observedAt),
+          observedAt,
+          observedAt
+            ? "ExternalRef observed_at supplies an observation time but no freshness evaluation."
             : "ExternalRef did not provide observed_at.",
           ref,
         ),
@@ -302,6 +302,11 @@ export function buildTaskContextPacketFromLegacyWorkV01(
     ...(resumePacket ? [resumePacket.schema] : []),
     ...(handoff ? ["augnes.legacy_handoff_like.v0.1"] : []),
   ]);
+  const sourceCoverageStatus = deriveSourceCoverageStatus({
+    sourceRefCount: compatibilityRefs.length,
+    gaps,
+    unmappedFields,
+  });
 
   return buildTaskContextPacketV01({
     workspace_id: input.workspace_id,
@@ -330,10 +335,7 @@ export function buildTaskContextPacketFromLegacyWorkV01(
     capability_grant: overrides.capability_grant ?? null,
     return_contract: returnContract,
     source_status: {
-      status:
-        sourceCurrentness.status === "fresh" && gaps.length === 0
-          ? "complete"
-          : "partial",
+      status: sourceCoverageStatus,
       currentness: sourceCurrentness,
       source_refs: [],
       external_refs: compatibilityRefs,
@@ -403,10 +405,11 @@ function mapWorkBriefContext({
   }
 
   for (const event of workBrief.recent_events) {
+    const eventAsOf = cleanTimestamp(event.created_at);
     const eventRef = externalRef({
       ref_type: "legacy_work_event",
       external_id: event.id,
-      observed_at: cleanTimestamp(event.created_at),
+      observed_at: eventAsOf,
       trust_class: "host_attestation",
       source_ref: "WorkBrief.recent_events",
       compatibility_namespace: WORK_BRIEF_NAMESPACE,
@@ -419,9 +422,11 @@ function mapWorkBriefContext({
         ref: eventRef,
         why_included: "The Work Brief explicitly included this recent work event.",
         currentness: currentness(
-          event.created_at ? "fresh" : "unknown",
-          cleanTimestamp(event.created_at),
-          "Legacy work-event created_at is the only event currentness basis.",
+          timestampOnlyCurrentnessStatus(eventAsOf),
+          eventAsOf,
+          eventAsOf
+            ? "Legacy work-event created_at supplies event time but no freshness evaluation."
+            : "Legacy work event supplied no usable created_at timestamp.",
           eventRef,
         ),
         summary: event.summary,
@@ -433,13 +438,14 @@ function mapWorkBriefContext({
     workBrief.related_proof.action_records.map((record) => record.id),
   );
   for (const action of workBrief.related_proof.action_records) {
+    const actionAsOf = cleanTimestamp(action.created_at);
     const actionRef = externalRef({
       ref_type:
         action.proof_marker_type === "proof_only"
           ? "legacy_proof_action"
           : "legacy_action_record",
       external_id: action.id,
-      observed_at: cleanTimestamp(action.created_at),
+      observed_at: actionAsOf,
       trust_class: "host_attestation",
       source_ref: `WorkBrief.related_proof.action_records:${action.proof_marker_type}`,
       compatibility_namespace: WORK_BRIEF_NAMESPACE,
@@ -453,9 +459,11 @@ function mapWorkBriefContext({
         ref: actionRef,
         why_included: "The Work Brief explicitly linked this proof/action record.",
         currentness: currentness(
-          action.created_at ? "fresh" : "unknown",
-          cleanTimestamp(action.created_at),
-          "Legacy action-record created_at is the currentness basis.",
+          timestampOnlyCurrentnessStatus(actionAsOf),
+          actionAsOf,
+          actionAsOf
+            ? "Legacy action-record created_at supplies record time but no freshness evaluation."
+            : "Legacy action record supplied no usable created_at timestamp.",
           actionRef,
         ),
         summary: `${action.title} (${action.proof_marker_type}); not Evidence.`,
@@ -535,7 +543,7 @@ function mapWorkBriefContext({
         ref,
         why_included: "The Work Brief explicitly linked this document.",
         currentness: currentness(
-          "unknown",
+          timestampOnlyCurrentnessStatus(asOf),
           asOf,
           "Work Brief has no document-specific freshness information.",
           workBriefRef,
@@ -601,7 +609,6 @@ function mapWorkBriefContext({
 function mapCurrentWorkingPerspective({
   cwp,
   selectedContext,
-  tensions,
   risks,
   gaps,
   compatibilityRefs,
@@ -609,7 +616,6 @@ function mapCurrentWorkingPerspective({
 }: {
   cwp: CurrentWorkingPerspective;
   selectedContext: TaskContextPacketSelectedEntryV01[];
-  tensions: TaskContextPacketIssueV01[];
   risks: TaskContextPacketIssueV01[];
   gaps: TaskContextPacketGapV01[];
   compatibilityRefs: ExternalRefV01[];
@@ -715,24 +721,6 @@ function mapCurrentWorkingPerspective({
       }),
     );
   });
-  for (const question of cwp.open_questions) {
-    tensions.push({
-      issue_kind: "tension",
-      summary: bounded(question.summary),
-      severity: question.severity,
-      source_refs: [],
-      external_refs: question.source_refs.map((sourceRef) =>
-        externalRef({
-          ref_type: "legacy_projection_source_ref",
-          external_id: sourceRef,
-          observed_at: asOf,
-          trust_class: "derived_interpretation",
-          compatibility_namespace: CWP_NAMESPACE,
-        }),
-      ),
-      currentness: projectionCurrentness,
-    });
-  }
   for (const risk of cwp.active_risks) {
     risks.push({
       issue_kind: "risk",
@@ -989,10 +977,11 @@ function mapResumePacket({
   warnings: string[];
   explicitExpiresAt: string | null;
 }) {
+  const resumeAsOf = cleanTimestamp(packet.created_at);
   const resumeRef = externalRef({
     ref_type: "legacy_resume_packet",
     external_id: packet.packet_id,
-    observed_at: cleanTimestamp(packet.created_at),
+    observed_at: resumeAsOf,
     trust_class: "host_attestation",
     source_ref: "AgWorkResumePacketV02",
     compatibility_namespace: RESUME_NAMESPACE,
@@ -1005,9 +994,11 @@ function mapResumePacket({
     why_excluded:
       "Only bounded resume/handoff references and structured constraints are mapped; the full resume packet is not reproduced.",
     currentness: currentness(
-      packet.created_at ? "fresh" : "unknown",
-      cleanTimestamp(packet.created_at),
-      "Legacy resume packet created_at is the currentness basis.",
+      timestampOnlyCurrentnessStatus(resumeAsOf),
+      resumeAsOf,
+      resumeAsOf
+        ? "Legacy resume packet created_at supplies packet time but no freshness evaluation."
+        : "Legacy resume packet supplied no usable created_at timestamp.",
       resumeRef,
     ),
   });
@@ -1015,7 +1006,7 @@ function mapResumePacket({
     externalRef({
       ref_type: "legacy_handoff_id",
       external_id: packet.handoff.handoff_id,
-      observed_at: cleanTimestamp(packet.created_at),
+      observed_at: resumeAsOf,
       trust_class: "host_attestation",
       source_ref: "AgWorkResumePacketV02.handoff.handoff_id",
       compatibility_namespace: RESUME_NAMESPACE,
@@ -1024,7 +1015,7 @@ function mapResumePacket({
       ref_type: "git_repository",
       external_id: packet.git.remote,
       provider: "git",
-      observed_at: cleanTimestamp(packet.created_at),
+      observed_at: resumeAsOf,
       trust_class: "host_attestation",
       source_ref: "AgWorkResumePacketV02.git.remote",
       compatibility_namespace: RESUME_NAMESPACE,
@@ -1033,7 +1024,7 @@ function mapResumePacket({
       ref_type: "git_commit",
       external_id: packet.git.head_commit,
       provider: "git",
-      observed_at: cleanTimestamp(packet.created_at),
+      observed_at: resumeAsOf,
       trust_class: "host_attestation",
       source_ref: "AgWorkResumePacketV02.git.head_commit",
       compatibility_namespace: RESUME_NAMESPACE,
@@ -1045,7 +1036,7 @@ function mapResumePacket({
         ref_type: "github_pull_request",
         external_id: packet.git.related_pr,
         provider: "github",
-        observed_at: cleanTimestamp(packet.created_at),
+        observed_at: resumeAsOf,
         trust_class: "host_attestation",
         source_ref: "AgWorkResumePacketV02.git.related_pr",
         compatibility_namespace: RESUME_NAMESPACE,
@@ -1057,7 +1048,7 @@ function mapResumePacket({
     const ref = externalRef({
       ref_type: "legacy_expected_artifact_ref",
       external_id: expectedFile,
-      observed_at: cleanTimestamp(packet.created_at),
+      observed_at: resumeAsOf,
       trust_class: "host_attestation",
       source_ref: "AgWorkResumePacketV02.handoff.expected_files",
       compatibility_namespace: RESUME_NAMESPACE,
@@ -1070,8 +1061,8 @@ function mapResumePacket({
         ref,
         why_included: "The resume packet explicitly listed this expected artifact reference.",
         currentness: currentness(
-          "unknown",
-          cleanTimestamp(packet.created_at),
+          timestampOnlyCurrentnessStatus(resumeAsOf),
+          resumeAsOf,
           "The resume packet supplies no artifact-specific freshness.",
           resumeRef,
         ),
@@ -1083,7 +1074,7 @@ function mapResumePacket({
     const ref = externalRef({
       ref_type: "legacy_state_key",
       external_id: stateKey,
-      observed_at: cleanTimestamp(packet.created_at),
+      observed_at: resumeAsOf,
       trust_class: "imported_unverified",
       source_ref: "AgWorkResumePacketV02.source_work.related_state_keys",
       compatibility_namespace: RESUME_NAMESPACE,
@@ -1096,8 +1087,8 @@ function mapResumePacket({
         ref,
         why_included: "The resume packet explicitly related this legacy state key to the work context.",
         currentness: currentness(
-          "unknown",
-          cleanTimestamp(packet.created_at),
+          timestampOnlyCurrentnessStatus(resumeAsOf),
+          resumeAsOf,
           "The resume packet supplies no source-specific state-key freshness.",
           resumeRef,
         ),
@@ -1106,13 +1097,14 @@ function mapResumePacket({
     );
   }
   for (const action of packet.continuity.foreign_action_refs) {
+    const actionAsOf = cleanTimestamp(action.created_at);
     const ref = externalRef({
       ref_type:
         action.proof_marker_type === "proof_only"
           ? "foreign_proof_action_ref"
           : "foreign_action_ref",
       external_id: action.id,
-      observed_at: cleanTimestamp(action.created_at),
+      observed_at: actionAsOf,
       trust_class: "imported_unverified",
       source_ref: "AgWorkResumePacketV02.continuity.foreign_action_refs",
       compatibility_namespace: RESUME_NAMESPACE,
@@ -1126,9 +1118,11 @@ function mapResumePacket({
         ref,
         why_included: "The resume packet explicitly preserved this foreign proof/action reference.",
         currentness: currentness(
-          action.created_at ? "fresh" : "unknown",
-          cleanTimestamp(action.created_at),
-          "Foreign action created_at is the only supplied currentness basis.",
+          timestampOnlyCurrentnessStatus(actionAsOf),
+          actionAsOf,
+          actionAsOf
+            ? "Foreign action created_at supplies record time but no freshness evaluation."
+            : "Foreign action supplied no usable created_at timestamp.",
           ref,
         ),
         summary: `${action.title ?? "Foreign action reference"}; not Evidence.`,
@@ -1139,7 +1133,7 @@ function mapResumePacket({
     const ref = externalRef({
       ref_type: "foreign_evidence_candidate_ref",
       external_id: evidenceRef,
-      observed_at: cleanTimestamp(packet.created_at),
+      observed_at: resumeAsOf,
       trust_class: "imported_unverified",
       source_ref: "AgWorkResumePacketV02.continuity.foreign_evidence_refs",
       compatibility_namespace: RESUME_NAMESPACE,
@@ -1152,8 +1146,8 @@ function mapResumePacket({
         ref,
         why_included: "The resume packet explicitly preserved this foreign evidence-named reference.",
         currentness: currentness(
-          "unknown",
-          cleanTimestamp(packet.created_at),
+          timestampOnlyCurrentnessStatus(resumeAsOf),
+          resumeAsOf,
           "The resume packet supplied no source-specific evidence freshness.",
           resumeRef,
         ),
@@ -1166,7 +1160,7 @@ function mapResumePacket({
       externalRef({
         ref_type: "foreign_session_ref",
         external_id: sessionRef,
-        observed_at: cleanTimestamp(packet.created_at),
+        observed_at: resumeAsOf,
         trust_class: "imported_unverified",
         source_ref: "AgWorkResumePacketV02.continuity.foreign_session_refs",
         compatibility_namespace: RESUME_NAMESPACE,
@@ -1225,12 +1219,13 @@ function mapHandoffLike({
   unmappedFields: CompatibilityUnmappedField[];
   generatedAt: string;
 }) {
+  const handoffObservedAt = cleanTimestamp(generatedAt);
   const handoffId = cleanText(handoff.handoff_id);
   const handoffRef = handoffId
     ? externalRef({
         ref_type: "legacy_handoff_id",
         external_id: handoffId,
-        observed_at: cleanTimestamp(generatedAt),
+        observed_at: handoffObservedAt,
         trust_class: "imported_unverified",
         source_ref: "AgWorkResumePacketHandoffLikeInput",
         compatibility_namespace: HANDOFF_LIKE_NAMESPACE,
@@ -1253,7 +1248,7 @@ function mapHandoffLike({
     const ref = externalRef({
       ref_type: "legacy_expected_artifact_ref",
       external_id: expectedFile,
-      observed_at: cleanTimestamp(generatedAt),
+      observed_at: handoffObservedAt,
       trust_class: "imported_unverified",
       source_ref: "LegacyHandoff.expected_files",
       compatibility_namespace: HANDOFF_LIKE_NAMESPACE,
@@ -1266,9 +1261,9 @@ function mapHandoffLike({
         ref,
         why_included: "The bounded legacy handoff explicitly listed this expected artifact.",
         currentness: currentness(
-          "unknown",
-          cleanTimestamp(generatedAt),
-          "The handoff-like input has no source-specific freshness field.",
+          timestampOnlyCurrentnessStatus(handoffObservedAt),
+          handoffObservedAt,
+          "The caller-supplied generation time is an observation basis, not a freshness evaluation.",
           handoffRef,
         ),
         summary: "Legacy expected artifact reference.",
@@ -1495,7 +1490,7 @@ function deriveSourceCurrentness({
     as_of: string | null;
   }> = [
     {
-      status: cleanTimestamp(workBrief.as_of) ? "fresh" : "unknown",
+      status: timestampOnlyCurrentnessStatus(cleanTimestamp(workBrief.as_of)),
       as_of: cleanTimestamp(workBrief.as_of),
     },
     ...(cwp
@@ -1512,9 +1507,9 @@ function deriveSourceCurrentness({
     ...(resumePacket
       ? [
           {
-            status: cleanTimestamp(resumePacket.created_at)
-              ? ("fresh" as const)
-              : ("unknown" as const),
+            status: timestampOnlyCurrentnessStatus(
+              cleanTimestamp(resumePacket.created_at),
+            ),
             as_of: cleanTimestamp(resumePacket.created_at),
           },
         ]
@@ -1536,9 +1531,28 @@ function deriveSourceCurrentness({
   return currentness(
     status,
     asOf,
-    "Aggregate currentness uses the most conservative supplied source status and earliest shared as_of/created_at basis.",
+    "Aggregate currentness uses explicit source evaluations when available; timestamp-only sources contribute partial currentness, and the earliest supplied source time is retained.",
     null,
   );
+}
+
+function deriveSourceCoverageStatus({
+  sourceRefCount,
+  gaps,
+  unmappedFields,
+}: {
+  sourceRefCount: number;
+  gaps: TaskContextPacketGapV01[];
+  unmappedFields: CompatibilityUnmappedField[];
+}): TaskContextPacketV01["source_status"]["status"] {
+  if (sourceRefCount === 0) return "unknown";
+  return gaps.length > 0 || unmappedFields.length > 0 ? "partial" : "complete";
+}
+
+function timestampOnlyCurrentnessStatus(
+  timestamp: string | null,
+): TaskContextPacketCurrentnessV01["status"] {
+  return timestamp ? "partial" : "unknown";
 }
 
 function cleanTimestamp(value: unknown): string | null {
