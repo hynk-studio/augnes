@@ -239,6 +239,62 @@ export function runAutohuntResultIntakeRunReceiptConformanceV01():
     noReceipt(name, mapAutohuntResultIntakeToRunReceiptV01(autohuntResultMapperInputFixture(source)), expected, code);
   }
 
+  const resignedSemanticCases: Array<[string, (source: AutohuntResultIntake) => void, string, string[]]> = [
+    ["resigned_idempotency_content_mismatch", (source) => {
+      source.idempotency_key = "fnv1a32_canonical_json_v0_1:ffffffff";
+      source.result_intake_id = "autohunt-result-intake:ffffffff";
+      resignIntake(source);
+    }, "source_idempotency_key_mismatch", ["source_intake_id_idempotency_mismatch"]],
+    ["delta_matched_expectations_incoherent", (source) => {
+      source.expected_observed_delta_candidate.matched_expectations = source.expected_observed_delta_candidate.matched_expectations.slice(1);
+      resignDeltaAndIdentity(source);
+    }, "source_delta_matched_expectations_incoherent", ["source_idempotency_key_mismatch"]],
+    ["delta_missed_expectations_incoherent", (source) => {
+      source.expected_observed_delta_candidate.missed_expectations = ["missing_required_check:invented"];
+      resignDeltaAndIdentity(source);
+    }, "source_delta_missed_expectations_incoherent", ["source_idempotency_key_mismatch"]],
+    ["delta_unexpected_observations_incoherent", (source) => {
+      source.expected_observed_delta_candidate.unexpected_observations = ["warning:invented"];
+      resignDeltaAndIdentity(source);
+    }, "source_delta_unexpected_observations_incoherent", ["source_idempotency_key_mismatch"]],
+    ["delta_status_incoherent", (source) => {
+      source.expected_observed_delta_candidate.delta_status = "minor_delta";
+      source.residual_diagnostic_candidate.residual_category = "result_report_gap";
+      source.residual_diagnostic_candidate.severity = "low";
+      source.residual_diagnostic_candidate.recommended_next_work_class = "residual_diagnostic_review";
+      resignNested(source);
+      resignIdentity(source);
+    }, "source_delta_status_incoherent", ["source_idempotency_key_mismatch"]],
+    ["reuse_helpfulness_incoherent", (source) => {
+      source.structured_result_report.missing_refs = ["missing-ref:fixture"];
+      source.reuse_outcome_candidate.missing_refs = ["missing-ref:fixture"];
+      source.reuse_outcome_candidate.source_chain_helpfulness = "helpful";
+      resignNested(source);
+      resignIdentity(source);
+    }, "source_reuse_helpfulness_incoherent", ["source_idempotency_key_mismatch"]],
+    ["residual_next_work_class_incoherent", (source) => {
+      source.residual_diagnostic_candidate.recommended_next_work_class = "test_fix";
+      source.residual_diagnostic_candidate.residual_fingerprint = fingerprint(without(source.residual_diagnostic_candidate, "residual_fingerprint"));
+      resignIdentity(source);
+    }, "source_residual_next_work_class_incoherent", ["source_idempotency_key_mismatch"]],
+  ];
+  const fingerprintMismatchCodes = [
+    "source_intake_fingerprint_mismatch",
+    "source_result_report_fingerprint_mismatch",
+    "source_delta_fingerprint_mismatch",
+    "source_reuse_outcome_fingerprint_mismatch",
+    "source_residual_fingerprint_mismatch",
+  ];
+  for (const [name, resignSemanticAttack, code, additionallyAbsent] of resignedSemanticCases) {
+    const source = clone(canonicalAutohuntResultIntakeFixture);
+    resignSemanticAttack(source);
+    const result = mapAutohuntResultIntakeToRunReceiptV01(autohuntResultMapperInputFixture(source));
+    noReceipt(name, result, "invalid", code);
+    for (const absentCode of [...fingerprintMismatchCodes, ...additionallyAbsent]) {
+      assert.equal(result.errors.some((item) => item.code === absentCode), false, `${name} must not fail for ${absentCode}: ${format(result)}`);
+    }
+  }
+
   const unsafeCases: Array<[string, (source: AutohuntResultIntake) => void, string]> = [
     ["private_url_warning", (s) => { s.structured_result_report.warning_reasons = ["https://example.invalid/private"]; }, "https://example.invalid/private"],
     ["secret_shaped_source_ref", (s) => { s.structured_result_report.useful_refs = ["token=abcdefghijk12345"]; }, "token=abcdefghijk12345"],
@@ -264,7 +320,7 @@ export function runAutohuntResultIntakeRunReceiptConformanceV01():
     suite: "autohunt-result-intake-run-receipt-compat-v0.1",
     status: "passed",
     positive_fixture_count: 13,
-    blocked_invalid_fixture_count: malformedMappingInputs.length + mappingInputCases.length + 1 + optionalRefCases.length + sourceCases.length + unsafeCases.length,
+    blocked_invalid_fixture_count: malformedMappingInputs.length + mappingInputCases.length + 1 + optionalRefCases.length + sourceCases.length + resignedSemanticCases.length + unsafeCases.length,
     source_intake_fingerprint: AUTOHUNT_RESULT_INTAKE_FIXED_FINGERPRINT,
     mapped_receipt_id: receipt.receipt_id,
     mapped_idempotency_key: receipt.idempotency_key,
@@ -298,6 +354,14 @@ function rebuildWriterSemantics(source: AutohuntResultIntake) {
   delta.files_delta.file_count_within_limit = report.changed_file_count <= report.max_changed_files;
   delta.budget_delta.budget_used = { ...report.budget_used };
   delta.budget_delta.budget_within_contract = report.budget_used.iterations <= delta.budget_delta.max_iterations && report.budget_used.tool_calls <= delta.budget_delta.max_tool_calls && report.budget_used.codex_tasks <= delta.budget_delta.max_codex_tasks && report.budget_used.draft_prs <= delta.budget_delta.max_draft_prs && report.budget_used.changed_files <= delta.budget_delta.max_changed_files;
+  delta.matched_expectations = [
+    report.branch_created === false ? "branch_not_created" : null,
+    report.pr_created === false ? "pr_not_created" : null,
+    report.github_called === false ? "github_not_called" : null,
+    report.codex_executed === false ? "codex_not_executed" : null,
+    delta.files_delta.file_count_within_limit ? "changed_file_count_within_contract" : null,
+    delta.budget_delta.budget_within_contract ? "budget_within_contract" : null,
+  ].filter((item): item is string => item !== null);
   delta.missed_expectations = sorted([
     ...delta.checks_delta.missing_required_checks.map((check) => `missing_required_check:${check}`),
     ...delta.checks_delta.required_checks.filter((check) => report.checks_skipped.includes(check)).map((check) => `skipped_required_check:${check}`),
@@ -342,6 +406,11 @@ function resignNested(source: AutohuntResultIntake) {
   source.expected_observed_delta_candidate.delta_fingerprint = fingerprint(without(source.expected_observed_delta_candidate, "delta_fingerprint"));
   source.reuse_outcome_candidate.outcome_fingerprint = fingerprint(without(source.reuse_outcome_candidate, "outcome_fingerprint"));
   source.residual_diagnostic_candidate.residual_fingerprint = fingerprint(without(source.residual_diagnostic_candidate, "residual_fingerprint"));
+}
+
+function resignDeltaAndIdentity(source: AutohuntResultIntake) {
+  source.expected_observed_delta_candidate.delta_fingerprint = fingerprint(without(source.expected_observed_delta_candidate, "delta_fingerprint"));
+  resignIdentity(source);
 }
 
 function resignIdentity(source: AutohuntResultIntake) {

@@ -3,6 +3,7 @@ import {
   computeAutohuntResultIntakeFingerprint,
 } from "@/lib/autonomy/read-autohunt-result-intakes";
 import {
+  buildDeterministicIdempotencyKey,
   fingerprint,
   stableJson,
   STABLE_FINGERPRINT_ALGORITHM,
@@ -138,6 +139,32 @@ export function validateAutohuntResultIntakeForRunReceiptV01(
   if (reuse && report && contract) validateReuse(reuse, report, contract, acc);
   const residual = object(input.residual_diagnostic_candidate, "$.residual_diagnostic_candidate", acc);
   if (residual && report && delta) validateResidual(residual, report, delta, acc);
+  if (legacyFingerprint(idempotency) && contract && report && delta && reuse && residual) {
+    const expectedIdempotency = buildDeterministicIdempotencyKey({
+      kind: AUTOHUNT_RESULT_INTAKE_KIND,
+      version: AUTOHUNT_RESULT_INTAKE_VERSION,
+      source: {
+        source_execution_contract_fingerprint: contract.contract_fingerprint,
+        result_report_fingerprint: report.result_report_fingerprint,
+        checks_summary: {
+          checks_run: report.checks_run,
+          checks_passed: report.checks_passed,
+          checks_failed: report.checks_failed,
+          checks_skipped: report.checks_skipped,
+        },
+        changed_file_summary: {
+          changed_files: report.changed_files,
+          changed_file_count: report.changed_file_count,
+        },
+        delta_fingerprint: delta.delta_fingerprint,
+        reuse_outcome_fingerprint: reuse.outcome_fingerprint,
+        residual_fingerprint: residual.residual_fingerprint,
+      },
+    });
+    if (idempotency !== expectedIdempotency) {
+      fail(acc, "source_idempotency_key_mismatch", "$.idempotency_key", "Source idempotency key is inconsistent with current writer semantics.");
+    }
+  }
   const learning = object(input.learning_loop_summary, "$.learning_loop_summary", acc);
   if (learning) validateLearning(learning, resultStatus, delta, residual, acc);
   validateClosedObject(input.authority_boundary, "$.authority_boundary", buildAutohuntResultIntakeAuthorityBoundary(), acc, "source_authority_boundary_invalid", true);
@@ -204,17 +231,21 @@ function validateDelta(value: ProtocolJsonRecordV01, report: ProtocolJsonRecordV
   const path = "$.expected_observed_delta_candidate";
   unknown(value, keys.delta, path, acc); exact(value.delta_kind, "autohunt_expected_observed_delta_candidate", `${path}.delta_kind`, "source_delta_kind_mismatch", acc);
   for (const field of ["expected_summary", "observed_summary"]) bounded(value[field], `${path}.${field}`, acc, 1000);
-  for (const field of ["matched_expectations", "missed_expectations", "unexpected_observations"]) strings(value[field], `${path}.${field}`, acc);
-  enumValue(value.delta_status, AUTOHUNT_EXPECTED_OBSERVED_DELTA_STATUSES, `${path}.delta_status`, "source_delta_status_unknown", acc);
+  const matchedExpectations = strings(value.matched_expectations, `${path}.matched_expectations`, acc);
+  const missedExpectations = strings(value.missed_expectations, `${path}.missed_expectations`, acc);
+  const unexpectedObservations = strings(value.unexpected_observations, `${path}.unexpected_observations`, acc);
+  const deltaStatus = enumValue(value.delta_status, AUTOHUNT_EXPECTED_OBSERVED_DELTA_STATUSES, `${path}.delta_status`, "source_delta_status_unknown", acc);
   const checks = object(value.checks_delta, `${path}.checks_delta`, acc);
+  let requiredChecks: string[] = [];
+  let expectedMissing: string[] = [];
   if (checks) {
     unknown(checks, keys.checksDelta, `${path}.checks_delta`, acc);
-    const requiredChecks = strings(checks.required_checks, `${path}.checks_delta.required_checks`, acc);
+    requiredChecks = strings(checks.required_checks, `${path}.checks_delta.required_checks`, acc);
     for (const field of ["checks_run", "checks_passed", "checks_failed", "checks_skipped"]) {
       const candidate = strings(checks[field], `${path}.checks_delta.${field}`, acc);
       if (!sameSet(candidate, report[field])) fail(acc, "source_delta_checks_mismatch", `${path}.checks_delta.${field}`, "Checks delta must match the structured report.");
     }
-    const expectedMissing = requiredChecks.filter((check) => !asStrings(report.checks_run).includes(check) && !asStrings(report.checks_skipped).includes(check));
+    expectedMissing = requiredChecks.filter((check) => !asStrings(report.checks_run).includes(check) && !asStrings(report.checks_skipped).includes(check));
     if (!sameSet(strings(checks.missing_required_checks, `${path}.checks_delta.missing_required_checks`, acc), expectedMissing)) fail(acc, "source_delta_missing_checks_incoherent", `${path}.checks_delta.missing_required_checks`, "Missing required checks are incoherent with reported checks.");
   }
   const files = object(value.files_delta, `${path}.files_delta`, acc);
@@ -226,6 +257,7 @@ function validateDelta(value: ProtocolJsonRecordV01, report: ProtocolJsonRecordV
     if (files.file_count_within_limit !== within) fail(acc, "source_delta_file_limit_incoherent", `${path}.files_delta.file_count_within_limit`, "File-count limit claim is incoherent.");
   }
   const budget = object(value.budget_delta, `${path}.budget_delta`, acc);
+  let budgetWithinContract = false;
   if (budget) {
     unknown(budget, keys.budgetDelta, `${path}.budget_delta`, acc);
     const used = object(budget.budget_used, `${path}.budget_delta.budget_used`, acc);
@@ -233,21 +265,63 @@ function validateDelta(value: ProtocolJsonRecordV01, report: ProtocolJsonRecordV
     const pairs = [["iterations", "max_iterations"], ["tool_calls", "max_tool_calls"], ["codex_tasks", "max_codex_tasks"], ["draft_prs", "max_draft_prs"], ["changed_files", "max_changed_files"]] as const;
     pairs.forEach(([, maximum]) => nonnegative(budget[maximum], `${path}.budget_delta.${maximum}`, acc));
     if (budget.max_changed_files !== report.max_changed_files) fail(acc, "source_delta_budget_file_limit_mismatch", `${path}.budget_delta.max_changed_files`, "Budget changed-file limit must match the structured report.");
-    const within = used ? pairs.every(([field, maximum]) => Number(used[field]) <= Number(budget[maximum])) : false;
-    if (budget.budget_within_contract !== within) fail(acc, "source_delta_budget_limit_incoherent", `${path}.budget_delta.budget_within_contract`, "Budget-within-contract claim is incoherent.");
+    budgetWithinContract = used ? pairs.every(([field, maximum]) => Number(used[field]) <= Number(budget[maximum])) : false;
+    if (budget.budget_within_contract !== budgetWithinContract) fail(acc, "source_delta_budget_limit_incoherent", `${path}.budget_delta.budget_within_contract`, "Budget-within-contract claim is incoherent.");
   }
+  const expectedMatched = [
+    report.branch_created === false ? "branch_not_created" : null,
+    report.pr_created === false ? "pr_not_created" : null,
+    report.github_called === false ? "github_not_called" : null,
+    report.codex_executed === false ? "codex_not_executed" : null,
+    Number(report.changed_file_count) <= Number(report.max_changed_files) ? "changed_file_count_within_contract" : null,
+    budgetWithinContract ? "budget_within_contract" : null,
+  ].filter((item): item is string => item !== null);
+  const expectedMissed = [
+    ...expectedMissing.map((check) => `missing_required_check:${check}`),
+    ...requiredChecks.filter((check) => asStrings(report.checks_skipped).includes(check)).map((check) => `skipped_required_check:${check}`),
+    ...requiredChecks.filter((check) => asStrings(report.checks_failed).includes(check)).map((check) => `failed_required_check:${check}`),
+  ];
+  const expectedUnexpected = [
+    ...asStrings(report.blocker_reasons).map((reason) => `blocker:${reason}`),
+    ...asStrings(report.warning_reasons).map((reason) => `warning:${reason}`),
+  ];
+  const expectedStatus = ["blocked", "failed", "skipped"].includes(String(report.result_status))
+    ? "blocked_or_failed"
+    : expectedMissing.length > 0 || requiredChecks.some((check) => asStrings(report.checks_failed).includes(check))
+      ? "major_delta"
+      : expectedMissed.length > 0 || expectedUnexpected.length > 0
+        ? "minor_delta"
+        : "aligned";
+  if (!sameSet(matchedExpectations, expectedMatched)) fail(acc, "source_delta_matched_expectations_incoherent", `${path}.matched_expectations`, "Matched expectations are inconsistent with current writer semantics.");
+  if (!sameSet(missedExpectations, expectedMissed)) fail(acc, "source_delta_missed_expectations_incoherent", `${path}.missed_expectations`, "Missed expectations are inconsistent with current writer semantics.");
+  if (!sameSet(unexpectedObservations, expectedUnexpected)) fail(acc, "source_delta_unexpected_observations_incoherent", `${path}.unexpected_observations`, "Unexpected observations are inconsistent with current writer semantics.");
+  if (deltaStatus && deltaStatus !== expectedStatus) fail(acc, "source_delta_status_incoherent", `${path}.delta_status`, "Delta status is inconsistent with current writer semantics.");
   verifyFingerprint(value, "delta_fingerprint", `${path}.delta_fingerprint`, "source_delta_fingerprint", acc);
 }
 
 function validateReuse(value: ProtocolJsonRecordV01, report: ProtocolJsonRecordV01, contract: ProtocolJsonRecordV01, acc: Acc) {
   const path = "$.reuse_outcome_candidate";
   unknown(value, keys.reuse, path, acc); exact(value.reuse_outcome_kind, "autohunt_reuse_outcome_candidate", `${path}.reuse_outcome_kind`, "source_reuse_kind_mismatch", acc);
-  enumValue(value.source_chain_helpfulness, AUTOHUNT_REUSE_OUTCOME_HELPFULNESS, `${path}.source_chain_helpfulness`, "source_reuse_helpfulness_unknown", acc);
+  const helpfulness = enumValue(value.source_chain_helpfulness, AUTOHUNT_REUSE_OUTCOME_HELPFULNESS, `${path}.source_chain_helpfulness`, "source_reuse_helpfulness_unknown", acc);
   const expectedUseful = [contract.contract_id, contract.active_grant_id, contract.ready_preflight_packet_id, contract.operator_decision_id, ...asStrings(report.useful_refs)];
+  const refs: Record<string, string[]> = {};
   for (const field of ["useful_refs", "stale_refs", "missing_refs", "noisy_refs"]) {
     const expected = field === "useful_refs" ? expectedUseful : asStrings(report[field]);
-    if (!sameSet(strings(value[field], `${path}.${field}`, acc), expected)) fail(acc, "source_reuse_refs_mismatch", `${path}.${field}`, "Reuse candidate references must match current writer semantics.");
+    refs[field] = strings(value[field], `${path}.${field}`, acc);
+    if (!sameSet(refs[field]!, expected)) fail(acc, "source_reuse_refs_mismatch", `${path}.${field}`, "Reuse candidate references must match current writer semantics.");
   }
+  const expectedHelpfulness = refs.missing_refs!.length > 0
+    ? "missing"
+    : refs.stale_refs!.length > 0
+      ? "stale"
+      : refs.noisy_refs!.length > 0
+        ? "noisy"
+        : refs.useful_refs!.length === 0
+          ? "not_evaluated"
+          : asStrings(report.warning_reasons).length > 0 || asStrings(report.checks_failed).length > 0 || asStrings(report.checks_skipped).length > 0
+            ? "partially_helpful"
+            : "helpful";
+  if (helpfulness && helpfulness !== expectedHelpfulness) fail(acc, "source_reuse_helpfulness_incoherent", `${path}.source_chain_helpfulness`, "Reuse helpfulness is inconsistent with current writer semantics.");
   const reused = required(value.reused_context_fingerprint, `${path}.reused_context_fingerprint`, acc);
   const expectedReused = fingerprint({ contract_fingerprint: contract.contract_fingerprint, active_grant_fingerprint: contract.active_grant_fingerprint, ready_preflight_packet_fingerprint: contract.ready_preflight_packet_fingerprint, operator_decision_fingerprint: contract.operator_decision_fingerprint, copy_export_preview_fingerprint: contract.copy_export_preview_fingerprint });
   if (reused && reused !== expectedReused) fail(acc, "source_reused_context_fingerprint_mismatch", `${path}.reused_context_fingerprint`, "Reused-context fingerprint is inconsistent with source lineage.");
@@ -263,8 +337,10 @@ function validateResidual(value: ProtocolJsonRecordV01, report: ProtocolJsonReco
   const required = asStrings((delta.checks_delta as ProtocolJsonRecordV01 | undefined)?.required_checks);
   const expectedCategory = required.some((check) => asStrings(report.checks_failed).includes(check)) ? "check_failure" : required.some((check) => asStrings(report.checks_skipped).includes(check)) ? "skipped_required_check" : (delta.budget_delta as ProtocolJsonRecordV01 | undefined)?.budget_within_contract === false ? "budget_drift" : (delta.files_delta as ProtocolJsonRecordV01 | undefined)?.file_count_within_limit === false ? "file_scope_drift" : asStrings(report.blocker_reasons).length ? "unexpected_blocker" : delta.delta_status === "aligned" ? "no_residual" : "result_report_gap";
   const expectedSeverity = ["check_failure", "budget_drift"].includes(expectedCategory) ? "high" : ["skipped_required_check", "file_scope_drift", "unexpected_blocker"].includes(expectedCategory) ? "medium" : expectedCategory === "result_report_gap" ? "low" : "none";
+  const expectedNextWorkClass = ["check_failure", "skipped_required_check"].includes(expectedCategory) ? "test_fix" : ["file_scope_drift", "budget_drift"].includes(expectedCategory) ? "small_refactor" : ["unexpected_blocker", "result_report_gap"].includes(expectedCategory) ? "residual_diagnostic_review" : "none";
   if (category && category !== expectedCategory) fail(acc, "source_residual_category_incoherent", `${path}.residual_category`, "Residual category is inconsistent with the structured report.");
   if (severity && severity !== expectedSeverity) fail(acc, "source_residual_severity_incoherent", `${path}.severity`, "Residual severity is inconsistent with its category.");
+  if (value.recommended_next_work_class !== expectedNextWorkClass) fail(acc, "source_residual_next_work_class_incoherent", `${path}.recommended_next_work_class`, "Recommended next-work class is inconsistent with current writer semantics.");
   verifyFingerprint(value, "residual_fingerprint", `${path}.residual_fingerprint`, "source_residual_fingerprint", acc);
 }
 
