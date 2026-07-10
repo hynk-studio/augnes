@@ -100,6 +100,186 @@ const allowedRootKeys = new Set([
   "integrity",
 ]);
 
+const allowedExecutionKeys = new Set(["status", "basis", "source_refs"]);
+const allowedVerificationKeys = new Set([
+  "status",
+  "basis",
+  "required_check_ids",
+  "source_refs",
+]);
+const allowedExecutionEnvironmentKeys = new Set([
+  "environment_kind",
+  "host_ref",
+  "worker_ref",
+  "operating_system",
+  "runtime_labels",
+  "source_refs",
+]);
+const allowedResultSummaryKeys = new Set([
+  "summary",
+  "outcome",
+  "limitations",
+]);
+const allowedIssueKeys = new Set(["code", "summary", "source_refs"]);
+const allowedCompatibilityKeys = new Set([
+  "source_contracts",
+  "unmapped_fields",
+  "warnings",
+  "external_refs",
+]);
+const allowedUnmappedFieldKeys = new Set(["source_field", "reason"]);
+const allowedObservationKeys = new Set([
+  "observation_id",
+  "observation_kind",
+  "summary",
+  "event_at",
+  "observed_at",
+  "observer_ref",
+  "trust_class",
+  "source_refs",
+  "related_command_ids",
+  "related_check_ids",
+  "related_artifact_refs",
+]);
+const allowedAttestationKeys = new Set([
+  "attestation_id",
+  "attestation_kind",
+  "summary",
+  "reported_at",
+  "reporter_ref",
+  "trust_class",
+  "source_refs",
+  "subject_refs",
+]);
+const allowedCommandKeys = new Set([
+  "command_id",
+  "summary",
+  "command_fingerprint",
+  "started_at",
+  "finished_at",
+  "exit_code",
+  "status",
+  "basis",
+  "source_refs",
+  "raw_output_included",
+]);
+const allowedCheckKeys = new Set([
+  "check_id",
+  "required",
+  "status",
+  "basis",
+  "summary",
+  "source_refs",
+]);
+const allowedSkippedCheckKeys = new Set([
+  "check_id",
+  "required",
+  "reason",
+  "basis",
+  "source_refs",
+]);
+const allowedChangedArtifactKeys = new Set([
+  "artifact_ref",
+  "change_kind",
+  "before_hash",
+  "after_hash",
+  "basis",
+  "related_observation_ids",
+  "related_attestation_ids",
+  "source_refs",
+]);
+const allowedModelInvocationKeys = new Set([
+  "invocation_ref",
+  "provider_ref",
+  "model_ref",
+  "started_at",
+  "finished_at",
+  "input_units",
+  "output_units",
+  "latency_ms",
+  "retry_count",
+  "status",
+  "retention_class",
+  "egress_status",
+  "raw_prompt_persisted",
+  "raw_response_persisted",
+  "hidden_reasoning_persisted",
+  "source_refs",
+]);
+const allowedPrivacyEgressKeys = new Set([
+  "data_classification",
+  "egress_status",
+  "basis",
+  "destination_refs",
+  "redaction_status",
+  "retention_class",
+  "raw_prompt_persisted",
+  "raw_output_persisted",
+  "raw_transcript_persisted",
+  "secret_material_persisted",
+  "source_refs",
+  "notes",
+]);
+const allowedCostUsageKeys = new Set([
+  "cost_basis",
+  "cost_amount",
+  "currency",
+  "usage",
+  "source_refs",
+]);
+const allowedUsageKeys = new Set([
+  "basis",
+  "input_units",
+  "output_units",
+  "total_units",
+  "unit",
+]);
+const allowedCapabilityCoverageKeys = new Set([
+  "capability",
+  "coverage_level",
+  "source_ref",
+  "notes",
+]);
+const allowedTrustSummaryKeys = new Set([
+  "direct_observations",
+  "verified_external_observations",
+  "host_attestations",
+  "provider_reports",
+  "user_declarations",
+  "imported_unverified_items",
+  "derived_interpretations",
+]);
+const allowedAuthoritySummaryKeys = new Set([
+  "receipt_is_command",
+  "receipt_is_canonical_project_state",
+  "receipt_is_approval",
+  "receipt_is_proof",
+  "receipt_is_accepted_evidence",
+  "receipt_is_semantic_commit",
+  "closes_work",
+  "authorizes_execution",
+  "authorizes_external_side_effects",
+  "authorizes_provider_calls",
+  "authorizes_github_mutation",
+  "authorizes_merge",
+  "authorizes_publication",
+  "authorizes_perspective_or_memory_mutation",
+  "performs_durable_transition",
+  "writes_database",
+  "creates_routes_or_ui_actions",
+  "reporting_action_grants_authority",
+  "notes",
+]);
+const allowedIntegrityKeys = new Set([
+  "algorithm",
+  "canonicalization",
+  "fingerprint_scope",
+  "fingerprint",
+]);
+
+const forbiddenSemanticFieldPattern =
+  /(?:approv|authori[sz]|accepted.?evidence|evidence.?accepted|canonical.?state|state.?(?:appl|commit|mutat|write|accept|reject)|work.?(?:clos|complet)|publish|publication|merge|semantic.?commit|durable.?transition|proof.?accepted|execute.?granted|execution.?authority)/i;
+
 export const RUN_RECEIPT_REQUIRED_CORE_FIELDS_V01 = [
   "receipt_version",
   "receipt_id",
@@ -218,19 +398,30 @@ export function buildRunReceiptV01(
     warnings: normalizeIssues(input.warnings),
     gaps: normalizeIssues(input.gaps),
     privacy_egress: {
-      ...input.privacy_egress,
+      data_classification: input.privacy_egress.data_classification,
+      egress_status: input.privacy_egress.egress_status,
+      basis: input.privacy_egress.basis,
       retention_class: normalizeProtocolNullableTextV01(
         input.privacy_egress.retention_class,
       ),
       destination_refs: normalizeRefs(input.privacy_egress.destination_refs),
+      redaction_status: input.privacy_egress.redaction_status,
+      raw_prompt_persisted: false,
+      raw_output_persisted: false,
+      raw_transcript_persisted: false,
+      secret_material_persisted: false,
       source_refs: normalizeRefs(input.privacy_egress.source_refs),
       notes: uniqueProtocolStringsV01(input.privacy_egress.notes),
     },
     cost_usage: {
-      ...input.cost_usage,
+      cost_basis: input.cost_usage.cost_basis,
+      cost_amount: input.cost_usage.cost_amount,
       currency: normalizeProtocolNullableTextV01(input.cost_usage.currency),
       usage: {
-        ...input.cost_usage.usage,
+        basis: input.cost_usage.usage.basis,
+        input_units: input.cost_usage.usage.input_units,
+        output_units: input.cost_usage.usage.output_units,
+        total_units: input.cost_usage.usage.total_units,
         unit: normalizeProtocolNullableTextV01(input.cost_usage.usage.unit),
       },
       source_refs: normalizeRefs(input.cost_usage.source_refs),
@@ -437,6 +628,14 @@ export function validateRunReceiptV01(
   const startedAt = optionalTimestamp(input.started_at, "$.started_at", accumulator);
   const finishedAt = optionalTimestamp(input.finished_at, "$.finished_at", accumulator);
   validateTimeOrder(startedAt, finishedAt, "$.started_at", "$.finished_at", accumulator);
+  if (recordedAt !== null && finishedAt !== null && finishedAt > recordedAt) {
+    addWarning(
+      accumulator,
+      "remote_clock_skew_possible",
+      "$.finished_at",
+      "Run finish time is later than recorded_at; remote clock skew may exist.",
+    );
+  }
 
   validateAllExternalRefs(input, accumulator);
   validateExternalRefStructureV01(input.reporter_ref, "$.reporter_ref", sink);
@@ -462,6 +661,7 @@ export function validateRunReceiptV01(
   validateAttestations(input, recordedAt, accumulator);
   validateCommands(input, recordedAt, accumulator);
   validateChecks(input, accumulator);
+  validateProvenanceBasisCoherence(input, accumulator);
   validateChangedArtifacts(input, accumulator);
   validateModelInvocations(input, recordedAt, accumulator);
   validatePrivacyEgress(input, accumulator);
@@ -486,6 +686,12 @@ function validateCoreContainers(
     accumulator,
   );
   if (environment) {
+    rejectUnknownNestedKeysV01(
+      environment,
+      allowedExecutionEnvironmentKeys,
+      "$.execution_environment",
+      accumulator,
+    );
     enumValue(
       environment.environment_kind,
       new Set(["local", "remote", "hybrid", "unknown"]),
@@ -518,6 +724,12 @@ function validateCoreContainers(
   }
   const summary = recordAt(input.result_summary, "$.result_summary", accumulator);
   if (summary) {
+    rejectUnknownNestedKeysV01(
+      summary,
+      allowedResultSummaryKeys,
+      "$.result_summary",
+      accumulator,
+    );
     requireString(summary, "summary", "$.result_summary", accumulator);
     stringArray(
       summary.limitations,
@@ -534,6 +746,12 @@ function validateCoreContainers(
     accumulator,
   );
   if (compatibility) {
+    rejectUnknownNestedKeysV01(
+      compatibility,
+      allowedCompatibilityKeys,
+      "$.compatibility",
+      accumulator,
+    );
     stringArray(
       compatibility.source_contracts,
       "$.compatibility.source_contracts",
@@ -561,6 +779,12 @@ function validateCoreContainers(
         accumulator,
       );
       if (!item) return;
+      rejectUnknownNestedKeysV01(
+        item,
+        allowedUnmappedFieldKeys,
+        `$.compatibility.unmapped_fields[${index}]`,
+        accumulator,
+      );
       requireString(
         item,
         "source_field",
@@ -586,6 +810,12 @@ function validateIssues(
     const itemPath = `${path}[${index}]`;
     const item = recordAt(candidate, itemPath, accumulator);
     if (!item) return;
+    rejectUnknownNestedKeysV01(
+      item,
+      allowedIssueKeys,
+      itemPath,
+      accumulator,
+    );
     requireString(item, "code", itemPath, accumulator);
     requireString(item, "summary", itemPath, accumulator);
     validateRefArray(item.source_refs, `${itemPath}.source_refs`, accumulator);
@@ -612,13 +842,13 @@ function normalizeObservations(
 ): RunReceiptObservationV01[] {
   return uniqueProtocolValuesV01(
     values.map((item) => ({
-      ...item,
       observation_id: normalizeProtocolTextV01(item.observation_id),
       observation_kind: normalizeProtocolTextV01(item.observation_kind),
       summary: normalizeProtocolTextV01(item.summary),
       event_at: normalizeProtocolNullableTextV01(item.event_at),
       observed_at: normalizeProtocolTextV01(item.observed_at),
       observer_ref: normalizeExternalRefPrimitiveV01(item.observer_ref),
+      trust_class: item.trust_class,
       source_refs: normalizeRefs(item.source_refs),
       related_command_ids: uniqueProtocolStringsV01(item.related_command_ids),
       related_check_ids: uniqueProtocolStringsV01(item.related_check_ids),
@@ -632,12 +862,12 @@ function normalizeAttestations(
 ): RunReceiptAttestationV01[] {
   return uniqueProtocolValuesV01(
     values.map((item) => ({
-      ...item,
       attestation_id: normalizeProtocolTextV01(item.attestation_id),
       attestation_kind: normalizeProtocolTextV01(item.attestation_kind),
       summary: normalizeProtocolTextV01(item.summary),
       reported_at: normalizeProtocolTextV01(item.reported_at),
       reporter_ref: normalizeExternalRefPrimitiveV01(item.reporter_ref),
+      trust_class: item.trust_class,
       source_refs: normalizeRefs(item.source_refs),
       subject_refs: normalizeRefs(item.subject_refs),
     })),
@@ -649,7 +879,6 @@ function normalizeCommands(
 ): RunReceiptCommandSummaryV01[] {
   return uniqueProtocolValuesV01(
     values.map((item) => ({
-      ...item,
       command_id: normalizeProtocolTextV01(item.command_id),
       summary: normalizeProtocolTextV01(item.summary),
       command_fingerprint: normalizeProtocolNullableTextV01(
@@ -657,6 +886,9 @@ function normalizeCommands(
       ),
       started_at: normalizeProtocolNullableTextV01(item.started_at),
       finished_at: normalizeProtocolNullableTextV01(item.finished_at),
+      exit_code: item.exit_code,
+      status: item.status,
+      basis: item.basis,
       source_refs: normalizeRefs(item.source_refs),
       raw_output_included: false as const,
     })),
@@ -666,8 +898,10 @@ function normalizeCommands(
 function normalizeChecks(values: RunReceiptCheckResultV01[]): RunReceiptCheckResultV01[] {
   return uniqueProtocolValuesV01(
     values.map((item) => ({
-      ...item,
       check_id: normalizeProtocolTextV01(item.check_id),
+      required: item.required,
+      status: item.status,
+      basis: item.basis,
       summary: normalizeProtocolTextV01(item.summary),
       source_refs: normalizeRefs(item.source_refs),
     })),
@@ -679,9 +913,10 @@ function normalizeSkippedChecks(
 ): RunReceiptSkippedCheckV01[] {
   return uniqueProtocolValuesV01(
     values.map((item) => ({
-      ...item,
       check_id: normalizeProtocolTextV01(item.check_id),
+      required: item.required,
       reason: normalizeProtocolTextV01(item.reason),
+      basis: item.basis,
       source_refs: normalizeRefs(item.source_refs),
     })),
   ).sort(compareProtocolCanonicalV01);
@@ -692,10 +927,11 @@ function normalizeChangedArtifacts(
 ): RunReceiptChangedArtifactV01[] {
   return uniqueProtocolValuesV01(
     values.map((item) => ({
-      ...item,
       artifact_ref: normalizeExternalRefPrimitiveV01(item.artifact_ref),
+      change_kind: item.change_kind,
       before_hash: normalizeProtocolNullableTextV01(item.before_hash),
       after_hash: normalizeProtocolNullableTextV01(item.after_hash),
+      basis: item.basis,
       related_observation_ids: uniqueProtocolStringsV01(
         item.related_observation_ids,
       ),
@@ -712,13 +948,18 @@ function normalizeModelInvocations(
 ): RunReceiptModelInvocationSummaryV01[] {
   return uniqueProtocolValuesV01(
     values.map((item) => ({
-      ...item,
       invocation_ref: normalizeExternalRefPrimitiveV01(item.invocation_ref),
       provider_ref: normalizeNullableRef(item.provider_ref),
       model_ref: normalizeNullableRef(item.model_ref),
       started_at: normalizeProtocolNullableTextV01(item.started_at),
       finished_at: normalizeProtocolNullableTextV01(item.finished_at),
+      input_units: item.input_units,
+      output_units: item.output_units,
+      latency_ms: item.latency_ms,
+      retry_count: item.retry_count,
+      status: item.status,
       retention_class: normalizeProtocolNullableTextV01(item.retention_class),
+      egress_status: item.egress_status,
       raw_prompt_persisted: false as const,
       raw_response_persisted: false as const,
       hidden_reasoning_persisted: false as const,
@@ -749,11 +990,23 @@ function validateStatusAxes(input: ProtocolJsonRecordV01, accumulator: Validatio
   const execution = recordAt(input.execution, "$.execution", accumulator);
   const verification = recordAt(input.verification, "$.verification", accumulator);
   if (execution) {
+    rejectUnknownNestedKeysV01(
+      execution,
+      allowedExecutionKeys,
+      "$.execution",
+      accumulator,
+    );
     enumValue(execution.status, executionStatuses, "$.execution.status", "execution_status_invalid", accumulator);
     basisValue(execution.basis, "$.execution.basis", accumulator);
     validateRefArray(execution.source_refs, "$.execution.source_refs", accumulator);
   }
   if (verification) {
+    rejectUnknownNestedKeysV01(
+      verification,
+      allowedVerificationKeys,
+      "$.verification",
+      accumulator,
+    );
     enumValue(verification.status, verificationStatuses, "$.verification.status", "verification_status_invalid", accumulator);
     basisValue(verification.basis, "$.verification.basis", accumulator);
     stringArray(verification.required_check_ids, "$.verification.required_check_ids", accumulator);
@@ -768,11 +1021,41 @@ function validateObservations(
 ) {
   const observations = arrayAt(input.observations, "$.observations", accumulator);
   const observerRefs = refIdentitySet(input.observer_refs);
+  const commandIds = idSet(input.commands, "command_id");
+  const checkIds = new Set([
+    ...idSet(input.checks, "check_id"),
+    ...idSet(input.skipped_checks, "check_id"),
+  ]);
+  const artifactIdentities = new Set([
+    ...refIdentitySet(input.artifact_refs),
+    ...changedArtifactIdentitySet(input.changed_artifacts),
+  ]);
+  const observationIds = new Set<string>();
   for (const [index, value] of observations.entries()) {
     const path = `$.observations[${index}]`;
     const item = recordAt(value, path, accumulator);
     if (!item) continue;
-    requireString(item, "observation_id", path, accumulator);
+    rejectUnknownNestedKeysV01(
+      item,
+      allowedObservationKeys,
+      path,
+      accumulator,
+    );
+    const observationId = requireString(
+      item,
+      "observation_id",
+      path,
+      accumulator,
+    );
+    if (observationId && observationIds.has(observationId)) {
+      addError(
+        accumulator,
+        "duplicate_observation_id",
+        `${path}.observation_id`,
+        `Observation ID ${observationId} must be unique.`,
+      );
+    }
+    if (observationId) observationIds.add(observationId);
     requireString(item, "observation_kind", path, accumulator);
     requireString(item, "summary", path, accumulator);
     optionalTimestamp(item.event_at, `${path}.event_at`, accumulator);
@@ -787,6 +1070,54 @@ function validateObservations(
       addError(accumulator, "observation_observer_unregistered", `${path}.observer_ref`, "Observation observer_ref must be present in observer_refs.");
     }
     validateRefArray(item.source_refs, `${path}.source_refs`, accumulator);
+    const relatedCommandIds = stringArray(
+      item.related_command_ids,
+      `${path}.related_command_ids`,
+      accumulator,
+    );
+    for (const commandId of relatedCommandIds) {
+      if (!commandIds.has(commandId)) {
+        addError(
+          accumulator,
+          "observation_related_command_missing",
+          `${path}.related_command_ids`,
+          `Related command ${commandId} does not exist in this receipt.`,
+        );
+      }
+    }
+    const relatedCheckIds = stringArray(
+      item.related_check_ids,
+      `${path}.related_check_ids`,
+      accumulator,
+    );
+    for (const checkId of relatedCheckIds) {
+      if (!checkIds.has(checkId)) {
+        addError(
+          accumulator,
+          "observation_related_check_missing",
+          `${path}.related_check_ids`,
+          `Related check ${checkId} does not exist in checks or skipped_checks.`,
+        );
+      }
+    }
+    validateRefArray(
+      item.related_artifact_refs,
+      `${path}.related_artifact_refs`,
+      accumulator,
+    );
+    for (const relatedArtifact of Array.isArray(item.related_artifact_refs)
+      ? item.related_artifact_refs
+      : []) {
+      const identity = refIdentity(relatedArtifact);
+      if (!identity || !artifactIdentities.has(identity)) {
+        addError(
+          accumulator,
+          "observation_related_artifact_missing",
+          `${path}.related_artifact_refs`,
+          "Related artifact reference does not resolve to artifact_refs or changed_artifacts.",
+        );
+      }
+    }
     if (recordedAt !== null && observedAt !== null && observedAt > recordedAt) {
       addWarning(accumulator, "remote_clock_skew_possible", `${path}.observed_at`, "Observation time is later than recorded_at; remote clock skew may exist.");
     }
@@ -799,11 +1130,32 @@ function validateAttestations(
   accumulator: ValidationAccumulator,
 ) {
   const attestations = arrayAt(input.attestations, "$.attestations", accumulator);
+  const attestationIds = new Set<string>();
   for (const [index, value] of attestations.entries()) {
     const path = `$.attestations[${index}]`;
     const item = recordAt(value, path, accumulator);
     if (!item) continue;
-    requireString(item, "attestation_id", path, accumulator);
+    rejectUnknownNestedKeysV01(
+      item,
+      allowedAttestationKeys,
+      path,
+      accumulator,
+    );
+    const attestationId = requireString(
+      item,
+      "attestation_id",
+      path,
+      accumulator,
+    );
+    if (attestationId && attestationIds.has(attestationId)) {
+      addError(
+        accumulator,
+        "duplicate_attestation_id",
+        `${path}.attestation_id`,
+        `Attestation ID ${attestationId} must be unique.`,
+      );
+    }
+    if (attestationId) attestationIds.add(attestationId);
     requireString(item, "attestation_kind", path, accumulator);
     requireString(item, "summary", path, accumulator);
     const reportedAt = requireTimestamp(item.reported_at, `${path}.reported_at`, accumulator);
@@ -826,11 +1178,22 @@ function validateCommands(
   accumulator: ValidationAccumulator,
 ) {
   const commands = arrayAt(input.commands, "$.commands", accumulator);
+  const commandIds = new Set<string>();
   for (const [index, value] of commands.entries()) {
     const path = `$.commands[${index}]`;
     const item = recordAt(value, path, accumulator);
     if (!item) continue;
-    requireString(item, "command_id", path, accumulator);
+    rejectUnknownNestedKeysV01(item, allowedCommandKeys, path, accumulator);
+    const commandId = requireString(item, "command_id", path, accumulator);
+    if (commandId && commandIds.has(commandId)) {
+      addError(
+        accumulator,
+        "duplicate_command_id",
+        `${path}.command_id`,
+        `Command ID ${commandId} must be unique.`,
+      );
+    }
+    if (commandId) commandIds.add(commandId);
     requireString(item, "summary", path, accumulator);
     const started = optionalTimestamp(item.started_at, `${path}.started_at`, accumulator);
     const finished = optionalTimestamp(item.finished_at, `${path}.finished_at`, accumulator);
@@ -860,12 +1223,26 @@ function validateChecks(input: ProtocolJsonRecordV01, accumulator: ValidationAcc
   const checks = arrayAt(input.checks, "$.checks", accumulator);
   const skipped = arrayAt(input.skipped_checks, "$.skipped_checks", accumulator);
   const byCheck = new Map<string, Set<string>>();
+  const checkCounts = new Map<string, number>();
   const requiredNonPassingChecks = new Set<string>();
   for (const [index, value] of checks.entries()) {
     const path = `$.checks[${index}]`;
     const item = recordAt(value, path, accumulator);
     if (!item) continue;
+    rejectUnknownNestedKeysV01(item, allowedCheckKeys, path, accumulator);
     const checkId = requireString(item, "check_id", path, accumulator);
+    if (checkId) {
+      const count = (checkCounts.get(checkId) ?? 0) + 1;
+      checkCounts.set(checkId, count);
+      if (count > 1) {
+        addError(
+          accumulator,
+          "duplicate_check_id",
+          `${path}.check_id`,
+          `Check ID ${checkId} must be unique even when status is unchanged.`,
+        );
+      }
+    }
     const status = protocolStringValueV01(item.status);
     if (!status || !new Set(["passed", "failed", "blocked", "unknown"]).has(status)) {
       addError(accumulator, "check_status_invalid", `${path}.status`, "Check status must be passed, failed, blocked, or unknown.");
@@ -884,11 +1261,18 @@ function validateChecks(input: ProtocolJsonRecordV01, accumulator: ValidationAcc
     }
   }
   const skippedIds = new Set<string>();
+  const skippedCounts = new Map<string, number>();
   const requiredSkippedIds = new Set<string>();
   for (const [index, value] of skipped.entries()) {
     const path = `$.skipped_checks[${index}]`;
     const item = recordAt(value, path, accumulator);
     if (!item) continue;
+    rejectUnknownNestedKeysV01(
+      item,
+      allowedSkippedCheckKeys,
+      path,
+      accumulator,
+    );
     const checkId = requireString(item, "check_id", path, accumulator);
     const reason = requireString(item, "reason", path, accumulator);
     if (reason && /^(?:not run|skipped|n\/?a|none)$/i.test(reason)) {
@@ -898,6 +1282,16 @@ function validateChecks(input: ProtocolJsonRecordV01, accumulator: ValidationAcc
     basisValue(item.basis, `${path}.basis`, accumulator);
     validateRefArray(item.source_refs, `${path}.source_refs`, accumulator);
     if (checkId) {
+      const count = (skippedCounts.get(checkId) ?? 0) + 1;
+      skippedCounts.set(checkId, count);
+      if (count > 1) {
+        addError(
+          accumulator,
+          "duplicate_skipped_check_id",
+          `${path}.check_id`,
+          `Skipped check ID ${checkId} must be unique.`,
+        );
+      }
       skippedIds.add(checkId);
       if (item.required === true) requiredSkippedIds.add(checkId);
     }
@@ -945,6 +1339,223 @@ function validateChecks(input: ProtocolJsonRecordV01, accumulator: ValidationAcc
   }
 }
 
+function validateProvenanceBasisCoherence(
+  input: ProtocolJsonRecordV01,
+  accumulator: ValidationAccumulator,
+) {
+  const observerIds = refIdentitySet(input.observer_refs);
+  const verifierIds = refIdentitySet(input.verifier_refs);
+  const attestationReporterIds = new Set<string>();
+  for (const value of Array.isArray(input.attestations)
+    ? input.attestations
+    : []) {
+    if (!isProtocolRecordV01(value)) continue;
+    const identity = refIdentity(value.reporter_ref);
+    if (identity) attestationReporterIds.add(identity);
+  }
+
+  const executionObservedIds = new Set<string>();
+  const verificationObservedIds = new Set<string>();
+  for (const value of Array.isArray(input.observations)
+    ? input.observations
+    : []) {
+    if (!isProtocolRecordV01(value)) continue;
+    const observerIdentity = refIdentity(value.observer_ref);
+    if (observerIdentity && observerIds.has(observerIdentity)) {
+      executionObservedIds.add(observerIdentity);
+    }
+    if (
+      Array.isArray(value.related_check_ids) &&
+      value.related_check_ids.length > 0
+    ) {
+      if (observerIdentity && verifierIds.has(observerIdentity)) {
+        verificationObservedIds.add(observerIdentity);
+      }
+      addMatchingRefIdentities(
+        value.source_refs,
+        verifierIds,
+        verificationObservedIds,
+      );
+    }
+  }
+  for (const value of [
+    ...(Array.isArray(input.checks) ? input.checks : []),
+    ...(Array.isArray(input.skipped_checks) ? input.skipped_checks : []),
+  ]) {
+    if (!isProtocolRecordV01(value)) continue;
+    if (value.basis === "observed" || value.basis === "mixed") {
+      addMatchingRefIdentities(
+        value.source_refs,
+        verifierIds,
+        verificationObservedIds,
+      );
+    }
+  }
+
+  const execution = isProtocolRecordV01(input.execution)
+    ? input.execution
+    : null;
+  if (execution) {
+    validateBasisSourceSupport(
+      execution.basis,
+      execution.source_refs,
+      executionObservedIds,
+      attestationReporterIds,
+      "$.execution",
+      accumulator,
+    );
+    if (
+      execution.status === "blocked" &&
+      (!Array.isArray(input.blockers) || input.blockers.length === 0)
+    ) {
+      addError(
+        accumulator,
+        "blocked_execution_requires_blocker",
+        "$.blockers",
+        "Blocked execution requires at least one blocker.",
+      );
+    }
+  }
+
+  const verification = isProtocolRecordV01(input.verification)
+    ? input.verification
+    : null;
+  if (verification) {
+    validateBasisSourceSupport(
+      verification.basis,
+      verification.source_refs,
+      verificationObservedIds,
+      attestationReporterIds,
+      "$.verification",
+      accumulator,
+    );
+  }
+
+  validateEntryBasisArray(
+    input.commands,
+    "$.commands",
+    observerIds,
+    attestationReporterIds,
+    accumulator,
+  );
+  validateEntryBasisArray(
+    input.checks,
+    "$.checks",
+    verifierIds,
+    attestationReporterIds,
+    accumulator,
+  );
+  validateEntryBasisArray(
+    input.skipped_checks,
+    "$.skipped_checks",
+    verifierIds,
+    attestationReporterIds,
+    accumulator,
+  );
+}
+
+function validateEntryBasisArray(
+  value: unknown,
+  path: string,
+  observedActorIds: ReadonlySet<string>,
+  attestationReporterIds: ReadonlySet<string>,
+  accumulator: ValidationAccumulator,
+) {
+  if (!Array.isArray(value)) return;
+  value.forEach((candidate, index) => {
+    if (!isProtocolRecordV01(candidate)) return;
+    validateBasisSourceSupport(
+      candidate.basis,
+      candidate.source_refs,
+      observedActorIds,
+      attestationReporterIds,
+      `${path}[${index}]`,
+      accumulator,
+    );
+  });
+}
+
+function validateBasisSourceSupport(
+  basisValueInput: unknown,
+  sourceRefs: unknown,
+  observedActorIds: ReadonlySet<string>,
+  attestationReporterIds: ReadonlySet<string>,
+  path: string,
+  accumulator: ValidationAccumulator,
+) {
+  const basis = protocolStringValueV01(basisValueInput);
+  if (basis === "unknown" || !statusBases.has(basis ?? "")) return;
+  const sourceIds = [...refIdentitySet(sourceRefs)];
+  const observedMatches = sourceIds.filter((identity) =>
+    observedActorIds.has(identity),
+  );
+  const attestedMatches = sourceIds.filter((identity) =>
+    attestationReporterIds.has(identity),
+  );
+  const allowedIds =
+    basis === "observed"
+      ? observedActorIds
+      : basis === "attested"
+        ? attestationReporterIds
+        : new Set([...observedActorIds, ...attestationReporterIds]);
+  const unsupportedIds = sourceIds.filter((identity) => !allowedIds.has(identity));
+
+  if (sourceIds.length === 0) {
+    addError(
+      accumulator,
+      "basis_provenance_source_missing",
+      `${path}.source_refs`,
+      `${basis} basis requires at least one provenance source reference.`,
+    );
+    return;
+  }
+  if (unsupportedIds.length > 0) {
+    addError(
+      accumulator,
+      "basis_provenance_source_unregistered",
+      `${path}.source_refs`,
+      "Basis source_refs contain references outside registered observed actors and attestation reporters.",
+    );
+  }
+  if (basis === "observed" && observedMatches.length === 0) {
+    addError(
+      accumulator,
+      "observed_basis_unsupported",
+      `${path}.basis`,
+      "Observed basis requires matching registered observed provenance.",
+    );
+  }
+  if (basis === "attested" && attestedMatches.length === 0) {
+    addError(
+      accumulator,
+      "attested_basis_unsupported",
+      `${path}.basis`,
+      "Attested basis requires a source matching an actual attestation reporter.",
+    );
+  }
+  if (
+    basis === "mixed" &&
+    (observedMatches.length === 0 || attestedMatches.length === 0)
+  ) {
+    addError(
+      accumulator,
+      "mixed_basis_unsupported",
+      `${path}.basis`,
+      "Mixed basis requires both observed and attested provenance support.",
+    );
+  }
+}
+
+function addMatchingRefIdentities(
+  value: unknown,
+  allowed: ReadonlySet<string>,
+  output: Set<string>,
+) {
+  for (const identity of refIdentitySet(value)) {
+    if (allowed.has(identity)) output.add(identity);
+  }
+}
+
 function validateChangedArtifacts(input: ProtocolJsonRecordV01, accumulator: ValidationAccumulator) {
   const observations = idSet(input.observations, "observation_id");
   const attestations = idSet(input.attestations, "attestation_id");
@@ -953,6 +1564,12 @@ function validateChangedArtifacts(input: ProtocolJsonRecordV01, accumulator: Val
     const path = `$.changed_artifacts[${index}]`;
     const item = recordAt(value, path, accumulator);
     if (!item) continue;
+    rejectUnknownNestedKeysV01(
+      item,
+      allowedChangedArtifactKeys,
+      path,
+      accumulator,
+    );
     validateExternalRefStructureV01(item.artifact_ref, `${path}.artifact_ref`, issueSink(accumulator));
     enumValue(
       item.change_kind,
@@ -964,10 +1581,32 @@ function validateChangedArtifacts(input: ProtocolJsonRecordV01, accumulator: Val
     basisValue(item.basis, `${path}.basis`, accumulator);
     const observationIds = stringArray(item.related_observation_ids, `${path}.related_observation_ids`, accumulator);
     const attestationIds = stringArray(item.related_attestation_ids, `${path}.related_attestation_ids`, accumulator);
-    if ((item.basis === "observed" || item.basis === "mixed") && !observationIds.some((id) => observations.has(id))) {
+    const missingObservationIds = observationIds.filter(
+      (id) => !observations.has(id),
+    );
+    const missingAttestationIds = attestationIds.filter(
+      (id) => !attestations.has(id),
+    );
+    if (missingObservationIds.length > 0) {
+      addError(
+        accumulator,
+        "artifact_related_observation_missing",
+        `${path}.related_observation_ids`,
+        `Changed artifact references unknown observations: ${missingObservationIds.join(", ")}.`,
+      );
+    }
+    if (missingAttestationIds.length > 0) {
+      addError(
+        accumulator,
+        "artifact_related_attestation_missing",
+        `${path}.related_attestation_ids`,
+        `Changed artifact references unknown attestations: ${missingAttestationIds.join(", ")}.`,
+      );
+    }
+    if ((item.basis === "observed" || item.basis === "mixed") && observationIds.length === 0) {
       addError(accumulator, "artifact_observation_provenance_missing", `${path}.related_observation_ids`, "Observed artifact change requires a related observation.");
     }
-    if ((item.basis === "attested" || item.basis === "mixed") && !attestationIds.some((id) => attestations.has(id))) {
+    if ((item.basis === "attested" || item.basis === "mixed") && attestationIds.length === 0) {
       addError(accumulator, "artifact_attestation_provenance_missing", `${path}.related_attestation_ids`, "Attested artifact change requires a related attestation.");
     }
     validateRefArray(item.source_refs, `${path}.source_refs`, accumulator);
@@ -984,6 +1623,12 @@ function validateModelInvocations(
     const path = `$.model_invocations[${index}]`;
     const item = recordAt(value, path, accumulator);
     if (!item) continue;
+    rejectUnknownNestedKeysV01(
+      item,
+      allowedModelInvocationKeys,
+      path,
+      accumulator,
+    );
     validateExternalRefStructureV01(item.invocation_ref, `${path}.invocation_ref`, issueSink(accumulator));
     validateExternalRefStructureV01(item.provider_ref, `${path}.provider_ref`, issueSink(accumulator), true);
     validateExternalRefStructureV01(item.model_ref, `${path}.model_ref`, issueSink(accumulator), true);
@@ -1005,6 +1650,45 @@ function validateModelInvocations(
       accumulator,
     );
     validateRefArray(item.source_refs, `${path}.source_refs`, accumulator);
+    const invocationEgressStatus = protocolStringValueV01(item.egress_status);
+    const invocationSources = Array.isArray(item.source_refs)
+      ? item.source_refs
+      : [];
+    if (
+      invocationEgressStatus &&
+      invocationEgressStatus !== "unknown" &&
+      invocationSources.length === 0
+    ) {
+      addError(
+        accumulator,
+        "model_egress_source_missing",
+        `${path}.source_refs`,
+        "Non-unknown model invocation egress requires a provenance source reference.",
+      );
+    }
+    if (
+      invocationEgressStatus === "occurred" &&
+      item.provider_ref === null &&
+      !invocationSources.some(isDestinationIdentifyingRef)
+    ) {
+      addError(
+        accumulator,
+        "model_egress_destination_missing",
+        `${path}.provider_ref`,
+        "Occurred model invocation egress requires a provider or destination-identifying reference.",
+      );
+    }
+    if (
+      item.retention_class !== null &&
+      !protocolStringValueV01(item.retention_class)
+    ) {
+      addError(
+        accumulator,
+        "model_retention_class_invalid",
+        `${path}.retention_class`,
+        "Model retention_class must be null or a non-empty string.",
+      );
+    }
     for (const key of ["raw_prompt_persisted", "raw_response_persisted", "hidden_reasoning_persisted"]) {
       if (item[key] !== false) addError(accumulator, "model_payload_persistence_forbidden", `${path}.${key}`, `${key} must be false.`, true);
     }
@@ -1020,14 +1704,83 @@ function validateModelInvocations(
 function validatePrivacyEgress(input: ProtocolJsonRecordV01, accumulator: ValidationAccumulator) {
   const privacy = recordAt(input.privacy_egress, "$.privacy_egress", accumulator);
   if (!privacy) return;
+  rejectUnknownNestedKeysV01(
+    privacy,
+    allowedPrivacyEgressKeys,
+    "$.privacy_egress",
+    accumulator,
+  );
   const status = protocolStringValueV01(privacy.egress_status);
   const basis = protocolStringValueV01(privacy.basis);
+  enumValue(
+    privacy.data_classification,
+    new Set(["public_safe", "private", "local_only", "secret"]),
+    "$.privacy_egress.data_classification",
+    "data_classification_invalid",
+    accumulator,
+  );
   if (!status || !new Set(["occurred", "did_not_occur", "blocked", "unknown"]).has(status)) addError(accumulator, "egress_status_invalid", "$.privacy_egress.egress_status", "Unknown egress status.");
   basisValue(basis, "$.privacy_egress.basis", accumulator);
   const destinations = arrayAt(privacy.destination_refs, "$.privacy_egress.destination_refs", accumulator);
+  const sources = arrayAt(privacy.source_refs, "$.privacy_egress.source_refs", accumulator);
+  validateRefArray(
+    privacy.destination_refs,
+    "$.privacy_egress.destination_refs",
+    accumulator,
+  );
+  validateRefArray(
+    privacy.source_refs,
+    "$.privacy_egress.source_refs",
+    accumulator,
+  );
+  enumValue(
+    privacy.redaction_status,
+    new Set(["applied", "not_needed", "not_applied", "unknown"]),
+    "$.privacy_egress.redaction_status",
+    "redaction_status_invalid",
+    accumulator,
+  );
+  stringArray(privacy.notes, "$.privacy_egress.notes", accumulator);
+  if (
+    privacy.retention_class !== null &&
+    !protocolStringValueV01(privacy.retention_class)
+  ) {
+    addError(
+      accumulator,
+      "retention_class_invalid",
+      "$.privacy_egress.retention_class",
+      "retention_class must be null or a non-empty string.",
+    );
+  }
   if (status === "occurred" && destinations.length === 0) addError(accumulator, "egress_destination_missing", "$.privacy_egress.destination_refs", "Occurred egress requires a destination reference.");
-  if (status === "did_not_occur" && basis === "unknown") addError(accumulator, "egress_claim_basis_inconsistent", "$.privacy_egress.basis", "did_not_occur requires an observed, attested, or mixed basis.");
+  if (status && status !== "unknown" && basis === "unknown") addError(accumulator, "egress_claim_basis_inconsistent", "$.privacy_egress.basis", "Non-unknown egress requires an observed, attested, or mixed basis.");
+  if (status && status !== "unknown" && sources.length === 0) addError(accumulator, "egress_source_missing", "$.privacy_egress.source_refs", "Non-unknown egress requires at least one provenance source reference.");
+  if (
+    status === "did_not_occur" &&
+    destinations.length > 0 &&
+    !hasEgressDestinationJustification(input.warnings)
+  ) {
+    addError(
+      accumulator,
+      "did_not_occur_destination_unjustified",
+      "$.privacy_egress.destination_refs",
+      "did_not_occur must not claim a destination without an explicit source warning.",
+    );
+  }
   if (status === "unknown" && basis !== "unknown") addWarning(accumulator, "egress_unknown_with_source_basis", "$.privacy_egress", "Egress remains unknown despite a non-unknown source basis.");
+  if (status && status !== "unknown" && basis && basis !== "unknown") {
+    validateBasisSourceSupport(
+      basis,
+      privacy.source_refs,
+      new Set([
+        ...refIdentitySet(input.observer_refs),
+        ...refIdentitySet(input.verifier_refs),
+      ]),
+      attestationReporterIdentitySet(input.attestations),
+      "$.privacy_egress",
+      accumulator,
+    );
+  }
   for (const key of ["raw_prompt_persisted", "raw_output_persisted", "raw_transcript_persisted", "secret_material_persisted"]) {
     if (privacy[key] !== false) addError(accumulator, "privacy_persistence_invariant_violated", `$.privacy_egress.${key}`, `${key} must be false.`, true);
   }
@@ -1036,19 +1789,48 @@ function validatePrivacyEgress(input: ProtocolJsonRecordV01, accumulator: Valida
 function validateCostUsage(input: ProtocolJsonRecordV01, accumulator: ValidationAccumulator) {
   const cost = recordAt(input.cost_usage, "$.cost_usage", accumulator);
   if (!cost) return;
+  rejectUnknownNestedKeysV01(
+    cost,
+    allowedCostUsageKeys,
+    "$.cost_usage",
+    accumulator,
+  );
   const basis = protocolStringValueV01(cost.cost_basis);
   const amount = cost.cost_amount;
   const currency = protocolStringValueV01(cost.currency);
-  if (!basis || !new Set(["measured", "attested", "estimated", "unknown"]).has(basis)) addError(accumulator, "cost_basis_invalid", "$.cost_usage.cost_basis", "Unknown cost basis.");
+  const measurementBases = new Set(["measured", "attested", "estimated", "unknown"]);
+  if (!basis || !measurementBases.has(basis)) addError(accumulator, "cost_basis_invalid", "$.cost_usage.cost_basis", "Unknown cost basis.");
   if (basis === "unknown" && amount !== null) addError(accumulator, "unknown_cost_must_be_null", "$.cost_usage.cost_amount", "Unknown cost must be null, not zero or another number.");
-  if (basis !== "unknown" && amount !== null && !currency) addError(accumulator, "cost_currency_missing", "$.cost_usage.currency", "Measured, attested, or estimated cost requires a currency.");
-  if (amount !== null && (!Number.isFinite(amount) || Number(amount) < 0)) addError(accumulator, "cost_amount_invalid", "$.cost_usage.cost_amount", "Cost amount must be non-negative or null.");
+  if (basis === "unknown" && cost.currency !== null) addError(accumulator, "unknown_cost_currency_must_be_null", "$.cost_usage.currency", "Unknown cost currency must be null.");
+  if (basis && basis !== "unknown" && amount === null) addError(accumulator, "cost_amount_missing", "$.cost_usage.cost_amount", "Non-unknown cost requires a numeric amount.");
+  if (basis && basis !== "unknown" && !currency) addError(accumulator, "cost_currency_missing", "$.cost_usage.currency", "Measured, attested, or estimated cost requires a currency.");
+  if (amount !== null && (!Number.isFinite(amount) || Number(amount) < 0)) addError(accumulator, "cost_amount_invalid", "$.cost_usage.cost_amount", "Cost amount must be finite, non-negative, or null.");
   const usage = recordAt(cost.usage, "$.cost_usage.usage", accumulator);
   if (!usage) return;
+  rejectUnknownNestedKeysV01(
+    usage,
+    allowedUsageKeys,
+    "$.cost_usage.usage",
+    accumulator,
+  );
   const usageBasis = protocolStringValueV01(usage.basis);
   const counts = [usage.input_units, usage.output_units, usage.total_units];
+  if (!usageBasis || !measurementBases.has(usageBasis)) addError(accumulator, "usage_basis_invalid", "$.cost_usage.usage.basis", "Unknown usage basis.");
   if (usageBasis === "unknown" && counts.some((value) => value !== null)) addError(accumulator, "unknown_usage_must_be_null", "$.cost_usage.usage", "Unknown usage values must be null, not zero.");
-  if (usageBasis !== "unknown" && counts.some((value) => value !== null) && !protocolStringValueV01(usage.unit)) addError(accumulator, "usage_unit_missing", "$.cost_usage.usage.unit", "Measured, attested, or estimated usage requires a unit.");
+  if (usageBasis === "unknown" && usage.unit !== null) addError(accumulator, "unknown_usage_unit_must_be_null", "$.cost_usage.usage.unit", "Unknown usage unit must be null.");
+  if (usageBasis && usageBasis !== "unknown" && counts.every((value) => value === null)) addError(accumulator, "usage_counts_missing", "$.cost_usage.usage", "Non-unknown usage requires at least one count.");
+  if (usageBasis && usageBasis !== "unknown" && !protocolStringValueV01(usage.unit)) addError(accumulator, "usage_unit_missing", "$.cost_usage.usage.unit", "Measured, attested, or estimated usage requires a unit.");
+  for (const [index, count] of counts.entries()) {
+    if (count !== null && (!Number.isFinite(count) || Number(count) < 0)) {
+      addError(
+        accumulator,
+        "usage_value_invalid",
+        `$.cost_usage.usage.${["input_units", "output_units", "total_units"][index]}`,
+        "Usage values must be finite, non-negative, or null.",
+      );
+    }
+  }
+  validateRefArray(cost.source_refs, "$.cost_usage.source_refs", accumulator);
 }
 
 function validateCapabilityCoverage(
@@ -1064,6 +1846,12 @@ function validateCapabilityCoverage(
     const path = `$.capability_coverage[${index}]`;
     const item = recordAt(candidate, path, accumulator);
     if (!item) return;
+    rejectUnknownNestedKeysV01(
+      item,
+      allowedCapabilityCoverageKeys,
+      path,
+      accumulator,
+    );
     requireString(item, "capability", path, accumulator);
     enumValue(
       item.coverage_level,
@@ -1083,6 +1871,19 @@ function validateCapabilityCoverage(
 }
 
 function validateTrustSummary(input: ProtocolJsonRecordV01, accumulator: ValidationAccumulator) {
+  const trustSummary = recordAt(
+    input.trust_summary,
+    "$.trust_summary",
+    accumulator,
+  );
+  if (trustSummary) {
+    rejectUnknownNestedKeysV01(
+      trustSummary,
+      allowedTrustSummaryKeys,
+      "$.trust_summary",
+      accumulator,
+    );
+  }
   const observations = Array.isArray(input.observations) ? input.observations.filter(isObservation).map((item) => item as unknown as RunReceiptObservationV01) : [];
   const attestations = Array.isArray(input.attestations) ? input.attestations.filter(isAttestation).map((item) => item as unknown as RunReceiptAttestationV01) : [];
   const expected = deriveRunReceiptTrustSummaryV01(observations, attestations);
@@ -1094,6 +1895,12 @@ function validateTrustSummary(input: ProtocolJsonRecordV01, accumulator: Validat
 function validateAuthority(input: ProtocolJsonRecordV01, accumulator: ValidationAccumulator) {
   const authority = recordAt(input.authority_summary, "$.authority_summary", accumulator);
   if (!authority) return;
+  rejectUnknownNestedKeysV01(
+    authority,
+    allowedAuthoritySummaryKeys,
+    "$.authority_summary",
+    accumulator,
+  );
   const expected = createRunReceiptAuthoritySummaryV01(
     Array.isArray(authority.notes) ? authority.notes.filter((value): value is string => typeof value === "string") : [],
   );
@@ -1116,6 +1923,12 @@ function validateAuthority(input: ProtocolJsonRecordV01, accumulator: Validation
 function validateIntegrity(input: ProtocolJsonRecordV01, accumulator: ValidationAccumulator) {
   const integrity = recordAt(input.integrity, "$.integrity", accumulator);
   if (!integrity) return;
+  rejectUnknownNestedKeysV01(
+    integrity,
+    allowedIntegrityKeys,
+    "$.integrity",
+    accumulator,
+  );
   const typed = input as unknown as RunReceiptV01;
   if (protocolStringValueV01(input.idempotency_key) !== createRunReceiptIdempotencyKeyV01(typed)) addError(accumulator, "idempotency_key_mismatch", "$.idempotency_key", "RunReceipt idempotency key does not match its canonical identity inputs.");
   if (protocolStringValueV01(input.receipt_id) !== deriveRunReceiptIdV01(typed)) addError(accumulator, "receipt_identity_mismatch", "$.receipt_id", "RunReceipt receipt_id is inconsistent with its deterministic identity.");
@@ -1143,6 +1956,44 @@ function refIdentitySet(value: unknown): Set<string> {
   return new Set((Array.isArray(value) ? value : []).map(refIdentity).filter((identity): identity is string => Boolean(identity)));
 }
 
+function changedArtifactIdentitySet(value: unknown): Set<string> {
+  return new Set(
+    (Array.isArray(value) ? value : [])
+      .map((item) =>
+        isProtocolRecordV01(item) ? refIdentity(item.artifact_ref) : null,
+      )
+      .filter((identity): identity is string => Boolean(identity)),
+  );
+}
+
+function attestationReporterIdentitySet(value: unknown): Set<string> {
+  return new Set(
+    (Array.isArray(value) ? value : [])
+      .map((item) =>
+        isProtocolRecordV01(item) ? refIdentity(item.reporter_ref) : null,
+      )
+      .filter((identity): identity is string => Boolean(identity)),
+  );
+}
+
+function isDestinationIdentifyingRef(value: unknown): boolean {
+  if (!isProtocolRecordV01(value)) return false;
+  const refType = protocolStringValueV01(value.ref_type);
+  return Boolean(
+    refType && /(?:provider|destination|egress_target|host)/i.test(refType),
+  );
+}
+
+function hasEgressDestinationJustification(value: unknown): boolean {
+  return (Array.isArray(value) ? value : []).some(
+    (item) =>
+      isProtocolRecordV01(item) &&
+      item.code === "egress_destination_justified" &&
+      Array.isArray(item.source_refs) &&
+      item.source_refs.length > 0,
+  );
+}
+
 function refIdentity(value: unknown): string | null {
   if (!isProtocolRecordV01(value)) return null;
   const type = protocolStringValueV01(value.ref_type);
@@ -1167,6 +2018,27 @@ function recordAt(value: unknown, path: string, accumulator: ValidationAccumulat
     return null;
   }
   return value;
+}
+
+function rejectUnknownNestedKeysV01(
+  record: ProtocolJsonRecordV01,
+  allowed: ReadonlySet<string>,
+  path: string,
+  accumulator: ValidationAccumulator,
+) {
+  for (const key of Object.keys(record)) {
+    if (allowed.has(key)) continue;
+    const blocked = forbiddenSemanticFieldPattern.test(key);
+    addError(
+      accumulator,
+      blocked ? "forbidden_semantic_field" : "unknown_nested_field",
+      `${path}.${key}`,
+      blocked
+        ? `Unknown field ${key} attempts a forbidden authority or state semantic.`
+        : `Field ${key} is not part of this nested RunReceipt v0.1 contract.`,
+      blocked,
+    );
+  }
 }
 
 function arrayAt(value: unknown, path: string, accumulator: ValidationAccumulator): unknown[] {

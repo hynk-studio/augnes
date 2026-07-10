@@ -43,6 +43,10 @@ export interface RunReceiptConformanceSummaryV01 {
   execution_verification_axes_checked: true;
   privacy_unknown_not_false_checked: true;
   cost_unknown_not_zero_checked: true;
+  strict_nested_schema_checked: true;
+  provenance_basis_coherence_checked: true;
+  relation_integrity_checked: true;
+  clock_skew_warning_checked: true;
 }
 
 export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
@@ -68,6 +72,28 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
   assert.equal(JSON.stringify(generic).match(/openai|chatgpt|codex/gi), null);
   assert.equal(generic.observations[0]?.trust_class, "direct_local_observation");
   assert.equal(generic.attestations.length, 0);
+  assert.equal(generic.receipt_id, "run-receipt:597672d1ff739903c66b204f");
+  assert.equal(
+    generic.idempotency_key,
+    "sha256:b39288d9e75983b9407f752b8d29720bf54ef64971df0ef36594c3cb81a5acf6",
+  );
+  assert.equal(
+    generic.integrity.fingerprint,
+    "sha256:b99ad3cd7e02e54b6c2f9ffce821a0e50856a45e5349879e84633fcebe7ada97",
+  );
+
+  const unknownFieldInput = clone(genericCliDirectObservationInputFixture);
+  (unknownFieldInput.observations[0] as unknown as Record<string, unknown>)
+    .accepted_evidence = true;
+  (unknownFieldInput.privacy_egress as unknown as Record<string, unknown>)
+    .extra_policy_claim = true;
+  (unknownFieldInput.cost_usage.usage as unknown as Record<string, unknown>)
+    .unrecognized_metric = 1;
+  assert.deepEqual(
+    buildRunReceiptV01(deepFreeze(unknownFieldInput)),
+    generic,
+    "builder must drop unknown nested runtime fields instead of fingerprinting them",
+  );
 
   const host = requiredReceipt(receipts, "openai_codex_host_attestation");
   assert.equal(host.observations.length, 0);
@@ -109,6 +135,7 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
   assert.equal(blocked.checks.length, 0);
   assert.equal(blocked.skipped_checks.length, 0);
   assert.ok(blocked.blockers.length > 0);
+  assert.ok(blocked.observations.length > 0);
 
   const completedPartialInput = clone(genericCliDirectObservationInputFixture);
   completedPartialInput.run_id = "run-completed-partial-verification-001";
@@ -132,6 +159,22 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
       .status,
     "valid",
     "unknown execution with attested check claims must remain valid",
+  );
+
+  const clockSkewInput = clone(genericCliDirectObservationInputFixture);
+  clockSkewInput.run_id = "run-clock-skew-warning-001";
+  clockSkewInput.recorded_at = "2026-07-10T02:15:00.000Z";
+  const clockSkewValidation = validateRunReceiptV01(
+    buildRunReceiptV01(deepFreeze(clockSkewInput)),
+  );
+  assert.equal(clockSkewValidation.status, "valid", format(clockSkewValidation));
+  assert.ok(
+    clockSkewValidation.warnings.some(
+      (issue) =>
+        issue.code === "remote_clock_skew_possible" &&
+        issue.path === "$.finished_at",
+    ),
+    "finished_at later than recorded_at must warn without rewriting time",
   );
 
   const repeated = buildRunReceiptV01(
@@ -196,6 +239,10 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
     execution_verification_axes_checked: true,
     privacy_unknown_not_false_checked: true,
     cost_unknown_not_zero_checked: true,
+    strict_nested_schema_checked: true,
+    provenance_basis_coherence_checked: true,
+    relation_integrity_checked: true,
+    clock_skew_warning_checked: true,
   };
 }
 

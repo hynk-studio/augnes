@@ -385,7 +385,7 @@ export const mixedProvenanceInputFixture = (() => {
   );
   input.run_id = "run-mixed-001";
   input.execution = { status: "completed", basis: "mixed", source_refs: [localObserverRef, hostReporter] };
-  input.verification = { status: "passed", basis: "mixed", required_check_ids: ["check:typecheck"], source_refs: [localVerifierRef, ciVerifier] };
+  input.verification = { status: "passed", basis: "mixed", required_check_ids: ["check:typecheck"], source_refs: [ciVerifier, hostReporter] };
   input.reporter_ref = hostReporter;
   input.observer_refs = [localObserverRef, ciVerifier];
   input.verifier_refs = [ciVerifier];
@@ -443,9 +443,23 @@ export const completedFailedVerificationInputFixture = (() => {
 export const blockedNoChecksInputFixture = (() => {
   const input = baseInput();
   input.run_id = "run-blocked-001";
-  input.execution = { status: "blocked", basis: "attested", source_refs: [localObserverRef] };
+  input.execution = { status: "blocked", basis: "observed", source_refs: [localObserverRef] };
   input.verification = { status: "not_run", basis: "unknown", required_check_ids: [], source_refs: [] };
-  input.observations = [];
+  input.observations = [
+    {
+      observation_id: "observation:execution:blocked",
+      observation_kind: "execution_blocker",
+      summary: "The local observer recorded that execution could not start.",
+      event_at: FINISHED_AT,
+      observed_at: FINISHED_AT,
+      observer_ref: localObserverRef,
+      trust_class: "direct_local_observation",
+      source_refs: [localObserverRef],
+      related_command_ids: [],
+      related_check_ids: [],
+      related_artifact_refs: [],
+    },
+  ];
   input.changed_artifacts = [];
   input.commands = [];
   input.checks = [];
@@ -516,6 +530,50 @@ export const invalidRunReceiptFixtureCases: InvalidRunReceiptFixtureCaseV01[] = 
   mutation("measured_cost_without_currency", "invalid", "cost_currency_missing", (value) => { value.cost_usage.cost_basis = "measured"; value.cost_usage.cost_amount = 1.25; value.cost_usage.currency = null; }),
   mutation("unknown_cost_as_zero", "invalid", "unknown_cost_must_be_null", (value) => { value.cost_usage.cost_basis = "unknown"; value.cost_usage.cost_amount = 0; }),
   mutation("egress_claim_inconsistent", "invalid", "egress_claim_basis_inconsistent", (value) => { value.privacy_egress.egress_status = "did_not_occur"; value.privacy_egress.basis = "unknown"; }),
+  mutation("unknown_observation_authority_field", "blocked", "forbidden_semantic_field", (value) => { (value.observations[0] as unknown as Record<string, unknown>).accepted_evidence = true; }),
+  mutation("unknown_attestation_approval_field", "blocked", "forbidden_semantic_field", (value) => { const item = JSON.parse(JSON.stringify(openAiCodexHostAttestationInputFixture.attestations[0])) as Record<string, unknown>; item.approval_granted = true; value.attestations = [item as never]; }),
+  mutation("unknown_check_state_field", "blocked", "forbidden_semantic_field", (value) => { (value.checks[0] as unknown as Record<string, unknown>).canonical_state_applied = true; }),
+  mutation("unknown_result_summary_work_field", "blocked", "forbidden_semantic_field", (value) => { (value.result_summary as unknown as Record<string, unknown>).work_closed = true; }),
+  mutation("unknown_privacy_policy_field", "invalid", "unknown_nested_field", (value) => { (value.privacy_egress as unknown as Record<string, unknown>).extra_policy_claim = true; }),
+  mutation("unknown_usage_metric_field", "invalid", "unknown_nested_field", (value) => { (value.cost_usage.usage as unknown as Record<string, unknown>).unrecognized_metric = 1; }),
+  mutation("execution_observed_without_observation", "invalid", "observed_basis_unsupported", (value) => { value.observations = []; }),
+  mutation("execution_attested_without_reporter", "invalid", "attested_basis_unsupported", (value) => { value.execution.basis = "attested"; }),
+  mutation("execution_mixed_without_attestation", "invalid", "mixed_basis_unsupported", (value) => { value.execution.basis = "mixed"; }),
+  mutation("blocked_execution_without_blocker", "invalid", "blocked_execution_requires_blocker", (value) => { value.execution.status = "blocked"; value.blockers = []; }),
+  mutation("verification_observed_without_material", "invalid", "observed_basis_unsupported", (value) => { value.checks[0]!.basis = "unknown"; value.observations.forEach((item) => { item.related_check_ids = []; }); }),
+  mutation("verification_attested_without_reporter", "invalid", "attested_basis_unsupported", (value) => { value.verification.basis = "attested"; }),
+  mutation("verification_mixed_without_attestation", "invalid", "mixed_basis_unsupported", (value) => { value.verification.basis = "mixed"; }),
+  mutation("command_observed_source_unregistered", "invalid", "basis_provenance_source_unregistered", (value) => { value.commands[0]!.source_refs = [repositoryRef]; }),
+  mutation("command_attested_without_reporter", "invalid", "attested_basis_unsupported", (value) => { value.commands[0]!.basis = "attested"; }),
+  mutation("check_observed_source_unregistered", "invalid", "basis_provenance_source_unregistered", (value) => { value.checks[0]!.source_refs = [repositoryRef]; }),
+  mutation("skipped_check_attested_without_reporter", "invalid", "attested_basis_unsupported", (value) => { value.skipped_checks = [{ check_id: "check:optional", required: false, reason: "Optional environment was unavailable.", basis: "attested", source_refs: [localObserverRef] }]; }),
+  mutation("duplicate_conflicting_observation_id", "invalid", "duplicate_observation_id", (value) => { value.observations.push({ ...value.observations[0]!, summary: "Conflicting observation meaning." }); }),
+  mutation("duplicate_conflicting_attestation_id", "invalid", "duplicate_attestation_id", (value) => { const item = JSON.parse(JSON.stringify(openAiCodexHostAttestationInputFixture.attestations[0])); value.attestations = [item, { ...item, summary: "Conflicting attestation meaning." }]; }),
+  mutation("duplicate_command_id", "invalid", "duplicate_command_id", (value) => { value.commands.push({ ...value.commands[0]!, summary: "Conflicting command meaning." }); }),
+  mutation("duplicate_same_status_check_id", "invalid", "duplicate_check_id", (value) => { value.checks.push({ ...value.checks[0]!, summary: "Conflicting same-status check meaning." }); }),
+  mutation("duplicate_skipped_check_id", "invalid", "duplicate_skipped_check_id", (value) => { const skipped = { check_id: "check:optional", required: false, reason: "Optional browser was unavailable.", basis: "unknown" as const, source_refs: [] }; value.skipped_checks = [skipped, { ...skipped, reason: "A different skip meaning." }]; }),
+  mutation("check_and_skip_same_id", "blocked", "check_result_and_skip_conflict", (value) => { value.skipped_checks = [{ check_id: "check:typecheck", required: false, reason: "Conflicting skip entry.", basis: "unknown", source_refs: [] }]; }),
+  mutation("unknown_related_command_id", "invalid", "observation_related_command_missing", (value) => { value.observations[0]!.related_command_ids.push("command:missing"); }),
+  mutation("unknown_related_check_id", "invalid", "observation_related_check_missing", (value) => { value.observations[0]!.related_check_ids.push("check:missing"); }),
+  mutation("unknown_related_artifact_ref", "invalid", "observation_related_artifact_missing", (value) => { value.observations[0]!.related_artifact_refs.push(ref("repository_relative_path", "missing/artifact.ts", "direct_local_observation")); }),
+  mutation("unknown_related_observation_with_valid", "invalid", "artifact_related_observation_missing", (value) => { value.changed_artifacts[0]!.related_observation_ids.push("observation:missing"); }),
+  mutation("unknown_related_attestation_with_valid", "invalid", "artifact_related_attestation_missing", (value) => { const attestation = JSON.parse(JSON.stringify(openAiCodexHostAttestationInputFixture.attestations[0])); value.attestations = [attestation]; value.changed_artifacts[0]!.basis = "mixed"; value.changed_artifacts[0]!.related_attestation_ids = [attestation.attestation_id, "attestation:missing"]; }),
+  mutation("invalid_data_classification", "invalid", "data_classification_invalid", (value) => { value.privacy_egress.data_classification = "unclassified" as never; }),
+  mutation("invalid_redaction_status", "invalid", "redaction_status_invalid", (value) => { value.privacy_egress.redaction_status = "complete" as never; }),
+  mutation("non_unknown_egress_without_source", "invalid", "egress_source_missing", (value) => { value.privacy_egress.egress_status = "blocked"; value.privacy_egress.basis = "observed"; value.privacy_egress.source_refs = []; }),
+  mutation("did_not_occur_with_unjustified_destination", "invalid", "did_not_occur_destination_unjustified", (value) => { value.privacy_egress.egress_status = "did_not_occur"; value.privacy_egress.basis = "observed"; value.privacy_egress.source_refs = [localObserverRef]; value.privacy_egress.destination_refs = [repositoryRef]; }),
+  mutation("privacy_notes_malformed", "invalid", "string_array_malformed", (value) => { value.privacy_egress.notes = [""]; }),
+  mutation("privacy_retention_malformed", "invalid", "retention_class_invalid", (value) => { value.privacy_egress.retention_class = ""; }),
+  mutation("model_non_unknown_egress_without_source", "invalid", "model_egress_source_missing", (value) => { const invocation = JSON.parse(JSON.stringify(openAiCodexHostAttestationInputFixture.model_invocations[0])); invocation.source_refs = []; value.model_invocations = [invocation]; }),
+  mutation("model_occurred_egress_without_destination", "invalid", "model_egress_destination_missing", (value) => { const invocation = JSON.parse(JSON.stringify(openAiCodexHostAttestationInputFixture.model_invocations[0])); invocation.provider_ref = null; invocation.source_refs = [invocation.invocation_ref]; value.model_invocations = [invocation]; }),
+  mutation("unsupported_usage_basis", "invalid", "usage_basis_invalid", (value) => { value.cost_usage.usage.basis = "reported" as never; }),
+  mutation("negative_usage", "invalid", "usage_value_invalid", (value) => { value.cost_usage.usage.basis = "measured"; value.cost_usage.usage.input_units = -1; value.cost_usage.usage.unit = "tokens"; }),
+  mutation("non_finite_usage", "invalid", "usage_value_invalid", (value) => { value.cost_usage.usage.basis = "measured"; value.cost_usage.usage.input_units = Number.POSITIVE_INFINITY; value.cost_usage.usage.unit = "tokens"; }),
+  mutation("measured_usage_without_counts", "invalid", "usage_counts_missing", (value) => { value.cost_usage.usage.basis = "measured"; value.cost_usage.usage.unit = "tokens"; }),
+  mutation("measured_usage_without_unit", "invalid", "usage_unit_missing", (value) => { value.cost_usage.usage.basis = "measured"; value.cost_usage.usage.input_units = 1; value.cost_usage.usage.unit = null; }),
+  mutation("measured_cost_without_amount", "invalid", "cost_amount_missing", (value) => { value.cost_usage.cost_basis = "measured"; value.cost_usage.cost_amount = null; value.cost_usage.currency = "USD"; }),
+  mutation("unknown_cost_with_currency", "invalid", "unknown_cost_currency_must_be_null", (value) => { value.cost_usage.currency = "USD"; }),
+  mutation("unknown_usage_with_unit", "invalid", "unknown_usage_unit_must_be_null", (value) => { value.cost_usage.usage.unit = "tokens"; }),
   mutation("authority_grant", "blocked", "authority_boundary_violation", (value) => { (value.authority_summary as unknown as Record<string, unknown>).authorizes_execution = true; }),
   mutation("authority_write_grant", "blocked", "authority_boundary_violation", (value) => { (value.authority_summary as unknown as Record<string, unknown>).authorizes_write = true; }),
 ];
