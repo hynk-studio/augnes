@@ -15,9 +15,11 @@ repo implementation and verification worker. Preserve the authority boundaries.
   selection, compatibility handling, and retirement sequencing.
 - `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md` governs completion and
   improvement claims.
-- Treat README and older Workplane, handoff, Autohunt, roadmap, and status docs as
-  current implementation or historical compatibility context when they conflict
-  with the active vNext set.
+- For strategy and PR-sequencing conflicts, the active vNext set takes
+  precedence over older roadmap, status, Workplane, handoff, or Autohunt docs.
+- For facts about current runtime behavior and implemented capabilities,
+  existing code and current runtime docs remain authoritative until that
+  behavior is intentionally changed and verified.
 - The default profile is ChatGPT Work + Codex + OpenAI API. Core identities,
   state, Evidence, Claims, Perspective, Decisions, and protocol contracts must
   remain provider-neutral.
@@ -36,19 +38,22 @@ repo implementation and verification worker. Preserve the authority boundaries.
   Reuse Intake before coding so task-start context includes prior Augnes memory.
 - If a Core Handoff or Full Handoff is pasted into the task, use that pasted
   handoff as the primary work contract.
-- For Augnes workflow tasks, prefer this minimum context:
+- For Augnes workflow tasks, use this context-diet minimum set:
   - `docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md`
   - `docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md`
-  - `docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`
-  - `docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`
-  - `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`
   - `README.md`
   - `docs/AUTHORITY_MATRIX.md`
-  - `docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md`
-  - `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md`
-  - `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`
-  - `docs/CANONICAL_REPO_OWNER_NOTE_V0_1.md`
-  - task-specific ADR, handoff, compatibility, or protocol docs
+  - task-specific instructions
+- Read additional documents only when the task requires them:
+  - `docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md` when changing
+    Core, protocol, adapter, provider/model, identity, authority, or
+    temporal/evidence meaning.
+  - `docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md` for work selection,
+    compatibility, migration, legacy retirement, or milestone work.
+  - `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md` for completion
+    claims, dogfood, metrics, conformance, or test strategy.
+  - Existing Codex session, bootstrap, and result documents only when actually
+    using or modifying the current compatibility workflow.
 - Inspect `git status` before editing and keep changes scoped to the task.
 - If the local Augnes runtime is available, run `npm run codex:read-brief`.
 - If `CODEX_WORK_ID` is set, use `npm run codex:read-brief` so the Work Brief
