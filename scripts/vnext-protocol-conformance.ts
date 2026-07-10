@@ -28,6 +28,7 @@ import {
 } from "@/lib/vnext/task-context-packet";
 import { EXTERNAL_REF_VERSION_V01 } from "@/types/vnext/external-ref";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+import { runCodexResultReportRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/codex-result-report-run-receipt";
 import { runRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/run-receipt";
 
 const legacyAdapterSourcePath =
@@ -38,6 +39,8 @@ const sourcePaths = [
   legacyAdapterSourcePath,
   "lib/vnext/protocol-primitives.ts",
   "lib/vnext/run-receipt.ts",
+  "lib/vnext/compat/run-receipt-from-codex-result-report.ts",
+  "lib/vnext/compat/codex-result-report-source-validator.ts",
 ];
 
 let fetchCalls = 0;
@@ -535,6 +538,8 @@ try {
   assert.equal(fetchCalls, 0, "protocol conformance observed a fetch call");
 
   const runReceiptSummary = runRunReceiptConformanceV01();
+  const codexResultCompatibilitySummary =
+    runCodexResultReportRunReceiptConformanceV01();
   const taskContextPacketSummary = {
     suite: "task-context-packet-v0.1",
     status: "passed",
@@ -587,6 +592,8 @@ try {
         status: "passed",
         task_context_packet: taskContextPacketSummary,
         run_receipt: runReceiptSummary,
+        codex_result_report_run_receipt_compatibility:
+          codexResultCompatibilitySummary,
         shared_protocol_primitives: {
           suite: "shared-external-ref-and-protocol-primitives-v0.1",
           status: "passed",
