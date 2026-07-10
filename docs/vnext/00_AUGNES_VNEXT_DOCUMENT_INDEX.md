@@ -220,7 +220,12 @@ Augnes Lab, 항상 non-authoritative
 
 새 기능이나 PR은 다음 질문에 답해야 한다.
 
-1. 이 기능은 `Native Host`, `Adapter`, `Core`, `Projection/Inspector`, `Lab` 중 어디에 속하는가?
+1. 이 기능은 `Native Host`, `Adapter`, `Core`, `Product Surface / Projection /
+   Inspector`, `Lab` 중 어디에 속하는가? Project Home과 Semantic Workbench는
+   Product Surface, shared read model과 derived view는 Projection, 상세 provenance와
+   lineage 탐색은 Inspector로 분류한다. 세 범주는 explicit Core gate가 decision이나
+   transition을 적용하기 전에는 non-authoritative client/projection이며, 분류되지 않은
+   product surface를 만들지 않는다.
 2. 특정 provider 이름 없이 Core 의미를 설명할 수 있는가?
 3. 결과는 `observed`, `attested`, `inferred`, `proposed` 중 무엇인가?
 4. durable state 또는 외부 side effect를 만드는가?

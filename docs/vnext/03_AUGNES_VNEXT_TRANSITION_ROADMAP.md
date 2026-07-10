@@ -424,7 +424,7 @@ result intake
 | ExpectedObservedDelta | EpisodeDeltaProposal comparison projection | 유지 |
 | Reuse Outcome | feedback event/projection | 유지 |
 | Dogfood Metric Snapshot | evaluation projection | source of truth 아님 |
-| State Proposal Review | ReviewDecision card/Inspector | 유지 |
+| State Proposal Review | Semantic Workbench ReviewDecision flow + Inspector basis/lineage drill-down | active proposal review와 ReviewDecision 준비는 Workbench 책임. Inspector는 source, Evidence, basis와 decision lineage를 탐색하고 host-native compact card는 bounded intent entry가 될 수 있음. transition 동안 current behavior 유지; target flow 구현 완료를 의미하지 않음 |
 | Autonomy Contract | AutomationPolicy | 통합 |
 | Autohunt launcher | Scheduler adapter | 자체 UI 확장 중단 |
 | Project Constellation | Inspector/Lab explanation | front door 아님 |

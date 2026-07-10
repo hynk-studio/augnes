@@ -394,9 +394,15 @@ vendor-specific required Core fields: 0
 
 다음이면 governance/evidence plugin과 Core 중심으로 축소한다.
 
-- continuity와 audit는 유용하지만 Inspector 사용이 낮음
+- continuity와 audit는 유용하지만 Project Home의 Resume 사용, Semantic
+  Workbench의 cross-host Verify·Decide 사용 또는 downstream outcome 개선이 낮음
 - native host가 실행 UX를 압도적으로 더 잘 제공함
 - cross-provider normalization만 지속적으로 가치 있음
+
+Inspector 사용량은 supporting diagnostic일 뿐 단독 Narrow trigger가 아니다.
+Home은 Resume outcome, Workbench는 Verify·Decide outcome, Inspector는 유용한
+drill-down·provenance·lineage 지원으로 평가하며 raw surface usage보다 실제 outcome
+개선을 우선한다.
 
 ### 11.3 Stop or rethink
 
