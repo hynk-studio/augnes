@@ -52,6 +52,8 @@ export interface CodexResultReportRunReceiptConformanceSummaryV01 {
   artifact_classification_checked: true;
   mapper_input_allowlist_checked: true;
   symbolic_prefix_fail_closed_checked: true;
+  raw_optional_external_refs_checked: true;
+  cross_platform_repository_paths_checked: true;
 }
 
 export function runCodexResultReportRunReceiptConformanceV01():
@@ -354,6 +356,18 @@ export function runCodexResultReportRunReceiptConformanceV01():
     sourceCase("resigned_unc_path", mutate(canonicalRecord, (value) => {
       value.changed_file_refs.push("\\\\server\\share\\private.txt");
     }), "blocked", "source_artifact_ref_unsafe"),
+    sourceCase("windows_drive_relative_path", mutate(canonicalRecord, (value) => {
+      value.observed_file_refs.push("C:outside-repository.txt");
+    }), "blocked", "source_artifact_ref_unsafe"),
+    sourceCase("windows_root_relative_path", mutate(canonicalRecord, (value) => {
+      value.changed_file_refs.push("\\root-relative.txt");
+    }), "blocked", "source_artifact_ref_unsafe"),
+    sourceCase("smb_uri_artifact_ref", mutate(canonicalRecord, (value) => {
+      value.observed_file_refs.push("smb://server/share/file.txt");
+    }), "blocked", "source_artifact_ref_unsafe"),
+    sourceCase("ssh_uri_artifact_ref", mutate(canonicalRecord, (value) => {
+      value.changed_file_refs.push("ssh://host/path");
+    }), "blocked", "source_artifact_ref_unsafe"),
     sourceCase("malformed_symbolic_empty", mutate(canonicalRecord, (value) => {
       value.observed_file_refs.push("file-ref:");
     }), "blocked", "source_artifact_ref_unsafe"),
@@ -405,6 +419,10 @@ export function runCodexResultReportRunReceiptConformanceV01():
         "symbolic_parent_traversal",
         "symbolic_unc_payload",
         "symbolic_extra_colon",
+        "windows_drive_relative_path",
+        "windows_root_relative_path",
+        "smb_uri_artifact_ref",
+        "ssh_uri_artifact_ref",
       ].includes(testCase.name)
     ) {
       assert.equal(
@@ -503,6 +521,84 @@ export function runCodexResultReportRunReceiptConformanceV01():
     );
   }
 
+  const optionalExternalRefCases = [
+    {
+      name: "work_ref_unknown_field",
+      field: "work_ref",
+      value: {
+        ...optionalExternalRef("work-ref:fixture"),
+        diagnostic_context: "work-ref-unknown-value",
+      },
+      expected: "invalid" as const,
+      code: "mapping_external_ref_unknown_field",
+    },
+    {
+      name: "task_context_packet_ref_unknown_field",
+      field: "task_context_packet_ref",
+      value: {
+        ...optionalExternalRef("task-context-ref:fixture"),
+        compatibility_hint: "task-context-unknown-value",
+      },
+      expected: "invalid" as const,
+      code: "mapping_external_ref_unknown_field",
+    },
+    {
+      name: "host_ref_approval_granted",
+      field: "host_ref",
+      value: {
+        ...optionalExternalRef("host-ref:fixture"),
+        approval_granted: { claim: "host-ref-object-authority-value" },
+      },
+      expected: "blocked" as const,
+      code: "mapping_external_ref_forbidden_semantic_field",
+    },
+    {
+      name: "worker_ref_authorizes_execution",
+      field: "worker_ref",
+      value: {
+        ...optionalExternalRef("worker-ref:fixture"),
+        authorizes_execution: "worker-ref-authority-value",
+      },
+      expected: "blocked" as const,
+      code: "mapping_external_ref_forbidden_semantic_field",
+    },
+    {
+      name: "malformed_optional_external_ref",
+      field: "host_ref",
+      value: [],
+      expected: "invalid" as const,
+      code: "external_ref_malformed",
+    },
+  ];
+  for (const testCase of optionalExternalRefCases) {
+    const rejectedInput = clone(canonicalInput) as unknown as Record<
+      string,
+      unknown
+    >;
+    rejectedInput[testCase.field] = testCase.value;
+    const mappingResult = mapCodexResultReportRecordToRunReceiptV01(
+      rejectedInput,
+    );
+    assertNoReceipt(
+      testCase.name,
+      mappingResult,
+      testCase.expected,
+      testCase.code,
+    );
+    assert.equal(mappingResult.source_record_fingerprint, null);
+    assert.equal(mappingResult.normalized_source_status, null);
+    assert.equal(
+      mappingResult.errors.length,
+      1,
+      `${testCase.name} must reject before source validation or receipt building`,
+    );
+    assert.doesNotMatch(
+      format(mappingResult),
+      /work-ref-unknown-value|task-context-unknown-value|host-ref-object-authority-value|worker-ref-authority-value/,
+      `${testCase.name} must not echo the rejected ExternalRef value`,
+    );
+  }
+
   const inputCases: Array<{
     name: string;
     mutate: (input: CodexResultReportRunReceiptInputV01) => void;
@@ -518,9 +614,6 @@ export function runCodexResultReportRunReceiptConformanceV01():
     { name: "missing_source_record", mutate: (value) => {
       delete (value as unknown as Record<string, unknown>).source_record;
     }, code: "source_record_missing" },
-    { name: "malformed_optional_external_ref", mutate: (value) => {
-      (value as unknown as Record<string, unknown>).host_ref = [];
-    }, code: "ref_type_missing" },
   ];
   for (const testCase of inputCases) {
     const invalidInput = clone(canonicalInput);
@@ -573,7 +666,8 @@ export function runCodexResultReportRunReceiptConformanceV01():
       sourceCases.length +
       inputCases.length +
       malformedMappingInputs.length +
-      mappingInputFieldCases.length,
+      mappingInputFieldCases.length +
+      optionalExternalRefCases.length,
     semantic_non_promotion_case_count: 2,
     source_record_fingerprint: canonicalRecord.report_fingerprint,
     mapped_receipt_id: receipt.receipt_id,
@@ -591,6 +685,8 @@ export function runCodexResultReportRunReceiptConformanceV01():
     artifact_classification_checked: true,
     mapper_input_allowlist_checked: true,
     symbolic_prefix_fail_closed_checked: true,
+    raw_optional_external_refs_checked: true,
+    cross_platform_repository_paths_checked: true,
   };
 }
 
@@ -603,6 +699,15 @@ function minimalInput(): CodexResultReportInputV01 {
     reported_at: "2026-07-10T08:00:00.000Z",
     operator_actor_ref: "operator-ref:fixture-reviewer",
     codex_claimed_summary: "Minimal candidate-only compatibility source.",
+  };
+}
+
+function optionalExternalRef(externalId: string) {
+  return {
+    ref_version: "external_ref.v0.1" as const,
+    ref_type: "compatibility_fixture",
+    external_id: externalId,
+    trust_class: "imported_unverified" as const,
   };
 }
 

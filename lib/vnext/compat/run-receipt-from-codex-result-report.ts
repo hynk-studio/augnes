@@ -8,6 +8,7 @@ import {
   isProtocolRecordV01,
   parseStrictIsoTimestampV01,
   protocolStringValueV01,
+  validateExternalRefStructureV01,
 } from "@/lib/vnext/protocol-primitives";
 import {
   classifyCodexResultArtifactRefV01,
@@ -53,6 +54,23 @@ const allowedMappingInputKeys = new Set([
   "host_ref",
   "worker_ref",
 ]);
+const allowedExternalRefInputKeys = new Set([
+  "ref_version",
+  "ref_type",
+  "external_id",
+  "provider",
+  "host",
+  "observed_at",
+  "trust_class",
+  "source_ref",
+  "compatibility_namespace",
+]);
+const optionalExternalRefInputFields = [
+  "work_ref",
+  "task_context_packet_ref",
+  "host_ref",
+  "worker_ref",
+] as const;
 const forbiddenMappingSemanticField =
   /(?:approv|authori[sz]|accepted.?evidence|canonical.?state|semantic.?commit|work.?(?:clos|complet)|clos(?:e|es|ed|ing)?[_-]?work|state.?(?:mutat|appl|commit|write|accept|reject)|publish|publication|merge|external.?(?:execution|side.?effect)|execution.?(?:authori[sz]|grant)|durable.?transition|proof.?accepted)/i;
 
@@ -123,6 +141,18 @@ export function mapCodexResultReportRecordToRunReceiptV01(
           : "Mapper input contains a field outside the v0.1 compatibility contract.",
       })),
       warnings: [],
+      source_record_fingerprint: null,
+      normalized_source_status: null,
+    };
+  }
+
+  const externalRefValidation = validateRawOptionalExternalRefs(input);
+  if (externalRefValidation.errors.length > 0) {
+    return {
+      status: externalRefValidation.blocked ? "blocked" : "invalid",
+      receipt: null,
+      errors: externalRefValidation.errors,
+      warnings: externalRefValidation.warnings,
       source_record_fingerprint: null,
       normalized_source_status: null,
     };
@@ -217,6 +247,49 @@ export function mapCodexResultReportRecordToRunReceiptV01(
     source_record_fingerprint: sourceValidation.source_record_fingerprint,
     normalized_source_status: sourceValidation.normalized_source_status,
   };
+}
+
+function validateRawOptionalExternalRefs(input: Record<string, unknown>): {
+  errors: CodexResultRunReceiptMappingIssueV01[];
+  warnings: CodexResultRunReceiptMappingIssueV01[];
+  blocked: boolean;
+} {
+  const errors: CodexResultRunReceiptMappingIssueV01[] = [];
+  const warnings: CodexResultRunReceiptMappingIssueV01[] = [];
+  let blocked = false;
+  for (const field of optionalExternalRefInputFields) {
+    const value = input[field];
+    if (value === null || value === undefined) continue;
+    const path = `$.${field}`;
+    if (isProtocolRecordV01(value)) {
+      for (const key of Object.keys(value)) {
+        if (allowedExternalRefInputKeys.has(key)) continue;
+        const forbidden = forbiddenMappingSemanticField.test(key);
+        errors.push({
+          severity: "error",
+          code: forbidden
+            ? "mapping_external_ref_forbidden_semantic_field"
+            : "mapping_external_ref_unknown_field",
+          path: `${path}.${key}`,
+          message: forbidden
+            ? "Optional ExternalRef contains a field that attempts to claim a forbidden semantic."
+            : "Optional ExternalRef contains a field outside the v0.1 contract.",
+        });
+        if (forbidden) blocked = true;
+      }
+    }
+    validateExternalRefStructureV01(value, path, {
+      error(code, issuePath, message, issueBlocked = false) {
+        if (code === "unknown_external_ref_field") return;
+        errors.push({ severity: "error", code, path: issuePath, message });
+        if (issueBlocked) blocked = true;
+      },
+      warning(code, issuePath, message) {
+        warnings.push({ severity: "warning", code, path: issuePath, message });
+      },
+    });
+  }
+  return { errors, warnings, blocked };
 }
 
 function buildMappedReceipt(

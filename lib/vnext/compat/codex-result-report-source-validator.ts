@@ -72,9 +72,7 @@ export function classifyCodexResultArtifactRefV01(
   if (
     !candidate ||
     candidate.length > 240 ||
-    /[\u0000-\u001f\u007f]/.test(candidate) ||
-    isUnsafeLocalPath(candidate) ||
-    /(?:^|[\\/])\.\.(?:[\\/]|$)/.test(candidate)
+    /[\u0000-\u001f\u007f]/.test(candidate)
   ) {
     return "blocked";
   }
@@ -85,6 +83,15 @@ export function classifyCodexResultArtifactRefV01(
       !/(?:^|\/)\.\.(?:\/|$)/.test(payload)
       ? "legacy_artifact_ref"
       : "blocked";
+  }
+  if (
+    isUnsafeLocalPath(candidate) ||
+    /^[A-Za-z]:/.test(candidate) ||
+    /^\\/.test(candidate) ||
+    /^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(candidate) ||
+    /(?:^|[\\/])\.\.(?:[\\/]|$)/.test(candidate)
+  ) {
+    return "blocked";
   }
   return "repository_relative_path";
 }
