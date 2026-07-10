@@ -47,6 +47,9 @@ export interface CodexResultReportRunReceiptConformanceSummaryV01 {
   deterministic_mapping: true;
   explicit_project_identity_checked: true;
   source_validation_checked: true;
+  structured_mapping_input_checked: true;
+  resigned_privacy_bypass_checked: true;
+  artifact_classification_checked: true;
 }
 
 export function runCodexResultReportRunReceiptConformanceV01():
@@ -110,6 +113,12 @@ export function runCodexResultReportRunReceiptConformanceV01():
       ...canonicalRecord.changed_file_refs,
     ]).size,
     "file refs shared across legacy collections must deduplicate",
+  );
+  assert.ok(
+    receipt.artifact_refs.every(
+      (ref) => ref.ref_type === "repository_relative_path",
+    ),
+    "canonical fixture file refs must remain repository-relative paths",
   );
   assert.ok(
     receipt.checks.every(
@@ -178,6 +187,40 @@ export function runCodexResultReportRunReceiptConformanceV01():
   assert.equal(reviewReceipt.execution.status, "unknown");
   assert.equal(reviewReceipt.verification.status, "unknown");
   assert.equal(reviewReceipt.authority_summary.closes_work, false);
+
+  const symbolicValue = "file-ref:generated-manifest";
+  const symbolicRecord = normalizeCodexResultReportV01({
+    ...minimalInput(),
+    report_id: "codex-result-report:symbolic-artifact-ref",
+    observed_files: [symbolicValue],
+    changed_files_summary: [symbolicValue],
+  });
+  const symbolicReceipt = requireMapped(
+    "symbolic_artifact_reference",
+    mapCodexResultReportRecordToRunReceiptV01(
+      codexResultMapperInputFixture(symbolicRecord),
+    ),
+  );
+  const symbolicRefs = symbolicReceipt.artifact_refs.filter(
+    (ref) => ref.external_id === symbolicValue,
+  );
+  assert.equal(symbolicRefs.length, 1);
+  assert.equal(symbolicRefs[0]?.ref_type, "legacy_artifact_ref");
+  assert.equal(
+    symbolicReceipt.changed_artifacts.filter(
+      (item) => item.artifact_ref.external_id === symbolicValue,
+    ).length,
+    1,
+  );
+  assert.deepEqual(
+    symbolicReceipt.attestations
+      .filter((item) =>
+        item.subject_refs.some((ref) => ref.external_id === symbolicValue),
+      )
+      .map((item) => item.attestation_kind)
+      .sort(),
+    ["changed_file_claim", "observed_file_claim"],
+  );
 
   const alternateProjectInput = codexResultMapperInputFixture(canonicalRecord);
   alternateProjectInput.project_id = "canonical-project-not-legacy-scope";
@@ -267,9 +310,48 @@ export function runCodexResultReportRunReceiptConformanceV01():
     sourceCase("legacy_privacy_report_not_passed", mutate(canonicalRecord, (value) => {
       value.privacy_report.status = "blocked_private_or_raw_payload";
     }), "blocked", "source_privacy_not_passed"),
+    sourceCase("resigned_private_url_in_normalized_summary", mutate(canonicalRecord, (value) => {
+      value.normalized_summary = "Imported summary includes https://example.invalid/private material.";
+    }), "blocked", "source_privacy_unsafe_value"),
+    sourceCase("resigned_opaque_runtime_id_in_source_ref", mutate(canonicalRecord, (value) => {
+      value.source_refs.push("thread_abcdefghijkl");
+    }), "blocked", "source_privacy_unsafe_value"),
+    sourceCase("resigned_safe_marker_raw_provider_output", mutate(canonicalRecord, (value) => {
+      value.normalized_summary = "SAFE_MARKER_RAW_PROVIDER_OUTPUT";
+    }), "blocked", "source_privacy_unsafe_value"),
+    sourceCase("resigned_passed_privacy_with_finding", mutate(canonicalRecord, (value) => {
+      value.privacy_report.findings.push({
+        finding_id: "codex-result-report-finding-resigned",
+        path: "input.normalized_summary",
+        finding_kind: "raw_provider_output",
+        severity: "error",
+        action: "blocked",
+        reason_codes: ["raw_private_payload_blocked"],
+        public_safe_summary: "Unsafe source material was omitted.",
+        original_value_included: false,
+      });
+    }), "blocked", "source_passed_privacy_inconsistent"),
+    sourceCase("resigned_passed_privacy_with_blocked_path", mutate(canonicalRecord, (value) => {
+      value.privacy_report.blocked_paths.push("input.normalized_summary");
+    }), "blocked", "source_passed_privacy_inconsistent"),
+    sourceCase("resigned_passed_privacy_with_redacted_path", mutate(canonicalRecord, (value) => {
+      value.privacy_report.redacted_paths.push("input.normalized_summary");
+    }), "blocked", "source_passed_privacy_inconsistent"),
+    sourceCase("resigned_passed_privacy_with_reason_code", mutate(canonicalRecord, (value) => {
+      value.privacy_report.reason_codes.push("raw_private_payload_blocked");
+    }), "blocked", "source_passed_privacy_inconsistent"),
     sourceCase("absolute_local_path", mutate(canonicalRecord, (value) => {
       value.observed_file_refs.push("/Users/example/private-file.ts");
     }), "blocked", "source_absolute_local_path_forbidden"),
+    sourceCase("resigned_parent_traversal_forward", mutate(canonicalRecord, (value) => {
+      value.observed_file_refs.push("../outside-repository.txt");
+    }), "blocked", "source_artifact_ref_unsafe"),
+    sourceCase("resigned_parent_traversal_backslash", mutate(canonicalRecord, (value) => {
+      value.changed_file_refs.push("..\\outside-repository.txt");
+    }), "blocked", "source_artifact_ref_unsafe"),
+    sourceCase("resigned_unc_path", mutate(canonicalRecord, (value) => {
+      value.changed_file_refs.push("\\\\server\\share\\private.txt");
+    }), "blocked", "source_artifact_ref_unsafe"),
     sourceCase("secret_shaped_source_value", mutate(canonicalRecord, (value) => {
       value.known_warning_refs.push("token=abcdefghijk12345");
     }), "blocked", "secret_shaped_material"),
@@ -293,13 +375,50 @@ export function runCodexResultReportRunReceiptConformanceV01():
     }), "invalid", "source_string_array_malformed"),
   ];
   for (const testCase of sourceCases) {
+    const mappingResult = mapCodexResultReportRecordToRunReceiptV01(
+      codexResultMapperInputFixture(testCase.source),
+    );
     assertNoReceipt(
       testCase.name,
-      mapCodexResultReportRecordToRunReceiptV01(
-        codexResultMapperInputFixture(testCase.source),
-      ),
+      mappingResult,
       testCase.expected,
       testCase.code,
+    );
+    if (testCase.name.startsWith("resigned_")) {
+      assert.equal(
+        mappingResult.errors.some(
+          (issue) => issue.code === "source_fingerprint_mismatch",
+        ),
+        false,
+        `${testCase.name} must fail source/privacy validation after re-signing`,
+      );
+    }
+    if (
+      [
+        "resigned_private_url_in_normalized_summary",
+        "resigned_opaque_runtime_id_in_source_ref",
+        "resigned_safe_marker_raw_provider_output",
+      ].includes(testCase.name)
+    ) {
+      assert.doesNotMatch(
+        format(mappingResult),
+        /https?:\/\/|thread_abcdefghijkl|SAFE_MARKER_RAW_PROVIDER_OUTPUT/,
+        `${testCase.name} must not echo the unsafe source value`,
+      );
+    }
+  }
+
+  const malformedMappingInputs = [
+    { name: "null_mapping_input", value: null },
+    { name: "array_mapping_input", value: [] },
+    { name: "primitive_mapping_input", value: "invalid-input" },
+  ] as const;
+  for (const testCase of malformedMappingInputs) {
+    assertNoReceipt(
+      testCase.name,
+      mapCodexResultReportRecordToRunReceiptV01(testCase.value),
+      "invalid",
+      "mapping_input_not_object",
     );
   }
 
@@ -315,6 +434,12 @@ export function runCodexResultReportRunReceiptConformanceV01():
     { name: "missing_explicit_data_classification", mutate: (value) => {
       (value as unknown as Record<string, unknown>).data_classification = undefined;
     }, code: "data_classification_invalid" },
+    { name: "missing_source_record", mutate: (value) => {
+      delete (value as unknown as Record<string, unknown>).source_record;
+    }, code: "source_record_missing" },
+    { name: "malformed_optional_external_ref", mutate: (value) => {
+      (value as unknown as Record<string, unknown>).host_ref = [];
+    }, code: "ref_type_missing" },
   ];
   for (const testCase of inputCases) {
     const invalidInput = clone(canonicalInput);
@@ -362,8 +487,9 @@ export function runCodexResultReportRunReceiptConformanceV01():
   return {
     suite: "codex-result-report-run-receipt-compat-v0.1",
     status: "passed",
-    positive_fixture_count: 5,
-    blocked_invalid_fixture_count: sourceCases.length + inputCases.length,
+    positive_fixture_count: 6,
+    blocked_invalid_fixture_count:
+      sourceCases.length + inputCases.length + malformedMappingInputs.length,
     semantic_non_promotion_case_count: 2,
     source_record_fingerprint: canonicalRecord.report_fingerprint,
     mapped_receipt_id: receipt.receipt_id,
@@ -376,6 +502,9 @@ export function runCodexResultReportRunReceiptConformanceV01():
     deterministic_mapping: true,
     explicit_project_identity_checked: true,
     source_validation_checked: true,
+    structured_mapping_input_checked: true,
+    resigned_privacy_bypass_checked: true,
+    artifact_classification_checked: true,
   };
 }
 

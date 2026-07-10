@@ -5,11 +5,14 @@ import type {
 import {
   canonicalizeProtocolValueV01,
   createProtocolSha256V01,
+  isProtocolRecordV01,
   parseStrictIsoTimestampV01,
   protocolStringValueV01,
 } from "@/lib/vnext/protocol-primitives";
 import {
+  classifyCodexResultArtifactRefV01,
   validateCodexResultReportRecordForRunReceiptV01,
+  type CodexResultReportSourceValidationV01,
   type CodexResultRunReceiptMappingIssueV01,
 } from "@/lib/vnext/compat/codex-result-report-source-validator";
 import {
@@ -67,10 +70,24 @@ export interface CodexResultReportRunReceiptMappingResultV01 {
   normalized_source_status: CodexResultReportStatusV01 | null;
 }
 
-
 export function mapCodexResultReportRecordToRunReceiptV01(
   input: CodexResultReportRunReceiptInputV01,
+): CodexResultReportRunReceiptMappingResultV01;
+export function mapCodexResultReportRecordToRunReceiptV01(
+  input: unknown,
+): CodexResultReportRunReceiptMappingResultV01;
+export function mapCodexResultReportRecordToRunReceiptV01(
+  input: unknown,
 ): CodexResultReportRunReceiptMappingResultV01 {
+  if (!isProtocolRecordV01(input)) {
+    return invalidMappingResult({
+      severity: "error",
+      code: "mapping_input_not_object",
+      path: "$",
+      message: "RunReceipt compatibility mapping input must be an object.",
+    });
+  }
+
   const inputErrors: CodexResultRunReceiptMappingIssueV01[] = [];
   for (const field of ["workspace_id", "project_id", "run_id"] as const) {
     if (!protocolStringValueV01(input[field])) {
@@ -85,12 +102,31 @@ export function mapCodexResultReportRecordToRunReceiptV01(
   if (parseStrictIsoTimestampV01(input.recorded_at) === null) {
     inputErrors.push({ severity: "error", code: "recorded_at_invalid", path: "$.recorded_at", message: "recorded_at must be an explicit ISO-8601 timestamp with timezone." });
   }
-  if (!dataClassifications.has(input.data_classification)) {
+  if (!dataClassifications.has(protocolStringValueV01(input.data_classification) ?? "")) {
     inputErrors.push({ severity: "error", code: "data_classification_invalid", path: "$.data_classification", message: "data_classification must be explicitly supplied from the RunReceipt v0.1 set." });
   }
 
-  const sourceValidation =
-    validateCodexResultReportRecordForRunReceiptV01(input.source_record);
+  const hasSourceRecord =
+    Object.prototype.hasOwnProperty.call(input, "source_record") &&
+    input.source_record !== undefined &&
+    input.source_record !== null;
+  if (!hasSourceRecord) {
+    inputErrors.push({
+      severity: "error",
+      code: "source_record_missing",
+      path: "$.source_record",
+      message: "source_record must be explicitly supplied.",
+    });
+  }
+  const sourceValidation: CodexResultReportSourceValidationV01 = hasSourceRecord
+    ? validateCodexResultReportRecordForRunReceiptV01(input.source_record)
+    : {
+        status: "invalid",
+        normalized_source_status: null,
+        source_record_fingerprint: null,
+        errors: [],
+        warnings: [],
+      };
   const errors = [...inputErrors, ...sourceValidation.errors];
   const warnings = sourceValidation.warnings;
   if (errors.length > 0) {
@@ -104,7 +140,23 @@ export function mapCodexResultReportRecordToRunReceiptV01(
     };
   }
 
-  const receipt = buildMappedReceipt(input);
+  let receipt: RunReceiptV01;
+  try {
+    receipt = buildMappedReceipt(
+      input as unknown as CodexResultReportRunReceiptInputV01,
+    );
+  } catch {
+    return invalidMappingResult(
+      {
+        severity: "error",
+        code: "mapping_build_failed",
+        path: null,
+        message: "Malformed compatibility input could not be normalized safely.",
+      },
+      sourceValidation,
+      warnings,
+    );
+  }
   const receiptValidation = validateRunReceiptV01(receipt);
   if (receiptValidation.status !== "valid") {
     return {
@@ -173,7 +225,9 @@ function buildMappedReceipt(
   ]);
   const artifactRefs = allFileValues.map((value) =>
     externalRef(
-      "repository_relative_path",
+      classifyCodexResultArtifactRefV01(value) === "legacy_artifact_ref"
+        ? "legacy_artifact_ref"
+        : "repository_relative_path",
       value,
       "imported_unverified",
       source.reported_at,
@@ -587,4 +641,21 @@ function boundedText(value: string): string {
 
 function sortedStrings(values: Iterable<string>): string[] {
   return [...new Set(values)].sort();
+}
+
+function invalidMappingResult(
+  issue: CodexResultRunReceiptMappingIssueV01,
+  sourceValidation?: CodexResultReportSourceValidationV01,
+  warnings: CodexResultRunReceiptMappingIssueV01[] = [],
+): CodexResultReportRunReceiptMappingResultV01 {
+  return {
+    status: "invalid",
+    receipt: null,
+    errors: [issue],
+    warnings,
+    source_record_fingerprint:
+      sourceValidation?.source_record_fingerprint ?? null,
+    normalized_source_status:
+      sourceValidation?.normalized_source_status ?? null,
+  };
 }

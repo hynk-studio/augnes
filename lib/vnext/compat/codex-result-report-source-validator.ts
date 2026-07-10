@@ -60,6 +60,31 @@ export interface CodexResultReportSourceValidationV01 {
   warnings: CodexResultRunReceiptMappingIssueV01[];
 }
 
+export type CodexResultArtifactRefClassificationV01 =
+  | "repository_relative_path"
+  | "legacy_artifact_ref"
+  | "blocked";
+
+export function classifyCodexResultArtifactRefV01(
+  value: unknown,
+): CodexResultArtifactRefClassificationV01 {
+  const candidate = protocolStringValueV01(value);
+  if (
+    !candidate ||
+    candidate.length > 240 ||
+    /[\u0000-\u001f\u007f]/.test(candidate) ||
+    isUnsafeLocalPath(candidate) ||
+    /(?:^|[\\/])\.\.(?:[\\/]|$)/.test(candidate)
+  ) {
+    return "blocked";
+  }
+  return /^(?:file-ref|artifact-ref):[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(
+    candidate,
+  )
+    ? "legacy_artifact_ref"
+    : "repository_relative_path";
+}
+
 type Accumulator = {
   errors: CodexResultRunReceiptMappingIssueV01[];
   warnings: CodexResultRunReceiptMappingIssueV01[];
@@ -103,11 +128,21 @@ export function validateCodexResultReportRecordForRunReceiptV01(
     required(input, field, "$", acc);
   }
   for (const field of [
-    "pr_refs", "commit_refs", "source_refs", "observed_file_refs",
-    "observed_check_refs", "changed_file_refs", "skipped_check_refs",
+    "pr_refs", "commit_refs", "source_refs", "observed_check_refs",
+    "skipped_check_refs",
     "known_warning_refs", "not_done_refs", "expected_observed_delta_refs",
     "reason_codes", "boundary_notes",
   ]) stringArray(input[field], `$.${field}`, acc);
+  validateArtifactRefs(
+    stringArray(input.observed_file_refs, "$.observed_file_refs", acc),
+    "$.observed_file_refs",
+    acc,
+  );
+  validateArtifactRefs(
+    stringArray(input.changed_file_refs, "$.changed_file_refs", acc),
+    "$.changed_file_refs",
+    acc,
+  );
   knownStringArray(input.reason_codes, reasonCodes, "$.reason_codes", "source_reason_code_unknown", acc);
   validateCues(input.review_cues, acc);
   validatePrivacy(input.privacy_report, status, acc);
@@ -148,11 +183,13 @@ function validatePrivacy(
   unknownKeys(privacy, privacyKeys, "$.privacy_report", acc);
   exact(privacy.guard_version, CodexResultReportPrivacyGuardRefV01, "$.privacy_report.guard_version", "source_privacy_guard_version_mismatch", acc);
   enumeration(privacy.status, new Set(["passed", "blocked_private_or_raw_payload", "blocked_forbidden_authority"]), "$.privacy_report.status", "source_privacy_status_invalid", acc);
-  stringArray(privacy.blocked_paths, "$.privacy_report.blocked_paths", acc);
-  stringArray(privacy.redacted_paths, "$.privacy_report.redacted_paths", acc);
-  knownStringArray(privacy.reason_codes, reasonCodes, "$.privacy_report.reason_codes", "source_reason_code_unknown", acc);
+  const blockedPaths = stringArray(privacy.blocked_paths, "$.privacy_report.blocked_paths", acc);
+  const redactedPaths = stringArray(privacy.redacted_paths, "$.privacy_report.redacted_paths", acc);
+  const privacyReasonCodes = stringArray(privacy.reason_codes, "$.privacy_report.reason_codes", acc);
+  validateKnownStrings(privacyReasonCodes, reasonCodes, "$.privacy_report.reason_codes", "source_reason_code_unknown", acc);
   stringArray(privacy.boundary_notes, "$.privacy_report.boundary_notes", acc);
-  array(privacy.findings, "$.privacy_report.findings", acc).forEach((candidate, index) => {
+  const findings = array(privacy.findings, "$.privacy_report.findings", acc);
+  findings.forEach((candidate, index) => {
     const path = `$.privacy_report.findings[${index}]`;
     const finding = record(candidate, path, acc);
     if (!finding) return;
@@ -167,6 +204,22 @@ function validatePrivacy(
   });
   if ((sourceStatus === "candidate_only" || sourceStatus === "needs_operator_review") && privacy.status !== "passed") {
     error(acc, "source_privacy_not_passed", "$.privacy_report.status", "A mappable source record must have passed the legacy privacy guard.", true);
+  }
+  if (
+    (sourceStatus === "candidate_only" || sourceStatus === "needs_operator_review") &&
+    privacy.status === "passed" &&
+    (findings.length > 0 ||
+      blockedPaths.length > 0 ||
+      redactedPaths.length > 0 ||
+      privacyReasonCodes.length > 0)
+  ) {
+    error(
+      acc,
+      "source_passed_privacy_inconsistent",
+      "$.privacy_report",
+      "A passed v0.1 privacy report must not contain findings, paths, or reason codes.",
+      true,
+    );
   }
 }
 
@@ -191,8 +244,26 @@ function unknownKeys(value: ProtocolJsonRecordV01, allowed: ReadonlySet<string>,
 }
 
 function knownStringArray(value: unknown, allowed: ReadonlySet<string>, path: string, code: string, acc: Accumulator) {
-  stringArray(value, path, acc).forEach((item, index) => {
-    if (!allowed.has(item)) error(acc, code, `${path}[${index}]`, `Unsupported value ${item}.`);
+  validateKnownStrings(stringArray(value, path, acc), allowed, path, code, acc);
+}
+
+function validateKnownStrings(values: string[], allowed: ReadonlySet<string>, path: string, code: string, acc: Accumulator) {
+  values.forEach((item, index) => {
+    if (!allowed.has(item)) error(acc, code, `${path}[${index}]`, "Expected a known v0.1 value.");
+  });
+}
+
+function validateArtifactRefs(values: string[], path: string, acc: Accumulator) {
+  values.forEach((value, index) => {
+    if (classifyCodexResultArtifactRefV01(value) === "blocked") {
+      error(
+        acc,
+        "source_artifact_ref_unsafe",
+        `${path}[${index}]`,
+        "Artifact reference must be a bounded repository-relative path or explicit symbolic reference.",
+        true,
+      );
+    }
   });
 }
 
@@ -241,7 +312,23 @@ function scanUnsafeStrings(value: unknown, path: string, acc: Accumulator) {
     if (/(?:^|\b)(?:token|secret|password|credential|api[_-]?key)\s*[=:]\s*[A-Za-z0-9_=-]{8,}/i.test(candidate)) {
       error(acc, "secret_shaped_material", path, "Secret-shaped material is forbidden in compatibility input.", true);
     }
-    if (candidate.startsWith("/") || /^file:\/\//i.test(candidate) || /^[A-Za-z]:[\\/]/.test(candidate) || /^~[\\/]/.test(candidate) || /^[a-z0-9_-]+:\/(?!\/)/i.test(candidate)) {
+    if (
+      /\bhttps?:\/\/[^\s"'<>]+/i.test(candidate) ||
+      /SAFE_MARKER_[A-Z0-9_]+/.test(candidate) ||
+      (!reasonCodes.has(candidate) &&
+        /\b(?:thread|run|session|resp|response|provider|connector|file|upload)_[A-Za-z0-9_-]{12,}\b/i.test(
+          candidate,
+        ))
+    ) {
+      error(
+        acc,
+        "source_privacy_unsafe_value",
+        path,
+        "Source contains a value blocked by the legacy v0.1 privacy guard.",
+        true,
+      );
+    }
+    if (isUnsafeLocalPath(candidate)) {
       error(acc, "source_absolute_local_path_forbidden", path, "Absolute and file:// local paths are forbidden in compatibility input.", true);
     }
     return;
@@ -251,6 +338,17 @@ function scanUnsafeStrings(value: unknown, path: string, acc: Accumulator) {
   } else if (isProtocolRecordV01(value)) {
     for (const [key, child] of Object.entries(value)) scanUnsafeStrings(child, `${path}.${key}`, acc);
   }
+}
+
+function isUnsafeLocalPath(value: string): boolean {
+  return (
+    value.startsWith("/") ||
+    /^file:\/\//i.test(value) ||
+    /^[A-Za-z]:[\\/]/.test(value) ||
+    /^~[\\/]/.test(value) ||
+    /^\\\\/.test(value) ||
+    /^[a-z0-9_-]+:\/(?!\/)/i.test(value)
+  );
 }
 
 function createAccumulator(): Accumulator {
