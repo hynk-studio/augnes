@@ -6,6 +6,29 @@ This repository uses Augnes to keep committed state, pending proposals,
 work traces, proof-only action records, and evidence rows distinct. Codex is a
 repo implementation and verification worker. Preserve the authority boundaries.
 
+## Active vNext Development Authority
+
+- `docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md` is the active product north star.
+- `docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md` defines the target
+  technical meaning and provider-neutral exchange contracts.
+- `docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md` governs current work
+  selection, compatibility handling, and retirement sequencing.
+- `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md` governs completion and
+  improvement claims.
+- Treat README and older Workplane, handoff, Autohunt, roadmap, and status docs as
+  current implementation or historical compatibility context when they conflict
+  with the active vNext set.
+- The default profile is ChatGPT Work + Codex + OpenAI API. Core identities,
+  state, Evidence, Claims, Perspective, Decisions, and protocol contracts must
+  remain provider-neutral.
+- Classify new work as Native Host, Adapter, Core, Projection/Inspector, or Lab.
+  Do not create an unclassified product surface.
+- Prefer the templates under `docs/vnext/templates/` for work slices, PR review,
+  and durable architecture decisions.
+- Do not expand workflow-stage tables, passive Workplane panels, Codex-only Core
+  contracts, manual copy/paste flows, or custom schedulers unless the vNext
+  Transition Roadmap explicitly justifies the compatibility cost.
+
 ## Start Of Work
 
 - Read current repo instructions and task-relevant docs before editing.
@@ -14,13 +37,18 @@ repo implementation and verification worker. Preserve the authority boundaries.
 - If a Core Handoff or Full Handoff is pasted into the task, use that pasted
   handoff as the primary work contract.
 - For Augnes workflow tasks, prefer this minimum context:
+  - `docs/vnext/00_AUGNES_VNEXT_DOCUMENT_INDEX.md`
+  - `docs/vnext/01_AUGNES_VNEXT_MASTERPLAN.md`
+  - `docs/vnext/02_AUGNES_VNEXT_ARCHITECTURE_AND_PROTOCOL.md`
+  - `docs/vnext/03_AUGNES_VNEXT_TRANSITION_ROADMAP.md`
+  - `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`
   - `README.md`
   - `docs/AUTHORITY_MATRIX.md`
   - `docs/CODEX_SESSION_ADAPTER_V0_2_WORKFLOW.md`
   - `docs/AUGNES_CODEX_WORKER_BOOTSTRAP_V0_1.md`
   - `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md`
   - `docs/CANONICAL_REPO_OWNER_NOTE_V0_1.md`
-  - task-specific roadmap, handoff, or protocol docs
+  - task-specific ADR, handoff, compatibility, or protocol docs
 - Inspect `git status` before editing and keep changes scoped to the task.
 - If the local Augnes runtime is available, run `npm run codex:read-brief`.
 - If `CODEX_WORK_ID` is set, use `npm run codex:read-brief` so the Work Brief
@@ -37,9 +65,10 @@ repo implementation and verification worker. Preserve the authority boundaries.
   `repo_seed_fallback`, `docs_fallback`, or `blocked`. Do not claim a live
   Work Brief, Work Picker, host observation, proof/evidence row, state change,
   work close, or PR URL unless it actually happened.
-- Return Codex results with
+- Until an adapter-backed `RunReceipt` path replaces it, return Codex results with
   `docs/AUGNES_CODEX_RESULT_REPORT_TEMPLATE_V0_1.md` for manual paste through
-  `codexResultText` or `codexResultPaste`.
+  `codexResultText` or `codexResultPaste`. Treat this as a compatibility path,
+  not the target vNext result-return architecture.
 
 ## Codex Augnes Reuse Hook v0.1
 
