@@ -79,9 +79,13 @@ Transport Bindings
 
 Integration Kit는 Core approval을 우회하지 않는다.
 
-### 1.4 Projections and Inspector
+### 1.4 Product Surfaces, Projections and Inspector
 
 ```text
+Augnes Project Home
+Augnes Semantic Workbench
+Augnes Inspector
+Host-native compact cards
 Current Working Perspective
 Context Compiler
 Attention Queue
@@ -90,11 +94,45 @@ Run Trace
 Project Timeline
 Lineage Explorer
 Integration Health
-Augnes Inspector
-Host-native compact cards
 ```
 
-Projection은 source of truth가 아니다.
+Project Home은 Resume과 current coordination을 위한 인간 front door다. 현재
+Blank State는 이 목표의 predecessor이며, route나 구현이 이미 전환됐다는 뜻은
+아니다. Semantic Workbench는 cross-host result comparison, Evidence/Claim
+reconciliation, EpisodeDeltaProposal review, ReviewDecision 준비와 next-context
+composition을 위한 능동 semantic work surface다. 현재 Agent Workplane은 이
+목표의 predecessor다. Workbench의 책임은 provider 제품의 일시적 기능 공백이
+아니라 cross-host·cross-time canonical project semantics로 정의한다.
+
+Inspector는 Home과 Workbench가 공유하는 read-heavy provenance, audit와 lineage
+drill-down이다. host-native compact card는 bounded context와 review intent를
+native UX에 표시한다. compact card와 Inspector 어느 것도 Home과 Workbench를
+단독 대체하지 않는다.
+
+모든 surface는 Core record를 소비하는 projection 또는 client다. UI 이름은
+authority를 부여하지 않으며, surface가 낸 review/decision intent도 explicit Core
+decision/transition path가 적용하기 전에는 durable state가 아니다. Home과
+Workbench는 projection을 조합하고 bounded review 또는 decision intent를 Core
+gate로 보낼 수 있지만 source of truth가 아니다. workflow-stage마다 전용 table과
+panel을 만드는 방식은 계속 금지한다.
+
+Canonical interaction loop:
+
+```text
+Project Home frames or resumes work
+→ TaskContextPacket
+→ native host execution
+→ RunReceipt
+→ Semantic Workbench review
+→ EpisodeDeltaProposal
+→ ReviewDecision
+→ authorized transition
+→ updated Project Home projection
+```
+
+Inspector drill-down은 이 loop 전 구간에서 source, artifact, run, decision과
+Perspective lineage를 열 수 있어야 한다. 이 loop는 새 protocol type, DB schema,
+API, route 또는 UI implementation plan을 승인하지 않는다.
 
 ### 1.5 Augnes Lab
 

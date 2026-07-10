@@ -23,8 +23,12 @@ repo implementation and verification worker. Preserve the authority boundaries.
 - The default profile is ChatGPT Work + Codex + OpenAI API. Core identities,
   state, Evidence, Claims, Perspective, Decisions, and protocol contracts must
   remain provider-neutral.
-- Classify new work as Native Host, Adapter, Core, Projection/Inspector, or Lab.
-  Do not create an unclassified product surface.
+- Classify new work as Native Host, Adapter, Core, Product Surface / Projection /
+  Inspector, or Lab. Project Home and Semantic Workbench are Product Surface
+  work; shared read models and derived views are Projection work; detailed
+  lineage and provenance exploration is Inspector work. These remain
+  non-authoritative Core clients/projections unless an explicit Core gate applies
+  a decision or transition. Do not create an unclassified product surface.
 - Prefer the templates under `docs/vnext/templates/` for work slices, PR review,
   and durable architecture decisions.
 - Do not expand workflow-stage tables, passive Workplane panels, Codex-only Core

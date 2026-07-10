@@ -98,7 +98,9 @@ vNext는 이 규율을 유지하지만 WorkEpisode→EOD→Reuse Ledger→Metric
 
 - Integration Gateway가 제품 중심이 아니라 Temporal Evidence·Claim·Perspective Core가 중심이다.
 - Current Working Perspective는 canonical context가 아니라 reviewed task-start projection이다.
-- Review Center는 별도 작업 shell이 아니라 하나의 Inspector로 수렴한다.
+- Review Center는 별도 범용 작업 shell로 만들지 않는다. active cross-host
+  semantic review와 decision은 Semantic Workbench에 두고, Inspector는 Home과
+  Workbench의 공통 detail·lineage explorer로 둔다.
 - AutomationPolicy는 보편 계약이 아니라 자율 실행의 선택 계약이다.
 - 자동 Model Router는 초기 기본 경로에서 제외한다.
 - Augnes Lab을 별도 non-authoritative boundary로 추가한다.
@@ -133,7 +135,8 @@ Augnes
 = context, receipts, evidence, deltas, decisions, Perspective
 ```
 
-Standalone UI는 Inspector 하나로 제한한다.
+Augnes는 Project Home과 Semantic Workbench를 직접 소유하되 native execution
+UX를 복제하지 않는다. Inspector는 두 surface의 공통 drill-down이다.
 
 ### 4.3 Model output vs observation
 
@@ -344,7 +347,7 @@ Core independence, adapters, Model Gateway,
 coverage, migration safety, outcome gates
 
 Modify:
-Core-centered architecture, Inspector consolidation,
+Core-centered architecture, surface specialization and Inspector composition,
 Router deferral, Lab boundary
 ```
 
