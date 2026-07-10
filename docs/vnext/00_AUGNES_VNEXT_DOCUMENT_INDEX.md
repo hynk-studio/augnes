@@ -137,7 +137,9 @@ Historical Repo Maturity Snapshot as of 2026-07-09
 
 더 이상 현재 권위가 아닌 내용:
 
-- Blank State와 Workplane을 기본 작업 표면으로 보는 구조
+- 당시 이름과 workflow-stage panel 구성 그대로 Blank State와 Workplane을
+  고정하는 구조. 두 surface의 유용한 책임은 Project Home과 Semantic
+  Workbench로 전문화하여 보존한다.
 - Codex Result Report 중심의 canonical feedback chain
 - 단계별 durable table·panel PR 순서
 - 2026-07-09 시점의 `[x]`, `[~]` 상태 판정
@@ -172,7 +174,9 @@ Strategy proposal incorporated into the active vNext set
 - Integration Gateway가 아니라 Temporal Evidence·Claim·Perspective Core를 중심에 둔다.
 - Current Working Perspective는 canonical state가 아니라 기본 task-start projection이다.
 - 자동 Model Router는 실제 두 번째 adapter와 성과 데이터가 생긴 뒤로 미룬다.
-- Review Center를 별도 작업 shell이 아니라 하나의 Inspector로 수렴한다.
+- Review Center를 또 하나의 범용 작업 shell로 만들지 않는다. 능동 review와
+  decision work는 Semantic Workbench에, 공통 detail과 lineage exploration은
+  Inspector에 둔다.
 - Augnes Lab을 명시적인 non-authoritative 경계로 둔다.
 
 ---
@@ -201,9 +205,10 @@ TaskContextPacket
 
 기본 제품 UX:
 native host의 작업 UI + compact Augnes review card
++ Augnes Project Home + Augnes Semantic Workbench
 
-독립 UI:
-하나의 Augnes Inspector
+공통 상세 탐색:
+Home과 Workbench가 공유하는 Augnes Inspector
 
 연구 영역:
 Augnes Lab, 항상 non-authoritative

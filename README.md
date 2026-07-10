@@ -17,9 +17,13 @@ New product direction, architecture, and work selection are governed by:
 - `docs/vnext/04_AUGNES_VNEXT_EVALUATION_AND_MATURITY.md`
 
 The default deployment profile is ChatGPT Work + Codex + OpenAI API, while
-Augnes Core contracts remain provider-neutral. The existing Blank State,
-Agent Workplane, manual handoff, and result-paste paths describe current or
-compatibility behavior; they are not the target vNext product topology.
+Augnes Core contracts remain provider-neutral. The existing Blank State and
+Agent Workplane remain usable runtime surfaces and are the predecessors of the
+target Augnes Project Home and Augnes Semantic Workbench. Their useful
+responsibilities are preserved and specialized rather than wholesale-replaced
+by Inspector. Inspector is the shared drill-down and lineage explorer used by
+those target surfaces. Current manual handoff and result-paste paths remain
+compatibility behavior rather than the target integrated flow.
 
 The current product shape is organized around four surfaces:
 

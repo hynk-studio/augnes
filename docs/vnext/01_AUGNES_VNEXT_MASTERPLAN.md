@@ -45,6 +45,15 @@ Augnes는 의미와 계보를 보존한다.
 사용자는 무엇이 프로젝트의 사실이 되는지 결정한다.
 ```
 
+이 Core 정의 아래의 제품 경험은 다음과 같다.
+
+> **Augnes는 native AI host가 가장 강한 환경에서 실행하게 하면서, 사용자 소유 Project Home과 Semantic Workbench가 cross-host continuity를 보존하고 Evidence와 Claim을 조정하며 제안된 변화를 지속 가능한 인간의 결정으로 바꾼다. Inspector는 두 surface에 공통 drill-down과 lineage 탐색을 제공한다.**
+
+범용 실행 shell을 만들지 않는다는 결정은 Augnes가 자체 Project Home이나
+Semantic Workbench를 포기한다는 뜻이 아니다. Augnes는 Resume을 위한 인간
+front door, cross-host Verify·Decide를 위한 능동 semantic work surface, 그리고
+공통 provenance explorer를 직접 소유한다.
+
 ---
 
 ## 1. Product Compass: Resume, Verify, Decide
@@ -251,37 +260,30 @@ Augnes
 ## 5. 목표 제품 구조
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│ Host & Execution Plane                                  │
-│ ChatGPT Work · Codex · Claude Code · Gemini CLI         │
-│ Local/IDE/CI Agents · Research Pipelines                │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────┐
-│ Augnes Integration Kit                                  │
-│ Host / Worker / Model / Scheduler / Actuator Adapters   │
-│ MCP · Hooks · HTTP · File Inbox/Outbox                  │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────┐
-│ Augnes Protocol                                         │
-│ TaskContextPacket · RunReceipt                          │
-│ EpisodeDeltaProposal · ReviewDecision                   │
-│ AutomationPolicy (optional)                             │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────┐
-│ Temporal Evidence · Claim · Perspective Core            │
-│ Evidence · Claims · Work/Runs · State · Deltas          │
-│ Decisions · Grants · Perspective · Memory · Gaps        │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────┐
-│ Projections & Review                                    │
-│ Current Working Perspective · Context Compiler          │
-│ Attention Queue · Timeline · Evidence Pack · Inspector  │
-│ Host-native compact review cards                        │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ Native Agent and Execution Homes                         │
+│ ChatGPT Work · Codex · Claude/Cowork/Claude Code         │
+│ Gemini/Gemini CLI · Local/IDE/CI Agents · Pipelines      │
+└──────────────────────────↕───────────────────────────────┘
+                TaskContextPacket / RunReceipt
+┌──────────────────────────↕───────────────────────────────┐
+│ Augnes Integration Kit and Protocol                      │
+│ Adapters · Model Gateway · MCP/Hooks/HTTP/File transport │
+│ TaskContextPacket · RunReceipt · Proposal · Decision     │
+└──────────────────────────↕───────────────────────────────┘
+┌──────────────────────────↕───────────────────────────────┐
+│ Temporal Evidence · Claim · Work · Run · Delta Core      │
+│ Decisions · Grants · Perspective · Memory · Gaps         │
+└──────────────────────────↕───────────────────────────────┘
+┌──────────────────────────↕───────────────────────────────┐
+│ Augnes Project Home + Augnes Semantic Workbench          │
+│ Resume and coordination · cross-host Verify and Decide   │
+└──────────────────────────↕───────────────────────────────┘
+                    shared drill-down
+┌──────────────────────────↕───────────────────────────────┐
+│ Inspector and shared projections                         │
+│ CWP · Attention · Timeline · Evidence · Runs · Lineage   │
+└──────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────┐
 │ Augnes Lab                                              │
@@ -307,7 +309,10 @@ default_worker       = Codex
 default_reasoning    = OpenAI API
 default_plugin       = Augnes OpenAI Integration
 default_scheduler    = ChatGPT Scheduled Tasks when applicable
-default_review_ui    = ChatGPT inline card + Augnes Inspector
+default_review_ui    = host-native compact review card
+                     + Augnes Semantic Workbench
+                     + Inspector drill-down
+                     + Project Home attention/decision entry points
 ```
 
 이 기본값은 사용자 경험과 reference implementation을 정한다. Core의 의미와 schema를 OpenAI 전용으로 만들지는 않는다.
@@ -597,9 +602,14 @@ recovery backup과 restore
 
 ## 11. UX Strategy
 
-### 11.1 기본 작업 UX
+### 11.1 Native Agent and Execution Homes
 
 기본 작업은 native host에서 수행한다.
+
+Native host는 일반 대화와 연구·문서 작성, 코드·테스트·diff·PR 작업,
+terminal·browser·computer-use 실행, worktree, provider-native task/session UX,
+host-native scheduling과 permission/sandbox를 소유한다. Augnes는 이를 범용
+execution shell로 복제하지 않는다.
 
 ChatGPT Work, Codex나 다른 host 안에서는 다음의 compact card만 제공한다.
 
@@ -612,27 +622,105 @@ Why judgment is needed
 Accept / Reject / Defer / Supersede
 ```
 
-### 11.2 Augnes Inspector
+compact card는 bounded context와 judgment entry를 native UX 안에 제공하지만
+Augnes Project Home, Semantic Workbench 또는 상세 Inspector를 대체하지 않는다.
 
-독립 UI는 하나의 Inspector로 수렴한다.
+### 11.2 Augnes Project Home
+
+현재 Blank State는 목표 Project Home의 predecessor이자 현재 runtime
+implementation이다. Project Home은 Resume을 위한 인간 소유 front door로서
+다음을 소유하거나 조합한다.
 
 ```text
-Now
-Attention
+current project coordinates와 Current Working Perspective
+goals, constraints와 active work portfolio
+agent/run activity와 current attention
+unresolved tensions, risks, gaps와 decision debt
+pending proposals와 decisions
+recent meaningful changes와 recommended next moves
+native host와 Semantic Workbench 진입점
+bounded resume context
+```
+
+Project Home은 empty start screen, card warehouse, passive readback directory,
+workflow-stage panel collection, duplicate execution console 또는 긴 authority
+copy page가 아니다. 상세 provenance 탐색은 Inspector에 맡긴다. 전환 중에는
+`Blank State` 이름과 `/` route를 유지할 수 있으며, 목표 구현이 이미 완성된
+것으로 주장하지 않는다.
+
+### 11.3 Augnes Semantic Workbench
+
+현재 Agent Workplane/Workbench는 목표 Semantic Workbench의 predecessor이자
+현재 runtime implementation이다. Workbench는 특정 host가 아직 못 하는 기능의
+잔여 집합이 아니라, 어느 단일 provider나 native host도 canonical project
+semantics로 소유해서는 안 되는 cross-host·cross-time 책임으로 정의한다.
+
+```text
+cross-host result와 plan-versus-result 비교
+multiple RunReceipt와 observation-versus-attestation 비교
+Evidence/Claim reconciliation, contradiction와 uncertainty review
+expected-versus-observed analysis
+EpisodeDeltaProposal review/edit와 ReviewDecision 준비·제출
+Perspective change와 reviewed-memory promotion 후보 검토
+residual work, dependency와 next TaskContextPacket context composition
+cross-host handoff, lineage와 user-governed semantic decisions
+```
+
+Semantic Workbench는 general chat, code/document editor, terminal, browser,
+Git diff/PR review, worktree, generic scheduler 또는 provider-native session
+manager를 복제하지 않는다. 목표 진화는 Workplane 제거가 아니라
+execution-oriented Agent Workplane에서 cross-host semantic coordination과
+decision surface로의 전문화다.
+
+### 11.4 Augnes Inspector
+
+Inspector는 Project Home과 Semantic Workbench가 함께 사용하는 read-heavy
+drill-down과 provenance exploration surface다.
+
+```text
 Timeline
 Evidence & Claims
 Work & Runs
+Artifacts & Source References
 Decisions & Grants
-Perspective
-Integrations
-Lab
+Perspective Lineage
+Integration Health & Capability Coverage
+Lab diagnostics when explicitly separated
 ```
 
-Inspector는 채팅·코드 편집·실행 shell이 아니라 판단, 감사, 복구와 cross-host 비교 도구다.
+Inspector는 상세 explorer, audit/lineage surface, shared drill-down system과
+projection composition layer다. 채팅·코드 편집·실행 shell이 아니며, sole
+front door, Blank State나 Workplane의 유일한 대체재, source of truth, durable
+authority surface 또는 active proposal/decision work의 대체재도 아니다.
 
-### 11.3 기존 surface
+### 11.5 Product Compass와 surface 책임
 
-Blank State, Agent Workplane과 과거 Cockpit 기능은 Inspector projection 또는 compatibility route로 흡수한다. 새 standalone shell을 다시 만들지 않는다.
+| 책임 | Native Host | Project Home | Semantic Workbench | Inspector |
+|---|---|---|---|---|
+| 일반 대화와 연구 | 주 실행·작성 | 좌표와 진입점 | cross-host 결과 검토 | source drill-down |
+| 코드·테스트·diff·PR | 주 실행·검토 | activity/next move | 결과·receipt 비교 | artifact lineage |
+| 현재 project coordinates | context 소비 | **주 책임: Resume** | 작업 context 소비 | 상세 시점·source |
+| Perspective·goals·attention | bounded context 소비 | **주 조정 책임** | 변경 후보 검토 | lineage 탐색 |
+| native execution | **주 책임** | 실행 진입점 | receipt 소비 | run 상세 |
+| result comparison | 결과 생산 | attention 요약 | **주 책임: Verify** | 근거 drill-down |
+| Evidence·Claim reconciliation | source 제공 | tension/gap 요약 | **주 책임: Verify** | 상세 관계 탐색 |
+| EpisodeDeltaProposal review | compact card 가능 | pending entry | **주 책임: Decide 준비** | basis drill-down |
+| ReviewDecision | intent entry 가능 | pending/debt entry | **주 책임: Decide** | decision lineage |
+| next-context composition | packet 소비 | resume frame | **주 composition 책임** | source 선택 근거 |
+| 장기 lineage와 audit | external refs 제공 | recent change 요약 | active lineage 소비 | **주 drill-down 책임** |
+
+Resume은 Project Home, Context Compiler, Current Working Perspective와
+attention/work portfolio projection이 주로 지원한다. Verify는 Semantic
+Workbench의 비교·reconciliation과 Inspector의 Evidence, RunReceipt, Timeline,
+artifact lineage가 주로 지원한다. Decide는 Semantic Workbench의 proposal,
+ReviewDecision, Perspective/reviewed-memory 검토와 명시적 Core gate가 주로
+지원한다. Inspector는 세 compass 모두를 drill-down으로 지원하지만 Home이나
+Workbench의 능동 interaction을 대체하지 않는다.
+
+현재 Blank State와 Agent Workplane의 유용한 기능은 각각 Project Home과
+Semantic Workbench로 전문화한다. 과거 Cockpit과 passive readback 중 중복되는
+부분은 shared projection과 Inspector composition으로 정리하되, parity와
+migration evidence 없이 유용한 기능을 `흡수`라는 말로 제거하지 않는다.
 
 ---
 
@@ -718,7 +806,8 @@ real input
 
 - 새 top-level 계약은 기존 계약을 흡수하거나 종료해야 한다.
 - 새 장기 table은 독립 lifecycle과 query 무결성이 필요한 aggregate일 때만 허용한다.
-- 새 UI surface보다 기존 Inspector projection을 우선한다.
+- 새 workflow-stage surface보다 Project Home·Semantic Workbench·Inspector의
+  기존 책임 안에서 projection composition을 우선한다.
 - 새 상태 enum은 canonical lifecycle로 표현할 수 없는 경우에만 추가한다.
 - 기능마다 authority 문구를 복사하지 않고 공통 policy renderer와 invariant를 사용한다.
 - active docs에서는 obsolete planning residue를 제거한다.
