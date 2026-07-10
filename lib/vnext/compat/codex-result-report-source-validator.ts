@@ -78,11 +78,15 @@ export function classifyCodexResultArtifactRefV01(
   ) {
     return "blocked";
   }
-  return /^(?:file-ref|artifact-ref):[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(
-    candidate,
-  )
-    ? "legacy_artifact_ref"
-    : "repository_relative_path";
+  const symbolic = candidate.match(/^(file-ref:|artifact-ref:)(.*)$/);
+  if (symbolic) {
+    const payload = symbolic[2];
+    return /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(payload) &&
+      !/(?:^|\/)\.\.(?:\/|$)/.test(payload)
+      ? "legacy_artifact_ref"
+      : "blocked";
+  }
+  return "repository_relative_path";
 }
 
 type Accumulator = {

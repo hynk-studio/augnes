@@ -41,6 +41,20 @@ const dataClassifications = new Set<string>([
   "local_only",
   "secret",
 ]);
+const allowedMappingInputKeys = new Set([
+  "workspace_id",
+  "project_id",
+  "run_id",
+  "recorded_at",
+  "data_classification",
+  "source_record",
+  "work_ref",
+  "task_context_packet_ref",
+  "host_ref",
+  "worker_ref",
+]);
+const forbiddenMappingSemanticField =
+  /(?:approv|authori[sz]|accepted.?evidence|canonical.?state|semantic.?commit|work.?(?:clos|complet)|clos(?:e|es|ed|ing)?[_-]?work|state.?(?:mutat|appl|commit|write|accept|reject)|publish|publication|merge|external.?(?:execution|side.?effect)|execution.?(?:authori[sz]|grant)|durable.?transition|proof.?accepted)/i;
 
 export {
   validateCodexResultReportRecordForRunReceiptV01,
@@ -86,6 +100,32 @@ export function mapCodexResultReportRecordToRunReceiptV01(
       path: "$",
       message: "RunReceipt compatibility mapping input must be an object.",
     });
+  }
+
+  const unknownInputKeys = Object.keys(input).filter(
+    (key) => !allowedMappingInputKeys.has(key),
+  );
+  if (unknownInputKeys.length > 0) {
+    const forbidden = unknownInputKeys.some((key) =>
+      forbiddenMappingSemanticField.test(key),
+    );
+    return {
+      status: forbidden ? "blocked" : "invalid",
+      receipt: null,
+      errors: unknownInputKeys.map((key) => ({
+        severity: "error",
+        code: forbiddenMappingSemanticField.test(key)
+          ? "mapping_input_forbidden_semantic_field"
+          : "mapping_input_unknown_field",
+        path: `$.${key}`,
+        message: forbiddenMappingSemanticField.test(key)
+          ? "Mapper input contains a field that attempts to claim a forbidden semantic."
+          : "Mapper input contains a field outside the v0.1 compatibility contract.",
+      })),
+      warnings: [],
+      source_record_fingerprint: null,
+      normalized_source_status: null,
+    };
   }
 
   const inputErrors: CodexResultRunReceiptMappingIssueV01[] = [];

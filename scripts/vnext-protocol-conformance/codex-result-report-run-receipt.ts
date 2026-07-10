@@ -50,6 +50,8 @@ export interface CodexResultReportRunReceiptConformanceSummaryV01 {
   structured_mapping_input_checked: true;
   resigned_privacy_bypass_checked: true;
   artifact_classification_checked: true;
+  mapper_input_allowlist_checked: true;
+  symbolic_prefix_fail_closed_checked: true;
 }
 
 export function runCodexResultReportRunReceiptConformanceV01():
@@ -352,6 +354,18 @@ export function runCodexResultReportRunReceiptConformanceV01():
     sourceCase("resigned_unc_path", mutate(canonicalRecord, (value) => {
       value.changed_file_refs.push("\\\\server\\share\\private.txt");
     }), "blocked", "source_artifact_ref_unsafe"),
+    sourceCase("malformed_symbolic_empty", mutate(canonicalRecord, (value) => {
+      value.observed_file_refs.push("file-ref:");
+    }), "blocked", "source_artifact_ref_unsafe"),
+    sourceCase("symbolic_parent_traversal", mutate(canonicalRecord, (value) => {
+      value.changed_file_refs.push("file-ref:../outside-repository.txt");
+    }), "blocked", "source_artifact_ref_unsafe"),
+    sourceCase("symbolic_unc_payload", mutate(canonicalRecord, (value) => {
+      value.observed_file_refs.push("file-ref:\\\\server\\share\\private.txt");
+    }), "blocked", "source_artifact_ref_unsafe"),
+    sourceCase("symbolic_extra_colon", mutate(canonicalRecord, (value) => {
+      value.changed_file_refs.push("artifact-ref:value:unexpected");
+    }), "blocked", "source_artifact_ref_unsafe"),
     sourceCase("secret_shaped_source_value", mutate(canonicalRecord, (value) => {
       value.known_warning_refs.push("token=abcdefghijk12345");
     }), "blocked", "secret_shaped_material"),
@@ -384,7 +398,15 @@ export function runCodexResultReportRunReceiptConformanceV01():
       testCase.expected,
       testCase.code,
     );
-    if (testCase.name.startsWith("resigned_")) {
+    if (
+      testCase.name.startsWith("resigned_") ||
+      [
+        "malformed_symbolic_empty",
+        "symbolic_parent_traversal",
+        "symbolic_unc_payload",
+        "symbolic_extra_colon",
+      ].includes(testCase.name)
+    ) {
       assert.equal(
         mappingResult.errors.some(
           (issue) => issue.code === "source_fingerprint_mismatch",
@@ -419,6 +441,65 @@ export function runCodexResultReportRunReceiptConformanceV01():
       mapCodexResultReportRecordToRunReceiptV01(testCase.value),
       "invalid",
       "mapping_input_not_object",
+    );
+  }
+
+  const mappingInputFieldCases = [
+    {
+      name: "unknown_mapping_input_field",
+      field: "diagnostic_label",
+      value: "unrecognized-mapper-input",
+      expected: "invalid" as const,
+      code: "mapping_input_unknown_field",
+    },
+    {
+      name: "mapping_input_approval_granted",
+      field: "approval_granted",
+      value: { claim: "untrusted-non-boolean" },
+      expected: "blocked" as const,
+      code: "mapping_input_forbidden_semantic_field",
+    },
+    {
+      name: "mapping_input_closes_work",
+      field: "closes_work",
+      value: "claimed",
+      expected: "blocked" as const,
+      code: "mapping_input_forbidden_semantic_field",
+    },
+    {
+      name: "mapping_input_authorizes_execution",
+      field: "authorizes_execution",
+      value: { requested: "externally" },
+      expected: "blocked" as const,
+      code: "mapping_input_forbidden_semantic_field",
+    },
+  ];
+  for (const testCase of mappingInputFieldCases) {
+    const rejectedInput = clone(canonicalInput) as unknown as Record<
+      string,
+      unknown
+    >;
+    rejectedInput[testCase.field] = testCase.value;
+    const mappingResult = mapCodexResultReportRecordToRunReceiptV01(
+      rejectedInput,
+    );
+    assertNoReceipt(
+      testCase.name,
+      mappingResult,
+      testCase.expected,
+      testCase.code,
+    );
+    assert.equal(mappingResult.source_record_fingerprint, null);
+    assert.equal(mappingResult.normalized_source_status, null);
+    assert.equal(
+      mappingResult.errors.length,
+      1,
+      `${testCase.name} must reject before source validation or receipt building`,
+    );
+    assert.doesNotMatch(
+      format(mappingResult),
+      /unrecognized-mapper-input|untrusted-non-boolean|externally/,
+      `${testCase.name} must not echo the unknown field value`,
     );
   }
 
@@ -489,7 +570,10 @@ export function runCodexResultReportRunReceiptConformanceV01():
     status: "passed",
     positive_fixture_count: 6,
     blocked_invalid_fixture_count:
-      sourceCases.length + inputCases.length + malformedMappingInputs.length,
+      sourceCases.length +
+      inputCases.length +
+      malformedMappingInputs.length +
+      mappingInputFieldCases.length,
     semantic_non_promotion_case_count: 2,
     source_record_fingerprint: canonicalRecord.report_fingerprint,
     mapped_receipt_id: receipt.receipt_id,
@@ -505,6 +589,8 @@ export function runCodexResultReportRunReceiptConformanceV01():
     structured_mapping_input_checked: true,
     resigned_privacy_bypass_checked: true,
     artifact_classification_checked: true,
+    mapper_input_allowlist_checked: true,
+    symbolic_prefix_fail_closed_checked: true,
   };
 }
 
