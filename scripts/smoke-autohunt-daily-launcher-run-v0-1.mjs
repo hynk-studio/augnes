@@ -110,6 +110,7 @@ const source = Object.fromEntries(
 assertChangedFileBoundary();
 assertStaticWiring();
 assertDbSchema();
+assertCanonicalSchemaExecution();
 assertWriteReadbackBehavior();
 assertCliRefusals();
 assertPanelPassive();
@@ -129,6 +130,9 @@ console.log(
       cli_checked: true,
       panel_passive_checked: true,
       target_table_checked: true,
+      canonical_schema_execution_checked: true,
+      scope_constraint_behavior_checked: true,
+      migration_schema_scope_constraint_match_checked: true,
       handoff_only_checked: true,
       fixture_result_intake_checked: true,
       row_count_boundary_checked: true,
@@ -277,6 +281,75 @@ function assertDbSchema() {
     "schema.sql must add exactly one autohunt_daily_launcher_runs table",
   );
   assert(source.migrate.includes("migrateAutohuntDailyLauncherRuns"));
+}
+
+function assertCanonicalSchemaExecution() {
+  const intendedScopeConstraint =
+    "scope TEXT NOT NULL CHECK (scope IN ('project:augnes'))";
+  const canonicalDdl = extractTableDdl(
+    source.schema,
+    "autohunt_daily_launcher_runs",
+  );
+  const migrationDdl = extractTableDdl(
+    source.migrations,
+    "autohunt_daily_launcher_runs",
+  );
+  assert(
+    canonicalDdl.includes(intendedScopeConstraint),
+    "canonical schema must preserve the project:augnes scope constraint",
+  );
+  assert(
+    migrationDdl.includes(intendedScopeConstraint),
+    "migration DDL must preserve the project:augnes scope constraint",
+  );
+
+  const db = new Database(":memory:");
+  try {
+    db.exec(source.schema);
+    const table = db
+      .prepare(
+        `
+          SELECT sql
+          FROM sqlite_master
+          WHERE type = 'table'
+            AND name = 'autohunt_daily_launcher_runs'
+        `,
+      )
+      .get();
+    assert(table, "canonical schema must create autohunt_daily_launcher_runs");
+    assert(
+      table.sql.includes(intendedScopeConstraint),
+      "executed canonical schema must retain the intended scope constraint",
+    );
+
+    insertMinimalLauncherRow(db, "project:augnes", "valid");
+    assert.equal(countRows(db, "autohunt_daily_launcher_runs"), 1);
+    assert.throws(
+      () => insertMinimalLauncherRow(db, "project:other", "invalid"),
+      /CHECK constraint failed/,
+      "canonical schema must reject a scope other than project:augnes",
+    );
+    assert.equal(countRows(db, "autohunt_daily_launcher_runs"), 1);
+  } finally {
+    db.close();
+  }
+}
+
+function insertMinimalLauncherRow(db, scope, suffix) {
+  const requiredColumns = db
+    .prepare("PRAGMA table_info(autohunt_daily_launcher_runs)")
+    .all()
+    .filter((column) => column.pk || column.notnull);
+  const columnNames = requiredColumns.map((column) => column.name);
+  const values = requiredColumns.map((column) =>
+    column.name === "scope" ? scope : `${column.name}:${suffix}`,
+  );
+  const quotedColumns = columnNames.map(
+    (columnName) => `"${columnName.replaceAll('"', '""')}"`,
+  );
+  db.prepare(
+    `INSERT INTO autohunt_daily_launcher_runs (${quotedColumns.join(", ")}) VALUES (${quotedColumns.map(() => "?").join(", ")})`,
+  ).run(...values);
 }
 
 function assertWriteReadbackBehavior() {

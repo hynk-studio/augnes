@@ -629,7 +629,7 @@ CREATE INDEX IF NOT EXISTS idx_autohunt_result_intakes_result_report_fingerprint
 CREATE TABLE IF NOT EXISTS autohunt_daily_launcher_runs (
   launcher_run_id TEXT PRIMARY KEY,
   created_at TEXT NOT NULL,
-  scope TEXT NOT NULL CHECK scope IN ('project:augnes'),
+  scope TEXT NOT NULL CHECK (scope IN ('project:augnes')),
   launcher_run_status TEXT NOT NULL,
   source_execution_contract_id TEXT NOT NULL,
   source_execution_contract_fingerprint TEXT NOT NULL,
