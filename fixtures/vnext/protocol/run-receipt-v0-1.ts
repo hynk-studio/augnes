@@ -574,6 +574,11 @@ export const invalidRunReceiptFixtureCases: InvalidRunReceiptFixtureCaseV01[] = 
   mutation("measured_cost_without_amount", "invalid", "cost_amount_missing", (value) => { value.cost_usage.cost_basis = "measured"; value.cost_usage.cost_amount = null; value.cost_usage.currency = "USD"; }),
   mutation("unknown_cost_with_currency", "invalid", "unknown_cost_currency_must_be_null", (value) => { value.cost_usage.currency = "USD"; }),
   mutation("unknown_usage_with_unit", "invalid", "unknown_usage_unit_must_be_null", (value) => { value.cost_usage.usage.unit = "tokens"; }),
+  mutation("operating_system_object_payload", "invalid", "nullable_string_malformed", (value) => { (value.execution_environment as unknown as Record<string, unknown>).operating_system = { payload: "malformed" }; }),
+  mutation("result_outcome_object_payload", "invalid", "nullable_string_malformed", (value) => { (value.result_summary as unknown as Record<string, unknown>).outcome = { payload: "malformed" }; }),
+  mutation("command_fingerprint_object_payload", "invalid", "nullable_string_malformed", (value) => { (value.commands[0] as unknown as Record<string, unknown>).command_fingerprint = { payload: "malformed" }; }),
+  mutation("artifact_hash_object_payload", "invalid", "nullable_string_malformed", (value) => { (value.changed_artifacts[0] as unknown as Record<string, unknown>).before_hash = { payload: "malformed" }; }),
+  mutation("authority_notes_non_string", "invalid", "string_array_malformed", (value) => { (value.authority_summary as unknown as Record<string, unknown>).notes = ["valid note", 42]; }),
   mutation("authority_grant", "blocked", "authority_boundary_violation", (value) => { (value.authority_summary as unknown as Record<string, unknown>).authorizes_execution = true; }),
   mutation("authority_write_grant", "blocked", "authority_boundary_violation", (value) => { (value.authority_summary as unknown as Record<string, unknown>).authorizes_write = true; }),
 ];

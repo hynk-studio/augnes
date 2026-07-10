@@ -11,6 +11,8 @@ import {
 import {
   buildRunReceiptV01,
   canonicalizeRunReceiptValueV01,
+  createRunReceiptFingerprintV01,
+  deriveRunReceiptIdV01,
   RUN_RECEIPT_REQUIRED_CORE_FIELDS_V01,
   validateRunReceiptV01,
   type RunReceiptBuilderInputV01,
@@ -47,6 +49,8 @@ export interface RunReceiptConformanceSummaryV01 {
   provenance_basis_coherence_checked: true;
   relation_integrity_checked: true;
   clock_skew_warning_checked: true;
+  allowed_scalar_shapes_checked: true;
+  resigned_malformed_receipt_rejected: true;
 }
 
 export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
@@ -81,6 +85,40 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
     generic.integrity.fingerprint,
     "sha256:b99ad3cd7e02e54b6c2f9ffce821a0e50856a45e5349879e84633fcebe7ada97",
   );
+
+  const resignedMalformedReceipt = clone(generic);
+  (
+    resignedMalformedReceipt.execution_environment as unknown as Record<
+      string,
+      unknown
+    >
+  ).operating_system = { payload: "malformed" };
+  resignedMalformedReceipt.receipt_id = deriveRunReceiptIdV01(
+    resignedMalformedReceipt,
+  );
+  resignedMalformedReceipt.integrity.fingerprint =
+    createRunReceiptFingerprintV01(resignedMalformedReceipt);
+  const resignedValidation = validateRunReceiptV01(resignedMalformedReceipt);
+  assert.equal(resignedValidation.status, "invalid", format(resignedValidation));
+  assert.ok(
+    resignedValidation.errors.some(
+      (issue) =>
+        issue.code === "nullable_string_malformed" &&
+        issue.path === "$.execution_environment.operating_system",
+    ),
+    "re-signed malformed receipt must fail the allowed-field shape check",
+  );
+  for (const integrityCode of [
+    "receipt_identity_mismatch",
+    "fingerprint_mismatch",
+    "idempotency_key_mismatch",
+  ]) {
+    assert.equal(
+      resignedValidation.errors.some((issue) => issue.code === integrityCode),
+      false,
+      `re-signed malformed receipt must not rely on ${integrityCode}`,
+    );
+  }
 
   const unknownFieldInput = clone(genericCliDirectObservationInputFixture);
   (unknownFieldInput.observations[0] as unknown as Record<string, unknown>)
@@ -243,6 +281,8 @@ export function runRunReceiptConformanceV01(): RunReceiptConformanceSummaryV01 {
     provenance_basis_coherence_checked: true,
     relation_integrity_checked: true,
     clock_skew_warning_checked: true,
+    allowed_scalar_shapes_checked: true,
+    resigned_malformed_receipt_rejected: true,
   };
 }
 

@@ -699,6 +699,11 @@ function validateCoreContainers(
       "execution_environment_kind_invalid",
       accumulator,
     );
+    validateNullableStringV01(
+      environment.operating_system,
+      "$.execution_environment.operating_system",
+      accumulator,
+    );
     validateExternalRefStructureV01(
       environment.host_ref,
       "$.execution_environment.host_ref",
@@ -731,6 +736,11 @@ function validateCoreContainers(
       accumulator,
     );
     requireString(summary, "summary", "$.result_summary", accumulator);
+    validateNullableStringV01(
+      summary.outcome,
+      "$.result_summary.outcome",
+      accumulator,
+    );
     stringArray(
       summary.limitations,
       "$.result_summary.limitations",
@@ -1209,6 +1219,11 @@ function validateCommands(
       accumulator,
     );
     basisValue(item.basis, `${path}.basis`, accumulator);
+    validateNullableStringV01(
+      item.command_fingerprint,
+      `${path}.command_fingerprint`,
+      accumulator,
+    );
     if (item.raw_output_included !== false) {
       addError(accumulator, "raw_command_output_forbidden", `${path}.raw_output_included`, "Command raw output must not be included.", true);
     }
@@ -1579,6 +1594,16 @@ function validateChangedArtifacts(input: ProtocolJsonRecordV01, accumulator: Val
       accumulator,
     );
     basisValue(item.basis, `${path}.basis`, accumulator);
+    validateNullableStringV01(
+      item.before_hash,
+      `${path}.before_hash`,
+      accumulator,
+    );
+    validateNullableStringV01(
+      item.after_hash,
+      `${path}.after_hash`,
+      accumulator,
+    );
     const observationIds = stringArray(item.related_observation_ids, `${path}.related_observation_ids`, accumulator);
     const attestationIds = stringArray(item.related_attestation_ids, `${path}.related_attestation_ids`, accumulator);
     const missingObservationIds = observationIds.filter(
@@ -1901,6 +1926,7 @@ function validateAuthority(input: ProtocolJsonRecordV01, accumulator: Validation
     "$.authority_summary",
     accumulator,
   );
+  stringArray(authority.notes, "$.authority_summary.notes", accumulator);
   const expected = createRunReceiptAuthoritySummaryV01(
     Array.isArray(authority.notes) ? authority.notes.filter((value): value is string => typeof value === "string") : [],
   );
@@ -2053,6 +2079,22 @@ function stringArray(value: unknown, path: string, accumulator: ValidationAccumu
   const array = arrayAt(value, path, accumulator);
   if (array.some((item) => !protocolStringValueV01(item))) addError(accumulator, "string_array_malformed", path, "Expected non-empty strings.");
   return array.map(protocolStringValueV01).filter((item): item is string => Boolean(item));
+}
+
+function validateNullableStringV01(
+  value: unknown,
+  path: string,
+  accumulator: ValidationAccumulator,
+) {
+  if (value === null) return;
+  if (typeof value !== "string" || value.trim().length === 0) {
+    addError(
+      accumulator,
+      "nullable_string_malformed",
+      path,
+      "Expected null or a non-empty string.",
+    );
+  }
 }
 
 function requireString(record: ProtocolJsonRecordV01, field: string, path: string, accumulator: ValidationAccumulator): string | null {
