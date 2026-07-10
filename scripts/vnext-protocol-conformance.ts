@@ -29,6 +29,7 @@ import {
 import { EXTERNAL_REF_VERSION_V01 } from "@/types/vnext/external-ref";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import { runCodexResultReportRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/codex-result-report-run-receipt";
+import { runAutohuntResultIntakeRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/autohunt-result-intake-run-receipt";
 import { runRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/run-receipt";
 
 const legacyAdapterSourcePath =
@@ -41,6 +42,9 @@ const sourcePaths = [
   "lib/vnext/run-receipt.ts",
   "lib/vnext/compat/run-receipt-from-codex-result-report.ts",
   "lib/vnext/compat/codex-result-report-source-validator.ts",
+  "lib/vnext/compat/legacy-result-mapping-primitives.ts",
+  "lib/vnext/compat/autohunt-result-intake-source-validator.ts",
+  "lib/vnext/compat/run-receipt-from-autohunt-result-intake.ts",
 ];
 
 let fetchCalls = 0;
@@ -540,6 +544,8 @@ try {
   const runReceiptSummary = runRunReceiptConformanceV01();
   const codexResultCompatibilitySummary =
     runCodexResultReportRunReceiptConformanceV01();
+  const autohuntResultCompatibilitySummary =
+    runAutohuntResultIntakeRunReceiptConformanceV01();
   const taskContextPacketSummary = {
     suite: "task-context-packet-v0.1",
     status: "passed",
@@ -594,6 +600,8 @@ try {
         run_receipt: runReceiptSummary,
         codex_result_report_run_receipt_compatibility:
           codexResultCompatibilitySummary,
+        autohunt_result_intake_run_receipt_compatibility:
+          autohuntResultCompatibilitySummary,
         shared_protocol_primitives: {
           suite: "shared-external-ref-and-protocol-primitives-v0.1",
           status: "passed",

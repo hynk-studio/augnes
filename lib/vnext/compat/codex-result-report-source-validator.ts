@@ -17,6 +17,11 @@ import {
   scanForbiddenProtocolMaterialV01,
   type ProtocolJsonRecordV01,
 } from "@/lib/vnext/protocol-primitives";
+import {
+  classifyLegacyResultArtifactRefV01,
+  type LegacyResultArtifactRefClassificationV01,
+  type LegacyResultRunReceiptMappingIssueV01,
+} from "@/lib/vnext/compat/legacy-result-mapping-primitives";
 
 const sourceStatuses = new Set<string>(CodexResultReportStatusesV01);
 const sourceKinds = new Set<string>(CodexResultReportKindsV01);
@@ -45,12 +50,8 @@ const findingKeys = new Set([
 const authorityField =
   /(?:approv|authori[sz]|accepted.?evidence|canonical.?state|state.?(?:appl|commit|mutat|write)|work.?clos|publish|merge|semantic.?commit|durable.?transition|proof)/i;
 
-export interface CodexResultRunReceiptMappingIssueV01 {
-  severity: "error" | "warning";
-  code: string;
-  path: string | null;
-  message: string;
-}
+export type CodexResultRunReceiptMappingIssueV01 =
+  LegacyResultRunReceiptMappingIssueV01;
 
 export interface CodexResultReportSourceValidationV01 {
   status: "valid" | "invalid" | "blocked";
@@ -61,39 +62,12 @@ export interface CodexResultReportSourceValidationV01 {
 }
 
 export type CodexResultArtifactRefClassificationV01 =
-  | "repository_relative_path"
-  | "legacy_artifact_ref"
-  | "blocked";
+  LegacyResultArtifactRefClassificationV01;
 
 export function classifyCodexResultArtifactRefV01(
   value: unknown,
 ): CodexResultArtifactRefClassificationV01 {
-  const candidate = protocolStringValueV01(value);
-  if (
-    !candidate ||
-    candidate.length > 240 ||
-    /[\u0000-\u001f\u007f]/.test(candidate)
-  ) {
-    return "blocked";
-  }
-  const symbolic = candidate.match(/^(file-ref:|artifact-ref:)(.*)$/);
-  if (symbolic) {
-    const payload = symbolic[2];
-    return /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(payload) &&
-      !/(?:^|\/)\.\.(?:\/|$)/.test(payload)
-      ? "legacy_artifact_ref"
-      : "blocked";
-  }
-  if (
-    isUnsafeLocalPath(candidate) ||
-    /^[A-Za-z]:/.test(candidate) ||
-    /^\\/.test(candidate) ||
-    /^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(candidate) ||
-    /(?:^|[\\/])\.\.(?:[\\/]|$)/.test(candidate)
-  ) {
-    return "blocked";
-  }
-  return "repository_relative_path";
+  return classifyLegacyResultArtifactRefV01(value);
 }
 
 type Accumulator = {
