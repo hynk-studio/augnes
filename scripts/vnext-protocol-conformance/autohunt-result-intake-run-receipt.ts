@@ -277,6 +277,23 @@ export function runAutohuntResultIntakeRunReceiptConformanceV01():
       source.residual_diagnostic_candidate.residual_fingerprint = fingerprint(without(source.residual_diagnostic_candidate, "residual_fingerprint"));
       resignIdentity(source);
     }, "source_residual_next_work_class_incoherent", ["source_idempotency_key_mismatch"]],
+    ["resigned_required_check_accounting_incoherent", (source) => {
+      const requiredCheck = source.expected_observed_delta_candidate.checks_delta.required_checks[0]!;
+      source.structured_result_report.checks_run = source.structured_result_report.checks_run.filter((check) => check !== requiredCheck);
+      source.structured_result_report.checks_passed = source.structured_result_report.checks_passed.filter((check) => check !== requiredCheck);
+      rebuildWriterSemantics(source);
+      assert.equal(source.validation.required_checks_accounted_for, false);
+      source.validation.required_checks_accounted_for = true;
+      resignIntake(source);
+    }, "source_validation_required_checks_incoherent", ["source_idempotency_key_mismatch", "source_intake_id_idempotency_mismatch"]],
+    ["resigned_budget_admission_incoherent", (source) => {
+      source.structured_result_report.budget_used.iterations = source.expected_observed_delta_candidate.budget_delta.max_iterations + 1;
+      rebuildWriterSemantics(source);
+      assert.equal(source.expected_observed_delta_candidate.budget_delta.budget_within_contract, false);
+      assert.equal(source.validation.budget_within_contract, false);
+      source.validation.budget_within_contract = true;
+      resignIntake(source);
+    }, "source_validation_budget_incoherent", ["source_idempotency_key_mismatch", "source_intake_id_idempotency_mismatch"]],
   ];
   const fingerprintMismatchCodes = [
     "source_intake_fingerprint_mismatch",

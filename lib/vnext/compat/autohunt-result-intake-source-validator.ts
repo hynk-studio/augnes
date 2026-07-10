@@ -176,7 +176,7 @@ export function validateAutohuntResultIntakeForRunReceiptV01(
     persists_url_or_env_value: false,
   }, acc, "source_persisted_material_boundary_invalid", true);
   const validation = object(input.validation, "$.validation", acc);
-  if (validation) validateValidation(validation, acc);
+  if (validation) validateValidation(validation, report, delta, acc);
   const rowSummary = object(input.row_count_write_summary, "$.row_count_write_summary", acc);
   if (rowSummary) validateRows(rowSummary, acc);
 
@@ -352,10 +352,47 @@ function validateLearning(value: ProtocolJsonRecordV01, status: string | null, d
   if (typeof value.ready_for_next_daily_autohunt_cycle === "boolean" && value.ready_for_next_daily_autohunt_cycle !== expected) fail(acc, "source_learning_loop_readiness_incoherent", `${path}.ready_for_next_daily_autohunt_cycle`, "Learning-loop readiness is inconsistent with current writer semantics.");
 }
 
-function validateValidation(value: ProtocolJsonRecordV01, acc: Acc) {
+function validateValidation(
+  value: ProtocolJsonRecordV01,
+  report: ProtocolJsonRecordV01 | null,
+  delta: ProtocolJsonRecordV01 | null,
+  acc: Acc,
+) {
   const path = "$.validation"; unknown(value, keys.validation, path, acc);
   if (value.fingerprint_algorithm !== STABLE_FINGERPRINT_ALGORITHM) fail(acc, "source_validation_fingerprint_algorithm_unknown", `${path}.fingerprint_algorithm`, "Source validation uses an unknown fingerprint algorithm.");
   for (const field of [...keys.validation].filter((field) => field !== "fingerprint_algorithm")) if (value[field] !== true) fail(acc, "source_validation_flag_false", `${path}.${field}`, "All current source validation flags must be true.", true);
+  if (!report || !delta) return;
+
+  const checks = isProtocolRecordV01(delta.checks_delta) ? delta.checks_delta : null;
+  const requiredChecks = asStrings(checks?.required_checks);
+  const checksRun = asStrings(report.checks_run);
+  const checksSkipped = asStrings(report.checks_skipped);
+  const requiredChecksAccountedFor = requiredChecks.every(
+    (check) => checksRun.includes(check) || checksSkipped.includes(check),
+  );
+  if (value.required_checks_accounted_for !== requiredChecksAccountedFor || !requiredChecksAccountedFor) {
+    fail(acc, "source_validation_required_checks_incoherent", `${path}.required_checks_accounted_for`, "Required-check admission is inconsistent with current writer semantics.");
+  }
+
+  const budgetUsed = isProtocolRecordV01(report.budget_used) ? report.budget_used : null;
+  const budgetDelta = isProtocolRecordV01(delta.budget_delta) ? delta.budget_delta : null;
+  const budgetPairs = [
+    ["iterations", "max_iterations"],
+    ["tool_calls", "max_tool_calls"],
+    ["codex_tasks", "max_codex_tasks"],
+    ["draft_prs", "max_draft_prs"],
+    ["changed_files", "max_changed_files"],
+  ] as const;
+  const budgetWithinContract = Boolean(budgetUsed && budgetDelta && budgetPairs.every(([usedField, maxField]) => {
+    const used = budgetUsed[usedField];
+    const maximum = budgetDelta[maxField];
+    return typeof used === "number" && Number.isFinite(used) && used >= 0 &&
+      typeof maximum === "number" && Number.isFinite(maximum) && maximum >= 0 &&
+      used <= maximum;
+  }));
+  if (value.budget_within_contract !== budgetWithinContract || budgetDelta?.budget_within_contract !== budgetWithinContract || !budgetWithinContract) {
+    fail(acc, "source_validation_budget_incoherent", `${path}.budget_within_contract`, "Budget admission is inconsistent with current writer semantics.");
+  }
 }
 
 function validateRows(value: ProtocolJsonRecordV01, acc: Acc) {
