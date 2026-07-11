@@ -29,6 +29,7 @@ import {
 import { EXTERNAL_REF_VERSION_V01 } from "@/types/vnext/external-ref";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
 import { runCodexResultReportRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/codex-result-report-run-receipt";
+import { runContextUseReviewConformanceV01 } from "@/scripts/vnext-protocol-conformance/context-use-review";
 import { runCodexReviewEpisodeDeltaProposalConformanceV01 } from "@/scripts/vnext-protocol-conformance/codex-review-episode-delta-proposal";
 import { runAutohuntResultIntakeRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/autohunt-result-intake-run-receipt";
 import { runEpisodeDeltaProposalConformanceV01 } from "@/scripts/vnext-protocol-conformance/episode-delta-proposal";
@@ -50,6 +51,7 @@ const sourcePaths = [
   "lib/vnext/review-decision.ts",
   "lib/vnext/state-transition-receipt.ts",
   "lib/vnext/state-transition-eligibility.ts",
+  "lib/vnext/context-use-review.ts",
   "lib/vnext/compat/run-receipt-from-codex-result-report.ts",
   "lib/vnext/compat/episode-delta-proposal-from-codex-review.ts",
   "lib/vnext/compat/codex-result-report-source-validator.ts",
@@ -558,6 +560,7 @@ try {
   const reviewDecisionSummary = runReviewDecisionConformanceV01();
   const stateTransitionReceiptSummary =
     runStateTransitionReceiptConformanceV01();
+  const contextUseReviewSummary = runContextUseReviewConformanceV01();
   const codexReviewEpisodeDeltaProposalSummary =
     runCodexReviewEpisodeDeltaProposalConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
@@ -622,6 +625,7 @@ try {
         episode_delta_proposal: episodeDeltaProposalSummary,
         review_decision: reviewDecisionSummary,
         state_transition_receipt: stateTransitionReceiptSummary,
+        context_use_review: contextUseReviewSummary,
         codex_review_episode_delta_proposal_compatibility:
           codexReviewEpisodeDeltaProposalSummary,
         semantic_review_loop: semanticReviewLoopSummary,

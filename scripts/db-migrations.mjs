@@ -4459,7 +4459,8 @@ export const vNextDurableSemanticStoreSchemaSqlV01 = `
       'semantic_state',
       'state_transition_receipt',
       'task_context_packet',
-      'run_receipt'
+      'run_receipt',
+      'context_use_review'
     )),
     record_id TEXT NOT NULL CHECK (length(trim(record_id)) > 0),
     workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
@@ -4578,6 +4579,106 @@ const vNextDurableSemanticStoreArtifactsV01 = {
   ],
 };
 
+const vNextCoreRecordsUpgradeTableV01 =
+  "vnext_core_records_upgrade_v0_1";
+
+function upgradeVNextCoreRecordKindConstraintV01(db) {
+  const table = db
+    .prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vnext_core_records'",
+    )
+    .get();
+  if (!table || table.sql?.includes("'context_use_review'")) {
+    return false;
+  }
+  if (db.inTransaction) {
+    throw new Error("vnext_core_record_kind_upgrade_nested_transaction_forbidden");
+  }
+  if (
+    db
+      .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+      )
+      .get(vNextCoreRecordsUpgradeTableV01)
+  ) {
+    throw new Error("vnext_core_record_kind_upgrade_orphan_table");
+  }
+  const before = db
+    .prepare("SELECT COUNT(*) AS count FROM vnext_core_records")
+    .get();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.exec(`
+      CREATE TABLE ${vNextCoreRecordsUpgradeTableV01} (
+        record_kind TEXT NOT NULL CHECK (record_kind IN (
+          'episode_delta_proposal',
+          'review_decision',
+          'semantic_commit_gate',
+          'semantic_state',
+          'state_transition_receipt',
+          'task_context_packet',
+          'run_receipt',
+          'context_use_review'
+        )),
+        record_id TEXT NOT NULL CHECK (length(trim(record_id)) > 0),
+        workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
+        project_id TEXT NOT NULL CHECK (length(trim(project_id)) > 0),
+        fingerprint TEXT NOT NULL CHECK (
+          length(fingerprint) = 71 AND substr(fingerprint, 1, 7) = 'sha256:'
+        ),
+        idempotency_key TEXT CHECK (
+          idempotency_key IS NULL OR
+          (length(idempotency_key) = 71 AND substr(idempotency_key, 1, 7) = 'sha256:')
+        ),
+        payload_json TEXT NOT NULL CHECK (
+          json_valid(payload_json) AND json_type(payload_json) = 'object'
+        ),
+        created_at TEXT NOT NULL CHECK (length(trim(created_at)) > 0),
+        PRIMARY KEY (record_kind, record_id)
+      );
+      INSERT INTO ${vNextCoreRecordsUpgradeTableV01} (
+        record_kind, record_id, workspace_id, project_id, fingerprint,
+        idempotency_key, payload_json, created_at
+      )
+      SELECT
+        record_kind, record_id, workspace_id, project_id, fingerprint,
+        idempotency_key, payload_json, created_at
+      FROM vnext_core_records;
+    `);
+    const copied = db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM ${vNextCoreRecordsUpgradeTableV01}`,
+      )
+      .get();
+    if (copied.count !== before.count) {
+      throw new Error("vnext_core_record_kind_upgrade_copy_count_mismatch");
+    }
+    db.exec(`
+      DROP TRIGGER IF EXISTS trg_vnext_core_records_immutable_update;
+      DROP TRIGGER IF EXISTS trg_vnext_core_records_immutable_delete;
+      DROP TABLE vnext_core_records;
+      ALTER TABLE ${vNextCoreRecordsUpgradeTableV01}
+        RENAME TO vnext_core_records;
+      CREATE UNIQUE INDEX idx_vnext_core_records_project_idempotency
+        ON vnext_core_records(workspace_id, project_id, record_kind, idempotency_key)
+        WHERE idempotency_key IS NOT NULL;
+      CREATE INDEX idx_vnext_core_records_project_kind_created
+        ON vnext_core_records(workspace_id, project_id, record_kind, created_at, record_id);
+      CREATE TRIGGER trg_vnext_core_records_immutable_update
+        BEFORE UPDATE ON vnext_core_records
+        BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
+      CREATE TRIGGER trg_vnext_core_records_immutable_delete
+        BEFORE DELETE ON vnext_core_records
+        BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
+    `);
+    db.exec("COMMIT");
+    return true;
+  } catch (error) {
+    if (db.inTransaction) db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 export function migrateVNextDurableSemanticStoreV01(db) {
   const before = new Set(
     db
@@ -4593,6 +4694,7 @@ export function migrateVNextDurableSemanticStoreV01(db) {
       .map((row) => row.key),
   );
 
+  const rebuiltCoreRecords = upgradeVNextCoreRecordKindConstraintV01(db);
   db.exec(vNextDurableSemanticStoreSchemaSqlV01);
 
   const created = (type, names) =>
@@ -4601,6 +4703,7 @@ export function migrateVNextDurableSemanticStoreV01(db) {
     created_tables: created("table", vNextDurableSemanticStoreArtifactsV01.tables),
     created_indexes: created("index", vNextDurableSemanticStoreArtifactsV01.indexes),
     created_triggers: created("trigger", vNextDurableSemanticStoreArtifactsV01.triggers),
+    rebuilt_tables: rebuiltCoreRecords ? ["vnext_core_records"] : [],
   };
 }
 

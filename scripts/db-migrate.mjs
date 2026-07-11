@@ -120,11 +120,16 @@ try {
     ...vNextDurableSemanticStoreResult.created_indexes,
     ...vNextDurableSemanticStoreResult.created_triggers,
   ];
+  const vNextRebuiltArtifacts =
+    vNextDurableSemanticStoreResult.rebuilt_tables ?? [];
 
   console.log(
-    vNextCreatedArtifacts.length === 0
+    vNextCreatedArtifacts.length === 0 && vNextRebuiltArtifacts.length === 0
       ? `vNext durable semantic store migration no-op: schema is current at ${dbPath}`
-      : `Migrated vNext durable semantic store at ${dbPath}: ${vNextCreatedArtifacts.join(", ")}`,
+      : `Migrated vNext durable semantic store at ${dbPath}: ${[
+          ...vNextCreatedArtifacts,
+          ...vNextRebuiltArtifacts.map((name) => `rebuilt:${name}`),
+        ].join(", ")}`,
   );
   const vNextLocalOperatorSessionCreatedArtifacts = [
     ...vNextLocalOperatorSessionResult.created_tables,

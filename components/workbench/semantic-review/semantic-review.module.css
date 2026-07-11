@@ -532,13 +532,64 @@
   min-width: 0;
 }
 
+.reviewFieldGrid,
+.reviewMetricGrid {
+  display: grid;
+  gap: 9px;
+}
+
+.reviewFieldGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.reviewMetricGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.numberControl,
+.reviewNotes,
+.correctionList textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid rgba(31, 41, 55, 0.2);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+}
+
+.reviewNotes,
+.correctionList textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+
+.correctionList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.correctionList li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
 @media (max-width: 900px) {
   .header,
   .detailGrid,
   .provenanceGrid,
   .twoColumnGrid,
   .transitionSteps,
-  .citationGrid {
+  .citationGrid,
+  .reviewFieldGrid {
     grid-template-columns: 1fr;
   }
 
@@ -547,7 +598,8 @@
   }
 
   .statusGrid,
-  .metricGrid {
+  .metricGrid,
+  .reviewMetricGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -559,7 +611,12 @@
 
   .proposalCard,
   .statusGrid,
-  .metricGrid {
+  .metricGrid,
+  .reviewMetricGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .correctionList li {
     grid-template-columns: 1fr;
   }
 }

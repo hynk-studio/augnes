@@ -7,6 +7,7 @@ import type { VNextOperatorPilotPacketHandoffV01 } from "@/lib/vnext/runtime/ope
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 
+import { ContextUseReviewPanel } from "./context-use-review-panel";
 import styles from "./semantic-review.module.css";
 
 const LATER_RESULT_ROUTE = "/api/vnext/operator/later-result";
@@ -486,10 +487,22 @@ export function LaterResultIntakePanel({
 
       {result ? <LaterResultReceiptReadout result={result} /> : null}
 
+      {result && persistedReadStatus === "loaded" ? (
+        <ContextUseReviewPanel
+          key={`${result.receipt.receipt_id}:${result.receipt.integrity.fingerprint}`}
+          handoff={handoff}
+          laterTaskReceipt={result.receipt}
+          tryBeginOperatorMutation={tryBeginOperatorMutation}
+          endOperatorMutation={endOperatorMutation}
+          onSessionInvalid={onSessionInvalid}
+        />
+      ) : null}
+
       <p className={styles.notice}>
-        This intake persists one conservative RunReceipt only. It creates no proposal,
+        The result-intake action persists one conservative RunReceipt only. The separate
+        review action may persist one ContextUseReview; neither action creates a proposal,
         ReviewDecision, gate, transition, Evidence, work closure, Perspective or memory
-        mutation, automatic ContextUseReview, or next-context change.
+        mutation, or an automatic next-context change.
       </p>
     </section>
   );

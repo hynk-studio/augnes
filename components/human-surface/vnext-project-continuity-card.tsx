@@ -189,7 +189,11 @@ export function VNextProjectContinuityCard() {
         />
         <ContinuityDetail
           label="Latest context-use review"
-          value={continuity.latest_context_use_review_status ?? "not reviewed"}
+          value={
+            continuity.latest_context_use_review_status
+              ? `${continuity.latest_context_use_review_status.assessment} / used ${continuity.latest_context_use_review_status.actually_used} / ${continuity.latest_context_use_review_status.review_id} / ${continuity.latest_context_use_review_status.review_fingerprint} / ${continuity.latest_context_use_review_status.reviewed_at}`
+              : "not reviewed"
+          }
         />
       </dl>
 
