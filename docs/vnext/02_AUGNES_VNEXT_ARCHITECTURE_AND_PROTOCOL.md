@@ -750,6 +750,87 @@ existing-default guard의 file hash, SQLite schema objects와 row hash 또는 in
 guard의 non-creation도 검증하고 temporary DB와 side file을 제거한다. 이는 build-time data access를
 허용하는 authority가 아니라 default product/user DB access를 차단하는 isolation boundary다.
 
+#### M3D opt-in operator and reviewed reuse boundary
+
+M3D는 M3C durable Core 위에 disabled-by-default local operator boundary를 둔다. Pilot은 explicit
+enable flag, absolute non-default DB path와 exact workspace/project/operator scope를 모두 요구한다.
+Bootstrap token은 one-time으로만 전달하고 hash만 저장한다. Bootstrap consumption은 rotated opaque
+session token과 one-time action nonce를 발급하며 DB에는 hash, expiry, consumption/revocation timestamp만
+남긴다. HttpOnly SameSite=Strict cookie, loopback host, exact same-origin, forwarded-header refusal와
+nonce CAS는 local secret possession을 검증한다. 이는 legal identity, OS account, organization membership,
+external provider identity 또는 remote multi-user authentication이 아니다.
+
+Next local runtime은 실제 literal Host와 별도로 internal request URL을 normalize하고 forwarding metadata를
+추가한다. M3D boundary는 그 metadata를 authority로 신뢰하지 않는다. Complete runtime set의 source가
+loopback이고 `x-forwarded-host`가 literal Host와, forwarded port가 Host port와, forwarded protocol이
+`http`와 exact match할 때만 canonical loopback URL을 재구성한다. Partial, remote, comma-separated,
+protocol-upgraded 또는 host-mismatched forwarded material은 모두 fail closed한다.
+
+`vnext_local_operator_sessions`는 mutable security/runtime table 하나다. Session은 semantic state,
+Evidence, memory, Perspective, `ReviewDecision` 또는 work record가 아니다. Bootstrap 이후 인증된 모든
+mutating pilot action은 immediate transaction 안에서 nonce를 consume/rotate하고 semantic write와 함께
+commit하거나 함께 rollback한다. Concurrent nonce reuse는 최대 한 action만 받아들이며 plaintext
+bootstrap, session token과 nonce는 DB payload, HTML, log, snapshot 또는 fixture anchor에 남기지 않는다.
+
+Semantic Workbench의 M3D flow는 다음 boundary를 합치지 않는다.
+
+```text
+persisted proposal/source lineage read
+→ explicit ReviewDecision
+→ read-only semantic commit preview
+→ exact operator confirmation and gate persistence
+→ separate durable commit and StateTransitionReceipt review
+→ separate later TaskContextPacket compilation
+→ bounded packet handoff
+→ structured later-result intake and RunReceipt
+→ explicit ContextUseReview
+```
+
+Decision actor는 configured local operator의 `user_declaration`이고 local session action ref는 별도
+`direct_local_observation` authentication basis다. UI 선택이나 GET은 decision을 생성하지 않는다.
+Preview는 exact target head, operation, before/after fingerprint, revision, applier, TTL과 confirmation
+digest를 표시하지만 write하지 않는다. Confirmation은 gate만 기록한다. Commit은 caller timestamp,
+current-state observation 또는 after-state JSON을 받지 않고 기존 M3C writer를 호출한다. Packet compile은
+receipt inspection 뒤 별도 POST로만 실행되며 commit 성공이 자동 compiler trigger가 되지 않는다.
+
+초기 real-pilot admission policy는 one enrolled project, one candidate, one target, `accept/create`, observed
+absent state로 제한한다. Replace, supersede, retract와 multi-target behavior는 M3C Core conformance에 남지만
+M3D product pilot route가 허용하지 않는다. Direct route call도 동일 policy를 다시 검사한다.
+
+Project Home은 pending proposal/decision, latest applied transition, current accepted state와 target-head
+revision, latest compiled packet/currentness, later-result receipt와 latest review status를 읽는 bounded
+projection만 제공한다. Commit/reject/gate action은 없다. Packet handoff는 exact packet ID/fingerprint,
+accepted-state refs, constraints와 return contract를 bounded text/JSON으로 제공하며 token, hidden prompt,
+private DB payload 또는 provider call을 포함하지 않는다. Copy/download는 consumption proof가 아니다.
+
+Later-result intake는 기존 structured Codex result normalizer, source validator와 RunReceipt mapper를
+재사용한다. Caller-reported work는 `imported_unverified` 또는 attestation으로 남고 textual pass, changed
+files, packet reference와 selected-state citation은 independent observation, requirement completion 또는
+helpfulness로 승격되지 않는다. Direct-local observation은 persisted packet, transition과 bounded intake
+validation을 runtime이 실제로 읽은 부분에만 사용한다. Result intake는 proposal, decision, transition,
+Evidence, work closure 또는 next context를 자동 생성하지 않는다.
+
+`ContextUseReviewV01`은 provider-neutral Level 1 contract다. Exact workspace/project, prior/later packet,
+source transition receipt와 later-task `RunReceipt`, local operator reviewer와 separate authentication basis,
+reviewed time, presented/use declaration, assessment, corrections, bounded metrics와 authority boundary를
+deterministic ID/fingerprint로 보존한다. Runtime은 reviewer와 timestamp를 caller body에서 받지 않고
+session/clock에서 도출하며 exact lineage를 다시 읽은 뒤 immutable ledger에 기록한다. 같은 logical
+relation과 같은 normalized review는 exact replay이고 다른 assessment/result는 conflict다. Negative,
+misleading 또는 stale review도 state retract, correction proposal, Evidence acceptance, Perspective/memory
+mutation, work closure 또는 rollback을 자동 실행하지 않는다.
+
+`vnext_core_records`의 allowed kind에 `context_use_review`를 추가하는 migration은 old CHECK table을 한
+immediate transaction에서 copy/rebuild하고 row count, payload, index와 immutable trigger를 보존한다.
+Generic DB open은 migration하지 않고 old schema는 explicit migrate 전 fail closed한다. M3D는 legacy
+state와 dual-write하지 않으며 default DB, provider/model, network, GitHub, publication 또는 external
+actuator를 자동 호출하지 않는다.
+
+Isolated temp-DB/HTTP/browser verification은 session, nonce, route policy, SQLite persistence, packet/result
+relation과 review mechanics의 `real_local_observation`을 만들 수 있다. Proposal, decision, configured
+operator와 task meaning은 `synthetic_fixture`다. 이 PR만으로 actual operator decision, product/user
+transition, actual packet use, context usefulness, Level 3 Observed Use, Level 4 Reviewed Reuse 또는 outcome
+improvement를 주장할 수 없다.
+
 ---
 
 ### 5.5 AutomationPolicy

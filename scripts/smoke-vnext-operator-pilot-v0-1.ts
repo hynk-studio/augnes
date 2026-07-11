@@ -2,8 +2,10 @@
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { createServer, request as requestHttp } from "node:http";
 import { createRequire } from "node:module";
 import {
+  copyFileSync,
   existsSync,
   mkdtempSync,
   readFileSync,
@@ -14,7 +16,19 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
+import { createVNextOperatorContextUseReviewHandlersV01 } from "../app/api/vnext/operator/context-use-review/route";
+import { createVNextOperatorLaterResultHandlersV01 } from "../app/api/vnext/operator/later-result/route";
+import { createVNextOperatorPacketHandoffHandlerV01 } from "../app/api/vnext/operator/packet-handoff/route";
+import { createVNextOperatorProjectContinuityHandlerV01 } from "../app/api/vnext/operator/project-continuity/route";
+import { createVNextOperatorSemanticReviewHandlersV01 } from "../app/api/vnext/operator/semantic-review/route";
+import { createVNextOperatorSemanticTransitionHandlersV01 } from "../app/api/vnext/operator/semantic-transition/route";
 import { createVNextLocalOperatorSessionHandlersV01 } from "../app/api/vnext/operator/session/route";
+import {
+  buildSemanticReviewLoopTaskContextPacketFixture,
+  semanticReviewLoopMapperInputFixture,
+  type SemanticReviewLoopProjectFixtureV01,
+} from "../fixtures/vnext/protocol/semantic-review-loop-v0-1";
+import { createEpisodeDeltaCandidateFingerprintV01 } from "../lib/vnext/review-decision";
 import {
   VNEXT_LOCAL_OPERATOR_MAX_BODY_BYTES_V01,
   admitVNextLocalOperatorMutationV01,
@@ -25,15 +39,53 @@ import {
   type VNextLocalOperatorSecretSourceV01,
 } from "../lib/vnext/runtime/local-operator-session";
 import type { VNextLocalRuntimeClockV01 } from "../lib/vnext/runtime/local-runtime-clock";
-import { migrateVNextLocalOperatorSessionsV01 } from "./db-migrations.mjs";
+import {
+  prepareVNextOperatorPilotReviewMaterialV01,
+} from "../lib/vnext/runtime/operator-pilot-review-material";
+import {
+  migrateVNextDurableSemanticStoreV01,
+  migrateVNextLocalOperatorSessionsV01,
+} from "./db-migrations.mjs";
 
 const SMOKE_VERSION = "vnext_operator_pilot_smoke.v0.1" as const;
+const EXPECTED_FULL_LOOP_ANCHORS = {
+  review_decision_id: "review-decision:57ff3dff71be21facb997524",
+  review_decision_fingerprint:
+    "sha256:dde7827bc532b0092cce5c2193714fbc7a93ad00c3a8d724a8f62184131b6928",
+  confirmation_digest:
+    "sha256:c519ac7aa06fe67b89f934baef5af489be5aa6f247d2e73dda03ede233bad28f",
+  gate_id: "semantic-commit-gate:be20d6bdcc35a29d6f99d54c",
+  gate_fingerprint:
+    "sha256:1a69fbf222efa83e860bbddcf3ca1be7f47a1560778ec0352cbd1e2feb5e6aa8",
+  transition_receipt_id: "state-transition-receipt:88a34bd8c8909dd8ccbd64fa",
+  transition_receipt_idempotency_key:
+    "sha256:cc2ed13b534e353553b7062423d693ca69843896fd7c0fb464bd653a81cc4f22",
+  transition_receipt_fingerprint:
+    "sha256:8a88582f1f9030b1a9cbe62fc6a9ebeb2b8f597b1c34e25aa123cb7669810163",
+  later_packet_id: "task-context-packet:85d4c141106685205c225fc",
+  later_packet_fingerprint:
+    "sha256:a566964ea90413bacbdc771ebefb22edc3eb39e3ca46b5c5fb570118db0e878c",
+  later_run_receipt_id: "run-receipt:74dcae1588b9f3a7cb4717b5",
+  later_run_receipt_idempotency_key:
+    "sha256:8faa7e20bb94329992d6bd114d7cdd26c9d1ff53992a2b54b24a6e1357c33026",
+  later_run_receipt_fingerprint:
+    "sha256:b20b9392943d934a504a51b15d29ccf0870db2a73bb838289957b6b2757ab37f",
+  context_use_review_id: "context-use-review:6e915117ff08360844862f05",
+  context_use_review_fingerprint:
+    "sha256:c59fe44016d0a49f7cad5efee4d7493ec2d7134983d94d7a25c4a673dd84ed5a",
+  full_loop_fingerprint:
+    "sha256:cb8d644bf93175e2ec4eb6d031c67108911c27eea06465cc7ccf6738485bc88e",
+} as const;
 const require = createRequire(import.meta.url);
 const tempRoot = mkdtempSync(
   path.join(tmpdir(), "augnes-vnext-operator-pilot-v0-1-"),
 );
 const canonicalDbPath = path.join(tempRoot, "operator-pilot.db");
 const migrationDbPath = path.join(tempRoot, "legacy-upgrade.db");
+const recordKindMigrationDbPath = path.join(
+  tempRoot,
+  "populated-old-record-kind.db",
+);
 const schemaSql = readFileSync(
   path.join(process.cwd(), "lib", "db", "schema.sql"),
   "utf8",
@@ -245,6 +297,19 @@ try {
   assert.deepEqual(protectedAfter, protectedBefore);
   pass("authentication_does_not_mutate_semantic_or_legacy_rows");
 
+  const legacyBefore = snapshotLegacyRows(canonicalDbPath);
+  clock.set("2026-07-11T09:00:00.000Z");
+  const fullLoop = await assertFullOperatorLoop({
+    environment,
+    clock,
+    secretSource,
+    sessionHandlers: handlers,
+  });
+  assert.deepEqual(snapshotLegacyRows(canonicalDbPath), legacyBefore);
+  pass("full_loop_does_not_mutate_legacy_proof_evidence_or_work_rows");
+
+  assertM3DBackupRestore(canonicalDbPath);
+
   assertNoPlaintextCredentialPersistence(canonicalDbPath);
   pass("plaintext_credentials_not_persisted");
   assert.equal(networkGuard.attempts.length, 0);
@@ -265,7 +330,8 @@ try {
       canonicalDbPath,
       "vnext_local_operator_sessions",
     ),
-    semantic_or_legacy_row_delta: 0,
+    authentication_phase_semantic_and_legacy_row_delta: 0,
+    full_loop_legacy_row_delta: 0,
     plaintext_credential_occurrences: 0,
     fetch_calls: 0,
     dns_calls: 0,
@@ -275,6 +341,14 @@ try {
     external_identity_authenticated: false,
     semantic_authority_granted: false,
     real_operator_decision_created: false,
+    full_loop_fixture_only: true,
+    full_loop_anchors: fullLoop.anchors,
+    loopback_http_request_count: fullLoop.loopbackHttpRequestCount,
+    backup_restore: "exact_m3d_records_and_integrity_preserved",
+    enrolled_project_core_record_count: fullLoop.coreRecordCount,
+    foreign_project_core_record_count: 0,
+    review_did_not_mutate_semantic_state: true,
+    packet_compilation_was_explicit: true,
     temp_database_cleanup: "pending_finally",
   };
 } finally {
@@ -339,6 +413,1090 @@ function validateAdditiveAndRepeatedMigration(): void {
   } finally {
     db.close();
   }
+  validatePopulatedOldRecordKindMigration();
+}
+
+async function assertFullOperatorLoop(input: {
+  environment: NodeJS.ProcessEnv;
+  clock: ManualClock;
+  secretSource: DeterministicSecretSource;
+  sessionHandlers: ReturnType<typeof createVNextLocalOperatorSessionHandlersV01>;
+}): Promise<{
+  anchors: Record<string, string>;
+  coreRecordCount: number;
+  loopbackHttpRequestCount: number;
+}> {
+  const config = readVNextLocalOperatorPilotConfigV01(input.environment);
+  const nativeReviewHandlers = createVNextOperatorSemanticReviewHandlersV01({
+    environment: input.environment,
+    clock: input.clock,
+    secret_source: input.secretSource,
+  });
+  const nativeTransitionHandlers = createVNextOperatorSemanticTransitionHandlersV01({
+    environment: input.environment,
+    clock: input.clock,
+    secret_source: input.secretSource,
+  });
+  const nativeHandoffHandler = createVNextOperatorPacketHandoffHandlerV01({
+    environment: input.environment,
+    clock: input.clock,
+  });
+  const nativeContinuityHandler = createVNextOperatorProjectContinuityHandlerV01({
+    environment: input.environment,
+    clock: input.clock,
+  });
+  const nativeResultHandlers = createVNextOperatorLaterResultHandlersV01({
+    environment: input.environment,
+    clock: input.clock,
+    secret_source: input.secretSource,
+  });
+  const nativeContextReviewHandlers = createVNextOperatorContextUseReviewHandlersV01({
+    environment: input.environment,
+    clock: input.clock,
+    secret_source: input.secretSource,
+  });
+
+  const loopback = await startOperatorPilotLoopbackHarness({
+    session: input.sessionHandlers,
+    semanticReview: nativeReviewHandlers,
+    semanticTransition: nativeTransitionHandlers,
+    packetHandoff: nativeHandoffHandler,
+    projectContinuity: nativeContinuityHandler,
+    laterResult: nativeResultHandlers,
+    contextUseReview: nativeContextReviewHandlers,
+  });
+  const sessionHandlers = {
+    GET: loopback.forward,
+    POST: loopback.forward,
+  };
+  const reviewHandlers = {
+    GET: loopback.forward,
+    POST: loopback.forward,
+  };
+  const transitionHandlers = {
+    GET: loopback.forward,
+    POST: loopback.forward,
+  };
+  const handoffHandler = loopback.forward;
+  const continuityHandler = loopback.forward;
+  const resultHandlers = {
+    GET: loopback.forward,
+    POST: loopback.forward,
+  };
+  const contextReviewHandlers = {
+    GET: loopback.forward,
+    POST: loopback.forward,
+  };
+
+  try {
+
+  const bootstrap = issueBootstrap(
+    input.environment,
+    input.clock,
+    input.secretSource,
+  );
+  rememberCredentialMaterial(bootstrap.bootstrap_token);
+  const exchange = await bootstrapThroughRoute(
+    sessionHandlers,
+    bootstrap.bootstrap_token,
+  );
+  assert.equal(exchange.response.status, 200);
+  const jar = new RouteCookieJar();
+  jar.setPair(exchange.cookiePair);
+  pass("full_loop_session_bootstrapped");
+
+  const fixtureProject: SemanticReviewLoopProjectFixtureV01 = {
+    fixture_id: "operator-pilot-full-loop",
+    workspace_id: config.workspace_id,
+    project_id: config.project_id,
+    run_id: "run:operator-pilot-full-loop-source",
+  };
+  const priorPacket = buildSemanticReviewLoopTaskContextPacketFixture(
+    fixtureProject,
+  );
+  const mapperInput = semanticReviewLoopMapperInputFixture(
+    fixtureProject,
+    priorPacket,
+  );
+  const preparationDb = openVNextLocalOperatorDatabaseV01(config);
+  const prepared = (() => {
+    try {
+      return prepareVNextOperatorPilotReviewMaterialV01(preparationDb, {
+        config,
+        mapper_input: mapperInput,
+        prior_packet: priorPacket,
+      });
+    } finally {
+      preparationDb.close();
+    }
+  })();
+  assert.equal(prepared.decision_created, false);
+  assert.equal(prepared.transition_created, false);
+  pass("repository_native_review_material_prepared_and_persisted");
+
+  await expectRouteError(
+    await reviewHandlers.GET(
+      routeRequest("/api/vnext/operator/semantic-review", { method: "GET" }),
+    ),
+    401,
+    "operator_session_cookie_missing",
+    "semantic_review_unauthenticated_get_rejected",
+  );
+  const listResponse = await reviewHandlers.GET(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "GET",
+      jar,
+    }),
+  );
+  const listBody = await publicJson(listResponse);
+  assert.equal(listResponse.status, 200);
+  assert.equal(listBody.status, "proposal_list");
+  assert.equal((listBody.proposals as unknown[]).length, 1);
+  pass("semantic_workbench_proposal_list_read");
+
+  const detailResponse = await reviewHandlers.GET(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "GET",
+      jar,
+      query: { proposal_id: prepared.proposal.proposal_id },
+    }),
+  );
+  const detailBody = await publicJson(detailResponse);
+  assert.equal(detailResponse.status, 200);
+  const detail = detailBody.proposal as {
+    proposal: typeof prepared.proposal;
+    candidates: Array<{
+      candidate: typeof prepared.proposal.proposed_deltas[number];
+      candidate_fingerprint: string;
+      pilot_admission: { decision_allowed: { accept: boolean } };
+    }>;
+    decisions: unknown[];
+  };
+  const selected = detail.candidates.find(
+    (candidate) => candidate.pilot_admission.decision_allowed.accept,
+  );
+  assert(selected, "full loop needs one accept/create-admitted candidate");
+  assert.equal(
+    selected.candidate_fingerprint,
+    createEpisodeDeltaCandidateFingerprintV01(selected.candidate),
+  );
+  pass("semantic_workbench_exact_candidate_detail_read");
+
+  const decisionRequest = {
+    proposal_id: prepared.proposal.proposal_id,
+    proposal_fingerprint: prepared.proposal.integrity.fingerprint,
+    candidate_id: selected.candidate.candidate_id,
+    candidate_fingerprint: selected.candidate_fingerprint,
+    decision: "accept",
+    rationale_summary:
+      "Synthetic isolated smoke accepts one absent single-target candidate for explicit preview and confirmation.",
+    revisit: null,
+  };
+  await expectRouteError(
+    await reviewHandlers.POST(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "POST",
+        jar,
+        body: decisionRequest,
+        origin: "http://localhost:3000",
+      }),
+    ),
+    403,
+    "same_origin_required",
+    "semantic_decision_wrong_origin_rejected",
+  );
+  for (const forbiddenDecision of ["supersede", "retract"] as const) {
+    await expectRouteError(
+      await reviewHandlers.POST(
+        routeRequest("/api/vnext/operator/semantic-review", {
+          method: "POST",
+          jar,
+          body: { ...decisionRequest, decision: forbiddenDecision },
+        }),
+      ),
+      400,
+      "operator_pilot_decision_value_invalid",
+      `pilot_${forbiddenDecision}_direct_post_rejected`,
+    );
+  }
+  const decisionResponse = await reviewHandlers.POST(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "POST",
+      jar,
+      body: decisionRequest,
+    }),
+  );
+  const decisionBody = await publicJson(decisionResponse);
+  assert.equal(decisionResponse.status, 201, "decision insert over loopback HTTP");
+  assert.equal(decisionBody.status, "inserted");
+  jar.absorb(decisionResponse);
+  const decision = decisionBody.decision as {
+    decision_id: string;
+    integrity: { fingerprint: string };
+    requested_transition_intent: unknown;
+  };
+  assert(decision.requested_transition_intent);
+  pass("authenticated_review_decision_inserted");
+
+  const replayDecisionResponse = await reviewHandlers.POST(
+    routeRequest("/api/vnext/operator/semantic-review", {
+      method: "POST",
+      jar,
+      body: decisionRequest,
+    }),
+  );
+  const replayDecisionBody = await publicJson(replayDecisionResponse);
+  assert.equal(replayDecisionBody.status, "exact_replay");
+  assert.equal(
+    (replayDecisionBody.decision as typeof decision).decision_id,
+    decision.decision_id,
+  );
+  jar.absorb(replayDecisionResponse);
+  pass("review_decision_exact_replay");
+
+  const beforeRefresh = coreRecordCount(canonicalDbPath);
+  for (let index = 0; index < 2; index += 1) {
+    const refresh = await reviewHandlers.GET(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "GET",
+        jar,
+        query: { proposal_id: prepared.proposal.proposal_id },
+      }),
+    );
+    assert.equal(refresh.status, 200);
+    assert.equal(
+      ((await publicJson(refresh)).proposal as { decision_count: number })
+        .decision_count,
+      1,
+    );
+  }
+  assert.equal(coreRecordCount(canonicalDbPath), beforeRefresh);
+  pass("browser_refresh_get_does_not_repeat_decision_post");
+
+  const decisionBinding = {
+    proposal_id: prepared.proposal.proposal_id,
+    proposal_fingerprint: prepared.proposal.integrity.fingerprint,
+    decision_id: decision.decision_id,
+    decision_fingerprint: decision.integrity.fingerprint,
+  };
+  await expectRouteError(
+    await transitionHandlers.GET(
+      routeRequest("/api/vnext/operator/semantic-transition", {
+        method: "GET",
+        jar,
+        query: {
+          ...decisionBinding,
+          proposal_fingerprint: `sha256:${"e".repeat(64)}`,
+        },
+      }),
+    ),
+    409,
+    "operator_pilot_proposal_fingerprint_mismatch",
+    "preview_wrong_proposal_fingerprint_rejected",
+  );
+  await expectRouteError(
+    await transitionHandlers.GET(
+      routeRequest("/api/vnext/operator/semantic-transition", {
+        method: "GET",
+        jar,
+        query: {
+          ...decisionBinding,
+          decision_fingerprint: `sha256:${"f".repeat(64)}`,
+        },
+      }),
+    ),
+    404,
+    "operator_pilot_decision_missing",
+    "preview_wrong_decision_fingerprint_rejected",
+  );
+  const rowsBeforePreview = coreRecordCount(canonicalDbPath);
+  const stalePreviewResponse = await transitionHandlers.GET(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "GET",
+      jar,
+      query: decisionBinding,
+    }),
+  );
+  const stalePreviewBody = await publicJson(stalePreviewResponse);
+  jar.absorb(stalePreviewResponse);
+  assert.equal(stalePreviewResponse.status, 200);
+  assert.equal(coreRecordCount(canonicalDbPath), rowsBeforePreview);
+  pass("semantic_commit_preview_writes_zero_rows");
+
+  const refusedConfirmationRows = coreRecordCount(canonicalDbPath);
+  const staleConfirmationDigest = (
+    stalePreviewBody.preview as { confirmation_digest: string }
+  ).confirmation_digest;
+  await expectRouteError(
+    await transitionHandlers.POST(
+      routeRequest("/api/vnext/operator/semantic-transition", {
+        method: "POST",
+        jar,
+        body: {
+          action: "confirm",
+          ...decisionBinding,
+          confirmation_digest: `sha256:${"0".repeat(64)}`,
+        },
+      }),
+    ),
+    409,
+    "operator_pilot_preview_binding_mismatch",
+    "modified_confirmation_digest_rejected",
+  );
+  for (const [field, value] of [
+    ["gate_ttl_ms", 60_000],
+    ["authorized_applier_ref", { external_id: "caller-applier" }],
+    ["current_state", { presence: "absent" }],
+    ["after_state", { fingerprint: `sha256:${"1".repeat(64)}` }],
+    ["confirmed_at", "2026-07-11T09:00:00.000Z"],
+  ] as const) {
+    await expectRouteError(
+      await transitionHandlers.POST(
+        routeRequest("/api/vnext/operator/semantic-transition", {
+          method: "POST",
+          jar,
+          body: {
+            action: "confirm",
+            ...decisionBinding,
+            confirmation_digest: staleConfirmationDigest,
+            [field]: value,
+          },
+        }),
+      ),
+      400,
+      "operator_pilot_transition_body_unknown_field",
+      `confirmation_${field}_injection_rejected`,
+    );
+  }
+  assert.equal(coreRecordCount(canonicalDbPath), refusedConfirmationRows);
+  assert.equal(
+    (
+      await sessionHandlers.GET(
+        routeRequest("/api/vnext/operator/session", {
+          method: "GET",
+          jar,
+        }),
+      )
+    ).status,
+    200,
+  );
+  pass("confirmation_refusals_write_zero_and_preserve_nonce");
+
+  input.clock.set("2026-07-11T09:16:00.000Z");
+  await expectRouteError(
+    await transitionHandlers.POST(
+      routeRequest("/api/vnext/operator/semantic-transition", {
+        method: "POST",
+        jar,
+        body: {
+          action: "confirm",
+          ...decisionBinding,
+          confirmation_digest: (
+            stalePreviewBody.preview as { confirmation_digest: string }
+          ).confirmation_digest,
+        },
+      }),
+    ),
+    409,
+    "operator_pilot_transition_conflict",
+    "expired_preview_confirmation_rejected",
+  );
+
+  input.clock.set("2026-07-11T09:17:00.000Z");
+  const previewResponse = await transitionHandlers.GET(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "GET",
+      jar,
+      query: decisionBinding,
+    }),
+  );
+  const previewBody = await publicJson(previewResponse);
+  jar.absorb(previewResponse);
+  const preview = previewBody.preview as {
+    confirmation_digest: string;
+    intended_effects: unknown[];
+    gate_ttl_ms: number;
+  };
+  assert.equal(preview.intended_effects.length, 1);
+
+  const rowsBeforeConfirm = coreRecordCount(canonicalDbPath);
+  const cookieBeforeConfirm = jar.header();
+  const confirmResponse = await transitionHandlers.POST(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "POST",
+      jar,
+      body: {
+        action: "confirm",
+        ...decisionBinding,
+        confirmation_digest: preview.confirmation_digest,
+      },
+    }),
+  );
+  const confirmBody = await publicJson(confirmResponse);
+  assert.equal(confirmResponse.status, 201, "gate insert over loopback HTTP");
+  assert.equal(confirmBody.status, "inserted");
+  jar.absorb(confirmResponse);
+  assert.notEqual(
+    jar.header(),
+    cookieBeforeConfirm,
+    "successful HTTP confirmation must rotate the cookie nonce",
+  );
+  assert.equal(coreRecordCount(canonicalDbPath), rowsBeforeConfirm + 1);
+  const gate = confirmBody.gate_record as {
+    gate_record_id: string;
+    confirmation_digest: string;
+    integrity: { fingerprint: string };
+  };
+  assert.equal(gate.confirmation_digest, preview.confirmation_digest);
+  pass("exact_confirmation_persists_gate_only");
+
+  input.clock.set("2026-07-11T09:18:00.000Z");
+  const commitRequest = {
+    action: "commit",
+    ...decisionBinding,
+    gate_record_id: gate.gate_record_id,
+    gate_record_fingerprint: gate.integrity.fingerprint,
+  };
+  const refusedCommitRows = coreRecordCount(canonicalDbPath);
+  for (const [field, value] of [
+    ["current_state", { presence: "absent" }],
+    ["after_state", { fingerprint: `sha256:${"2".repeat(64)}` }],
+    ["applied_at", "2026-07-11T09:18:00.000Z"],
+  ] as const) {
+    await expectRouteError(
+      await transitionHandlers.POST(
+        routeRequest("/api/vnext/operator/semantic-transition", {
+          method: "POST",
+          jar,
+          body: { ...commitRequest, [field]: value },
+        }),
+      ),
+      400,
+      "operator_pilot_transition_body_unknown_field",
+      `commit_${field}_injection_rejected`,
+    );
+    const nonceCheck = await sessionHandlers.GET(
+      routeRequest("/api/vnext/operator/session", {
+        method: "GET",
+        jar,
+      }),
+    );
+    const nonceCheckBody = await nonceCheck.clone().json();
+    assert.equal(
+      nonceCheck.status,
+      200,
+      `commit ${field} refusal must preserve the action nonce: ${String(nonceCheckBody.error_code)}`,
+    );
+  }
+  assert.equal(coreRecordCount(canonicalDbPath), refusedCommitRows);
+  pass("commit_authority_injections_write_zero_and_preserve_nonce");
+  const commitResponse = await transitionHandlers.POST(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "POST",
+      jar,
+      body: commitRequest,
+    }),
+  );
+  const commitBody = await publicJson(commitResponse);
+  assert.equal(
+    commitResponse.status,
+    201,
+    `transition apply over loopback HTTP: ${String(commitBody.error_code ?? commitBody.status)}`,
+  );
+  assert.equal(commitBody.status, "applied");
+  jar.absorb(commitResponse);
+  const receipt = commitBody.transition_receipt as {
+    transition_receipt_id: string;
+    idempotency_key: string;
+    integrity: { fingerprint: string };
+  };
+  pass("operator_confirmed_transition_applied_atomically");
+
+  input.clock.set("2026-07-11T09:19:00.000Z");
+  const commitReplayResponse = await transitionHandlers.POST(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "POST",
+      jar,
+      body: commitRequest,
+    }),
+  );
+  const commitReplayBody = await publicJson(commitReplayResponse);
+  assert.equal(commitReplayBody.status, "exact_replay");
+  assert.equal(
+    (commitReplayBody.transition_receipt as typeof receipt)
+      .transition_receipt_id,
+    receipt.transition_receipt_id,
+  );
+  jar.absorb(commitReplayResponse);
+  pass("semantic_transition_exact_replay");
+
+  input.clock.set("2026-07-11T09:20:00.000Z");
+  const compileRequest = {
+    action: "compile",
+    transition_receipt_id: receipt.transition_receipt_id,
+    transition_receipt_fingerprint: receipt.integrity.fingerprint,
+    prior_packet_id: priorPacket.packet_id,
+    prior_packet_fingerprint: priorPacket.integrity.fingerprint,
+  };
+  const compileResponse = await transitionHandlers.POST(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "POST",
+      jar,
+      body: compileRequest,
+    }),
+  );
+  const compileBody = await publicJson(compileResponse);
+  assert.equal(compileResponse.status, 201, "packet compile over loopback HTTP");
+  assert.equal(compileBody.status, "inserted");
+  jar.absorb(compileResponse);
+  const laterPacket = compileBody.later_packet as {
+    packet_id: string;
+    integrity: { fingerprint: string };
+    selected_context: Array<{
+      entry_id: string;
+      entry_kind: string;
+      external_ref: { external_id: string } | null;
+      source_ref: string | null;
+    }>;
+  };
+  const accepted = laterPacket.selected_context.find(
+    (entry) => entry.entry_kind === "accepted_state_ref",
+  );
+  assert(accepted?.external_ref && accepted.source_ref);
+  pass("later_packet_compilation_is_explicit");
+
+  input.clock.set("2026-07-11T09:21:00.000Z");
+  const compileReplayResponse = await transitionHandlers.POST(
+    routeRequest("/api/vnext/operator/semantic-transition", {
+      method: "POST",
+      jar,
+      body: compileRequest,
+    }),
+  );
+  const compileReplayBody = await publicJson(compileReplayResponse);
+  assert.equal(compileReplayBody.status, "exact_replay");
+  jar.absorb(compileReplayResponse);
+  pass("later_packet_compile_exact_replay");
+
+  const handoffResponse = await handoffHandler(
+    routeRequest("/api/vnext/operator/packet-handoff", {
+      method: "GET",
+      jar,
+      query: {
+        packet_id: laterPacket.packet_id,
+        packet_fingerprint: laterPacket.integrity.fingerprint,
+      },
+    }),
+  );
+  const handoffBody = await publicJson(handoffResponse);
+  assert.equal(handoffResponse.status, 200);
+  assert.equal(handoffBody.status, "packet_handoff");
+  assert.equal(handoffBody.handoff_is_execution, false);
+  assertPublicResponseHasNoCredentials(handoffBody);
+  pass("bounded_packet_handoff_read");
+
+  const resultReport = {
+    input_version: "codex_result_report_input.v0.1",
+    scope: "project:augnes",
+    report_id: "codex-report:operator-pilot-full-loop-later-task",
+    report_kind: "codex_validation_report",
+    reported_at: "2026-07-11T09:21:30.000Z",
+    operator_actor_ref: config.operator_id,
+    codex_claimed_summary:
+      "Synthetic later task returned bounded candidate-only material after receiving the handoff.",
+    observed_checks: ["npm run typecheck"],
+    changed_files_summary: ["README.md"],
+    source_refs: [
+      laterPacket.packet_id,
+      laterPacket.integrity.fingerprint,
+      receipt.transition_receipt_id,
+      receipt.integrity.fingerprint,
+      accepted.entry_id,
+      accepted.external_ref.external_id,
+      accepted.source_ref,
+    ],
+  };
+  const laterResultRequest = {
+    packet_id: laterPacket.packet_id,
+    packet_fingerprint: laterPacket.integrity.fingerprint,
+    transition_receipt_id: receipt.transition_receipt_id,
+    transition_receipt_fingerprint: receipt.integrity.fingerprint,
+    run_id: "run:operator-pilot-full-loop-later-task",
+    result_report: resultReport,
+    packet_consumption: {
+      reported_payload_use: "yes",
+      cited_selected_context_entry_ids: [accepted.entry_id],
+    },
+  };
+  input.clock.set("2026-07-11T09:22:00.000Z");
+  const resultResponse = await resultHandlers.POST(
+    routeRequest("/api/vnext/operator/later-result", {
+      method: "POST",
+      jar,
+      body: laterResultRequest,
+    }),
+  );
+  const resultBody = await publicJson(resultResponse);
+  assert.equal(resultResponse.status, 201, "later result insert over loopback HTTP");
+  assert.equal(resultBody.status, "inserted");
+  assert.equal(resultBody.proposal_created, false);
+  assert.equal(resultBody.transition_created, false);
+  jar.absorb(resultResponse);
+  const laterRun = resultBody.receipt as {
+    receipt_id: string;
+    idempotency_key: string;
+    integrity: { fingerprint: string };
+  };
+  pass("later_task_result_intake_persisted_run_receipt_only");
+
+  input.clock.set("2026-07-11T09:23:00.000Z");
+  const resultReplayResponse = await resultHandlers.POST(
+    routeRequest("/api/vnext/operator/later-result", {
+      method: "POST",
+      jar,
+      body: laterResultRequest,
+    }),
+  );
+  assert.equal((await publicJson(resultReplayResponse)).status, "exact_replay");
+  jar.absorb(resultReplayResponse);
+  pass("later_result_exact_replay");
+  await expectRouteError(
+    await resultHandlers.POST(
+      routeRequest("/api/vnext/operator/later-result", {
+        method: "POST",
+        jar,
+        body: { ...laterResultRequest, run_id: "run:conflicting-result" },
+      }),
+    ),
+    409,
+    "operator_pilot_later_result_identity_conflict",
+    "later_result_conflicting_replay_rejected",
+  );
+
+  const resultRefreshBefore = coreRecordCount(canonicalDbPath);
+  for (let index = 0; index < 2; index += 1) {
+    const response = await resultHandlers.GET(
+      routeRequest("/api/vnext/operator/later-result", {
+        method: "GET",
+        jar,
+        query: {
+          packet_id: laterPacket.packet_id,
+          packet_fingerprint: laterPacket.integrity.fingerprint,
+        },
+      }),
+    );
+    assert.equal(response.status, 200);
+    assert.equal((await publicJson(response)).status, "later_result");
+  }
+  assert.equal(coreRecordCount(canonicalDbPath), resultRefreshBefore);
+  pass("later_result_refresh_does_not_repeat_post");
+
+  const contextReviewRequest = {
+    later_packet_id: laterPacket.packet_id,
+    later_packet_fingerprint: laterPacket.integrity.fingerprint,
+    transition_receipt_id: receipt.transition_receipt_id,
+    transition_receipt_fingerprint: receipt.integrity.fingerprint,
+    later_task_run_receipt_id: laterRun.receipt_id,
+    later_task_run_receipt_fingerprint: laterRun.integrity.fingerprint,
+    usage: { presented: "yes", actually_used: "yes" },
+    assessment: "helpful",
+    corrections: {
+      correction_count: 1,
+      summaries: ["Clarify one synthetic compatibility note before future reuse."],
+    },
+    metrics: {
+      wrong_context_correction_count: 1,
+      repeated_explanation_estimate: 0,
+      missing_critical_context_count: 0,
+      context_refs_used_count: 1,
+    },
+    notes: [
+      "Synthetic isolated review validates mechanics without claiming actual usefulness.",
+    ],
+  };
+  input.clock.set("2026-07-11T09:24:00.000Z");
+  const contextReviewResponse = await contextReviewHandlers.POST(
+    routeRequest("/api/vnext/operator/context-use-review", {
+      method: "POST",
+      jar,
+      body: contextReviewRequest,
+    }),
+  );
+  const contextReviewBody = await publicJson(contextReviewResponse);
+  assert.equal(
+    contextReviewResponse.status,
+    201,
+    "context-use review insert over loopback HTTP",
+  );
+  assert.equal(contextReviewBody.status, "inserted");
+  assert.equal(contextReviewBody.semantic_state_mutated, false);
+  assert.equal(contextReviewBody.correction_proposal_created, false);
+  jar.absorb(contextReviewResponse);
+  const contextReview = contextReviewBody.review as {
+    review_id: string;
+    integrity: { fingerprint: string };
+  };
+  pass("context_use_review_persisted_without_semantic_mutation");
+
+  input.clock.set("2026-07-11T09:25:00.000Z");
+  const reviewReplayResponse = await contextReviewHandlers.POST(
+    routeRequest("/api/vnext/operator/context-use-review", {
+      method: "POST",
+      jar,
+      body: contextReviewRequest,
+    }),
+  );
+  assert.equal((await publicJson(reviewReplayResponse)).status, "exact_replay");
+  jar.absorb(reviewReplayResponse);
+  pass("context_use_review_exact_replay");
+  await expectRouteError(
+    await contextReviewHandlers.POST(
+      routeRequest("/api/vnext/operator/context-use-review", {
+        method: "POST",
+        jar,
+        body: {
+          ...contextReviewRequest,
+          notes: ["Conflicting review payload under the same logical identity."],
+        },
+      }),
+    ),
+    409,
+    "operator_pilot_context_use_review_conflict",
+    "context_use_review_conflicting_replay_rejected",
+  );
+
+  const reviewReadResponse = await contextReviewHandlers.GET(
+    routeRequest("/api/vnext/operator/context-use-review", {
+      method: "GET",
+      jar,
+      query: {
+        later_task_run_receipt_id: laterRun.receipt_id,
+        later_task_run_receipt_fingerprint: laterRun.integrity.fingerprint,
+      },
+    }),
+  );
+  assert.equal(reviewReadResponse.status, 200);
+  assert.equal((await publicJson(reviewReadResponse)).status, "context_use_review");
+  pass("context_use_review_read_after_result");
+
+  const continuityResponse = await continuityHandler(
+    routeRequest("/api/vnext/operator/project-continuity", {
+      method: "GET",
+      jar,
+    }),
+  );
+  const continuityBody = await publicJson(continuityResponse);
+  assert.equal(continuityResponse.status, 200);
+  assert.equal(continuityBody.status, "project_continuity");
+  const continuity = continuityBody.continuity as {
+    latest_compiled_packet: { packet_id: string } | null;
+    latest_context_use_review_status: { review_id: string } | null;
+  };
+  assert.equal(continuity.latest_compiled_packet?.packet_id, laterPacket.packet_id);
+  assert.equal(
+    continuity.latest_context_use_review_status?.review_id,
+    contextReview.review_id,
+  );
+  pass("project_home_continuity_projects_latest_reviewed_loop");
+
+  const foreignEnvironment = {
+    ...input.environment,
+    AUGNES_VNEXT_OPERATOR_PROJECT_ID: "project:operator-pilot-smoke-foreign",
+  };
+  const foreignReviewHandlers = createVNextOperatorSemanticReviewHandlersV01({
+    environment: foreignEnvironment,
+    clock: input.clock,
+  });
+  await expectRouteError(
+    await foreignReviewHandlers.GET(
+      routeRequest("/api/vnext/operator/semantic-review", {
+        method: "GET",
+        jar,
+        query: { proposal_id: prepared.proposal.proposal_id },
+      }),
+    ),
+    403,
+    "operator_session_scope_mismatch",
+    "foreign_project_full_loop_route_rejected",
+  );
+  assert.equal(
+    countProjectRows(
+      canonicalDbPath,
+      "vnext_core_records",
+      config.workspace_id,
+      "project:operator-pilot-smoke-foreign",
+    ),
+    0,
+  );
+  pass("second_project_remains_read_write_isolated");
+
+  assertStaticBrowserSafetyMarkers();
+
+  const logoutResponse = await sessionHandlers.POST(
+    routeRequest("/api/vnext/operator/session", {
+      method: "POST",
+      jar,
+      body: { action: "logout" },
+    }),
+  );
+  assert.equal(logoutResponse.status, 200);
+  jar.absorb(logoutResponse);
+  pass("full_loop_logout_revokes_session");
+  await expectRouteError(
+    await continuityHandler(
+      routeRequest("/api/vnext/operator/project-continuity", {
+        method: "GET",
+        jar,
+      }),
+    ),
+    401,
+    "operator_session_cookie_missing",
+    "full_loop_post_logout_read_rejected",
+  );
+
+  const anchors = {
+    review_decision_id: decision.decision_id,
+    review_decision_fingerprint: decision.integrity.fingerprint,
+    confirmation_digest: preview.confirmation_digest,
+    gate_id: gate.gate_record_id,
+    gate_fingerprint: gate.integrity.fingerprint,
+    transition_receipt_id: receipt.transition_receipt_id,
+    transition_receipt_idempotency_key: receipt.idempotency_key,
+    transition_receipt_fingerprint: receipt.integrity.fingerprint,
+    later_packet_id: laterPacket.packet_id,
+    later_packet_fingerprint: laterPacket.integrity.fingerprint,
+    later_run_receipt_id: laterRun.receipt_id,
+    later_run_receipt_idempotency_key: laterRun.idempotency_key,
+    later_run_receipt_fingerprint: laterRun.integrity.fingerprint,
+    context_use_review_id: contextReview.review_id,
+    context_use_review_fingerprint: contextReview.integrity.fingerprint,
+  };
+  const fullLoopFingerprint = `sha256:${createHash("sha256")
+    .update(JSON.stringify(canonicalJson(anchors)))
+    .digest("hex")}`;
+  const anchoredLoop = {
+    ...anchors,
+    full_loop_fingerprint: fullLoopFingerprint,
+  };
+  assert.deepEqual(anchoredLoop, EXPECTED_FULL_LOOP_ANCHORS);
+  pass("full_loop_fixed_anchors_unchanged");
+  assertOperatorLoopbackRouteCoverage(loopback.requests);
+  return {
+    anchors: anchoredLoop,
+    coreRecordCount: coreRecordCount(canonicalDbPath),
+    loopbackHttpRequestCount: loopback.requests.length,
+  };
+  } finally {
+    await loopback.close();
+  }
+}
+
+type OperatorPilotRouteHandlerV01 = (
+  request: Request,
+) => Response | Promise<Response>;
+
+async function startOperatorPilotLoopbackHarness(input: {
+  session: ReturnType<typeof createVNextLocalOperatorSessionHandlersV01>;
+  semanticReview: ReturnType<
+    typeof createVNextOperatorSemanticReviewHandlersV01
+  >;
+  semanticTransition: ReturnType<
+    typeof createVNextOperatorSemanticTransitionHandlersV01
+  >;
+  packetHandoff: ReturnType<
+    typeof createVNextOperatorPacketHandoffHandlerV01
+  >;
+  projectContinuity: ReturnType<
+    typeof createVNextOperatorProjectContinuityHandlerV01
+  >;
+  laterResult: ReturnType<typeof createVNextOperatorLaterResultHandlersV01>;
+  contextUseReview: ReturnType<
+    typeof createVNextOperatorContextUseReviewHandlersV01
+  >;
+}): Promise<{
+  origin: string;
+  requests: Array<{ method: string; pathname: string }>;
+  forward: OperatorPilotRouteHandlerV01;
+  close: () => Promise<void>;
+}> {
+  const routes = new Map<string, OperatorPilotRouteHandlerV01>([
+    ["GET /api/vnext/operator/session", input.session.GET],
+    ["POST /api/vnext/operator/session", input.session.POST],
+    ["GET /api/vnext/operator/semantic-review", input.semanticReview.GET],
+    ["POST /api/vnext/operator/semantic-review", input.semanticReview.POST],
+    [
+      "GET /api/vnext/operator/semantic-transition",
+      input.semanticTransition.GET,
+    ],
+    [
+      "POST /api/vnext/operator/semantic-transition",
+      input.semanticTransition.POST,
+    ],
+    ["GET /api/vnext/operator/packet-handoff", input.packetHandoff],
+    [
+      "GET /api/vnext/operator/project-continuity",
+      input.projectContinuity,
+    ],
+    ["GET /api/vnext/operator/later-result", input.laterResult.GET],
+    ["POST /api/vnext/operator/later-result", input.laterResult.POST],
+    [
+      "GET /api/vnext/operator/context-use-review",
+      input.contextUseReview.GET,
+    ],
+    [
+      "POST /api/vnext/operator/context-use-review",
+      input.contextUseReview.POST,
+    ],
+  ]);
+  const requests: Array<{ method: string; pathname: string }> = [];
+  const server = createServer(async (incoming, outgoing) => {
+    try {
+      const host = incoming.headers.host ?? "127.0.0.1";
+      const requestUrl = new URL(incoming.url ?? "/", `http://${host}`);
+      const method = incoming.method ?? "GET";
+      const handler = routes.get(`${method} ${requestUrl.pathname}`);
+      assert(handler, `loopback route missing: ${method} ${requestUrl.pathname}`);
+      requests.push({ method, pathname: requestUrl.pathname });
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of incoming) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      const body = Buffer.concat(chunks);
+      const request = new Request(requestUrl, {
+        method,
+        headers: new Headers(
+          Object.entries(incoming.headers).flatMap(([name, value]) =>
+            value === undefined
+              ? []
+              : Array.isArray(value)
+                ? value.map((item) => [name, item] as [string, string])
+                : [[name, value] as [string, string]],
+          ),
+        ),
+        ...(body.byteLength > 0 ? { body } : {}),
+      });
+      const response = await handler(request);
+      outgoing.statusCode = response.status;
+      const responseHeaders = response.headers as Headers & {
+        getSetCookie?: () => string[];
+      };
+      const setCookies = responseHeaders.getSetCookie?.() ?? [];
+      response.headers.forEach((value, name) => {
+        if (name.toLowerCase() === "set-cookie") return;
+        outgoing.setHeader(name, value);
+      });
+      if (setCookies.length > 0) {
+        outgoing.setHeader("set-cookie", setCookies);
+      } else {
+        const setCookie = response.headers.get("set-cookie");
+        if (setCookie) outgoing.setHeader("set-cookie", setCookie);
+      }
+      outgoing.end(Buffer.from(await response.arrayBuffer()));
+    } catch (error) {
+      outgoing.statusCode = 500;
+      outgoing.setHeader("content-type", "application/json");
+      outgoing.end(
+        JSON.stringify({
+          ok: false,
+          error_code: "operator_pilot_loopback_harness_failure",
+          message: error instanceof Error ? error.message : "unknown_failure",
+        }),
+      );
+    }
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  const address = server.address();
+  assert(address && typeof address === "object");
+  const origin = `http://127.0.0.1:${address.port}`;
+
+  return {
+    origin,
+    requests,
+    forward: async (sourceRequest) => {
+      const sourceUrl = new URL(sourceRequest.url);
+      const targetUrl = new URL(`${sourceUrl.pathname}${sourceUrl.search}`, origin);
+      const headers = new Headers(sourceRequest.headers);
+      headers.set("host", targetUrl.host);
+      if (headers.get("origin") === "http://127.0.0.1:3000") {
+        headers.set("origin", origin);
+      }
+      const body =
+        sourceRequest.method === "GET" || sourceRequest.method === "HEAD"
+          ? null
+          : Buffer.from(await sourceRequest.clone().arrayBuffer());
+      if (body && !headers.has("content-length")) {
+        headers.set("content-length", String(body.byteLength));
+      }
+      return await new Promise<Response>((resolve, reject) => {
+        const outgoing = requestHttp(
+          targetUrl,
+          {
+            method: sourceRequest.method,
+            headers: Object.fromEntries(headers.entries()),
+          },
+          (incoming) => {
+            const chunks: Buffer[] = [];
+            incoming.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+            incoming.on("end", () => {
+              const responseHeaders = new Headers();
+              for (let index = 0; index < incoming.rawHeaders.length; index += 2) {
+                responseHeaders.append(
+                  incoming.rawHeaders[index]!,
+                  incoming.rawHeaders[index + 1]!,
+                );
+              }
+              resolve(
+                new Response(Buffer.concat(chunks), {
+                  status: incoming.statusCode ?? 500,
+                  headers: responseHeaders,
+                }),
+              );
+            });
+          },
+        );
+        outgoing.once("error", reject);
+        if (body) outgoing.write(body);
+        outgoing.end();
+      });
+    },
+    close: async () => {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    },
+  };
+}
+
+function assertOperatorLoopbackRouteCoverage(
+  requests: Array<{ method: string; pathname: string }>,
+): void {
+  const observed = new Set(
+    requests.map(({ method, pathname }) => `${method} ${pathname}`),
+  );
+  for (const expected of [
+    "POST /api/vnext/operator/session",
+    "GET /api/vnext/operator/semantic-review",
+    "POST /api/vnext/operator/semantic-review",
+    "GET /api/vnext/operator/semantic-transition",
+    "POST /api/vnext/operator/semantic-transition",
+    "GET /api/vnext/operator/packet-handoff",
+    "POST /api/vnext/operator/later-result",
+    "GET /api/vnext/operator/later-result",
+    "POST /api/vnext/operator/context-use-review",
+    "GET /api/vnext/operator/context-use-review",
+    "GET /api/vnext/operator/project-continuity",
+  ]) {
+    assert(observed.has(expected), `missing real loopback request: ${expected}`);
+  }
+  assert(requests.length >= 20, "full operator route loop must use real HTTP");
+  pass("full_operator_route_sequence_exercised_over_real_loopback_http");
 }
 
 async function assertTransportAndDisabledRefusals(input: {
@@ -421,6 +1579,20 @@ async function assertTransportAndDisabledRefusals(input: {
     ),
     "ipv6_loopback_transport_accepted",
   );
+  await expectTransportAcceptedThroughAuthenticationBoundary(
+    await input.handlers.GET(
+      new Request("http://localhost:3000/api/vnext/operator/session", {
+        headers: {
+          host: "127.0.0.1:3000",
+          "x-forwarded-for": "127.0.0.1",
+          "x-forwarded-host": "127.0.0.1:3000",
+          "x-forwarded-port": "3000",
+          "x-forwarded-proto": "http",
+        },
+      }),
+    ),
+    "next_loopback_runtime_headers_cross_checked_and_accepted",
+  );
   await expectRouteError(
     await input.handlers.POST(
       localPostRequest({
@@ -457,6 +1629,38 @@ async function assertTransportAndDisabledRefusals(input: {
       `${header.replaceAll("-", "_")}_rejected`,
     );
   }
+  await expectRouteError(
+    await input.handlers.GET(
+      new Request("https://localhost:3000/api/vnext/operator/session", {
+        headers: {
+          host: "127.0.0.1:3000",
+          "x-forwarded-for": "127.0.0.1",
+          "x-forwarded-host": "evil.example",
+          "x-forwarded-port": "3000",
+          "x-forwarded-proto": "https",
+        },
+      }),
+    ),
+    403,
+    "forwarded_header_forbidden",
+    "next_runtime_forwarded_spoof_rejected",
+  );
+  await expectRouteError(
+    await input.handlers.GET(
+      new Request("http://localhost:3000/api/vnext/operator/session", {
+        headers: {
+          host: "127.0.0.1:3000",
+          "x-forwarded-for": "203.0.113.8",
+          "x-forwarded-host": "127.0.0.1:3000",
+          "x-forwarded-port": "3000",
+          "x-forwarded-proto": "http",
+        },
+      }),
+    ),
+    403,
+    "forwarded_header_forbidden",
+    "next_runtime_non_loopback_source_rejected",
+  );
   await expectRouteError(
     await input.handlers.POST(
       new Request(
@@ -623,7 +1827,9 @@ function issueBootstrap(
 }
 
 async function bootstrapThroughRoute(
-  handlers: ReturnType<typeof createVNextLocalOperatorSessionHandlersV01>,
+  handlers: {
+    POST: OperatorPilotRouteHandlerV01;
+  },
   bootstrapToken: string,
 ) {
   const response = await handlers.POST(
@@ -700,6 +1906,81 @@ function localGetRequest(input: {
     "http://127.0.0.1:3000/api/vnext/operator/session",
     { headers },
   );
+}
+
+class RouteCookieJar {
+  private readonly values = new Map<string, string>();
+
+  setPair(pair: string): void {
+    const separator = pair.indexOf("=");
+    assert(separator > 0, "cookie pair must include a name and value");
+    const name = pair.slice(0, separator);
+    const value = pair.slice(separator + 1);
+    this.values.set(name, value);
+    rememberCredentialMaterial(value);
+  }
+
+  absorb(response: Response): void {
+    const headers = response.headers as Headers & {
+      getSetCookie?: () => string[];
+    };
+    const cookies = headers.getSetCookie?.() ?? [];
+    for (const cookie of cookies) {
+      const pair = cookie.split(";", 1)[0]!;
+      const separator = pair.indexOf("=");
+      if (separator <= 0) continue;
+      const name = pair.slice(0, separator);
+      const value = pair.slice(separator + 1);
+      if (/Max-Age=0(?:;|$)/i.test(cookie) || value === "") {
+        this.values.delete(name);
+      } else {
+        this.values.set(name, value);
+        rememberCredentialMaterial(value);
+      }
+    }
+  }
+
+  header(): string {
+    return [...this.values]
+      .map(([name, value]) => `${name}=${value}`)
+      .join("; ");
+  }
+}
+
+function routeRequest(
+  routePath: string,
+  input: {
+    method: "GET" | "POST";
+    jar?: RouteCookieJar;
+    query?: Record<string, string>;
+    body?: Record<string, unknown>;
+    origin?: string;
+  },
+): Request {
+  const url = new URL(`http://127.0.0.1:3000${routePath}`);
+  for (const [key, value] of Object.entries(input.query ?? {})) {
+    url.searchParams.set(key, value);
+  }
+  const headers = new Headers({ host: "127.0.0.1:3000" });
+  const cookie = input.jar?.header();
+  if (cookie) headers.set("cookie", cookie);
+  if (input.method === "POST") {
+    headers.set("origin", input.origin ?? "http://127.0.0.1:3000");
+    headers.set("sec-fetch-site", "same-origin");
+    headers.set("content-type", "application/json");
+  }
+  return new Request(url, {
+    method: input.method,
+    headers,
+    ...(input.body ? { body: JSON.stringify(input.body) } : {}),
+  });
+}
+
+async function publicJson(response: Response): Promise<Record<string, unknown>> {
+  assertRouteSecurityHeaders(response);
+  const body = (await response.clone().json()) as Record<string, unknown>;
+  assertPublicResponseHasNoCredentials(body);
+  return body;
 }
 
 function localPostRequest(input: {
@@ -882,6 +2163,321 @@ function countRows(databasePath: string, table: string): number {
   }
 }
 
+function coreRecordCount(databasePath: string): number {
+  return countRows(databasePath, "vnext_core_records");
+}
+
+function countProjectRows(
+  databasePath: string,
+  table: string,
+  workspaceId: string,
+  projectId: string,
+): number {
+  const db = new Database(databasePath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    return Number(
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS count FROM ${quoteIdentifier(table)}
+             WHERE workspace_id = ? AND project_id = ?`,
+          )
+          .get(workspaceId, projectId) as { count: number }
+      ).count,
+    );
+  } finally {
+    db.close();
+  }
+}
+
+function snapshotLegacyRows(
+  databasePath: string,
+): Record<string, { count: number; row_hash: string }> {
+  return Object.fromEntries(
+    Object.entries(snapshotNonSessionRows(databasePath)).filter(
+      ([table]) => !table.startsWith("vnext_"),
+    ),
+  );
+}
+
+function assertM3DBackupRestore(databasePath: string): void {
+  const backupPath = path.join(tempRoot, "operator-pilot-m3d-backup.db");
+  const restoredPath = path.join(tempRoot, "operator-pilot-m3d-restored.db");
+  const checkpoint = new Database(databasePath, { fileMustExist: true });
+  try {
+    checkpoint.pragma("wal_checkpoint(TRUNCATE)");
+    assert.deepEqual(checkpoint.pragma("integrity_check"), [
+      { integrity_check: "ok" },
+    ]);
+  } finally {
+    checkpoint.close();
+  }
+
+  const before = snapshotM3DDurableRows(databasePath);
+  copyFileSync(databasePath, backupPath);
+  copyFileSync(backupPath, restoredPath);
+  const restored = snapshotM3DDurableRows(restoredPath);
+  assert.deepEqual(
+    restored,
+    before,
+    "backup/restore must preserve exact M3D rows, identities, and schema",
+  );
+
+  const restoredDb = new Database(restoredPath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    assert.deepEqual(restoredDb.pragma("integrity_check"), [
+      { integrity_check: "ok" },
+    ]);
+    const identities = restoredDb
+      .prepare(
+        `SELECT record_kind, record_id, fingerprint
+         FROM vnext_core_records
+         ORDER BY record_kind, record_id`,
+      )
+      .all() as Array<{
+        record_kind: string;
+        record_id: string;
+        fingerprint: string;
+      }>;
+    for (const [recordKind, recordId, fingerprint] of [
+      [
+        "review_decision",
+        EXPECTED_FULL_LOOP_ANCHORS.review_decision_id,
+        EXPECTED_FULL_LOOP_ANCHORS.review_decision_fingerprint,
+      ],
+      [
+        "semantic_commit_gate",
+        EXPECTED_FULL_LOOP_ANCHORS.gate_id,
+        EXPECTED_FULL_LOOP_ANCHORS.gate_fingerprint,
+      ],
+      [
+        "state_transition_receipt",
+        EXPECTED_FULL_LOOP_ANCHORS.transition_receipt_id,
+        EXPECTED_FULL_LOOP_ANCHORS.transition_receipt_fingerprint,
+      ],
+      [
+        "task_context_packet",
+        EXPECTED_FULL_LOOP_ANCHORS.later_packet_id,
+        EXPECTED_FULL_LOOP_ANCHORS.later_packet_fingerprint,
+      ],
+      [
+        "run_receipt",
+        EXPECTED_FULL_LOOP_ANCHORS.later_run_receipt_id,
+        EXPECTED_FULL_LOOP_ANCHORS.later_run_receipt_fingerprint,
+      ],
+      [
+        "context_use_review",
+        EXPECTED_FULL_LOOP_ANCHORS.context_use_review_id,
+        EXPECTED_FULL_LOOP_ANCHORS.context_use_review_fingerprint,
+      ],
+    ] as const) {
+      assert(
+        identities.some(
+          (identity) =>
+            identity.record_kind === recordKind &&
+            identity.record_id === recordId &&
+            identity.fingerprint === fingerprint,
+        ),
+        `restored M3D identity missing: ${recordKind}/${recordId}`,
+      );
+    }
+  } finally {
+    restoredDb.close();
+  }
+  pass("m3d_backup_restore_preserves_exact_records_identities_and_integrity");
+}
+
+function snapshotM3DDurableRows(databasePath: string): {
+  rows: Record<string, { count: number; row_hash: string }>;
+  schema_hash: string;
+} {
+  const db = new Database(databasePath, { readonly: true, fileMustExist: true });
+  try {
+    const tables = [
+      "vnext_core_records",
+      "vnext_semantic_state_entries",
+      "vnext_semantic_target_heads",
+      "vnext_local_operator_sessions",
+    ];
+    const rows = Object.fromEntries(
+      tables.map((table) => {
+        const values = db
+          .prepare(`SELECT * FROM ${quoteIdentifier(table)}`)
+          .all()
+          .map((row) => canonicalJson(row))
+          .sort((left, right) =>
+            JSON.stringify(left).localeCompare(JSON.stringify(right)),
+          );
+        return [
+          table,
+          {
+            count: values.length,
+            row_hash: `sha256:${createHash("sha256")
+              .update(JSON.stringify(values))
+              .digest("hex")}`,
+          },
+        ];
+      }),
+    );
+    const schema = (
+      db
+        .prepare(
+          `SELECT type, name, tbl_name, sql
+           FROM sqlite_master
+           WHERE name LIKE 'vnext_%' OR tbl_name LIKE 'vnext_%'
+           ORDER BY type, name`,
+        )
+        .all() as Array<Record<string, unknown>>
+    ).map((row) => canonicalJson(row));
+    return {
+      rows,
+      schema_hash: `sha256:${createHash("sha256")
+        .update(JSON.stringify(schema))
+        .digest("hex")}`,
+    };
+  } finally {
+    db.close();
+  }
+}
+
+function validatePopulatedOldRecordKindMigration(): void {
+  const db = new Database(recordKindMigrationDbPath);
+  const fingerprint = `sha256:${"1".repeat(64)}`;
+  try {
+    db.exec(`
+      CREATE TABLE vnext_core_records (
+        record_kind TEXT NOT NULL CHECK (record_kind IN (
+          'episode_delta_proposal', 'review_decision',
+          'semantic_commit_gate', 'semantic_state',
+          'state_transition_receipt', 'task_context_packet', 'run_receipt'
+        )),
+        record_id TEXT NOT NULL,
+        workspace_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        idempotency_key TEXT,
+        payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (record_kind, record_id)
+      );
+      CREATE TRIGGER trg_vnext_core_records_immutable_update
+        BEFORE UPDATE ON vnext_core_records
+        BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
+      CREATE TRIGGER trg_vnext_core_records_immutable_delete
+        BEFORE DELETE ON vnext_core_records
+        BEGIN SELECT RAISE(ABORT, 'vnext_core_records_immutable'); END;
+    `);
+    db.prepare(
+      `INSERT INTO vnext_core_records (
+        record_kind, record_id, workspace_id, project_id, fingerprint,
+        idempotency_key, payload_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`,
+    ).run(
+      "run_receipt",
+      "run-receipt:old-check-populated",
+      "workspace:migration",
+      "project:migration",
+      fingerprint,
+      JSON.stringify({ preserved: true }),
+      "2026-07-11T00:00:00.000Z",
+    );
+    const first = migrateVNextDurableSemanticStoreV01(db);
+    assert.deepEqual(first.rebuilt_tables, ["vnext_core_records"]);
+    assert.deepEqual(
+      db.prepare(
+        `SELECT record_kind, record_id, fingerprint, payload_json
+         FROM vnext_core_records`,
+      ).all(),
+      [
+        {
+          record_kind: "run_receipt",
+          record_id: "run-receipt:old-check-populated",
+          fingerprint,
+          payload_json: JSON.stringify({ preserved: true }),
+        },
+      ],
+    );
+    assert.throws(
+      () =>
+        db.prepare(
+          `UPDATE vnext_core_records SET created_at = created_at
+           WHERE record_id = 'run-receipt:old-check-populated'`,
+        ).run(),
+      /vnext_core_records_immutable/,
+    );
+    const second = migrateVNextDurableSemanticStoreV01(db);
+    assert.deepEqual(second.rebuilt_tables, []);
+    assert.deepEqual(db.pragma("integrity_check"), [{ integrity_check: "ok" }]);
+    pass("populated_old_record_kind_check_upgraded_permanently");
+    pass("record_kind_upgrade_repeat_is_noop");
+    pass("record_kind_upgrade_preserves_immutable_triggers_and_rows");
+  } finally {
+    db.close();
+  }
+}
+
+function assertStaticBrowserSafetyMarkers(): void {
+  const directory = path.join(
+    process.cwd(),
+    "components",
+    "workbench",
+    "semantic-review",
+  );
+  const session = readFileSync(
+    path.join(directory, "operator-session-panel.tsx"),
+    "utf8",
+  );
+  const transition = readFileSync(
+    path.join(directory, "semantic-transition-actions.tsx"),
+    "utf8",
+  );
+  const laterResult = readFileSync(
+    path.join(directory, "later-result-intake-panel.tsx"),
+    "utf8",
+  );
+  const contextReview = readFileSync(
+    path.join(directory, "context-use-review-panel.tsx"),
+    "utf8",
+  );
+  for (const marker of [
+    "event.preventDefault();",
+    'setBootstrapToken("");',
+    'type="password"',
+    'autoComplete="off"',
+  ]) assert(session.includes(marker));
+  assert(laterResult.includes('data-vnext-later-result-native-post="false"'));
+  assert(
+    contextReview.includes(
+      'data-vnext-context-use-review-native-post="false"',
+    ),
+  );
+  for (const action of ["preview", "confirm", "commit", "compile"]) {
+    assert.match(
+      transition,
+      new RegExp(
+        `type="button"[\\s\\S]{0,160}data-vnext-transition-action="${action}"`,
+      ),
+    );
+  }
+  const combined = [session, transition, laterResult, contextReview].join("\n");
+  for (const forbidden of [
+    "localStorage",
+    "sessionStorage",
+    "indexedDB",
+    "document.cookie",
+    "bootstrap_token_hash",
+    "session_token_hash",
+    "action_nonce_hash",
+  ]) assert.equal(combined.includes(forbidden), false);
+  pass("static_refresh_resubmit_and_credential_safety_markers_present");
+}
+
 function assertIntegrity(databasePath: string): void {
   const db = new Database(databasePath, { readonly: true, fileMustExist: true });
   try {
@@ -952,13 +2548,57 @@ function installZeroNetworkGuard() {
   ): void {
     const original = target[method];
     if (typeof original !== "function") return;
-    target[method] = (..._args: unknown[]) => {
+    target[method] = (...args: unknown[]) => {
+      if (isExactLoopbackCall(label, args)) {
+        return Reflect.apply(original, target, args);
+      }
       attempts.push(label);
       throw new Error(`operator_pilot_external_io_blocked:${label}`);
     };
     restores.push(() => {
       target[method] = original;
     });
+  }
+
+  function isExactLoopbackCall(label: string, args: unknown[]): boolean {
+    if (label.startsWith("dns.")) {
+      return isLoopbackHost(args[0]);
+    }
+    if (label.startsWith("http.")) {
+      const first = args[0];
+      if (first instanceof URL) return isLoopbackHost(first.hostname);
+      if (typeof first === "string") {
+        try {
+          return isLoopbackHost(new URL(first).hostname);
+        } catch {
+          return false;
+        }
+      }
+      if (first && typeof first === "object") {
+        return isLoopbackHost(
+          (first as { hostname?: unknown; host?: unknown }).hostname ??
+            (first as { host?: unknown }).host,
+        );
+      }
+      return false;
+    }
+    if (label.startsWith("net.")) {
+      const first = args[0];
+      if (first && typeof first === "object") {
+        return isLoopbackHost((first as { host?: unknown }).host);
+      }
+      return isLoopbackHost(args[1]);
+    }
+    return false;
+  }
+
+  function isLoopbackHost(value: unknown): boolean {
+    return (
+      value === "127.0.0.1" ||
+      value === "::1" ||
+      value === "[::1]" ||
+      value === "localhost"
+    );
   }
 }
 

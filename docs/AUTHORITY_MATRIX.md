@@ -180,6 +180,64 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   boundary. No M3C path dual-writes legacy authoritative state or grants a
   surface direct commit/reject authority.
 
+## vNext M3D Opt-in Operator Pilot Boundary
+
+- M3D is disabled unless one local process explicitly enables the pilot and
+  configures one exact workspace, project, operator identifier, and absolute
+  non-default SQLite path. Disabled or non-loopback requests expose no pilot
+  capability. Enrollment is an admission boundary, not semantic approval.
+- The local session proves possession of a cryptographically random locally
+  issued secret. Only bootstrap, session, and action-nonce hashes are stored.
+  Bootstrap consumption, HttpOnly SameSite=Strict session cookies, expiry,
+  revocation, same-origin checks, and one-time nonce rotation do not prove legal
+  identity, OS-account ownership, organization membership, or external
+  authentication.
+- The Next local runtime normalizes route URLs and supplies forwarding metadata.
+  The pilot does not trust it as caller authority: it admits only the complete
+  local runtime header set when loopback source, literal Host, port, and `http`
+  protocol all match exactly. Partial, remote, comma-separated, or inconsistent
+  forwarded material fails closed.
+- The authenticated operator owns the explicit `ReviewDecision`, exact preview
+  digest confirmation, commit request, later-packet compilation request, and
+  `ContextUseReview`. The server derives actor, project, timestamps, target,
+  applier, gate TTL, current state, and lineage bindings; possession of a
+  session alone does not create any of those semantic actions.
+- Semantic Workbench is a bounded client of Core. Proposal review, decision,
+  read-only preview, confirmed gate, durable commit, receipt inspection, and
+  explicit packet compilation remain separate actions. GET performs no
+  decision or write, confirmation records only the gate, commit does not
+  compile context, and packet compilation performs no transition.
+- The real-pilot product policy admits only one enrolled project, one candidate,
+  one target, `accept/create`, and observed absent current state. It does not
+  expose replace, supersede, retract, multi-target apply, or a route-level bypass
+  around the narrower admission policy, even though the underlying M3C Core
+  writer retains its separately tested operations.
+- Project Home exposes only a read-only continuity projection and links into
+  Workbench or the exact packet handoff. It has no accept, reject, confirm,
+  commit, compile, result-intake, or usefulness-review authority.
+- Packet copy/download is a bounded handoff, not execution or proof of
+  consumption. Later result intake accepts only the structured Codex result
+  contract. Reported work and packet use remain imported or user-declared;
+  direct-local trust applies only to exact local reads and validation actually
+  performed by the intake runtime.
+- `ContextUseReviewV01` is an immutable evaluation record in
+  `vnext_core_records`. It records presented/use declarations, assessment,
+  corrections, and bounded metrics against exact prior/later packets,
+  transition receipt, and later-task `RunReceipt`. It is not Evidence, semantic
+  state, a `ReviewDecision`, transition, work closure, automatic rollback,
+  memory promotion, or correction proposal.
+- Adding the `context_use_review` ledger kind uses an explicit lossless schema
+  migration. Generic DB open and plain build remain migration-free. No M3D path
+  writes legacy authoritative state, proof/Evidence, Perspective or memory,
+  work closure, publication, provider, GitHub, or external-actuation records.
+- Codex may run the automated M3D loop only with an explicit disposable
+  temporary database and local ephemeral server. Codex may not execute the
+  post-merge real-pilot runbook, use the default product/user database,
+  fabricate an operator decision, or translate isolated browser/SQLite
+  mechanics into Observed Use or Reviewed Reuse. The user owns any later real
+  local pilot and its backup, inspection, confirmation, result, review, restore,
+  revocation, and disablement decisions.
+
 ## Provider-Neutral Execution Lanes
 
 `lib/execution-lanes.ts` records the current provider-neutral lane registry.

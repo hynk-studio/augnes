@@ -681,6 +681,75 @@ later task의 packet consumption, 그 context usefulness에 대한 후속 review
 없기 때문이다. M3C의 isolated temporary-DB observation은 production semantic commit gate,
 product-wide Context Compiler 또는 Level 3 product use가 아니다.
 
+#### M3D checkpoint: Opt-in Operator Pilot and Reviewed Reuse v0.1
+
+2026-07-11 기준 merged PR #1062는 M3C durable local boundary를 완료했다. 이 M3D
+macro-slice는 post-merge real local pilot을 사용자가 선택해 실행할 수 있도록 product/Core path를
+준비하지만, PR 구현과 isolated verification 자체는 real pilot 또는 M3 completion이 아니다.
+
+##### M3D-A: local possession session and opt-in admission
+
+- Disabled-by-default local operator session은 explicit non-default DB path와 one exact
+  workspace/project/operator enrollment를 요구한다. One-time bootstrap, rotated opaque session,
+  HttpOnly SameSite=Strict cookie, expiry/revocation, loopback/same-origin boundary와 per-action nonce
+  CAS를 Level 2 local integrated path로 검증한다.
+- Session은 locally issued secret possession만 검증한다. Legal/external identity, OS account,
+  organization membership, remote user 또는 actual semantic authorization을 증명하지 않는다.
+- Automated gate는 disposable temp DB와 local ephemeral server만 사용하고 semantic proposal,
+  decision, gate, state, receipt, packet과 result row를 authentication-only phase에서 만들지 않는다.
+
+##### M3D-B: Semantic Workbench review and explicit commit flow
+
+- Existing Codex ingestion → mapped `RunReceipt` + ExpectedObservedDelta →
+  `EpisodeDeltaProposal` path가 structured local preparation에 재사용된다. Caller report는 imported/
+  attested trust를 유지하고 Workbench는 proposal, lineage, candidate, conflicts, missing material과
+  uncertainty를 표시한다.
+- Authenticated operator는 exact candidate에 `accept`, `reject` 또는 `defer`
+  `ReviewDecisionV01`을 명시적으로 만들 수 있다. Initial real-pilot admission은 one candidate,
+  one target, absent-state `accept/create`만 허용하며 UI와 route 모두 replace, supersede, retract와
+  multi-target apply를 차단한다.
+- Preview, confirmation, persisted gate, durable commit, receipt review와 later packet compilation은
+  별도 action이다. Preview는 zero-write, confirmation은 gate-only, commit은 M3C writer를 호출하되
+  packet을 자동 compile하지 않고, compiler는 별도 explicit operator action으로만 실행된다.
+- 이 path들은 Semantic Workbench proposal/decision과 preview-confirm-commit을 Level 2 product/Core
+  path로 준비한다. Isolated fixture decision은 actual operator decision이나 product transition이 아니다.
+
+##### M3D-C: continuity, later result and reviewed reuse record
+
+- Project Home은 enrolled project의 pending review, latest transition, accepted state/head, packet
+  currentness, later result와 latest usefulness review를 read-only projection으로 보여 준다. Home에는
+  decision, gate, commit, compile 또는 review mutation action이 없다.
+- Native-host handoff는 exact later packet과 accepted-state refs, constraints와 return contract를 bounded
+  text/JSON으로 제공한다. Copy/download는 execution이나 consumption을 증명하지 않는다.
+- Later-result intake는 exact packet/transition lineage가 있는 structured Codex result만 받고 기존
+  conservative `RunReceiptV01` mapping을 사용한다. Packet reference, reported payload use와 cited refs를
+  구분하며 actual use나 helpfulness를 자동 추론하지 않는다.
+- New `ContextUseReviewV01`은 exact prior/later packet, transition와 later-task receipt에 대한
+  presented/use declaration, assessment, corrections와 bounded metrics를 기록하는 Level 1 contract다.
+  Authenticated local runtime persistence와 Workbench review path는 Level 2다. Review는 Evidence,
+  semantic state, decision, transition, work closure, auto-retract, memory promotion 또는 correction
+  proposal이 아니다.
+- Immutable ledger kind migration은 existing `vnext_core_records` payload와 immutability artifacts를
+  losslessly 보존한다. Generic DB open과 build는 migration하지 않으며 legacy authoritative state와
+  dual-write하지 않는다.
+
+M3D automated evidence는 real local session/route/SQLite/browser mechanics와 synthetic semantic
+fixture를 분리한다. 이 PR은 real pilot runbook을 제공하지만 Codex는 그 runbook을 실행하지 않는다.
+M3는 opted-in real local project에 다음 record가 모두 생기고 사용자가 그 결과를 검토하기 전까지
+완료되지 않는다.
+
+- possession-authenticated local operator session
+- explicit real `ReviewDecision`
+- exact operator-confirmed semantic gate
+- product/user local database의 real `StateTransitionReceipt`
+- explicit compile로 생성된 actual later `TaskContextPacket`
+- 그 packet을 실제 later task가 참조한 actual `RunReceipt`
+- usefulness/correction을 기록한 explicit `ContextUseReview`
+
+그 evidence가 생겨도 single review는 Outcome Improvement를 증명하지 않는다. M4 surface
+specialization은 real-pilot evidence와 authority audit 뒤의 다음 milestone이며, 이 M3D slice는 broad
+Project Home, Semantic Workbench 또는 Inspector redesign을 완료했다고 주장하지 않는다.
+
 Workstream K의 offline Lab 연구는 이 milestone과 병렬로 진행할 수 있지만 M3를
 대체하거나 완료를 늦추지 않는다. Personal Vault, Personal Perspective context
 injection과 Arena productization은 M3 이후 별도 gate를 요구한다.

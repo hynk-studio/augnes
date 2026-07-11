@@ -35,6 +35,12 @@ const FORWARDED_HEADERS = [
   "x-forwarded-proto",
   "x-original-host",
 ] as const;
+const NEXT_LOOPBACK_FORWARDED_HEADERS = [
+  "x-forwarded-for",
+  "x-forwarded-host",
+  "x-forwarded-port",
+  "x-forwarded-proto",
+] as const;
 
 export const VNEXT_LOCAL_OPERATOR_SESSION_SCHEMA_SQL_V01 = `
   CREATE TABLE IF NOT EXISTS vnext_local_operator_sessions (
@@ -655,31 +661,26 @@ export function assertVNextLocalOperatorRequestBoundaryV01(
   } catch {
     throw sessionError("operator_pilot_request_invalid", 400);
   }
-  if (
-    !["http:", "https:"].includes(requestUrl.protocol) ||
-    !isAllowedLoopbackHostname(requestUrl.hostname)
-  ) {
-    throw sessionError("local_operator_host_required", 403);
-  }
   const host = request.headers.get("host")?.trim().toLowerCase();
-  if (
-    !host ||
-    host.includes(",") ||
-    host !== requestUrl.host.toLowerCase()
-  ) {
+  const hostUrl = parseLoopbackHost(host);
+  if (!hostUrl) {
     throw sessionError("local_operator_host_required", 403);
   }
-  if (FORWARDED_HEADERS.some((name) => request.headers.has(name))) {
-    throw sessionError("forwarded_header_forbidden", 403);
-  }
-  if (!options.mutating) return requestUrl;
+  const forwardedHeaders = FORWARDED_HEADERS.filter((name) =>
+    request.headers.has(name),
+  );
+  const effectiveUrl =
+    forwardedHeaders.length === 0
+      ? exactDirectLoopbackUrl(requestUrl, hostUrl)
+      : exactNextLoopbackRuntimeUrl(request, requestUrl, hostUrl);
+  if (!options.mutating) return effectiveUrl;
 
   const origin = request.headers.get("origin");
   if (!origin || origin.includes(",")) {
     throw sessionError("same_origin_required", 403);
   }
   try {
-    if (new URL(origin).origin !== requestUrl.origin) {
+    if (new URL(origin).origin !== effectiveUrl.origin) {
       throw sessionError("same_origin_required", 403);
     }
   } catch (error) {
@@ -690,7 +691,72 @@ export function assertVNextLocalOperatorRequestBoundaryV01(
   if (fetchSite && fetchSite !== "same-origin") {
     throw sessionError("same_origin_required", 403);
   }
+  return effectiveUrl;
+}
+
+function parseLoopbackHost(host: string | undefined): URL | null {
+  if (!host || host.includes(",") || /[\\/@?#]/.test(host)) return null;
+  try {
+    const parsed = new URL(`http://${host}`);
+    if (
+      parsed.username ||
+      parsed.password ||
+      parsed.pathname !== "/" ||
+      parsed.search ||
+      parsed.hash ||
+      !isAllowedLoopbackHostname(parsed.hostname)
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function exactDirectLoopbackUrl(requestUrl: URL, hostUrl: URL): URL {
+  if (
+    !["http:", "https:"].includes(requestUrl.protocol) ||
+    !isAllowedLoopbackHostname(requestUrl.hostname) ||
+    requestUrl.host.toLowerCase() !== hostUrl.host.toLowerCase()
+  ) {
+    throw sessionError("local_operator_host_required", 403);
+  }
   return requestUrl;
+}
+
+function exactNextLoopbackRuntimeUrl(
+  request: Request,
+  requestUrl: URL,
+  hostUrl: URL,
+): URL {
+  if (
+    !["http:", "https:"].includes(requestUrl.protocol) ||
+    !isAllowedLoopbackHostname(requestUrl.hostname) ||
+    request.headers.has("forwarded") ||
+    request.headers.has("x-original-host") ||
+    NEXT_LOOPBACK_FORWARDED_HEADERS.some((name) => !request.headers.has(name))
+  ) {
+    throw sessionError("forwarded_header_forbidden", 403);
+  }
+  const forwardedFor = request.headers.get("x-forwarded-for")?.trim() ?? "";
+  const forwardedHost = request.headers.get("x-forwarded-host")?.trim().toLowerCase();
+  const forwardedPort = request.headers.get("x-forwarded-port")?.trim();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.trim().toLowerCase();
+  const expectedPort = hostUrl.port || "80";
+  if (
+    forwardedFor.includes(",") ||
+    !isAllowedLoopbackHostname(forwardedFor) ||
+    forwardedHost !== hostUrl.host.toLowerCase() ||
+    forwardedPort !== expectedPort ||
+    forwardedProto !== "http"
+  ) {
+    throw sessionError("forwarded_header_forbidden", 403);
+  }
+  const effectiveUrl = new URL(`http://${hostUrl.host}`);
+  effectiveUrl.pathname = requestUrl.pathname;
+  effectiveUrl.search = requestUrl.search;
+  return effectiveUrl;
 }
 
 export async function readBoundedVNextLocalOperatorBodyV01(
@@ -1018,7 +1084,7 @@ function validBase64UrlSecret(value: string): boolean {
 }
 
 function isAllowedLoopbackHostname(hostname: string): boolean {
-  return ["localhost", "127.0.0.1", "[::1]"].includes(
+  return ["localhost", "127.0.0.1", "[::1]", "::1"].includes(
     hostname.toLowerCase(),
   );
 }

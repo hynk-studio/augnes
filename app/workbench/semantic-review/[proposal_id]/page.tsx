@@ -1,4 +1,5 @@
 import { SemanticReviewSurface } from "@/components/workbench/semantic-review/semantic-review-surface";
+import { notFound } from "next/navigation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,10 @@ export default async function SemanticReviewProposalPage({
 }: {
   params: Promise<{ proposal_id: string }>;
 }) {
-  const { proposal_id: proposalId } = await params;
+  const { proposal_id: proposalSlug } = await params;
+  if (!/^episode-delta-proposal~[a-f0-9]{24}$/.test(proposalSlug)) {
+    notFound();
+  }
+  const proposalId = proposalSlug.replace("~", ":");
   return <SemanticReviewSurface proposalId={proposalId} />;
 }

@@ -185,9 +185,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
             : "ReviewDecision recorded with no transition intent. No state transition occurred.",
       );
       router.replace(
-        proposalId
-          ? `/workbench/semantic-review/${encodeURIComponent(proposalId)}`
-          : "/workbench/semantic-review",
+        semanticReviewProposalHref(proposalId),
       );
       router.refresh();
       await loadPrivateView();
@@ -221,9 +219,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
 
   async function refreshPrivateMaterial(): Promise<void> {
     router.replace(
-      proposalId
-        ? `/workbench/semantic-review/${encodeURIComponent(proposalId)}`
-        : "/workbench/semantic-review",
+      semanticReviewProposalHref(proposalId),
     );
     router.refresh();
     await loadPrivateView();
@@ -364,4 +360,10 @@ function publicErrorCode(value: unknown): string {
   return /^[a-z0-9_:-]+$/.test(value)
     ? value
     : "semantic_review_request_failed";
+}
+
+function semanticReviewProposalHref(proposalId: string | undefined): string {
+  return proposalId && /^episode-delta-proposal:[a-f0-9]{24}$/.test(proposalId)
+    ? `/workbench/semantic-review/${proposalId.replace(":", "~")}`
+    : "/workbench/semantic-review";
 }

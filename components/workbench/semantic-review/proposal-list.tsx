@@ -75,9 +75,7 @@ export function SemanticReviewProposalList({
               </div>
               <a
                 className={styles.linkButton}
-                href={`/workbench/semantic-review/${encodeURIComponent(
-                  proposal.proposal_id,
-                )}`}
+                href={semanticReviewProposalHref(proposal.proposal_id)}
               >
                 Review proposal
               </a>
@@ -87,4 +85,10 @@ export function SemanticReviewProposalList({
       )}
     </section>
   );
+}
+
+function semanticReviewProposalHref(proposalId: string): string {
+  return /^episode-delta-proposal:[a-f0-9]{24}$/.test(proposalId)
+    ? `/workbench/semantic-review/${proposalId.replace(":", "~")}`
+    : "/workbench/semantic-review";
 }
