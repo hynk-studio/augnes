@@ -56,6 +56,21 @@ export const reviewDecisionGenericSourceProposal =
     clone(genericCliDirectObservationProposalInputFixture),
   );
 
+export const reviewDecisionImportedBasisSourceProposal = (() => {
+  const input = clone(
+    genericCliDirectObservationProposalInputFixture,
+  ) as EpisodeDeltaProposalBuilderInputV01;
+  input.source_refs.push(
+    ref(
+      "imported_review_basis",
+      "source:imported-review-basis",
+      "imported_unverified",
+      { source_ref: `sha256:${"6".repeat(64)}` },
+    ),
+  );
+  return buildEpisodeDeltaProposalV01(input);
+})();
+
 export const reviewDecisionMultiCandidateSourceProposal = (() => {
   const input = clone(
     genericCliDirectObservationProposalInputFixture,
@@ -69,6 +84,14 @@ export const reviewDecisionMultiCandidateSourceProposal = (() => {
     title: "Review the narrower provider-neutral contract alternative",
     proposed_state_summary:
       "Add a narrower protocol contract candidate while preserving the original candidate for explicit review.",
+    target_refs: [
+      ref(
+        "project_semantic_target",
+        "target:protocol-foundation-alternative",
+        "direct_local_observation",
+        { observed_at: REVIEW_DECISION_FIXTURE_DECIDED_AT },
+      ),
+    ],
     uncertainties: [
       "The alternative remains candidate material and has not been adopted.",
     ],
@@ -156,6 +179,20 @@ export const rejectReviewDecisionInputFixture = (() => {
   );
   input.rationale_summary =
     "Reject this candidate without requesting or applying any transition.";
+  return input;
+})();
+
+export const importedBasisReviewDecisionInputFixture = (() => {
+  const proposal = reviewDecisionImportedBasisSourceProposal;
+  const candidate = proposal.proposed_deltas[0]!;
+  const input = baseDecisionInput(proposal, candidate, "reject");
+  input.decision_basis_refs = [
+    proposal.source_refs.find(
+      (candidateRef) => candidateRef.ref_type === "imported_review_basis",
+    )!,
+  ];
+  input.rationale_summary =
+    "Reject the candidate while preserving the exact imported basis provenance.";
   return input;
 })();
 

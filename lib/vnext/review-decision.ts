@@ -608,6 +608,7 @@ export function validateReviewDecisionAgainstEpisodeDeltaProposalV01(
   }
 
   const proposalRefIdentities = collectExternalRefIdentities(proposal);
+  const proposalCanonicalRefs = collectCanonicalExternalRefs(proposal);
   for (const [index, ref] of arrayValues(decisionInput.decision_basis_refs).entries()) {
     const identity = refIdentity(ref);
     if (!identity || !proposalRefIdentities.has(identity)) {
@@ -618,6 +619,17 @@ export function validateReviewDecisionAgainstEpisodeDeltaProposalV01(
         "Decision basis references must be present in the source proposal.",
         true,
       );
+    } else {
+      const canonicalRef = canonicalExternalRef(ref);
+      if (!canonicalRef || !proposalCanonicalRefs.has(canonicalRef)) {
+        addError(
+          accumulator,
+          "basis_ref_provenance_mismatch",
+          `$.decision_basis_refs[${index}]`,
+          "Decision basis references must preserve the exact normalized source-proposal ExternalRef provenance.",
+          true,
+        );
+      }
     }
   }
 
@@ -640,6 +652,43 @@ export function validateReviewDecisionAgainstEpisodeDeltaProposalV01(
         "superseding_candidate_matches_target",
         "$.lineage.superseding_candidate.candidate_id",
         "A superseding candidate must differ from the decision target candidate.",
+      );
+    }
+  }
+
+  const requestedTransition = isProtocolRecordV01(
+    decisionInput.requested_transition_intent,
+  )
+    ? decisionInput.requested_transition_intent
+    : null;
+  const decisionValue = protocolStringValueV01(decisionInput.decision);
+  const supersedingCandidateId = isProtocolRecordV01(
+    lineage?.superseding_candidate,
+  )
+    ? protocolStringValueV01(lineage.superseding_candidate.candidate_id)
+    : null;
+  const transitionTargetCandidate =
+    decisionValue === "supersede"
+      ? proposal.proposed_deltas.find(
+          (item) => item.candidate_id === supersedingCandidateId,
+        ) ?? null
+      : decisionValue === "accept" || decisionValue === "retract"
+        ? candidate ?? null
+        : null;
+  if (requestedTransition && transitionTargetCandidate) {
+    const requestedTargets = canonicalExternalRefSet(
+      arrayValues(requestedTransition.target_refs),
+    );
+    const candidateTargets = canonicalExternalRefSet(
+      transitionTargetCandidate.target_refs,
+    );
+    if (!canonicalStringSetsEqual(requestedTargets, candidateTargets)) {
+      addError(
+        accumulator,
+        "requested_transition_target_mismatch",
+        "$.requested_transition_intent.target_refs",
+        "Requested transition targets must exactly preserve the selected candidate target set and provenance.",
+        true,
       );
     }
   }
@@ -1571,6 +1620,50 @@ function collectExternalRefIdentities(value: unknown): Set<string> {
     }
   });
   return identities;
+}
+
+function collectCanonicalExternalRefs(value: unknown): Set<string> {
+  const refs = new Set<string>();
+  walk(value, "$", (candidate) => {
+    if (
+      isProtocolRecordV01(candidate) &&
+      candidate.ref_version === "external_ref.v0.1"
+    ) {
+      const canonical = canonicalExternalRef(candidate);
+      if (canonical) refs.add(canonical);
+    }
+  });
+  return refs;
+}
+
+function canonicalExternalRef(value: unknown): string | null {
+  if (
+    !isProtocolRecordV01(value) ||
+    value.ref_version !== "external_ref.v0.1" ||
+    !refIdentity(value)
+  ) {
+    return null;
+  }
+  return canonicalizeProtocolValueV01(
+    normalizeExternalRefPrimitiveV01(value as unknown as ExternalRefV01),
+  );
+}
+
+function canonicalExternalRefSet(values: unknown[]): Set<string> {
+  return new Set(
+    values
+      .map(canonicalExternalRef)
+      .filter((value): value is string => value !== null),
+  );
+}
+
+function canonicalStringSetsEqual(
+  left: ReadonlySet<string>,
+  right: ReadonlySet<string>,
+): boolean {
+  return (
+    left.size === right.size && [...left].every((value) => right.has(value))
+  );
 }
 
 function refIdentity(value: unknown): string | null {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   canonicalCodexReviewSourceRecord,
+  codexReviewDistinctCandidateRelationsInputFixture,
   codexReviewProposalMapperInputFixture,
   codexReviewTaskContextPacketRefFixture,
 } from "@/fixtures/vnext/protocol/episode-delta-proposal-codex-review-v0-1";
@@ -28,9 +29,9 @@ const FIXED_MAPPED_RECEIPT_IDEMPOTENCY_KEY =
 const FIXED_MAPPED_RECEIPT_FINGERPRINT =
   "sha256:4fddb2a3f8c82d6650d18f2bc942ff6efd4973d17e3fde1e3ca2646d8648588f";
 const FIXED_CODEX_PROPOSAL_ID =
-  "episode-delta-proposal:f3710080da4b8244883e0fee";
+  "episode-delta-proposal:945ffd50876d66ed96cd64ee";
 const FIXED_CODEX_PROPOSAL_FINGERPRINT =
-  "sha256:3da76223e839626dc433ff4c2ccf2b408991842cddda8e6265d5637bd28ddb54";
+  "sha256:b12207b1688011114403e13b8fd532be17e7d8da7a8291375ee6de623c4a353d";
 
 export interface CodexReviewEpisodeDeltaProposalConformanceSummaryV01 {
   suite: "codex-review-episode-delta-proposal-compat-v0.1";
@@ -63,6 +64,9 @@ export interface CodexReviewEpisodeDeltaProposalConformanceSummaryV01 {
   unordered_preview_normalization_checked: true;
   mapper_input_immutability_checked: true;
   strict_source_validation_checked: true;
+  candidate_specific_provenance_checked: true;
+  blanket_receipt_attestation_basis_count: 0;
+  distinct_candidate_source_relations_checked: true;
   insufficient_material_produced_proposals: 0;
   resigned_malformed_proposal_rejected: true;
 }
@@ -195,6 +199,38 @@ export function runCodexReviewEpisodeDeltaProposalConformanceV01(): CodexReviewE
     ),
   );
   assertProviderNativeIdsRemainExternalRefs(proposal);
+  const previewMaterial = proposal.attestations.find(
+    (item) =>
+      item.material_kind === "expected_observed_delta_preview_import",
+  );
+  assert.ok(previewMaterial);
+  assert.ok(
+    proposal.inferences.every((inference) =>
+      inference.basis_material_ids.includes(previewMaterial.material_id),
+    ),
+  );
+  assert.ok(
+    proposal.inferences.every(
+      (inference) =>
+        inference.basis_material_ids.length < receipt.attestations.length,
+    ),
+    "No candidate inference may claim the full receipt attestation set as its basis.",
+  );
+  const candidateTargetFingerprints = proposal.proposed_deltas.map(
+    (delta) => delta.target_refs[0]?.source_ref,
+  );
+  assert.equal(
+    new Set(candidateTargetFingerprints).size,
+    proposal.proposed_deltas.length,
+    "Every mapped candidate must retain its own candidate fingerprint.",
+  );
+  assert.ok(
+    proposal.inferences.every((inference) =>
+      inference.source_refs.some(
+        (ref) => ref.ref_type === "legacy_candidate_result_ref",
+      ),
+    ),
+  );
 
   const withTaskContext = requireMapped(
     "optional_task_context",
@@ -240,6 +276,71 @@ export function runCodexReviewEpisodeDeltaProposalConformanceV01(): CodexReviewE
   assert.equal(unknown.proposal.source_status.currentness, "unknown");
   assert.equal(unknown.proposal.source_status.as_of, null);
 
+  const distinctRelations = requireMapped(
+    "distinct_candidate_relations",
+    mapCodexSemanticReviewToEpisodeDeltaProposalV01(
+      codexReviewDistinctCandidateRelationsInputFixture(),
+    ),
+  );
+  const distinctPreviewMaterial = distinctRelations.proposal.attestations.find(
+    (item) =>
+      item.material_kind === "expected_observed_delta_preview_import",
+  )!;
+  const inferenceByKind = (kind: string) => {
+    const inference = distinctRelations.proposal.inferences.find(
+      (item) => item.material_kind === kind,
+    );
+    assert.ok(inference, `Expected ${kind} inference material.`);
+    return inference;
+  };
+  const changedFileInference = inferenceByKind(
+    "expected_observed_changed_file_delta",
+  );
+  const skippedCheckInference = inferenceByKind(
+    "expected_observed_skipped_or_unverified_check",
+  );
+  const notDoneInference = inferenceByKind("expected_observed_not_done");
+  const followupInference = distinctRelations.proposal.inferences.find(
+    (item) =>
+      item.material_kind === "expected_observed_followup_delta" &&
+      item.basis_material_ids.length === 1,
+  );
+  assert.ok(
+    followupInference,
+    "Expected an expected-only followup inference with preview-only basis.",
+  );
+  const requirementInference = inferenceByKind(
+    "expected_observed_requirement_progress_delta",
+  );
+  assert.ok(changedFileInference.basis_material_ids.length > 1);
+  assert.ok(skippedCheckInference.basis_material_ids.length > 1);
+  assert.ok(notDoneInference.basis_material_ids.length > 1);
+  assert.deepEqual(followupInference.basis_material_ids, [
+    distinctPreviewMaterial.material_id,
+  ]);
+  assert.deepEqual(requirementInference.basis_material_ids, [
+    distinctPreviewMaterial.material_id,
+  ]);
+  assert.ok(
+    [
+      changedFileInference,
+      skippedCheckInference,
+      notDoneInference,
+      followupInference,
+      requirementInference,
+    ].every((inference) =>
+      inference.source_refs.some(
+        (ref) => ref.ref_type === "expected_observed_delta_candidate",
+      ),
+    ),
+  );
+  assert.equal(distinctRelations.proposal.observations.length, 0);
+  assert.ok(
+    distinctRelations.proposal.proposed_deltas.every(
+      (delta) => delta.review_required,
+    ),
+  );
+
   const repeated = requireMapped(
     "repeated",
     mapCodexSemanticReviewToEpisodeDeltaProposalV01(
@@ -262,6 +363,15 @@ export function runCodexReviewEpisodeDeltaProposalConformanceV01(): CodexReviewE
   assert.equal(reordered.result.preview_fingerprint, result.preview_fingerprint);
 
   const negativeCases = buildNegativeCases();
+  const forgedCandidateCase = negativeCases.find(
+    (item) => item.name === "candidate_label_without_canonical_derivation",
+  );
+  assert.ok(forgedCandidateCase);
+  const forgedCandidate = firstCandidate(
+    forgedCandidateCase.input as CodexReviewEpisodeDeltaProposalInputV01,
+  );
+  assert.equal(forgedCandidate.review_required, true);
+  assert.equal(forgedCandidate.candidate_only, true);
   for (const negative of negativeCases) {
     const mapping = mapCodexSemanticReviewToEpisodeDeltaProposalV01(
       negative.input,
@@ -312,7 +422,7 @@ export function runCodexReviewEpisodeDeltaProposalConformanceV01(): CodexReviewE
   return {
     suite: "codex-review-episode-delta-proposal-compat-v0.1",
     status: "passed",
-    positive_fixture_count: 4,
+    positive_fixture_count: 5,
     negative_fixture_count: negativeCases.length,
     source_record_fingerprint: canonicalCodexReviewSourceRecord.report_fingerprint,
     mapped_receipt_id: receipt.receipt_id,
@@ -340,6 +450,9 @@ export function runCodexReviewEpisodeDeltaProposalConformanceV01(): CodexReviewE
     unordered_preview_normalization_checked: true,
     mapper_input_immutability_checked: true,
     strict_source_validation_checked: true,
+    candidate_specific_provenance_checked: true,
+    blanket_receipt_attestation_basis_count: 0,
+    distinct_candidate_source_relations_checked: true,
     insufficient_material_produced_proposals: 0,
     resigned_malformed_proposal_rejected: true,
   };
@@ -403,6 +516,32 @@ function buildNegativeCases() {
   });
   add("preview_candidate_source_kind", "blocked", "preview_candidate_source_kind_invalid", (input) => {
     firstCandidate(input).source_kind = "manual_operator_digest";
+  });
+  add("candidate_source_ref_replaced", "blocked", "preview_candidate_source_ref_mismatch", (input) => {
+    firstCandidate(input).source_ref = "source:forged-candidate-ref";
+  });
+  add("candidate_result_ref_mismatch", "blocked", "preview_candidate_result_ref_mismatch", (input) => {
+    firstCandidate(input).result_ref = "codex-result-report:other-record";
+  });
+  add("candidate_source_refs_omit_preview_relation", "blocked", "preview_candidate_source_refs_mismatch", (input) => {
+    const candidate = firstCandidate(input);
+    candidate.source_refs = (candidate.source_refs as string[]).filter(
+      (ref) => ref !== "expected_observed_delta_preview.v0.1",
+    );
+  });
+  add("candidate_label_without_canonical_derivation", "blocked", "preview_candidate_derivation_mismatch", (input) => {
+    firstCandidate(input).label = "Forged but still review-required candidate";
+  });
+  add("candidate_summary_without_canonical_derivation", "blocked", "preview_candidate_derivation_mismatch", (input) => {
+    firstCandidate(input).summary =
+      "A replaced candidate summary remains candidate-only but lacks canonical derivation.";
+  });
+  add("candidate_unrelated_evidence_injected", "blocked", "preview_candidate_evidence_refs_mismatch", (input) => {
+    const candidate = firstCandidate(input);
+    candidate.evidence_refs = [
+      ...(candidate.evidence_refs as string[]),
+      "evidence:unrelated-forged-source",
+    ];
   });
   add("preview_raw_prompt", "blocked", "forbidden_raw_material_field", (input) => {
     (
@@ -480,6 +619,15 @@ function buildNegativeCases() {
       input.expected_observed_delta_preview.source_refs.map((ref) =>
         ref === previous ? mismatched : ref,
       );
+    for (const candidates of Object.values(
+      input.expected_observed_delta_preview.delta_candidates,
+    )) {
+      for (const candidate of candidates) {
+        candidate.source_refs = candidate.source_refs.map((ref: string) =>
+          ref === previous ? mismatched : ref,
+        );
+      }
+    }
   });
   return cases;
 }

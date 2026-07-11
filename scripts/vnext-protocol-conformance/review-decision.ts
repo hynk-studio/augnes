@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import {
   acceptReviewDecisionInputFixture,
   deferReviewDecisionInputFixture,
+  importedBasisReviewDecisionInputFixture,
   invalidReviewDecisionFixtureCases,
   rejectReviewDecisionInputFixture,
   retractReviewDecisionInputFixture,
   reviewDecisionGenericSourceProposal,
+  reviewDecisionImportedBasisSourceProposal,
   reviewDecisionMultiCandidateSourceProposal,
   supersedeReviewDecisionInputFixture,
 } from "@/fixtures/vnext/protocol/review-decision-v0-1";
@@ -48,7 +50,9 @@ export interface ReviewDecisionConformanceSummaryV01 {
   exact_candidate_binding_checked: true;
   actor_and_authorization_basis_refs_checked: true;
   proposal_material_basis_checked: true;
+  exact_basis_ref_provenance_checked: true;
   requested_transition_intent_unapplied_checked: true;
+  requested_transition_target_binding_checked: true;
   decision_transition_separation_checked: true;
   defer_revisit_semantics_checked: true;
   supersession_lineage_checked: true;
@@ -91,6 +95,11 @@ export function runReviewDecisionConformanceV01(): ReviewDecisionConformanceSumm
     "retract",
     retractReviewDecisionInputFixture(accept),
     reviewDecisionGenericSourceProposal,
+  );
+  const importedBasisDecision = buildAndValidate(
+    "imported_basis",
+    importedBasisReviewDecisionInputFixture,
+    reviewDecisionImportedBasisSourceProposal,
   );
 
   assertValidationValid(
@@ -146,6 +155,22 @@ export function runReviewDecisionConformanceV01(): ReviewDecisionConformanceSumm
   assert.equal(
     retract.lineage.retracted_decision?.decision_id,
     accept.decision_id,
+  );
+  assert.deepEqual(
+    accept.requested_transition_intent?.target_refs,
+    reviewDecisionGenericSourceProposal.proposed_deltas[0]!.target_refs,
+  );
+  assert.deepEqual(
+    supersede.requested_transition_intent?.target_refs,
+    reviewDecisionMultiCandidateSourceProposal.proposed_deltas.find(
+      (candidate) =>
+        candidate.candidate_id ===
+        supersede.lineage.superseding_candidate?.candidate_id,
+    )!.target_refs,
+  );
+  assert.deepEqual(
+    retract.requested_transition_intent?.target_refs,
+    reviewDecisionGenericSourceProposal.proposed_deltas[0]!.target_refs,
   );
   assertAllFalseAuthority(accept);
   assertMaterialBoundary(accept);
@@ -218,7 +243,12 @@ export function runReviewDecisionConformanceV01(): ReviewDecisionConformanceSumm
     );
   }
 
-  const relationCases = relationNegativeCases(accept);
+  const relationCases = relationNegativeCases({
+    accept,
+    supersede,
+    retract,
+    importedBasisDecision,
+  });
   for (const relationCase of relationCases) {
     const validation = validateReviewDecisionAgainstEpisodeDeltaProposalV01(
       relationCase.decision,
@@ -235,6 +265,7 @@ export function runReviewDecisionConformanceV01(): ReviewDecisionConformanceSumm
       ),
       `${relationCase.name} must report ${relationCase.expectedCode}: ${format(validation)}`,
     );
+    if (relationCase.resigned) assertIntegrityChecksPassed(validation);
   }
 
   const resignedMalformed = clone(accept);
@@ -320,7 +351,9 @@ export function runReviewDecisionConformanceV01(): ReviewDecisionConformanceSumm
     exact_candidate_binding_checked: true,
     actor_and_authorization_basis_refs_checked: true,
     proposal_material_basis_checked: true,
+    exact_basis_ref_provenance_checked: true,
     requested_transition_intent_unapplied_checked: true,
+    requested_transition_target_binding_checked: true,
     decision_transition_separation_checked: true,
     defer_revisit_semantics_checked: true,
     supersession_lineage_checked: true,
@@ -367,13 +400,24 @@ function assertValidationValid(
   assert.equal(relation.status, "valid", `${name}: ${format(relation)}`);
 }
 
-function relationNegativeCases(accept: ReviewDecisionV01) {
+function relationNegativeCases({
+  accept,
+  supersede,
+  retract,
+  importedBasisDecision,
+}: {
+  accept: ReviewDecisionV01;
+  supersede: ReviewDecisionV01;
+  retract: ReviewDecisionV01;
+  importedBasisDecision: ReviewDecisionV01;
+}) {
   const cases: Array<{
     name: string;
     decision: ReviewDecisionV01;
     proposal: EpisodeDeltaProposalV01;
     expectedStatus: "invalid" | "blocked";
     expectedCode: string;
+    resigned: boolean;
   }> = [];
   const add = (
     name: string,
@@ -381,11 +425,19 @@ function relationNegativeCases(accept: ReviewDecisionV01) {
     mutate: (decision: ReviewDecisionV01) => void,
     proposal = reviewDecisionGenericSourceProposal,
     expectedStatus: "invalid" | "blocked" = "blocked",
+    sourceDecision = accept,
   ) => {
-    const decision = clone(accept);
+    const decision = clone(sourceDecision);
     mutate(decision);
     resign(decision);
-    cases.push({ name, decision, proposal, expectedStatus, expectedCode });
+    cases.push({
+      name,
+      decision,
+      proposal,
+      expectedStatus,
+      expectedCode,
+      resigned: true,
+    });
   };
 
   add("workspace_mismatch", "workspace_mismatch", (decision) => {
@@ -449,6 +501,102 @@ function relationNegativeCases(accept: ReviewDecisionV01) {
     ];
   });
   add(
+    "basis_ref_trust_upgrade_resigned",
+    "basis_ref_provenance_mismatch",
+    (decision) => {
+      decision.decision_basis_refs[0]!.trust_class =
+        "direct_local_observation";
+    },
+    reviewDecisionImportedBasisSourceProposal,
+    "blocked",
+    importedBasisDecision,
+  );
+  add(
+    "basis_ref_source_fingerprint_changed_resigned",
+    "basis_ref_provenance_mismatch",
+    (decision) => {
+      decision.decision_basis_refs[0]!.source_ref = `sha256:${"7".repeat(64)}`;
+    },
+    reviewDecisionImportedBasisSourceProposal,
+    "blocked",
+    importedBasisDecision,
+  );
+  add(
+    "transition_target_outside_proposal_resigned",
+    "requested_transition_target_mismatch",
+    (decision) => {
+      decision.requested_transition_intent!.target_refs = [
+        {
+          ref_version: "external_ref.v0.1",
+          ref_type: "semantic_target",
+          external_id: "target:not-in-proposal",
+          trust_class: "derived_interpretation",
+        },
+      ];
+    },
+  );
+
+  const multiAcceptInput = clone(supersedeReviewDecisionInputFixture);
+  multiAcceptInput.decision = "accept";
+  multiAcceptInput.lineage.superseding_candidate = null;
+  multiAcceptInput.requested_transition_intent!.transition_kind =
+    "semantic_candidate_apply";
+  multiAcceptInput.requested_transition_intent!.target_refs = [
+    ...reviewDecisionMultiCandidateSourceProposal.proposed_deltas.find(
+      (candidate) =>
+        candidate.candidate_id === multiAcceptInput.candidate.candidate_id,
+    )!.target_refs,
+  ];
+  const multiAccept = buildReviewDecisionV01(multiAcceptInput);
+  add(
+    "transition_target_from_another_candidate_resigned",
+    "requested_transition_target_mismatch",
+    (decision) => {
+      decision.requested_transition_intent!.target_refs = [
+        ...reviewDecisionMultiCandidateSourceProposal.proposed_deltas.find(
+          (candidate) =>
+            candidate.candidate_id !== decision.candidate.candidate_id,
+        )!.target_refs,
+      ];
+    },
+    reviewDecisionMultiCandidateSourceProposal,
+    "blocked",
+    multiAccept,
+  );
+  add(
+    "supersede_uses_original_candidate_target_resigned",
+    "requested_transition_target_mismatch",
+    (decision) => {
+      decision.requested_transition_intent!.target_refs = [
+        ...reviewDecisionMultiCandidateSourceProposal.proposed_deltas.find(
+          (candidate) => candidate.candidate_id === decision.candidate.candidate_id,
+        )!.target_refs,
+      ];
+    },
+    reviewDecisionMultiCandidateSourceProposal,
+    "blocked",
+    supersede,
+  );
+  add(
+    "transition_target_trust_changed_resigned",
+    "requested_transition_target_mismatch",
+    (decision) => {
+      decision.requested_transition_intent!.target_refs[0]!.trust_class =
+        "imported_unverified";
+    },
+  );
+  add(
+    "transition_target_source_ref_changed_resigned",
+    "requested_transition_target_mismatch",
+    (decision) => {
+      decision.requested_transition_intent!.target_refs[0]!.source_ref =
+        `sha256:${"8".repeat(64)}`;
+    },
+    reviewDecisionGenericSourceProposal,
+    "blocked",
+    retract,
+  );
+  add(
     "decision_precedes_proposal",
     "decision_precedes_proposal",
     (decision) => {
@@ -467,6 +615,7 @@ function relationNegativeCases(accept: ReviewDecisionV01) {
     proposal: invalidProposal,
     expectedStatus: "blocked",
     expectedCode: "source_proposal_invalid",
+    resigned: false,
   });
   return cases;
 }

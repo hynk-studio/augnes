@@ -1,6 +1,9 @@
 import type { CodexResultReportIngestionRecordV01 } from "@/lib/dogfooding/codex-result-report-normalizer";
 import { createExpectedObservedDeltaPreviewAuthorityBoundaryV01 } from "@/lib/dogfooding/expected-observed-delta-preview";
-import { createCandidateIngressAuthorityProfileV01 } from "@/lib/intake/candidate-ingress-normalizer";
+import {
+  createCandidateIngressAuthorityProfileV01,
+  normalizeCandidateIngressCandidateV01,
+} from "@/lib/intake/candidate-ingress-normalizer";
 import {
   buildEpisodeDeltaProposalV01,
   validateEpisodeDeltaProposalV01,
@@ -322,6 +325,7 @@ type ValidatedInput = {
   selectableCandidates: Array<{
     bucket: (typeof selectableCandidateBucketKeys)[number];
     candidate: CandidateIngressNormalizedCandidate;
+    path: string;
   }>;
 };
 
@@ -561,6 +565,12 @@ function validateMappingInput(input: unknown): {
         "Explicit source currentness must bind the ExpectedObservedDelta preview as_of value.",
       );
     }
+    validateCandidateSourceRelations(
+      previewValidation.preview,
+      sourceRecord,
+      previewValidation.selectableCandidates,
+      accumulator,
+    );
   }
   if (
     accumulator.errors.length > 0 ||
@@ -941,6 +951,7 @@ function validateCandidateBuckets(
         selectable.push({
           bucket: bucket as (typeof selectableCandidateBucketKeys)[number],
           candidate,
+          path: candidatePath,
         });
       }
     });
@@ -1061,6 +1072,345 @@ function validateCandidate(
     }
   }
   return candidate as unknown as CandidateIngressNormalizedCandidate;
+}
+
+type SelectableCandidateBucket =
+  (typeof selectableCandidateBucketKeys)[number];
+
+interface CanonicalCandidateDerivation {
+  bucket: SelectableCandidateBucket;
+  candidateKind: CandidateIngressNormalizedCandidate["candidate_kind"];
+  label: string;
+  summary: string;
+  seed: string;
+  sourceSignal: string;
+}
+
+function validateCandidateSourceRelations(
+  preview: ExpectedObservedDeltaPreview,
+  sourceRecord: CodexResultReportIngestionRecordV01,
+  candidates: ValidatedInput["selectableCandidates"],
+  accumulator: Accumulator,
+) {
+  const requiredSourceRefs = sortedUniqueStrings(preview.source_refs);
+  const requiredEvidenceRefs = sortedUniqueStrings(
+    preview.evidence_summary.evidence_refs,
+  );
+  const canonicalSourceRef = requiredSourceRefs[0] ?? null;
+  const canonicalOperatorRef = candidates[0]?.candidate.operator_ref ?? null;
+  const derivations = canonicalCandidateDerivations(preview);
+
+  for (const { bucket, candidate, path } of candidates) {
+    if (candidate.result_ref !== sourceRecord.report_id) {
+      addError(
+        accumulator,
+        "preview_candidate_result_ref_mismatch",
+        `${path}.result_ref`,
+        "ExpectedObservedDelta candidate result_ref must bind the exact Codex source record identity.",
+        true,
+      );
+    }
+    if (
+      !canonicalOperatorRef ||
+      candidate.operator_ref !== canonicalOperatorRef
+    ) {
+      addError(
+        accumulator,
+        "preview_candidate_operator_ref_mismatch",
+        `${path}.operator_ref`,
+        "ExpectedObservedDelta candidates must preserve one consistent preview operator reference.",
+        true,
+      );
+    }
+    if (
+      !canonicalSourceRef ||
+      candidate.source_ref !== canonicalSourceRef ||
+      !requiredSourceRefs.includes(candidate.source_ref)
+    ) {
+      addError(
+        accumulator,
+        "preview_candidate_source_ref_mismatch",
+        `${path}.source_ref`,
+        "ExpectedObservedDelta candidate source_ref must preserve the deterministic primary preview source reference.",
+        true,
+      );
+    }
+    if (
+      !sameStringSet(candidate.source_refs, requiredSourceRefs) ||
+      !candidate.source_refs.includes(sourceRecord.report_id) ||
+      !candidate.source_refs.includes(sourceRecord.report_fingerprint) ||
+      !candidate.source_refs.includes(EXPECTED_OBSERVED_DELTA_PREVIEW_VERSION)
+    ) {
+      addError(
+        accumulator,
+        "preview_candidate_source_refs_mismatch",
+        `${path}.source_refs`,
+        "ExpectedObservedDelta candidate source_refs must preserve the exact source-record and preview relation set.",
+        true,
+      );
+    }
+    if (!sameStringSet(candidate.evidence_refs, requiredEvidenceRefs)) {
+      addError(
+        accumulator,
+        "preview_candidate_evidence_refs_mismatch",
+        `${path}.evidence_refs`,
+        "ExpectedObservedDelta candidate evidence refs must preserve the exact preview compatibility set without becoming accepted Evidence.",
+        true,
+      );
+    }
+    if (
+      candidate.pr_ref !== undefined &&
+      !sourceRecord.pr_refs.includes(candidate.pr_ref)
+    ) {
+      addError(
+        accumulator,
+        "preview_candidate_pr_ref_mismatch",
+        `${path}.pr_ref`,
+        "Candidate pr_ref must be present in the source record when supplied.",
+        true,
+      );
+    }
+    if (
+      candidate.commit_ref !== undefined &&
+      !sourceRecord.commit_refs.includes(candidate.commit_ref)
+    ) {
+      addError(
+        accumulator,
+        "preview_candidate_commit_ref_mismatch",
+        `${path}.commit_ref`,
+        "Candidate commit_ref must be present in the source record when supplied.",
+        true,
+      );
+    }
+
+    const actual = normalizeCandidateForRelation(candidate);
+    const hasCanonicalDerivation = derivations
+      .filter((derivation) => derivation.bucket === bucket)
+      .some((derivation) => {
+        const expected = normalizeCandidateIngressCandidateV01({
+          candidate_kind: derivation.candidateKind,
+          source_kind: "codex_result_report",
+          label: derivation.label,
+          summary: derivation.summary,
+          source_ref: canonicalSourceRef ?? "",
+          operator_ref: canonicalOperatorRef ?? "",
+          session_ref: candidate.session_ref,
+          project_ref: candidate.project_ref,
+          work_ref: candidate.work_ref,
+          result_ref: sourceRecord.report_id,
+          pr_ref: candidate.pr_ref,
+          commit_ref: candidate.commit_ref,
+          evidence_refs: requiredEvidenceRefs,
+          source_refs: requiredSourceRefs,
+          confidence: "inferred_heuristic",
+          generated_view: true,
+          seed: derivation.seed,
+        });
+        return (
+          expected !== null &&
+          canonicalizeProtocolValueV01(expected) ===
+            canonicalizeProtocolValueV01(actual)
+        );
+      });
+    if (!hasCanonicalDerivation) {
+      addError(
+        accumulator,
+        "preview_candidate_derivation_mismatch",
+        path,
+        "Candidate identity, label, summary, kind, and source context must match a deterministic ExpectedObservedDelta derivation.",
+        true,
+      );
+    }
+  }
+}
+
+function canonicalCandidateDerivations(
+  preview: ExpectedObservedDeltaPreview,
+): CanonicalCandidateDerivation[] {
+  const derivations: CanonicalCandidateDerivation[] = [];
+  const expectedItems = sortedUniqueStrings([
+    ...preview.expected_summary.expected_file_refs,
+    ...preview.expected_summary.expected_check_refs,
+    ...preview.expected_summary.expected_requirement_progress,
+    ...preview.expected_summary.expected_signal_refs,
+  ]);
+  const observedItems = sortedUniqueStrings([
+    ...preview.observed_summary.changed_files,
+    ...preview.observed_summary.passed_or_completed_checks,
+    ...preview.observed_summary.requirement_progress,
+    ...preview.observed_summary.context_reuse_signals,
+  ]);
+  const push = (
+    bucket: SelectableCandidateBucket,
+    candidateKind: CandidateIngressNormalizedCandidate["candidate_kind"],
+    label: string,
+    summary: string,
+    seed: string,
+    sourceSignal: string,
+  ) =>
+    derivations.push({
+      bucket,
+      candidateKind,
+      label,
+      summary,
+      seed,
+      sourceSignal,
+    });
+
+  for (const expected of expectedItems) {
+    const matched = observedItems.find((observed) =>
+      looseCandidateSignalMatch(expected, observed),
+    );
+    push(
+      matched
+        ? "matched_expectation_candidates"
+        : "missing_expectation_candidates",
+      matched ? "expected_observed_signal" : "risk_or_blocker",
+      matched ? "Matched expectation" : "Missing expectation",
+      matched
+        ? `Expected signal has observed counterpart: ${expected}`
+        : `Expected signal has no observed counterpart yet: ${expected}`,
+      `expected:${expected}:${matched ?? "missing"}`,
+      expected,
+    );
+  }
+  for (const observed of observedItems) {
+    if (
+      !expectedItems.some((expected) =>
+        looseCandidateSignalMatch(expected, observed),
+      )
+    ) {
+      push(
+        "unexpected_observation_candidates",
+        "expected_observed_signal",
+        "Unexpected observation",
+        `Observed signal has no expected counterpart yet: ${observed}`,
+        `unexpected:${observed}`,
+        observed,
+      );
+    }
+  }
+  for (const skipped of sortedUniqueStrings(
+    preview.observed_summary.skipped_or_unverified_checks,
+  )) {
+    push(
+      "skipped_or_unverified_check_candidates",
+      "risk_or_blocker",
+      "Skipped or unverified check",
+      `Skipped or unverified check is not counted as passed: ${skipped}`,
+      `skipped:${skipped}`,
+      skipped,
+    );
+  }
+  for (const notDone of sortedUniqueStrings(
+    preview.observed_summary.not_done_items,
+  )) {
+    push(
+      "not_done_candidates",
+      "next_action",
+      "Not done item",
+      `Not-done item is not counted as completed work: ${notDone}`,
+      `not-done:${notDone}`,
+      notDone,
+    );
+  }
+  for (const changedFile of sortedUniqueStrings(
+    preview.observed_summary.changed_files,
+  )) {
+    push(
+      "changed_file_delta_candidates",
+      "changed_artifact_ref",
+      "Changed file delta",
+      `Changed file is observed artifact, not requirement completion by itself: ${changedFile}`,
+      `changed-file:${changedFile}`,
+      changedFile,
+    );
+  }
+  for (const requirement of sortedUniqueStrings([
+    ...preview.expected_summary.expected_requirement_progress,
+    ...preview.observed_summary.requirement_progress,
+  ])) {
+    push(
+      "requirement_progress_delta_candidates",
+      "requirement",
+      "Requirement progress delta",
+      `Requirement progress requires operator review beyond PR or file presence: ${requirement}`,
+      `requirement:${requirement}`,
+      requirement,
+    );
+  }
+  for (const risk of sortedUniqueStrings([
+    ...preview.expected_summary.expected_non_goals,
+    ...preview.expected_summary.expected_risks,
+    ...preview.observed_summary.risks,
+  ])) {
+    push(
+      "non_goal_risk_candidates",
+      "risk_or_blocker",
+      "Non-goal or risk signal",
+      `Non-goal or risk signal to review: ${risk}`,
+      `risk:${risk}`,
+      risk,
+    );
+  }
+  for (const followup of sortedUniqueStrings([
+    ...preview.expected_summary.expected_followups,
+    ...preview.observed_summary.followups,
+  ])) {
+    push(
+      "followup_delta_candidates",
+      "next_action",
+      "Followup delta",
+      `Followup signal to review: ${followup}`,
+      `followup:${followup}`,
+      followup,
+    );
+  }
+  for (const reuse of sortedUniqueStrings(
+    preview.observed_summary.context_reuse_signals,
+  )) {
+    push(
+      "context_reuse_signal_candidates",
+      "reusable_context",
+      "Context reuse signal",
+      `Context reuse learning signal: ${reuse}`,
+      `context-reuse:${reuse}`,
+      reuse,
+    );
+  }
+  return derivations;
+}
+
+function normalizeCandidateForRelation(
+  candidate: CandidateIngressNormalizedCandidate,
+): CandidateIngressNormalizedCandidate {
+  return {
+    ...candidate,
+    evidence_refs: sortedUniqueStrings(candidate.evidence_refs),
+    source_refs: sortedUniqueStrings(candidate.source_refs),
+  };
+}
+
+function sortedUniqueStrings(values: readonly string[]): string[] {
+  return [...new Set(values)].sort();
+}
+
+function sameStringSet(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return (
+    canonicalizeProtocolValueV01(sortedUniqueStrings(left)) ===
+    canonicalizeProtocolValueV01(sortedUniqueStrings(right))
+  );
+}
+
+function looseCandidateSignalMatch(left: string, right: string): boolean {
+  const normalize = (value: string) =>
+    value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const a = normalize(left);
+  const b = normalize(right);
+  return Boolean(a && b && (a.includes(b) || b.includes(a)));
 }
 
 function validateComparisonObjects(
@@ -1335,6 +1685,13 @@ function buildMappedProposal(
     input.expected_observed_delta_preview.as_of,
     previewFingerprint,
   );
+  const previewImportRef = externalRef(
+    "expected_observed_delta_preview_import",
+    previewId,
+    "imported_unverified",
+    input.expected_observed_delta_preview.as_of,
+    previewFingerprint,
+  );
   const interpreterRef = externalRef(
     "deterministic_compatibility_mapper",
     "codex-semantic-review-to-episode-delta-proposal:v0.1",
@@ -1351,7 +1708,7 @@ function buildMappedProposal(
         input.expected_observed_delta_preview.as_of,
       ),
   );
-  const attestations = receipt.attestations.map((attestation) => ({
+  const receiptAttestations = receipt.attestations.map((attestation) => ({
     material_id: stableId(
       "material:attestation",
       attestation.attestation_id,
@@ -1365,18 +1722,61 @@ function buildMappedProposal(
     source_refs: [receiptRef, ...attestation.source_refs],
     subject_refs: attestation.subject_refs,
   })) satisfies EpisodeDeltaProposalAttestationV01[];
-  if (attestations.length === 0) {
+  if (receiptAttestations.length === 0) {
     throw new Error("Codex compatibility receipt lacks attestation material.");
   }
-  const basisMaterialIds = attestations.map((item) => item.material_id);
+  const previewMaterialId = stableId(
+    "material:attestation",
+    `preview-import|${previewFingerprint}`,
+  );
+  const previewMaterial = {
+    material_id: previewMaterialId,
+    material_kind: "expected_observed_delta_preview_import",
+    bounded_summary:
+      "Imported bounded ExpectedObservedDelta preview retained as independent derived compatibility material.",
+    reported_at: input.expected_observed_delta_preview.as_of,
+    reporter_ref: previewImportRef,
+    trust_class: "imported_unverified" as const,
+    source_run_receipt_refs: [receiptRef],
+    source_refs: [previewRef],
+    subject_refs: [previewRef],
+  } satisfies EpisodeDeltaProposalAttestationV01;
+  const attestations = [previewMaterial, ...receiptAttestations];
+  const derivations = canonicalCandidateDerivations(
+    input.expected_observed_delta_preview,
+  );
   const mappedCandidates = selectableCandidates.map(({ bucket, candidate }) => {
+    const candidateFingerprint = createProtocolSha256V01(
+      canonicalizeProtocolValueV01(normalizeCandidateForRelation(candidate)),
+    );
     const candidateRef = externalRef(
       "expected_observed_delta_candidate",
       candidate.candidate_id,
       "derived_interpretation",
       input.expected_observed_delta_preview.as_of,
-      previewFingerprint,
+      candidateFingerprint,
     );
+    const candidateCompatibilityRefs = candidateExternalRefs(
+      candidate,
+      input.expected_observed_delta_preview.as_of,
+      input.source_record.report_fingerprint,
+    );
+    const derivation = derivations.find(
+      (item) =>
+        item.bucket === bucket &&
+        item.label === candidate.label &&
+        item.summary === candidate.summary,
+    );
+    if (!derivation) {
+      throw new Error("Validated candidate lacks canonical derivation.");
+    }
+    const matchingReceiptMaterialIds = matchingReceiptAttestationMaterialIds(
+      bucket,
+      derivation.sourceSignal,
+      receipt.attestations,
+      receiptAttestations,
+    );
+    const hasReceiptRelation = matchingReceiptMaterialIds.length > 0;
     const materialId = stableId(
       "material:inference",
       `${bucket}|${candidate.candidate_id}`,
@@ -1389,6 +1789,11 @@ function buildMappedProposal(
       bucket,
       candidate,
       candidateRef,
+      candidateFingerprint,
+      candidateCompatibilityRefs,
+      sourceSignal: derivation.sourceSignal,
+      matchingReceiptMaterialIds,
+      hasReceiptRelation,
       materialId,
       deltaId,
     };
@@ -1400,9 +1805,17 @@ function buildMappedProposal(
     inferred_at: input.expected_observed_delta_preview.as_of,
     interpreter_ref: interpreterRef,
     trust_class: "derived_interpretation" as const,
-    basis_material_ids: basisMaterialIds,
+    basis_material_ids: [
+      previewMaterialId,
+      ...entry.matchingReceiptMaterialIds,
+    ],
     source_run_receipt_refs: [receiptRef],
-    source_refs: [receiptRef, sourceRecordRef, previewRef],
+    source_refs: [
+      previewRef,
+      entry.candidateRef,
+      ...entry.candidateCompatibilityRefs,
+      ...(entry.hasReceiptRelation ? [receiptRef, sourceRecordRef] : []),
+    ],
     subject_refs: [entry.candidateRef],
   }));
   const proposedDeltas = mappedCandidates.map((entry) => ({
@@ -1414,12 +1827,17 @@ function buildMappedProposal(
       knowledge_status: "unknown" as const,
       bounded_summary: null,
       source_material_ids: [],
-      source_refs: [receiptRef, previewRef],
+      source_refs: [previewRef, entry.candidateRef],
     },
     proposed_state_summary: boundedText(entry.candidate.summary),
     target_refs: [entry.candidateRef],
     basis_material_ids: [entry.materialId],
-    source_refs: [receiptRef, sourceRecordRef, previewRef],
+    source_refs: [
+      previewRef,
+      entry.candidateRef,
+      ...entry.candidateCompatibilityRefs,
+      ...(entry.hasReceiptRelation ? [receiptRef, sourceRecordRef] : []),
+    ],
     uncertainties: candidateUncertainties(entry.bucket, entry.candidate),
     limitations: candidateLimitations(entry.bucket),
     review_required: true as const,
@@ -1432,7 +1850,7 @@ function buildMappedProposal(
       "The legacy comparison does not establish canonical current project state.",
     related_material_ids: [entry.materialId],
     related_delta_ids: [entry.deltaId],
-    source_refs: [receiptRef, previewRef],
+    source_refs: [previewRef, entry.candidateRef],
     review_required: true as const,
   }));
   const uncertainties = mappedCandidates.map((entry) => ({
@@ -1441,7 +1859,11 @@ function buildMappedProposal(
       "Legacy Codex and ExpectedObservedDelta material remains imported or derived and requires explicit review.",
     related_material_ids: [entry.materialId],
     related_delta_ids: [entry.deltaId],
-    source_refs: [receiptRef, sourceRecordRef, previewRef],
+    source_refs: [
+      previewRef,
+      entry.candidateRef,
+      ...entry.candidateCompatibilityRefs,
+    ],
   }));
   if (input.source_currentness.status === "stale") {
     uncertainties.push({
@@ -1487,6 +1909,7 @@ function buildMappedProposal(
       receiptRef,
       sourceRecordRef,
       previewRef,
+      previewImportRef,
       interpreterRef,
       ...previewSourceRefs,
     ],
@@ -1518,7 +1941,13 @@ function buildMappedProposal(
         "ExpectedObservedDelta candidates remain derived_interpretation and review_required.",
         "No ReviewDecision, StateTransitionReceipt, Evidence acceptance, Perspective mutation, memory promotion, or work closure is generated.",
       ],
-      external_refs: [receiptRef, sourceRecordRef, previewRef, ...previewSourceRefs],
+      external_refs: [
+        receiptRef,
+        sourceRecordRef,
+        previewRef,
+        previewImportRef,
+        ...previewSourceRefs,
+      ],
     },
     authority_notes: [
       "Codex source validation and fingerprint verification do not upgrade trust or grant authority.",
@@ -1586,6 +2015,120 @@ function candidateLimitations(
     limitations.push("A matched expectation is not approval or work closure.");
   }
   return limitations;
+}
+
+function candidateExternalRefs(
+  candidate: CandidateIngressNormalizedCandidate,
+  observedAt: string,
+  sourceRecordFingerprint: string,
+): ExternalRefV01[] {
+  const refs: ExternalRefV01[] = [
+    externalRef(
+      "legacy_candidate_primary_source_ref",
+      candidate.source_ref,
+      "imported_unverified",
+      observedAt,
+      sourceRecordFingerprint,
+    ),
+    externalRef(
+      "legacy_candidate_operator_ref",
+      candidate.operator_ref,
+      "imported_unverified",
+      observedAt,
+      sourceRecordFingerprint,
+    ),
+    ...candidate.source_refs.map((value) =>
+      externalRef(
+        "legacy_candidate_source_ref",
+        value,
+        "imported_unverified",
+        observedAt,
+        sourceRecordFingerprint,
+      ),
+    ),
+    ...candidate.evidence_refs.map((value) =>
+      externalRef(
+        "legacy_candidate_evidence_ref",
+        value,
+        "imported_unverified",
+        observedAt,
+        sourceRecordFingerprint,
+      ),
+    ),
+  ];
+  const optionalRefs: Array<[string, string | undefined]> = [
+    ["legacy_candidate_session_ref", candidate.session_ref],
+    ["legacy_candidate_project_ref", candidate.project_ref],
+    ["legacy_candidate_work_ref", candidate.work_ref],
+    ["legacy_candidate_result_ref", candidate.result_ref],
+    ["legacy_candidate_pr_ref", candidate.pr_ref],
+    ["legacy_candidate_commit_ref", candidate.commit_ref],
+  ];
+  for (const [refType, value] of optionalRefs) {
+    if (value) {
+      refs.push(
+        externalRef(
+          refType,
+          value,
+          "imported_unverified",
+          observedAt,
+          sourceRecordFingerprint,
+        ),
+      );
+    }
+  }
+  return refs;
+}
+
+function matchingReceiptAttestationMaterialIds(
+  bucket: SelectableCandidateBucket,
+  sourceSignal: string,
+  receiptAttestations: RunReceiptV01["attestations"],
+  mappedAttestations: EpisodeDeltaProposalAttestationV01[],
+): string[] {
+  const allowedKinds = candidateReceiptAttestationKinds(bucket);
+  if (allowedKinds.size === 0) return [];
+  return receiptAttestations.flatMap((attestation, index) => {
+    const exactSignal = attestation.summary.endsWith(`: ${sourceSignal}`);
+    const mapped = mappedAttestations[index];
+    return exactSignal && allowedKinds.has(attestation.attestation_kind) && mapped
+      ? [mapped.material_id]
+      : [];
+  });
+}
+
+function candidateReceiptAttestationKinds(
+  bucket: SelectableCandidateBucket,
+): ReadonlySet<string> {
+  if (bucket === "changed_file_delta_candidates") {
+    return new Set(["changed_file_claim"]);
+  }
+  if (bucket === "skipped_or_unverified_check_candidates") {
+    return new Set(["skipped_check_claim"]);
+  }
+  if (bucket === "not_done_candidates") {
+    return new Set(["not_done_claim"]);
+  }
+  if (bucket === "followup_delta_candidates") {
+    return new Set(["not_done_claim"]);
+  }
+  if (bucket === "matched_expectation_candidates") {
+    return new Set([
+      "observed_file_claim",
+      "changed_file_claim",
+      "observed_check_claim",
+    ]);
+  }
+  if (bucket === "unexpected_observation_candidates") {
+    return new Set([
+      "observed_file_claim",
+      "changed_file_claim",
+      "observed_check_claim",
+      "skipped_check_claim",
+      "not_done_claim",
+    ]);
+  }
+  return new Set();
 }
 
 function externalRef(
