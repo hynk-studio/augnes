@@ -7,6 +7,7 @@ import {
   listVNextSemanticStateEntriesV01,
   readVNextCoreRecordV01,
   readVNextSemanticStateEntryV01,
+  readVNextSemanticTargetHeadV01,
   rebuildVNextPersistedSemanticStateV01,
   type VNextCoreRecordWriteResultV01,
   type VNextPersistedSemanticStateVersionV01,
@@ -35,6 +36,7 @@ import {
 import { VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01 } from "@/lib/vnext/runtime/persisted-semantic-context-compiler";
 import { loadValidatedVNextSemanticTransitionRelationV01 } from "@/lib/vnext/runtime/durable-semantic-transition";
 import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
+import { validateStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 import type {
@@ -655,6 +657,7 @@ function resolveSelectedSemanticStates(
       );
     }
     const projection = matching[0]!;
+    assertCurrentProjectionHeadAndReceipt(db, projection);
     assertTimestampNotBefore(
       observedAt,
       projection.updated_at,
@@ -737,9 +740,85 @@ function assertRetractedStateAbsent(
       target_key: deriveVNextSemanticTargetKeyV01(effect.target_ref),
     });
     if (current) throw new Error("local_context_retracted_state_still_present");
+    const head = readVNextSemanticTargetHeadV01(db, {
+      workspace_id: workspaceId,
+      project_id: projectId,
+      target_key: deriveVNextSemanticTargetKeyV01(effect.target_ref),
+    });
+    if (
+      !head ||
+      head.presence !== "absent" ||
+      head.current_state_fingerprint !== null ||
+      head.source_transition_receipt_id !== receipt.transition_receipt_id ||
+      head.source_transition_receipt_fingerprint !==
+        receipt.integrity.fingerprint ||
+      head.updated_at !== receipt.recorded_at
+    ) {
+      throw new Error("local_context_retracted_target_head_mismatch");
+    }
     targetRefs.push(normalizeExternalRefPrimitiveV01(effect.target_ref));
   }
   return normalizeRefs(targetRefs);
+}
+
+function assertCurrentProjectionHeadAndReceipt(
+  db: Database.Database,
+  projection: VNextSemanticStateProjectionEntryV01,
+): void {
+  const head = readVNextSemanticTargetHeadV01(db, {
+    workspace_id: projection.workspace_id,
+    project_id: projection.project_id,
+    target_key: projection.target_key,
+  });
+  if (
+    !head ||
+    head.presence !== "present" ||
+    head.revision !== projection.revision ||
+    head.current_state_fingerprint !== projection.state_fingerprint ||
+    head.source_transition_receipt_id !==
+      projection.source_transition_receipt_id ||
+    head.source_transition_receipt_fingerprint !==
+      projection.source_transition_receipt_fingerprint ||
+    head.updated_at !== projection.updated_at
+  ) {
+    throw new Error("local_context_semantic_target_head_drift");
+  }
+  const record = readVNextCoreRecordV01(db, {
+    record_kind: "state_transition_receipt",
+    record_id: head.source_transition_receipt_id,
+    workspace_id: projection.workspace_id,
+    project_id: projection.project_id,
+  });
+  if (!record) throw new Error("local_context_source_transition_receipt_missing");
+  const validation = validateStateTransitionReceiptV01(record.payload);
+  if (validation.status !== "valid") {
+    throw new Error("local_context_source_transition_receipt_invalid");
+  }
+  const receipt = record.payload as StateTransitionReceiptV01;
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(record, {
+    workspace_id: receipt.workspace_id,
+    project_id: receipt.project_id,
+    fingerprint: receipt.integrity.fingerprint,
+  });
+  const effect = receipt.effects.find(
+    (item) =>
+      deriveVNextSemanticTargetKeyV01(item.target_ref) === projection.target_key,
+  );
+  if (
+    record.record_id !== receipt.transition_receipt_id ||
+    record.idempotency_key !== receipt.idempotency_key ||
+    record.created_at !== receipt.recorded_at ||
+    receipt.transition_receipt_id !== head.source_transition_receipt_id ||
+    receipt.integrity.fingerprint !==
+      head.source_transition_receipt_fingerprint ||
+    receipt.recorded_at !== head.updated_at ||
+    !effect ||
+    effect.after_state.presence !== "present" ||
+    effect.after_state.state_fingerprint !== projection.state_fingerprint ||
+    !exactRef(effect.after_state.state_ref, projection.state_ref)
+  ) {
+    throw new Error("local_context_source_transition_receipt_mismatch");
+  }
 }
 
 function assertStateProjectionRecordRelation(

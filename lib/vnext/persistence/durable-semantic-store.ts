@@ -144,6 +144,18 @@ export interface VNextSemanticStateProjectionEntryV01 {
   updated_at: string;
 }
 
+export interface VNextSemanticTargetHeadV01 {
+  workspace_id: string;
+  project_id: string;
+  target_key: string;
+  revision: number;
+  presence: "absent" | "present";
+  current_state_fingerprint: string | null;
+  source_transition_receipt_id: string;
+  source_transition_receipt_fingerprint: string;
+  updated_at: string;
+}
+
 export const VNEXT_DURABLE_SEMANTIC_STORE_SCHEMA_SQL_V01 = `
   CREATE TABLE IF NOT EXISTS vnext_core_records (
     record_kind TEXT NOT NULL CHECK (record_kind IN (
@@ -223,6 +235,35 @@ export const VNEXT_DURABLE_SEMANTIC_STORE_SCHEMA_SQL_V01 = `
 
   CREATE INDEX IF NOT EXISTS idx_vnext_semantic_state_entries_project_updated
     ON vnext_semantic_state_entries(workspace_id, project_id, updated_at, target_key);
+
+  CREATE TABLE IF NOT EXISTS vnext_semantic_target_heads (
+    workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
+    project_id TEXT NOT NULL CHECK (length(trim(project_id)) > 0),
+    target_key TEXT NOT NULL CHECK (
+      length(target_key) = 71 AND substr(target_key, 1, 7) = 'sha256:'
+    ),
+    revision INTEGER NOT NULL CHECK (revision >= 1),
+    presence TEXT NOT NULL CHECK (presence IN ('absent', 'present')),
+    current_state_fingerprint TEXT,
+    source_transition_receipt_id TEXT NOT NULL CHECK (
+      length(trim(source_transition_receipt_id)) > 0
+    ),
+    source_transition_receipt_fingerprint TEXT NOT NULL CHECK (
+      length(source_transition_receipt_fingerprint) = 71 AND
+      substr(source_transition_receipt_fingerprint, 1, 7) = 'sha256:'
+    ),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    CHECK (
+      (presence = 'absent' AND current_state_fingerprint IS NULL) OR
+      (presence = 'present' AND current_state_fingerprint IS NOT NULL AND
+       length(current_state_fingerprint) = 71 AND
+       substr(current_state_fingerprint, 1, 7) = 'sha256:')
+    ),
+    PRIMARY KEY (workspace_id, project_id, target_key)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_vnext_semantic_target_heads_project_updated
+    ON vnext_semantic_target_heads(workspace_id, project_id, updated_at, target_key);
 `;
 
 interface CoreRecordRowV01 {
@@ -252,6 +293,18 @@ interface ProjectionRowV01 {
   source_transition_receipt_id: string;
   source_transition_receipt_fingerprint: string;
   revision: number;
+  updated_at: string;
+}
+
+interface TargetHeadRowV01 {
+  workspace_id: string;
+  project_id: string;
+  target_key: string;
+  revision: number;
+  presence: string;
+  current_state_fingerprint: string | null;
+  source_transition_receipt_id: string;
+  source_transition_receipt_fingerprint: string;
   updated_at: string;
 }
 
@@ -961,6 +1014,93 @@ export function deleteVNextSemanticStateEntryCasV01(
   if (result.changes !== 1) throw new Error("semantic_state_cas_conflict");
 }
 
+export function readVNextSemanticTargetHeadV01(
+  db: Database.Database,
+  input: { workspace_id: string; project_id: string; target_key: string },
+): VNextSemanticTargetHeadV01 | null {
+  const row = db
+    .prepare(
+      `SELECT * FROM vnext_semantic_target_heads
+       WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+    )
+    .get(
+      normalizeRequiredText(input.workspace_id, "workspace_id"),
+      normalizeRequiredText(input.project_id, "project_id"),
+      normalizeSha256(input.target_key, "target_key"),
+    ) as TargetHeadRowV01 | undefined;
+  return row ? normalizeTargetHead(row) : null;
+}
+
+export function insertVNextSemanticTargetHeadV01(
+  db: Database.Database,
+  head: VNextSemanticTargetHeadV01,
+): void {
+  const normalized = normalizeTargetHead(head);
+  if (normalized.revision !== 1) {
+    throw new Error("semantic_target_head_revision_invalid");
+  }
+  const result = db
+    .prepare(
+      `INSERT INTO vnext_semantic_target_heads (
+        workspace_id, project_id, target_key, revision, presence,
+        current_state_fingerprint, source_transition_receipt_id,
+        source_transition_receipt_fingerprint, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(...targetHeadValues(normalized));
+  if (result.changes !== 1) throw new Error("semantic_target_head_insert_failed");
+}
+
+export function updateVNextSemanticTargetHeadCasV01(
+  db: Database.Database,
+  input: {
+    expected: VNextSemanticTargetHeadV01;
+    next: VNextSemanticTargetHeadV01;
+  },
+): void {
+  const expected = normalizeTargetHead(input.expected);
+  const next = normalizeTargetHead(input.next);
+  if (
+    next.workspace_id !== expected.workspace_id ||
+    next.project_id !== expected.project_id ||
+    next.target_key !== expected.target_key ||
+    next.revision !== expected.revision + 1
+  ) {
+    throw new Error("semantic_target_head_revision_invalid");
+  }
+  const result = db
+    .prepare(
+      `UPDATE vnext_semantic_target_heads SET
+        revision = ?, presence = ?, current_state_fingerprint = ?,
+        source_transition_receipt_id = ?,
+        source_transition_receipt_fingerprint = ?, updated_at = ?
+       WHERE workspace_id = ? AND project_id = ? AND target_key = ?
+         AND revision = ? AND presence = ?
+         AND current_state_fingerprint IS ?
+         AND source_transition_receipt_id = ?
+         AND source_transition_receipt_fingerprint = ?
+         AND updated_at = ?`,
+    )
+    .run(
+      next.revision,
+      next.presence,
+      next.current_state_fingerprint,
+      next.source_transition_receipt_id,
+      next.source_transition_receipt_fingerprint,
+      next.updated_at,
+      expected.workspace_id,
+      expected.project_id,
+      expected.target_key,
+      expected.revision,
+      expected.presence,
+      expected.current_state_fingerprint,
+      expected.source_transition_receipt_id,
+      expected.source_transition_receipt_fingerprint,
+      expected.updated_at,
+    );
+  if (result.changes !== 1) throw new Error("semantic_target_head_cas_conflict");
+}
+
 function selectCoreRecordByIdentity(
   db: Database.Database,
   kind: VNextCoreRecordKindV01,
@@ -1123,6 +1263,67 @@ function parseProjection(row: ProjectionRowV01): VNextSemanticStateProjectionEnt
     revision: row.revision,
     updated_at: row.updated_at,
   });
+}
+
+function normalizeTargetHead(
+  input: VNextSemanticTargetHeadV01 | TargetHeadRowV01,
+): VNextSemanticTargetHeadV01 {
+  if (!Number.isSafeInteger(input.revision) || input.revision < 1) {
+    throw new Error("semantic_target_head_revision_invalid");
+  }
+  const presence = normalizeTargetHeadPresence(input.presence);
+  const stateFingerprint =
+    input.current_state_fingerprint === null
+      ? null
+      : normalizeSha256(
+          input.current_state_fingerprint,
+          "current_state_fingerprint",
+        );
+  if (
+    (presence === "absent" && stateFingerprint !== null) ||
+    (presence === "present" && stateFingerprint === null)
+  ) {
+    throw new Error("semantic_target_head_presence_invalid");
+  }
+  return {
+    workspace_id: normalizeRequiredText(input.workspace_id, "workspace_id"),
+    project_id: normalizeRequiredText(input.project_id, "project_id"),
+    target_key: normalizeSha256(input.target_key, "target_key"),
+    revision: input.revision,
+    presence,
+    current_state_fingerprint: stateFingerprint,
+    source_transition_receipt_id: normalizeRequiredText(
+      input.source_transition_receipt_id,
+      "source_transition_receipt_id",
+    ),
+    source_transition_receipt_fingerprint: normalizeSha256(
+      input.source_transition_receipt_fingerprint,
+      "source_transition_receipt_fingerprint",
+    ),
+    updated_at: normalizeRequiredText(input.updated_at, "updated_at"),
+  };
+}
+
+function targetHeadValues(head: VNextSemanticTargetHeadV01): unknown[] {
+  return [
+    head.workspace_id,
+    head.project_id,
+    head.target_key,
+    head.revision,
+    head.presence,
+    head.current_state_fingerprint,
+    head.source_transition_receipt_id,
+    head.source_transition_receipt_fingerprint,
+    head.updated_at,
+  ];
+}
+
+function normalizeTargetHeadPresence(value: unknown): "absent" | "present" {
+  const normalized = normalizeProtocolTextV01(value);
+  if (normalized !== "absent" && normalized !== "present") {
+    throw new Error("semantic_target_head_presence_invalid");
+  }
+  return normalized;
 }
 
 function derivePersistedSemanticStateRecordIdV01(input: {

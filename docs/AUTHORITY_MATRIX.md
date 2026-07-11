@@ -132,11 +132,16 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   synthetic fixture supplying a confirmation digest does not authenticate a
   person, fabricate user authorization, or approve use against product data.
 - Augnes Core owns the immutable vNext record ledger, the current accepted
-  semantic-state projection, gate validation, compare-and-swap enforcement,
-  and `StateTransitionReceipt` persistence. The local writer may act only after
+  semantic-state projection, the monotonic project-scoped semantic target head,
+  gate validation, compare-and-swap enforcement, and `StateTransitionReceipt`
+  persistence. The local writer may act only after
   the exact persisted proposal, decision, confirmation digest, authorized
   effects, actor binding, expiry, applier, current state, and prior applied
   lineage pass inside one immediate transaction.
+- Absence after durable history is represented by an absent target head, not by
+  projection-row nonexistence alone. That head grants no semantic authority; it
+  preserves revision and latest receipt lineage so stale gates and old replays
+  fail closed across create/retract ABA cycles.
 - The M3C confirmation helper records an immutable semantic gate only. It does
   not apply semantic state, authenticate the human behind a declared actor,
   accept Evidence, promote Perspective or memory, close work, publish, or grant

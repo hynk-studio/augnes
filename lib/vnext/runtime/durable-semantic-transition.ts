@@ -9,15 +9,19 @@ import {
   ensureVNextDurableSemanticStoreSchemaV01,
   insertVNextCoreRecordV01,
   insertVNextSemanticStateEntryV01,
+  insertVNextSemanticTargetHeadV01,
   readVNextCoreRecordByIdempotencyKeyV01,
   readVNextCoreRecordV01,
   readVNextSemanticStateEntryV01,
+  readVNextSemanticTargetHeadV01,
   rebuildVNextPersistedSemanticStateV01,
+  updateVNextSemanticTargetHeadCasV01,
   updateVNextSemanticStateEntryCasV01,
   type VNextCoreRecordWriteResultV01,
   type VNextCoreRecordEnvelopeV01,
   type VNextPersistedSemanticStateVersionV01,
   type VNextSemanticStateProjectionEntryV01,
+  type VNextSemanticTargetHeadV01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import {
   canonicalizeProtocolValueV01,
@@ -325,6 +329,7 @@ export function prepareVNextSemanticCommitPreviewV01(
     transition,
     observations: currentState.observations,
     projections: currentState.projections,
+    heads: currentState.heads,
     previewed_at: input.previewed_at,
   });
   const lineage = loadAppliedLineageFromStore(
@@ -769,6 +774,7 @@ function commitVNextSemanticTransitionInternalV01(
       proposal,
       transition,
       current_projections: liveSnapshot.projections,
+      current_heads: liveSnapshot.heads,
       built,
     });
     return {
@@ -1005,6 +1011,7 @@ function applyTransitionWrites(input: {
   proposal: EpisodeDeltaProposalV01;
   transition: ResolvedTransitionMaterialV01;
   current_projections: Array<VNextSemanticStateProjectionEntryV01 | null>;
+  current_heads: Array<VNextSemanticTargetHeadV01 | null>;
   built: BuiltVNextSemanticTransitionV01;
 }): VNextSemanticStateProjectionEntryV01[] {
   const stateByTarget = new Map(
@@ -1026,6 +1033,7 @@ function applyTransitionWrites(input: {
     const targetKey = deriveVNextSemanticTargetKeyV01(targetRef);
     const effect = effectByTarget.get(canonicalizeProtocolValueV01(targetRef));
     const current = input.current_projections[index] ?? null;
+    const currentHead = input.current_heads[index] ?? null;
     if (!effect) throw new Error("semantic_commit_effect_missing");
     const stateRecord = stateByTarget.get(targetKey) ?? null;
     if (stateRecord) {
@@ -1082,7 +1090,7 @@ function applyTransitionWrites(input: {
           input.built.receipt.transition_receipt_id,
         source_transition_receipt_fingerprint:
           input.built.receipt.integrity.fingerprint,
-        revision: current ? current.revision + 1 : 1,
+        revision: currentHead ? currentHead.revision + 1 : 1,
         updated_at: input.input.recorded_at,
       };
       if (effect.operation === "create") {
@@ -1099,6 +1107,30 @@ function applyTransitionWrites(input: {
         });
       }
       resultingProjections.push(nextProjection);
+    }
+    const nextHead: VNextSemanticTargetHeadV01 = {
+      workspace_id: input.proposal.workspace_id,
+      project_id: input.proposal.project_id,
+      target_key: targetKey,
+      revision: currentHead ? currentHead.revision + 1 : 1,
+      presence: effect.after_state.presence,
+      current_state_fingerprint:
+        effect.after_state.presence === "present"
+          ? effect.after_state.state_fingerprint
+          : null,
+      source_transition_receipt_id:
+        input.built.receipt.transition_receipt_id,
+      source_transition_receipt_fingerprint:
+        input.built.receipt.integrity.fingerprint,
+      updated_at: input.input.recorded_at,
+    };
+    if (currentHead) {
+      updateVNextSemanticTargetHeadCasV01(input.db, {
+        expected: currentHead,
+        next: nextHead,
+      });
+    } else {
+      insertVNextSemanticTargetHeadV01(input.db, nextHead);
     }
     projectionWriteCount += 1;
     if (projectionWriteCount === 1) {
@@ -1188,18 +1220,37 @@ function validateAndReturnExactReplay(input: {
   const projections: VNextSemanticStateProjectionEntryV01[] = [];
   for (const effect of storedReceipt.effects) {
     const targetKey = deriveVNextSemanticTargetKeyV01(effect.target_ref);
+    const intended = intendedEffectByTarget.get(
+      canonicalizeProtocolValueV01(effect.target_ref),
+    );
     const current = readVNextSemanticStateEntryV01(input.db, {
       workspace_id: input.proposal.workspace_id,
       project_id: input.proposal.project_id,
       target_key: targetKey,
     });
+    const head = readVNextSemanticTargetHeadV01(input.db, {
+      workspace_id: input.proposal.workspace_id,
+      project_id: input.proposal.project_id,
+      target_key: targetKey,
+    });
+    if (
+      !intended ||
+      !head ||
+      head.revision !== intended.expected_revision ||
+      head.presence !== effect.after_state.presence ||
+      head.current_state_fingerprint !== effect.after_state.state_fingerprint ||
+      head.source_transition_receipt_id !==
+        storedReceipt.transition_receipt_id ||
+      head.source_transition_receipt_fingerprint !==
+        storedReceipt.integrity.fingerprint ||
+      head.updated_at !== storedReceipt.recorded_at
+    ) {
+      throw new Error("state_replay_conflict");
+    }
     if (effect.after_state.presence === "absent") {
       if (current) throw new Error("state_replay_conflict");
       continue;
     }
-    const intended = intendedEffectByTarget.get(
-      canonicalizeProtocolValueV01(effect.target_ref),
-    );
     const stateCandidate = input.transition.state_material_candidate;
     if (
       !current ||
@@ -1376,6 +1427,7 @@ interface ResolvedTransitionMaterialV01 {
 interface PersistedCurrentStateSnapshotV01 {
   observations: StateTransitionCurrentStateObservationV01[];
   projections: Array<VNextSemanticStateProjectionEntryV01 | null>;
+  heads: Array<VNextSemanticTargetHeadV01 | null>;
 }
 
 interface LoadedAppliedLineageV01 {
@@ -1468,6 +1520,7 @@ function readCurrentStateSnapshot(
 ): PersistedCurrentStateSnapshotV01 {
   const observations: StateTransitionCurrentStateObservationV01[] = [];
   const projections: Array<VNextSemanticStateProjectionEntryV01 | null> = [];
+  const heads: Array<VNextSemanticTargetHeadV01 | null> = [];
   for (const targetRef of targetRefs) {
     const targetKey = deriveVNextSemanticTargetKeyV01(targetRef);
     const projection = readVNextSemanticStateEntryV01(db, {
@@ -1475,7 +1528,22 @@ function readCurrentStateSnapshot(
       project_id: proposal.project_id,
       target_key: targetKey,
     });
+    const head = readVNextSemanticTargetHeadV01(db, {
+      workspace_id: proposal.workspace_id,
+      project_id: proposal.project_id,
+      target_key: targetKey,
+    });
+    assertCurrentStateStorageCoherence(
+      db,
+      proposal.workspace_id,
+      proposal.project_id,
+      targetRef,
+      targetKey,
+      projection,
+      head,
+    );
     projections.push(projection);
+    heads.push(head);
     observations.push(
       projection
         ? createPresentObservation(
@@ -1484,6 +1552,7 @@ function readCurrentStateSnapshot(
             targetRef,
             targetKey,
             projection,
+            head!,
             observedAt,
           )
         : createAbsentObservation(
@@ -1491,11 +1560,12 @@ function readCurrentStateSnapshot(
             proposal.project_id,
             targetRef,
             targetKey,
+            head,
             observedAt,
           ),
     );
   }
-  return { observations, projections };
+  return { observations, projections, heads };
 }
 
 function derivePreviewEffects(input: {
@@ -1504,12 +1574,13 @@ function derivePreviewEffects(input: {
   transition: ResolvedTransitionMaterialV01;
   observations: StateTransitionCurrentStateObservationV01[];
   projections: Array<VNextSemanticStateProjectionEntryV01 | null>;
+  heads: Array<VNextSemanticTargetHeadV01 | null>;
   expected_revisions?: number[];
   previewed_at: string;
 }): VNextSemanticCommitPreviewEffectV01[] {
   return input.transition.target_refs.map((targetRef, index) => {
     const observation = input.observations[index];
-    const projection = input.projections[index];
+    const head = input.heads[index];
     if (!observation) throw new Error("semantic_commit_current_state_missing");
     let operation: StateTransitionReceiptOperationV01;
     if (input.decision.decision === "accept") {
@@ -1539,11 +1610,12 @@ function derivePreviewEffects(input: {
       : null;
     const expectedRevision =
       input.expected_revisions?.[index] ??
-      (projection ? projection.revision + 1 : 1);
+      (head ? head.revision + 1 : 1);
     if (
       !Number.isSafeInteger(expectedRevision) ||
       expectedRevision < 1 ||
-      (observation.presence === "absent" && expectedRevision !== 1) ||
+      (observation.presence === "absent" &&
+        expectedRevision !== (head ? head.revision + 1 : 1)) ||
       (observation.presence === "present" && expectedRevision < 2)
     ) {
       throw new Error("semantic_commit_expected_revision_invalid");
@@ -1704,13 +1776,169 @@ function loadAppliedLineageFromStore(
   };
 }
 
+function assertCurrentStateStorageCoherence(
+  db: Database.Database,
+  workspaceId: string,
+  projectId: string,
+  targetRef: ExternalRefV01,
+  targetKey: string,
+  projection: VNextSemanticStateProjectionEntryV01 | null,
+  head: VNextSemanticTargetHeadV01 | null,
+): void {
+  if (!head) {
+    if (projection) throw new Error("semantic_state_projection_head_missing");
+    return;
+  }
+  if (
+    head.workspace_id !== workspaceId ||
+    head.project_id !== projectId ||
+    head.target_key !== targetKey
+  ) {
+    throw new Error("semantic_target_head_scope_mismatch");
+  }
+  if (head.presence === "absent") {
+    if (projection || head.current_state_fingerprint !== null) {
+      throw new Error("semantic_target_head_absence_projection_mismatch");
+    }
+    assertTargetHeadReceiptBinding(
+      db,
+      workspaceId,
+      projectId,
+      targetRef,
+      head,
+      null,
+    );
+    return;
+  }
+  if (
+    !projection ||
+    projection.workspace_id !== workspaceId ||
+    projection.project_id !== projectId ||
+    projection.target_key !== targetKey ||
+    projection.revision !== head.revision ||
+    projection.state_fingerprint !== head.current_state_fingerprint ||
+    projection.source_transition_receipt_id !==
+      head.source_transition_receipt_id ||
+    projection.source_transition_receipt_fingerprint !==
+      head.source_transition_receipt_fingerprint ||
+    projection.updated_at !== head.updated_at ||
+    canonicalizeProtocolValueV01(projection.target_ref) !==
+      canonicalizeProtocolValueV01(normalizeExternalRefPrimitiveV01(targetRef))
+  ) {
+    throw new Error("semantic_target_head_projection_mismatch");
+  }
+  const stateRecord = readVNextCoreRecordV01(db, {
+    record_kind: "semantic_state",
+    record_id: projection.state_ref.external_id,
+    workspace_id: workspaceId,
+    project_id: projectId,
+  });
+  if (!stateRecord) throw new Error("semantic_state_projection_record_missing");
+  const state = rebuildVNextPersistedSemanticStateV01(stateRecord.payload);
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(stateRecord, {
+    workspace_id: state.workspace_id,
+    project_id: state.project_id,
+    fingerprint: state.integrity.fingerprint,
+  });
+  if (
+    stateRecord.record_id !== state.semantic_state_record_id ||
+    stateRecord.created_at !== state.created_at ||
+    state.workspace_id !== workspaceId ||
+    state.project_id !== projectId ||
+    state.target_key !== targetKey ||
+    state.state_content_fingerprint !== projection.state_fingerprint ||
+    state.bounded_state_summary !== projection.bounded_state_summary ||
+    canonicalizeProtocolValueV01(state.target_ref) !==
+      canonicalizeProtocolValueV01(projection.target_ref) ||
+    canonicalizeProtocolValueV01(state.state_ref) !==
+      canonicalizeProtocolValueV01(projection.state_ref) ||
+    state.source_proposal_id !== projection.source_proposal_id ||
+    state.source_proposal_fingerprint !==
+      projection.source_proposal_fingerprint ||
+    state.source_candidate_id !== projection.source_candidate_id ||
+    state.source_candidate_fingerprint !==
+      projection.source_candidate_fingerprint
+  ) {
+    throw new Error("semantic_state_projection_record_mismatch");
+  }
+  assertTargetHeadReceiptBinding(
+    db,
+    workspaceId,
+    projectId,
+    targetRef,
+    head,
+    projection,
+  );
+}
+
+function assertTargetHeadReceiptBinding(
+  db: Database.Database,
+  workspaceId: string,
+  projectId: string,
+  targetRef: ExternalRefV01,
+  head: VNextSemanticTargetHeadV01,
+  projection: VNextSemanticStateProjectionEntryV01 | null,
+): void {
+  const receiptRecord = readVNextCoreRecordV01(db, {
+    record_kind: "state_transition_receipt",
+    record_id: head.source_transition_receipt_id,
+    workspace_id: workspaceId,
+    project_id: projectId,
+  });
+  if (!receiptRecord) throw new Error("semantic_target_head_receipt_missing");
+  const validation = validateStateTransitionReceiptV01(receiptRecord.payload);
+  if (validation.status !== "valid") {
+    throw new Error("semantic_target_head_receipt_invalid");
+  }
+  const receipt = receiptRecord.payload as StateTransitionReceiptV01;
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(receiptRecord, {
+    workspace_id: receipt.workspace_id,
+    project_id: receipt.project_id,
+    fingerprint: receipt.integrity.fingerprint,
+  });
+  const targetCanonical = canonicalizeProtocolValueV01(
+    normalizeExternalRefPrimitiveV01(targetRef),
+  );
+  const effect = receipt.effects.find(
+    (item) =>
+      canonicalizeProtocolValueV01(item.target_ref) === targetCanonical,
+  );
+  if (
+    receiptRecord.record_id !== receipt.transition_receipt_id ||
+    receiptRecord.idempotency_key !== receipt.idempotency_key ||
+    receiptRecord.created_at !== receipt.recorded_at ||
+    receipt.transition_receipt_id !== head.source_transition_receipt_id ||
+    receipt.integrity.fingerprint !==
+      head.source_transition_receipt_fingerprint ||
+    receipt.recorded_at !== head.updated_at ||
+    !effect ||
+    effect.after_state.presence !== head.presence ||
+    (head.presence === "present" &&
+      (effect.after_state.presence !== "present" ||
+        effect.after_state.state_fingerprint !==
+          head.current_state_fingerprint ||
+        !projection ||
+        canonicalizeProtocolValueV01(effect.after_state.state_ref) !==
+          canonicalizeProtocolValueV01(projection.state_ref))) ||
+    (head.presence === "absent" &&
+      (effect.after_state.presence !== "absent" || projection !== null))
+  ) {
+    throw new Error("semantic_target_head_receipt_mismatch");
+  }
+}
+
 function createAbsentObservation(
   workspaceId: string,
   projectId: string,
   targetRef: ExternalRefV01,
   targetKey: string,
+  head: VNextSemanticTargetHeadV01 | null,
   observedAt: string,
 ): StateTransitionCurrentStateObservationV01 {
+  if (head && head.presence !== "absent") {
+    throw new Error("semantic_target_head_presence_mismatch");
+  }
+  const headLineage = head ? createTargetHeadLineageRef(head) : null;
   const fingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01({
       observation_version: "vnext_semantic_state_store_observation.v0.1",
@@ -1718,7 +1946,15 @@ function createAbsentObservation(
       project_id: projectId,
       target_key: targetKey,
       presence: "absent",
-      revision: 0,
+      revision: head?.revision ?? 0,
+      ...(head
+        ? {
+            source_transition_receipt_id:
+              head.source_transition_receipt_id,
+            source_transition_receipt_fingerprint:
+              head.source_transition_receipt_fingerprint,
+          }
+        : {}),
       observed_at: observedAt,
     }),
   );
@@ -1735,7 +1971,9 @@ function createAbsentObservation(
     state_fingerprint: null,
     observed_at: observedAt,
     observation_ref: observationRef,
-    source_refs: [observationRef],
+    source_refs: normalizeRefs(
+      headLineage ? [headLineage, observationRef] : [observationRef],
+    ),
   };
 }
 
@@ -1745,6 +1983,7 @@ function createPresentObservation(
   targetRef: ExternalRefV01,
   targetKey: string,
   projection: VNextSemanticStateProjectionEntryV01,
+  head: VNextSemanticTargetHeadV01,
   observedAt: string,
 ): StateTransitionCurrentStateObservationV01 {
   if (
@@ -1763,7 +2002,7 @@ function createPresentObservation(
     targetKey,
     projection.state_ref,
     projection.state_fingerprint,
-    projection.revision,
+    head,
     observedAt,
   );
 }
@@ -1775,14 +2014,21 @@ function createPresentObservationFromSnapshot(
   targetKey: string,
   stateRef: ExternalRefV01,
   stateFingerprint: string,
-  revision: number,
+  head: VNextSemanticTargetHeadV01,
   observedAt: string,
 ): StateTransitionCurrentStateObservationV01 {
   assertExternalRef(stateRef, "semantic_state_projection.state_ref");
   requireSha256Text(stateFingerprint, "state_fingerprint");
-  if (!Number.isSafeInteger(revision) || revision < 1) {
-    throw new Error("semantic_state_projection_revision_invalid");
+  if (
+    head.workspace_id !== workspaceId ||
+    head.project_id !== projectId ||
+    head.target_key !== targetKey ||
+    head.presence !== "present" ||
+    head.current_state_fingerprint !== stateFingerprint
+  ) {
+    throw new Error("semantic_target_head_projection_mismatch");
   }
+  const headLineage = createTargetHeadLineageRef(head);
   const fingerprint = createProtocolSha256V01(
     canonicalizeProtocolValueV01({
       observation_version: "vnext_semantic_state_store_observation.v0.1",
@@ -1792,7 +2038,10 @@ function createPresentObservationFromSnapshot(
       presence: "present",
       state_ref: normalizeExternalRefPrimitiveV01(stateRef),
       state_fingerprint: stateFingerprint,
-      revision,
+      revision: head.revision,
+      source_transition_receipt_id: head.source_transition_receipt_id,
+      source_transition_receipt_fingerprint:
+        head.source_transition_receipt_fingerprint,
       observed_at: observedAt,
     }),
   );
@@ -1809,8 +2058,19 @@ function createPresentObservationFromSnapshot(
     state_fingerprint: stateFingerprint,
     observed_at: observedAt,
     observation_ref: observationRef,
-    source_refs: normalizeRefs([stateRef, observationRef]),
+    source_refs: normalizeRefs([stateRef, headLineage, observationRef]),
   };
+}
+
+function createTargetHeadLineageRef(
+  head: VNextSemanticTargetHeadV01,
+): ExternalRefV01 {
+  return localRef(
+    "semantic_target_head_lineage",
+    head.source_transition_receipt_id,
+    head.updated_at,
+    head.source_transition_receipt_fingerprint,
+  );
 }
 
 function eligibilityInputFor(
@@ -2036,6 +2296,7 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
   }
   const observations: StateTransitionCurrentStateObservationV01[] = [];
   const expectedRevisions: number[] = [];
+  const heads: Array<VNextSemanticTargetHeadV01 | null> = [];
   for (const targetRef of transition.target_refs) {
     const canonicalTarget = canonicalizeProtocolValueV01(targetRef);
     const storedObservation = observationByTarget.get(canonicalTarget);
@@ -2055,16 +2316,21 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
       throw new Error("semantic_commit_expected_revision_invalid");
     }
     const targetKey = deriveVNextSemanticTargetKeyV01(targetRef);
+    const storedHead = reconstructTargetHeadFromStoredObservation(
+      proposal.workspace_id,
+      proposal.project_id,
+      targetKey,
+      storedObservation,
+      storedEffect.expected_revision - 1,
+    );
     let expectedObservation: StateTransitionCurrentStateObservationV01;
     if (storedObservation.presence === "absent") {
-      if (storedEffect.expected_revision !== 1) {
-        throw new Error("semantic_commit_expected_revision_invalid");
-      }
       expectedObservation = createAbsentObservation(
         proposal.workspace_id,
         proposal.project_id,
         targetRef,
         targetKey,
+        storedHead,
         observedAt,
       );
     } else if (
@@ -2080,7 +2346,7 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
         targetKey,
         storedObservation.state_ref,
         storedObservation.state_fingerprint,
-        storedEffect.expected_revision - 1,
+        storedHead!,
         observedAt,
       );
     } else {
@@ -2093,6 +2359,7 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
       throw new Error("semantic_commit_gate_current_state_observation_invalid");
     }
     observations.push(expectedObservation);
+    heads.push(storedHead);
     expectedRevisions.push(storedEffect.expected_revision);
   }
   const intendedEffects = derivePreviewEffects({
@@ -2101,6 +2368,7 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
     transition,
     observations,
     projections: observations.map(() => null),
+    heads,
     expected_revisions: expectedRevisions,
     previewed_at: gate.previewed_at,
   });
@@ -2152,6 +2420,64 @@ function rebuildSemanticCommitPreviewFromGateSnapshot(
     ),
     eligibility_input: null,
     eligibility: null,
+  };
+}
+
+function reconstructTargetHeadFromStoredObservation(
+  workspaceId: string,
+  projectId: string,
+  targetKey: string,
+  observation: StateTransitionCurrentStateObservationV01,
+  revision: number,
+): VNextSemanticTargetHeadV01 | null {
+  if (!Number.isSafeInteger(revision) || revision < 0) {
+    throw new Error("semantic_commit_expected_revision_invalid");
+  }
+  const lineageRefs = observation.source_refs.filter(
+    (ref) =>
+      ref.ref_type === "semantic_target_head_lineage" &&
+      ref.compatibility_namespace ===
+        VNEXT_DURABLE_TRANSITION_RUNTIME_NAMESPACE_V01,
+  );
+  if (revision === 0) {
+    if (lineageRefs.length !== 0) {
+      throw new Error("semantic_target_head_lineage_unexpected");
+    }
+    return null;
+  }
+  if (observation.presence !== "absent" && observation.presence !== "present") {
+    throw new Error("semantic_commit_gate_current_state_snapshot_invalid");
+  }
+  if (lineageRefs.length !== 1) {
+    throw new Error("semantic_target_head_lineage_missing");
+  }
+  const lineage = normalizeExternalRefPrimitiveV01(lineageRefs[0]!);
+  if (
+    lineage.trust_class !== "direct_local_observation" ||
+    !lineage.observed_at ||
+    !lineage.source_ref
+  ) {
+    throw new Error("semantic_target_head_lineage_invalid");
+  }
+  return {
+    workspace_id: workspaceId,
+    project_id: projectId,
+    target_key: targetKey,
+    revision,
+    presence: observation.presence,
+    current_state_fingerprint:
+      observation.presence === "present"
+        ? requireSha256Text(
+            observation.state_fingerprint,
+            "state_fingerprint",
+          )
+        : null,
+    source_transition_receipt_id: lineage.external_id,
+    source_transition_receipt_fingerprint: requireSha256Text(
+      lineage.source_ref,
+      "source_transition_receipt_fingerprint",
+    ),
+    updated_at: lineage.observed_at,
   };
 }
 

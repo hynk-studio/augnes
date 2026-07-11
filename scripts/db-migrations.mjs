@@ -4529,14 +4529,48 @@ export const vNextDurableSemanticStoreSchemaSqlV01 = `
 
   CREATE INDEX IF NOT EXISTS idx_vnext_semantic_state_entries_project_updated
     ON vnext_semantic_state_entries(workspace_id, project_id, updated_at, target_key);
+
+  CREATE TABLE IF NOT EXISTS vnext_semantic_target_heads (
+    workspace_id TEXT NOT NULL CHECK (length(trim(workspace_id)) > 0),
+    project_id TEXT NOT NULL CHECK (length(trim(project_id)) > 0),
+    target_key TEXT NOT NULL CHECK (
+      length(target_key) = 71 AND substr(target_key, 1, 7) = 'sha256:'
+    ),
+    revision INTEGER NOT NULL CHECK (revision >= 1),
+    presence TEXT NOT NULL CHECK (presence IN ('absent', 'present')),
+    current_state_fingerprint TEXT,
+    source_transition_receipt_id TEXT NOT NULL CHECK (
+      length(trim(source_transition_receipt_id)) > 0
+    ),
+    source_transition_receipt_fingerprint TEXT NOT NULL CHECK (
+      length(source_transition_receipt_fingerprint) = 71 AND
+      substr(source_transition_receipt_fingerprint, 1, 7) = 'sha256:'
+    ),
+    updated_at TEXT NOT NULL CHECK (length(trim(updated_at)) > 0),
+    CHECK (
+      (presence = 'absent' AND current_state_fingerprint IS NULL) OR
+      (presence = 'present' AND current_state_fingerprint IS NOT NULL AND
+       length(current_state_fingerprint) = 71 AND
+       substr(current_state_fingerprint, 1, 7) = 'sha256:')
+    ),
+    PRIMARY KEY (workspace_id, project_id, target_key)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_vnext_semantic_target_heads_project_updated
+    ON vnext_semantic_target_heads(workspace_id, project_id, updated_at, target_key);
 `;
 
 const vNextDurableSemanticStoreArtifactsV01 = {
-  tables: ["vnext_core_records", "vnext_semantic_state_entries"],
+  tables: [
+    "vnext_core_records",
+    "vnext_semantic_state_entries",
+    "vnext_semantic_target_heads",
+  ],
   indexes: [
     "idx_vnext_core_records_project_idempotency",
     "idx_vnext_core_records_project_kind_created",
     "idx_vnext_semantic_state_entries_project_updated",
+    "idx_vnext_semantic_target_heads_project_updated",
   ],
   triggers: [
     "trg_vnext_core_records_immutable_update",

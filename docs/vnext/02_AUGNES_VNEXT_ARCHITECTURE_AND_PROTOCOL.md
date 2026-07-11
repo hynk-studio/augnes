@@ -669,7 +669,7 @@ path가 아니다.
 
 #### M3C durable local commit boundary
 
-M3C의 local Core path는 두 개의 additive SQLite aggregate만 사용한다.
+M3C의 local Core path는 세 개의 bounded additive SQLite storage shape를 사용한다.
 `vnext_core_records`는 proposal, decision, semantic commit gate, immutable semantic-state
 version, `StateTransitionReceipt`, `TaskContextPacket`, `RunReceipt` payload를 exact
 ID/fingerprint와 project identity로 보존하는 immutable ledger다. 같은 canonical identity와
@@ -677,7 +677,14 @@ exact payload는 replay할 수 있지만, 같은 identity나 idempotency key에 
 applied result가 오면 conflict로 닫힌다. `vnext_semantic_state_entries`는
 workspace/project/target별 현재 accepted semantic state만 보존하는 projection이다. Absent
 state는 row로 표현하지 않고 retract는 current row를 제거하며, immutable history는 ledger와
-transition receipt에 남는다. 이 두 aggregate는 legacy state table과 dual-write하지 않는다.
+transition receipt에 남는다.
+`vnext_semantic_target_heads`는 present projection과 분리된 monotonic target generation이다.
+Never-transitioned target만 row 없는 revision 0으로 해석하며, create, replace, supersede,
+retract 모두 revision을 증가시킨다. Retract 뒤에도 absent head와 latest receipt lineage를 남겨
+absence가 과거 generation-zero absence와 다시 같아지는 ABA를 막는다. Present projection은
+head와 exact revision, content fingerprint, source receipt를 일치시켜야 하고 immutable
+semantic-state record와 source receipt가 함께 검증되기 전에는 direct-local current-state
+observation으로 승격되지 않는다. 이 storage shape들은 legacy state table과 dual-write하지 않는다.
 
 첫 durable state material은 arbitrary JSON이 아니라 review된 candidate에서 deterministic하게
 도출한 bounded accepted-candidate content다. Content fingerprint는 content version, canonical
@@ -697,7 +704,8 @@ identity를 인증했다는 뜻이 아니다.
 `commitVNextSemanticTransitionV01`은 explicit store dependency 안에서 immediate transaction을
 열고 proposal, decision, gate, prior applied lineage와 current projection을 다시 읽는다. Caller가
 제공한 current-state observation을 authority로 받지 않고 DB read에서 direct-local observation을
-재구성한 뒤 M3B eligibility를 다시 계산한다. Revision과 content fingerprint의 compare-and-swap,
+재구성한 뒤 M3B eligibility를 다시 계산한다. Monotonic target-head revision, latest receipt
+lineage, present projection revision과 content fingerprint의 compare-and-swap,
 all-target atomicity, exact gate outcome과 authorized applier가 모두 맞을 때만 immutable state
 version, current projection과 receipt를 함께 기록한다. Exact same intent/result/current state
 replay는 stored receipt를 반환하고, 다른 result나 drifted current state는 conflict다. 어느
@@ -946,11 +954,14 @@ tensions
 external_refs
 ```
 
-M3C local pilot은 위 domain separation을 두 bounded storage shape로 구현한다.
+M3C local pilot은 위 domain separation을 세 bounded storage shape로 구현한다.
 `vnext_core_records`는 여러 vNext Core record kind의 immutable ledger이고,
 `vnext_semantic_state_entries`는 current accepted semantic-state projection이다. 이는 workflow
 stage마다 table을 하나씩 추가하는 모델이 아니며, projection row가 삭제되더라도 immutable
 semantic-state version과 transition lineage는 ledger에 남는다.
+`vnext_semantic_target_heads`는 target가 absent인 동안에도 latest durable transition lineage와
+revision을 보존한다. 이 head는 current accepted-state content가 아니라 stale-gate와 replay
+compatibility를 판정하는 project-scoped monotonic concurrency boundary다.
 
 ### 9.4 projections
 
@@ -968,7 +979,9 @@ continuity_metrics
 
 `vnext_semantic_state_entries`는 `workspace_id + project_id + target_key`로 격리되고 present
 state만 보유한다. Later `TaskContextPacket`은 이 projection을 명시적으로 읽어 만드는 consumer
-output이며 projection 자체도, packet compiler도 transition authorization source가 아니다.
+output이며 projection 자체도, target head도, packet compiler도 transition authorization source가
+아니다. Compiler와 local probe는 projection, immutable state record, target head와 exact source
+receipt lineage가 모두 맞을 때만 local current-state read를 사용한다.
 
 ### 9.5 table 생성 기준
 

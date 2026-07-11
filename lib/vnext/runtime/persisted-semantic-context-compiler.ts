@@ -6,10 +6,12 @@ import {
   insertVNextCoreRecordV01,
   listVNextSemanticStateEntriesV01,
   readVNextCoreRecordV01,
+  readVNextSemanticTargetHeadV01,
   rebuildVNextPersistedSemanticStateV01,
   type VNextCoreRecordWriteResultV01,
   type VNextPersistedSemanticStateVersionV01,
   type VNextSemanticStateProjectionEntryV01,
+  type VNextSemanticTargetHeadV01,
   VNEXT_LOCAL_SEMANTIC_STATE_NAMESPACE_V01,
 } from "@/lib/vnext/persistence/durable-semantic-store";
 import {
@@ -23,6 +25,7 @@ import {
   validateSemanticTransitionFullChainV01,
   type StateTransitionFullChainValidationInputV01,
 } from "@/lib/vnext/state-transition-eligibility";
+import { validateStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
 import {
   buildTaskContextPacketV01,
   validateTaskContextPacketV01,
@@ -34,6 +37,7 @@ import {
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type {
   StateTransitionReceiptEffectV01,
+  StateTransitionReceiptV01,
   TaskContextPacketTransitionRelationResultV01,
 } from "@/types/vnext/state-transition-receipt";
 import type {
@@ -211,6 +215,27 @@ function resolvePersistedEffectStates(
   for (const effect of transition.receipt.effects) {
     const targetKey = deriveVNextSemanticTargetKeyV01(effect.target_ref);
     const projection = currentByTarget.get(targetKey) ?? null;
+    const head = readRequiredTargetHead(
+      db,
+      transition.receipt.workspace_id,
+      transition.receipt.project_id,
+      targetKey,
+    );
+    assertTargetHeadMatchesReceiptEffect(
+      head,
+      transition.receipt,
+      effect,
+    );
+    const intendedEffect = transition.gate_record.intended_effects.find(
+      (intended) => intended.target_key === targetKey,
+    );
+    if (
+      !intendedEffect ||
+      intendedEffect.operation !== effect.operation ||
+      head.revision !== intendedEffect.expected_revision
+    ) {
+      throw new Error("semantic_target_head_revision_drift");
+    }
     if (effect.after_state.presence === "absent") {
       if (projection) {
         throw new Error("retracted_semantic_state_still_present");
@@ -218,12 +243,7 @@ function resolvePersistedEffectStates(
       continue;
     }
     if (!projection) throw new Error("applied_semantic_state_projection_missing");
-    const intendedEffect = transition.gate_record.intended_effects.find(
-      (intended) => intended.target_key === targetKey,
-    );
     if (
-      !intendedEffect ||
-      intendedEffect.operation !== effect.operation ||
       projection.revision !== intendedEffect.expected_revision ||
       projection.updated_at !== transition.receipt.recorded_at ||
       projection.source_transition_receipt_id !==
@@ -305,6 +325,7 @@ function validateUnrelatedPersistedStateSelections(
   );
   for (const projection of currentEntries) {
     if (affectedTargetKeys.has(projection.target_key)) continue;
+    assertProjectionHeadAndReceipt(db, projection);
     const state = loadValidatedProjectionState(db, projection);
     const exactPriorSelection = priorPacket.selected_context.some(
       (entry) =>
@@ -383,6 +404,91 @@ function loadValidatedProjectionState(
     throw new Error("applied_semantic_state_record_drift");
   }
   return state;
+}
+
+function readRequiredTargetHead(
+  db: Database.Database,
+  workspaceId: string,
+  projectId: string,
+  targetKey: string,
+): VNextSemanticTargetHeadV01 {
+  const head = readVNextSemanticTargetHeadV01(db, {
+    workspace_id: workspaceId,
+    project_id: projectId,
+    target_key: targetKey,
+  });
+  if (!head) throw new Error("semantic_target_head_missing");
+  return head;
+}
+
+function assertTargetHeadMatchesReceiptEffect(
+  head: VNextSemanticTargetHeadV01,
+  receipt: StateTransitionReceiptV01,
+  effect: StateTransitionReceiptEffectV01,
+): void {
+  if (
+    head.presence !== effect.after_state.presence ||
+    head.current_state_fingerprint !== effect.after_state.state_fingerprint ||
+    head.source_transition_receipt_id !== receipt.transition_receipt_id ||
+    head.source_transition_receipt_fingerprint !==
+      receipt.integrity.fingerprint ||
+    head.updated_at !== receipt.recorded_at
+  ) {
+    throw new Error("semantic_target_head_receipt_drift");
+  }
+}
+
+function assertProjectionHeadAndReceipt(
+  db: Database.Database,
+  projection: VNextSemanticStateProjectionEntryV01,
+): void {
+  const head = readRequiredTargetHead(
+    db,
+    projection.workspace_id,
+    projection.project_id,
+    projection.target_key,
+  );
+  if (
+    head.presence !== "present" ||
+    head.revision !== projection.revision ||
+    head.current_state_fingerprint !== projection.state_fingerprint ||
+    head.source_transition_receipt_id !==
+      projection.source_transition_receipt_id ||
+    head.source_transition_receipt_fingerprint !==
+      projection.source_transition_receipt_fingerprint ||
+    head.updated_at !== projection.updated_at
+  ) {
+    throw new Error("semantic_target_head_projection_drift");
+  }
+  const record = readVNextCoreRecordV01(db, {
+    record_kind: "state_transition_receipt",
+    record_id: head.source_transition_receipt_id,
+    workspace_id: projection.workspace_id,
+    project_id: projection.project_id,
+  });
+  if (!record) throw new Error("semantic_target_head_receipt_missing");
+  const validation = validateStateTransitionReceiptV01(record.payload);
+  if (validation.status !== "valid") {
+    throw new Error("semantic_target_head_receipt_invalid");
+  }
+  const receipt = record.payload as StateTransitionReceiptV01;
+  assertVNextCoreRecordMatchesProtocolPayloadBindingV01(record, {
+    workspace_id: receipt.workspace_id,
+    project_id: receipt.project_id,
+    fingerprint: receipt.integrity.fingerprint,
+  });
+  const effect = receipt.effects.find(
+    (item) => deriveVNextSemanticTargetKeyV01(item.target_ref) === projection.target_key,
+  );
+  if (
+    record.record_id !== receipt.transition_receipt_id ||
+    record.idempotency_key !== receipt.idempotency_key ||
+    record.created_at !== receipt.recorded_at ||
+    !effect
+  ) {
+    throw new Error("semantic_target_head_receipt_drift");
+  }
+  assertTargetHeadMatchesReceiptEffect(head, receipt, effect);
 }
 
 function buildLaterPacket(

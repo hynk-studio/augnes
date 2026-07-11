@@ -41,6 +41,16 @@ import {
   createProtocolSha256V01,
 } from "../lib/vnext/protocol-primitives";
 import {
+  createEpisodeDeltaProposalFingerprintV01,
+  deriveEpisodeDeltaProposalIdV01,
+  validateEpisodeDeltaProposalV01,
+} from "../lib/vnext/episode-delta-proposal";
+import {
+  buildReviewDecisionV01,
+  validateReviewDecisionAgainstEpisodeDeltaProposalV01,
+  validateReviewDecisionV01,
+} from "../lib/vnext/review-decision";
+import {
   buildTaskContextPacketV01,
   validateTaskContextPacketV01,
 } from "../lib/vnext/task-context-packet";
@@ -52,8 +62,10 @@ import {
   ensureVNextDurableSemanticStoreSchemaV01,
   insertVNextCoreRecordV01,
   insertVNextSemanticStateEntryV01,
+  insertVNextSemanticTargetHeadV01,
   listVNextSemanticStateEntriesV01,
   readVNextCoreRecordV01,
+  readVNextSemanticTargetHeadV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
 import {
   runLocalContextUseProbeV01,
@@ -79,6 +91,7 @@ import {
   validateRunReceiptV01,
 } from "../lib/vnext/run-receipt";
 import { validateStateTransitionReceiptV01 } from "../lib/vnext/state-transition-receipt";
+import { createSemanticTransitionDecisionInputV01 } from "../fixtures/vnext/protocol/semantic-transition-loop-v0-1";
 import type { ExternalRefV01 } from "../types/vnext/external-ref";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "../types/vnext/task-context-packet";
@@ -135,6 +148,7 @@ const snapshotTables = [
   "state_transitions",
   "vnext_core_records",
   "vnext_semantic_state_entries",
+  "vnext_semantic_target_heads",
 ] as const;
 const legacyStateTables = [
   "state_delta_proposals",
@@ -167,6 +181,11 @@ try {
     initialSnapshot.counts.vnext_semantic_state_entries,
     0,
     "isolated durable smoke starts with an empty vNext state projection",
+  );
+  assert.equal(
+    initialSnapshot.counts.vnext_semantic_target_heads,
+    0,
+    "isolated durable smoke starts with no transitioned target heads",
   );
 
   const gateScenarios = buildDurableLocalSemanticGateScenariosV01();
@@ -264,6 +283,11 @@ try {
     0,
     "authorization does not write semantic state",
   );
+  assert.equal(
+    authorizedSnapshot.counts.vnext_semantic_target_heads,
+    0,
+    "authorization does not advance semantic target history",
+  );
   assertLegacySnapshotUnchanged(authorizedSnapshot, legacyBaseline);
 
   const commitInput = {
@@ -313,6 +337,11 @@ try {
     appliedSnapshot.counts.vnext_semantic_state_entries,
     1,
     "commit creates exactly one current-state projection row",
+  );
+  assert.equal(
+    appliedSnapshot.counts.vnext_semantic_target_heads,
+    1,
+    "commit creates one monotonic target head",
   );
   assertLegacySnapshotUnchanged(appliedSnapshot, legacyBaseline);
 
@@ -652,7 +681,8 @@ try {
         fullDurableLocalLoopCoverage.restored_db_checksum,
       two_project_full_durable_local_loop_fingerprint:
         fullDurableLocalLoopCoverage.full_loop_fingerprint,
-      db_checksum_scope: "vnext_core_records_and_vnext_semantic_state_entries",
+      db_checksum_scope:
+        "vnext_core_records_vnext_semantic_state_entries_and_target_heads",
     },
     rows: reopenedSnapshot.counts,
     receipt_validation: receiptValidation.status,
@@ -800,6 +830,8 @@ function readDatabaseSnapshot(database: Database.Database): DatabaseSnapshot {
         vnext_core_records: rowsByTable.vnext_core_records,
         vnext_semantic_state_entries:
           rowsByTable.vnext_semantic_state_entries,
+        vnext_semantic_target_heads:
+          rowsByTable.vnext_semantic_target_heads,
       }),
     ),
     full_logical_checksum: sha256(canonicalizeProtocolValueV01(rowsByTable)),
@@ -923,6 +955,7 @@ function runSemanticGateCoverage(
     const beforeForgedCommit = readNamedTablesSnapshot(forged, [
       "vnext_core_records",
       "vnext_semantic_state_entries",
+      "vnext_semantic_target_heads",
     ]);
     assert.throws(
       () =>
@@ -945,6 +978,7 @@ function runSemanticGateCoverage(
       readNamedTablesSnapshot(forged, [
         "vnext_core_records",
         "vnext_semantic_state_entries",
+        "vnext_semantic_target_heads",
       ]),
       beforeForgedCommit,
       "forged gate refusal writes no state or receipt",
@@ -1143,6 +1177,11 @@ function runFullWriterCoverage(
       projectAScenarios.create,
       projectBScenarios.create,
     );
+    const targetHeadCoverage = runTargetHeadAbaCoverage(
+      openDatabase,
+      projectAScenarios,
+    );
+    runProjectionLedgerCoherenceCoverage(openDatabase, projectAScenarios);
     runDuplicateSemanticTargetCoverage(
       openDatabase("duplicate-target-source"),
       openDatabase("duplicate-target-refusal"),
@@ -1155,8 +1194,8 @@ function runFullWriterCoverage(
     }
     return {
       status: "pass",
-      positive_cases: 14,
-      negative_cases: 13,
+      positive_cases: 20,
+      negative_cases: 20,
       applied_operations: operationResults,
       exact_replay_scenarios: [
         "create",
@@ -1171,6 +1210,13 @@ function runFullWriterCoverage(
         "state_replay_conflict",
         "cross_project_binding",
         "duplicate_semantic_target",
+        "absent_state_aba_stale_gate",
+        "old_retract_receipt_replay_after_aba",
+        "multi_target_aba_atomic_rollback",
+        "projection_immutable_state_missing",
+        "projection_state_fingerprint_drift",
+        "projection_source_receipt_missing",
+        "projection_source_receipt_mismatch",
         "after_proposal_record_insert",
         "after_decision_record_insert",
         "after_gate_record_insert",
@@ -1181,6 +1227,7 @@ function runFullWriterCoverage(
         "during_second_target",
       ],
       atomic_multi_target_apply: true,
+      monotonic_target_head_coverage: targetHeadCoverage,
       project_isolation: true,
       receipt_validation: "valid",
       eligibility_relation_validation: "valid",
@@ -1356,7 +1403,7 @@ function runStalePreconditionCoverage(
         opened.database,
         writerCommitInput(scenario, prepared.authorization),
       ),
-    /semantic_commit_stale_current_state|semantic_state_cas_conflict/,
+    /semantic_commit_stale_current_state|semantic_state_cas_conflict|semantic_state_projection_head_missing/,
     "state changed after confirmation fails the compare-and-swap boundary",
   );
   assert.deepEqual(
@@ -1447,6 +1494,23 @@ function runCrossProjectWriterCoverage(
     null,
     "project A receipt does not resolve through project B scope",
   );
+  const headA = readVNextSemanticTargetHeadV01(opened.database, {
+    workspace_id: projectA.proposal.workspace_id,
+    project_id: projectA.proposal.project_id,
+    target_key: deriveVNextSemanticTargetKeyV01(targetA),
+  });
+  const headB = readVNextSemanticTargetHeadV01(opened.database, {
+    workspace_id: projectB.proposal.workspace_id,
+    project_id: projectB.proposal.project_id,
+    target_key: deriveVNextSemanticTargetKeyV01(targetB),
+  });
+  assert.equal(headA?.revision, 1);
+  assert.equal(headB?.revision, 1);
+  assert.notEqual(
+    headA?.source_transition_receipt_fingerprint,
+    headB?.source_transition_receipt_fingerprint,
+    "same target identity has independent project-scoped target heads",
+  );
   const baseline = readDatabaseSnapshot(opened.database);
   assert.throws(
     () =>
@@ -1459,6 +1523,345 @@ function runCrossProjectWriterCoverage(
   );
   assert.deepEqual(readDatabaseSnapshot(opened.database), baseline);
   assertLegacySnapshotUnchanged(baseline, opened.legacyBaseline);
+}
+
+function runTargetHeadAbaCoverage(
+  openDatabase: (label: string) => WriterCoverageDatabaseV01,
+  scenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+) {
+  const opened = openDatabase("target-head-aba");
+  const oldAbsentCreateScenario: DurableLocalSemanticGateScenarioV01 = {
+    ...scenarios.replace,
+    expected_operations: ["create"],
+  };
+  const oldAbsentGate = prepareAndAuthorizeGateScenarioAt(
+    opened.database,
+    oldAbsentCreateScenario,
+    semanticGateScenarioTimes(scenarios.replace),
+  );
+  const targetRef = scenarios.create.decision.requested_transition_intent!
+    .target_refs[0]!;
+  const targetKey = deriveVNextSemanticTargetKeyV01(targetRef);
+  assert.equal(
+    readVNextSemanticTargetHeadV01(opened.database, {
+      workspace_id: scenarios.create.proposal.workspace_id,
+      project_id: scenarios.create.proposal.project_id,
+      target_key: targetKey,
+    }),
+    null,
+    "never-transitioned absence remains generation zero",
+  );
+
+  const firstCreate = applyCreateScenario(opened.database, scenarios.create);
+  const firstRetractPrepared = prepareAndAuthorizeGateScenario(
+    opened.database,
+    scenarios.retract,
+    false,
+  );
+  const firstRetractInput = writerCommitInput(
+    scenarios.retract,
+    firstRetractPrepared.authorization,
+  );
+  const firstRetract = commitVNextSemanticTransitionV01(
+    opened.database,
+    firstRetractInput,
+  );
+  assert.equal(firstCreate.committed.projection?.revision, 1);
+  let head = readVNextSemanticTargetHeadV01(opened.database, {
+    workspace_id: scenarios.create.proposal.workspace_id,
+    project_id: scenarios.create.proposal.project_id,
+    target_key: targetKey,
+  });
+  assert.equal(head?.revision, 2);
+  assert.equal(head?.presence, "absent");
+  assert.equal(
+    head?.source_transition_receipt_id,
+    firstRetract.transition_receipt.transition_receipt_id,
+  );
+  const afterFirstRetract = readDatabaseSnapshot(opened.database);
+  assert.throws(
+    () =>
+      commitVNextSemanticTransitionV01(opened.database, {
+        ...writerCommitInput(
+          oldAbsentCreateScenario,
+          oldAbsentGate.authorization,
+          {
+            applied_at: "2026-07-10T14:20:00.000Z",
+            recorded_at: "2026-07-10T14:21:00.000Z",
+          },
+        ),
+      }),
+    /semantic_commit_stale_current_state|semantic_commit_precondition_mismatch/,
+    "an original generation-zero create gate cannot revive after create/retract ABA",
+  );
+  assert.deepEqual(readDatabaseSnapshot(opened.database), afterFirstRetract);
+
+  const secondCreateTimes = explicitGateTimes(
+    "2026-07-10T14:20:00.000Z",
+    "2026-07-10T14:21:00.000Z",
+    "2026-07-10T14:22:00.000Z",
+    "2026-07-10T14:23:00.000Z",
+    "2026-07-10T14:24:00.000Z",
+  );
+  const secondCreatePrepared = prepareAndAuthorizeGateScenarioAt(
+    opened.database,
+    oldAbsentCreateScenario,
+    secondCreateTimes,
+  );
+  const secondCreate = commitVNextSemanticTransitionV01(opened.database, {
+    ...writerCommitInput(
+      oldAbsentCreateScenario,
+      secondCreatePrepared.authorization,
+      {
+        applied_at: "2026-07-10T14:25:00.000Z",
+        recorded_at: "2026-07-10T14:26:00.000Z",
+      },
+    ),
+  });
+  assert.equal(secondCreate.projection?.revision, 3);
+
+  const secondRetractScenario = buildRetractScenarioForPriorAccept(
+    scenarios,
+    oldAbsentCreateScenario,
+    "aba-second-retract",
+    "2026-07-10T14:27:00.000Z",
+  );
+  const secondRetractTimes = explicitGateTimes(
+    "2026-07-10T14:28:00.000Z",
+    "2026-07-10T14:29:00.000Z",
+    "2026-07-10T14:30:00.000Z",
+    "2026-07-10T14:31:00.000Z",
+    "2026-07-10T14:32:00.000Z",
+  );
+  const secondRetractPrepared = prepareAndAuthorizeGateScenarioAt(
+    opened.database,
+    secondRetractScenario,
+    secondRetractTimes,
+  );
+  const secondRetract = commitVNextSemanticTransitionV01(opened.database, {
+    ...writerCommitInput(
+      secondRetractScenario,
+      secondRetractPrepared.authorization,
+      {
+        applied_at: "2026-07-10T14:33:00.000Z",
+        recorded_at: "2026-07-10T14:34:00.000Z",
+      },
+    ),
+  });
+  head = readVNextSemanticTargetHeadV01(opened.database, {
+    workspace_id: scenarios.create.proposal.workspace_id,
+    project_id: scenarios.create.proposal.project_id,
+    target_key: targetKey,
+  });
+  assert.equal(head?.revision, 4);
+  assert.equal(head?.presence, "absent");
+  assert.equal(
+    head?.source_transition_receipt_id,
+    secondRetract.transition_receipt.transition_receipt_id,
+  );
+  const afterSecondRetract = readDatabaseSnapshot(opened.database);
+  assert.throws(
+    () => commitVNextSemanticTransitionV01(opened.database, firstRetractInput),
+    /state_replay_conflict/,
+    "an old retract receipt is not an exact replay after a later create/retract cycle",
+  );
+  assert.deepEqual(readDatabaseSnapshot(opened.database), afterSecondRetract);
+
+  opened.database.pragma("wal_checkpoint(TRUNCATE)");
+  const backupPath = `${opened.path}.target-head-backup`;
+  copyFileSync(opened.path, backupPath);
+  const restored = new Database(backupPath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const restoredHead = readVNextSemanticTargetHeadV01(restored, {
+      workspace_id: scenarios.create.proposal.workspace_id,
+      project_id: scenarios.create.proposal.project_id,
+      target_key: targetKey,
+    });
+    assert.deepEqual(restoredHead, head);
+    assert.equal(restored.pragma("integrity_check", { simple: true }), "ok");
+  } finally {
+    restored.close();
+    rmSync(backupPath, { force: true });
+  }
+
+  runMultiTargetAbaRollbackCoverage(openDatabase, scenarios);
+  return {
+    generation_zero_absence: true,
+    create_retract_create_retract_revisions: [1, 2, 3, 4],
+    stale_generation_zero_gate_blocked: true,
+    old_retract_replay_conflict: true,
+    close_reopen_and_backup_restore_lineage: true,
+    multi_target_aba_atomic_rollback: true,
+  };
+}
+
+function runMultiTargetAbaRollbackCoverage(
+  openDatabase: (label: string) => WriterCoverageDatabaseV01,
+  scenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+): void {
+  const opened = openDatabase("target-head-multi-aba");
+  const first = applyCreateScenario(opened.database, scenarios.create);
+  assert.equal(first.committed.projection?.revision, 1);
+  const staleMultiGate = prepareAndAuthorizeGateScenario(
+    opened.database,
+    scenarios.multi_target,
+    false,
+  );
+  const secondTarget = scenarios.multi_target.decision.requested_transition_intent!
+    .target_refs[1]!;
+  const singleTargetAccept = buildSingleTargetAcceptScenario(
+    scenarios,
+    secondTarget,
+    "multi-aba-create",
+    "2026-07-10T14:19:00.000Z",
+  );
+  const createTimes = explicitGateTimes(
+    "2026-07-10T14:20:00.000Z",
+    "2026-07-10T14:21:00.000Z",
+    "2026-07-10T14:22:00.000Z",
+    "2026-07-10T14:23:00.000Z",
+    "2026-07-10T14:24:00.000Z",
+  );
+  const createPrepared = prepareAndAuthorizeGateScenarioAt(
+    opened.database,
+    singleTargetAccept,
+    createTimes,
+  );
+  commitVNextSemanticTransitionV01(opened.database, {
+    ...writerCommitInput(singleTargetAccept, createPrepared.authorization, {
+      applied_at: "2026-07-10T14:25:00.000Z",
+      recorded_at: "2026-07-10T14:26:00.000Z",
+    }),
+  });
+  const retract = buildRetractScenarioForPriorAccept(
+    scenarios,
+    singleTargetAccept,
+    "multi-aba-retract",
+    "2026-07-10T14:27:00.000Z",
+  );
+  const retractTimes = explicitGateTimes(
+    "2026-07-10T14:28:00.000Z",
+    "2026-07-10T14:29:00.000Z",
+    "2026-07-10T14:30:00.000Z",
+    "2026-07-10T14:31:00.000Z",
+    "2026-07-10T14:32:00.000Z",
+  );
+  const retractPrepared = prepareAndAuthorizeGateScenarioAt(
+    opened.database,
+    retract,
+    retractTimes,
+  );
+  commitVNextSemanticTransitionV01(opened.database, {
+    ...writerCommitInput(retract, retractPrepared.authorization, {
+      applied_at: "2026-07-10T14:33:00.000Z",
+      recorded_at: "2026-07-10T14:34:00.000Z",
+    }),
+  });
+  const baseline = readDatabaseSnapshot(opened.database);
+  assert.throws(
+    () =>
+      commitVNextSemanticTransitionV01(
+        opened.database,
+        writerCommitInput(
+          scenarios.multi_target,
+          staleMultiGate.authorization,
+          {
+            applied_at: "2026-07-10T14:35:00.000Z",
+            recorded_at: "2026-07-10T14:36:00.000Z",
+          },
+        ),
+      ),
+    /semantic_commit_stale_current_state|semantic_commit_precondition_mismatch/,
+  );
+  assert.deepEqual(
+    readDatabaseSnapshot(opened.database),
+    baseline,
+    "one ABA target rolls back the complete multi-target transition",
+  );
+}
+
+function runProjectionLedgerCoherenceCoverage(
+  openDatabase: (label: string) => WriterCoverageDatabaseV01,
+  scenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+): void {
+  for (const mode of [
+    "missing_state_record",
+    "state_fingerprint_drift",
+    "missing_source_receipt",
+    "source_receipt_mismatch",
+  ] as const) {
+    const opened = openDatabase(`projection-ledger-${mode}`);
+    const applied = applyCreateScenario(opened.database, scenarios.create);
+    const projection = applied.committed.projection_entries[0]!;
+    persistVNextSemanticReviewMaterialV01(opened.database, {
+      proposal: scenarios.replace.proposal,
+      decision: scenarios.replace.decision,
+    });
+    if (mode === "missing_state_record") {
+      opened.database.exec("DROP TRIGGER trg_vnext_core_records_immutable_delete");
+      opened.database
+        .prepare(
+          `DELETE FROM vnext_core_records
+           WHERE record_kind = 'semantic_state' AND record_id = ?`,
+        )
+        .run(projection.state_ref.external_id);
+    } else if (mode === "state_fingerprint_drift") {
+      opened.database
+        .prepare(
+          `UPDATE vnext_semantic_state_entries
+           SET current_state_fingerprint = ?
+           WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+        )
+        .run(
+          createProtocolSha256V01("projection-ledger-state-drift"),
+          projection.workspace_id,
+          projection.project_id,
+          projection.target_key,
+        );
+    } else if (mode === "missing_source_receipt") {
+      opened.database.exec("DROP TRIGGER trg_vnext_core_records_immutable_delete");
+      opened.database
+        .prepare(
+          `DELETE FROM vnext_core_records
+           WHERE record_kind = 'state_transition_receipt' AND record_id = ?`,
+        )
+        .run(projection.source_transition_receipt_id);
+    } else {
+      opened.database
+        .prepare(
+          `UPDATE vnext_semantic_state_entries
+           SET source_transition_receipt_fingerprint = ?
+           WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+        )
+        .run(
+          createProtocolSha256V01("projection-ledger-receipt-drift"),
+          projection.workspace_id,
+          projection.project_id,
+          projection.target_key,
+        );
+    }
+    const baseline = readDatabaseSnapshot(opened.database);
+    const times = semanticGateScenarioTimes(scenarios.replace);
+    assert.throws(
+      () =>
+        prepareVNextSemanticCommitPreviewV01(opened.database, {
+          workspace_id: scenarios.replace.proposal.workspace_id,
+          project_id: scenarios.replace.proposal.project_id,
+          proposal_id: scenarios.replace.proposal.proposal_id,
+          proposal_fingerprint: scenarios.replace.proposal.integrity.fingerprint,
+          decision_id: scenarios.replace.decision.decision_id,
+          decision_fingerprint: scenarios.replace.decision.integrity.fingerprint,
+          current_state_observed_at: times.current_state_observed_at,
+          previewed_at: times.previewed_at,
+        }),
+      /semantic_state_projection_record_missing|semantic_target_head_projection_mismatch|semantic_target_head_receipt_missing/,
+      `${mode} cannot produce direct-local current-state observation material`,
+    );
+    assert.deepEqual(readDatabaseSnapshot(opened.database), baseline);
+  }
 }
 
 function runDuplicateSemanticTargetCoverage(
@@ -2424,9 +2827,9 @@ function runLocalContextUseProbeCoverage(
           ),
         baseline,
         mode === "receipt_binding_drift"
-          ? /local_context_affected_projection_receipt_mismatch/
+          ? /local_context_affected_projection_receipt_mismatch|local_context_semantic_target_head_drift/
           : mode === "future_projection"
-            ? /local_context_observation_before_projection_update/
+            ? /local_context_observation_before_projection_update|local_context_semantic_target_head_drift/
             : /local_context_selected_state_missing/,
         `current semantic state ${mode}`,
       );
@@ -3330,7 +3733,7 @@ function runPriorReceiptEnvelopeRefusals(
           current_state_observed_at: times.current_state_observed_at,
           previewed_at: times.previewed_at,
         }),
-      /semantic_commit_prior_receipt_identity_mismatch/,
+      /semantic_commit_prior_receipt_identity_mismatch|semantic_target_head_receipt_mismatch/,
       `${operation} lineage rejects a valid receipt payload under a wrong envelope idempotency key`,
     );
     assert.deepEqual(
@@ -3458,6 +3861,7 @@ function prepareAndAuthorizeGateScenario(
   const beforePreview = readNamedTablesSnapshot(database, [
     "vnext_core_records",
     "vnext_semantic_state_entries",
+    "vnext_semantic_target_heads",
   ]);
   const times = semanticGateScenarioTimes(scenario);
   const preview = prepareVNextSemanticCommitPreviewV01(database, {
@@ -3474,6 +3878,7 @@ function prepareAndAuthorizeGateScenario(
     readNamedTablesSnapshot(database, [
       "vnext_core_records",
       "vnext_semantic_state_entries",
+      "vnext_semantic_target_heads",
     ]),
     beforePreview,
     `${scenario.scenario_id} preview writes zero rows`,
@@ -3486,6 +3891,7 @@ function prepareAndAuthorizeGateScenario(
   const beforeAuthorization = readNamedTablesSnapshot(database, [
     "vnext_core_records",
     "vnext_semantic_state_entries",
+    "vnext_semantic_target_heads",
   ]);
   const authorization = recordVNextSemanticCommitAuthorizationV01(
     database,
@@ -3496,6 +3902,7 @@ function prepareAndAuthorizeGateScenario(
   const afterAuthorization = readNamedTablesSnapshot(database, [
     "vnext_core_records",
     "vnext_semantic_state_entries",
+    "vnext_semantic_target_heads",
   ]);
   assert.equal(
     afterAuthorization.counts.vnext_core_records,
@@ -3506,6 +3913,11 @@ function prepareAndAuthorizeGateScenario(
     afterAuthorization.table_hashes.vnext_semantic_state_entries,
     beforeAuthorization.table_hashes.vnext_semantic_state_entries,
     `${scenario.scenario_id} confirmation does not mutate current state`,
+  );
+  assert.equal(
+    afterAuthorization.table_hashes.vnext_semantic_target_heads,
+    beforeAuthorization.table_hashes.vnext_semantic_target_heads,
+    `${scenario.scenario_id} confirmation does not advance target heads`,
   );
   assert.equal(
     scenario.decision.actor_ref.trust_class,
@@ -3547,9 +3959,10 @@ function assertPreviewMatchesScenario(
           );
   for (const effect of preview.intended_effects) {
     assert.equal(
-      effect.expected_revision,
-      effect.operation === "create" ? 1 : 2,
-      `${scenario.scenario_id} derives the exact expected revision`,
+      Number.isSafeInteger(effect.expected_revision) &&
+        effect.expected_revision >= 1,
+      true,
+      `${scenario.scenario_id} derives a bounded monotonic expected revision`,
     );
     if (!stateMaterialCandidate) {
       assert.equal(effect.expected_after_state_fingerprint, null);
@@ -3665,11 +4078,152 @@ function assertAuthorizationRefusals(
   );
 }
 
+function prepareAndAuthorizeGateScenarioAt(
+  database: Database.Database,
+  scenario: DurableLocalSemanticGateScenarioV01,
+  times: SemanticGateScenarioTimesV01,
+) {
+  persistVNextSemanticReviewMaterialV01(database, {
+    proposal: scenario.proposal,
+    decision: scenario.decision,
+  });
+  const preview = prepareVNextSemanticCommitPreviewV01(database, {
+    workspace_id: scenario.proposal.workspace_id,
+    project_id: scenario.proposal.project_id,
+    proposal_id: scenario.proposal.proposal_id,
+    proposal_fingerprint: scenario.proposal.integrity.fingerprint,
+    decision_id: scenario.decision.decision_id,
+    decision_fingerprint: scenario.decision.integrity.fingerprint,
+    current_state_observed_at: times.current_state_observed_at,
+    previewed_at: times.previewed_at,
+  });
+  const authorization = recordVNextSemanticCommitAuthorizationV01(
+    database,
+    authorizationInput(scenario, preview, times),
+  );
+  assert.equal(authorization.eligibility.status, "eligible");
+  return { preview, authorization };
+}
+
+function explicitGateTimes(
+  currentStateObservedAt: string,
+  previewedAt: string,
+  confirmedAt: string,
+  gateEvaluatedAt: string,
+  eligibilityEvaluatedAt: string,
+): SemanticGateScenarioTimesV01 {
+  return {
+    current_state_observed_at: currentStateObservedAt,
+    previewed_at: previewedAt,
+    confirmed_at: confirmedAt,
+    gate_evaluated_at: gateEvaluatedAt,
+    eligibility_evaluated_at: eligibilityEvaluatedAt,
+    gate_expires_at: DURABLE_LOCAL_LOOP_GATE_EXPIRES_AT,
+  };
+}
+
+function buildSingleTargetAcceptScenario(
+  scenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+  targetRef: ExternalRefV01,
+  suffix: string,
+  decidedAt: string,
+): DurableLocalSemanticGateScenarioV01 {
+  const proposal = clone(scenarios.multi_target.proposal);
+  const candidate = proposal.proposed_deltas.find(
+    (item) =>
+      item.candidate_id === scenarios.multi_target.decision.candidate.candidate_id,
+  );
+  assert(candidate, "single-target ABA fixture candidate exists");
+  candidate.target_refs = [clone(targetRef)];
+  candidate.title = `Review isolated ${suffix} semantic target`;
+  candidate.proposed_state_summary =
+    `Persist isolated candidate-derived state for ${suffix} under an explicit synthetic gate.`;
+  proposal.proposal_id = deriveEpisodeDeltaProposalIdV01(proposal);
+  proposal.integrity.fingerprint =
+    createEpisodeDeltaProposalFingerprintV01(proposal);
+  assert.equal(validateEpisodeDeltaProposalV01(proposal).status, "valid");
+  const decisionInput = createSemanticTransitionDecisionInputV01(
+    scenarios.prefix.project,
+    proposal,
+  );
+  decisionInput.decided_at = decidedAt;
+  decisionInput.requested_transition_intent!.intent_id =
+    `transition-intent:${scenarios.prefix.project.fixture_id}:${suffix}`;
+  const decision = buildReviewDecisionV01(decisionInput);
+  assert.equal(validateReviewDecisionV01(decision).status, "valid");
+  assert.equal(
+    validateReviewDecisionAgainstEpisodeDeltaProposalV01(decision, proposal)
+      .status,
+    "valid",
+  );
+  return {
+    scenario_id: "create",
+    proposal,
+    decision,
+    expected_operations: ["create"],
+    expected_target_count: 1,
+  };
+}
+
+function buildRetractScenarioForPriorAccept(
+  scenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+  prior: DurableLocalSemanticGateScenarioV01,
+  suffix: string,
+  decidedAt: string,
+): DurableLocalSemanticGateScenarioV01 {
+  const input = createSemanticTransitionDecisionInputV01(
+    scenarios.prefix.project,
+    prior.proposal,
+  );
+  const binding = {
+    decision_id: prior.decision.decision_id,
+    decision_fingerprint: prior.decision.integrity.fingerprint,
+  };
+  input.decision = "retract";
+  input.decided_at = decidedAt;
+  input.rationale_summary =
+    `Synthetic ${suffix} fixture retracts only the exact prior applied acceptance lineage.`;
+  input.lineage = {
+    prior_decisions: [binding],
+    superseding_candidate: null,
+    retracted_decision: binding,
+  };
+  input.requested_transition_intent = {
+    intent_id: `transition-intent:${scenarios.prefix.project.fixture_id}:${suffix}`,
+    transition_kind: "semantic_candidate_retract",
+    bounded_summary:
+      `Request exact ${suffix} retraction behind a separately persisted local gate.`,
+    target_refs: clone(
+      prior.decision.requested_transition_intent?.target_refs ?? [],
+    ),
+    intent_only: true,
+    applied: false,
+    state_transition_receipt_ref: null,
+  };
+  const decision = buildReviewDecisionV01(input);
+  assert.equal(validateReviewDecisionV01(decision).status, "valid");
+  assert.equal(
+    validateReviewDecisionAgainstEpisodeDeltaProposalV01(
+      decision,
+      prior.proposal,
+    ).status,
+    "valid",
+  );
+  return {
+    scenario_id: "retract",
+    proposal: prior.proposal,
+    decision,
+    expected_operations: ["retract"],
+    expected_target_count: 1,
+  };
+}
+
 function authorizationInput(
   scenario: DurableLocalSemanticGateScenarioV01,
   preview: VNextSemanticCommitPreviewV01,
+  timeOverride?: SemanticGateScenarioTimesV01,
 ) {
-  const times = semanticGateScenarioTimes(scenario);
+  const times = timeOverride ?? semanticGateScenarioTimes(scenario);
   const applierFingerprint = createProtocolSha256V01(
     `semantic-gate-applier|${scenario.scenario_id}|${scenario.proposal.project_id}`,
   );
@@ -3691,14 +4245,23 @@ function authorizationInput(
     ),
     confirmed_at: times.confirmed_at,
     gate_evaluated_at: times.gate_evaluated_at,
-    gate_expires_at: DURABLE_LOCAL_LOOP_GATE_EXPIRES_AT,
+    gate_expires_at: times.gate_expires_at,
     eligibility_evaluated_at: times.eligibility_evaluated_at,
   };
 }
 
+interface SemanticGateScenarioTimesV01 {
+  current_state_observed_at: string;
+  previewed_at: string;
+  confirmed_at: string;
+  gate_evaluated_at: string;
+  eligibility_evaluated_at: string;
+  gate_expires_at: string;
+}
+
 function semanticGateScenarioTimes(
   scenario: DurableLocalSemanticGateScenarioV01,
-) {
+): SemanticGateScenarioTimesV01 {
   if (scenario.scenario_id === "create") {
     return {
       current_state_observed_at: DURABLE_LOCAL_LOOP_CURRENT_STATE_OBSERVED_AT,
@@ -3707,6 +4270,7 @@ function semanticGateScenarioTimes(
       gate_evaluated_at: DURABLE_LOCAL_LOOP_GATE_EVALUATED_AT,
       eligibility_evaluated_at:
         DURABLE_LOCAL_LOOP_ELIGIBILITY_EVALUATED_AT,
+      gate_expires_at: DURABLE_LOCAL_LOOP_GATE_EXPIRES_AT,
     };
   }
   return {
@@ -3717,6 +4281,7 @@ function semanticGateScenarioTimes(
     gate_evaluated_at: DURABLE_LOCAL_LOOP_FOLLOWUP_GATE_EVALUATED_AT,
     eligibility_evaluated_at:
       DURABLE_LOCAL_LOOP_FOLLOWUP_ELIGIBILITY_EVALUATED_AT,
+    gate_expires_at: DURABLE_LOCAL_LOOP_GATE_EXPIRES_AT,
   };
 }
 
@@ -3732,6 +4297,7 @@ function assertGateRefusalNoWrite(
     readNamedTablesSnapshot(database, [
       "vnext_core_records",
       "vnext_semantic_state_entries",
+      "vnext_semantic_target_heads",
     ]),
     baseline,
     `${label} writes nothing`,
@@ -3805,6 +4371,7 @@ function runMigrationCoverage(parentDirectory: string) {
       ...legacyStateTables,
       "vnext_core_records",
       "vnext_semantic_state_entries",
+      "vnext_semantic_target_heads",
     ]);
     legacy.pragma("wal_checkpoint(TRUNCATE)");
     copyFileSync(legacyPath, backupPath);
@@ -3817,6 +4384,7 @@ function runMigrationCoverage(parentDirectory: string) {
         ...legacyStateTables,
         "vnext_core_records",
         "vnext_semantic_state_entries",
+        "vnext_semantic_target_heads",
       ]),
       upgradedLegacySnapshot,
       "backup/restore preserves exact legacy and vNext rows and logical hashes",
@@ -3827,7 +4395,7 @@ function runMigrationCoverage(parentDirectory: string) {
     return {
       status: "pass",
       positive_cases: 8,
-      negative_cases: 3,
+      negative_cases: 6,
       fresh_creation: true,
       legacy_only_additive_upgrade: true,
       repeated_migration: true,
@@ -3835,6 +4403,7 @@ function runMigrationCoverage(parentDirectory: string) {
       new_tables_initially_empty: true,
       malformed_json_constraints_blocked: 2,
       invalid_presence_constraints_blocked: 1,
+      target_head_constraints_blocked: 3,
       project_isolation: true,
       backup_restore: true,
       runtime_migration_canonical_schema_drift_free: true,
@@ -3900,9 +4469,11 @@ function vNextSchemaSignature(database: Database.Database) {
   const artifactNames = [
     "vnext_core_records",
     "vnext_semantic_state_entries",
+    "vnext_semantic_target_heads",
     "idx_vnext_core_records_project_idempotency",
     "idx_vnext_core_records_project_kind_created",
     "idx_vnext_semantic_state_entries_project_updated",
+    "idx_vnext_semantic_target_heads_project_updated",
     "trg_vnext_core_records_immutable_update",
     "trg_vnext_core_records_immutable_delete",
   ];
@@ -3938,7 +4509,11 @@ function assertVNextTablesExistAndEmpty(
   database: Database.Database,
   label: string,
 ) {
-  for (const table of ["vnext_core_records", "vnext_semantic_state_entries"]) {
+  for (const table of [
+    "vnext_core_records",
+    "vnext_semantic_state_entries",
+    "vnext_semantic_target_heads",
+  ]) {
     assert.equal(tableExists(database, table), true, `${label} creates ${table}`);
     const count = database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as {
       count: number;
@@ -4038,6 +4613,61 @@ function assertMalformedJsonConstraints(database: Database.Database) {
     /CHECK constraint failed/,
     "current-state projection rejects absent presence rows",
   );
+  const insertHead = database.prepare(
+    `INSERT INTO vnext_semantic_target_heads (
+      workspace_id, project_id, target_key, revision, presence,
+      current_state_fingerprint, source_transition_receipt_id,
+      source_transition_receipt_fingerprint, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  assert.throws(
+    () =>
+      insertHead.run(
+        "workspace:migration",
+        "project:migration",
+        createProtocolSha256V01("invalid-absent-head"),
+        1,
+        "absent",
+        fingerprint,
+        "receipt:invalid-absent-head",
+        fingerprint,
+        DURABLE_LOCAL_LOOP_RECORDED_AT,
+      ),
+    /CHECK constraint failed/,
+    "absent target head rejects a present-state fingerprint",
+  );
+  assert.throws(
+    () =>
+      insertHead.run(
+        "workspace:migration",
+        "project:migration",
+        createProtocolSha256V01("invalid-present-head"),
+        1,
+        "present",
+        null,
+        "receipt:invalid-present-head",
+        fingerprint,
+        DURABLE_LOCAL_LOOP_RECORDED_AT,
+      ),
+    /CHECK constraint failed/,
+    "present target head requires a state fingerprint",
+  );
+  assert.throws(
+    () =>
+      insertHead.run(
+        "workspace:migration",
+        "project:migration",
+        createProtocolSha256V01("invalid-generation-head"),
+        0,
+        "absent",
+        null,
+        "receipt:invalid-generation-head",
+        fingerprint,
+        DURABLE_LOCAL_LOOP_RECORDED_AT,
+      ),
+    /CHECK constraint failed/,
+    "persisted target heads begin at revision one",
+  );
 }
 
 function assertProjectIsolation(database: Database.Database) {
@@ -4111,6 +4741,19 @@ function assertProjectIsolation(database: Database.Database) {
       revision: 1,
       updated_at: DURABLE_LOCAL_LOOP_RECORDED_AT,
     });
+    insertVNextSemanticTargetHeadV01(database, {
+      workspace_id: workspaceId,
+      project_id: projectId,
+      target_key: targetKey,
+      revision: 1,
+      presence: "present",
+      current_state_fingerprint: stateFingerprint,
+      source_transition_receipt_id: `receipt:${projectId}`,
+      source_transition_receipt_fingerprint: createProtocolSha256V01(
+        `receipt|${projectId}`,
+      ),
+      updated_at: DURABLE_LOCAL_LOOP_RECORDED_AT,
+    });
   }
   assert.equal(
     listVNextSemanticStateEntriesV01(database, {
@@ -4132,6 +4775,22 @@ function assertProjectIsolation(database: Database.Database) {
       project_id: "project:migration-foreign",
     }).length,
     0,
+  );
+  assert.equal(
+    readVNextSemanticTargetHeadV01(database, {
+      workspace_id: workspaceId,
+      project_id: projectIds[0],
+      target_key: targetKey,
+    })?.revision,
+    1,
+  );
+  assert.equal(
+    readVNextSemanticTargetHeadV01(database, {
+      workspace_id: workspaceId,
+      project_id: "project:migration-foreign",
+      target_key: targetKey,
+    }),
+    null,
   );
 }
 
