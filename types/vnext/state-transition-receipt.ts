@@ -321,3 +321,16 @@ export interface StateTransitionEligibilityEvaluationInputV01 {
   semantic_commit_gate_evaluation: StateTransitionSemanticCommitGateEvaluationV01;
   evaluated_at: string;
 }
+
+export interface TaskContextPacketTransitionRelationIssueV01 {
+  severity: "error" | "warning";
+  code: string;
+  path: string | null;
+  message: string;
+}
+
+export interface TaskContextPacketTransitionRelationResultV01 {
+  status: "valid" | "blocked";
+  errors: TaskContextPacketTransitionRelationIssueV01[];
+  warnings: TaskContextPacketTransitionRelationIssueV01[];
+}

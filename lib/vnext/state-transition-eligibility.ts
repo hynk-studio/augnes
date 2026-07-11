@@ -22,9 +22,14 @@ import {
 } from "@/lib/vnext/review-decision";
 import { validateEpisodeDeltaProposalV01 } from "@/lib/vnext/episode-delta-proposal";
 import { validateStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
+import { validateTaskContextPacketV01 } from "@/lib/vnext/task-context-packet";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-proposal";
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
+import type {
+  TaskContextPacketSelectedEntryV01,
+  TaskContextPacketV01,
+} from "@/types/vnext/task-context-packet";
 import {
   STATE_TRANSITION_RECEIPT_OBSERVATION_TRUST_CLASSES_V01,
   type StateTransitionCurrentStateObservationV01,
@@ -36,6 +41,8 @@ import {
   type StateTransitionReceiptV01,
   type StateTransitionReceiptValidationResultV01,
   type StateTransitionSemanticCommitGateEvaluationV01,
+  type TaskContextPacketTransitionRelationIssueV01,
+  type TaskContextPacketTransitionRelationResultV01,
 } from "@/types/vnext/state-transition-receipt";
 
 const allowedEvaluationInputKeys = new Set([
@@ -75,6 +82,8 @@ const proofTrustClasses = new Set<string>(
   STATE_TRANSITION_RECEIPT_OBSERVATION_TRUST_CLASSES_V01,
 );
 const gateStatuses = new Set(["authorized", "denied", "unknown"]);
+const STATE_TRANSITION_RECEIPT_LINEAGE_NAMESPACE_V01 =
+  "augnes.vnext.state-transition-receipt.v0.1";
 
 type EligibilityAccumulator = {
   errors: StateTransitionEligibilityIssueV01[];
@@ -455,6 +464,407 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
 
 export const validateStateTransitionReceiptAgainstReviewDecisionEligibilityV01 =
   validateStateTransitionReceiptAgainstEligibilityV01;
+
+export function createStateTransitionReceiptLineageRefV01(
+  receipt: StateTransitionReceiptV01,
+): ExternalRefV01 {
+  return {
+    ref_version: "external_ref.v0.1",
+    ref_type: "state_transition_receipt",
+    external_id: receipt.transition_receipt_id,
+    trust_class: "derived_interpretation",
+    observed_at: receipt.recorded_at,
+    source_ref: receipt.integrity.fingerprint,
+    compatibility_namespace:
+      STATE_TRANSITION_RECEIPT_LINEAGE_NAMESPACE_V01,
+  };
+}
+
+export function validateTaskContextPacketTransitionRelationV01(
+  priorPacketInput: unknown,
+  receiptInput: unknown,
+  laterPacketInput: unknown,
+): TaskContextPacketTransitionRelationResultV01 {
+  const accumulator = createPacketRelationAccumulator();
+  const priorPacket = isProtocolRecordV01(priorPacketInput)
+    ? (priorPacketInput as unknown as TaskContextPacketV01)
+    : null;
+  const laterPacket = isProtocolRecordV01(laterPacketInput)
+    ? (laterPacketInput as unknown as TaskContextPacketV01)
+    : null;
+  const receipt = isProtocolRecordV01(receiptInput)
+    ? (receiptInput as unknown as StateTransitionReceiptV01)
+    : null;
+  let priorPacketValid = false;
+  let laterPacketValid = false;
+  let receiptValid = false;
+
+  if (!priorPacket) {
+    addPacketRelationError(
+      accumulator,
+      "prior_packet_malformed",
+      "$.prior_packet",
+      "Prior TaskContextPacket must be an object.",
+    );
+  } else {
+    const validation = validateTaskContextPacketV01(priorPacket, {
+      evaluated_at: priorPacket.generated_at,
+    });
+    if (validation.status !== "valid") {
+      addPacketRelationError(
+        accumulator,
+        "prior_packet_invalid",
+        "$.prior_packet",
+        "Prior TaskContextPacket must validate independently.",
+      );
+    } else {
+      priorPacketValid = true;
+    }
+  }
+  if (!laterPacket) {
+    addPacketRelationError(
+      accumulator,
+      "later_packet_malformed",
+      "$.later_packet",
+      "Later TaskContextPacket must be an object.",
+    );
+  } else {
+    const validation = validateTaskContextPacketV01(laterPacket, {
+      evaluated_at: laterPacket.generated_at,
+    });
+    if (validation.status !== "valid") {
+      addPacketRelationError(
+        accumulator,
+        "later_packet_invalid",
+        "$.later_packet",
+        "Later TaskContextPacket must validate independently.",
+      );
+    } else {
+      laterPacketValid = true;
+    }
+  }
+  if (!receipt) {
+    addPacketRelationError(
+      accumulator,
+      "transition_receipt_malformed",
+      "$.transition_receipt",
+      "StateTransitionReceipt must be an object.",
+    );
+  } else {
+    const validation = validateStateTransitionReceiptV01(receipt);
+    if (validation.status !== "valid") {
+      addPacketRelationError(
+        accumulator,
+        "transition_receipt_invalid",
+        "$.transition_receipt",
+        "StateTransitionReceipt must validate independently.",
+      );
+    } else {
+      receiptValid = true;
+    }
+  }
+  if (
+    !priorPacket ||
+    !laterPacket ||
+    !receipt ||
+    !priorPacketValid ||
+    !laterPacketValid ||
+    !receiptValid
+  ) {
+    return buildPacketRelationResult(accumulator);
+  }
+
+  for (const [actual, expected, code, path] of [
+    [priorPacket.workspace_id, receipt.workspace_id, "workspace_mismatch", "$.prior_packet.workspace_id"],
+    [laterPacket.workspace_id, receipt.workspace_id, "workspace_mismatch", "$.later_packet.workspace_id"],
+    [priorPacket.project_id, receipt.project_id, "project_mismatch", "$.prior_packet.project_id"],
+    [laterPacket.project_id, receipt.project_id, "project_mismatch", "$.later_packet.project_id"],
+  ] as const) {
+    if (actual !== expected) {
+      addPacketRelationError(
+        accumulator,
+        code,
+        path,
+        "TaskContextPacket and transition receipt identities must match.",
+      );
+    }
+  }
+  const laterGeneratedAt = parseStrictIsoTimestampV01(laterPacket.generated_at);
+  const recordedAt = parseStrictIsoTimestampV01(receipt.recorded_at);
+  if (
+    laterGeneratedAt !== null &&
+    recordedAt !== null &&
+    laterGeneratedAt < recordedAt
+  ) {
+    addPacketRelationError(
+      accumulator,
+      "later_packet_precedes_transition_receipt",
+      "$.later_packet.generated_at",
+      "Later TaskContextPacket cannot predate receipt recording.",
+    );
+  }
+
+  const receiptRef = createStateTransitionReceiptLineageRefV01(receipt);
+  const exactLineage = laterPacket.compatibility.source_refs.some(
+    (ref) => canonicalExternalRef(ref) === canonicalExternalRef(receiptRef),
+  );
+  if (!exactLineage) {
+    const identityPresent = laterPacket.compatibility.source_refs.some(
+      (ref) => externalRefIdentity(ref) === externalRefIdentity(receiptRef),
+    );
+    addPacketRelationError(
+      accumulator,
+      identityPresent
+        ? "transition_receipt_lineage_provenance_mismatch"
+        : "transition_receipt_lineage_missing",
+      "$.later_packet.compatibility.source_refs",
+      "Later TaskContextPacket must preserve the exact receipt ID and fingerprint lineage.",
+    );
+  }
+
+  const acceptedEntries = laterPacket.selected_context.filter(
+    (entry) => entry.entry_kind === "accepted_state_ref",
+  );
+  const acceptedSelectionKeys = new Set<string>();
+  for (const [index, entry] of acceptedEntries.entries()) {
+    const key = selectedStateKey(entry);
+    if (acceptedSelectionKeys.has(key)) {
+      addPacketRelationError(
+        accumulator,
+        "duplicate_accepted_state_selection",
+        `$.later_packet.selected_context[${index}]`,
+        "Accepted state selection must not contain duplicate state snapshots.",
+      );
+    }
+    acceptedSelectionKeys.add(key);
+  }
+
+  const affectedBeforeSnapshotKeys = new Set<string>();
+  const expectedAfterSelectionKeys = new Set<string>();
+  const expectedRetractionExclusionKeys = new Set<string>();
+  let hasCreateEffect = false;
+  for (const [effectIndex, effect] of receipt.effects.entries()) {
+    const afterState = effect.after_state;
+    if (afterState.presence === "present") {
+      const matchingEntries = acceptedEntries.filter(
+        (entry) =>
+          externalRefIdentity(entry.external_ref) ===
+          externalRefIdentity(afterState.state_ref),
+      );
+      const exactEntry = matchingEntries.find((entry) =>
+        selectedEntryMatchesAppliedState(
+          entry,
+          afterState.state_ref,
+          afterState.state_fingerprint,
+          effect.after_application_observation_ref,
+          receiptRef,
+        ),
+      );
+      if (!exactEntry) {
+        addPacketRelationError(
+          accumulator,
+          matchingEntries.length > 0
+            ? "applied_after_state_provenance_mismatch"
+            : "applied_after_state_missing",
+          `$.later_packet.selected_context`,
+          "Every present after-state must be selected with exact receipt and observation provenance.",
+        );
+      } else {
+        expectedAfterSelectionKeys.add(
+          selectedStateKey(exactEntry),
+        );
+      }
+    }
+    const beforeState = effect.before_state;
+    if (beforeState.presence === "present") {
+      const beforeIdentity = externalRefIdentity(
+        beforeState.state_ref,
+      );
+      const beforeSnapshotKey = `${canonicalExternalRef(beforeState.state_ref)}|${beforeState.state_fingerprint}`;
+      affectedBeforeSnapshotKeys.add(beforeSnapshotKey);
+      const retained = acceptedEntries.some(
+        (entry) =>
+          selectedEntryMatchesSnapshot(
+            entry,
+            beforeState.state_ref,
+            beforeState.state_fingerprint,
+          ),
+      );
+      if (retained) {
+        addPacketRelationError(
+          accumulator,
+          "retired_before_state_retained",
+          "$.later_packet.selected_context",
+          "Replaced, superseded, or retracted before-state must not remain selected.",
+        );
+      }
+      const priorIncluded = priorPacket.selected_context.some((entry) =>
+        selectedEntryMatchesSnapshot(
+          entry,
+          beforeState.state_ref,
+          beforeState.state_fingerprint,
+        ),
+      );
+      if (!priorIncluded) {
+        addPacketRelationError(
+          accumulator,
+          "prior_before_state_missing",
+          "$.prior_packet.selected_context",
+          "Strict transition relation requires the present before-state in prior selected context.",
+        );
+      }
+      if (effect.operation === "retract") {
+        const identityMatches = laterPacket.excluded_context.filter(
+          (entry) =>
+            externalRefIdentity(entry.external_ref) === beforeIdentity,
+        );
+        const exactExclusion = identityMatches.some(
+          (entry) =>
+            canonicalExternalRef(entry.external_ref) ===
+              canonicalExternalRef(beforeState.state_ref) &&
+            entry.source_ref === beforeState.state_fingerprint &&
+            canonicalExternalRef(entry.currentness.source_ref) ===
+              canonicalExternalRef(receiptRef) &&
+            entry.currentness.as_of === receiptRef.observed_at,
+        );
+        if (!exactExclusion) {
+          addPacketRelationError(
+            accumulator,
+            identityMatches.length > 0
+              ? "retracted_before_state_exclusion_provenance_mismatch"
+              : "retracted_before_state_exclusion_missing",
+            "$.later_packet.excluded_context",
+            "Retracted before-state must be explicitly excluded with exact receipt provenance.",
+          );
+        } else {
+          expectedRetractionExclusionKeys.add(
+            `${canonicalExternalRef(beforeState.state_ref)}|${beforeState.state_fingerprint}`,
+          );
+        }
+      }
+    } else if (effect.operation === "create") {
+      hasCreateEffect = true;
+    }
+    if (effectIndex >= 64) {
+      addPacketRelationError(
+        accumulator,
+        "transition_effect_bound_exceeded",
+        "$.transition_receipt.effects",
+        "Transition effect traversal exceeded the v0.1 bound.",
+      );
+      break;
+    }
+  }
+
+  for (const [index, entry] of laterPacket.excluded_context.entries()) {
+    if (
+      canonicalExternalRef(entry.currentness.source_ref) !==
+      canonicalExternalRef(receiptRef)
+    ) {
+      continue;
+    }
+    const exclusionKey = `${canonicalExternalRef(entry.external_ref)}|${entry.source_ref ?? ""}`;
+    if (!expectedRetractionExclusionKeys.has(exclusionKey)) {
+      addPacketRelationError(
+        accumulator,
+        hasCreateEffect
+          ? "create_before_state_exclusion_invented"
+          : "unexpected_transition_exclusion",
+        `$.later_packet.excluded_context[${index}]`,
+        "Receipt-derived exclusions are allowed only for exact retracted before-state snapshots.",
+      );
+    }
+  }
+
+  const priorUnrelated = priorPacket.selected_context.filter(
+    (entry) =>
+      !affectedBeforeSnapshotKeys.has(selectedStateKey(entry)),
+  );
+  const laterUnrelated = laterPacket.selected_context.filter((entry) => {
+    if (entry.entry_kind !== "accepted_state_ref") return true;
+    return !expectedAfterSelectionKeys.has(selectedStateKey(entry));
+  });
+  if (
+    canonicalizeProtocolValueV01(
+      [...priorUnrelated].sort(compareProtocolCanonicalV01),
+    ) !==
+    canonicalizeProtocolValueV01(
+      [...laterUnrelated].sort(compareProtocolCanonicalV01),
+    )
+  ) {
+    addPacketRelationError(
+      accumulator,
+      "unrelated_selected_context_changed",
+      "$.later_packet.selected_context",
+      "Unrelated selected context must remain unchanged in the strict relation.",
+    );
+  }
+
+  return buildPacketRelationResult(accumulator);
+}
+
+function selectedEntryMatchesAppliedState(
+  entry: TaskContextPacketSelectedEntryV01,
+  stateRef: ExternalRefV01,
+  stateFingerprint: string,
+  observationRef: ExternalRefV01,
+  receiptRef: ExternalRefV01,
+): boolean {
+  return (
+    selectedEntryMatchesSnapshot(entry, stateRef, stateFingerprint) &&
+    canonicalExternalRef(entry.currentness.source_ref) ===
+      canonicalExternalRef(observationRef) &&
+    entry.currentness.as_of === observationRef.observed_at &&
+    canonicalExternalRef(entry.compatibility_source_ref) ===
+      canonicalExternalRef(receiptRef)
+  );
+}
+
+function selectedEntryMatchesSnapshot(
+  entry: TaskContextPacketSelectedEntryV01,
+  stateRef: ExternalRefV01,
+  stateFingerprint: string,
+): boolean {
+  return (
+    entry.entry_kind === "accepted_state_ref" &&
+    canonicalExternalRef(entry.external_ref) ===
+      canonicalExternalRef(stateRef) &&
+    entry.source_ref === stateFingerprint &&
+    entry.trust_class === stateRef.trust_class
+  );
+}
+
+function selectedStateKey(entry: TaskContextPacketSelectedEntryV01): string {
+  return `${canonicalExternalRef(entry.external_ref)}|${entry.source_ref ?? ""}`;
+}
+
+type PacketRelationAccumulator = {
+  errors: TaskContextPacketTransitionRelationIssueV01[];
+  warnings: TaskContextPacketTransitionRelationIssueV01[];
+};
+
+function createPacketRelationAccumulator(): PacketRelationAccumulator {
+  return { errors: [], warnings: [] };
+}
+
+function addPacketRelationError(
+  accumulator: PacketRelationAccumulator,
+  code: string,
+  path: string | null,
+  message: string,
+) {
+  accumulator.errors.push({ severity: "error", code, path, message });
+}
+
+function buildPacketRelationResult(
+  accumulator: PacketRelationAccumulator,
+): TaskContextPacketTransitionRelationResultV01 {
+  return {
+    status: accumulator.errors.length === 0 ? "valid" : "blocked",
+    errors: accumulator.errors,
+    warnings: accumulator.warnings,
+  };
+}
 
 function validateGateEvaluation(
   value: unknown,

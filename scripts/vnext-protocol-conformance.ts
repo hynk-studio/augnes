@@ -35,6 +35,7 @@ import { runEpisodeDeltaProposalConformanceV01 } from "@/scripts/vnext-protocol-
 import { runReviewDecisionConformanceV01 } from "@/scripts/vnext-protocol-conformance/review-decision";
 import { runRunReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/run-receipt";
 import { runSemanticReviewLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-review-loop";
+import { runSemanticTransitionLoopConformanceV01 } from "@/scripts/vnext-protocol-conformance/semantic-transition-loop";
 import { runStateTransitionReceiptConformanceV01 } from "@/scripts/vnext-protocol-conformance/state-transition-receipt";
 
 const legacyAdapterSourcePath =
@@ -560,6 +561,8 @@ try {
   const codexReviewEpisodeDeltaProposalSummary =
     runCodexReviewEpisodeDeltaProposalConformanceV01();
   const semanticReviewLoopSummary = runSemanticReviewLoopConformanceV01();
+  const semanticTransitionLoopSummary =
+    runSemanticTransitionLoopConformanceV01();
   const codexResultCompatibilitySummary =
     runCodexResultReportRunReceiptConformanceV01();
   const autohuntResultCompatibilitySummary =
@@ -622,6 +625,7 @@ try {
         codex_review_episode_delta_proposal_compatibility:
           codexReviewEpisodeDeltaProposalSummary,
         semantic_review_loop: semanticReviewLoopSummary,
+        semantic_transition_loop: semanticTransitionLoopSummary,
         codex_result_report_run_receipt_compatibility:
           codexResultCompatibilitySummary,
         autohunt_result_intake_run_receipt_compatibility:
