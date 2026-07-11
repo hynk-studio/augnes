@@ -42,6 +42,8 @@ import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 import type { RunReceiptV01 } from "@/types/vnext/run-receipt";
 import type { StateTransitionReceiptV01 } from "@/types/vnext/state-transition-receipt";
 import type { TaskContextPacketV01 } from "@/types/vnext/task-context-packet";
+const VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01 =
+  "vnext_operator_pilot_later_result_intake.v0.1";
 
 export const VNEXT_OPERATOR_PILOT_CONTINUITY_VERSION_V01 =
   "vnext_operator_pilot_project_continuity.v0.1" as const;
@@ -121,6 +123,10 @@ export interface VNextOperatorPilotPacketHandoffV01 {
     currentness: "fresh" | "expired";
     data_classification: TaskContextPacketV01["constraints"]["data_classification"];
   };
+  source_transition_receipt: {
+    transition_receipt_id: string;
+    transition_receipt_fingerprint: string;
+  };
   accepted_state_refs: Array<{
     entry_id: string;
     state_ref: NonNullable<TaskContextPacketV01["selected_context"][number]["external_ref"]>;
@@ -151,6 +157,15 @@ export interface VNextOperatorPilotPacketHandoffResultV01 {
   handoff: VNextOperatorPilotPacketHandoffV01;
   bounded_json: string;
   bounded_text: string;
+}
+
+export interface VNextOperatorPilotPacketLineageInspectionV01 {
+  packet: TaskContextPacketV01;
+  projection_current: boolean;
+  source_transition_receipt: {
+    transition_receipt_id: string;
+    transition_receipt_fingerprint: string;
+  };
 }
 
 export function projectVNextOperatorPilotContinuityV01(
@@ -278,9 +293,8 @@ export function buildVNextOperatorPilotPacketHandoffV01(
   },
 ): VNextOperatorPilotPacketHandoffResultV01 {
   assertVNextDurableSemanticStoreSchemaV01(db);
-  const packet = loadPacket(db, input.config, input.packet_id, input.packet_fingerprint);
-  validateCurrentSemanticState(db, input.config);
-  const compiled = validateCompiledPacketLineage(db, input.config, packet);
+  const compiled = inspectVNextOperatorPilotPacketLineageV01(db, input);
+  const packet = compiled.packet;
   if (!compiled.projection_current) {
     throw continuityError("operator_pilot_handoff_packet_stale", 409);
   }
@@ -314,6 +328,7 @@ export function buildVNextOperatorPilotPacketHandoffV01(
       currentness: packetCurrentness(packet, now),
       data_classification: packet.constraints.data_classification,
     },
+    source_transition_receipt: compiled.source_transition_receipt,
     accepted_state_refs: acceptedStateRefs,
     constraints: packet.constraints,
     return_contract: packet.return_contract,
@@ -343,6 +358,25 @@ export function buildVNextOperatorPilotPacketHandoffV01(
     throw continuityError("operator_pilot_handoff_text_bound_exceeded", 422);
   }
   return { handoff, bounded_json: boundedJson, bounded_text: boundedText };
+}
+
+export function inspectVNextOperatorPilotPacketLineageV01(
+  db: Database.Database,
+  input: {
+    config: VNextLocalOperatorPilotConfigV01;
+    packet_id: string;
+    packet_fingerprint: string;
+  },
+): VNextOperatorPilotPacketLineageInspectionV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  const packet = loadPacket(
+    db,
+    input.config,
+    input.packet_id,
+    input.packet_fingerprint,
+  );
+  validateCurrentSemanticState(db, input.config);
+  return validateCompiledPacketLineage(db, input.config, packet);
 }
 
 function loadRecords(
@@ -540,7 +574,14 @@ function validateCompiledPacketLineage(
   db: Database.Database,
   config: VNextLocalOperatorPilotConfigV01,
   packet: TaskContextPacketV01,
-): { packet: TaskContextPacketV01; projection_current: boolean } {
+): {
+  packet: TaskContextPacketV01;
+  projection_current: boolean;
+  source_transition_receipt: {
+    transition_receipt_id: string;
+    transition_receipt_fingerprint: string;
+  };
+} {
   if (
     !packet.compatibility.source_contracts.includes(
       VNEXT_PERSISTED_SEMANTIC_CONTEXT_COMPILER_VERSION_V01,
@@ -666,6 +707,10 @@ function validateCompiledPacketLineage(
   return {
     packet,
     projection_current: affectedCurrent && fullSelectionCurrent,
+    source_transition_receipt: {
+      transition_receipt_id: transition.receipt.transition_receipt_id,
+      transition_receipt_fingerprint: transition.receipt.integrity.fingerprint,
+    },
   };
 }
 
@@ -703,7 +748,10 @@ function loadContextUseReceipts(db: Database.Database, config: VNextLocalOperato
     })
     .filter(
       (receipt) =>
-        receipt.compatibility.source_contracts.includes(VNEXT_LOCAL_CONTEXT_USE_PROBE_VERSION_V01) &&
+        (receipt.compatibility.source_contracts.includes(VNEXT_LOCAL_CONTEXT_USE_PROBE_VERSION_V01) ||
+          receipt.compatibility.source_contracts.includes(
+            VNEXT_OPERATOR_PILOT_LATER_RESULT_INTAKE_CONTRACT_V01,
+          )) &&
         receipt.task_context_packet_ref?.ref_type === "task_context_packet" &&
         /^sha256:[a-f0-9]{64}$/.test(receipt.task_context_packet_ref.source_ref!),
     );
@@ -746,6 +794,8 @@ function buildBoundedHandoffText(handoff: VNextOperatorPilotPacketHandoffV01): s
     `Project: ${handoff.project_id}`,
     `Packet: ${handoff.packet.packet_id}`,
     `Fingerprint: ${handoff.packet.packet_fingerprint}`,
+    `Source transition receipt: ${handoff.source_transition_receipt.transition_receipt_id}`,
+    `Source transition fingerprint: ${handoff.source_transition_receipt.transition_receipt_fingerprint}`,
     `Currentness: ${handoff.packet.currentness}`,
     `Data classification: ${handoff.packet.data_classification}`,
     "",

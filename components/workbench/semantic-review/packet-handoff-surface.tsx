@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { VNextOperatorPilotPacketHandoffV01 } from "@/lib/vnext/runtime/operator-pilot-project-continuity";
 
+import { LaterResultIntakePanel } from "./later-result-intake-panel";
 import styles from "./semantic-review.module.css";
 
 const PACKET_HANDOFF_ROUTE = "/api/vnext/operator/packet-handoff";
@@ -62,6 +63,10 @@ export function PacketHandoffSurface({
     message: "No bounded handoff JSON downloaded.",
     fallback_text: null,
   });
+  const operatorMutationInFlight = useRef(false);
+  const handleSessionInvalid = useCallback((errorCode: string) => {
+    setRead({ status: "locked", error_code: errorCode });
+  }, []);
 
   useEffect(() => {
     if (!metadataUrl) {
@@ -105,6 +110,10 @@ export function PacketHandoffSurface({
           body.handoff.structured_result_instruction.packet_id !== packetId ||
           body.handoff.structured_result_instruction.packet_fingerprint !==
             packetFingerprint ||
+          body.handoff.source_transition_receipt.transition_receipt_id.length === 0 ||
+          !/^sha256:[a-f0-9]{64}$/.test(
+            body.handoff.source_transition_receipt.transition_receipt_fingerprint,
+          ) ||
           body.packet_currentness !== body.handoff.packet.currentness ||
           typeof body.bounded_text !== "string" ||
           body.bounded_text.length === 0 ||
@@ -266,9 +275,10 @@ export function PacketHandoffSurface({
         </header>
 
         <div className={styles.boundaryBand} aria-label="Packet handoff boundaries">
-          <span>read-only authenticated handoff</span>
+          <span>handoff export is read-only</span>
           <span>copy is not consumption</span>
           <span>handoff is not execution</span>
+          <span>result intake writes one receipt only</span>
           <span>no provider call</span>
         </div>
 
@@ -300,6 +310,15 @@ export function PacketHandoffSurface({
             downloadState={downloadState}
             onCopy={() => void copyBoundedText()}
             onDownload={() => void downloadBoundedJson()}
+            tryBeginOperatorMutation={() => {
+              if (operatorMutationInFlight.current) return false;
+              operatorMutationInFlight.current = true;
+              return true;
+            }}
+            endOperatorMutation={() => {
+              operatorMutationInFlight.current = false;
+            }}
+            onSessionInvalid={handleSessionInvalid}
           />
         )}
       </div>
@@ -313,12 +332,18 @@ function PacketHandoffReadout({
   downloadState,
   onCopy,
   onDownload,
+  tryBeginOperatorMutation,
+  endOperatorMutation,
+  onSessionInvalid,
 }: {
   response: PacketHandoffMetadataResponseV01;
   copyState: LocalExportStateV01;
   downloadState: LocalExportStateV01;
   onCopy: () => void;
   onDownload: () => void;
+  tryBeginOperatorMutation: () => boolean;
+  endOperatorMutation: () => void;
+  onSessionInvalid: (errorCode: string) => void;
 }) {
   const { handoff } = response;
   return (
@@ -346,6 +371,10 @@ function PacketHandoffReadout({
         <ExactValue
           label="Packet fingerprint"
           value={handoff.packet.packet_fingerprint}
+        />
+        <ExactValue
+          label="Source transition receipt"
+          value={`${handoff.source_transition_receipt.transition_receipt_id} / ${handoff.source_transition_receipt.transition_receipt_fingerprint}`}
         />
         <dl className={styles.statusGrid}>
           <DataPoint label="Generated" value={handoff.packet.generated_at} />
@@ -483,11 +512,19 @@ function PacketHandoffReadout({
           <pre className={styles.handoffPreview}>{response.bounded_text}</pre>
         </details>
         <p className={styles.notice}>
-          Export presence is not usage evidence. Only a later structured result and
-          explicit ContextUseReview may assess whether this packet was actually used or
-          helpful; this surface records neither.
+          Export presence is not usage evidence. The later-result intake below can
+          record a caller-reported use relation and conservative RunReceipt, but that
+          still does not establish actual use or helpfulness. Only an explicit later
+          ContextUseReview may assess those questions.
         </p>
       </section>
+
+      <LaterResultIntakePanel
+        handoff={handoff}
+        tryBeginOperatorMutation={tryBeginOperatorMutation}
+        endOperatorMutation={endOperatorMutation}
+        onSessionInvalid={onSessionInvalid}
+      />
     </section>
   );
 }
@@ -552,6 +589,7 @@ function downloadBindingMatches(
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
   const packet = record.packet;
+  const transition = record.source_transition_receipt;
   const authority = record.authority_summary;
   return (
     record.workspace_id === expected.workspace_id &&
@@ -562,6 +600,13 @@ function downloadBindingMatches(
     (packet as Record<string, unknown>).packet_id === expected.packet.packet_id &&
     (packet as Record<string, unknown>).packet_fingerprint ===
       expected.packet.packet_fingerprint &&
+    transition !== null &&
+    typeof transition === "object" &&
+    !Array.isArray(transition) &&
+    (transition as Record<string, unknown>).transition_receipt_id ===
+      expected.source_transition_receipt.transition_receipt_id &&
+    (transition as Record<string, unknown>).transition_receipt_fingerprint ===
+      expected.source_transition_receipt.transition_receipt_fingerprint &&
     authority !== null &&
     typeof authority === "object" &&
     !Array.isArray(authority) &&

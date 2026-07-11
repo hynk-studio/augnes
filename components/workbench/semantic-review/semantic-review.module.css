@@ -520,12 +520,25 @@
   max-height: 420px;
 }
 
+.citationGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.citationGrid .checkRow > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
 @media (max-width: 900px) {
   .header,
   .detailGrid,
   .provenanceGrid,
   .twoColumnGrid,
-  .transitionSteps {
+  .transitionSteps,
+  .citationGrid {
     grid-template-columns: 1fr;
   }
 
