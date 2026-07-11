@@ -7,6 +7,7 @@ import {
 
 import {
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
+  assertVNextDurableSemanticStoreSchemaV01,
   deriveVNextSemanticTargetKeyV01,
   insertVNextCoreRecordV01,
   listVNextSemanticStateEntriesV01,
@@ -129,6 +130,7 @@ export function runLocalContextUseProbeV01(
   db: Database.Database,
   input: RunLocalContextUseProbeInputV01,
 ): RunLocalContextUseProbeResultV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
   if (db.inTransaction) {
     throw new Error("local_context_use_probe_nested_transaction_forbidden");
   }

@@ -7,6 +7,7 @@ import {
 
 import {
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
+  assertVNextDurableSemanticStoreSchemaV01,
   deriveVNextSemanticTargetKeyV01,
   insertVNextCoreRecordV01,
   listVNextSemanticStateEntriesV01,
@@ -92,6 +93,7 @@ export function compileTaskContextPacketFromPersistedSemanticStateV01(
   db: Database.Database,
   input: CompileTaskContextPacketFromPersistedSemanticStateInputV01,
 ): CompileTaskContextPacketFromPersistedSemanticStateResultV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
   if (db.inTransaction) {
     throw new Error("persisted_context_compiler_nested_transaction_forbidden");
   }

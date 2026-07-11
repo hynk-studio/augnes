@@ -8,10 +8,10 @@ import {
 import {
   VNEXT_LOCAL_SEMANTIC_STATE_NAMESPACE_V01,
   assertVNextCoreRecordMatchesProtocolPayloadBindingV01,
+  assertVNextDurableSemanticStoreSchemaV01,
   buildVNextPersistedSemanticStateV01,
   deleteVNextSemanticStateEntryCasV01,
   deriveVNextSemanticTargetKeyV01,
-  ensureVNextDurableSemanticStoreSchemaV01,
   insertVNextCoreRecordV01,
   insertVNextSemanticStateEntryV01,
   insertVNextSemanticTargetHeadV01,
@@ -272,7 +272,7 @@ export function persistVNextSemanticReviewMaterialV01(
 ): VNextSemanticReviewMaterialPersistenceResultV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
   assertProposalDecision(input.proposal, input.decision);
-  ensureVNextDurableSemanticStoreSchemaV01(db);
+  assertVNextDurableSemanticStoreSchemaV01(db);
   return withImmediateTransaction(db, () => {
     const proposalRecord = insertVNextCoreRecordV01(db, {
       record_kind: "episode_delta_proposal",
@@ -317,6 +317,7 @@ export function prepareVNextSemanticCommitPreviewV01(
   maybeInput?: PrepareVNextSemanticCommitPreviewInputV01,
 ): VNextSemanticCommitPreviewV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
+  assertVNextDurableSemanticStoreSchemaV01(db);
   assertRuntimeInputKeys(
     input,
     new Set([
@@ -452,6 +453,7 @@ export function recordVNextSemanticCommitAuthorizationV01(
   maybeInput?: RecordVNextSemanticCommitAuthorizationInputV01,
 ): VNextSemanticCommitAuthorizationResultV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
+  assertVNextDurableSemanticStoreSchemaV01(db);
   assertRuntimeInputKeys(
     input,
     new Set([
@@ -610,6 +612,7 @@ export function commitVNextSemanticTransitionV01(
   maybeInput?: CommitVNextSemanticTransitionInputV01,
 ): VNextSemanticTransitionCommitResultV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
+  assertVNextDurableSemanticStoreSchemaV01(db);
   return commitVNextSemanticTransitionInternalV01(db, input);
 }
 
@@ -617,6 +620,7 @@ export function loadValidatedVNextSemanticTransitionRelationV01(
   db: Database.Database,
   input: LoadValidatedVNextSemanticTransitionInputV01,
 ): ValidatedVNextSemanticTransitionRelationV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
   const receiptRecord = readVNextCoreRecordV01(db, {
     record_kind: "state_transition_receipt",
     record_id: input.transition_receipt_id,

@@ -33,3 +33,6 @@ jobs:
           TMP_DIR="$(mktemp -d)"
           trap 'rm -rf "$TMP_DIR"' EXIT
           AUGNES_DB_PATH="$TMP_DIR/vnext-durable-semantic-loop.db" npm run smoke:vnext-durable-semantic-loop-v0-1
+
+      - name: Build without default database access
+        run: npm run build

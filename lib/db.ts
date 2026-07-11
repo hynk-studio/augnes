@@ -4,7 +4,6 @@ import {
   type ConsolidationStatus,
 } from "@/lib/runtime/candidate-scoring";
 import proposalScoringSchema from "@/lib/db/proposal-scoring-schema.json";
-import { ensureVNextDurableSemanticStoreSchemaV01 } from "@/lib/vnext/persistence/durable-semantic-store";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -211,7 +210,13 @@ type ProposalCommitResult = {
 };
 
 export function getDatabasePath() {
-  return process.env.AUGNES_DB_PATH ?? DEFAULT_DB_PATH;
+  const guardedBuildDefaultPath =
+    process.env.AUGNES_BUILD_ISOLATION === "1"
+      ? process.env.AUGNES_BUILD_DEFAULT_DB_GUARD_PATH
+      : undefined;
+  return (
+    process.env.AUGNES_DB_PATH ?? guardedBuildDefaultPath ?? DEFAULT_DB_PATH
+  );
 }
 
 export function openDatabase() {
@@ -252,7 +257,6 @@ export function openDatabase() {
   migrateAutohuntDailyLauncherRunTable(db);
   migratePerspectiveMemoryProductPersistenceBoundaryRecordsTable(db);
   migratePerspectiveMemoryItemsTable(db);
-  ensureVNextDurableSemanticStoreSchemaV01(db);
   return db;
 }
 

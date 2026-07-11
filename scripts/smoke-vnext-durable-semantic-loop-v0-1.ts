@@ -694,7 +694,7 @@ try {
       contextUseProbeCoverage.positive_cases +
       fullDurableLocalLoopCoverage.positive_cases,
     negative_cases:
-      11 +
+      12 +
       writerCoverage.negative_cases +
       contextCompilerCoverage.negative_cases +
       contextUseProbeCoverage.negative_cases +
@@ -1453,6 +1453,7 @@ function runConflictingResultCoverage(
       conflictingReceipt.recorded_at,
       conflictingReceipt.idempotency_key,
     );
+  ensureVNextDurableSemanticStoreSchemaV01(opened.database);
   const baseline = readDatabaseSnapshot(opened.database);
   assert.throws(
     () =>
@@ -2032,6 +2033,7 @@ function runProjectionLedgerCoherenceCoverage(
           projection.target_key,
         );
     }
+    ensureVNextDurableSemanticStoreSchemaV01(opened.database);
     const baseline = readDatabaseSnapshot(opened.database);
     const times = semanticGateScenarioTimes(scenarios.replace);
     assert.throws(
@@ -4699,21 +4701,65 @@ function canonicalRefSet(refs: ExternalRefV01[]): string[] {
 
 function runMigrationCoverage(parentDirectory: string) {
   const suffix = `${process.pid}`;
+  const uninitializedPath = resolve(
+    parentDirectory,
+    `m3c-migration-uninitialized-${suffix}.db`,
+  );
   const freshPath = resolve(parentDirectory, `m3c-migration-fresh-${suffix}.db`);
   const legacyPath = resolve(parentDirectory, `m3c-migration-legacy-${suffix}.db`);
   const backupPath = resolve(parentDirectory, `m3c-migration-backup-${suffix}.db`);
   const restoredPath = resolve(parentDirectory, `m3c-migration-restored-${suffix}.db`);
-  const ownedPaths = [freshPath, legacyPath, backupPath, restoredPath].flatMap(
-    (path) => [path, `${path}-wal`, `${path}-shm`],
-  );
+  const ownedPaths = [
+    uninitializedPath,
+    freshPath,
+    legacyPath,
+    backupPath,
+    restoredPath,
+  ].flatMap((path) => [path, `${path}-wal`, `${path}-shm`]);
   for (const path of ownedPaths) {
     assert.equal(existsSync(path), false, `migration rehearsal owns fresh path ${path}`);
   }
 
   let fresh: Database.Database | null = null;
+  let uninitialized: Database.Database | null = null;
   let legacy: Database.Database | null = null;
   let restored: Database.Database | null = null;
   try {
+    uninitialized = new Database(uninitializedPath);
+    uninitialized.pragma("foreign_keys = ON");
+    assert.throws(
+      () =>
+        prepareVNextSemanticCommitPreviewV01(uninitialized!, {
+          workspace_id: "workspace:uninitialized",
+          project_id: "project:uninitialized",
+          proposal_id: "episode-delta-proposal:uninitialized",
+          proposal_fingerprint: createProtocolSha256V01(
+            "uninitialized-proposal",
+          ),
+          decision_id: "review-decision:uninitialized",
+          decision_fingerprint: createProtocolSha256V01(
+            "uninitialized-decision",
+          ),
+          authorized_applier_identity: {
+            ref_type: "semantic_transition_applier",
+            external_id: "local-core-applier:uninitialized",
+          },
+          gate_ttl_ms: 60_000,
+          clock: fixedClock("2026-07-10T00:00:00.000Z"),
+        }),
+      /vnext_durable_semantic_store_schema_uninitialized/,
+      "durable runtime fails clearly until explicit schema initialization",
+    );
+    assert.equal(
+      (
+        uninitialized
+          .prepare("SELECT COUNT(*) AS count FROM sqlite_master")
+          .get() as { count: number }
+      ).count,
+      0,
+      "runtime schema readiness check performs no implicit migration",
+    );
+
     fresh = new Database(freshPath);
     fresh.pragma("foreign_keys = ON");
     ensureVNextDurableSemanticStoreSchemaV01(fresh);
@@ -4767,7 +4813,7 @@ function runMigrationCoverage(parentDirectory: string) {
     return {
       status: "pass",
       positive_cases: 8,
-      negative_cases: 6,
+      negative_cases: 7,
       fresh_creation: true,
       legacy_only_additive_upgrade: true,
       repeated_migration: true,
@@ -4779,11 +4825,13 @@ function runMigrationCoverage(parentDirectory: string) {
       project_isolation: true,
       backup_restore: true,
       runtime_migration_canonical_schema_drift_free: true,
+      runtime_requires_explicit_schema_initialization: true,
       restored_legacy_rows_unchanged: true,
       integrity_check: "ok",
       restored_logical_checksum: upgradedLegacySnapshot.logical_checksum,
     };
   } finally {
+    if (uninitialized?.open) uninitialized.close();
     if (fresh?.open) fresh.close();
     if (legacy?.open) legacy.close();
     if (restored?.open) restored.close();

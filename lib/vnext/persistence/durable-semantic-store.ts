@@ -315,6 +315,33 @@ export function ensureVNextDurableSemanticStoreSchemaV01(
   db.exec(VNEXT_DURABLE_SEMANTIC_STORE_SCHEMA_SQL_V01);
 }
 
+export function assertVNextDurableSemanticStoreSchemaV01(
+  db: Database.Database,
+): void {
+  const requiredArtifacts = [
+    ["table", "vnext_core_records"],
+    ["table", "vnext_semantic_state_entries"],
+    ["table", "vnext_semantic_target_heads"],
+    ["index", "idx_vnext_core_records_project_idempotency"],
+    ["index", "idx_vnext_core_records_project_kind_created"],
+    ["index", "idx_vnext_semantic_state_entries_project_updated"],
+    ["index", "idx_vnext_semantic_target_heads_project_updated"],
+    ["trigger", "trg_vnext_core_records_immutable_update"],
+    ["trigger", "trg_vnext_core_records_immutable_delete"],
+  ] as const;
+  const lookup = db.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = ? AND name = ?",
+  );
+  const missing = requiredArtifacts
+    .filter(([type, name]) => !lookup.get(type, name))
+    .map(([type, name]) => `${type}:${name}`);
+  if (missing.length > 0) {
+    throw new Error(
+      `vnext_durable_semantic_store_schema_uninitialized:${missing.join(",")}`,
+    );
+  }
+}
+
 export function insertVNextCoreRecordV01(
   db: Database.Database,
   input: VNextCoreRecordEnvelopeV01,

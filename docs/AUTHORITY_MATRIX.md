@@ -159,10 +159,13 @@ Augnes is useful across ChatGPT, Codex, GitHub, Browser/Chrome, and MCP surfaces
   real operator decision. The M3C smoke must remove its database and side files
   and must leave legacy state, proof, Evidence, Perspective, publication, and
   action-record tables unchanged.
-- Local verification that may evaluate existing app modules, including a Next
-  production build, must set an explicit temporary `AUGNES_DB_PATH`; importing
-  a path that opens the canonical local store is not permission to migrate or
-  inspect the default product/user database during Codex verification.
+- Generic database open does not install the vNext durable schema. Explicit
+  init/migrate is required before writer use, and missing schema fails closed.
+  Plain `npm run build` injects its own initialized OS-temporary database,
+  checks that seeded DB material was not statically baked, verifies injected
+  existing/absent default-path guards are unchanged, and removes all temporary
+  DB side files. Importing a database path is never permission to migrate or
+  inspect the actual default product/user database during Codex verification.
 - The explicit persisted-state Context Compiler is a consumer of an already
   valid transition relation, not a transition gate. It runs only when called,
   validates the complete proposal-to-later-packet chain, and has no scheduler,
