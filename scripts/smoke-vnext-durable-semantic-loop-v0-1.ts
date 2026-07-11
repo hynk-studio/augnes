@@ -15,6 +15,7 @@ import Database from "better-sqlite3";
 import {
   DURABLE_LOCAL_LOOP_APPLIED_AT,
   DURABLE_LOCAL_LOOP_CONFIRMED_AT,
+  DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
   DURABLE_LOCAL_LOOP_CURRENT_STATE_OBSERVED_AT,
   DURABLE_LOCAL_LOOP_ELIGIBILITY_EVALUATED_AT,
   DURABLE_LOCAL_LOOP_GATE_EVALUATED_AT,
@@ -41,6 +42,7 @@ import {
   validateTaskContextPacketV01,
 } from "../lib/vnext/task-context-packet";
 import {
+  countVNextCoreRecordsV01,
   VNEXT_LOCAL_SEMANTIC_STATE_NAMESPACE_V01,
   buildVNextPersistedSemanticStateV01,
   deriveVNextSemanticTargetKeyV01,
@@ -50,6 +52,10 @@ import {
   listVNextSemanticStateEntriesV01,
   readVNextCoreRecordV01,
 } from "../lib/vnext/persistence/durable-semantic-store";
+import {
+  runLocalContextUseProbeV01,
+  validateLocalContextUseProbeRunReceiptV01,
+} from "../lib/vnext/adapters/local-context-use-probe";
 import {
   commitVNextSemanticTransitionV01,
   persistVNextSemanticReviewMaterialV01,
@@ -65,6 +71,10 @@ import {
   validateTaskContextPacketTransitionRelationV01,
 } from "../lib/vnext/state-transition-eligibility";
 import { compileTaskContextPacketFromPersistedSemanticStateV01 } from "../lib/vnext/runtime/persisted-semantic-context-compiler";
+import {
+  buildRunReceiptV01,
+  validateRunReceiptV01,
+} from "../lib/vnext/run-receipt";
 import { validateStateTransitionReceiptV01 } from "../lib/vnext/state-transition-receipt";
 import type { ExternalRefV01 } from "../types/vnext/external-ref";
 import type { StateTransitionReceiptV01 } from "../types/vnext/state-transition-receipt";
@@ -133,6 +143,8 @@ const DURABLE_LOCAL_LOOP_CONFLICT_APPLIED_AT = "2026-07-10T14:13:30.000Z";
 const DURABLE_LOCAL_LOOP_CONFLICT_RECORDED_AT = "2026-07-10T14:14:30.000Z";
 const DURABLE_LOCAL_LOOP_FOLLOWUP_PACKET_GENERATED_AT =
   "2026-07-10T14:15:00.000Z";
+const DURABLE_LOCAL_LOOP_FOLLOWUP_PROBE_RECORDED_AT =
+  "2026-07-10T14:16:00.000Z";
 
 try {
   db = new Database(dbPath);
@@ -351,6 +363,15 @@ try {
     ),
   );
 
+  const persistedPriorPacket = persistTaskContextPacketRecordV01(
+    db,
+    prefix.prior_packet,
+  );
+  assert.equal(
+    persistedPriorPacket.status,
+    "inserted",
+    "the local context-use path starts from an exact persisted prior packet",
+  );
   const beforeContextCompile = readDatabaseSnapshot(db);
   const compiledContext = compileTaskContextPacketFromPersistedSemanticStateV01(
     db,
@@ -415,6 +436,61 @@ try {
     ),
   );
 
+  const beforeContextUseProbe = readDatabaseSnapshot(db);
+  const contextUseProbeInput = localContextUseProbeInput(
+    prefix.prior_packet,
+    compiledContext.later_packet,
+    receipt,
+    DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
+  );
+  const contextUseProbe = runLocalContextUseProbeV01(
+    db,
+    contextUseProbeInput,
+  );
+  assert.equal(contextUseProbe.status, "inserted");
+  assert.equal(contextUseProbe.relation.status, "valid");
+  assert.equal(
+    validateRunReceiptV01(contextUseProbe.receipt).status,
+    "valid",
+    "local context-use RunReceipt validates independently",
+  );
+  assert.equal(contextUseProbe.receipt.model_invocations.length, 0);
+  assert.equal(contextUseProbe.receipt.attestations.length, 0);
+  assert(contextUseProbe.receipt.trust_summary.direct_observations > 0);
+  assert.equal(
+    contextUseProbe.receipt.task_context_packet_ref?.external_id,
+    compiledContext.later_packet.packet_id,
+  );
+  assert.equal(
+    contextUseProbe.receipt.task_context_packet_ref?.source_ref,
+    compiledContext.later_packet.integrity.fingerprint,
+  );
+  const afterContextUseProbe = readDatabaseSnapshot(db);
+  assert.equal(
+    afterContextUseProbe.counts.vnext_core_records,
+    beforeContextUseProbe.counts.vnext_core_records + 1,
+    "the local context-use probe persists exactly one immutable RunReceipt",
+  );
+  assertLegacySnapshotUnchanged(afterContextUseProbe, legacyBaseline);
+  const contextUseProbeReplay = runLocalContextUseProbeV01(
+    db,
+    contextUseProbeInput,
+  );
+  assert.equal(contextUseProbeReplay.status, "exact_replay");
+  assert.deepEqual(contextUseProbeReplay.receipt, contextUseProbe.receipt);
+  assert.deepEqual(
+    readDatabaseSnapshot(db),
+    afterContextUseProbe,
+    "exact context-use probe replay writes no second receipt",
+  );
+  const contextUseProbeCoverage = runLocalContextUseProbeCoverage(
+    dirname(dbPath),
+    gateScenarios,
+    buildDurableLocalSemanticGateScenariosForProjectV01(
+      durableLocalClosedLoopProjectBFixture,
+    ),
+  );
+
   db.pragma("wal_checkpoint(TRUNCATE)");
   db.close();
   db = null;
@@ -424,8 +500,8 @@ try {
   const reopenedSnapshot = readDatabaseSnapshot(db);
   assert.deepEqual(
     reopenedSnapshot,
-    afterContextCompile,
-    "close/reopen preserves exact transition and compiled packet rows and hashes",
+    afterContextUseProbe,
+    "close/reopen preserves exact transition, compiled packet, and context-use receipt rows and hashes",
   );
   assert.deepEqual(
     JSON.parse(
@@ -449,13 +525,25 @@ try {
     compiledContext.later_packet,
     "close/reopen preserves exact later TaskContextPacket payload",
   );
+  assert.deepEqual(
+    JSON.parse(
+      requireCoreRecord(
+        db,
+        "run_receipt",
+        contextUseProbe.receipt.receipt_id,
+      ).payload_json,
+    ),
+    contextUseProbe.receipt,
+    "close/reopen preserves the exact local context-use RunReceipt payload",
+  );
   assert.equal(db.pragma("integrity_check", { simple: true }), "ok");
 
   assert.equal(fetchCalls, 0, "durable semantic smoke makes zero fetch calls");
   assert.equal(networkCalls, 0, "durable semantic smoke makes zero runtime network calls");
   summary = {
     smoke: "vnext-durable-semantic-loop-v0-1",
-    phase: "M3C-A/B/C isolated storage, semantic commit gate, and full writer",
+    phase:
+      "M3C-A/B/C isolated storage, semantic commit gate, full writer, later context, and local context-use observation",
     status: "pass",
     project_fixture: prefix.project.fixture_id,
     database_mode:
@@ -465,11 +553,13 @@ try {
     positive_cases:
       21 +
       writerCoverage.positive_cases +
-      contextCompilerCoverage.positive_cases,
+      contextCompilerCoverage.positive_cases +
+      contextUseProbeCoverage.positive_cases,
     negative_cases:
       10 +
       writerCoverage.negative_cases +
-      contextCompilerCoverage.negative_cases,
+      contextCompilerCoverage.negative_cases +
+      contextUseProbeCoverage.negative_cases,
     fetch_calls: fetchCalls,
     provider_calls: 0,
     network_calls: networkCalls,
@@ -504,7 +594,35 @@ try {
       pre_transition_db_checksum: authorizedSnapshot.logical_checksum,
       post_transition_db_checksum: appliedSnapshot.logical_checksum,
       post_context_compile_db_checksum: afterContextCompile.logical_checksum,
+      post_context_use_probe_db_checksum:
+        afterContextUseProbe.logical_checksum,
       reopened_db_checksum: reopenedSnapshot.logical_checksum,
+      local_context_use_run_receipt_id:
+        contextUseProbe.receipt.receipt_id,
+      local_context_use_run_receipt_idempotency_key:
+        contextUseProbe.receipt.idempotency_key,
+      local_context_use_run_receipt_fingerprint:
+        contextUseProbe.receipt.integrity.fingerprint,
+      full_durable_local_loop_fingerprint: createProtocolSha256V01(
+        canonicalizeProtocolValueV01({
+          prior_packet: {
+            id: prefix.prior_packet.packet_id,
+            fingerprint: prefix.prior_packet.integrity.fingerprint,
+          },
+          transition_receipt: {
+            id: receipt.transition_receipt_id,
+            fingerprint: receipt.integrity.fingerprint,
+          },
+          later_packet: {
+            id: compiledContext.later_packet.packet_id,
+            fingerprint: compiledContext.later_packet.integrity.fingerprint,
+          },
+          context_use_receipt: {
+            id: contextUseProbe.receipt.receipt_id,
+            fingerprint: contextUseProbe.receipt.integrity.fingerprint,
+          },
+        }),
+      ),
       db_checksum_scope: "vnext_core_records_and_vnext_semantic_state_entries",
     },
     rows: reopenedSnapshot.counts,
@@ -517,12 +635,24 @@ try {
     semantic_gate_coverage: gateCoverage,
     full_writer_coverage: writerCoverage,
     context_compiler_coverage: contextCompilerCoverage,
+    local_context_use_probe_coverage: contextUseProbeCoverage,
     later_task_context_packet: {
       packet_id: compiledContext.later_packet.packet_id,
       fingerprint: compiledContext.later_packet.integrity.fingerprint,
       status: compiledContext.status,
       exact_replay: compiledReplay.status === "exact_replay",
       full_chain_relation: compiledContext.full_chain_relation.status,
+    },
+    local_context_use_run_receipt: {
+      receipt_id: contextUseProbe.receipt.receipt_id,
+      idempotency_key: contextUseProbe.receipt.idempotency_key,
+      fingerprint: contextUseProbe.receipt.integrity.fingerprint,
+      status: contextUseProbe.status,
+      exact_replay: contextUseProbeReplay.status === "exact_replay",
+      relation: contextUseProbe.relation.status,
+      direct_local_observations:
+        contextUseProbe.receipt.trust_summary.direct_observations,
+      outcome_improvement_claimed: false,
     },
   };
 } finally {
@@ -1848,6 +1978,653 @@ function runContextCompilerCoverage(
   }
 }
 
+function runLocalContextUseProbeCoverage(
+  parentDirectory: string,
+  projectAScenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+  projectBScenarios: ReturnType<typeof buildDurableLocalSemanticGateScenariosV01>,
+) {
+  const suffix = `${process.pid}`;
+  const databases = new Map<string, Database.Database>();
+  const ownedPaths = new Set<string>();
+  const openDatabase = (label: string): WriterCoverageDatabaseV01 => {
+    const path = resolve(
+      parentDirectory,
+      `m3c-context-use-probe-${label}-${suffix}.db`,
+    );
+    for (const owned of [path, `${path}-wal`, `${path}-shm`]) {
+      assert.equal(existsSync(owned), false, `context-use coverage owns ${owned}`);
+      ownedPaths.add(owned);
+    }
+    const database = new Database(path);
+    database.pragma("foreign_keys = ON");
+    database.pragma("journal_mode = WAL");
+    ensureVNextDurableSemanticStoreSchemaV01(database);
+    const legacyMode = prepareLegacyTables(database);
+    const legacyBaseline = readLegacySnapshot(readDatabaseSnapshot(database));
+    databases.set(label, database);
+    return { database, path, legacyMode, legacyBaseline };
+  };
+
+  try {
+    const canonical = openDatabase("canonical");
+    const canonicalChain = prepareCreateContextUseProbeChain(
+      canonical.database,
+      projectAScenarios.create,
+      projectAScenarios.prefix.prior_packet,
+    );
+    const canonicalInput = localContextUseProbeInput(
+      projectAScenarios.prefix.prior_packet,
+      canonicalChain.compiled.later_packet,
+      canonicalChain.applied.committed.transition_receipt,
+      DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
+    );
+    const canonicalProbe = runLocalContextUseProbeV01(
+      canonical.database,
+      canonicalInput,
+    );
+    assert.equal(canonicalProbe.status, "inserted");
+    assert.equal(canonicalProbe.relation.status, "valid");
+    assert.equal(validateRunReceiptV01(canonicalProbe.receipt).status, "valid");
+    assert.equal(canonicalProbe.resolved_states.length, 1);
+    assert.equal(canonicalProbe.retracted_target_refs.length, 0);
+    assert.equal(canonicalProbe.receipt.attestations.length, 0);
+    assert.equal(canonicalProbe.receipt.model_invocations.length, 0);
+    assert(canonicalProbe.receipt.trust_summary.direct_observations > 0);
+    assert.equal(
+      countVNextCoreRecordsV01(canonical.database, {
+        workspace_id: projectAScenarios.create.proposal.workspace_id,
+        project_id: projectAScenarios.create.proposal.project_id,
+        record_kind: "run_receipt",
+      }),
+      1,
+    );
+    const canonicalSnapshot = readDatabaseSnapshot(canonical.database);
+    const canonicalReplay = runLocalContextUseProbeV01(
+      canonical.database,
+      canonicalInput,
+    );
+    assert.equal(canonicalReplay.status, "exact_replay");
+    assert.deepEqual(canonicalReplay.receipt, canonicalProbe.receipt);
+    assert.deepEqual(readDatabaseSnapshot(canonical.database), canonicalSnapshot);
+
+    assertProbeRefusalNoWrite(
+      canonical,
+      () =>
+        runLocalContextUseProbeV01(canonical.database, {
+          ...canonicalInput,
+          later_packet_id: "task-context-packet:missing-probe-fixture",
+        }),
+      canonicalSnapshot,
+      /later_task_context_packet_missing/,
+      "missing later packet",
+    );
+    assertProbeRefusalNoWrite(
+      canonical,
+      () =>
+        runLocalContextUseProbeV01(canonical.database, {
+          ...canonicalInput,
+          later_packet_fingerprint: createProtocolSha256V01(
+            "wrong-context-use-packet-fingerprint",
+          ),
+        }),
+      canonicalSnapshot,
+      /later_task_context_packet_fingerprint_mismatch/,
+      "later packet fingerprint mismatch",
+    );
+    assertProbeRefusalNoWrite(
+      canonical,
+      () =>
+        runLocalContextUseProbeV01(canonical.database, {
+          ...canonicalInput,
+          expected_transition_receipt_fingerprint: createProtocolSha256V01(
+            "wrong-context-use-receipt-fingerprint",
+          ),
+        }),
+      canonicalSnapshot,
+      /persisted_transition_receipt_fingerprint_mismatch/,
+      "transition receipt fingerprint mismatch",
+    );
+    assertProbeRefusalNoWrite(
+      canonical,
+      () =>
+        runLocalContextUseProbeV01(canonical.database, {
+          ...canonicalInput,
+          observed_at: "2026-07-10T14:05:30.000Z",
+        }),
+      canonicalSnapshot,
+      /local_context_observation_before_transition_receipt/,
+      "probe observation predates transition receipt",
+    );
+    assertProbeRefusalNoWrite(
+      canonical,
+      () =>
+        runLocalContextUseProbeV01(canonical.database, {
+          ...canonicalInput,
+          observed_at: "2026-07-10T14:06:30.000Z",
+        }),
+      canonicalSnapshot,
+      /local_context_observation_before_later_packet/,
+      "probe observation predates later packet",
+    );
+
+    const withoutReceiptLineage = rebuildPacketV01(
+      canonicalChain.compiled.later_packet,
+      {
+        compatibility: {
+          ...canonicalChain.compiled.later_packet.compatibility,
+          source_refs:
+            canonicalChain.compiled.later_packet.compatibility.source_refs.filter(
+              (ref) =>
+                ref.external_id !==
+                canonicalChain.applied.committed.transition_receipt
+                  .transition_receipt_id,
+            ),
+        },
+      },
+    );
+    persistTaskContextPacketRecordV01(canonical.database, withoutReceiptLineage);
+    const withoutReceiptLineageSnapshot = readDatabaseSnapshot(
+      canonical.database,
+    );
+    assertProbeRefusalNoWrite(
+      canonical,
+      () =>
+        runLocalContextUseProbeV01(
+          canonical.database,
+          localContextUseProbeInput(
+            projectAScenarios.prefix.prior_packet,
+            withoutReceiptLineage,
+            canonicalChain.applied.committed.transition_receipt,
+            DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
+          ),
+        ),
+      withoutReceiptLineageSnapshot,
+      /local_context_semantic_transition_full_chain_invalid/,
+      "later packet missing transition receipt lineage",
+    );
+
+    const withoutPriorLineage = rebuildPacketV01(
+      canonicalChain.compiled.later_packet,
+      {
+        compatibility: {
+          ...canonicalChain.compiled.later_packet.compatibility,
+          source_refs:
+            canonicalChain.compiled.later_packet.compatibility.source_refs.filter(
+              (ref) =>
+                ref.external_id !==
+                projectAScenarios.prefix.prior_packet.packet_id,
+            ),
+        },
+      },
+    );
+    persistTaskContextPacketRecordV01(canonical.database, withoutPriorLineage);
+    const withoutPriorLineageSnapshot = readDatabaseSnapshot(canonical.database);
+    assertProbeRefusalNoWrite(
+      canonical,
+      () =>
+        runLocalContextUseProbeV01(
+          canonical.database,
+          localContextUseProbeInput(
+            projectAScenarios.prefix.prior_packet,
+            withoutPriorLineage,
+            canonicalChain.applied.committed.transition_receipt,
+            DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
+          ),
+        ),
+      withoutPriorLineageSnapshot,
+      /local_context_prior_packet_lineage_mismatch/,
+      "later packet missing exact prior packet lineage",
+    );
+
+    for (const trustClass of ["imported_unverified", "host_attestation"] as const) {
+      const trustUpgrade = clone(canonicalProbe.receipt);
+      (
+        trustUpgrade.observations[0] as unknown as { trust_class: string }
+      ).trust_class = trustClass;
+      const relation = validateLocalContextUseProbeRunReceiptV01({
+        receipt: trustUpgrade,
+        prior_packet: canonicalProbe.prior_packet,
+        later_packet: canonicalProbe.later_packet,
+        transition_receipt: canonicalProbe.transition_receipt,
+        resolved_states: canonicalProbe.resolved_states,
+        retracted_target_refs: canonicalProbe.retracted_target_refs,
+      });
+      assert.equal(
+        relation.status,
+        "invalid",
+        `${trustClass} material cannot be presented as direct local observation`,
+      );
+    }
+    assert.doesNotThrow(() => {
+      validateLocalContextUseProbeRunReceiptV01({
+        receipt: {},
+        prior_packet: canonicalProbe.prior_packet,
+        later_packet: canonicalProbe.later_packet,
+        transition_receipt: canonicalProbe.transition_receipt,
+        resolved_states: canonicalProbe.resolved_states,
+        retracted_target_refs: canonicalProbe.retracted_target_refs,
+      });
+    });
+    const malformedRelation = validateLocalContextUseProbeRunReceiptV01({
+      receipt: {},
+      prior_packet: canonicalProbe.prior_packet,
+      later_packet: canonicalProbe.later_packet,
+      transition_receipt: canonicalProbe.transition_receipt,
+      resolved_states: canonicalProbe.resolved_states,
+      retracted_target_refs: canonicalProbe.retracted_target_refs,
+    });
+    assert.equal(malformedRelation.status, "invalid");
+    for (const malformedMaterial of [
+      { resolved_states: [{}], retracted_target_refs: [] },
+      { resolved_states: [], retracted_target_refs: [{}] },
+    ]) {
+      let relationStatus: string | null = null;
+      assert.doesNotThrow(() => {
+        relationStatus = validateLocalContextUseProbeRunReceiptV01({
+          receipt: canonicalProbe.receipt,
+          prior_packet: canonicalProbe.prior_packet,
+          later_packet: canonicalProbe.later_packet,
+          transition_receipt: canonicalProbe.transition_receipt,
+          ...malformedMaterial,
+        }).status;
+      });
+      assert.equal(relationStatus, "invalid");
+    }
+
+    const extraClaimReceipt = rebuildRunReceiptV01(
+      canonicalProbe.receipt,
+      (builderInput) => {
+        builderInput.result_summary.limitations.push(
+          "An extra caller-supplied semantic conclusion was not observed by the local probe.",
+        );
+      },
+    );
+    assert.equal(validateRunReceiptV01(extraClaimReceipt).status, "valid");
+    const extraClaimRelation = validateLocalContextUseProbeRunReceiptV01({
+      receipt: extraClaimReceipt,
+      prior_packet: canonicalProbe.prior_packet,
+      later_packet: canonicalProbe.later_packet,
+      transition_receipt: canonicalProbe.transition_receipt,
+      resolved_states: canonicalProbe.resolved_states,
+      retracted_target_refs: canonicalProbe.retracted_target_refs,
+    });
+    assert.equal(extraClaimRelation.status, "invalid");
+    assert(
+      extraClaimRelation.errors.some(
+        (issue) => issue.code === "local_context_use_receipt_canonical_mismatch",
+      ),
+      "exact canonical probe reconstruction rejects extra valid-looking claims",
+    );
+
+    const alteredStoredPayload = clone(canonicalProbe.receipt);
+    alteredStoredPayload.result_summary.summary =
+      "Altered same-identity local context-use receipt payload.";
+    assert.throws(
+      () =>
+        insertVNextCoreRecordV01(canonical.database, {
+          record_kind: "run_receipt",
+          record_id: canonicalProbe.receipt.receipt_id,
+          workspace_id: canonicalProbe.receipt.workspace_id,
+          project_id: canonicalProbe.receipt.project_id,
+          fingerprint: canonicalProbe.receipt.integrity.fingerprint,
+          idempotency_key: canonicalProbe.receipt.idempotency_key,
+          payload: alteredStoredPayload,
+          created_at: canonicalProbe.receipt.recorded_at,
+        }),
+      /vnext_core_record_conflict/,
+      "duplicate RunReceipt identity with altered payload fails closed",
+    );
+
+    for (const mode of [
+      "missing",
+      "fingerprint_drift",
+      "foreign_project",
+      "receipt_binding_drift",
+      "future_projection",
+    ] as const) {
+      const opened = openDatabase(`state-${mode}`);
+      const chain = prepareCreateContextUseProbeChain(
+        opened.database,
+        projectAScenarios.create,
+        projectAScenarios.prefix.prior_packet,
+      );
+      const projection = chain.applied.committed.projection_entries[0]!;
+      if (mode === "missing") {
+        opened.database
+          .prepare(
+            `DELETE FROM vnext_semantic_state_entries
+             WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+          )
+          .run(projection.workspace_id, projection.project_id, projection.target_key);
+      } else if (mode === "fingerprint_drift") {
+        opened.database
+          .prepare(
+            `UPDATE vnext_semantic_state_entries
+             SET current_state_fingerprint = ?
+             WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+          )
+          .run(
+            createProtocolSha256V01("context-use-state-fingerprint-drift"),
+            projection.workspace_id,
+            projection.project_id,
+            projection.target_key,
+          );
+      } else if (mode === "foreign_project") {
+        opened.database
+          .prepare(
+            `UPDATE vnext_semantic_state_entries
+             SET project_id = ?
+             WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+          )
+          .run(
+            projectBScenarios.create.proposal.project_id,
+            projection.workspace_id,
+            projection.project_id,
+            projection.target_key,
+          );
+      } else if (mode === "receipt_binding_drift") {
+        opened.database
+          .prepare(
+            `UPDATE vnext_semantic_state_entries
+             SET source_transition_receipt_id = ?,
+                 source_transition_receipt_fingerprint = ?
+             WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+          )
+          .run(
+            "state-transition-receipt:unrelated-probe-fixture",
+            createProtocolSha256V01("unrelated-probe-receipt"),
+            projection.workspace_id,
+            projection.project_id,
+            projection.target_key,
+          );
+      } else {
+        opened.database
+          .prepare(
+            `UPDATE vnext_semantic_state_entries
+             SET updated_at = ?
+             WHERE workspace_id = ? AND project_id = ? AND target_key = ?`,
+          )
+          .run(
+            "2026-07-10T14:20:00.000Z",
+            projection.workspace_id,
+            projection.project_id,
+            projection.target_key,
+          );
+      }
+      const baseline = readDatabaseSnapshot(opened.database);
+      assertProbeRefusalNoWrite(
+        opened,
+        () =>
+          runLocalContextUseProbeV01(
+            opened.database,
+            localContextUseProbeInput(
+              projectAScenarios.prefix.prior_packet,
+              chain.compiled.later_packet,
+              chain.applied.committed.transition_receipt,
+              DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
+            ),
+          ),
+        baseline,
+        mode === "receipt_binding_drift"
+          ? /local_context_affected_projection_receipt_mismatch/
+          : mode === "future_projection"
+            ? /local_context_observation_before_projection_update/
+            : /local_context_selected_state_missing/,
+        `current semantic state ${mode}`,
+      );
+    }
+
+    const retract = openDatabase("retract");
+    const seed = applyCreateScenario(
+      retract.database,
+      projectAScenarios.create,
+    );
+    const seedPacket = compileTaskContextPacketFromPersistedSemanticStateV01(
+      retract.database,
+      compilerInput(
+        projectAScenarios.create,
+        projectAScenarios.prefix.prior_packet,
+        seed.committed.transition_receipt,
+        DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+      ),
+    );
+    const retractPrepared = prepareAndAuthorizeGateScenario(
+      retract.database,
+      projectAScenarios.retract,
+      false,
+    );
+    const retracted = commitVNextSemanticTransitionV01(
+      retract.database,
+      writerCommitInput(
+        projectAScenarios.retract,
+        retractPrepared.authorization,
+      ),
+    );
+    const retractedPacket = compileTaskContextPacketFromPersistedSemanticStateV01(
+      retract.database,
+      compilerInput(
+        projectAScenarios.retract,
+        seedPacket.later_packet,
+        retracted.transition_receipt,
+        DURABLE_LOCAL_LOOP_FOLLOWUP_PACKET_GENERATED_AT,
+      ),
+    );
+    const retractInput = localContextUseProbeInput(
+      seedPacket.later_packet,
+      retractedPacket.later_packet,
+      retracted.transition_receipt,
+      DURABLE_LOCAL_LOOP_FOLLOWUP_PROBE_RECORDED_AT,
+    );
+    const retractProbe = runLocalContextUseProbeV01(
+      retract.database,
+      retractInput,
+    );
+    assert.equal(retractProbe.status, "inserted");
+    assert.equal(retractProbe.relation.status, "valid");
+    assert.equal(retractProbe.resolved_states.length, 0);
+    assert.equal(retractProbe.retracted_target_refs.length, 1);
+    insertVNextSemanticStateEntryV01(
+      retract.database,
+      seed.committed.projection_entries[0]!,
+    );
+    const retractedStatePresent = readDatabaseSnapshot(retract.database);
+    assertProbeRefusalNoWrite(
+      retract,
+      () => runLocalContextUseProbeV01(retract.database, retractInput),
+      retractedStatePresent,
+      /local_context_retracted_state_still_present/,
+      "retracted semantic state still present",
+    );
+
+    const twoProject = openDatabase("two-project");
+    const chainA = prepareCreateContextUseProbeChain(
+      twoProject.database,
+      projectAScenarios.create,
+      projectAScenarios.prefix.prior_packet,
+    );
+    const chainB = prepareCreateContextUseProbeChain(
+      twoProject.database,
+      projectBScenarios.create,
+      projectBScenarios.prefix.prior_packet,
+    );
+    const probeA = runLocalContextUseProbeV01(
+      twoProject.database,
+      localContextUseProbeInput(
+        projectAScenarios.prefix.prior_packet,
+        chainA.compiled.later_packet,
+        chainA.applied.committed.transition_receipt,
+        DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
+      ),
+    );
+    const probeB = runLocalContextUseProbeV01(
+      twoProject.database,
+      localContextUseProbeInput(
+        projectBScenarios.prefix.prior_packet,
+        chainB.compiled.later_packet,
+        chainB.applied.committed.transition_receipt,
+        DURABLE_LOCAL_LOOP_CONTEXT_USE_PROBE_RECORDED_AT,
+      ),
+    );
+    assert.notEqual(probeA.receipt.receipt_id, probeB.receipt.receipt_id);
+    assert.equal(probeA.receipt.project_id, projectAScenarios.create.proposal.project_id);
+    assert.equal(probeB.receipt.project_id, projectBScenarios.create.proposal.project_id);
+    assert.equal(
+      readVNextCoreRecordV01(twoProject.database, {
+        record_kind: "run_receipt",
+        record_id: probeA.receipt.receipt_id,
+        workspace_id: probeB.receipt.workspace_id,
+        project_id: probeB.receipt.project_id,
+      }),
+      null,
+      "project A context-use receipt cannot resolve in project B scope",
+    );
+
+    for (const database of databases.values()) {
+      assert.equal(database.pragma("integrity_check", { simple: true }), "ok");
+    }
+    return {
+      status: "pass",
+      positive_cases: 9,
+      negative_cases: 20,
+      exact_packet_and_receipt_bindings: true,
+      exact_prior_packet_lineage: true,
+      exact_state_record_and_projection_resolution: true,
+      exact_retracted_absence: true,
+      exact_replay: true,
+      malformed_relation_non_throwing: true,
+      canonical_receipt_reconstruction: true,
+      project_isolation: true,
+      direct_local_observations_only: true,
+      provider_calls: 0,
+      fetch_calls: fetchCalls,
+      network_calls: networkCalls,
+      refusal_cases: [
+        "packet_missing",
+        "packet_fingerprint_mismatch",
+        "transition_receipt_fingerprint_mismatch",
+        "observation_before_transition_receipt",
+        "observation_before_later_packet",
+        "transition_receipt_lineage_missing",
+        "prior_packet_lineage_missing",
+        "imported_material_as_direct_observation",
+        "attested_material_as_direct_observation",
+        "malformed_probe_receipt",
+        "malformed_resolved_state_relation_material",
+        "malformed_retracted_target_relation_material",
+        "extra_canonical_probe_claim",
+        "duplicate_run_receipt_altered_payload",
+        "semantic_state_missing",
+        "semantic_state_fingerprint_drift",
+        "cross_project_semantic_state",
+        "affected_projection_receipt_binding_drift",
+        "observation_before_projection_update",
+        "retracted_state_still_present",
+      ],
+      integrity_check: "ok",
+    };
+  } finally {
+    for (const database of databases.values()) {
+      if (database.open) database.close();
+    }
+    for (const path of ownedPaths) rmSync(path, { force: true });
+    for (const path of ownedPaths) {
+      assert.equal(existsSync(path), false, `context-use coverage removes ${path}`);
+    }
+  }
+}
+
+function prepareCreateContextUseProbeChain(
+  database: Database.Database,
+  scenario: DurableLocalSemanticGateScenarioV01,
+  priorPacket: TaskContextPacketV01,
+) {
+  const applied = applyCreateScenario(database, scenario);
+  persistTaskContextPacketRecordV01(database, priorPacket);
+  const compiled = compileTaskContextPacketFromPersistedSemanticStateV01(
+    database,
+    compilerInput(
+      scenario,
+      priorPacket,
+      applied.committed.transition_receipt,
+      DURABLE_LOCAL_LOOP_LATER_PACKET_GENERATED_AT,
+    ),
+  );
+  return { applied, compiled, prior_packet: priorPacket };
+}
+
+function persistTaskContextPacketRecordV01(
+  database: Database.Database,
+  packet: TaskContextPacketV01,
+) {
+  return insertVNextCoreRecordV01(database, {
+    record_kind: "task_context_packet",
+    record_id: packet.packet_id,
+    workspace_id: packet.workspace_id,
+    project_id: packet.project_id,
+    fingerprint: packet.integrity.fingerprint,
+    idempotency_key: null,
+    payload: packet,
+    created_at: packet.generated_at,
+  });
+}
+
+function localContextUseProbeInput(
+  priorPacket: TaskContextPacketV01,
+  laterPacket: TaskContextPacketV01,
+  receipt: StateTransitionReceiptV01,
+  observedAt: string,
+) {
+  return {
+    workspace_id: laterPacket.workspace_id,
+    project_id: laterPacket.project_id,
+    prior_packet_id: priorPacket.packet_id,
+    prior_packet_fingerprint: priorPacket.integrity.fingerprint,
+    later_packet_id: laterPacket.packet_id,
+    later_packet_fingerprint: laterPacket.integrity.fingerprint,
+    expected_transition_receipt_id: receipt.transition_receipt_id,
+    expected_transition_receipt_fingerprint: receipt.integrity.fingerprint,
+    observed_at: observedAt,
+  };
+}
+
+function assertProbeRefusalNoWrite(
+  opened: WriterCoverageDatabaseV01,
+  action: () => unknown,
+  baseline: DatabaseSnapshot,
+  error: RegExp,
+  label: string,
+) {
+  assert.throws(action, error, label);
+  assert.deepEqual(
+    readDatabaseSnapshot(opened.database),
+    baseline,
+    `${label} persists no local context-use RunReceipt`,
+  );
+  assertLegacySnapshotUnchanged(baseline, opened.legacyBaseline);
+}
+
+function rebuildRunReceiptV01(
+  receipt: ReturnType<typeof runLocalContextUseProbeV01>["receipt"],
+  mutate: (
+    builderInput: Parameters<typeof buildRunReceiptV01>[0],
+  ) => void,
+) {
+  const mutable = clone(receipt) as unknown as Record<string, unknown>;
+  const authority = mutable.authority_summary as { notes: string[] };
+  delete mutable.receipt_version;
+  delete mutable.receipt_id;
+  delete mutable.trust_summary;
+  delete mutable.authority_summary;
+  delete mutable.idempotency_key;
+  delete mutable.integrity;
+  mutable.authority_notes = clone(authority.notes);
+  const builderInput = mutable as unknown as Parameters<
+    typeof buildRunReceiptV01
+  >[0];
+  mutate(builderInput);
+  return buildRunReceiptV01(builderInput);
+}
+
 function compilerInput(
   scenario: DurableLocalSemanticGateScenarioV01,
   priorPacket: TaskContextPacketV01,
@@ -2037,6 +2814,7 @@ function rebuildPacketV01(
   overrides: {
     selected_context?: TaskContextPacketV01["selected_context"];
     excluded_context?: TaskContextPacketV01["excluded_context"];
+    compatibility?: TaskContextPacketV01["compatibility"];
   },
   budgetOverrides: Partial<
     TaskContextPacketV01["constraints"]["context_budget"]
@@ -2065,7 +2843,7 @@ function rebuildPacketV01(
     capability_grant: packet.capability_grant,
     return_contract: packet.return_contract,
     source_status: packet.source_status,
-    compatibility: packet.compatibility,
+    compatibility: overrides.compatibility ?? packet.compatibility,
     authority_notes: packet.authority_summary.notes,
   });
 }
