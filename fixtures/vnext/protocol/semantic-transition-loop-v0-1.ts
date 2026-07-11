@@ -19,7 +19,10 @@ import {
   createEpisodeDeltaCandidateFingerprintV01,
   type ReviewDecisionBuilderInputV01,
 } from "@/lib/vnext/review-decision";
-import { buildStateTransitionReceiptV01 } from "@/lib/vnext/state-transition-receipt";
+import {
+  buildStateTransitionReceiptV01,
+  createStateTransitionApplicationResultFingerprintV01,
+} from "@/lib/vnext/state-transition-receipt";
 import {
   buildTaskContextPacketV01,
   type TaskContextPacketBuilderInputV01,
@@ -32,6 +35,7 @@ import type {
   StateTransitionCurrentStateObservationV01,
   StateTransitionEligibilityResultV01,
   StateTransitionReceiptBuilderInputV01,
+  StateTransitionReceiptOperationV01,
   StateTransitionReceiptV01,
   StateTransitionSemanticCommitGateEvaluationV01,
 } from "@/types/vnext/state-transition-receipt";
@@ -111,6 +115,7 @@ export function buildSemanticTransitionLoopFixtureV01(
   const gate = createSemanticTransitionGateEvaluationV01(
     project,
     decision,
+    currentStateObservations,
   );
   const eligibilityInput = {
     proposal,
@@ -322,7 +327,7 @@ export function createSemanticTransitionCurrentStateObservationsV01(
           ? ref(
               "accepted_semantic_state",
               `semantic-state:${project.project_id}:${index}:before`,
-              "direct_local_observation",
+              "derived_interpretation",
               SEMANTIC_TRANSITION_CURRENT_STATE_OBSERVED_AT,
               stateFingerprint,
             )
@@ -338,6 +343,8 @@ export function createSemanticTransitionCurrentStateObservationsV01(
 export function createSemanticTransitionGateEvaluationV01(
   project: SemanticReviewLoopProjectFixtureV01,
   decision: ReviewDecisionV01,
+  currentStateObservations: StateTransitionCurrentStateObservationV01[],
+  stateRefMode: "exact_identity" | "writer_allocated" = "exact_identity",
 ): StateTransitionSemanticCommitGateEvaluationV01 {
   const intent = decision.requested_transition_intent;
   if (!intent) throw new Error("Transition fixture decision requires intent.");
@@ -358,6 +365,68 @@ export function createSemanticTransitionGateEvaluationV01(
     SEMANTIC_TRANSITION_GATE_EVALUATED_AT,
     gateFingerprint,
   );
+  const authorizedApplierRef = ref(
+    "semantic_transition_actor",
+    `transition-actor:${project.project_id}`,
+    "user_declaration",
+  );
+  const observationByTarget = new Map(
+    currentStateObservations.map((observation) => [
+      canonicalizeProtocolValueV01(observation.target_ref),
+      observation,
+    ]),
+  );
+  const authorizedEffects = intent.target_refs.map((target, index) => {
+    const observation = observationByTarget.get(
+      canonicalizeProtocolValueV01(target),
+    );
+    if (!observation) {
+      throw new Error("Gate fixture requires one current-state observation per target.");
+    }
+    const operation: StateTransitionReceiptOperationV01 =
+      decision.decision === "retract"
+        ? "retract"
+        : decision.decision === "supersede"
+          ? "supersede"
+          : observation.presence === "absent"
+            ? "create"
+            : "replace";
+    const afterStateFingerprint = fingerprint(
+      `after-state|${project.project_id}|${index}|${operation}`,
+    );
+    return {
+      target_ref: clone(target),
+      operation,
+      expected_after_state:
+        operation === "retract"
+          ? ({
+              presence: "absent",
+              state_fingerprint: null,
+              state_ref_rule: null,
+            } as const)
+          : ({
+              presence: "present",
+              state_fingerprint: afterStateFingerprint,
+              state_ref_rule:
+                stateRefMode === "writer_allocated"
+                  ? ({
+                      mode: "writer_allocated",
+                      ref_type: "accepted_semantic_state",
+                      compatibility_namespace:
+                        "augnes.semantic-transition-loop.conformance.v0.1",
+                      trust_class: "direct_local_observation",
+                    } as const)
+                  : ({
+                      mode: "exact_identity",
+                      state_ref: ref(
+                        "accepted_semantic_state",
+                        `semantic-state:${project.project_id}:${index}:after`,
+                        "derived_interpretation",
+                      ),
+                    } as const),
+            } as const),
+    };
+  });
   return {
     status: "authorized",
     workspace_id: project.workspace_id,
@@ -370,10 +439,12 @@ export function createSemanticTransitionGateEvaluationV01(
     decision_actor_ref: clone(decision.actor_ref),
     authorization_basis_refs: clone(decision.authorization_basis_refs),
     gate_actor_ref: gateActorRef,
+    authorized_applier_ref: authorizedApplierRef,
+    authorized_effects: authorizedEffects,
     evaluation_ref: evaluationRef,
     evaluated_at: SEMANTIC_TRANSITION_GATE_EVALUATED_AT,
     expires_at: SEMANTIC_TRANSITION_GATE_EXPIRES_AT,
-    source_refs: [gateActorRef, evaluationRef],
+    source_refs: [authorizedApplierRef, gateActorRef, evaluationRef],
   };
 }
 
@@ -403,46 +474,64 @@ export function createSemanticTransitionReceiptInputV01(
     decision.integrity.fingerprint,
   );
   const effects = eligibility.expected_effects.map((expected, index) => {
-    const afterStateFingerprint = fingerprint(
-      `after-state|${project.project_id}|${index}|${expected.operation}`,
-    );
-    const afterStateRef = ref(
-      "accepted_semantic_state",
-      `semantic-state:${project.project_id}:${index}:after`,
-      "direct_local_observation",
-      SEMANTIC_TRANSITION_APPLIED_AT,
-      afterStateFingerprint,
-    );
+    const expectedAfterState = expected.expected_after_state;
+    const afterState =
+      expectedAfterState.presence === "absent"
+        ? ({
+            presence: "absent",
+            state_ref: null,
+            state_fingerprint: null,
+          } as const)
+        : ({
+            presence: "present",
+            state_ref:
+              expectedAfterState.state_ref_rule.mode === "exact_identity"
+                ? ({
+                    ...clone(
+                      expectedAfterState.state_ref_rule.state_ref,
+                    ),
+                    observed_at: SEMANTIC_TRANSITION_APPLIED_AT,
+                    source_ref: expectedAfterState.state_fingerprint,
+                  } as ExternalRefV01)
+                : ref(
+                    expectedAfterState.state_ref_rule.ref_type,
+                    `allocated-state:${project.project_id}:${index}:after`,
+                    expectedAfterState.state_ref_rule.trust_class,
+                    SEMANTIC_TRANSITION_APPLIED_AT,
+                    expectedAfterState.state_fingerprint,
+                    expectedAfterState.state_ref_rule.compatibility_namespace,
+                  ),
+            state_fingerprint: expectedAfterState.state_fingerprint,
+          } as const);
+    const applicationResultFingerprint =
+      createStateTransitionApplicationResultFingerprintV01(
+        {
+          target_ref: expected.target_ref,
+          operation: expected.operation,
+          before_state: expected.before_state,
+          after_state: afterState,
+        },
+        SEMANTIC_TRANSITION_APPLIED_AT,
+      );
     const afterObservationRef = ref(
       "semantic_state_application_observation",
       `application-observation:${project.project_id}:${index}`,
       "direct_local_observation",
       SEMANTIC_TRANSITION_APPLIED_AT,
-      fingerprint(`application-observation|${project.project_id}|${index}`),
+      applicationResultFingerprint,
     );
     const durableRecordRef = ref(
       "durable_semantic_state_record",
       `durable-record:${project.project_id}:${index}`,
       "direct_local_observation",
       SEMANTIC_TRANSITION_RECORDED_AT,
-      fingerprint(`durable-record|${project.project_id}|${index}`),
+      applicationResultFingerprint,
     );
     return {
       target_ref: clone(expected.target_ref),
       operation: expected.operation,
       before_state: clone(expected.before_state),
-      after_state:
-        expected.operation === "retract"
-          ? ({
-              presence: "absent",
-              state_ref: null,
-              state_fingerprint: null,
-            } as const)
-          : ({
-              presence: "present",
-              state_ref: afterStateRef,
-              state_fingerprint: afterStateFingerprint,
-            } as const),
+      after_state: afterState,
       before_state_observation_ref: clone(
         expected.before_state_observation_ref,
       ),
@@ -457,16 +546,7 @@ export function createSemanticTransitionReceiptInputV01(
       ],
     };
   });
-  const appliedByRef = ref(
-    "semantic_transition_actor",
-    `transition-actor:${project.project_id}`,
-    "direct_local_observation",
-    SEMANTIC_TRANSITION_APPLIED_AT,
-    requireFingerprint(
-      gate.evaluation_ref.source_ref,
-      "Synthetic gate evaluation requires a source fingerprint.",
-    ),
-  );
+  const appliedByRef = clone(gate.authorized_applier_ref);
   return {
     workspace_id: project.workspace_id,
     project_id: project.project_id,

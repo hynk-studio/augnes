@@ -31,6 +31,8 @@ import {
 import {
   buildStateTransitionReceiptV01,
   canonicalizeStateTransitionReceiptValueV01,
+  compareStateTransitionReceiptReplayCompatibilityV01,
+  createStateTransitionApplicationResultFingerprintV01,
   createStateTransitionReceiptFingerprintV01,
   createStateTransitionReceiptIdempotencyKeyV01,
   deriveStateTransitionEffectIdV01,
@@ -41,6 +43,7 @@ import {
 import type {
   StateTransitionEligibilityEvaluationInputV01,
   StateTransitionEligibilityResultV01,
+  StateTransitionReceiptBuilderInputV01,
   StateTransitionReceiptV01,
 } from "@/types/vnext/state-transition-receipt";
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
@@ -48,13 +51,13 @@ import type { EpisodeDeltaProposalV01 } from "@/types/vnext/episode-delta-propos
 import type { ReviewDecisionV01 } from "@/types/vnext/review-decision";
 
 const FIXED_GENERIC_TRANSITION_RECEIPT_ID =
-  "state-transition-receipt:6e2f5bc528a677eee743bebf";
+  "state-transition-receipt:ad798a497f77b63f64da3d22";
 const FIXED_GENERIC_IDEMPOTENCY_KEY =
   "sha256:73156c918536c96bd94b1f63331441b063cc6a27f28a49ae7b4f5661290d11de";
 const FIXED_GENERIC_TRANSITION_RECEIPT_FINGERPRINT =
-  "sha256:69c68fe60b078b95e8b01140bc298364fac898bf6210eec52f43e38b134581b1";
+  "sha256:7609d734ca7090f4af69bbe29c31c1ecf1af2a4544f026265e4dbcf80f5404da";
 const FIXED_CANONICAL_ELIGIBILITY_PRECONDITION_FINGERPRINT =
-  "sha256:0e23400277d3a89a564d0f0dd166dac9f29a19070c0bfd7f23c0b9b29082fd9d";
+  "sha256:7d10fa9ed76e0fb79690565ca1a904d702b94443f4989d978414535b83706202";
 
 export interface StateTransitionReceiptConformanceSummaryV01 {
   suite: "state-transition-receipt-v0.1";
@@ -90,6 +93,11 @@ export interface StateTransitionReceiptConformanceSummaryV01 {
   exact_gate_and_current_state_binding_checked: true;
   partial_and_conflicting_target_admission_checked: true;
   receipt_eligibility_relation_checked: true;
+  authorized_after_state_checked: true;
+  application_result_proof_checked: true;
+  applied_by_authorization_checked: true;
+  writer_allocated_state_ref_rule_checked: true;
+  replay_conflict_semantics_checked: true;
   resigned_receipt_relation_mismatch_rejected: true;
   required_openai_specific_core_fields: 0;
   required_chatgpt_specific_core_fields: 0;
@@ -147,6 +155,30 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     );
     assert.ok(ref.observed_at);
   }
+  const genericApplicationResult =
+    createStateTransitionApplicationResultFingerprintV01(
+      receipt.effects[0]!,
+      receipt.applied_at,
+    );
+  assert.equal(
+    receipt.effects[0]!.after_application_observation_ref.source_ref,
+    genericApplicationResult,
+  );
+  assert.equal(
+    receipt.effects[0]!.durable_record_ref.source_ref,
+    genericApplicationResult,
+  );
+  assert.deepEqual(
+    receipt.applied_by_ref,
+    genericStateTransitionEligibilityEvaluationInputFixture
+      .semantic_commit_gate_evaluation.authorized_applier_ref,
+  );
+  assert.equal(
+    receipt.applied_by_ref.trust_class,
+    "user_declaration",
+  );
+  assert.equal(receipt.applied_by_ref.observed_at, undefined);
+  assert.equal(receipt.applied_by_ref.source_ref, undefined);
   assert.equal(
     receipt.authority_summary.represents_applied_durable_semantic_transition,
     true,
@@ -165,6 +197,11 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     deepFreeze(clone(genericStateTransitionReceiptInputFixture)),
   );
   assert.deepEqual(repeated, receipt);
+  assert.equal(
+    compareStateTransitionReceiptReplayCompatibilityV01(receipt, repeated)
+      .status,
+    "exact_replay",
+  );
 
   const unorderedInput = clone(genericStateTransitionReceiptInputFixture);
   unorderedInput.source_refs.push({
@@ -206,6 +243,7 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     external_id: "semantic-state:protocol-foundation:v2",
     source_ref: `sha256:${"1".repeat(64)}`,
   };
+  rebindApplicationResultProofs(sameIntentDifferentResult);
   const differentResult = buildStateTransitionReceiptV01(
     deepFreeze(sameIntentDifferentResult),
   );
@@ -213,6 +251,27 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
   assert.notEqual(
     differentResult.transition_receipt_id,
     receipt.transition_receipt_id,
+  );
+  assert.equal(validateStateTransitionReceiptV01(differentResult).status, "valid");
+  assert.equal(
+    compareStateTransitionReceiptReplayCompatibilityV01(
+      receipt,
+      differentResult,
+    ).status,
+    "conflicting_result",
+  );
+  const distinctIntentInput = clone(genericStateTransitionReceiptInputFixture);
+  distinctIntentInput.requested_transition_intent.intent_id =
+    "transition-intent:distinct-protocol-foundation";
+  const distinctIntentReceipt = buildStateTransitionReceiptV01(
+    deepFreeze(distinctIntentInput),
+  );
+  assert.equal(
+    compareStateTransitionReceiptReplayCompatibilityV01(
+      receipt,
+      distinctIntentReceipt,
+    ).status,
+    "distinct_intent",
   );
 
   const maxBoundedInput = clone(genericStateTransitionReceiptInputFixture);
@@ -297,6 +356,23 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     acceptAbsentEligibility.precondition_fingerprint,
     FIXED_CANONICAL_ELIGIBILITY_PRECONDITION_FINGERPRINT,
   );
+  const authorizedGenericEffect =
+    acceptAbsentEligibility.expected_effects[0];
+  assert.ok(authorizedGenericEffect);
+  assert.equal(
+    authorizedGenericEffect.expected_after_state.presence,
+    "present",
+  );
+  if (authorizedGenericEffect.expected_after_state.presence === "present") {
+    assert.equal(
+      authorizedGenericEffect.expected_after_state.state_fingerprint,
+      receipt.effects[0]!.after_state.state_fingerprint,
+    );
+    assert.equal(
+      authorizedGenericEffect.expected_after_state.state_ref_rule.mode,
+      "exact_identity",
+    );
+  }
 
   const acceptPresentInput = eligibilityInputForDecision(
     eligibilityInput.proposal,
@@ -401,6 +477,7 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
   reorderedMultiTargetInput.current_state_observations.reverse();
   reorderedMultiTargetInput.semantic_commit_gate_evaluation.target_refs.reverse();
   reorderedMultiTargetInput.semantic_commit_gate_evaluation.authorization_basis_refs.reverse();
+  reorderedMultiTargetInput.semantic_commit_gate_evaluation.authorized_effects.reverse();
   reorderedMultiTargetInput.semantic_commit_gate_evaluation.source_refs.reverse();
   const reorderedMultiTargetEligibility =
     evaluateReviewDecisionStateTransitionEligibilityV01(
@@ -439,6 +516,91 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     format(validReceiptRelation),
   );
 
+  const writerAllocatedEligibilityInput = clone(
+    genericStateTransitionEligibilityEvaluationInputFixture,
+  );
+  const writerAuthorizedEffect =
+    writerAllocatedEligibilityInput.semantic_commit_gate_evaluation
+      .authorized_effects[0]!;
+  if (writerAuthorizedEffect.expected_after_state.presence !== "present") {
+    throw new Error("Writer allocation fixture requires present after-state.");
+  }
+  writerAuthorizedEffect.expected_after_state.state_ref_rule = {
+    mode: "writer_allocated",
+    ref_type: "accepted_semantic_state",
+    compatibility_namespace: "augnes.state-transition.writer-allocation.v0.1",
+    trust_class: "direct_local_observation",
+  };
+  const writerAllocatedEligibility =
+    evaluateReviewDecisionStateTransitionEligibilityV01(
+      writerAllocatedEligibilityInput,
+    );
+  assert.equal(
+    writerAllocatedEligibility.status,
+    "eligible",
+    format(writerAllocatedEligibility),
+  );
+  const writerAllocatedReceiptInput = clone(
+    genericStateTransitionReceiptInputFixture,
+  );
+  writerAllocatedReceiptInput.eligibility_precondition_fingerprint =
+    writerAllocatedEligibility.precondition_fingerprint;
+  if (
+    writerAllocatedReceiptInput.effects[0]?.after_state.presence !== "present"
+  ) {
+    throw new Error("Writer allocation receipt requires present after-state.");
+  }
+  writerAllocatedReceiptInput.effects[0].after_state.state_ref = {
+    ref_version: "external_ref.v0.1",
+    ref_type: "accepted_semantic_state",
+    external_id: "allocated-state:protocol-foundation:0001",
+    trust_class: "direct_local_observation",
+    observed_at: writerAllocatedReceiptInput.applied_at,
+    source_ref:
+      writerAllocatedReceiptInput.effects[0].after_state.state_fingerprint,
+    compatibility_namespace:
+      "augnes.state-transition.writer-allocation.v0.1",
+  };
+  rebindApplicationResultProofs(writerAllocatedReceiptInput);
+  const writerAllocatedReceipt = buildStateTransitionReceiptV01(
+    deepFreeze(writerAllocatedReceiptInput),
+  );
+  const writerAllocatedRelation =
+    validateStateTransitionReceiptAgainstEligibilityV01({
+      ...writerAllocatedEligibilityInput,
+      receipt: writerAllocatedReceipt,
+    });
+  assert.equal(
+    writerAllocatedRelation.status,
+    "valid",
+    format(writerAllocatedRelation),
+  );
+  const unauthorizedWriterAllocatedReceipt = clone(writerAllocatedReceipt);
+  if (
+    unauthorizedWriterAllocatedReceipt.effects[0]?.after_state.presence !==
+    "present"
+  ) {
+    throw new Error("Writer allocation negative requires present after-state.");
+  }
+  unauthorizedWriterAllocatedReceipt.effects[0].after_state.state_ref.compatibility_namespace =
+    "augnes.state-transition.unapproved-allocation.v0.1";
+  rebindApplicationResultProofs(unauthorizedWriterAllocatedReceipt);
+  resign(unauthorizedWriterAllocatedReceipt);
+  const unauthorizedWriterRelation =
+    validateStateTransitionReceiptAgainstEligibilityV01({
+      ...writerAllocatedEligibilityInput,
+      receipt: unauthorizedWriterAllocatedReceipt,
+    });
+  assert.equal(unauthorizedWriterRelation.status, "blocked");
+  assert.ok(
+    unauthorizedWriterRelation.errors.some(
+      (issue) =>
+        issue.code === "writer_allocated_state_ref_rule_mismatch",
+    ),
+    format(unauthorizedWriterRelation),
+  );
+  assertIntegrityChecksPassed(unauthorizedWriterRelation);
+
   const receiptRelationCases = createReceiptRelationNegativeCases(
     relationReceipt,
   );
@@ -475,12 +637,12 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
   return {
     suite: "state-transition-receipt-v0.1",
     status: "passed",
-    positive_fixture_count: 4,
+    positive_fixture_count: 6,
     negative_fixture_count: invalidStateTransitionReceiptFixtureCases.length + 2,
-    eligibility_positive_fixture_count: 5,
+    eligibility_positive_fixture_count: 6,
     eligibility_negative_fixture_count:
       invalidStateTransitionEligibilityInputFixtureCases.length + 2,
-    receipt_relation_negative_fixture_count: receiptRelationCases.length,
+    receipt_relation_negative_fixture_count: receiptRelationCases.length + 1,
     generic_transition_receipt_id: receipt.transition_receipt_id,
     generic_idempotency_key: receipt.idempotency_key,
     generic_fingerprint: receipt.integrity.fingerprint,
@@ -508,6 +670,11 @@ export function runStateTransitionReceiptConformanceV01(): StateTransitionReceip
     exact_gate_and_current_state_binding_checked: true,
     partial_and_conflicting_target_admission_checked: true,
     receipt_eligibility_relation_checked: true,
+    authorized_after_state_checked: true,
+    application_result_proof_checked: true,
+    applied_by_authorization_checked: true,
+    writer_allocated_state_ref_rule_checked: true,
+    replay_conflict_semantics_checked: true,
     resigned_receipt_relation_mismatch_rejected: true,
     required_openai_specific_core_fields: 0,
     required_chatgpt_specific_core_fields: 0,
@@ -580,6 +747,39 @@ function eligibilityInputForDecision(
   gate.target_refs = clone(intent.target_refs);
   gate.decision_actor_ref = clone(decision.actor_ref);
   gate.authorization_basis_refs = clone(decision.authorization_basis_refs);
+  const operation =
+    decision.decision === "retract"
+      ? "retract"
+      : decision.decision === "supersede"
+        ? "supersede"
+        : presence === "absent"
+          ? "create"
+          : "replace";
+  gate.authorized_effects = intent.target_refs.map((target, index) => ({
+    target_ref: clone(target),
+    operation,
+    expected_after_state:
+      operation === "retract"
+        ? {
+            presence: "absent",
+            state_fingerprint: null,
+            state_ref_rule: null,
+          }
+        : {
+            presence: "present",
+            state_fingerprint: `sha256:${"a".repeat(64)}`,
+            state_ref_rule: {
+              mode: "exact_identity",
+              state_ref: {
+                ref_version: "external_ref.v0.1",
+                ref_type: genericStateTransitionReceiptAfterStateRefFixture.ref_type,
+                external_id: `${genericStateTransitionReceiptAfterStateRefFixture.external_id}:${index}`,
+                trust_class:
+                  genericStateTransitionReceiptAfterStateRefFixture.trust_class,
+              },
+            },
+          },
+  }));
   gate.source_refs = [clone(gate.evaluation_ref)];
   return {
     proposal: clone(proposal),
@@ -727,6 +927,72 @@ function createReceiptRelationNegativeCases(
       receipt.applied_at = "2026-07-10T12:17:00.000Z";
     },
   );
+  add(
+    "arbitrary_after_state_resigned",
+    "authorized_after_state_mismatch",
+    (receipt) => {
+      const after = receipt.effects[0]!.after_state;
+      if (after.presence !== "present") {
+        throw new Error("After-state negative requires present state.");
+      }
+      after.state_fingerprint = `sha256:${"7".repeat(64)}`;
+      after.state_ref = {
+        ...after.state_ref,
+        external_id: "semantic-state:arbitrary-substitution",
+        source_ref: after.state_fingerprint,
+      };
+      rebindApplicationResultProofs(receipt);
+    },
+  );
+  add(
+    "after_state_fingerprint_changed_resigned",
+    "authorized_after_state_mismatch",
+    (receipt) => {
+      const after = receipt.effects[0]!.after_state;
+      if (after.presence !== "present") {
+        throw new Error("After-state negative requires present state.");
+      }
+      after.state_fingerprint = `sha256:${"8".repeat(64)}`;
+      rebindApplicationResultProofs(receipt);
+    },
+  );
+  add(
+    "after_state_ref_identity_changed_resigned",
+    "authorized_after_state_ref_identity_mismatch",
+    (receipt) => {
+      const after = receipt.effects[0]!.after_state;
+      if (after.presence !== "present") {
+        throw new Error("After-state negative requires present state.");
+      }
+      after.state_ref = {
+        ...after.state_ref,
+        external_id: "semantic-state:unauthorized-identity",
+      };
+      rebindApplicationResultProofs(receipt);
+    },
+  );
+  add(
+    "after_application_observation_unrelated_result_resigned",
+    "after_application_result_fingerprint_mismatch",
+    (receipt) => {
+      receipt.effects[0]!.after_application_observation_ref.source_ref =
+        `sha256:${"9".repeat(64)}`;
+    },
+  );
+  add(
+    "durable_record_unrelated_result_resigned",
+    "durable_record_result_fingerprint_mismatch",
+    (receipt) => {
+      receipt.effects[0]!.durable_record_ref.source_ref =
+        `sha256:${"a".repeat(64)}`;
+    },
+  );
+  add("applied_by_not_authorized_resigned", "applied_by_not_authorized", (receipt) => {
+    receipt.applied_by_ref = {
+      ...receipt.applied_by_ref,
+      external_id: "synthetic-actor:unauthorized-applier",
+    };
+  });
   return cases;
 }
 
@@ -739,6 +1005,32 @@ function replaceExactRef(
   return refs.map((ref) =>
     JSON.stringify(ref) === expectedKey ? clone(replacement) : ref,
   );
+}
+
+function rebindApplicationResultProofs(
+  value: StateTransitionReceiptBuilderInputV01 | StateTransitionReceiptV01,
+) {
+  for (const effect of value.effects) {
+    const fingerprint =
+      createStateTransitionApplicationResultFingerprintV01(
+        effect,
+        value.applied_at,
+      );
+    const oldAfter = clone(effect.after_application_observation_ref);
+    const oldDurable = clone(effect.durable_record_ref);
+    const after = { ...oldAfter, source_ref: fingerprint };
+    const durable = { ...oldDurable, source_ref: fingerprint };
+    effect.after_application_observation_ref = after;
+    effect.durable_record_ref = durable;
+    effect.source_refs = replaceExactRef(effect.source_refs, oldAfter, after);
+    effect.source_refs = replaceExactRef(
+      effect.source_refs,
+      oldDurable,
+      durable,
+    );
+    value.source_refs = replaceExactRef(value.source_refs, oldAfter, after);
+    value.source_refs = replaceExactRef(value.source_refs, oldDurable, durable);
+  }
 }
 
 function resign(receipt: StateTransitionReceiptV01) {

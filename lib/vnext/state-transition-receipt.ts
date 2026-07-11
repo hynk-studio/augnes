@@ -33,6 +33,7 @@ import {
   type StateTransitionReceiptEffectInputV01,
   type StateTransitionReceiptEffectV01,
   type StateTransitionReceiptMaterialBoundaryV01,
+  type StateTransitionReceiptReplayCompatibilityV01,
   type StateTransitionReceiptStateSnapshotV01,
   type StateTransitionReceiptV01,
   type StateTransitionReceiptValidationIssueV01,
@@ -436,6 +437,102 @@ export function createStateTransitionReceiptFingerprintV01(
   );
 }
 
+export function createStateTransitionApplicationResultFingerprintV01(
+  effect: Pick<
+    StateTransitionReceiptEffectInputV01,
+    "target_ref" | "operation" | "before_state" | "after_state"
+  >,
+  appliedAt: string,
+): string {
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      application_result_version: "state_transition_application_result.v0.1",
+      target_ref: normalizeExternalRefPrimitiveV01(effect.target_ref),
+      operation: effect.operation,
+      before_state: normalizeSnapshot(effect.before_state),
+      after_state: normalizeSnapshot(effect.after_state),
+      applied_at: normalizeProtocolTextV01(appliedAt),
+    }),
+  );
+}
+
+export function createStateTransitionReceiptAppliedResultFingerprintV01(
+  receipt: StateTransitionReceiptV01,
+): string {
+  return createProtocolSha256V01(
+    canonicalizeProtocolValueV01({
+      applied_result_version: "state_transition_receipt_applied_result.v0.1",
+      workspace_id: normalizeProtocolTextV01(receipt.workspace_id),
+      project_id: normalizeProtocolTextV01(receipt.project_id),
+      applied_by_ref: normalizeExternalRefPrimitiveV01(
+        receipt.applied_by_ref,
+      ),
+      effect_result_fingerprints: receipt.effects
+        .map((effect) =>
+          createStateTransitionApplicationResultFingerprintV01(
+            effect,
+            receipt.applied_at,
+          ),
+        )
+        .sort(),
+    }),
+  );
+}
+
+export function compareStateTransitionReceiptReplayCompatibilityV01(
+  leftInput: unknown,
+  rightInput: unknown,
+): StateTransitionReceiptReplayCompatibilityV01 {
+  const leftValidation = validateStateTransitionReceiptV01(leftInput);
+  const rightValidation = validateStateTransitionReceiptV01(rightInput);
+  const errors = [
+    ...leftValidation.errors.map((issue) => ({
+      ...issue,
+      path: issue.path ? `$.left${issue.path.slice(1)}` : "$.left",
+    })),
+    ...rightValidation.errors.map((issue) => ({
+      ...issue,
+      path: issue.path ? `$.right${issue.path.slice(1)}` : "$.right",
+    })),
+  ];
+  if (
+    leftValidation.status !== "valid" ||
+    rightValidation.status !== "valid" ||
+    !isProtocolRecordV01(leftInput) ||
+    !isProtocolRecordV01(rightInput)
+  ) {
+    return {
+      status: "blocked",
+      idempotency_key: null,
+      left_applied_result_fingerprint: null,
+      right_applied_result_fingerprint: null,
+      errors,
+    };
+  }
+  const left = leftInput as unknown as StateTransitionReceiptV01;
+  const right = rightInput as unknown as StateTransitionReceiptV01;
+  const leftResult =
+    createStateTransitionReceiptAppliedResultFingerprintV01(left);
+  const rightResult =
+    createStateTransitionReceiptAppliedResultFingerprintV01(right);
+  if (left.idempotency_key !== right.idempotency_key) {
+    return {
+      status: "distinct_intent",
+      idempotency_key: null,
+      left_applied_result_fingerprint: leftResult,
+      right_applied_result_fingerprint: rightResult,
+      errors: [],
+    };
+  }
+  return {
+    status: leftResult === rightResult ? "exact_replay" : "conflicting_result",
+    idempotency_key: left.idempotency_key,
+    left_applied_result_fingerprint: leftResult,
+    right_applied_result_fingerprint: rightResult,
+    errors: [],
+  };
+}
+
 export function validateStateTransitionReceiptV01(
   input: unknown,
 ): StateTransitionReceiptValidationResultV01 {
@@ -598,6 +695,11 @@ export function validateStateTransitionReceiptV01(
     accumulator,
   );
   validateEffectTimes(input.effects, appliedAt, recordedAt, accumulator);
+  validateApplicationResultProofBindings(
+    input.effects,
+    appliedAt === null ? null : protocolStringValueV01(input.applied_at),
+    accumulator,
+  );
   validateSha256(
     input.eligibility_precondition_fingerprint,
     "$.eligibility_precondition_fingerprint",
@@ -935,6 +1037,97 @@ function validateEffectTimes(
       }
     }
   });
+}
+
+function validateApplicationResultProofBindings(
+  value: unknown,
+  appliedAt: string | null,
+  accumulator: ValidationAccumulator,
+) {
+  if (!Array.isArray(value) || !appliedAt) return;
+  value.forEach((item, index) => {
+    if (!isProtocolRecordV01(item) || !hasApplicationResultMaterial(item)) {
+      return;
+    }
+    const path = `$.effects[${index}]`;
+    try {
+      const fingerprint = createStateTransitionApplicationResultFingerprintV01(
+        item as unknown as StateTransitionReceiptEffectV01,
+        appliedAt,
+      );
+      const afterRef = isProtocolRecordV01(
+        item.after_application_observation_ref,
+      )
+        ? item.after_application_observation_ref
+        : null;
+      const durableRef = isProtocolRecordV01(item.durable_record_ref)
+        ? item.durable_record_ref
+        : null;
+      if (
+        afterRef &&
+        protocolStringValueV01(afterRef.source_ref) !== fingerprint
+      ) {
+        addError(
+          accumulator,
+          "after_application_result_fingerprint_mismatch",
+          `${path}.after_application_observation_ref.source_ref`,
+          "After-application observation must bind the exact normalized effect result.",
+          true,
+        );
+      }
+      if (
+        durableRef &&
+        protocolStringValueV01(durableRef.source_ref) !== fingerprint
+      ) {
+        addError(
+          accumulator,
+          "durable_record_result_fingerprint_mismatch",
+          `${path}.durable_record_ref.source_ref`,
+          "Durable-record observation must bind the exact normalized effect result.",
+          true,
+        );
+      }
+    } catch {
+      addError(
+        accumulator,
+        "application_result_fingerprint_computation_failed",
+        path,
+        "Malformed transition effect could not be bound to application-result proof.",
+      );
+    }
+  });
+}
+
+function hasApplicationResultMaterial(
+  effect: ProtocolJsonRecordV01,
+): boolean {
+  if (
+    !isProtocolRecordV01(effect.target_ref) ||
+    !protocolStringValueV01(effect.operation) ||
+    !isProtocolRecordV01(effect.before_state) ||
+    !isProtocolRecordV01(effect.after_state)
+  ) {
+    return false;
+  }
+  for (const snapshot of [effect.before_state, effect.after_state]) {
+    if (snapshot.presence === "absent") {
+      if (snapshot.state_ref !== null || snapshot.state_fingerprint !== null) {
+        return false;
+      }
+    } else if (snapshot.presence === "present") {
+      if (
+        !isProtocolRecordV01(snapshot.state_ref) ||
+        !/^sha256:[a-f0-9]{64}$/.test(
+          protocolStringValueV01(snapshot.state_fingerprint) ?? "",
+        )
+      ) {
+        return false;
+      }
+    } else {
+      return false;
+    }
+  }
+  return true;
 }
 
 function validateProofRef(

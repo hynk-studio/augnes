@@ -32,12 +32,16 @@ import type {
 } from "@/types/vnext/task-context-packet";
 import {
   STATE_TRANSITION_RECEIPT_OBSERVATION_TRUST_CLASSES_V01,
+  STATE_TRANSITION_RECEIPT_OPERATIONS_V01,
+  type StateTransitionAuthorizedAfterStateV01,
   type StateTransitionCurrentStateObservationV01,
   type StateTransitionEligibilityEvaluationInputV01,
   type StateTransitionEligibilityExpectedEffectV01,
   type StateTransitionEligibilityIssueV01,
   type StateTransitionEligibilityResultV01,
+  type StateTransitionGateAuthorizedEffectV01,
   type StateTransitionReceiptStateSnapshotV01,
+  type StateTransitionReceiptObservationTrustClassV01,
   type StateTransitionReceiptV01,
   type StateTransitionReceiptValidationResultV01,
   type StateTransitionSemanticCommitGateEvaluationV01,
@@ -73,15 +77,37 @@ const allowedGateEvaluationKeys = new Set([
   "decision_actor_ref",
   "authorization_basis_refs",
   "gate_actor_ref",
+  "authorized_applier_ref",
+  "authorized_effects",
   "evaluation_ref",
   "evaluated_at",
   "expires_at",
   "source_refs",
 ]);
+const allowedGateAuthorizedEffectKeys = new Set([
+  "target_ref",
+  "operation",
+  "expected_after_state",
+]);
+const allowedAuthorizedAfterStateKeys = new Set([
+  "presence",
+  "state_fingerprint",
+  "state_ref_rule",
+]);
+const allowedExactStateRefRuleKeys = new Set(["mode", "state_ref"]);
+const allowedWriterAllocatedStateRefRuleKeys = new Set([
+  "mode",
+  "ref_type",
+  "compatibility_namespace",
+  "trust_class",
+]);
 const proofTrustClasses = new Set<string>(
   STATE_TRANSITION_RECEIPT_OBSERVATION_TRUST_CLASSES_V01,
 );
 const gateStatuses = new Set(["authorized", "denied", "unknown"]);
+const effectOperations = new Set<string>(
+  STATE_TRANSITION_RECEIPT_OPERATIONS_V01,
+);
 const STATE_TRANSITION_RECEIPT_LINEAGE_NAMESPACE_V01 =
   "augnes.vnext.state-transition-receipt.v0.1";
 
@@ -300,6 +326,7 @@ export function evaluateReviewDecisionStateTransitionEligibilityV01(
     decisionValue,
     expectedTargets,
     observations,
+    gate?.authorized_effects ?? [],
     accumulator,
   );
 
@@ -406,6 +433,13 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
   exactRef(receipt.semantic_commit_gate.evaluation_ref, gate.evaluation_ref, "gate_evaluation_ref_mismatch", "$.semantic_commit_gate.evaluation_ref", accumulator);
   exactText(receipt.semantic_commit_gate.evaluated_at, gate.evaluated_at, "gate_evaluated_at_mismatch", "$.semantic_commit_gate.evaluated_at", accumulator);
   exactText(receipt.semantic_commit_gate.expires_at, gate.expires_at, "gate_expires_at_mismatch", "$.semantic_commit_gate.expires_at", accumulator);
+  exactRef(
+    receipt.applied_by_ref,
+    gate.authorized_applier_ref,
+    "applied_by_not_authorized",
+    "$.applied_by_ref",
+    accumulator,
+  );
 
   const expectedByTarget = new Map(
     eligibility.expected_effects.map((effect) => [
@@ -430,6 +464,12 @@ export function validateStateTransitionReceiptAgainstEligibilityV01(
       addRelationError(accumulator, "before_state_mismatch", `${path}.before_state`, "Receipt must preserve the exact observed before-state snapshot.", true);
     }
     exactRef(effect.before_state_observation_ref, expected.before_state_observation_ref, "before_state_observation_mismatch", `${path}.before_state_observation_ref`, accumulator);
+    validateReceiptAfterStateRequirement(
+      effect.after_state,
+      expected.expected_after_state,
+      `${path}.after_state`,
+      accumulator,
+    );
   }
 
   const decidedAt = parseStrictIsoTimestampV01(decision.decided_at);
@@ -897,6 +937,25 @@ function validateGateEvaluation(
   validateExternalRefStructureV01(gate.decision_actor_ref, "$.semantic_commit_gate_evaluation.decision_actor_ref", issueSink(accumulator));
   const authorizationRefs = requireNonEmptyRefArray(gate.authorization_basis_refs, "$.semantic_commit_gate_evaluation.authorization_basis_refs", "gate_authorization_basis_required", accumulator);
   validateExternalRefStructureV01(gate.gate_actor_ref, "$.semantic_commit_gate_evaluation.gate_actor_ref", issueSink(accumulator));
+  validateExternalRefStructureV01(
+    gate.authorized_applier_ref,
+    "$.semantic_commit_gate_evaluation.authorized_applier_ref",
+    issueSink(accumulator),
+  );
+  if (!isProtocolRecordV01(gate.authorized_applier_ref)) {
+    addError(
+      accumulator,
+      "gate_authorized_applier_required",
+      "$.semantic_commit_gate_evaluation.authorized_applier_ref",
+      "Semantic commit gate must bind an explicit application actor.",
+      true,
+    );
+  }
+  const authorizedEffects = validateGateAuthorizedEffects(
+    gate.authorized_effects,
+    targetRefs,
+    accumulator,
+  );
   validateProofRef(gate.evaluation_ref, "$.semantic_commit_gate_evaluation.evaluation_ref", "semantic_commit_gate", accumulator);
   const gateEvaluatedAt = requireTimestamp(gate.evaluated_at, "$.semantic_commit_gate_evaluation.evaluated_at", accumulator);
   const expiresAt = requireTimestamp(gate.expires_at, "$.semantic_commit_gate_evaluation.expires_at", accumulator);
@@ -933,7 +992,274 @@ function validateGateEvaluation(
     exactEligibilityText(gate.transition_kind, intent.transition_kind, "gate_transition_kind_mismatch", "$.semantic_commit_gate_evaluation.transition_kind", accumulator);
     exactEligibilityRefSet(targetRefs, intent.target_refs, "gate_target_mismatch", "$.semantic_commit_gate_evaluation.target_refs", accumulator);
   }
-  return gate as unknown as StateTransitionSemanticCommitGateEvaluationV01;
+  return {
+    ...(gate as unknown as StateTransitionSemanticCommitGateEvaluationV01),
+    authorized_effects: authorizedEffects,
+  };
+}
+
+function validateGateAuthorizedEffects(
+  value: unknown,
+  expectedTargetValues: unknown[],
+  accumulator: EligibilityAccumulator,
+): StateTransitionGateAuthorizedEffectV01[] {
+  const values = arrayAt(
+    value,
+    "$.semantic_commit_gate_evaluation.authorized_effects",
+    accumulator,
+  );
+  if (values.length === 0) {
+    addError(
+      accumulator,
+      "gate_authorized_effect_required",
+      "$.semantic_commit_gate_evaluation.authorized_effects",
+      "Authorized gate evaluation requires an outcome for every target.",
+      true,
+    );
+  }
+  if (values.length > 64) {
+    addError(
+      accumulator,
+      "gate_authorized_effect_collection_bound_exceeded",
+      "$.semantic_commit_gate_evaluation.authorized_effects",
+      "Authorized effect collection exceeds 64 items.",
+      true,
+    );
+  }
+  const expectedTargets = new Set(
+    expectedTargetValues.map(canonicalExternalRef).filter(Boolean),
+  );
+  const seenTargets = new Set<string>();
+  const normalized: StateTransitionGateAuthorizedEffectV01[] = [];
+  values.forEach((item, index) => {
+    const path = `$.semantic_commit_gate_evaluation.authorized_effects[${index}]`;
+    const effect = recordAt(item, path, accumulator);
+    if (!effect) return;
+    rejectUnknownNestedKeys(
+      effect,
+      allowedGateAuthorizedEffectKeys,
+      path,
+      accumulator,
+    );
+    validateExternalRefStructureV01(
+      effect.target_ref,
+      `${path}.target_ref`,
+      issueSink(accumulator),
+    );
+    const targetKey = canonicalExternalRef(effect.target_ref);
+    if (targetKey) {
+      if (seenTargets.has(targetKey)) {
+        addError(
+          accumulator,
+          "duplicate_gate_authorized_effect_target",
+          `${path}.target_ref`,
+          "Each target may have exactly one authorized effect outcome.",
+          true,
+        );
+      }
+      seenTargets.add(targetKey);
+      if (expectedTargets.size > 0 && !expectedTargets.has(targetKey)) {
+        addError(
+          accumulator,
+          "gate_authorized_effect_target_mismatch",
+          `${path}.target_ref`,
+          "Authorized effect target is outside the gate target set.",
+          true,
+        );
+      }
+    }
+    const operation = protocolStringValueV01(effect.operation);
+    if (!operation || !effectOperations.has(operation)) {
+      addError(
+        accumulator,
+        "gate_authorized_effect_operation_invalid",
+        `${path}.operation`,
+        "Authorized effect operation must be create, replace, supersede, or retract.",
+        true,
+      );
+    }
+    const expectedAfterState = validateAuthorizedAfterState(
+      effect.expected_after_state,
+      operation,
+      `${path}.expected_after_state`,
+      accumulator,
+    );
+    if (
+      targetKey &&
+      operation &&
+      effectOperations.has(operation) &&
+      expectedAfterState
+    ) {
+      normalized.push({
+        target_ref: normalizeExternalRefPrimitiveV01(
+          effect.target_ref as unknown as ExternalRefV01,
+        ),
+        operation:
+          operation as StateTransitionGateAuthorizedEffectV01["operation"],
+        expected_after_state: expectedAfterState,
+      });
+    }
+  });
+  if (
+    expectedTargets.size !== seenTargets.size ||
+    [...expectedTargets].some((target) => !seenTargets.has(target))
+  ) {
+    addError(
+      accumulator,
+      "gate_authorized_effect_target_set_mismatch",
+      "$.semantic_commit_gate_evaluation.authorized_effects",
+      "Authorized effects must match the exact canonical gate target set.",
+      true,
+    );
+  }
+  return normalized.sort(compareProtocolCanonicalV01);
+}
+
+function validateAuthorizedAfterState(
+  value: unknown,
+  operation: string | null,
+  path: string,
+  accumulator: EligibilityAccumulator,
+): StateTransitionAuthorizedAfterStateV01 | null {
+  const state = recordAt(value, path, accumulator);
+  if (!state) return null;
+  rejectUnknownNestedKeys(
+    state,
+    allowedAuthorizedAfterStateKeys,
+    path,
+    accumulator,
+  );
+  if (state.presence === "absent") {
+    if (state.state_fingerprint !== null || state.state_ref_rule !== null) {
+      addError(
+        accumulator,
+        "authorized_after_state_invalid",
+        path,
+        "Authorized absent after-state requires null fingerprint and ref rule.",
+        true,
+      );
+    }
+    if (operation && operation !== "retract") {
+      addError(
+        accumulator,
+        "gate_authorized_effect_operation_mismatch",
+        path,
+        `${operation} requires an authorized present after-state.`,
+        true,
+      );
+    }
+    return {
+      presence: "absent",
+      state_fingerprint: null,
+      state_ref_rule: null,
+    };
+  }
+  if (state.presence !== "present") {
+    addError(
+      accumulator,
+      "authorized_after_state_invalid",
+      `${path}.presence`,
+      "Authorized after-state presence must be absent or present.",
+      true,
+    );
+    return null;
+  }
+  validateSha256(
+    state.state_fingerprint,
+    `${path}.state_fingerprint`,
+    "authorized_after_state_fingerprint_invalid",
+    accumulator,
+  );
+  if (operation === "retract") {
+    addError(
+      accumulator,
+      "gate_authorized_effect_operation_mismatch",
+      path,
+      "Retract requires an authorized absent after-state.",
+      true,
+    );
+  }
+  const rule = recordAt(state.state_ref_rule, `${path}.state_ref_rule`, accumulator);
+  if (!rule) return null;
+  if (rule.mode === "exact_identity") {
+    rejectUnknownNestedKeys(
+      rule,
+      allowedExactStateRefRuleKeys,
+      `${path}.state_ref_rule`,
+      accumulator,
+    );
+    validateExternalRefStructureV01(
+      rule.state_ref,
+      `${path}.state_ref_rule.state_ref`,
+      issueSink(accumulator),
+    );
+    if (!isProtocolRecordV01(rule.state_ref)) return null;
+    if (rule.state_ref.observed_at != null || rule.state_ref.source_ref != null) {
+      addError(
+        accumulator,
+        "authorized_state_ref_identity_provenance_forbidden",
+        `${path}.state_ref_rule.state_ref`,
+        "Exact state-ref authorization is an identity template and must not fabricate future observation provenance.",
+        true,
+      );
+    }
+    return {
+      presence: "present",
+      state_fingerprint: normalizeProtocolTextV01(
+        state.state_fingerprint as string,
+      ),
+      state_ref_rule: {
+        mode: "exact_identity",
+        state_ref: normalizeExternalRefPrimitiveV01(
+          rule.state_ref as unknown as ExternalRefV01,
+        ),
+      },
+    };
+  }
+  if (rule.mode === "writer_allocated") {
+    rejectUnknownNestedKeys(
+      rule,
+      allowedWriterAllocatedStateRefRuleKeys,
+      `${path}.state_ref_rule`,
+      accumulator,
+    );
+    const refType = protocolStringValueV01(rule.ref_type);
+    const namespace = protocolStringValueV01(rule.compatibility_namespace);
+    const trustClass = protocolStringValueV01(rule.trust_class);
+    if (!refType) {
+      addError(accumulator, "writer_allocated_ref_type_missing", `${path}.state_ref_rule.ref_type`, "Writer-allocated ref rule requires ref_type.", true);
+    }
+    if (!namespace) {
+      addError(accumulator, "writer_allocated_namespace_missing", `${path}.state_ref_rule.compatibility_namespace`, "Writer-allocated ref rule requires a compatibility namespace.", true);
+    }
+    if (!trustClass || !proofTrustClasses.has(trustClass)) {
+      addError(accumulator, "writer_allocated_trust_invalid", `${path}.state_ref_rule.trust_class`, "Writer-allocated state ref must require direct or verified observation trust.", true);
+    }
+    if (!refType || !namespace || !trustClass || !proofTrustClasses.has(trustClass)) {
+      return null;
+    }
+    return {
+      presence: "present",
+      state_fingerprint: normalizeProtocolTextV01(
+        state.state_fingerprint as string,
+      ),
+      state_ref_rule: {
+        mode: "writer_allocated",
+        ref_type: normalizeProtocolTextV01(refType),
+        compatibility_namespace: normalizeProtocolTextV01(namespace),
+        trust_class:
+          trustClass as StateTransitionReceiptObservationTrustClassV01,
+      },
+    };
+  }
+  addError(
+    accumulator,
+    "authorized_state_ref_rule_invalid",
+    `${path}.state_ref_rule.mode`,
+    "Authorized state-ref rule must be exact_identity or writer_allocated.",
+    true,
+  );
+  return null;
 }
 
 function validateCurrentStateObservations(
@@ -1051,12 +1377,16 @@ function deriveExpectedEffects(
   decisionValue: string | null,
   expectedTargets: ExternalRefV01[],
   observations: StateTransitionCurrentStateObservationV01[],
+  authorizedEffects: StateTransitionGateAuthorizedEffectV01[],
   accumulator: EligibilityAccumulator,
 ): StateTransitionEligibilityExpectedEffectV01[] {
   const byTarget = new Map(
     observations.map((item) => [canonicalExternalRef(item.target_ref), item]),
   );
   const effects: StateTransitionEligibilityExpectedEffectV01[] = [];
+  const authorizedByTarget = new Map(
+    authorizedEffects.map((item) => [canonicalExternalRef(item.target_ref), item]),
+  );
   for (const target of expectedTargets) {
     const observation = byTarget.get(canonicalExternalRef(target));
     if (
@@ -1084,6 +1414,18 @@ function deriveExpectedEffects(
       else addError(accumulator, "retract_requires_present_state", "$.current_state_observations", "Retract requires observed present state.");
     }
     if (!operation) continue;
+    const authorized = authorizedByTarget.get(canonicalExternalRef(target));
+    if (!authorized) continue;
+    if (authorized.operation !== operation) {
+      addError(
+        accumulator,
+        "gate_authorized_effect_operation_mismatch",
+        "$.semantic_commit_gate_evaluation.authorized_effects",
+        "Authorized operation must match the decision and observed current state.",
+        true,
+      );
+      continue;
+    }
     const beforeState: StateTransitionReceiptStateSnapshotV01 =
       observation.presence === "absent"
         ? { presence: "absent", state_ref: null, state_fingerprint: null }
@@ -1100,6 +1442,9 @@ function deriveExpectedEffects(
       before_state: beforeState,
       before_state_observation_ref: normalizeExternalRefPrimitiveV01(
         observation.observation_ref,
+      ),
+      expected_after_state: normalizeAuthorizedAfterState(
+        authorized.expected_after_state,
       ),
       source_refs: normalizeRefs(observation.source_refs),
     });
@@ -1126,6 +1471,42 @@ function normalizeCurrentStateObservationsForHash(
     .sort(compareProtocolCanonicalV01);
 }
 
+function normalizeAuthorizedAfterState(
+  value: StateTransitionAuthorizedAfterStateV01,
+): StateTransitionAuthorizedAfterStateV01 {
+  if (value.presence === "absent") {
+    return {
+      presence: "absent",
+      state_fingerprint: null,
+      state_ref_rule: null,
+    };
+  }
+  if (value.state_ref_rule.mode === "exact_identity") {
+    return {
+      presence: "present",
+      state_fingerprint: normalizeProtocolTextV01(value.state_fingerprint),
+      state_ref_rule: {
+        mode: "exact_identity",
+        state_ref: normalizeExternalRefPrimitiveV01(
+          value.state_ref_rule.state_ref,
+        ),
+      },
+    };
+  }
+  return {
+    presence: "present",
+    state_fingerprint: normalizeProtocolTextV01(value.state_fingerprint),
+    state_ref_rule: {
+      mode: "writer_allocated",
+      ref_type: normalizeProtocolTextV01(value.state_ref_rule.ref_type),
+      compatibility_namespace: normalizeProtocolTextV01(
+        value.state_ref_rule.compatibility_namespace,
+      ),
+      trust_class: value.state_ref_rule.trust_class,
+    },
+  };
+}
+
 function normalizeGateForHash(
   gate: StateTransitionSemanticCommitGateEvaluationV01,
 ) {
@@ -1148,12 +1529,52 @@ function normalizeGateForHash(
           .sort(compareProtocolCanonicalV01)
       : [],
     gate_actor_ref: safeNormalizeRef(gate.gate_actor_ref),
+    authorized_applier_ref: safeNormalizeRef(gate.authorized_applier_ref),
+    authorized_effects: Array.isArray(gate.authorized_effects)
+      ? gate.authorized_effects
+          .map((effect) => ({
+            target_ref: safeNormalizeRef(effect?.target_ref),
+            operation: effect?.operation ?? null,
+            expected_after_state: effect?.expected_after_state
+              ? normalizeAuthorizedAfterStateForHash(
+                  effect.expected_after_state,
+                )
+              : null,
+          }))
+          .sort(compareProtocolCanonicalV01)
+      : [],
     evaluation_ref: safeNormalizeRef(gate.evaluation_ref),
     evaluated_at: protocolStringValueV01(gate.evaluated_at),
     expires_at: protocolStringValueV01(gate.expires_at),
     source_refs: Array.isArray(gate.source_refs)
       ? gate.source_refs.map(safeNormalizeRef).sort(compareProtocolCanonicalV01)
       : [],
+  };
+}
+
+function normalizeAuthorizedAfterStateForHash(value: unknown): unknown {
+  if (!isProtocolRecordV01(value)) return value ?? null;
+  const rule = isProtocolRecordV01(value.state_ref_rule)
+    ? value.state_ref_rule
+    : value.state_ref_rule ?? null;
+  return {
+    presence: protocolStringValueV01(value.presence),
+    state_fingerprint: protocolStringValueV01(value.state_fingerprint),
+    state_ref_rule: isProtocolRecordV01(rule)
+      ? rule.mode === "exact_identity"
+        ? {
+            mode: "exact_identity",
+            state_ref: safeNormalizeRef(rule.state_ref),
+          }
+        : {
+            mode: protocolStringValueV01(rule.mode),
+            ref_type: protocolStringValueV01(rule.ref_type),
+            compatibility_namespace: protocolStringValueV01(
+              rule.compatibility_namespace,
+            ),
+            trust_class: protocolStringValueV01(rule.trust_class),
+          }
+      : rule,
   };
 }
 
@@ -1258,6 +1679,21 @@ function externalRefIdentity(value: unknown): string {
     : `provider:${protocolStringValueV01(value.provider) ?? ""}|host:${protocolStringValueV01(value.host) ?? ""}|${type}|${id}`;
 }
 
+function externalRefAuthorizedIdentity(value: unknown): string {
+  if (!isProtocolRecordV01(value)) return "";
+  return canonicalizeProtocolValueV01({
+    ref_version: protocolStringValueV01(value.ref_version),
+    ref_type: protocolStringValueV01(value.ref_type),
+    external_id: protocolStringValueV01(value.external_id),
+    provider: protocolStringValueV01(value.provider),
+    host: protocolStringValueV01(value.host),
+    compatibility_namespace: protocolStringValueV01(
+      value.compatibility_namespace,
+    ),
+    trust_class: protocolStringValueV01(value.trust_class),
+  });
+}
+
 function exactEligibilityText(
   actual: unknown,
   expected: unknown,
@@ -1267,6 +1703,78 @@ function exactEligibilityText(
 ) {
   if (protocolStringValueV01(actual) !== protocolStringValueV01(expected)) {
     addError(accumulator, code, path, "Cross-contract binding mismatch.", true);
+  }
+}
+
+function validateReceiptAfterStateRequirement(
+  actual: StateTransitionReceiptStateSnapshotV01,
+  expected: StateTransitionAuthorizedAfterStateV01,
+  path: string,
+  accumulator: RelationAccumulator,
+) {
+  if (actual.presence !== expected.presence) {
+    addRelationError(
+      accumulator,
+      "authorized_after_state_mismatch",
+      `${path}.presence`,
+      "Receipt after-state presence differs from the gate-authorized outcome.",
+      true,
+    );
+    return;
+  }
+  if (expected.presence === "absent") {
+    if (actual.state_ref !== null || actual.state_fingerprint !== null) {
+      addRelationError(
+        accumulator,
+        "authorized_after_state_mismatch",
+        path,
+        "Authorized absent outcome requires an exact absent receipt snapshot.",
+        true,
+      );
+    }
+    return;
+  }
+  if (actual.presence !== "present") return;
+  if (actual.state_fingerprint !== expected.state_fingerprint) {
+    addRelationError(
+      accumulator,
+      "authorized_after_state_mismatch",
+      `${path}.state_fingerprint`,
+      "Receipt state content fingerprint differs from the authorized outcome.",
+      true,
+    );
+  }
+  const rule = expected.state_ref_rule;
+  if (rule.mode === "exact_identity") {
+    if (
+      externalRefAuthorizedIdentity(actual.state_ref) !==
+      externalRefAuthorizedIdentity(rule.state_ref)
+    ) {
+      addRelationError(
+        accumulator,
+        "authorized_after_state_ref_identity_mismatch",
+        `${path}.state_ref`,
+        "Receipt state-ref identity differs from the exact gate-authorized identity.",
+        true,
+      );
+    }
+    return;
+  }
+  if (
+    actual.state_ref.ref_type !== rule.ref_type ||
+    actual.state_ref.compatibility_namespace !==
+      rule.compatibility_namespace ||
+    actual.state_ref.trust_class !== rule.trust_class ||
+    actual.state_ref.provider != null ||
+    actual.state_ref.host != null
+  ) {
+    addRelationError(
+      accumulator,
+      "writer_allocated_state_ref_rule_mismatch",
+      `${path}.state_ref`,
+      "Writer-allocated state ref is outside the provider-free authorized identity rule.",
+      true,
+    );
   }
 }
 

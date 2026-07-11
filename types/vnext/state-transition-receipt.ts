@@ -283,10 +283,50 @@ export interface StateTransitionSemanticCommitGateEvaluationV01 {
   decision_actor_ref: ExternalRefV01;
   authorization_basis_refs: ExternalRefV01[];
   gate_actor_ref: ExternalRefV01;
+  authorized_applier_ref: ExternalRefV01;
+  authorized_effects: StateTransitionGateAuthorizedEffectV01[];
   evaluation_ref: ExternalRefV01;
   evaluated_at: string;
   expires_at: string;
   source_refs: ExternalRefV01[];
+}
+
+export interface StateTransitionExactStateRefIdentityRuleV01 {
+  mode: "exact_identity";
+  state_ref: ExternalRefV01;
+}
+
+export interface StateTransitionWriterAllocatedStateRefRuleV01 {
+  mode: "writer_allocated";
+  ref_type: string;
+  compatibility_namespace: string;
+  trust_class: StateTransitionReceiptObservationTrustClassV01;
+}
+
+export type StateTransitionAuthorizedStateRefRuleV01 =
+  | StateTransitionExactStateRefIdentityRuleV01
+  | StateTransitionWriterAllocatedStateRefRuleV01;
+
+export interface StateTransitionAuthorizedAbsentAfterStateV01 {
+  presence: "absent";
+  state_fingerprint: null;
+  state_ref_rule: null;
+}
+
+export interface StateTransitionAuthorizedPresentAfterStateV01 {
+  presence: "present";
+  state_fingerprint: string;
+  state_ref_rule: StateTransitionAuthorizedStateRefRuleV01;
+}
+
+export type StateTransitionAuthorizedAfterStateV01 =
+  | StateTransitionAuthorizedAbsentAfterStateV01
+  | StateTransitionAuthorizedPresentAfterStateV01;
+
+export interface StateTransitionGateAuthorizedEffectV01 {
+  target_ref: ExternalRefV01;
+  operation: StateTransitionReceiptOperationV01;
+  expected_after_state: StateTransitionAuthorizedAfterStateV01;
 }
 
 export interface StateTransitionEligibilityExpectedEffectV01 {
@@ -294,7 +334,22 @@ export interface StateTransitionEligibilityExpectedEffectV01 {
   operation: StateTransitionReceiptOperationV01;
   before_state: StateTransitionReceiptStateSnapshotV01;
   before_state_observation_ref: ExternalRefV01;
+  expected_after_state: StateTransitionAuthorizedAfterStateV01;
   source_refs: ExternalRefV01[];
+}
+
+export type StateTransitionReceiptReplayCompatibilityStatusV01 =
+  | "distinct_intent"
+  | "exact_replay"
+  | "conflicting_result"
+  | "blocked";
+
+export interface StateTransitionReceiptReplayCompatibilityV01 {
+  status: StateTransitionReceiptReplayCompatibilityStatusV01;
+  idempotency_key: string | null;
+  left_applied_result_fingerprint: string | null;
+  right_applied_result_fingerprint: string | null;
+  errors: StateTransitionReceiptValidationIssueV01[];
 }
 
 export interface StateTransitionEligibilityIssueV01 {

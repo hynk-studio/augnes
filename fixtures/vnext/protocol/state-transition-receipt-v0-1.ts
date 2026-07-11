@@ -10,6 +10,7 @@ import {
   createReviewDecisionFingerprintV01,
   deriveReviewDecisionIdV01,
 } from "@/lib/vnext/review-decision";
+import { createStateTransitionApplicationResultFingerprintV01 } from "@/lib/vnext/state-transition-receipt";
 import {
   EXTERNAL_REF_VERSION_V01,
   type ExternalRefTrustClassV01,
@@ -35,8 +36,6 @@ export const STATE_TRANSITION_RECEIPT_FIXTURE_RECORDED_AT =
 const BEFORE_OBSERVED_AT = "2026-07-10T12:18:00.000Z";
 const STATE_AFTER_FINGERPRINT = `sha256:${"a".repeat(64)}`;
 const BEFORE_OBSERVATION_FINGERPRINT = `sha256:${"b".repeat(64)}`;
-const AFTER_OBSERVATION_FINGERPRINT = `sha256:${"c".repeat(64)}`;
-const DURABLE_RECORD_FINGERPRINT = `sha256:${"d".repeat(64)}`;
 const GATE_EVALUATION_FINGERPRINT = `sha256:${"e".repeat(64)}`;
 const ELIGIBILITY_PRECONDITION_FINGERPRINT = `sha256:${"f".repeat(64)}`;
 
@@ -78,12 +77,31 @@ export const genericStateTransitionReceiptBeforeObservationRefFixture = ref(
 export const genericStateTransitionReceiptAfterStateRefFixture = ref(
   "accepted_semantic_state",
   "semantic-state:protocol-foundation:v1",
-  "direct_local_observation",
+  "derived_interpretation",
   {
     observed_at: STATE_TRANSITION_RECEIPT_FIXTURE_APPLIED_AT,
     source_ref: STATE_AFTER_FINGERPRINT,
   },
 );
+
+export const genericStateTransitionApplicationResultFingerprintFixture =
+  createStateTransitionApplicationResultFingerprintV01(
+    {
+      target_ref: targetRef,
+      operation: "create",
+      before_state: {
+        presence: "absent",
+        state_ref: null,
+        state_fingerprint: null,
+      },
+      after_state: {
+        presence: "present",
+        state_ref: genericStateTransitionReceiptAfterStateRefFixture,
+        state_fingerprint: STATE_AFTER_FINGERPRINT,
+      },
+    },
+    STATE_TRANSITION_RECEIPT_FIXTURE_APPLIED_AT,
+  );
 
 export const genericStateTransitionReceiptAfterObservationRefFixture = ref(
   "semantic_state_application_observation",
@@ -91,7 +109,7 @@ export const genericStateTransitionReceiptAfterObservationRefFixture = ref(
   "direct_local_observation",
   {
     observed_at: STATE_TRANSITION_RECEIPT_FIXTURE_APPLIED_AT,
-    source_ref: AFTER_OBSERVATION_FINGERPRINT,
+    source_ref: genericStateTransitionApplicationResultFingerprintFixture,
   },
 );
 
@@ -101,7 +119,7 @@ export const genericStateTransitionReceiptDurableRecordRefFixture = ref(
   "verified_external_observation",
   {
     observed_at: STATE_TRANSITION_RECEIPT_FIXTURE_RECORDED_AT,
-    source_ref: DURABLE_RECORD_FINGERPRINT,
+    source_ref: genericStateTransitionApplicationResultFingerprintFixture,
   },
 );
 
@@ -118,11 +136,7 @@ export const genericStateTransitionReceiptGateEvaluationRefFixture = ref(
 const appliedByRef = ref(
   "semantic_transition_actor",
   "synthetic-actor:semantic-transition-conformance",
-  "direct_local_observation",
-  {
-    observed_at: STATE_TRANSITION_RECEIPT_FIXTURE_APPLIED_AT,
-    source_ref: genericStateTransitionReceiptGateEvaluationRefFixture.source_ref,
-  },
+  "user_declaration",
 );
 
 const sourceProposalRef = ref(
@@ -294,6 +308,29 @@ export const genericStateTransitionSemanticCommitGateEvaluationFixture: StateTra
       .authorization_basis_refs,
   ),
   gate_actor_ref: semanticCommitGateActorRef,
+  authorized_applier_ref: clone(appliedByRef),
+  authorized_effects: [
+    {
+      target_ref: clone(targetRef),
+      operation: "create",
+      expected_after_state: {
+        presence: "present",
+        state_fingerprint: STATE_AFTER_FINGERPRINT,
+        state_ref_rule: {
+          mode: "exact_identity",
+          state_ref: {
+            ref_version:
+              genericStateTransitionReceiptAfterStateRefFixture.ref_version,
+            ref_type: genericStateTransitionReceiptAfterStateRefFixture.ref_type,
+            external_id:
+              genericStateTransitionReceiptAfterStateRefFixture.external_id,
+            trust_class:
+              genericStateTransitionReceiptAfterStateRefFixture.trust_class,
+          },
+        },
+      },
+    },
+  ],
   evaluation_ref: clone(
     genericStateTransitionReceiptGateEvaluationRefFixture,
   ),

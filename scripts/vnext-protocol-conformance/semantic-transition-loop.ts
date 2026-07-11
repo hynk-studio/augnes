@@ -37,6 +37,7 @@ import {
 } from "@/lib/vnext/review-decision";
 import {
   buildStateTransitionReceiptV01,
+  createStateTransitionApplicationResultFingerprintV01,
   createStateTransitionReceiptFingerprintV01,
   createStateTransitionReceiptIdempotencyKeyV01,
   deriveStateTransitionEffectIdV01,
@@ -90,11 +91,11 @@ const FIXED_M3A_CHAIN_FINGERPRINT =
   "sha256:505b78c58fb48f19edccf724349d6a0bd5fdb2b437838530d75f9aee16d2c0cb";
 
 const FIXED_LATER_PACKET_ID =
-  "task-context-packet:65e07e2bbd243d741983687";
+  "task-context-packet:65c68791438f3dfc643aa92";
 const FIXED_LATER_PACKET_FINGERPRINT =
-  "sha256:8eef8b43e59371aba307b3ba4c0a4f44288ad7333557ca52fea3c2ea21c66365";
+  "sha256:972e9f0a382d7ba31060e6f27e6d70a8a22e2fbf49f2ebda7b093def9c100beb";
 const FIXED_M3B_CHAIN_FINGERPRINT =
-  "sha256:e900b502561e2de12e936b3e8f8079ed18bc68f396d7bb9486adbcbcd4533ed8";
+  "sha256:b099f344eedc93bb9d8a3f73ed4856b453db80f02ddc217620f426072f949acd";
 
 interface TransitionScenarioV01 {
   run_receipt: RunReceiptV01;
@@ -137,6 +138,7 @@ export interface SemanticTransitionLoopConformanceSummaryV01 {
   supersede_checked: true;
   retract_checked: true;
   multi_target_atomic_apply_checked: true;
+  effect_specific_application_proof_checked: true;
   exact_later_selected_and_excluded_state_checked: true;
   transition_receipt_lineage_checked: true;
   two_project_isolation_checked: true;
@@ -199,6 +201,28 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
 
   const retract = buildIntegratedPresentScenario(projectA, "retract");
   assertScenarioOperation(retract, "retract");
+  assert.ok(
+    retract.eligibility.expected_effects.every(
+      (effect) => effect.expected_after_state.presence === "absent",
+    ),
+  );
+  assert.ok(
+    retract.transition_receipt.effects.every(
+      (effect) => effect.after_state.presence === "absent",
+    ),
+  );
+  for (const effect of retract.transition_receipt.effects) {
+    const resultFingerprint =
+      createStateTransitionApplicationResultFingerprintV01(
+        effect,
+        retract.transition_receipt.applied_at,
+      );
+    assert.equal(
+      effect.after_application_observation_ref.source_ref,
+      resultFingerprint,
+    );
+    assert.equal(effect.durable_record_ref.source_ref, resultFingerprint);
+  }
   const retractedState = retract.current_state_observations[0];
   assert.equal(retractedState?.presence, "present");
   assert.ok(
@@ -236,6 +260,33 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     all_effects_applied: true,
     partial_application: false,
   });
+  const crossBoundProofReceipt = clone(multiTarget.transition_receipt);
+  const firstEffect = crossBoundProofReceipt.effects[0];
+  const secondEffect = crossBoundProofReceipt.effects[1];
+  if (!firstEffect || !secondEffect) {
+    throw new Error("Cross-effect proof case requires two effects.");
+  }
+  firstEffect.durable_record_ref.source_ref =
+    secondEffect.after_application_observation_ref.source_ref;
+  resignReceipt(crossBoundProofReceipt);
+  const crossBoundProofRelation =
+    validateStateTransitionReceiptAgainstEligibilityV01({
+      proposal: multiTarget.proposal,
+      decision: multiTarget.decision,
+      current_state_observations: multiTarget.current_state_observations,
+      semantic_commit_gate_evaluation:
+        multiTarget.semantic_commit_gate_evaluation,
+      evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
+      receipt: crossBoundProofReceipt,
+    });
+  assert.equal(crossBoundProofRelation.status, "blocked");
+  assert.ok(
+    crossBoundProofRelation.errors.some(
+      (issue) =>
+        issue.code === "durable_record_result_fingerprint_mismatch",
+    ),
+    format(crossBoundProofRelation),
+  );
 
   assertUnorderedNormalizationAndImmutability(projectA, multiTarget);
 
@@ -259,7 +310,7 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     suite: "semantic-transition-loop-v0.1",
     status: "passed",
     positive_fixture_count: 7,
-    receipt_relation_negative_fixture_count: receiptRelationCases.length,
+    receipt_relation_negative_fixture_count: receiptRelationCases.length + 1,
     later_packet_relation_negative_fixture_count:
       laterPacketRelationCases.length,
     existing_m3a_anchor_count: 9,
@@ -281,6 +332,7 @@ function runSemanticTransitionLoopConformanceInternalV01(): SemanticTransitionLo
     supersede_checked: true,
     retract_checked: true,
     multi_target_atomic_apply_checked: true,
+    effect_specific_application_proof_checked: true,
     exact_later_selected_and_excluded_state_checked: true,
     transition_receipt_lineage_checked: true,
     two_project_isolation_checked: true,
@@ -415,6 +467,7 @@ function buildScenario(
   const gate = createSemanticTransitionGateEvaluationV01(
     source.project,
     decision,
+    observations,
   );
   const eligibility = evaluateReviewDecisionStateTransitionEligibilityV01({
     proposal,
@@ -574,6 +627,7 @@ function buildScenarioFromMaterial(
   const gate = createSemanticTransitionGateEvaluationV01(
     source.project,
     decision,
+    observations,
   );
   const eligibility = evaluateReviewDecisionStateTransitionEligibilityV01({
     proposal,
@@ -703,12 +757,41 @@ function assertSameIdentityReplacementSnapshot(
   source: TransitionScenarioV01,
   fixture: SemanticTransitionLoopFixtureV01,
 ) {
+  const gate = clone(source.semantic_commit_gate_evaluation);
+  const observation = source.current_state_observations[0];
+  const authorizedEffect = gate.authorized_effects[0];
+  if (
+    !observation ||
+    observation.presence !== "present" ||
+    !observation.state_ref ||
+    !authorizedEffect ||
+    authorizedEffect.expected_after_state.presence !== "present" ||
+    authorizedEffect.expected_after_state.state_ref_rule.mode !==
+      "exact_identity"
+  ) {
+    throw new Error("Same-identity replacement requires exact state identity authorization.");
+  }
+  authorizedEffect.expected_after_state.state_ref_rule.state_ref = clone(
+    observation.state_ref,
+  );
+  delete authorizedEffect.expected_after_state.state_ref_rule.state_ref
+    .observed_at;
+  delete authorizedEffect.expected_after_state.state_ref_rule.state_ref
+    .source_ref;
+  const eligibility = evaluateReviewDecisionStateTransitionEligibilityV01({
+    proposal: source.proposal,
+    decision: source.decision,
+    current_state_observations: source.current_state_observations,
+    semantic_commit_gate_evaluation: gate,
+    evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
+  });
+  assert.equal(eligibility.status, "eligible", format(eligibility));
   const receiptInput = createSemanticTransitionReceiptInputV01(
     fixture.project,
     source.proposal,
     source.decision,
-    source.semantic_commit_gate_evaluation,
-    source.eligibility,
+    gate,
+    eligibility,
   );
   const effect = receiptInput.effects[0];
   if (
@@ -721,13 +804,6 @@ function assertSameIdentityReplacementSnapshot(
   }
   const beforeRef = effect.before_state.state_ref;
   const afterRef = effect.after_state.state_ref;
-  afterRef.ref_type = beforeRef.ref_type;
-  afterRef.external_id = beforeRef.external_id;
-  afterRef.compatibility_namespace = beforeRef.compatibility_namespace;
-  if (beforeRef.provider) afterRef.provider = beforeRef.provider;
-  else delete afterRef.provider;
-  if (beforeRef.host) afterRef.host = beforeRef.host;
-  else delete afterRef.host;
   assert.notEqual(
     effect.before_state.state_fingerprint,
     effect.after_state.state_fingerprint,
@@ -741,8 +817,7 @@ function assertSameIdentityReplacementSnapshot(
     proposal: source.proposal,
     decision: source.decision,
     current_state_observations: source.current_state_observations,
-    semantic_commit_gate_evaluation:
-      source.semantic_commit_gate_evaluation,
+    semantic_commit_gate_evaluation: gate,
     evaluated_at: SEMANTIC_TRANSITION_ELIGIBILITY_EVALUATED_AT,
     receipt,
   });
@@ -947,6 +1022,7 @@ function assertUnorderedNormalizationAndImmutability(
   };
   reorderedEligibilityInput.semantic_commit_gate_evaluation.target_refs.reverse();
   reorderedEligibilityInput.semantic_commit_gate_evaluation.authorization_basis_refs.reverse();
+  reorderedEligibilityInput.semantic_commit_gate_evaluation.authorized_effects.reverse();
   reorderedEligibilityInput.semantic_commit_gate_evaluation.source_refs.reverse();
   const reorderedEligibility =
     evaluateReviewDecisionStateTransitionEligibilityV01(
