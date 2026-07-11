@@ -454,6 +454,24 @@ export function recordVNextSemanticCommitAuthorizationV01(
 ): VNextSemanticCommitAuthorizationResultV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
   assertVNextDurableSemanticStoreSchemaV01(db);
+  return withImmediateTransaction(db, () =>
+    recordVNextSemanticCommitAuthorizationInsideTransactionV01(db, input),
+  );
+}
+
+/**
+ * Transaction-aware authorization entry point for an authenticated operator
+ * action whose nonce rotation must commit or roll back with the gate record.
+ * The caller owns the surrounding immediate transaction.
+ */
+export function recordVNextSemanticCommitAuthorizationInsideTransactionV01(
+  db: Database.Database,
+  input: RecordVNextSemanticCommitAuthorizationInputV01,
+): VNextSemanticCommitAuthorizationResultV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  if (!db.inTransaction) {
+    throw new Error("semantic_commit_authorization_transaction_required");
+  }
   assertRuntimeInputKeys(
     input,
     new Set([
@@ -482,8 +500,7 @@ export function recordVNextSemanticCommitAuthorizationV01(
     gateTtlMs,
     "gate_expires_at",
   );
-  return withImmediateTransaction(db, () => {
-    const exactPreview = prepareVNextSemanticCommitPreviewAtV01(
+  const exactPreview = prepareVNextSemanticCommitPreviewAtV01(
       db,
       {
         workspace_id: input.preview.workspace_id,
@@ -589,13 +606,12 @@ export function recordVNextSemanticCommitAuthorizationV01(
       created_at: confirmedAt,
     });
     runTestCheckpoint(input.test_options, "after_gate_record_insert");
-    return {
-      status: write.status,
-      gate_record: gateRecord,
-      eligibility_input: gateEligibilityInput,
-      eligibility: gateEligibility,
-    };
-  });
+  return {
+    status: write.status,
+    gate_record: gateRecord,
+    eligibility_input: gateEligibilityInput,
+    eligibility: gateEligibility,
+  };
 }
 
 export function commitVNextSemanticTransitionV01(
@@ -613,6 +629,23 @@ export function commitVNextSemanticTransitionV01(
 ): VNextSemanticTransitionCommitResultV01 {
   const { db, input } = unpackDbInput(dbOrInput, maybeInput);
   assertVNextDurableSemanticStoreSchemaV01(db);
+  return withImmediateTransaction(db, () =>
+    commitVNextSemanticTransitionInsideTransactionV01(db, input),
+  );
+}
+
+/**
+ * Transaction-aware writer entry point for an authenticated operator action.
+ * The caller owns the surrounding immediate transaction.
+ */
+export function commitVNextSemanticTransitionInsideTransactionV01(
+  db: Database.Database,
+  input: CommitVNextSemanticTransitionInputV01,
+): VNextSemanticTransitionCommitResultV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  if (!db.inTransaction) {
+    throw new Error("semantic_transition_commit_transaction_required");
+  }
   return commitVNextSemanticTransitionInternalV01(db, input);
 }
 
@@ -754,7 +787,7 @@ function commitVNextSemanticTransitionInternalV01(
       "test_options",
     ]),
   );
-  return withImmediateTransaction(db, () => {
+  return (() => {
     const transactionNow = readVNextLocalRuntimeClockNowV01(
       input.clock,
       "applied_at",
@@ -926,7 +959,7 @@ function commitVNextSemanticTransitionInternalV01(
       eligibility_input: eligibilityInput,
       eligibility,
     };
-  });
+  })();
 }
 
 function assertLiveLineageProjectionBindings(

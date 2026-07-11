@@ -206,7 +206,8 @@
 
 .form input,
 .form textarea,
-.form select {
+.form select,
+.selectControl {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -216,6 +217,11 @@
   background: #ffffff;
   color: #172033;
   font: inherit;
+}
+
+.selectControl {
+  display: block;
+  margin-top: 6px;
 }
 
 .form textarea {
@@ -404,11 +410,94 @@
   line-height: 1.4;
 }
 
+.transitionSteps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.transitionStep {
+  display: grid;
+  align-content: start;
+  gap: 11px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(31, 41, 55, 0.13);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.stepHeader {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+
+.stepHeader h3 {
+  margin: 0;
+  color: #172235;
+  font-size: 0.98rem;
+}
+
+.stepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 999px;
+  background: #173f35;
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.identifierStack,
+.exactValue {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.exactValue {
+  padding: 9px;
+  border: 1px solid rgba(31, 41, 55, 0.1);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.exactValue strong {
+  color: #475569;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.checkRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid rgba(18, 112, 82, 0.18);
+  border-radius: 8px;
+  background: #f5fbf8;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.checkRow input {
+  margin: 2px 0 0;
+}
+
 @media (max-width: 900px) {
   .header,
   .detailGrid,
   .provenanceGrid,
-  .twoColumnGrid {
+  .twoColumnGrid,
+  .transitionSteps {
     grid-template-columns: 1fr;
   }
 

@@ -37,7 +37,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
   const [privateError, setPrivateError] = useState<string | null>(null);
   const [decisionStatus, setDecisionStatus] = useState<string | null>(null);
   const [busyCandidateId, setBusyCandidateId] = useState<string | null>(null);
-  const decisionRequestInFlight = useRef(false);
+  const operatorMutationInFlight = useRef(false);
 
   const loadPrivateView = useCallback(async () => {
     setLoadingPrivateView(true);
@@ -143,11 +143,11 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
   async function recordDecision(request: SemanticReviewDecisionRequestV01) {
     if (
       sessionState.status !== "authenticated" ||
-      decisionRequestInFlight.current
+      operatorMutationInFlight.current
     ) {
       return;
     }
-    decisionRequestInFlight.current = true;
+    operatorMutationInFlight.current = true;
     setBusyCandidateId(request.candidate_id);
     setDecisionStatus(null);
     setPrivateError(null);
@@ -194,7 +194,7 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
     } catch {
       setPrivateError("semantic_review_decision_request_failed");
     } finally {
-      decisionRequestInFlight.current = false;
+      operatorMutationInFlight.current = false;
       setBusyCandidateId(null);
     }
   }
@@ -219,6 +219,16 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
     });
   }
 
+  async function refreshPrivateMaterial(): Promise<void> {
+    router.replace(
+      proposalId
+        ? `/workbench/semantic-review/${encodeURIComponent(proposalId)}`
+        : "/workbench/semantic-review",
+    );
+    router.refresh();
+    await loadPrivateView();
+  }
+
   const privateMaterialVisible =
     sessionState.status === "authenticated" && privateView !== null;
 
@@ -241,9 +251,11 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
             <p className={styles.eyebrow}>Augnes Semantic Workbench / M3D pilot</p>
             <h1>{proposalId ? "Review proposal" : "Semantic review"}</h1>
             <p className={styles.headerCopy}>
-              Review bounded project-semantic candidates and prepare an explicit
-              ReviewDecision. This surface is not a general chat, terminal, code editor,
-              Git diff, provider session manager, scheduler, or transition executor.
+              Review bounded project-semantic candidates, record an explicit
+              ReviewDecision, and keep preview, gate confirmation, durable commit, and
+              later-context compilation as separate operator actions. This surface is
+              not a general chat, terminal, code editor, Git diff, provider session
+              manager, or scheduler.
             </p>
           </div>
           <nav className={styles.nav} aria-label="Semantic review navigation">
@@ -257,7 +269,8 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
           <span>proposal is not state</span>
           <span>decision is not transition</span>
           <span>local session is not external identity</span>
-          <span>accept is intent only</span>
+          <span>confirmation is gate only</span>
+          <span>packet compilation is not transition</span>
         </div>
 
         <OperatorSessionPanel
@@ -297,6 +310,16 @@ export function SemanticReviewSurface({ proposalId }: { proposalId?: string }) {
             read={privateView.value.proposal}
             busyCandidateId={busyCandidateId}
             onDecision={recordDecision}
+            onSessionInvalid={(errorCode) => locked(errorCode)}
+            onPrivateMaterialChanged={refreshPrivateMaterial}
+            tryBeginOperatorMutation={() => {
+              if (operatorMutationInFlight.current) return false;
+              operatorMutationInFlight.current = true;
+              return true;
+            }}
+            endOperatorMutation={() => {
+              operatorMutationInFlight.current = false;
+            }}
           />
         ) : null}
 

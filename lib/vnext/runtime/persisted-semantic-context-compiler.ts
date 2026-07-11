@@ -99,20 +99,39 @@ export function compileTaskContextPacketFromPersistedSemanticStateV01(
   }
   db.exec("BEGIN IMMEDIATE");
   try {
-    assertCompilerInputKeys(input);
-    const result = compileTaskContextPacketInternalV01(db, {
-      ...input,
-      generated_at: readVNextLocalRuntimeClockNowV01(
-        input.clock,
-        "task_context_packet_generated_at",
-      ),
-    });
+    const result =
+      compileTaskContextPacketFromPersistedSemanticStateInsideTransactionV01(
+        db,
+        input,
+      );
     db.exec("COMMIT");
     return result;
   } catch (error) {
     if (db.inTransaction) db.exec("ROLLBACK");
     throw error;
   }
+}
+
+/**
+ * Transaction-aware compiler entry point for an authenticated operator action.
+ * The caller owns the surrounding immediate transaction.
+ */
+export function compileTaskContextPacketFromPersistedSemanticStateInsideTransactionV01(
+  db: Database.Database,
+  input: CompileTaskContextPacketFromPersistedSemanticStateInputV01,
+): CompileTaskContextPacketFromPersistedSemanticStateResultV01 {
+  assertVNextDurableSemanticStoreSchemaV01(db);
+  if (!db.inTransaction) {
+    throw new Error("persisted_context_compiler_transaction_required");
+  }
+  assertCompilerInputKeys(input);
+  return compileTaskContextPacketInternalV01(db, {
+    ...input,
+    generated_at: readVNextLocalRuntimeClockNowV01(
+      input.clock,
+      "task_context_packet_generated_at",
+    ),
+  });
 }
 
 function compileTaskContextPacketInternalV01(

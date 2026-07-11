@@ -1,6 +1,7 @@
 import type { ExternalRefV01 } from "@/types/vnext/external-ref";
 
 import { ReviewDecisionForm } from "./review-decision-form";
+import { SemanticTransitionActions } from "./semantic-transition-actions";
 import type {
   SemanticReviewDecisionRequestV01,
   SemanticReviewProposalDetailV01,
@@ -13,14 +14,32 @@ export function SemanticReviewProposalDetail({
   read,
   busyCandidateId,
   onDecision,
+  onSessionInvalid,
+  onPrivateMaterialChanged,
+  tryBeginOperatorMutation,
+  endOperatorMutation,
 }: {
   project: SemanticReviewProjectV01;
   read: SemanticReviewProposalDetailV01;
   busyCandidateId: string | null;
   onDecision: (request: SemanticReviewDecisionRequestV01) => Promise<void>;
+  onSessionInvalid: (errorCode: string) => void;
+  onPrivateMaterialChanged: () => Promise<void>;
+  tryBeginOperatorMutation: () => boolean;
+  endOperatorMutation: () => void;
 }) {
   const proposal = read.proposal;
   const candidateReads = read.candidates;
+  const packetRef = proposal.task_context_packet_ref;
+  const priorPacket =
+    packetRef?.ref_type === "task_context_packet" &&
+    typeof packetRef.source_ref === "string" &&
+    /^sha256:[a-f0-9]{64}$/.test(packetRef.source_ref)
+      ? {
+          packet_id: packetRef.external_id,
+          packet_fingerprint: packetRef.source_ref,
+        }
+      : null;
 
   return (
     <section
@@ -299,6 +318,18 @@ export function SemanticReviewProposalDetail({
         )}
       </section>
 
+      <SemanticTransitionActions
+        proposalId={proposal.proposal_id}
+        proposalFingerprint={proposal.integrity.fingerprint}
+        decisions={read.decisions}
+        persistedReceipts={read.transition_receipts}
+        priorPacket={priorPacket}
+        onSessionInvalid={onSessionInvalid}
+        onPrivateMaterialChanged={onPrivateMaterialChanged}
+        tryBeginOperatorMutation={tryBeginOperatorMutation}
+        endOperatorMutation={endOperatorMutation}
+      />
+
       <section
         className={styles.panel}
         data-vnext-operator-step="transition"
@@ -324,7 +355,7 @@ export function SemanticReviewProposalDetail({
           </div>
           <div>
             <dt>Actions here</dt>
-            <dd>none</dd>
+            <dd>explicit controls above</dd>
           </div>
         </dl>
         <TextCollection
@@ -332,8 +363,9 @@ export function SemanticReviewProposalDetail({
           items={read.transition.notes}
         />
         <p className={styles.notice}>
-          This Phase B surface does not prepare a commit preview, confirm a semantic
-          gate, apply state, or compile a later TaskContextPacket.
+          This status panel reports persisted transition lineage. A ReviewDecision is
+          still not a transition; the separate controls above require fresh preview,
+          exact gate confirmation, explicit commit, and explicit packet compilation.
         </p>
       </section>
     </section>

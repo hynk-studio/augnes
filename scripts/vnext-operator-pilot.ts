@@ -70,9 +70,13 @@ try {
         }
       } else if (options.command === "prepare-review") {
         const mapperInput = readStructuredMapperInput(options.inputPath!);
+        const priorPacket = options.priorPacketPath
+          ? readStructuredJsonFile(options.priorPacketPath, "prior_packet")
+          : undefined;
         const result = prepareVNextOperatorPilotReviewMaterialV01(db, {
           config,
           mapper_input: mapperInput,
+          prior_packet: priorPacket,
         });
         const output = {
           ok: true,
@@ -91,6 +95,13 @@ try {
             candidate_count: result.proposal.proposed_deltas.length,
             write_status: result.proposal_write_status,
           },
+          prior_packet: result.prior_packet
+            ? {
+                packet_id: result.prior_packet.packet_id,
+                fingerprint: result.prior_packet.integrity.fingerprint,
+                write_status: result.prior_packet_write_status,
+              }
+            : null,
           decision_created: false,
           transition_created: false,
           credential_material_included: false,
@@ -105,6 +116,7 @@ try {
               `RunReceipt: ${output.run_receipt.receipt_id} (${output.run_receipt.write_status})`,
               `EpisodeDeltaProposal: ${output.proposal.proposal_id} (${output.proposal.write_status})`,
               `Candidates: ${output.proposal.candidate_count}`,
+              `Prior TaskContextPacket: ${output.prior_packet?.packet_id ?? "not supplied"}`,
               "ReviewDecision created: no",
               "Transition created: no",
             ].join("\n") + "\n",
@@ -159,6 +171,7 @@ interface CliOptionsV01 {
   json: boolean;
   sessionId: string | null;
   inputPath: string | null;
+  priorPacketPath: string | null;
   help: boolean;
 }
 
@@ -170,6 +183,7 @@ function parseArgs(args: string[]): CliOptionsV01 {
       json: false,
       sessionId: null,
       inputPath: null,
+      priorPacketPath: null,
       help: true,
     };
   }
@@ -182,6 +196,7 @@ function parseArgs(args: string[]): CliOptionsV01 {
   let json = false;
   let sessionId: string | null = null;
   let inputPath: string | null = null;
+  let priorPacketPath: string | null = null;
   for (let index = 1; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--json") {
@@ -207,15 +222,27 @@ function parseArgs(args: string[]): CliOptionsV01 {
       index += 1;
       continue;
     }
+    if (arg === "--prior-packet") {
+      const value = args[index + 1];
+      if (!value || value.startsWith("--") || priorPacketPath !== null) {
+        throw new Error("prior_packet_path_required");
+      }
+      priorPacketPath = value;
+      index += 1;
+      continue;
+    }
     throw new Error("unsupported_argument");
   }
-  if (command === "issue-session" && (json || sessionId || inputPath)) {
+  if (
+    command === "issue-session" &&
+    (json || sessionId || inputPath || priorPacketPath)
+  ) {
     throw new Error("issue_session_prints_token_once_in_human_mode_only");
   }
-  if (command === "status" && (sessionId || inputPath)) {
+  if (command === "status" && (sessionId || inputPath || priorPacketPath)) {
     throw new Error("status_does_not_accept_session_id");
   }
-  if (command === "revoke" && (!sessionId || inputPath)) {
+  if (command === "revoke" && (!sessionId || inputPath || priorPacketPath)) {
     throw new Error("revoke_requires_session_id");
   }
   if (command === "prepare-review" && (!inputPath || sessionId)) {
@@ -226,6 +253,7 @@ function parseArgs(args: string[]): CliOptionsV01 {
     json,
     sessionId,
     inputPath,
+    priorPacketPath,
     help: false,
   };
 }
@@ -246,7 +274,7 @@ function printUsage(): void {
       "  npm run vnext:operator-pilot -- issue-session",
       "  npm run vnext:operator-pilot -- status [--json]",
       "  npm run vnext:operator-pilot -- revoke --session-id <id> [--json]",
-      "  npm run vnext:operator-pilot -- prepare-review --input <structured-mapper.json> [--json]",
+      "  npm run vnext:operator-pilot -- prepare-review --input <structured-mapper.json> [--prior-packet <packet.json>] [--json]",
       "",
       "The bootstrap token is printed once. Status and revoke output never include credential hashes or secrets.",
       "This local possession check is not external or legal identity authentication.",
@@ -255,18 +283,22 @@ function printUsage(): void {
 }
 
 function readStructuredMapperInput(inputPath: string): unknown {
+  return readStructuredJsonFile(inputPath, "prepare_review_input");
+}
+
+function readStructuredJsonFile(inputPath: string, field: string): unknown {
   const resolved = resolve(inputPath);
   if (extname(resolved).toLowerCase() !== ".json") {
-    throw new Error("prepare_review_input_must_be_json");
+    throw new Error(`${field}_must_be_json`);
   }
   const stat = statSync(resolved);
   if (!stat.isFile() || stat.size <= 0 || stat.size > 1024 * 1024) {
-    throw new Error("prepare_review_input_file_invalid");
+    throw new Error(`${field}_file_invalid`);
   }
   const text = readFileSync(resolved, "utf8");
   const value = JSON.parse(text) as unknown;
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("prepare_review_input_invalid");
+    throw new Error(`${field}_invalid`);
   }
   return value;
 }
